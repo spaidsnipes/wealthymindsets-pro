@@ -209,8 +209,25 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
 export interface WMOperatingSystemProps {
   /** Route of the room currently rendered, for the rail's active marker. */
   readonly activeHref: string;
-  /** Name of the surface, shown in the masthead beside the wordmark. */
-  readonly surface: string;
+  /**
+   * Name of the surface, shown in the masthead beside the wordmark. `null`
+   * when no room has published one — the slot is then OMITTED rather than
+   * filled with a dash, because an empty surface chip reads as a surface.
+   */
+  readonly surface: string | null;
+  /**
+   * The caller's own brand mark. When absent the frame draws its crest and
+   * wordmark. Exactly one of the two renders, ever: the brand-dedupe law says
+   * the frame owns the wordmark, so a caller that supplies one REPLACES it
+   * rather than adding a second.
+   */
+  readonly brand?: React.ReactNode;
+  /** One short line under the brand — the current job, not a second title. */
+  readonly mastheadCaption?: React.ReactNode;
+  /** Controls that belong to the machine, not to the room (e.g. the mode bar). */
+  readonly mastheadCenter?: React.ReactNode;
+  /** Trailing masthead controls, left of the feed badge. */
+  readonly mastheadActions?: React.ReactNode;
   /**
    * Open evidence items, or `null` when no ledger has been compiled. `0` and
    * `null` are emphatically not the same reading.
@@ -231,6 +248,16 @@ export interface WMOperatingSystemProps {
    * an empty context rail is a promise the room did not keep.
    */
   readonly contextRail?: React.ReactNode;
+  /**
+   * Who paints the black.
+   *
+   * Default `"frame"` — the frame owns its field. A caller that already paints
+   * the field AND layers atmosphere on top of it passes `"caller"`, so the
+   * frame stays transparent and that atmosphere remains visible. Two opaque
+   * fields stacked is not a colour bug; it is the upper one DELETING the
+   * lower one's content while looking perfectly fine in a screenshot.
+   */
+  readonly field?: "frame" | "caller";
   readonly children: React.ReactNode;
 }
 
@@ -238,12 +265,17 @@ export interface WMOperatingSystemProps {
 export function WMOperatingSystem({
   activeHref,
   surface,
+  brand,
+  mastheadCaption,
+  mastheadCenter,
+  mastheadActions,
   openEvidenceItems,
   rightOfWay,
   rightOfWayResolved,
   feed,
   asOfLabel = null,
   contextRail,
+  field = "frame",
   children,
 }: WMOperatingSystemProps): React.ReactElement {
   // Compiled ONCE. The rail and the provenance bar both read this array; two
@@ -276,9 +308,10 @@ export function WMOperatingSystem({
       style={{
         display: "flex",
         flexDirection: "column",
+        flex: "1 1 auto",
         minHeight: "100%",
         minWidth: 0,
-        background: FIELD,
+        background: field === "frame" ? FIELD : "transparent",
         color: PEARL,
       }}
     >
@@ -295,42 +328,67 @@ export function WMOperatingSystem({
           minWidth: 0,
         }}
       >
-        <span
-          aria-hidden
-          data-testid="os-crest"
-          style={{
-            width: 22,
-            height: 22,
-            flex: "0 0 auto",
-            borderRadius: 2,
-            border: `1px solid ${GOLD}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: SERIF,
-            fontSize: 11,
-            color: GOLD,
-          }}
+        {/* IDENTITY CELL. The caller's brand REPLACES the frame's crest and
+            wordmark — it never sits beside it — because two wordmarks in one
+            masthead is the brand-dedupe defect in its purest form. */}
+        <div
+          data-testid="os-identity"
+          style={{ display: "flex", flexDirection: "column", gap: 2, flex: "0 0 auto", minWidth: 0 }}
         >
-          W
-        </span>
-        <span
-          style={{
-            fontFamily: SERIF,
-            fontSize: 13,
-            letterSpacing: 2.4,
-            textTransform: "uppercase",
-            color: PEARL,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Wealthy Mindsets
-        </span>
-        <span aria-hidden style={{ width: 1, height: 14, background: RULE, flex: "0 0 auto" }} />
-        <span data-testid="os-surface" style={{ ...EYEBROW, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-          {surface}
-        </span>
-        <span style={{ flex: "1 1 auto" }} />
+          {brand ?? (
+            <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <span
+                aria-hidden
+                data-testid="os-crest"
+                style={{
+                  width: 22,
+                  height: 22,
+                  flex: "0 0 auto",
+                  borderRadius: 2,
+                  border: `1px solid ${GOLD}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: SERIF,
+                  fontSize: 11,
+                  color: GOLD,
+                }}
+              >
+                W
+              </span>
+              <span
+                style={{
+                  fontFamily: SERIF,
+                  fontSize: 13,
+                  letterSpacing: 2.4,
+                  textTransform: "uppercase",
+                  color: PEARL,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Wealthy Mindsets
+              </span>
+            </span>
+          )}
+          {mastheadCaption}
+        </div>
+
+        {/* An unpublished surface omits the slot ENTIRELY. "—" in a title
+            position still occupies the shape of a title. */}
+        {surface === null ? null : (
+          <>
+            <span aria-hidden style={{ width: 1, height: 14, background: RULE, flex: "0 0 auto" }} />
+            <span
+              data-testid="os-surface"
+              style={{ ...EYEBROW, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
+            >
+              {surface}
+            </span>
+          </>
+        )}
+
+        <div style={{ flex: "1 1 auto", minWidth: 0 }}>{mastheadCenter}</div>
+        {mastheadActions}
         <FeedBadge feed={feedStanding} />
       </header>
 
@@ -414,6 +472,12 @@ export function WMOperatingSystem({
           style={{
             flex: "1 1 auto",
             minWidth: 0,
+            minHeight: 0,
+            // The ROOM scrolls, not the machine. A frame that scrolls away
+            // takes the feed badge and the standing conditions with it, which
+            // is exactly the "persistent condition you have to go looking for"
+            // the rail placement above was written to avoid.
+            overflow: "auto",
             display: "flex",
             flexDirection: "column",
             gap: 12,

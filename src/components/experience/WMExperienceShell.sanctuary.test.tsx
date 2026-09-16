@@ -46,9 +46,21 @@ describe("WMExperienceShell · sanctuary — the three planes are named", () => 
   });
 
   it("owns one viewport and delegates long-form scrolling to its main plane", () => {
-    expect(HTML).toContain('height:100dvh');
-    expect(HTML).toContain('overflow:hidden');
-    expect(HTML).not.toContain('min-height:100%');
+    // The law is about THE ROOT: the sanctuary is exactly one viewport tall and
+    // never grows. It used to be checked by asserting the whole document
+    // contained no `min-height:100%` ANYWHERE — a proxy that stopped meaning
+    // what it said once the sanctuary began COMPOSING the OS frame, which
+    // legitimately declares `min-height:100%` to fill whatever it sits in.
+    // So the assertion now reads the root's own style, and adds the half the
+    // proxy never covered: something inside must actually be the scroller.
+    const rootStyle = /<div[^>]*class="wm-sanctuary[^"]*"[^>]*style="([^"]*)"/.exec(HTML)?.[1];
+    expect(rootStyle, "sanctuary root not found").toBeDefined();
+    expect(rootStyle).toContain("height:100dvh");
+    expect(rootStyle).toContain("overflow:hidden");
+    expect(rootStyle, "a root that can grow is a second scrollbar").not.toContain("min-height:100%");
+    // Delegation: with nothing inside scrolling, the `overflow:hidden` above
+    // does not delegate long-form content — it AMPUTATES it.
+    expect(HTML, "no scroll owner inside the one viewport").toContain("overflow:auto");
   });
 
   it("mounts the water-breath layer once, and marks it aria-hidden", () => {
@@ -159,8 +171,13 @@ describe("WMExperienceShell · sanctuary — the audit's laws are in the source"
     const rootAt = SOURCE.indexOf("wm-sanctuary");
     expect(rootAt).toBeGreaterThan(0);
     expect(SOURCE).toContain("className={`wm-sanctuary ${className ?? \"\"}`}");
-    // …and the children really do render inside it.
-    expect(SOURCE).toMatch(/<main[^>]*>\{children\}<\/main>/);
+    // …and the children really do render inside it. The sanctuary no longer
+    // types its own <main> — the ONE OS frame owns that element now — so the
+    // check follows the children to where they are actually handed off.
+    expect(SOURCE).toMatch(/<WMOperatingSystem[^]*?>\s*\{children\}\s*<\/WMOperatingSystem>/);
+    // And that handoff must happen INSIDE the named root, or the kill switch
+    // stops reaching the room it exists to protect.
+    expect(SOURCE.indexOf("<WMOperatingSystem")).toBeGreaterThan(rootAt);
   });
 
   it("uses compositor-friendly properties only (transform + opacity)", () => {

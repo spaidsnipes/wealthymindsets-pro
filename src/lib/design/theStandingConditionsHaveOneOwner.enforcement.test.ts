@@ -17,11 +17,16 @@
  * shells its one os". The same reasoning that forbids two renderings of one
  * condition forbids three frames around one product. So this Sentinel now
  * guards BOTH: the conditions are compiled once by `osChrome` and rendered by
- * one component in two mutually-exclusive layouts, and `QuestionDrivenShell` is
- * an adapter that draws nothing — not a second shell.
+ * one component in two mutually-exclusive layouts, and the SANCTUARY — the only
+ * remaining component between MainLayout and a room — draws no silhouette of its
+ * own.
+ *
+ * `QuestionDrivenShell` used to be the third frame. It was reduced to an adapter,
+ * then deleted outright: an adapter that only forwards props is still a file a
+ * future contributor can hang a <nav> on. The scan below moved with the risk.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "..", "..", "..");
@@ -29,7 +34,8 @@ const read = (rel: string): string => readFileSync(resolve(ROOT, rel), "utf8");
 
 const FRAME = "src/components/os/WMOperatingSystem.tsx";
 const COMPILER = "src/lib/os/osChrome.ts";
-const ADAPTER = "src/components/command/QuestionDrivenShell.tsx";
+const SANCTUARY = "src/components/experience/WMExperienceShell.tsx";
+const DECK = "src/app/command-deck/page.tsx";
 
 /** A Sentinel that fails on its own honest prose is testing the wrong surface. */
 const codeOnly = (s: string): string =>
@@ -41,7 +47,8 @@ const codeOnly = (s: string): string =>
 const frameSrc = read(FRAME);
 const frame = codeOnly(frameSrc);
 const compiler = codeOnly(read(COMPILER));
-const adapter = codeOnly(read(ADAPTER));
+const sanctuary = codeOnly(read(SANCTUARY));
+const deck = codeOnly(read(DECK));
 
 describe("the standing conditions have one owner", () => {
   it("self-test: codeOnly strips prose but keeps rendered code", () => {
@@ -51,7 +58,8 @@ describe("the standing conditions have one owner", () => {
     for (const [rel, src] of [
       [FRAME, frame],
       [COMPILER, compiler],
-      [ADAPTER, adapter],
+      [SANCTUARY, sanctuary],
+      [DECK, deck],
     ] as const) {
       expect(src.length, `${rel} is empty or unreadable`).toBeGreaterThan(400);
     }
@@ -123,27 +131,53 @@ describe("the standing conditions have one owner", () => {
 });
 
 describe("ONE OS — there is not a second shell", () => {
-  it("QuestionDrivenShell is an adapter: it draws no silhouette of its own", () => {
-    // Every one of these was in this file before the collapse. If any comes
-    // back, the deck has quietly grown its own frame again.
-    for (const drawn of ["<nav", "<footer", "<style>", "position: \"sticky\"", "borderRight"]) {
-      expect(adapter, `the adapter must not re-draw ${drawn} — the OS frame owns the silhouette`).not.toContain(
-        drawn,
-      );
+  it("THE SANCTUARY draws no silhouette: it composes the frame instead", () => {
+    // Every one of these was in WMExperienceShell before the collapse, and each
+    // is a piece of the silhouette. Measured live on production beforehand:
+    // FIVE <header> elements on /command-deck. If any comes back here, the
+    // sanctuary has quietly grown its own frame again alongside the OS frame.
+    for (const drawn of ["<header", "<footer", "<aside", "<main"]) {
+      expect(
+        sanctuary,
+        `the sanctuary must not draw ${drawn} — the OS frame owns the silhouette`,
+      ).not.toContain(drawn);
     }
-    expect(adapter).toContain("WMOperatingSystem");
+    expect(sanctuary).toContain("<WMOperatingSystem");
   });
 
-  it("POSITIVE CONTROL: the adapter scan can detect a re-grown shell", () => {
-    const regrown = 'const x = <nav className="wm-qd-rail" />;';
-    expect(regrown).toContain("<nav");
-    expect(adapter).not.toContain("<nav");
+  it("POSITIVE CONTROL: the silhouette scan can detect a re-grown shell", () => {
+    const regrown = 'const x = <header className="wm-sanctuary-top" />;';
+    expect(regrown).toContain("<header");
+    expect(sanctuary).not.toContain("<header");
   });
 
-  it("the room list has ONE owner — the adapter re-exports rather than retypes", () => {
+  it("the sanctuary keeps the ATMOSPHERE — collapsing the shells did not delete the room", () => {
+    // The opposite failure of a second shell: deleting the sanctuary's header
+    // along with the three planes that are the only thing it uniquely owns.
+    expect(sanctuary).toContain("wm-water-breath");
+    expect(sanctuary).toContain(".wm-sanctuary::before");
+    expect(sanctuary).toContain(".wm-sanctuary::after");
+    // And it must stay TRANSPARENT over them, or the frame's opaque field
+    // deletes the atmosphere while looking perfectly fine in a screenshot.
+    expect(sanctuary).toContain('field="caller"');
+  });
+
+  it("A ROOM PUBLISHES UPWARD — it does not wrap itself in a frame", () => {
+    // The frame must be the OUTERMOST thing on the page. A room that wraps
+    // itself recreates the nesting that put two mastheads on one screen.
+    expect(deck, "the deck must publish its readings, not wrap itself").toContain(
+      "usePublishOsStanding({",
+    );
+    expect(deck).not.toContain("<WMOperatingSystem");
+    expect(deck).not.toContain("QuestionDrivenShell");
+  });
+
+  it("the room list has ONE owner, and the retired adapter is really gone", () => {
     expect(frame).toContain("export const OS_ROOMS");
-    expect(adapter).toContain("OS_ROOMS");
-    // A room href typed in the adapter would be a second definition of a route.
-    expect(adapter).not.toMatch(/href:\s*"/);
+    // A forwarding file is still a file someone can hang a <nav> on.
+    expect(
+      existsSync(resolve(ROOT, "src/components/command/QuestionDrivenShell.tsx")),
+      "the third shell must not come back as a re-export",
+    ).toBe(false);
   });
 });

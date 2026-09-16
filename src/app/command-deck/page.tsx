@@ -106,7 +106,7 @@ import { DECK_SECTIONS, deckSection } from "@/lib/experience/deckSectionIndex";
 import PassportStamp from "@/components/command/PassportStamp";
 import { selectMateriality } from "@/lib/marketData/viewModels/selectMateriality";
 import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
-import QuestionDrivenShell from "@/components/command/QuestionDrivenShell";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
@@ -412,6 +412,23 @@ function CommandDeckInner() {
   const oneStory = canvasCompilation.oneStory;
   const decisionWhy = canvasCompilation.decisionWhy;
   const marketCanvas = canvasCompilation.canvas;
+
+  /*
+    ONE OS. The deck used to wrap itself in a shell, which put a second
+    masthead inside the sanctuary's. It now PUBLISHES its compiled readings
+    upward and the single frame — mounted above every founder room — renders
+    them. What the deck has not compiled stays UNKNOWN in the chrome; the
+    frame is never more confident than the room that fed it.
+  */
+  usePublishOsStanding({
+    surface: "Question-Driven Mode",
+    // A ledger that was never opened is NOT a paid one, so `null` (UNKNOWN)
+    // rather than 0 whenever there is no compiled debt total.
+    openEvidenceItems: oneStory?.debt && oneStory.debt.total > 0 ? oneStory.debt.missing : null,
+    rightOfWay: oneStory?.decision.value ?? "UNKNOWN",
+    rightOfWayResolved: Boolean(oneStory) && oneStory.decision.value !== "UNKNOWN",
+  });
+
   const expressionDirection = expressionDirectionFromCanonical(state?.direction);
   const expressionOwner = user?.id ?? "signed-out";
   const selectedExpression = expressionScopeIsCurrent(optionSelection, {
@@ -888,12 +905,7 @@ function CommandDeckInner() {
               on the sanctuary field; a 12px gap keeps enough negative
               space for the eye to distinguish aspects while dissolving
               the "each section is its own container" mental model. */}
-          <QuestionDrivenShell
-            activeHref="/command-deck"
-            openEvidenceItems={oneStory?.debt && oneStory.debt.total > 0 ? oneStory.debt.missing : null}
-            rightOfWay={oneStory?.decision.value ?? "UNKNOWN"}
-            rightOfWayResolved={Boolean(oneStory) && oneStory.decision.value !== "UNKNOWN"}
-          >
+          <>
             {/* Ticket T "WHY with Spaidbot on the same object" — the deck used
                 to omit the #wm-chart-context span. Only /charts published it,
                 so on /command-deck the global SpaidBotButton read {} and the
@@ -2127,7 +2139,7 @@ function CommandDeckInner() {
             <RealmGateway currentKey="wm-pro" />
               </div>
             </details>
-          </QuestionDrivenShell>
+          </>
 
         </div>
         </div>{/* end z-index wrapper */}

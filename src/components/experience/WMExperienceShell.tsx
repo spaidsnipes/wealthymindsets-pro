@@ -6,6 +6,9 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { useSanctuarySession } from "@/lib/experience/sanctuarySessionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import ExperienceModeBar from "./ExperienceModeBar";
+import { WMOperatingSystem } from "@/components/os/WMOperatingSystem";
+import { OsStandingProvider, useOsStanding } from "@/components/os/osStandingContext";
+import { usePathname } from "next/navigation";
 
 /**
  * WMExperienceShell — the persistent Wealth Command Environment frame
@@ -61,7 +64,33 @@ export interface WMExperienceShellProps {
   readonly session?: WMExperienceSessionSignal;
 }
 
-export function WMExperienceShell({
+/**
+ * The sanctuary is the ATMOSPHERE and the OS is the SILHOUETTE.
+ *
+ * It used to be both. It drew its own header (brand · job · mode bar · rail
+ * toggle) and its own 320px aside — which meant that once /command-deck grew
+ * the OS frame, the deck carried TWO mastheads. Measured live on production
+ * before this change: FIVE `<header>` elements on one route.
+ *
+ * So the sanctuary keeps exactly what only it can own — the three atmosphere
+ * planes and the mode-keyed tempo — and hands every piece of chrome it used to
+ * draw to `WMOperatingSystem` through that frame's slots. Same words on screen,
+ * one silhouette carrying them.
+ *
+ * The provider is mounted HERE, above the frame, because the frame must be the
+ * OUTERMOST thing a room sits inside. A room cannot wrap itself in the frame
+ * without recreating the separate-shells defect, so rooms publish upward
+ * instead — and what they have not published reads UNKNOWN.
+ */
+export function WMExperienceShell(props: WMExperienceShellProps) {
+  return (
+    <OsStandingProvider>
+      <SanctuaryRoom {...props} />
+    </OsStandingProvider>
+  );
+}
+
+function SanctuaryRoom({
   brand,
   children,
   rail,
@@ -71,6 +100,10 @@ export function WMExperienceShell({
   session = "UNKNOWN",
 }: WMExperienceShellProps) {
   const { context } = useDecisionContext(bus);
+  // What the room currently in the frame has told the OS about itself. A room
+  // that has published nothing leaves every reading at UNKNOWN.
+  const standing = useOsStanding();
+  const pathname = usePathname();
   const emphasis = shellEmphasis(context.mode);
   // The prop wins over the context — an explicit caller (mostly tests and
   // the founder-room preview) can override the surrounding page's signal
@@ -92,6 +125,61 @@ export function WMExperienceShell({
 
   const hasRail = !!rail;
   const showRail = hasRail && railOpen;
+
+  /*
+    SCENE_FRAGMENTATION repair (Founder audit 2026-09-13). The job sentence
+    used to be its OWN full-width horizontal band with its own bottom hairline.
+    Measured live on production at 1920x847: a 69px nav rail, then a 26px
+    stripe carrying one sentence, then the room. Two stacked bars of permanent
+    chrome consumed 11% of the viewport before the trader reached any market
+    pixel, and the audit names permanent chrome as a fragmentation vector.
+
+    The sentence is not chrome in its own right — it is the CAPTION OF THE
+    SELECTED MODE, which is the control immediately to its right. It rides
+    under the brand inside the one masthead, stated exactly once.
+  */
+  const jobCaption = (
+    <span
+      data-testid="shell-job-caption"
+      style={{
+        fontSize: 10,
+        letterSpacing: 0.3,
+        color: WM.gold.mark,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        maxWidth: 260,
+      }}
+    >
+      {emphasis.job}
+    </span>
+  );
+
+  /** Rendered only when there is actually a rail to toggle. */
+  const railToggle = hasRail ? (
+    <button
+      type="button"
+      onClick={() => setRailOpen((v) => !v)}
+      aria-pressed={showRail}
+      aria-label={`${showRail ? "Hide" : "Show"} ${railLabel}`}
+      style={{
+        flexShrink: 0,
+        fontSize: 10,
+        fontWeight: 800,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        padding: "5px 10px",
+        borderRadius: WM.radius.md,
+        border: `1px solid ${showRail ? WM.border.strong : WM.border.hair}`,
+        color: showRail ? WM.text.hero : WM.text.muted,
+        background: showRail ? WM.surface.raised : "transparent",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {railLabel}
+    </button>
+  ) : null;
 
   return (
     <div
@@ -239,119 +327,32 @@ export function WMExperienceShell({
         }
       `}</style>
       <div className="wm-water-breath" aria-hidden="true" />
-      {/* Quiet chrome: brand + seven-mode operating-state bar + the one job.
-          SCENE_FRAGMENTATION cure (Founder audit continuation): the header
-          used to sit on WM.surface.deep — a solid opaque bar visually
-          separated from the room beneath it. The Founder mandate is that
-          MARKET IS THE ROOM; a chrome band above the room reads as a
-          separate app-header plane. Transparent header + hairline lets the
-          sanctuary atmosphere (vignette + grain + WATER-BREATH) continue
-          all the way to the wordmark, so the top of the first viewport
-          reads as the same room the market sits inside. */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: WM.space.md,
-          padding: `${WM.space.sm}px ${WM.space.md}px`,
-          borderBottom: `1px solid ${WM.border.hair}`,
-          background: "transparent",
-        }}
+      {/* ONE OS. The sanctuary no longer draws a header or an aside of its own;
+          it composes the single frame and fills that frame's slots with the
+          things only the sanctuary knows — the brand, the current job, the
+          seven-mode bar, the guest rail and its toggle.
+
+          `field="caller"` keeps the frame transparent. The sanctuary already
+          paints the field and layers three atmosphere planes on top of it; a
+          second opaque field above them would not look wrong in a screenshot,
+          it would simply DELETE the atmosphere. */}
+      <WMOperatingSystem
+        field="caller"
+        activeHref={pathname ?? ""}
+        surface={standing.surface}
+        openEvidenceItems={standing.openEvidenceItems}
+        rightOfWay={standing.rightOfWay}
+        rightOfWayResolved={standing.rightOfWayResolved}
+        feed={standing.feed}
+        asOfLabel={standing.asOfLabel}
+        brand={brand}
+        mastheadCaption={jobCaption}
+        mastheadCenter={<ExperienceModeBar bus={bus} />}
+        mastheadActions={railToggle}
+        contextRail={showRail ? rail : undefined}
       >
-        {/* Left cell. It renders even when no brand is supplied, because the
-            job caption below is NOT optional — a shell without a wordmark must
-            still tell the trader what job they are in. */}
-        <div style={{ flexShrink: 0, opacity: 0.9, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            {brand}
-            {/*
-              SCENE_FRAGMENTATION repair (Founder audit 2026-09-13). The job
-              sentence used to be its OWN full-width horizontal band directly
-              beneath this header, with its own bottom hairline. Measured live
-              on production at 1920x847: a 69px nav rail, then a 26px stripe
-              carrying one sentence, then the room. Two stacked bars of
-              permanent chrome consumed 11% of the viewport before the trader
-              reached any market pixel, and the audit names permanent chrome
-              as a fragmentation vector by name.
-
-              The sentence is not chrome in its own right — it is the CAPTION
-              OF THE SELECTED MODE, which is the control immediately to its
-              right. Putting it under the wordmark inside the same band makes
-              the relationship visible instead of implied, and removes a
-              horizontal stripe without removing a word.
-            */}
-            <span
-              data-testid="shell-job-caption"
-              style={{
-                fontSize: 10,
-                letterSpacing: 0.3,
-                color: WM.gold.mark,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: 260,
-              }}
-            >
-              {emphasis.job}
-            </span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ExperienceModeBar bus={bus} />
-        </div>
-        {hasRail && (
-          <button
-            type="button"
-            onClick={() => setRailOpen((v) => !v)}
-            aria-pressed={showRail}
-            aria-label={`${showRail ? "Hide" : "Show"} ${railLabel}`}
-            style={{
-              flexShrink: 0,
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              padding: "5px 10px",
-              borderRadius: WM.radius.md,
-              border: `1px solid ${showRail ? WM.border.strong : WM.border.hair}`,
-              color: showRail ? WM.text.hero : WM.text.muted,
-              background: showRail ? WM.surface.raised : "transparent",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {railLabel}
-          </button>
-        )}
-      </header>
-
-      {/* The job caption used to be a standalone band here. It now rides under
-          the wordmark inside the header above — still stated exactly once, and
-          still gold, but no longer costing the room its own horizontal stripe.
-          See the comment at its new site for the measurement that motivated
-          the move. */}
-
-      {/* Body: sacred canvas + collapsible guest rail. */}
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "auto" }}>{children}</main>
-        {showRail && (
-          <aside
-            aria-label={railLabel}
-            style={{
-              width: 320,
-              maxWidth: "34vw",
-              flexShrink: 0,
-              overflow: "auto",
-              borderLeft: `1px solid ${WM.border.hair}`,
-              // Same reasoning as the header — a chrome-coloured column
-              // beside MARKET reads as a separate rail-plane. Transparent
-              // keeps the guest content inside the sanctuary atmosphere;
-              // the left hairline still delimits it as an ASIDE.
-              background: "transparent",
-            }}
-          >
-            {rail}
-          </aside>
-        )}
-      </div>
+        {children}
+      </WMOperatingSystem>
     </div>
   );
 }
