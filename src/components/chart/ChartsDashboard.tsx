@@ -82,6 +82,7 @@ import { identifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 // fake heatmap, no invented confidence — per Living-Pixel Law.
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
+import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
 // detailed order-flow inspection belongs to the Smart Money doorway.
@@ -1117,11 +1118,33 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             from the canonical compiler. Founder canon: Asset 10
             "Full Operating System Overview" merge into the primary
             trader surface. */}
+        {/*
+            TWO CHIPS UNDER ONE NAME. This slot used to mount a SECOND
+            <CanvasSummaryPill ariaLabel="Chart market canvas summary" />.
+            On exactly the branch that renders it — narrowViewport ||
+            optionsOpen — DecisionSpineBand also renders, and it is handed
+            `canvasSummary`, which is that same pill with that same label.
+            So the PHONE (and the options view) carried two role="status"
+            regions with an identical accessible name announcing one fact,
+            while the desktop rail carried exactly one. The duplicate was
+            invisible to every desktop review, which is why it survived a
+            phone-primary mandate.
+
+            The breadcrumb is also the tightest row on the narrowest screen,
+            and the pill's counts are only legible via a `title` tooltip a
+            touch device never shows. CanvasBadgeMini is the primitive built
+            for this exact surface: verdict only, distinct name, no claim it
+            cannot render. The full pill keeps sole ownership of the counts,
+            in the band, where there is room to read them.
+
+            CanvasBadgeMini is never LOUDER than the pill — its silence rule
+            is strictly the stricter of the two — so this cannot introduce a
+            verdict on a screen the pill would have left quiet. */}
         {(narrowViewport || optionsOpen) && (
           <div style={{ marginLeft: 4, marginRight: 4, display: "flex", alignItems: "center" }}>
-            <CanvasSummaryPill
+            <CanvasBadgeMini
               vm={chartMarketCanvas}
-              ariaLabel="Chart market canvas summary"
+              ariaLabel="Chart canvas verdict"
             />
           </div>
         )}

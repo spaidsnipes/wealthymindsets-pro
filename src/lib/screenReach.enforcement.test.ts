@@ -601,9 +601,13 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // RETIRED PER FOUNDER SPEC in 89a350e, not untriaged. Held retired by
   // src/lib/sessionVpRetired.test.ts. Do not "fix" this by mounting it.
   "src/components/chart/WMSessionVP.tsx",
-  // BORN ORPHAN — one commit, 8030f0a ("X9 — compact verdict-only chip"). It
-  // was built FOR tight surfaces and then no tight surface took it. Real debt.
-  "src/components/experience/CanvasBadgeMini.tsx",
+  // (CanvasBadgeMini.tsx was here as a BORN ORPHAN — one commit, 8030f0a,
+  // "X9 — compact verdict-only chip", built FOR tight surfaces while no
+  // tight surface took it. ADOPTED: ChartsDashboard's narrow/options
+  // breadcrumb now mounts it, replacing a DUPLICATE CanvasSummaryPill that
+  // shared an accessible name with the one DecisionSpineBand already
+  // renders on that same branch. This list is a BIDIRECTIONAL CEILING, so
+  // the entry is removed rather than left as a stale excuse.)
   // RETIRED in 6ae33ea ("keep private market plumbing out of navigation") —
   // a private collection concept had climbed into the GLOBAL header, where it
   // is shown to people who have no vault. Locked by
