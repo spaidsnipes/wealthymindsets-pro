@@ -124,6 +124,20 @@ const PHONE_DOORS = phoneNavDestinations();
  */
 export const OS_RAIL_BREAKPOINT_PX = 900;
 
+/**
+ * How tall the pinned phone bar is.
+ *
+ * ONE OWNER, for the same reason as the breakpoint above. The bar is
+ * `position: fixed`, which takes it out of flow — so the room below it must
+ * RESERVE exactly this much space or the last line of the trader's provenance
+ * sits underneath their own navigation. Two literals is two numbers that drift
+ * apart the first time someone adjusts the padding, and the failure is silent:
+ * nothing errors, a footer is just quietly unreadable on phones.
+ *
+ * Declared here and applied in BOTH places from this constant.
+ */
+export const OS_PHONE_NAV_HEIGHT_PX = 66;
+
 const FIELD = "#07080a";
 const PEARL = "#ede6d3";
 const GOLD = "#c4a574";
@@ -645,6 +659,26 @@ export function WMOperatingSystem({
         aria-label="Primary navigation"
         data-testid="os-phone-nav"
         style={{
+          /* ── PINNED, AND THAT WORD IS THE WHOLE FIX ──────────────────────
+             This bar shipped `position: static`. Measured in a real browser
+             at 390×844, it laid out at y=1121 — 277px BELOW the fold. Every
+             assertion about it was green: the testid was in the markup, all
+             five hrefs resolved, the breakpoints were complementary. And the
+             trader still could not leave the room without first scrolling to
+             the bottom of the page to discover that a navigation existed.
+
+             Presence is not reachability. A render test reads a string; it
+             has no viewport, so it cannot tell the difference. That is why
+             this was found by looking at it and not by the suite. */
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          /* Above the room's content, below the modal drawers — a nav that
+             sits on top of an open dialog is a second way to lose the trap. */
+          zIndex: 40,
+          height: OS_PHONE_NAV_HEIGHT_PX,
+          boxSizing: "content-box",
           display: "flex",
           flexShrink: 0,
           borderTop: `1px solid ${RULE}`,
@@ -699,6 +733,16 @@ export function WMOperatingSystem({
         @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
           .wm-os-rail { display: none !important; }
           .wm-os-context { display: none !important; }
+          /* The pinned bar is out of flow. Reserve its exact height from the
+             same constant it is drawn from, or the provenance line ends up
+             underneath the navigation and nothing anywhere reports it. */
+          /* The important flag, for the same reason the two rules above carry
+             it: the footer sets its padding INLINE, and an inline style beats
+             a stylesheet rule. Measured — without it the computed value stayed
+             at the inline 10px and the reservation silently did nothing. */
+          .wm-os-provenance {
+            padding-bottom: calc(${OS_PHONE_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom) + 12px) !important;
+          }
         }
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) {
           .wm-os-standing-bar { display: none !important; }

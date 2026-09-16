@@ -6,7 +6,7 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { useSanctuarySession } from "@/lib/experience/sanctuarySessionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import ExperienceModeBar from "./ExperienceModeBar";
-import { WMOperatingSystem } from "@/components/os/WMOperatingSystem";
+import { WMOperatingSystem, OS_RAIL_BREAKPOINT_PX } from "@/components/os/WMOperatingSystem";
 import { OsStandingProvider, useOsStanding } from "@/components/os/osStandingContext";
 /**
  * Search, notifications, settings and sign-out. They were drawn ONLY in the
@@ -235,6 +235,30 @@ function SanctuaryRoom({
             outlines and drawer transitions above the atmosphere.
       */}
       <style>{`
+        /* ── THE OS ROOM CLIPPED ITSELF ON A PHONE ────────────────────────
+           The sanctuary is height:100dvh + overflow:hidden. That is the OS
+           frame law and it is right on a desktop: an operating system does
+           not scroll as a document, its panes scroll inside a fixed frame.
+
+           MEASURED at 390x844: clientHeight 844, scrollHeight 1189. Three
+           hundred and forty-five pixels of the room — the whole provenance
+           footer, the line that says where the numbers came from — were cut
+           off with NO WAY TO SCROLL TO THEM. Not below the fold. Gone.
+
+           Below the rail breakpoint the frame law does not hold, because a
+           phone has no room for a fixed frame AND its contents. There, the
+           document scrolls, which is what every other phone surface does.
+
+           Found by opening it at 390px and reading the box. The suite was
+           648 files green throughout; a renderToStaticMarkup string has no
+           viewport, so no assertion in it can ever see this. */
+        @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
+          .wm-sanctuary {
+            height: auto !important;
+            min-height: 100dvh !important;
+            overflow: visible !important;
+          }
+        }
         .wm-sanctuary::before,
         .wm-sanctuary::after,
         .wm-sanctuary > .wm-water-breath {
