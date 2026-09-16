@@ -52,6 +52,7 @@ import {
   type FeedStanding,
   type StandingCondition,
 } from "@/lib/os/osChrome";
+import { useFeedEvaluationClock } from "@/lib/marketData/useProvenSessionClosure";
 
 export interface ShellRoom {
   readonly label: string;
@@ -389,6 +390,11 @@ export function WMOperatingSystem({
     rightOfWayResolved,
   });
 
+  // The frame owns the present moment for every room it renders. See
+  // compileFeedStanding — rooms report what the market did, not when it is
+  // being read.
+  const evaluatedAtMs = useFeedEvaluationClock();
+
   const feedStanding = compileFeedStanding(
     feed ?? {
       source: null,
@@ -396,15 +402,12 @@ export function WMOperatingSystem({
       // of absence, not an absent verdict.
       quotePresent: false,
       lastObservedAtMs: null,
-      // No observation means no instant to evaluate at either. Zero is not a
-      // time; it is the absence of one, and the compiler treats it as such
-      // because every field above is already null.
-      evaluatedAtMs: 0,
       connected: null,
       // A room that has published nothing has certainly not resolved a session
       // calendar. `null` is the only honest value, and it is NOT `true`.
       sessionOpen: null,
     },
+    evaluatedAtMs,
   );
 
   const provenance = compileProvenanceSegments(feedStanding, asOfLabel);

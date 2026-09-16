@@ -100,6 +100,30 @@ export interface MarketState {
    * it already has — and this field is the reason that path exists.
    */
   quoteRefusal: string | null;
+  /**
+   * When the market last SPOKE, in provider time — not when we last polled.
+   *
+   * Three different code paths in this hook accept a price observation, and
+   * until now only one of them left a readable trace of WHEN:
+   *
+   *   1. the signed tape (processTick)            → landed in `recentTicks`
+   *   2. the REST quote (q.observedAt)            → landed in `recentTicks`
+   *   3. the unsigned observation (webull/longbridge, processUnsignedObservation)
+   *                                               → advanced `ticker.price`
+   *                                                 and DISCARDED its `time`
+   *
+   * Path 3 is the live /charts equity path. So the surface with a moving price
+   * on screen was precisely the surface that could not say how old that price
+   * was, and any consumer asking "is this feed fresh?" had to answer "unknown"
+   * over a visibly updating number.
+   *
+   * This field is that one fact with one writer. Every accept site stamps it
+   * from the SAME timestamp it already validated before accepting the print —
+   * never from Date.now(), because a poll clock measures our diligence, not the
+   * market's. null means genuinely nothing has been observed for this symbol,
+   * which is a real reading and not a placeholder.
+   */
+  lastObservedAtMs: number | null;
 }
 
 /* ── Symbol seed prices ─────────────────────────────────── */
@@ -1026,6 +1050,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   const tapeSourceRef = useRef<MarketState["tapeSource"]>(null);
 
+  /* Hot-path home for MarketState.lastObservedAtMs. processTick runs per print
+     and must not setState, so the accept sites write here and the RAF flush
+     publishes it — the same discipline tickBuf/barRef already follow. */
+  const lastObservedAtRef = useRef<number | null>(null);
+
   const [state, setState] = useState<MarketState>({
     ticker:      { price: 0, change: 0, changePct: 0, volume: 0 },
     liveBar:     null,
@@ -1036,6 +1065,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tapeSource:  null,
     latency:     0,
     quoteRefusal: null,
+    lastObservedAtMs: null,
   });
 
   // Flag: ignore non-observed ticks once real data arrives
@@ -1087,6 +1117,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         orderBook:   bookRef.current,
         connected:   true,
         latency,
+        lastObservedAtMs: lastObservedAtRef.current,
       };
     });
   }, []);
@@ -1125,6 +1156,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tickBuf.current.push(tick);
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
+    // Only an OBSERVED print dates the feed. A synthetic seed tick (isReal
+    // false) exists to keep the chart from being blank and must never be able
+    // to report itself as the market having just spoken.
+    if (isReal && Number.isFinite(tick.time) && tick.time > 0) {
+      lastObservedAtRef.current = Math.max(lastObservedAtRef.current ?? 0, tick.time);
+    }
 
     scheduleFlush();
   }, [getIntervalSec, scheduleFlush]);
@@ -1142,6 +1179,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
     hasRealDataRef.current = true;
+    // This path carries no aggressor side, so it is deliberately excluded from
+    // the signed tape — which is exactly why it has to date the feed HERE.
+    // Otherwise the primary equity surface moves its price on every print with
+    // nothing anywhere able to say when that price arrived.
+    lastObservedAtRef.current = Math.max(lastObservedAtRef.current ?? 0, time);
     const now = Date.now();
     setState(previous => ({
       ...previous,
@@ -1150,6 +1192,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       source,
       connected: true,
       latency: Math.max(0, now - time),
+      lastObservedAtMs: lastObservedAtRef.current,
     }));
   }, [getIntervalSec]);
 
@@ -1172,6 +1215,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     hasRealDataRef.current = false;
 
     tapeSourceRef.current = null;
+    // A new symbol has not spoken yet. Carrying the previous symbol's
+    // observation time forward would report AAPL's freshness over TSLA.
+    lastObservedAtRef.current = null;
 
     setState({
       ticker:      { price: 0, change: 0, changePct: 0, volume: 0 },
@@ -1183,6 +1229,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       tapeSource:  null,
       latency:     0,
       quoteRefusal: null,
+      lastObservedAtMs: null,
     });
 
     // ── Real data strategy ───────────────────────────────────
@@ -1470,6 +1517,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           quoteRefusal: null,
           ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
+          // processTick above already stamped the ref from q.observedAt, but its
+          // publication is deferred to the next RAF flush and this setState
+          // lands first. Reading the ref (not q.observedAt) keeps the accept
+          // decision — including a LATE_EVENT_IGNORED rejection — as the single
+          // authority over whether the feed got any newer.
+          lastObservedAtMs: lastObservedAtRef.current,
         }));
       }).finally(() => {
         restFetchInFlight = false;

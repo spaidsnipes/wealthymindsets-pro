@@ -635,7 +635,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
   }, []);
 
-  const { ticker, recentTicks, source, connected } = useWebSocket({ symbol, timeframe });
+  const { ticker, recentTicks, source, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
   // The hook clears ticker state after a symbol transition. Retain the symbol
   // that actually owns the current render's ticker until that clear lands, so
   // the next Options request can never inherit the prior underlying's spot.
@@ -705,9 +705,34 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     it up. The derivation itself is NOT written here; `standingFromOneStory` is
     its one owner, shared with the deck.
   */
+  /*
+    THE FEED OBSERVATION. Until now this call published a surface and a Right of
+    Way and no `feed`, so the masthead badge read FEED UNKNOWN on the primary
+    trading surface — above a chart with candles, beside a fidelity chip already
+    naming the provider, over a price that was visibly moving. The OS was at its
+    least certain exactly where the trader was at their most engaged.
+
+    Every value below was already on this page. None of it is derived here:
+    `source` and `connected` come from the transport, `lastObservedAtMs` from
+    the hook's accept sites, `sessionOpen` from the proven-closure calendar.
+    This publishes EVIDENCE. `priceSourceBadge` remains the sole grader of it —
+    see compileFeedStanding.
+  */
   usePublishOsStanding({
     surface: "Instrument View",
     ...standingFromOneStory(chartCanvasVM.oneStory),
+    feed: {
+      // "unavailable" is the hook's word for "no provider answered", which is
+      // an absent source and not a provider named unavailable. Passing it
+      // through would ask the badge to grade a vendor that does not exist.
+      source: source === "unavailable" ? null : source,
+      // Same predicate the chart's own fidelity chip uses one screen below, so
+      // the two cannot disagree about whether a price arrived.
+      quotePresent: Number.isFinite(ticker.price) && ticker.price > 0,
+      lastObservedAtMs,
+      connected,
+      sessionOpen,
+    },
   });
   // Real signal derivation: when the tape carries live per-trade
   // ticks with sides, the aggressor-flow selector's hasFlow is true.

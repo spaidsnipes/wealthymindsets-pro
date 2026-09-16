@@ -103,8 +103,6 @@ export interface FeedObservation {
   readonly quotePresent: boolean;
   /** Epoch ms of the last observed print, or null if nothing was observed. */
   readonly lastObservedAtMs: number | null;
-  /** The instant the reading is being compiled for. */
-  readonly evaluatedAtMs: number;
   /** Transport state, when the caller genuinely knows it. */
   readonly connected: boolean | null;
   /**
@@ -186,8 +184,18 @@ const TONE_BY_LABEL: Record<CanonicalFidelityLabel, FeedTone> = {
  *     the provider arms of the delegate do not consult `connected` at all.
  *   · FEED UNKNOWN, which is not a canon reading but the absence of one, and
  *     therefore cannot come from a compiler of readings.
+ *
+ * WHY `evaluatedAtMs` IS AN ARGUMENT AND NOT A FIELD ON THE OBSERVATION
+ *
+ * Staleness is a fact about NOW, and a room does not know when the masthead
+ * will next be painted. If every room carried its own clock in its published
+ * observation, the OS would hold as many opinions about the present moment as
+ * it has open surfaces — and because rooms publish through a value-compared
+ * effect, each tick of each of those clocks would re-publish the whole
+ * standing. Rooms report what the market DID; the frame supplies when it is
+ * being read. One clock, owned where the reading is rendered.
  */
-export function compileFeedStanding(obs: FeedObservation): FeedStanding {
+export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number): FeedStanding {
   // Nothing to grade. `quotePresent` is load-bearing and NOT redundant with a
   // source name: a configured provider that has answered with nothing is the
   // exact case `priceSourceBadge` refuses to grade, and handing it
@@ -201,7 +209,7 @@ export function compileFeedStanding(obs: FeedObservation): FeedStanding {
     };
   }
 
-  const ageMs = obs.evaluatedAtMs - obs.lastObservedAtMs;
+  const ageMs = evaluatedAtMs - obs.lastObservedAtMs;
   // A negative age means the print is stamped in the future — a clock
   // disagreement between us and the provider. That is not freshness, and
   // reading it as "0ms old" would turn a broken clock into a LIVE badge.
