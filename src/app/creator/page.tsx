@@ -155,7 +155,7 @@ export default function CreatorPage() {
   };
 
   return (
-    <div className="min-h-full bg-wm-black text-wm-text overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+    <div className="min-h-full text-wm-text overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
 
       {/* ── Hero — WM atmosphere ─────────────────────────────── */}
       <div

@@ -138,7 +138,27 @@ export default function ProofLanePage() {
   const status = paceStatus(selectedHorizon, sessionIndex, actualBalance, START, TARGET);
 
   return (
-    <div className="h-full overflow-y-auto bg-[#050506] text-neutral-100">
+    // THE ROOM NO LONGER PAINTS ITS OWN FLOOR.
+    //
+    // This carried `bg-[#050506]` — a near-black opaque fill on an element
+    // that also claims `h-full`. In the July shell that was merely REDUNDANT:
+    // MainLayout already paints `bg-wm-black wm-universe` behind it, so the
+    // slab landed on an identical slab and nobody could see it. In the OS
+    // frame the same line is a DEFECT: it would cover the sanctuary's
+    // vignette, grain and water-breath for the whole height of the room.
+    //
+    // Redundant-then-fatal is why it survived. Nothing looks wrong today, so
+    // there is no pressure to remove it, and the damage only appears on the
+    // commit that promotes the route — by which point the promotion gets
+    // blamed. `#050506` is the same colour /morning-prep and /charts were
+    // each fixed for, separately.
+    //
+    // It also survived a scan: a grep for bg-wm-black / bg-wm-dark /
+    // WM.surface.deep reported this file CLEAN, because those are the names
+    // previous offenders used and this one is spelled as an arbitrary value.
+    // Found instead by src/lib/design/osRoomPlane.ts, which states the rule
+    // by effect — near-black AND opaque AND full-extent.
+    <div className="h-full overflow-y-auto text-neutral-100">
       {/* Was a <main>. MainLayout already wraps this route in
           <main className="wm-app-surface">, so this was a second one and
           "take me to the main content" had two answers. A <div> keeps every

@@ -68,12 +68,9 @@
  *      rather than a surface: it spans the room, so there is nothing left for
  *      the sanctuary to show through.
  *
- * Condition 3 is measured with a character window rather than by parsing JSX,
- * and that is a deliberate trade stated plainly: a real parse has to survive
- * arrow functions in props, nested braces and generics, and a half-parse that
- * silently mis-scopes is worse than a window whose limits are written down.
- * The window is `EXTENT_WINDOW_CHARS` either side of the fill, which covers an
- * element's own `className` and `style` and does not reach the next sibling.
+ * Condition 3 is measured on THE ELEMENT — see `enclosingOpenTag` below, which
+ * records at length why a ±180-character window was not good enough and what
+ * a sidebar, a text input and a light-mode CSS rule looked like through it.
  */
 
 /** Every channel at or below this is "near-black" for room-plane purposes. */
@@ -87,9 +84,9 @@ export const OPAQUE_PLANE_TOKENS: readonly string[] = [
   "WM.surface.deep",
 ];
 
-/** How far either side of a fill to look for a full-extent claim. Wide enough
- *  for an element's own className + style, short enough not to reach a sibling. */
-export const EXTENT_WINDOW_CHARS = 180;
+/** Hard bound on how far the element scan will walk before giving up, so an
+ *  unbalanced brace in a source file cannot turn this into a runaway. */
+export const ELEMENT_SCAN_LIMIT = 4000;
 
 /** The ways an element says "I am the size of the room". */
 const EXTENT_CLAIMS: readonly RegExp[] = [
@@ -100,6 +97,28 @@ const EXTENT_CLAIMS: readonly RegExp[] = [
   /\bminHeight:\s*["'`]?100vh/,
   /\bheight:\s*["'`]?100vh/,
   /100vh/,
+];
+
+/**
+ * The ways an element says "I am NOT the size of the room" — a width it chose.
+ *
+ * A plane spans the room. `/shop`'s cart is `h-full flex flex-col bg-wm-dark`
+ * on a spring-animated `motion.div`: full height, but it is a slide-in DRAWER
+ * with `w-[400px]`, and a drawer is furniture no matter how tall it is. Same
+ * for `/news`'s `w-28` rail and `/tv`'s `w-56` sidebar.
+ *
+ * Height alone was the wrong test because rooms are taller than they are wide,
+ * so `h-full` is the claim that gets typed and `w-full` is usually implicit.
+ * An element that names its own width has declined to be the room.
+ *
+ * `w-full` and `w-screen` are deliberately absent: those are the room's width.
+ */
+const NARROW_CLAIMS: readonly RegExp[] = [
+  /\bw-\d/,            // w-56, w-28
+  /\bw-\[/,            // w-[400px]
+  /\bmax-w-(?!none\b)/, // max-w-6xl, max-w-sm — but max-w-none is not a limit
+  /\bw-\d+\/\d+\b/,    // w-1/2
+  /\bwidth:\s*["'`]?\d/, // inline width: 400
 ];
 
 export interface RoomPlaneOffence {
@@ -144,6 +163,68 @@ export function stripComments(source: string): string {
 }
 
 /**
+ * THE OPENING TAG THAT CARRIES A FILL — the element, not a character window.
+ *
+ * ── WHY THIS REPLACED A ±180-CHARACTER WINDOW ───────────────────────────────
+ *
+ * The first cut asked "is there a full-extent claim within 180 characters of
+ * this fill". That is cheap and it is wrong at the boundary, and the boundary
+ * is exactly where rooms live. Run over the nine blocked legacy rooms it
+ * reported, among others:
+ *
+ *   /tv:216      <div className="w-56 shrink-0 border-r ... bg-wm-dark ...">
+ *   /lounge:641  <input className="flex-1 bg-wm-black border ..." />
+ *   /news:283    <div className="px-4 py-2 bg-wm-dark border-b shrink-0">
+ *   /shop:184    .wm-shop-light .bg-wm-dark { background: rgba(255,255,255,.6) }
+ *
+ * A 224px sidebar, a text input, a toolbar strip, and a CSS rule that paints
+ * the token WHITE in light mode. Every one of them sat near an `h-full`
+ * belonging to a DIFFERENT element, and the window could not tell the
+ * difference because a window does not know what an element is.
+ *
+ * That is the same mistake as the fifteen dark cards, one layer down: the rule
+ * says the fill and the extent claim must be on THE SAME ELEMENT, so the
+ * measurement must be of the same element too, not of nearby text.
+ *
+ * ── WHAT THIS IS AND IS NOT ─────────────────────────────────────────────────
+ *
+ * Still not a parse. It walks back to the nearest `<` and forward to the `>`
+ * that closes that tag, tracking brace depth and quotes so that `style={{...}}`
+ * and `onClick={() => x}` do not end the tag early — the `>` in an arrow is at
+ * brace depth 1 and is skipped. Bounded by ELEMENT_SCAN_LIMIT.
+ *
+ * Its stated limits: it does not understand a fill applied through a variable,
+ * a `cn()` call spanning several lines is fine but a fill assembled from
+ * fragments is not, and a `>` inside a string attribute value would end the tag
+ * early. Each of those fails CLOSED — no tag text, no offence — which is the
+ * safe direction for a gate whose false positives teach people to widen it.
+ */
+export function enclosingOpenTag(code: string, at: number, len: number): string {
+  const start = code.lastIndexOf("<", at);
+  if (start < 0 || at - start > ELEMENT_SCAN_LIMIT) return "";
+
+  let depth = 0;
+  let quote: string | null = null;
+  const end = Math.min(code.length, start + ELEMENT_SCAN_LIMIT);
+
+  for (let i = start + 1; i < end; i++) {
+    const c = code[i];
+    if (quote) {
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+    if (c === "{") { depth++; continue; }
+    if (c === "}") { depth--; continue; }
+    if (c === ">" && depth === 0) {
+      // The tag closed. It only carries this fill if the fill is inside it.
+      return i >= at + len ? code.slice(start, i + 1) : "";
+    }
+  }
+  return "";
+}
+
+/**
  * Every opaque near-black plane this source paints. Empty means the room lets
  * the sanctuary through.
  */
@@ -153,11 +234,10 @@ export function findOpaqueRoomPlanes(source: string): RoomPlaneOffence[] {
 
   /** Does the element carrying this fill claim the size of the room? */
   const spansTheRoom = (at: number, len: number): boolean => {
-    const window = code.slice(
-      Math.max(0, at - EXTENT_WINDOW_CHARS),
-      at + len + EXTENT_WINDOW_CHARS,
-    );
-    return EXTENT_CLAIMS.some((re) => re.test(window));
+    const tag = enclosingOpenTag(code, at, len);
+    if (!tag) return false;
+    if (NARROW_CLAIMS.some((re) => re.test(tag))) return false; // a drawer, not a plane
+    return EXTENT_CLAIMS.some((re) => re.test(tag));
   };
 
   const record = (m: RegExpMatchArray, reason: string) => {

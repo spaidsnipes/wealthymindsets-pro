@@ -909,7 +909,7 @@ export default function RadioPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-wm-dark overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="shrink-0 px-6 pt-6 pb-4" style={{ borderBottom:"1px solid rgba(30,32,48,0.8)" }}>

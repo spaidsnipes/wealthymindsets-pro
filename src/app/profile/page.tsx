@@ -98,7 +98,7 @@ function profileCreatorArt(index: number): React.CSSProperties {
 
 export default function ProfilePage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen bg-wm-black" />}>
+    <React.Suspense fallback={<div className="min-h-screen" />}>
       <ProfilePageInner />
     </React.Suspense>
   );
@@ -380,7 +380,7 @@ function ProfilePageInner() {
   // ── Setup / onboarding modal ─────────────────────────────────
   if (setupMode) {
     return (
-      <div className="flex flex-col h-full bg-wm-black items-center p-6 overflow-y-auto">
+      <div className="flex flex-col h-full items-center p-6 overflow-y-auto">
         <div className="w-full max-w-md glass rounded-2xl p-6 space-y-5 my-auto shrink-0">
           <div className="text-center">
             <div className="text-3xl mb-2">👋</div>
@@ -456,7 +456,7 @@ function ProfilePageInner() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-wm-black overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto">
       {/* Profile banner */}
       <div className="relative shrink-0" style={{
         height: 230,

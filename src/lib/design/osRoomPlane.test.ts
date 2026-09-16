@@ -98,6 +98,60 @@ describe("osRoomPlane · the detector", () => {
     expect(findOpaqueRoomPlanes('<div className="h-full bg-[#7C3AED]">')).toEqual([]);
   });
 
+  /**
+   * ── THE SECOND OVERREACH: A WINDOW DOES NOT KNOW WHAT AN ELEMENT IS ───────
+   *
+   * Condition 3 was first measured as "a full-extent claim within ±180
+   * characters". Over the nine blocked legacy rooms that reported a 224px
+   * sidebar, a text input, a toolbar strip and a light-mode CSS rule — each
+   * one sitting near an `h-full` that belonged to a DIFFERENT element.
+   *
+   * The rule says the fill and the extent claim must be on the same element,
+   * so the measurement has to be of the same element too. 21 reports → 11.
+   */
+  it("does NOT report a fill whose h-full belongs to a NEIGHBOUR", () => {
+    const source = [
+      '<div className="h-full">',
+      '  <input className="flex-1 bg-wm-black rounded" />',
+      "</div>",
+    ].join("\n");
+    expect(findOpaqueRoomPlanes(source)).toEqual([]);
+  });
+
+  it("still reports when the fill and the claim are on the SAME element", () => {
+    expect(findOpaqueRoomPlanes('<div className="h-full w-full bg-wm-black">')).toHaveLength(1);
+  });
+
+  it("does not let an arrow function in a prop end the tag early", () => {
+    // `onClick={() => x}` contains a `>`. A scanner that stopped at the first
+    // `>` would cut the tag before reaching className and report nothing.
+    expect(
+      findOpaqueRoomPlanes('<div onClick={() => go()} className="h-full bg-wm-black">'),
+    ).toHaveLength(1);
+  });
+
+  /**
+   * ── A PLANE SPANS THE ROOM; A FULL-HEIGHT DRAWER IS FURNITURE ─────────────
+   *
+   * /shop's cart is `h-full flex flex-col bg-wm-dark` on a spring-animated
+   * motion.div — and `w-[400px]`. Height alone was the wrong test, because a
+   * room is taller than it is wide, so `h-full` is what gets typed while
+   * `w-full` stays implicit. An element that names its own width has declined
+   * to be the room.
+   */
+  it("does NOT report a width-constrained drawer, however tall", () => {
+    expect(
+      findOpaqueRoomPlanes('<div className="h-full w-[400px] flex flex-col bg-wm-dark border-l">'),
+    ).toEqual([]);
+    expect(findOpaqueRoomPlanes('<div className="h-full w-56 bg-wm-dark">')).toEqual([]);
+    expect(findOpaqueRoomPlanes('<div className="h-full max-w-6xl bg-wm-black">')).toEqual([]);
+  });
+
+  it("treats w-full and w-screen as the room's width, not a limit", () => {
+    expect(findOpaqueRoomPlanes('<div className="h-full w-full bg-wm-dark">')).toHaveLength(1);
+    expect(findOpaqueRoomPlanes('<div className="h-full w-screen bg-wm-dark">')).toHaveLength(1);
+  });
+
   it("reads the threshold from the exported constant, not a copy of it", () => {
     const hex = (n: number) => `#${n.toString(16).padStart(2, "0").repeat(3)}`;
     const inside = `<div className="h-full bg-[${hex(NEAR_BLACK_CHANNEL_MAX)}]">`;
@@ -168,30 +222,35 @@ describe("osRoomPlane · every OS room lets the sanctuary through", () => {
       if (findOpaqueRoomPlanes(readFileSync(file, "utf8")).length > 0) blocked.push(d.href);
     }
 
-    // The measured state at the time of writing. This is a LEDGER, not a
-    // target: it goes red both when a room is cleaned (good — promote it and
-    // update this list) and when a clean room acquires a plane (bad). Either
-    // way the next author is told which, rather than finding out at promotion.
-    expect(blocked.sort()).toEqual(
-      [
-        "/creator",
-        "/lounge",
-        "/news",
-        "/partnerships",
-        "/profile",
-        "/proof-lane",
-        "/radio",
-        "/shop",
-        "/tv",
-      ].sort(),
-    );
+    // The measured state. This is a LEDGER, not a target: it goes red both
+    // when a room is cleaned (good — promote it and update this list) and when
+    // a clean room acquires a plane (bad). Either way the next author is told
+    // which, rather than finding out at promotion.
+    //
+    // It was nine. Eight were one line each — an outer wrapper carrying
+    // `bg-wm-black` or `bg-wm-dark`, redundant under the July shell (which
+    // paints the same black behind it) and fatal under the OS frame. That is
+    // why they survived: nothing looks wrong today, so there is no pressure to
+    // remove them, and the damage only appears on the commit that promotes the
+    // route — where the promotion gets blamed for it.
+    //
+    // /news is the one left, and it is left HONESTLY. Its two remaining fills
+    // are `w-full h-full` on the offline-state and no-stream views INSIDE a
+    // video player box whose own height is set to 300px. `h-full` there means
+    // the player, not the room. The instrument cannot see an ancestor, so it
+    // cannot tell those from a room plane — see `enclosingOpenTag`. Rather
+    // than add a third heuristic that guesses, the blindness is named and
+    // /news waits for a human to look at it, which is what the register is
+    // for. Do NOT "fix" /news by widening the detector.
+    expect(blocked.sort()).toEqual(["/news"]);
   });
 
   /**
    * THE COMPLEMENT OF THE LEDGER ABOVE, STATED SO IT CANNOT BE LOST.
    *
-   * Five legacy rooms — /ai-bot, /backtesting, /copy-trading, /education,
-   * /scanner — carry no opaque plane. That is NOT a promotion certificate.
+   * Thirteen of the fourteen legacy rooms carry no opaque plane — five that
+   * never did, and eight cleaned in the commit that wrote this list down.
+   * That is NOT a promotion certificate.
    * `frame: "os"` is a measurement made by LOOKING at the route inside the
    * frame, and this instrument cannot look; it can only rule out one specific
    * way of failing.
@@ -214,7 +273,21 @@ describe("osRoomPlane · every OS room lets the sanctuary through", () => {
       .map((d) => d.href);
 
     expect(clear.sort()).toEqual(
-      ["/ai-bot", "/backtesting", "/copy-trading", "/education", "/scanner"].sort(),
+      [
+        "/ai-bot",
+        "/backtesting",
+        "/copy-trading",
+        "/creator",
+        "/education",
+        "/lounge",
+        "/partnerships",
+        "/profile",
+        "/proof-lane",
+        "/radio",
+        "/scanner",
+        "/shop",
+        "/tv",
+      ].sort(),
     );
 
     // And they are still legacy. If one is promoted, this goes red and the

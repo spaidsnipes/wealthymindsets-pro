@@ -697,7 +697,7 @@ export default function NewsPage() {
   });
 
   return (
-    <div className="flex flex-col h-full bg-wm-black overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
 
       <ApiKeysModal open={showKeys} onClose={() => setShowKeys(false)} onSaved={loadNews} />
 

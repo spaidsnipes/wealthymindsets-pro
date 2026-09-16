@@ -20,7 +20,7 @@ const PARTNERS: Partner[] = [];
 
 export default function PartnershipsPage() {
   return (
-    <div className="flex flex-col h-full bg-wm-black overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto">
       {/* ── Header — WM atmosphere ────────────────────────── */}
       <div
         className="flex items-center gap-3 px-4 shrink-0 sticky top-0 z-10"

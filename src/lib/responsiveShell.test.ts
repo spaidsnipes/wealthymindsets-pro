@@ -298,7 +298,19 @@ describe("responsive P0 command surfaces", () => {
     expect(challenge).toContain('href="/education"');
     expect(challenge).toContain(">Challenge Lab</h1>");
     expect(challenge).toContain("This private Academy lesson models");
-    expect(challenge).toContain('className="h-full overflow-y-auto bg-[#050506]');
+    // SCROLL OWNERSHIP, not paint. This used to read
+    //   .toContain('className="h-full overflow-y-auto bg-[#050506]')
+    // which quietly made a test about INFORMATION ARCHITECTURE the second
+    // owner of this room's background colour. When that opaque plane was
+    // removed — src/lib/design/osRoomPlane.ts owns that fact now, for every
+    // room — this went red for a reason with nothing to do with whether the
+    // Challenge Lab reads as a sixth product. A test that fails for a reason
+    // outside its own name sends the next author to the wrong file.
+    //
+    // What it actually cares about is that the room scrolls INSIDE the shell
+    // (`h-full overflow-y-auto`) rather than claiming the viewport
+    // (`min-h-screen`) the way a standalone product would. Only that.
+    expect(challenge).toContain('className="h-full overflow-y-auto');
     expect(challenge).not.toContain('className="min-h-screen');
   });
 

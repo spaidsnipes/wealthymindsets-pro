@@ -863,7 +863,7 @@ export default function LoungePage() {
       // src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts.
       <div
         data-lounge-runtime="not-configured"
-        className="flex h-full min-h-[420px] w-full items-center justify-center overflow-hidden bg-wm-black px-4"
+        className="flex h-full min-h-[420px] w-full items-center justify-center overflow-hidden px-4"
       >
         <section
           role="status"

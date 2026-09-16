@@ -211,7 +211,7 @@ export default function WMTVPage() {
   const activeText  = TEXT_CHANNELS.find(c => c.id === activeId) || null;
 
   return (
-    <div className="flex h-full bg-wm-black overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* ── Channel sidebar ─────────────────────────────── */}
       <div className="w-56 shrink-0 border-r border-wm-border bg-wm-dark flex flex-col">
         <div className="flex items-center gap-2 px-3 py-3 border-b border-wm-border">
