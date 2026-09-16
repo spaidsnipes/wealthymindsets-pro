@@ -4,25 +4,26 @@ import { selectCanonicalSessionPresentation } from "../../lib/marketData/canonic
 /**
  * September 2026 lines up so that the 6th is a Sunday and the 5th a Saturday —
  * the actual weekend on which the SESSION tile's self-contradiction was read
- * off production. dayOfWeek `d` maps to a real date with that local day, so
- * every assertion below still means exactly what it meant when it was written,
- * while the presenter now receives a Date it can hand to provenSessionClosure.
+ * off production. dayOfWeek `d` maps to a real date with that MARKET day.
+ *
+ * These were local-midnight Dates, and the drift-guard below read `getDay()`,
+ * which is ALSO the local day — so the guard agreed with the broken table and
+ * proved nothing. Both now speak ET, which is the clock the presenter reads.
  */
-const DAY_TO_DATE: readonly Date[] = [
-  new Date(2026, 8, 6),  // 0 Sun
-  new Date(2026, 8, 7),  // 1 Mon
-  new Date(2026, 8, 8),  // 2 Tue
-  new Date(2026, 8, 9),  // 3 Wed
-  new Date(2026, 8, 10), // 4 Thu
-  new Date(2026, 8, 11), // 5 Fri
-  new Date(2026, 8, 5),  // 6 Sat
-];
+import {
+  ET_DAY_BY_INDEX as DAY_TO_DATE,
+  etWeekday,
+} from "../../lib/marketData/marketDayFixtures";
 
 function present(session: string, connected: boolean, dayOfWeek: number, symbol = "TSLA", observedActivityAt: number | null = null) {
   const at = DAY_TO_DATE[dayOfWeek];
   // A guard, not decoration: if this table ever drifts, the tests below would
   // silently start asserting a different day than their titles claim.
-  expect(at.getDay(), `DAY_TO_DATE[${dayOfWeek}] must be a real day-${dayOfWeek}`).toBe(dayOfWeek);
+  const ET_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  expect(
+    etWeekday(at),
+    `DAY_TO_DATE[${dayOfWeek}] must be a real day-${dayOfWeek} IN MARKET TIME`,
+  ).toBe(ET_NAMES[dayOfWeek]);
   return selectCanonicalSessionPresentation({
     symbol,
     requestedSession: session,

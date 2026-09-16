@@ -244,11 +244,17 @@ export function selectCanonicalSessionPresentation(
   // because "market closed" vs "no data connection" is a statement about why
   // the tape is quiet, not about which session is running.
   const token = selectCanonicalSessionToken({ symbol: input.symbol, at: input.at, assetClass });
-  const day = input.at ? input.at.getDay() : null;
-  const isWeekend = day === 0 || day === 6;
+  // TWO OWNERS OF ONE FACT, inside a single return object: this line read
+  // `input.at.getDay()` — the VIEWER'S weekday — while `value` above was
+  // already computed from `marketWeekdayET`. In US Central the two agree, so
+  // the split was invisible; east of UTC they diverge by a day, and the tile
+  // rendered CLOSED over "connected" for a real user in Tokyo. The caption is
+  // now read off the headline it captions, so the two cannot disagree by
+  // construction rather than by a shared convention someone has to remember.
+  const isClosed = token.token === SESSION_TOKEN_CLOSED;
   return {
     value: token.token,
-    detail: input.requestedSession.toUpperCase() === "CLOSED" || isWeekend
+    detail: input.requestedSession.toUpperCase() === "CLOSED" || isClosed
       ? "market closed"
       : input.connected ? "connected" : "no data connection",
     activity: "UNKNOWN",

@@ -45,9 +45,12 @@ import { produceCanonicalMarketState } from "@/lib/marketData/produceCanonicalMa
  * where the literal IS the thing being proven wrong.
  */
 
-/** Saturday. 2026-09-05 is the day the live contradiction was captured. */
-const SATURDAY = new Date(2026, 8, 5);
-const WEDNESDAY = new Date(2026, 8, 2);
+/**
+ * Saturday. 2026-09-05 is the day the live contradiction was captured.
+ * ET-anchored — see marketDayFixtures.ts. These were local-midnight Dates,
+ * which made this file pass in US Central and fail in CI's UTC.
+ */
+import { SATURDAY, WEDNESDAY } from "@/lib/marketData/marketDayFixtures";
 
 function stripComments(src: string): string {
   return src

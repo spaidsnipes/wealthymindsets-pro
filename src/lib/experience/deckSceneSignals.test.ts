@@ -234,9 +234,9 @@ function stripComments(src: string): string {
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 }
 
-const SATURDAY = new Date(2026, 8, 5);
-const SUNDAY = new Date(2026, 8, 6);
-const WEDNESDAY = new Date(2026, 8, 2);
+// ET-anchored — a market session is a fact about the exchange, not about the
+// machine running the test. See marketDayFixtures.ts.
+import { SATURDAY, SUNDAY, WEDNESDAY } from "@/lib/marketData/marketDayFixtures";
 
 /** The real wire: owner → adapter → compiler. No hand-written session strings. */
 function sceneFor(symbol: string, at: Date | null, rightOfWay: "WAIT" | null = null) {

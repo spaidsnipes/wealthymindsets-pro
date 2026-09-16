@@ -11,13 +11,23 @@ import {
   US_CASH_SESSION_CLOSED_LABEL,
   selectUsCashSessionBarLabel,
 } from "./canonicalIdentity";
+// ET-anchored day fixtures, single owner. These were local-midnight Dates,
+// which made this file pass in US Central and fail in CI's UTC — midnight UTC
+// on "Saturday" the 5th is 20:00 ET on Friday the 4th.
+import {
+  ET_CONSECUTIVE_WEEK,
+  SATURDAY,
+  SUNDAY,
+  WEDNESDAY,
+  etDay,
+} from "./marketDayFixtures";
 
 describe("provenSessionClosure", () => {
   // 2026-09-05 is the Saturday the Founder screenshotted /charts showing
   // "ACTIVE DEGRADED" across the ticker rail and every watchlist row.
-  const saturday = new Date(2026, 8, 5);
-  const sunday = new Date(2026, 8, 6);
-  const wednesday = new Date(2026, 8, 2);
+  const saturday = SATURDAY;
+  const sunday = SUNDAY;
+  const wednesday = WEDNESDAY;
 
   it("proves Saturday closed for every non-continuous market", () => {
     for (const sym of ["TSLA", "SPY", "NQ1!", "EUR/USD"]) {
@@ -46,8 +56,7 @@ describe("provenSessionClosure", () => {
   });
 
   it("never returns true — proving a session OPEN is outside its authority (§8)", () => {
-    const days = Array.from({ length: 7 }, (_, i) => new Date(2026, 8, 1 + i));
-    for (const at of days) {
+    for (const at of ET_CONSECUTIVE_WEEK) {
       for (const sym of ["TSLA", "SPY", "NQ1!", "EUR/USD", "BTC"]) {
         expect(provenSessionClosure(sym, at)).not.toBe(true);
       }
@@ -163,9 +172,9 @@ describe("selectUsCashSessionBarLabel", () => {
   // The Founder's 2026-09-05 screenshot: the bottom bar read
   // "US CASH SESSION · STATUS UNKNOWN" on a Saturday, while the ticker rail
   // above it read ACTIVE DEGRADED. Two writers, one fact, both wrong.
-  const saturday = new Date(2026, 8, 5);
-  const sunday = new Date(2026, 8, 6);
-  const wednesday = new Date(2026, 8, 2);
+  const saturday = SATURDAY;
+  const sunday = SUNDAY;
+  const wednesday = WEDNESDAY;
 
   it("says CLOSED on a proven-closed weekend rather than withholding a fact we hold", () => {
     expect(selectUsCashSessionBarLabel(saturday)).toBe(US_CASH_SESSION_CLOSED_LABEL);
@@ -182,7 +191,7 @@ describe("selectUsCashSessionBarLabel", () => {
 
   it("never claims the session is OPEN — only CLOSED or UNKNOWN are reachable", () => {
     const reachable = new Set<string>();
-    for (let d = 0; d < 7; d++) reachable.add(selectUsCashSessionBarLabel(new Date(2026, 8, 1 + d)));
+    for (const d of ET_CONSECUTIVE_WEEK) reachable.add(selectUsCashSessionBarLabel(d));
     reachable.add(selectUsCashSessionBarLabel(null));
     expect([...reachable].sort()).toEqual(
       [US_CASH_SESSION_CLOSED_LABEL, US_CASH_SESSION_UNKNOWN_LABEL].sort(),
@@ -333,7 +342,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
         symbol: "BTC",
         requestedSession: "RTH",
         connected: true,
-        at: new Date(2026, 8, 9), // Wed
+        at: etDay("2026-09-09"), // Wed
         observedActivityAt: null,
         evaluatedAt: 1_788_000_000_000,
       });
@@ -348,7 +357,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
           symbol: "ETH",
           requestedSession: "RTH",
           connected: true,
-          at: dayOfWeek === 0 ? new Date(2026, 8, 6) : new Date(2026, 8, 5),
+          at: dayOfWeek === 0 ? SUNDAY : SATURDAY,
           observedActivityAt: null,
           evaluatedAt: 1_788_000_000_000,
         });
@@ -362,7 +371,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
         symbol: "BTC",
         requestedSession: "EXTENDED",
         connected: false,
-        at: new Date(2026, 8, 8), // Tue
+        at: etDay("2026-09-08"), // Tue
         observedActivityAt: null,
         evaluatedAt: 1_788_000_000_000,
       });
@@ -375,7 +384,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
         symbol: "AAPL",
         requestedSession: "RTH",
         connected: true,
-        at: new Date(2026, 8, 6), // Sun
+        at: SUNDAY, // Sun
         observedActivityAt: null,
         evaluatedAt: 1_788_000_000_000,
       });

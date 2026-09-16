@@ -7,6 +7,7 @@ import {
   type CapabilityCandidate,
   type SessionTruth,
 } from "./canonicalCapabilityResolver";
+import { etDay, etWeekday } from "./marketDayFixtures";
 
 const OPEN: SessionTruth = {
   state: "OPEN",
@@ -135,29 +136,35 @@ describe("canonical per-capability resolver", () => {
  * Saturday would pin the next calendar change green exactly the way the
  * literal did.
  *
- * Dates below are constructed in local time on purpose: `provenSessionClosure`
- * reads `Date.getDay()`, so the weekday under test must be the LOCAL weekday.
+ * The dates below were once built with `new Date(2026, 8, 12, 11, 0, 0)` and
+ * guarded with `.getDay()` — BOTH of which read the RUNNER'S clock. The guard
+ * therefore agreed with the fixture in every zone and proved nothing, while
+ * `provenSessionClosure` read `marketWeekdayET`. In UTC+9 the pair split and
+ * this file went red on CI for a defect that was never in the product.
+ *
+ * A market session is a fact about the exchange. The days come from the one
+ * owner of that fact.
  */
 describe("deriveSessionTruth — the endpoint stops typing its own session", () => {
   const ASOF = "2026-09-12T15:00:00.000Z";
 
   it("REGRESSION: a Saturday is CLOSED, not a shrug — the owner can prove this day", () => {
-    const saturday = new Date(2026, 8, 12, 11, 0, 0); // 2026-09-12 is a Saturday
-    expect(saturday.getDay()).toBe(6);
+    const saturday = etDay("2026-09-12");
+    expect(etWeekday(saturday)).toBe("Sat");
     const truth = deriveSessionTruth(saturday, ASOF);
     expect(truth.state).toBe("CLOSED");
     expect(truth.reason).toContain("established");
   });
 
   it("a Sunday is CLOSED too — US cash equities do not trade", () => {
-    const sunday = new Date(2026, 8, 13, 11, 0, 0);
-    expect(sunday.getDay()).toBe(0);
+    const sunday = etDay("2026-09-13");
+    expect(etWeekday(sunday)).toBe("Sun");
     expect(deriveSessionTruth(sunday, ASOF).state).toBe("CLOSED");
   });
 
   it("a weekday stays UNKNOWN — there is no intraday calendar, and false confidence is the other half of the same sin", () => {
-    const thursday = new Date(2026, 8, 10, 11, 0, 0);
-    expect(thursday.getDay()).toBe(4);
+    const thursday = etDay("2026-09-10");
+    expect(etWeekday(thursday)).toBe("Thu");
     const truth = deriveSessionTruth(thursday, ASOF);
     expect(truth.state).toBe("UNKNOWN");
     // Never OPEN: the repo cannot separate PRE_MARKET / OPEN / AFTER_HOURS.
@@ -165,7 +172,7 @@ describe("deriveSessionTruth — the endpoint stops typing its own session", () 
   });
 
   it("a weekday at 11am ET is still UNKNOWN — the clock alone is not an exchange calendar", () => {
-    const wednesday = new Date(2026, 8, 9, 11, 0, 0);
+    const wednesday = etDay("2026-09-09");
     expect(deriveSessionTruth(wednesday, ASOF).state).toBe("UNKNOWN");
   });
 
@@ -174,15 +181,15 @@ describe("deriveSessionTruth — the endpoint stops typing its own session", () 
   });
 
   it("the UNKNOWN reason no longer blames a missing owner — that sentence was true when written and stopped being true", () => {
-    const thursday = new Date(2026, 8, 10, 11, 0, 0);
+    const thursday = etDay("2026-09-10");
     const reason = deriveSessionTruth(thursday, ASOF).reason;
     expect(reason).not.toContain("not wired");
     expect(reason).toContain("no intraday exchange calendar");
   });
 
   it("asOf is carried through unchanged on both branches — one generatedAt for the whole matrix", () => {
-    const saturday = new Date(2026, 8, 12, 11, 0, 0);
-    const thursday = new Date(2026, 8, 10, 11, 0, 0);
+    const saturday = etDay("2026-09-12");
+    const thursday = etDay("2026-09-10");
     expect(deriveSessionTruth(saturday, ASOF).asOf).toBe(ASOF);
     expect(deriveSessionTruth(thursday, ASOF).asOf).toBe(ASOF);
     expect(deriveSessionTruth(null, ASOF).asOf).toBe(ASOF);

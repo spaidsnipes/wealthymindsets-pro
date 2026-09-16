@@ -43,10 +43,17 @@ import {
   SESSION_TOKEN_UNKNOWN,
 } from "./canonicalIdentity";
 
-// The Saturday the contradiction was read off production.
-const SATURDAY = new Date(2026, 8, 5);
-const SUNDAY = new Date(2026, 8, 6);
-const WEDNESDAY = new Date(2026, 8, 2);
+/**
+ * THE FIXTURE MUST NAME THE SAME DAY THE SELECTOR READS.
+ *
+ * These were `new Date(2026, 8, 5)` — MIDNIGHT IN THE RUNNER'S LOCAL ZONE.
+ * `provenSessionClosure` does not ask the runner what day it is; it asks
+ * `marketWeekdayET`. Those two agree in US Central and disagree in UTC, where
+ * CI runs, so "Saturday" arrived as a Friday and this file failed on main
+ * while passing on the author's laptop. The ET-anchored constants now have a
+ * single owner; see marketDayFixtures.ts.
+ */
+import { SATURDAY, SUNDAY, WEDNESDAY } from "./marketDayFixtures";
 
 describe("selectCanonicalSessionToken — closure that is proven is not withheld", () => {
   it("THE CORE REGRESSION: futures on a Saturday say CLOSED, not 'SESSION ?'", () => {

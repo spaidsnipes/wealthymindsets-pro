@@ -85,8 +85,11 @@ const POLYGON_CRYPTO_BASES: string[] = (() => {
   return [...src.slice(start, end).matchAll(/([A-Z0-9]+)\s*:\s*"X:/g)].map((m) => m[1]);
 })();
 
-/** Saturday. 2026-09-05 is the day the contradiction was captured live. */
-const SATURDAY = new Date(2026, 8, 5);
+/**
+ * Saturday. 2026-09-05 is the day the contradiction was captured live.
+ * ET-anchored via the shared owner — see marketDayFixtures.ts.
+ */
+import { SATURDAY, SUNDAY, WEDNESDAY } from "./marketDayFixtures";
 
 describe("picker extraction — the positive control comes first", () => {
   /**
@@ -145,7 +148,7 @@ describe("every symbol the product offers as crypto is classified crypto", () =>
   it("closure is never ESTABLISHED for a continuous market, on any day", () => {
     // provenSessionClosure returns `false` for proven-closed and `null` for
     // not-established. Crypto must always be `null` — never provably closed.
-    for (const day of [new Date(2026, 8, 5), new Date(2026, 8, 6), new Date(2026, 8, 2)]) {
+    for (const day of [SATURDAY, SUNDAY, WEDNESDAY]) {
       const closed = CRYPTO_SYMBOLS.filter((s) => provenSessionClosure(s, day) === false);
       expect(closed, `proven CLOSED on ${day.toDateString()}`).toEqual([]);
     }
@@ -244,7 +247,6 @@ describe("compact currency pairs are pairs, not equities", () => {
   });
 
   it("THE REGRESSION: no currency pair is stamped CLOSED on a Sunday", () => {
-    const SUNDAY = new Date(2026, 8, 6);
     const all = FOREX_SYMBOLS.filter((s) => s.includes("/") || forexPairCodes(s) !== null);
     const stamped = all.filter((s) => provenSessionClosure(s, SUNDAY) === false);
     expect(stamped, "FX reopens Sunday evening — closure is not established").toEqual([]);

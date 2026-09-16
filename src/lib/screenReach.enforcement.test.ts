@@ -271,6 +271,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "TEST_FIXTURE",
     note: "Offline shape lock for the Webull MCP. Correct that it never ships.",
   },
+  "src/lib/marketData/marketDayFixtures.ts": {
+    reason: "TEST_FIXTURE",
+    note: "ET-anchored calendar days for the session tests. Deliberately unreachable from any screen: the product reads the real clock through marketWeekdayET, and a surface importing a hard-coded 'Saturday' would BE the defect this module exists to prevent.",
+  },
   // REMOVED 2026-09-12, in the commit after the one that added it:
   // "selectFirstBrokenJoint.ts — capability ladder owner, unreached on
   // arrival." It was declared AWAITING_SURFACE with BrokerConnectPanel named
