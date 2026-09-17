@@ -180,7 +180,9 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
               : `${ledger.unpaid} of ${ledger.payable} evidence nodes unpaid — ` +
                 `${ledger.warn} below confirmation, ${ledger.missing} with no indicator.`}
             {ledger.watch > 0
-              ? ` ${ledger.watch} watch node${ledger.watch === 1 ? "" : "s"} sit outside this ledger and are not drawn.`
+              ? ledger.watch === 1
+                ? " 1 watch node sits outside this ledger and is not drawn."
+                : ` ${ledger.watch} watch nodes sit outside this ledger and are not drawn.`
               : ""}
           </p>
         </div>

@@ -171,7 +171,7 @@ describe("DecisionWhyPanel — the evidence ledger gets a shape", () => {
       <DecisionWhyPanel vm={vm({ evidenceLedger: ledger({ watch: 1 }) })} />,
     );
     expect(marks(html)).toHaveLength(8); // NOT 9 — watch is outside the ledger
-    expect(html).toContain("1 watch node sit");
+    expect(html).toContain("1 watch node sits outside this ledger and is not drawn.");
   });
 
   it("lets a fully paid ledger say so without inventing a grade", () => {
