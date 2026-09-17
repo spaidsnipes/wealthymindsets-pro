@@ -175,6 +175,41 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Your personal edge",
       hint: "Where you have actually performed, measured across your whole record",
     },
+    /**
+     * THE SIXTH TENANT — AND THE ONE THE ROOM IS ALLOWED TO REFUSE.
+     *
+     * The Learning Genome is the deck's dense diagnostic: four dimensions of
+     * how the trader reads, reasons, executes and transfers, plus the drill it
+     * prescribes. Its in-room mount sits one `<details>` deep, gated on
+     * REVIEW/LEARN, and `buriedOnlyIsARegister.test.ts` measured it among the
+     * room's remaining nineteen buried-only components.
+     *
+     * WHY THIS ENTRY IS NOT A WAY AROUND THE ROOM'S OWN GATE.
+     * ------------------------------------------------------
+     * The in-room mount sits inside `<SceneAdmitsAmbient>`, which withholds
+     * backward-looking surfaces whenever the scene says the room belongs to the
+     * market. A rail entry that ignored that would be a second, louder path to
+     * a surface the room had deliberately closed — the same defect the third
+     * tenant's `SceneAdmits` gate was written against.
+     *
+     * So the refusal TRAVELS WITH THE EQUIPMENT: the descriptor carries the
+     * gate inside `renderDepth`, and its preview verdict says WITHHELD before
+     * the trader presses anything. A door that sometimes says "not now, and
+     * here is why" is not a painted door — it is the product declining out
+     * loud instead of appearing broken.
+     *
+     * THE LABEL SAYS WHOSE LEARNING IT IS, like every other trader-owned entry
+     * on this rail. The ROOMS list is a list of places; a room is not *yours*.
+     *
+     * THE HINT NAMES THE SUBJECT, NOT THE SCORE. "How well you are doing"
+     * would be a grade; what this measures is WHICH part of the work is the
+     * bottleneck, which is a different and more useful sentence.
+     */
+    {
+      id: "learning-genome",
+      label: "Your learning genome",
+      hint: "Which part of your work is the bottleneck, and the drill for it",
+    },
   ],
 
   /**

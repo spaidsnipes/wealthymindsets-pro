@@ -163,6 +163,31 @@ const ROOMS = [
         deps: "[personalEdgeVm]",
         depth: "PersonalEdgeChip",
       },
+      /**
+       * THE SIXTH TENANT — AND THE SECOND WHOSE `deps` CARRY A REFUSAL.
+       *
+       * Its `deps` are `[learningGenome, sceneCompilation]` and, exactly as
+       * with the chain, the scene half is LOAD-BEARING rather than tidy. The
+       * in-room genome sits behind `<SceneAdmitsAmbient>`, which withholds
+       * backward-looking surfaces when the room belongs to the market. A
+       * descriptor that dropped `sceneCompilation` would still type-check,
+       * still render, and would be a second and louder path to a surface the
+       * room had deliberately closed.
+       *
+       * Read against the FIFTH tenant's note directly above — which argues
+       * that Personal Edge must NOT carry `phase` — these two are the pair
+       * that stops this column being read as a habit. A gate belongs in the
+       * deps when the room already enforces one, and must stay out when the
+       * room does not. `phase` on the edge would invent a refusal; dropping
+       * the scene here would discard one.
+       */
+      {
+        id: "learning-genome",
+        memo: "learningGenomeEquipment",
+        reads: /genome=\{learningGenome\.genome\}/,
+        deps: "[learningGenome, sceneCompilation]",
+        depth: "LearningGenomeInspector",
+      },
     ],
   },
   {

@@ -1052,6 +1052,114 @@ function CommandDeckInner() {
        name. ENTER is how this gets deeper. */
   }, [personalEdgeVm]);
 
+  // Canon §9 Learning Genome — client-side bundle assembled from
+  // browser-local Journal storage. Undefined during first hydration
+  // so the caller can render a skeleton. Reads the same 7+7 day
+  // window as /journal so the diagnostic is consistent across surfaces.
+  //
+  // DECLARED HERE, ABOVE THE EQUIPMENT DESCRIPTOR THAT READS IT. It used to
+  // sit two hundred lines lower, beside the only consumer it had — the
+  // in-room disclosure. The sixth tenant gave it a second consumer that runs
+  // EARLIER in the body, so the hook moved up to meet it. Nothing about the
+  // call changed: it is unconditional and argument-free, so hook order across
+  // renders is untouched, and the in-room mount still reads the same binding.
+  const learningGenome = useLearningGenomeBundle();
+
+  /**
+   * THE LEARNING GENOME AS EQUIPMENT — the grammar's SIXTH tenant, and the
+   * first whose door the room is allowed to REFUSE.
+   *
+   * ── WHAT IT IS, AND WHY IT IS NOT THE EDGE OR THE MIRROR ──────────────
+   * The Mirror is this session. Personal Edge is where the record says the
+   * trader has performed. This is neither: it is WHICH PART OF THE WORK is
+   * the bottleneck — perception, reasoning, process or transfer — and the
+   * drill prescribed for it. Three surfaces about the trader, three different
+   * questions, and collapsing any pair would make one verdict answer two.
+   *
+   * ── THE REFUSAL TRAVELS WITH THE EQUIPMENT ────────────────────────────
+   * The in-room mount sits inside `<SceneAdmitsAmbient>`. A rail entry that
+   * rendered the genome regardless would be a second, louder path to a
+   * surface the room had deliberately closed — precisely the defect the
+   * chain's `SceneAdmits` gate was written against, rebuilt one tenant later.
+   *
+   * So the gate is INSIDE `renderDepth`, and the preview's verdict says
+   * WITHHELD before the trader presses anything. `sceneCompilation` is in the
+   * deps for that reason and not for tidiness: a descriptor that dropped it
+   * would type-check and would open a door the room had shut.
+   *
+   * ── THE VERDICT IS THE BUNDLE'S, NOT THIS ROOM'S ──────────────────────
+   * Every field below is a READ. `headlineWeakness` is undefined until the
+   * selector has two comparably-measured dimensions — it refuses to name a
+   * weakest area from one data point or from a tie — and this descriptor
+   * carries that refusal rather than inventing a headline to fill the space.
+   */
+  const learningGenomeEquipment = React.useMemo(() => {
+    const admitted = sceneCompilation.admitsAmbient;
+    const withheldNote =
+      "Your learning genome is held back while the room belongs to the market. It is a backward-looking reading, and it can wait.";
+    const genome = learningGenome?.genome;
+    const measured = genome
+      ? (["perception", "reasoning", "process", "transfer"] as const).filter(
+          (k) => genome[k].score !== undefined,
+        ).length
+      : 0;
+    return {
+      equipmentId: "learning-genome",
+      // The rail's own words. A widget that opened under a different title
+      // reads as a different thing having loaded.
+      title: "Your learning genome",
+      verdict: !admitted
+        ? "WITHHELD"
+        : !learningGenome
+          ? "MEASURING"
+          : genome?.headlineWeakness
+            ? (learningGenome.drill?.stage ?? "DIAGNOSTIC")
+            : "NOT YET",
+      headline: !admitted
+        ? withheldNote
+        : !learningGenome
+          ? "Your record is still being read."
+          : (genome?.headlineWeakness ??
+            "Not enough measured dimensions yet — two have to be comparable before WM will name a bottleneck."),
+      counts: [
+        { testId: "equipment-count-genome-dimensions", label: `${measured}/4 measured` },
+        {
+          testId: "equipment-count-genome-misreads",
+          label: `${learningGenome?.misread.sample_size ?? 0} reviewed`,
+        },
+        {
+          testId: "equipment-count-genome-drill",
+          label: learningGenome?.drill ? `drill: ${learningGenome.drill.stage.toLowerCase()}` : "no drill",
+        },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <SceneAdmitsAmbient compilation={sceneCompilation}>
+          {learningGenome ? (
+            <LearningGenomeInspector
+              genome={learningGenome.genome}
+              drill={learningGenome.drill}
+              misread={learningGenome.misread}
+              trend={learningGenome.trend}
+              focusStreak={learningGenome.focus_streak}
+              ruleAdherenceStreak={learningGenome.rule_adherence_streak}
+              dayModelCoverage={learningGenome.day_model_coverage}
+              dualSideGuard={learningGenome.dual_side_guard}
+              weekMaturity={learningGenome.week_maturity}
+              unabridged={unabridged}
+            />
+          ) : (
+            <p style={{ fontSize: 12, color: "#8a8271", lineHeight: 1.6, margin: 0 }}>
+              Your record is still being read.
+            </p>
+          )}
+        </SceneAdmitsAmbient>
+      ),
+    };
+    /* NO drill-launcher here. Starting a drill from inside a drawer would open
+       a working surface within a drawer — the burial the directive bans by
+       name. This is a place to READ the diagnostic; ENTER is how it opens. */
+  }, [learningGenome, sceneCompilation]);
+
   /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
@@ -1069,6 +1177,7 @@ function CommandDeckInner() {
       "decision-chain": decisionChainEquipment,
       "behaviour-mirror": mirrorEquipment,
       "personal-edge": personalEdgeEquipment,
+      "learning-genome": learningGenomeEquipment,
     }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
 
   // Decision Receipt (canon P8): project the most-recently sealed decision
@@ -1086,12 +1195,6 @@ function CommandDeckInner() {
     () => selectDecisionReceipt(latestDecisionRecord),
     [latestDecisionRecord],
   );
-
-  // Canon §9 Learning Genome — client-side bundle assembled from
-  // browser-local Journal storage. Undefined during first hydration
-  // so the caller can render a skeleton. Reads the same 7+7 day
-  // window as /journal so the diagnostic is consistent across surfaces.
-  const learningGenome = useLearningGenomeBundle();
 
   // Job-mode inference (the OS completing the loop): infer which job the human
   // is most likely in from concrete decision state, so the shell can gently

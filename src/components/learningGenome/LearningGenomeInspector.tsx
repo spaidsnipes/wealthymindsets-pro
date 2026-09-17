@@ -40,6 +40,28 @@ export interface LearningGenomeInspectorProps {
   readonly dualSideGuard?: DualSideGuardResult;
   // v1.1.1 bundle addition — 2026-08-26 canon §6 week-level distribution.
   readonly weekMaturity?: WeekMaturityDistribution;
+  /**
+   * WHICH ZOOM LEVEL THIS OPENS AT — the WORKSPACE grammar's ENTER, reaching
+   * the one panel in the deck that already had a depth control of its own.
+   *
+   * The other tenants cure a SILENT truncation: a `slice(0, N)` that dropped
+   * items and said nothing. There is nothing of that kind here. This panel
+   * routes its body through `<SemanticZoom>`, which renders a tablist naming
+   * every level it was handed — so whatever it opens at, the trader can see
+   * the rest exists and reach it.
+   *
+   * That is exactly why `unabridged` here means STARTING DEPTH and not a cap.
+   * Docked, the equipment opens at L1 — the four-dimension scorecard, which is
+   * as much diagnostic as belongs beside a live chart. ENTER opens at L3, the
+   * whole thing. Neither hides anything; they differ in what the trader is
+   * looking at when the surface appears.
+   *
+   * DEFAULTS TRUE, because L3 is what has always shipped (`defaultLevel={3}`,
+   * "preserve the pre-Phase-2 baseline") and this panel has two existing mounts
+   * — `/command-deck` and `/journal`. The rule for a new prop is not its
+   * literal value: it is that every existing mount moves by nothing.
+   */
+  readonly unabridged?: boolean;
 }
 
 const DIMENSION_LABEL: Record<LearningDimensionKey, string> = {
@@ -107,6 +129,7 @@ export function LearningGenomeInspector({
   dayModelCoverage,
   dualSideGuard,
   weekMaturity,
+  unabridged = true,
 }: LearningGenomeInspectorProps): React.ReactElement {
   const dimensions: readonly {
     key: LearningDimensionKey;
@@ -318,7 +341,7 @@ export function LearningGenomeInspector({
         return (
           <SemanticZoom
             levels={levels}
-            defaultLevel={3}
+            defaultLevel={unabridged ? 3 : 1}
             ariaLabel="Learning Genome zoom"
           />
         );

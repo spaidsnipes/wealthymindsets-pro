@@ -104,7 +104,16 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
        this file is that the number cannot move without somebody looking. It
        moved 22 → 21, and this is the looking. */
     "DecisionWhyPanel",
-    "LearningGenomeInspector",
+    /* `LearningGenomeInspector` WAS HERE. Fourth entry discharged, same
+       mechanism as the first three: it became the WORKSPACE grammar's sixth
+       tenant, so `learningGenomeEquipment`'s `renderDepth` mounts it at zero
+       `<details>` depth. Its in-room mount — one disclosure deep, gated on
+       REVIEW/LEARN and wrapped in `<SceneAdmitsAmbient>` — is untouched, and
+       the equipment carries that same ambient gate rather than routing round
+       it. A door added, not a surface moved.
+
+       19 → 18. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     /* `MirrorPanel` WAS HERE. Second entry discharged, same mechanism as the
        first: it became the WORKSPACE grammar's fourth tenant, so
        `mirrorEquipment`'s `renderDepth` mounts it at zero `<details>` depth.
@@ -140,7 +149,21 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
     "StoryRibbon",            // One Story owns the primary read; this is the full chronology beneath it
     "PerCapabilityFidelityGrid",
     "ProviderWireStrip",
-    "SceneAdmitsAmbient",
+    /* `SceneAdmitsAmbient` WAS HERE, and it came off in the SAME COMMIT as
+       `LearningGenomeInspector` — as a CONSEQUENCE of it, not as a second
+       decision. The sixth tenant's `renderDepth` wraps its body in this gate
+       so the equipment cannot route around the room's own refusal, and
+       `renderDepth` is at zero `<details>` depth by construction. Surfacing
+       the tenant therefore surfaced its gate.
+
+       This is the register catching something nobody set out to do, which is
+       the only reason to keep a list like this. And it is the right outcome:
+       a gate is not intelligence, it renders `null` or its children and
+       nothing of its own, so it has no depth for a trader to be denied. It
+       belongs on no list once a mount exists in the open.
+
+       18 → 17. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     // ── STRUCTURAL. Layout primitives; they live wherever their section does. ──
     "SectionBanner",
     "SemanticZoom",
