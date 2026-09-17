@@ -775,6 +775,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const wrapRef       = useRef<HTMLDivElement>(null);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null); // drawing tools overlay
+  /**
+   * THE DECLINE THE TRADER CAN READ.
+   *
+   * `data-vp-*` on the canvas is a MEASUREMENT channel — it answers a probe, not
+   * a person. A trader whose Session VP lane is empty does not open devtools;
+   * they conclude the product is broken, or worse, that the profile is genuinely
+   * flat there. §5 SYSTEM TRUTH LAW asks for the statement to be MADE, not to be
+   * discoverable.
+   *
+   * Held as state so it renders, and mirrored in a ref so the 30fps draw loop can
+   * compare without reading state it does not depend on. The loop calls the
+   * setter ONLY when the sentence changes — every frame would re-render the chart
+   * at 30fps to print the same words.
+   */
+  const vpNoteRef = useRef<string | null>(null);
+  const [vpDeclineNote, setVpDeclineNote] = useState<string | null>(null);
   const chartRef      = useRef<any>(null);
   // WM-CHART-P0-02: aborts the previous symbol/timeframe's in-flight candle
   // fetch the moment a new one starts, instead of only ignoring its result.
@@ -6137,6 +6153,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           if (receipt.note) ds.vpNote = receipt.note;
           else delete ds.vpNote;
         }
+        /*
+          AND THE SAME SENTENCE, ON THE SCREEN.
+
+          The attribute above answers a probe; this answers the trader. Compared
+          against the ref — not against state — because the state this closure
+          captured is from whichever render created the RAF loop, and would go
+          stale the moment the note changed. The ref is written in the same tick
+          as the setter, so the NEXT frame sees the new value and stays silent.
+
+          Set only on CHANGE. The loop runs at up to 30fps; calling the setter
+          every frame would re-render the entire chart to print words that did
+          not move.
+        */
+        if (receipt.note !== vpNoteRef.current) {
+          vpNoteRef.current = receipt.note;
+          setVpDeclineNote(receipt.note);
+        }
       }
       // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).
       runWMVP();
@@ -7656,6 +7689,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           className="absolute top-0 left-0 pointer-events-none"
           style={{ mixBlendMode: "normal", opacity: flowOpacity, zIndex: 5 }}
         />
+        {/*
+          VP DECLINE NOTICE — the empty lane explains itself.
+
+          Sits over the RIGHT edge, where the profile column would have been, so
+          the notice occupies the very space whose emptiness it is accounting
+          for. Rendered ONLY when a requested column did not draw: a chip that
+          appeared on every frame would be chrome, and chrome is ignored.
+
+          NOT opacity-dimmed with `flowOpacity`. That control dims the ORDER-FLOW
+          PAINT so drawings stand out; a missing-work notice is not paint, and a
+          trader who has dimmed the overlay to 15% has not asked to be told less
+          truth about it.
+        */}
+        {vpDeclineNote && (
+          <div
+            data-vp-decline-notice
+            role="status"
+            className="absolute pointer-events-none"
+            style={{
+              top: 8, right: 8, zIndex: 6,
+              maxWidth: 260,
+              padding: "4px 8px",
+              borderRadius: 4,
+              border: "1px solid rgba(240,180,41,0.45)",
+              background: "rgba(13,17,23,0.92)",
+              color: "#F0B429",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              lineHeight: 1.35,
+            }}
+          >
+            {vpDeclineNote}
+          </div>
+        )}
         {/* Drawing tools canvas — pointer-events only when tool is active */}
         <canvas
           ref={drawCanvasRef}

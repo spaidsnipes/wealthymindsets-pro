@@ -218,6 +218,32 @@ describe("SENTINEL — MainChart publishes the receipt it compiles", () => {
     expect(src).toMatch(/vpRows/);
   });
 
+  it("THE NOTE REACHES A HUMAN, not only a probe", () => {
+    // `data-vp-*` answers an automated reader. A trader staring at an empty
+    // right-hand lane does not open devtools — they conclude the profile is
+    // genuinely flat there, or that the product is broken. §5 asks for the
+    // statement to be MADE, not merely to be discoverable, so the compiled note
+    // must reach React state and be rendered.
+    expect(src, `${REL} → note must be published to state`).toMatch(
+      /setVpDeclineNote\s*\(\s*receipt\.note\s*\)/,
+    );
+    expect(src, `${REL} → note must be rendered`).toMatch(
+      /\{\s*vpDeclineNote\s*&&/,
+    );
+    expect(src, `${REL} → the notice needs a DOM handle to measure`).toContain(
+      "data-vp-decline-notice",
+    );
+  });
+
+  it("the note is published on CHANGE, not on every frame", () => {
+    // The draw loop runs at up to 30fps. An unguarded setter would re-render the
+    // whole chart thirty times a second to print words that did not move — and
+    // the first draft of this wiring is exactly where that regression lands.
+    expect(src, `${REL} → setter must be change-guarded`).toMatch(
+      /if\s*\(\s*receipt\.note\s*!==\s*vpNoteRef\.current\s*\)/,
+    );
+  });
+
   it("an unrequested frame CLEARS the stamp rather than writing zeros", () => {
     // `data-vp-drawn="0"` means the VP was asked for and produced nothing.
     // Its absence means no VP was asked for. Leaving a stale `0` on a chart
