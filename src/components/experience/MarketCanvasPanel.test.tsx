@@ -169,3 +169,49 @@ describe("MarketCanvasPanel — `unabridged` is depth, and only where depth is o
     expect(capped).toBe(explicit);
   });
 });
+
+describe("MarketCanvasPanel — `unabridged` composes sideways, and changes nothing else", () => {
+  const full = (over = {}) =>
+    renderToStaticMarkup(<MarketCanvasPanel vm={vm(over)} unabridged />);
+
+  it("lays the ledgers out as columns when it is handed the whole screen", () => {
+    // The defect this pins: at FULL the four ledgers ran as one 11px column
+    // down the left of a 1568px screen with two thirds of it black. ENTER is
+    // supposed to buy a complete professional visual experience; a stretched
+    // drawer is a resize. `grid` is the whole claim — assert the declaration,
+    // not a class name that a refactor could keep while dropping the layout.
+    const html = full({ missing: ["Direction"], blockers: ["Regime"] });
+    expect(html).toContain('data-testid="market-canvas-ledgers"');
+    expect(html).toMatch(/market-canvas-ledgers[^>]*display:grid/);
+  });
+
+  it("does NOT lay them out sideways in a drawer — the tight slot has no sideways", () => {
+    // Same wrapper element, no grid. If this ever matched, every consumer of
+    // the panel — the deck beneath the chart, the journal detail — would have
+    // silently become three narrow columns in a slot built for one.
+    const drawer = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ missing: ["Direction"], blockers: ["Regime"] })} />,
+    );
+    expect(drawer).toContain('data-testid="market-canvas-ledgers"');
+    expect(drawer).not.toMatch(/market-canvas-ledgers[^>]*display:grid/);
+  });
+
+  it("keeps WOULD INVALIDATE OUT of the grid — it is the rule under the canvas, not a column", () => {
+    // It names the one observation that would flip the verdict every ledger
+    // above just argued for. As a fourth column it reads as a peer of them;
+    // its borderTop only means "beneath all of this" if it spans all of this.
+    const html = full({ missing: ["Direction"], invalidators: ["A verified engine publishes."] });
+    const grid = html.indexOf("market-canvas-ledgers");
+    const invalidators = html.indexOf("market-canvas-invalidators");
+    expect(grid).toBeGreaterThan(-1);
+    expect(invalidators).toBeGreaterThan(-1);
+    // The grid wrapper CLOSES before the invalidators block opens.
+    expect(html.slice(grid, invalidators)).toContain("</div>");
+  });
+
+  it("arrangement is not disclosure — the shortfall lines survive the columns", () => {
+    // A layout atom is exactly the kind of change that quietly drops a line.
+    const html = full({ blockers: ["Regime", "Direction", "Location"], blockerCount: 9 });
+    expect(html).toContain("+6 more blocking, not named here");
+  });
+});

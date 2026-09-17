@@ -68,6 +68,30 @@ export function MarketCanvasPanel({
 }: MarketCanvasPanelProps): React.ReactElement {
   /** Infinity, not a bigger number: "as many as I was handed" is the rule. */
   const cap = unabridged ? Number.POSITIVE_INFINITY : 6;
+
+  /**
+   * THE LEDGERS COMPOSE SIDEWAYS WHEN THERE IS SIDEWAYS TO USE.
+   *
+   * Measured live on /command-deck at FULL: RESOLVED / UNRESOLVED / WHY NOT /
+   * CLEARED ran as one 11px column down the left of a 1568px screen with two
+   * thirds of it black. That is a drawer that was stretched, not a complete
+   * professional visual experience — and the acceptance question for the whole
+   * equipment grammar is whether ENTER feels like depth or like a resize.
+   *
+   * `auto-fit` rather than a fixed column count: the same panel is handed to
+   * consumers of every width, and a room with only one non-empty ledger must
+   * not render a lone 240px stripe beside two voids. Nothing about WHICH rows
+   * render changes here — this is arrangement, not disclosure. The shortfall
+   * lines ride inside their own ledger and travel with it.
+   */
+  const ledgers: React.CSSProperties = unabridged
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: 28,
+        alignItems: "start",
+      }
+    : {};
   const anyBodyPresent =
     vm.missing.length > 0 ||
     vm.resolved.length > 0 ||
@@ -103,6 +127,7 @@ export function MarketCanvasPanel({
         {vm.headline}
       </div>
 
+      <div data-testid="market-canvas-ledgers" style={ledgers}>
       {vm.resolved.length > 0 && (
         <div
           data-testid="market-canvas-resolved"
@@ -195,7 +220,12 @@ export function MarketCanvasPanel({
           )}
         </div>
       )}
+      </div>
 
+      {/* WOULD INVALIDATE is deliberately OUTSIDE the ledger grid. It is not a
+          fourth ledger — it is the line under all of them, the one observation
+          that would flip the verdict the whole panel just argued for. Its
+          borderTop only reads as a rule beneath the canvas if it spans it. */}
       {vm.invalidators.length > 0 && (
         <div
           data-testid="market-canvas-invalidators"

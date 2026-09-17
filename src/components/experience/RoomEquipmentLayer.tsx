@@ -235,10 +235,14 @@ export function RoomEquipmentLayer({
           minHeight: 0,
           overflowY: "auto",
           padding: stage === "full" ? "14px 0 0" : "0 12px 12px",
-          maxWidth: stage === "full" ? 980 : undefined,
-          // A 980px column pinned to the left edge of a 1568px screen is not a
-          // full experience, it is a drawer that lost its dock. Centring the
-          // measure is what makes the extra width read as composition.
+          // 1280, not 980: the canvas now lays its ledgers out SIDEWAYS at this
+          // stage, and 980 squeezed three columns to ~310px each — narrow
+          // enough that every evidence line wrapped twice and the composition
+          // read as three cramped lists rather than one canvas.
+          maxWidth: stage === "full" ? 1280 : undefined,
+          // A column pinned to the left edge of a 1568px screen is not a full
+          // experience, it is a drawer that lost its dock. Centring the measure
+          // is what makes the extra width read as composition.
           margin: stage === "full" ? "0 auto" : undefined,
           width: "100%",
         }}
