@@ -485,6 +485,39 @@ function CommandDeckInner() {
     // expressions here — which quietly made the deck the author of a rule that
     // /charts then had to re-invent, and got wrong by publishing nothing.
     ...standingFromOneStory(oneStory),
+    /*
+      THE FEED OBSERVATION — the same omission /charts already paid for.
+
+      Until now this call published a surface and a Right of Way and no `feed`,
+      so `compileFeedStanding` took the `source === null` arm and the frame
+      printed FEED UNKNOWN in the masthead and SOURCE UNKNOWN in the footer.
+      Measured live on production 2026-09-17 at fb7826c, /command-deck wore both
+      of those labels while the SAME PAGE, inches below, printed `source alpaca`,
+      `coverage 1 channel`, `358.08 LAST 15M BAR CLOSE` and drew 120 candles.
+      One screen answering its own question twice, in two different voices —
+      §14.1: the UNKNOWN was a DEFAULT, not a FINDING.
+
+      Nothing here is derived. Every value was already resolved above for the
+      deck's own panels: `wsFeed` is the transport, `sessionOpen` is the proven
+      closure calendar, `deckCandles` is the array the deck forwards into
+      canonical market state and draws. `priceSourceBadge` remains the sole
+      grader — this publishes EVIDENCE, never a verdict.
+    */
+    feed: {
+      // "unavailable" is the hook's word for "no provider answered" — an ABSENT
+      // source, not a provider named unavailable. Same guard /charts uses.
+      source: wsFeed.source === "unavailable" ? null : wsFeed.source,
+      // Identical predicate to the chart's fidelity chip, so the masthead and
+      // the room cannot disagree about whether a price arrived.
+      quotePresent: Number.isFinite(wsFeed.ticker.price) && wsFeed.ticker.price > 0,
+      // THE BAR RECEIPT the deck has held since it started forwarding candles.
+      // A closed US session serves no quote and hundreds of bars; without this
+      // the frame claims ignorance over a fully drawn chart.
+      barsPresent: (deckCandles?.length ?? 0) > 0,
+      lastObservedAtMs: wsFeed.lastObservedAtMs,
+      connected: wsFeed.connected,
+      sessionOpen,
+    },
   });
 
   const expressionDirection = expressionDirectionFromCanonical(state?.direction);
