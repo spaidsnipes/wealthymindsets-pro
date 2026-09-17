@@ -99,19 +99,36 @@ stage:**
 Equipment #1 re-probed and unregressed: `?equip=market-reality&stage=drawer` →
 `{"stage":"drawer","aria":"Market reality — room equipment","hasCanvas":true,"hasPassport":false}`.
 
-## Open, and stated plainly
+## PROVEN ON PRODUCTION
 
-**Production has not served this yet.** Probed `https://wealthymindsetspro.com/command-deck`
-after the push: `wallDocs:"2"`, `passportArticle:true`, and WORKSPACE lists only
-*Market reality*. That is a pre-`0c6ddd76` build. `origin/main` is at `0988b3aa`,
-so the code is pushed and the Cloudflare Workers build is what is outstanding —
-**nothing about this journey may be called PROVEN on production until it is
-walked there.**
+This section was first written as a blocker. Immediately after the push, prod
+still served a pre-`0c6ddd76` build (`wallDocs:"2"`, `passportArticle:true`,
+WORKSPACE listing only *Market reality*), and the honest thing was to say so and
+move to another lane. The Cloudflare Workers build then landed, and the journey
+was walked at `https://wealthymindsetspro.com/command-deck` — the NORMAL URL, by
+real clicks, screenshot at every stage:
 
-The specific Founder-facing proof still owed, once the build lands: a screenshot
-of the room **without** the permanent passport band, so the Founder is *shown* the
-uncluttered chart rather than told about it — then the same five-stage walk on the
-production URL.
+| Stage | Observed on production |
+|---|---|
+| ROOM | `wallDocs:"1"`, `passportArticle:false`. The eight always-open dimension rows are gone from the band; the chart, the four canvas columns and the stamp line (`MARKET OBJECT PASSPORT · OBJECT ID chart:NQ1!…28696763 · RESOLVED 0 of 8 dimensions`) are what remains. **This is the screenshot the Founder was owed** — the uncluttered room, shown rather than described. |
+| PREVIEW | `?equip=market-object-passport&stage=preview`, same pathname. Widget bottom-right; the chart and canvas stayed readable behind it. |
+| DRAWER | Docked beside a still-live chart. `detailsInsideEquipment: 8` — every row folded, each carrying a `DNA · 0 REFS` chip that says what is behind the fold. |
+| FULL | `detailsInsideEquipment: 0`, `dnaBlocks: 8`. Every dimension's MISSING / INVALIDATION rendered inline, `RETURN TO ROOM` the only control, `snapshot chart:NQ1!:RTH:15m:no-price:… · sealed 2026-09-17 07:04:56Z` at the foot. **Depth, measured — not a bigger box.** |
+| RETURN | `stage=drawer` — the stage entered from, not a reset to preview. `pathname: "/command-deck"`, `chartStillThere: true`. |
+
+Against the Founder's own acceptance criteria: previewed it, entered it,
+experienced its full depth, returned without losing my place. **PASS.**
+
+## What the production screenshot then caught
+
+The room-at-rest capture shows the rail reading `Passport` (ROOMS) four lines
+above `Object passport` (WORKSPACE) — the trader's own memory vault and a market
+object's evidence lineage, sharing a noun with nothing to tell them apart. Fixed
+in `1d225210`: the equipment now carries the canon name in full, *Market object
+passport*, matching the stamp band above the chart. Awaiting its own deploy.
+
+That defect was invisible in every test and obvious in the first screenshot,
+which is the entire argument for looking.
 
 Also carried, unchanged: the Cloudflare build gap escalation (build
 `651be3e7-0a2e-4f19-b3ea-7aa3b6f0fb36` FAILED while GitHub CI passed the same
