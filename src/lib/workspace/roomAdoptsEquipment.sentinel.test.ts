@@ -20,6 +20,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { INTERNAL_NAMES } from "@/lib/design/internalNames";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 // The REAL registry, not a re-parse of its source. What the rail renders is
 // what this function returns, so that is what the room must be compared against.
@@ -674,42 +675,18 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     // would be a rule nobody could predict the meaning of; a named list is a
     // decision, and adding to it is also a decision.
     //
-    // NARROWED FROM FOUR NAMES TO TWO, BECAUSE TWO OF THE FOUR WERE GUESSES.
-    // The first draft of this list read:
+    // THE LIST USED TO BE DECLARED RIGHT HERE, and it was copied a third time
+    // once the product-wide JSX scan was written. Three copies of one security
+    // decision is the drift this suite exists to prevent, so the list and the
+    // whole record of WHY each name is on it — including the two names that
+    // were narrowed OUT of the first draft because they turned out to be
+    // trader vocabulary and a shipped route — now live in one place:
     //
-    //     [/\bATHOS\b/, /\bDLAR\b/, /\bCLC\b/, /\bNECTAR\b/i]
+    //     src/lib/design/internalNames.ts
     //
-    // written on the reasoning that they LOOKED internal. That is exactly the
-    // thing the comment above claims this list is not. Checked afterwards:
-    //
-    //   CLC    — TRADER VOCABULARY. /education lesson 5 is "CLC Rule —
-    //            Context + Location + Confirmation", and /journal offers
-    //            "CLC Long" / "CLC Short" as setup names the trader picks by
-    //            hand. WM teaches this word on purpose. Banning it from
-    //            equipment copy would have forced a future author to rename a
-    //            concept the product spends four hours teaching — a rule whose
-    //            cheapest cure is the disease.
-    //   NECTAR — A SHIPPED SURFACE. /nectar and /nectar/[symbol] are real
-    //            routes and `DataHealth.tsx` renders the word to the trader.
-    //            A name the product navigates to cannot be a name the product
-    //            hides.
-    //
-    // The two that survive were each verified to appear NOWHERE the trader
-    // reads except as a defect:
-    //
-    //   ATHOS  — the agent system's name. Leaked into session-watch drawer
-    //            copy; found by walking prod, fixed, pinned here and in
-    //            theMirrorIsNotAMarketPanel's rendering rule.
-    //   DLAR   — our acronym for Direction/Location/Aggression/Response.
-    //            DLARStrip has always shown the trader the four EXPANDED
-    //            words and never the acronym, so the acronym is ours alone.
-    //            Leaked as the literal label "DLAR narrative:" in
-    //            StructureContextNote; found by a Founder screenshot of the
-    //            chart room, fixed to the four words the chips already use.
-    //
-    // THE RULE FOR ADDING A NAME HERE: show that the trader is never taught
-    // it and never navigates to it. Looking internal is not evidence.
-    const INTERNAL_NAMES = [/\bATHOS\b/, /\bDLAR\b/];
+    // Read that file before adding a name. The bar is: show that the trader is
+    // never taught it and never navigates to it. Looking internal is not
+    // evidence.
 
     // WRITTEN ONCE THE NAIVE VERSION WAS CAUGHT BEING VACUOUS. The first draft
     // tried to extract string literals with /"([^"\\]{8,})"/g and quietly

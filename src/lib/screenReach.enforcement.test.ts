@@ -191,6 +191,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Release-gate definitions consumed by process, not by a screen.",
   },
+  "src/lib/design/internalNames.ts": {
+    reason: "OPS_TOOLING",
+    note: "The two names a trader must never read — ATHOS and DLAR — plus the recorded reason each is on the list and the two that were narrowed OFF it for being trader vocabulary and a shipped route. Consumed only by three Sentinels, which is the point: this is a build-time ban, and a trader gains nothing by any screen importing it. It exists as a module rather than as three copied array literals because both names reached prod through a decision made correctly in one place and contradicted in another, and a list kept in three files is that same failure waiting.",
+  },
   "src/lib/design/osRoomPlane.ts": {
     reason: "OPS_TOOLING",
     note: "Build-time detector: does a room paint an opaque near-black plane over the sanctuary? Consumed by gates, never rendered. A trader loses nothing by it having no screen — its whole job is to be asked before a route is promoted to frame:\"os\".",
