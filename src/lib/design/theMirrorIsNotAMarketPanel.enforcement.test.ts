@@ -5,6 +5,7 @@ import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
+import { StructureContextNote } from "@/components/chart/StructureContextNote";
 
 /**
  * STRUCTURAL H1 — an unobserved MARKET must not silence an observable fact
@@ -286,5 +287,57 @@ describe("the Mirror reflects the trader, not the tape", () => {
       visible,
       "the quiet state rendered nothing — the door opened on a blank",
     ).toMatch(/Nothing to raise/);
+  });
+
+  it("the structure note speaks the four dimensions, not our acronym for them", () => {
+    // THE SECOND INSTANCE OF THE SAME DEFECT CLASS, FOUND THE SAME WAY — by
+    // looking at a Founder screenshot of the NORMAL chart room rather than by
+    // running anything. This line shipped reading "DLAR narrative: …".
+    //
+    // DLAR is ours. `DLARStrip` has always put the four EXPANDED words on its
+    // chips — Direction, Location, Aggression, Response — and has never once
+    // shown the trader the acronym, so there is nowhere the trader could have
+    // learned it. That asymmetry is the whole test: the same screen says the
+    // four words in one place and the initialism in another.
+    //
+    // RENDERED, NOT SCANNED, and for a sharper reason than the ATHOS rule
+    // above. This component must legitimately READ `vm.dlar.narrative` — the
+    // property is the real name of the real field. A source scan for /DLAR/
+    // would therefore have to either ban that read (breaking the component) or
+    // whitelist it (and then miss the JSX text node sitting one token away on
+    // the SAME LINE). Rendering separates them with no ambiguity at all.
+    const vm = {
+      nodes: [{ key: "direction", verdict: "LONG" }],
+      auction: { verdict: "FAILING" },
+      dlar: {
+        direction: { value: "UP" },
+        narrative: "Higher timeframe up, auction failing.",
+      },
+    } as unknown as Parameters<typeof StructureContextNote>[0]["vm"];
+
+    const markup = renderToStaticMarkup(
+      React.createElement(StructureContextNote, { vm }),
+    );
+    const visible = markup.replace(/<[^>]*>/g, " ");
+
+    // The control first: a rule that silently rendered null would pass the
+    // ban below while proving nothing, and this component returns null on
+    // four separate guard branches.
+    expect(
+      visible,
+      "the fixture no longer trips the contradiction branch — this rule is " +
+        "asserting a ban against an empty string, which any copy would pass",
+    ).toMatch(/Structure context/);
+
+    expect(
+      visible,
+      "the chart room shows the trader our internal acronym:\n\n" +
+        visible.trim(),
+    ).not.toMatch(/\bDLAR\b/);
+    expect(
+      visible,
+      "the narrative lost its label — the trader now sees a bare sentence " +
+        "with nothing saying which readings produced it",
+    ).toMatch(/Direction, location, aggression, response/i);
   });
 });

@@ -60,7 +60,17 @@ export function StructureContextNote({ vm }: { vm: DecisionChainVM }) {
         </div>
         {structureVal && (
           <div style={{ fontSize: 10, color: "#8a8271", marginTop: 4, fontStyle: "italic" }}>
-            DLAR narrative: {vm.dlar.narrative}
+            {/* CAUGHT BY A FOUNDER SCREENSHOT OF THE CHART ROOM, NOT BY A TEST.
+                This read "DLAR narrative:". DLAR is our acronym for the four
+                dimensions; the trader has never been taught it and never sees
+                it expanded anywhere. The four words below are the SAME ones
+                DLARStrip already puts on its chips, so the label now matches
+                the vocabulary the trader is actually reading on screen.
+
+                Note this is the second instance of one defect class in one
+                day — the first was ATHOS in the session-watch drawer copy.
+                Both were invisible to the suite and visible on sight. */}
+            Direction, location, aggression, response: {vm.dlar.narrative}
           </div>
         )}
       </div>
