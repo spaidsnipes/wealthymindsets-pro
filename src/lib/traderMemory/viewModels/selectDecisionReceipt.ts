@@ -35,6 +35,34 @@ export const DECISION_RECEIPT_VERSION = "wm.decision-receipt.v1" as const;
 /** Lifecycle stage a receipt has reached — derived only from what is attached. */
 export type ReceiptStage = "SEALED" | "MANAGED" | "CLOSED" | "REVIEWED";
 
+/**
+ * EARLIEST → LATEST. The stage cascade below is a strict progression: each
+ * stage requires everything the previous one required, plus one more thing
+ * attached. That makes the stage an ORDERED fact.
+ *
+ * EXPORTED BECAUSE A SURFACE NOW DRAWS IT. `DecisionReceiptPanel` renders the
+ * stage as a progression track instead of a lone word, so the trader can see
+ * how far the record has travelled without memorising the cascade. A picture
+ * of a position in a sequence is a CLAIM about that sequence; if the panel
+ * kept its own copy of the order, the two files could disagree about which
+ * stage comes first while both stayed green.
+ *
+ * NOT A RANKING. A SEALED receipt is not a worse receipt — it is an earlier
+ * one, and for a disciplined WAIT it may be the last one. `isNonTrade` is on
+ * the VM precisely so a surface can tell "not yet" from "never owed".
+ */
+export const RECEIPT_STAGE_ORDER: readonly ReceiptStage[] = [
+  "SEALED",
+  "MANAGED",
+  "CLOSED",
+  "REVIEWED",
+];
+
+/** Position of a stage in the progression. -1 for an unrecognised stage. */
+export function receiptStageIndex(stage: ReceiptStage): number {
+  return RECEIPT_STAGE_ORDER.indexOf(stage);
+}
+
 /** A single verifiable line on the receipt. `tone` colours the fact, never judges. */
 export type ReceiptTone = "affirm" | "neutral" | "flag";
 

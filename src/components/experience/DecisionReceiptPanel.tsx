@@ -13,6 +13,11 @@
  */
 
 import * as React from "react";
+import {
+  RECEIPT_STAGE_ORDER,
+  receiptStageIndex,
+} from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
+import { DECISION_QUALITY_MAX } from "@/lib/traderMemory/decisionMemory";
 import type {
   DecisionReceiptVM,
   ReceiptTone,
@@ -55,6 +60,117 @@ function fmtTime(ms: number): string {
   }
 }
 
+/**
+ * THE STAGE IS A POSITION IN A SEQUENCE, SO IT IS DRAWN AS ONE.
+ *
+ * `vm.stage` was rendered as a lone uppercase word in one of four golds that
+ * sit inside eight percent of each other's luminance. SEALED → MANAGED →
+ * CLOSED → REVIEWED is a strict cascade — each stage requires everything the
+ * previous one required plus one more thing attached — and none of that order
+ * survived into the pixels. A trader reading MANAGED could not see that two
+ * more things are still outstanding without knowing the cascade by heart.
+ *
+ * THE WORD STAYS. The track is `aria-hidden` decoration beside it, because a
+ * position encoded only as "how many boxes are filled" is unreadable to a
+ * screen reader.
+ *
+ * ── THE PART THAT IS NOT DECORATION ──────────────────────────────────────
+ *
+ * A four-step track with one step filled says "three things are outstanding".
+ * For a disciplined WAIT or NO_TRADE that is a FABRICATED DEBT: the selector
+ * is explicit that a non-trade is complete — it writes "No position by design"
+ * into `pending` rather than flagging a missing outcome. A naive progress bar
+ * would have drawn, directly above that sentence, a picture calling the same
+ * decision 25% done.
+ *
+ * So the unreached steps are drawn in two different ways. MANAGED and CLOSED
+ * on a non-trade are OUTLINED — the shape is held so the sequence keeps its
+ * length, but nothing is owed there. Everything else genuinely outstanding is
+ * dimmed. REVIEWED is never outlined: a trader can and should review a WAIT.
+ */
+function StageTrack({
+  stage,
+  isNonTrade,
+}: {
+  stage: DecisionReceiptVM["stage"];
+  isNonTrade: boolean;
+}): React.ReactElement | null {
+  const index = receiptStageIndex(stage);
+  // An unrecognised stage draws nothing rather than drawing an empty track:
+  // "no stage" and "the earliest stage" must not look identical.
+  if (index < 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="receipt-stage-track"
+      data-stage-index={index}
+      style={{ display: "inline-flex", alignItems: "center", gap: 2 }}
+    >
+      {RECEIPT_STAGE_ORDER.map((s, i) => {
+        const reached = i <= index;
+        const notOwed = !reached && isNonTrade && (s === "MANAGED" || s === "CLOSED");
+        const state = reached ? "reached" : notOwed ? "not-owed" : "awaited";
+        return (
+          <span
+            key={s}
+            data-stage={s}
+            data-step-state={state}
+            style={{
+              width: 12,
+              height: 3,
+              borderRadius: 2,
+              background: reached
+                ? (STAGE_COLOR[s] ?? MUTED)
+                : notOwed
+                  ? "transparent"
+                  : "rgba(139,106,41,0.22)",
+              boxShadow: notOwed ? `inset 0 0 0 1px ${HAIR}` : undefined,
+            }}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * THE SPLIT EXISTS TO SHOW A SHAPE, AND IT WAS PRINTED AS FIVE FRACTIONS.
+ *
+ * The Decision-Quality Split is deliberately five separate axes rather than
+ * one composite score — the whole point is seeing WHICH axis was weak when the
+ * others held. Rendered as `Opportunity 4/5  Playbook 2/5  Risk 5/5 …` at 11px
+ * that comparison is five reading tasks and a mental sort, and `4/5` differs
+ * from `2/5` by a single glyph.
+ *
+ * Rungs put the five axes on one visual scale so the low one is found without
+ * reading. The fraction stays beside it — this is an addition. And the
+ * denominator is imported rather than typed as `5`, because a drawn rating
+ * needs a scale and a hardcoded one here would be a second author for a number
+ * `decisionMemory` already owns.
+ */
+function SplitRungs({ value }: { value: number }): React.ReactElement {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="receipt-split-rungs"
+      data-score={value}
+      style={{ display: "inline-flex", alignItems: "flex-end", gap: 1.5, height: 8 }}
+    >
+      {Array.from({ length: DECISION_QUALITY_MAX }, (_, i) => (
+        <span
+          key={i}
+          style={{
+            width: 2,
+            height: 3 + i * 1.25,
+            borderRadius: 0.5,
+            background: i < value ? "#d4af37" : "rgba(139,106,41,0.18)",
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function FactRow({ fact }: { fact: ReceiptFact }): React.ReactElement {
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
@@ -86,7 +202,19 @@ export function DecisionReceiptPanel({ vm }: DecisionReceiptPanelProps): React.R
         <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
           Decision Receipt
         </span>
-        <span style={{ fontSize: 11, letterSpacing: 0.5, color: stageColor, marginLeft: "auto", textTransform: "uppercase" }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 11,
+            letterSpacing: 0.5,
+            color: stageColor,
+            marginLeft: "auto",
+            textTransform: "uppercase",
+          }}
+        >
+          <StageTrack stage={vm.stage} isNonTrade={vm.isNonTrade} />
           {vm.stage}
         </span>
       </div>
@@ -193,14 +321,21 @@ export function DecisionReceiptPanel({ vm }: DecisionReceiptPanelProps): React.R
                 DECISION-QUALITY SPLIT · trader-declared
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {(Object.keys(SPLIT_LABEL) as (keyof typeof SPLIT_LABEL)[]).map((k) => (
-                  <span key={k} style={{ fontSize: 11, color: "#c2b892" }}>
-                    {SPLIT_LABEL[k]}{" "}
-                    <span style={{ color: "#d4af37" }}>
-                      {(vm.qualitySplit as unknown as Record<string, number>)[k]}/5
+                {(Object.keys(SPLIT_LABEL) as (keyof typeof SPLIT_LABEL)[]).map((k) => {
+                  const score = (vm.qualitySplit as unknown as Record<string, number>)[k];
+                  return (
+                    <span
+                      key={k}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "#c2b892" }}
+                    >
+                      {SPLIT_LABEL[k]}
+                      <SplitRungs value={score} />
+                      <span style={{ color: "#d4af37" }}>
+                        {score}/{DECISION_QUALITY_MAX}
+                      </span>
                     </span>
-                  </span>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

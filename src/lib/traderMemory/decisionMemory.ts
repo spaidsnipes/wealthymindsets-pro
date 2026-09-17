@@ -157,6 +157,25 @@ export interface Outcome {
 
 // ── Review (attached once when the trader reviews) ─────────────────────
 
+/**
+ * The top of the Decision-Quality Split scale.
+ *
+ * The five axes below are typed `1 | 2 | 3 | 4 | 5`, which the compiler
+ * enforces and no runtime can read. `DecisionReceiptPanel` now DRAWS these
+ * ratings rather than only printing `4/5`, and a drawn rating needs a
+ * denominator at runtime. Left to itself the panel would hardcode `5` — a
+ * second author for a number this file already owns, free to disagree the day
+ * the scale changes while both files stay green.
+ *
+ * So the constant lives beside the union it describes, and the union is
+ * checked against it: widening one without the other is a type error.
+ */
+export const DECISION_QUALITY_MAX = 5;
+
+/** Compile-time tie between the scale constant and the rating union. */
+const _qualityMaxIsTopOfScale: Review["marketOpportunityQuality"] = DECISION_QUALITY_MAX;
+void _qualityMaxIsTopOfScale;
+
 export interface Review {
   readonly reviewedAt: number;
   /** Decision Quality Split (kept distinct from outcome per Founder doctrine). */
