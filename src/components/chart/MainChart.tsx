@@ -6367,6 +6367,44 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // changes below.
   }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
+  /*
+    THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
+
+    The governor above computes a HIDDEN verdict and stamps `vpSuspended` from
+    the frame callback — but `requestAnimationFrame` DOES NOT FIRE AT ALL in a
+    hidden tab. Measured, not assumed: a backgrounded tab produced 0 rAF
+    callbacks in 1.5s. So the one branch whose entire purpose is to speak for a
+    hidden tab was only ever reachable from a visible one.
+
+    That is worse than silence, because the comment beside it says it handles
+    exactly the case it cannot reach: "on a tab that loads hidden the receipt is
+    never written once". True, and the cure was placed inside the thing that
+    stops running.
+
+    `visibilitychange` fires whether or not frames are being served, so it is
+    the correct publisher. This effect stamps on mount (a tab that LOADS hidden
+    never gets a transition) and on every transition into hidden.
+
+    It deliberately does NOT clear on the way back to visible. Becoming visible
+    is not a paint; the receipt is still absent until `draw()` actually runs and
+    deletes the stamp itself. Clearing here would announce a receipt that has
+    not been written yet — the same overclaim in the opposite direction.
+
+    BAD_CLOCK stays in the loop: a frozen clock is only observable from a frame.
+  */
+  const vpRequested = fixedVPActive || sessionVPActive;
+  React.useEffect(() => {
+    const stamp = () => {
+      const ds = canvasRef.current?.dataset;
+      if (!ds) return;
+      if (document.hidden && vpRequested) ds.vpSuspended = "hidden";
+      else if (!vpRequested) delete ds.vpSuspended;
+    };
+    stamp();
+    document.addEventListener("visibilitychange", stamp);
+    return () => document.removeEventListener("visibilitychange", stamp);
+  }, [vpRequested]);
+
   /* ── Derived display values ─────────────────────────────── */
   // openPrice is the OPEN of the first loaded bar (see setOpenPrice at load time),
   // which on a multi-day intraday range is NOT today's session open. Using it as a

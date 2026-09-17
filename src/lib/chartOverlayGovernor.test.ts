@@ -129,4 +129,61 @@ describe("SENTINEL — a suspended overlay declares itself", () => {
       /delete\s+canvasRef\.current\.dataset\.vpSuspended/,
     );
   });
+
+  /*
+    THE PART ABOVE WAS TRUE AND UNREACHABLE.
+
+    Every assertion in this describe passed while the hidden-tab stamp lived
+    inside the requestAnimationFrame callback — and rAF does not fire at all in
+    a hidden tab (measured: 0 callbacks in 1.5s on a backgrounded tab). A source
+    scan that only asks "is the branch written?" cannot tell a cure from a cure
+    placed inside the thing that stops running.
+
+    So these assertions ask WHERE.
+  */
+  const RAF_LOOP_END = src.indexOf("cancelAnimationFrame(rafId)");
+  const LISTENER = src.indexOf('addEventListener("visibilitychange"');
+  /*
+    Anchored at the effect's own first line, NOT at a byte count back from the
+    listener. The first draft used `LISTENER - 900` and swept up the rAF loop's
+    own `delete ds.vpSuspended` 40 lines above — a window that measures the
+    neighbours reports on the neighbours.
+  */
+  const PUBLISHER_START = src.indexOf("const vpRequested");
+
+  it("the hidden stamp has a publisher that survives a hidden tab", () => {
+    expect(RAF_LOOP_END, `${REL} → the overlay rAF loop is gone; re-pin this`).toBeGreaterThan(-1);
+    expect(
+      LISTENER,
+      `${REL} → nothing listens for visibilitychange, so a tab that LOADS hidden never stamps`,
+    ).toBeGreaterThan(-1);
+    expect(
+      LISTENER,
+      `${REL} → the visibilitychange publisher is inside the rAF loop, which does not run while hidden`,
+    ).toBeGreaterThan(RAF_LOOP_END);
+  });
+
+  it("that publisher actually stamps, and unsubscribes", () => {
+    // Scoped to the effect body so a visibilitychange listener registered for
+    // some unrelated purpose cannot satisfy the assertion above by accident.
+    const body = src.slice(PUBLISHER_START, src.indexOf('removeEventListener("visibilitychange"') + 60);
+    expect(body, `${REL} → the visibility publisher must stamp vpSuspended`).toMatch(
+      /document\.hidden\s*&&\s*vpRequested\)\s*ds\.vpSuspended\s*=\s*"hidden"/,
+    );
+    expect(body, `${REL} → the listener must be removed, or it leaks per remount`).toMatch(
+      /removeEventListener\("visibilitychange"/,
+    );
+  });
+
+  it("becoming VISIBLE does not clear the stamp — only a real paint may", () => {
+    // Visibility is not a paint. If this handler cleared on the way back to
+    // the foreground, `vpSuspended` would disappear before `draw()` had written
+    // the receipt it stands in for, and the gap would be silent again.
+    const body = src.slice(PUBLISHER_START, LISTENER);
+    const deletes = body.match(/delete\s+ds\.vpSuspended/g) ?? [];
+    expect(deletes.length, `${REL} → unexpected clear in the visibility publisher`).toBe(1);
+    expect(body, `${REL} → the only clear must be the "no profile requested" one`).toMatch(
+      /!vpRequested\)\s*delete\s+ds\.vpSuspended/,
+    );
+  });
 });
