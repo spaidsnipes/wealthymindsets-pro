@@ -32,6 +32,7 @@ import { selectATHOSIntervention, type ATHOSIntervention } from "@/lib/traderMem
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
+import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import OpeningBellEvidence from "@/components/opening-bell/OpeningBellEvidence";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 // The single writer for every contradiction claim WM makes. A contradiction
@@ -3282,6 +3283,17 @@ function OpeningBellSlot({
  */
 function TodayPrepBridge({ userId }: { userId: string | null }) {
   const prep = useTodayPrep(userId);
+  // The count is the OWNER's, not this component's. It used to be read raw off
+  // the adapter and printed as "{done}/{total} checked" a few hundred lines
+  // below a sentence compiled from the very same numbers — two roads to one
+  // fact (§24), and the raw road carried none of the owner's refusals.
+  const prepBand = selectPrepChecklistBand(
+    selectPrepEvidence({
+      readState: prep.readState,
+      checklistDone: prep.checklistDone,
+      checklistTotal: prep.checklistTotal,
+    }),
+  );
   if (!prep.hasEntry) return null;
   return (
     <div
@@ -3320,10 +3332,44 @@ function TodayPrepBridge({ userId }: { userId: string | null }) {
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-        {prep.checklistTotal > 0 && (
-          <div style={{ fontSize: 10, color: "#c9a55c", letterSpacing: 0.3 }}>
-            {prep.checklistDone}/{prep.checklistTotal} checked
-          </div>
+        {/* THE PREP COUNT, GIVEN A SHAPE.
+            One mark per item on the trader's OWN list — anonymous, because the
+            system knows HOW MANY was ticked and never WHICH, and `openingBellPrep`
+            refuses to invent the mapping. An unchecked mark keeps its width and
+            loses its light, so four items still owed cannot narrow away. Ivory
+            because a count of what the trader did is a FINDING; the brass this
+            replaced is the one direction the house may raise its voice, and it
+            was raising it at the trader. No verdict, no percentage. */}
+        {prepBand && (
+          <>
+            <div
+              data-testid="prep-checklist-band"
+              data-done={prepBand.done}
+              data-total={prepBand.total}
+              aria-hidden="true"
+              style={{ display: "flex", gap: 2, width: 76 }}
+            >
+              {prepBand.marks.map((mark, i) => (
+                <span
+                  key={i}
+                  data-testid="prep-checklist-mark"
+                  data-checked={mark.checked ? "true" : "false"}
+                  style={{
+                    flex: "1 1 0",
+                    minWidth: 0,
+                    height: 4,
+                    borderRadius: 1,
+                    background: mark.checked ? "#ede6d3" : "rgba(138,130,113,0.22)",
+                  }}
+                />
+              ))}
+            </div>
+            {/* The band is aria-hidden, so this carries the whole reading for a
+                screen reader rather than captioning a picture. */}
+            <div data-testid="prep-checklist-count" style={{ fontSize: 10, color: "#8a8271", letterSpacing: 0.3 }}>
+              {prepBand.done} of {prepBand.total} checked
+            </div>
+          </>
         )}
         <a
           href="/morning-prep"
