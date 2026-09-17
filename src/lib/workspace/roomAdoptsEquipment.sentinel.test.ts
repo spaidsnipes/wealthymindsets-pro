@@ -21,6 +21,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+// The REAL registry, not a re-parse of its source. What the rail renders is
+// what this function returns, so that is what the room must be compared against.
+import { roomEquipment } from "./roomEquipment";
 
 /** COMMENT-STRIPPED: every claim below is also discussed in prose in-file. */
 const read = (rel: string) =>
@@ -66,9 +69,20 @@ const ROOMS = [
     rel: DECK,
     /** The prop the layer is handed — a chooser here, one descriptor on /charts. */
     content: "equipmentContent",
+    /**
+     * What this room renames the hook's `journey` to. Rooms do not share this
+     * name and must not be made to: the deck's `equipment` and the chart room's
+     * `chartEquipment` are both correct, and a rule that hard-coded either one
+     * would be asserting a coincidence of naming rather than the wiring.
+     *
+     * It is carried per-room so the chooser rule below can demand the room key
+     * its choice off THE JOURNEY — not off a prop, a piece of local state, or a
+     * stale copy that agrees with the rail until the day it doesn't.
+     */
+    journey: "equipment",
     descriptors: [
-      { memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]" },
-      { memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]" },
+      { id: "market-reality", memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]" },
+      { id: "market-object-passport", memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]" },
     ],
   },
   {
@@ -78,11 +92,25 @@ const ROOMS = [
     hrefExpr: "INSTRUMENT_VIEW_ROUTE",
     rel: "src/components/chart/ChartsDashboard.tsx",
     content: "chartEquipmentContent",
+    journey: "chartEquipment",
     descriptors: [
       {
-        memo: "chartEquipmentContent",
+        id: "market-reality",
+        memo: "chartMarketRealityEquipment",
         reads: /verdict:\s*chartMarketCanvas\.verdict/,
         deps: "[chartMarketCanvas]",
+      },
+      /**
+       * The chart room's passport. Pinned to `chartPassportVM` on purpose: that
+       * memo is ALSO what the Decision Why drawer renders, and a second
+       * `selectMarketObjectPassport` call would let the two surfaces disagree
+       * about how much of one object's lineage is sealed.
+       */
+      {
+        id: "market-object-passport",
+        memo: "chartPassportEquipment",
+        reads: /vm=\{chartPassportVM\}/,
+        deps: "[chartPassportVM]",
       },
     ],
   },
@@ -317,9 +345,25 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     // a chooser there would be demanding dead code — so the rule follows the
     // room's actual tenancy instead of being stated once and worked around.
     if (room.descriptors.length > 1) {
-      expect(choice, `${DECK} → the choice must be keyed by the id the RAIL asked for`).toMatch(
-        /equipment\.equipmentId/,
-      );
+      // RE-PINNED when /charts became the second room with two tenants. This
+      // read `/equipment\.equipmentId/` — the DECK's binding name — which was a
+      // rule about one room's spelling wearing a generic name. It passed for
+      // the deck by construction and would have failed the chart room for
+      // choosing a different local identifier, which is not a defect.
+      //
+      // Keyed off the room's OWN journey binding instead, and then made harder:
+      // that binding must be the one `useEquipmentJourney` produced. A room
+      // that selected on a prop, on local state, or on a stale copy of the id
+      // would satisfy the old regex and still show the trader a different piece
+      // of equipment than the rail marked open.
+      expect(
+        src,
+        `${rel} → ${room.journey} must be the journey the hook produced, not a local of the same name`,
+      ).toMatch(new RegExp(`journey:\\s*${room.journey}\\s*,`));
+      expect(
+        choice,
+        `${rel} → the choice must be keyed by the id the RAIL asked for (${room.journey}.equipmentId)`,
+      ).toMatch(new RegExp(`${room.journey}\\.equipmentId`));
     }
 
     // Every descriptor, not just the first. `descriptors` names the memo and
@@ -346,6 +390,66 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     expect(props, `${DECK} → the subject must be the ROOM's own symbol`).toMatch(
       /subject=\{\{\s*symbol,\s*timeframe\s*\}\}/,
     );
+  });
+
+  /**
+   * THE RAIL AND THE ROOM MUST NAME THE SAME EQUIPMENT — MEASURED, NOT ASSUMED.
+   *
+   * This rule exists because the gap was FOUND, not imagined. Deleting
+   * `market-object-passport` from the chart room's registry entry in
+   * `roomEquipment.ts` left all 68 tests in this directory green.
+   *
+   * That is the worst failure shape this suite can have. The registry is what
+   * the WORKSPACE rail renders; the descriptor is what the room hands the layer
+   * when a rail entry is pressed. Every other rule in this file inspects the
+   * ROOM side. Nothing compared the two. So an equipment could be un-registered
+   * — vanishing from the rail, unreachable by any press, which is exactly the
+   * "zero doors" defect this atom was written to cure — while its descriptor sat
+   * in the room fully built, fully type-checked, and never tested against. The
+   * suite would have reported a clean bill of health about a door that no longer
+   * existed.
+   *
+   * The comparison is BIDIRECTIONAL on purpose, because each direction is a real
+   * failure with a different smell:
+   *
+   *   rail ⊅ room  →  a rail entry with nothing behind it (a painted door —
+   *                   see the HONEST EMPTINESS note in roomEquipment.ts)
+   *   room ⊅ rail  →  a built descriptor the rail can never ask for (dead code
+   *                   wearing the shape of a feature)
+   *
+   * It calls the REAL `roomEquipment()` instead of re-parsing the file, so a
+   * registry that computes its keys cannot make this scan go blind the way an
+   * earlier literal-only scan in this codebase did.
+   */
+  it("every rail entry has a descriptor, and every descriptor has a rail entry", () => {
+    const registered = roomEquipment(room.href).map((e) => e.id).sort();
+    const described = room.descriptors.map((d) => d.id).sort();
+
+    expect(
+      registered.length,
+      `${room.href} → the registry lists no equipment at all; this rule would pass vacuously`,
+    ).toBeGreaterThan(0);
+
+    expect(
+      registered,
+      `${room.href} → the WORKSPACE rail and the room disagree about what equipment exists. ` +
+        `rail=[${registered.join(", ")}] room=[${described.join(", ")}]`,
+    ).toEqual(described);
+
+    // ...and the room must actually be able to SERVE each id it registers. The
+    // chooser maps id → descriptor; an id absent from that map falls through to
+    // the default, which would show the trader Market reality when they pressed
+    // the passport — a silent substitution with nothing on screen to catch it.
+    if (room.descriptors.length > 1) {
+      const chooserAt = src.indexOf(`const ${room.content}`);
+      const chooserSrc = src.slice(chooserAt, chooserAt + 400);
+      for (const id of registered) {
+        expect(
+          chooserSrc,
+          `${rel} → "${id}" is on the rail but the chooser never maps it; pressing it would silently serve the default`,
+        ).toContain(`"${id}"`);
+      }
+    }
   });
 
   /*

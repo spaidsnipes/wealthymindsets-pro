@@ -120,6 +120,35 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Market reality",
       hint: "What is resolved, what is missing, what blocks entry",
     },
+    /**
+     * THE CHART ROOM HAD NO DOOR TO THIS AT ALL ON DESKTOP.
+     *
+     * `chartPassportVM` was compiled on every render of this room and reachable
+     * through exactly one path: a `<details>` nested inside the Decision Why
+     * MODAL DRAWER, behind a trigger that only renders when
+     * `narrowViewport || optionsOpen`. On a desktop Chart tab — the Founder's
+     * own view — that trigger is not rendered, so the passport existed, was
+     * correct, and could not be opened by anybody.
+     *
+     * That is worse than the burial the deck was cured of: there the evidence
+     * was three drawers down, here there was no stair at all. And it is the
+     * directive's failure clause word for word — the intelligence exists but
+     * requires hunting through implementation containers.
+     *
+     * The entry is registered rather than un-collapsed because a passport
+     * pinned permanently open on MARKET is the other banned thing. Equipment is
+     * the correct mechanism: one press from the rail, nothing on the chart until
+     * the trader asks.
+     *
+     * The label carries the canon name in full for the same reason the deck's
+     * does — `/nectar` is a ROOM called "Passport" and is the trader's OWN. See
+     * the deck entry above, and the Sentinel that pins it.
+     */
+    {
+      id: "market-object-passport",
+      label: "Market object passport",
+      hint: "Where each reading came from, and what would break it",
+    },
   ],
 };
 

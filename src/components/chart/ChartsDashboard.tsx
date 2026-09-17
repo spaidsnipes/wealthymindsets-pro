@@ -866,7 +866,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     label exactly; a Sentinel pins that so a trader cannot press one name and
     land on another.
   */
-  const chartEquipmentContent = React.useMemo(
+  const chartMarketRealityEquipment = React.useMemo(
     () => ({
       equipmentId: "market-reality",
       title: "Market reality",
@@ -883,6 +883,59 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }),
     [chartMarketCanvas],
   );
+
+  /*
+    THE ROOM'S SECOND TENANT — and the first door this room has ever had to it.
+
+    `chartPassportVM` (memoised far above, off `chartCanvasState`) was already
+    compiled on every render. Its ONLY reachable path was a `<details>` nested
+    inside the Decision Why modal drawer, behind a trigger gated on
+    `narrowViewport || optionsOpen` — which means on a desktop Chart tab there
+    was no path at all. Correct intelligence, zero doors.
+
+    Built from that SAME memo, deliberately. A second `selectMarketObjectPassport`
+    call here would let the equipment and the drawer come to disagree about how
+    much of the passport is filled in, which is the second-brain failure wearing
+    a different panel.
+
+    Same id as the deck's, for the same reason `market-reality` shares one: a
+    market object's passport is one object, not one-per-room.
+  */
+  const chartPassportEquipment = React.useMemo(
+    () => ({
+      equipmentId: "market-object-passport",
+      title: "Market object passport",
+      verdict: chartPassportVM.qualityState,
+      headline: `Every reading carries its own lineage — ${chartPassportVM.resolvedCount} of ${chartPassportVM.totalCount} objects are sealed with evidence.`,
+      counts: [
+        {
+          testId: "equipment-count-passport-resolved",
+          label: `${chartPassportVM.resolvedCount} resolved`,
+        },
+        {
+          testId: "equipment-count-passport-unresolved",
+          label: `${chartPassportVM.totalCount - chartPassportVM.resolvedCount} unresolved`,
+        },
+        { testId: "equipment-count-passport-objects", label: `${chartPassportVM.totalCount} objects` },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <MarketObjectPassportPanel vm={chartPassportVM} unabridged={unabridged} />
+      ),
+    }),
+    [chartPassportVM],
+  );
+
+  /*
+    The chooser. The room hands the layer ONE descriptor — the one the rail
+    asked for — so the layer never learns that this room has more than one piece
+    of equipment, and never has to choose. Choosing is the room's job because
+    only the room knows what it compiled.
+  */
+  const chartEquipmentContent =
+    ({
+      "market-reality": chartMarketRealityEquipment,
+      "market-object-passport": chartPassportEquipment,
+    }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
 
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(
     "No decision born yet — permission has not crossed.",
@@ -1775,7 +1828,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               titleId="chart-decision-why-title"
               descriptionId="chart-decision-why-description"
               title="Decision Why"
-              description="Decision evidence, blockers, and clearances. Expand the passport for object lineage and invalidation."
+              description="Decision evidence, blockers, and clearances. Object lineage and invalidation are below, already open."
               closeLabel="Close Decision Why"
               width={440}
               onClose={() => setWhyOpen(false)}
@@ -1783,12 +1836,32 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             >
               <div style={{ padding: 12 }}>
                 <DecisionWhyPanel vm={chartCanvasVM.decisionWhy} />
-                <details className="mt-3 border-t border-wm-border" id="chart-market-object-passport" key={`${symbol}:${timeframe}`}>
-                  <summary className="min-h-11 cursor-pointer py-3 text-sm text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
-                    Market object passport
-                  </summary>
+                {/*
+                  THIS WAS A <details> INSIDE A MODAL DRAWER.
+
+                  Drawer-inside-drawer burial, banned by name. The trader had
+                  already spent a press to open this sheet asking WHY; making
+                  them spend a second one on a summary row — inside the answer —
+                  is the deck's three-drawers-deep defect at a shallower depth,
+                  and it shipped here for the same reason: nothing on screen
+                  distinguishes "collapsed" from "absent".
+
+                  The disclosure is gone, not moved. Inside the drawer this is
+                  not clutter on MARKET — the trader asked, and the chart is not
+                  underneath it. On desktop the passport is now equipment
+                  instead (see chartPassportEquipment), which is the mechanism
+                  for depth the trader did NOT ask for.
+
+                  Keyed on symbol:timeframe so switching instruments cannot show
+                  the previous object's lineage for a frame.
+                */}
+                <div
+                  className="mt-3 border-t border-wm-border pt-3"
+                  id="chart-market-object-passport"
+                  key={`${symbol}:${timeframe}`}
+                >
                   <MarketObjectPassportPanel vm={chartPassportVM} />
-                </details>
+                </div>
               </div>
             </ShellModalDrawer>
           )}
