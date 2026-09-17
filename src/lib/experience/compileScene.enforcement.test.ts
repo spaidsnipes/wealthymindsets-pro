@@ -537,8 +537,30 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     expect(panel).toMatch(/readonly governed:\s*readonly SurfaceElement\[\]/);
     expect(panel).not.toMatch(/governed\?\s*:/);
     expect(panel).not.toMatch(/governed\s*=\s*SURFACE_ELEMENTS/);
-    // And withheld must be the GOVERNED complement, not the whole enum.
-    expect(panel).toMatch(/governedSet\.has\(e\)\s*&&\s*!admittedSet\.has\(e\)/);
+
+    /**
+     * And withheld must be the GOVERNED complement, not the whole enum.
+     *
+     * THE PARTITION MOVED, and this assertion follows it — the same reasoning,
+     * and the same precedent, as the provenance disclosure below. The three
+     * `SURFACE_ELEMENTS.filter(...)` calls that used to live in the panel are
+     * now compiled by `selectSceneGovernance`, because the §10 band this panel
+     * draws must be counted from the SAME partition that feeds the chips. Two
+     * partitions could disagree about how much of the screen the OS governs
+     * while both stayed green.
+     *
+     * Had this kept matching on the panel's own source, the only way to pass
+     * would have been to keep a second copy of the partition here — the test
+     * would have REQUIRED the second answer §24 forbids. So the rule is pinned
+     * to the owner, and the panel is pinned to CALLING the owner and to passing
+     * it the caller's real `governed` list rather than the enum.
+     */
+    const governance = stripComments(
+      readFileSync(resolve(SRC, "lib/experience/selectSceneGovernance.ts"), "utf8"),
+    );
+    expect(governance).toMatch(/governedSet\.has\(element\)/);
+    expect(governance).toMatch(/admitsSet\.has\(element\)\s*\?\s*"ADMITTED"\s*:\s*"WITHHELD"/);
+    expect(panel).toMatch(/selectSceneGovernance\(\{\s*admits:\s*compilation\.admits,\s*governed\s*\}\)/);
   });
 
   it("/command-deck gates the One Story strip — THE regression, pinned to the page", () => {
@@ -745,9 +767,23 @@ describe("compileScene enforcement — §H19 the panel is not a badge", () => {
     // A panel that prints the scene name and nothing else cannot show that the
     // compiler DID anything. Withheld is the load-bearing half.
     expect(panel).toContain("Withheld");
-    expect(panel).toContain("SURFACE_ELEMENTS");
-    // It must actually compute the complement, not hardcode a list.
-    expect(panel).toMatch(/SURFACE_ELEMENTS\.filter\(/);
+
+    // It must actually compute the complement over the full enum, not hardcode
+    // a list. Asserted against `selectSceneGovernance`, which now owns the
+    // partition — see the migration note on the governed-complement test above.
+    const governance = stripComments(
+      readFileSync(resolve(SRC, "lib/experience/selectSceneGovernance.ts"), "utf8"),
+    );
+    expect(governance).toContain("SURFACE_ELEMENTS");
+    expect(governance).toMatch(/SURFACE_ELEMENTS\.filter\(/);
+
+    /**
+     * And the DENOMINATOR may not shrink. The band this panel draws is only
+     * honest if it spans every surface element on every route: a band drawn
+     * across governed elements alone would be full at all times and would
+     * report total authority over a screen the OS does not touch.
+     */
+    expect(governance).toMatch(/total:\s*SURFACE_ELEMENTS\.length/);
   });
 
   /**

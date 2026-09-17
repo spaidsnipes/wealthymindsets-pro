@@ -59,6 +59,10 @@ import {
   type SurfaceElement,
 } from "@/lib/experience/compileScene";
 import { type SignalGroup, type SignalProvenance } from "@/lib/experience/deckSceneSignals";
+import {
+  selectSceneGovernance,
+  type GovernanceStanding,
+} from "@/lib/experience/selectSceneGovernance";
 
 import SignalProvenanceStrip from "./SignalProvenanceStrip";
 
@@ -104,6 +108,30 @@ export interface SceneAdmissionPanelProps {
 }
 
 type ChipTone = "admitted" | "withheld" | "ungoverned";
+
+/**
+ * THE §10 BAND'S MATERIALS — FILL, NOT HUE.
+ *
+ * §9 requires the three standings to survive a greyscale screen and a
+ * colour-blind reader, so they are told apart by whether the mark is FILLED,
+ * OUTLINED, or neither. The colour difference is secondary and carries no
+ * information the shape does not.
+ *
+ * A TOTAL `Record` on purpose: a standing added later must fail to compile
+ * rather than fall through to a default, and the only default that could
+ * possibly exist here is a filled mark — the one that reads as "the OS ran
+ * this pixel." A new standing must never arrive already flattering the build.
+ */
+const STANDING_MARK: Record<GovernanceStanding, React.CSSProperties> = {
+  // Governed and allowed. Solid, in the same brass the admitted chip uses.
+  ADMITTED: { background: GOLD_DIM, boxShadow: "none" },
+  // Governed and removed — a refusal the OS actually enforced. Hollow, so it
+  // reads as "an element with a ruling behind it that is not on the screen."
+  WITHHELD: { background: "transparent", boxShadow: `inset 0 0 0 1px ${MUTED}` },
+  // No ruling reaches this pixel. Neither filled nor outlined: an absence of
+  // authority should not look like a decision, because it is not one.
+  UNGOVERNED: { background: "rgba(138,130,113,0.22)", boxShadow: "none" },
+};
 
 function Chip({
   text,
@@ -159,29 +187,36 @@ export function SceneAdmissionPanel({
   totalCount,
   governed,
 }: SceneAdmissionPanelProps): React.ReactElement {
-  const admittedSet = React.useMemo(
-    () => new Set<SurfaceElement>(compilation.admits),
-    [compilation.admits],
-  );
-  const governedSet = React.useMemo(
-    () => new Set<SurfaceElement>(governed),
-    [governed],
+  /**
+   * THE ONE PARTITION.
+   *
+   * Only a GOVERNED element can be admitted or withheld here. The scene's
+   * verdict on anything else is real, but this route does not apply it, and
+   * reporting it as a refusal would claim an authority the surface lacks.
+   *
+   * That rule used to be enforced by three `SURFACE_ELEMENTS.filter(...)` calls
+   * in this component. It is now compiled by `selectSceneGovernance`, and the
+   * chips, the three headings and the band all read the SAME object — because
+   * the moment the band counted the populations itself, the picture and the
+   * headings could disagree about how much of the screen the OS runs while both
+   * stayed green. §24: one answer per question, and this is one question.
+   */
+  const governance = React.useMemo(
+    () => selectSceneGovernance({ admits: compilation.admits, governed }),
+    [compilation.admits, governed],
   );
 
-  // Only a GOVERNED element can be admitted or withheld here. The scene's
-  // verdict on anything else is real, but this route does not apply it, and
-  // reporting it as a refusal would claim an authority the surface lacks.
   const admitted = React.useMemo(
-    () => SURFACE_ELEMENTS.filter((e) => governedSet.has(e) && admittedSet.has(e)),
-    [governedSet, admittedSet],
+    () => governance.marks.filter((m) => m.standing === "ADMITTED").map((m) => m.element),
+    [governance],
   );
   const withheld = React.useMemo(
-    () => SURFACE_ELEMENTS.filter((e) => governedSet.has(e) && !admittedSet.has(e)),
-    [governedSet, admittedSet],
+    () => governance.marks.filter((m) => m.standing === "WITHHELD").map((m) => m.element),
+    [governance],
   );
   const ungoverned = React.useMemo(
-    () => SURFACE_ELEMENTS.filter((e) => !governedSet.has(e)),
-    [governedSet],
+    () => governance.marks.filter((m) => m.standing === "UNGOVERNED").map((m) => m.element),
+    [governance],
   );
 
   // The "signals WM did not read" sentence moved into SignalProvenanceStrip
@@ -266,6 +301,60 @@ export function SceneAdmissionPanel({
         {compilation.reason}
       </p>
 
+      {/* THE §10 REACH, AT A GLANCE.
+          Three headings reading "Admitted · 1", "Withheld · 0" and "Not
+          governed here · 11" are three facts a reader has to add up. One band
+          is the single fact they add up to: eleven twelfths of this screen
+          answers to nobody. That is the number this panel's header calls "meant
+          to be uncomfortable and to rise", and until now it was a prose clause
+          at the foot of the third list.
+
+          One mark per SURFACE_ELEMENT, always all of them — a band drawn only
+          over governed elements would be full on every route and would report
+          total authority over a screen the OS does not touch. Governed marks
+          lead, so the OS's actual reach reads as one run from the left edge and
+          can be judged by length without counting.
+
+          aria-hidden: the counts and every element's name are already spoken by
+          the headings and chips below. Twelve unlabelled marks announced in
+          sequence would be noise, not access. */}
+      <div
+        data-testid="scene-governance-band"
+        data-governed={governance.governed}
+        data-total={governance.total}
+        aria-hidden="true"
+        style={{ display: "flex", gap: 2, marginTop: 10 }}
+      >
+        {governance.marks.map((mark) => (
+          <span
+            key={mark.element}
+            data-testid="scene-governance-mark"
+            data-standing={mark.standing}
+            style={{
+              flex: "1 1 0",
+              minWidth: 0,
+              height: 4,
+              borderRadius: 1,
+              ...STANDING_MARK[mark.standing],
+            }}
+          />
+        ))}
+      </div>
+
+      {/* UNCONDITIONAL, and that is the repair.
+          This sentence used to live inside `{ungoverned.length > 0 && ...}`, so
+          a route that governed every element printed no reach figure at all —
+          the one number proving the OS had finally taken the screen vanished
+          exactly when it became good news. A meter that hides its best reading
+          is not a meter. It prints on every route now, in both directions. */}
+      <p
+        data-testid="scene-governance-reach"
+        style={{ margin: "6px 0 0", fontSize: 11, lineHeight: 1.5, color: MUTED }}
+      >
+        The scene governs {governance.governed} of {governance.total} surface
+        elements on this route.
+      </p>
+
       <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
         <div>
           <div
@@ -277,7 +366,7 @@ export function SceneAdmissionPanel({
               marginBottom: 5,
             }}
           >
-            Admitted · {admitted.length}
+            Admitted · {governance.admitted}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {admitted.map((e) => (
@@ -298,7 +387,7 @@ export function SceneAdmissionPanel({
               marginBottom: 5,
             }}
           >
-            Withheld · {withheld.length}
+            Withheld · {governance.withheld}
           </div>
           {withheld.length === 0 ? (
             <span style={{ fontSize: 11, color: MUTED }}>
@@ -330,18 +419,21 @@ export function SceneAdmissionPanel({
                 marginBottom: 5,
               }}
             >
-              Not governed here · {ungoverned.length}
+              Not governed here · {governance.ungoverned}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {ungoverned.map((e) => (
                 <Chip key={e} text={ELEMENT_LABEL[e]} tone="ungoverned" />
               ))}
             </div>
+            {/* The count moved up to the reach line beside the band, where it
+                prints on every route. Repeating it here would be a second
+                answer to the same question (§24); what is left is the part the
+                number cannot say — WHY these are not refusals. */}
             <p style={{ margin: "7px 0 0", fontSize: 11, lineHeight: 1.5, color: MUTED }}>
-              The scene governs {governed.length} of {SURFACE_ELEMENTS.length}{" "}
-              surface elements on this route. The rest are compiled but not
-              applied here — the scene has an opinion about them and no power
-              over them, so they are not counted as refusals.
+              These are compiled but not applied here — the scene has an opinion
+              about them and no power over them, so they are not counted as
+              refusals.
             </p>
           </div>
         )}
