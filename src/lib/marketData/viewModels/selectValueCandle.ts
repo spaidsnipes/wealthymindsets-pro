@@ -185,6 +185,29 @@ function decimalsFor(price: number): number {
   return 6;
 }
 
+/**
+ * σ IS A WIDTH, AND A WIDTH DOES NOT HAVE THE INSTRUMENT'S SCALE.
+ *
+ * `decimalsFor` picks decimals from how big the PRICE is, which is right for a
+ * price and wrong for a distance between two of them. A $400 name trading in a
+ * three-cent band has σ ≈ 0.004; rounded to a price's two decimals that is
+ * 0.00 — and σ is the denominator four other modules quote their findings in.
+ * Zero σ does not make them cautious, it makes them divide by nothing.
+ *
+ * FOUND BY A SCALE-INVARIANCE TEST in `selectStackedImbalance`: the same tape
+ * shape measured at $100/1-cent and at $2,000/25-cent gave different answers,
+ * which can only happen if some constant here is secretly denominated in
+ * dollars. The reading was right on exactly one class of instrument.
+ *
+ * It is the third appearance of one bug: fixed-decimal rounding applied to a
+ * quantity whose scale is not known in advance. Significant figures keep the
+ * value's own scale, which is the only thing that is safe to assume about it.
+ */
+function roundSig(value: number, digits = 6): number {
+  if (!Number.isFinite(value) || value === 0) return value;
+  return Number(value.toPrecision(digits));
+}
+
 export function selectValueCandle(
   ticks: readonly ValueCandleTick[] | null | undefined,
   binCount: number = VALUE_CANDLE_BINS,
@@ -224,7 +247,21 @@ export function selectValueCandle(
     const d = v.price - cogRaw;
     variance += v.size * d * d;
   }
-  const sigma = Math.sqrt(variance / volume);
+  const sigmaRaw = Math.sqrt(variance / volume);
+  /**
+   * A HUNDRED PRINTS AT ONE PRICE HAVE NO SPREAD, and summing squares in
+   * floating point does not always agree — it returns things like 5.7e-14.
+   * The old fixed-decimal rounding erased that as an accident of rounding a
+   * width to a price's decimals. Removing that bug removes the accident too,
+   * so the erasure now has to be deliberate and at a scale that means
+   * something: below about a billionth of the price itself, a "width" is
+   * arithmetic residue, not a market fact.
+   *
+   * This matters more than a cosmetic zero. Four modules divide by σ. A σ of
+   * 5.7e-14 passes every `spread > 0` guard they have and then reports a
+   * one-cent move as roughly two hundred billion standard deviations.
+   */
+  const sigma = sigmaRaw > Math.abs(cogRaw) * 1e-9 ? sigmaRaw : 0;
 
   const bandLow = cogRaw - sigma;
   const bandHigh = cogRaw + sigma;
@@ -249,7 +286,10 @@ export function selectValueCandle(
       const direction = gap > 0 ? "above" : "below";
       migrationDetail = `price is ${round(Math.abs(gap), dp)} ${direction} value · value has not followed`;
     } else {
-      migrationDetail = `price is within ${round(sigma * MIGRATION_SIGMA_THRESHOLD, dp)} of value`;
+      // A WIDTH, not a price — see `roundSig`. At a price's decimals this read
+      // "price is within 0 of value" on any tight tape, which is both alarming
+      // and untrue.
+      migrationDetail = `price is within ${roundSig(sigma * MIGRATION_SIGMA_THRESHOLD, 3)} of value`;
     }
   } else {
     // Every print at one price. There is no spread to measure migration in, so
@@ -299,7 +339,7 @@ export function selectValueCandle(
     version: VALUE_CANDLE_VERSION,
     measured: true,
     centerOfGravity: round(cogRaw, dp),
-    spread: round(sigma, dp),
+    spread: roundSig(sigma),
     valueLow: round(bandLow, dp),
     valueHigh: round(bandHigh, dp),
     concentration,

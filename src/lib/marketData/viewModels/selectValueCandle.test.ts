@@ -247,3 +247,49 @@ describe("selectValueCandle — shape", () => {
     expect(micro.centerOfGravity).not.toBe(0);
   });
 });
+
+describe("selectValueCandle — σ is a width, and a width has its own scale", () => {
+  /**
+   * FOUND BY A SCALE-INVARIANCE TEST IN A DIFFERENT MODULE.
+   * `selectStackedImbalance` measured the same tape shape at $100/1-cent and
+   * at $2,000/25-cent and got two different answers. That can only happen if
+   * something here is denominated in dollars, and it was: σ was rounded with
+   * `decimalsFor(price)`, which picks decimals from how big the PRICE is.
+   *
+   * That is correct for a price and wrong for a distance between two of them.
+   * A $400 name in a three-cent band has σ ≈ 0.004, and two decimals makes
+   * that 0.00 — while σ is the denominator FOUR other modules quote their
+   * findings in. A zero denominator does not make them cautious.
+   */
+  it("does not round a tight band's spread away on an expensive instrument", () => {
+    const vm = selectValueCandle([
+      t(412.01, 100),
+      t(412.02, 100),
+      t(412.03, 100),
+      t(412.02, 100),
+    ]);
+    expect(vm.spread!).toBeGreaterThan(0);
+    expect(vm.spread!).toBeLessThan(0.02);
+    // The band must be usable as a denominator, which is the only reason it
+    // ships at all.
+    expect(Number.isFinite(0.05 / vm.spread!)).toBe(true);
+  });
+
+  it("measures the same shape identically at two instrument scales", () => {
+    // Same distribution, multiplied by 20 in price and in width. σ must scale
+    // exactly with it, so the ratio of the two is exactly 20.
+    const cheap = selectValueCandle([t(100, 10), t(100.02, 30), t(100.04, 10)]);
+    const dear = selectValueCandle([t(2000, 10), t(2000.4, 30), t(2000.8, 10)]);
+    expect(dear.spread! / cheap.spread!).toBeCloseTo(20, 6);
+  });
+
+  it("does not tell a tight tape that price is within zero of value", () => {
+    const vm = selectValueCandle([t(412.01, 100), t(412.02, 100), t(412.03, 100)]);
+    expect(vm.migrationDetail).not.toContain("within 0 of");
+  });
+
+  it("still reports an exact zero spread when every print landed at one price", () => {
+    // Zero here is a fact, not a rounding artefact, and must survive the fix.
+    expect(selectValueCandle([t(412.01, 5), t(412.01, 9)]).spread).toBe(0);
+  });
+});

@@ -27,6 +27,8 @@ import { selectDeltaDivergence } from "@/lib/marketData/viewModels/selectDeltaDi
 import DeltaDivergencePanel from "@/components/experience/DeltaDivergencePanel";
 import { selectLiquidityWeather } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel";
+import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
+import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -386,6 +388,21 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
    */
   const liquidityWeather = React.useMemo(
     () => selectLiquidityWeather(realTape ? recentTicks : null),
+    [realTape, recentTicks],
+  );
+
+  /**
+   * Stacked imbalance. Built ENTIRELY out of who paid, so the `realTape` gate
+   * is load-bearing here in a way it is not for its neighbour above: on a
+   * tick-rule tape every level it would draw is downstream of a guess, and the
+   * panel's whole output is a verdict about those levels.
+   *
+   * Named `stackedImbalance` rather than the shorter noun because this file
+   * already binds `divergence` further down for the RSI/price read, and a
+   * second short noun in the same scope is how that collision happened once.
+   */
+  const stackedImbalance = React.useMemo(
+    () => selectStackedImbalance(realTape ? recentTicks : null),
     [realTape, recentTicks],
   );
 
@@ -951,6 +968,14 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           sides can still answer. */}
       <div className="mx-2 my-1.5 shrink-0">
         <LiquidityWeatherPanel vm={liquidityWeather} symbol={symbol} window="session tape" />
+      </div>
+
+      {/* ── STACKED IMBALANCE — a claim about a level, drawn above its test ──
+          Every panel above reports the window as a whole. This one names
+          specific PRICES and then shows whether price came back and respected
+          them, which is the only form in which a level is worth printing. */}
+      <div className="mx-2 my-1.5 shrink-0">
+        <StackedImbalancePanel vm={stackedImbalance} symbol={symbol} window="session tape" />
       </div>
 
       {/* CLC Summary Card — Context / Location / Confirmation.
