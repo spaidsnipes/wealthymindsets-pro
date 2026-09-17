@@ -39,6 +39,22 @@ const KIND_TONE: Record<WhyBlockerKind, string> = {
 const MUTED = "#8a8271";
 const HAIR = "rgba(139,106,41,0.22)";
 
+/**
+ * §9 — "No green shield. No green means safe. Verified truth is a sentence."
+ *
+ * CLEARED items used to render in #9db88a, a sage green, directly beside the
+ * blocker list. That is the green-means-safe grammar the Build Order bans, and
+ * it is the more persuasive half of the panel: the eye reaches the colour
+ * before it reads either list, so a decision with four blockers and six
+ * clearances read as mostly-fine at a glance.
+ *
+ * A cleared check is a FINDING — this named condition was satisfied when the
+ * snapshot was compiled. The house renders findings in ivory. It is not a
+ * verdict about the trade, and clearing every check is not permission; that
+ * is why the blocker tones stay warm and nothing here answers them in kind.
+ */
+const CLEARED = "#ede6d3";
+
 export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElement {
   const accent = vm.clear ? "#d4af37" : "#e07b5c";
 
@@ -100,7 +116,7 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
         <div style={{ marginBottom: vm.invalidators.length ? 10 : 0 }}>
           <div style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>CLEARED</div>
           {vm.clearances.map((c, i) => (
-            <div key={i} style={{ fontSize: 11, color: "#9db88a", lineHeight: 1.4 }}>{c}</div>
+            <div key={i} style={{ fontSize: 11, color: CLEARED, lineHeight: 1.4 }}>{c}</div>
           ))}
         </div>
       )}

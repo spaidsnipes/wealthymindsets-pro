@@ -53,6 +53,22 @@ export interface MarketCanvasPanelProps {
 const HAIR = "rgba(139,106,41,0.22)";
 const MUTED = "#8a8271";
 
+/**
+ * §9 — "No green shield. No green means safe."
+ *
+ * The RESOLVED and CLEARED section labels used to render in #7ac57a. Both name
+ * things that WENT WELL — dimensions the snapshot resolved, checks that passed
+ * — and printing them green beside the MISSING and BLOCKED sections turns the
+ * panel into a traffic light. The canon this panel implements is explicit that
+ * resolved-partial counts as resolved, so the green also overstated: a
+ * dimension the snapshot only partly resolved lit the same colour as one it
+ * resolved outright.
+ *
+ * Ivory is the house colour for a FINDING, and a resolved dimension is a
+ * finding. The warm tones stay where they are, on what is still outstanding.
+ */
+const RESOLVED_LABEL = "#ede6d3";
+
 const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
   ACTION: "#d4af37",
   CAUTION: "#c9a55c",
@@ -137,7 +153,7 @@ export function MarketCanvasPanel({
               MISSING: names each canonical dimension the snapshot has
               resolved (or resolved-partial). Silent when nothing is
               resolved (canon §Silence). */}
-          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#7ac57a", marginBottom: 4, textTransform: "uppercase" }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: RESOLVED_LABEL, marginBottom: 4, textTransform: "uppercase" }}>
             Resolved ({vm.resolved.length})
           </div>
           <div style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>
@@ -212,7 +228,7 @@ export function MarketCanvasPanel({
               each check that IS satisfied. Founder-visible symmetry with
               WHY NOT: the trader can see what already passed alongside
               what is still blocking. */}
-          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#7ac57a", marginBottom: 4, textTransform: "uppercase" }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: RESOLVED_LABEL, marginBottom: 4, textTransform: "uppercase" }}>
             Cleared ({vm.clearances.length})
           </div>
           {vm.clearances.slice(0, cap).map((c, i) => (
