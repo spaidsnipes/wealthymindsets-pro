@@ -125,9 +125,17 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
        20 → 19. Recorded rather than silently deleted, because the whole claim
        of this file is that the number cannot move without somebody looking. */
     "PracticeHonestyLayer",
-    "SceneAdmissionPanel",
     "StructureContextNote",
     "WhyInspector",
+    /**
+     * ── PERMANENT. Machinery the directive forbids surfacing. ────────────
+     *
+     * These are not debt, and filing them as debt was an instruction to a
+     * future agent to commit a violation. The DEBT group above says "give
+     * this a door that is not a second press" — and for this group, building
+     * that door is the offence.
+     */
+    "SceneAdmissionPanel", // the scene compiler's WITHHELD list + SIGNAL PROVENANCE — internal market-data machinery, banned from Founder-facing UI
     // ── BY DESIGN. Deliberately one layer under something that is not. ──
     "StoryRibbon",            // One Story owns the primary read; this is the full chronology beneath it
     "PerCapabilityFidelityGrid",
