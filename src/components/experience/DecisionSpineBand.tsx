@@ -53,6 +53,11 @@ import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailable
 import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
 import { formatSpinePrice, qualifyMarketQuality } from "@/lib/marketData/formatSpinePrice";
 import { selectOneNextThing } from "@/lib/marketData/viewModels/selectOneNextThing";
+import {
+  selectEvidenceLadder,
+  type EvidenceLadderSegment,
+  type EvidenceLadderState,
+} from "@/lib/marketData/viewModels/selectEvidenceLadder";
 
 /**
  * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
@@ -201,6 +206,49 @@ const VALUE: React.CSSProperties = {
 const MUTED: React.CSSProperties = { ...VALUE, color: "#8b8fa8" };
 
 /**
+ * THE LEDGER BAR — the NEXT cell's first drawn form.
+ *
+ * COLOUR IS A CLAIM here too, so it is looked up from a TOTAL record keyed on
+ * the compiled state rather than derived from anything about the segment.
+ *
+ *   RESOLVED — ivory, lit. Settled evidence.
+ *   WARN     — gold. Paid, and arguing.
+ *   MISSING  — the field colour behind a brass hairline. Present at full width,
+ *              unlit. A debt is not an absence.
+ *   WATCH    — dimmer still, and drawn apart: never in the ledger's numerator
+ *              or denominator, so never inside its bar.
+ */
+const LADDER_TONE: Record<EvidenceLadderState, React.CSSProperties> = {
+  RESOLVED: { background: "#c9c2a7" },
+  WARN: { background: "#d4af37" },
+  MISSING: { background: "rgba(201,162,89,0.10)", boxShadow: "inset 0 0 0 1px rgba(201,162,89,0.28)" },
+  WATCH: { background: "rgba(139,143,168,0.16)" },
+};
+
+const LADDER_HEIGHT = 6;
+
+function LadderSegment({ segment }: { segment: EvidenceLadderSegment }) {
+  return (
+    <span
+      data-testid="evidence-ladder-segment"
+      data-state={segment.state}
+      data-next={segment.isNext ? "true" : undefined}
+      style={{
+        flex: "1 1 0",
+        minWidth: 2,
+        height: LADDER_HEIGHT,
+        borderRadius: 1,
+        ...LADDER_TONE[segment.state],
+        /* The named next node is the only segment that carries an edge. It is
+           the subject of the sentence directly beneath, and a reader should be
+           able to point at it without reading. */
+        ...(segment.isNext ? { boxShadow: "inset 0 0 0 1px #d4af37" } : null),
+      }}
+    />
+  );
+}
+
+/**
  * COLOUR IS A CLAIM, so the session token's colour is looked up from a TOTAL
  * record keyed on the caller's `established` flag — never derived from the
  * token's spelling, its length, or "is a string present". A token that rests
@@ -248,6 +296,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     debt: oneStory ? oneStory.debt : null,
     hasExpression: expression != null,
   });
+  // The SAME ledger the sentence above counts from, re-presented as geometry.
+  // No second producer, no second denominator — `selectEvidenceLadder` reads
+  // the identical `oneStory.debt` object and emits one segment per node it
+  // already counted.
+  const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   const cellStyle: React.CSSProperties = rail
     ? {
         ...CELL,
@@ -491,6 +544,42 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <span style={VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
           {expression ?? nextThing.headline}
         </span>
+        {/* DRAWN BEFORE READ. The bar is decoration in the accessibility tree —
+            `aria-hidden` — because it adds no fact a screen reader is not
+            already given by the sentence beneath it. Removing it removes a
+            rendering of the ledger, never the ledger. */}
+        {ladder ? (
+          <span
+            data-testid="evidence-ladder"
+            data-payable={ladder.payable}
+            data-resolved={ladder.resolved}
+            aria-hidden="true"
+            style={{ display: "flex", gap: 2, alignItems: "center", margin: "3px 0 1px" }}
+          >
+            {ladder.segments.map((segment, i) => (
+              <LadderSegment key={`ledger-${i}`} segment={segment} />
+            ))}
+            {ladder.watch.length > 0 ? (
+              <>
+                {/* The gap that names itself: everything right of this rule is
+                    observed but ungradeable, and belongs to no numerator. */}
+                <span
+                  data-testid="evidence-ladder-watch-rule"
+                  style={{
+                    flex: "0 0 auto",
+                    width: 1,
+                    height: LADDER_HEIGHT + 2,
+                    background: "rgba(201,162,89,0.28)",
+                    margin: "0 2px",
+                  }}
+                />
+                {ladder.watch.map((segment, i) => (
+                  <LadderSegment key={`watch-${i}`} segment={segment} />
+                ))}
+              </>
+            ) : null}
+          </span>
+        ) : null}
         <span style={MUTED}>
           {expression ? "Attached expression" : nextThing.detail}
         </span>
