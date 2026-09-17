@@ -39,8 +39,45 @@ const PUBLISHERS = [
   "src/app/nectar/page.tsx",
   "src/app/nectar/[symbol]/page.tsx",
   "src/app/command-deck/page.tsx",
+  "src/app/paper/page.tsx",
   "src/components/chart/ChartsDashboard.tsx",
 ] as const;
+
+/**
+ * A FEED IS NOT A SOCKET.
+ *
+ * This predicate used to be `src.includes("useWebSocket(") && feedBlock(src)`,
+ * and the conjunct was a THIRD spelling-pin hiding inside a meaning-pin. It
+ * asked "does this room hold a websocket", when the rule has only ever been
+ * "does this room publish what it observed".
+ *
+ * /paper is the proof. It polls `/api/yahoo` on a 20s interval, compiles a
+ * readiness per symbol, gates its Order Ticket on it and prints the price —
+ * and it holds no socket at all. Measured live 2026-09-17 it wore FEED UNKNOWN
+ * and SOURCE UNKNOWN over `$29,738.00`, which is the very defect at the top of
+ * this file, in a room the old predicate could not have failed: adding /paper
+ * to `PUBLISHERS` under the old rule would have turned THE COMPLETE RULE red
+ * for publishing an honest REST observation.
+ *
+ * So the transport question moves to where it belongs — the suites below that
+ * are genuinely about socket vocabulary — and the rule here is pinned to the
+ * publication.
+ *
+ * TWO ACCEPTED FORMS, and the second is the better one. A room may hand up an
+ * inline `feed: { … }` literal, or DELEGATE to a named selector —
+ * `feed: selectPaperFeedObservation({ … })`. Delegation is preferred precisely
+ * because every field of an observation is a judgement with a flattering wrong
+ * answer available, and a literal buried mid-component is where such judgements
+ * stop being reviewed. The six-field rule below still reaches the literals; a
+ * delegate gets all six from its `FeedObservation` return type, which `tsc`
+ * enforces and which this file cannot weaken.
+ *
+ * `FEEDLESS_SURFACE` deliberately does not match: it is a bare identifier with
+ * no call parentheses, so the two states below stay exclusive.
+ */
+function observesFeed(src: string): boolean {
+  return /\bfeed:\s*(\{|[A-Za-z_$][\w$]*\s*\()/.test(src);
+}
 
 /**
  * COMMENT-STRIPPED. A rule quoted in a docblock is not a publication — and
@@ -136,10 +173,9 @@ describe("SENTINEL — the room list itself stays honest", () => {
    */
   it("THE COMPLETE RULE — every room either observes a feed or declares it has none", () => {
     for (const [rel, src] of SOURCES) {
-      const observes = src.includes("useWebSocket(") && feedBlock(src) !== null;
       const declaresFeedless = publishesFeedless(src);
       expect(
-        observes || declaresFeedless,
+        observesFeed(src) || declaresFeedless,
         `${rel} publishes a standing but neither observes a feed nor declares FEEDLESS_SURFACE — the frame will print FEED UNKNOWN over it`,
       ).toBe(true);
     }
@@ -150,8 +186,7 @@ describe("SENTINEL — the room list itself stays honest", () => {
     // feed to report. If one ever does, the later key silently wins and the
     // masthead's reading depends on object-literal ordering.
     for (const [rel, src] of SOURCES) {
-      const observes = src.includes("useWebSocket(") && feedBlock(src) !== null;
-      expect(observes && publishesFeedless(src), rel).toBe(false);
+      expect(observesFeed(src) && publishesFeedless(src), rel).toBe(false);
     }
   });
 });
@@ -250,12 +285,36 @@ describe("SENTINEL — a room with a transport publishes what it observed", () =
     }
   });
 
-  it("each feed carries all six required fields — silence here renders as a claim", () => {
-    for (const [rel, src] of withTransport) {
+  /**
+   * WIDENED PAST THE TRANSPORT LIST, on the same reasoning as `observesFeed`.
+   *
+   * These two rules were scoped to `withTransport`, which meant a room that
+   * published an inline observation without holding a socket got its literal
+   * checked by nobody. The six-field rule and the no-self-grading rule are
+   * about the SHAPE OF A PUBLICATION; neither has anything to do with how the
+   * bytes arrived. So they iterate every inline literal in `PUBLISHERS`.
+   *
+   * A DELEGATING room has no literal to inspect and is legitimately absent
+   * here — its six fields come from the `FeedObservation` return type, which
+   * `tsc` enforces on every field and this file could not enforce better.
+   */
+  const withInlineFeed: ReadonlyArray<readonly [string, string]> = [...SOURCES].flatMap(
+    ([rel, src]) => {
       const block = feedBlock(src);
-      expect(block, `${rel} → feed block not found`).not.toBeNull();
+      return block === null ? [] : [[rel, block] as const];
+    },
+  );
+
+  it("inline literals are still the majority form, so the two rules below bite", () => {
+    // Vacuity guard. If every room migrates to a delegate this drops to zero
+    // and the field rules would certify nothing while staying green.
+    expect(withInlineFeed.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("each inline feed carries all six required fields — silence here renders as a claim", () => {
+    for (const [rel, block] of withInlineFeed) {
       for (const field of REQUIRED_FIELDS) {
-        expect(declares(block!, field), `${rel} → ${field}`).toBe(true);
+        expect(declares(block, field), `${rel} → ${field}`).toBe(true);
       }
     }
   });
@@ -268,11 +327,10 @@ describe("SENTINEL — a room with a transport publishes what it observed", () =
     }
   });
 
-  it("neither room re-grades fidelity itself — it publishes evidence only", () => {
+  it("no room re-grades fidelity itself — it publishes evidence only", () => {
     // priceSourceBadge is the single writer. A room that compiles its own
     // label is the exact second opinion this ladder was built to prevent.
-    for (const [rel, src] of withTransport) {
-      const block = feedBlock(src)!;
+    for (const [rel, block] of withInlineFeed) {
       expect(block, rel).not.toContain("FEED UNKNOWN");
       expect(block, rel).not.toContain("fidelity");
     }

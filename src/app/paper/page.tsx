@@ -99,6 +99,8 @@ import { useSharedAuthorityProbe } from "@/lib/experience/useSharedAuthorityProb
 import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
 import { selectOptionTradability } from "@/lib/marketData/optionTradability";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { selectPaperFeedObservation } from "@/lib/os/selectPaperFeedObservation";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
@@ -2349,6 +2351,33 @@ export default function PaperTradingPage() {
     () => selectCanonicalSessionToken({ symbol: activeSymbol, at: sessionClockDate }).token,
     [activeSymbol, sessionClockDate],
   );
+
+  /*
+    THIS ROOM RENDERS A PRICE. IT HAD TO SAY WHOSE.
+
+    Measured live on wealthymindsetspro.com/paper, 2026-09-17: masthead FEED
+    UNKNOWN, footer SOURCE UNKNOWN, and $29,738.00 on screen between them.
+
+    The room was not wrong about anything it said — it said nothing. A surface
+    that never calls `usePublishOsStanding` leaves the standing at `null`, and
+    `null` means "has not spoken", which the frame honestly renders as an open
+    question. Correct default; wrong room. /paper polls the same quote API the
+    chart uses, compiles a readiness per symbol, and gates its own Order Ticket
+    on the result. It held every field the frame was asking for.
+
+    The evidence is compiled by `selectPaperFeedObservation`, not written
+    inline here: each field has a wrong answer available, and three of them are
+    wrong in the flattering direction. That file names them and its tests pin
+    them. This room's only job is to hand up what it observed for the symbol
+    the trader is actually looking at.
+  */
+  usePublishOsStanding({
+    surface: "Paper Trade",
+    feed: selectPaperFeedObservation({
+      readiness: quoteReadiness[activeSymbol],
+      sessionToken,
+    }),
+  });
   const sceneInput = useMemo(
     () => paperSceneSignals({
       session: sessionToken,
