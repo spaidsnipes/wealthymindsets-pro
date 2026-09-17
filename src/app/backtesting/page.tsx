@@ -278,9 +278,12 @@ export default function BacktestingPage() {
     window.location.href = "/journal?prefill=walkforward";
   };
 
+  // SCENE_FRAGMENTATION cure: an opaque root `bg-wm-black` paints the
+  // sanctuary's gradient, grain and vignette out, so the room reads as a
+  // separate app rather than the same OS. Transparent lets the sanctuary
+  // through. Same cure already applied to /journal, /paper and /proof-lane.
   return (
-    <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}
-         className="bg-wm-black">
+    <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}>
 
       {/* Header — WM atmosphere */}
       <div

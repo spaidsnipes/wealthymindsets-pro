@@ -888,8 +888,12 @@ export default function LoungePage() {
     );
   }
 
+  // SCENE_FRAGMENTATION cure: an opaque root `bg-wm-black` paints the
+  // sanctuary's gradient, grain and vignette out, so the room reads as a
+  // separate app rather than the same OS. Transparent lets the sanctuary
+  // through. Same cure already applied to /journal, /paper and /proof-lane.
   return (
-    <div style={{display:"flex",width:"100%",height:"100%",overflow:"hidden",position:"relative"}} className="bg-wm-black">
+    <div style={{display:"flex",width:"100%",height:"100%",overflow:"hidden",position:"relative"}}>
 
       {/* Community filters and rooms are available on demand, never a permanent rail. */}
       <AnimatePresence>
