@@ -162,7 +162,12 @@ export function MarketCanvasPanel({
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{m}</div>
           ))}
           {vm.missing.length > cap && (
-            <div style={{ fontSize: 9, color: MUTED, fontStyle: "italic" }}>+{vm.missing.length - cap} more</div>
+            <div
+              data-market-canvas-unresolved-withheld={vm.missing.length - cap}
+              style={{ fontSize: 9, color: MUTED, fontStyle: "italic" }}
+            >
+              +{vm.missing.length - cap} more
+            </div>
           )}
         </div>
       )}
@@ -214,7 +219,10 @@ export function MarketCanvasPanel({
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{c}</div>
           ))}
           {vm.clearances.length > cap && (
-            <div style={{ fontSize: 10, color: "#8a8578", lineHeight: 1.4, fontStyle: "italic" }}>
+            <div
+              data-market-canvas-cleared-withheld={vm.clearances.length - cap}
+              style={{ fontSize: 10, color: "#8a8578", lineHeight: 1.4, fontStyle: "italic" }}
+            >
               +{vm.clearances.length - cap} more cleared, not shown
             </div>
           )}
