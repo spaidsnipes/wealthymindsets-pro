@@ -29,6 +29,7 @@ import { selectLiquidityWeather } from "@/lib/marketData/viewModels/selectLiquid
 import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel";
 import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel";
+import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -407,39 +408,22 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   );
 
   // ── WM DELTA BUBBLES — live net delta at each price level ────────────────────
-  // Buckets the SAME real aggressor ticks the flow snapshot reads into price
-  // levels, then nets buy vs sell size per level. Green bubble = buyers dominated
-  // that level, red = sellers; bubble size scales with how lopsided it was. No
-  // tape → no bubbles (we never invent levels). Honest by construction.
-  const deltaLevels = React.useMemo(() => {
-    if (!realTape) return [] as { price: number; delta: number; vol: number }[];
-    const ticks = Array.isArray(recentTicks) ? recentTicks : [];
-    // Same honest rule as the flow snapshot + the chart's delta engine: every real
-    // executed trade (tick.trade), no lot floor, so bubbles reflect full aggressive
-    // flow per zone on any feed (BTC 0.01Δ or TSLA 50sh alike). Never invent levels.
-    const clean = ticks.filter(t => t?.trade === true && (Number(t?.size) || 0) > 0 && (Number(t?.price) || 0) > 0);
-    if (clean.length === 0) return [] as { price: number; delta: number; vol: number }[];
-    let lo = Infinity, hi = -Infinity;
-    for (const t of clean) { const p = Number(t.price); if (p < lo) lo = p; if (p > hi) hi = p; }
-    const BUCKETS = 6;
-    const span  = hi - lo;
-    const width = span > 0 ? span / BUCKETS : 1;   // degenerate feed → single level
-    const acc = new Map<number, { buy: number; sell: number }>();
-    for (const t of clean) {
-      const p = Number(t.price), size = Number(t.size);
-      let idx = span > 0 ? Math.floor((p - lo) / width) : 0;
-      if (idx >= BUCKETS) idx = BUCKETS - 1;         // clamp the top-of-range edge
-      if (idx < 0) idx = 0;
-      const cur = acc.get(idx) ?? { buy: 0, sell: 0 };
-      if (t.side === "buy") cur.buy += size; else cur.sell += size;
-      acc.set(idx, cur);
-    }
-    return [...acc.entries()]
-      .map(([idx, v]) => ({ price: lo + (idx + 0.5) * width, delta: v.buy - v.sell, vol: v.buy + v.sell }))
-      .filter(l => l.vol > 0)
-      .sort((a, b) => b.price - a.price);            // top of book first
-  }, [recentTicks, realTape, livePrice]);
-  const maxAbsDelta = deltaLevels.reduce((m, l) => Math.max(m, Math.abs(l.delta)), 0);
+  // The level definition is NOT decided here. `selectDeltaLevels` measures the
+  // tape's own price grid through the same `observeTickSize` the stacked-
+  // imbalance ladder reads, so the two panels in this column cannot disagree
+  // about where a level is.
+  //
+  // What used to be inline here cut the observed range into six equal parts and
+  // labelled each bubble with the arithmetic midpoint — a price nothing traded
+  // at — under a comment promising it never invented levels. Worse, the bucket
+  // width was a function of the window's extremes, so one new high slid every
+  // bubble to a new price with no trade at any of them.
+  const deltaVM = React.useMemo(
+    () => selectDeltaLevels(realTape ? recentTicks : null),
+    [realTape, recentTicks],
+  );
+  const deltaLevels = deltaVM.levels;
+  const maxAbsDelta = deltaVM.maxAbsDelta;
 
   // Why THIS symbol has no signed tape. Null whenever one is flowing, so the
   // absence copy below cannot survive into a render that has data. The asset
@@ -919,7 +903,23 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
               );
             })}
             <div className="text-[8px] text-wm-text-dim mt-1 leading-tight">
-              Green = buyers dominate that level · red = sellers. Bigger bubble = more lopsided. Net buy−sell size per level, live from the tape (side est. from price).
+              Green = buyers dominate that level · red = sellers. Bigger bubble = more lopsided. Net buy−sell size per level, live from the tape.
+              {/* The row label is the level's LOW EDGE on the tape's measured
+                  price grid. When a level groups more than one tick it covers
+                  a band, and printing one price for a band without saying so
+                  is the same overclaim this module was rewritten to remove. */}
+              {deltaVM.ticksPerLevel != null && deltaVM.tickSize != null ? (
+                <> Each level is {deltaVM.ticksPerLevel === 1 ? "one tick" : `${deltaVM.ticksPerLevel} ticks`} wide
+                  ({fmt(deltaVM.ticksPerLevel * deltaVM.tickSize, ddp)}), measured off this tape&apos;s own grid, and
+                  labelled at its low edge.</>
+              ) : null}
+              {/* Provenance, not a blanket disclaimer. The old copy said the
+                  side was estimated even on a venue-stamped tape, which
+                  understates a provider feed exactly as badly as it would
+                  overstate a guessed one. */}
+              {flow.provenance === "PROVIDER"
+                ? " Aggressor side is stamped by the venue."
+                : " Aggressor side is estimated from price — these levels are downstream of a guess."}
             </div>
           </div>
         ) : (
