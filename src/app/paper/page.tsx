@@ -111,7 +111,7 @@ import { ContractStance } from "@/components/paper/ContractStance";
 import { selectExpressionCard } from "@/lib/expressionCard";
 import { limitPriceCell, fillPriceCell } from "@/lib/paper/orderBlotterCells";
 import { paperAccountStats, paperWinRateStat, UNREADABLE_BOOK_REASON } from "@/lib/paper/paperAccountStats";
-import { paperSpotStat } from "@/lib/paper/paperSpotDisclosure";
+import { paperSpotStat, describeObservationAge } from "@/lib/paper/paperSpotDisclosure";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -795,9 +795,35 @@ function OrderTicket({
       <div className="mb-3 rounded-lg border border-wm-border/50 bg-wm-surface/20 px-2.5 py-2" role="status" aria-live="polite">
         <div className={clsx("text-[9px] font-black", readiness.actionable ? "text-wm-gold" : "text-wm-red")}>{readiness.label}</div>
         <div className="mt-0.5 text-[8px] leading-relaxed text-wm-text-dim">
+          {/* AGE IS NOT HAND-ROLLED HERE. This line sits directly above BUY / SELL,
+              so it is the last thing the trader reads before committing — and it
+              was the least careful age sentence in the product:
+
+                `${Math.round((readiness.ageMs ?? 0) / 60_000)}m old`
+
+              THREE separate ways to read as fresher than the evidence allows.
+              (1) `?? 0` turned "WM does not know how old this is" into "0m old",
+              the most flattering possible number at the moment WM knew least —
+              the same fabricated zero `monitorLatencyFact` refuses by name.
+              (2) `Math.round` on a MINUTE granularity printed "0m old" for
+              everything under thirty seconds, so an unknown age and a genuinely
+              observed one were rendered in identical words.
+              (3) A negative age — an observation stamped ahead of our clock,
+              which is the ORDINARY case on a live feed, not the exotic one —
+              rounded to "-0m old" or "0m old" rather than being refused.
+
+              `describeObservationAge` already answers all three (unknown for
+              non-finite and negative, seconds below a minute) and is already
+              the owner used by the Spot tile on this same page. Two sentences
+              about the same fact, one of them sloppier, is how the page ends up
+              contradicting itself. */}
           {readiness.observedAt == null
             ? readiness.reason
-            : `Observed ${new Date(readiness.observedAt).toLocaleString()} · ${Math.round((readiness.ageMs ?? 0) / 60_000)}m old`}
+            : `Observed ${new Date(readiness.observedAt).toLocaleString()} · ${
+                typeof readiness.ageMs === "number"
+                  ? describeObservationAge(readiness.ageMs)
+                  : "age unknown"
+              }`}
         </div>
       </div>
 

@@ -129,6 +129,52 @@ describe("the options chain composes the owner and keeps its refusal", () => {
     expect(code).not.toMatch(/Spot<\/span>\s*\n?\s*<span[^>]*>—<\/span>/);
   });
 
+  it("× THE ORDER TICKET DOES NOT HAND-ROLL ITS OWN AGE SENTENCE", () => {
+    // THE DEFECT, as shipped, on the line immediately above BUY / SELL:
+    //
+    //     `${Math.round((readiness.ageMs ?? 0) / 60_000)}m old`
+    //
+    // Three ways to read fresher than the evidence allowed. `?? 0` rendered an
+    // UNKNOWN age as "0m old" — the most flattering number available, at the
+    // moment WM knew the least. Minute-granularity rounding rendered every age
+    // under thirty seconds as "0m old" too, so "unknown" and "just measured"
+    // were the same words. And a negative age — an observation stamped ahead of
+    // our clock, which is the ORDINARY case on a live feed — became "-0m old"
+    // instead of being refused.
+    //
+    // `describeObservationAge` already refuses all three, and the Spot tile on
+    // this same page already used it. Pinned to the ABSENCE of a second writer
+    // rather than to a spelling of the cure.
+    //
+    // Block comments stripped first. The page NAMES the removed expression so
+    // the next reader knows why it is gone; scanning the raw text would read
+    // that record as the defect itself and force the history to be deleted to
+    // make this rule pass. Rules that punish written-down history get it erased.
+    const CODE = code.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(CODE).toContain("describeObservationAge(readiness.ageMs)");
+    expect(CODE).not.toMatch(/ageMs \?\? 0/);
+    // Minute granularity specifically, not rounding in general: the blotter's
+    // FillPriceAgeNote rounds to SECONDS and pairs `m` with `% 60`, which keeps
+    // every sub-minute age distinguishable. Dividing an age by 60_000 to print
+    // it is the move that collapsed 0s, 29s and "unknown" into one string.
+    expect(CODE).not.toMatch(/ageMs[\s\S]{0,24}60_000/);
+    expect(CODE).not.toMatch(/m old`/);
+  });
+
+  it("the owner it now delegates to refuses exactly what the hand-rolled line admitted", () => {
+    // Behavioural, not source — the three readings the ticket used to print.
+    expect(describeObservationAge(-4_000)).toBe("an unknown time ago");
+    expect(describeObservationAge(Number.NaN)).toBe("an unknown time ago");
+    // Under a minute is stated in SECONDS, so it can never collapse into the
+    // same "0m old" that an unknown age used to produce.
+    expect(describeObservationAge(29_000)).toBe("29s ago");
+    expect(describeObservationAge(29_000)).not.toMatch(/0m/);
+  });
+
+  it("an age WM does not hold says so, rather than defaulting to a number", () => {
+    expect(code).toContain('"age unknown"');
+  });
+
   it("THE REFUSAL IS NOT RELAXED: no strikes or premiums without an actionable price", () => {
     // Showing the last observation must not re-enable anything. The execution
     // boundary is still `actionablePaperQuotePrice` and the early return that
