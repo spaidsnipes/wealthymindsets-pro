@@ -241,6 +241,24 @@ const ROOMS = [
         deps: "[athos]",
         depth: "ATHOSInterventionPanel",
       },
+      /**
+       * THE NINTH TENANT — ORDER FLOW, adopted by the MARKET room second.
+       *
+       * `reads` pins the room's OWN readings object, not the hook, for the same
+       * reason the chart room's entry does: a descriptor that called
+       * `useOrderFlowReadings` inside itself would compile a second read of a
+       * moving tape and could report a verdict on a different moment than the
+       * candles a few pixels away are drawing. The deps line carries the same
+       * three the chart room's does — a descriptor missing `symbol` would keep
+       * rendering TSLA's tape verdict under NVDA's chart.
+       */
+      {
+        id: "order-flow",
+        memo: "orderFlowEquipment",
+        reads: /readings=\{orderFlowReadings\}/,
+        deps: "[orderFlowReadings, orderFlowStanding, symbol]",
+        depth: "OrderFlowDepthPanel",
+      },
     ],
   },
   {
@@ -801,7 +819,21 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     // the passport — a silent substitution with nothing on screen to catch it.
     if (room.descriptors.length > 1) {
       const chooserAt = src.indexOf(`const ${room.content}`);
-      const chooserSrc = src.slice(chooserAt, chooserAt + 400);
+      /**
+       * BOUNDED BY THE CHOOSER'S OWN END, NOT BY A MAGIC 400.
+       *
+       * The window used to be a fixed character count, which is a rule that
+       * decays with every tenant a room adopts: the deck's ninth entry pushed
+       * `session-watch` past 400 characters and this went red on a chooser that
+       * mapped it correctly — a false accusation, which is worse than a missed
+       * one because the fix it invites is deleting the entry.
+       *
+       * The chooser ends where it dispatches, `}[`, and that terminator is the
+       * only honest edge. If it is ever gone the slice collapses to nothing and
+       * every id fails loudly, which is the right way for this to break.
+       */
+      const chooserEnd = src.indexOf("}[", chooserAt);
+      const chooserSrc = src.slice(chooserAt, chooserEnd > chooserAt ? chooserEnd : chooserAt);
       for (const id of registered) {
         expect(
           chooserSrc,

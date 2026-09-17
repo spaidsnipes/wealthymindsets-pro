@@ -290,6 +290,31 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "What WM is watching",
       hint: "Anything in how you are trading this session worth stopping for",
     },
+    /**
+     * THE NINTH TENANT — and the entry that makes ORDER FLOW a property of the
+     * TAPE rather than a property of /charts.
+     *
+     * The id is deliberately IDENTICAL to the chart room's, for the reason
+     * stated at the second room below: equipment is named by what it IS, not by
+     * where it was picked up. `deck-order-flow` would be two names for one
+     * compilation, and the rail would then be telling the trader that the
+     * deck's order flow is a different object from the chart room's. It is not
+     * — both rooms compile it with the same hook off their own tape.
+     *
+     * WHY THE DECK EARNED IT. The deck already holds `recentTicks` for its own
+     * chart and showed the trader nothing from it. Five finished readings —
+     * value candle, absorption, delta divergence, liquidity weather, stacked
+     * imbalance — were reachable from exactly one room in the product, and it
+     * was not the room the Founder opens.
+     *
+     * THE LABEL IS THE TRADER'S NOUN. Not "microstructure", not "tape
+     * selectors". THE HINT NAMES THE QUESTION, not the five modules behind it.
+     */
+    {
+      id: "order-flow",
+      label: "Order flow",
+      hint: "Whether the side pressing is being paid for the effort it spends",
+    },
   ],
 
   /**

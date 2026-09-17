@@ -130,6 +130,24 @@ import { LearningGenomeInspector } from "@/components/learningGenome/LearningGen
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
+/**
+ * ORDER FLOW ON THE MARKET ROOM — the five tape readings the deck could not see.
+ *
+ * `/charts` adopted this door first, and the readings have been compiled and
+ * drawn there since. The deck — the room the Founder actually opens — held the
+ * same tape in `wsFeed.recentTicks` and showed none of it: value candle,
+ * absorption, delta divergence, liquidity weather and stacked imbalance were
+ * reachable from exactly one room.
+ *
+ * Compiled from the stream THIS room already holds, for the reason the hook's
+ * own header gives: a second subscription would read a different moment of the
+ * same tape than the chart a few pixels away, which is Canon Weakness #1
+ * (multi-owner disagreement) reintroduced by the cure. One hook, one gate, one
+ * set of objects — the preview sentence and the drawn panels cannot disagree.
+ */
+import useOrderFlowReadings from "@/lib/marketData/useOrderFlowReadings";
+import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
+import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -1363,6 +1381,55 @@ function CommandDeckInner() {
   }, [athos]);
 
   /**
+   * THE NINTH TENANT — ORDER FLOW, and the deck's largest single blindness.
+   *
+   * Compiled off `wsFeed.recentTicks`, the stream this room already holds for
+   * its own chart, so the equipment can never report a verdict on a different
+   * moment of the tape than the candles underneath it are drawing.
+   *
+   * ONE descriptor, not five. A trader does not decide to look at "delta
+   * divergence"; they ask whether the side pressing is being paid for the
+   * effort it spends, and the five readings are how that question is answered.
+   * Five rail entries would be the "route per invention" ban wearing a rail.
+   *
+   * THE FEED'S LIMIT TRAVELS WITH THE DOOR. `useOrderFlowReadings` hands every
+   * selector NOTHING rather than raw ticks when the feed carries no verified
+   * aggressor tape, and the standing says NO TAPE before the trader presses —
+   * so a quiet widget is a disclosed fact, never a broken control.
+   */
+  const orderFlowReadings = useOrderFlowReadings(wsFeed.recentTicks, wsFeed.source ?? null);
+  /* Ranked and phrased OUTSIDE the descriptor: the memo may only ASSEMBLE what
+     the room already compiled, never compile a second opinion inside itself. */
+  const orderFlowStanding = React.useMemo(
+    () => selectOrderFlowStanding(orderFlowReadings),
+    [orderFlowReadings],
+  );
+  const orderFlowEquipment = React.useMemo(
+    () => ({
+      equipmentId: "order-flow",
+      // The rail's own words. A widget that opened under a different title
+      // reads as a different thing having loaded.
+      title: "Order flow",
+      verdict: orderFlowStanding.verdict,
+      headline: orderFlowStanding.headline,
+      counts: [
+        {
+          testId: "equipment-count-orderflow-measured",
+          label: `${orderFlowStanding.measuredCount} of 5 measured`,
+        },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <OrderFlowDepthPanel
+          readings={orderFlowReadings}
+          symbol={symbol}
+          unabridged={unabridged}
+        />
+      ),
+    }),
+    [orderFlowReadings, orderFlowStanding, symbol],
+  );
+
+  /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
    * than a chain of ternaries so that adding a third tenant is an entry, not a
@@ -1374,6 +1441,7 @@ function CommandDeckInner() {
    */
   const equipmentContent =
     ({
+      "order-flow": orderFlowEquipment,
       "market-reality": marketRealityEquipment,
       "market-object-passport": passportEquipment,
       "decision-chain": decisionChainEquipment,
