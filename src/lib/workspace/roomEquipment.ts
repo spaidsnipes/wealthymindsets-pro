@@ -210,6 +210,42 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Your learning genome",
       hint: "Which part of your work is the bottleneck, and the drill for it",
     },
+    /**
+     * THE SEVENTH TENANT — AND THE FIRST WHOSE OWN CONTAINER WAS THE PROBLEM.
+     *
+     * Every tenant before this one was BURIED: correct component, correct
+     * output, no door. This one was buried AND carried a second door of its
+     * own. `PracticeHonestyLayer` renders a `<details>`, and its in-room mount
+     * sits inside another `<details>` — so reaching it was two presses, and
+     * enrolling it naively would have made the equipment drawer a third. That
+     * is drawer-inside-drawer, which the interaction directive bans by name.
+     *
+     * The cure is a prop, not a deletion: `disclosed` tells the component that
+     * its container IS the disclosure, so behind this door it renders flat. The
+     * in-room mount keeps its fold, because in the room nobody asked yet.
+     *
+     * WHY IT DESERVES A DOOR AT ALL. Five modules measure the ways the practice
+     * book was easier than a real venue — locate, fill, rest, cancel, stop. A
+     * trader reading a green practice record with no idea which of those
+     * easements produced it is reading a flattering fiction. This is the single
+     * most consequential sentence WM can say about paper trading, and it lived
+     * two folds deep.
+     *
+     * THE ROOM'S OWN GATE TRAVELS WITH IT. The in-room mount is gated to
+     * REVIEW/LEARN, because §9 INTERRUPTION LAW forbids a retrospective taking
+     * the room while capital is exposed. The descriptor carries the same gate
+     * and says WITHHELD before the trader presses, so the rail cannot become a
+     * louder path to a surface the room deliberately closed.
+     *
+     * THE LABEL SAYS WHOSE PRACTICE IT IS, like every other trader-owned entry.
+     * THE HINT NAMES THE SUBJECT, NOT THE VERDICT: it promises to say how the
+     * book was easier, never to grade the trader for it.
+     */
+    {
+      id: "practice-honesty",
+      label: "Your practice honesty",
+      hint: "How the practice book was easier than a real venue would have been",
+    },
   ],
 
   /**

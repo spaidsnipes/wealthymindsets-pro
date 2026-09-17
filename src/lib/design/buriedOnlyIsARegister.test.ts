@@ -152,7 +152,27 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
 
        20 → 19. Recorded rather than silently deleted, because the whole claim
        of this file is that the number cannot move without somebody looking. */
-    "PracticeHonestyLayer",
+    /* `PracticeHonestyLayer` WAS HERE. Sixth entry discharged, and the only one
+       so far whose burial was DOUBLE: its single deck mount sat inside a
+       `<details>`, and the component rendered a `<details>` of its own. Two
+       presses to reach the five sentences that say how the practice book was
+       easier than a real venue — the most consequential thing WM can tell a
+       trader who is reading a flattering paper record.
+
+       It is now the SEVENTH WORKSPACE tenant (`practice-honesty`), so
+       `practiceHonestyEquipment`'s `renderDepth` mounts it at zero `<details>`
+       depth. The in-room mount and its own fold are untouched; what changed is
+       that there is now a door that is not a second press.
+
+       THE PROP IS PART OF THE DISCHARGE, NOT A DETAIL. The component gained
+       `disclosed` so that behind that door it renders FLAT. A `<details>`
+       inside a drawer the trader has already opened is the drawer-inside-drawer
+       the interaction directive bans by name — and enrolling this component
+       without that prop would have shipped the ban while every rule in this
+       file, and every rule in the equipment sentinel, stayed green.
+
+       15 → 14. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     /* `StructureContextNote` WAS HERE. Fifth entry discharged, and the SECOND
        one discharged as a CONSEQUENCE rather than a decision — the first being
        `DLARStrip`, which came off when the chain's door was found to be carrying

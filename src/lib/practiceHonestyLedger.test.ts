@@ -234,6 +234,45 @@ describe("practiceHonestyLedger — the REVIEW layer of the decision room", () =
     expect(layer).toContain('data-testid="practice-honesty-mark-caveat"');
   });
 
+  /**
+   * RE-PINNED, NOT RELAXED. The layer used to call `loadPaperState` itself, and
+   * the rule below asserted that against the COMPONENT file. The read then moved
+   * up into `usePracticeHonestyLedger` so the room's equipment descriptor could
+   * label the practice-honesty door without compiling a second opinion of the
+   * same book — which is the second semantic brain the grammar bans.
+   *
+   * The tempting fix was to point the old assertions at the new file and stop
+   * there. That would have been strictly WEAKER than what it replaced: nothing
+   * would then check that the COMPONENT still routes through the single reader,
+   * and a future edit could reintroduce a private `loadPaperState` in the panel
+   * while this file stayed green. So the rule was split by owner and gained an
+   * assertion it did not have.
+   */
+  it("SINGLE READER: the hook owns the read, and the layer owns none of it", () => {
+    const hook = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/practice/usePracticeHonestyLedger.ts"),
+      "utf8",
+    );
+    const layer = fs.readFileSync(
+      path.join(process.cwd(), "src/components/experience/PracticeHonestyLayer.tsx"),
+      "utf8",
+    );
+    // The hook is where the compiler is consulted, and nowhere else.
+    expect(hook).toContain("selectPracticeHonestyLedger");
+    expect(hook).toContain("loadPaperState");
+    expect(hook).toContain("subscribePaperState");
+    // No clock in a render body — the #418 mechanism traced five times here.
+    expect(hook).toMatch(/Date\.now\(\),\s*\n?\s*\)/);
+    expect(hook).toContain("React.useEffect");
+    // THE HALF THE OLD RULE COULD NOT STATE: the layer must now be a pure
+    // consumer. A second private read here is two readers of one book, free to
+    // disagree about what the trader practised.
+    expect(layer).toContain("usePracticeHonestyLedger");
+    expect(layer).not.toContain("loadPaperState");
+    expect(layer).not.toContain("selectPracticeHonestyLedger(");
+    expect(layer).not.toContain("Date.now(");
+  });
+
   // ---- LABEL-NOT-MODEL guards -------------------------------------------
 
   it("MINTS NO NUMBER: the only number in the source is the length of the list", () => {
@@ -283,7 +322,9 @@ describe("practiceHonestyLedger — the REVIEW layer of the decision room", () =
       path.join(process.cwd(), "src/components/experience/PracticeHonestyLayer.tsx"),
       "utf8",
     );
-    expect(layer).toContain("selectPracticeHonestyLedger");
+    // Reaches the compiler THROUGH the single reader — see the SINGLE READER
+    // rule above for why that indirection exists and what still pins it.
+    expect(layer).toContain("usePracticeHonestyLedger");
     // If the layer ever reaches past the compiler to an owner, the room gains
     // a second writer for the same claim and the ordering rule above stops
     // being the single answer. Caught here.
@@ -296,9 +337,6 @@ describe("practiceHonestyLedger — the REVIEW layer of the decision room", () =
     ]) {
       expect(layer).not.toContain(owner);
     }
-    // No clock in a render body — the #418 mechanism traced five times here.
-    expect(layer).toMatch(/Date\.now\(\),\s*\n?\s*\)/);
-    expect(layer).toContain("React.useEffect");
   });
 
   it("SINGLE-WRITER: every claim it emits names an existing owner module", () => {

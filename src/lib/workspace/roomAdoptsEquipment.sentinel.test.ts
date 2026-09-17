@@ -188,6 +188,31 @@ const ROOMS = [
         deps: "[learningGenome, sceneCompilation]",
         depth: "LearningGenomeInspector",
       },
+      /**
+       * THE SEVENTH TENANT — and the first whose DEPTH prop is not `unabridged`.
+       *
+       * `reads` pins `disclosed`, not a data prop, because that IS this
+       * tenant's whole contract. The component carries its own `<details>` for
+       * its in-room home; behind an equipment door that fold would be
+       * drawer-inside-drawer, which the directive bans by name. A descriptor
+       * that rendered `<PracticeHonestyLayer />` bare would compile, pass every
+       * other rule in this file, and ship the banned burial — so the prop is
+       * pinned here rather than trusted.
+       *
+       * `deps` carries `experienceContext.mode` for the same reason the genome
+       * above carries `sceneCompilation`: the room gates this surface to
+       * REVIEW/LEARN under §9 INTERRUPTION LAW, and a door that ignored the
+       * room's own refusal would be a louder path to a closed surface. It is
+       * the mode and not a scene because this room's refusal is stated in the
+       * mode — copying the genome's gate here would be a habit, not a rule.
+       */
+      {
+        id: "practice-honesty",
+        memo: "practiceHonestyEquipment",
+        reads: /<PracticeHonestyLayer disclosed unabridged=\{unabridged\} \/>/,
+        deps: "[practiceHonesty, experienceContext.mode]",
+        depth: "PracticeHonestyLayer",
+      },
     ],
   },
   {

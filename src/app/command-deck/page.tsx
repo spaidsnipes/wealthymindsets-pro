@@ -121,6 +121,10 @@ import { deriveCompletionSignals } from "@/lib/experience/deriveCompletionSignal
 import { composeExitRamp } from "@/lib/experience/composeExitRamp";
 import ExitRampCard from "@/components/experience/ExitRampCard";
 import PracticeHonestyLayer from "@/components/experience/PracticeHonestyLayer";
+import {
+  usePracticeHonestyLedger,
+  practiceHonestyIsSilent,
+} from "@/lib/practice/usePracticeHonestyLedger";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
@@ -1114,6 +1118,11 @@ function CommandDeckInner() {
   // call changed: it is unconditional and argument-free, so hook order across
   // renders is untouched, and the in-room mount still reads the same binding.
   const learningGenome = useLearningGenomeBundle();
+  /* Read once, here, for BOTH the in-room panel's door-label and the equipment
+     descriptor. See usePracticeHonestyLedger's header for why this read moved
+     up out of the component that used to own it. Unconditional and
+     argument-free, so hook order across renders is untouched. */
+  const practiceHonesty = usePracticeHonestyLedger();
 
   /**
    * THE LEARNING GENOME AS EQUIPMENT — the grammar's SIXTH tenant, and the
@@ -1211,6 +1220,83 @@ function CommandDeckInner() {
   }, [learningGenome, sceneCompilation]);
 
   /**
+   * THE SEVENTH TENANT — the practice book's honesty ledger.
+   *
+   * WHY THE DESCRIPTOR READS THE SAME HOOK THE PANEL DOES. A door has to say
+   * something truthful about what is behind it BEFORE it is pressed. The only
+   * two ways to get that are: read the same ledger the panel renders, or have
+   * the ROOM compile its own opinion of the practice book. The second is the
+   * second semantic brain the grammar bans — two compilations of one subject,
+   * free to disagree, with nothing that would notice when they did. So both
+   * consumers take `usePracticeHonestyLedger`, and there is one author.
+   *
+   * THE §9 GATE IS THE ROOM'S, NOT A NEW ONE. The in-room mount renders only
+   * in REVIEW/LEARN. A rail entry that ignored that would be a louder path to
+   * a surface the room had closed while capital is exposed. The gate is read
+   * from the same `experienceContext.mode` the room reads, stated once here,
+   * and it governs the verdict, the headline AND the depth.
+   */
+  const practiceHonestyEquipment = React.useMemo(() => {
+    const retrospectiveAdmitted =
+      experienceContext.mode === "REVIEW" || experienceContext.mode === "LEARN";
+    const withheldNote =
+      "Your practice honesty is held back until you are reviewing. It is a look backwards at a book you have already written, and it can wait.";
+    const silent = practiceHonestyIsSilent(practiceHonesty);
+    return {
+      equipmentId: "practice-honesty",
+      // The rail's own words. A widget that opened under a different title
+      // reads as a different thing having loaded.
+      title: "Your practice honesty",
+      verdict: !retrospectiveAdmitted
+        ? "WITHHELD"
+        : practiceHonesty == null
+          ? "READING"
+          : silent
+            ? "NOTHING YET"
+            : "DISCLOSED",
+      headline: !retrospectiveAdmitted
+        ? withheldNote
+        : practiceHonesty == null
+          ? "Your practice book is still being read."
+          : silent
+            ? "Nothing to disclose yet — there are no practice fills for WM to be honest about."
+            : (practiceHonesty.caption ?? ""),
+      counts: [
+        {
+          testId: "equipment-count-practice-easements",
+          label: `${practiceHonesty?.easements.length ?? 0} easements`,
+        },
+        {
+          testId: "equipment-count-practice-caveat",
+          label: practiceHonesty?.markCaveat != null ? "mark caveat" : "no caveat",
+        },
+      ],
+      /**
+       * TWO PROPS, TWO DIFFERENT QUESTIONS, AND THEY MUST BOTH BE PASSED.
+       *
+       * `disclosed` is structural: the trader pressed this door, so the fold
+       * comes off at EVERY stage — preview, drawer and full alike — because a
+       * `<details>` inside a drawer the trader already opened is the banned
+       * drawer-inside-drawer.
+       *
+       * `unabridged` is about the screen, and it is the stage's own signal, so
+       * it is forwarded unchanged. Every easement HEADING renders at both
+       * widths; what ENTER buys is the SENTENCES explaining each one, which is
+       * a real cap over real content rather than a prop invented so a rule
+       * would have something to point at.
+       */
+      renderDepth: (unabridged: boolean) =>
+        retrospectiveAdmitted ? (
+          <PracticeHonestyLayer disclosed unabridged={unabridged} />
+        ) : (
+          <p style={{ fontSize: 12, color: "#8a8271", lineHeight: 1.6, margin: 0 }}>
+            {withheldNote}
+          </p>
+        ),
+    };
+  }, [practiceHonesty, experienceContext.mode]);
+
+  /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
    * than a chain of ternaries so that adding a third tenant is an entry, not a
@@ -1228,6 +1314,7 @@ function CommandDeckInner() {
       "behaviour-mirror": mirrorEquipment,
       "personal-edge": personalEdgeEquipment,
       "learning-genome": learningGenomeEquipment,
+      "practice-honesty": practiceHonestyEquipment,
     }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
 
   // Decision Receipt (canon P8): project the most-recently sealed decision
