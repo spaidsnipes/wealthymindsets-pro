@@ -5,6 +5,9 @@ import { Activity, AlertTriangle, Bot, ChevronRight, Database, ShieldCheck } fro
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { selectMarketIntelFeedObservation } from "@/lib/os/selectMarketIntelFeedObservation";
 import { WM } from "@/lib/design/wmTokens";
 // Shift-SPAIDBOT: Market Canvas — fourth canonical consumer of composeMarketCanvasVM
 // (after /command-deck, /journal detail, and /nectar/[symbol]). Closes an ORPHAN:
@@ -56,6 +59,34 @@ export default function AIBotPage() {
   const sourceFact = monitorSourceFact(linkState, market.source, activeSymbol);
   const tapeFact = monitorTapeFact(market.tapeSource, activeSymbol);
   const tickerChange = selectTickerChangeDisplay(market.ticker);
+  // Canon §8 "CLOSED IS NOT DELAYED" — at the top of the component, never
+  // inside JSX. `null` until mount and on every weekday.
+  const sessionOpen = useProvenSessionClosure(activeSymbol);
+  /**
+   * THE LIVE MARKET MONITOR HAD TO SAY WHAT IT WAS MONITORING.
+   *
+   * Measured live 2026-09-17 on production: masthead FEED UNKNOWN, footer
+   * SOURCE UNKNOWN, over a room headed LIVE MARKET MONITOR that was reporting
+   * "Socket down" and "No price provider" in its own labelled cells.
+   *
+   * The frame's silence default is right for a room that has not spoken, and
+   * this room never had. So a monitor that knew precisely WHY it had no price
+   * could only make the frame say it had not been told — a different sentence,
+   * pointing a reader at a different thing to fix.
+   *
+   * `linkState` is the witness rather than `price > 0`, so the masthead and the
+   * CONNECTION cell cannot disagree about the same tick. See the selector.
+   */
+  usePublishOsStanding({
+    surface: "Market Intel",
+    feed: selectMarketIntelFeedObservation({
+      linkState,
+      source: market.source,
+      lastObservedAtMs: market.lastObservedAtMs,
+      connected: market.connected,
+      sessionOpen,
+    }),
+  });
   const changeFact = monitorChangeFact(linkState, tickerChange, activeSymbol);
 
   // Shift-SPAIDBOT: Market Canvas VM — fourth canonical consumer of the shared

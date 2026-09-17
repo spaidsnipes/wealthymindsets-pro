@@ -42,6 +42,7 @@ const PUBLISHERS = [
   "src/app/paper/page.tsx",
   "src/app/scanner/page.tsx",
   "src/app/heatmaps/page.tsx",
+  "src/app/ai-bot/page.tsx",
   "src/components/chart/ChartsDashboard.tsx",
 ] as const;
 
@@ -232,6 +233,11 @@ describe("SENTINEL — a room with NO feed declares so, instead of staying silen
     "src/app/tv/page.tsx",
     "src/app/radio/page.tsx",
     "src/app/proof-lane/page.tsx",
+    "src/app/morning-prep/page.tsx",
+    "src/app/news/page.tsx",
+    "src/app/backtesting/page.tsx",
+    "src/app/readiness/page.tsx",
+    "src/app/profile/page.tsx",
   ] as const;
 
   it("the list is non-empty and every room in it still exists", () => {
@@ -254,14 +260,31 @@ describe("SENTINEL — a room with NO feed declares so, instead of staying silen
     }
   });
 
+  /**
+   * WIDENED, because the old predicate tested the WRONG PROPERTY.
+   *
+   * It asked `src.includes("useWebSocket(")` — "does this room hold a socket" —
+   * when the claim being guarded is "this room observes NO MARKET DATA AT ALL".
+   * A room that grew a REST quote poll, a heatmap fetch, or a price badge would
+   * have gone on declaring FEEDLESS_SURFACE with this suite green. /paper is the
+   * standing proof that a room can carry a real, gradeable observation with no
+   * socket anywhere in it.
+   *
+   * So the predicate now names every way a room in this codebase has ever
+   * actually acquired market data. It is deliberately broader than the claim: a
+   * false positive here costs one honest conversation, and a false negative
+   * costs a room silently lying about its own provenance.
+   */
+  const ACQUIRED_MARKET_DATA =
+    /useWebSocket\(|\/api\/(yahoo|quote|market|heatmap)|regularMarket|priceSourceBadge|selectCanonicalSessionToken/;
+
   it("and none of them has quietly acquired a feed to be silent about", () => {
     // The other half of the pin. `FEEDLESS_SURFACE` is a positive claim, and a
-    // room that grows a transport must stop making it.
+    // room that grows any market-data channel must stop making it.
     for (const rel of FEEDLESS_ROOMS) {
-      const src = strip(rel);
       expect(
-        src.includes("useWebSocket("),
-        `${rel} now carries a transport but still declares it has no feed`,
+        ACQUIRED_MARKET_DATA.test(strip(rel)),
+        `${rel} now observes market data but still declares it has no feed`,
       ).toBe(false);
     }
   });
@@ -274,6 +297,7 @@ describe("SENTINEL — a room with a transport publishes what it observed", () =
     // Both known rooms must be found. If this drops to zero the assertions
     // below iterate an empty list and certify nothing.
     expect(withTransport.map(([rel]) => rel).sort()).toEqual([
+      "src/app/ai-bot/page.tsx",
       "src/app/command-deck/page.tsx",
       "src/components/chart/ChartsDashboard.tsx",
     ]);
@@ -282,8 +306,14 @@ describe("SENTINEL — a room with a transport publishes what it observed", () =
   it("THE LOAD-BEARING ASSERTION — each publishes a feed observation", () => {
     // Without this, the frame says "no observation yet" over a drawn chart and
     // sends a trader to diagnose a pipeline that is fine.
+    //
+    // Pinned to `observesFeed`, not to `/feed:\s*\{/`. The literal form was
+    // never the rule — /ai-bot delegates to `selectMarketIntelFeedObservation`
+    // and publishes MORE carefully than the rooms that inline, which is exactly
+    // the migration this file says it prefers. A rule that reddens on the
+    // preferred form is a rule pinned to spelling.
     for (const [rel, src] of withTransport) {
-      expect(src, rel).toMatch(/feed:\s*\{/);
+      expect(observesFeed(src), rel).toBe(true);
     }
   });
 
@@ -321,11 +351,39 @@ describe("SENTINEL — a room with a transport publishes what it observed", () =
     }
   });
 
-  it("neither room rounds an absent provider up to a named one", () => {
+  /**
+   * THE GUARD FOLLOWS THE JUDGEMENT, WHEREVER THE JUDGEMENT LIVES.
+   *
+   * This rule used to grep the PAGE for `=== "unavailable" ? null`, which
+   * silently required the in-page inline form. A room that moves its judgement
+   * into a reviewed selector — the form this file's own header calls the better
+   * one — would have turned it red for improving.
+   *
+   * So a delegating room is resolved: the delegate's name is read off the
+   * publication and its module is inspected instead. The rule is unchanged and
+   * the coverage is strictly wider, because it now reaches a selector that no
+   * page-scanning regex could have seen.
+   */
+  function provenanceGuardSource(rel: string, src: string): string {
+    const delegate = /\bfeed:\s*([A-Za-z_$][\w$]*)\s*\(/.exec(src)?.[1];
+    if (delegate === undefined) return src;
+    const module = path.join("src/lib/os", `${delegate}.ts`);
+    expect(
+      fs.existsSync(path.join(process.cwd(), module)),
+      `${rel} delegates to ${delegate} but no module was found at ${module} — the guard below would certify nothing`,
+    ).toBe(true);
+    return strip(module);
+  }
+
+  it("no room rounds an absent provider up to a named one", () => {
     // "unavailable" is the hook's word for "nobody answered". Passing it
     // through asks the badge to grade a vendor that does not exist.
     for (const [rel, src] of withTransport) {
-      expect(src, rel).toMatch(/===\s*"unavailable"\s*\?\s*null/);
+      // Either polarity of the same judgement: the inline rooms write
+      // `=== "unavailable" ? null`, the selector writes `!== "unavailable"` to
+      // admit a name. What is pinned is that the word is COMPARED against, and
+      // never passed through to `source` unexamined.
+      expect(provenanceGuardSource(rel, src), rel).toMatch(/[!=]==\s*"unavailable"/);
     }
   });
 

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import {
@@ -658,6 +660,21 @@ function ApiKeysModal({ open, onClose, onSaved }: { open: boolean; onClose: () =
 }
 
 export default function NewsPage() {
+  /*
+    A ROOM WITH NO FEED SAYS SO, RATHER THAN STAYING SILENT.
+
+    `compileFeedStanding` renders an unpublished standing as FEED UNKNOWN in
+    the masthead and SOURCE UNKNOWN in the provenance footer. That is the right
+    reading for a room that has not spoken yet. It is the WRONG reading for a
+    room with no market pipeline of any kind: it prints an open question about
+    a feed that does not exist, and sends a reader to diagnose nothing.
+
+    Silence is only earned by a POSITIVE declaration — silence and "I have
+    nothing to report" look identical in the source and mean opposite things on
+    the screen. Hence one line per room rather than a heuristic.
+  */
+  usePublishOsStanding({ surface: "News", feed: FEEDLESS_SURFACE });
+
   const [showKeys,     setShowKeys]     = useState(false);
   const [news,         setNews]         = useState<NewsItem[]>([]);
   const [sourceFilter, setSourceFilter] = useState("All Sources");

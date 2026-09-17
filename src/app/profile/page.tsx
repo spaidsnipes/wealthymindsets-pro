@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { traderPerformanceStats } from "@/lib/profile/traderPerformanceStats";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
@@ -97,6 +99,21 @@ function profileCreatorArt(index: number): React.CSSProperties {
 }
 
 export default function ProfilePage() {
+  /*
+    A ROOM WITH NO FEED SAYS SO, RATHER THAN STAYING SILENT.
+
+    `compileFeedStanding` renders an unpublished standing as FEED UNKNOWN in
+    the masthead and SOURCE UNKNOWN in the provenance footer. That is the right
+    reading for a room that has not spoken yet. It is the WRONG reading for a
+    room with no market pipeline of any kind: it prints an open question about
+    a feed that does not exist, and sends a reader to diagnose nothing.
+
+    Silence is only earned by a POSITIVE declaration — silence and "I have
+    nothing to report" look identical in the source and mean opposite things on
+    the screen. Hence one line per room rather than a heuristic.
+  */
+  usePublishOsStanding({ surface: "Profile", feed: FEEDLESS_SURFACE });
+
   return (
     // `min-h-screen` is `100vh` by another name, and this plane is a child of
     // the frame's scrolling room rather than of the screen. `min-h-full`
