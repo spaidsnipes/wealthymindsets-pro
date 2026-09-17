@@ -19,7 +19,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
-import WmWordmark from "@/components/brand/WmWordmark";
 import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
 import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { classifySymbol, isUnsupportedByEquityVendors } from "@/lib/marketData/symbolAssetClass";
@@ -727,10 +726,21 @@ export default function ScannerPage() {
   return (
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}>
 
-      {/* Header — WM brand strip + serif scanner title */}
+      {/*
+        Room title strip — NOT a brand strip.
+
+        This carried `<WmWordmark size="compact" subtitle="MARKET SCAN" />` and
+        a divider before the Scanner title. That was correct when /scanner was
+        a standalone page: something had to say whose product this is. It stops
+        being correct the moment the room is framed, because WMOperatingSystem's
+        masthead already says WEALTHYMINDSETS PRO directly above — so the
+        promotion put the wordmark on screen twice, one line apart, which is
+        precisely the "many small apps, each re-introducing itself" reading the
+        one-OS cutover exists to end.
+
+        The room keeps its own name. It stops re-introducing the company.
+      */}
       <div className="wm-scanner-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ minHeight:44 }}>
-        <WmWordmark size="compact" subtitle="MARKET SCAN" />
-        <div style={{ height: 18, width: 1, background: "rgba(139,106,41,0.3)", margin: "0 4px" }} aria-hidden="true" />
         <Zap size={15} className="text-wm-gold shrink-0"/>
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400, color: "#ede6d3" }}>Scanner</h1>
         <div className="wm-scanner-stats flex items-center gap-3 ml-2">

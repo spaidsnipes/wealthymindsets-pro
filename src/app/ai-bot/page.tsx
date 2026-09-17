@@ -94,7 +94,14 @@ export default function AIBotPage() {
         color: WM.text.body,
       }}
     >
-      <header
+      {/*
+        ONE ROOM, ONE LANDMARK. This was a <header>. WMOperatingSystem draws
+        the masthead around this room now that it is in the Founder family, so
+        a second one is how the second shell grew last time. The div keeps
+        every pixel and gives the landmark back its single owner. Same cure as
+        /copy-trading, and the <aside> below got it for the same reason.
+      */}
+      <div
         className="flex items-center gap-3 px-5"
         style={{
           minHeight: 64,
@@ -152,7 +159,7 @@ export default function AIBotPage() {
             {connectionFact.text}
           </span>
         </div>
-      </header>
+      </div>
 
       {/* Was a <main>. MainLayout already wraps this route in
           <main className="wm-app-surface">, so this was a second one and
@@ -300,7 +307,7 @@ export default function AIBotPage() {
           </button>
         </section>
 
-        <aside className="space-y-4">
+        <div className="space-y-4">
           <div className="rounded-3xl border border-wm-green/25 bg-wm-green/5 p-5">
             <div className="flex items-center gap-2 font-black text-wm-green"><ShieldCheck size={16} /> Accuracy policy</div>
             <p className="mt-3 text-xs leading-6 text-wm-text-muted">
@@ -323,7 +330,7 @@ export default function AIBotPage() {
               <p className="mt-2 text-xs leading-5 text-wm-text-muted">The selected symbol has no verified live response. Values remain blank until an observed source connects.</p>
             </div>
           )}
-        </aside>
+        </div>
       </div>
     </div>
   );

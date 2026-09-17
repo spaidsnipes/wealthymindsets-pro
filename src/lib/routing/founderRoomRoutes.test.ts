@@ -59,6 +59,17 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     // second look that went the other way. Recorded here because a reader of
     // this fence should be able to see that a family member arrived by a
     // reversal, and find out why without leaving the repo.
+    //
+    // 2026-09-16, LATER — /scanner and /ai-bot join, and the interesting part
+    // is WHY they were not here already. Neither had ever been judged: both
+    // threw "invariant expected app router to be mounted" when the harness
+    // tried to render them, so they parked at "cleared" on an instrument
+    // failure wearing the costume of a verdict. Giving the harness a router
+    // resolved both in one pass.
+    //
+    // This is the thing this fence is really for. A room that CANNOT be looked
+    // at is indistinguishable, from inside the registry, from a room that was
+    // looked at and rejected — unless somebody writes the difference down.
     expect([...FOUNDER_ROOM_ROUTES]).toEqual([
       "/morning-prep",
       "/command-deck",
@@ -67,10 +78,12 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/nectar",
       "/paper",
       "/journal",
+      "/scanner",
       "/education",
       "/proof-lane",
       "/copy-trading",
       "/backtesting",
+      "/ai-bot",
       "/lounge",
       "/tv",
       "/creator",
@@ -83,13 +96,31 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
   });
 
   it("does not include ungraduated tool routes that must not dictate Founder scene styling", () => {
-    // Scanner, readiness, and copy-trading are legitimate tools
-    // the audit permits — but they must not force the sanctuary tempo
-    // onto themselves or be entered from the family without a route
-    // change. Adding them here would be the opposite of the audit's law.
-    expect(FOUNDER_ROOM_ROUTES).not.toContain("/scanner");
     expect(FOUNDER_ROOM_ROUTES).toContain("/heatmaps");
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/readiness");
+
+    // /scanner USED TO BE ASSERTED OUT HERE as "a legitimate tool the audit
+    // permits, which must not force the sanctuary tempo onto itself". That
+    // sentence was written about a room nobody had rendered — /scanner threw
+    // "invariant expected app router to be mounted" in every harness that
+    // tried. When it was finally looked at (2026-09-16) the room was already
+    // obsidian throughout and disclosed "QUOTE STATE: DELAYED" on its own
+    // footer rather than in a tooltip. Promoted.
+    expect(FOUNDER_ROOM_ROUTES).toContain("/scanner");
+    expect(FOUNDER_ROOM_ROUTES).toContain("/ai-bot");
+
+    // /radio stays out, and its sibling is the evidence: the channel grid is
+    // six opaque saturated hues with no obsidian and no gold, while /tv — same
+    // group, same media shape, same channel-grid problem — solves it entirely
+    // in the WM palette. The OS already has an answer and this room is not
+    // using it. Repairable, and held only until it does.
+    expect(FOUNDER_ROOM_ROUTES).not.toContain("/radio");
+
+    // /news stays out on a MEASURED defect, not on taste: at 390x844 its
+    // search field and source rail run off the viewport edge with no way back.
+    // The phone is the primary device; a room that loses controls there has
+    // not cleared the frame however correct it looks at 1440.
+    expect(FOUNDER_ROOM_ROUTES).not.toContain("/news");
 
     // /copy-trading USED TO BE ASSERTED OUT OF THE FAMILY HERE, and this fence
     // is what made its promotion a conversation rather than a slip. It was
@@ -139,7 +170,9 @@ describe("isFounderRoomRoute", () => {
     // would double-owner the landing decision.
     expect(isFounderRoomRoute("/")).toBe(false);
     expect(isFounderRoomRoute("/charts")).toBe(true);
-    expect(isFounderRoomRoute("/scanner")).toBe(false);
+    expect(isFounderRoomRoute("/scanner")).toBe(true);
+    expect(isFounderRoomRoute("/radio")).toBe(false);
+    expect(isFounderRoomRoute("/news")).toBe(false);
     expect(isFounderRoomRoute("/heatmaps")).toBe(true);
     expect(isFounderRoomRoute("/copy-trading")).toBe(true);
     expect(isFounderRoomRoute("/shop")).toBe(false);

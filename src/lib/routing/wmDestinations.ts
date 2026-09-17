@@ -163,7 +163,32 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   { href: "/journal", label: "Journal", icon: BookOpen, group: "ROOM", tier: 2, frame: "os" },
 
   // ── TOOLS — market work the trader steps out to ─────────────────────────
-  { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "cleared" },
+  // LOOKED AT 2026-09-16, AND ONLY BECAUSE THE HARNESS GREW A ROUTER.
+  //
+  // /scanner, /news, /ai-bot and /radio were not held back on their merits.
+  // They could not be RENDERED at all — three threw "invariant expected app
+  // router to be mounted" and one threw "useRadio must be used inside
+  // RadioProvider" — so they sat at "cleared" for a reason that had nothing
+  // to do with them. That is the failure mode "cleared" is most exposed to:
+  // it is supposed to be a MEASUREMENT, and an unmeasurable room parks there
+  // forever while looking like a verdict. The harness now supplies the two
+  // providers app/layout.tsx supplies in production, and all four became
+  // judgeable in the same pass.
+  //
+  // /scanner: the signal table, filter rail and AUTO-30s control all sit
+  // correctly under the masthead, obsidian throughout, and the footer states
+  // "QUOTE STATE: DELAYED" and "Not yet received" rather than implying live
+  // ticks. The honesty is on the page, not in a tooltip.
+  { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "os" },
+  // /news RENDERS INSIDE THE FRAME BUT FAILS THE PHONE, and the phone is the
+  // primary device. At 390x844 the search field and the right-most source
+  // chip are cut off by the viewport edge and the source rail runs off-screen
+  // with no way back. A room that loses controls at the primary width has not
+  // cleared the frame no matter how correct it looks at 1440.
+  //
+  // Held on a MEASURED defect with a known cure, not on taste — this one is
+  // repairable, unlike the /shop and /radio holds below, and should be fixed
+  // rather than argued about.
   { href: "/news", label: "News", icon: Newspaper, group: "TOOL", tier: 1, frame: "legacy" },
   // LOOKED AT 2026-09-16 (static first paint, see header): lesson rail, progress
   // ring and challenge chip all sit correctly under the masthead; on-canon.
@@ -201,7 +226,14 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // The page at /ai-bot is titled "Market Intelligence · Observed market data
   // only · no generated signals" and runs the canonical Market Canvas — it does
   // not operate a bot or emit signals. A rail must not promise one.
-  { href: "/ai-bot", label: "Market Intel", icon: Zap, group: "TOOL", tier: 2, frame: "cleared" },
+  //
+  // LOOKED AT 2026-09-16 once the harness could mount it. Obsidian and gold
+  // throughout: the LIVE MARKET MONITOR band, the Market Canvas block and the
+  // symbol rail all sit correctly inside the frame. Its right-hand column is
+  // three truth panels — "Accuracy policy", "What is available", "No
+  // substitute data" — which is the room saying out loud what it does not
+  // know. Promoted on static first paint, carrying that limit.
+  { href: "/ai-bot", label: "Market Intel", icon: Zap, group: "TOOL", tier: 2, frame: "os" },
 
   // ── COMMUNITY & BUSINESS ────────────────────────────────────────────────
   // LOOKED AT 2026-09-16: on this runtime Lounge renders its honest
@@ -213,6 +245,24 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // block all sit correctly inside the frame; obsidian and warm gold
   // throughout.
   { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "os" },
+  // /radio IS HELD, AND THE EVIDENCE IS ITS OWN SIBLING.
+  //
+  // Looked at 2026-09-16. The room renders and the sanctuary shows through,
+  // so it passes both sanctuary laws. What it does not pass is "one OS": the
+  // channel grid is six opaque saturated cards — yellow, purple, green, blue,
+  // pink, green — each a full-bleed hue with no obsidian and no gold. That is
+  // a streaming-service visual system, not this one.
+  //
+  // THE REASON THIS IS NOT THE /backtesting MISTAKE AGAIN: that hold died
+  // because the idiom I objected to already shipped in /paper and /journal, so
+  // I was inventing a second standard for the newest room. Here the OS was
+  // consulted FIRST and says the opposite. /tv is the direct sibling — same
+  // group, same media shape, same channel-grid problem — and it solves it
+  // entirely in obsidian and warm gold. So the WM answer to "how does a media
+  // room show its channels" already exists and /radio is not using it.
+  //
+  // Held until the channel cards adopt the /tv treatment. That is a repair, not
+  // a rejection, and it is the cheapest of the three open holds.
   { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "cleared" },
   // LOOKED AT 2026-09-16, and promoted only AFTER its hero band was cured. The
   // band ended on linear-gradient(..., #050506) — the shell's own floor, laid
@@ -247,6 +297,15 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // empty room. Nothing is wrong with it — the harness simply cannot see it.
   // It stays "cleared" for the same reason /ai-bot, /news, /scanner and /radio
   // do: not because it failed, but because nobody has seen it.
+  //
+  // RE-CONFIRMED the same day with the router mounted. The other four rooms in
+  // that sentence were unmeasurable for a harness reason and all four became
+  // judgeable the moment the harness supplied a router — three were resolved on
+  // the spot. /profile was NOT: with the router present the room area is still
+  // blank, because the Suspense boundary is a real property of the page and not
+  // an artefact of the instrument. So this stays the one honest "nobody has
+  // seen it" left, and closing it needs a harness that RESOLVES Suspense, not
+  // one that mounts more context.
   { href: "/profile", label: "Profile", icon: User, group: "COMMUNITY", tier: 2, frame: "cleared" },
 ];
 
