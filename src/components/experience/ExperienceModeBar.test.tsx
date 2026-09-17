@@ -31,6 +31,7 @@ import {
   EXPERIENCE_MODES,
   type ExperienceMode,
 } from "@/lib/experience/decisionContextBus";
+import { shellEmphasis } from "@/lib/experience/shellLayout";
 
 function busAt(mode: ExperienceMode): DecisionContextBus {
   const b = new DecisionContextBus();
@@ -66,9 +67,47 @@ describe("ExperienceModeBar — every canon mode is present, in canon order", ()
     // carry their meaning. Removing the hints would keep the buttons but
     // strip the vocabulary — that is dead vocabulary in §H19 terms.
     const html = render(new DecisionContextBus());
-    expect(html).toContain("Watch the market with no position");
-    expect(html).toContain("Have a thesis; wait for permission");
     expect(html).toContain("Study what you and the market did");
+
+    /*
+      RE-PINNED TO THE MEANING, NOT TO THE SPELLING.
+      ----------------------------------------------
+      This used to name two caption strings verbatim, and both were the
+      component's OWN private copies of captions `shellLayout` also owns. The
+      copies had already drifted — this file said "Have a thesis", the masthead
+      said "Hold the thesis" — and a spelling-pin is exactly what lets that
+      happen: it proves a literal is present, never that it AGREES with the
+      surface the trader reads it beside.
+
+      So the assertion is now behavioural: every mode's hint must be the SAME
+      sentence the shell paints for that mode. Re-introducing a private table
+      fails here the moment it says anything different, which is the only
+      version of this rule that can catch the drift it was written after.
+    */
+    for (const mode of EXPERIENCE_MODES) {
+      expect(html, `${mode}'s hint is not the shell's caption for ${mode}`)
+        .toContain(shellEmphasis(mode).job.replace(/\.$/, ""));
+    }
+  });
+
+  /**
+   * THE CAPTION MAY NOT ASSERT AN EXPOSURE WM CANNOT SEE.
+   *
+   * OBSERVE is the mode the shell lands in before the human has declared
+   * anything, and its caption is painted in the masthead of every route. It
+   * read "Watch the market with no position." — a positive claim about the
+   * trader's book, made by a surface that observes no book.
+   *
+   * `inferJobMode` was repaired for this exact sentence and `MANAGE` is the
+   * control: that mode is only ever reached on an observed `AT_RISK` position,
+   * so naming the open position there is backed by the evidence that selected
+   * the mode. Pinned from both sides — the claim must be gone from OBSERVE,
+   * and the caption must still say what the job IS.
+   */
+  it("the default mode's caption does not assert a flatness WM never observed", () => {
+    expect(shellEmphasis("OBSERVE").job).not.toMatch(/with no position/i);
+    expect(shellEmphasis("OBSERVE").job).toMatch(/watch the market/i);
+    expect(shellEmphasis("MANAGE").job).toMatch(/open position/i);
   });
 });
 

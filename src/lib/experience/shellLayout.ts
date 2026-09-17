@@ -39,9 +39,42 @@ export interface ShellEmphasis {
 /** Chart is sacred: the canvas never drops below this share of emphasis. */
 export const MIN_CANVAS_WEIGHT = 0.7;
 
+/*
+  THE CAPTION IS A JOB, NOT AN OBSERVATION OF THE TRADER'S BOOK.
+
+  Measured live in the masthead of wealthymindsetspro.com/charts, 2026-09-17,
+  directly under the wordmark, on every route, in the default mode:
+
+      WEALTHYMINDSETS PRO
+      Watch the market with no position.
+
+  `inferJobMode` was repaired for this exact sentence and says why in its own
+  words: "'with no position' is a POSITIVE CLAIM about the trader's exposure",
+  and WM "stops asserting a flatness it never observed". That module now hands
+  back "no position is visible from this surface" unless it holds an actual
+  `NO_EXPOSURE_OBSERVED`, and `decisionMemoryReachability.test.ts` proves why
+  the stronger claim is unavailable: the decision store has no production
+  writer, so exposure is structurally UNOBSERVED.
+
+  The repair never reached this table — and this is the copy the trader
+  actually reads. The inference's `reason` surfaces on one deck panel; this
+  caption is painted in the masthead of every route, in the mode the shell
+  lands in before the human has declared anything at all. The fixed sentence
+  was the quiet one; the loud one kept the claim.
+
+  Every other caption here is an imperative naming the WORK. Only OBSERVE's
+  carried a descriptive clause about exposure, which is what made it a
+  reading. It is now an instruction like its six siblings, and it asserts
+  nothing WM cannot see.
+
+  MANAGE's "the open position" is deliberately LEFT ALONE: `inferJobMode`
+  reaches MANAGE only on `position === "AT_RISK"` — an observed exposure, and
+  explicitly not on UNOBSERVED ("UNOBSERVED is not a quiet 'no'"). That
+  caption is backed by the same evidence that selects the mode.
+*/
 const EMPHASIS: Readonly<Record<ExperienceMode, ShellEmphasis>> = {
   PREP: { job: "Plan the session before the bell.", railDefaultOpen: true, canvasWeight: 0.72, liveFocus: false },
-  OBSERVE: { job: "Watch the market with no position.", railDefaultOpen: false, canvasWeight: 0.85, liveFocus: true },
+  OBSERVE: { job: "Watch the market without taking a position.", railDefaultOpen: false, canvasWeight: 0.85, liveFocus: true },
   WAIT: { job: "Hold the thesis; wait for permission.", railDefaultOpen: false, canvasWeight: 0.85, liveFocus: true },
   EXECUTE: { job: "Place the planned decision.", railDefaultOpen: false, canvasWeight: 0.9, liveFocus: true },
   MANAGE: { job: "Steward the open position.", railDefaultOpen: false, canvasWeight: 0.88, liveFocus: true },

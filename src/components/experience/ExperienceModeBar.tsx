@@ -7,6 +7,7 @@ import {
   type DecisionContextBus,
 } from "@/lib/experience/decisionContextBus";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { shellEmphasis } from "@/lib/experience/shellLayout";
 
 /**
  * ExperienceModeBar — the seven human operating states (Founder Phase 1):
@@ -25,15 +26,34 @@ export interface ExperienceModeBarProps {
   className?: string;
 }
 
-const MODE_HINT: Readonly<Record<ExperienceMode, string>> = {
-  PREP: "Plan the session before the bell",
-  OBSERVE: "Watch the market with no position",
-  WAIT: "Have a thesis; wait for permission",
-  EXECUTE: "Place the planned decision",
-  MANAGE: "Steward an open position",
-  REVIEW: "Study what you and the market did",
-  LEARN: "Train the exact weakness found",
-};
+/**
+ * THE SECOND COPY OF THE CAPTION TABLE — AND IT HAD ALREADY DRIFTED.
+ *
+ * `shellLayout` owns one caption per mode and paints it in the masthead of
+ * every route. This file kept its own table for the button tooltips, and two
+ * copies of one rule agree exactly until one is edited. Both were:
+ *
+ *     WAIT    shell "Hold the thesis; wait for permission."
+ *             here  "Have a thesis; wait for permission"
+ *     MANAGE  shell "Steward the open position."
+ *             here  "Steward an open position"
+ *
+ * Not catastrophic on their own — and precisely why they survived. A trader
+ * hovering WAIT was told to HAVE a thesis while the masthead told them to HOLD
+ * one, which are different instructions about the same job.
+ *
+ * It also meant the exposure-claim repair in `shellLayout`'s OBSERVE entry
+ * would have healed the masthead and left this tooltip still asserting a
+ * flatness WM cannot observe. Deleting the table is what makes that repair
+ * reach every surface that speaks the caption, now and later.
+ *
+ * The tooltip drops the trailing period the masthead sentence carries — a
+ * title attribute is a label, not a sentence — which is presentation, not a
+ * second opinion about what the job IS.
+ */
+function modeHint(mode: ExperienceMode): string {
+  return shellEmphasis(mode).job.replace(/\.$/, "");
+}
 
 export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
   const { context, setMode } = useDecisionContext(bus);
@@ -65,7 +85,7 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
             type="button"
             onClick={() => setMode(mode)}
             aria-pressed={active}
-            title={MODE_HINT[mode]}
+            title={modeHint(mode)}
             style={{
               flex: "1 1 auto",
               // Keep each tap target readable when the bar wraps on mobile;
