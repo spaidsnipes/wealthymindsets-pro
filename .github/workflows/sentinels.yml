@@ -242,3 +242,34 @@ jobs:
       # has quietly stopped measuring can be caught.
       - name: Delta Bubble pixel proof
         run: npm run prove:bubble-pixels
+
+      # ── The revives, which nothing had ever run ───────────────────────────
+      #
+      # Both steps above say the same thing in their own words: a law that has
+      # quietly stopped measuring can be caught BY ITS REVIVE. That is not a
+      # side note. The VP file records that THREE OF ITS FIVE LAWS were written
+      # wrong the first time and were "only found because their revive ran
+      # GREEN" — the revives are the instrument that audited the instrument.
+      #
+      # CI ran neither of them. It ran both proofs clean and stopped. Ten revive
+      # modes existed and zero were executed by anything automated, so the only
+      # thing standing between a dead pixel law and a permanently green check
+      # was someone remembering to type an env var by hand.
+      #
+      # That is the vacuity failure this repo already shipped once: a detector
+      # that silently stops matching reports "no offences" forever, and reads
+      # exactly like a clean bill of health. Both proofs are explicitly fragile
+      # in this way — their own headers record that `BOT_Y` at 520 and an even
+      # bar width each made a real defect undetectable, because the FIXTURE, not
+      # the law, had drifted. A clean run cannot notice that. A revive can.
+      #
+      # So both directions are now required: clean must be GREEN (above), and
+      # every declared revive must still be RED (here).
+      #
+      # The guard discovers the proofs by scanning for a REVIVE_MODES
+      # declaration rather than naming two files, so a third pixel proof enrols
+      # itself. If the scan ever matches nothing it exits 2 and refuses to
+      # report, because a green check proving that nothing was checked is the
+      # exact thing this step exists to prevent.
+      - name: Pixel laws are still falsifiable
+        run: npm run prove:revives
