@@ -89,8 +89,32 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
         }}
       >
         <span aria-hidden="true" style={{ color: "#00C076" }}>●</span>
+        {/*
+          THE NOUN IS PART OF THE COUNT.
+
+          Measured live on /charts, NQ1! 15m, 2026-09-17, ONE viewport carrying
+          THREE evidence counts at once:
+
+              this chip     :  Evidence saved · 4
+              DECISION rail :  0/8 dimensions resolved
+              NEXT cell     :  the first of 9 unpaid evidence nodes
+
+          Only one of those three is scoped to what it counts by the eye. This
+          chip already holds the honest sentence — "4 symbol summaries retained
+          in this browser" — but it lives in `aria-label` and `title`, so the
+          scope reaches a screen reader and a hover and not a trader glancing
+          at the chart. A bare 4 beside an 8 and a 9 invites the reading that
+          four of the nine nodes are paid, which is not what this counts and
+          not something WM knows.
+
+          The cure is the same one `formatSpinePrice` applies one panel over:
+          the qualifier travels WITH the reading. Different nouns cannot be
+          mistaken for one another; bare integers can.
+        */}
         <span>Evidence saved</span>
-        <span style={{ color: "#62697d" }}>· {symbols.length}</span>
+        <span style={{ color: "#62697d" }}>
+          · {symbols.length} {symbols.length === 1 ? "symbol" : "symbols"}
+        </span>
       </summary>
       <div
         role="group"
