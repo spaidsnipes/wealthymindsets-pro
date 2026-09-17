@@ -89,7 +89,33 @@ function buriedOnly(src: string): string[] {
 const REGISTER: Readonly<Record<string, readonly string[]>> = {
   "/command-deck": [
     // ── DEBT. Real intelligence whose only door is a second press. ──
-    "ATHOSInterventionPanel",
+    /* `ATHOSInterventionPanel` WAS HERE — the register's THIRD discharge, and
+       the first one that took two separate cures to earn.
+
+       It carried a DOUBLE burial. The outer one was not a `<details>` at all:
+       the mount sat behind `{chainVm && (…)}`, so an unresolved MARKET could
+       silence an observable fact about the PERSON — five of ATHOS's seven
+       detectors read only `sessionDecisions`. That gate came off in
+       `f12998a3` and the guard was moved to where the claim is. The inner one
+       was the ordinary kind: the surviving mount still sat inside the deep
+       `<details>`, so removing the gate made it reachable, not unburied.
+
+       This entry comes off because of the second cure: the panel is now the
+       WORKSPACE grammar's EIGHTH tenant (`session-watch`, labelled "What WM
+       is watching" — the rail does not speak the internal system name), so
+       `sessionWatchEquipment`'s `renderDepth` mounts it at zero `<details>`
+       depth. The buried mount was NOT removed, which is exactly why this
+       entry goes rather than stays: buried-only means EVERY mount is buried.
+
+       It is also the first tenant whose door had to argue with doctrine to
+       exist. §14 says silence is a feature, and the room's mount is still
+       silent. What changed is only the DISCLOSED path: a deliberate press is
+       answered with a sentence instead of a blank, because silence is the
+       right answer to a question nobody asked and the wrong answer to one
+       somebody did.
+
+       16 → 15. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     /* `DLARStrip` WAS HERE, and the way it came off is the point.
        The previous baton recorded a judgement about this entry: the auction
        lens is bound to the chain by the room's §10 THESIS_GEOMETRY rule, so

@@ -232,6 +232,27 @@ describe("the Mirror reflects the trader, not the tape", () => {
     // Founder doctrine §14 "silence is a feature" is what stops the ungating
     // from becoming an empty frame on every deck render.
     const panel = codeOnly(read("components/athos/ATHOSInterventionPanel.tsx"));
-    expect(panel).toMatch(/visible\.length === 0\)? return null/);
+
+    // RE-PINNED when ATHOS became the eighth WORKSPACE tenant. This read
+    // `/visible\.length === 0\)? return null/` — one regex over one branch —
+    // and it went red on a change that STRENGTHENED the thing it guards.
+    //
+    // §14 governs the UNPROMPTED case. A trader who deliberately opens the
+    // equipment door has asked, and a blank panel is not silence then, it is
+    // a broken door. So the empty path forked: still `return null` in the
+    // room, an honest sentence behind the door. The rule follows, and is
+    // stronger for it — it now pins BOTH halves, so neither can drift:
+    // un-forking it back to an unconditional sentence goes red on the first
+    // assertion, and deleting the disclosed branch goes red on the second.
+    expect(
+      panel,
+      "the panel no longer self-silences on its UNPROMPTED path — §14 says " +
+        "silence is a feature when nobody asked",
+    ).toMatch(/visible\.length === 0\)? \{?\s*if \(!disclosed\) return null;/);
+    expect(
+      panel,
+      "the panel has nothing to say to a trader who DID ask — an equipment " +
+        "door that opens on a blank is a broken door, not silence",
+    ).toMatch(/data-testid="athos-quiet"/);
   });
 });

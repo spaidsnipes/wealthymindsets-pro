@@ -213,6 +213,33 @@ const ROOMS = [
         deps: "[practiceHonesty, experienceContext.mode]",
         depth: "PracticeHonestyLayer",
       },
+      /**
+       * THE EIGHTH TENANT — the second whose contract is a BEHAVIOURAL prop.
+       *
+       * `reads` pins `disclosed` for the same reason tenant 7 does, and for one
+       * additional reason tenant 7 did not have. For the practice layer,
+       * `disclosed` only removed a `<details>`. Here it ALSO decides whether an
+       * empty result is a blank or a sentence — `ATHOSInterventionPanel` is a
+       * §14 silent-mode component that returns null with zero DOM footprint
+       * when it has nothing to say, and §14 is its NORMAL state, not its error
+       * state. A descriptor that rendered `<ATHOSInterventionPanel interventions={…} />`
+       * bare would compile, pass every other rule in this file, and ship a door
+       * that opens onto nothing on most sessions. That is the painted door.
+       *
+       * `deps` is `[athos]` alone, and deliberately so. The room does NOT gate
+       * this surface on mode or scene: a statement about how the trader is
+       * behaving is wanted in every phase, and gating it was the exact defect
+       * removed in `f12998a3`. Adding `experienceContext.mode` here to match
+       * its neighbour would be a habit, not a rule — and would quietly
+       * reintroduce a gate on the trader's own record.
+       */
+      {
+        id: "session-watch",
+        memo: "sessionWatchEquipment",
+        reads: /disclosed\s+unabridged=\{unabridged\}/,
+        deps: "[athos]",
+        depth: "ATHOSInterventionPanel",
+      },
     ],
   },
   {
@@ -558,7 +585,23 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     );
     const chooser = deck.indexOf(`const ${room.content}`);
     expect(chooser, `${DECK} → the room no longer builds ${room.content}`).toBeGreaterThan(-1);
-    const choice = deck.slice(chooser, chooser + 400);
+    // RE-PINNED to the chooser's OWN extent. This read `chooser + 400` — a
+    // fixed character count, which is a rule pinned to a file's current
+    // length rather than to its meaning. It went red on a CORRECT eighth
+    // tenant (the entry pushed `equipment.equipmentId` past the window), and
+    // it would have gone quietly WEAKER on a room that shrank, accepting a
+    // memo name that merely happened to sit downstream of the chooser.
+    //
+    // The chooser is exactly one statement, and the object literal it selects
+    // from contains no `;`, so the first semicolon is its true end. Cutting
+    // there is both stable under growth and strictly stronger: every
+    // descriptor memo must now appear INSIDE the chooser, not merely near it.
+    const choiceEnd = deck.indexOf(";", chooser);
+    expect(
+      choiceEnd,
+      `${DECK} → ${room.content} has no statement end — the chooser was rewritten`,
+    ).toBeGreaterThan(chooser);
+    const choice = deck.slice(chooser, choiceEnd);
     // A room with more than one tenant must SELECT by the id the rail asked
     // for. A room with exactly one has nothing to select between, and demanding
     // a chooser there would be demanding dead code — so the rule follows the

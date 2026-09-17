@@ -246,6 +246,50 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Your practice honesty",
       hint: "How the practice book was easier than a real venue would have been",
     },
+    /**
+     * THE EIGHTH TENANT — AND THE SECOND DOUBLE BURIAL.
+     *
+     * `ATHOSInterventionPanel` was buried twice, like tenant 7, but by two
+     * different mechanisms and only one of them was a container.
+     *
+     * The first burial was a MARKET GATE — `{chainVm && <ATHOSInterventionPanel/>}`
+     * — which silenced five statements about the TRADER whenever the tape was
+     * unreadable. That was removed in `f12998a3` as a defect in its own right,
+     * before this enrolment, because it was wrong independently of whether
+     * ATHOS ever became equipment. The baton is
+     * WM-PRO-ATHOS-DECOUPLING-2026-09-17.
+     *
+     * The second burial is the one this entry cures: the panel sits inside the
+     * room's "Deep read" `<details>`, so the single most time-critical thing WM
+     * can say — that the trader has hit their declared loss limit — waits
+     * behind a fold.
+     *
+     * WHY IT DESERVES A DOOR. Seven detectors, five of them reading nothing but
+     * the trader's own decision record: post-exit continuation integrity,
+     * missed-profit re-entry revenge, success-triggered rule bending,
+     * post-rule-violation separation, and max losses reached. Those are the
+     * sentences a trader needs at the moment they are least likely to go
+     * looking for them.
+     *
+     * §14 "SILENCE IS A FEATURE" TRAVELS WITH IT, AND IS NOT WEAKENED. The
+     * panel still renders nothing in the room when it has nothing to say. The
+     * ONE thing the door changes is that a deliberate press is answered with a
+     * sentence rather than a blank — a painted door is not silence, it is a
+     * broken control. The descriptor says QUIET before the press, so the rail
+     * never promises noise it does not have.
+     *
+     * THE LABEL NAMES THE SUBJECT, NOT THE MACHINERY. Not "ATHOS" — that is an
+     * internal system name, and the directive forbids exposing the
+     * architecture in Founder-facing UI. What the trader gets is WM watching
+     * how they are behaving this session.
+     *
+     * THE HINT PROMISES AN INTERRUPTION, NOT A GRADE.
+     */
+    {
+      id: "session-watch",
+      label: "What WM is watching",
+      hint: "Anything in how you are trading this session worth stopping for",
+    },
   ],
 
   /**

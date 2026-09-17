@@ -1297,6 +1297,68 @@ function CommandDeckInner() {
   }, [practiceHonesty, experienceContext.mode]);
 
   /**
+   * THE EIGHTH TENANT. The panel already compiles in `athos` above; this
+   * descriptor is a door onto that same compilation, not a second one.
+   *
+   * VERDICT BEFORE THE PRESS. The rail has to say something truthful about
+   * what is behind this door while it is still shut, and for ATHOS the honest
+   * answer is usually "nothing" — §14 is the normal case, not the failure
+   * case. So QUIET is a first-class verdict here rather than an error state,
+   * and the counts name how many interventions and at what severity, so the
+   * trader can tell "watched and found nothing" from "not watching".
+   */
+  const sessionWatchEquipment = React.useMemo(() => {
+    const interventions = athos.interventions as readonly ATHOSIntervention[];
+    const loudest = interventions.find((iv) => iv.verdict === "CAUTION")
+      ?? interventions.find((iv) => iv.verdict === "ADVISORY")
+      ?? interventions[0];
+    return {
+      equipmentId: "session-watch",
+      // The rail's own words. A widget that opened under a different title
+      // reads as a different thing having loaded.
+      title: "What WM is watching",
+      verdict: loudest == null ? "QUIET" : loudest.verdict,
+      headline:
+        loudest == null
+          ? "Nothing to raise — ATHOS has watched this session and found nothing worth interrupting you about."
+          : loudest.headline,
+      counts: [
+        {
+          testId: "equipment-count-session-watch-open",
+          label: `${interventions.length} raised`,
+        },
+        {
+          testId: "equipment-count-session-watch-severity",
+          label:
+            interventions.some((iv) => iv.verdict === "CAUTION")
+              ? "caution"
+              : interventions.some((iv) => iv.verdict === "ADVISORY")
+                ? "advisory"
+                : "no escalation",
+        },
+      ],
+      /**
+       * BOTH PROPS, AND THEY ANSWER DIFFERENT QUESTIONS.
+       *
+       * `disclosed` is structural and true at EVERY stage: the trader pressed
+       * this door, so the panel must not answer with a blank and must not put
+       * its "show N more" fold inside a drawer that is already open.
+       *
+       * `unabridged` is the stage's own signal and is forwarded unchanged. The
+       * PRIMARY intervention renders at both widths; what ENTER buys is the
+       * ranked considerations behind it, which is a real cap over real content.
+       */
+      renderDepth: (unabridged: boolean) => (
+        <ATHOSInterventionPanel
+          interventions={athos.interventions as readonly ATHOSIntervention[]}
+          disclosed
+          unabridged={unabridged}
+        />
+      ),
+    };
+  }, [athos]);
+
+  /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
    * than a chain of ternaries so that adding a third tenant is an entry, not a
@@ -1315,6 +1377,7 @@ function CommandDeckInner() {
       "personal-edge": personalEdgeEquipment,
       "learning-genome": learningGenomeEquipment,
       "practice-honesty": practiceHonestyEquipment,
+      "session-watch": sessionWatchEquipment,
     }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
 
   // Decision Receipt (canon P8): project the most-recently sealed decision

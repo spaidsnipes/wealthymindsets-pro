@@ -51,6 +51,42 @@ export interface ATHOSInterventionPanelProps {
   /** Called when the trader clicks an evidence id to drill through. Optional. */
   onInspectEvidence?: (interventionId: string, evidenceId: string) => void;
   className?: string;
+  /**
+   * MY CONTAINER IS ALREADY THE DISCLOSURE.
+   *
+   * Two changes, and they are the same decision seen from two sides.
+   *
+   * 1. NO SILENT NULL — AND THIS IS AN EXCEPTION TO §14, ARGUED NOT ASSUMED.
+   *    Founder doctrine §14 says "silence is a feature": ATHOS does not
+   *    announce that it has nothing to say. That doctrine governs the
+   *    UNPROMPTED case, and it is right — an unasked-for "nothing to report"
+   *    banner on every deck render is noise. But §14 was written before
+   *    equipment doors existed. Behind a door the trader has just deliberately
+   *    pressed, rendering nothing is a PAINTED DOOR: a control that answers a
+   *    press with a blank, indistinguishable from a bug. Silence is the right
+   *    answer to a question nobody asked and the wrong answer to one somebody
+   *    did. The room's mount is unchanged and still silent.
+   *
+   * 2. NO SECOND FOLD. The "show N more considerations" toggle is correct in
+   *    the room, where the trader has not asked for depth. Behind an opened
+   *    door it is a fold inside a drawer the trader already opened, which the
+   *    interaction directive bans by name. So when disclosed, the additional
+   *    considerations render flat — capped, and the cap says so.
+   */
+  readonly disclosed?: boolean;
+  /**
+   * Give the considerations their full depth.
+   *
+   * Orthogonal to `disclosed` and never to be merged with it. `disclosed`
+   * answers "has my container already opened me" — structural, who owns the
+   * fold. `unabridged` answers "how much room do I have" — the screen. The
+   * equipment drawer is disclosed and NOT unabridged; ENTER is both; the
+   * in-room mount is neither.
+   *
+   * The PRIMARY intervention renders at every width. What ENTER buys is the
+   * ranked considerations behind it.
+   */
+  readonly unabridged?: boolean;
 }
 
 export function ATHOSInterventionPanel({
@@ -58,6 +94,8 @@ export function ATHOSInterventionPanel({
   onDismiss,
   onInspectEvidence,
   className,
+  disclosed = false,
+  unabridged = false,
 }: ATHOSInterventionPanelProps) {
   const ranked = React.useMemo(() => rankInterventions(interventions), [interventions]);
   const [expanded, setExpanded] = React.useState(false);
@@ -67,11 +105,33 @@ export function ATHOSInterventionPanel({
     [ranked, dismissedIds],
   );
 
-  // Silence is a feature — render literally nothing when there is nothing to say.
-  if (visible.length === 0) return null;
+  // Infinity, not a bigger number: "as many as I was handed" is the house rule.
+  // The cap only bites behind an equipment door, because only there does the
+  // panel render the considerations flat; the room's fold is untouched.
+  const considerationCap = unabridged ? Number.POSITIVE_INFINITY : 3;
+
+  if (visible.length === 0) {
+    // Nobody asked, and there is nothing to say. §14: silence is the whole
+    // answer, with zero DOM footprint.
+    if (!disclosed) return null;
+    // Somebody DID press this door. Silence here would be a painted door.
+    return (
+      <div data-testid="athos-panel" data-athos-disclosed="1">
+        <p
+          data-testid="athos-quiet"
+          style={{ margin: 0, fontSize: 11, lineHeight: 1.55, color: WM.text.muted }}
+        >
+          Nothing to raise — ATHOS has watched this session and found nothing
+          worth interrupting you about.
+        </p>
+      </div>
+    );
+  }
 
   const primary = visible[0];
   const additional = visible.slice(1);
+  const shownAdditional = additional.slice(0, considerationCap);
+  const withheldAdditional = additional.length - shownAdditional.length;
   const style = VERDICT_STYLES[primary.verdict];
 
   const handleDismiss = () => {
@@ -79,11 +139,46 @@ export function ATHOSInterventionPanel({
     onDismiss?.(primary.id);
   };
 
+  /**
+   * One author for a consideration row. The room's fold and the equipment
+   * door render the SAME row from the SAME ranking — two copies of this markup
+   * would be two answers to "what did ATHOS also notice", free to drift.
+   */
+  const considerationRows = (items: readonly ATHOSIntervention[]) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((iv) => {
+        const st = VERDICT_STYLES[iv.verdict];
+        return (
+          <div
+            key={iv.id}
+            style={{
+              display: "flex",
+              gap: 8,
+              padding: 8,
+              borderLeft: `2px solid ${st.border}`,
+              background: "rgba(19,19,23,0.5)",
+            }}
+          >
+            <span style={{ color: st.text, fontSize: 12 }} aria-hidden="true">{st.glyph}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: "#8a8271", marginBottom: 2 }}>
+                {st.label} · {EVIDENCE_LABEL[iv.evidenceClass] ?? iv.evidenceClass}
+              </div>
+              <div style={{ fontSize: 12, color: "#ede6d3" }}>{iv.headline}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div
       role="status"
       aria-live="polite"
       aria-atomic="true"
+      data-testid="athos-panel"
+      data-athos-disclosed={disclosed ? "1" : undefined}
       className={["wm-athos-panel", className ?? ""].join(" ")}
       style={{
         // SCENE_FRAGMENTATION cure: verdict-tinted full-box border made
@@ -199,56 +294,54 @@ export function ATHOSInterventionPanel({
         )}
       </div>
 
-      {additional.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            aria-expanded={expanded}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#8892A0",
-              cursor: "pointer",
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              textAlign: "left",
-              padding: "4px 0",
-              alignSelf: "flex-start",
-            }}
-          >
-            {expanded ? "hide" : "show"} {additional.length} more consideration{additional.length === 1 ? "" : "s"}
-          </button>
-          {expanded && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {additional.map((iv) => {
-                const st = VERDICT_STYLES[iv.verdict];
-                return (
-                  <div
-                    key={iv.id}
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      padding: 8,
-                      borderLeft: `2px solid ${st.border}`,
-                      background: "rgba(19,19,23,0.5)",
-                    }}
-                  >
-                    <span style={{ color: st.text, fontSize: 12 }} aria-hidden="true">{st.glyph}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#8a8271", marginBottom: 2 }}>
-                        {st.label} · {EVIDENCE_LABEL[iv.evidenceClass] ?? iv.evidenceClass}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#ede6d3" }}>{iv.headline}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
+      {additional.length > 0 &&
+        (disclosed ? (
+          /* Behind an opened door: flat, no second press. Capped by the screen,
+             and the cap accounts for itself. */
+          <>
+            {considerationRows(shownAdditional)}
+            {withheldAdditional > 0 && (
+              <p
+                data-athos-considerations-withheld={withheldAdditional}
+                style={{
+                  margin: 0,
+                  fontSize: 9,
+                  lineHeight: 1.55,
+                  color: WM.text.muted,
+                  fontStyle: "italic",
+                }}
+              >
+                +{withheldAdditional} more consideration
+                {withheldAdditional === 1 ? "" : "s"}
+              </p>
+            )}
+          </>
+        ) : (
+          /* In the room, nobody asked for depth. The fold stays exactly as it
+             was — this path is deliberately unchanged. */
+          <>
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              aria-expanded={expanded}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#8892A0",
+                cursor: "pointer",
+                fontSize: 10,
+                letterSpacing: 0.3,
+                textTransform: "uppercase",
+                textAlign: "left",
+                padding: "4px 0",
+                alignSelf: "flex-start",
+              }}
+            >
+              {expanded ? "hide" : "show"} {additional.length} more consideration{additional.length === 1 ? "" : "s"}
+            </button>
+            {expanded && considerationRows(additional)}
+          </>
+        ))}
     </div>
   );
 }
