@@ -86,6 +86,59 @@ describe("deriveCompletionSignals — deck adapter (truth-lock)", () => {
       );
       expect(s.hasUnreviewedClose).toBe(false);
     });
+
+    // THE LOAD-BEARING GROUP. The record path above cannot fire in production:
+    // decisionMemoryStore.put() has zero production callers, so every signal
+    // derived from `decisionRecords` alone is structurally false for every
+    // owner, forever. These pin the second ledger — the Journal — so a trader
+    // with today's trades unjudged is never told the job is complete.
+    it("a journalled unreviewed close is work owed, with no decision records at all", () => {
+      const s = deriveCompletionSignals(
+        base({ decisionRecords: [], journalUnreviewedCloses: 1 }),
+      );
+      expect(s.hasUnreviewedClose).toBe(true);
+    });
+
+    it("BLOCKS jobComplete even when a receipt is sealed", () => {
+      // A sealed receipt must never manufacture completion over owed work.
+      const s = deriveCompletionSignals(
+        base({ decisionRecords: [], receiptEmpty: false, journalUnreviewedCloses: 2 }),
+      );
+      expect(s.jobComplete).toBe(false);
+    });
+
+    it("UNIONS, never replaces — the record path still fires on its own", () => {
+      // If somebody later wires decision sealing, a sealed-but-unreviewed
+      // decision must keep counting even when the Journal is clean.
+      const s = deriveCompletionSignals(
+        base({ decisionRecords: [rec({ outcome: { pnl: -1 } })], journalUnreviewedCloses: 0 }),
+      );
+      expect(s.hasUnreviewedClose).toBe(true);
+    });
+
+    it("omitting the journal count leaves the record path deciding, exactly as before", () => {
+      const s = deriveCompletionSignals(base({ decisionRecords: [] }));
+      expect(s.hasUnreviewedClose).toBe(false);
+      expect(deriveCompletionSignals(base({ decisionRecords: [], journalUnreviewedCloses: 0 })).hasUnreviewedClose).toBe(false);
+    });
+  });
+
+  describe("SENTINEL — /command-deck must keep asking the Journal", () => {
+    it("consumes selectUnreviewedCloses and feeds it to the adapter", async () => {
+      // Deleting the wire would silently restore the defect: the page would
+      // compile, the suite above would still pass, and the Exit Ramp would go
+      // back to reporting completion it never checked. Comment-stripped, so a
+      // rule quoted in a docblock cannot satisfy it.
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const src = fs
+        .readFileSync(path.join(process.cwd(), "src/app/command-deck/page.tsx"), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1");
+      expect(src).toContain("selectUnreviewedCloses");
+      expect(src).toContain("journalUnreviewedCloses:");
+      expect(src).toContain("unreviewedCloses.hasUnreviewedClose");
+    });
   });
 
   describe("statePreserved — durable re-entry", () => {

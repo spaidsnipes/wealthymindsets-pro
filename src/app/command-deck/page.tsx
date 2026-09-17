@@ -44,6 +44,7 @@ import { describeContradictionCoverage } from "@/lib/marketData/canonicalMarketS
 import { describeGapCoverageTotal } from "@/lib/marketData/coverageMap";
 import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { selectUnreviewedCloses } from "@/lib/journal/selectUnreviewedCloses";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import HeroTruth from "@/components/command-deck/HeroTruth";
@@ -355,8 +356,26 @@ function CommandDeckInner() {
   const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
   // One subscription, two readers: the decisions the deck merges, and how
   // much of the stored book they were built from.
-  const { snapshots: journalDecisions, coverage: journalCoverage } = useJournalBook(
-    user?.id ?? null,
+  const {
+    snapshots: journalDecisions,
+    coverage: journalCoverage,
+    entries: journalEntries,
+  } = useJournalBook(user?.id ?? null);
+  // THE REVIEW QUESTION, ASKED OF A BOOK THAT CAN ANSWER IT.
+  //
+  // `decisionRecords` below comes from decisionMemoryStore, whose only ingress
+  // has ZERO production callers (decisionMemoryReachability.test.ts pins it),
+  // so every `hasUnreviewedClose` derived from it is structurally false — and
+  // the Exit Ramp could therefore reach DONE ("acceptance criteria are
+  // truthfully complete") for a trader with today's trades sitting unjudged in
+  // their Journal. That `false` was a DEFAULT, not a FINDING.
+  //
+  // This reads the same book the Learning Genome already reads, on the same
+  // subscription. It does not seal a decision, write to the store, or claim the
+  // store is reachable — it answers the question from the evidence that exists.
+  const unreviewedCloses = React.useMemo(
+    () => selectUnreviewedCloses(journalEntries, new Date(nowMs).toISOString().slice(0, 10)),
+    [journalEntries, nowMs],
   );
   const sessionDecisions = React.useMemo(
     () => {
@@ -683,14 +702,19 @@ function CommandDeckInner() {
     // honest value here is UNOBSERVED, not `false`. §14.1 — FLAT is a finding,
     // never a default. This does NOT invent a position source; it stops the
     // deck from asserting flatness it never checked.
-    const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
+    // Unioned with the Journal for the same reason `position` says UNOBSERVED:
+    // the record path alone cannot see this, and an unseen question must not
+    // resolve to "no".
+    const hasUnreviewedClose =
+      decisionRecords.some((r) => !!r.outcome && !r.review) ||
+      unreviewedCloses.hasUnreviewedClose;
     return inferJobMode({
       position: "UNOBSERVED",
       hasUnreviewedClose,
       decision: oneStory.decision.value,
       hasResolvedMarketState: passport.resolvedCount > 0,
     });
-  }, [decisionRecords, oneStory, passport]);
+  }, [decisionRecords, oneStory, passport, unreviewedCloses]);
   // Scale the suggestion's insistence to the inference confidence: a firm
   // (HIGH/MEDIUM) divergence earns a full accept-chip; a LOW-confidence guess
   // drops to a quiet hint so the OS never nags the human off their chosen job.
@@ -732,6 +756,7 @@ function CommandDeckInner() {
       resolvedObjectCount: passport.resolvedCount,
       receiptEmpty: decisionReceipt.empty,
       decision: oneStory.decision.value,
+      journalUnreviewedCloses: unreviewedCloses.today,
     });
     const assessment = selectCompletionState(signals);
     const done: string[] = [];
@@ -740,7 +765,7 @@ function CommandDeckInner() {
     const saved: string[] = [];
     if (decisionRecords.length > 0) saved.push(`${decisionRecords.length} decision record(s) preserved`);
     return composeExitRamp({ assessment, done, saved, returnCondition: signals.returnCondition });
-  }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value]);
+  }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value, unreviewedCloses.today]);
 
   const openWhy = (t: WhyTarget) => {
     setWhyTarget(t);

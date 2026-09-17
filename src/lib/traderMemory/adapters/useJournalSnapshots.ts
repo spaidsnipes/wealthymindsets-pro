@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { journalEntriesToSnapshots } from "./journalEntryToSnapshot";
-import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
+import { hydrateJournalEntries, type JournalEntry } from "@/lib/journal/hydrateJournalEntries";
 import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 import type { DecisionMemorySnapshot } from "../viewModels/selectProcessLandscape";
 import {
@@ -76,6 +76,18 @@ export function readJournalSnapshots(
 export interface JournalBookRead {
   readonly snapshots: readonly DecisionMemorySnapshot[];
   readonly coverage: JournalRecordCoverage;
+  /**
+   * The hydrated records themselves, from the SAME read as `snapshots`.
+   *
+   * A snapshot is a DECISION projection: it deliberately drops the fields that
+   * are not part of a decision, and an M0 no-trade day legitimately produces no
+   * snapshot at all. So a consumer asking a question about the BOOK — "has the
+   * trader judged their own process on today's closes?" — cannot ask it of the
+   * snapshot list without re-reading storage, and a second reader on the same
+   * mount is how one surface ends up disagreeing with itself about what is
+   * stored. Carried here so there stays exactly one reader.
+   */
+  readonly entries: readonly JournalEntry[];
 }
 
 const FULLY_READ: JournalRecordCoverage = Object.freeze({
@@ -84,11 +96,13 @@ const FULLY_READ: JournalRecordCoverage = Object.freeze({
   note: null,
 });
 
+const NO_ENTRIES: readonly JournalEntry[] = Object.freeze([]);
+
 export function readJournalBook(
   storage: StorageReader,
   ownerId: string | null | undefined,
 ): JournalBookRead {
-  if (!ownerId) return { snapshots: EMPTY, coverage: FULLY_READ };
+  if (!ownerId) return { snapshots: EMPTY, coverage: FULLY_READ, entries: NO_ENTRIES };
   const read = readJournalStorage(storage);
   if (read.status === "UNAVAILABLE" || read.status === "INVALID" || read.status === "ABSENT") {
     // Fail closed: malformed canonical must NOT fall back to legacy
@@ -98,7 +112,7 @@ export function readJournalBook(
     // No coverage note either. These are storage-level states the surfaces
     // report in their own words; claiming "WM could not read N of your records"
     // when the bytes never parsed at all would be a count WM did not measure.
-    return { snapshots: EMPTY, coverage: FULLY_READ };
+    return { snapshots: EMPTY, coverage: FULLY_READ, entries: NO_ENTRIES };
   }
   // No cast. `read.records` is `unknown[]` because that is all
   // `readJournalStorage` verified, and the reader asks the record-shape owner
@@ -108,10 +122,15 @@ export function readJournalBook(
   return {
     snapshots: journalEntriesToSnapshots(hydration.entries, ownerId),
     coverage: hydration.coverage,
+    entries: hydration.entries,
   };
 }
 
-const EMPTY_READ: JournalBookRead = Object.freeze({ snapshots: EMPTY, coverage: FULLY_READ });
+const EMPTY_READ: JournalBookRead = Object.freeze({
+  snapshots: EMPTY,
+  coverage: FULLY_READ,
+  entries: NO_ENTRIES,
+});
 
 /**
  * The book AND how much of it WM could read, from ONE subscription.

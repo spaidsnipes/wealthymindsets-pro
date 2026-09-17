@@ -51,6 +51,28 @@ export interface DeckCompletionInput {
   readonly receiptEmpty: boolean;
   /** The One Story decision verdict (e.g. "WAIT"), for honest return phrasing. */
   readonly decision: string | null;
+  /**
+   * Closes the trader has recorded TODAY in their Journal and not yet judged
+   * themselves on.
+   *
+   * WHY THIS EXISTS. `decisionRecords` comes from `decisionMemoryStore`, whose
+   * only ingress — `DecisionMemoryStore.put()` — has zero production callers
+   * (`decisionMemoryReachability.test.ts` pins this). So the record-derived
+   * `hasUnreviewedClose` is not "usually false", it is STRUCTURALLY false for
+   * every owner, forever, and `jobComplete` could reach DONE — "the current
+   * job's acceptance criteria are truthfully complete" — for a trader with
+   * unjudged trades sitting in their book. That `false` was a DEFAULT, not a
+   * FINDING; §14.1.
+   *
+   * This does NOT wire decision sealing, invent a caller, or claim the store is
+   * reachable. It lets a caller that CAN observe the review question answer it
+   * from the Journal, which is the only evidence that exists today. The two
+   * sources union, so a future sealed decision still counts.
+   *
+   * Omitted / undefined means the caller did not look — the record path alone
+   * decides, exactly as before.
+   */
+  readonly journalUnreviewedCloses?: number;
 }
 
 /** The label surfaced as the return trigger for an honest WAIT job. */
@@ -69,9 +91,13 @@ export function deriveCompletionSignals(input: DeckCompletionInput): CompletionS
   const hasOpenPosition = input.decisionRecords.some(
     (r) => isOpenEntry(r.plan.action) && !r.outcome,
   );
-  const hasUnreviewedClose = input.decisionRecords.some(
-    (r) => !!r.outcome && !r.review,
-  );
+  // UNION, never a replacement. A sealed decision awaiting review and a
+  // journalled trade awaiting review are the same debt in two ledgers; either
+  // one is work owed. See `journalUnreviewedCloses` above for why the record
+  // path cannot carry this question on its own today.
+  const hasUnreviewedClose =
+    input.decisionRecords.some((r) => !!r.outcome && !r.review) ||
+    (input.journalUnreviewedCloses ?? 0) > 0;
   const statePreserved =
     input.decisionRecords.length > 0 || input.resolvedObjectCount > 0;
 
