@@ -23,6 +23,8 @@ import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
 import { selectAbsorption } from "@/lib/marketData/viewModels/selectAbsorption";
 import AbsorptionAnatomyPanel from "@/components/experience/AbsorptionAnatomyPanel";
+import { selectDeltaDivergence } from "@/lib/marketData/viewModels/selectDeltaDivergence";
+import DeltaDivergencePanel from "@/components/experience/DeltaDivergencePanel";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -358,6 +360,17 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
    */
   const absorption = React.useMemo(
     () => selectAbsorption(realTape ? recentTicks : null),
+    [realTape, recentTicks],
+  );
+
+  /**
+   * Delta divergence. The one selector in this group that reads SEQUENCE, so
+   * `recentTicks` must reach it in tape order — which is the order this panel
+   * already holds them in, and the reason nothing between here and the selector
+   * is allowed to sort or regroup them.
+   */
+  const deltaDivergence = React.useMemo(
+    () => selectDeltaDivergence(realTape ? recentTicks : null),
     [realTape, recentTicks],
   );
 
@@ -905,6 +918,15 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           adjacently is reading one measurement, not two. */}
       <div className="mx-2 my-1.5 shrink-0">
         <AbsorptionAnatomyPanel vm={absorption} symbol={symbol} window="session tape" />
+      </div>
+
+      {/* ── DELTA DIVERGENCE — did delta follow price to the new extreme ─────
+          The absorption panel above reads the whole window as one number pair.
+          This reads the SHAPE of the same window: it needs two moments, not
+          one, and it is the only panel here whose answer would change if the
+          prints arrived in a different order. */}
+      <div className="mx-2 my-1.5 shrink-0">
+        <DeltaDivergencePanel vm={deltaDivergence} symbol={symbol} window="session tape" />
       </div>
 
       {/* CLC Summary Card — Context / Location / Confirmation.
