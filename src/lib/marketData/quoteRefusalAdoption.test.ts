@@ -26,6 +26,36 @@ import path from "node:path";
 const SRC = path.join(process.cwd(), "src");
 const read = (rel: string) => fs.readFileSync(path.join(SRC, rel), "utf8");
 
+/**
+ * The same file WITH ITS COMMENTS REMOVED — which is what every rule in this
+ * file actually meant by "the source" and none of them said.
+ *
+ * FOUND 2026-09-17, by this Sentinel firing on `lib/priceSource.ts`. That file
+ * fetches nothing. It had acquired a docblock recording a live measurement,
+ * and the measurement quoted the endpoint verbatim:
+ *
+ *     /api/yahoo?sym=NQ1!&type=quote answered 200 with price: 29565.75
+ *
+ * A raw text scan cannot tell that sentence from a call, so WRITING DOWN THE
+ * EVIDENCE FOR A FIX REGISTERED THE FILE AS AN UNGATED READER. This file's own
+ * header does the same thing four lines from the top, and was only ever spared
+ * because tests are excluded from the walk.
+ *
+ * That is a Sentinel punishing the honest recording of evidence — the precise
+ * behaviour the codebase asks for everywhere else — so the detector is what
+ * must change. Stripping comments can only ever REMOVE matches, and a real
+ * fetch is code, so the reader set cannot shrink dishonestly by this edit.
+ *
+ * It also closes a hole in the OTHER direction, which is the stronger half:
+ * `consultsTheGate` was equally text-based, so a file could have been declared
+ * SAFE because the words `yahooQuoteRefusal(` appeared in a comment explaining
+ * why it did not call it. A prose mention can no longer gate a real read.
+ */
+const codeOf = (rel: string) =>
+  read(rel)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
 /** Every non-test source file, walked rather than remembered. */
 function sourceFiles(): string[] {
   const found: string[] = [];
@@ -53,7 +83,7 @@ function gateConsumers(): string[] {
   return sourceFiles().filter((rel) => {
     // The owner defines the gate; it does not consume it.
     if (rel === path.join("lib", "marketData", "yahooQuoteObserved.ts")) return false;
-    return /yahooQuote(Observed|Refusal)\(/.test(read(rel));
+    return /yahooQuote(Observed|Refusal)\(/.test(codeOf(rel));
   });
 }
 
@@ -81,7 +111,7 @@ function yahooQuoteReaders(): string[] {
     // different readings of one body. It is excluded for the same reason the
     // endpoints above are — neither renders a price to anybody.
     if (rel === path.join("lib", "marketData", "yahooQuoteRounds.ts")) return false;
-    const src = read(rel);
+    const src = codeOf(rel);
     // RE-ANCHORED 2026-09-08. This used to detect a reader by the /api/yahoo
     // URL it built. Once the duplicate-request fix gave the round a single
     // owner, exactly ONE file still contained that URL and the entire rule
@@ -142,7 +172,7 @@ describe("SF-D01 refusal — every gate consumer also carries the reason", () =>
   });
 
   it.each(gateConsumers())("%s reads WHY, not only WHETHER", (rel) => {
-    const src = read(rel);
+    const src = codeOf(rel);
     expect(src, `${rel} must import the one owner of the reason`).toContain("yahooQuoteRefusal");
     expect(src, `${rel} must actually call it`).toMatch(/yahooQuoteRefusal\(/);
   });
@@ -174,7 +204,7 @@ describe("SF-D01 — asking Yahoo for a quote obliges you to consult the gate", 
   );
 
   it("the un-gated debt is exactly what is written down — and may only shrink", () => {
-    const ungated = yahooQuoteReaders().filter((rel) => !consultsTheGate(read(rel)));
+    const ungated = yahooQuoteReaders().filter((rel) => !consultsTheGate(codeOf(rel)));
     // A NEW un-gated reader fails here rather than shipping silently. A FIXED
     // one fails too, with the instruction to delete its line — so the debt
     // list can never quietly grow back after being paid down.

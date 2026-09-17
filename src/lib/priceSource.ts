@@ -45,8 +45,37 @@ export interface PriceSourceBadge {
    *  Internal sentinel — replaces `label === "NO FEED"` filtering so
    *  callers stay decoupled from display copy. */
   unresolved: boolean;
-  /** No observation to grade. Availability is separate from the seven fidelity labels. */
-  availability?: "unavailable";
+  /**
+   * No observation to grade. Availability is separate from the seven fidelity
+   * labels.
+   *
+   * ── "unavailable" AND "awaiting" ARE NOT THE SAME FACT ─────────────────
+   * `"unavailable"` means WE ASKED AND NOTHING CAME BACK. `"awaiting"` means
+   * WE HAVE NOT FINISHED ASKING. Rendering the first sentence while the second
+   * is true is the room accusing a healthy pipeline of being broken, and it is
+   * the FIRST thing the trader reads on every single page load.
+   *
+   * Measured live on wealthymindsetspro.com/charts, NQ1!, 2026-09-17: for the
+   * seconds between mount and the bars landing, one screen carried
+   *
+   *   masthead        FEED UNKNOWN
+   *   chart header    No price — (change unavailable) · DATA UNAVAILABLE
+   *   right rail      NQ1! · 1h · PRICE UNKNOWN
+   *   footer          SOURCE UNKNOWN
+   *
+   * over a chart that then painted 400 candles and a +2.08% session. The API
+   * was never unhealthy — `/api/yahoo?sym=NQ1!&type=quote` answered 200 with
+   * `price: 29565.75` throughout. Four absence claims, all false, all about a
+   * request that was still in flight.
+   *
+   * Canon has no eighth label for this and must not grow one: the vocabulary
+   * is fixed without an amendment. Canon already answers the unknown case, in
+   * `resolveCanonicalFidelityLabel`'s own words — "the surface renders no chip
+   * at all (canon §silence-is-a-feature)". So `"awaiting"` renders NOTHING.
+   * A room that has not finished asking says nothing, which is exactly what a
+   * person who has not finished looking would do.
+   */
+  availability?: "unavailable" | "awaiting";
 }
 
 export interface CandleDataStatus {
@@ -59,8 +88,12 @@ export interface CandleDataStatus {
    *             must never say NO FEED while it is rendering real candles.
    * STALE     = realtime source is live but ticks have stopped flowing.
    * UNAVAILABLE = no candles at all — genuinely nothing on the chart.
+   * AWAITING  = the bars request has not come back yet. NOT a finding, and
+   *             specifically NOT UNAVAILABLE: see `PriceSourceBadge.availability`
+   *             for the four false absence claims this state was split out to
+   *             stop. Surfaces render NOTHING for AWAITING.
    */
-  state: "LIVE" | "DELAYED" | "STALE" | "UNAVAILABLE";
+  state: "LIVE" | "DELAYED" | "STALE" | "UNAVAILABLE" | "AWAITING";
   label: string;
   live: boolean;
 }
@@ -226,6 +259,13 @@ export function priceSourceBadge(
  * its exact behaviour (bar presence standing in for observation presence).
  * Callers that can distinguish a refused quote from a missing bar should
  * pass it, because only then can the two facts be told apart.
+ *
+ * `barsSettled` is OPTIONAL and LAST for the identical reason, and follows the
+ * same tri-state discipline `sessionOpen` already uses in this file: ONLY an
+ * explicit `false` changes a verdict. `undefined` is "nobody told me", and
+ * nobody-told-me may never be rounded into a claim — that rounding is how
+ * SESSION CLOSED nearly got printed over a live Tuesday, and it is how a room
+ * that had not finished asking came to print DATA UNAVAILABLE four times.
  */
 export function resolveChartSurfaceBadge(
   source: PriceSource,
@@ -233,10 +273,17 @@ export function resolveChartSurfaceBadge(
   hasCandles: boolean,
   sessionOpen?: boolean | null,
   quoteObservation?: PriceObservationEvidence,
+  barsSettled?: boolean,
 ): PriceSourceBadge {
   const b = priceSourceBadge(
     source, connected, sessionOpen, quoteObservation ?? {present: hasCandles},
   );
+  // BEFORE any grading: an unfinished question has no answer to grade. This
+  // sits first because every branch below reads absence as a finding, and at
+  // this moment absence is not a finding — it is a request in flight.
+  if (barsSettled === false && !hasCandles) {
+    return { ...b, availability: "awaiting", live: false };
+  }
   // Canon §Living Market Visual Systems (2026-08-27): when we have
   // verified bars on screen but no live provider resolved, the honest
   // per-capability truth is HISTORICAL BARS VERIFIED — never STALE
@@ -314,6 +361,7 @@ export function candleDataStatus(
   now = Date.now(),
   staleAfterMs = 20_000,
   sessionOpen?: boolean | null,
+  barsSettled?: boolean,
 ): CandleDataStatus {
   // Threaded, not re-implemented: closure precedence and the crypto
   // carve-out live in priceSourceBadge, so this chip can never disagree
@@ -327,8 +375,13 @@ export function candleDataStatus(
   const badge = priceSourceBadge(source, connected, sessionOpen, {present: hasCandles, fresh});
   const L = CANONICAL_FIDELITY_LABELS;
   // Neither a calendar nor provider configuration proves a last bar exists.
+  // Nor does an unanswered request prove one does NOT: `!hasCandles` is two
+  // different facts wearing one boolean, and only the caller knows which it
+  // is holding. Explicit `false` — and nothing else — separates them.
   if (!hasCandles) {
-    return { state: "UNAVAILABLE", label: "DATA UNAVAILABLE", live: false };
+    return barsSettled === false
+      ? { state: "AWAITING", label: "", live: false }
+      : { state: "UNAVAILABLE", label: "DATA UNAVAILABLE", live: false };
   }
   // Candles exist but no realtime feed is resolved — bars are the
   // verified capability.

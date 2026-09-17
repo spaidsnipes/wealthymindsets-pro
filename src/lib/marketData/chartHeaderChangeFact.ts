@@ -56,8 +56,20 @@ import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "./changeAbsen
  * PURE — no clock, no I/O, no React.
  */
 
-/** The provenance of the number in the header's change slot. */
-export type HeaderChangeKind = "SESSION_CHANGE" | "BAR_OVER_BAR" | "NONE";
+/**
+ * The provenance of the number in the header's change slot.
+ *
+ * `AWAITING` is the exact sibling of `HeaderPriceKind`'s, and for the same
+ * measured reason: on every cold load of /charts this cell printed
+ * "— (change unavailable)" — a true sentence about a provider — over an
+ * instrument whose bars had not come back yet. "Unavailable" is a finding.
+ * "We have not finished asking" is not. `AWAITING` prints NOTHING.
+ */
+export type HeaderChangeKind =
+  | "SESSION_CHANGE"
+  | "BAR_OVER_BAR"
+  | "NONE"
+  | "AWAITING";
 
 export interface HeaderChangeFact {
   readonly text: string;
@@ -118,6 +130,12 @@ export function chartHeaderChangeFact(
   sessionChange: { readonly chg: number; readonly pct: number } | null | undefined,
   barOverBar: BarOverBarChange | null | undefined,
   minDecimals = 2,
+  /**
+   * OPTIONAL and LAST, tri-state, and only an explicit `false` changes a
+   * verdict — the same discipline `sessionOpen` uses in `priceSource.ts`.
+   * Every existing caller and test keeps its exact behaviour untouched.
+   */
+  barsSettled?: boolean,
 ): HeaderChangeFact {
   if (
     sessionChange &&
@@ -155,6 +173,23 @@ export function chartHeaderChangeFact(
         `This cell reports the move BETWEEN THOSE TWO BARS and nothing else. ` +
         `IT IS NOT THE SESSION CHANGE — a session change is measured against the prior session's close, which WM cannot name here without a market calendar it does not have. ` +
         `WM will not render a bar-over-bar delta in a session change's clothes, so the scope is printed beside the number rather than left to be assumed.`,
+    };
+  }
+
+  // Both channels are empty BECAUSE NEITHER HAS ANSWERED YET. `CHANGE_UNAVAILABLE_TEXT`
+  // names a provider that came back with no reference close; printing it over a
+  // request still in flight attributes a finding to a question nobody has
+  // finished asking. Only an explicit `false` reaches here.
+  if (barsSettled === false) {
+    return {
+      text: "",
+      measured: false,
+      kind: "AWAITING",
+      direction: null,
+      reason:
+        "The bars request for this instrument has not come back yet, so this cell has nothing to report and says nothing. " +
+        "This is NOT the change-unavailable finding — that sentence names a provider that answered without a reference close, and no provider has answered yet. " +
+        "A blank slot for a moment is not a claim.",
     };
   }
 

@@ -63,8 +63,20 @@ import type { LastBarCloseEvidence } from "./deriveLastBarClose";
  * PURE — no clock, no I/O, no React.
  */
 
-/** The provenance of the number in the header's price slot. */
-export type HeaderPriceKind = "LIVE_QUOTE" | "BAR_CLOSE" | "NONE";
+/**
+ * The provenance of the number in the header's price slot.
+ *
+ * `AWAITING` finishes a sentence this file's own docblock started and never
+ * delivered: "'no quote AND no bars' and 'no quote but bars are loading' are
+ * different situations." They were different in the prose and identical in the
+ * code — both fell to `NONE` and both printed "No price". So on every page
+ * load the header of the primary trading surface opened by telling the trader
+ * their instrument had no price, seconds before printing 29,567.25.
+ *
+ * `AWAITING` prints NOTHING. A blank slot for one second is not a claim; "No
+ * price" is.
+ */
+export type HeaderPriceKind = "LIVE_QUOTE" | "BAR_CLOSE" | "NONE" | "AWAITING";
 
 export interface HeaderPriceFact {
   readonly text: string;
@@ -85,6 +97,12 @@ const NO_LIVE_QUOTE =
 export function chartHeaderPriceFact(
   livePrice: unknown,
   barClose: LastBarCloseEvidence | null | undefined,
+  /**
+   * OPTIONAL and LAST, tri-state, and only an explicit `false` changes a
+   * verdict — the same discipline `sessionOpen` uses in `priceSource.ts`.
+   * Every existing caller and test keeps its exact behaviour untouched.
+   */
+  barsSettled?: boolean,
 ): HeaderPriceFact {
   if (finite(livePrice) && livePrice > 0) {
     return {
@@ -116,6 +134,22 @@ export function chartHeaderPriceFact(
         "That is a DIFFERENT READING, not a substitute for a live price, and it is labelled as one so it can never be mistaken for what the instrument is trading at now. " +
         "WM will not render a candle close in a live price's clothes. " +
         "The badge beside this cell says the bars were verified; this is the number those bars actually produced, said out loud instead of withheld.",
+    };
+  }
+
+  // The question is still open. An open question has no answer to print, and
+  // "No price" is an answer — it asserts that WM looked in both channels and
+  // found nothing. Only an explicit `false` gets here; `undefined` (nobody told
+  // me) still falls through to NONE exactly as every existing caller expects.
+  if (barsSettled === false) {
+    return {
+      text: "",
+      measured: false,
+      kind: "AWAITING",
+      reason:
+        "The bars request for this instrument has not come back yet, so this cell has nothing to report and says nothing. " +
+        "This is NOT a finding that the price is unavailable — WM has not finished asking. " +
+        "A blank slot for a moment is not a claim; \"No price\" over an instrument that is about to paint 400 candles is.",
     };
   }
 

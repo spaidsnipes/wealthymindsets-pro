@@ -169,6 +169,18 @@ export function CanonicalFidelityBadge({
   capabilityReport,
 }: CanonicalFidelityBadgeProps): React.ReactElement {
   const tooltip = buildCanonicalFidelityTooltip(badge, titleSuffix, capabilityReport);
+  // THE ROOM HAS NOT FINISHED ASKING, SO THE ROOM SAYS NOTHING.
+  //
+  // Canon's own answer for an ungradeable input, verbatim from
+  // resolveCanonicalFidelityLabel: "the surface renders no chip at all (canon
+  // §silence-is-a-feature)". An eighth label would need a canon amendment and
+  // would be the wrong cure anyway — the trader does not need to be told that
+  // software is loading, they need to not be told a lie while it does.
+  //
+  // An EMPTY FRAGMENT and not `null`: this component's return type is
+  // ReactElement, and more importantly the caller keeps its layout slot, so
+  // the chrome does not reflow when the real badge arrives a second later.
+  if (badge.availability === "awaiting") return <></>;
   if (badge.availability === "unavailable") {
     return <span title={tooltip} aria-label="DATA UNAVAILABLE" style={{
       display: "inline-flex", flexShrink: 0, color: "#8B92AC",

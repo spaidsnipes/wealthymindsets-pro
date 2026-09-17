@@ -59,6 +59,10 @@ const HEADER_PRICE_STYLE: Record<HeaderPriceKind, { color: string; weight: numbe
   LIVE_QUOTE: { color: "#E2E8F0", weight: 700 },
   BAR_CLOSE: { color: "#A8B0C8", weight: 600 },
   NONE: { color: "#8B92AC", weight: 500 },
+  /* AWAITING renders an empty string, so this entry styles nothing. It exists
+     because the map is keyed by the kind union and the compiler is the only
+     thing that will notice if a future kind arrives without a decision. */
+  AWAITING: { color: "#8B92AC", weight: 500 },
 };
 /* The change slot's sibling table. Colour is a function of DIRECTION but the
    PALETTE is a function of KIND — a bar-over-bar delta gets the muted pair,
@@ -72,6 +76,8 @@ const HEADER_CHANGE_STYLE: Record<
   SESSION_CHANGE: { color: (d) => (d === 1 ? "#00C076" : d === -1 ? "#FF4D67" : "#8B92AC"), weight: 700 },
   BAR_OVER_BAR: { color: (d) => (d === 1 ? "#5E9E82" : d === -1 ? "#A8707C" : "#8B92AC"), weight: 500 },
   NONE: { color: () => "#8B92AC", weight: 500 },
+  /* See HEADER_PRICE_STYLE.AWAITING — empty text, present for exhaustiveness. */
+  AWAITING: { color: () => "#8B92AC", weight: 500 },
 };
 import { BarReplayControls, type ReplaySpeed } from "./BarReplayControls";
 import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
@@ -1046,7 +1052,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
   }, [ticker.price]);
 
+  /**
+   * HAS THE ROOM FINISHED ASKING FOR THIS INSTRUMENT'S BARS?
+   *
+   * Not "does the room have bars" — `chartBars.length > 0` already answers
+   * that, and answering only that is what let four surfaces on this page print
+   * absence claims about a request still in flight (see
+   * `PriceSourceBadge.availability` for the measured screen).
+   *
+   * `handleBarsReady` is MainChart's unconditional post-fetch callback: it
+   * fires with the bars on success and with an empty array on a dry well, so
+   * "it has fired" is exactly "we have finished asking" and is never "we got
+   * something". The two facts stay separate all the way to the badge.
+   *
+   * Reset to `false` by the identity effect below, beside `setChartBars([])` —
+   * they are one event (a new instrument is a new question) and separating
+   * them is how the flag would eventually go stale on a symbol switch,
+   * certifying instrument A's settled request as instrument B's.
+   */
+  const [barsSettled, setBarsSettled] = useState(false);
+
   const handleBarsReady = useCallback((bars: OHLCVBar[]) => {
+    setBarsSettled(true);
     setChartBars(bars);
     if (bars.length > 0) {
       const highs = bars.map(b => b.high);
@@ -1064,6 +1091,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => {
     setDataVersion(v => v + 1);
     setChartBars([]);
+    // A new instrument is a NEW QUESTION. Clearing the bars without clearing
+    // this flag would leave the previous instrument's "we finished asking"
+    // standing over the next instrument's empty chart — the same false
+    // certainty, just aimed at a different symbol.
+    setBarsSettled(false);
   }, [symbol, timeframe]);
 
   const handleAddToChart = useCallback((output: PineOutput, code: string) => {
@@ -1603,6 +1635,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             const headerPriceFact = chartHeaderPriceFact(
               ticker.price,
               deriveLastBarClose(chartBars, timeframe, Date.now()),
+              // UNASKED IS NOT UNAVAILABLE. Without this argument the header of
+              // the primary trading surface opened every cold load by telling
+              // the trader their instrument had "No price" — seconds before
+              // painting 400 candles underneath it. Measured live on
+              // wealthymindsetspro.com/charts, NQ1!, 2026-09-17.
+              barsSettled,
             );
             const headerPriceStyle = HEADER_PRICE_STYLE[headerPriceFact.kind];
             // THE CHANGE SLOT, ON THE SAME EVIDENCE AS THE PRICE SLOT ABOVE.
@@ -1621,6 +1659,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             const headerChangeFact = chartHeaderChangeFact(
               hasReal ? { chg: ticker.change, pct: ticker.changePct } : null,
               deriveBarOverBarChange(chartBars, timeframe, Date.now()),
+              // Explicit, because `minDecimals` sits between and defaults: the
+              // header renders 2dp today, and passing it by name here keeps the
+              // trailing settled flag from silently landing in the wrong slot.
+              2,
+              barsSettled,
             );
             const changeStyle = HEADER_CHANGE_STYLE[headerChangeFact.kind];
             return (
@@ -1628,6 +1671,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
                 fontWeight: 700, fontSize: 13, fontFamily: "monospace",
               }}>
+                {/* AWAITING removes the WHOLE ELEMENT, attributes and all.
+                    The `title` and `aria-label` below are UNCONDITIONAL by
+                    Sentinel decree, and they must stay unconditional — every
+                    reading and every genuine absence owes the reader its
+                    reason. But "we have not finished asking" is neither, and
+                    an empty slot still carrying a tooltip that explains itself
+                    is the same interruption with extra steps, worst of all for
+                    a screen reader, which would hear "price: ." */}
+                {headerPriceFact.kind === "AWAITING" ? null : (
                 <span
                   style={{ color: headerPriceStyle.color, fontWeight: headerPriceStyle.weight }}
                   title={headerPriceFact.reason}
@@ -1635,6 +1687,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 >
                   {headerPriceFact.text}
                 </span>
+                )}
+                {headerChangeFact.kind === "AWAITING" ? null : (
                 <span
                   className="wm-chart-header-change"
                   data-change-kind={headerChangeFact.kind}
@@ -1649,6 +1703,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     ? `${headerChangeFact.direction === 1 ? "↑" : headerChangeFact.direction === -1 ? "↓" : "·"} ${headerChangeFact.text}`
                     : headerChangeFact.text}
                 </span>
+                )}
               </span>
             );
           })()}
@@ -1682,6 +1737,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // a quote claim.
             const b = resolveChartSurfaceBadge(
               source, connected, chartBars.length > 0, sessionOpen, quoteObservation,
+              // The badge may not grade a question that is still open. With
+              // this argument absent, the chip spent every page load asserting
+              // DATA UNAVAILABLE about an instrument whose bars were seconds
+              // from painting underneath it.
+              barsSettled,
             );
             // SHIFT-U continuation — pass the per-capability report so
             // the trader hovering the chip sees "Weakest capability"

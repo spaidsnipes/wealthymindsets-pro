@@ -8,6 +8,10 @@ import {
   PRICE_UNAVAILABLE_TITLE,
 } from "@/lib/marketData/changeAbsence";
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
+// Imported so the empty-cell rule can be EXERCISED rather than grepped. A
+// source scan for `text: ""` is a spelling; this file has been burned by
+// spelling-pins twice already (see the FIFTH FINDING below).
+import { chartHeaderChangeFact } from "@/lib/marketData/chartHeaderChangeFact";
 
 /**
  * The tree-walk, at module scope. A Sentinel that NAMES its subjects is only
@@ -452,11 +456,76 @@ describe("chart header day-change truth", () => {
       expect(mainChart).not.toMatch(/\?\s*headerChangeFact\.text\s*:/);
       // And the compiler must have no arm that can return an empty cell — an
       // absence rendered as nothing is the original defect by another route.
+      //
+      // RE-PINNED AGAIN (2026-09-17, second time today), STRONGER, AND THE
+      // WEAKNESS OF THE OLD FORM IS THE POINT.
+      //
+      // The old pair was a SOURCE SCAN — `factSrc` must not contain `text: ""`.
+      // That is a spelling, and this file has now been burned by spelling-pins
+      // twice (see the FIFTH FINDING above, where a dead import satisfied a
+      // truth test). It also states the rule too widely to be true: an empty
+      // cell is the original defect ONLY when the room has something to say and
+      // declines to say it. When the bars request has not come back, there is
+      // nothing to decline. Measured live on wealthymindsetspro.com/charts,
+      // NQ1!, 2026-09-17: the cold load printed "— (change unavailable)" — a
+      // sentence that names a PROVIDER THAT ANSWERED — over an instrument whose
+      // provider had not answered yet, seconds before 400 candles painted.
+      //
+      // So the rule is re-pinned to the meaning and made BEHAVIOURAL: exercise
+      // the compiler and require a non-empty, disclosing cell for every input
+      // EXCEPT the one that is explicitly told the question is still open. That
+      // closes the hole the old scan left wide open — it would have happily
+      // passed a compiler that returned `text: " "` or `text: EMPTY` — and it
+      // makes AWAITING unusable as a hatch for hiding a real absence, because
+      // only an explicit `false` can reach it.
       const factSrc = fs.readFileSync(
         path.join(process.cwd(), "src/lib/marketData/chartHeaderChangeFact.ts"), "utf8",
       );
-      expect(factSrc).not.toMatch(/text:\s*""/);
       expect(factSrc).not.toMatch(/return null/);
+
+      // Nobody-told-me may NEVER be rounded into silence.
+      for (const settled of [undefined, true] as const) {
+        const f = chartHeaderChangeFact(null, null, 2, settled);
+        expect(f.text.trim(), `barsSettled=${String(settled)} rendered an empty cell`).not.toBe("");
+        expect(f.text).toBe(CHANGE_UNAVAILABLE_TEXT);
+        expect(f.kind).toBe("NONE");
+        expect(f.reason.length).toBeGreaterThan(40);
+      }
+      // A real reading is never blank either, on either arm.
+      expect(chartHeaderChangeFact({ chg: 1.5, pct: 0.4 }, null, 2).text.trim()).not.toBe("");
+      expect(
+        chartHeaderChangeFact(
+          null,
+          {
+            chg: 1.5, pct: 0.4, close: 101.5, referenceClose: 100,
+            referenceBarOpenedAtMs: 1, barOpenedAtMs: 2, timeframe: "15m",
+          },
+          2,
+          false, // even explicitly-unsettled, EVIDENCE OUTRANKS THE FLAG
+        ).text,
+      ).toContain("vs prior 15m bar");
+
+      // The ONLY blank arm, and it is reachable by exactly one input.
+      const awaiting = chartHeaderChangeFact(null, null, 2, false);
+      expect(awaiting.kind).toBe("AWAITING");
+      expect(awaiting.text).toBe("");
+      expect(awaiting.measured).toBe(false);
+      expect(awaiting.direction).toBeNull();
+      // Silence still owes an explanation to the code that reads it, even
+      // though no element carries it — otherwise AWAITING becomes a shrug.
+      expect(awaiting.reason).toMatch(/has not come back yet/);
+      // It must NOT borrow the absence sentence. That sentence names a provider
+      // that answered; attributing it here is the measured defect itself.
+      expect(awaiting.reason).not.toContain(CHANGE_UNAVAILABLE_TEXT);
+
+      // And both render sites must remove the ELEMENT for that arm, not merely
+      // print its empty string — an empty bordered slot still carrying a
+      // tooltip and an aria-label is the same interruption with no words in it.
+      for (const [name, code] of [["MainChart", mainChart], ["ChartsDashboard", src]] as const) {
+        expect(code, `${name} renders AWAITING as an element`).toContain(
+          'headerChangeFact.kind === "AWAITING" ? null : (',
+        );
+      }
     });
 
     it("nothing hides the chart's own price row on a phone", () => {

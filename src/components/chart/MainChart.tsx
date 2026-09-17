@@ -202,6 +202,10 @@ const MAIN_CHANGE_CLASS: Record<HeaderChangeKind, (d: 1 | 0 | -1 | null) => stri
   SESSION_CHANGE: (d) => (d === 1 ? "text-wm-green" : d === -1 ? "text-wm-red" : "text-wm-text-dim"),
   BAR_OVER_BAR:   (d) => (d === 1 ? "text-wm-green-dim" : d === -1 ? "text-wm-red-dim" : "text-wm-text-dim"),
   NONE:           () => "text-wm-text-dim",
+  /* AWAITING never reaches a DOM node — the cell is not rendered at all. This
+     entry exists so the compiler, not a live page, is what notices if a future
+     kind arrives without a colour decision. */
+  AWAITING:       () => "text-wm-text-dim",
 };
 
 /* ── FIXED: all values in seconds, uniform ──────────────── */
@@ -6446,6 +6450,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     hasProviderChange ? { chg: change, pct: ticker.changePct as number } : null,
     deriveBarOverBarChange(candles, timeframe, Date.now()),
     dp,
+    // Same fact, same source, as the fidelity chip below: `candleSource` is ""
+    // only until the bars fetch settles. Until then this row must not print
+    // "— (change unavailable)", which names a provider that answered — none
+    // has. The evidence was already in this component; it only had to be passed.
+    candleSource !== "",
   );
 
   /* ── Fullscreen handler ─────────────────────────────────── */
@@ -7267,6 +7276,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               </span>
             );
           })()}
+          {/* AWAITING renders the WHOLE CELL away, attributes included. The
+              aria-label below is unconditional by Sentinel decree
+              (absence-reason-must-be-announced-not-only-hovered) and must stay
+              that way — so the only honest way to say nothing while the bars
+              request is still in flight is for the element not to exist. A
+              screen reader must not be told "change: ." either. */}
+          {headerChangeFact.kind === "AWAITING" ? null : (
           <span
             className={`text-xs font-mono font-semibold ${MAIN_CHANGE_CLASS[headerChangeFact.kind](headerChangeFact.direction)}`}
             data-change-kind={headerChangeFact.kind}
@@ -7299,6 +7315,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           >
             {headerChangeFact.text}
           </span>
+          )}
           {showFidelityChrome ? (() => {
             // SHIFT-T cutover — canon §BINDING LEGACY DATA + SURFACE
             // CUTOVER LAW (2026-08-29): "OLD PROVIDER CHROME AND OLD
@@ -7387,8 +7404,28 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               // Canon §8 — this chip sat beside a rail already reading
               // SESSION CLOSED and printed ACTIVE DEGRADED on a Saturday.
               sessionOpen,
+              // THE EVIDENCE WAS ALREADY IN THE ROOM, ONE LINE ABOVE.
+              //
+              // `candleSource` is "" until the bars fetch settles and is then
+              // set — unconditionally, in the same statement — to either a
+              // provider name or the "__unresolved__" sentinel. So `!== ""` IS
+              // "we have finished asking", exactly and already.
+              //
+              // The line above this one was ALSO reading `candleSource`, and
+              // threw this fact away by collapsing it into the `hasCandles`
+              // boolean. The chip then had no way to tell a request in flight
+              // from a request that came back empty, and printed DATA
+              // UNAVAILABLE for both. Nothing new had to be computed or
+              // fetched to fix it; the distinction only had to survive the
+              // trip into the function.
+              candleSource !== "",
             );
             const noFeed = status.state === "UNAVAILABLE";
+            // AWAITING is not a reading, so there is nothing to show. The
+            // wrapper goes too, not just the text inside it — an empty
+            // bordered div announcing itself is the same interruption with
+            // no words in it.
+            if (status.state === "AWAITING") return null;
             return (
               <div
                 className="flex items-center gap-1.5"
