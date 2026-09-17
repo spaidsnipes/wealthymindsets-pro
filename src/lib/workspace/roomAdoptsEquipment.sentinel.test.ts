@@ -303,6 +303,93 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
   const deck = src;
   const DECK = rel;
 
+  /**
+   * NO EQUIPMENT PANEL IS BURIED IN A DRAWER — IN ANY ROOM THAT HAS ADOPTED.
+   *
+   * `documentWallIsNotADrawer.enforcement.test.ts` owns this rule and proves it
+   * beautifully — for `/command-deck` and nothing else. Its scope is a single
+   * `const REL = "src/app/command-deck/page.tsx"`, written when the deck was
+   * the only room with equipment. /charts then adopted the grammar and
+   * inherited none of it.
+   *
+   * That is not hypothetical for this room. `chartPassportVM` was compiled on
+   * every render and its ONLY path was a `<details>` nested inside the Decision
+   * Why modal drawer, gated on `narrowViewport || optionsOpen` — so on a
+   * desktop Chart tab there was no path at all. The cure is three commits old
+   * and, outside the Decision Why window that
+   * `chartPassportAccessibility.test.ts` inspects, nothing was watching for it
+   * to come back.
+   *
+   * The rule is stated per ROOM and per DESCRIPTOR rather than per file, so the
+   * third room enrols itself by appearing in `ROOMS` — and a room in
+   * `roomEquipment.ts` that never appears here is caught by the coverage
+   * control in `equipmentIsNotADestination.sentinel.test.ts`. A hard-coded
+   * second file path would be the deck's coverage hole copied, not closed.
+   *
+   * WHAT THIS ASSERTS, AND THE STRONGER RULE IT DELIBERATELY DOES NOT.
+   *
+   * The rule is that at least ONE mount of each equipment panel sits at zero
+   * `<details>` depth — the room must have a door that is not behind a
+   * disclosure. That is the exact historical defect stated positively: the
+   * chart passport's ONLY path was buried, so the room had zero doors.
+   *
+   * The first draft asserted the stronger thing — that NO mount may sit inside
+   * a `<details>` — and it went red immediately on a real finding worth
+   * recording rather than erasing: `/command-deck` mounts `MarketCanvasPanel`
+   * a second time at TWO `<details>` deep, inside the Workspace toggle and
+   * then the "Evidence & reasoning" drawer. That is the same nest the passport
+   * and the receipt were lifted out of, and the deck's own comment three lines
+   * below it says so; the canvas was left behind.
+   *
+   * It is NOT deleted here, and the rule was NOT kept at a strength that would
+   * force the deletion. Two existing Sentinels pin that mount as intentional
+   * scene composition — `commandDeckClutterConservation.test.ts` requires the
+   * canvas not be removed while decluttering, and `responsiveShell.test.ts`
+   * pins its ORDER relative to `<SceneAdmissionPanel>` inside the room. Whether
+   * an audit copy of the canvas belongs in that drawer now that `market-reality`
+   * is one press from the WORKSPACE rail is a FOUNDER-FACING product call, not
+   * a call a guard gets to make by going red. Writing a rule that forces a
+   * visible subtraction is how a Sentinel starts deciding the product.
+   *
+   * So the finding is carried in the baton and in this comment, where the next
+   * hand can see it, instead of being silently blessed by a softened rule or
+   * silently acted on by a unilateral delete.
+   */
+  it("every equipment panel has at least one door that is not behind a <details>", () => {
+    // A real balance count, not "is there a <details> earlier in the file".
+    // Rooms open and close disclosures above these mounts, and treating those
+    // as enclosing would fire on a correct layout — the fastest way to get a
+    // Sentinel deleted.
+    const depthAt = (offset: number) => {
+      const before = src.slice(0, offset);
+      const opens = before.match(/<details[\s>]/g)?.length ?? 0;
+      const closes = before.match(/<\/details>/g)?.length ?? 0;
+      return opens - closes;
+    };
+
+    for (const d of room.descriptors) {
+      const mounts: number[] = [];
+      const re = new RegExp(`<${d.depth}[\\s/>]`, "g");
+      for (let m = re.exec(src); m; m = re.exec(src)) mounts.push(m.index);
+
+      // Vacuity control. A renamed panel would make this loop empty and the
+      // rule would pass having inspected nothing — the same permanently-green
+      // silence the pixel-revive guard exists to prevent, one directory over.
+      expect(
+        mounts.length,
+        `${rel} → ${d.depth} is never mounted; this rule would pass having checked nothing`,
+      ).toBeGreaterThan(0);
+
+      const depths = mounts.map(depthAt);
+      expect(
+        Math.min(...depths),
+        `${rel} → every ${d.depth} mount is behind a <details> (depths ${depths.join(", ")}). ` +
+          `The room has no door to its own equipment that is not a second press — ` +
+          `this is the zero-doors defect the chart passport shipped with`,
+      ).toBe(0);
+    }
+  });
+
   it("the room mounts the equipment layer and consumes the shared wiring", () => {
     expect(src, `${rel} → the layer is imported but never rendered`).toMatch(
       /<RoomEquipmentLayer[\s/>]/,
