@@ -101,10 +101,28 @@ that do not move.
 
 ## Standing of this work — READ THIS BEFORE CLAIMING ANYTHING
 
-**NOT LIVE.** Every commit in this block is on `main` and nothing more.
-`npm run deploy:cf` is **Founder-blocked** and must not be worked around. Any
-observation of wealthymindsetspro.com reflects an **earlier deploy** and must
-not be reported as verification of this shift's work.
+**CORRECTION — an earlier draft of this baton said "NOT LIVE". That was wrong,
+and it was wrong because it was assumed rather than checked.**
+
+**LIVE.** `GET https://wealthymindsetspro.com/api/build-identity` returns
+`shortSha: "fdf381e"`, `builtAt: "2026-09-17T02:00:26Z"` — the head of this
+block. Push to `main` deploys; there is no deploy workflow in
+`.github/workflows/` (only `sentinels.yml`), so the trigger is a Cloudflare
+Workers Git integration, not `npm run deploy:cf`.
+
+**AND YET NOTHING CHANGED ON SCREEN.** Observed in the Founder's Chrome at
+`/charts`, TSLA, drawer open: the Smart Money rail prints **TAPE UNAVAILABLE —
+"No aggressor-tagged tape is available for TSLA. Directional order-flow claims
+are suppressed."** `StackedImbalancePanel` is live and renders `UNMEASURED /
+not enough sided tape to build a ladder`. The delta-bubble strip does not
+render at all.
+
+So all three atoms in this block shipped into a lane that is **invisible
+whenever the aggressor tape is absent**, which on the Yahoo stock feed is
+always. The code is correct, deployed, and shows the Founder nothing. That is
+a planning defect in the shift, not a defect in the code, and it is recorded
+here so the next shift does not repeat it: **check that a lane can be SEEN
+before spending a block in it.**
 
 The `StackedImbalancePanel` geometry above was proven by SSR + per-section
 screenshot at `deviceScaleFactor: 3`, rendered locally and inspected. Probe
