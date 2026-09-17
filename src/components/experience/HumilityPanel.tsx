@@ -44,6 +44,7 @@
 import React from "react";
 
 import type { HumilityItem } from "@/lib/experience/selectHumility";
+import { selectHumilityStrip } from "@/lib/experience/selectHumilityStrip";
 import { WM } from "@/lib/design/wmTokens";
 
 export interface HumilityPanelProps {
@@ -63,7 +64,14 @@ export function HumilityPanel({ items, compact = false }: HumilityPanelProps): R
   // empty list is the failure mode. The selector's own law is the real guard.
   if (items.length === 0) return null;
 
-  const structural = items.filter(i => i.kind === "STRUCTURAL").length;
+  /**
+   * "9 · 3 structural" and "9 · 8 structural" are four characters apart and
+   * describe very different products. The strip ranks them before either
+   * number is read. Compiled, never counted here — same three facts, no
+   * second arithmetic.
+   */
+  const strip = selectHumilityStrip(items);
+  const structural = strip ? strip.structural : 0;
 
   return (
     <section
@@ -92,6 +100,40 @@ export function HumilityPanel({ items, compact = false }: HumilityPanelProps): R
           </span>
         )}
       </div>
+
+      {/* ONE MARK PER GAP, PERMANENT ONES FIRST.
+          §9 requires the difference between a gap that may close and one that
+          will not to survive on a greyscale screen and for a colour-blind
+          reader, so the two are distinguished by FILL — solid for structural,
+          hollow for a gap a connecting source can close — and by nothing else.
+          Both marks keep their width: a strip that shrank as gaps closed would
+          let the denominator quietly shrink with it, and the point of this
+          panel is that the gaps in hand are the gaps in hand. */}
+      {strip && (
+        <div
+          data-testid="humility-strip"
+          data-total={strip.total}
+          data-structural={strip.structural}
+          aria-hidden="true"
+          style={{ display: "flex", gap: 3, marginBottom: compact ? 5 : 8 }}
+        >
+          {strip.marks.map(mark => (
+            <span
+              key={mark.id}
+              data-testid="humility-mark"
+              data-permanent={mark.permanent ? "true" : "false"}
+              style={{
+                flex: "1 1 0",
+                minWidth: 0,
+                height: 4,
+                borderRadius: 1,
+                background: mark.permanent ? WM.text.muted : "transparent",
+                boxShadow: mark.permanent ? "none" : `inset 0 0 0 1px ${WM.text.muted}`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: compact ? 4 : 8 }}>
         {items.map(item => (
