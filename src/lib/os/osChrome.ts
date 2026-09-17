@@ -38,7 +38,7 @@ import {
   CANONICAL_FIDELITY_LABELS,
   type CanonicalFidelityLabel,
 } from "@/lib/marketData/canonicalFidelityLabels";
-import { REST_QUOTE_SOURCES, priceSourceBadge } from "@/lib/priceSource";
+import { REST_QUOTE_SOURCES, priceSourceBadge, barsOnlyReading } from "@/lib/priceSource";
 
 /**
  * How much the OS is entitled to say about its own data feed.
@@ -141,6 +141,24 @@ export interface FeedObservation {
    * silence here reads on screen as a claim.
    */
   readonly sessionOpen: boolean | null;
+  /**
+   * Whether OHLCV bars for this selection are actually on screen.
+   *
+   * ── WHY A SECOND PRESENCE FLAG IS NOT REDUNDANT ───────────────────────────
+   * `quotePresent` answers "did a price arrive". `barsPresent` answers "did
+   * history arrive". They are different capabilities from different pipes, and
+   * the case that forced this field is the one where they disagree: a closed
+   * US session serves no quote and hundreds of bars.
+   *
+   * Without it the frame compiled FEED UNKNOWN / "no observation yet" over a
+   * fully drawn chart, while the chip inside the room read HISTORICAL BARS
+   * VERIFIED. Both were reading the same market; only one had been given the
+   * evidence.
+   *
+   * REQUIRED, for the reason `sessionOpen` is required: an optional field
+   * defaults to silence, and silence here is what printed the false claim.
+   */
+  readonly barsPresent: boolean;
 }
 
 /**
@@ -256,6 +274,32 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
   // exact case `priceSourceBadge` refuses to grade, and handing it
   // `present: true` on that evidence would manufacture the observation.
   if (obs.source === null || obs.lastObservedAtMs === null || !obs.quotePresent) {
+    // NO QUOTE IS NOT NO DATA. Bars are a separate capability on a separate
+    // pipe, and when they arrived the frame has an observation — just not the
+    // one it was asking about. Saying "no observation yet" over a drawn chart
+    // is a false statement of ignorance, and false humility is the mirror of
+    // an overclaim rather than a safe default: it sends a trader to diagnose a
+    // pipeline while the bars they are reading are fine.
+    //
+    // The reading itself is NOT decided here. `barsOnlyReading` is its one
+    // owner, shared with the chip inside the room, which is the whole point —
+    // a second copy of this judgement is exactly how the two came to disagree.
+    if (obs.barsPresent) {
+      const bars = barsOnlyReading(obs.sessionOpen);
+      return {
+        label: bars.label,
+        // Deliberately does NOT name a provider. The bar pipe's identity is
+        // not published on this observation, and inventing one here to fill
+        // the footer's `SOURCE …` slot would be the overclaim this fix exists
+        // to prevent. What we can prove is that bars were observed.
+        detail: "historical bars",
+        tone: TONE_BY_LABEL[bars.label],
+        // TRUE, and this is the load-bearing half of the fix: `established`
+        // is what the provenance footer reads to decide between printing the
+        // detail and printing SOURCE UNKNOWN.
+        established: true,
+      };
+    }
     return {
       label: FEED_UNKNOWN,
       detail: "no observation yet",

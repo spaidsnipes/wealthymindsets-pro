@@ -246,19 +246,56 @@ export function resolveChartSurfaceBadge(
   // above: with bars on screen, neither state may print a total-absence
   // claim. Bars are the verified capability; the quote is the missing one.
   if ((b.unresolved || b.availability === "unavailable") && hasCandles) {
-    return {
-      ...b,
-      availability: undefined,
-      label: sessionOpen === false
-        ? CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED
-        : CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED,
-      title: sessionOpen === false
-        ? "Market session is closed. Historical bars are loaded; no realtime tape is implied."
-        : "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only.",
-      live: false,
-    };
+    return { ...b, availability: undefined, live: false, ...barsOnlyReading(sessionOpen) };
   }
   return b;
+}
+
+/**
+ * THE BARS-ONLY READING — what the screen may say when OHLCV arrived and no
+ * quote did. One owner, because it now has two readers at two different
+ * altitudes and they were caught disagreeing.
+ *
+ * ── FOURTH NESTING, MEASURED LIVE 2026-09-17 ON wealthymindsetspro.com ─────
+ * On /charts, TSLA, one screen carried FOUR answers to one question:
+ *
+ *   · the chart chip          HISTORICAL BARS VERIFIED   ← this rule, applied
+ *   · the OS masthead         FEED UNKNOWN
+ *   · the provenance footer   SOURCE UNKNOWN
+ *   · the right rail          UNAVAILABLE
+ *
+ * …above 400 rendered candles. Three of those four say "we observed nothing",
+ * and `compileFeedStanding`'s own words for it were "no observation yet" —
+ * which is simply false. Bars WERE observed; one badge on the same screen
+ * certifies them.
+ *
+ * The frame was not grading badly. It could not grade at all: its
+ * `FeedObservation` carried quote evidence only, so bar presence was not in
+ * the argument list. That is the identical diagnosis this file's own
+ * `compileFeedStanding` docblock already records for the previous nesting —
+ * "The contradiction was not avoidable by grading more carefully. It was in
+ * the argument list." The defect came back because the LESSON was extracted
+ * and the RULE was not.
+ *
+ * So the rule lives here, exported, and the frame READS it rather than
+ * restating it. A fifth nesting now requires someone to write a third copy of
+ * these two labels on purpose.
+ */
+export function barsOnlyReading(
+  sessionOpen?: boolean | null,
+): { readonly label: CanonicalFidelityLabel; readonly title: string } {
+  // Only an explicit `false` may claim closure — an unresolved calendar is not
+  // evidence of a closed market, and rounding it down would print SESSION
+  // CLOSED over a live Tuesday.
+  return sessionOpen === false
+    ? {
+        label: CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,
+        title: "Market session is closed. Historical bars are loaded; no realtime tape is implied.",
+      }
+    : {
+        label: CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED,
+        title: "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only.",
+      };
 }
 
 /**

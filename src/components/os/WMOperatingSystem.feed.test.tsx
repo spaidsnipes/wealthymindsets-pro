@@ -47,6 +47,9 @@ const OBSERVED = {
   lastObservedAtMs: 1_700_000_000_000,
   connected: true,
   sessionOpen: true,
+  // False so this fixture proves the QUOTE arm. A room with bars would reach
+  // an established standing by the other door and hide a broken quote wire.
+  barsPresent: false,
 } as const;
 
 /** The masthead as a string, for one feed declaration. */

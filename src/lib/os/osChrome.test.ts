@@ -4,7 +4,11 @@ import {
   CANONICAL_FIDELITY_LABELS as L,
   type CanonicalFidelityLabel,
 } from "@/lib/marketData/canonicalFidelityLabels";
-import { REST_QUOTE_SOURCES, priceSourceBadge } from "@/lib/priceSource";
+import {
+  REST_QUOTE_SOURCES,
+  priceSourceBadge,
+  resolveChartSurfaceBadge,
+} from "@/lib/priceSource";
 import {
   LIVE_STALENESS_BUDGET_MS,
   compileFeedStanding,
@@ -30,6 +34,10 @@ const LIVE_OBS: FeedObservation = {
   lastObservedAtMs: NOW - 1_000,
   connected: true,
   sessionOpen: true,
+  // FALSE on the fully-evidenced fixture ON PURPOSE. Bars are the weaker
+  // evidence, and defaulting them to present here would let a test reach a
+  // confident label with the quote arm broken and never notice.
+  barsPresent: false,
 };
 
 describe("compileFeedStanding — the badge may only ever sharpen", () => {
@@ -56,6 +64,99 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     expect(feed.label).toBe("FEED UNKNOWN");
     expect(feed.tone).toBe("UNKNOWN");
     expect(feed.established).toBe(false);
+  });
+
+  /**
+   * ── FOURTH NESTING OF "THE FRAME IS LESS CERTAIN THAN THE ROOM" ──────────
+   *
+   * Measured live on wealthymindsetspro.com, /charts, TSLA, 2026-09-17T02:42Z,
+   * with ~400 15m candles drawn on screen. Four badges, one question:
+   *
+   *   masthead   FEED UNKNOWN            ← compiled here, from "no observation yet"
+   *   footer     SOURCE UNKNOWN          ← downstream of `established: false`
+   *   rail       UNAVAILABLE
+   *   chart chip HISTORICAL BARS VERIFIED
+   *
+   * "No observation yet" was simply untrue: bars had been observed, and a chip
+   * inches away certified them. The frame was not grading badly — its argument
+   * list had no bar evidence in it, so the honest answer was unreachable.
+   */
+  describe("bars are an observation even when the quote is not", () => {
+    // Exactly the live case: no quote provider answered, bars are on screen.
+    const BARS_ONLY: FeedObservation = {
+      source: null,
+      quotePresent: false,
+      lastObservedAtMs: null,
+      connected: null,
+      sessionOpen: null,
+      barsPresent: true,
+    };
+
+    it("never says 'no observation yet' over a chart that has bars", () => {
+      const feed = compileFeedStanding(BARS_ONLY, NOW);
+      expect(feed.label).not.toBe("FEED UNKNOWN");
+      expect(feed.detail).not.toBe("no observation yet");
+      expect(feed.label).toBe(L.HISTORICAL_BARS_VERIFIED);
+    });
+
+    /**
+     * The load-bearing half. `compileProvenanceSegments` prints SOURCE UNKNOWN
+     * whenever `established` is false, so the footer's claim is downstream of
+     * this flag and not of the label — fixing only the label would have left
+     * the bottom bar still lying.
+     */
+    it("establishes the standing, so the footer stops printing SOURCE UNKNOWN", () => {
+      const feed = compileFeedStanding(BARS_ONLY, NOW);
+      expect(feed.established).toBe(true);
+      expect(compileProvenanceSegments(feed, null)).toEqual(["SOURCE HISTORICAL BARS"]);
+    });
+
+    it("says SESSION CLOSED rather than a live-sounding reading on a closed market", () => {
+      const feed = compileFeedStanding({ ...BARS_ONLY, sessionOpen: false }, NOW);
+      expect(feed.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(feed.established).toBe(true);
+    });
+
+    /**
+     * ANTI-OVERCORRECTION. The whole point of the original FEED UNKNOWN is
+     * that a room with nothing must not read as fine. Bars must rescue the
+     * badge ONLY when bars actually exist.
+     */
+    it("still says FEED UNKNOWN when there is no quote AND no bars", () => {
+      const feed = compileFeedStanding({ ...BARS_ONLY, barsPresent: false }, NOW);
+      expect(feed.label).toBe("FEED UNKNOWN");
+      expect(feed.detail).toBe("no observation yet");
+      expect(feed.established).toBe(false);
+    });
+
+    /**
+     * Bars are the WEAKER evidence and may never outrank a real quote. If this
+     * ever inverts, a certified polygon tape would be demoted to "historical"
+     * the moment a chart happened to have candles on it — which is always.
+     */
+    it("never lets bars downgrade a live certified quote", () => {
+      const feed = compileFeedStanding({ ...LIVE_OBS, barsPresent: true }, NOW);
+      expect(feed.label).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(feed.detail).toContain("polygon");
+    });
+
+    /**
+     * ONE OWNER, TWO READERS. The defect recurred because the lesson was
+     * extracted and the RULE was copied. Assert the frame and the chip inside
+     * the room reach the same words from the same evidence — if someone forks
+     * `barsOnlyReading` again, this fails.
+     */
+    it("agrees, word for word, with the chip the room already renders", () => {
+      for (const sessionOpen of [null, false] as const) {
+        const frame = compileFeedStanding({ ...BARS_ONLY, sessionOpen }, NOW);
+        // `yahoo` with no quote present is the live shape: a recognised
+        // provider that answered with nothing, plus candles on screen.
+        const chip = resolveChartSurfaceBadge("yahoo", false, true, sessionOpen, {
+          present: false,
+        });
+        expect(frame.label, `sessionOpen=${sessionOpen}`).toBe(chip.label);
+      }
+    });
   });
 
   it("a provider nobody recognises is UNKNOWN, never a canon reading", () => {
@@ -480,7 +581,7 @@ describe("the primary trading surface actually publishes a feed observation", ()
     // nowhere — it is required — but a publish that passed a literal `null` for
     // it would compile FEED UNKNOWN forever while looking wired. Name the real
     // sources instead.
-    for (const field of ["source:", "quotePresent:", "lastObservedAtMs", "connected", "sessionOpen"]) {
+    for (const field of ["source:", "quotePresent:", "lastObservedAtMs", "connected", "sessionOpen", "barsPresent"]) {
       expect(publishCall, `the feed must carry ${field}`).toContain(field);
     }
   });

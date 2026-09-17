@@ -425,6 +425,11 @@ export function WMOperatingSystem({
             // A room that has published nothing has certainly not resolved a
             // session calendar. `null` is the only honest value, not `true`.
             sessionOpen: null,
+            // Nor has it loaded bars. Same reasoning as `quotePresent` above:
+            // this is evidence of absence, and it is what keeps a room in the
+            // frames before its first publication reading FEED UNKNOWN rather
+            // than inheriting a bars-only verdict it has no grounds for.
+            barsPresent: false,
           },
           evaluatedAtMs,
         );

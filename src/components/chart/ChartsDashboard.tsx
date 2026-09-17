@@ -733,6 +733,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // Same predicate the chart's own fidelity chip uses one screen below, so
       // the two cannot disagree about whether a price arrived.
       quotePresent: Number.isFinite(ticker.price) && ticker.price > 0,
+      // THE BAR RECEIPT, which this component has held all along and never
+      // handed up: the very same `chartBars.length > 0` it passes to
+      // `resolveChartSurfaceBadge` below to light HISTORICAL BARS VERIFIED.
+      // Measured live 2026-09-17 with it missing, /charts wore FEED UNKNOWN in
+      // the masthead and SOURCE UNKNOWN in the footer over 400 rendered
+      // candles that a chip inches away already certified.
+      barsPresent: chartBars.length > 0,
       lastObservedAtMs,
       connected,
       sessionOpen,
