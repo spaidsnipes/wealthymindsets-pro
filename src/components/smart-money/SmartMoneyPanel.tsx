@@ -19,6 +19,8 @@ import { aggressorTapeReason } from "@/lib/marketData/aggressorTapeReason";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
+import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
+import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -327,6 +329,23 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       candleUp,
     };
   }, [recentTicks, liveBar, livePrice, realTape]);
+
+  /**
+   * WM Value Candle. Same honesty rule as the bubbles and the flow snapshot:
+   * no real tape → the selector is handed NOTHING, and it owns what "no volume
+   * observed" looks like. Passing an empty array would be equivalent, but
+   * passing the raw ticks while the feed has no aggressor tape would ask the
+   * selector to weight prints the panel has already said it cannot trust.
+   *
+   * Note this selector does NOT need aggressor sides — a price and a size is
+   * enough to locate value. It is gated on `realTape` anyway because that is
+   * the same predicate that decides whether `recentTicks` are per-trade prints
+   * at all, and a quote stream is not a tape.
+   */
+  const valueCandle = React.useMemo(
+    () => selectValueCandle(realTape ? recentTicks : null),
+    [realTape, recentTicks],
+  );
 
   // ── WM DELTA BUBBLES — live net delta at each price level ────────────────────
   // Buckets the SAME real aggressor ticks the flow snapshot reads into price
@@ -850,6 +869,16 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             Crypto streams it 24/7; stocks stream it during market hours. Futures carry no aggressor tape here yet.
           </p>
         )}
+      </div>
+
+      {/* ── WM VALUE CANDLE — where the volume actually traded ──────────────
+          The bubbles above answer WHO was aggressive at each level. This
+          answers a different question the same tape can settle: WHERE IS
+          VALUE. Center of Gravity = Σ(Price × Volume) ÷ Σ(Volume), computed by
+          selectValueCandle over the SAME real per-trade prints — never a
+          synthesised profile, and `null` (not zero) when nothing traded. */}
+      <div className="mx-2 my-1.5 shrink-0">
+        <ValueCandlePanel vm={valueCandle} symbol={symbol} window="session tape" />
       </div>
 
       {/* CLC Summary Card — Context / Location / Confirmation.
