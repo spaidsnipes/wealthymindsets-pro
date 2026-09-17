@@ -8,10 +8,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  announceEquipmentStage,
   readJourneyFromUrl,
   reflectJourneyInUrl,
   requestEquipment,
   subscribeEquipment,
+  subscribeEquipmentStage,
 } from "./equipmentChannel";
 
 const g = globalThis as unknown as { document?: unknown; window?: unknown };
@@ -81,6 +83,63 @@ describe("equipmentChannel — the rail announces, the Room answers", () => {
     g.document = undefined;
     expect(() => requestEquipment("market-reality")).not.toThrow();
     expect(() => subscribeEquipment(() => {})()).not.toThrow();
+  });
+});
+
+describe("announceEquipmentStage — the Room answers BACK, so the rail can show what is held", () => {
+  it("delivers the stage to a subscriber", () => {
+    const seen: Array<[string | null, string]> = [];
+    const off = subscribeEquipmentStage((a) => seen.push([a.equipmentId, a.stage]));
+    announceEquipmentStage("market-reality", "drawer");
+    off();
+    expect(seen).toEqual([["market-reality", "drawer"]]);
+  });
+
+  it("announces the CLOSE — an open mark with no way to turn off is permanent", () => {
+    // The failure this rules out: the rail lights the Workspace entry when the
+    // drawer opens and nothing ever tells it the trader closed it, so the room
+    // claims equipment is open over an empty chart. `null` + `closed` has to be
+    // a real message, not the absence of one.
+    const seen: Array<[string | null, string]> = [];
+    const off = subscribeEquipmentStage((a) => seen.push([a.equipmentId, a.stage]));
+    announceEquipmentStage("market-reality", "preview");
+    announceEquipmentStage(null, "closed");
+    off();
+    expect(seen).toEqual([
+      ["market-reality", "preview"],
+      [null, "closed"],
+    ]);
+  });
+
+  it("stops delivering after unsubscribe — a listener per remount is a leak", () => {
+    const seen: string[] = [];
+    const off = subscribeEquipmentStage((a) => seen.push(a.stage));
+    off();
+    announceEquipmentStage("market-reality", "full");
+    expect(seen).toEqual([]);
+  });
+
+  it("does NOT cross the request channel — the two directions are separate", () => {
+    // If one event carried both, a rail announcing a pickup would also mark
+    // itself open before the room had agreed to open anything, and a room
+    // reporting `closed` would read as a request to pick equipment up.
+    const requests: string[] = [];
+    const stages: string[] = [];
+    const offReq = subscribeEquipment((r) => requests.push(r.equipmentId));
+    const offStage = subscribeEquipmentStage((a) => stages.push(a.stage));
+    requestEquipment("market-reality");
+    announceEquipmentStage("market-reality", "drawer");
+    offReq();
+    offStage();
+    expect(requests).toEqual(["market-reality"]);
+    expect(stages).toEqual(["drawer"]);
+  });
+
+  it("is SSR-safe — no document, no throw", () => {
+    g.document = undefined;
+    expect(() => announceEquipmentStage("market-reality", "drawer")).not.toThrow();
+    expect(subscribeEquipmentStage(() => {})).toBeTypeOf("function");
+    expect(() => subscribeEquipmentStage(() => {})()).not.toThrow();
   });
 });
 

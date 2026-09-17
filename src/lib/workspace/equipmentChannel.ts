@@ -54,6 +54,61 @@ export function subscribeEquipment(handler: (req: EquipmentRequest) => void): ()
   return () => document.removeEventListener(EQUIPMENT_EVENT, listener);
 }
 
+export const EQUIPMENT_STAGE_EVENT = "wm:equipment-stage";
+
+export interface EquipmentStageAnnounce {
+  readonly equipmentId: string | null;
+  readonly stage: EquipmentStage;
+}
+
+/**
+ * Room side: "this is what I am currently holding open."
+ *
+ * THE RAIL ANNOUNCES, THE ROOM ANSWERS — AND THEN THE ROOM ANSWERS BACK.
+ *
+ * Measured live on /command-deck: with the drawer open beside the chart, the
+ * WORKSPACE entry that opened it looked exactly as it had when nothing was
+ * open. The trader could see the equipment and see the rail and get no
+ * confirmation from one about the other — which is a quiet way of failing the
+ * acceptance question, because "did another app load?" is partly answered by
+ * whether the room still shows you what you picked up in it.
+ *
+ * WHY THIS IS NOT THE CONTEXT THIS FILE ARGUES AGAINST
+ * ---------------------------------------------------
+ * The objection above is to journey state living in the OS FRAME, where one
+ * room's open drawer becomes a field the other twenty rooms carry. This is an
+ * event, not a store: the rail keeps a local reading of what it last heard,
+ * scoped to itself, and drops it the moment the room changes. The frame still
+ * knows nothing it has not just been told by the room standing in it.
+ *
+ * `null` + `closed` is the honest empty announce — "I am holding nothing" —
+ * and must be sent on CLOSE, or the rail would mark equipment as open forever.
+ */
+export function announceEquipmentStage(
+  equipmentId: string | null,
+  stage: EquipmentStage,
+): void {
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(
+    new CustomEvent<EquipmentStageAnnounce>(EQUIPMENT_STAGE_EVENT, {
+      detail: { equipmentId, stage },
+    }),
+  );
+}
+
+/** Rail side. Returns the unsubscribe — a listener per remount is a leak. */
+export function subscribeEquipmentStage(
+  handler: (announce: EquipmentStageAnnounce) => void,
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<EquipmentStageAnnounce>).detail;
+    if (detail && typeof detail.stage === "string") handler(detail);
+  };
+  document.addEventListener(EQUIPMENT_STAGE_EVENT, listener);
+  return () => document.removeEventListener(EQUIPMENT_STAGE_EVENT, listener);
+}
+
 /**
  * Reflect the journey into the address bar WITHOUT a navigation.
  *

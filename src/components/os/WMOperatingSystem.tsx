@@ -47,7 +47,7 @@ import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDesti
 // WORKSPACE is not a fourth list of destinations — it is what the room the
 // trader is ALREADY standing in can hand them. See roomEquipment's header.
 import { roomEquipment } from "@/lib/workspace/roomEquipment";
-import { requestEquipment } from "@/lib/workspace/equipmentChannel";
+import { requestEquipment, subscribeEquipmentStage } from "@/lib/workspace/equipmentChannel";
 import {
   compileFeedStanding,
   compileProvenanceSegments,
@@ -227,15 +227,37 @@ function RailLink({
  */
 function RoomWorkspaceRail({ activeHref }: { activeHref: string }): React.ReactElement | null {
   const equipment = roomEquipment(activeHref);
+
+  // WHAT IS CURRENTLY IN THE TRADER'S HAND.
+  //
+  // Local to this component and dropped whenever the room changes, so no other
+  // room inherits a reading of this one's drawer. The room is the only writer;
+  // the rail never infers a stage, because a rail that guessed could mark
+  // equipment open that the room had already closed.
+  const [openId, setOpenId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    setOpenId(null);
+    return subscribeEquipmentStage(({ equipmentId, stage }) =>
+      setOpenId(stage === "closed" ? null : equipmentId),
+    );
+  }, [activeHref]);
+
   if (equipment.length === 0) return null;
   return (
     <div data-testid="os-rail-workspace">
       <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: GOLD }}>Workspace</div>
-      {equipment.map((item) => (
+      {equipment.map((item) => {
+        const open = item.id === openId;
+        return (
         <button
           key={item.id}
           type="button"
           data-equipment={item.id}
+          data-equipment-open={open ? "true" : undefined}
+          // The state is in the accessible name too, not only in the paint. A
+          // gold edge is invisible to a screen reader, and "what am I holding"
+          // is exactly the orientation a non-sighted trader has least of.
+          aria-pressed={open}
           title={item.hint}
           onClick={() => requestEquipment(item.id)}
           style={{
@@ -245,8 +267,13 @@ function RoomWorkspaceRail({ activeHref }: { activeHref: string }): React.ReactE
             // 44px: this is a control, and the rail is reachable on a tablet.
             minHeight: 44,
             padding: "7px 14px",
+            // A LEFT EDGE, NOT A FILLED PILL. The room entries above already
+            // use the filled-and-bordered treatment for "you are HERE"; giving
+            // open equipment the same paint would make the rail look like it
+            // had two current locations.
             border: "none",
-            background: "transparent",
+            borderLeft: open ? `2px solid ${GOLD}` : "2px solid transparent",
+            background: open ? "rgba(196,165,116,0.07)" : "transparent",
             cursor: "pointer",
             color: MUTED,
             fontSize: 11,
@@ -254,12 +281,15 @@ function RoomWorkspaceRail({ activeHref }: { activeHref: string }): React.ReactE
             fontFamily: "inherit",
           }}
         >
-          <span style={{ display: "block", color: PEARL }}>{item.label}</span>
+          <span style={{ display: "block", color: open ? GOLD : PEARL }}>{item.label}</span>
           <span style={{ display: "block", fontSize: 10, color: "#6f6857", lineHeight: 1.3 }}>
-            {item.hint}
+            {/* The hint describes the equipment; when it is already open the
+                trader does not need describing to, they need locating. */}
+            {open ? "Open in this room" : item.hint}
           </span>
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }

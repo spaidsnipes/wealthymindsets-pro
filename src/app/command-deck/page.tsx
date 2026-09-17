@@ -130,7 +130,7 @@ import {
   equipmentJourneyReducer,
   pendingScrollRestore,
 } from "@/lib/workspace/equipmentJourney";
-import { readJourneyFromUrl, reflectJourneyInUrl, subscribeEquipment } from "@/lib/workspace/equipmentChannel";
+import { announceEquipmentStage, readJourneyFromUrl, reflectJourneyInUrl, subscribeEquipment } from "@/lib/workspace/equipmentChannel";
 import { isRoomEquipment } from "@/lib/workspace/roomEquipment";
 
 /**
@@ -592,6 +592,11 @@ function CommandDeckInner() {
   const priorEquipment = React.useRef(equipment);
   React.useEffect(() => {
     reflectJourneyInUrl(equipment.equipmentId, equipment.stage);
+    // Tell the rail what is in the trader's hand. Same effect as the URL
+    // reflection deliberately: the address bar and the Workspace entry are two
+    // readings of ONE fact, and computing them in separate places is how they
+    // come to disagree about whether the drawer is open.
+    announceEquipmentStage(equipment.equipmentId, equipment.stage);
     const owed = pendingScrollRestore(priorEquipment.current, equipment);
     priorEquipment.current = equipment;
     // The room is what scrolls in this OS, not the document — see the note on

@@ -60,6 +60,41 @@ describe("SENTINEL — WORKSPACE sits beneath ROOMS and opens equipment, not pag
     );
   });
 
+  it("the rail SHOWS what is already in the trader's hand", () => {
+    // With the drawer open beside the chart, the Workspace entry that opened it
+    // looked exactly as it had when nothing was open. That is a quiet way to
+    // fail the acceptance question: "did another app load?" is partly answered
+    // by whether the room still shows you what you picked up IN it.
+    //
+    // Scoped to the rail's own body, and to BOTH halves of the wiring. A
+    // subscribe with no open state is a listener that changes no pixel; an open
+    // style with no subscribe can never turn on. Either alone is green and dead.
+    const start = rail.indexOf("function RoomWorkspaceRail");
+    const body = rail.slice(start, rail.indexOf("\n}", start));
+    expect(body, `${RAIL} → the rail never hears the room`).toMatch(
+      /subscribeEquipmentStage\(/,
+    );
+    expect(body, `${RAIL} → the rail hears the room and paints nothing`).toMatch(
+      /data-equipment-open=/,
+    );
+    // The rail must never INFER a stage. If it could, it would mark equipment
+    // open that the room had already closed — and the room is the only thing
+    // that actually knows.
+    expect(body, `${RAIL} → the rail must be TOLD the stage, never derive one`).not.toMatch(
+      /readJourneyFromUrl|useSearchParams/,
+    );
+  });
+
+  it("the open state is in the accessible name, not only in the paint", () => {
+    // A gold left edge is invisible to a screen reader, and "what am I holding"
+    // is the orientation a non-sighted trader has least of.
+    const start = rail.indexOf("function RoomWorkspaceRail");
+    const body = rail.slice(start, rail.indexOf("\n}", start));
+    expect(body, `${RAIL} → open equipment is announced only in colour`).toMatch(
+      /aria-pressed=\{open\}/,
+    );
+  });
+
   it("a room with no equipment renders no heading", () => {
     const start = rail.indexOf("function RoomWorkspaceRail");
     const body = rail.slice(start, rail.indexOf("\n}", start));
@@ -86,6 +121,27 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     expect(deck, `${DECK} → nothing listens for the rail's request`).toMatch(
       /subscribeEquipment\(/,
     );
+    // And answers BACK. The rail can only show what is in the trader's hand if
+    // the room says what it is holding; a room that only listens leaves the
+    // Workspace entry looking identical open and closed.
+    expect(deck, `${DECK} → the room never tells the rail what it is holding`).toMatch(
+      /announceEquipmentStage\(/,
+    );
+  });
+
+  it("the URL and the rail are two readings of ONE fact", () => {
+    // Computed in separate effects, they drift: the address bar says `drawer`
+    // while the Workspace entry says nothing is open, and the trader is looking
+    // at both. Pinned to adjacency in the SAME effect body.
+    const reflect = deck.indexOf("reflectJourneyInUrl(equipment");
+    const announce = deck.indexOf("announceEquipmentStage(equipment");
+    expect(reflect, `${DECK} → the URL reflection is gone; re-pin this`).toBeGreaterThan(-1);
+    expect(announce, `${DECK} → the rail announcement is gone; re-pin this`).toBeGreaterThan(-1);
+    expect(
+      announce - reflect,
+      `${DECK} → the URL and the rail are computed apart; they will disagree`,
+    ).toBeLessThan(200);
+    expect(announce).toBeGreaterThan(reflect);
   });
 
   it("every stage of the journey is actually reachable from the room", () => {
