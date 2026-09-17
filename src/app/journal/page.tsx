@@ -20,6 +20,8 @@ import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
+import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
+import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
@@ -734,10 +736,19 @@ function ProcessOutcomeStrip({
 
 function TodayIntentStrip({ userId }: { userId: string | null }) {
   const prep = useTodayPrep(userId);
+  // The count belongs to `openingBellPrep`, not to this strip. It was read raw
+  // off the adapter here, which is a second road to a fact /command-deck and
+  // /morning-prep both reach through the owner (§24) — and a road that carried
+  // none of the owner's refusals about absence.
+  const band = selectPrepChecklistBand(
+    selectPrepEvidence({
+      readState: prep.readState,
+      checklistDone: prep.checklistDone,
+      checklistTotal: prep.checklistTotal,
+    }),
+  );
   if (!prep.hasEntry) return null;
   const routine = prep.routine ?? "(no intention recorded)";
-  const done = prep.checklistDone;
-  const total = prep.checklistTotal;
   return (
     <div
       role="region"
@@ -771,10 +782,45 @@ function TodayIntentStrip({ userId }: { userId: string | null }) {
       >
         {routine}
       </span>
-      {total > 0 && (
-        <span style={{ fontSize: 10, color: done === total ? "#7fbf7f" : "#8a8271", letterSpacing: 0.2 }}>
-          checklist {done}/{total}
-        </span>
+      {/* §9 — "No green shield. No green means safe."
+          This count used to turn #7fbf7f, a sage green, the moment the last
+          item was ticked. That is the green-means-safe grammar the Build Order
+          bans, aimed at the trader's own discipline: a full list is not a safe
+          trade, and the strip has no standing to congratulate anyone. The band
+          carries the reading now; one muted colour carries every state of it.
+
+          One anonymous mark per item on the trader's OWN list. The marks say
+          HOW MANY and never WHICH — `openingBellPrep` refuses to map a count
+          onto named rows, and this strip shows no rows to map onto. */}
+      {band && (
+        <>
+          <span
+            data-testid="journal-prep-band"
+            data-done={band.done}
+            data-total={band.total}
+            aria-hidden="true"
+            style={{ display: "inline-flex", gap: 2, width: 72 }}
+          >
+            {band.marks.map((mark, i) => (
+              <span
+                key={i}
+                data-testid="journal-prep-mark"
+                data-checked={mark.checked ? "true" : "false"}
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  height: 4,
+                  borderRadius: 1,
+                  background: mark.checked ? "#ede6d3" : "rgba(138,130,113,0.22)",
+                }}
+              />
+            ))}
+          </span>
+          {/* The band is aria-hidden, so this carries the whole reading. */}
+          <span data-testid="journal-prep-count" style={{ fontSize: 10, color: "#8a8271", letterSpacing: 0.2 }}>
+            checklist {band.done} of {band.total}
+          </span>
+        </>
       )}
       <a
         href="/morning-prep"

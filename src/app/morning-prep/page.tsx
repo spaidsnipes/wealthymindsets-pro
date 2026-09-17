@@ -644,7 +644,6 @@ export default function MorningPrepPage() {
         ) : (
           entries.map(e => {
             const done = e.checklist.filter(i => i.done).length;
-            const pct = e.checklist.length ? Math.round((done / e.checklist.length) * 100) : 0;
             return (
               <motion.div key={e.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="rounded-2xl p-5" style={{ background: "#0D1117", border: "1px solid #1E2030" }}>
@@ -664,10 +663,29 @@ export default function MorningPrepPage() {
                   ><Trash2 size={16} aria-hidden="true" /></button>
                 </div>
 
-                {/* progress bar */}
-                <div className="h-1.5 rounded-full mb-3" style={{ background: "#1E2030" }}>
-                  <div className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, background: pct === 100 ? "#00D4AA" : "#F0B429" }} />
+                {/* ONE MARK PER ITEM — NOT A PERCENTAGE OF THE TRADER.
+                    This was a filled bar `width: {pct}%`, turning #00D4AA at
+                    100%. Two violations of the rules the prep owner already
+                    states in `openingBellPrep`: §15 bans a percentage (three of
+                    eleven items is not 27% prepared, and there is no readiness
+                    score), and §9 bans green-means-safe — which here was aimed
+                    at the trader's own discipline, congratulating them for a
+                    full list as though a full list were a safe trade.
+
+                    Unlike the deck and the journal, THIS room holds the real
+                    items, so the marks map 1:1 onto the rows printed below and
+                    name nothing they did not earn. An unticked item keeps its
+                    width and loses its light. */}
+                <div className="flex gap-0.5 mb-3" aria-hidden="true"
+                  data-testid="morning-prep-item-band"
+                  data-done={done} data-total={e.checklist.length}>
+                  {e.checklist.map(i => (
+                    <span key={i.id} data-checked={i.done ? "true" : "false"}
+                      style={{
+                        flex: "1 1 0", minWidth: 0, height: 4, borderRadius: 1,
+                        background: i.done ? "#ede6d3" : "rgba(138,130,113,0.22)",
+                      }} />
+                  ))}
                 </div>
 
                 {e.routine && (
@@ -684,7 +702,7 @@ export default function MorningPrepPage() {
                     <button key={i.id} onClick={() => toggleItem(e.id, i.id)}
                       className="flex items-center gap-2.5 w-full text-left group">
                       {i.done
-                        ? <CheckCircle2 size={17} style={{ color: "#00D4AA" }} className="shrink-0" />
+                        ? <CheckCircle2 size={17} style={{ color: "#ede6d3" }} className="shrink-0" />
                         : <Circle size={17} style={{ color: "#4A5070" }} className="shrink-0" />}
                       <span className="text-sm transition-colors"
                         style={{ color: i.done ? "#5B6270" : "#C0C8D8", textDecoration: i.done ? "line-through" : "none" }}>

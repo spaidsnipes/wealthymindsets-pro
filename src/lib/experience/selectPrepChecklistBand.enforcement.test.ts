@@ -89,3 +89,81 @@ describe("prep checklist band — enforcement", () => {
     expect(region).not.toMatch(/\b(READY|NOT_READY|SCORE|GRADE|%)\b/);
   });
 });
+
+/**
+ * THREE ROOMS, ONE MORNING.
+ *
+ * /command-deck, /journal and /morning-prep all show the trader's prep count.
+ * /morning-prep went through the owner from the start; the other two each kept
+ * a private copy of the arithmetic, and the two copies had already drifted —
+ * the deck printed "7/11 checked", the journal printed "checklist 7/11", and
+ * the journal turned the figure GREEN when the last box was ticked.
+ *
+ * Asserted as one suite because the defect is not "a file is wrong". It is that
+ * a fact with an owner can be reached without asking the owner, and the third
+ * room to do it will look reasonable in isolation too.
+ */
+describe("prep checklist band — every room asks the same owner", () => {
+  const ROOMS = [
+    "app/command-deck/page.tsx",
+    "app/journal/page.tsx",
+    "app/morning-prep/page.tsx",
+  ] as const;
+
+  it.each(ROOMS)("%s reaches the count through selectPrepEvidence", (room) => {
+    expect(stripComments(read(room))).toMatch(/selectPrepEvidence\(\{/);
+  });
+
+  it.each(ROOMS)("%s does its own division nowhere", (room) => {
+    const src = stripComments(read(room));
+    // A slash between the two adapter fields, in any spacing, in any order.
+    expect(src).not.toMatch(/checklistDone\}?\s*\/\s*\{?prep\.checklistTotal/);
+    expect(src).not.toMatch(/\bdone\}\s*\/\s*\{total\b/);
+  });
+
+  it.each(ROOMS)("%s colours no prep count green — §9", (room) => {
+    // The journal turned #7fbf7f on a full list and /morning-prep turned
+    // #00D4AA at 100%: green-means-safe, aimed at the trader's own discipline.
+    // A full checklist is not a safe trade, and the room has no standing to
+    // congratulate anyone for one.
+    //
+    // Asserted against the EXPRESSIONS that decide a prep colour, not against
+    // proximity. A window-based guard failed here on unrelated growth-practice
+    // chips that happen to sit on a route with "prep" in its name — and a guard
+    // that makes a route rename its own palette to satisfy a rule about the
+    // prep count has started distorting the thing it protects.
+    const src = stripComments(read(room));
+    const decisions = [
+      ...src.matchAll(/(?:done|i\.done|mark\.checked|pct)\s*===?[^?]*\?[^:]*:[^,}\n]*/g),
+      ...src.matchAll(/(?:mark\.checked|i\.done)\s*\?[^:]*:[^,}\n]*/g),
+    ].map((m) => m[0]);
+    expect(decisions.length).toBeGreaterThan(0); // not vacuous on any room
+    for (const d of decisions) {
+      for (const c of d.matchAll(/#([0-9a-f]{6})\b/gi)) {
+        const [r, g, b] = [0, 2, 4].map((i) => parseInt(c[1].slice(i, i + 2), 16));
+        expect(g > r && g > b, `green #${c[1]} decides a prep colour in ${room}: ${d}`).toBe(false);
+      }
+    }
+  });
+
+  it("states no percentage of the trader anywhere on the prep routes — §15", () => {
+    // /morning-prep drew `width: {pct}%` over the checklist. Three of eleven
+    // items is not 27% prepared; `openingBellPrep` refuses a readiness score
+    // two hundred lines away, and a bar is not an exemption from that.
+    for (const room of ROOMS) {
+      const src = stripComments(read(room));
+      expect(src, room).not.toMatch(/checklist\.length\)\s*\*\s*100/);
+      expect(src, room).not.toMatch(/width:\s*`\$\{pct\}%`/);
+    }
+  });
+
+  it("draws the band in the two rooms that show NO item list, and not in the one that does", () => {
+    // Refusal 3. /morning-prep renders the trader's named rows. A band of
+    // anonymous marks beside them would invite the reader to map the third mark
+    // to the third row — fabricating the mapping the owner declined to invent,
+    // and making it look like it came from the trader.
+    expect(stripComments(read("app/command-deck/page.tsx"))).toContain("selectPrepChecklistBand");
+    expect(stripComments(read("app/journal/page.tsx"))).toContain("selectPrepChecklistBand");
+    expect(stripComments(read("app/morning-prep/page.tsx"))).not.toContain("selectPrepChecklistBand");
+  });
+});
