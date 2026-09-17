@@ -199,10 +199,49 @@ drawer sits beside the market rather than over it.
   currently carries ≤ 3 hints, so the docked cap is not binding. The
   uncapping is proven by Sentinel (probe 1), not by pixels. Needs a
   session with a resolved market.
-- **`5ef0fe6f` (the Mirror) is NOT yet live-verified** at the time this
-  baton was sealed. Its preview would read `NOT YET` in the current
-  PREPARATION phase, which is the correct output but a weak proof; a real
-  walk needs the deck in REVIEW with decisions in scope.
+- **`5ef0fe6f` (the Mirror) was live-verified AFTER this section was first
+  written** — see the addendum below. What is still unproven there is the
+  Mirror with actual patterns to show, which needs a session that has
+  decisions in it.
+
+---
+
+## LIVE OBSERVATION — `5ef0fe6f`, prod, normal URL
+
+Same channel as above: the Founder's own Chrome on
+`https://wealthymindsetspro.com/command-deck`, no query string on arrival,
+geometry from `getBoundingClientRect()` in a **1920 × 840** viewport.
+
+| step | observed |
+|---|---|
+| rail | **four** entries — `market-reality`, `market-object-passport`, `decision-chain`, `behaviour-mirror`; the fourth reads *"Your behaviour mirror"* / *"What you actually did this session, not what you meant to do"* |
+| press | `?equip=behaviour-mirror&stage=preview`; verdict **`NOT YET`**, headline *"The Mirror reflects a session you have finished. Move to REVIEW or POST-EXIT and it will have something to show you."*; counts render `0 strength / 0 to watch / 0 observed`; preview measures **420 × 151 at x=1482** |
+| drawer | `stage=drawer`, **420 × 117 at x=1482** — beside the market, not over it; rail intact |
+| ENTER | `stage=full`, **1920 × 840 at (0,0)**, sole button `Return to room` |
+| RETURN | back to `stage=drawer` |
+
+### The phase gate, proven by moving it rather than by argument
+
+With the drawer still open, the room's own phase control was pressed
+`Prep` → `Review`. **Without any navigation and without the drawer moving**
+(still 420 wide at x=1482), the verdict changed `NOT YET` → **`NOTHING YET`**
+and the headline became *"No decisions in scope — Mirror has nothing to
+reflect yet"* — which is `selectMirror`'s own sentence, not a sentence this
+room wrote. That is the descriptor reading the room's live `phase` dep and
+the drawer re-rendering in place, observed rather than inferred.
+
+The phase was then pressed back to `Prep` and the stage closed. Final state:
+`/command-deck` with **no query string**, no `[data-equipment-stage]` node,
+rail still four entries, `Prep` `aria-pressed="true"`. The page was left
+exactly as found.
+
+### Still unproven, and named
+
+The Mirror with **patterns actually in it** has not been seen on prod. Both
+branches observed above are the empty ones. `MirrorPanel`'s rendering — and
+therefore `unabridged`'s visible effect on evidence chips — is proven by
+Sentinel and by the `data-mirror-evidence-withheld` accounting, not by
+pixels. It needs a session with decisions in scope.
 
 ---
 
