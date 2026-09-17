@@ -119,6 +119,17 @@ function SanctuaryRoom({
   const contextSession = useSanctuarySession();
   const resolvedSession = session === "UNKNOWN" ? contextSession : session;
 
+  /**
+   * "Is this the room where the market itself is the job?"
+   *
+   * Declared ONCE. Two separate pieces of chrome — the rooms rail and the seven
+   * experience states — both step aside here, and they step aside for the same
+   * reason. Two copies of the predicate would let one of them be re-pointed at a
+   * future instrument route while the other silently kept the old answer, and
+   * the symptom would be half a masthead collapsing.
+   */
+  const onInstrumentView = (pathname ?? "") === INSTRUMENT_VIEW_ROUTE;
+
   // The guest rail's default follows the current job's emphasis; a mode switch
   // reorganises the environment around the new job. The human may still toggle.
   const [railOpen, setRailOpen] = React.useState(emphasis.railDefaultOpen);
@@ -432,7 +443,7 @@ function SanctuaryRoom({
            Everywhere else the doors stay in front of the trader, because
            everywhere else choosing where to go IS part of the job. See
            WMOperatingSystem's railDefaultOpen for the measurement. */
-        railDefaultOpen={(pathname ?? "") !== INSTRUMENT_VIEW_ROUTE}
+        railDefaultOpen={!onInstrumentView}
         surface={standing.surface}
         openEvidenceItems={standing.openEvidenceItems}
         rightOfWay={standing.rightOfWay}
@@ -441,7 +452,10 @@ function SanctuaryRoom({
         asOfLabel={standing.asOfLabel}
         brand={brand}
         mastheadCaption={jobCaption}
-        mastheadCenter={<ExperienceModeBar bus={bus} />}
+        /* Seven equal tabs answer "what is the current job?" seven times. On the
+           instrument view one gold chip answers it once and hands the widest
+           non-price object in the masthead back to price. See the prop's doc. */
+        mastheadCenter={<ExperienceModeBar bus={bus} collapsed={onInstrumentView} />}
         mastheadActions={
           /* The rail toggle is a VIEW control for this room. The access chrome
              is the product's four always-reachable capabilities. Both sit in

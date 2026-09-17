@@ -24,7 +24,34 @@ import { shellEmphasis } from "@/lib/experience/shellLayout";
 export interface ExperienceModeBarProps {
   bus?: DecisionContextBus;
   className?: string;
+  /**
+   * Render the seven states as ONE named chip instead of seven equal tabs.
+   *
+   * ── The measured failure this answers ──────────────────────────────────────
+   *
+   * Measured on the live production build at 1920x840 on 2026-09-17: this bar
+   * occupied the entire centre of the masthead on every route at every moment,
+   * seven buttons of equal weight, each 44px tall. On the instrument view that
+   * is the widest non-price object above the candles.
+   *
+   * It is also the wrong SENTENCE. The bar's job is to answer "what is the
+   * current job?" — and seven equal tabs answer it seven times, once loudly and
+   * six times quietly. One chip that says OBSERVE answers it once.
+   *
+   * ── COLLAPSED IS NOT HIDDEN ────────────────────────────────────────────────
+   *
+   * A hamburger that hides the answer would be strictly worse than the bar: the
+   * human would have to OPEN something to learn what mode they are in. So the
+   * collapsed form still NAMES the active mode in its own label, and the other
+   * six are one announced click away through aria-expanded/aria-controls.
+   *
+   * Default `false` — every route that never asked keeps the bar it had.
+   */
+  collapsed?: boolean;
 }
+
+/** The id the collapsed chip points `aria-controls` at. */
+export const EXPERIENCE_MODE_GROUP_ID = "wm-experience-modes";
 
 /**
  * THE SECOND COPY OF THE CAPTION TABLE — AND IT HAD ALREADY DRIFTED.
@@ -55,12 +82,63 @@ function modeHint(mode: ExperienceMode): string {
   return shellEmphasis(mode).job.replace(/\.$/, "");
 }
 
-export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
+export function ExperienceModeBar({ bus, className, collapsed = false }: ExperienceModeBarProps) {
   const { context, setMode } = useDecisionContext(bus);
+  const [open, setOpen] = React.useState(false);
+
+  // Re-seed when the route changes what the bar is FOR. Without this, expanding
+  // the chip on the chart and then walking to a room that renders the full bar
+  // would leave a stale `open` behind the next collapse.
+  const seeded = React.useRef(collapsed);
+  if (seeded.current !== collapsed) {
+    seeded.current = collapsed;
+    setOpen(false);
+  }
+
+  const expanded = !collapsed || open;
 
   return (
+    <div
+      style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}
+    >
+      {!collapsed ? null : (
+        <button
+          type="button"
+          data-testid="experience-mode-chip"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={EXPERIENCE_MODE_GROUP_ID}
+          // The active mode is IN the name on purpose. A control called only
+          // "Experience mode" would make a screen-reader user open the group to
+          // learn something the sighted chip states outright.
+          aria-label={`Experience mode: ${context.mode}. Choose another`}
+          title={modeHint(context.mode)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            minHeight: 32,
+            padding: "5px 10px",
+            borderRadius: WM.radius.md,
+            border: `1px solid ${WM.border.strong}`,
+            background: WM.halo.gold,
+            color: WM.gold.hero,
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {context.mode}
+          <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▴" : "▾"}</span>
+        </button>
+      )}
+      {!expanded ? null : (
     <nav
       className={className}
+      id={EXPERIENCE_MODE_GROUP_ID}
       aria-label="Experience mode"
       style={{
         display: "flex",
@@ -75,6 +153,20 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
         border: `1px solid ${WM.border.hair}`,
         borderRadius: WM.radius.lg,
         padding: 3,
+        // Collapsed, the seven live in a panel hung UNDER the chip rather than
+        // in the masthead row. Applied last so it wins over the base row above.
+        ...(collapsed
+          ? {
+              position: "absolute" as const,
+              top: "calc(100% + 6px)",
+              left: 0,
+              zIndex: 40,
+              flexWrap: "nowrap" as const,
+              background: WM.surface.raised,
+              border: `1px solid ${WM.border.strong}`,
+              boxShadow: "0 18px 40px rgba(0,0,0,0.55)",
+            }
+          : null),
       }}
     >
       {EXPERIENCE_MODES.map((mode) => {
@@ -83,7 +175,12 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
           <button
             key={mode}
             type="button"
-            onClick={() => setMode(mode)}
+            onClick={() => {
+              setMode(mode);
+              // Choosing is the whole reason the panel opened. Leaving it open
+              // would put a 7-button panel back over the candles.
+              setOpen(false);
+            }}
             aria-pressed={active}
             title={modeHint(mode)}
             style={{
@@ -121,6 +218,8 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
         );
       })}
     </nav>
+      )}
+    </div>
   );
 }
 
