@@ -12,7 +12,7 @@ import type { AvailableRVM } from "./selectAvailableR";
 
 function vm(partial: Partial<AvailableRVM>): AvailableRVM {
   return {
-    resolution: "MEASURED",
+    resolution: "RESOLVED",
     conservativeR: "UNKNOWN",
     optimisticR: "UNKNOWN",
     riskPerUnit: "UNKNOWN",
