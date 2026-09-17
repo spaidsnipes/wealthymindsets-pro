@@ -533,6 +533,13 @@ interface ChartToolbarProps {
   drawOpen?:           boolean;
   onSmartMoney:        () => void;
   smartMoneyActive?:   boolean;
+  /* THE DOOR PnLStatsPanel LOST. b08f818 re-pointed the old `onPnL` prop at
+     `setBrokerOpen`, which is honest for the button but left the journal stats
+     strip mounted with no remaining caller — `chartPanelDoorway.test.ts` has
+     carried `pnlOpen` in its named-orphan ledger ever since. This is that one
+     line, on the owning side. */
+  onJournalStats?:     () => void;
+  journalStatsOpen?:   boolean;
   onDOM:               () => void;
   onPineScript:        () => void;
   onCommunity?:        () => void;
@@ -607,7 +614,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onConnectBrokers, onCapture, captureOpen, onWatchlist, watchlistOpen, onDraw, drawOpen, onSmartMoney, smartMoneyActive,
+  onConnectBrokers, onCapture, captureOpen, onWatchlist, watchlistOpen, onDraw, drawOpen, onSmartMoney, smartMoneyActive, onJournalStats, journalStatsOpen,
   onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
@@ -1312,6 +1319,22 @@ export function ChartToolbar({
                     onClick={() => { setAdvancedOpen(false); onCapture(); }}
                   >
                     <Camera size={12} aria-hidden="true" /> Capture &amp; share{captureOpen ? " · open" : ""}
+                  </button>
+                )}
+                {/* SCOPE IS IN THE LABEL, not only inside the strip. The masthead
+                    badge answers "what is my P&L" from `wm_paper_state`; this answers
+                    a DIFFERENT question from `wm_journal_entries`, over every trade
+                    ever logged rather than today's. Two readings that share a word
+                    and not a source must not share a name, or the room grows a
+                    second opinion about the trader's own money. */}
+                {onJournalStats && (
+                  <button
+                    role="menuitem"
+                    className={itemClass}
+                    aria-pressed={journalStatsOpen}
+                    onClick={() => { setAdvancedOpen(false); onJournalStats(); }}
+                  >
+                    <DollarSign size={12} aria-hidden="true" /> Journal P&amp;L stats{journalStatsOpen ? " · open" : ""}
                   </button>
                 )}
                 <button

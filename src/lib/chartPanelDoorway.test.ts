@@ -94,10 +94,14 @@ function orphanedPanels(code: string): string[] {
  * add a button would be a worse defect than the one being fixed. The repair is
  * one line in each case and belongs to whoever holds the lock.
  */
-const KNOWN_ORPHANS = [
-  // PnLStatsPanel — session P&L statistics. Imported, mounted, no caller.
-  "pnlOpen",
-  // AlpacaTradingPanel now has a paper-labelled doorway in Connect brokers.
+const KNOWN_ORPHANS: string[] = [
+  // EMPTY. `pnlOpen` was the last entry and it is now wired: ChartToolbar owns a
+  // "Journal P&L stats" item in the Tools menu and ChartsDashboard passes
+  // `onJournalStats`. The ledger shrank the way this file says a ledger is
+  // allowed to shrink — by the panel gaining a door, not by the entry being
+  // quietly dropped.
+  //
+  // AlpacaTradingPanel has a paper-labelled doorway in Connect brokers.
   // It is PAPER ONLY, not a certified live brokerage exit.
 ].sort();
 
@@ -164,6 +168,39 @@ describe("chart panels — a mounted panel must have a door", () => {
     expect(CODE).toContain("<AlpacaTradingPanel");
     expect(CODE).toMatch(/onOpenPaperAccount=\{\(\) => \{\s*setBrokerOpen\(false\);\s*setTradeOpen\(true\);/);
     expect(CODE).toContain('initialTab="positions"');
+  });
+
+  /**
+   * A DOOR IS NOT ENOUGH — IT MUST SAY WHICH ROOM IT OPENS.
+   *
+   * The orphan detector above would have caught `pnlOpen` losing its door, and
+   * it did. What no rule here could catch is the reason the door was lost in
+   * the first place: `onPnL` was a name vague enough that re-pointing it at the
+   * broker panel read as a reasonable edit. "P&L" names a QUESTION, not a
+   * SOURCE, and this product answers that question twice from two stores —
+   * the masthead badge from `wm_paper_state`, this strip from
+   * `wm_journal_entries`. Two answers sharing one word is Canon Weakness #1
+   * waiting for a viewport that shows both.
+   *
+   * So the door is pinned to a scoped name, and the two readings are pinned to
+   * DIFFERENT stores. If someone ever points this strip at paper state to
+   * "make the numbers agree", the disagreement stops being visible and this
+   * fails instead.
+   */
+  it("the journal stats door is scoped in its own label, not just called P&L", () => {
+    const toolbar = readFileSync(resolve(process.cwd(), "src/components/chart/ChartToolbar.tsx"), "utf8");
+    expect(CODE).toContain("onJournalStats=");
+    expect(CODE).toMatch(/onJournalStats=\{\(\) => setPnlOpen\(/);
+    expect(toolbar).toContain("Journal P&amp;L stats");
+  });
+
+  it("the two P&L readings on this surface do not share a store", () => {
+    const strip = readFileSync(resolve(process.cwd(), "src/components/chart/PnLStatsPanel.tsx"), "utf8");
+    const masthead = readFileSync(resolve(process.cwd(), "src/components/layout/HeaderPnL.tsx"), "utf8");
+    expect(strip).toContain("wm_journal_entries");
+    expect(strip).not.toContain("wm_paper_state");
+    expect(masthead).toContain("wm_paper_state");
+    expect(masthead).not.toContain("wm_journal_entries");
   });
 
   it("the panels that DO have doors are not falsely reported as orphans", () => {
@@ -245,12 +282,14 @@ function sweep(): { entries: string[]; fileCount: number; flagCount: number } {
  * REPO-WIDE ORPHAN LEDGER.
  *
  * Path-qualified, so wiring the chart orphans does not silently license a new
- * orphan of the same name somewhere else. Both remaining entries are the chart
- * ones, held by another thread — see the ledger above for the repair.
+ * orphan of the same name somewhere else.
+ *
+ * NOW EMPTY — and that is the strongest state this list has ever been in, not
+ * the weakest. An empty ledger means the next orphan anywhere under src/ fails
+ * this immediately instead of hiding behind a known entry. The bound above
+ * (>100 files, >40 flags) is what stops "empty" from meaning "found nothing".
  */
-const KNOWN_ORPHANS_REPO_WIDE = [
-  "src/components/chart/ChartsDashboard.tsx: pnlOpen",
-].sort();
+const KNOWN_ORPHANS_REPO_WIDE: string[] = [].sort();
 
 describe("every mounted panel in the app must have a door", () => {
   it("the sweep actually reaches the components (not a clean bill of health over nothing)", () => {

@@ -2020,6 +2020,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}
+            onJournalStats={() => setPnlOpen(o => !o)}
+            journalStatsOpen={pnlOpen}
             onCapture={() => openCaptureShare(toolsTriggerRef.current)}
             captureOpen={toolsSheetOpen}
             onWatchlist={() => openWatchlist(toolsTriggerRef.current)}
