@@ -77,6 +77,31 @@ export interface RoomEquipmentLayerProps {
   readonly onClose: () => void;
 }
 
+/**
+ * THE MEASURE OF THE FULL EXPERIENCE — ONE OBJECT, SPREAD TWICE.
+ *
+ * Measured live on wealthymindsetspro.com at FULL: the header ran edge to edge
+ * (`MARKET REALITY · NQ1! · 15m` hard against the left margin, `RETURN TO ROOM`
+ * hard against the right) while the canvas beneath it sat centred in a 1280
+ * column starting a third of the way in. The chrome and the content disagreed
+ * about where the page was, which reads as a toolbar bolted onto a document —
+ * two things — at precisely the depth whose job is to feel like one.
+ *
+ * 1280, not 980: the canvas lays its ledgers out SIDEWAYS at this stage, and
+ * 980 squeezed three columns to ~310px each — narrow enough that every evidence
+ * line wrapped twice and the composition read as three cramped lists.
+ *
+ * Declared ONCE and spread into both. A header that carried its own copy of
+ * these three properties is a second reading of one fact, and the way that
+ * fails is silently: someone widens the body, the header stays, and nothing
+ * breaks loudly enough to notice.
+ */
+const FULL_MEASURE: React.CSSProperties = {
+  width: "100%",
+  maxWidth: 1280,
+  margin: "0 auto",
+};
+
 /** Controls, not decoration: 44px, real focus, and a name a screen reader reads. */
 function Control({
   label,
@@ -178,6 +203,7 @@ export function RoomEquipmentLayer({
       style={shell}
     >
       <header
+        data-testid="room-equipment-header"
         style={{
           display: "flex",
           alignItems: "center",
@@ -185,6 +211,7 @@ export function RoomEquipmentLayer({
           padding: stage === "full" ? "0 0 14px" : "10px 12px",
           borderBottom: `1px solid ${HAIR}`,
           flex: "0 0 auto",
+          ...(stage === "full" ? FULL_MEASURE : null),
         }}
       >
         <span
@@ -235,16 +262,12 @@ export function RoomEquipmentLayer({
           minHeight: 0,
           overflowY: "auto",
           padding: stage === "full" ? "14px 0 0" : "0 12px 12px",
-          // 1280, not 980: the canvas now lays its ledgers out SIDEWAYS at this
-          // stage, and 980 squeezed three columns to ~310px each — narrow
-          // enough that every evidence line wrapped twice and the composition
-          // read as three cramped lists rather than one canvas.
-          maxWidth: stage === "full" ? 1280 : undefined,
-          // A column pinned to the left edge of a 1568px screen is not a full
-          // experience, it is a drawer that lost its dock. Centring the measure
-          // is what makes the extra width read as composition.
-          margin: stage === "full" ? "0 auto" : undefined,
           width: "100%",
+          // The SAME object the header spreads — see FULL_MEASURE. A column
+          // pinned to the left edge of a 1568px screen is not a full
+          // experience, it is a drawer that lost its dock; centring is what
+          // makes the extra width read as composition rather than stretch.
+          ...(stage === "full" ? FULL_MEASURE : null),
         }}
       >
         {stage === "preview" ? (

@@ -105,3 +105,50 @@ describe("RoomEquipmentLayer — depth is depth, not size", () => {
     }
   });
 });
+
+describe("RoomEquipmentLayer — the chrome and the content agree where the page is", () => {
+  /**
+   * Measured live on wealthymindsetspro.com at FULL: the header ran edge to
+   * edge while the canvas beneath it sat centred in a 1280 column starting a
+   * third of the way in. Two elements, two different answers to "where does
+   * this page begin" — a toolbar bolted onto a document, at exactly the depth
+   * whose job is to feel like one thing.
+   */
+  const measure = (html: string, testId: string) => {
+    const at = html.indexOf(`data-testid="${testId}"`);
+    if (at < 0) return null;
+    // The element's OWN style window, not the file's. Asking "does 1280 appear
+    // somewhere in this markup" would pass on a header that never got it.
+    const style = /style="([^"]*)"/.exec(html.slice(at, html.indexOf(">", at)));
+    if (!style) return null;
+    const s = style[1];
+    return {
+      maxWidth: /max-width:\s*([^;"]+)/.exec(s)?.[1]?.trim() ?? null,
+      margin: /(?:^|;)\s*margin:\s*([^;"]+)/.exec(s)?.[1]?.trim() ?? null,
+    };
+  };
+
+  it("header and body carry the SAME measure at full", () => {
+    const html = render("full");
+    const header = measure(html, "room-equipment-header");
+    const body = measure(html, "room-equipment-body");
+    expect(header, "the full header has no measure of its own").not.toBeNull();
+    expect(body, "the full body has no measure of its own").not.toBeNull();
+    expect(header!.maxWidth, "header is not bounded to the measure").toBe("1280px");
+    expect(
+      header,
+      "the chrome and the content disagree about where the page begins",
+    ).toEqual(body);
+  });
+
+  it("does NOT impose that measure on the docked stages", () => {
+    // The preview and the drawer are 420px objects pinned to the corner of the
+    // room. A 1280 max-width there is inert at best; centring them would be an
+    // outright lie about where they sit.
+    for (const stage of ["preview", "drawer"] as const) {
+      const header = measure(render(stage), "room-equipment-header");
+      expect(header?.maxWidth ?? null, `${stage} header took the full measure`).toBeNull();
+      expect(header?.margin ?? null, `${stage} header centred itself`).toBeNull();
+    }
+  });
+});
