@@ -167,22 +167,45 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     const mount = deck.indexOf("<RoomEquipmentLayer");
     const props = deck.slice(mount, deck.indexOf("/>", mount));
     expect(mount, `${DECK} → the layer is not mounted`).toBeGreaterThan(-1);
-    // RE-PINNED, one indirection deeper. The layer is now handed a descriptor
-    // rather than the vm, so the rule has to follow: the descriptor is the
-    // thing that must be built from the room's existing binding. Both halves
-    // are asserted, because `content={somethingElse}` and a descriptor that
-    // composed its own vm are two different ways to grow the second brain.
+    // RE-PINNED TWICE OVER. First the layer stopped taking the vm and started
+    // taking a descriptor; now the room has more than one tenant, so it hands
+    // down a SELECTED descriptor. The rule follows the indirection rather than
+    // shrinking to fit it: every descriptor the room can hand over must be
+    // built from a binding the room already holds, because the failure this
+    // guards is not "the first equipment forked a second brain" — it is any of
+    // them doing it.
     expect(props, `${DECK} → the equipment must be handed a descriptor`).toMatch(
-      /content=\{marketRealityEquipment\}/,
+      /content=\{equipmentContent\}/,
     );
-    const descriptor = deck.indexOf("const marketRealityEquipment");
-    expect(descriptor, `${DECK} → the room no longer builds its equipment`).toBeGreaterThan(-1);
-    const built = deck.slice(descriptor, deck.indexOf("[marketCanvas]", descriptor) + 20);
-    expect(built, `${DECK} → the equipment must read the room's own canvas`).toMatch(
-      /verdict:\s*marketCanvas\.verdict/,
+    const chooser = deck.indexOf("const equipmentContent");
+    expect(chooser, `${DECK} → the room no longer chooses which equipment it handed`).toBeGreaterThan(
+      -1,
     );
-    expect(built, `${DECK} → a descriptor that compiled its own reading is a second brain`)
-      .not.toMatch(/\b(compose|select)[A-Z]\w*\(/);
+    const choice = deck.slice(chooser, chooser + 400);
+    expect(choice, `${DECK} → the choice must be keyed by the id the RAIL asked for`).toMatch(
+      /equipment\.equipmentId/,
+    );
+
+    // Every descriptor, not just the first. `DESCRIPTORS` names the memo and
+    // the room binding it is required to read; a new equipment whose memo is
+    // absent from this list still cannot escape, because the chooser above
+    // must map an id to a descriptor and a descriptor that compiles is caught
+    // by the scan below.
+    const DESCRIPTORS = [
+      { memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]" },
+      { memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]" },
+    ] as const;
+    for (const d of DESCRIPTORS) {
+      const at = deck.indexOf(`const ${d.memo}`);
+      expect(at, `${DECK} → the room no longer builds ${d.memo}`).toBeGreaterThan(-1);
+      expect(choice, `${DECK} → ${d.memo} is built but never handed to anything`).toContain(d.memo);
+      const built = deck.slice(at, deck.indexOf(d.deps, at) + d.deps.length);
+      expect(built, `${DECK} → ${d.memo} must read the room's own reading`).toMatch(d.reads);
+      expect(
+        built,
+        `${DECK} → ${d.memo} compiled its own reading — that is a second brain`,
+      ).not.toMatch(/\b(compose|select)[A-Z]\w*\(/);
+    }
     // The SUBJECT rides the same rule as the vm. The full experience takes the
     // chart away, so its symbol line is the only thing left naming the market;
     // if the equipment resolved a symbol of its own it could name a DIFFERENT

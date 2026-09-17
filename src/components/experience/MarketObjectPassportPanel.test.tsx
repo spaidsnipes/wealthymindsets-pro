@@ -192,3 +192,75 @@ describe("MarketObjectPassportPanel — Auto-Quiet ordering and honest absence",
     expect(html).not.toContain("null");
   });
 });
+
+/**
+ * DEPTH IS NOT SIZE — the passport as WORKSPACE equipment.
+ *
+ * The passport used to be an article pinned permanently open on /command-deck.
+ * It is now equipment the trader picks up, which means it acquired a FULL
+ * stage: a whole screen, with the layer telling it so via `unabridged`.
+ *
+ * A full screen that still folded each object's lineage behind a `<details>`
+ * would make ENTER a resize. The interaction directive names that failure in
+ * its own words — "if the intelligence exists but requires hunting through
+ * implementation containers: FAIL" — so the tests below hold the line that
+ * `unabridged` removes the disclosure rather than merely widening it.
+ *
+ * The docked stage keeps the `<details>`, deliberately: at 420px beside a live
+ * chart, eight objects' full lineage unfolded is the clutter the same
+ * directive bans. Both halves are asserted so neither can drift alone.
+ */
+describe("MarketObjectPassportPanel — ENTER buys depth, not a bigger box", () => {
+  const withEvidence = () => [
+    obj(),
+    obj({
+      id: "regime",
+      label: "Regime",
+      lifecycle: "FORMING",
+      value: null,
+      contradictions: ["Late-session volume contradicts the forming regime."],
+      unknowns: ["No settled value area yet."],
+      summary: "Regime is still forming.",
+    }),
+  ];
+
+  it("docked, the lineage stays folded — a 420px drawer beside a live chart", () => {
+    const html = renderToStaticMarkup(<MarketObjectPassportPanel vm={vm(withEvidence())} />);
+    expect(html, "the docked panel must keep its disclosure").toContain("<details");
+    expect(html, "the affordance says what is behind the fold").toContain(
+      'data-testid="passport-dna-affordance"',
+    );
+  });
+
+  it("unabridged, NOTHING is behind a disclosure", () => {
+    const html = renderToStaticMarkup(
+      <MarketObjectPassportPanel vm={vm(withEvidence())} unabridged />,
+    );
+    // THE LOAD-BEARING ASSERTION. A full stage that still contains a <details>
+    // has not given the trader depth; it has given them a larger place to hunt.
+    expect(html, "the full stage still buries the lineage in a disclosure").not.toContain(
+      "<details",
+    );
+    expect(html, "the DNA block did not render at all").toContain('data-testid="passport-dna"');
+  });
+
+  it("uncapping ADDS nothing and WITHHOLDS nothing — same rows, same words", () => {
+    // Arrangement is not disclosure. If the full stage rendered facts the
+    // drawer never had, the two depths would be two readings of one object,
+    // which is the second-brain failure wearing a layout's clothes.
+    const objects = withEvidence();
+    const docked = renderToStaticMarkup(<MarketObjectPassportPanel vm={vm(objects)} />);
+    const full = renderToStaticMarkup(
+      <MarketObjectPassportPanel vm={vm(objects)} unabridged />,
+    );
+    for (const claim of [
+      "Value area accepted on the retest.",
+      "Late-session volume contradicts the forming regime.",
+      "No settled value area yet.",
+      "1/2 resolved",
+    ]) {
+      expect(docked, `the drawer withheld: ${claim}`).toContain(claim);
+      expect(full, `the full stage withheld: ${claim}`).toContain(claim);
+    }
+  });
+});

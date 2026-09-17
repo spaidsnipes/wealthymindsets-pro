@@ -806,6 +806,63 @@ function CommandDeckInner() {
     [marketCanvas],
   );
 
+  /**
+   * OBJECT PASSPORT AS EQUIPMENT — the grammar's SECOND tenant.
+   *
+   * This is the directive's closing clause ("reuse that proven interaction
+   * grammar across the remaining legitimate WM Pro inventions") and one of its
+   * BANS discharged in the same move: the passport used to be an article
+   * pinned open in the room's document band, visible whether the trader had
+   * asked for it or not. That is "permanently displaying every invention on
+   * MARKET". It is now picked up from Workspace like any other equipment.
+   *
+   * Built from the `passport` memo above — the SAME compilation the stamp band
+   * already reads. No second selector call, so the stamp and the equipment
+   * cannot come to disagree about how much of the passport is filled in.
+   *
+   * `unabridged` here buys the one thing the docked panel cannot give: the
+   * evidence lineage stops being folded behind a disclosure per row.
+   */
+  const passportEquipment = React.useMemo(
+    () => ({
+      equipmentId: "market-object-passport",
+      title: "Object passport",
+      verdict: passport.qualityState,
+      headline: `Every reading carries its own lineage — ${passport.resolvedCount} of ${passport.totalCount} objects are sealed with evidence.`,
+      counts: [
+        {
+          testId: "equipment-count-passport-resolved",
+          label: `${passport.resolvedCount} resolved`,
+        },
+        {
+          testId: "equipment-count-passport-unresolved",
+          label: `${passport.totalCount - passport.resolvedCount} unresolved`,
+        },
+        { testId: "equipment-count-passport-objects", label: `${passport.totalCount} objects` },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <MarketObjectPassportPanel vm={passport} unabridged={unabridged} />
+      ),
+    }),
+    [passport],
+  );
+
+  /**
+   * WHICH equipment is in the trader's hand. The rail asks for an id; the room
+   * answers with the reading it already holds for that id. A `Record` rather
+   * than a chain of ternaries so that adding a third tenant is an entry, not a
+   * branch — and `?? marketRealityEquipment` never actually fires, because the
+   * journey reducer only accepts ids `isRoomEquipment` recognised. It exists so
+   * an unknown id degrades to a rendered room instead of a crashed one; the
+   * layer then refuses the mismatch and draws nothing, which is the honest
+   * output.
+   */
+  const equipmentContent =
+    ({
+      "market-reality": marketRealityEquipment,
+      "market-object-passport": passportEquipment,
+    }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
+
   // Decision Receipt (canon P8): project the most-recently sealed decision
   // capsule into its trader-facing receipt — verbatim commitment, defensible
   // process facts, management trail, outcome, and the trader's own review
@@ -1461,25 +1518,30 @@ function CommandDeckInner() {
 
             {/* THE DOCUMENT WALL.
                 ==================
-                Two documents the trader is supposed to READ, not hunt for:
-                the Market Object Passport (what each object is, how it was
-                measured, when it dies) and the Decision Receipt (what was
-                known at decision time, and then what actually happened).
+                The Decision Receipt: what was known at decision time, and then
+                what actually happened. A document the trader is supposed to
+                READ, not hunt for.
 
-                They used to be mounted three collapsed <details> deep — the
-                Workspace toggle, then the evidence drawer, then one of their
+                It used to be mounted three collapsed <details> deep — the
+                Workspace toggle, then the evidence drawer, then one of its
                 own. Present in the DOM, absent from the product. This file
                 already diagnosed that failure mode in prose ("<details> IS NOT
-                A SURFACE") without ever acting on it for these two.
+                A SURFACE") without ever acting on it.
 
-                They are now TOP LEVEL and always open. `data-wm-document-wall`
-                is the measurement handle: a probe can assert these are on the
-                page without expanding anything, which is the only assertion
-                that distinguishes shipped from merely mounted. */}
+                It is now TOP LEVEL and always open. `data-wm-document-wall` is
+                the measurement handle: a probe can assert it is on the page
+                without expanding anything, which is the only assertion that
+                distinguishes shipped from merely mounted.
+
+                The Market Object Passport was the wall's second document until
+                it became Workspace equipment. Reachability did not regress —
+                the mechanism changed from "always on the page" to "one press
+                from the rail, with a full-screen depth the wall never gave
+                it". See the note where it used to sit. */}
             <section
               data-wm-document-wall
-              data-wm-documents="2"
-              aria-label="Document wall — market object passport and decision receipt"
+              data-wm-documents="1"
+              aria-label="Document wall — decision receipt"
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -1501,47 +1563,25 @@ function CommandDeckInner() {
                   gap: 16,
                 }}
               >
-                <article
-                  data-wm-document="passport"
-                  style={{ flex: "1 1 320px", minWidth: 0 }}
-                >
-                  {/* A <div>, not a <header>: WMOperatingSystem already draws
-                      the one banner landmark for this room, and
-                      oneRoomHasOneLandmark.enforcement caught the second one on
-                      the first run. The pixels are identical; the landmark
-                      keeps its single owner. Same below for the receipt. */}
-                  <div style={{ marginBottom: 8 }}>
-                    <h2
-                      style={{
-                        margin: 0,
-                        fontSize: 11,
-                        letterSpacing: 1.2,
-                        textTransform: "uppercase",
-                        color: "#c9a55c",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Market Object Passport
-                    </h2>
-                    {/* The count is the honest subtitle: it says how much of
-                        this document is actually filled in, so a mostly-
-                        UNRESOLVED passport cannot read as a full one. */}
-                    <p
-                      style={{
-                        margin: "3px 0 0",
-                        fontSize: 10,
-                        letterSpacing: 0.6,
-                        textTransform: "uppercase",
-                        color: "#8a8271",
-                      }}
-                    >
-                      Per-object evidence lineage · {passport.resolvedCount}/
-                      {passport.totalCount} resolved
-                    </p>
-                  </div>
-                  <MarketObjectPassportPanel vm={passport} />
-                </article>
+                {/* THE PASSPORT USED TO BE PINNED OPEN HERE.
+                    ==========================================
+                    It was moved to WORKSPACE equipment, and that is a
+                    subtraction the Founder is meant to SEE: this row now holds
+                    one document instead of two, and the chart above it is not
+                    competing with eight always-open object rows.
 
+                    The directive bans "permanently displaying every invention
+                    on MARKET" — and the passport was the clearest instance of
+                    it, because eight dimension rows are unconditionally eight
+                    rows whether or not the trader is asking about provenance.
+
+                    It did NOT become less reachable. The rail's Workspace
+                    entry opens it in one press, the drawer holds it beside the
+                    chart, and ENTER gives it a whole screen with its lineage
+                    unfolded — which is more of the passport than this band
+                    ever showed. Its identity line (PassportStamp) stays above,
+                    so the market object is still named without being picked
+                    up. The Sentinel moved with it. */}
                 <article
                   data-wm-document="receipt"
                   style={{ flex: "1 1 320px", minWidth: 0 }}
@@ -2523,11 +2563,11 @@ function CommandDeckInner() {
         the rail. Deliberately last in the tree and fixed-position: it must not
         push a single pixel of the market around, because a widget that
         reflows the chart it is supposed to sit beside has already broken the
-        "same room" promise. Same vm as the room's own canvas — one
-        compilation, three depths. */}
+        "same room" promise. Whichever equipment is in hand, it is the reading
+        the ROOM already holds — one compilation, three depths. */}
     <RoomEquipmentLayer
       journey={equipment}
-      content={marketRealityEquipment}
+      content={equipmentContent}
       // The ROOM'S OWN symbol and timeframe — the same two bindings the hero
       // and the chart read. The equipment must never resolve a symbol of its
       // own, or the full experience could name a different market than the

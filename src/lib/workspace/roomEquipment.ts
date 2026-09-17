@@ -43,6 +43,22 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Market reality",
       hint: "What is resolved, what is missing, what blocks entry",
     },
+    /**
+     * The SECOND tenant of the grammar, and the reason the grammar was made
+     * generic. This one is also a subtraction: the passport used to be pinned
+     * open in the room's document band whether the trader wanted it or not,
+     * which is the "permanently displaying every invention on MARKET" the
+     * directive bans. It is now picked up, and it is now enterable.
+     *
+     * The hint is in the trader's vocabulary on purpose — it says what they
+     * will SEE (where a reading came from, what would break it), never how the
+     * engine arrived at it.
+     */
+    {
+      id: "market-object-passport",
+      label: "Object passport",
+      hint: "Where each reading came from, and what would break it",
+    },
   ],
 };
 

@@ -24,6 +24,19 @@ import type {
 
 export interface MarketObjectPassportPanelProps {
   readonly vm: MarketObjectPassportVM;
+  /**
+   * TRUE only when this panel has the whole screen (the equipment journey's
+   * FULL stage). It does not mean "bigger" — it means NOTHING IS BEHIND A
+   * DISCLOSURE. Each object's lineage, contradictions and unknowns render
+   * inline instead of inside a `<details>`.
+   *
+   * That is the difference between depth and size, and here it is also a
+   * direct answer to the directive's own failure condition: "if the intelligence
+   * exists but requires hunting through implementation containers: FAIL." A
+   * `<details>` inside a drawer inside a room is exactly that hunt, so the
+   * stage whose whole job is the complete experience does not keep one.
+   */
+  readonly unabridged?: boolean;
 }
 
 const LIFECYCLE_COLOR: Record<PassportLifecycle, string> = {
@@ -52,7 +65,13 @@ function fmtTime(ms: number): string {
   }
 }
 
-function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement {
+function PassportRow({
+  obj,
+  unabridged = false,
+}: {
+  obj: MarketObjectPassport;
+  unabridged?: boolean;
+}): React.ReactElement {
   const color = LIFECYCLE_COLOR[obj.lifecycle];
   const hasDetail =
     obj.evidence.length > 0 || obj.contradictions.length > 0 || obj.unknowns.length > 0;
@@ -129,10 +148,11 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
     return <div style={{ padding: "6px 0", borderBottom: `1px solid ${HAIR}` }}>{header}</div>;
   }
 
-  return (
-    <details style={{ padding: "6px 0", borderBottom: `1px solid ${HAIR}` }}>
-      <summary style={{ cursor: "pointer", listStyle: "none" }}>{header}</summary>
-      <div style={{ marginTop: 8, paddingLeft: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+  const dna = (
+    <div
+      data-testid="passport-dna"
+      style={{ marginTop: 8, paddingLeft: 8, display: "flex", flexDirection: "column", gap: 8 }}
+    >
         {obj.evidence.length > 0 && (
           <div>
             <div style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>EVIDENCE LINEAGE</div>
@@ -164,12 +184,35 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
             ))}
           </div>
         )}
+    </div>
+  );
+
+  // THE ONLY STRUCTURAL DIFFERENCE BETWEEN THE TWO DEPTHS. Same rows, same
+  // lineage, same words — the docked panel folds them away because it is 420px
+  // wide, and the full stage does not, because it has no excuse to. Nothing is
+  // added at full and nothing is withheld below it; what changes is whether the
+  // trader has to hunt.
+  if (unabridged) {
+    return (
+      <div style={{ padding: "6px 0", borderBottom: `1px solid ${HAIR}` }}>
+        {header}
+        {dna}
       </div>
+    );
+  }
+
+  return (
+    <details style={{ padding: "6px 0", borderBottom: `1px solid ${HAIR}` }}>
+      <summary style={{ cursor: "pointer", listStyle: "none" }}>{header}</summary>
+      {dna}
     </details>
   );
 }
 
-export function MarketObjectPassportPanel({ vm }: MarketObjectPassportPanelProps): React.ReactElement {
+export function MarketObjectPassportPanel({
+  vm,
+  unabridged = false,
+}: MarketObjectPassportPanelProps): React.ReactElement {
   // Resolved / forming objects lead; unresolved are quieted below (Auto-Quiet).
   const ordered = [...vm.objects].sort((a, b) => {
     const rank = (l: PassportLifecycle) => (l === "RESOLVED" ? 0 : l === "FORMING" ? 1 : 2);
@@ -202,7 +245,7 @@ export function MarketObjectPassportPanel({ vm }: MarketObjectPassportPanelProps
       ) : (
         <div>
           {ordered.map((obj) => (
-            <PassportRow key={obj.id} obj={obj} />
+            <PassportRow key={obj.id} obj={obj} unabridged={unabridged} />
           ))}
         </div>
       )}
