@@ -96,7 +96,22 @@ export default function CopyTradingPage() {
     <div
       className="h-full overflow-y-auto"
       style={{
-        background: `radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
+        // SCENE_FRAGMENTATION cure, and the subtlest form of it yet found.
+        //
+        // This root used to paint
+        //   radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06),
+        //   transparent 60%), WM.surface.deepest
+        // which is not a stray black rectangle — it is a REIMPLEMENTATION of
+        // the sanctuary. WMExperienceShell already paints #050506 with a warm
+        // radial gold gradient over it. A room that re-declares both draws a
+        // second, slightly-off copy of the OS and covers the real one, grain
+        // and vignette included. The room looked "right" for exactly that
+        // reason, which is why the class-based scan walked past it: the
+        // offence was an inline background, not a bg-wm-* utility.
+        //
+        // Transparent lets the one sanctuary through. Same cure and same
+        // reasoning as /morning-prep:397, which reached it first.
+        background: "transparent",
         color: WM.text.body,
       }}
     >

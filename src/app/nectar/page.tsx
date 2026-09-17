@@ -116,7 +116,22 @@ export default function NectarVaultPage() {
     <div
       style={{
         minHeight: "100%",
-        background: `radial-gradient(1200px 800px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
+        // ONE SANCTUARY, AND NO ROOM BUILDS A SECOND.
+        //
+        // This line used to read
+        //   radial-gradient(1200px 800px at 50% -10%, rgba(212,175,55,0.06),
+        //   transparent 60%), WM.surface.deepest
+        // which is the shell's own atmosphere, rebuilt here by hand. The Vault
+        // has been a Founder room since the original seven and it was covering
+        // the real sanctuary with a partial copy of it the whole time — warm
+        // gold on the deepest surface, yes, but without the grain layer or the
+        // vignette WMExperienceShell also paints. It looked right, which is why
+        // nobody caught it by looking; a probe asking which ELEMENT was
+        // painting did.
+        //
+        // Transparent lets the one sanctuary through, grain and vignette
+        // included.
+        background: "transparent",
         color: WM.text.body,
         paddingBottom: 48,
       }}

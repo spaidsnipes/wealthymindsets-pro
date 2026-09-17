@@ -84,7 +84,13 @@ export default function AIBotPage() {
     <div
       className="h-full overflow-y-auto"
       style={{
-        background: `radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
+        // SCENE_FRAGMENTATION cure — the reimplemented-sanctuary form.
+        // This root re-declared the shell's own radial gold gradient over
+        // WM.surface.deepest, drawing a second copy of the OS on top of the
+        // real one and covering its grain and vignette. Transparent lets the
+        // one sanctuary through. Same cure as /copy-trading and
+        // /morning-prep:397, which reached it first.
+        background: "transparent",
         color: WM.text.body,
       }}
     >

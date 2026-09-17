@@ -162,7 +162,17 @@ export default function CreatorPage() {
         className="relative overflow-hidden"
         style={{
           borderBottom: "1px solid rgba(139,106,41,0.15)",
-          background: "radial-gradient(1200px 700px at 50% -20%, rgba(212,175,55,0.08), transparent 60%), linear-gradient(180deg, #0b0b0d 0%, #050506 100%)",
+          // Hero chrome dissolved into a hairline, the same cure and for the
+          // same reason as /morning-prep's header: the gradient ended in
+          // `linear-gradient(180deg, #0b0b0d 0%, #050506 100%)`, an opaque band
+          // laid across the top of the room. A band is a plane that happens to
+          // be short — it still breaks the continuous sanctuary field, and it
+          // still ends on the shell's own floor colour.
+          //
+          // The warm glow below (the blurred gold circles) survives untouched,
+          // because that is the design language painting ON the atmosphere
+          // rather than replacing it.
+          background: "transparent",
         }}
       >
         {/* Warm glow */}
