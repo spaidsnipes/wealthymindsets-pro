@@ -58,6 +58,10 @@ import {
   type EvidenceLadderSegment,
   type EvidenceLadderState,
 } from "@/lib/marketData/viewModels/selectEvidenceLadder";
+import {
+  selectWhySeverityBar,
+  type WhySeverityState,
+} from "@/lib/marketData/viewModels/selectWhySeverityBar";
 
 /**
  * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
@@ -227,6 +231,32 @@ const LADDER_TONE: Record<EvidenceLadderState, React.CSSProperties> = {
 
 const LADDER_HEIGHT = 6;
 
+/**
+ * SEVERITY HAS A HEIGHT AND A COLOUR, both looked up from TOTAL records so no
+ * state can fall through to a default that flatters it.
+ *
+ * UNATTRIBUTED is deliberately the shortest and the dimmest. Those ticks are
+ * real blockers — the census counted them — but WM cannot say how hard they
+ * are, and a bar that guessed would be drawing evidence it does not hold.
+ */
+const SEVERITY_HEIGHT: Record<WhySeverityState, number> = {
+  HARD_RULE: 12,
+  CONTRADICTION: 10,
+  EVIDENCE_DEBT: 8,
+  EVIDENCE_WARN: 6,
+  SOFT_RULE: 5,
+  UNATTRIBUTED: 4,
+};
+
+const SEVERITY_TONE: Record<WhySeverityState, React.CSSProperties> = {
+  HARD_RULE: { background: "#e08a8a" },
+  CONTRADICTION: { background: "#d4af37" },
+  EVIDENCE_DEBT: { background: "rgba(201,162,89,0.62)" },
+  EVIDENCE_WARN: { background: "rgba(201,162,89,0.40)" },
+  SOFT_RULE: { background: "rgba(139,143,168,0.55)" },
+  UNATTRIBUTED: { background: "rgba(139,143,168,0.26)" },
+};
+
 function LadderSegment({ segment }: { segment: EvidenceLadderSegment }) {
   return (
     <span
@@ -301,6 +331,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   // the identical `oneStory.debt` object and emits one segment per node it
   // already counted.
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
+  // The WHY cell's own census, re-presented. Same VM the headline reads.
+  const severity = selectWhySeverityBar(decisionWhy);
   const cellStyle: React.CSSProperties = rail
     ? {
         ...CELL,
@@ -492,6 +524,38 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <span style={decisionWhy ? VALUE : MUTED}>
           {decisionWhy ? decisionWhy.headline : "No verdict compiled yet."}
         </span>
+        {/* HOW MANY THINGS ARE IN THE WAY, AND HOW HARD — before a word is read.
+            Each tick is one blocker from the CENSUS (`blockerCount`), not from
+            the capped sample, so nine blockers cannot draw as six. Ticks the
+            sample can name carry their severity colour and their label on
+            `title`; the rest are drawn present and honestly unlabelled. */}
+        {severity && severity.segments.length > 0 ? (
+          <span
+            data-testid="why-severity-bar"
+            data-blocker-count={severity.blockerCount}
+            aria-hidden="true"
+            style={{ display: "flex", gap: 2, alignItems: "flex-end", margin: "3px 0 1px" }}
+          >
+            {severity.segments.map((segment, i) => (
+              <span
+                key={`sev-${i}`}
+                data-testid="why-severity-segment"
+                data-state={segment.state}
+                title={segment.label ?? undefined}
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 2,
+                  /* Height IS severity: a hard rule stands taller than a soft
+                     one. The unattributed ticks take the shortest height, which
+                     under-claims rather than over-claims. */
+                  height: SEVERITY_HEIGHT[segment.state],
+                  borderRadius: 1,
+                  ...SEVERITY_TONE[segment.state],
+                }}
+              />
+            ))}
+          </span>
+        ) : null}
         {props.onOpenWhy && (
           <button
             type="button"
