@@ -114,6 +114,14 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     expect(props, `${DECK} → the equipment must read the room's own canvas`).toMatch(
       /vm=\{marketCanvas\}/,
     );
+    // The SUBJECT rides the same rule as the vm. The full experience takes the
+    // chart away, so its symbol line is the only thing left naming the market;
+    // if the equipment resolved a symbol of its own it could name a DIFFERENT
+    // one than the chart the trader entered from, and there would be nothing
+    // on screen to catch it. `symbol` and `timeframe` are the room's bindings.
+    expect(props, `${DECK} → the subject must be the ROOM's own symbol`).toMatch(
+      /subject=\{\{\s*symbol,\s*timeframe\s*\}\}/,
+    );
   });
 
   it("ENTER measures the ROOM's scroll, not the window's", () => {
@@ -170,6 +178,12 @@ describe("SENTINEL — the equipment layer is depth, not another app", () => {
     );
     expect(layer, `${LAYER} → useState for market data would be a second brain`).not.toMatch(
       /useSyncExternalStore|useSWR|fetch\(/,
+    );
+    // Symbol resolution is the same offence in a smaller coat. The layer names
+    // a market at every stage now; the moment it can DERIVE that name it can
+    // derive a different one than the room it is sitting inside.
+    expect(layer, `${LAYER} → the equipment must be TOLD its market, never resolve one`).not.toMatch(
+      /useActiveSymbol|resolveMarketSymbolSeed|useSearchParams/,
     );
   });
 

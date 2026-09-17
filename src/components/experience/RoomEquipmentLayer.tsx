@@ -49,9 +49,28 @@ const GOLD = "#c4a574";
 const MUTED = "#8a8271";
 const HAIR = "rgba(139,106,41,0.28)";
 
+/**
+ * WHICH MARKET THIS IS ABOUT — handed down, never derived.
+ *
+ * The full experience takes the whole screen, which means it takes the chart
+ * away. Measured live on /command-deck, FULL then read "MARKET REALITY · WAIT"
+ * over a canvas naming eight unresolved dimensions — with nothing anywhere on
+ * that screen saying it was about NQ1! on a 15m. The trader left the subject
+ * behind at exactly the depth where they can no longer see it for themselves.
+ *
+ * These two strings are the ROOM'S OWN bindings passed as props. Resolving a
+ * symbol here would be a second brain: the full experience could then name a
+ * different market than the chart the trader entered from.
+ */
+export interface EquipmentSubject {
+  readonly symbol: string;
+  readonly timeframe: string;
+}
+
 export interface RoomEquipmentLayerProps {
   readonly journey: EquipmentJourney;
   readonly vm: MarketCanvasVM;
+  readonly subject: EquipmentSubject;
   readonly onExpand: () => void;
   readonly onEnter: () => void;
   readonly onReturn: () => void;
@@ -96,6 +115,7 @@ function Control({
 export function RoomEquipmentLayer({
   journey,
   vm,
+  subject,
   onExpand,
   onEnter,
   onReturn,
@@ -177,6 +197,16 @@ export function RoomEquipmentLayer({
         >
           Market reality
         </span>
+        {/* The subject, at every depth. It matters MOST at full — that stage
+            takes the chart away, so this line is the only thing left saying
+            which market the canvas is about. Handed in; never resolved here. */}
+        <span
+          data-testid="equipment-subject"
+          style={{ fontSize: 11, letterSpacing: 0.4, color: PEARL }}
+        >
+          {subject.symbol}
+          <span style={{ color: MUTED }}> · {subject.timeframe}</span>
+        </span>
         <span style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase" }}>
           {vm.verdict}
         </span>
@@ -206,6 +236,10 @@ export function RoomEquipmentLayer({
           overflowY: "auto",
           padding: stage === "full" ? "14px 0 0" : "0 12px 12px",
           maxWidth: stage === "full" ? 980 : undefined,
+          // A 980px column pinned to the left edge of a 1568px screen is not a
+          // full experience, it is a drawer that lost its dock. Centring the
+          // measure is what makes the extra width read as composition.
+          margin: stage === "full" ? "0 auto" : undefined,
           width: "100%",
         }}
       >

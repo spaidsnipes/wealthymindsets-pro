@@ -2492,6 +2492,11 @@ function CommandDeckInner() {
     <RoomEquipmentLayer
       journey={equipment}
       vm={marketCanvas}
+      // The ROOM'S OWN symbol and timeframe — the same two bindings the hero
+      // and the chart read. The equipment must never resolve a symbol of its
+      // own, or the full experience could name a different market than the
+      // chart the trader entered from.
+      subject={{ symbol, timeframe }}
       onExpand={() => dispatchEquipment({ type: "EXPAND" })}
       onEnter={() =>
         dispatchEquipment({
