@@ -99,6 +99,19 @@ function feedBlock(src: string): string | null {
   return null;
 }
 
+/**
+ * THE DECLARATION MUST BE PUBLISHED, NOT MERELY IMPORTED.
+ *
+ * The first draft of this predicate was `src.includes("FEEDLESS_SURFACE")`, and
+ * the anti-vacuity check caught it: deleting `feed: FEEDLESS_SURFACE` from
+ * /journal left the suite GREEN, because the import line still carried the
+ * word. A Sentinel that a bare import satisfies guards nothing — it is the
+ * source-scanning version of the very default this file exists to outlaw.
+ */
+function publishesFeedless(src: string): boolean {
+  return /\bfeed:\s*FEEDLESS_SURFACE\b/.test(src);
+}
+
 describe("SENTINEL — the room list itself stays honest", () => {
   it("every named publisher still exists and still publishes a standing", () => {
     // If a file is renamed away, this suite would otherwise go quietly vacuous
@@ -106,6 +119,39 @@ describe("SENTINEL — the room list itself stays honest", () => {
     for (const [rel, src] of SOURCES) {
       expect(fs.existsSync(path.join(process.cwd(), rel)), rel).toBe(true);
       expect(src, rel).toContain("usePublishOsStanding");
+    }
+  });
+
+  /**
+   * THE COMPLETE RULE, not half of it.
+   *
+   * There are exactly two honest states and no third. A room either OBSERVED a
+   * feed and reports the evidence, or it carries no feed and SAYS SO. The
+   * failure mode this Sentinel exists for is the third state — a room that
+   * publishes neither, whose silence the frame then renders as FEED UNKNOWN.
+   *
+   * That is why `FEEDLESS_SURFACE` is a positive declaration rather than the
+   * absence of one: silence and "I have nothing to report" look identical in
+   * the source and mean opposite things on the screen.
+   */
+  it("THE COMPLETE RULE — every room either observes a feed or declares it has none", () => {
+    for (const [rel, src] of SOURCES) {
+      const observes = src.includes("useWebSocket(") && feedBlock(src) !== null;
+      const declaresFeedless = publishesFeedless(src);
+      expect(
+        observes || declaresFeedless,
+        `${rel} publishes a standing but neither observes a feed nor declares FEEDLESS_SURFACE — the frame will print FEED UNKNOWN over it`,
+      ).toBe(true);
+    }
+  });
+
+  it("and the two states are exclusive — no room claims both", () => {
+    // A room cannot simultaneously report an observation and assert it has no
+    // feed to report. If one ever does, the later key silently wins and the
+    // masthead's reading depends on object-literal ordering.
+    for (const [rel, src] of SOURCES) {
+      const observes = src.includes("useWebSocket(") && feedBlock(src) !== null;
+      expect(observes && publishesFeedless(src), rel).toBe(false);
     }
   });
 });
