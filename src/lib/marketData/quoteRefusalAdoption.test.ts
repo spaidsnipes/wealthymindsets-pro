@@ -277,14 +277,81 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
   });
 
   it("the chart never falls back to the hardcoded seed price", () => {
-    // `lastPrice` initialises to getBase(symbol) — a constant (NQ1! → 30476).
-    // Once the refused quote is retracted, a bare `: lastPrice` fallback would
-    // print a number no market ever produced. candles.length is the proof that
-    // lastPrice came from a real bar.
-    expect(CHART).toMatch(/ticker\.price\s*:\s*\(candles\.length\s*>\s*0\s*\?\s*lastPrice\s*:\s*0\)/);
-    expect(CHART, "an unproven price must render as a dash, not a number").toMatch(
-      /if \(!\(shown > 0\)\) \{/,
+    /**
+     * RE-ANCHORED 2026-09-17, and the rule got STRICTER, not looser.
+     *
+     * `lastPrice` initialises to getBase(symbol) — a constant (NQ1! → 30476).
+     * Once the refused quote was retracted, a bare `: lastPrice` fallback would
+     * have printed a number no market ever produced, so this test pinned the
+     * guard `candles.length > 0 ? lastPrice : 0` as the proof that lastPrice
+     * came from a real bar.
+     *
+     * That guard was never that proof. Candles being loaded says nothing about
+     * whether `lastPrice` came from THEM — it tracks the FORMING bar. MEASURED
+     * live on /charts, NQ1! 30m, with the tape shut so nothing was racing:
+     * this cell read "29,708.75" under the title "Last bar close — not a live
+     * quote" while the chrome header and the decision rail both read
+     * "29709.75 LAST 30m BAR CLOSE" and the OHLCV strip two elements away read
+     * "NOW 29708.75 — this 30m bar has not closed yet, it has no close".
+     *
+     * So the assertion moves from "the fallback is fenced" to "the fallback is
+     * GONE". The cell now compiles through `chartHeaderPriceFact`, whose two
+     * arms are a quote that reached the header and a bar that has PROVABLY
+     * closed. The seed constant is unreachable by construction, which is a
+     * thing a regex can actually check, unlike the proxy it replaces.
+     */
+    // TWO windows, because there are two distinct places this can regress and
+    // one window spanning both would be 800 lines of unrelated code.
+    const CALL = "const headerPriceFact = chartHeaderPriceFact(";
+    const compileAt = CHART.indexOf(CALL);
+    expect(compileAt, "the headline price no longer compiles through the shared owner")
+      .toBeGreaterThan(-1);
+    const compileSite = CHART.slice(compileAt, CHART.indexOf("\n  );", compileAt));
+
+    // The two arms, named at the call site, in order. Anything else reaching
+    // this cell is a third answer to a question that already has one owner.
+    expect(compileSite, "the live arm must be the quote this header received")
+      .toMatch(/chartHeaderPriceFact\(\s*ticker\.price,/);
+    expect(compileSite, "the fallback arm must be a PROVABLY closed bar, not a running value")
+      .toMatch(/deriveLastBarClose\(candles,/);
+
+    // The defect itself: the running last value must not be readable by the
+    // rendered cell under any spelling. `lastPrice` lives elsewhere in this
+    // file and legitimately so, hence the narrow window — and the window is
+    // read COMMENT-STRIPPED, because the paragraph above the cell records the
+    // measured defect by name and this file's own header explains at length
+    // why a Sentinel must not punish the honest recording of evidence.
+    const CHART_CODE = codeOf("components/chart/MainChart.tsx");
+    const cellAt = CHART_CODE.indexOf('if (headerPriceFact.kind === "AWAITING") return null;');
+    expect(cellAt, "the AWAITING arm is gone — a blank second became a claim again")
+      .toBeGreaterThan(-1);
+    const cell = CHART_CODE.slice(cellAt, CHART_CODE.indexOf("{headerPriceFact.text}", cellAt));
+    expect(cell, "the headline price cell reads the forming bar's running value again")
+      .not.toMatch(/\blastPrice\b/);
+    expect(cell, "the headline price cell re-grew its own `certified` verdict")
+      .not.toMatch(/\bcertified\b/);
+
+    // An unproven price is still a dash, not a number — the half of the old
+    // assertion that was always right.
+    expect(cell, "an unproven price must render as a dash, not a number").toContain(
+      "{PRICE_ABSENCE_GLYPH}",
     );
+  });
+
+  it("the headline price says which of the two it is, and is not alone in saying so", () => {
+    // Canon Weakness #1 is two numbers for one instrument at one instant. The
+    // repair is not "pick one" — it is that every cell answering the price
+    // question derives from the SAME compiler, so they cannot drift apart
+    // again by being edited separately. MainChart and ChartsDashboard both
+    // render this header; a fix in one is a divergence unless it reaches both.
+    expect(CHART, "the price cell must declare its provenance to the DOM, not infer it from colour")
+      .toContain('data-price-kind={headerPriceFact.kind}');
+    expect(CHART, "colour must be chosen from the declared kind, never from 'is a number present'")
+      .toMatch(/headerPriceFact\.kind === "LIVE_QUOTE"/);
+    expect(
+      read("components/chart/ChartsDashboard.tsx"),
+      "the other surface rendering this header must use the same owner",
+    ).toMatch(/chartHeaderPriceFact\(/);
   });
 
   it("§8 — a refusal does not wear the vocabulary of an empty feed", () => {

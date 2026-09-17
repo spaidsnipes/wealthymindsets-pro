@@ -103,10 +103,23 @@ export function chartHeaderPriceFact(
    * Every existing caller and test keeps its exact behaviour untouched.
    */
   barsSettled?: boolean,
+  /**
+   * How many decimals this instrument's prices carry.
+   *
+   * OPTIONAL and LAST, defaulting to the 2 every existing caller already gets,
+   * for the same reason `chartHeaderChangeFact` takes its `minDecimals`: this
+   * module is pure and cannot know an instrument's tick. A chart that knows
+   * its instrument trades in ten-thousandths and hands that knowledge to a
+   * formatter hardcoded at 2 does not render an approximation — it renders
+   * `0.00`, a flat price manufactured by the formatter rather than observed in
+   * the market. That is the failure mode this parameter exists to prevent, and
+   * it is the only reason MainChart could adopt this owner at all.
+   */
+  decimals: number = 2,
 ): HeaderPriceFact {
   if (finite(livePrice) && livePrice > 0) {
     return {
-      text: livePrice.toFixed(2),
+      text: livePrice.toFixed(decimals),
       measured: true,
       kind: "LIVE_QUOTE",
       reason:
@@ -126,11 +139,11 @@ export function chartHeaderPriceFact(
     return {
       // The provenance travels WITH the number. A bare figure in this slot
       // would be read as a live price, which is the one thing it is not.
-      text: `${barClose.close.toFixed(2)} LAST ${tf} BAR CLOSE`,
+      text: `${barClose.close.toFixed(decimals)} LAST ${tf} BAR CLOSE`,
       measured: true,
       kind: "BAR_CLOSE",
       reason:
-        `${NO_LIVE_QUOTE} What WM does have is a bar that has PROVABLY CLOSED: the last ${tf} candle loaded on this chart closed at ${barClose.close.toFixed(2)}. ` +
+        `${NO_LIVE_QUOTE} What WM does have is a bar that has PROVABLY CLOSED: the last ${tf} candle loaded on this chart closed at ${barClose.close.toFixed(decimals)}. ` +
         "That is a DIFFERENT READING, not a substitute for a live price, and it is labelled as one so it can never be mistaken for what the instrument is trading at now. " +
         "WM will not render a candle close in a live price's clothes. " +
         "The badge beside this cell says the bars were verified; this is the number those bars actually produced, said out loud instead of withheld.",

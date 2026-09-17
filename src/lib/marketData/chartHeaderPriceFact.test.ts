@@ -74,6 +74,40 @@ describe("chartHeaderPriceFact — a live quote answers the question the slot as
   });
 });
 
+describe("a formatter must not manufacture a flat price", () => {
+  /**
+   * THE DEFECT THIS PARAMETER EXISTS TO PREVENT.
+   *
+   * This module hardcoded `toFixed(2)`. MainChart trades instruments whose
+   * quotes carry four decimals (`dp = base < 10 ? 4 : 2`), so adopting this
+   * owner naively would have printed `0.0034` as `0.00` — not a rounding, a
+   * FLAT PRICE invented by the formatter and then rendered in the largest type
+   * on the product. Same family as the defect the module was written against:
+   * a number that was never observed, wearing an observation's clothes.
+   */
+  it("× THE ZERO THE MARKET NEVER PRINTED: a sub-cent price survives its own instrument", () => {
+    const f = chartHeaderPriceFact(0.0034, null, undefined, 4);
+    expect(f.kind).toBe("LIVE_QUOTE");
+    expect(f.text).toBe("0.0034");
+    expect(f.text, "the formatter flattened a real price to zero").not.toBe("0.00");
+  });
+
+  it("the bar-close arm carries the same precision — in the text AND in the reason", () => {
+    // The reason is the tooltip a trader actually reads. A reason that names a
+    // different number than the cell shows is two answers again, one hop down.
+    const f = chartHeaderPriceFact(0, { ...CLOSE, close: 0.0034, timeframe: "5m" }, undefined, 4);
+    expect(f.kind).toBe("BAR_CLOSE");
+    expect(f.text).toBe("0.0034 LAST 5m BAR CLOSE");
+    expect(f.reason).toContain("0.0034");
+    expect(f.reason, "the tooltip names a number the cell does not show").not.toContain("0.00 ");
+  });
+
+  it("defaults to 2 so every caller that never asked is untouched", () => {
+    expect(chartHeaderPriceFact(357.875, null).text).toBe("357.88");
+    expect(chartHeaderPriceFact(357.875, null, undefined, 2).text).toBe("357.88");
+  });
+});
+
 describe("/charts chrome header adoption", () => {
   const code = readFileSync(
     join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),

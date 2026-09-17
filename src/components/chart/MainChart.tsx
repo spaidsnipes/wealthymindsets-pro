@@ -25,7 +25,8 @@ import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 // Spelling it a second time here is the vacuous-agreement shape: two copies
 // that agree until someone edits one of them.
 import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
-import { deriveBarOverBarChange } from "@/lib/marketData/deriveLastBarClose";
+import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
+import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
   DELTA_LEVEL_CAP_EVENT,
@@ -6446,6 +6447,50 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // instrument's precision and the compiler only ever sees a delta: without it
   // a real sub-cent move on a sub-$10 instrument would print "+0.00", a flat
   // bar manufactured by the formatter rather than observed in the data.
+  /**
+   * THE LARGEST PRICE GLYPH ON THE PRODUCT WAS THE ONE THAT WASN'T COMPILED.
+   *
+   * MEASURED LIVE on https://wealthymindsetspro.com/charts, NQ1! 30m,
+   * 2026-09-17, in one DOM read of the authenticated Founder landing:
+   *
+   *   y=101  chrome header : "29709.75 LAST 30m BAR CLOSE"
+   *   y=173  THIS cell     : "29,708.75"   title="Last bar close — not a live quote."
+   *   y=176  OHLCV strip   : "NOW 29708.75" title="This 30m bar has not closed
+   *                           yet — it has no close."
+   *   y=194  decision rail : "29709.75 LAST 30m BAR CLOSE"
+   *
+   * Two numbers for one instrument at one instant, both wearing the words "bar
+   * close" — canon Weakness #1, in the Founder's first viewport, in the biggest
+   * type on the page. And the disagreement is not a race: the tape was shut,
+   * the bars were frozen, and the two answers were stable.
+   *
+   * This cell was reading `lastPrice`, the chart's running last value, which
+   * tracks the FORMING bar. Its own neighbour two elements to the right says
+   * out loud that a forming bar "has no close" — and this cell called that same
+   * number a close anyway. It did not merely disagree with the compiler; it
+   * asserted the one thing chartHeaderPriceFact exists to forbid, that a bar
+   * close may never wear a live quote's clothes, in reverse.
+   *
+   * The change cell directly beside this one was migrated to the shared
+   * compiler for exactly this reason ("the two rows on this screen cannot
+   * answer one question two ways"). The price cell was the last holdout in the
+   * same row. `dp` travels with it for the same reason it travels with the
+   * change: this module knows the instrument's precision and the compiler,
+   * being pure, cannot.
+   *
+   * Honest about what this costs: the number loses its thousands separator,
+   * because the compiler owns the text and does not group. That reads as a
+   * regression for one second and is not one — the price AXIS a few pixels
+   * below has always rendered `29800.00` ungrouped, so the header now agrees
+   * with the scale it sits on instead of with itself.
+   */
+  const headerPriceFact = chartHeaderPriceFact(
+    ticker.price,
+    deriveLastBarClose(candles, timeframe, Date.now()),
+    candleSource !== "",
+    dp,
+  );
+
   const headerChangeFact = chartHeaderChangeFact(
     hasProviderChange ? { chg: change, pct: ticker.changePct as number } : null,
     deriveBarOverBarChange(candles, timeframe, Date.now()),
@@ -7241,12 +7286,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                bare `lastPrice`, and `lastPrice` INITIALISES to
                `getBase(symbol)` — a hardcoded seed constant (NQ1! → 30476).
                Falling back to that would have replaced a real Friday close with
-               a number no market ever printed. `candles.length > 0` is the
-               proof that `lastPrice` came from a real bar; without it there is
-               no price to show, and the honest glyph is an em dash. */
-            const certified = ticker.price > 0;
-            const shown = certified ? ticker.price : (candles.length > 0 ? lastPrice : 0);
-            if (!(shown > 0)) {
+               a number no market ever printed. The guard at the time was
+               `candles.length > 0`, offered as proof that `lastPrice` came from
+               a real bar. It was not proof: candles being loaded says nothing
+               about whether `lastPrice` came from THEM, and in fact it did not
+               — it tracks the forming bar.
+
+               So `lastPrice` is no longer consulted here AT ALL. The seed
+               constant is now unreachable by construction rather than fenced
+               off by a proxy: the only two numbers this cell can print come
+               from `ticker.price` (a quote that reached this header) and
+               `deriveLastBarClose` (a bar that has PROVABLY closed), and each
+               arrives carrying its own provenance word. */
+            // AWAITING renders the whole cell away, attributes included — the
+            // same discipline the change cell beside it already follows. A
+            // blank slot for one second is not a claim; "No price" over an
+            // instrument about to paint 400 candles is.
+            if (headerPriceFact.kind === "AWAITING") return null;
+            if (!headerPriceFact.measured) {
               return (
                 <span
                   className="font-mono font-bold text-base text-wm-text-dim leading-none"
@@ -7263,16 +7320,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             }
             return (
               <span
-                className={`font-mono font-bold text-base leading-none ${certified ? "text-wm-text" : "text-wm-text-dim"}`}
-                title={
-                  certified
-                    ? undefined
-                    : `Last bar close — not a live quote.${quoteRefusal ? ` The quote provider answered and WM declined the answer: ${quoteRefusal}` : ""}`
-                }
+                className={`font-mono font-bold text-base leading-none ${
+                  headerPriceFact.kind === "LIVE_QUOTE" ? "text-wm-text" : "text-wm-text-dim"
+                }`}
+                data-price-kind={headerPriceFact.kind}
+                // The compiler's own sentence, not a second one written here.
+                // `quoteRefusal` is appended rather than substituted: it names
+                // WHY the live channel is empty, which the pure module cannot
+                // know, and it must not replace the module's account of what
+                // the number in this cell actually IS.
+                title={`${headerPriceFact.reason}${
+                  headerPriceFact.kind === "BAR_CLOSE" && quoteRefusal
+                    ? ` The quote provider answered and WM declined the answer: ${quoteRefusal}`
+                    : ""
+                }`}
+                aria-label={`${symbol} ${headerPriceFact.text}. ${headerPriceFact.reason}`}
               >
-                {shown.toLocaleString("en-US", {
-                  minimumFractionDigits: dp, maximumFractionDigits: dp,
-                })}
+                {headerPriceFact.text}
               </span>
             );
           })()}
