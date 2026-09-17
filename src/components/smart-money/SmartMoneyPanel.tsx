@@ -25,6 +25,8 @@ import { selectAbsorption } from "@/lib/marketData/viewModels/selectAbsorption";
 import AbsorptionAnatomyPanel from "@/components/experience/AbsorptionAnatomyPanel";
 import { selectDeltaDivergence } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 import DeltaDivergencePanel from "@/components/experience/DeltaDivergencePanel";
+import { selectLiquidityWeather } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -371,6 +373,19 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
    */
   const deltaDivergence = React.useMemo(
     () => selectDeltaDivergence(realTape ? recentTicks : null),
+    [realTape, recentTicks],
+  );
+
+  /**
+   * Liquidity weather. The only selector in this group that does NOT need
+   * aggressor sides — it reads price and size alone. The `realTape` gate is
+   * still here, but for a different reason than its neighbours: not because
+   * the sides would be guesses, but because a synthetic tape has no real
+   * cost-to-travel to report. Gating on the same flag keeps every panel in
+   * this column speaking about the same window.
+   */
+  const liquidityWeather = React.useMemo(
+    () => selectLiquidityWeather(realTape ? recentTicks : null),
     [realTape, recentTicks],
   );
 
@@ -927,6 +942,15 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           prints arrived in a different order. */}
       <div className="mx-2 my-1.5 shrink-0">
         <DeltaDivergencePanel vm={deltaDivergence} symbol={symbol} window="session tape" />
+      </div>
+
+      {/* ── LIQUIDITY WEATHER — what it is costing to move this market ───────
+          The three panels above all ask who is winning. This one asks what
+          the fight is COSTING, which is the question that decides size rather
+          than direction — and the only one here that a tape with no aggressor
+          sides can still answer. */}
+      <div className="mx-2 my-1.5 shrink-0">
+        <LiquidityWeatherPanel vm={liquidityWeather} symbol={symbol} window="session tape" />
       </div>
 
       {/* CLC Summary Card — Context / Location / Confirmation.
