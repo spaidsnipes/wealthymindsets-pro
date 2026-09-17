@@ -53,10 +53,30 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      * The hint is in the trader's vocabulary on purpose — it says what they
      * will SEE (where a reading came from, what would break it), never how the
      * engine arrived at it.
+     *
+     * THE LABEL SAYS WHOSE PASSPORT IT IS, AND THAT IS NOT DECORATION.
+     * ---------------------------------------------------------------
+     * This read "Object passport" for one commit, and on the live rail that
+     * put the word *passport* twice within four lines:
+     *
+     *     ROOMS      … Heatmaps · **Passport** · Paper Trade …
+     *     WORKSPACE  … Market reality · **Object passport**
+     *
+     * The ROOM one is `/nectar` — the trader's OWN passport, their memory. The
+     * equipment one is a MARKET OBJECT's. Unrelated things, one noun, adjacent
+     * on screen. That is precisely the collapse this file's header says cost
+     * the product months: the "where can I go" list and the "what can I pick up
+     * without going anywhere" list must stay distinguishable, and they are not
+     * distinguishable if they share a word.
+     *
+     * So the label carries the canon name in full — the same words the stamp
+     * band directly above the chart already prints (MARKET OBJECT PASSPORT).
+     * Longer, and worth it: a trader can tell at a glance that this one is the
+     * market's, not theirs.
      */
     {
       id: "market-object-passport",
-      label: "Object passport",
+      label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
     },
   ],

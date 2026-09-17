@@ -826,7 +826,12 @@ function CommandDeckInner() {
   const passportEquipment = React.useMemo(
     () => ({
       equipmentId: "market-object-passport",
-      title: "Object passport",
+      // The SAME words the rail entry uses, and the same words the stamp band
+      // above the chart prints. A trader who presses "Market object passport"
+      // must land on something that agrees it is called that — a widget with a
+      // different title reads as a different thing having opened, which is the
+      // directive's "another app loaded" sensation in miniature.
+      title: "Market object passport",
       verdict: passport.qualityState,
       headline: `Every reading carries its own lineage — ${passport.resolvedCount} of ${passport.totalCount} objects are sealed with evidence.`,
       counts: [
