@@ -131,6 +131,16 @@ const PHONE_DOORS = phoneNavDestinations();
 export const OS_RAIL_BREAKPOINT_PX = 900;
 
 /**
+ * How wide the rooms rail is when it is open.
+ *
+ * ONE OWNER because two things now read it: the rail's own flex basis, and the
+ * receipt in `railDefaultOpen`'s doc below that says what closing it gives
+ * back. A width quoted in prose beside a width written in code is a claim that
+ * goes stale the first time someone nudges the number.
+ */
+export const OS_RAIL_WIDTH_PX = 176;
+
+/**
  * How tall the pinned phone bar is.
  *
  * ONE OWNER, for the same reason as the breakpoint above. The bar is
@@ -453,6 +463,35 @@ export interface WMOperatingSystemProps {
    * lower one's content while looking perfectly fine in a screenshot.
    */
   readonly field?: "frame" | "caller";
+  /**
+   * Whether the rooms rail starts OPEN.
+   *
+   * ── WHY A ROOM GETS AN OPINION ABOUT THIS ────────────────────────────────
+   *
+   * The rail is permanent chrome: twenty-one doors, a workspace block and the
+   * standing conditions, {@link OS_RAIL_WIDTH_PX}px wide, on every route at
+   * every moment. On a REFLECTION surface that is correct — the whole job is
+   * choosing where to go next.
+   *
+   * On the instrument view it is the mall standing in front of the market.
+   * Measured on the live build at 1920x840 with the rail open, the chart canvas
+   * was 1388x596 = 51.3% of the viewport, and the rail was holding the largest
+   * single block of width that was not price.
+   *
+   * So the frame keeps owning the rail — this is not a room drawing its own
+   * navigation — and simply accepts one bit from the room about whether the
+   * doors should be in front of the trader before they have asked for a door.
+   *
+   * CLOSED IS NOT GONE. The toggle is always rendered, always labelled, always
+   * keyboard-reachable, and carries `aria-expanded`. Nothing is buried; the
+   * trader is one click from every room they had before.
+   *
+   * Deliberately NOT persisted to localStorage. A first render that depends on
+   * browser storage is the exact shape of the five separate React #418
+   * hydration defects this codebase has already paid for. The room's answer is
+   * deterministic on both sides of the wire.
+   */
+  readonly railDefaultOpen?: boolean;
   readonly children: React.ReactNode;
 }
 
@@ -471,8 +510,18 @@ export function WMOperatingSystem({
   asOfLabel = null,
   contextRail,
   field = "frame",
+  railDefaultOpen = true,
   children,
 }: WMOperatingSystemProps): React.ReactElement {
+  // The room's opinion SEEDS the rail; the trader's click OWNS it from then on.
+  // Keyed on the default so that crossing from a rail-open room into the
+  // instrument view re-seeds rather than carrying the mall in with it.
+  const [railOpen, setRailOpen] = React.useState(railDefaultOpen);
+  const seededDefault = React.useRef(railDefaultOpen);
+  if (seededDefault.current !== railDefaultOpen) {
+    seededDefault.current = railDefaultOpen;
+    setRailOpen(railDefaultOpen);
+  }
   // Compiled ONCE. The rail and the provenance bar both read this array; two
   // independently-typed copies of one reading is how a screen ends up
   // disagreeing with itself.
@@ -595,6 +644,41 @@ export function WMOperatingSystem({
           {mastheadCaption}
         </div>
 
+        {/* THE RAIL'S OWN CONTROL, DRAWN BY THE RAIL'S OWNER.
+            It sits immediately after identity — leading edge, above the rail
+            it opens — so the relationship between the button and the column is
+            spatial rather than something a trader has to learn. */}
+        <button
+          type="button"
+          data-testid="os-rail-toggle"
+          onClick={() => setRailOpen((open) => !open)}
+          aria-expanded={railOpen}
+          aria-controls="wm-os-rail"
+          // The accessible name says what the control REACHES, not what the
+          // click does. "Collapse" tells a screen-reader user about a motion;
+          // "Rooms" tells them where the twenty-one doors are, which is the
+          // thing they would be hunting for with the rail closed.
+          aria-label="Rooms"
+          title={railOpen ? "Hide the rooms rail" : "Show the rooms rail"}
+          style={{
+            flex: "0 0 auto",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            minHeight: 32,
+            padding: "6px 10px",
+            borderRadius: 3,
+            border: `1px solid ${railOpen ? GOLD : RULE}`,
+            background: railOpen ? "rgba(196,165,116,0.10)" : "transparent",
+            color: railOpen ? GOLD : MUTED,
+            cursor: "pointer",
+            ...EYEBROW,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>{railOpen ? "◧" : "▤"}</span>
+          Rooms
+        </button>
+
         {/* An unpublished surface omits the slot ENTIRELY. "—" in a title
             position still occupies the shape of a title. */}
         {surface === null ? null : (
@@ -649,15 +733,23 @@ export function WMOperatingSystem({
           minHeight: 0,
         }}
       >
+        {/* A CLOSED RAIL RENDERS NOTHING — not a zero-width column.
+            The doors are reached through the always-present masthead toggle
+            above, which carries aria-expanded and aria-controls pointing here.
+            Below the rail breakpoint the phone bar owns navigation and this
+            column is already suppressed by the stylesheet, so the toggle only
+            governs the desktop frame. */}
+        {!railOpen ? null : (
         <nav
           className="wm-os-rail"
+          id="wm-os-rail"
           aria-label="Rooms"
           data-testid="os-rail"
           style={{
             position: "sticky",
             top: 0,
             alignSelf: "flex-start",
-            flex: "0 0 176px",
+            flex: `0 0 ${OS_RAIL_WIDTH_PX}px`,
             display: "flex",
             flexDirection: "column",
             gap: 2,
@@ -747,6 +839,7 @@ export function WMOperatingSystem({
             ))}
           </div>
         </nav>
+        )}
 
         <main
           data-testid="os-room"

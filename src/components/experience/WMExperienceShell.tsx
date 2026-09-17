@@ -15,6 +15,7 @@ import { OsStandingProvider, useOsStanding } from "@/components/os/osStandingCon
  */
 import { ShellAccessChrome } from "@/components/layout/ShellAccessChrome";
 import { usePathname } from "next/navigation";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 /**
  * WMExperienceShell — the persistent Wealth Command Environment frame
@@ -427,6 +428,11 @@ function SanctuaryRoom({
       <WMOperatingSystem
         field="caller"
         activeHref={pathname ?? ""}
+        /* THE MARKET GETS THE FIRST VIEWPORT ON THE INSTRUMENT VIEW.
+           Everywhere else the doors stay in front of the trader, because
+           everywhere else choosing where to go IS part of the job. See
+           WMOperatingSystem's railDefaultOpen for the measurement. */
+        railDefaultOpen={(pathname ?? "") !== INSTRUMENT_VIEW_ROUTE}
         surface={standing.surface}
         openEvidenceItems={standing.openEvidenceItems}
         rightOfWay={standing.rightOfWay}
