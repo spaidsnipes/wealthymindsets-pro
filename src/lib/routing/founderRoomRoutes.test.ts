@@ -69,8 +69,12 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/journal",
       "/education",
       "/proof-lane",
+      "/copy-trading",
       "/backtesting",
       "/lounge",
+      "/tv",
+      "/creator",
+      "/partnerships",
     ]);
   });
 
@@ -86,7 +90,22 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/scanner");
     expect(FOUNDER_ROOM_ROUTES).toContain("/heatmaps");
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/readiness");
-    expect(FOUNDER_ROOM_ROUTES).not.toContain("/copy-trading");
+
+    // /copy-trading USED TO BE ASSERTED OUT OF THE FAMILY HERE, and this fence
+    // is what made its promotion a conversation rather than a slip. It was
+    // looked at on 2026-09-16 and the whole room turned out to be a truthful
+    // gate — "Fictional traders removed", "Connect a real supported broker
+    // first", the state described as a measurement rather than a notice. A
+    // room that spends its entire surface refusing to invent traders is not
+    // the kind of tool this test was written to keep out.
+    expect(FOUNDER_ROOM_ROUTES).toContain("/copy-trading");
+
+    // /shop stays out, and for the strongest reason any room has had: it paints
+    // a CREAM page via its own `.wm-shop-light` theme. It is the only room in
+    // the product that declares a light theme. One OS may not contain two
+    // visual systems, and framing a light room in a dark shell would make the
+    // mismatch louder rather than quieter. See the entry in wmDestinations.ts.
+    expect(FOUNDER_ROOM_ROUTES).not.toContain("/shop");
   });
 });
 
@@ -122,7 +141,8 @@ describe("isFounderRoomRoute", () => {
     expect(isFounderRoomRoute("/charts")).toBe(true);
     expect(isFounderRoomRoute("/scanner")).toBe(false);
     expect(isFounderRoomRoute("/heatmaps")).toBe(true);
-    expect(isFounderRoomRoute("/copy-trading")).toBe(false);
+    expect(isFounderRoomRoute("/copy-trading")).toBe(true);
+    expect(isFounderRoomRoute("/shop")).toBe(false);
     expect(isFounderRoomRoute("/profile")).toBe(false);
     expect(isFounderRoomRoute("/login")).toBe(false);
     expect(isFounderRoomRoute("/readiness")).toBe(false);

@@ -116,8 +116,16 @@ export default function CopyTradingPage() {
       }}
     >
       <div className="mx-auto max-w-5xl" style={{ padding: "24px clamp(16px, 4vw, 32px)" }}>
-        {/* Header — WM atmosphere */}
-        <header
+        {/*
+          Header — WM atmosphere.
+
+          ONE ROOM, ONE LANDMARK: this is a div, not a header. On promotion to
+          the Founder family this room is rendered inside WMOperatingSystem,
+          which already draws the masthead landmark around it. A second one is
+          how the second shell grew last time. The div keeps every pixel and
+          gives the landmark back its single owner.
+        */}
+        <div
           style={{
             borderRadius: 14,
             border: `1px solid ${WM.border.line}`,
@@ -189,7 +197,7 @@ export default function CopyTradingPage() {
               )}
             </p>
           )}
-        </header>
+        </div>
 
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           <section className="rounded-3xl border border-wm-red/25 bg-wm-red/5 p-6">

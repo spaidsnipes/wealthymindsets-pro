@@ -171,7 +171,11 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // LOOKED AT 2026-09-16: the most on-canon of the cleared rooms — gold on
   // obsidian throughout, pace table and challenge lab both legible.
   { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "os" },
-  { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16 (static first paint, see header). The whole room is a
+  // truthful gate — "Fictional traders removed", "Connect a real supported
+  // broker first", and the state read from /api/broker/status described as "a
+  // measurement, not a notice". On-canon, and the honesty is the content.
+  { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "os" },
   // LOOKED AT 2026-09-16, HELD BACK, AND THE HOLD WITHDRAWN THE SAME DAY.
   //
   // The hold said: "the room paints cyan and purple accents … those are not in
@@ -205,11 +209,44 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // correctly under the masthead with the sanctuary intact. Promoted on the
   // degradation path; the populated path has not been seen.
   { href: "/lounge", label: "Lounge", icon: Users, group: "COMMUNITY", tier: 2, frame: "os" },
-  { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16: channel guide, studio rail and the gold wordmark
+  // block all sit correctly inside the frame; obsidian and warm gold
+  // throughout.
+  { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "os" },
   { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "cleared" },
-  { href: "/creator", label: "Creator", icon: Globe, group: "COMMUNITY", tier: 2, frame: "cleared" },
-  { href: "/partnerships", label: "Partnerships", icon: Handshake, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16, and promoted only AFTER its hero band was cured. The
+  // band ended on linear-gradient(..., #050506) — the shell's own floor, laid
+  // across the top of the room. The tier cards and the "ENROLLMENT NOT
+  // CONNECTED" disclosure are on-canon.
+  { href: "/creator", label: "Creator", icon: Globe, group: "COMMUNITY", tier: 2, frame: "os" },
+  // LOOKED AT 2026-09-16: the most disciplined empty state in the product.
+  // "No verified partners published yet" and "Rather than send you to a room
+  // that is not there, this page says so." Nothing is invented to fill space.
+  { href: "/partnerships", label: "Partnerships", icon: Handshake, group: "COMMUNITY", tier: 2, frame: "os" },
+  // LOOKED AT 2026-09-16 and HELD BACK — and this hold was checked against the
+  // OS before it was written, which is the lesson /backtesting taught the same
+  // day.
+  //
+  // /shop paints a CREAM PAGE. It declares its own `.wm-shop-light` theme
+  // (page.tsx:186) and renders white cards on a light field inside an OS that
+  // is obsidian everywhere else. This is the one room in the product that does
+  // that: a grep for `wm-light` across src/app/*/page.tsx returns NOTHING but
+  // the global toggle in MainLayout:225. So unlike the /backtesting hold, this
+  // is not my taste disagreeing with a shipped pattern — it is a genuine
+  // second visual system, and one OS may not contain two.
+  //
+  // Promoting it would frame a light room in a dark shell, which is worse than
+  // leaving it "cleared": the sanctuary would be visible around its edges,
+  // making the mismatch louder rather than quieter. The decision this needs is
+  // the Founder's (is the Marketplace deliberately a different world?), not a
+  // frame flag.
   { href: "/shop", label: "Shop", icon: ShoppingBag, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16 and NOT PROMOTED, for a reason that is about the
+  // LOOKING rather than the room: /profile renders its body inside a
+  // React.Suspense boundary (page.tsx:104), so static first paint shows an
+  // empty room. Nothing is wrong with it — the harness simply cannot see it.
+  // It stays "cleared" for the same reason /ai-bot, /news, /scanner and /radio
+  // do: not because it failed, but because nobody has seen it.
   { href: "/profile", label: "Profile", icon: User, group: "COMMUNITY", tier: 2, frame: "cleared" },
 ];
 
