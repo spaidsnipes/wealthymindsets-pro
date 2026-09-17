@@ -58,6 +58,7 @@ import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosur
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
+import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -7411,11 +7412,35 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
              The value stays (it is where the market is on this timeframe right
              now); only the word is graded. See selectChartCloseLabel. */
           const closeWord = selectChartCloseLabel(last.time as number, timeframe, nowMs);
+          /* MEASURED LIVE 2026-09-17, NQ1! 30m, straight out of the DOM:
+               O 29693.25  H 29693.25  L 29693.25  NOW 29693.25  V 0
+             `H` is painted in the high colour and `L` in the low colour —
+             those two cells are this strip's answer to "how far did price
+             travel inside this bar" — while the volume cell three elements to
+             their right says the record holds ZERO trades. One number carried
+             in from before the bar began, retyped four times in three colours,
+             three of them asserting a measurement the fourth disproves.
+             chartBarRangeFact is the owner of whether those cells may be
+             drawn; it refuses only when volume AND range are BOTH empty, so a
+             feed that simply does not report volume keeps its real extremes. */
+          const rangeFact = chartBarRangeFact(last, timeframe);
           return (
             <div className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim">
-              <span>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
-              <span>H <span className="text-wm-green">{last.high.toFixed(dp)}</span></span>
-              <span>L <span className="text-wm-red">{last.low.toFixed(dp)}</span></span>
+              {rangeFact.measured ? (
+                <>
+                  <span>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
+                  <span>H <span className="text-wm-green">{last.high.toFixed(dp)}</span></span>
+                  <span>L <span className="text-wm-red">{last.low.toFixed(dp)}</span></span>
+                </>
+              ) : (
+                <span
+                  data-bar-range-kind={rangeFact.kind}
+                  title={rangeFact.title}
+                  className="text-wm-text-dim"
+                >
+                  {rangeFact.text}
+                </span>
+              )}
               <span
                 title={closeWord.title}
                 className={closeWord.forming ? "text-wm-gold/80" : undefined}
