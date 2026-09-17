@@ -166,9 +166,61 @@ the Founder's own Chrome. Sentinels CI on `9c16ee04`: success.
 ENTER moves the depth. RETURN restores the exact prior Room state. The trader's
 own tab press survives parent re-renders. Page left on a clean `/command-deck`.
 
+## Addendum — `9b8f4b63`: the ENTER audit, and what it found instead
+
+Having fixed ENTER for one tenant, the obvious question was whether the other
+five were carrying the same defect. So all six were walked on prod and their
+drawer text compared byte-for-byte against their full-screen text, with the
+stage-button labels normalised out.
+
+| tenant | drawer | full | deepens |
+| --- | --- | --- | --- |
+| market-reality | 719 | 846 | ✅ |
+| market-object-passport | 1084 | 1698 | ✅ |
+| **decision-chain** | **1388** | **1388** | **identical** |
+| **behaviour-mirror** | **157** | **157** | **identical** |
+| **personal-edge** | **76** | **76** | **identical** |
+| learning-genome | 259 | 278 | ✅ |
+
+Three identical. The tempting move was to call that three more defects. It is
+not, and the difference matters:
+
+- **`decision-chain`** — `hintCap = unabridged ? Infinity : 3` caps HINTS, not
+  chain nodes. Counted live: the whole chain carried **two** hint chips, both on
+  one node. A cap of three never bites at two.
+- **`personal-edge`** — live text: *"No decisions on record yet — your edge
+  cannot be measured from nothing. 0 strength · 0 to watch · 0 decisions."*
+- **`behaviour-mirror`** — live text: *"The Mirror reflects a session you have
+  finished. Move to REVIEW or POST-EXIT and it will have something to show you."*
+
+All three are honest. **The wiring was right; there was nothing deeper to show.**
+
+### What was actually wrong was the INSTRUMENT
+
+Answering that question at all required asking each panel what it was
+withholding. Four components cap under `unabridged`; two of them —
+`MarketCanvasPanel`'s unresolved and cleared ledgers — drew their `+K more`
+remainder with **no attribute on it**. The disclosure existed for a human reading
+the screen and did not exist for anyone auditing it, so from the outside
+"withholding nothing" and "withholding silently" look the same. That ambiguity is
+precisely the cover ENTER-is-only-a-resize hid under.
+
+`everyCapAccountsForItself.sentinel.test.ts` now enforces three things over every
+`unabridged ? Number.POSITIVE_INFINITY : N` in `src/`: the cap must actually
+slice something, its file must render a `data-…-withheld` marker, and the scan
+must find at least four caps — so a renamed house pattern fails loudly instead of
+passing over an empty list. Probed red three ways.
+
+### Open Founder question, NOT rush-wired
+
+Pressing ENTER on a panel with nothing deeper is a silent no-op: full screen,
+same words, no explanation. Suppressing or labelling that door would require the
+ROOM to know what the EQUIPMENT contains — which is the second semantic brain the
+grammar bans by name. Left as a decision, not a fix.
+
 ## Gates
 
-`TSC_EXIT=0` · `VITEST_EXIT=0` · **696 files / 8540 passed, 1 skipped** (from
+`TSC_EXIT=0` · `VITEST_EXIT=0` · **697 files / 8543 passed, 1 skipped** (from
 695 / 8535 at `88ed1751`).
 
 ## Carried forward
