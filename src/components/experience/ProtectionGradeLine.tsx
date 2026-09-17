@@ -7,6 +7,7 @@ import {
   type ProtectionGrade,
   type ProtectionState,
 } from "@/lib/protectionState";
+import { selectProtectionCoverageBar } from "@/lib/protectionCoverageBar";
 
 /**
  * ProtectionGradeLine — §7's grade for the POSITION BOOK.
@@ -99,6 +100,12 @@ export function ProtectionGradeLine({
 }: ProtectionGradeLineProps): React.ReactElement {
   const isAbsence = state.grade === "FLAT";
   const detail = GRADE_DETAIL[state.grade];
+  /**
+   * "PROTECTED 2 UNPROTECTED 1" and "PROTECTED 1 UNPROTECTED 2" are one
+   * character apart on a line whose entire subject is how much size is exposed.
+   * The track ranks them. Same three numbers, no second arithmetic.
+   */
+  const coverage = selectProtectionCoverageBar(state);
 
   return (
     <section
@@ -159,6 +166,49 @@ export function ProtectionGradeLine({
       >
         {state.sentence}
       </span>
+
+      {/* §9 — "No green shield. No green means safe." Covered size is restrained
+          ivory FACT and uncovered size is the loud brass, which is the only
+          direction this line is allowed to shout in: a working stop can gap, so
+          coverage is never drawn as reassurance, while exposure is drawn as the
+          finding it is. An unverified read is hatched rather than solid —
+          certainty must not increase because a bar looks tidy. */}
+      {coverage ? (
+        <span
+          data-testid="protection-coverage-bar"
+          data-uncovered-pct={Math.round(coverage.uncoveredPct)}
+          data-stale={coverage.stale ? "true" : undefined}
+          aria-hidden="true"
+          style={{
+            display: "flex",
+            flex: "0 0 120px",
+            height: 6,
+            borderRadius: 1,
+            overflow: "hidden",
+            boxShadow: "inset 0 0 0 1px rgba(139,106,41,0.30)",
+            opacity: coverage.stale ? 0.55 : 1,
+          }}
+        >
+          <span
+            data-testid="protection-coverage-covered"
+            style={{
+              width: `${coverage.protectedPct}%`,
+              background: coverage.stale
+                ? "repeating-linear-gradient(135deg, rgba(237,230,211,0.45) 0 2px, transparent 2px 4px)"
+                : "rgba(237,230,211,0.55)",
+            }}
+          />
+          <span
+            data-testid="protection-coverage-uncovered"
+            style={{
+              width: `${coverage.uncoveredPct}%`,
+              background: coverage.stale
+                ? "repeating-linear-gradient(135deg, rgba(201,165,92,0.80) 0 2px, transparent 2px 4px)"
+                : "rgba(201,165,92,0.85)",
+            }}
+          />
+        </span>
+      ) : null}
 
       <span
         data-testid="protection-grade-detail"
