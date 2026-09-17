@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { formatOptionNumber } from "@/lib/optionCellFormat";
+import { selectExpressionQuoteBar } from "@/lib/expressionQuoteBar";
 import { readOptionsResponse, optionContractObservationTiming, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 import type { OptionContract } from "@/lib/optionContractResponse";
 import {
@@ -235,6 +236,13 @@ export function ShortlistTile({ slot, onClick, nowMs }: { slot: ShortlistSlot; o
   const c = slot.contract;
   const timing = c ? optionContractObservationTiming(c, nowMs) : null;
   const label = shortlistJobLabel(slot.job);
+  /**
+   * "bid 1.20 · ask 1.85" states the cost of crossing and shows it to nobody.
+   * Three tiles of adjacent decimals do not rank; a proportion does. Compiled,
+   * never measured here — and null whenever a side was not observed, in which
+   * case the mono line below keeps saying "not observed" in words.
+   */
+  const quote = selectExpressionQuoteBar(c);
   return (
     <button
       type="button"
@@ -271,6 +279,46 @@ export function ShortlistTile({ slot, onClick, nowMs }: { slot: ShortlistSlot; o
           <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, monospace", color: "#8a8271", letterSpacing: 0.2 }}>
             bid {formatOptionNumber(c.bid ?? null, 2)} · ask {formatOptionNumber(c.ask ?? null, 2)} · last {formatOptionNumber(c.last ?? null, 2)}
           </span>
+
+          {/* THE GAP, AT SCALE. The ivory share is the part of the ask the book
+              would give straight back; the brass share is what crossing costs
+              before the thesis is tested at all. No verdict is drawn — §8 bans
+              prophecy and a WIDE badge is prophecy with a shorter word — and no
+              green appears, because a tight book is not a safe trade. */}
+          {quote && (
+            <span
+              data-testid="expression-quote-bar"
+              data-spread-pct={Math.round(quote.spreadPctOfAsk)}
+              aria-hidden="true"
+              style={{
+                display: "flex",
+                width: "100%",
+                height: 5,
+                borderRadius: 1,
+                overflow: "hidden",
+                boxShadow: "inset 0 0 0 1px rgba(139,106,41,0.30)",
+              }}
+            >
+              <span
+                data-testid="expression-quote-held"
+                style={{ width: `${quote.bidPctOfAsk}%`, background: "rgba(237,230,211,0.55)" }}
+              />
+              <span
+                data-testid="expression-quote-gap"
+                style={{ width: `${quote.spreadPctOfAsk}%`, background: "rgba(201,165,92,0.85)" }}
+              />
+            </span>
+          )}
+          {quote && (
+            <span
+              data-testid="expression-quote-caption"
+              style={{ fontSize: 11, letterSpacing: 0.2, color: "#8a8271", lineHeight: 1.45 }}
+            >
+              Crossing costs {formatOptionNumber(quote.spread, 2)} of the{" "}
+              {formatOptionNumber(quote.ask, 2)} ask — {Math.round(quote.spreadPctOfAsk)}% of what
+              you pay, given up on entry. Reference book, not a fill.
+            </span>
+          )}
         </>
       ) : (
         <span style={{ fontSize: 11, fontStyle: "italic", color: "#8a8271" }}>
