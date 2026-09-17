@@ -21,6 +21,8 @@ import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
 import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
+import { selectAbsorption } from "@/lib/marketData/viewModels/selectAbsorption";
+import AbsorptionAnatomyPanel from "@/components/experience/AbsorptionAnatomyPanel";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -344,6 +346,18 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
    */
   const valueCandle = React.useMemo(
     () => selectValueCandle(realTape ? recentTicks : null),
+    [realTape, recentTicks],
+  );
+
+  /**
+   * Absorption anatomy. Unlike the value candle, this one DOES need aggressor
+   * sides — "buyer effort" is a claim about who initiated — so the `realTape`
+   * gate is load-bearing rather than merely consistent. The selector composes
+   * the flow owner and the value candle owner itself; this panel hands it the
+   * same tick array both of those already read and adds no third source.
+   */
+  const absorption = React.useMemo(
+    () => selectAbsorption(realTape ? recentTicks : null),
     [realTape, recentTicks],
   );
 
@@ -879,6 +893,18 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           synthesised profile, and `null` (not zero) when nothing traded. */}
       <div className="mx-2 my-1.5 shrink-0">
         <ValueCandlePanel vm={valueCandle} symbol={symbol} window="session tape" />
+      </div>
+
+      {/* ── ABSORPTION ANATOMY — effort against response ─────────────────────
+          The third question this one tape can settle, and the only one of the
+          three that needs to know WHO INITIATED. The bubbles show aggression by
+          level and the value candle shows where price agreed to trade; this
+          puts the two halves in one frame and asks whether the side that spent
+          effort was paid for it. It is placed directly beneath the candle
+          because it reuses that candle's spread as its scale — reading them
+          adjacently is reading one measurement, not two. */}
+      <div className="mx-2 my-1.5 shrink-0">
+        <AbsorptionAnatomyPanel vm={absorption} symbol={symbol} window="session tape" />
       </div>
 
       {/* CLC Summary Card — Context / Location / Confirmation.
