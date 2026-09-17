@@ -96,6 +96,7 @@ import {
 } from "@/lib/bigTradeLevels";
 import { describeBubbleClaim } from "@/lib/bubbleClaim";
 import { bigTradeBubbleRadius, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
+import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
 // Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
@@ -4997,7 +4998,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             });
           });
         }
-        if (deltaBubbleSpawnRef.current.size > 400) deltaBubbleSpawnRef.current = new Set();
+        // Eviction is a consequence of a bubble LEAVING (see the off-screen
+        // delete below), never of a counter tripping. The old line here
+        // replaced this set with an empty one on a size trip, which re-admitted
+        // every zone still on screen and drew a second disc on top of the first.
+        deltaBubbleSpawnRef.current = compactSpawnKeys(deltaBubbleSpawnRef.current, deltaBubblesRef.current);
 
         const nowDelta = performance.now();
         for (const b of deltaBubblesRef.current) {
@@ -5501,8 +5506,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         }
 
-        // Keep the dedupe set from growing unbounded
-        if (bubbleSpawnRef.current.size > 400) bubbleSpawnRef.current = new Set();
+        // Keep the dedupe set bounded WITHOUT dropping a key a live bubble is
+        // holding — the same defect the delta path carried. See
+        // src/lib/bubbleSpawnCache.ts for the measured failure.
+        bubbleSpawnRef.current = compactSpawnKeys(bubbleSpawnRef.current, bubblesRef.current);
 
         // ── Pass B: update + draw all active bubbles (🫧 hover at key levels) ──
         const nowMs = performance.now();
