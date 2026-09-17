@@ -79,6 +79,42 @@ function suppliedLevels(levels: SemanticZoomLevels): readonly SemanticZoomLevel[
   );
 }
 
+/**
+ * THE STAGE-CHANGE DECISION, LIFTED OUT WHERE A TEST CAN WATCH IT.
+ *
+ * Returns the level the view should snap to because the CALLER asked for a new
+ * starting depth, or `null` to leave the trader's current choice alone.
+ *
+ * This is a separate function for one reason: there is no jsdom in this repo,
+ * so component tests use `renderToStaticMarkup`, which mounts fresh on every
+ * call and is therefore structurally incapable of observing a prop that CHANGED
+ * BETWEEN RENDERS. That blindness is not hypothetical — it is exactly how the
+ * live "ENTER is only a resize" defect got past a green test file. A pure
+ * function takes the previous request as an argument instead of reading it from
+ * a ref, so a test can play a sequence of renders by hand and assert on each
+ * step, which is the thing the rendering path cannot do here.
+ *
+ * The three refusals, in the order they matter:
+ *   - no `requested` at all → the caller is not steering; never move.
+ *   - `requested` unchanged since last time → this is an ordinary parent
+ *     re-render, NOT a stage change. Moving here would spring the zoom control
+ *     back on top of the trader's own tab press and make it unusable.
+ *   - `requested` not among the supplied levels → the caller is asking for a
+ *     depth this content does not have; showing some other level would be
+ *     answering a question that was not asked.
+ */
+export function stageChangeLevel(args: {
+  readonly requested: SemanticZoomLevel | undefined;
+  readonly lastRequested: SemanticZoomLevel | undefined;
+  readonly available: readonly SemanticZoomLevel[];
+}): SemanticZoomLevel | null {
+  const { requested, lastRequested, available } = args;
+  if (requested === undefined) return null;
+  if (requested === lastRequested) return null;
+  if (!available.includes(requested)) return null;
+  return requested;
+}
+
 export function SemanticZoom({
   levels,
   ariaLabel,
@@ -102,6 +138,51 @@ export function SemanticZoom({
     // pass a fresh (but shape-equal) `levels` object each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [available.join(",")]);
+
+  /**
+   * A CHANGED `defaultLevel` IS A STAGE CHANGE, AND IT MUST MOVE THE VIEW.
+   *
+   * `defaultLevel` above is the initial value of `useState`, which means it is
+   * read exactly once per MOUNT. That is correct for every caller that passes a
+   * constant. It was silently wrong for the first caller that changes it while
+   * the component stays mounted.
+   *
+   * FOUND IN THE LIVE PRODUCT, NOT IN A TEST. The WORKSPACE grammar's sixth
+   * tenant opens the learning genome docked at L1 and passes `defaultLevel={3}`
+   * when the trader presses ENTER. The panel is not remounted between those two
+   * stages, so the prop changed and nothing happened: ENTER went full-screen
+   * still showing L1. That is precisely the "ENTER is only a resize" failure the
+   * grammar exists to prevent, arriving through the one door that was not a
+   * source scan. A `renderToStaticMarkup` test cannot catch it, because that
+   * mounts fresh on every render and so can never observe the second one.
+   *
+   * WHY A REF AND NOT A PLAIN EFFECT ON `defaultLevel`. Snapping whenever the
+   * prop is merely PRESENT would overwrite the trader's own tab press on every
+   * parent re-render — the zoom control would spring back and the manual choice
+   * would be unusable. This fires only on the EDGE: the value the caller asks
+   * for actually changed since last time. Inside a stage the trader is free to
+   * pick any level and keep it; crossing into another stage moves them, which is
+   * the caller stating a new starting depth rather than fighting the user for
+   * the current one.
+   *
+   * Callers passing a constant are unaffected — the ref never differs, so this
+   * effect never runs a second time for them.
+   */
+  const lastRequested = React.useRef(defaultLevel);
+  React.useEffect(() => {
+    const next = stageChangeLevel({
+      requested: defaultLevel,
+      lastRequested: lastRequested.current,
+      available,
+    });
+    // The request is RECORDED even when it is refused, so a depth this content
+    // does not carry is asked for once and then stops being an edge.
+    if (defaultLevel !== undefined) lastRequested.current = defaultLevel;
+    if (next === null) return;
+    setLevel(next);
+    onLevelChange?.(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultLevel]);
 
   if (available.length === 0) return null;
 
