@@ -89,7 +89,27 @@ export interface MarketState {
   source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "moomoo" | "longbridge" | "webull" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
   tapeSource:  ProviderTapeSource | null;
-  latency:     number; // ms to last update
+  /* OBSERVED PROVIDER DELAY, IN MILLISECONDS — how far behind the print's own
+     timestamp we were when we accepted it. NOT the gap between our repaints.
+
+     This field used to mean two different things depending on which writer
+     touched it last. `flush()` published `Date.now() - lastUpdateRef.current`,
+     the interval between our own two RAF flushes, while the unsigned-observation
+     path published `Date.now() - event.timestamp`, a real provider→us delay.
+     One name, one label in the UI, two subjects — and the RAF reading is not a
+     property of the market at all: backgrounded tabs throttle RAF, so /ai-bot
+     was observed printing `LATENCY 295822 ms` on a healthy Coinbase socket
+     purely because the tab had been left in the background.
+
+     `marketMonitorFacts.monitorLatencyFact` renders this under a sentence that
+     promises "round-trip latency WM measured on its own socket" — a claim about
+     the LINK. So the link is what it now measures, from both writers.
+
+     0 is the "not measured" sentinel, never a reading: it is the mount value and
+     the symbol-change reset, and a genuine instantaneous link is not a thing WM
+     is willing to assert. Undated prints leave the previous value standing
+     rather than inventing one. */
+  latency:     number;
   /**
    * SF-D01 — WHY the REST quote provider's answer was not accepted, in the
    * endpoint's own words, or null when there is nothing to explain.
@@ -1045,9 +1065,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const retryCount = useRef(0);
   const cleanupFns = useRef<Array<() => void>>([]);
 
-  // Latency tracking
-  const lastUpdateRef = useRef(Date.now());
-
   const tapeSourceRef = useRef<MarketState["tapeSource"]>(null);
 
   /* Hot-path home for MarketState.lastObservedAtMs. processTick runs per print
@@ -1089,8 +1106,20 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const last  = ticks[ticks.length - 1];
     const price = last.price;
     const now   = Date.now();
-    const latency = now - lastUpdateRef.current;
-    lastUpdateRef.current = now;
+    // Measured against the PRINT'S OWN timestamp, matching the only other writer
+    // of this field and matching the sentence the UI prints beneath it. The old
+    // `now - lastUpdateRef.current` measured the gap between our own two RAF
+    // flushes, which is a fact about this tab's repaint cadence — it reported
+    // six-figure millisecond "latency" on a perfectly live socket the moment the
+    // tab was backgrounded and RAF throttled.
+    //
+    // `undefined` when the print carries no usable timestamp: the honest move is
+    // to leave the last real measurement standing rather than to manufacture one
+    // out of our own clock. Clamped at 0 so a provider clock slightly ahead of
+    // ours cannot publish a negative delay.
+    const latency = Number.isFinite(last.time) && last.time > 0
+      ? Math.max(0, now - last.time)
+      : undefined;
 
     setState(prev => {
       const newVol = prev.ticker.volume + ticks.reduce((s, t) => s + t.size, 0);
@@ -1116,7 +1145,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         recentTicks: [...ticks, ...prev.recentTicks].slice(0, 50),
         orderBook:   bookRef.current,
         connected:   true,
-        latency,
+        // Carried forward, not zeroed: 0 is this field's "never measured"
+        // sentinel, so an undated print must not be able to erase a real reading.
+        latency:     latency ?? prev.latency,
         lastObservedAtMs: lastObservedAtRef.current,
       };
     });

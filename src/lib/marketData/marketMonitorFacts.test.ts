@@ -149,11 +149,28 @@ describe("monitorLatencyFact", () => {
   });
 
   it("× THE FABRICATED ZERO: an unmeasured latency must not print 0 ms", () => {
-    for (const bad of [Number.NaN, null, -5, "42"]) {
+    // `0` itself was missing from this list, which is why the guard was able to
+    // sit at `>= 0` — one line above a sentence promising WM would never print a
+    // zero — without a single test noticing. It is the FIRST entry now: 0 is
+    // `useWebSocket`'s literal "never measured" sentinel (mount value and
+    // symbol-change reset), so admitting it printed the most flattering possible
+    // number at the moment WM knew the least.
+    for (const bad of [0, Number.NaN, null, -5, "42"]) {
       const f = monitorLatencyFact("OBSERVED", bad, "NVDA");
       expect(f.text).not.toMatch(/^0 ms$/);
       expect(f.measured).toBe(false);
     }
+  });
+
+  it("the refusal of zero is stated in the code, not only in the prose beside it", () => {
+    // The function's own unmeasured-branch sentence is the claim; this is the
+    // guard that has to back it. Pinned because the two disagreed in shipped
+    // code: the prose said "WM will not print a zero here", the guard said
+    // `latencyMs >= 0`.
+    const src = readFileSync(join(process.cwd(), "src/lib/marketData/marketMonitorFacts.ts"), "utf8");
+    expect(src).toMatch(/latencyMs > 0/);
+    expect(src).not.toMatch(/latencyMs >= 0/);
+    expect(monitorLatencyFact("OBSERVED", 0, "NVDA").reason).toMatch(/instantaneous link/i);
   });
 
   it("a live socket with no latency reading differs from having no socket", () => {
@@ -349,5 +366,54 @@ describe("/ai-bot page", () => {
 
   it("× THE RESIDUE: no cell in the monitor renders a bare em dash", () => {
     expect(code).not.toMatch(/[:?]\s*"—"/);
+  });
+});
+
+describe("× ONE FIELD, ONE SUBJECT — what `latency` is allowed to measure", () => {
+  const WS_RAW = readFileSync(join(process.cwd(), "src/hooks/useWebSocket.ts"), "utf8");
+  // Comments stripped before matching. The archaeology in that file NAMES the
+  // removed mechanism so the next reader knows why it is gone — a scan over the
+  // raw text would read that explanation as the defect itself and force the
+  // record to be deleted to make the rule pass. Rules that punish written-down
+  // history get the history erased.
+  const WS = WS_RAW.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+  it("no writer of `latency` measures the gap between our own repaints", () => {
+    // THE MEASURED DEFECT. `state.latency` had two writers that meant different
+    // things. The RAF flush published `Date.now() - lastUpdateRef.current` — the
+    // interval between our own two flushes — while the unsigned-observation path
+    // published `Date.now() - event.timestamp`, a real provider→us delay. Both
+    // surfaced through `monitorLatencyFact`, under one label, beneath a sentence
+    // promising "round-trip latency WM measured on its own socket".
+    //
+    // The RAF reading is not a property of the market at all. Backgrounded tabs
+    // throttle requestAnimationFrame, so /ai-bot was observed rendering
+    // `LATENCY 295822 ms` on a live, healthy Coinbase socket — five minutes of
+    // "delay" that was entirely our own tab being out of focus. Foregrounding it
+    // dropped the same cell to 216 ms without anything changing at the exchange.
+    //
+    // Pinned to the ABSENCE of the ref rather than to a spelling of the cure, so
+    // reintroducing the clock-difference reading under any new name still fails.
+    expect(WS).not.toMatch(/lastUpdateRef/);
+  });
+
+  it("every `latency` written into state is derived from a print's own timestamp", () => {
+    // Trailing comma required: that is a state-object WRITE. The interface's
+    // `latency: number;` is a declaration, not a writer.
+    const writes = [...WS.matchAll(/^\s*latency:\s*(.+),\s*$/gm)].map(m => m[1].trim());
+    expect(writes.length).toBeGreaterThanOrEqual(3);
+    for (const w of writes) {
+      // Either the "never measured" sentinel, a carry-forward of an earlier real
+      // measurement, or a difference against an event/print time. Never a
+      // difference against one of our own previous wall-clock samples.
+      expect(w).toMatch(/^0$|latency \?\? prev\.latency|Math\.max\(0, now - (time|last\.time)\)/);
+    }
+  });
+
+  it("an undated print leaves the last real measurement standing rather than zeroing it", () => {
+    // 0 is the sentinel for "never measured", so publishing it after a real
+    // reading would be a downgrade disguised as a measurement — and with the
+    // tightened guard it would render "Not measured" over a working socket.
+    expect(WS).toMatch(/latency:\s*latency \?\? prev\.latency/);
   });
 });

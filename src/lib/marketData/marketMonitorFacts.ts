@@ -161,7 +161,16 @@ export function monitorLatencyFact(
   latencyMs: unknown,
   symbol: string,
 ): MonitorFact {
-  if (state === "OBSERVED" && finite(latencyMs) && latencyMs >= 0) {
+  // `> 0`, not `>= 0`, because the sentence in the OTHER branch below already
+  // committed WM to refusing zero — "zero milliseconds would be a claim of an
+  // instantaneous link" — while this guard was quietly admitting it. The two
+  // statements were in the same function and disagreed.
+  //
+  // 0 is also the literal sentinel `useWebSocket` uses for "never measured": it
+  // is the mount value and the symbol-change reset. Admitting it here would have
+  // printed "0 ms" — the most flattering possible latency — at the exact moment
+  // WM knew the least.
+  if (state === "OBSERVED" && finite(latencyMs) && latencyMs > 0) {
     return {
       text: `${Math.round(latencyMs)} ms`,
       state,
