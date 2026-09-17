@@ -106,6 +106,11 @@ import {
   vpLabelFits,
   vpRowRect,
 } from "@/lib/vpDrawGeometry";
+// …and vpRenderReceipt owns WHETHER THE PIXELS ARRIVED. The two modules above
+// are pure and cannot know whether the draw loop ran; every one of drawWMVP's
+// five declines used to vanish into a void return.
+import { compileVpRenderReceipt } from "@/lib/vpRenderReceipt";
+import type { VpColumnAttempt, VpDeclineReason } from "@/lib/vpRenderReceipt";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
@@ -5634,12 +5639,25 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
       ══════════════════════════════════════════════════════ */
-      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1) {
-        if (!barsToUse.length || !ctx) return;
+      /*
+        RETURNS ITS OUTCOME, instead of returning `undefined` into a void.
+
+        Five of the guards below are DECLINES: the profile was requested and no
+        histogram was produced. Each used to be a bare `return`, so the toolbar
+        toggle stayed lit over an empty right-hand lane with nothing anywhere
+        saying which of the five had happened — or that anything had. Named
+        reasons are compiled into a receipt by src/lib/vpRenderReceipt.ts and
+        stamped onto the overlay canvas by runWMVP. §5 SYSTEM TRUTH LAW.
+      */
+      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1): { declined: VpDeclineReason | null; rows: number } {
+        // `rows` is incremented at the one place a row is actually painted, so
+        // the count is of pixels committed and not of buckets considered.
+        let rowsPainted = 0;
+        if (!barsToUse.length || !ctx) return { declined: "NO_BARS", rows: 0 };
         // Dynamic tick size: ~25 rows so each bar is tall and clearly readable
         const priceRange = barsToUse.reduce((r, b) => ({ hi: Math.max(r.hi, b.high), lo: Math.min(r.lo, b.low) }), { hi: -Infinity, lo: Infinity });
         const rawRange = priceRange.hi - priceRange.lo;
-        if (rawRange <= 0) return;
+        if (rawRange <= 0) return { declined: "FLAT_RANGE", rows: 0 };
         // ── STABLE, DATA-ANCHORED, FINE-GRAINED bucket grid ─────────────────
         // Two properties this grid MUST have, learned the hard way:
         //
@@ -5713,7 +5731,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
          * candle direction, same 70% value area — only the geometry is corrected.
          */
         const snap = computeProfileFromBars(barsToUse, { targetRows: rows, valueAreaPct: 0.7 });
-        if (snap.rows.length === 0 || snap.totalVolume <= 0) return;
+        if (snap.rows.length === 0 || snap.totalVolume <= 0) return { declined: "NO_VOLUME", rows: 0 };
         const tickSz = snap.tickSize;
 
         // Re-key onto this renderer's grid convention (bucketIndex · tick) so the
@@ -5722,7 +5740,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const gridKey = (p: number) => Math.round(p / tickSz) * tickSz;
         const volMap = new Map<number, { up: number; down: number }>();
         for (const r of snap.rows) volMap.set(gridKey(r.price), { up: r.up, down: r.down });
-        if (volMap.size === 0) return;
+        if (volMap.size === 0) return { declined: "NO_BUCKETS", rows: 0 };
         const allPrices = Array.from(volMap.keys()).sort((a, b) => a - b);
         const pocPrice = gridKey(snap.poc);
 
@@ -5802,7 +5820,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // produce a negative right edge and paint every bar off-canvas — the
         // profile was requested, the work was done, and nothing appeared.
         const col = vpColumnLayout(W, priceScaleW, colIndex, nCols);
-        if (!col.fits) return;
+        if (!col.fits) return { declined: "NO_ROOM", rows: 0 };
         const vpW = col.width;
         const vpRight = col.right;
 
@@ -5881,6 +5899,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // draw nothing — the honest gap TradingView shows too.
           const rect = vpRowRect(yOf(price + tickSz), yOf(price), rowCap);
           if (!rect) continue; // off-screen row
+          // Counted HERE — past every `continue` — so the receipt reports rows
+          // committed to the canvas, not buckets the loop merely considered. A
+          // column whose every bucket was off-screen must report 0 and be read
+          // as declined, not as a drawn profile the trader simply cannot find.
+          rowsPainted += 1;
           const rowY = rect.y;
           const rowH = rect.height;
           const isPOC = price === pocPrice;
@@ -6031,6 +6054,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // already indicated by the highlighted toolbar toggle + its gear.)
         void labelText; void yOffset; void barColor;
         ctx.restore();
+        return { declined: null, rows: rowsPainted };
       }
 
       // Hoisted so big-trades mode can draw VP early (under the bubbles). The
@@ -6040,6 +6064,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         vpDrawn = true;
         const bothVP = fixedVPActive && sessionVPActive;
         const nVPCols = bothVP ? 2 : 1;
+        /*
+          THE RENDER RECEIPT. One entry per profile the toolbar asked for, so a
+          frame where Fixed drew and Session did not is recorded as exactly
+          that — the Founder-reported "Session VP disappeared" shape, which a
+          single did-the-VP-draw boolean cannot express.
+        */
+        const attempts: VpColumnAttempt[] = [];
         if (fixedVPActive) {
           // FULL-HISTORY source — a true FIXED profile. POC/VAH/VAL are computed from
           // the whole fetched bar set, so they DO NOT move when you scroll or zoom
@@ -6048,7 +6079,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // finer bucket grid (rows below) keeps it filled top-to-bottom even zoomed in,
           // so it no longer collapses to a stick — stability AND fill, not one or other.
           const allBars = barsRef.current;
-          drawWMVP(allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
+          attempts.push({ profile: "FIXED", ...drawWMVP(allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols) });
         }
         if (sessionVPActive) {
           // Session VP shows the CURRENT session's volume distribution. It must NOT
@@ -6070,7 +6101,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const sessionBars = selectSessionBars(allBars);
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
-          drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6);
+          attempts.push({ profile: "SESSION", ...drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6) });
+        }
+
+        /*
+          STAMPED ON THE OVERLAY CANVAS ITSELF.
+
+          The profile is painted into a canvas bitmap, so there is no element to
+          inspect and no text to read: "is the VP drawn?" has never been an
+          answerable question from outside the renderer, which is why the VP
+          render gate could only ever be closed by eye. These attributes are the
+          measurement channel — the same counts the compiler tested, published
+          on the element that holds the pixels.
+
+          Removed, not blanked, when nothing was requested. An attribute reading
+          `0` is a measurement that the VP drew nothing; its ABSENCE is the
+          statement that no profile was asked for. Those are different facts and
+          must not share an encoding.
+        */
+        const receipt = compileVpRenderReceipt(attempts);
+        // Read from the ref rather than the captured local: this runs inside a
+        // rAF callback, and the element can be gone by the time the frame
+        // lands. No element is not a decline to report — there is nothing left
+        // to report it ON — so skip rather than invent a state.
+        const ds = canvasRef.current?.dataset;
+        if (!ds) return;
+        if (receipt.requested === 0) {
+          delete ds.vpRequested; delete ds.vpDrawn; delete ds.vpDeclined;
+          delete ds.vpRows; delete ds.vpNote;
+        } else {
+          ds.vpRequested = String(receipt.requested);
+          ds.vpDrawn = String(receipt.drawn);
+          ds.vpDeclined = String(receipt.declined);
+          ds.vpRows = String(receipt.rows);
+          if (receipt.note) ds.vpNote = receipt.note;
+          else delete ds.vpNote;
         }
       }
       // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).
