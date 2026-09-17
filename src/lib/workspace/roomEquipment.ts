@@ -118,6 +118,32 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Decision chain",
       hint: "What the setup still has to satisfy before it is permitted",
     },
+    /**
+     * THE FOURTH TENANT, AND THE FIRST THAT IS NOT ABOUT THE MARKET.
+     *
+     * The three above are all compilations of the tape. A grammar that only
+     * ever carried market readings would have earned a narrower name than
+     * WORKSPACE — it would be a market-widget rail, and the half of WM Pro that
+     * is the trader's own record (journal, decisions, review) would still have
+     * no way to be picked up without travelling to another route. That is the
+     * "one route per invention" this file's header was written against, and it
+     * would have survived three tenants without anybody noticing.
+     *
+     * THE LABEL SAYS WHOSE MIRROR IT IS, for the same reason both passport
+     * entries say whose passport. The rail's ROOMS list is a list of places;
+     * "Mirror" alone would read as one more of them. "Your behaviour mirror"
+     * cannot — a room is not *yours*.
+     *
+     * THE HINT IS THE PANEL'S OWN DOCTRINE IN THE TRADER'S WORDS. Mirror
+     * REFLECTS, never diagnoses; so the hint promises a record, not a verdict.
+     * "What you did wrong" would be a diagnosis, and the product would then owe
+     * the trader a judgement it has deliberately refused to make.
+     */
+    {
+      id: "behaviour-mirror",
+      label: "Your behaviour mirror",
+      hint: "What you actually did this session, not what you meant to do",
+    },
   ],
 
   /**

@@ -30,10 +30,35 @@ export interface MirrorPanelProps {
   vm: MirrorVM;
   onDrill?: (pattern: MirrorPattern) => void;
   className?: string;
+  /**
+   * THE CAP WAS ALREADY HERE, AND IT WAS SILENT.
+   *
+   * Each pattern's `evidence` list was rendered `.slice(0, 2)` with nothing
+   * said about the rest. A trader reading "Observed · 3 of 5 followed" had no
+   * way to know a third and fourth line of their own record existed and had
+   * been dropped — and evidence is the ONE thing this panel exists to carry,
+   * because Mirror reflects and never diagnoses. A reflection that quietly
+   * withholds part of what it saw is a diagnosis wearing a reflection's label.
+   *
+   * So the slice stays, and it stops being silent: the docked view prints an
+   * accounted `+N more` and ENTER lifts the cap entirely.
+   *
+   * DEFAULTS FALSE, WHICH IS THE OPPOSITE OF `DecisionChainPanel` AND THE SAME
+   * RULE. That prop defaults TRUE because no cap existed there, so true is the
+   * value that changes nothing. Here a cap of 2 has always shipped, so FALSE is
+   * the value that changes nothing. The rule is not the literal — it is that a
+   * new prop must leave every existing mount exactly as the trader last saw it,
+   * and there are three of those (`/command-deck`, `/journal`, `/morning-prep`)
+   * that nobody asked this atom to redesign.
+   */
+  unabridged?: boolean;
 }
 
-export function MirrorPanel({ vm, onDrill, className }: MirrorPanelProps) {
+export function MirrorPanel({ vm, onDrill, className, unabridged = false }: MirrorPanelProps) {
   if (vm.patterns.length === 0) return null;
+
+  /** Infinity, not a bigger number: "as many as I was handed" is the rule. */
+  const evidenceCap = unabridged ? Number.POSITIVE_INFINITY : 2;
 
   return (
     <div
@@ -123,7 +148,13 @@ export function MirrorPanel({ vm, onDrill, className }: MirrorPanelProps) {
                 </div>
                 {p.evidence.length > 0 && (
                   <div style={{ fontSize: 10, color: "#8a8271", lineHeight: 1.5, marginTop: 6, fontStyle: "italic" }}>
-                    {p.evidence.slice(0, 2).join(" · ")}
+                    {p.evidence.slice(0, evidenceCap).join(" · ")}
+                    {p.evidence.length > evidenceCap && (
+                      <span data-mirror-evidence-withheld={p.id} style={{ color: "#55503f" }}>
+                        {" · "}
+                        {p.evidence.length - evidenceCap} more not shown here
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

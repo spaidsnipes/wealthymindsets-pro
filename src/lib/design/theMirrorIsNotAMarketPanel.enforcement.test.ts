@@ -71,16 +71,61 @@ describe("the Mirror reflects the trader, not the tape", () => {
     );
   });
 
+  /**
+   * RE-PINNED FROM "THE FIRST MOUNT'S PROPS" TO "EVERY COMPILATION ON THE PAGE".
+   *
+   * This read `deck.slice(deck.indexOf("<MirrorPanel"))` and checked the first
+   * mount's arguments for the trader's own record. That worked while there was
+   * exactly one mount and the selector was called inline inside it. Both facts
+   * changed on the same day: the Mirror became WORKSPACE equipment, so there are
+   * two mounts, and the selector was hoisted to a single `mirrorVm` memo so the
+   * two consumers could not compile the trader's behaviour twice.
+   *
+   * A first-occurrence scan does not merely miss a violation here — it inverts.
+   * With the props moved to `vm={mirrorVm}` the old assertion would have gone RED
+   * on a change that made the coupling LESS possible, and the obvious way to
+   * quiet it would have been to inline a second `selectMirror` call, which is the
+   * defect. A rule whose cheapest cure is the disease is worse than no rule.
+   *
+   * So it is re-pinned to the thing the old form was reaching for, and it is
+   * STRONGER in three ways the old one could not be:
+   *   1. EVERY `selectMirror(` call on the page is checked, not one.
+   *   2. The count is pinned at exactly one — a second brain fails even if its
+   *      arguments are impeccable, because two honest answers about the trader's
+   *      own behaviour can still disagree.
+   *   3. Every `<MirrorPanel` mount must be fed from that one call, so a mount
+   *      handed some other view model fails too.
+   */
   it("the panel's inputs are the trader's own record and nothing else", () => {
     const deck = codeOnly(read("app/command-deck/page.tsx"));
-    const call = deck.slice(deck.indexOf("<MirrorPanel"));
-    const args = call.slice(0, call.indexOf("/>"));
+
+    const calls = [...deck.matchAll(/selectMirror\(\{([\s\S]*?)\}\)/g)].map((m) => m[1]);
+    expect(
+      calls.length,
+      "the deck compiles the Mirror " +
+        `${calls.length} times — one room, one reflection. Two selectMirror calls ` +
+        "are two answers to what the trader's behaviour teaches, and they can drift.",
+    ).toBe(1);
+
+    const args = calls[0];
     expect(args).toContain("ownerId");
     expect(args).toContain("decisions: sessionDecisions");
     expect(args).toContain("nowMs");
     // If a market-shaped argument ever appears here, the coupling is back —
     // this time inside the selector call rather than in front of it.
     expect(args).not.toMatch(/chainVm|marketState|qualityState|state\?\./);
+
+    // …and every mount is fed from that single compilation.
+    const mounts = [...deck.matchAll(/<MirrorPanel([\s\S]*?)\/>/g)].map((m) => m[1]);
+    expect(mounts.length, "MirrorPanel is never mounted; this rule would pass vacuously")
+      .toBeGreaterThan(0);
+    for (const m of mounts) {
+      expect(
+        m,
+        "a MirrorPanel mount is fed something other than the room's single " +
+          "`mirrorVm` — the second brain is back, wearing a prop name",
+      ).toMatch(/vm=\{mirrorVm\}/);
+    }
   });
 
   it("the claim that selectMirror ignores the market is checked, not asserted", () => {

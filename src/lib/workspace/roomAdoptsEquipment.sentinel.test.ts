@@ -108,6 +108,34 @@ const ROOMS = [
         deps: "[chainVm, sceneCompilation]",
         depth: "DecisionChainPanel",
       },
+      /**
+       * THE FOURTH TENANT, AND THE ONE THAT TURNS THREE EXAMPLES INTO A GRAMMAR.
+       *
+       * The three above are all compilations of the tape. Until one of them was
+       * not, "equipment" and "market widget" were the same set, and nothing in
+       * this file could tell the difference. The Mirror is the trader's own
+       * record — `selectMirror` is pinned by a separate Sentinel as never
+       * reading market state at any depth — so its adoption is the evidence
+       * that the layer is about REACH, not about the tape.
+       *
+       * `deps` is `[mirrorVm, phase]` and, as with the chain, both halves are
+       * load-bearing. `phase` is what carries REVIEW/POST_EXIT — the gate
+       * `theMirrorIsNotAMarketPanel.enforcement.test.ts` states as the only
+       * moments a Mirror is not an overclaim. A descriptor that dropped it
+       * would type-check and would offer a reflection during PREPARATION, which
+       * is a claim about a session that has not happened.
+       *
+       * `reads` is `vm={mirrorVm}` rather than a `selectMirror(` call, and that
+       * is the point of this atom's other half: the room compiles the
+       * reflection ONCE and hands the same object to both consumers.
+       */
+      {
+        id: "behaviour-mirror",
+        memo: "mirrorEquipment",
+        reads: /vm=\{mirrorVm\}/,
+        deps: "[mirrorVm, phase]",
+        depth: "MirrorPanel",
+      },
     ],
   },
   {

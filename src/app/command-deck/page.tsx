@@ -891,6 +891,100 @@ function CommandDeckInner() {
   }, [chainVm, sceneCompilation]);
 
   /**
+   * THE ROOM'S SINGLE `selectMirror` CALL.
+   *
+   * It used to live inline in the JSX of the one mount that needed it. Two
+   * consumers now need the same reflection — the in-room panel and the rail's
+   * equipment — and inlining it twice would compile the trader's behaviour
+   * twice off two different clock reads. Two answers to "what does my behaviour
+   * teach me" is precisely the second semantic brain the directive bans, and it
+   * would be the worst possible place to have one, because the subject is the
+   * trader themselves rather than a market that is at least externally checkable.
+   */
+  const mirrorVm = React.useMemo(
+    () =>
+      selectMirror({
+        ownerId: user?.id ?? "",
+        decisions: sessionDecisions,
+        nowMs,
+      }),
+    [user?.id, sessionDecisions, nowMs],
+  );
+
+  /**
+   * THE MIRROR AS EQUIPMENT — the grammar's FOURTH tenant, and the first that
+   * is not about the market at all.
+   *
+   * Three tenants proved the WORKSPACE layer generalises across READINGS (market
+   * reality, an object's passport, the decision chain) and across ROOMS (the
+   * deck and /charts). All three are compiled from the tape. What was still
+   * unproven is whether the grammar carries the OTHER half of WM Pro — the
+   * trader's own record — or whether "equipment" had quietly come to mean
+   * "market widget". It carries it, and it costs one registry entry and one
+   * descriptor, exactly as the second room did.
+   *
+   * ── THE PHASE GATE TRAVELS WITH IT, AND THAT IS NOT OPTIONAL ───────────
+   * `theMirrorIsNotAMarketPanel.enforcement.test.ts` pins REVIEW and POST_EXIT
+   * as the only moments the Mirror renders, with the reason stated in the file:
+   * "A Mirror during PREPARATION would be a different overclaim." A rail entry
+   * that ignored that would be a louder second path to a claim the room has
+   * deliberately declined to make — the same failure the chain's `SceneAdmits`
+   * gate is carried for, one surface over.
+   *
+   * So the gate is INSIDE `renderDepth` and the preview says so first. In
+   * PREPARATION the verdict reads NOT YET and the headline names the moment the
+   * trader has to reach for this to mean anything. A stated "not now" is not a
+   * painted door; a rail entry that opened onto an empty frame would be.
+   *
+   * ── WHY IT IS ALSO SAFE WHEN THE PHASE IS RIGHT ────────────────────────
+   * `MirrorPanel` returns null at zero patterns — the over-correction guard the
+   * same Sentinel pins. In a drawer, null is a blank drawer, so the room renders
+   * the VM's own `reason` sentence instead. That sentence is written by
+   * `selectMirror` ("No decisions in scope — Mirror has nothing to reflect
+   * yet"), not invented here, which keeps the descriptor a READER.
+   */
+  const mirrorEquipment = React.useMemo(() => {
+    const reflecting = phase === "REVIEW" || phase === "POST_EXIT";
+    const notYet =
+      "The Mirror reflects a session you have finished. Move to REVIEW or POST-EXIT and it will have something to show you.";
+    const patterns = mirrorVm.patterns;
+    const strengths = patterns.filter((p) => p.direction === "STRENGTH").length;
+    const watches = patterns.filter((p) => p.direction === "WATCH").length;
+    const observed = patterns.filter((p) => p.evidenceClass === "OBSERVED").length;
+    return {
+      equipmentId: "behaviour-mirror",
+      title: "Your behaviour mirror",
+      verdict: !reflecting ? "NOT YET" : patterns.length === 0 ? "NOTHING YET" : "REFLECTING",
+      headline: !reflecting
+        ? notYet
+        : patterns.length === 0
+          ? (mirrorVm.reason ?? "Nothing to reflect yet.")
+          : `${patterns.length} pattern${patterns.length === 1 ? "" : "s"} from ${mirrorVm.totalDecisions} decision${mirrorVm.totalDecisions === 1 ? "" : "s"} you made this session.`,
+      counts: [
+        { testId: "equipment-count-mirror-strength", label: `${strengths} strength` },
+        { testId: "equipment-count-mirror-watch", label: `${watches} to watch` },
+        { testId: "equipment-count-mirror-observed", label: `${observed} observed` },
+      ],
+      renderDepth: (unabridged: boolean) =>
+        !reflecting ? (
+          <p style={{ fontSize: 12, color: "#8a8271", lineHeight: 1.6, margin: 0 }}>{notYet}</p>
+        ) : mirrorVm.patterns.length === 0 ? (
+          /* MirrorPanel's own silence is correct on a canvas and wrong in a
+             drawer the trader just opened on purpose. The words are the
+             selector's, not this room's. */
+          <p style={{ fontSize: 12, color: "#8a8271", lineHeight: 1.6, margin: 0 }}>
+            {mirrorVm.reason ?? "No decisions in scope — Mirror has nothing to reflect yet."}
+          </p>
+        ) : (
+          <MirrorPanel vm={mirrorVm} unabridged={unabridged} />
+        ),
+    };
+    /* NO `onDrill`. The in-room panel is not drillable either, and adding a
+       drill from inside a drawer would open a drawer within a drawer — banned
+       by name. ENTER is how this gets deeper. */
+  }, [mirrorVm, phase]);
+
+  /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
    * than a chain of ternaries so that adding a third tenant is an entry, not a
@@ -905,6 +999,7 @@ function CommandDeckInner() {
       "market-reality": marketRealityEquipment,
       "market-object-passport": passportEquipment,
       "decision-chain": decisionChainEquipment,
+      "behaviour-mirror": mirrorEquipment,
     }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
 
   // Decision Receipt (canon P8): project the most-recently sealed decision
@@ -2546,14 +2641,15 @@ function CommandDeckInner() {
              * trader with nothing to reflect on still sees nothing, and
              * selectMirror's empty VM says so in words rather than in zeros:
              * "No decisions in scope — Mirror has nothing to reflect yet". */}
+            {/* HOISTED, NOT RE-COMPILED. `mirrorVm` is the room's single
+                `selectMirror` call; the WORKSPACE equipment reads the SAME
+                object. Calling the selector a second time for the rail would
+                be a second semantic brain that could disagree with this one
+                about the trader's own behaviour — the directive bans exactly
+                that, and `theMirrorIsNotAMarketPanel.enforcement.test.ts` now
+                pins the single call site rather than one mount's arguments. */}
             {(phase === "REVIEW" || phase === "POST_EXIT") && (
-              <MirrorPanel
-                vm={selectMirror({
-                  ownerId: user?.id ?? "",
-                  decisions: sessionDecisions,
-                  nowMs,
-                })}
-              />
+              <MirrorPanel vm={mirrorVm} />
             )}
 
             {/* Doctrine and cross-realm navigation are useful orientation,

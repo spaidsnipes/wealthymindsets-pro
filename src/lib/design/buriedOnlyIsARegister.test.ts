@@ -105,7 +105,15 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
        moved 22 → 21, and this is the looking. */
     "DecisionWhyPanel",
     "LearningGenomeInspector",
-    "MirrorPanel",
+    /* `MirrorPanel` WAS HERE. Second entry discharged, same mechanism as the
+       first: it became the WORKSPACE grammar's fourth tenant, so
+       `mirrorEquipment`'s `renderDepth` mounts it at zero `<details>` depth.
+       The phase-gated in-room mount is untouched — this is a door added, not a
+       surface moved, which is why the entry comes off rather than staying:
+       buried-only means EVERY mount is buried, and that stopped being true.
+
+       21 → 20. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     "PersonalEdgeChip",
     "PracticeHonestyLayer",
     "SceneAdmissionPanel",
