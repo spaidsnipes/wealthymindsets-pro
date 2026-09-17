@@ -150,6 +150,30 @@ export function DecisionChainPanel({
           const ind = INDICATOR_STYLES[node.indicator];
           const clickable = !!onNodeClick;
           const hintEvidence = node.hints?.length ? `. Evidence: ${node.hints.join("; ")}` : "";
+          /**
+           * THE ARIA-LABEL MUST NOT KNOW MORE THAN THE SCREEN.
+           *
+           * `node.reason` has been composed into this string since the panel
+           * shipped, and until 2026-09-17 it was rendered NOWHERE ELSE. The
+           * visible column paints `node.label`, `node.verdict`, the indicator
+           * glyph, `node.narrative` and `node.hints` — never `reason`.
+           *
+           * So a screen-reader user heard "Regime dimension has flipped
+           * recently — treat as transitional, not stable." and the Founder
+           * looking at his own deck did not. That is not an accessibility
+           * courtesy running ahead; it is an accessibility INVERSION, and the
+           * sighted trader was the one denied the sentence.
+           *
+           * It is also a distinct field, not a rewording: `selectRegime` sets
+           * `narrative` to what the regime IS ("Regime value has changed across
+           * the last 3 snapshots (TREND → BALANCE)") and `reason` to what to DO
+           * about it ("treat as transitional, not stable"). Same for
+           * `selectAuction` and `selectCLC`. Dropping `reason` from the label
+           * would have "fixed" the mismatch by deleting the better sentence.
+           *
+           * The cure is therefore to PAINT it, below — and `decisionChainReasonIsVisible.test.ts`
+           * now pins that every field this label reads is also rendered.
+           */
           const label = `${node.label}: ${node.verdict}, ${ind.label.toLowerCase()}${node.reason ? `. ${node.reason}` : ""}${hintEvidence}`;
           return (
             <button
@@ -241,6 +265,32 @@ export function DecisionChainPanel({
                     }}
                   >
                     {node.narrative}
+                  </div>
+                )}
+                {/* THE WEAKEST-LINK SENTENCE, now on the screen.
+                    Deliberately NOT gated on `showNarratives`: that flag caps
+                    how much of the chain's DESCRIPTION is shown, and a reason
+                    is not a description — it is the caveat attached to this
+                    node's verdict, which is the one thing a terse read most
+                    needs. Gating it would re-open the aria-only hole through
+                    the other branch.
+
+                    Brighter than the narrative and marked with a leading rule
+                    because it is an instruction, not prose. Silent when the
+                    selector did not set one — most nodes do not. */}
+                {node.reason && (
+                  <div
+                    data-decision-chain-reason={node.key}
+                    style={{
+                      fontSize: 11,
+                      color: "#c9a55c",
+                      lineHeight: 1.45,
+                      marginTop: 5,
+                      paddingLeft: 8,
+                      borderLeft: "1px solid rgba(139,106,41,0.35)",
+                    }}
+                  >
+                    {node.reason}
                   </div>
                 )}
                 {/* Structured hints — populated by the selector when the
