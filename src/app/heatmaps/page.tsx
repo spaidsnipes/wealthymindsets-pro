@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { selectHeatmapFeedObservation } from "@/lib/os/selectHeatmapFeedObservation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -666,6 +668,11 @@ function useLivePct(tf: string) {
   const [pcts, setPcts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [receivedAt, setReceivedAt] = useState<number | null>(null);
+  // The PROVIDER'S observation epoch for the round on screen, or null. Held
+  // separately from `receivedAt` because that one is receipt chronology and
+  // /api/heatmap disclaims it in its own source. Only this may be published
+  // upward as `lastObservedAtMs`.
+  const [observedAt, setObservedAt] = useState<number | null>(null);
   const [qualityState, setQualityState] = useState<ContextDataState>("UNKNOWN");
   const [fidelityReason, setFidelityReason] = useState("Market-data fidelity has not been established.");
   const [resolvedTf, setResolvedTf] = useState(tf);
@@ -679,6 +686,7 @@ function useLivePct(tf: string) {
         setPcts({});
         retainedRowsRef.current = {};
         setReceivedAt(null);
+        setObservedAt(null);
         setQualityState("UNKNOWN");
         setFidelityReason("No retained heat-map data is available.");
         setRetainedSnapshot(false);
@@ -686,11 +694,16 @@ function useLivePct(tf: string) {
         setResolvedTf(tf);
         return;
       }
-      const cached = JSON.parse(raw) as { data?: Record<string, number>; ts?: number };
+      const cached = JSON.parse(raw) as { data?: Record<string, number>; ts?: number; observedAt?: number | null };
       const cachedRows = cached.data ?? {};
       setPcts(cachedRows);
       retainedRowsRef.current = cachedRows;
       setReceivedAt(cached.ts ?? null);
+      // A retained browser snapshot carries a RECEIPT, not an observation.
+      // Reading `cached.ts` into this field would promote transport time to
+      // provider time on every reload — the exact swap this field exists to
+      // prevent. Until the live refresh answers, the honest value is null.
+      setObservedAt(cached.observedAt ?? null);
       setQualityState(Object.keys(cached.data ?? {}).length ? "DEGRADED" : "UNKNOWN");
       setFidelityReason(Object.keys(cached.data ?? {}).length
         ? "Retained browser snapshot; current refresh is not yet confirmed."
@@ -702,6 +715,7 @@ function useLivePct(tf: string) {
       setPcts({});
       retainedRowsRef.current = {};
       setReceivedAt(null);
+      setObservedAt(null);
       setQualityState("UNKNOWN");
       setFidelityReason("Retained heat-map data could not be read.");
       setRetainedSnapshot(false);
@@ -734,6 +748,7 @@ function useLivePct(tf: string) {
           qualityState?: "HISTORICAL" | "DEGRADED" | "UNKNOWN";
           fidelityReason?: string;
           receiveTimestamp?: string;
+          observedAt?: number | null;
           cacheHit?: boolean;
         };
         if (!cancelled && json.results) {
@@ -741,6 +756,7 @@ function useLivePct(tf: string) {
           setPcts(json.results);
           retainedRowsRef.current = json.results;
           setReceivedAt(receivedAt);
+          setObservedAt(typeof json.observedAt === "number" && Number.isFinite(json.observedAt) ? json.observedAt : null);
           setQualityState(json.qualityState ?? "UNKNOWN");
           setFidelityReason(json.fidelityReason ?? "Market-data fidelity has not been established.");
           // A successful HTTP response can still be a retained server cache.
@@ -749,7 +765,7 @@ function useLivePct(tf: string) {
           setRetainedSnapshot(json.cacheHit === true);
           setResolvedTf(tf);
           // Cache to localStorage for instant re-load
-          try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: receivedAt })); } catch {}
+          try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: receivedAt, observedAt: json.observedAt ?? null })); } catch {}
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -786,13 +802,14 @@ function useLivePct(tf: string) {
       pcts: {},
       loading: true,
       receivedAt: null,
+      observedAt: null,
       qualityState: "UNKNOWN" as const,
       fidelityReason: "Checking the selected timeframe; fidelity is not established yet.",
       retainedSnapshot: false,
     };
   }
 
-  return { pcts, loading, receivedAt, qualityState, fidelityReason, retainedSnapshot };
+  return { pcts, loading, receivedAt, observedAt, qualityState, fidelityReason, retainedSnapshot };
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -911,7 +928,24 @@ export default function HeatmapsPage() {
   const [activeTF,   setActiveTF]   = useState("1D");
   const [hovered,    setHovered]    = useState<{ industry: Industry; x: number; y: number } | null>(null);
   const [search,     setSearch]     = useState("");
-  const { pcts, loading: heatLoading, receivedAt, qualityState, fidelityReason, retainedSnapshot } = useLivePct(activeTF);
+  const { pcts, loading: heatLoading, receivedAt, observedAt, qualityState, fidelityReason, retainedSnapshot } = useLivePct(activeTF);
+
+  /**
+   * THIS BOARD PAINTS THE WHOLE INDEX. IT HAD TO SAY WHEN IT LOOKED.
+   *
+   * Measured live 2026-09-17 on production: eight real session moves on
+   * screen (-1.37% … +4.03%) under a masthead reading FEED UNKNOWN and a
+   * footer reading SOURCE UNKNOWN. The room published nothing upward, and the
+   * frame's correct default for a silent room rendered as an open question.
+   *
+   * It could not simply start publishing: until this change it held no
+   * observation epoch at all, only a receipt. `/api/heatmap` now asks Yahoo
+   * for `regularMarketTime` and hands it over.
+   */
+  usePublishOsStanding({
+    surface: "Heat Maps",
+    feed: selectHeatmapFeedObservation({ observedAt }),
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();

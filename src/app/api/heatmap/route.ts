@@ -15,6 +15,24 @@
 
 import { NextResponse } from "next/server";
 import { toYahooSymbol } from "@/lib/marketData/symbolAssetClass";
+import { newestObservationMs, yahooMarketTimeToMs } from "@/lib/marketData/heatmapObservation";
+
+/**
+ * A ROUND OF THIS ROUTE, INCLUDING WHEN THE PROVIDER SAW IT.
+ *
+ * `observedAt` used to not exist, and /heatmaps therefore wore FEED UNKNOWN
+ * over eight real session moves — it had no observation epoch to publish, so
+ * the frame's correct default for a silent room rendered as an open question.
+ *
+ * It travels INSIDE the cached value, not alongside it. A cache hit is still
+ * showing the earlier round's observation, so renewing this to "now" on a hit
+ * would make a retained figure report itself as freshly seen — the same
+ * substitution `receiveTimestamp` is documented below to avoid.
+ */
+interface HeatmapRound {
+  readonly results: Record<string, number>;
+  readonly observedAt: number | null;
+}
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 
@@ -72,28 +90,41 @@ async function yfGet(url: string): Promise<unknown> {
 }
 
 // ── 1D: Yahoo Finance v7 batch quote (single request for all syms) ──────────
-async function fetch1D(syms: string[]): Promise<Record<string, number>> {
+async function fetch1D(syms: string[]): Promise<HeatmapRound> {
   const yfSyms = syms.map(toYF);
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(yfSyms.join(","))}&fields=symbol,regularMarketChangePercent`;
-  const json = await yfGet(url) as { quoteResponse?: { result?: { symbol: string; regularMarketChangePercent?: number }[] } };
+  // `regularMarketTime` is NEW in this field list, and it is the whole point:
+  // the route used to ask for the number and not for when the number was seen,
+  // which is why the board above it could only say FEED UNKNOWN.
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(yfSyms.join(","))}&fields=symbol,regularMarketChangePercent,regularMarketTime`;
+  const json = await yfGet(url) as { quoteResponse?: { result?: { symbol: string; regularMarketChangePercent?: number; regularMarketTime?: number }[] } };
   const quotes = json?.quoteResponse?.result ?? [];
   const results: Record<string, number> = {};
+  const seen: (number | null)[] = [];
   quotes.forEach(q => {
     const wmSym = syms.find(s => toYF(s) === q.symbol) ?? q.symbol;
     const pct = q.regularMarketChangePercent;
-    if (typeof pct === "number") results[wmSym] = +pct.toFixed(2);
+    if (typeof pct === "number") {
+      results[wmSym] = +pct.toFixed(2);
+      // Collected only for a tile that actually rendered. An observation
+      // attached to a symbol whose percentage was discarded would date a
+      // figure nobody can see.
+      seen.push(yahooMarketTimeToMs(q.regularMarketTime));
+    }
   });
-  return results;
+  return { results, observedAt: newestObservationMs(seen) };
 }
 
 // ── Multi-day: fetch daily chart for one sym, return pct change over daysBack ─
-async function fetchDayOffset(sym: string, daysBack: number): Promise<number | null> {
+async function fetchDayOffset(
+  sym: string,
+  daysBack: number,
+): Promise<{ pct: number; observedAt: number | null } | null> {
   const yfSym = toYF(sym);
   const range = daysBack <= 10 ? "1mo" : daysBack <= 70 ? "3mo" : daysBack <= 140 ? "6mo"
               : daysBack <= 260 ? "2y" : "5y";
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=${range}`;
   try {
-    const json = await yfGet(url) as { chart?: { result?: { meta?: { regularMarketPrice?: number }; indicators?: { quote?: { close?: (number | null)[] }[] } }[] } };
+    const json = await yfGet(url) as { chart?: { result?: { meta?: { regularMarketPrice?: number; regularMarketTime?: number }; indicators?: { quote?: { close?: (number | null)[] }[] } }[] } };
     const result = json?.chart?.result?.[0];
     const meta = result?.meta;
     const closes = result?.indicators?.quote?.[0]?.close ?? [];
@@ -103,21 +134,30 @@ async function fetchDayOffset(sym: string, daysBack: number): Promise<number | n
     const idx  = Math.max(0, valid.length - 1 - daysBack);
     const prev = valid[idx];
     if (!prev || !now) return null;
-    return +((( now - prev) / prev) * 100).toFixed(2);
+    return {
+      pct: +((( now - prev) / prev) * 100).toFixed(2),
+      observedAt: yahooMarketTimeToMs(meta?.regularMarketTime),
+    };
   } catch { return null; }
 }
 
 // ── Multi-day: parallel fetch in chunks (Yahoo is lenient, no API key needed) ─
-async function fetchMultiDay(syms: string[], daysBack: number): Promise<Record<string, number>> {
+async function fetchMultiDay(syms: string[], daysBack: number): Promise<HeatmapRound> {
   const results: Record<string, number> = {};
+  const seen: (number | null)[] = [];
   const CHUNK = 50; // higher parallelism — Yahoo tolerates it; halves first-load latency
   for (let i = 0; i < syms.length; i += CHUNK) {
     const batch = syms.slice(i, i + CHUNK);
     const vals  = await Promise.all(batch.map(s => fetchDayOffset(s, daysBack)));
-    batch.forEach((s, j) => { if (vals[j] != null) results[s] = vals[j]!; });
+    batch.forEach((s, j) => {
+      const v = vals[j];
+      if (v == null) return;
+      results[s] = v.pct;
+      seen.push(v.observedAt);
+    });
     if (i + CHUNK < syms.length) await new Promise(r => setTimeout(r, 20));
   }
-  return results;
+  return { results, observedAt: newestObservationMs(seen) };
 }
 
 function daysForPeriod(period: string): number {
@@ -150,21 +190,22 @@ export async function GET(request: Request) {
   const cacheKey = `heatmap:${period}:${syms.join(",")}`;
 
   try {
-    const { data: results, cacheHit } = await withCache(cacheKey, ttl, async () => {
+    const { data: round, cacheHit } = await withCache<HeatmapRound>(cacheKey, ttl, async () => {
       // 1D primary path: Yahoo's v7 batch quote endpoint now returns
       // "Unauthorized", which silently produced all +0.00% tiles. Fall back to
       // the still-working v8 chart endpoint (prev close → current) when v7 is
       // empty so 1D actually shows real performance.
       if (period === "1D") {
-        let r: Record<string, number> = {};
-        try { r = await fetch1D(syms); } catch { r = {}; }
-        if (Object.keys(r).length === 0) {
+        let r: HeatmapRound = { results: {}, observedAt: null };
+        try { r = await fetch1D(syms); } catch { r = { results: {}, observedAt: null }; }
+        if (Object.keys(r.results).length === 0) {
           r = await fetchMultiDay(syms, 1);
         }
         return r;
       }
       return fetchMultiDay(syms, daysForPeriod(period));
     });
+    const results = round.results;
     const hasResults = Object.keys(results).length > 0;
     const qualityState = !hasResults ? "UNKNOWN" : cacheHit ? "DEGRADED" : period === "1D" ? "UNKNOWN" : "HISTORICAL";
     const fidelityReason = !hasResults
@@ -183,6 +224,15 @@ export async function GET(request: Request) {
       // Receipt chronology only. This is not a provider event timestamp and
       // must never be used to claim market-observation freshness.
       receiveTimestamp: new Date().toISOString(),
+      // THE PROVIDER'S OWN `regularMarketTime`, in epoch-ms, or null.
+      //
+      // This is the field `receiveTimestamp` has always disclaimed being, and
+      // its absence is why /heatmaps wore FEED UNKNOWN over eight real session
+      // moves. Null is a real answer here — Yahoo may omit the field, and the
+      // honest reading of that is an open question, not a receipt promoted to
+      // an observation. On a cache hit it is the EARLIER round's epoch,
+      // because that is the round still on screen.
+      observedAt: round.observedAt,
       sourceProvenance: "yahoo-finance-proxy",
     });
   } catch (err) {
