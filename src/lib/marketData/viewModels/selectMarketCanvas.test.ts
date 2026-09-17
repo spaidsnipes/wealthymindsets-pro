@@ -60,6 +60,7 @@ const why = (over: Partial<DecisionWhyVM> = {}): DecisionWhyVM => ({
   blockers: [],
   clearances: [],
   invalidators: [],
+  evidenceLedger: null,
   ...over,
   // Fixtures are not capped, so the honest default is the sample size. An
   // explicit blockerCount override models the CAPPED case.

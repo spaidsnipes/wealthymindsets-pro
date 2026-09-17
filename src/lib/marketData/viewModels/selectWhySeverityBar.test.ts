@@ -28,6 +28,7 @@ function why(partial: Partial<DecisionWhyVM>): DecisionWhyVM {
     blockerCount: 0,
     clearances: [],
     invalidators: [],
+    evidenceLedger: null,
     ...partial,
   };
 }

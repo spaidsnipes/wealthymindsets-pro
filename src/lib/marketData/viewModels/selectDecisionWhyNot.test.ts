@@ -329,3 +329,44 @@ describe("selectDecisionWhyNot — A COUNT MAY NOT BE A SAMPLE SIZE", () => {
     expect(vm.blockers).toEqual([]);
   });
 });
+
+/**
+ * THE LEDGER IS PUBLISHED, NOT RE-COMPUTED.
+ *
+ * "X/N evidence nodes paid." goes into `clearances` — the affirmative column.
+ * The VM now also carries the SHAPE of the same debt so the unpaid remainder
+ * has somewhere to be seen. §24: one answer per question — the ledger is
+ * partitioned from the very `oneStory.debt` the sentence is compiled from, and
+ * is never derived a second way.
+ */
+describe("selectDecisionWhyNot — evidenceLedger", () => {
+  it("publishes a ledger built from the same debt as the sentence", () => {
+    const d = debt(["regime", "direction"], ["volume"], 6, 9);
+    const vm = selectDecisionWhyNot(story({ decision: reading("WAIT"), debt: d }));
+    expect(vm.evidenceLedger).not.toBeNull();
+    expect(vm.evidenceLedger!.payable).toBe(9);
+    expect(vm.evidenceLedger!.resolved).toBe(6);
+    expect(vm.evidenceLedger!.unpaid).toBe(3);
+    expect(vm.evidenceLedger!.marks).toHaveLength(9);
+  });
+
+  it("agrees with the clearance sentence it is drawn beside", () => {
+    // If the strip and the sentence could disagree, the picture would be the
+    // more persuasive of the two and the wrong one.
+    const d = debt([], [], 9, 9);
+    const vm = selectDecisionWhyNot(story({ decision: reading("ACTION"), debt: d }));
+    const sentence = vm.clearances.find((c) => c.includes("evidence nodes paid"));
+    expect(sentence).toBe("9/9 evidence nodes paid.");
+    expect(vm.evidenceLedger!.resolved).toBe(9);
+    expect(vm.evidenceLedger!.payable).toBe(9);
+    expect(vm.evidenceLedger!.unpaid).toBe(0);
+  });
+
+  it("is null when nothing compiled — an absent story owes no ledger", () => {
+    expect(selectDecisionWhyNot(null).evidenceLedger).toBeNull();
+  });
+
+  it("is null when the chain carries no debt at all", () => {
+    expect(selectDecisionWhyNot(story({ decision: reading("WAIT") })).evidenceLedger).toBeNull();
+  });
+});

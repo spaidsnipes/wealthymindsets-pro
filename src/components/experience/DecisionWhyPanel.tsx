@@ -15,6 +15,7 @@ import type {
   DecisionWhyVM,
   WhyBlockerKind,
 } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
+import type { EvidenceStanding } from "@/lib/experience/selectEvidenceDebtLedger";
 
 export interface DecisionWhyPanelProps {
   readonly vm: DecisionWhyVM;
@@ -55,8 +56,26 @@ const HAIR = "rgba(139,106,41,0.22)";
  */
 const CLEARED = "#ede6d3";
 
+/**
+ * THE EVIDENCE LEDGER'S THREE FILLS.
+ *
+ * Told apart by FILL, not by hue (§9) — the distinction has to survive
+ * greyscale and colour-blindness, because it is the distinction the 2026-09-16
+ * defect erased. A WARN mark is OUTLINED: evidence is present, which is why it
+ * has an edge, and unpaid, which is why it has no body. MISSING is a flat grey
+ * with neither. Every mark keeps the same width whatever it is worth — an
+ * unpaid node may lose its light but it may never lose its place, or the
+ * denominator shrinks to flatter the numerator.
+ */
+const EVIDENCE_MARK: Record<EvidenceStanding, React.CSSProperties> = {
+  RESOLVED: { background: CLEARED, boxShadow: "none" },
+  WARN: { background: "transparent", boxShadow: `inset 0 0 0 1px ${KIND_TONE.EVIDENCE_WARN}` },
+  MISSING: { background: "rgba(138,130,113,0.22)", boxShadow: "none" },
+};
+
 export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElement {
   const accent = vm.clear ? "#d4af37" : "#e07b5c";
+  const ledger = vm.evidenceLedger;
 
   return (
     <section
@@ -109,6 +128,61 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
               +{vm.blockerCount - vm.blockers.length} more blocking, not named here
             </div>
           )}
+        </div>
+      )}
+
+      {/* THE EVIDENCE DEBT, GIVEN A SHAPE.
+          `selectDecisionWhyNot` files "5/8 evidence nodes paid." into
+          `clearances` below — the affirmative column — so a chain with three
+          unpaid nodes reports its own shortfall under CLEARED. The fraction is
+          true; the placement is what flatters. The strip is drawn ABOVE the
+          clearances so the unpaid remainder is seen before the sentence that
+          files it, and every mark holds its width so the remainder cannot be
+          absorbed. Nothing here is measured: the selector partitions a debt
+          the compiler already resolved. */}
+      {ledger && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>
+            EVIDENCE DEBT
+          </div>
+          <div
+            data-testid="decision-why-evidence-band"
+            data-payable={ledger.payable}
+            data-resolved={ledger.resolved}
+            data-unpaid={ledger.unpaid}
+            aria-hidden="true"
+            style={{ display: "flex", gap: 2 }}
+          >
+            {ledger.marks.map((mark, i) => (
+              <span
+                key={i}
+                data-testid="decision-why-evidence-mark"
+                data-standing={mark.standing}
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  height: 4,
+                  borderRadius: 1,
+                  ...EVIDENCE_MARK[mark.standing],
+                }}
+              />
+            ))}
+          </div>
+          {/* The band is aria-hidden, so this sentence IS the reading for a
+              screen reader — it may not be a caption on a picture, it has to
+              carry the whole count on its own. */}
+          <p
+            data-testid="decision-why-evidence-caption"
+            style={{ margin: "6px 0 0", fontSize: 11, lineHeight: 1.5, color: MUTED }}
+          >
+            {ledger.unpaid === 0
+              ? `All ${ledger.payable} payable evidence nodes are resolved.`
+              : `${ledger.unpaid} of ${ledger.payable} evidence nodes unpaid — ` +
+                `${ledger.warn} below confirmation, ${ledger.missing} with no indicator.`}
+            {ledger.watch > 0
+              ? ` ${ledger.watch} watch node${ledger.watch === 1 ? "" : "s"} sit outside this ledger and are not drawn.`
+              : ""}
+          </p>
         </div>
       )}
 

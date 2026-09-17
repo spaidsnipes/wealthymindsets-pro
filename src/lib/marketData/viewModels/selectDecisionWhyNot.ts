@@ -21,6 +21,10 @@
 import type { OneStoryVM } from "./selectOneStory";
 import type { RightOfWay } from "./decisionPermissionCompiler";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
+import {
+  selectEvidenceDebtLedger,
+  type EvidenceDebtLedger,
+} from "@/lib/experience/selectEvidenceDebtLedger";
 
 export const DECISION_WHY_VERSION = "wm.decision-why.v1" as const;
 
@@ -88,6 +92,28 @@ export interface DecisionWhyVM {
   /** What IS satisfied — the affirmative side of the ledger. */
   readonly clearances: readonly string[];
   /**
+   * The evidence ledger as one mark per payable node, or null when there is no
+   * ledger to draw.
+   *
+   * ── Why it is published here and not recomputed by the surface ────────────
+   *
+   * "5/8 evidence nodes paid." is pushed into {@link clearances} above — the
+   * AFFIRMATIVE half of the ledger — so a chain with three unpaid nodes files
+   * its own shortfall under CLEARED. Both numbers are true; the placement is
+   * what flatters, and a reader scanning the two columns sees it in the
+   * friendly one.
+   *
+   * The remedy is not to move the sentence (the fraction genuinely is partly a
+   * clearance) but to also publish the SHAPE, where the unpaid remainder keeps
+   * its width and cannot be filed anywhere.
+   *
+   * Compiled here, from the same `oneStory.debt` the sentence is compiled from,
+   * because this field is the fourth head of a defect whose first three all had
+   * the same cause: arithmetic restated by hand at a new site. A surface that
+   * built this from `debt` itself would be the fifth.
+   */
+  readonly evidenceLedger: EvidenceDebtLedger | null;
+  /**
    * canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
    *
    * For an ACTION verdict this lists the concrete observations that,
@@ -140,6 +166,7 @@ export function selectDecisionWhyNot(
       blockerCount: 0,
       clearances: [],
       invalidators: [],
+      evidenceLedger: null,
     };
   }
 
@@ -266,5 +293,9 @@ export function selectDecisionWhyNot(
     blockerCount,
     clearances,
     invalidators,
+    // Same `debt` the "X/N evidence nodes paid." sentence above is compiled
+    // from — §24: one answer per question, drawn a second way, never computed
+    // a second time.
+    evidenceLedger: selectEvidenceDebtLedger(debt),
   };
 }
