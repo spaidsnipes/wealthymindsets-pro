@@ -45,8 +45,20 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     // evidence and no more.
     //
     // /backtesting was looked at in the same pass and deliberately NOT
-    // promoted: it paints cyan and purple accents that are not in the WM
-    // palette, and one OS may not contain two visual systems.
+    // promoted: it painted, I said, "cyan and purple accents that are not in
+    // the WM palette".
+    //
+    // THAT HOLD WAS WITHDRAWN THE SAME DAY and /backtesting joined the family.
+    // Both halves of the objection failed when the OS was consulted instead of
+    // the one room: `wm-blue`/`wm-purple` are DEFINED tokens in tailwind.config,
+    // and the precise selection idiom I objected to already ships in /paper and
+    // /journal, both OS-framed since the original seven. The full reasoning is
+    // at the entry itself in wmDestinations.ts, where the verdict lives.
+    //
+    // The eleventh route is therefore in this list as a CORRECTION, not as a
+    // second look that went the other way. Recorded here because a reader of
+    // this fence should be able to see that a family member arrived by a
+    // reversal, and find out why without leaving the repo.
     expect([...FOUNDER_ROOM_ROUTES]).toEqual([
       "/morning-prep",
       "/command-deck",
@@ -57,6 +69,7 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/journal",
       "/education",
       "/proof-lane",
+      "/backtesting",
       "/lounge",
     ]);
   });

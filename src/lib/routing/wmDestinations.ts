@@ -172,12 +172,28 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // obsidian throughout, pace table and challenge lab both legible.
   { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "os" },
   { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "cleared" },
-  // LOOKED AT 2026-09-16 and HELD BACK. Structure survives the frame, but the
-  // room paints cyan and purple accents (Run Backtest, the Backtest tab, the
-  // selected date range). Those are not in the WM palette, so promoting it
-  // would put a second visual system inside the one OS. Promote after the
-  // accents are reconciled with the Canon — not before.
-  { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16, HELD BACK, AND THE HOLD WITHDRAWN THE SAME DAY.
+  //
+  // The hold said: "the room paints cyan and purple accents … those are not in
+  // the WM palette, so promoting it would put a second visual system inside the
+  // one OS." Two things were wrong with it, and both were found by looking at
+  // the OS rather than at this one room.
+  //
+  //   1. `wm-blue` (#4FA3E0) and `wm-purple` (#8B5CF6) are DEFINED WM tokens in
+  //      tailwind.config, sitting alongside gold, green and red. They ARE the
+  //      palette, not an escape from it. "Cyan" was my own misreading of #4FA3E0.
+  //   2. The exact selection idiom I objected to already ships in rooms that
+  //      have been OS-framed since the original seven:
+  //        bg-wm-blue/20 text-wm-blue border-wm-blue/40       — /paper 859, 1350, 1579
+  //        bg-wm-purple/20 text-wm-purple border-wm-purple/40 — /journal 1589, 2005, 2376
+  //      Holding /backtesting for a pattern /paper and /journal already carry
+  //      would not have protected one visual system. It would have invented a
+  //      second standard and applied it to the newest room only.
+  //
+  // A verdict of mine that the OS itself contradicts gets corrected in the open,
+  // the way the /education verdict was. Promoted on the same static-first-paint
+  // evidence as its siblings, carrying the same limit.
+  { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "os" },
   // The page at /ai-bot is titled "Market Intelligence · Observed market data
   // only · no generated signals" and runs the canonical Market Canvas — it does
   // not operate a bot or emit signals. A rail must not promise one.
