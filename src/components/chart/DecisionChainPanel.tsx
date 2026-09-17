@@ -27,6 +27,31 @@ export interface DecisionChainPanelProps {
   /** Show detailed narratives beneath each node. Default true. */
   showNarratives?: boolean;
   className?: string;
+  /**
+   * Give the chain its full professional depth.
+   *
+   * WHAT IT BUYS, AND WHY THAT IS DEPTH AND NOT A RESIZE
+   * ----------------------------------------------------
+   * A node's `hints` are its EVIDENCE — "account equity not observed this
+   * session", "broker link not established", "hard rule engaged". They are the
+   * reason the trader does not have to open WhyInspector to learn why a node is
+   * UNKNOWN. In the equipment dock this panel sits in a slot beside the chart,
+   * and nine nodes' worth of evidence chips there is a wall; at full screen
+   * there is no reason to withhold lines the selector already handed over.
+   *
+   * WHY THE DOCKED CAP IS ACCOUNTED AND NOT SILENT
+   * ----------------------------------------------
+   * The overflow chip states the count. A chip row that simply stopped would be
+   * this panel telling the trader it had shown them the evidence when it had
+   * shown them some of it — the same inversion the `reason` row below was
+   * written against. Declining to draw a row you hold is a display choice, and
+   * a display choice has to say so.
+   *
+   * DEFAULTS TRUE. This panel's only in-room mount lives in a full-width drawer
+   * section and predates the cap; defaulting false would have made adding an
+   * equipment door a silent subtraction from a surface nobody asked to change.
+   */
+  readonly unabridged?: boolean;
 }
 
 const INDICATOR_STYLES: Record<DecisionChainNode["indicator"], { color: string; glyph: string; label: string }> = {
@@ -41,8 +66,11 @@ export function DecisionChainPanel({
   onNodeClick,
   showNarratives = true,
   className,
+  unabridged = true,
 }: DecisionChainPanelProps) {
   const summary = vm.summary;
+  /** Infinity, not a bigger number: "as many as I was handed" is the rule. */
+  const hintCap = unabridged ? Number.POSITIVE_INFINITY : 3;
 
   return (
     <div
@@ -300,7 +328,7 @@ export function DecisionChainPanel({
                     opening WhyInspector. Silent when hints unset. */}
                 {node.hints && node.hints.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-                    {node.hints.map((h, i) => {
+                    {node.hints.slice(0, hintCap).map((h, i) => {
                       const tone = node.hintTones?.[i] ?? "missing";
                       const color =
                         tone === "warn"    ? "#c05a4a" :
@@ -348,6 +376,27 @@ export function DecisionChainPanel({
                         </span>
                       );
                     })}
+                    {/* THE CAP ACCOUNTS FOR ITSELF.
+                        A chip row that simply stopped at three would be this
+                        panel showing the trader SOME of the evidence while
+                        looking exactly like a panel that had shown them all of
+                        it. Declining to draw a row you are holding is a display
+                        choice, and a display choice has to say so — ENTER is
+                        where the rest lives. */}
+                    {node.hints.length > hintCap && (
+                      <span
+                        data-decision-chain-hints-withheld={node.key}
+                        style={{
+                          fontSize: 11,
+                          letterSpacing: 0.24,
+                          padding: "2px 6px",
+                          color: "#8a8271",
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        +{node.hints.length - hintCap} more evidence
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

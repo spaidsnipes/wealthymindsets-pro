@@ -15,7 +15,8 @@ import path from "node:path";
  * hole with a shape: an invention that is never registered as equipment can be
  * buried as deep as anyone likes and no rule notices. Measured on the day this
  * was written, `/command-deck` held TWENTY-TWO such components and `/charts`
- * held none.
+ * held none. It is TWENTY-ONE now — the chain was enrolled as equipment in the
+ * next commit, which is the register doing the only job it claims to do.
  *
  * ── WHY THIS DOES NOT DELETE ANYTHING ─────────────────────────────────
  * The previous baton recorded the principle the hard way: a first draft of the
@@ -90,7 +91,18 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
     // ── DEBT. Real intelligence whose only door is a second press. ──
     "ATHOSInterventionPanel",
     "DLARStrip",
-    "DecisionChainPanel",
+    /* `DecisionChainPanel` WAS HERE, AND IT CAME OFF THE SAME DAY.
+       It is the first entry this register has discharged: the chain is now the
+       WORKSPACE grammar's third tenant, so `decisionChainEquipment`'s
+       `renderDepth` mounts it at zero `<details>` depth and the room has a door
+       to it that is not a second press. The numbered drawer section was NOT
+       removed — the two deep mounts are still there, which is why this entry
+       goes rather than stays: buried-only means EVERY mount is buried, and that
+       stopped being true.
+
+       Recorded here rather than silently deleted because the whole claim of
+       this file is that the number cannot move without somebody looking. It
+       moved 22 → 21, and this is the looking. */
     "DecisionWhyPanel",
     "LearningGenomeInspector",
     "MirrorPanel",
@@ -171,11 +183,34 @@ describe("the register is a debt ledger, not decoration", () => {
     expect(distinct.size).toBeGreaterThan(40);
   });
 
-  it("the deck's debt is real — the Decision Chain is on it", () => {
-    // A register that quietly lost its most important entry would still pass
-    // the set comparison above, because the set would match on both sides.
-    expect(REGISTER["/command-deck"]).toContain("DecisionChainPanel");
+  /**
+   * RE-PINNED, BECAUSE THE THING IT PINNED WAS CURED.
+   *
+   * This asserted that `DecisionChainPanel` was on the register and measurably
+   * buried-only — the deck's single worst entry, held down so a register that
+   * quietly lost its most important name would still go red. Enrolling the
+   * chain as WORKSPACE equipment gave it a zero-depth mount, so the old
+   * assertion is now false ON PURPOSE.
+   *
+   * Deleting it would leave the register with no independent anchor at all. So
+   * it is re-pinned to the cure instead, and it is STRONGER than what it
+   * replaced: it asserts both directions of the same fact — the chain is off
+   * the register AND the measurement agrees, from the source, that it surfaced.
+   * A register edited to "fix" a red run without touching the building would
+   * satisfy the first half and fail the second.
+   */
+  it("the chain's cure is real in the building, not just on the list", () => {
+    expect(
+      REGISTER["/command-deck"],
+      "DecisionChainPanel is back on the buried register — the equipment door was lost",
+    ).not.toContain("DecisionChainPanel");
     const src = roomSource("src/app/command-deck/page.tsx");
-    expect(buriedOnly(src)).toContain("DecisionChainPanel");
+    expect(
+      buriedOnly(src),
+      "the chain is off the register but the source says every mount is still " +
+        "behind a <details> — the list was edited instead of the building",
+    ).not.toContain("DecisionChainPanel");
+    // And the door is the EQUIPMENT one, not an accident of some other mount.
+    expect(src).toContain("decisionChainEquipment");
   });
 });

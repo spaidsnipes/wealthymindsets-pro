@@ -556,27 +556,58 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     expect(inside).toBe(total);
   });
 
-  it("/command-deck gates the auction lens AND the decision chain as one THESIS_GEOMETRY", () => {
+  it("/command-deck gates the auction lens AND the decision chain under THESIS_GEOMETRY", () => {
     /**
      * Sections 2 and 3 are the same claim at two resolutions: DLAR is the
      * four-dimension verdict, the decision chain is the nine nodes that
-     * produced it. Splitting them across two gates would eventually let one
-     * be admitted while the other is refused — a conclusion on screen with
-     * its own workings withheld, which is "SHOW FIRST, EXPLAIN SECOND" run
-     * backwards. So this asserts BOTH live in the SAME gate body.
+     * produced it. Letting one be admitted while the other is refused would put
+     * a conclusion on screen with its own workings withheld — "SHOW FIRST,
+     * EXPLAIN SECOND" run backwards.
+     *
+     * RE-PINNED FROM "THE SAME GATE BODY" TO "THE SAME ELEMENT".
+     * ----------------------------------------------------------
+     * This read `gatedElementBody` — the FIRST THESIS_GEOMETRY gate in the file
+     * — and required every mount of both components to sit inside that one
+     * body. The deck then enrolled the chain as WORKSPACE equipment, and
+     * `decisionChainEquipment`'s `renderDepth` carries the withholding with it
+     * by wrapping the panel in a SECOND `<SceneAdmits element="THESIS_GEOMETRY">`
+     * so the rail can never offer a door the room has closed. The rule went red
+     * on a change that strengthened the exact property it protects.
+     *
+     * That is the first-gate-only failure mode `allGatedBodies` was already
+     * written for, one block up: "a surface moved out of one gate and into no
+     * gate at all must fail; a surface moved between two real gates must not."
+     *
+     * The rule is therefore restated as what it always meant — no mount of
+     * either component may sit OUTSIDE a THESIS_GEOMETRY gate — and it is
+     * STRONGER than the version it replaces, because the version it replaces
+     * could not have caught a second gate that admitted on a DIFFERENT element.
+     * Two gates keyed to the same element are one fact read twice; two gates
+     * keyed to different elements are the split this test exists to forbid, and
+     * the old wording would have reported that as a pass or a fail depending on
+     * nothing more than which one appeared first in the file.
      */
     const deck = stripComments(
       readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
     );
-    const body = gatedElementBody(deck, "THESIS_GEOMETRY");
-    expect(body).not.toBeNull();
-    expect(body).toContain("<DLARStrip");
-    expect(body).toContain("<DecisionChainPanel");
+    const thesis = allGatedBodies(
+      deck,
+      "SceneAdmits",
+      '[^>]*element=(?:"THESIS_GEOMETRY"|\\{"THESIS_GEOMETRY"\\})',
+    );
+    expect(thesis.length, "no THESIS_GEOMETRY gate on the deck at all").toBeGreaterThan(0);
     for (const mount of ["<DLARStrip", "<DecisionChainPanel"]) {
-      const re = new RegExp(mount, "g");
-      const total = (deck.match(re) ?? []).length;
-      const inside = ((body ?? "").match(re) ?? []).length;
-      expect(`${mount}: ${inside}/${total}`).toBe(`${mount}: ${total}/${total}`);
+      const re = () => new RegExp(mount, "g");
+      const total = (deck.match(re()) ?? []).length;
+      const inside = (thesis.match(re()) ?? []).length;
+      // Vacuity control: a renamed component would make both counts 0 and the
+      // equality would hold having inspected nothing.
+      expect(total, `${mount} is never mounted; this rule would pass vacuously`).toBeGreaterThan(0);
+      expect(
+        `${mount}: ${inside}/${total}`,
+        `${mount} has a mount outside every THESIS_GEOMETRY gate — the conclusion ` +
+          `and its workings can now be admitted apart`,
+      ).toBe(`${mount}: ${total}/${total}`);
     }
   });
 

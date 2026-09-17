@@ -83,6 +83,31 @@ const ROOMS = [
     descriptors: [
       { id: "market-reality", memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]", depth: "MarketCanvasPanel" },
       { id: "market-object-passport", memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]", depth: "MarketObjectPassportPanel" },
+      /**
+       * THE THIRD TENANT, AND THE FIRST ONE ENROLLED TO CURE A BURIAL RATHER
+       * THAN TO DISCHARGE A BAN.
+       *
+       * The two above were subtractions — surfaces pinned permanently open on
+       * MARKET, moved behind a press. This one is the opposite defect: every
+       * `DecisionChainPanel` mount on the deck sat two `<details>` deep, so the
+       * room's most consequential reading had no door that was not a second
+       * press. `buriedOnlyIsARegister.test.ts` measured it and named it.
+       *
+       * `deps` is `[chainVm, sceneCompilation]` and BOTH halves are load-
+       * bearing. The scene half is what stops the rail offering a door the room
+       * has deliberately closed: the in-room chain sits behind
+       * `<SceneAdmits element="THESIS_GEOMETRY">`, and equipment that ignored
+       * that gate would be a second, louder path to a surface the compiler had
+       * refused. A descriptor that dropped `sceneCompilation` would still
+       * type-check and still render a chain in a CLOSED session.
+       */
+      {
+        id: "decision-chain",
+        memo: "decisionChainEquipment",
+        reads: /vm=\{chainVm\}/,
+        deps: "[chainVm, sceneCompilation]",
+        depth: "DecisionChainPanel",
+      },
     ],
   },
   {

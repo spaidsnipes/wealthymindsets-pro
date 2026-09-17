@@ -88,6 +88,36 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
     },
+    /**
+     * THE THIRD TENANT — AND THE ONE WITH THE WORST STARTING POSITION.
+     *
+     * Every `DecisionChainPanel` mount on this room sat TWO `<details>` deep:
+     * the Workspace toggle, then "Deep read · story · auction lens · decision
+     * chain · steward · fidelity". There was no path to the chain that was not
+     * a second press, and `buriedOnlyIsARegister.test.ts` measured it as one of
+     * twenty-two components in that position. The burial rule in
+     * `roomAdoptsEquipment.sentinel.test.ts` could not reach it, because that
+     * rule is stated per equipment DESCRIPTOR and the chain was not equipment.
+     *
+     * That is the directive's failure clause verbatim — the intelligence exists
+     * but requires hunting through implementation containers — applied to the
+     * single most consequential reading the deck compiles. The nine-node chain
+     * is what says whether a trade may be taken and what is unresolved if not.
+     *
+     * The numbered section in the drawer is NOT removed. It is deep reading in
+     * its proper sequence, and deleting it to make room for a rail entry would
+     * be a Sentinel deciding the product. What changes is that the chain now
+     * also has a door: one press, no disclosure, from the room's own Workspace.
+     *
+     * THE HINT NAMES THE VERDICT, NOT THE MACHINERY. "Nine checks" would be an
+     * implementation count; what the trader gets is an answer about whether the
+     * setup is permitted and what is missing if it is not.
+     */
+    {
+      id: "decision-chain",
+      label: "Decision chain",
+      hint: "What the setup still has to satisfy before it is permitted",
+    },
   ],
 
   /**

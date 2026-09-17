@@ -807,6 +807,90 @@ function CommandDeckInner() {
   );
 
   /**
+   * THE DECISION CHAIN AS EQUIPMENT — the grammar's THIRD tenant, and the one
+   * that had no door at all.
+   *
+   * Every `DecisionChainPanel` mount in this file sat two `<details>` deep.
+   * `buriedOnlyIsARegister.test.ts` measured it on the day this was written and
+   * counted it among twenty-two components with no path that is not a second
+   * press. The equipment burial rule could not reach it, because that rule is
+   * stated per equipment DESCRIPTOR and the chain was not equipment.
+   *
+   * THE NUMBERED SECTION IS NOT REMOVED. It is deep reading in its proper
+   * sequence and the room's two clutter Sentinels pin that composition. What
+   * this adds is a door.
+   *
+   * ── THE RAIL MAY NOT OFFER A DOOR THE ROOM HAS CLOSED ──────────────────
+   * The in-room chain sits behind `<SceneAdmits element="THESIS_GEOMETRY">`,
+   * which withholds it in CLOSED and before the session has produced anything
+   * to read. Equipment that ignored that gate would be a second, louder path to
+   * a surface the scene compiler had refused — the "self-contradicting screen"
+   * SceneAdmits was written against, rebuilt in the rail.
+   *
+   * So the withholding TRAVELS WITH THE EQUIPMENT: the gate is inside
+   * `renderDepth`, and the preview's own verdict and headline say so before the
+   * trader presses anything. A refusal that is stated is not a painted door —
+   * it is the product telling the trader WM is declining rather than broken,
+   * which is the distinction `SceneAdmits`' own note exists to preserve.
+   *
+   * ── WHAT IS READ, AND WHAT IS NOT COMPILED ─────────────────────────────
+   * Every field below is a READ of `chainVm`, which this room already holds.
+   * The verdict is the chain's OWN permission node, not a fresh judgement
+   * assembled here — a descriptor that decided for itself whether the setup
+   * were permitted would be a second semantic brain that could disagree with
+   * the panel it is a preview of.
+   */
+  const decisionChainEquipment = React.useMemo(() => {
+    const admitted = sceneCompilation.admits.includes("THESIS_GEOMETRY");
+    const withheldNote =
+      sceneCompilation.scene === "CLOSED"
+        ? "The decision chain is withheld while the session is closed. The tape is not moving, so a permission verdict would be describing a market that is not there."
+        : "The decision chain is withheld until this session has produced something to read.";
+    const tally = chainVm?.summary ?? null;
+    return {
+      equipmentId: "decision-chain",
+      // The SAME words the rail entry uses. A widget that opened under a
+      // different title reads as a different thing having loaded.
+      title: "Decision chain",
+      verdict: !admitted
+        ? "WITHHELD"
+        : (chainVm?.nodes.find((n) => n.key === "permission")?.verdict ?? "UNKNOWN"),
+      headline: !admitted
+        ? withheldNote
+        : (chainVm?.headline ??
+          "The chain has not compiled for this session yet — nothing is being claimed about permission."),
+      counts: [
+        { testId: "equipment-count-chain-ok", label: `${tally?.ok ?? 0} clear` },
+        {
+          testId: "equipment-count-chain-attention",
+          label: `${(tally?.watch ?? 0) + (tally?.warn ?? 0)} need attention`,
+        },
+        { testId: "equipment-count-chain-unknown", label: `${tally?.unknown ?? 0} unresolved` },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <SceneAdmits
+          compilation={sceneCompilation}
+          element="THESIS_GEOMETRY"
+          withheldNote={withheldNote}
+        >
+          {chainVm && (
+            <DecisionChainPanel
+              vm={chainVm}
+              showNarratives
+              unabridged={unabridged}
+            />
+          )}
+        </SceneAdmits>
+      ),
+    };
+    /* NO `onNodeClick` HERE, AND THAT IS THE BAN BEING HONOURED.
+       The in-room mount drills each node into the WHY drawer. Doing that from
+       inside the equipment would open a drawer from within a drawer — the
+       "drawer-inside-drawer burial" the directive bans by name. The equipment
+       is a place to READ the chain, and ENTER is how it gets deeper. */
+  }, [chainVm, sceneCompilation]);
+
+  /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
    * than a chain of ternaries so that adding a third tenant is an entry, not a
@@ -820,6 +904,7 @@ function CommandDeckInner() {
     ({
       "market-reality": marketRealityEquipment,
       "market-object-passport": passportEquipment,
+      "decision-chain": decisionChainEquipment,
     }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
 
   // Decision Receipt (canon P8): project the most-recently sealed decision
