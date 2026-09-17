@@ -280,7 +280,31 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   //
   // Held until the channel cards adopt the /tv treatment. That is a repair, not
   // a rejection, and it is the cheapest of the three open holds.
-  { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  //
+  // ── THE REPAIR WAS DONE, SAME DAY. ───────────────────────────────────────
+  //
+  // The hold named /tv as the answer, so /tv was read rather than
+  // re-interpreted. Its idiom (tv/page.tsx ~348) is specific and it is not
+  // "use less colour": colour arrives as LOW-ALPHA GLOW AND HAIRLINE over a
+  // dark base — `rgba(232,185,35,0.15)` radial washes, a 0.45-alpha border —
+  // and a SOLID gradient is reserved for small action elements, a 16px icon
+  // tile and a button. Never for a card the size of a hand.
+  //
+  // Applied to the seven Heritage tiles: each keeps its hue and loses its
+  // slab. Obsidian base, the hue as a corner glow and a hairline, and the
+  // waveform — which was already carrying the channel's character and was
+  // being drowned in white laid over full-strength colour — now drawn in the
+  // genre's own colour. Re-rendered and looked at: the strip reads as seven
+  // cards in one room instead of a rainbow band across it.
+  //
+  // One unrelated thing was found by looking and fixed in the same pass: the
+  // section header rendered the literal string "#E8B923" beside its title, a
+  // swatch label from designing the strip that had been shipping as product
+  // copy. Deleted.
+  //
+  // Promoted on the repair. Same method and same limit as its siblings
+  // (static first paint).
+  { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "os" },
   // LOOKED AT 2026-09-16, and promoted only AFTER its hero band was cured. The
   // band ended on linear-gradient(..., #050506) — the shell's own floor, laid
   // across the top of the room. The tier cards and the "ENROLLMENT NOT

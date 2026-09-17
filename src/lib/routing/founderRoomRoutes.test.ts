@@ -87,6 +87,7 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/ai-bot",
       "/lounge",
       "/tv",
+      "/radio",
       "/creator",
       "/partnerships",
     ]);
@@ -110,12 +111,24 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     expect(FOUNDER_ROOM_ROUTES).toContain("/scanner");
     expect(FOUNDER_ROOM_ROUTES).toContain("/ai-bot");
 
-    // /radio stays out, and its sibling is the evidence: the channel grid is
-    // six opaque saturated hues with no obsidian and no gold, while /tv — same
-    // group, same media shape, same channel-grid problem — solves it entirely
-    // in the WM palette. The OS already has an answer and this room is not
-    // using it. Repairable, and held only until it does.
-    expect(FOUNDER_ROOM_ROUTES).not.toContain("/radio");
+    // /radio USED TO BE ASSERTED OUT HERE, and the hold read: the channel grid
+    // is six opaque saturated hues with no obsidian and no gold, while /tv —
+    // same group, same media shape, same channel-grid problem — solves it
+    // entirely in the WM palette. The OS already has an answer and this room is
+    // not using it. Repairable, and held only until it does.
+    //
+    // IT DID. This is a promotion-by-REPAIR, the same shape as /news and the
+    // opposite of /backtesting's promotion-by-withdrawal. The hold was correct
+    // about the room and it named the cure, so /tv was READ rather than
+    // re-interpreted: its idiom is not "use less colour" but "colour arrives as
+    // low-alpha glow and hairline over a dark base, and a solid gradient is
+    // reserved for small action elements". The seven Heritage Channel tiles now
+    // carry each genre's hue in the WAVEFORM and the border, on obsidian.
+    //
+    // Found in the same pass and fixed with it: the strip rendered the literal
+    // string "#E8B923" as product copy — a swatch label from design time,
+    // shipped to traders.
+    expect(FOUNDER_ROOM_ROUTES).toContain("/radio");
 
     // /news USED TO BE ASSERTED OUT OF THE FAMILY HERE, on a MEASURED defect
     // rather than on taste: at 390x844 its search field and source rail ran off
@@ -183,7 +196,7 @@ describe("isFounderRoomRoute", () => {
     expect(isFounderRoomRoute("/")).toBe(false);
     expect(isFounderRoomRoute("/charts")).toBe(true);
     expect(isFounderRoomRoute("/scanner")).toBe(true);
-    expect(isFounderRoomRoute("/radio")).toBe(false);
+    expect(isFounderRoomRoute("/radio")).toBe(true);
     expect(isFounderRoomRoute("/news")).toBe(true);
     expect(isFounderRoomRoute("/heatmaps")).toBe(true);
     expect(isFounderRoomRoute("/copy-trading")).toBe(true);

@@ -1052,7 +1052,13 @@ export default function RadioPage() {
                   <Signal size={13} className="text-wm-text-muted" />
                   <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Heritage Channels</span>
                 </div>
-                <span className="text-[10px] font-mono" style={{ color: "#E8B923" }}>#E8B923</span>
+                {/*
+                  A HEX CODE IS NOT PRODUCT COPY. This slot rendered the literal
+                  string "#E8B923" next to the section title — a swatch label
+                  left over from designing the strip, shipped to traders as if
+                  it meant something. Nothing reads it and nothing acts on it.
+                  Removed rather than restyled.
+                */}
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                 {[
@@ -1064,19 +1070,44 @@ export default function RadioPage() {
                   { name: "Afrobeats",   station: "wm-global", from: "#00C853", to: "#067a34" },
                   { name: "Beats",       station: "wm-beats",  from: "#F0B429", to: "#96700f" },
                 ].map(g => (
+                  /*
+                    ONE OS: these seven tiles used to be opaque saturated slabs
+                    — `linear-gradient(140deg, #E8B923, #8a6a12)` and six like
+                    it, at 186x110 each — so the strip read as a rainbow band
+                    laid across an obsidian room. It was the single loudest
+                    reason this room stayed out of the Founder family.
+                    /tv was consulted rather than a new standard invented, because
+                    /tv has the SAME SHAPE of problem: a media room that needs
+                    per-channel identity on a dark stage. Its answer, at
+                    tv/page.tsx ~348, is that colour arrives as LOW-ALPHA GLOW
+                    AND HAIRLINE over a dark base — `rgba(232,185,35,0.15)`
+                    radial washes, a 0.45-alpha border — and a solid gradient is
+                    reserved for SMALL ACTION elements (a 16px icon tile, the
+                    Join Stream button). Never for a card the size of a hand.
+                    So each genre keeps its hue and loses its slab: the base is
+                    obsidian, the hue arrives as a corner glow (`~11%`), a
+                    hairline (`~33%`) and the waveform itself, which is the part
+                    that was already carrying the channel's character and was
+                    being drowned in white on top of full-strength colour.
+                  */
                   <button key={g.name} onClick={() => playStation(g.station)}
                     className="relative shrink-0 rounded-2xl overflow-hidden group transition-transform hover:scale-[1.03]"
-                    style={{ width: 186, height: 110, background: `linear-gradient(140deg, ${g.from}, ${g.to})`, boxShadow: `0 8px 22px ${g.from}33` }}>
-                    {/* white waveform */}
-                    <div className="absolute inset-x-4 bottom-4 flex items-end gap-[2px]" style={{ height: 40, opacity: 0.9 }}>
+                    style={{
+                      width: 186, height: 110,
+                      background: `radial-gradient(125% 95% at 18% 12%, ${g.from}1F 0%, transparent 62%), #0b0b0d`,
+                      border: `1px solid ${g.from}55`,
+                      boxShadow: "0 8px 22px rgba(0,0,0,0.5)",
+                    }}>
+                    {/* the genre's own hue, carried by the waveform rather than the slab */}
+                    <div className="absolute inset-x-4 bottom-4 flex items-end gap-[2px]" style={{ height: 40 }}>
                       {[10,20,32,18,40,26,44,22,36,16,30,24,38,20,28,14,34,18].map((h, j) => (
-                        <div key={j} style={{ flex: 1, height: `${Math.min(100, h * 2.4)}%`, borderRadius: 2, background: "rgba(255,255,255,0.85)" }} />
+                        <div key={j} style={{ flex: 1, height: `${Math.min(100, h * 2.4)}%`, borderRadius: 2, background: `${g.from}B3` }} />
                       ))}
                     </div>
-                    <span className="absolute top-3 left-4 text-white font-black text-[16px]" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}>{g.name}</span>
+                    <span className="absolute top-3 left-4 font-black text-[16px]" style={{ color: "#EDE6D3" }}>{g.name}</span>
                     <div className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.55)" }}>
-                      <Play size={13} className="text-white ml-0.5" />
+                      style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${g.from}8C` }}>
+                      <Play size={13} className="ml-0.5" style={{ color: g.from }} />
                     </div>
                   </button>
                 ))}
