@@ -153,7 +153,22 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
        20 → 19. Recorded rather than silently deleted, because the whole claim
        of this file is that the number cannot move without somebody looking. */
     "PracticeHonestyLayer",
-    "StructureContextNote",
+    /* `StructureContextNote` WAS HERE. Fifth entry discharged, and the SECOND
+       one discharged as a CONSEQUENCE rather than a decision — the first being
+       `DLARStrip`, which came off when the chain's door was found to be carrying
+       half its cargo.
+
+       This is the same shape one step further out. The chain's `renderDepth`
+       reproduced the §10 gate AND the §10 pairing and still dropped the note the
+       room renders immediately beneath them, OUTSIDE that gate, under §9. The
+       effect was an ENTER that disclosed LESS than the dock: the trader in the
+       room saw the contradiction, and the trader who asked for the complete
+       experience watched it disappear. Carrying it into the door — outside the
+       gate, exactly as the room places it — puts it at zero `<details>` depth
+       and ends its buried-only status. The in-room mount is untouched.
+
+       16 → 15. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     "WhyInspector",
     /**
      * ── PERMANENT. Machinery the directive forbids surfacing. ────────────

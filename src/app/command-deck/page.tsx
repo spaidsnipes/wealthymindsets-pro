@@ -868,6 +868,7 @@ function CommandDeckInner() {
         { testId: "equipment-count-chain-unknown", label: `${tally?.unknown ?? 0} unresolved` },
       ],
       renderDepth: (unabridged: boolean) => (
+        <>
         <SceneAdmits
           compilation={sceneCompilation}
           element="THESIS_GEOMETRY"
@@ -904,6 +905,29 @@ function CommandDeckInner() {
             </>
           )}
         </SceneAdmits>
+        {/* THE CONTRADICTION NOTE TRAVELS WITH THE DOOR, AND IT TRAVELS OUTSIDE
+            THE GATE — exactly as it does in the room at section 3.
+
+            This is the §10 lesson again, pointing a third way. The lens was a
+            missing PAIRING inside the gate. This is a missing ADJACENCY outside
+            it. The room admits this note under §9 — material invalidation is one
+            of only two things allowed to take the room — NOT under
+            THESIS_GEOMETRY, and the room says so in its own comment: "this is
+            not a thesis; it is the note that says the thesis and the tape
+            disagree." Putting it inside the gate would silence a contradiction
+            warning in precisely the case where the thesis is withheld, which is
+            the one case the trader most needs it.
+
+            Without this, ENTER was STRICTLY WORSE THAN THE ROOM: the trader in
+            the room reads the chain with the contradiction sitting under it, and
+            the trader who pressed ENTER for "the complete professional
+            experience" got the chain with the contradiction gone. A full screen
+            that discloses less than the dock is the ENTER promise run backwards.
+
+            Not `unabridged`-gated, and it cannot become furniture: it returns
+            null unless direction is resolved AND the auction is FAILING. */}
+        {chainVm && <StructureContextNote vm={chainVm} />}
+        </>
       ),
     };
     /* NO `onNodeClick` OR `onDrillClick` HERE, AND THAT IS THE BAN BEING HONOURED.

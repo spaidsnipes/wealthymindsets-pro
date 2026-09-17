@@ -772,6 +772,61 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     ).not.toMatch(/unabridged/);
     },
   );
+
+  /**
+   * §9: ENTER MAY NEVER DISCLOSE LESS THAN THE DOCK.
+   *
+   * The room renders `StructureContextNote` immediately beneath the chain and
+   * deliberately OUTSIDE the THESIS_GEOMETRY gate, with its reason written down:
+   * "this is not a thesis; it is the note that says the thesis and the tape
+   * disagree. §9 names material invalidation as one of the only two things
+   * allowed to take the room."
+   *
+   * The chain's door carried the gate and the pairing and still dropped this.
+   * The effect was an ENTER that was STRICTLY WORSE THAN THE DOCK: a trader
+   * reading the chain in the room saw the contradiction underneath it; a trader
+   * who pressed ENTER for the complete experience saw the contradiction vanish.
+   *
+   * THIS IS THE THIRD SHAPE OF THE SAME DEFECT and the reason it earns its own
+   * rule rather than a line in the one above. The first was a missing pairing
+   * INSIDE the gate. This is a missing adjacency OUTSIDE it — so a rule that
+   * only ever looked within the gate could not have seen it.
+   *
+   * The placement assertion is load-bearing, not cosmetic. Inside the gate, the
+   * note would be silenced exactly when the thesis is withheld, which is the one
+   * case the trader most needs to be told the tape disagrees.
+   */
+  it.runIf(chainDescriptor)(
+    "§9: the chain's door carries the contradiction note, outside the gate",
+    () => {
+      const at = deck.indexOf("const decisionChainEquipment");
+      const body = deck.slice(at, deck.indexOf("[chainVm, sceneCompilation]", at));
+      const rendered = body.slice(body.indexOf("renderDepth:"));
+      expect(
+        rendered,
+        `${DECK} → the chain's ENTER drops <StructureContextNote>. The room ` +
+          `renders it right under the chain, so ENTER now discloses LESS than ` +
+          `the dock it claims to deepen: the trader who asked for the complete ` +
+          `experience is the one who stops being told the thesis and the tape ` +
+          `disagree.`,
+      ).toContain("<StructureContextNote");
+      // OUTSIDE the gate, matching the room. `</SceneAdmits>` must close BEFORE
+      // the note, or the note inherits a gate that was never meant to hold it.
+      const gateClose = rendered.indexOf("</SceneAdmits>");
+      const noteAt = rendered.indexOf("<StructureContextNote");
+      expect(
+        gateClose,
+        `${DECK} → the chain's depth no longer closes a <SceneAdmits> gate.`,
+      ).toBeGreaterThan(-1);
+      expect(
+        noteAt > gateClose,
+        `${DECK} → <StructureContextNote> sits INSIDE the THESIS_GEOMETRY gate ` +
+          `in the chain's depth. The room puts it outside on purpose: a ` +
+          `contradiction warning gated on the thesis goes silent in exactly the ` +
+          `case where the thesis is withheld — the one case it exists for.`,
+      ).toBe(true);
+    },
+  );
 });
 
 describe("SENTINEL — the equipment layer is depth, not another app", () => {
