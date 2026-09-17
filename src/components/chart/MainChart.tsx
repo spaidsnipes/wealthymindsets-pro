@@ -26,6 +26,12 @@ import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 // that agree until someone edits one of them.
 import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
 import { deriveBarOverBarChange } from "@/lib/marketData/deriveLastBarClose";
+import {
+  DELTA_LEVEL_CAP_DEFAULT,
+  DELTA_LEVEL_CAP_EVENT,
+  DELTA_LEVEL_CAP_STORAGE_KEY,
+  normalizeDeltaLevelCap,
+} from "@/lib/marketData/deltaLevelCap";
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import {
   findSessionNectarChannel,
@@ -1254,18 +1260,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const lastTickAtRef = useRef<number>(0);
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
-  // Delta Bubble level cap — user preference (5/7/10/15), default 7, persisted
-  // per workspace in wm_delta_levels; the Smart Money panel broadcasts changes.
-  const deltaLevelsPrefRef = useRef<number>(7);
+  // Delta Bubble level cap. The legal values, the key, the event name and the
+  // fallback are NOT spelled here — they are read from `deltaLevelCap`, the one
+  // owner. They used to be written out in full both here and twice more in the
+  // Smart Money panel: four copies that agreed until one was edited, after which
+  // a cap the panel accepted was one this chart silently rewrote to the default
+  // with nothing on screen saying so.
+  const deltaLevelsPrefRef = useRef<number>(DELTA_LEVEL_CAP_DEFAULT);
   useEffect(() => {
     const read = () => {
-      const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
-      deltaLevelsPrefRef.current = [5, 7, 10, 15].includes(v) ? v : 7;
+      deltaLevelsPrefRef.current = normalizeDeltaLevelCap(
+        localStorage.getItem(DELTA_LEVEL_CAP_STORAGE_KEY),
+      );
     };
     read();
     const onEvt = () => { read(); setRangeVer(x => x + 1); }; // redraw bubbles with new cap
-    window.addEventListener("wm-delta-levels", onEvt);
-    return () => window.removeEventListener("wm-delta-levels", onEvt);
+    window.addEventListener(DELTA_LEVEL_CAP_EVENT, onEvt);
+    return () => window.removeEventListener(DELTA_LEVEL_CAP_EVENT, onEvt);
   }, []);
   // Bumped whenever paper state may have changed (another tab writes wm_paper_state,
   // or the window regains focus after the user placed a trade on /paper) → re-read.

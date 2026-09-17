@@ -30,6 +30,14 @@ import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel
 import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel";
 import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
+import {
+  capDeltaLevels,
+  DELTA_LEVEL_CAP_CHOICES,
+  DELTA_LEVEL_CAP_DEFAULT,
+  DELTA_LEVEL_CAP_EVENT,
+  DELTA_LEVEL_CAP_STORAGE_KEY,
+  normalizeDeltaLevelCap,
+} from "@/lib/marketData/deltaLevelCap";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -422,7 +430,14 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     () => selectDeltaLevels(realTape ? recentTicks : null),
     [realTape, recentTicks],
   );
-  const deltaLevels = deltaVM.levels;
+  // EVERY level the tape produced, before the trader's cap. Kept separate from
+  // what gets rendered so the chip below can report both numbers — a cap that
+  // hides observed levels is a fact the trader is owed, not a silent trim.
+  const deltaLevelsObserved = deltaVM.levels;
+  // The scale the bubbles are drawn against stays the UNCAPPED maximum. Ranking
+  // keeps the largest |delta|, so this is the same number either way — but
+  // recomputing it over the survivors would make the scale depend on the cap,
+  // and the same level would render a different size at 5 than at 15.
   const maxAbsDelta = deltaVM.maxAbsDelta;
 
   // Why THIS symbol has no signed tape. Null whenever one is flowing, so the
@@ -446,25 +461,34 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // Trades gear so the selector sits with the bubbles it controls. Reuses the
   // EXISTING wm_delta_levels key + wm-delta-levels event untouched, so MainChart
   // and every other listener keep working. This is now the single source of truth.
-  const [deltaLevelCap, setDeltaLevelCapState] = useState<number>(() => {
-    if (typeof window === "undefined") return 7;
-    const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
-    return [5, 7, 10, 15].includes(v) ? v : 7;
-  });
+  const [deltaLevelCap, setDeltaLevelCapState] = useState<number>(() =>
+    typeof window === "undefined"
+      ? DELTA_LEVEL_CAP_DEFAULT
+      : normalizeDeltaLevelCap(localStorage.getItem(DELTA_LEVEL_CAP_STORAGE_KEY)),
+  );
   const setDeltaLevelCap = (n: number) => {
     setDeltaLevelCapState(n);
-    try { localStorage.setItem("wm_delta_levels", String(n)); } catch {}
-    try { window.dispatchEvent(new CustomEvent("wm-delta-levels")); } catch {}
+    try { localStorage.setItem(DELTA_LEVEL_CAP_STORAGE_KEY, String(n)); } catch {}
+    try { window.dispatchEvent(new CustomEvent(DELTA_LEVEL_CAP_EVENT)); } catch {}
   };
   // Stay in sync if the value is changed elsewhere (e.g. another tab).
   useEffect(() => {
-    const onEvt = () => {
-      const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
-      setDeltaLevelCapState([5, 7, 10, 15].includes(v) ? v : 7);
-    };
-    window.addEventListener("wm-delta-levels", onEvt);
-    return () => window.removeEventListener("wm-delta-levels", onEvt);
+    const onEvt = () =>
+      setDeltaLevelCapState(normalizeDeltaLevelCap(localStorage.getItem(DELTA_LEVEL_CAP_STORAGE_KEY)));
+    window.addEventListener(DELTA_LEVEL_CAP_EVENT, onEvt);
+    return () => window.removeEventListener(DELTA_LEVEL_CAP_EVENT, onEvt);
   }, []);
+
+  // THE CONTROL NOW MOVES THE PIXELS IT SITS ON. Its own sub-label reads "max
+  // ranked price levels per bar", and until this line the strip directly beneath
+  // it rendered the uncapped partition — so choosing 5 or 15 changed nothing on
+  // this card, while the chart canvas obeyed. Same cap, same ranking, same
+  // comparator as the canvas, because both now call one owner.
+  const deltaCapped = React.useMemo(
+    () => capDeltaLevels(deltaLevelsObserved, deltaLevelCap),
+    [deltaLevelsObserved, deltaLevelCap],
+  );
+  const deltaLevels = deltaCapped.levels;
   // Gentle "just updated" pulse on an independent heartbeat (signals themselves
   // are derived synchronously above, so no timer is needed to refresh them).
   useEffect(() => {
@@ -829,8 +853,26 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         <div className="flex items-center gap-1.5 mb-2">
           <Droplets size={11} className="text-wm-blue" />
           <span className="text-[10px] font-bold text-wm-text">WM DELTA BUBBLES</span>
-          <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-black bg-wm-muted text-wm-text-dim">
-            {flow.hasFlow ? `${deltaLevels.length} LEVEL${deltaLevels.length === 1 ? "" : "S"}` : "NO TAPE"}
+          {/* When the trader's own cap is hiding observed levels, the chip says
+              so — "5 OF 9 LEVELS", not a bare "5 LEVELS". A count that silently
+              means "how many survived your setting" on one surface and "how many
+              the tape found" on another is one screen answering one question two
+              ways, which is the whole defect this card was carrying. */}
+          <span
+            className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-black bg-wm-muted text-wm-text-dim"
+            data-delta-levels-shown={flow.hasFlow ? deltaCapped.shown : undefined}
+            data-delta-levels-total={flow.hasFlow ? deltaCapped.total : undefined}
+            title={
+              flow.hasFlow && deltaCapped.truncated
+                ? `The tape produced ${deltaCapped.total} price levels in this window. Your "Levels shown" setting of ${deltaLevelCap} keeps the ${deltaCapped.shown} with the largest net delta; the rest are observed but not drawn. The chart's bubbles use the same cap and the same ranking.`
+                : undefined
+            }
+          >
+            {!flow.hasFlow
+              ? "NO TAPE"
+              : deltaCapped.truncated
+                ? `${deltaCapped.shown} OF ${deltaCapped.total} LEVELS`
+                : `${deltaCapped.shown} LEVEL${deltaCapped.shown === 1 ? "" : "S"}`}
           </span>
         </div>
 
@@ -843,7 +885,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             <span className="text-[8px] text-wm-text-dim">max ranked price levels per bar</span>
           </div>
           <div role="group" aria-label="Delta bubble levels shown" className="grid grid-cols-4 gap-1">
-            {[5, 7, 10, 15].map((n, idx, arr) => {
+            {DELTA_LEVEL_CAP_CHOICES.map((n, idx, arr) => {
               const selected = deltaLevelCap === n;
               return (
                 <button
@@ -868,7 +910,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
                       : "text-wm-text-dim border-wm-border hover:text-wm-text hover:border-wm-text-dim/40"
                   )}
                 >
-                  {n}{n === 7 ? " ★" : ""}
+                  {n}{n === DELTA_LEVEL_CAP_DEFAULT ? " ★" : ""}
                 </button>
               );
             })}
