@@ -87,6 +87,34 @@ import { INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
  * not certify a room. Anyone tempted to bulk-flip `"cleared"` to `"os"` should
  * read that sentence again — this field's whole value is that it is a record of
  * looking, and a bulk flip is a record of not having looked.
+ *
+ * ── HOW THE 2026-09-16 LOOKING WAS DONE, AND WHAT IT CANNOT SEE ─────────────
+ *
+ * Looking had been blocked: every interior route redirects to /login without a
+ * session, and three sanctioned ways to get a local session all failed (a
+ * second `next dev` is refused; Turbopack rejects a worktree's symlinked
+ * node_modules; restarting the running server was not permitted). No
+ * credential was touched and no token was forged to get around that.
+ *
+ * The way through was to render the room rather than visit it:
+ * `renderToStaticMarkup(<WMExperienceShell><Page /></WMExperienceShell>)` to an
+ * HTML file, with the REAL compiled stylesheet attached, then opened in Chrome
+ * and both screenshotted and probed for computed styles.
+ *
+ * THE LIMIT, STATED PLAINLY: this is STATIC FIRST PAINT. No client effects, no
+ * live data, no router, no interaction. A room promoted on this evidence has
+ * been seen STANDING STILL. It has not been seen working. That is more than
+ * "cleared" and less than a session, and any promotion below carries exactly
+ * that weight.
+ *
+ * Attaching the stylesheet mattered: the first pass omitted it and reported
+ * /education as visually broken. That verdict was an artifact of the harness,
+ * not the room. A look is only a look when the thing being looked at is dressed.
+ *
+ * Rooms that could not be rendered at all, and so could not be looked at:
+ * /ai-bot, /news and /scanner ("invariant expected app router to be mounted")
+ * and /radio ("useRadio must be used inside RadioProvider"). They stay
+ * "cleared" — not because they failed, but because nobody has seen them.
  */
 export type WmDestinationGroup = "ROOM" | "TOOL" | "COMMUNITY";
 
@@ -137,9 +165,18 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // ── TOOLS — market work the trader steps out to ─────────────────────────
   { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "cleared" },
   { href: "/news", label: "News", icon: Newspaper, group: "TOOL", tier: 1, frame: "legacy" },
-  { href: "/education", label: "Academy", icon: GraduationCap, group: "TOOL", tier: 2, frame: "cleared" },
-  { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16 (static first paint, see header): lesson rail, progress
+  // ring and challenge chip all sit correctly under the masthead; on-canon.
+  { href: "/education", label: "Academy", icon: GraduationCap, group: "TOOL", tier: 2, frame: "os" },
+  // LOOKED AT 2026-09-16: the most on-canon of the cleared rooms — gold on
+  // obsidian throughout, pace table and challenge lab both legible.
+  { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "os" },
   { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16 and HELD BACK. Structure survives the frame, but the
+  // room paints cyan and purple accents (Run Backtest, the Backtest tab, the
+  // selected date range). Those are not in the WM palette, so promoting it
+  // would put a second visual system inside the one OS. Promote after the
+  // accents are reconciled with the Canon — not before.
   { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "cleared" },
   // The page at /ai-bot is titled "Market Intelligence · Observed market data
   // only · no generated signals" and runs the canonical Market Canvas — it does
@@ -147,7 +184,11 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   { href: "/ai-bot", label: "Market Intel", icon: Zap, group: "TOOL", tier: 2, frame: "cleared" },
 
   // ── COMMUNITY & BUSINESS ────────────────────────────────────────────────
-  { href: "/lounge", label: "Lounge", icon: Users, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  // LOOKED AT 2026-09-16: on this runtime Lounge renders its honest
+  // "not configured — Supabase connection required" state, and that state sits
+  // correctly under the masthead with the sanctuary intact. Promoted on the
+  // degradation path; the populated path has not been seen.
+  { href: "/lounge", label: "Lounge", icon: Users, group: "COMMUNITY", tier: 2, frame: "os" },
   { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "cleared" },
   { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "cleared" },
   { href: "/creator", label: "Creator", icon: Globe, group: "COMMUNITY", tier: 2, frame: "cleared" },

@@ -35,6 +35,18 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     // the one this Sentinel has always fenced — same seven rooms, no addition,
     // no removal. Asserting the order too is deliberate: the rail renders in
     // this sequence, so a reshuffle is a visible change and should need a diff.
+    //
+    // 2026-09-16 — THE FIRST ADDITIONS SINCE THE ORIGINAL SEVEN, and this
+    // fence is what forced them to be deliberate rather than incidental.
+    // /education, /proof-lane and /lounge were each looked at inside
+    // WMExperienceShell and each survived the frame. The looking was done on
+    // STATIC FIRST PAINT — see the long note in wmDestinations.ts for the
+    // method and exactly what it cannot see. They are promoted on that
+    // evidence and no more.
+    //
+    // /backtesting was looked at in the same pass and deliberately NOT
+    // promoted: it paints cyan and purple accents that are not in the WM
+    // palette, and one OS may not contain two visual systems.
     expect([...FOUNDER_ROOM_ROUTES]).toEqual([
       "/morning-prep",
       "/command-deck",
@@ -43,6 +55,9 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/nectar",
       "/paper",
       "/journal",
+      "/education",
+      "/proof-lane",
+      "/lounge",
     ]);
   });
 

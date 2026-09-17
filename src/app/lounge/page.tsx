@@ -1107,9 +1107,14 @@ export default function LoungePage() {
         </div>
       </div>
 
-      {/* Discovery is progressive disclosure, not an empty permanent rail. */}
+      {/* Discovery is progressive disclosure, not an empty permanent rail.
+
+          ONE ROOM, ONE LANDMARK: WMOperatingSystem already draws an <aside>
+          around this room. A second one is invalid inside <main> and reads as
+          a re-grown shell. A <div> with the same label keeps the pixels and
+          gives the landmark back its single owner. */}
       {hasDiscovery && (
-      <aside aria-label="Community discovery" style={{width:220,flexShrink:0}} className="border-l border-wm-border bg-wm-dark flex flex-col p-3 overflow-y-auto">
+      <div aria-label="Community discovery" style={{width:220,flexShrink:0}} className="border-l border-wm-border bg-wm-dark flex flex-col p-3 overflow-y-auto">
         {topPosters.length > 0 && (
           <>
           <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-2">Who to Follow</div>
@@ -1148,7 +1153,7 @@ export default function LoungePage() {
           ))}
           </>
         )}
-      </aside>
+      </div>
       )}
 
       {/* Create Post Modal */}
