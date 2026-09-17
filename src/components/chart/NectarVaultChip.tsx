@@ -6,6 +6,7 @@ import {
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { selectEvidenceDeltaChip } from "@/lib/marketData/selectEvidenceDeltaChip";
 
 /**
  * NectarVaultChip — visible, calm confirmation that WM is holding each
@@ -49,13 +50,10 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
   // so it never adds noise to an empty session.
   if (symbols.length === 0) return null;
 
-  const fmt = (n: number) => {
-    const abs = Math.abs(n);
-    if (abs >= 1e6) return (n / 1e6).toFixed(1) + "M";
-    if (abs >= 1e3) return (n / 1e3).toFixed(1) + "K";
-    return n.toFixed(2);
-  };
-
+  // `fmt` lived here and formatted the delta with K/M abbreviation. It is
+  // GONE, not moved: selectEvidenceDeltaChip owns the delta's rendering now,
+  // and a second formatter for the same number would agree with the owner only
+  // until someone edited one of them.
   const nowMs = Date.now();
   const fmtMemoryAge = (startedAtSec: number): string => {
     const seconds = Math.max(0, Math.floor(nowMs / 1000 - startedAtSec));
@@ -128,14 +126,28 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
       >
         {symbols.slice(0, 6).map(({ symbol, slot }) => {
           const isActive = symbol === activeSymbol;
-          const d = slot.stats.delta;
-          const dColor = d > 0 ? "#00C076" : d < 0 ? "#FF4D6A" : "#8B92AC";
+          /* MEASURED LIVE 2026-09-17 in this very popover: "AAPL  -0.01" was
+             painted red and "META  +0.01" green, in the slot a trader reads as
+             "change today, in dollars". It is neither. It is net aggressive
+             VOLUME, and AAPL's came from five observed trades.
+
+             selectEvidenceDeltaChip owns both halves of the repair: the `Δ`
+             now travels WITH the reading (the law this file's own docblock
+             states thirty-five lines above), and the direction colour is
+             withheld whenever buy and sell volume agree to within the declared
+             imbalance convention. The number is never withheld — only the
+             verdict about its direction. */
+          const deltaChip = selectEvidenceDeltaChip(slot.stats, symbol);
+          const dColor =
+            deltaChip.direction === 1 ? "#00C076"
+            : deltaChip.direction === -1 ? "#FF4D6A"
+            : "#8B92AC";
           return (
             <button
               key={symbol}
               type="button"
               onClick={() => { if (!isActive) setActiveSymbol(symbol); }}
-              aria-label={`Switch chart to ${symbol}`}
+              aria-label={`Switch chart to ${symbol}. ${deltaChip.spoken}`}
               aria-pressed={isActive}
               style={{
                 minHeight: 44, minWidth: 44, padding: "4px 8px", borderRadius: 8,
@@ -144,10 +156,12 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
                 color: isActive ? "#D8DCEA" : "#8B92AC", cursor: isActive ? "default" : "pointer",
                 font: "inherit", display: "inline-flex", alignItems: "center", gap: 5,
               }}
-              title={`${isActive ? "Currently active" : "Click to switch chart"} — ${symbol}: ${slot.stats.tradeCount.toLocaleString()} trades observed. Δ ${fmt(d)}. Big ${slot.stats.bigTradeCount}. ${slot.horizon ? fmtMemoryAge(slot.horizon.startedAtSec) : "no horizon yet"}.`}
+              title={`${isActive ? "Currently active" : "Click to switch chart"} — ${deltaChip.title} Big ${slot.stats.bigTradeCount}. ${slot.horizon ? fmtMemoryAge(slot.horizon.startedAtSec) : "no horizon yet"}.`}
             >
               <span style={{ fontWeight: 850 }}>{symbol}</span>
-              <span style={{ color: dColor }}>{d > 0 ? "+" : ""}{fmt(d)}</span>
+              <span data-evidence-delta-kind={deltaChip.kind} style={{ color: dColor }}>
+                {deltaChip.text}
+              </span>
             </button>
           );
         })}
