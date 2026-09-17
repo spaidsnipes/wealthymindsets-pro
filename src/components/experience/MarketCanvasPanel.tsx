@@ -28,6 +28,26 @@ import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCan
 export interface MarketCanvasPanelProps {
   readonly vm: MarketCanvasVM;
   readonly className?: string;
+  /**
+   * Give the panel its full professional depth. The six-item caps below exist
+   * because this panel normally lives in a tight slot beneath the chart; when
+   * it is handed the whole screen there is no reason to withhold lines it was
+   * already given.
+   *
+   * TWO KINDS OF "MORE", AND ONLY ONE OF THEM IS A DISPLAY CHOICE
+   * -------------------------------------------------------------
+   * `+N more` on unresolved/cleared is this component declining to draw rows
+   * it holds. Room cures it.
+   *
+   * `+N more blocking, not named here` is NOT that. The blockers array arrives
+   * from the compiler already capped at 3 labels per evidence bucket, so those
+   * labels do not exist at this layer and no amount of screen conjures them.
+   * It survives `unabridged` deliberately. Letting a bigger viewport silence it
+   * would turn a standing gap in the data into a clean-looking full experience
+   * — the trader would read "everything is named" off a surface that simply
+   * stopped admitting it wasn't.
+   */
+  readonly unabridged?: boolean;
 }
 
 const HAIR = "rgba(139,106,41,0.22)";
@@ -41,7 +61,13 @@ const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
   UNKNOWN: "#8a8271",
 };
 
-export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): React.ReactElement {
+export function MarketCanvasPanel({
+  vm,
+  className,
+  unabridged = false,
+}: MarketCanvasPanelProps): React.ReactElement {
+  /** Infinity, not a bigger number: "as many as I was handed" is the rule. */
+  const cap = unabridged ? Number.POSITIVE_INFINITY : 6;
   const anyBodyPresent =
     vm.missing.length > 0 ||
     vm.resolved.length > 0 ||
@@ -107,11 +133,11 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4, textTransform: "uppercase" }}>
             Unresolved ({vm.missing.length})
           </div>
-          {vm.missing.slice(0, 6).map((m, i) => (
+          {vm.missing.slice(0, cap).map((m, i) => (
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{m}</div>
           ))}
-          {vm.missing.length > 6 && (
-            <div style={{ fontSize: 9, color: MUTED, fontStyle: "italic" }}>+{vm.missing.length - 6} more</div>
+          {vm.missing.length > cap && (
+            <div style={{ fontSize: 9, color: MUTED, fontStyle: "italic" }}>+{vm.missing.length - cap} more</div>
           )}
         </div>
       )}
@@ -159,12 +185,12 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#7ac57a", marginBottom: 4, textTransform: "uppercase" }}>
             Cleared ({vm.clearances.length})
           </div>
-          {vm.clearances.slice(0, 6).map((c, i) => (
+          {vm.clearances.slice(0, cap).map((c, i) => (
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{c}</div>
           ))}
-          {vm.clearances.length > 6 && (
+          {vm.clearances.length > cap && (
             <div style={{ fontSize: 10, color: "#8a8578", lineHeight: 1.4, fontStyle: "italic" }}>
-              +{vm.clearances.length - 6} more cleared, not shown
+              +{vm.clearances.length - cap} more cleared, not shown
             </div>
           )}
         </div>

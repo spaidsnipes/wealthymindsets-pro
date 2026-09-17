@@ -190,6 +190,19 @@ describe("SENTINEL — the equipment layer is depth, not another app", () => {
     expect(dock, `${LAYER} → the drawer must not become full-height`).toMatch(/maxHeight/);
   });
 
+  it("ENTER buys DEPTH, not just size — the full stage renders the canvas unabridged", () => {
+    // Anchored to the panel's own props, not the file: a bare search for
+    // `unabridged` would pass on a hardcoded `unabridged` or `unabridged={true}`
+    // — which would uncap the DRAWER too and leave ENTER meaning nothing but a
+    // larger box. The gate has to name the stage.
+    const mount = layer.indexOf("<MarketCanvasPanel");
+    expect(mount, `${LAYER} → the canvas is no longer rendered at depth`).toBeGreaterThan(-1);
+    const props = layer.slice(mount, layer.indexOf("/>", mount));
+    expect(props, `${LAYER} → ENTER must uncap the canvas, or it is only a resize`).toMatch(
+      /unabridged=\{stage === "full"\}/,
+    );
+  });
+
   it("publishes the stage and the decision so identity is checkable from outside", () => {
     expect(layer, `${LAYER} → the stage must be observable in the DOM`).toMatch(
       /data-equipment-stage=\{stage\}/,

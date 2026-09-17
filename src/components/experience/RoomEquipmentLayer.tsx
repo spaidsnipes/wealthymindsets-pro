@@ -222,7 +222,11 @@ export function RoomEquipmentLayer({
             </div>
           </div>
         ) : (
-          <MarketCanvasPanel vm={vm} />
+          // ONE compilation, and at FULL it is finally allowed to say all of
+          // itself. The drawer caps each list at six because it is a drawer;
+          // withholding those same rows on a full screen would make ENTER a
+          // change of size rather than a change of depth.
+          <MarketCanvasPanel vm={vm} unabridged={stage === "full"} />
         )}
       </div>
     </aside>

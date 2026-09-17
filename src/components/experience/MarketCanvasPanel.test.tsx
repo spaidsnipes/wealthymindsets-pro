@@ -125,3 +125,47 @@ describe("MarketCanvasPanel — canon §Phase 3 Market Canvas", () => {
     expect(html).not.toContain("market-canvas-invalidators");
   });
 });
+
+describe("MarketCanvasPanel — `unabridged` is depth, and only where depth is owed", () => {
+  const nine = (label: string) => Array.from({ length: 9 }, (_, i) => `${label} ${i + 1}`);
+
+  it("caps each list at six by default — the panel normally lives in a tight slot", () => {
+    const html = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ missing: nine("Dim") })} />);
+    expect(html).toContain("Dim 6");
+    expect(html).not.toContain("Dim 7");
+    expect(html).toContain("+3 more");
+  });
+
+  it("names every row it was handed when given the screen", () => {
+    const html = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ missing: nine("Dim"), clearances: nine("Check") })} unabridged />,
+    );
+    for (let i = 1; i <= 9; i += 1) {
+      expect(html, `unabridged withheld "Dim ${i}"`).toContain(`Dim ${i}`);
+      expect(html, `unabridged withheld "Check ${i}"`).toContain(`Check ${i}`);
+    }
+    expect(html, "nothing is being withheld, so nothing may claim to be").not.toContain("more");
+  });
+
+  it("STILL names the blocker shortfall when unabridged — a bigger screen is not more data", () => {
+    // The blockers array arrives from the compiler already capped at 3 labels
+    // per evidence bucket. Those labels do not exist at this layer, so a full
+    // screen cannot print them. If `unabridged` silenced this line, the full
+    // experience would read as a complete list of reasons the trader cannot
+    // trade while quietly concealing six of them — the most expensive shape of
+    // lie this surface can tell, told only at the depth the trader trusts most.
+    const html = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ blockers: ["Regime", "Direction", "Location"], blockerCount: 9 })} unabridged />,
+    );
+    expect(html).toContain('data-testid="market-canvas-blockers-remainder"');
+    expect(html).toContain("+6 more blocking, not named here");
+  });
+
+  it("is capped-by-default so no existing consumer silently changes shape", () => {
+    const capped = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ missing: nine("Dim") })} />);
+    const explicit = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ missing: nine("Dim") })} unabridged={false} />,
+    );
+    expect(capped).toBe(explicit);
+  });
+});

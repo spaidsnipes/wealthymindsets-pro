@@ -28,8 +28,27 @@ describe("market canvas blocker disclosure", () => {
   it("still discloses the remainder for the affirmative list", () => {
     // Clearances stay capped — hiding a PASSED check is a coverage issue, not
     // a safety one — but the count withheld must be stated.
-    expect(panel).toContain("vm.clearances.length > 6");
+    //
+    // RE-PINNED: this read `vm.clearances.length > 6` literally. The cap is now
+    // `cap`, which is 6 in a drawer and Infinity on a full screen. The literal
+    // was never the point — the point is that a withheld count is ANNOUNCED,
+    // and `length > cap` keeps that true at every depth while the old string
+    // would have failed a change that strengthened the surface.
+    expect(panel).toContain("vm.clearances.length > cap");
     expect(panel).toContain("more cleared, not shown");
+  });
+
+  it("the cap may grow with the viewport — the blocker shortfall may not", () => {
+    // The strengthening this re-pin accompanies, locked so it cannot quietly
+    // reverse. `unabridged` uncaps DISPLAY truncation only. The blocker
+    // remainder is a DATA shortfall (the array arrives capped by the compiler),
+    // so its disclosure is gated on the counts alone and no prop may silence
+    // it. If this ever became `!unabridged && vm.blockerCount > ...`, the full
+    // experience would read as a complete list of reasons not to trade while
+    // concealing the rest — at exactly the depth a trader trusts most.
+    expect(panel).toContain("{vm.blockerCount > vm.blockers.length && (");
+    expect(panel).not.toMatch(/unabridged[^\n]*vm\.blockerCount/);
+    expect(panel).not.toMatch(/vm\.blockerCount[^\n]*unabridged/);
   });
 });
 
