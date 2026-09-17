@@ -5,6 +5,7 @@ import {
   usePracticeHonestyLedger,
   practiceHonestyHasDisclosure,
 } from "@/lib/practice/usePracticeHonestyLedger";
+import { selectPracticeEasementStages } from "@/lib/practice/selectPracticeEasementStages";
 
 /**
  * PracticeHonestyLayer — the REVIEW contextual layer of the decision room.
@@ -118,8 +119,81 @@ export function PracticeHonestyLayer({
     );
   }
 
+  /**
+   * WHERE IN THE TRADE'S LIFE THE SOFTNESS LIVES — before a heading is read.
+   *
+   * A book easier in one way and a book easier in four rendered as the same
+   * object here: a stack of headings, longer or shorter. The five-stage
+   * ordering this ledger was built around was invisible. The strip projects the
+   * SAME ledger onto its own grammar, so ENTRY-and-STOP reads differently from
+   * FILL-and-REST at a glance.
+   *
+   * An unlit stage is labelled NOT RECORDED and never coloured as a pass —
+   * several owners can only speak when the book gave them something to judge,
+   * so "nothing here" and "clean here" are not the same claim and this strip
+   * makes only the first.
+   */
+  const strip = selectPracticeEasementStages(ledger);
+
+  const stageStrip = strip ? (
+    <div data-testid="practice-easement-strip" data-recorded={strip.recordedCount}>
+      <div style={{ display: "flex", gap: 3 }}>
+        {strip.stages.map((stage) => (
+          <div
+            key={stage.id}
+            data-testid="practice-easement-stage"
+            data-stage={stage.id}
+            data-recorded={stage.recorded ? "true" : "false"}
+            title={stage.heading ?? `${stage.word} — no easement recorded`}
+            style={{ flex: "1 1 0", minWidth: 0 }}
+          >
+            <div
+              style={{
+                height: 4,
+                borderRadius: 1,
+                background: stage.recorded ? WM.gold.mark : "transparent",
+                boxShadow: stage.recorded ? "none" : `inset 0 0 0 1px ${WM.border.line}`,
+              }}
+            />
+            <div
+              style={{
+                marginTop: 3,
+                fontSize: 9,
+                letterSpacing: 0.4,
+                /* TINY law: 9px is the floor this codebase allows for a label
+                   of two-to-six characters, and the strip never carries prose. */
+                color: stage.recorded ? WM.text.body : WM.text.muted,
+                fontWeight: stage.recorded ? 700 : 400,
+                textAlign: "center",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {stage.word}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p
+        data-testid="practice-easement-strip-caption"
+        style={{
+          margin: `${WM.space.xs}px 0 0`,
+          fontSize: 9,
+          lineHeight: 1.5,
+          color: WM.text.muted,
+        }}
+      >
+        {strip.recordedCount} of {strip.stageCount} stages of the trade&apos;s life recorded an
+        easement. The rest recorded none — which is not the same as WM having
+        checked them and found them realistic.
+      </p>
+    </div>
+  ) : null;
+
   const body = (
     <>
+      {stageStrip}
       {ledger.easements.map((e) => (
         <section
           key={e.id}
