@@ -59,8 +59,31 @@ export function ExitRampCard({ ramp, className, presentation = "card" }: ExitRam
   // §Silence Is A Feature — no exit ramp while live work remains.
   if (ramp.state === "ACTIVE") return null;
 
-  const verdictTone = ramp.safeToLeave ? WM.state.ok : WM.state.watch;
-  const verdictHalo = ramp.safeToLeave ? WM.halo.ok : WM.halo.watch;
+  /**
+   * §9 — "No green shield. NO GREEN MEANS SAFE. Verified truth is a sentence."
+   *
+   * This badge used to render the word SAFE TO LEAVE in `WM.state.ok`
+   * (#5cb85c) on `WM.halo.ok` — a green glow behind the literal word "safe".
+   * It is hard to build a more exact instance of the thing §9 bans by name,
+   * and it survived the repo-wide colour sweep because the token is called
+   * `ok` rather than anything a grep for green would have caught.
+   *
+   * Why it matters beyond the letter of the rule: `safeToLeave` is the
+   * conjunction of five completion checks. It is a statement that nothing in
+   * the RECEIPT is outstanding — not a statement that the trader's capital is
+   * safe, that positions cannot move, or that the market will be kind while
+   * they are away. A green shield is read by a human as the second thing. The
+   * same reasoning already governs `BROKER-WORKING` on `ProtectionGradeLine`,
+   * which is the fully-covered case and still refuses green: a working stop
+   * can gap, and a closed session can open against you.
+   *
+   * So the safe verdict is restrained ivory FACT, and it keeps the hairline
+   * border every other state has rather than a halo that glows. The UNSAFE
+   * verdict keeps brass, because brass is the one direction this house is
+   * allowed to raise its voice in — toward the thing still outstanding.
+   */
+  const verdictTone = ramp.safeToLeave ? WM.text.hero : WM.state.watch;
+  const verdictHalo = ramp.safeToLeave ? WM.halo.none : WM.halo.watch;
 
   return (
     <section
@@ -96,7 +119,10 @@ export function ExitRampCard({ ramp, className, presentation = "card" }: ExitRam
         </span>
       </header>
 
-      <Section label="Done" items={ramp.done} tone={WM.state.ok} />
+      {/* DONE is a record of what happened, and a record is a FACT — ivory.
+          Green ticks stacked directly beneath a SAFE TO LEAVE badge are read
+          together, as one reassurance, which is what §9 refuses. */}
+      <Section label="Done" items={ramp.done} tone={WM.text.hero} />
       <Section label="Saved" items={ramp.saved} tone={WM.gold.mark} />
       <Section label="Open" items={ramp.open} tone={WM.state.watch} />
 
