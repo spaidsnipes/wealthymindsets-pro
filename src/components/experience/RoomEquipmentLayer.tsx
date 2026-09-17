@@ -22,8 +22,9 @@
  *
  * WHAT MAKES IT ONE ROOM
  * ----------------------
- * Every stage renders the SAME `vm` — one compilation, handed down. Nothing
- * here fetches, computes, or re-derives. If FULL called a compiler of its own
+ * Every stage renders the SAME handed-down content — one compilation, three
+ * depths. Nothing here fetches, computes, or re-derives. If FULL called a
+ * compiler of its own
  * it could disagree with the widget the trader was looking at one click
  * earlier, and two disagreeing readings of one market is the "another semantic
  * brain" the grammar bans. The DECISION_ID is carried on every stage's DOM so
@@ -39,9 +40,7 @@
 
 import * as React from "react";
 
-import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
 import type { EquipmentJourney } from "@/lib/workspace/equipmentJourney";
-import { MarketCanvasPanel } from "./MarketCanvasPanel";
 
 const FIELD = "#0b0c0f";
 const PEARL = "#ede6d3";
@@ -67,9 +66,43 @@ export interface EquipmentSubject {
   readonly timeframe: string;
 }
 
+/**
+ * WHAT THE EQUIPMENT IS ABOUT — a finished reading, handed down.
+ *
+ * The layer used to take a `MarketCanvasVM` directly and mount
+ * `MarketCanvasPanel` itself, which meant exactly one invention could ever be
+ * equipment. The directive's closing clause is "reuse that proven interaction
+ * grammar across the remaining legitimate WM Pro inventions" — so the grammar
+ * has to stop naming its first tenant.
+ *
+ * `renderDepth` is a CALLBACK the room supplies, not a view model the layer
+ * interprets. That distinction is the whole safety property: the layer cannot
+ * read this content, cannot re-derive it, and cannot disagree with it, because
+ * it never holds the underlying object at all. It hands back one boolean —
+ * "you have the whole screen now" — and renders whatever it is given.
+ *
+ * `title`, `verdict` and `headline` are the three strings the CHROME itself
+ * has to draw (the gold label, the state word, the preview sentence). They are
+ * strings, not objects, for the same reason: a string cannot be re-interpreted.
+ */
+export interface EquipmentContent {
+  /** Must equal the journey's `equipmentId`. The layer refuses a mismatch. */
+  readonly equipmentId: string;
+  readonly title: string;
+  readonly verdict: string;
+  readonly headline: string;
+  /** The small facts the preview shows instead of the full canvas. */
+  readonly counts: ReadonlyArray<{ readonly testId: string; readonly label: string }>;
+  /**
+   * `unabridged` is TRUE only at full. The room decides what that buys; the
+   * layer only promises the screen is no longer the constraint.
+   */
+  readonly renderDepth: (unabridged: boolean) => React.ReactElement;
+}
+
 export interface RoomEquipmentLayerProps {
   readonly journey: EquipmentJourney;
-  readonly vm: MarketCanvasVM;
+  readonly content: EquipmentContent;
   readonly subject: EquipmentSubject;
   readonly onExpand: () => void;
   readonly onEnter: () => void;
@@ -139,7 +172,7 @@ function Control({
 
 export function RoomEquipmentLayer({
   journey,
-  vm,
+  content,
   subject,
   onExpand,
   onEnter,
@@ -162,7 +195,12 @@ export function RoomEquipmentLayer({
     return () => document.removeEventListener("keydown", onKey);
   }, [stage, onReturn, onClose]);
 
-  if (stage === "closed" || equipmentId !== "market-reality") return null;
+  // The id is compared against the CONTENT the room handed down, never against
+  // a literal. A hardcoded name here was the thing that made this layer the
+  // market canvas's private chrome; a mismatch is still refused, because the
+  // rail asking for equipment B while the room hands equipment A's reading is
+  // exactly the disagreement the grammar exists to prevent.
+  if (stage === "closed" || equipmentId !== content.equipmentId) return null;
 
   const shell: React.CSSProperties =
     stage === "full"
@@ -195,7 +233,7 @@ export function RoomEquipmentLayer({
 
   return (
     <aside
-      aria-label="Market reality — room equipment"
+      aria-label={`${content.title} — room equipment`}
       data-testid="room-equipment"
       data-equipment={equipmentId}
       data-equipment-stage={stage}
@@ -222,7 +260,7 @@ export function RoomEquipmentLayer({
             color: GOLD,
           }}
         >
-          Market reality
+          {content.title}
         </span>
         {/* The subject, at every depth. It matters MOST at full — that stage
             takes the chart away, so this line is the only thing left saying
@@ -235,7 +273,7 @@ export function RoomEquipmentLayer({
           <span style={{ color: MUTED }}> · {subject.timeframe}</span>
         </span>
         <span style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase" }}>
-          {vm.verdict}
+          {content.verdict}
         </span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {stage === "full" ? (
@@ -275,19 +313,23 @@ export function RoomEquipmentLayer({
           // shows is also in the full experience — it is a shallower read of
           // ONE compilation, never a summary computed somewhere else.
           <div style={{ paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 12, color: "#d8cfb8", lineHeight: 1.4 }}>{vm.headline}</div>
+            <div style={{ fontSize: 12, color: "#d8cfb8", lineHeight: 1.4 }}>{content.headline}</div>
             <div style={{ display: "flex", gap: 14, fontSize: 10, color: MUTED, letterSpacing: 0.5 }}>
-              <span data-testid="equipment-count-resolved">{vm.resolved.length} resolved</span>
-              <span data-testid="equipment-count-missing">{vm.missing.length} missing</span>
-              <span data-testid="equipment-count-blockers">{vm.blockerCount} blocking</span>
+              {content.counts.map((c) => (
+                <span key={c.testId} data-testid={c.testId}>
+                  {c.label}
+                </span>
+              ))}
             </div>
           </div>
         ) : (
           // ONE compilation, and at FULL it is finally allowed to say all of
-          // itself. The drawer caps each list at six because it is a drawer;
+          // itself. The drawer caps its lists because it is a drawer;
           // withholding those same rows on a full screen would make ENTER a
-          // change of size rather than a change of depth.
-          <MarketCanvasPanel vm={vm} unabridged={stage === "full"} />
+          // change of size rather than a change of depth. WHAT gets uncapped is
+          // the room's business — the layer only reports that the screen is no
+          // longer the constraint.
+          content.renderDepth(stage === "full")
         )}
       </div>
     </aside>

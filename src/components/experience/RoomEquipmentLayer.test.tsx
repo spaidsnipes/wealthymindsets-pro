@@ -18,7 +18,9 @@ import { describe, expect, it } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { MarketCanvasPanel } from "./MarketCanvasPanel";
 import { RoomEquipmentLayer } from "./RoomEquipmentLayer";
+import type { EquipmentContent } from "./RoomEquipmentLayer";
 import type { EquipmentJourney } from "@/lib/workspace/equipmentJourney";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
 
@@ -46,11 +48,30 @@ const journey = (stage: EquipmentJourney["stage"]): EquipmentJourney => ({
 
 const noop = () => {};
 
+/**
+ * The ROOM's descriptor, rebuilt here exactly as /command-deck builds it. The
+ * layer no longer knows what a MarketCanvasVM is; these tests therefore assert
+ * the grammar END TO END — chrome plus the content a real room hands it —
+ * rather than asserting that the chrome still contains one invention's panel.
+ */
+const content: EquipmentContent = {
+  equipmentId: "market-reality",
+  title: "Market reality",
+  verdict: vm.verdict,
+  headline: vm.headline,
+  counts: [
+    { testId: "equipment-count-resolved", label: `${vm.resolved.length} resolved` },
+    { testId: "equipment-count-missing", label: `${vm.missing.length} missing` },
+    { testId: "equipment-count-blockers", label: `${vm.blockerCount} blocking` },
+  ],
+  renderDepth: (unabridged: boolean) => <MarketCanvasPanel vm={vm} unabridged={unabridged} />,
+};
+
 const render = (stage: EquipmentJourney["stage"]) =>
   renderToStaticMarkup(
     <RoomEquipmentLayer
       journey={journey(stage)}
-      vm={vm}
+      content={content}
       subject={{ symbol: "NQ1!", timeframe: "15m" }}
       onExpand={noop}
       onEnter={noop}
@@ -81,6 +102,53 @@ describe("RoomEquipmentLayer — the subject survives the depth", () => {
 
   it("renders nothing at all when closed", () => {
     expect(render("closed")).toBe("");
+  });
+});
+
+describe("RoomEquipmentLayer — the grammar carries any equipment, but only the one it was handed", () => {
+  const withContent = (c: EquipmentContent, stage: EquipmentJourney["stage"] = "drawer") =>
+    renderToStaticMarkup(
+      <RoomEquipmentLayer
+        journey={journey(stage)}
+        content={c}
+        subject={{ symbol: "NQ1!", timeframe: "15m" }}
+        onExpand={noop}
+        onEnter={noop}
+        onReturn={noop}
+        onClose={noop}
+      />,
+    );
+
+  it("wears a second equipment's name and depth — no market canvas required", () => {
+    // The point of the atom. If this test needs MarketCanvasPanel to pass,
+    // the layer is still one invention's private chrome and the directive's
+    // "reuse that grammar" clause is unreachable.
+    const html = withContent({
+      equipmentId: "market-reality",
+      title: "Object passport",
+      verdict: "UNAVAILABLE",
+      headline: "This object has no verified birth.",
+      counts: [{ testId: "equipment-count-touches", label: "0 touches" }],
+      renderDepth: (unabridged: boolean) => (
+        <p data-testid="passport-depth">{unabridged ? "whole screen" : "docked"}</p>
+      ),
+    });
+    expect(html, "the chrome would not say the second equipment's name").toContain(
+      "Object passport",
+    );
+    expect(html, "the chrome would not say the second equipment's state").toContain("UNAVAILABLE");
+    expect(html, "the second equipment's own depth did not render").toContain(
+      'data-testid="passport-depth"',
+    );
+    expect(html, "the drawer must not be told it has the whole screen").toContain("docked");
+  });
+
+  it("renders nothing when the room hands a reading the rail did not ask for", () => {
+    // The rail requesting equipment B while the room hands equipment A's
+    // compilation would put one invention's name over another's numbers —
+    // the exact disagreement the single-compilation rule exists to prevent.
+    // Silence is the only honest output.
+    expect(withContent({ ...content, equipmentId: "market-object-passport" })).toBe("");
   });
 });
 

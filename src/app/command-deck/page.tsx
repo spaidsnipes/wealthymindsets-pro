@@ -775,6 +775,37 @@ function CommandDeckInner() {
   // shared composeMarketCanvasVM call. No second, potentially-disagreeing
   // compilation happens here.
 
+  /**
+   * MARKET REALITY AS EQUIPMENT — the ROOM's descriptor, not the layer's.
+   *
+   * `RoomEquipmentLayer` used to import `MarketCanvasPanel` and read this vm's
+   * fields itself, which meant exactly one invention could ever be equipment.
+   * The chrome now knows only four strings and a callback; WHICH panel gets
+   * rendered, and what `unabridged` buys inside it, is the room's business —
+   * because the room is the only place that already holds the compilation.
+   *
+   * The counts carry their testids so the preview's three facts stay
+   * externally checkable per equipment rather than being a shape the chrome
+   * assumes every invention happens to have.
+   */
+  const marketRealityEquipment = React.useMemo(
+    () => ({
+      equipmentId: "market-reality",
+      title: "Market reality",
+      verdict: marketCanvas.verdict,
+      headline: marketCanvas.headline,
+      counts: [
+        { testId: "equipment-count-resolved", label: `${marketCanvas.resolved.length} resolved` },
+        { testId: "equipment-count-missing", label: `${marketCanvas.missing.length} missing` },
+        { testId: "equipment-count-blockers", label: `${marketCanvas.blockerCount} blocking` },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <MarketCanvasPanel vm={marketCanvas} unabridged={unabridged} />
+      ),
+    }),
+    [marketCanvas],
+  );
+
   // Decision Receipt (canon P8): project the most-recently sealed decision
   // capsule into its trader-facing receipt — verbatim commitment, defensible
   // process facts, management trail, outcome, and the trader's own review
@@ -2496,7 +2527,7 @@ function CommandDeckInner() {
         compilation, three depths. */}
     <RoomEquipmentLayer
       journey={equipment}
-      vm={marketCanvas}
+      content={marketRealityEquipment}
       // The ROOM'S OWN symbol and timeframe — the same two bindings the hero
       // and the chart read. The equipment must never resolve a symbol of its
       // own, or the full experience could name a different market than the

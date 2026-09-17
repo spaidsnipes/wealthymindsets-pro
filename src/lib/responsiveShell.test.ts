@@ -328,7 +328,15 @@ describe("responsive P0 command surfaces", () => {
     expect(deck.indexOf('data-testid="scene-why"')).toBeLessThan(deck.indexOf("<DecisionWhyPanel"));
     expect(deck.indexOf("<DecisionWhyPanel")).toBeLessThan(deck.indexOf("wm-cd-evidence-drawer"));
     expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<SceneAdmissionPanel"));
-    expect(deck.indexOf("<SceneAdmissionPanel")).toBeLessThan(deck.indexOf("<MarketCanvasPanel"));
+    // Searched FROM the room, not from the top of the file. This rule is about
+    // the order things appear INSIDE the market room; a file-wide indexOf was
+    // standing in for that, and the stand-in broke the moment the room started
+    // describing its Workspace equipment — `renderDepth: () => <MarketCanvas
+    // Panel .../>` is a callback definition near the other compilations, not a
+    // position in the scene. Anchoring to `room` measures what the rule means.
+    expect(deck.indexOf("<SceneAdmissionPanel", room)).toBeLessThan(
+      deck.indexOf("<MarketCanvasPanel", room),
+    );
     expect(deck.indexOf("<DeckExpressionShortlist")).toBeLessThan(deck.indexOf("wm-cd-evidence-drawer"));
     expect(deck.slice(0, deck.indexOf("wm-cd-evidence-drawer"))).not.toContain(">Layout</span>");
     expect(deck).toContain("setProofChainOpen(deckEmphasis.emphasizeWhy)");

@@ -167,9 +167,22 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     const mount = deck.indexOf("<RoomEquipmentLayer");
     const props = deck.slice(mount, deck.indexOf("/>", mount));
     expect(mount, `${DECK} → the layer is not mounted`).toBeGreaterThan(-1);
-    expect(props, `${DECK} → the equipment must read the room's own canvas`).toMatch(
-      /vm=\{marketCanvas\}/,
+    // RE-PINNED, one indirection deeper. The layer is now handed a descriptor
+    // rather than the vm, so the rule has to follow: the descriptor is the
+    // thing that must be built from the room's existing binding. Both halves
+    // are asserted, because `content={somethingElse}` and a descriptor that
+    // composed its own vm are two different ways to grow the second brain.
+    expect(props, `${DECK} → the equipment must be handed a descriptor`).toMatch(
+      /content=\{marketRealityEquipment\}/,
     );
+    const descriptor = deck.indexOf("const marketRealityEquipment");
+    expect(descriptor, `${DECK} → the room no longer builds its equipment`).toBeGreaterThan(-1);
+    const built = deck.slice(descriptor, deck.indexOf("[marketCanvas]", descriptor) + 20);
+    expect(built, `${DECK} → the equipment must read the room's own canvas`).toMatch(
+      /verdict:\s*marketCanvas\.verdict/,
+    );
+    expect(built, `${DECK} → a descriptor that compiled its own reading is a second brain`)
+      .not.toMatch(/\b(compose|select)[A-Z]\w*\(/);
     // The SUBJECT rides the same rule as the vm. The full experience takes the
     // chart away, so its symbol line is the only thing left naming the market;
     // if the equipment resolved a symbol of its own it could name a DIFFERENT
@@ -204,6 +217,24 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     expect(deck, `${DECK} → the journey must stay in this room`).toMatch(/reflectJourneyInUrl\(/);
     expect(deck, `${DECK} → a push would make Back walk the stages`).not.toMatch(
       /router\.push\([^)]*equip/,
+    );
+  });
+
+  it("the ROOM is what decides the canvas gets uncapped at depth", () => {
+    // The other half of the layer's re-pinning. When the chrome stopped
+    // importing MarketCanvasPanel, the "ENTER buys depth" promise moved here —
+    // and a promise that moves without a gate moving with it is how a proven
+    // behaviour quietly becomes unproven. `unabridged={unabridged}` forwards
+    // the layer's boolean; `unabridged` hardcoded, or omitted, would restore
+    // the six-capped lists on a full screen and make ENTER a resize again.
+    const descriptor = deck.indexOf("renderDepth:");
+    expect(descriptor, `${DECK} → the room no longer describes its equipment`).toBeGreaterThan(-1);
+    const body = deck.slice(descriptor, descriptor + 400);
+    expect(body, `${DECK} → the equipment's depth must render the canvas`).toMatch(
+      /<MarketCanvasPanel/,
+    );
+    expect(body, `${DECK} → ENTER must uncap the canvas, or it is only a resize`).toMatch(
+      /unabridged=\{unabridged\}/,
     );
   });
 });
@@ -260,16 +291,38 @@ describe("SENTINEL — the equipment layer is depth, not another app", () => {
     expect(dock, `${LAYER} → the drawer must not become full-height`).toMatch(/maxHeight/);
   });
 
-  it("ENTER buys DEPTH, not just size — the full stage renders the canvas unabridged", () => {
-    // Anchored to the panel's own props, not the file: a bare search for
-    // `unabridged` would pass on a hardcoded `unabridged` or `unabridged={true}`
-    // — which would uncap the DRAWER too and leave ENTER meaning nothing but a
-    // larger box. The gate has to name the stage.
-    const mount = layer.indexOf("<MarketCanvasPanel");
-    expect(mount, `${LAYER} → the canvas is no longer rendered at depth`).toBeGreaterThan(-1);
-    const props = layer.slice(mount, layer.indexOf("/>", mount));
-    expect(props, `${LAYER} → ENTER must uncap the canvas, or it is only a resize`).toMatch(
-      /unabridged=\{stage === "full"\}/,
+  it("ENTER buys DEPTH, not just size — the full stage renders the content unabridged", () => {
+    // RE-PINNED TO THE MEANING. This used to read `<MarketCanvasPanel ...
+    // unabridged={stage === "full"} />` off the layer. That assertion was true
+    // and also the reason the grammar could only ever have one tenant: the
+    // chrome imported its first invention's panel. The gate that matters is
+    // not WHICH component renders at depth — it is that the full stage, and
+    // only the full stage, tells the content the screen is no longer the
+    // constraint. A bare search for `unabridged` would pass on a hardcoded
+    // `true`, which would uncap the DRAWER too and leave ENTER meaning nothing
+    // but a larger box, so the gate still has to name the stage.
+    expect(layer, `${LAYER} → ENTER must uncap the content, or it is only a resize`).toMatch(
+      /renderDepth\(stage === "full"\)/,
+    );
+  });
+
+  it("names no invention — the grammar is not the market canvas's private chrome", () => {
+    // The directive's closing clause is "reuse that proven interaction grammar
+    // across the remaining legitimate WM Pro inventions." A layer that imports
+    // one invention's panel, or compares `equipmentId` to one invention's
+    // literal name, cannot be reused — the second equipment would have to fork
+    // it, and a forked grammar is two grammars.
+    expect(layer, `${LAYER} → the chrome must not import one invention's panel`).not.toMatch(
+      /import[\s\S]{0,80}from "\.\/MarketCanvasPanel"/,
+    );
+    expect(layer, `${LAYER} → the chrome must not hardcode which equipment it is`).not.toMatch(
+      /"market-reality"/,
+    );
+    // It still REFUSES a mismatch — the rail asking for equipment B while the
+    // room hands equipment A's reading is the disagreement this layer exists
+    // to prevent. It just compares against what it was handed.
+    expect(layer, `${LAYER} → a mismatched request must still render nothing`).toMatch(
+      /equipmentId !== content\.equipmentId/,
     );
   });
 
