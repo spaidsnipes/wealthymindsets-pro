@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 
 /**
  * STRUCTURAL H1 — an unobserved MARKET must not silence an observable fact
@@ -254,5 +258,33 @@ describe("the Mirror reflects the trader, not the tape", () => {
       "the panel has nothing to say to a trader who DID ask — an equipment " +
         "door that opens on a blank is a broken door, not silence",
     ).toMatch(/data-testid="athos-quiet"/);
+  });
+
+  it("the opened door speaks WM, not the name of the machinery behind it", () => {
+    // FOUND BY WALKING PROD, NOT BY THIS SUITE. The sentence this rule guards
+    // shipped reading "ATHOS has watched this session" — on the Founder's own
+    // screen, inside an equipment drawer whose rail label had been written
+    // specifically to keep that name off the surface.
+    //
+    // Every other rule in this file reads SOURCE. This one renders, because
+    // the question is not "what does the file say" but "what does the trader
+    // see". A source scan cannot answer that without also banning the import,
+    // the component name, and the test ids — none of which the trader reads.
+    const markup = renderToStaticMarkup(
+      React.createElement(ATHOSInterventionPanel, {
+        interventions: [],
+        disclosed: true,
+      }),
+    );
+    const visible = markup.replace(/<[^>]*>/g, " ");
+    expect(
+      visible,
+      "the equipment drawer shows the trader the internal system name:\n\n" +
+        visible.trim(),
+    ).not.toMatch(/\bATHOS\b/);
+    expect(
+      visible,
+      "the quiet state rendered nothing — the door opened on a blank",
+    ).toMatch(/Nothing to raise/);
   });
 });

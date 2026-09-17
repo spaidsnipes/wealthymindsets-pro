@@ -1320,7 +1320,11 @@ function CommandDeckInner() {
       verdict: loudest == null ? "QUIET" : loudest.verdict,
       headline:
         loudest == null
-          ? "Nothing to raise — ATHOS has watched this session and found nothing worth interrupting you about."
+          ? // CAUGHT BY A LIVE WALK, NOT BY A TEST. The rail label was written
+            // to avoid the internal system name and then the body copy said it
+            // anyway. Founder-facing surfaces speak WM; the machinery's name is
+            // ours, not the trader's. Pinned in roomAdoptsEquipment.
+            "Nothing to raise — WM has watched this session and found nothing worth interrupting you about."
           : loudest.headline,
       counts: [
         {

@@ -121,7 +121,11 @@ export function ATHOSInterventionPanel({
           data-testid="athos-quiet"
           style={{ margin: 0, fontSize: 11, lineHeight: 1.55, color: WM.text.muted }}
         >
-          Nothing to raise — ATHOS has watched this session and found nothing
+          {/* WM, not the internal system name. The component is called ATHOS
+              because that is what the machinery is called in here; the trader
+              is talking to WM. Caught by a live walk of the prod drawer after
+              the rail label had already been written to avoid it. */}
+          Nothing to raise — WM has watched this session and found nothing
           worth interrupting you about.
         </p>
       </div>

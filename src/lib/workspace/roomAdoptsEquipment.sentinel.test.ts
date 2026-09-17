@@ -655,6 +655,68 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
   });
 
   /**
+   * THE EQUIPMENT SPEAKS WM, NOT THE MACHINERY'S NAME.
+   *
+   * FOUND BY A LIVE WALK OF PROD, NOT BY THIS SUITE. The eighth tenant's rail
+   * label was deliberately written as "What WM is watching" to keep the
+   * internal system name off a Founder surface — and then the body copy of the
+   * same equipment said "ATHOS has watched this session". Every test was green.
+   *
+   * That is the shape this file exists to catch: a decision made correctly in
+   * one place and quietly contradicted in the place the trader actually reads.
+   * Naming the intent in a comment is not the same as pinning it, so it is
+   * pinned here, over STRING LITERALS only — the component may go on being
+   * called ATHOSInterventionPanel, because an import is not something a trader
+   * can see. What ships in quotes is what ships on screen.
+   */
+  it("the equipment's Founder-facing words do not speak the internal system name", () => {
+    // Explicit rather than clever. A regex over "anything that looks internal"
+    // would be a rule nobody could predict the meaning of; a named list is a
+    // decision, and adding to it is also a decision.
+    const INTERNAL_NAMES = [/\bATHOS\b/, /\bDLAR\b/, /\bCLC\b/, /\bNECTAR\b/i];
+
+    // WRITTEN ONCE THE NAIVE VERSION WAS CAUGHT BEING VACUOUS. The first draft
+    // tried to extract string literals with /"([^"\\]{8,})"/g and quietly
+    // matched the GAPS BETWEEN literals instead — quote pairing does not
+    // survive a regex over real source. The probe (putting the internal name
+    // back into the headline) passed, which is how it was found.
+    //
+    // The standalone-token test needs no tokenizer and is not fooled: every
+    // legitimate code occurrence is a longer identifier (`ATHOSIntervention`,
+    // `ATHOSInterventionPanel`, `chainVm.dlar`), and \b refuses those. A bare
+    // `ATHOS` in a room's descriptor block is prose, and prose here is copy.
+
+    // (a) THE RAIL. Read from the REAL registry, not its source, so a label
+    // computed at runtime cannot slip past a source scan.
+    for (const entry of roomEquipment(room.href)) {
+      for (const bad of INTERNAL_NAMES) {
+        expect(
+          `${entry.label} ${entry.hint}`,
+          `${room.href} → rail entry "${entry.id}" speaks an internal name to the trader`,
+        ).not.toMatch(bad);
+      }
+    }
+
+    // (b) THE DESCRIPTOR. The preview's headline and title are the words the
+    // trader reads BEFORE deciding whether to open anything, and they live in
+    // the room rather than in the registry — the exact seam the defect fell
+    // through.
+    for (const d of room.descriptors) {
+      const at = deck.indexOf(`const ${d.memo}`);
+      const built = deck.slice(at, deck.indexOf(d.deps, at) + d.deps.length);
+      for (const bad of INTERNAL_NAMES) {
+        expect(
+          built,
+          `${DECK} → ${d.memo} shows the trader an internal system name ` +
+            `(${bad.source}). The rail label is not the only surface — the ` +
+            `preview headline is what the trader reads before deciding ` +
+            `whether to open anything.`,
+        ).not.toMatch(bad);
+      }
+    }
+  });
+
+  /**
    * THE RAIL AND THE ROOM MUST NAME THE SAME EQUIPMENT — MEASURED, NOT ASSUMED.
    *
    * This rule exists because the gap was FOUND, not imagined. Deleting
