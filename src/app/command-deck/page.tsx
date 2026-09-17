@@ -1349,6 +1349,126 @@ function CommandDeckInner() {
               </section>
             </div>
 
+            {/* THE DOCUMENT WALL.
+                ==================
+                Two documents the trader is supposed to READ, not hunt for:
+                the Market Object Passport (what each object is, how it was
+                measured, when it dies) and the Decision Receipt (what was
+                known at decision time, and then what actually happened).
+
+                They used to be mounted three collapsed <details> deep — the
+                Workspace toggle, then the evidence drawer, then one of their
+                own. Present in the DOM, absent from the product. This file
+                already diagnosed that failure mode in prose ("<details> IS NOT
+                A SURFACE") without ever acting on it for these two.
+
+                They are now TOP LEVEL and always open. `data-wm-document-wall`
+                is the measurement handle: a probe can assert these are on the
+                page without expanding anything, which is the only assertion
+                that distinguishes shipped from merely mounted. */}
+            <section
+              data-wm-document-wall
+              data-wm-documents="2"
+              aria-label="Document wall — market object passport and decision receipt"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                borderTop: "1px solid rgba(139,106,41,0.24)",
+                paddingTop: 16,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  // Side by side once there is room for two columns of prose;
+                  // stacked on a phone, where a two-up would shrink both into
+                  // unreadable slivers. Done with wrap + a 320px flex-basis
+                  // rather than a JS viewport read, so the layout is correct on
+                  // the first paint instead of after a measurement round-trip.
+                  flexWrap: "wrap",
+                  alignItems: "flex-start",
+                  gap: 16,
+                }}
+              >
+                <article
+                  data-wm-document="passport"
+                  style={{ flex: "1 1 320px", minWidth: 0 }}
+                >
+                  {/* A <div>, not a <header>: WMOperatingSystem already draws
+                      the one banner landmark for this room, and
+                      oneRoomHasOneLandmark.enforcement caught the second one on
+                      the first run. The pixels are identical; the landmark
+                      keeps its single owner. Same below for the receipt. */}
+                  <div style={{ marginBottom: 8 }}>
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                        textTransform: "uppercase",
+                        color: "#c9a55c",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Market Object Passport
+                    </h2>
+                    {/* The count is the honest subtitle: it says how much of
+                        this document is actually filled in, so a mostly-
+                        UNRESOLVED passport cannot read as a full one. */}
+                    <p
+                      style={{
+                        margin: "3px 0 0",
+                        fontSize: 10,
+                        letterSpacing: 0.6,
+                        textTransform: "uppercase",
+                        color: "#8a8271",
+                      }}
+                    >
+                      Per-object evidence lineage · {passport.resolvedCount}/
+                      {passport.totalCount} resolved
+                    </p>
+                  </div>
+                  <MarketObjectPassportPanel vm={passport} />
+                </article>
+
+                <article
+                  data-wm-document="receipt"
+                  style={{ flex: "1 1 320px", minWidth: 0 }}
+                >
+                  <div style={{ marginBottom: 8 }}>
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                        textTransform: "uppercase",
+                        color: "#c9a55c",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Decision Receipt
+                    </h2>
+                    <p
+                      style={{
+                        margin: "3px 0 0",
+                        fontSize: 10,
+                        letterSpacing: 0.6,
+                        textTransform: "uppercase",
+                        color: "#8a8271",
+                      }}
+                    >
+                      A snapshot of what you knew, then what happened ·{" "}
+                      {decisionReceipt.empty
+                        ? "none sealed"
+                        : decisionReceipt.stage.toLowerCase()}
+                    </p>
+                  </div>
+                  <DecisionReceiptPanel vm={decisionReceipt} />
+                </article>
+              </div>
+            </section>
+
             {/* The market room owns the default Founder read. Preparation,
                 diagnostics, raw system state, fidelity, phase tooling, and
                 retrospective analysis remain intact in one intentional
@@ -1477,65 +1597,15 @@ function CommandDeckInner() {
                   {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
                       its concrete causes so the trader sees exactly what stands
                       between them and entry (or why the path is clear). */}
-              {/* Market Object Passports (canon P6 Object DNA) — a contextual
-                  drawer, collapsed by default so the canvas stays sacred. Opens
-                  to each resolved dimension's evidence lineage / fidelity /
-                  contradiction / invalidation. Pure display of the sealed state.
-                  Opens by default when the job is OBSERVE (studying market
-                  objects) per the deck job-emphasis. */}
-                  <div style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}>
-                  <details
-                    open={deckEmphasis.passportOpen}
-                  >
-                <summary
-                  style={{
-                    cursor: "pointer",
-                    fontSize: 10,
-                    letterSpacing: 0.6,
-                    color: "#c9a55c",
-                    textTransform: "uppercase",
-                    padding: "4px 0",
-                  }}
-                >
-                  Per-object evidence lineage · {passport.resolvedCount}/{passport.totalCount} resolved
-                </summary>
-                <div style={{ marginTop: 6 }}>
-                  <MarketObjectPassportPanel vm={passport} />
-                </div>
-                  </details>
-                  </div>
+              {/* Market Object Passport and Decision Receipt USED TO LIVE HERE,
+                  three collapsed <details> deep — the Workspace toggle, the
+                  evidence drawer, and then one of their own. Two comments in
+                  this very file already named that as the defect ("<details> IS
+                  NOT A SURFACE"), and it was never acted on for these two.
 
-              {/* Decision Receipt (canon P8) — a contextual drawer, collapsed by
-                  default. Projects the most-recently sealed decision capsule into
-                  its trader-facing receipt: verbatim commitment, defensible
-                  process facts, management trail, outcome, and the trader's own
-                  review split. WAIT / NO_TRADE reads as complete; no fabricated
-                  grade. Honest empty state when nothing is sealed yet. Opens by
-                  default in management + reflection jobs (MANAGE / REVIEW / LEARN)
-                  per the deck job-emphasis. */}
-                  <details
-                    style={{ order: surfaceOrder(deckEmphasis, "RECEIPT") }}
-                    open={deckEmphasis.receiptOpen}
-                  >
-                <summary
-                  style={{
-                    cursor: "pointer",
-                    fontSize: 10,
-                    letterSpacing: 0.6,
-                    color: "#c9a55c",
-                    textTransform: "uppercase",
-                    padding: "4px 0",
-                  }}
-                >
-                  Decision Receipt ·{" "}
-                  {decisionReceipt.empty
-                    ? "none sealed"
-                    : `${decisionReceipt.stage.toLowerCase()}`}
-                </summary>
-                <div style={{ marginTop: 6 }}>
-                  <DecisionReceiptPanel vm={decisionReceipt} />
-                </div>
-                  </details>
+                  They are now top-level sections above the Workspace fold. See
+                  THE DOCUMENT WALL below. Nothing is duplicated: this is the
+                  only other place they were ever mounted. */}
                 </div>
               </details>
               {/* Canon §9 Learning Genome — surfaced in REVIEW / LEARN
