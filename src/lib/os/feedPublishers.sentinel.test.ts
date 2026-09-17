@@ -40,6 +40,7 @@ const PUBLISHERS = [
   "src/app/nectar/[symbol]/page.tsx",
   "src/app/command-deck/page.tsx",
   "src/app/paper/page.tsx",
+  "src/app/scanner/page.tsx",
   "src/components/chart/ChartsDashboard.tsx",
 ] as const;
 

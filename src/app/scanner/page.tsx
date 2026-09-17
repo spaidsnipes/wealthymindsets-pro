@@ -37,6 +37,8 @@ import {
   type FundamentalFigure,
 } from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { selectScannerFeedObservation } from "@/lib/os/selectScannerFeedObservation";
 
 import {
   volumeMetricFact,
@@ -103,6 +105,14 @@ interface ScanResult {
   rsiFailure: RsiFailure | null;
   quoteQuality: ScannerQuoteQuality;
   quoteReceivedAt: number;
+  /**
+   * The PROVIDER'S observation epoch-ms for this row, or null when the round
+   * resolved none. Deliberately separate from `quoteReceivedAt`: that one is
+   * transport time, and the /api/yahoo route says so in its own comment —
+   * "`ts` is transport/response time only — NOT observation chronology."
+   * Only this field may be published upward as `lastObservedAtMs`.
+   */
+  quoteObservedAt: number | null;
 }
 
 type SortKey = "time" | "changePct" | "volRatio" | "rsi" | "strength";
@@ -308,7 +318,19 @@ interface QuoteData { price:number; change:number|null; changePct:number|null;
      that says "Percent change unavailable" — a restatement of the dash — and one
      that says which of four different things happened. */
   changeAbsence:QuoteChangeAbsence|null;
-  volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
+  volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number;
+  /**
+   * The PROVIDER'S observation epoch-ms, or null when the round resolved none.
+   *
+   * NOT `receivedAt`, and the distinction is the whole reason this field
+   * exists. /api/yahoo says so in its own comment — "`ts` is transport/response
+   * time only — NOT observation chronology" — and `receivedAt` is that `ts`.
+   * A 15-minute-delayed print received a moment ago is one second old by
+   * transport and fifteen minutes old by observation, and only the second
+   * number is the age of the market truth. The SF-D01 `observation` union has
+   * carried the real one all along; this round used to throw it away.
+   */
+  observedAt:number|null }
 
 /**
  * A scan is a COMPLETENESS claim, so it must carry its own denominator.
@@ -370,7 +392,17 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
           const volume = Number(quoteJson?.volume ?? 0);
           const avgVolume = Number(quoteJson?.avgVolume ?? 0);
           const receivedAt = Number(quoteJson?.ts);
-          results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt });
+          // Read from the discriminant, not from a truthiness check on the
+          // field. An UNKNOWN observation structurally carries no `observedAt`
+          // at all, and `?? receivedAt` there would quietly substitute
+          // transport time for observation time — which is the exact swap this
+          // field was added to prevent.
+          const obs = quoteJson?.observation;
+          const observedAt =
+            obs?.resolution === "RESOLVED" && Number.isFinite(obs.observedAt)
+              ? (obs.observedAt as number)
+              : null;
+          results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt, observedAt });
         } else {
           // Same owner the ticker tape reads — the reason is not re-derived
           // here, so the two surfaces cannot come to disagree about WHY a
@@ -441,6 +473,11 @@ function buildResults(
     const rsiFailure = q ? q.rsiFailure : old?.rsiFailure ?? null;
     const rsiFact = rsiMetricFact(rsi, rsiFailure ? rsiFailure.reason : null, sym);
     const quoteReceivedAt = q?.receivedAt ?? old?.quoteReceivedAt ?? 0;
+    // Carried forward on a STALE row for the same reason `price` is: the row
+    // is still showing the previous observation, so the previous observation's
+    // AGE is the honest one. Renewing it to "now" would make a carried-forward
+    // figure report itself as freshly seen.
+    const quoteObservedAt = q?.observedAt ?? old?.quoteObservedAt ?? null;
     const quoteTruth = scannerQuoteTruth({ receivedAt: quoteReceivedAt, reusedPrevious: !q });
     const cls = classifyScan({ changePct, volRatio, rsi });
     return {
@@ -470,6 +507,7 @@ function buildResults(
          badge rendering STALE in red. See scannerPriceFact. */
       priceFact: scannerPriceFact(price, quoteTruth.quality, sym),
       quoteReceivedAt,
+      quoteObservedAt,
       sector:    SYM_SECTOR[sym] ?? "Technology",
       /* Real float + mktcap from the FMP profile, falling back to the previous
          scan. THIS USED TO BE `prf?.float ?? old?.float ?? "—"` AND THE
@@ -567,6 +605,24 @@ export default function ScannerPage() {
   const rsiRetryInFlightRef = useRef<Set<string>>(new Set());
   const rsiRetryButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const rsiStatusRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  /**
+   * THIS ROOM COUNTS THIRTY OBSERVATIONS. IT HAD TO REPORT ONE.
+   *
+   * Measured live 2026-09-17 on production: the headline read
+   * "30 delayed-quote signals" while the masthead above it read FEED UNKNOWN
+   * and the footer read SOURCE UNKNOWN. The room polls, resolves, grades
+   * staleness per row — and published none of it upward, so the frame's
+   * correct default for a silent room rendered as an open question over a
+   * working pipeline.
+   *
+   * The evidence compiled here is the PROVIDER'S observation epoch only; see
+   * selectScannerFeedObservation for why transport time may not stand in.
+   */
+  usePublishOsStanding({
+    surface: "Scanner",
+    feed: selectScannerFeedObservation({ results }),
+  });
   if (!yahooConsumerRef.current) {
     yahooConsumerRef.current = new YahooCandleConsumer({ fetcher: (input, init) => fetch(input, init) });
   }
