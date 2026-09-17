@@ -50,7 +50,7 @@ import {
   isUnsupportedByEquityVendors,
   observesUsEquitySession,
 } from "@/lib/marketData/symbolAssetClass";
-import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
+import { overlayFrameBudgetMs, overlayFrameVerdict } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
@@ -6324,9 +6324,38 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // only the evidence overlay to 30fps (20fps for the heaviest VP modes) and
       // performs no background paint while the tab is hidden.
       const frameBudget = overlayFrameBudgetMs(fixedVPActive || sessionVPActive);
-      if (shouldDrawOverlay({ hidden: document.hidden, now, lastDrawAt: lastOverlayDrawAt, frameBudgetMs: frameBudget })) {
+      const verdict = overlayFrameVerdict({ hidden: document.hidden, now, lastDrawAt: lastOverlayDrawAt, frameBudgetMs: frameBudget });
+      if (verdict.draw) {
         lastOverlayDrawAt = now;
         draw();
+        // draw() has just republished the receipt, so nothing is being withheld.
+        if (canvasRef.current) delete canvasRef.current.dataset.vpSuspended;
+      } else if (verdict.skipped !== "BUDGET") {
+        /*
+          THE OVERLAY IS SUSPENDED, AND SAYS SO.
+
+          A BUDGET skip is ordinary pacing — the previous paint is still on the
+          screen and its `data-vp-*` receipt is still true, so there is nothing
+          to report. HIDDEN and BAD_CLOCK are different: the paint has stopped,
+          and with it the only publisher of the VP receipt. On a tab that loads
+          hidden the receipt is never written once, and `runWMVP` defines an
+          ABSENT `data-vp-*` as "no profile was requested" — so a requested
+          profile would be indistinguishable from an unrequested one.
+
+          This attribute is the one honest thing that can be said from here. It
+          is deliberately NOT a rendered notice: the condition it reports is that
+          nobody is looking at this tab, so there is no one to render it to. The
+          §5 obligation is to the reader who arrives afterwards — a probe, a
+          proof harness, or the next frame — and an attribute reaches all three.
+
+          Only stamped when a profile was actually asked for; on a chart with VP
+          switched off, a hidden tab is withholding nothing.
+        */
+        const ds = canvasRef.current?.dataset;
+        if (ds) {
+          if (fixedVPActive || sessionVPActive) ds.vpSuspended = verdict.skipped === "HIDDEN" ? "hidden" : "bad-clock";
+          else delete ds.vpSuspended;
+        }
       }
       rafId = requestAnimationFrame(loop);
     };
