@@ -81,8 +81,8 @@ const ROOMS = [
      */
     journey: "equipment",
     descriptors: [
-      { id: "market-reality", memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]" },
-      { id: "market-object-passport", memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]" },
+      { id: "market-reality", memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]", depth: "MarketCanvasPanel" },
+      { id: "market-object-passport", memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]", depth: "MarketObjectPassportPanel" },
     ],
   },
   {
@@ -99,6 +99,7 @@ const ROOMS = [
         memo: "chartMarketRealityEquipment",
         reads: /verdict:\s*chartMarketCanvas\.verdict/,
         deps: "[chartMarketCanvas]",
+        depth: "MarketCanvasPanel",
       },
       /**
        * The chart room's passport. Pinned to `chartPassportVM` on purpose: that
@@ -111,6 +112,7 @@ const ROOMS = [
         memo: "chartPassportEquipment",
         reads: /vm=\{chartPassportVM\}/,
         deps: "[chartPassportVM]",
+        depth: "MarketObjectPassportPanel",
       },
     ],
   },
@@ -464,22 +466,62 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
     growing a private copy that these rules would no longer be looking at.
   */
 
-  it("the ROOM is what decides the canvas gets uncapped at depth", () => {
-    // The other half of the layer's re-pinning. When the chrome stopped
-    // importing MarketCanvasPanel, the "ENTER buys depth" promise moved here —
-    // and a promise that moves without a gate moving with it is how a proven
-    // behaviour quietly becomes unproven. `unabridged={unabridged}` forwards
-    // the layer's boolean; `unabridged` hardcoded, or omitted, would restore
-    // the six-capped lists on a full screen and make ENTER a resize again.
-    const descriptor = deck.indexOf("renderDepth:");
-    expect(descriptor, `${DECK} → the room no longer describes its equipment`).toBeGreaterThan(-1);
-    const body = deck.slice(descriptor, descriptor + 400);
-    expect(body, `${DECK} → the equipment's depth must render the canvas`).toMatch(
-      /<MarketCanvasPanel/,
-    );
-    expect(body, `${DECK} → ENTER must uncap the canvas, or it is only a resize`).toMatch(
-      /unabridged=\{unabridged\}/,
-    );
+  /**
+   * EVERY TENANT'S DEPTH, NOT THE FIRST ONE IN THE FILE.
+   *
+   * RE-PINNED, AND THE RE-PIN FOUND A REAL HOLE. This rule read
+   * `deck.indexOf("renderDepth:")` — the FIRST occurrence in the room's source
+   * — and asserted `<MarketCanvasPanel ... unabridged={unabridged}` inside the
+   * 400 characters after it. In both rooms the first descriptor happens to be
+   * `market-reality`, so the PASSPORT's depth was never read by this rule at
+   * all. On /command-deck that gap is covered by
+   * `documentWallIsNotADrawer.enforcement.test.ts`, which names
+   * `MarketObjectPassportPanel` and its `unabridged` forward explicitly. On
+   * /charts nothing covered it: `chartPassportEquipment` could drop
+   * `unabridged={unabridged}` and every test in this directory would stay
+   * green while ENTER became a resize and the passport's evidence lineage
+   * stayed folded behind the panel's own `<details>` on a whole screen.
+   *
+   * That is the directive's failure clause word for word — "if the
+   * intelligence exists but requires hunting through implementation
+   * containers: FAIL" — and it is the SAME defect the chart room was cured of
+   * three commits ago, able to come back through the one door nothing was
+   * watching.
+   *
+   * It also carried the older, quieter version of the same blindness: the rule
+   * hardcoded `<MarketCanvasPanel`, so it was a rule about ONE invention
+   * wearing a generic name. A third tenant would either fail it for rendering
+   * its own panel, or force it to be softened into a bare `unabridged` search
+   * that passes on a hardcoded `true`. Each descriptor now declares the
+   * component its full experience owes, and the window is the MEMO'S OWN body
+   * rather than a fixed 400 characters from a file-wide first match.
+   */
+  it("EVERY equipment's full experience is uncapped by the ROOM, not just the first", () => {
+    for (const d of room.descriptors) {
+      const at = deck.indexOf(`const ${d.memo}`);
+      expect(at, `${DECK} → the room no longer builds ${d.memo}`).toBeGreaterThan(-1);
+      // Bounded by the memo's OWN dependency array — the same landmark the
+      // second-brain scan above uses. A fixed character window would either
+      // run past this descriptor into the next one (and pass on ITS depth) or
+      // stop short of a longer descriptor and fail for the wrong reason.
+      const body = deck.slice(at, deck.indexOf(d.deps, at) + d.deps.length);
+      const depth = body.indexOf("renderDepth:");
+      expect(depth, `${DECK} → ${d.memo} describes equipment with no full experience`).toBeGreaterThan(
+        -1,
+      );
+      const rendered = body.slice(depth);
+      expect(
+        rendered,
+        `${DECK} → ${d.memo}'s depth must render ${d.depth}`,
+      ).toContain(`<${d.depth}`);
+      // The load-bearing half. `unabridged` hardcoded, or omitted, restores the
+      // capped lists and the folded lineage on a full screen — ENTER becomes a
+      // bigger box and the trader is back to hunting.
+      expect(
+        rendered,
+        `${DECK} → ENTER must uncap ${d.memo}, or it is only a resize`,
+      ).toMatch(/unabridged=\{unabridged\}/);
+    }
   });
 });
 
