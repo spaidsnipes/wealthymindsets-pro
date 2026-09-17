@@ -1205,6 +1205,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // actually knows — labelled as a bar close, never as a print.
       lastBarClose: chartCanvasState?.lastBar?.close ?? null,
       lastBarTimeframe: chartCanvasState?.lastBar?.timeframe ?? null,
+      // UNASKED IS NOT UNKNOWN — the same distinction the header slots above
+      // were taught, arriving at the third surface that was printing a finding
+      // over a question. Measured on prod at 25ms resolution through a cold
+      // mount, 2026-09-17: this cell read PRICE UNKNOWN at t=1111ms and
+      // `29563.25 LAST 15m BAR CLOSE` at t=2163ms, off the same request.
+      // Nothing new is computed — `barsSettled` was already in this scope.
+      barsSettled,
     },
     oneStory: chartCanvasVM.oneStory,
     availableR: chartCanvasVM.chain?.availableR ?? null,

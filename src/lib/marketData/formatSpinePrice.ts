@@ -21,8 +21,27 @@
  *
  * Kept pure and separate from the component so the label cannot drift on one
  * surface and not another, and so it is testable without a DOM.
+ *
+ * ── THE FOURTH STATE, MEASURED LIVE ───────────────────────────────────
+ * Three states were one short. Sampled on wealthymindsetspro.com/charts at
+ * 25ms resolution through a cold mount, 2026-09-17:
+ *
+ *   t=1111ms   NQ1!                          ← header price/change withheld
+ *              …and the MARKET cell:  PRICE UNKNOWN
+ *   t=2163ms   NQ1! · 29563.25 LAST 15m BAR CLOSE · +2.00 (+0.01%)
+ *
+ * At 1111ms the bars request had not come back. `NONE` was reached not
+ * because WM had looked in both channels and found nothing, but because
+ * nobody had finished asking. PRICE UNKNOWN is a FINDING — it sends a
+ * trader to diagnose a pipeline — and it was printed over a request in
+ * flight that resolved a second later into a perfectly good number.
+ *
+ * `AWAITING` is that fourth state, and it is the exact sibling of
+ * `HeaderPriceKind`'s: same defect, same cure, same tri-state discipline.
+ * It prints NOTHING, because "we have not finished asking" is not a reading
+ * and the canon has no word for one (canon §silence-is-a-feature).
  */
-export type SpinePriceProvenance = "PRINT" | "BAR_CLOSE" | "NONE";
+export type SpinePriceProvenance = "PRINT" | "BAR_CLOSE" | "NONE" | "AWAITING";
 
 export interface SpinePriceDisplay {
   readonly text: string;
@@ -80,6 +99,14 @@ export function selectPriceEvidence(
   last: number | null | undefined,
   lastBarClose: number | null | undefined,
   lastBarTimeframe?: string | null,
+  /**
+   * OPTIONAL and LAST, tri-state, and ONLY an explicit `false` changes a
+   * verdict — the same discipline `sessionOpen` uses in `priceSource.ts` and
+   * `barsSettled` uses in `chartHeaderPriceFact`. `undefined` means "nobody
+   * told me", which is what every existing caller says, so every existing
+   * caller and test keeps its exact behaviour.
+   */
+  barsSettled?: boolean,
 ): PriceEvidence {
   // A print outranks a close. It is the stronger claim and it is the one the
   // trader is actually asking for; the close only speaks when it is silent.
@@ -97,6 +124,16 @@ export function selectPriceEvidence(
     };
   }
 
+  // BOTH CHANNELS ARE EMPTY BECAUSE NEITHER HAS ANSWERED YET.
+  //
+  // Placed AFTER both evidence arms on purpose, so EVIDENCE OUTRANKS THE FLAG:
+  // a caller that reports the bars request unsettled still gets its print or
+  // its close if one is actually here. The flag may only ever decide what an
+  // ABSENCE means — never overrule a reading.
+  if (barsSettled === false) {
+    return { value: null, provenance: "AWAITING", qualifier: null };
+  }
+
   return { value: null, provenance: "NONE", qualifier: null };
 }
 
@@ -104,8 +141,15 @@ export function formatSpinePrice(
   last: number | null | undefined,
   lastBarClose: number | null | undefined,
   lastBarTimeframe?: string | null,
+  /** See `selectPriceEvidence`. Optional, last, and only `false` speaks. */
+  barsSettled?: boolean,
 ): SpinePriceDisplay {
-  const evidence = selectPriceEvidence(last, lastBarClose, lastBarTimeframe);
+  const evidence = selectPriceEvidence(last, lastBarClose, lastBarTimeframe, barsSettled);
+  // An open question has no sentence. PRICE UNKNOWN is an ANSWER — it asserts
+  // WM looked and found nothing — so it may not be printed over a request that
+  // is still in flight. The empty string is the honest render; the cell's own
+  // code is what must decide not to draw a separator around nothing.
+  if (evidence.provenance === "AWAITING") return { text: "", provenance: "AWAITING" };
   if (evidence.value == null) return { text: "PRICE UNKNOWN", provenance: "NONE" };
   return {
     text: evidence.qualifier

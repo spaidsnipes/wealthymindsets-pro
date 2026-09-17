@@ -109,6 +109,18 @@ export interface SpineMarketEvidence {
    */
   readonly lastBarClose?: number | null;
   readonly lastBarTimeframe?: string | null;
+  /**
+   * Whether the bars request for this selection has come back yet.
+   *
+   * OPTIONAL and tri-state: `undefined` is "this surface did not say", which
+   * is what every caller but /charts says today, and it preserves their exact
+   * behaviour. Only an explicit `false` withholds the price clause.
+   *
+   * It exists because PRICE UNKNOWN is a FINDING, and this cell printed it at
+   * t=1111ms on a cold /charts mount over a request that resolved into
+   * `29563.25 LAST 15m BAR CLOSE` at t=2163ms. See `formatSpinePrice`.
+   */
+  readonly barsSettled?: boolean;
 }
 
 export interface DecisionSpineBandProps {
@@ -220,7 +232,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression } = props;
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
-  const priceDisplay = formatSpinePrice(market.last, market.lastBarClose, market.lastBarTimeframe);
+  const priceDisplay = formatSpinePrice(
+    market.last,
+    market.lastBarClose,
+    market.lastBarTimeframe,
+    market.barsSettled,
+  );
   const availableRDetail = selectAvailableRDetail(availableR);
   // NEXT is compiled, not echoed. Both the reading and the ledger it was
   // computed from come from the SAME producer the verdict came from
@@ -265,9 +282,15 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   );
   const marketValue = (
     <>
+      {/* The symbol and timeframe are facts THIS SURFACE OWNS — the trader
+          chose them — so they are printed in every state, including while the
+          bars request is still in flight. Only the PRICE clause is withheld,
+          and the separator that would introduce it goes with it: a trailing
+          "NQ1! · 15m ·" is an interrupted sentence, which reads as breakage
+          rather than as patience. */}
       <span style={VALUE} data-price-provenance={priceDisplay.provenance}>
-        {market.symbol} · {market.timeframe} ·{" "}
-        {priceDisplay.text}
+        {market.symbol} · {market.timeframe}
+        {priceDisplay.provenance === "AWAITING" ? null : <> · {priceDisplay.text}</>}
       </span>
       <span style={MUTED}>
         {market.quality ?? "QUALITY UNKNOWN"} · {asOfText(market.capturedAt)}

@@ -69,4 +69,62 @@ describe("formatSpinePrice", () => {
   it("degrades to UNKNOWN when BOTH inputs are unusable", () => {
     expect(formatSpinePrice(Number.NaN, 0, "1h").text).toBe("PRICE UNKNOWN");
   });
+
+  /**
+   * THE FOURTH STATE — and the rule that keeps it from eating the other three.
+   *
+   * Measured live on wealthymindsetspro.com/charts through a cold mount at 25ms
+   * resolution, 2026-09-17: this cell printed PRICE UNKNOWN at t=1111ms, and
+   * `29563.25 LAST 15m BAR CLOSE` at t=2163ms, off one request. PRICE UNKNOWN
+   * is a FINDING; the request had not come back.
+   */
+  describe("AWAITING — unasked is not unknown", () => {
+    it("NOBODY-TOLD-ME may never be rounded into silence", () => {
+      // The tri-state's whole point. `undefined` is what every pre-existing
+      // caller passes, and it must keep printing the finding it always did.
+      for (const settled of [undefined, true] as const) {
+        const out = formatSpinePrice(null, null, "1h", settled);
+        expect(out.text, `barsSettled=${String(settled)} fell silent`).toBe("PRICE UNKNOWN");
+        expect(out.provenance).toBe("NONE");
+      }
+    });
+
+    it("withholds the sentence only when explicitly told the request is in flight", () => {
+      const out = formatSpinePrice(null, null, "1h", false);
+      expect(out.provenance).toBe("AWAITING");
+      expect(out.text).toBe("");
+      expect(out.text).not.toContain("UNKNOWN");
+    });
+
+    it("EVIDENCE OUTRANKS THE FLAG — a reading is never withheld", () => {
+      // The dangerous inversion: if the flag could veto a number, an unsettled
+      // request would blank a price that is demonstrably on screen. Both arms.
+      expect(formatSpinePrice(7622.25, null, "1h", false)).toEqual({
+        text: "7622.25",
+        provenance: "PRINT",
+      });
+      const close = formatSpinePrice(null, 7622.25, "1h", false);
+      expect(close.provenance).toBe("BAR_CLOSE");
+      expect(close.text).toBe("7622.25 LAST 1h BAR CLOSE");
+    });
+
+    it("AWAITING is reachable by exactly ONE input shape", () => {
+      // If any other combination can produce it, the blank slot has become a
+      // way to hide a real absence rather than a way to wait for an answer.
+      const shapes: Array<[number | null, number | null, boolean | undefined]> = [
+        [null, null, undefined],
+        [null, null, true],
+        [7622.25, null, false],
+        [null, 7622.25, false],
+        [7622.25, 7622.25, false],
+      ];
+      for (const [last, bar, settled] of shapes) {
+        expect(
+          formatSpinePrice(last, bar, "1h", settled).provenance,
+          `[${String(last)}, ${String(bar)}, ${String(settled)}] produced AWAITING`,
+        ).not.toBe("AWAITING");
+      }
+      expect(formatSpinePrice(null, null, "1h", false).provenance).toBe("AWAITING");
+    });
+  });
 });
