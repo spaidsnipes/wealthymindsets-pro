@@ -44,6 +44,10 @@ import * as React from "react";
 // Where the product's rooms are has ONE owner. Retyping them here is what made
 // this rail a second definition — see the note on OS_ROOMS below.
 import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDestinations";
+// WORKSPACE is not a fourth list of destinations — it is what the room the
+// trader is ALREADY standing in can hand them. See roomEquipment's header.
+import { roomEquipment } from "@/lib/workspace/roomEquipment";
+import { requestEquipment } from "@/lib/workspace/equipmentChannel";
 import {
   compileFeedStanding,
   compileProvenanceSegments,
@@ -203,6 +207,60 @@ function RailLink({
       )}
       {label}
     </a>
+  );
+}
+
+/**
+ * WORKSPACE — the equipment available to the room you are standing in.
+ *
+ * ROOMS are working contexts. WORKSPACE is the equipment that context can hand
+ * you. That distinction is the whole reason this block exists and the reason
+ * its entries are BUTTONS rather than links: an entry here does not take you
+ * anywhere, so it cannot become the twenty-second route. It opens something
+ * beside the chart you are already looking at.
+ *
+ * ── Why it renders nothing in a room with no equipment ──────────────────────
+ * A "Workspace" heading over an empty list, or over a list of things that are
+ * really other pages, is the painted door this rail has been burned by twice
+ * already (see the note on OS_ROOMS). Rooms earn the heading by having
+ * equipment; until then the rail says nothing about it.
+ */
+function RoomWorkspaceRail({ activeHref }: { activeHref: string }): React.ReactElement | null {
+  const equipment = roomEquipment(activeHref);
+  if (equipment.length === 0) return null;
+  return (
+    <div data-testid="os-rail-workspace">
+      <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: GOLD }}>Workspace</div>
+      {equipment.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          data-equipment={item.id}
+          title={item.hint}
+          onClick={() => requestEquipment(item.id)}
+          style={{
+            display: "block",
+            width: "100%",
+            textAlign: "left",
+            // 44px: this is a control, and the rail is reachable on a tablet.
+            minHeight: 44,
+            padding: "7px 14px",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            color: MUTED,
+            fontSize: 11,
+            letterSpacing: 0.3,
+            fontFamily: "inherit",
+          }}
+        >
+          <span style={{ display: "block", color: PEARL }}>{item.label}</span>
+          <span style={{ display: "block", fontSize: 10, color: "#6f6857", lineHeight: 1.3 }}>
+            {item.hint}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -613,12 +671,23 @@ export function WMOperatingSystem({
             <RailLink key={room.href} href={room.href} label={room.label} activeHref={activeHref} />
           ))}
 
-          {/* WORKBENCH and COMMUNITY. Quieter than the loop above — smaller
+          {/* WORKSPACE — the equipment THIS room has.
+              Renders nothing at all in a room with none. */}
+          <RoomWorkspaceRail activeHref={activeHref} />
+
+          {/* TOOLS and COMMUNITY. Quieter than the loop above — smaller
               type, dimmer resting colour — because they are where the trader
               GOES, not where the trader WORKS. The active treatment is
               identical, so a room never changes its "you are here" mark
-              depending on which heading it sits under. */}
-          <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Workbench</div>
+              depending on which heading it sits under.
+
+              This heading used to read "Workbench", one word away from the
+              WORKSPACE block directly above it and meaning the opposite
+              thing. Two near-identical nouns stacked on top of each other is
+              how "equipment I can pick up here" and "somewhere else I can go"
+              became indistinguishable, which is the confusion the Workspace
+              restore exists to end. They are TOOLS: other destinations. */}
+          <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Tools</div>
           {OS_WORKBENCH.map((d) => (
             <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
           ))}

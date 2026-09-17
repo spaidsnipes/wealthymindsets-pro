@@ -124,6 +124,14 @@ import PracticeHonestyLayer from "@/components/experience/PracticeHonestyLayer";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
+import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
+import {
+  EQUIPMENT_CLOSED,
+  equipmentJourneyReducer,
+  pendingScrollRestore,
+} from "@/lib/workspace/equipmentJourney";
+import { readJourneyFromUrl, reflectJourneyInUrl, subscribeEquipment } from "@/lib/workspace/equipmentChannel";
+import { isRoomEquipment } from "@/lib/workspace/roomEquipment";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -531,6 +539,72 @@ function CommandDeckInner() {
     underlying: symbol,
     owner: expressionOwner,
   });
+  /*
+    WORKSPACE — the equipment journey for this room.
+
+    ROOM → WORKSPACE → PREVIEW/WIDGET → DRAWER → ENTER FULL → RETURN.
+
+    Everything about what the stages MEAN lives in the owner
+    (@/lib/workspace/equipmentJourney); this is the room holding one journey at
+    a time and answering the rail. Three deliberate properties:
+
+      · The rail's Workspace entry is an EVENT, not a link. A link would
+        remount the chart and blank a frame — the exact "another app loaded"
+        sensation the grammar exists to disprove.
+      · The URL is reflected with replaceState, so the journey is shareable and
+        the room is still /command-deck. No route per invention.
+      · ENTER records the scroll offset and RETURN restores it, so "return to
+        the exact room" is a measured promise rather than a hopeful one.
+  */
+  const [equipment, dispatchEquipment] = React.useReducer(
+    equipmentJourneyReducer,
+    EQUIPMENT_CLOSED,
+  );
+  const equipmentDecisionId = currentSceneDecision?.decisionId ?? null;
+
+  React.useEffect(() => {
+    return subscribeEquipment((req) => {
+      if (!isRoomEquipment("/command-deck", req.equipmentId)) return;
+      dispatchEquipment({
+        type: "OPEN",
+        equipmentId: req.equipmentId,
+        decisionId: equipmentDecisionId,
+      });
+    });
+  }, [equipmentDecisionId]);
+
+  // A shared link opens where it says it does. `full` is deliberately not
+  // cold-openable — see readJourneyFromUrl.
+  React.useEffect(() => {
+    const fromUrl = readJourneyFromUrl(window.location.search);
+    if (!isRoomEquipment("/command-deck", fromUrl.equipmentId) || !fromUrl.equipmentId) return;
+    dispatchEquipment({
+      type: "OPEN",
+      equipmentId: fromUrl.equipmentId,
+      decisionId: equipmentDecisionId,
+    });
+    if (fromUrl.stage === "drawer") dispatchEquipment({ type: "EXPAND" });
+    // Mount only: re-running this on every decision id would drag the trader
+    // back to the threshold every time the market compiled a new decision.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const priorEquipment = React.useRef(equipment);
+  React.useEffect(() => {
+    reflectJourneyInUrl(equipment.equipmentId, equipment.stage);
+    const owed = pendingScrollRestore(priorEquipment.current, equipment);
+    priorEquipment.current = equipment;
+    // The room is what scrolls in this OS, not the document — see the note on
+    // `os-room` in WMOperatingSystem. Restoring `window` here would silently
+    // do nothing and the trader would land at the top of the room, which is
+    // the "lost my place" failure wearing a passing test.
+    if (owed !== null) {
+      const room = document.querySelector('[data-testid="os-room"]');
+      if (room) room.scrollTop = owed;
+      else window.scrollTo({ top: owed });
+    }
+  }, [equipment]);
+
   const permissionVerdict = permission?.verdict ?? "UNKNOWN";
   const priorPermission = React.useRef<typeof permissionVerdict | null>(null);
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = React.useState<string>(
@@ -2408,6 +2482,26 @@ function CommandDeckInner() {
         </div>{/* end z-index wrapper */}
       </div>
     </div>
+
+    {/* WORKSPACE EQUIPMENT — renders NOTHING until the trader picks it up from
+        the rail. Deliberately last in the tree and fixed-position: it must not
+        push a single pixel of the market around, because a widget that
+        reflows the chart it is supposed to sit beside has already broken the
+        "same room" promise. Same vm as the room's own canvas — one
+        compilation, three depths. */}
+    <RoomEquipmentLayer
+      journey={equipment}
+      vm={marketCanvas}
+      onExpand={() => dispatchEquipment({ type: "EXPAND" })}
+      onEnter={() =>
+        dispatchEquipment({
+          type: "ENTER",
+          scrollY: document.querySelector('[data-testid="os-room"]')?.scrollTop ?? 0,
+        })
+      }
+      onReturn={() => dispatchEquipment({ type: "RETURN" })}
+      onClose={() => dispatchEquipment({ type: "CLOSE" })}
+    />
     </SanctuarySessionProvider>
   );
 }
