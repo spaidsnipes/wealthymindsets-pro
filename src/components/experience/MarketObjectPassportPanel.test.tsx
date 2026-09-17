@@ -22,9 +22,12 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MarketObjectPassportPanel } from "./MarketObjectPassportPanel";
+import { FIDELITY_RANK } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import type {
   MarketObjectPassportVM,
   MarketObjectPassport,
@@ -262,5 +265,93 @@ describe("MarketObjectPassportPanel — ENTER buys depth, not a bigger box", () 
       expect(docked, `the drawer withheld: ${claim}`).toContain(claim);
       expect(full, `the full stage withheld: ${claim}`).toContain(claim);
     }
+  });
+});
+
+/**
+ * × THE PANEL DREW A RANK IT DID NOT OWN.
+ *
+ * Fidelity, confidence and resolution were all rendered as words and bare
+ * numbers: `OBSERVED`, `· 72%`, `3/8 resolved`. Every one of those is an
+ * ORDERED fact printed in a form that carries no order. OBSERVED and INFERRED
+ * are five rungs apart on `FIDELITY_RANK` and occupied identical pixels in two
+ * golds four percent apart in luminance; `· 87%` and `· 12%` differ by one
+ * glyph at 11px; and two rooms both reporting `3/8` could mean "three sealed,
+ * five nothing" or "three sealed, five forming" — different market states,
+ * identical words.
+ *
+ * Drawing them is the cure, and drawing them is also the risk this block
+ * exists for: a picture of a rank is a CLAIM about that rank. If the panel
+ * held its own copy of the fidelity ordering, it could draw four rungs under a
+ * word the selector chose by a different table, and both files would stay
+ * green while disagreeing about which evidence is stronger. So the ordering
+ * has exactly one author and these tests hold it there.
+ */
+describe("× ORDERED FACTS ARE DRAWN IN ORDER — and the order has one author", () => {
+  it("the rungs filled equal the selector's own rank, not a second opinion", () => {
+    // Walked across the whole scale rather than sampled: an off-by-one or an
+    // inverted table survives any single reading.
+    for (const [fidelity, rank] of Object.entries(FIDELITY_RANK)) {
+      const html = render([obj({ fidelity: fidelity as never })]);
+      expect(html, `${fidelity} drew no rungs`).toContain('data-testid="passport-fidelity-rungs"');
+      expect(html, `${fidelity} drew the wrong rank`).toContain(`data-rank="${rank}"`);
+    }
+  });
+
+  it("THE WORD SURVIVES THE PICTURE", () => {
+    // The rungs are `aria-hidden` decoration. Rank encoded ONLY as height is
+    // invisible to a screen reader and unreliable for anyone who cannot
+    // separate two adjacent golds, so the addition must never become a
+    // substitution.
+    const html = render([obj({ fidelity: "OBSERVED", confidence: 0.72 })]);
+    expect(html).toContain("OBSERVED");
+    expect(html).toContain("72%");
+    expect(html).toContain('aria-hidden="true"');
+  });
+
+  it("an unmeasured confidence draws NO bar rather than an empty one", () => {
+    // A zero-length bar reads as "no confidence". The truth is "no
+    // measurement", and those are different claims — the same fabricated-zero
+    // family `monitorLatencyFact` refuses by name.
+    const html = render([obj({ confidence: null })]);
+    expect(html).not.toContain('data-testid="passport-confidence-bar"');
+    const measured = render([obj({ confidence: 0.4 })]);
+    expect(measured).toContain('data-confidence="40"');
+  });
+
+  it("the band keeps the denominator — eight objects always read as eight", () => {
+    const objects = [
+      obj({ id: "direction", lifecycle: "RESOLVED" }),
+      obj({ id: "regime", lifecycle: "FORMING" }),
+      obj({ id: "profile", lifecycle: "UNRESOLVED" }),
+    ];
+    const html = render(objects);
+    const segments = html.match(/data-lifecycle="/g)?.length ?? 0;
+    expect(
+      segments,
+      "a dropped UNRESOLVED segment would shorten the band and silently redraw " +
+        "the denominator — 2/3 would be painted as if it were 2/2",
+    ).toBe(3);
+    expect(html).toContain('data-lifecycle="UNRESOLVED"');
+  });
+
+  it("the panel does NOT keep its own fidelity ordering", () => {
+    // The single-writer rule, made executable against the source. A local
+    // `const RANK = { OBSERVED: 5, ... }` here is the exact defect: two tables,
+    // one picture, no gate.
+    //
+    // Comments stripped before matching. The docblock above NAMES the shape
+    // being forbidden so the next reader knows what not to reintroduce, and a
+    // scan over the raw text would read that explanation as the defect itself
+    // and force the record to be deleted to make the rule pass. Rules that
+    // punish written-down history get the history erased.
+    const RAW = readFileSync(
+      join(process.cwd(), "src/components/experience/MarketObjectPassportPanel.tsx"),
+      "utf8",
+    );
+    const SRC = RAW.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    expect(SRC).toMatch(/import\s*\{[^}]*FIDELITY_RANK[^}]*\}/);
+    expect(SRC).not.toMatch(/(const|let)\s+\w*(RANK|ORDER)\w*\s*[:=]/);
+    expect(SRC).not.toMatch(/OBSERVED:\s*5/);
   });
 });

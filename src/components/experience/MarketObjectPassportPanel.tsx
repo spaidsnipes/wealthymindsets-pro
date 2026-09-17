@@ -16,6 +16,10 @@
  */
 
 import * as React from "react";
+import {
+  FIDELITY_RANK,
+  FIDELITY_MAX,
+} from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import type {
   MarketObjectPassportVM,
   MarketObjectPassport,
@@ -56,6 +60,47 @@ const FIDELITY_TONE: Record<string, string> = {
 
 const MUTED = "#8a8271";
 const HAIR = "rgba(139,106,41,0.22)";
+
+/**
+ * FIDELITY AS A LADDER, BECAUSE FIDELITY IS A LADDER.
+ *
+ * The strength of the evidence behind a claim was rendered as a single word.
+ * OBSERVED and INFERRED are five rungs apart on `FIDELITY_RANK` and they
+ * occupied the same number of pixels, in two colours four percent apart in
+ * luminance. Comparing two dimensions meant knowing the scale by heart.
+ *
+ * THE WORD STAYS. This is an addition, not a substitution: the rungs are
+ * `aria-hidden` decoration beside the label, because rank encoded ONLY as
+ * height is unreadable to a screen reader and unreliable for anyone who cannot
+ * separate two adjacent golds. The picture is the fast path, not the only one.
+ */
+function FidelityRungs({ fidelity }: { fidelity: string }): React.ReactElement | null {
+  const rank = FIDELITY_RANK[fidelity as keyof typeof FIDELITY_RANK];
+  // An unrecognised class draws nothing rather than drawing zero rungs: an
+  // empty ladder and a UNAVAILABLE ladder must not look identical.
+  if (rank == null) return null;
+  const tone = FIDELITY_TONE[fidelity] ?? MUTED;
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="passport-fidelity-rungs"
+      data-rank={rank}
+      style={{ display: "inline-flex", alignItems: "flex-end", gap: 1.5, height: 10 }}
+    >
+      {Array.from({ length: FIDELITY_MAX }, (_, i) => (
+        <span
+          key={i}
+          style={{
+            width: 2,
+            height: 3 + i * 1.75,
+            borderRadius: 0.5,
+            background: i < rank ? tone : "rgba(139,106,41,0.18)",
+          }}
+        />
+      ))}
+    </span>
+  );
+}
 
 function fmtTime(ms: number): string {
   try {
@@ -132,9 +177,56 @@ function PassportRow({
         {obj.value ?? obj.summary}
       </span>
       {obj.fidelity && (
-        <span style={{ fontSize: 11, letterSpacing: 0.4, color: FIDELITY_TONE[obj.fidelity] ?? MUTED, marginLeft: "auto", textTransform: "uppercase" }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11,
+            letterSpacing: 0.4,
+            color: FIDELITY_TONE[obj.fidelity] ?? MUTED,
+            marginLeft: "auto",
+            textTransform: "uppercase",
+          }}
+        >
+          <FidelityRungs fidelity={obj.fidelity} />
           {obj.fidelity}
-          {obj.confidence != null ? ` · ${Math.round(obj.confidence * 100)}%` : ""}
+          {/* CONFIDENCE KEEPS ITS NUMBER AND GAINS A LENGTH. `· 87%` and `· 12%`
+              differ by one glyph at 11px; the bar makes the same fact legible
+              without reading. Rendered only when the engine actually holds a
+              confidence — `null` draws nothing rather than an empty track,
+              because a zero-length bar reads as "no confidence" when the truth
+              is "no measurement", and those are different claims. */}
+          {obj.confidence != null && (
+            <>
+              <span
+                aria-hidden="true"
+                data-testid="passport-confidence-bar"
+                data-confidence={Math.round(obj.confidence * 100)}
+                style={{
+                  display: "inline-block",
+                  width: 28,
+                  height: 3,
+                  borderRadius: 2,
+                  background: "rgba(139,106,41,0.18)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    // Clamped: a confidence outside [0,1] is a bug upstream, and
+                    // a bar that overflows its track would hide it as a flourish.
+                    width: `${Math.max(0, Math.min(1, obj.confidence)) * 100}%`,
+                    background: FIDELITY_TONE[obj.fidelity] ?? MUTED,
+                  }}
+                />
+              </span>
+              {`${Math.round(obj.confidence * 100)}%`}
+            </>
+          )}
         </span>
       )}
       {/* Last in reading order: label, verdict, claim, fidelity, then what
@@ -237,6 +329,41 @@ export function MarketObjectPassportPanel({
           {vm.resolvedCount}/{vm.totalCount} resolved · {vm.qualityState}
         </span>
       </div>
+
+      {/* THE STANDING OF THE WHOLE PICTURE, AT A GLANCE.
+          `3/8 resolved` is accurate and it is a reading task — and it hides the
+          shape of the eight. Two rooms both reporting 3/8 can mean "three sealed,
+          five nothing" or "three sealed, five actively forming", which are
+          different market states and were rendered in identical words.
+
+          One segment per object, in the same order the rows appear below, so the
+          band is an index of the list rather than a second opinion about it. The
+          counts stay in the line above: this is a picture of a number that is
+          still printed, not a replacement for printing it. */}
+      {ordered.length > 0 && (
+        <div
+          aria-hidden="true"
+          data-testid="passport-resolution-band"
+          style={{ display: "flex", gap: 2, marginBottom: 10 }}
+        >
+          {ordered.map((obj) => (
+            <span
+              key={obj.id}
+              data-lifecycle={obj.lifecycle}
+              style={{
+                flex: 1,
+                height: 3,
+                borderRadius: 2,
+                background: LIFECYCLE_COLOR[obj.lifecycle],
+                // UNRESOLVED is dimmed rather than hidden. An absent segment
+                // would shorten the band and quietly redraw the denominator —
+                // eight objects must always read as eight.
+                opacity: obj.lifecycle === "UNRESOLVED" ? 0.28 : 1,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {vm.objects.length === 0 ? (
         <div style={{ fontSize: 12, color: MUTED, fontStyle: "italic", padding: "4px 0" }}>

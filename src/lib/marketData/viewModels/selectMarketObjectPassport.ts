@@ -102,8 +102,23 @@ const DIMENSION_ORDER: readonly (readonly [keyof CanonicalMarketState, string])[
   ["volatility", "Volatility"],
 ];
 
-/** Strongest → weakest. Used to pick an object's headline fidelity. */
-const FIDELITY_RANK: Record<MarketFidelityClass, number> = {
+/**
+ * Strongest → weakest. Used to pick an object's headline fidelity.
+ *
+ * EXPORTED BECAUSE A SURFACE NOW DRAWS IT, AND A DRAWN ORDER IS STILL AN ORDER.
+ *
+ * `MarketObjectPassportPanel` renders fidelity as filled rungs rather than a
+ * bare word, so the trader can compare two dimensions without knowing that
+ * PROXY outranks INFERRED. That picture is a CLAIM ABOUT RANK, and the moment a
+ * second table decides how many rungs to fill, the panel and the selector can
+ * disagree about which evidence is stronger while both stay green — the panel
+ * would be drawing one belief under a word chosen by another.
+ *
+ * So there is one table. The selector uses it to choose the headline fidelity;
+ * the panel uses it to decide the height of the bar that describes that same
+ * choice. Same author, same answer.
+ */
+export const FIDELITY_RANK: Record<MarketFidelityClass, number> = {
   OBSERVED: 5,
   DERIVED: 4,
   PROXY: 3,
@@ -111,6 +126,13 @@ const FIDELITY_RANK: Record<MarketFidelityClass, number> = {
   SIMULATED: 1,
   UNAVAILABLE: 0,
 };
+
+/**
+ * The top of the scale, derived rather than typed. A seventh fidelity class
+ * added to `MarketFidelityClass` must not silently leave every bar drawn
+ * against a stale maximum — which is what a hardcoded `5` here would do.
+ */
+export const FIDELITY_MAX = Math.max(...Object.values(FIDELITY_RANK));
 
 function lifecycleOf(d: MarketStateDimension): PassportLifecycle {
   if (d.resolution === "RESOLVED" && !!d.value?.trim()) return "RESOLVED";
