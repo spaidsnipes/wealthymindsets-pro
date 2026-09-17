@@ -310,6 +310,45 @@ describe("decision memory reachability", () => {
     expect(stripComments(vmSource)).toContain("headline: DECISION_RECEIPT_UNWIRED_HEADLINE");
   });
 
+  /**
+   * THE DISCLOSURE WAS REPAIRED IN THE SELECTOR AND NOT IN THE ROOM.
+   *
+   * The rule above pins the empty headline to this file's measurement, and it
+   * did its job: the selector no longer says "yet". But the deck renders that
+   * headline UNDERNEATH its own subtitle, and the subtitle kept a second,
+   * older sentence about the same fact. Measured in one document, two lines
+   * apart:
+   *
+   *     Decision Receipt
+   *     A snapshot of what you knew, then what happened · none sealed
+   *     Decision sealing is not wired in this build — no decision can be
+   *     receipted.
+   *
+   * "none sealed" is a COUNT. A count of zero implies a count of one is
+   * reachable, which is the exact fabricated future the headline was rewritten
+   * to stop making — and being set ABOVE the headline, it is the first of the
+   * two a trader reads. The chrome contradicted the capability's own
+   * disclosure inside a single glance: Canon Weakness #1, in the room that
+   * hosts the cure.
+   *
+   * Pinned from BOTH sides, because presence alone would stay green if
+   * somebody restored the count beside the new clause, and absence alone would
+   * stay green if the whole empty arm were deleted. Scoped to the EMPTY arm
+   * only — the non-empty arm renders a real stage, which is a real reading and
+   * needs no scope.
+   */
+  it("the deck's receipt chrome discloses the same unwired fact its body does", () => {
+    const deck = stripComments(readFileSync(join(SRC, "app/command-deck/page.tsx"), "utf8"));
+
+    // The empty arm must name the CAUSE, in the same words the headline uses.
+    expect(deck, "the deck's empty-receipt clause no longer names the cause")
+      .toMatch(/decisionReceipt\.empty\s*\?\s*"[^"]*not wired[^"]*"/);
+
+    // And it must not go back to counting a capability that cannot count.
+    expect(deck, '"none sealed" implies a tally the next decision increments')
+      .not.toMatch(/none sealed/i);
+  });
+
   it("no production caller collapses an unobservable position into `false`", () => {
     // Rename-resilient: any surface calling inferJobMode must pass a
     // CapitalObservation string, never a boolean literal.

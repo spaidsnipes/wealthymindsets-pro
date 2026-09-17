@@ -2124,8 +2124,40 @@ function CommandDeckInner() {
                       }}
                     >
                       A snapshot of what you knew, then what happened ·{" "}
+                      {/*
+                        THE SUBTITLE AND THE BODY WERE TELLING DIFFERENT STORIES.
+
+                        Two lines apart, inside ONE document, on one screen:
+
+                            Decision Receipt
+                            A snapshot of what you knew … · none sealed
+                            Decision sealing is not wired in this build —
+                            no decision can be receipted.
+
+                        `selectDecisionReceipt`'s empty headline was repaired
+                        precisely because "No decision sealed yet" told the
+                        trader that sealing is something their NEXT ACTION
+                        causes — a fabricated future, not a fabricated number.
+                        `decisionMemoryReachability.test.ts` pins that sentence
+                        to the measurement that makes it true: zero production
+                        writers, so the store is provably empty by construction.
+
+                        This subtitle was never moved with it. "none sealed" is
+                        a COUNT — it reads as a tally that the trader's next
+                        sealed decision increments, which is the exact implied
+                        future the headline below it was rewritten to stop
+                        making. Set ABOVE that headline, it is also the first
+                        of the two a reader meets, so the room's own chrome
+                        contradicted the capability's own disclosure inside a
+                        single glance.
+
+                        The cure is the one this repo applies everywhere else:
+                        ONE owner of a fact, and the qualifier travels with the
+                        reading. The non-empty arm is untouched — a real stage
+                        is a real reading and needs no scope.
+                      */}
                       {decisionReceipt.empty
-                        ? "none sealed"
+                        ? "not wired in this build"
                         : decisionReceipt.stage.toLowerCase()}
                     </p>
                   </div>
