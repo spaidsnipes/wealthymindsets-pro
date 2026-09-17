@@ -33,6 +33,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { isPublicAuthPath } from "@/lib/authRoutes";
+
 /** Every room that publishes an OS standing today. */
 const PUBLISHERS = [
   "src/app/journal/page.tsx",
@@ -221,25 +223,25 @@ describe("SENTINEL — the room list itself stays honest", () => {
  * fails here until someone publishes a real observation for it, which is the
  * correct place for that decision to surface.
  */
-describe("SENTINEL — a room with NO feed declares so, instead of staying silent", () => {
-  /** Rooms measured to carry no market transport of any kind. */
-  const FEEDLESS_ROOMS = [
-    "src/app/lounge/page.tsx",
-    "src/app/copy-trading/page.tsx",
-    "src/app/education/page.tsx",
-    "src/app/shop/page.tsx",
-    "src/app/partnerships/page.tsx",
-    "src/app/creator/page.tsx",
-    "src/app/tv/page.tsx",
-    "src/app/radio/page.tsx",
-    "src/app/proof-lane/page.tsx",
-    "src/app/morning-prep/page.tsx",
-    "src/app/news/page.tsx",
-    "src/app/backtesting/page.tsx",
-    "src/app/readiness/page.tsx",
-    "src/app/profile/page.tsx",
-  ] as const;
+/** Rooms measured to carry no market transport of any kind. */
+const FEEDLESS_ROOMS = [
+  "src/app/lounge/page.tsx",
+  "src/app/copy-trading/page.tsx",
+  "src/app/education/page.tsx",
+  "src/app/shop/page.tsx",
+  "src/app/partnerships/page.tsx",
+  "src/app/creator/page.tsx",
+  "src/app/tv/page.tsx",
+  "src/app/radio/page.tsx",
+  "src/app/proof-lane/page.tsx",
+  "src/app/morning-prep/page.tsx",
+  "src/app/news/page.tsx",
+  "src/app/backtesting/page.tsx",
+  "src/app/readiness/page.tsx",
+  "src/app/profile/page.tsx",
+] as const;
 
+describe("SENTINEL — a room with NO feed declares so, instead of staying silent", () => {
   it("the list is non-empty and every room in it still exists", () => {
     // Guards the same vacuity the suite above guards: a renamed file must turn
     // this red rather than quietly shrink what is being certified.
@@ -393,6 +395,112 @@ describe("SENTINEL — a room with a transport publishes what it observed", () =
     for (const [rel, block] of withInlineFeed) {
       expect(block, rel).not.toContain("FEED UNKNOWN");
       expect(block, rel).not.toContain("fidelity");
+    }
+  });
+});
+
+/**
+ * THE LISTS THEMSELVES WERE THE LAST BLIND SPOT.
+ *
+ * Every rule above iterates a HAND-MAINTAINED array. That is the third form of
+ * spelling-pin this file has had to grow out of, and the most patient one: a
+ * rule can only ever judge the rooms someone remembered to enrol. The room
+ * built tomorrow is not in `PUBLISHERS` and not in `FEEDLESS_ROOMS`, so it is
+ * invisible to all nine assertions — and it ships wearing FEED UNKNOWN until a
+ * human happens to look at it on production.
+ *
+ * That is not hypothetical. Six rooms reached production in exactly this state
+ * and were found by WALKING THE SITE, not by this suite.
+ *
+ * So the census is DERIVED from the filesystem and the two lists are checked
+ * against it. A new room now reddens this file on the day it is created, which
+ * is the only moment the decision is cheap.
+ *
+ * THE THREE EXEMPTIONS ARE NARROW AND EACH IS PROVEN, NOT ASSERTED:
+ *
+ *   · public auth paths render BARE — `MainLayout` returns `<>{children}</>`
+ *     before any chrome mounts. Read from `isPublicAuthPath`, the real owner,
+ *     so this file cannot drift from the shell's actual behaviour.
+ *   · redirect stubs draw nothing at all. Detected by SHAPE — a `redirect()`
+ *     with no JSX anywhere — never by name, because a name list is the very
+ *     thing this suite exists to abolish.
+ *   · a page may DELEGATE its whole body to a component that publishes.
+ *     /charts is the only one, it is named with its delegate, and the delegate
+ *     must itself be a publisher for the exemption to hold.
+ */
+describe("SENTINEL — the census is derived, so a NEW room cannot hide from this file", () => {
+  /** A page whose entire body is another component that publishes for it. */
+  const DELEGATES: Readonly<Record<string, string>> = {
+    "src/app/charts/page.tsx": "src/components/chart/ChartsDashboard.tsx",
+  };
+
+  function pages(dir: string, out: string[] = []): string[] {
+    for (const entry of fs.readdirSync(path.join(process.cwd(), dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) pages(rel, out);
+      else if (entry.name === "page.tsx") out.push(rel);
+    }
+    return out;
+  }
+
+  /** "src/app/nectar/[symbol]/page.tsx" -> "/nectar/[symbol]" */
+  function routeOf(rel: string): string {
+    return rel.slice("src/app".length, -"/page.tsx".length) || "/";
+  }
+
+  /** Draws nothing: a bare `redirect()` with no JSX in the whole file. */
+  function isRedirectStub(src: string): boolean {
+    return /\bredirect\(/.test(src) && !/<[A-Za-z>]/.test(src);
+  }
+
+  const census = pages("src/app").sort();
+
+  const shellRooms = census.filter((rel) => {
+    if (isPublicAuthPath(routeOf(rel))) return false;
+    return !isRedirectStub(strip(rel));
+  });
+
+  it("the census actually found the app, so this suite cannot pass vacuously", () => {
+    // A broken walk would return [] and certify every future room as fine.
+    expect(census.length).toBeGreaterThanOrEqual(20);
+    expect(shellRooms.length).toBeGreaterThanOrEqual(15);
+    expect(census).toContain("src/app/login/page.tsx");
+    expect(shellRooms).not.toContain("src/app/login/page.tsx");
+  });
+
+  it("THE LOAD-BEARING ASSERTION — every room the shell wraps has taken a side", () => {
+    // Neither list is consulted. The question asked of each room is the one the
+    // frame actually asks: did you say anything about your feed?
+    for (const rel of shellRooms) {
+      const delegate = DELEGATES[rel];
+      const src = strip(delegate ?? rel);
+      expect(
+        observesFeed(src) || publishesFeedless(src),
+        `${rel} is wrapped by the OS shell but neither observes a feed nor declares FEEDLESS_SURFACE — it will ship wearing FEED UNKNOWN, and nothing else in this file would have noticed`,
+      ).toBe(true);
+    }
+  });
+
+  it("every delegating page really does delegate to a publisher", () => {
+    // The exemption is the one place a room could be waved through. It has to
+    // cost more to claim than to fix.
+    for (const [rel, delegate] of Object.entries(DELEGATES)) {
+      expect(shellRooms, rel).toContain(rel);
+      expect(fs.existsSync(path.join(process.cwd(), delegate)), delegate).toBe(true);
+      expect(strip(delegate), delegate).toContain("usePublishOsStanding");
+      expect(strip(rel), `${rel} claims to delegate to ${delegate}`).toContain(
+        path.basename(delegate, ".tsx"),
+      );
+    }
+  });
+
+  it("and the two hand-kept lists still describe the real app", () => {
+    // The lists above are not abolished — they carry the per-room judgement.
+    // But every name in them must be a room the census actually found, or the
+    // rule that iterates it has quietly stopped guarding a live surface.
+    for (const rel of [...PUBLISHERS, ...FEEDLESS_ROOMS]) {
+      if (!rel.startsWith("src/app/")) continue;
+      expect(census, `${rel} is enrolled in this file but no longer exists`).toContain(rel);
     }
   });
 });
