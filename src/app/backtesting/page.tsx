@@ -7,12 +7,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Play, Square, RotateCcw, TrendingUp, TrendingDown, BarChart2, Zap, Download, ChevronDown, BookOpen, ChevronRight, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { Play, Square, RotateCcw, TrendingUp, TrendingDown, BarChart2, Download, ChevronDown, BookOpen, ChevronRight, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import { fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
 import { CHART_TF_SHIPPED } from "@/lib/timeframes";
+import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 
 /* ── Types ──────────────────────────────────────────────── */
 type Trade = BTTrade;
@@ -332,8 +333,32 @@ export default function BacktestingPage() {
             </button>
           ))}
         </div>
+        {/* THIS READ "Live data — real Yahoo OHLCV bars", and it was wrong twice.
+            Found by the product-wide JSX text scan, which reported it as the
+            ONLY place in 202 components where a data provider is named to the
+            trader.
+
+            1. "Live data" on a BACKTESTER. `fetchBars` pulls up to 3000
+               HISTORICAL candles; there is nothing live about them, and the
+               canon reserves "LIVE — CERTIFIED QUOTE" for a real-time
+               consolidated tape arriving from a certified source. Same
+               live-ness overclaim class as the /paper "LIVE PRICES" strip.
+            2. "Yahoo". The Visual Systems Canon quarantines "old
+               provider-specific status strips" BY NAME, and the interaction
+               directive bans exposing provider internals. Which vendor fills
+               the bars is our plumbing; the trader's question is whether the
+               bars are real.
+
+            Both answered by one canon label that already existed —
+            HISTORICAL_BARS_VERIFIED, documented as "OHLCV bars have been
+            verified end-to-end". Imported rather than retyped, so a canon
+            amendment reaches this strip too.
+
+            The icon changed with the words: Zap is live-energy iconography and
+            was the picture half of the same overclaim. */}
         <div className="flex items-center gap-1 text-[10px] text-wm-text-dim">
-          <Zap size={10} className="text-wm-green" /> Live data — real Yahoo OHLCV bars
+          <CheckCircle size={10} className="text-wm-green" />{" "}
+          {CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED}
         </div>
         {result && mainTab === "backtest" && (
           <button onClick={() => {
