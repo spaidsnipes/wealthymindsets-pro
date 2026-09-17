@@ -90,7 +90,26 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
   "/command-deck": [
     // ── DEBT. Real intelligence whose only door is a second press. ──
     "ATHOSInterventionPanel",
-    "DLARStrip",
+    /* `DLARStrip` WAS HERE, and the way it came off is the point.
+       The previous baton recorded a judgement about this entry: the auction
+       lens is bound to the chain by the room's §10 THESIS_GEOMETRY rule, so
+       enrolling it as its own rail entry "will go red, correctly" — two doors
+       to one admission is exactly what §10 forbids.
+
+       That judgement held. What it missed is that the lens did not need a door
+       of its own, because the CHAIN'S door was already the right door and was
+       carrying only half its cargo. `decisionChainEquipment`'s `renderDepth`
+       reproduced the §10 GATE and dropped the §10 PAIRING — it opened the nine
+       nodes without the four-dimension summary they resolve to. Restoring the
+       pairing cured that, and discharged this entry as a side effect.
+
+       So this is the register's second consequential discharge, and it reads
+       the opposite way round from the first: `SceneAdmitsAmbient` surfaced
+       because a tenant was added, this surfaced because a tenant was FIXED.
+       Both are things nobody set out to do. Both are why the list is kept.
+
+       17 → 16. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     /* `DecisionChainPanel` WAS HERE, AND IT CAME OFF THE SAME DAY.
        It is the first entry this register has discharged: the chain is now the
        WORKSPACE grammar's third tenant, so `decisionChainEquipment`'s

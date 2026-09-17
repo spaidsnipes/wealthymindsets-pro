@@ -715,6 +715,63 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
       ).toMatch(/unabridged=\{unabridged\}/);
     }
   });
+
+  /**
+   * §10 THESIS_GEOMETRY IS ONE ADMISSION, AND THE DOOR MUST CARRY BOTH HALVES.
+   *
+   * The room states this in the gate's own comment: sections 2 and 3 "are ONE
+   * admission … admitting one without the other would put a conclusion on
+   * screen with its own workings withheld, which is the SHOW FIRST, EXPLAIN
+   * SECOND order run backwards." The auction lens is the four-dimension
+   * summary; the chain is the nine nodes underneath it.
+   *
+   * THE CHAIN'S DOOR SHIPPED WITH ONLY ONE HALF. It reproduced the GATE
+   * faithfully — `<SceneAdmits element="THESIS_GEOMETRY">` is right there in
+   * `renderDepth` — and dropped the PAIRING, so pressing the rail opened the
+   * nine nodes alone. Every existing rule stayed green throughout, because
+   * every existing rule is about the gate.
+   *
+   * That is the shape worth pinning: a door built from one half of a rule,
+   * where the half it kept is the half everything else was watching. This
+   * asserts the other half, and it asserts it on the SAME memo body the rules
+   * above slice, so it cannot be satisfied by a DLAR mount somewhere else in
+   * the room — the in-room one at section 2 has always existed and is not what
+   * this is about.
+   *
+   * SCOPED TO ROOMS THAT ACTUALLY ADOPT THE CHAIN, off the room's own
+   * descriptor list rather than off a hardcoded path. `/charts` has no
+   * decision-chain equipment and must not fail for not having it — and if a
+   * third room adopts the chain tomorrow, this rule arrives with it instead of
+   * having to be remembered.
+   */
+  const chainDescriptor = room.descriptors.find((d) => d.id === "decision-chain");
+  it.runIf(chainDescriptor)(
+    "§10: the chain's door opens the auction lens WITH the chain, never the chain alone",
+    () => {
+    const at = deck.indexOf("const decisionChainEquipment");
+    expect(at, `${DECK} → the room no longer builds decisionChainEquipment`).toBeGreaterThan(-1);
+    const body = deck.slice(at, deck.indexOf("[chainVm, sceneCompilation]", at));
+    const rendered = body.slice(body.indexOf("renderDepth:"));
+    expect(
+      rendered,
+      `${DECK} → the chain's ENTER renders DecisionChainPanel without DLARStrip. ` +
+        `The room's own §10 comment calls sections 2–3 ONE admission: this door ` +
+        `now shows the nine nodes with the four-dimension summary they resolve ` +
+        `to nowhere in sight, which is SHOW FIRST / EXPLAIN SECOND run backwards.`,
+    ).toContain("<DLARStrip");
+    // And the lens must NOT be docked away. It is the SHALLOWER read — what the
+    // chain compacts to — so hiding it until ENTER leaves the preview showing
+    // the workings without the conclusion: the same inversion, other way round.
+    const lensAt = rendered.indexOf("<DLARStrip");
+    const lensTag = rendered.slice(lensAt, rendered.indexOf("/>", lensAt));
+    expect(
+      lensTag,
+      `${DECK} → the auction lens is gated on \`unabridged\` inside the chain's ` +
+        `depth. The lens is the summary, not the deep read — docking it away ` +
+        `means the preview carries the nine nodes and not the four they answer.`,
+    ).not.toMatch(/unabridged/);
+    },
+  );
 });
 
 describe("SENTINEL — the equipment layer is depth, not another app", () => {

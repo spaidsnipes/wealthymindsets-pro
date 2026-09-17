@@ -874,20 +874,46 @@ function CommandDeckInner() {
           withheldNote={withheldNote}
         >
           {chainVm && (
-            <DecisionChainPanel
-              vm={chainVm}
-              showNarratives
-              unabridged={unabridged}
-            />
+            <>
+              {/* THE AUCTION LENS TRAVELS WITH THE CHAIN, because the room says
+                  they are ONE admission and it says so in the gate above:
+                  "admitting one without the other would put a conclusion on
+                  screen with its own workings withheld, which is the SHOW
+                  FIRST, EXPLAIN SECOND order run backwards."
+
+                  This door used to do exactly that. It carried the §10 GATE
+                  faithfully and dropped the §10 PAIRING, so pressing it opened
+                  section 3 without section 2 — the nine nodes with the
+                  four-dimension summary they resolve to nowhere in sight. The
+                  in-room composition never had that defect; only the rail did,
+                  which is how a door built from one half of a rule goes wrong
+                  while every test about the other half stays green.
+
+                  It is NOT `unabridged`-gated. The lens is the shallower read
+                  of the two — it is what the chain COMPACTS to — so docking it
+                  away would leave the preview showing the workings without the
+                  conclusion, which is the same inversion pointing the other
+                  way. */}
+              <DLARStrip dlar={chainVm.dlar} />
+              <div style={{ height: 12 }} />
+              <DecisionChainPanel
+                vm={chainVm}
+                showNarratives
+                unabridged={unabridged}
+              />
+            </>
           )}
         </SceneAdmits>
       ),
     };
-    /* NO `onNodeClick` HERE, AND THAT IS THE BAN BEING HONOURED.
-       The in-room mount drills each node into the WHY drawer. Doing that from
-       inside the equipment would open a drawer from within a drawer — the
-       "drawer-inside-drawer burial" the directive bans by name. The equipment
-       is a place to READ the chain, and ENTER is how it gets deeper. */
+    /* NO `onNodeClick` OR `onDrillClick` HERE, AND THAT IS THE BAN BEING HONOURED.
+       The in-room mounts drill each node — and each DLAR chip — into the WHY
+       drawer. Doing that from inside the equipment would open a drawer from
+       within a drawer — the "drawer-inside-drawer burial" the directive bans
+       by name. The equipment is a place to READ the chain, and ENTER is how it
+       gets deeper. The lens above is handed no `onDrillClick` for exactly the
+       reason the panel is handed no `onNodeClick`: admitting the surface is
+       not the same as admitting its exits. */
   }, [chainVm, sceneCompilation]);
 
   /**
