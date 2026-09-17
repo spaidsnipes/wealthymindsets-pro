@@ -241,6 +241,51 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
     expect(html).toContain('data-price-provenance="NONE"');
   });
 
+  /**
+   * MEASURED LIVE on wealthymindsetspro.com/charts, NQ1! 15m, 2026-09-17, in
+   * ONE two-line cell read exactly as a trader reads it:
+   *
+   *     NQ1! · 15m · 29727 LAST 15m BAR CLOSE
+   *     UNAVAILABLE · asOf 12:47:27Z
+   *
+   * The grade is honest about the LIVE QUOTE CHANNEL and says so nowhere. Set
+   * directly beneath a number that is present and provenance-labelled, the
+   * only available reading is that the line above is what is unavailable —
+   * WM understating what it holds, which is a truth defect in the same family
+   * as overclaiming it.
+   *
+   * The cure is a SCOPE, never a softer verdict: a bar close is still not a
+   * print, and no state here promotes. These two gates hold that line from
+   * both sides — the word must change under a bar close, and it must NOT
+   * change under a print, where `UNAVAILABLE` is grading the very number
+   * shown and is precisely right.
+   */
+  it("a bar-close reading is not graded with a bare UNAVAILABLE", () => {
+    const html = render({
+      market: {
+        symbol: "NQ1!",
+        timeframe: "15m",
+        quality: "UNAVAILABLE",
+        capturedAt: Date.UTC(2026, 8, 17, 12, 47, 27),
+        last: null,
+        lastBarClose: 29727,
+        lastBarTimeframe: "15m",
+      },
+    });
+    expect(html).toContain("29727 LAST 15m BAR CLOSE");
+    expect(html).toContain("NO LIVE PRINT");
+    expect(html).not.toContain("UNAVAILABLE");
+  });
+
+  it("an UNAVAILABLE grade over no reading at all is left exactly as it is", () => {
+    const html = render({
+      market: { symbol: "NQ1!", timeframe: "15m", quality: "UNAVAILABLE", capturedAt: null, last: null },
+    });
+    expect(html).toContain("PRICE UNKNOWN");
+    expect(html).toContain("UNAVAILABLE");
+    expect(html).not.toContain("NO LIVE PRINT");
+  });
+
   it("renders the canonical bar close with inspectable provenance when no print exists", () => {
     const html = render({
       market: {

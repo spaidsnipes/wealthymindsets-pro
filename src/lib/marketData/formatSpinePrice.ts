@@ -137,6 +137,55 @@ export function selectPriceEvidence(
   return { value: null, provenance: "NONE", qualifier: null };
 }
 
+/**
+ * THE WORD UNDERNEATH THE NUMBER — and what it is actually grading.
+ *
+ * ── THE DEFECT, MEASURED LIVE ─────────────────────────────────────────
+ * wealthymindsetspro.com/charts, NQ1! 15m, 2026-09-17, ONE two-line cell,
+ * read top to bottom exactly as a trader reads it:
+ *
+ *     NQ1! · 15m · 29727 LAST 15m BAR CLOSE
+ *     UNAVAILABLE · asOf 12:47:27Z
+ *
+ * …with `HISTORICAL BARS VERIFIED` in the masthead of the same viewport.
+ *
+ * `UNAVAILABLE` is `qualityFor`'s honest verdict on THE LIVE QUOTE CHANNEL:
+ * no per-trade print matched, so canonical state seals no `price.last`. That
+ * is true. But the sentence carries no scope, and it is set immediately
+ * beneath a number that IS present and IS provenance-labelled — so the only
+ * reading available to the trader is that the line above is the thing that is
+ * unavailable. WM understates what it knows, which `deriveLastBarClose` names
+ * in its own words as a truth defect in the same family as overclaiming.
+ *
+ * ── WHY THE CURE IS A SCOPE, NOT A DIFFERENT VERDICT ──────────────────
+ * The verdict is not softened and the grade is not promoted: a bar close is
+ * still not a print, and nothing here can make the quote channel healthy. All
+ * that changes is that the clause SAYS WHICH CHANNEL IT GRADES, following the
+ * rule this module already enforces one line up — the qualifier travels with
+ * the reading or the reading states something it cannot prove.
+ *
+ * ── WHY ONLY THE BAR_CLOSE ARM ────────────────────────────────────────
+ * Under `NONE` there is no number above the word, so `UNAVAILABLE` has
+ * nothing to be mistaken for and is precisely right. Under `PRINT` the
+ * quality state is grading the very number shown, which is the case the word
+ * was written for. `AWAITING` prints no price line at all. BAR_CLOSE is the
+ * single arm where the grade and the reading come from DIFFERENT channels,
+ * and it is the only arm touched.
+ *
+ * Non-UNAVAILABLE grades pass through untouched. DELAYED / STALE / PARTIAL
+ * each describe a reading that exists, and none of them reads as an erasure
+ * of the line above.
+ */
+export function qualifyMarketQuality(
+  quality: string | null | undefined,
+  provenance: SpinePriceProvenance,
+): string {
+  const q = typeof quality === "string" ? quality.trim() : "";
+  if (!q) return "QUALITY UNKNOWN";
+  if (provenance === "BAR_CLOSE" && q === "UNAVAILABLE") return "NO LIVE PRINT";
+  return q;
+}
+
 export function formatSpinePrice(
   last: number | null | undefined,
   lastBarClose: number | null | undefined,

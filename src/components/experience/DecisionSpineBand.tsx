@@ -51,7 +51,7 @@ import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
 import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
-import { formatSpinePrice } from "@/lib/marketData/formatSpinePrice";
+import { formatSpinePrice, qualifyMarketQuality } from "@/lib/marketData/formatSpinePrice";
 import { selectOneNextThing } from "@/lib/marketData/viewModels/selectOneNextThing";
 
 /**
@@ -293,7 +293,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         {priceDisplay.provenance === "AWAITING" ? null : <> · {priceDisplay.text}</>}
       </span>
       <span style={MUTED}>
-        {market.quality ?? "QUALITY UNKNOWN"} · {asOfText(market.capturedAt)}
+        {qualifyMarketQuality(market.quality, priceDisplay.provenance)} · {asOfText(market.capturedAt)}
       </span>
     </>
   );
