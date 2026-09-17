@@ -59,6 +59,8 @@ import {
   readProofLaneJournalEdge,
   type ProofLaneJournalEdgeRead,
 } from "@/lib/proofLane/readJournalEdge";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import {
   CHALLENGE_JOURNEY,
   CHALLENGE_EXECUTION_BOUNDARY,
@@ -108,6 +110,10 @@ function fmtUsd(x: number) {
 }
 
 export default function ProofLanePage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "Proof Lane", feed: FEEDLESS_SURFACE });
+
   const [sessionIndex, setSessionIndex] = useState(0);
   const [actualBalance, setActualBalance] = useState(START);
   const [selectedHorizon, setSelectedHorizon] = useState<2 | 3 | 4 | 6 | 9 | 12>(6);

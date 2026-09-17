@@ -3,6 +3,8 @@
 import React from "react";
 import { AlertTriangle, Link2, ShieldCheck, Users } from "lucide-react";
 import { WM } from "@/lib/design/wmTokens";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import {
   selectCopyTradingGate,
   type CopyTradingGate,
@@ -50,6 +52,10 @@ interface StatusBody {
 }
 
 export default function CopyTradingPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "Copy Trading", feed: FEEDLESS_SURFACE });
+
   const [state, setState] = React.useState<LoadState>({ kind: "loading" });
 
   React.useEffect(() => {

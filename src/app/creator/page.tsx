@@ -15,6 +15,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { creatorProgramStats, type CreatorRosterRow } from "@/lib/creator/creatorProgramStats";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 /* ── Tier definitions ─────────────────────────────────────── */
 interface Tier {
@@ -133,6 +135,10 @@ const FAQ = [
 ];
 
 export default function CreatorPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "Creator", feed: FEEDLESS_SURFACE });
+
   const [selected,     setSelected]     = useState<string | null>(null);
   const [faqOpen,      setFaqOpen]      = useState<number | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);

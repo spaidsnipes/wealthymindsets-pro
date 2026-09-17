@@ -3,6 +3,8 @@
 import React from "react";
 import { ExternalLink, Handshake, Star, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 type Partner = {
   name: string;
@@ -19,6 +21,10 @@ type Partner = {
 const PARTNERS: Partner[] = [];
 
 export default function PartnershipsPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "Partnerships", feed: FEEDLESS_SURFACE });
+
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       {/* ── Header — WM atmosphere ────────────────────────── */}

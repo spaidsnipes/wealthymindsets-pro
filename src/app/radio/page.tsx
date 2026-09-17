@@ -14,6 +14,8 @@ import { WM } from "@/lib/design/wmTokens";
 import { useRadio } from "@/contexts/RadioContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -820,6 +822,10 @@ function UploadModal({ onClose, onAdd, uploader }: {
 }
 
 export default function RadioPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "WM Radio", feed: FEEDLESS_SURFACE });
+
   const { user } = useAuth();
   const myHandle = user?.handle ?? user?.email?.split("@")[0] ?? "anonymous";
   const radio = useRadio();

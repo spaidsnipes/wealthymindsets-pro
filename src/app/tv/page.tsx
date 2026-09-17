@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 // Real multi-user broadcast room (LiveKit SFU). ssr:false — it touches
 // browser media APIs and must never render on the server.
@@ -206,6 +208,10 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
 
 /* ── Page ───────────────────────────────────────────────── */
 export default function WMTVPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "WM TV", feed: FEEDLESS_SURFACE });
+
   const [activeId, setActiveId] = useState<string>("wmtv-home");
   const activeStage = STAGE_CHANNELS.find(c => c.id === activeId) || null;
   const activeText  = TEXT_CHANNELS.find(c => c.id === activeId) || null;

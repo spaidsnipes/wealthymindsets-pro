@@ -24,6 +24,8 @@ import {
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 /* ── Types ───────────────────────────────────────────────── */
 interface Lesson {
@@ -531,6 +533,10 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
 const EDU_KEY = "wm_edu_progress";
 
 export default function EducationPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "Academy", feed: FEEDLESS_SURFACE });
+
   const [mods, setMods] = useState<Module[]>(() => {
     if (typeof window === "undefined") return MODULES;
     try {

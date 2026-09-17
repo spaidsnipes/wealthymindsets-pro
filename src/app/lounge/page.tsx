@@ -17,6 +17,8 @@ import dynamic from "next/dynamic";
 const LiveRoom = dynamic(() => import("@/components/lounge/LiveRoom"), { ssr: false });
 import { useAuth } from "@/contexts/AuthContext";
 import { selectLoungeDiscovery } from "@/lib/loungeDiscovery";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -712,6 +714,22 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
 }
 
 export default function LoungePage() {
+  /*
+    THIS ROOM CARRIES NO MARKET FEED, AND HAD TO SAY SO.
+
+    Measured live on wealthymindsetspro.com/lounge, 2026-09-17: a community
+    room with no price pipeline wore FEED UNKNOWN in the masthead and SOURCE
+    UNKNOWN in the footer. `osStandingContext` names that exact case as the
+    wrong one — "FEED UNKNOWN is right for a room that has not spoken. It is
+    wrong for a room with no feed to speak about." The Vault was cured of it;
+    the cure never reached the other feedless rooms.
+
+    Silence is only earned by a POSITIVE declaration. Inferring it from the
+    default would quiet every trading surface for the frames before its first
+    publication, which is why this is one line per room and not a heuristic.
+  */
+  usePublishOsStanding({ surface: "Lounge", feed: FEEDLESS_SURFACE });
+
   const { user } = useAuth();
   const loungeClient = getSupabase();
   const [feedTab,       setFeedTab]       = useState<FeedTab>("for-you");

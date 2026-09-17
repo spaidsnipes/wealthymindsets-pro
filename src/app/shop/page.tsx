@@ -5,6 +5,8 @@ import { ShoppingCart, Heart, Info, X, Plus, Minus } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 const PRODUCTS = [
   {
@@ -130,6 +132,10 @@ function productArt(id: number): React.CSSProperties | null {
 interface CartItem { id: number; qty: number; }
 
 export default function ShopPage() {
+  // This room carries no market feed. See /lounge for the measurement and
+  // why silence must be declared rather than inferred.
+  usePublishOsStanding({ surface: "Shop", feed: FEEDLESS_SURFACE });
+
   const [cat,        setCat]        = useState("All");
   const [search,     setSearch]     = useState("");
   const [cartItems,  setCartItems]  = useState<CartItem[]>([]);

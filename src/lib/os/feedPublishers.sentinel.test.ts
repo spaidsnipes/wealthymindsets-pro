@@ -156,6 +156,80 @@ describe("SENTINEL — the room list itself stays honest", () => {
   });
 });
 
+/**
+ * THE SENTINEL ABOVE COULD ONLY SEE ROOMS THAT ALREADY SPOKE.
+ *
+ * `PUBLISHERS` is a list of rooms that call `usePublishOsStanding`. Every rule
+ * above iterates it — so the one failure it could never catch is a room that
+ * publishes NOTHING, because such a room is not in the list and never was. The
+ * frame renders that silence as FEED UNKNOWN, which is the same wrong pixel the
+ * file was written about, arrived at through the one door it left open.
+ *
+ * Measured live on wealthymindsetspro.com/lounge, 2026-09-17: masthead FEED
+ * UNKNOWN, footer SOURCE UNKNOWN, on a community room that has no market
+ * pipeline of any kind. `osStandingContext` names this case exactly — "FEED
+ * UNKNOWN is right for a room that has not spoken. It is wrong for a room with
+ * no feed to speak about."
+ *
+ * PINNED FROM BOTH DIRECTIONS, because each side alone rots:
+ *
+ *   · presence only — passes forever once a room grows a real feed, and the
+ *     room then LIES about carrying none.
+ *   · absence only — passes if the declaration is simply deleted and the room
+ *     goes back to wearing the open question.
+ *
+ * So: each of these rooms must declare `FEEDLESS_SURFACE`, AND must still have
+ * no market transport to declare anything about. A room that acquires a feed
+ * fails here until someone publishes a real observation for it, which is the
+ * correct place for that decision to surface.
+ */
+describe("SENTINEL — a room with NO feed declares so, instead of staying silent", () => {
+  /** Rooms measured to carry no market transport of any kind. */
+  const FEEDLESS_ROOMS = [
+    "src/app/lounge/page.tsx",
+    "src/app/copy-trading/page.tsx",
+    "src/app/education/page.tsx",
+    "src/app/shop/page.tsx",
+    "src/app/partnerships/page.tsx",
+    "src/app/creator/page.tsx",
+    "src/app/tv/page.tsx",
+    "src/app/radio/page.tsx",
+    "src/app/proof-lane/page.tsx",
+  ] as const;
+
+  it("the list is non-empty and every room in it still exists", () => {
+    // Guards the same vacuity the suite above guards: a renamed file must turn
+    // this red rather than quietly shrink what is being certified.
+    expect(FEEDLESS_ROOMS.length).toBeGreaterThan(0);
+    for (const rel of FEEDLESS_ROOMS) {
+      expect(fs.existsSync(path.join(process.cwd(), rel)), rel).toBe(true);
+    }
+  });
+
+  it("THE LOAD-BEARING ASSERTION — each publishes FEEDLESS_SURFACE", () => {
+    // Without the declaration the frame prints an open question about a
+    // pipeline the room does not have, and sends a reader to diagnose nothing.
+    for (const rel of FEEDLESS_ROOMS) {
+      expect(
+        publishesFeedless(strip(rel)),
+        `${rel} carries no feed but does not say so — the masthead will wear FEED UNKNOWN over it`,
+      ).toBe(true);
+    }
+  });
+
+  it("and none of them has quietly acquired a feed to be silent about", () => {
+    // The other half of the pin. `FEEDLESS_SURFACE` is a positive claim, and a
+    // room that grows a transport must stop making it.
+    for (const rel of FEEDLESS_ROOMS) {
+      const src = strip(rel);
+      expect(
+        src.includes("useWebSocket("),
+        `${rel} now carries a transport but still declares it has no feed`,
+      ).toBe(false);
+    }
+  });
+});
+
 describe("SENTINEL — a room with a transport publishes what it observed", () => {
   const withTransport = [...SOURCES].filter(([, src]) => src.includes("useWebSocket("));
 
