@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import { Volume2, VolumeX, Settings, Layers, Pause, Play, RotateCcw, HelpCircle, X } from "lucide-react";
 import type { FootprintType } from "./ChartsDashboard";
 import { getIndicatorInfo } from "./indicatorDescriptions";
+import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { SchemePresets } from "./SchemePresets";
 
 function emitBigTradesControl(action: "pause" | "resume" | "refresh") {
@@ -493,15 +494,37 @@ const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
   { id: "big-trades",         label: "Big Trades",       desc: "Large observed trade prints on candles — no claim about participant identity or intent" },
 ];
 
+/* Every tool in FOOTPRINT_TYPES is drawn from the per-bar tick accumulator, and
+   that accumulator only ever counts a print carrying an AGGRESSOR SIDE (see
+   MainChart `seen += rt.bid + rt.ask; if (seen > 0) …` — a sideless print adds
+   zero to both halves and getBarSubProfile correctly returns null). So ONE
+   capability question governs all six buttons, and the compiler that answers it
+   lives in `orderFlowToolCapability` — not here, and not six times. */
 export function FootprintControls({
   active, enabled, onChange, onDisable, bigTradesOverlay = false,
+  tapeSource = null, observedAggressorFlow = false,
 }: {
   active: FootprintType;
   enabled: boolean;
   onChange: (t: FootprintType) => void;
   onDisable: () => void;
   bigTradesOverlay?: boolean;
+  /** Runtime tape source id, exactly as `useWebSocket` reports it. */
+  tapeSource?: string | null;
+  /** `selectAggressorFlow(...).hasFlow` — sided volume OBSERVED, not promised. */
+  observedAggressorFlow?: boolean;
 }) {
+  const capabilityOf = (id: FootprintType, label: string) =>
+    orderFlowToolCapability(id, label, { source: tapeSource, observedAggressorFlow });
+
+  // The tool whose emptiness the trader is actually looking at right now. Big
+  // Trades in Simultaneous Mode is an independent overlay, so it can be the
+  // armed-and-empty tool even when the exclusive selection is switched off.
+  const armed: FootprintType | null =
+    enabled ? active : bigTradesOverlay ? "big-trades" : null;
+  const armedEntry = armed ? FOOTPRINT_TYPES.find(t => t.id === armed) ?? null : null;
+  const armedCapability = armedEntry ? capabilityOf(armedEntry.id, armedEntry.label) : null;
+
   return (
     <>
       <span className="text-[10px] text-wm-text-dim uppercase tracking-wider ml-1.5 mr-1 shrink-0">ORDER FLOW:</span>
@@ -521,17 +544,30 @@ export function FootprintControls({
         OFF
       </button>
 
-      {FOOTPRINT_TYPES.map(({ id, label, desc }) => (
+      {FOOTPRINT_TYPES.map(({ id, label, desc }) => {
+        const cap = capabilityOf(id, label);
+        const selected = (active === id && enabled) || (id === "big-trades" && bigTradesOverlay);
+        return (
         <div key={id} className="inline-flex items-center shrink-0">
+          {/* NOT `disabled`. The tape arrives DURING a session, so a tool that
+              cannot draw yet must stay selectable — and a disabled control is
+              also skipped by a screen reader's button list and untappable on a
+              phone, which turns one silence into two. The button stays armed;
+              the SELECTED ring is what gets withheld, because a green ring over
+              an empty overlay is the reading "delta is flat", not "no data". */}
           <button
             onClick={() => onChange(id)}
-            aria-pressed={(active === id && enabled) || (id === "big-trades" && bigTradesOverlay)}
-            title={desc}
+            aria-pressed={selected}
+            data-of-capability={cap.state}
+            title={`${desc}\n\n${cap.reason}`}
+            aria-label={`${label}. ${cap.reason}`}
             className={clsx(
               "px-1.5 h-5 rounded text-[11px] font-semibold tracking-normal transition-all",
-              ((active === id && enabled) || (id === "big-trades" && bigTradesOverlay))
+              selected && cap.drawable
                 ? "bg-wm-green/20 text-wm-green border border-wm-green/50 shadow-[0_0_6px_rgba(0,229,204,0.25)]"
-                : "text-wm-text-dim hover:text-wm-text hover:bg-wm-surface border border-transparent"
+                : selected
+                  ? "bg-amber-400/10 text-amber-300 border border-amber-400/40"
+                  : "text-wm-text-dim hover:text-wm-text hover:bg-wm-surface border border-transparent"
             )}
           >
             {label}
@@ -544,7 +580,26 @@ export function FootprintControls({
             : <OrderFlowColorGear toolId={id} label={label} />}
           <OrderFlowHelp label={label} desc={desc} />
         </div>
-      ))}
+        );
+      })}
+
+      {/* THE VISIBLE SENTENCE. A `title` is a hover, and a hover does not exist
+          on a phone; an `aria-label` is announced only on focus. Neither reaches
+          the trader who clicked a tool, saw nothing appear, and drew their own
+          conclusion. When the ARMED tool cannot draw, the reason is rendered —
+          not hidden behind a pointer. */}
+      {armedCapability && !armedCapability.drawable && (
+        <span
+          role="status"
+          data-of-armed-state={armedCapability.state}
+          title={armedCapability.reason}
+          className="ml-2 shrink-0 max-w-[30ch] truncate text-[10px] leading-tight text-amber-300/90"
+        >
+          {armedCapability.state === "AWAITING_TAPE"
+            ? "Nothing to draw yet — awaiting sided prints"
+            : "Cannot be drawn — this feed carries no aggressor side"}
+        </span>
+      )}
     </>
   );
 }

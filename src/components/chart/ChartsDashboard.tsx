@@ -1848,6 +1848,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 active={footprintType}
                 enabled={footprintEnabled}
                 bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
+                // Every footprint overlay is built from SIDED prints, so the
+                // toolbar is told both halves of the tape's truth: which feed is
+                // connected (can it ever supply a side?) and whether a sided
+                // print has actually been observed (has one arrived yet?).
+                // Collapsing those two into one grey button is the same defect
+                // as an absence reported with too wide a scope.
+                tapeSource={source}
+                observedAggressorFlow={chartFlowSnap.hasFlow}
                 onDisable={() => setFootprintEnabled(false)}
                 onChange={(t) => {
                   // Big Trades in Simultaneous Mode is an INDEPENDENT overlay: clicking
