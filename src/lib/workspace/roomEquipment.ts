@@ -144,6 +144,37 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Your behaviour mirror",
       hint: "What you actually did this session, not what you meant to do",
     },
+    /**
+     * THE FIFTH TENANT — THE MIRROR'S LONGER-MEMORY SIBLING.
+     *
+     * The Mirror reflects the session you just finished. This reflects the
+     * BOOK: which playbook, direction and session the trader has actually
+     * performed in across every decision WM has a record of. Same subject —
+     * the trader — over a different horizon, which is why it belongs on the
+     * rail next to the Mirror rather than folded into it.
+     *
+     * ITS STARTING POSITION WAS BURIAL WITH NO SECOND MOUNT. The deck's only
+     * `PersonalEdgeChip` sat one `<details>` deep, and
+     * `buriedOnlyIsARegister.test.ts` measured it as one of the room's
+     * remaining twenty. Nothing is un-collapsed here: the chip stays exactly
+     * where it is, and gains a door that is not a second press.
+     *
+     * THE LABEL SAYS WHOSE EDGE IT IS. Same reason both passports name their
+     * owner and the Mirror is "YOUR behaviour mirror": the ROOMS list is
+     * full of places, and "Personal edge" alone could read as one more of
+     * them. It cannot be a room, because a room is not *yours*.
+     *
+     * THE HINT PROMISES A MEASUREMENT, NOT A PREDICTION. "Where you will do
+     * well" would be a forecast the selector explicitly refuses to make —
+     * `selectPersonalEdge` will not call a bucket RESOLVED below its sample
+     * threshold, on the Founder rule that there is never certainty from
+     * three. So the hint is stated in the past tense.
+     */
+    {
+      id: "personal-edge",
+      label: "Your personal edge",
+      hint: "Where you have actually performed, measured across your whole record",
+    },
   ],
 
   /**

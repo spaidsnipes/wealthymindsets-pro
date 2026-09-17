@@ -136,6 +136,33 @@ const ROOMS = [
         deps: "[mirrorVm, phase]",
         depth: "MirrorPanel",
       },
+      /**
+       * THE FIFTH TENANT — AND THE ONE WHOSE `deps` ARE SHORT ON PURPOSE.
+       *
+       * Every descriptor above carries its subject's gate in `deps`: the chain
+       * carries `sceneCompilation` so scene withholding travels, the Mirror
+       * carries `phase` so REVIEW/POST_EXIT travels. This one is
+       * `[personalEdgeVm]` alone, and the absence is the claim.
+       *
+       * Personal Edge has NO phase gate, deliberately. The Mirror is gated
+       * because reflecting on a session you are still inside is an overclaim;
+       * this is the opposite — "you have historically performed badly in this
+       * context" is worth most during PREPARATION, while it is still
+       * actionable. A `phase` dep here would not merely be redundant: it would
+       * invite a gate that reproduces the exact defect
+       * `theMirrorIsNotAMarketPanel.enforcement.test.ts` exists to forbid — a
+       * panel that disappears precisely when it is most useful.
+       *
+       * So an edit that gives this descriptor a `phase` dep fails HERE, and
+       * the reason is one scroll away.
+       */
+      {
+        id: "personal-edge",
+        memo: "personalEdgeEquipment",
+        reads: /vm=\{personalEdgeVm\}/,
+        deps: "[personalEdgeVm]",
+        depth: "PersonalEdgeChip",
+      },
     ],
   },
   {

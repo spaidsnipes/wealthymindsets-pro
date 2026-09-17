@@ -114,7 +114,16 @@ const REGISTER: Readonly<Record<string, readonly string[]>> = {
 
        21 → 20. Recorded rather than silently deleted, because the whole claim
        of this file is that the number cannot move without somebody looking. */
-    "PersonalEdgeChip",
+    /* `PersonalEdgeChip` WAS HERE. Third entry discharged, same mechanism as
+       the first two: it became the WORKSPACE grammar's fifth tenant, so
+       `personalEdgeEquipment`'s `renderDepth` mounts it at zero `<details>`
+       depth. Its one in-room mount — one disclosure deep, gated on
+       `sessionDecisions.length > 0` — is untouched. A door added, not a
+       surface moved, which is why the entry comes off rather than staying:
+       buried-only means EVERY mount is buried, and that stopped being true.
+
+       20 → 19. Recorded rather than silently deleted, because the whole claim
+       of this file is that the number cannot move without somebody looking. */
     "PracticeHonestyLayer",
     "SceneAdmissionPanel",
     "StructureContextNote",

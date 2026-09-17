@@ -985,6 +985,74 @@ function CommandDeckInner() {
   }, [mirrorVm, phase]);
 
   /**
+   * PERSONAL EDGE AS EQUIPMENT — the grammar's FIFTH tenant, and the first
+   * whose horizon is longer than the session.
+   *
+   * ── WHY IT IS NOT THE MIRROR ─────────────────────────────────────────────
+   * Both are the trader's own record, and that is exactly why they must not be
+   * merged. The Mirror asks "what did you just do"; this asks "where have you
+   * ever performed". Folding the second into the first would make one panel
+   * answer two questions with one verdict, and the two genuinely disagree —
+   * a clean session inside a weak context is the single most useful thing this
+   * pair can tell a trader, and it is unsayable if they share a headline.
+   *
+   * ── NO PHASE GATE, AND THAT IS DELIBERATE ────────────────────────────────
+   * The Mirror is gated to REVIEW / POST_EXIT because reflecting on a session
+   * you are still inside is an overclaim. This is the opposite: PREPARATION is
+   * precisely when "you have historically performed badly in this context" is
+   * worth reading, because it is still actionable. Gating it to REVIEW would
+   * reproduce the defect `theMirrorIsNotAMarketPanel.enforcement.test.ts` was
+   * written against — a panel that disappears exactly when it is most useful.
+   *
+   * ── THE VERDICT IS THE SELECTOR'S, NOT THIS ROOM'S ───────────────────────
+   * `resolution` is `selectPersonalEdge`'s own word, and it refuses RESOLVED
+   * below its sample threshold. The room prints it; it does not compute it and
+   * it does not soften it. `NO RECORD` is the one string added here, for the
+   * case the chip answers by rendering null — honest emptiness on a canvas is
+   * silence, but a trader who just pressed this on purpose is owed a sentence.
+   */
+  const personalEdgeEquipment = React.useMemo(() => {
+    const noRecord = personalEdgeVm.totalDecisions === 0;
+    const strengths = personalEdgeVm.topStrengths.length;
+    const watches = personalEdgeVm.topWatch.length;
+    return {
+      equipmentId: "personal-edge",
+      title: "Your personal edge",
+      verdict: noRecord ? "NO RECORD" : personalEdgeVm.resolution,
+      headline: noRecord
+        ? "No decisions on record yet — your edge cannot be measured from nothing."
+        : personalEdgeVm.headline,
+      counts: [
+        { testId: "equipment-count-edge-strength", label: `${strengths} strength` },
+        { testId: "equipment-count-edge-watch", label: `${watches} to watch` },
+        { testId: "equipment-count-edge-decisions", label: `${personalEdgeVm.totalDecisions} decisions` },
+      ],
+      renderDepth: (unabridged: boolean) =>
+        noRecord ? (
+          <p style={{ fontSize: 12, color: "#8a8271", lineHeight: 1.6, margin: 0 }}>
+            {personalEdgeVm.reason ?? "No decisions on record yet."}
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <PersonalEdgeChip vm={personalEdgeVm} unabridged={unabridged} />
+            {/* THE SAMPLE RULE, SAID OUT LOUD AT DEPTH. The chip prints the
+                verdict; a trader who entered the full experience is owed the
+                reason a context is not called RESOLVED. It is the selector's
+                sentence, carried — not a second explanation written here. */}
+            {personalEdgeVm.reason != null && (
+              <p style={{ fontSize: 11, color: "#8a8271", lineHeight: 1.6, margin: 0, fontStyle: "italic" }}>
+                {personalEdgeVm.reason}
+              </p>
+            )}
+          </div>
+        ),
+    };
+    /* NO `onCellClick`/drill. Same reason as the Mirror: a drill from inside a
+       drawer would open a drawer within a drawer, which the directive bans by
+       name. ENTER is how this gets deeper. */
+  }, [personalEdgeVm]);
+
+  /**
    * WHICH equipment is in the trader's hand. The rail asks for an id; the room
    * answers with the reading it already holds for that id. A `Record` rather
    * than a chain of ternaries so that adding a third tenant is an entry, not a
@@ -1000,6 +1068,7 @@ function CommandDeckInner() {
       "market-object-passport": passportEquipment,
       "decision-chain": decisionChainEquipment,
       "behaviour-mirror": mirrorEquipment,
+      "personal-edge": personalEdgeEquipment,
     }[equipment.equipmentId ?? ""] ?? marketRealityEquipment);
 
   // Decision Receipt (canon P8): project the most-recently sealed decision

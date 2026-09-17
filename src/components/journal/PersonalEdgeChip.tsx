@@ -9,7 +9,32 @@ import type { PersonalEdgeVM } from "@/lib/traderMemory/viewModels/selectPersona
  * below sample threshold (never fabricates edge).
  */
 
-export function PersonalEdgeChip({ vm }: { vm: PersonalEdgeVM }) {
+export interface PersonalEdgeChipProps {
+  vm: PersonalEdgeVM;
+  /**
+   * THE CAP WAS ALREADY HERE, AND IT WAS SILENT — THE THIRD TIME.
+   *
+   * `selectPersonalEdge` returns `topN` buckets per side (default 3). This
+   * chip rendered `topStrengths[0]` and `topWatch[0]` and said NOTHING about
+   * the other two. On a panel whose whole job is to tell the trader where
+   * they actually perform, "here is your worst context" is a materially
+   * different sentence from "here is the worst of three, and there are two
+   * more you are not being shown".
+   *
+   * Docked now ACCOUNTS for the remainder instead of dropping it. ENTER
+   * uncaps it. Same shape as `MirrorPanel`'s evidence chips and
+   * `DecisionChainPanel`'s hints — one rule, three panels.
+   *
+   * DEFAULTS FALSE, because a cap of one per side has always shipped and
+   * this chip has two existing mounts (`/command-deck`, `/journal`) that
+   * nobody asked this atom to redesign. The rule is not the literal value:
+   * it is that a new prop leaves every existing mount exactly as the trader
+   * last saw it.
+   */
+  unabridged?: boolean;
+}
+
+export function PersonalEdgeChip({ vm, unabridged = false }: PersonalEdgeChipProps) {
   if (vm.resolution === "UNKNOWN" && vm.totalDecisions === 0) {
     return null; // nothing to show
   }
@@ -19,8 +44,12 @@ export function PersonalEdgeChip({ vm }: { vm: PersonalEdgeVM }) {
     vm.resolution === "PARTIAL"  ? "#c9a55c" :
                                     "#8a8271";
 
-  const topStrength = vm.topStrengths[0];
-  const topWatch = vm.topWatch[0];
+  /** Infinity, not a bigger number: "as many as I was handed" is the rule. */
+  const bucketCap = unabridged ? Number.POSITIVE_INFINITY : 1;
+  const strengths = vm.topStrengths.slice(0, bucketCap);
+  const watches = vm.topWatch.slice(0, bucketCap);
+  const withheld =
+    vm.topStrengths.length - strengths.length + (vm.topWatch.length - watches.length);
 
   return (
     <div
@@ -58,14 +87,19 @@ export function PersonalEdgeChip({ vm }: { vm: PersonalEdgeVM }) {
           avg {(vm.overallAvgR as number).toFixed(2)}R
         </span>
       )}
-      {topStrength && (
-        <span style={{ color: "#5cb85c" }}>
-          ↑ {topStrength.label} · {(topStrength.avgRealizedR as number).toFixed(2)}R (n={topStrength.sampleCount})
+      {strengths.map((b) => (
+        <span key={`s:${b.label}`} style={{ color: "#5cb85c" }}>
+          ↑ {b.label} · {(b.avgRealizedR as number).toFixed(2)}R (n={b.sampleCount})
         </span>
-      )}
-      {topWatch && (
-        <span style={{ color: "#c05a4a" }}>
-          ↓ {topWatch.label} · {(topWatch.avgRealizedR as number).toFixed(2)}R (n={topWatch.sampleCount})
+      ))}
+      {watches.map((b) => (
+        <span key={`w:${b.label}`} style={{ color: "#c05a4a" }}>
+          ↓ {b.label} · {(b.avgRealizedR as number).toFixed(2)}R (n={b.sampleCount})
+        </span>
+      ))}
+      {withheld > 0 && (
+        <span data-personal-edge-buckets-withheld={withheld} style={{ color: "#8a8271", fontStyle: "italic" }}>
+          {withheld} more context{withheld === 1 ? "" : "s"} not shown here
         </span>
       )}
       {vm.resolution === "UNKNOWN" && vm.totalDecisions > 0 && (
