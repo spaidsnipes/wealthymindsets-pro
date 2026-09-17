@@ -298,3 +298,58 @@ export const CHART_TF_SHIPPED: readonly TFId[] = Object.freeze([
 export const HEATMAP_TF_ORDER: readonly TFId[] = Object.freeze([
   "1D", "1W", "1M", "3M", "6M", "1Y", "5Y",
 ]);
+
+/**
+ * THE TWO TIMEFRAMES A SCREEN READER CANNOT TELL APART.
+ *
+ * ── MEASURED LIVE on https://wealthymindsetspro.com/charts, 2026-09-17 ──────
+ * One DOM read of all nine toolbar timeframe buttons returned, for every one
+ * of them:
+ *
+ *     aria-pressed: null   aria-current: null   aria-selected: null
+ *     role: null           aria-label: null     title: ""
+ *
+ * The selected timeframe was distinguished by ONE thing — a `bg-wm-blue/20`
+ * class on the 30m button. Colour was carrying the entire state.
+ *
+ * That is not a cosmetic gap on this particular page. The timeframe is the
+ * PROVENANCE WORD on every number in the header: the price cell reads
+ * "29699.75 LAST 30m BAR CLOSE", the decision rail repeats it, and neither
+ * sentence means anything without knowing which interval is selected. WM built
+ * a compiler whose whole job is that a number never travels without its
+ * provenance, and then shipped the control that sets that provenance as nine
+ * anonymous buttons.
+ *
+ * ── AND THE LABELS COLLIDE ─────────────────────────────────────────────────
+ * `1m` and `1M` are different timeframes — one minute and one month, a factor
+ * of about 43,200. Screen readers are not case-sensitive when announcing a
+ * token like this, so BOTH are spoken the same way. A trader using one cannot
+ * distinguish a one-minute chart from a one-month chart by listening, and the
+ * visual difference is a single letter's case. Adding `aria-pressed` alone
+ * would have told them WHICH button was on while leaving them unable to tell
+ * what it was.
+ *
+ * So the spoken name is DERIVED from `candleIntervalSec` — the same field the
+ * fetch path uses to ask the provider for bars — rather than from a second
+ * hand-written table beside `label`. A table would agree with the interval
+ * until someone edited one of them; this cannot disagree with the chart,
+ * because it is reading the chart's own number.
+ *
+ * Returns a phrase, not a sentence: it is composed into button labels.
+ */
+export function timeframeSpokenName(id: TFId): string {
+  const sec = getTimeframe(id).candleIntervalSec;
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
+  // Months are the one unit that is not a fixed multiple of a day, so the
+  // canonical table stores 1M as 30 days. Naming it "30 days" would be a
+  // different claim than the button makes, so the calendar units are named
+  // from the id where the id IS the calendar unit.
+  const cal = /^(\d+)([DWMY])$/.exec(id);
+  if (cal) {
+    const n = Number(cal[1]);
+    const unit = { D: "day", W: "week", M: "month", Y: "year" }[cal[2]]!;
+    return `${plural(n, unit)} bars`;
+  }
+  if (sec % 3600 === 0) return `${plural(sec / 3600, "hour")} bars`;
+  return `${plural(sec / 60, "minute")} bars`;
+}

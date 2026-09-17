@@ -11,7 +11,7 @@ import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
-import { CHART_TF_SHIPPED, getTimeframe } from "@/lib/timeframes";
+import { CHART_TF_SHIPPED, getTimeframe, timeframeSpokenName } from "@/lib/timeframes";
 import { WMLogo } from "@/components/ui/WMLogo";
 import {
   reconcileSearchCategory,
@@ -936,18 +936,41 @@ export function ChartToolbar({
       <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
 
       {/* ══ Timeframes ══════════════════════════════════════ */}
-      <div className="wm-chart-timeframes flex items-center gap-0.5 shrink-0" aria-label="Chart timeframes">
-        {TIMEFRAMES.map(tf => (
+      {/* `role="group"` is not decoration. An `aria-label` on a bare <div> with
+          no role is NOT exposed to assistive tech, so this group has carried a
+          name nobody could hear since it was written. */}
+      <div
+        className="wm-chart-timeframes flex items-center gap-0.5 shrink-0"
+        role="group"
+        aria-label="Chart timeframe"
+      >
+        {TIMEFRAMES.map(tf => {
+          const active = tf.emit === timeframe;
+          const spoken = timeframeSpokenName(tf.emit);
+          return (
           <button key={tf.key} onClick={() => setTimeframe(tf.emit)}
+            // MEASURED LIVE 2026-09-17: all nine of these buttons returned
+            // aria-pressed/aria-current/aria-selected/role/aria-label = null.
+            // Which timeframe the chart was on was expressed by exactly one
+            // thing, a background colour — and the timeframe is the provenance
+            // word on every number in the header above ("LAST 30m BAR CLOSE").
+            aria-pressed={active}
+            // `1m` and `1M` are spoken identically, and they are a minute and a
+            // month. The canonical owner derives this phrase from the same
+            // candleIntervalSec the fetch path sends to the provider, so the
+            // announced name cannot drift from the bars actually drawn.
+            aria-label={spoken}
+            title={spoken}
             className={clsx(
               "wm-chart-timeframe px-1.5 h-6 rounded text-[11px] font-mono transition-colors",
-              tf.emit === timeframe
+              active
                 ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
                 : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface"
             )}>
             {tf.label}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
