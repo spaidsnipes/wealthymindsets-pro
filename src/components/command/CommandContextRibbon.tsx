@@ -40,6 +40,7 @@ import {
   hiddenRemainder,
   type EvidenceDebt as CanonicalEvidenceDebt,
 } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
+import { selectClarityState } from "@/lib/experience/selectClarityState";
 import {
   selectContextDataReading,
   type ContextDataState,
@@ -434,6 +435,59 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       detail: rightOfWay.detail,
       tone: rightOfWay.tone,
     },
+    // CLARITY STATE — Founder OS Overview canvas, compiled honestly.
+    //
+    // The Overview draws this organ as four bars, two of which nothing in this
+    // product can measure: Physiological Coherence (no biometric input exists
+    // anywhere in WM Pro) and Emotional Noise (not observable). `%` here is
+    // therefore CONFIDENCE — the measured share of the picture the canon asks
+    // for — and it is deliberately not 100.
+    //
+    // A tile that silently averaged only the components it could read would
+    // score HIGHER the less it knew. selectClarityState forbids that shape by
+    // construction: an unowned input may lower confidence and must produce a
+    // disclosure, but it can never touch `level`.
+    //
+    // `noise: null` is not a stub. The ribbon holds no MaterialityReading, and
+    // selectSecondaryNoise's own contract says callers must pass null rather
+    // than synthesise a comparison against an absent past. The cost of that
+    // honesty shows up in the confidence number, which is where it belongs.
+    (() => {
+      const clarity = selectClarityState({ debt, rightOfWay, noise: null });
+      return {
+        key: "clarity",
+        label: "CLARITY",
+        // THE DETAIL LINE LEADS WITH THE DISCLOSURE, and that order was decided
+        // by looking at the rendered tile rather than by reasoning about it.
+        //
+        // The first version read `${detail} · ${confidence}% measured — …
+        // unavailable`. It was correct and it was invisible: the tile clips its
+        // detail line, so what actually reached the eye was
+        //
+        //     CLEAR · 33%
+        //     evidence paid · nothing flagg…
+        //
+        // The disclosure — the entire reason this tile is allowed to exist —
+        // was past the ellipsis. It survived only in the `title` attribute, and
+        // the PROVE criterion is explicit that risk information living in a
+        // hover tooltip is a defect to fix, not a placement.
+        //
+        // So the scarce first characters of the detail line go to the thing
+        // that cannot be inferred from anywhere else on the screen. The level
+        // is already legible in the value above it; "2 of 4 measured" is not.
+        value: `${clarity.value} · ${clarity.confidence}%`,
+        detail: `${clarity.components.length} of ${
+          clarity.components.length + clarity.unownedComponents.length
+        } measured · ${clarity.detail}`,
+        tone: (clarity.level === "CLEAR"
+          ? "resolved"
+          : clarity.level === "CONTESTED"
+            ? "warn"
+            : clarity.level === "CLOUDED"
+              ? "pending"
+              : "unknown") as Tone,
+      } as Tile;
+    })(),
   ];
 
   return (
