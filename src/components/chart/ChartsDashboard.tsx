@@ -35,16 +35,22 @@ import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
 import { SymbolInfoHeader } from "./SymbolInfoHeader";
-import {
-  CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE,
-} from "@/lib/marketData/changeAbsence";
 // PRICE_UNAVAILABLE_TITLE is deliberately NOT imported here any more. The price
 // slot's disclosure now comes from chartHeaderPriceFact, which says strictly
 // more (it can name a verified bar close instead of admitting an absence).
 // Leaving the import in place kept a truth Sentinel passing on a DEAD IMPORT —
 // see the FIFTH FINDING in chartHeaderChangeTruth.test.ts.
+//
+// CHANGE_UNAVAILABLE_TEXT and CHANGE_UNAVAILABLE_TITLE have now gone the same
+// way, for the same reason and one commit later: chartHeaderChangeFact can
+// name a bar-over-bar move from the loaded candles, so this surface no longer
+// decides for itself that the change is unavailable. It still RENDERS that
+// exact sentence — the module returns it verbatim on its NONE arm — which is
+// the point. The dead-import Sentinel caught this leftover on the first run
+// after the wire-up, which is precisely the drift it was written to see.
 import { chartHeaderPriceFact, type HeaderPriceKind } from "@/lib/marketData/chartHeaderPriceFact";
-import { deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
+import { deriveLastBarClose, deriveBarOverBarChange } from "@/lib/marketData/deriveLastBarClose";
+import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
 
 /* Colour and weight come from a DECLARED PROVENANCE, never from "is a number
    present". A bar close rendered like a live quote is a fabricated freshness
@@ -53,6 +59,19 @@ const HEADER_PRICE_STYLE: Record<HeaderPriceKind, { color: string; weight: numbe
   LIVE_QUOTE: { color: "#E2E8F0", weight: 700 },
   BAR_CLOSE: { color: "#A8B0C8", weight: 600 },
   NONE: { color: "#8B92AC", weight: 500 },
+};
+/* The change slot's sibling table. Colour is a function of DIRECTION but the
+   PALETTE is a function of KIND — a bar-over-bar delta gets the muted pair,
+   never the full-strength session green/red, so a 15-minute tick can never be
+   read at a glance as the day's move. Same reasoning as BAR_CLOSE above: the
+   provenance decides the styling, not the mere presence of a number. */
+const HEADER_CHANGE_STYLE: Record<
+  HeaderChangeKind,
+  { color: (d: 1 | 0 | -1 | null) => string; weight: number }
+> = {
+  SESSION_CHANGE: { color: (d) => (d === 1 ? "#00C076" : d === -1 ? "#FF4D67" : "#8B92AC"), weight: 700 },
+  BAR_OVER_BAR: { color: (d) => (d === 1 ? "#5E9E82" : d === -1 ? "#A8707C" : "#8B92AC"), weight: 500 },
+  NONE: { color: () => "#8B92AC", weight: 500 },
 };
 import { BarReplayControls, type ReplaySpeed } from "./BarReplayControls";
 import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
@@ -1464,6 +1483,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               deriveLastBarClose(chartBars, timeframe, Date.now()),
             );
             const headerPriceStyle = HEADER_PRICE_STYLE[headerPriceFact.kind];
+            // THE CHANGE SLOT, ON THE SAME EVIDENCE AS THE PRICE SLOT ABOVE.
+            //
+            // `hasReal` decides whether the QUOTE PROVIDER gave a usable
+            // session change — that decision is unchanged and still has one
+            // owner. What changed is what happens when it says no: this used
+            // to print "— (change unavailable)" beside a bar close derived
+            // from the very candles that can also prove a bar-over-bar move.
+            // Measured live 2026-09-17T02:53Z on TSLA 15m, that sentence sat
+            // three words from "358.13 LAST 15m BAR CLOSE".
+            //
+            // The bar reading is NOT a session change and is never rendered
+            // as one — `chartHeaderChangeFact` prints "vs prior 15m bar" with
+            // the number, and its `kind` (not its presence) picks the colour.
+            const headerChangeFact = chartHeaderChangeFact(
+              hasReal ? { chg: ticker.change, pct: ticker.changePct } : null,
+              deriveBarOverBarChange(chartBars, timeframe, Date.now()),
+            );
+            const changeStyle = HEADER_CHANGE_STYLE[headerChangeFact.kind];
             return (
               <span style={{
                 color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
@@ -1476,17 +1513,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 >
                   {headerPriceFact.text}
                 </span>
-                {hasReal ? (
-                  <span className="wm-chart-header-change"> {up ? "↑" : "↓"}
-                    &nbsp;{up ? "+" : ""}{ticker.change.toFixed(2)}
-                    &nbsp;{up ? "+" : ""}{ticker.changePct.toFixed(2)}%
-                  </span>
-                ) : (
-                  <span className="wm-chart-header-change"
-                    title={CHANGE_UNAVAILABLE_TITLE} aria-label={CHANGE_UNAVAILABLE_TITLE}>
-                    &nbsp;{CHANGE_UNAVAILABLE_TEXT}
-                  </span>
-                )}
+                <span
+                  className="wm-chart-header-change"
+                  data-change-kind={headerChangeFact.kind}
+                  style={{
+                    color: changeStyle.color(headerChangeFact.direction),
+                    fontWeight: changeStyle.weight,
+                  }}
+                  title={headerChangeFact.reason}
+                  aria-label={`${symbol} change: ${headerChangeFact.text}. ${headerChangeFact.reason}`}
+                >
+                  &nbsp;{headerChangeFact.kind === "SESSION_CHANGE"
+                    ? `${headerChangeFact.direction === 1 ? "↑" : headerChangeFact.direction === -1 ? "↓" : "·"} ${headerChangeFact.text}`
+                    : headerChangeFact.text}
+                </span>
               </span>
             );
           })()}

@@ -19,7 +19,13 @@ import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
-import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
+// The "change unavailable" sentence is NOT spelled here any more. It reaches
+// this row verbatim through `chartHeaderChangeFact`'s NONE arm, which reads it
+// from `@/lib/marketData/changeAbsence` — one owner, however many hops away.
+// Spelling it a second time here is the vacuous-agreement shape: two copies
+// that agree until someone edits one of them.
+import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
+import { deriveBarOverBarChange } from "@/lib/marketData/deriveLastBarClose";
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import {
   findSessionNectarChannel,
@@ -170,6 +176,21 @@ function hexToRgbTriplet(color: string): [number, number, number] | null {
   if ([r, g, b].some(n => isNaN(n))) return null;
   return [r, g, b];
 }
+
+/**
+ * Colour and weight for the header change cell, chosen from DECLARED PROVENANCE
+ * — never from "is a number present". The dim pair for BAR_OVER_BAR is the
+ * point: a 15-minute bar delta must not be able to borrow the full-strength
+ * green/red a session change wears, or the scope label beside it becomes the
+ * only thing distinguishing two quantities that a trader reads at a glance.
+ * The sibling table in ChartsDashboard (HEADER_CHANGE_STYLE) does the same job
+ * in inline styles; both switch on the same `kind` from one compiler.
+ */
+const MAIN_CHANGE_CLASS: Record<HeaderChangeKind, (d: 1 | 0 | -1 | null) => string> = {
+  SESSION_CHANGE: (d) => (d === 1 ? "text-wm-green" : d === -1 ? "text-wm-red" : "text-wm-text-dim"),
+  BAR_OVER_BAR:   (d) => (d === 1 ? "text-wm-green-dim" : d === -1 ? "text-wm-red-dim" : "text-wm-text-dim"),
+  NONE:           () => "text-wm-text-dim",
+};
 
 /* ── FIXED: all values in seconds, uniform ──────────────── */
 // WM-CHART-P0-03: fail-closed on unknown timeframe. Previously returned 60
@@ -6225,11 +6246,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     && Number.isFinite(ticker.changePct)
     && !(ticker.change === 0 && ticker.changePct === 0);
   const change    = hasProviderChange ? (ticker.change as number) : 0;
-  const changePct = hasProviderChange ? (ticker.changePct as number).toFixed(2) : "—";
-  // Three-state: an exactly-zero change is flat, never "up".
-  const up        = change > 0;
+  // The local `changePct` string and the `up` boolean used to live here and be
+  // formatted into the header inline. Both are gone, not moved: the compiler
+  // below owns formatting AND the three-state direction (an exactly-zero change
+  // is flat, never "up"), and a second copy of either would agree with it only
+  // until someone edited one of them.
   const last      = candles[candles.length - 1];
   const dp        = base < 10 ? 4 : 2;
+  // The change cell is COMPILED, not composed inline — the same compiler the
+  // chrome header uses, so the two rows on this screen cannot answer one
+  // question two ways. `dp` travels with it because this module knows the
+  // instrument's precision and the compiler only ever sees a delta: without it
+  // a real sub-cent move on a sub-$10 instrument would print "+0.00", a flat
+  // bar manufactured by the formatter rather than observed in the data.
+  const headerChangeFact = chartHeaderChangeFact(
+    hasProviderChange ? { chg: change, pct: ticker.changePct as number } : null,
+    deriveBarOverBarChange(candles, timeframe, Date.now()),
+    dp,
+  );
 
   /* ── Fullscreen handler ─────────────────────────────────── */
   const toggleFullscreen = useCallback(() => {
@@ -7051,24 +7085,36 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             );
           })()}
           <span
-            className={`text-xs font-mono font-semibold ${hasProviderChange ? (up ? "text-wm-green" : "text-wm-red") : "text-wm-textDim"}`}
+            className={`text-xs font-mono font-semibold ${MAIN_CHANGE_CLASS[headerChangeFact.kind](headerChangeFact.direction)}`}
+            data-change-kind={headerChangeFact.kind}
             // Was two string literals here. The outer chrome header in
             // ChartsDashboard needed the SAME sentence, and copying it would
             // have made a third owner that agrees until someone edits one copy.
             // This row is the reference-correct site; it now reads the sentence
             // from the module rather than being the place it is spelled.
+            //
+            // 2026-09-17 — and now it reads the whole CELL from a module, for
+            // the same reason one step further on. Measured live at 02:53Z,
+            // this row and the chrome header BOTH printed "— (change
+            // unavailable)" over 400 loaded candles. Had only the chrome header
+            // been repaired, one screen would have carried two different
+            // answers to one question — which is the defect family, not a fix
+            // for it. Both sites now compile the cell from
+            // `chartHeaderChangeFact`, so they cannot disagree.
+            //
             // THE `aria-label` IS LOAD-BEARING, NOT DECORATION. globals.css
             // hides the chrome header's copy of this sentence under
             // (max-width:639px) *because this row renders it*. So on a phone
-            // this is the ONLY statement of the absence on the page — and a
-            // phone has no hover, which means `title` alone says nothing.
+            // this is the ONLY statement on the page — and a phone has no
+            // hover, which means `title` alone says nothing. It is now ALWAYS
+            // present rather than only on absence: the bar-over-bar arm needs
+            // announcing at least as badly, since its whole safety rests on the
+            // reader learning that it is not the session change.
             // SENTINEL: absence-reason-must-be-announced-not-only-hovered
-            title={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}
-            aria-label={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}
+            title={headerChangeFact.reason}
+            aria-label={`${symbol} change: ${headerChangeFact.text}. ${headerChangeFact.reason}`}
           >
-            {hasProviderChange
-              ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`
-              : CHANGE_UNAVAILABLE_TEXT}
+            {headerChangeFact.text}
           </span>
           {showFidelityChrome ? (() => {
             // SHIFT-T cutover — canon §BINDING LEGACY DATA + SURFACE

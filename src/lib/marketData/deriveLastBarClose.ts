@@ -195,6 +195,115 @@ export function lastBarCloseRecheckAtMs(
   return closesAt > nowMs ? closesAt : null;
 }
 
+/**
+ * THE REFERENCE CLOSE THE QUOTE PROVIDER DOES NOT HAVE.
+ *
+ * ── THE DEFECT, MEASURED LIVE ─────────────────────────────────────────
+ * /charts, TSLA 15m, 2026-09-17T02:53Z, reading the two header rows in one
+ * DOM pass. The chrome header and MainChart's price row BOTH printed:
+ *
+ *     358.13 LAST 15m BAR CLOSE  —  (change unavailable)
+ *     title: "Change unavailable — no verified reference close from the
+ *             current quote provider."
+ *
+ * Read that sentence against the number three words to its left. The price
+ * slot has ALREADY been repaired to say a bar close out loud rather than
+ * withhold it (`chartHeaderPriceFact`). The change slot beside it then
+ * declares it has no verified reference close — and it is telling the truth
+ * about THE QUOTE PROVIDER, which is the only place it looked. Roughly 400
+ * verified candles were loaded in the very same component at that moment, and
+ * the close of the bar before the last one is a verified reference close by
+ * exactly the standard `deriveLastBarClose` already applies.
+ *
+ * So the scope of the sentence is narrower than the scope of the evidence.
+ * That is the same defect as the masthead's FEED UNKNOWN over 400 candles,
+ * one bar lower: a claim of ignorance made above evidence that is present.
+ * `changeAbsence.ts` predicted this repair in its own words — "wiring it into
+ * this header is a real improvement that belongs in its own change with its
+ * own proof."
+ *
+ * ── WHAT THIS IS NOT ──────────────────────────────────────────────────
+ * IT IS NOT A SESSION CHANGE, and it must never be rendered as one. A session
+ * change is measured against the prior SESSION's close; this is measured
+ * against the prior BAR. On a 15m chart those are wildly different numbers,
+ * and swapping one for the other in the slot a trader reads as "today" would
+ * be a far worse lie than the dash it replaces.
+ *
+ * It is therefore a DIFFERENT READING, following `chartHeaderPriceFact`'s rule
+ * exactly: the timeframe and the words travel WITH the number, it gets its own
+ * `kind` so colour is chosen from declared provenance, and it never occupies
+ * the session-change slot unlabelled.
+ *
+ * Deliberately NOT derived here: the prior session close. Inferring session
+ * boundaries from bar timestamps needs a market calendar this module does not
+ * have, and guessing one would fabricate exactly the provenance the rest of
+ * this file refuses. A bar-over-bar delta is what the bars alone can prove.
+ *
+ * ── WHY IT DELEGATES RATHER THAN RANKS ────────────────────────────────
+ * The hard part — WHICH bar has provably closed — is already solved above,
+ * with two independent proofs and a deliberate conservative degradation.
+ * Re-deriving "the last closed bar" here would make a SECOND OWNER of that
+ * proof, and the two would agree until the day one of them was edited. So
+ * this calls `deriveLastBarClose` for the endpoint and only has to answer the
+ * genuinely new question: which bar came immediately before THAT one.
+ *
+ * Both endpoints are provably-closed bars: the chosen bar by
+ * `deriveLastBarClose`'s own proof, and its predecessor by PROOF 1 (a strictly
+ * newer bar exists — the chosen one).
+ */
+export interface BarOverBarChange {
+  readonly chg: number;
+  readonly pct: number;
+  /** Close of the newest provably-closed bar. */
+  readonly close: number;
+  /** Close of the bar immediately before it — the reference. */
+  readonly referenceClose: number;
+  readonly referenceBarOpenedAtMs: number;
+  readonly barOpenedAtMs: number;
+  readonly timeframe: string;
+}
+
+export function deriveBarOverBarChange(
+  bars: readonly BarCloseCandidate[] | null | undefined,
+  timeframe: string | null | undefined,
+  nowMs?: number | null,
+): BarOverBarChange | null {
+  const chosen = deriveLastBarClose(bars, timeframe, nowMs);
+  if (chosen === null || !bars) return null;
+
+  // The newest bar STRICTLY OLDER than the chosen one. Strictly, because two
+  // bars sharing a timestamp are a data defect, not a pair — picking either as
+  // "the one before" would invent an ordering the evidence does not support.
+  let prior: BarCloseCandidate | null = null;
+  for (const bar of bars) {
+    if (!bar) continue;
+    if (!Number.isFinite(bar.close) || bar.close <= 0) continue;
+    if (!Number.isFinite(bar.time) || bar.time <= 0) continue;
+    const ms = Math.round(bar.time * 1000);
+    if (ms >= chosen.barOpenedAtMs) continue;
+    if (prior === null || ms > Math.round(prior.time * 1000)) prior = bar;
+  }
+  if (prior === null) return null;
+
+  const referenceClose = prior.close;
+  // Guarded rather than assumed: a zero or negative reference close would make
+  // the percentage infinite or sign-flipped. `rankBars` already excludes those
+  // bars, and so does the loop above — this is the belt to that braces, kept
+  // because a division is where a fabricated number is cheapest to produce.
+  if (!(referenceClose > 0)) return null;
+
+  const chg = chosen.close - referenceClose;
+  return {
+    chg,
+    pct: (chg / referenceClose) * 100,
+    close: chosen.close,
+    referenceClose,
+    referenceBarOpenedAtMs: Math.round(prior.time * 1000),
+    barOpenedAtMs: chosen.barOpenedAtMs,
+    timeframe: chosen.timeframe,
+  };
+}
+
 export function deriveLastBarClose(
   bars: readonly BarCloseCandidate[] | null | undefined,
   timeframe: string | null | undefined,

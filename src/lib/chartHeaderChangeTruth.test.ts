@@ -120,8 +120,32 @@ describe("chart header day-change truth", () => {
     });
 
     it("an exactly-zero change is not painted as up", () => {
-      expect(mainChart).toContain("const up        = change > 0;");
-      expect(mainChart).not.toContain("const up        = change >= 0;");
+      // RE-PINNED (2026-09-17), not deleted. This used to read
+      //   expect(mainChart).toContain("const up        = change > 0;");
+      // which pinned the rule to ONE SPELLING of ONE LOCAL. That local is gone
+      // — direction is now decided once, in `chartHeaderChangeFact.dirOf`, and
+      // consumed by both render sites. A Sentinel pinned to the old spelling
+      // would have failed for the right reason and been fixed the wrong way
+      // (by re-adding a dead local). So it is re-pinned to the MEANING, at the
+      // owner AND at this site, with strictly more to say than it had:
+      //
+      //   1. the owner's three-state must keep zero out of "up"
+      const fact = fs.readFileSync(
+        path.join(process.cwd(), "src/lib/marketData/chartHeaderChangeFact.ts"), "utf8",
+      );
+      expect(fact).toContain("return n > 0 ? 1 : n < 0 ? -1 : 0;");
+      expect(fact).not.toContain("return n >= 0 ?");
+      //   2. and this site must colour from that three-state by STRICT equality
+      //      with 1 — never by truthiness, never by `>= 0`, in EVERY arm.
+      const tableStart = mainChart.indexOf("const MAIN_CHANGE_CLASS");
+      expect(tableStart).toBeGreaterThan(-1);
+      const table = mainChart.slice(tableStart, mainChart.indexOf("};", tableStart) + 2);
+      const greenArms = table.match(/text-wm-green/g) ?? [];
+      expect(greenArms.length).toBeGreaterThan(0);
+      for (const line of table.split("\n").filter(l => l.includes("text-wm-green"))) {
+        expect(line).toContain("d === 1 ?");
+      }
+      expect(table).not.toContain("d >= 0");
     });
 
     it("keeps the honest fallback branch it already had", () => {
@@ -136,8 +160,19 @@ describe("chart header day-change truth", () => {
       // own content is asserted once, against the owner.
       expect(CHANGE_UNAVAILABLE_TEXT).toContain("(change unavailable)");
       expect(CHANGE_UNAVAILABLE_TITLE).toContain("no verified reference close");
-      expect(mainChart).toContain("CHANGE_UNAVAILABLE_TEXT");
-      expect(mainChart).toContain("changeAbsence");
+      // RE-PINNED (2026-09-17): the hop got one longer. MainChart no longer
+      // imports the constants directly — it imports the COMPILER, whose NONE
+      // arm renders the owner's sentence verbatim. Asserting the old import
+      // here would force MainChart to keep a dead import alive, which the
+      // dead-import Sentinel in this same file would then correctly fail on:
+      // two Sentinels demanding opposite things. So this one follows the chain.
+      expect(mainChart).toContain("chartHeaderChangeFact");
+      expect(mainChart).toContain("headerChangeFact.text");
+      const fact = fs.readFileSync(
+        path.join(process.cwd(), "src/lib/marketData/chartHeaderChangeFact.ts"), "utf8",
+      );
+      expect(fact).toContain("./changeAbsence");
+      expect(fact).toContain("text: CHANGE_UNAVAILABLE_TEXT,");
     });
 
     it("both change-display sites share the same guard shape", () => {
@@ -163,11 +198,57 @@ describe("chart header day-change truth", () => {
    * zero makes a claim the trader can catch, a missing element cannot be seen
    * at all. */
   describe("an absent change must be SAID, on every site that shows one", () => {
+    /* SIXTH FINDING — THE FIFTH FINDING, AGAIN, IN THE CHANGE SLOT.
+     *
+     * This test used to end `expect(src).toContain("CHANGE_UNAVAILABLE_TEXT")`.
+     * That is a SPELLING, and the FIFTH FINDING directly below records what
+     * happens to spellings: the price slot moved to `chartHeaderPriceFact`, the
+     * constant stopped being rendered, and a dead import kept the Sentinel
+     * green.
+     *
+     * The change slot has now made exactly the same move, to
+     * `chartHeaderChangeFact`, and for the same reason — a STRICTLY STRONGER
+     * disclosure. Where the old code could only say "change unavailable", the
+     * module can name a bar-over-bar move derived from the loaded candles, and
+     * falls back to that identical sentence only when the bars cannot prove one
+     * either. (Measured live 2026-09-17T02:53Z, TSLA 15m: the header printed
+     * "358.13 LAST 15m BAR CLOSE — (change unavailable)", the absence sentence
+     * three words from a number read off the very bars that could answer it.)
+     *
+     * So the constant left this file, and this Sentinel is re-pinned to the
+     * MEANING rather than deleted: THE CHANGE SLOT MAY NOT RENDER AN
+     * UNEXPLAINED GLYPH, AND MAY NOT SILENTLY OMIT ITSELF. */
     it("the chrome header no longer drops the element on absence", () => {
       // The `&&` form renders nothing when the guard is false. An explicit
       // ternary forces the author of any future edit to answer "and otherwise?"
       expect(src).not.toContain("{hasReal && <span");
-      expect(src).toContain("CHANGE_UNAVAILABLE_TEXT");
+      // The slot is OWNED — there is one expression that decides what goes in
+      // it, in every state, rather than a conditional pair of renderings.
+      expect(src).toContain("chartHeaderChangeFact");
+      // …and the owner's reason reaches BOTH a sighted reader and a screen
+      // reader. A tooltip alone is a disclosure only a mouse can find.
+      expect(src).toMatch(/title=\{headerChangeFact\.reason\}/);
+      expect(src).toMatch(/aria-label=\{`\$\{symbol\} change: \$\{headerChangeFact\.text\}\./);
+      // Colour from declared provenance, never from "is a number present" —
+      // this is what stops a bar-over-bar tick wearing session green.
+      expect(src).toContain("HEADER_CHANGE_STYLE[headerChangeFact.kind]");
+    });
+
+    /* The new arm needs its own guard, because it is the one that can lie.
+     * A bar-over-bar delta rendered without its scope IS a fabricated session
+     * change, on the primary trading surface. */
+    it("the bar-over-bar arm can never be rendered without its scope", () => {
+      const factSrc = fs.readFileSync(
+        path.join(process.cwd(), "src/lib/marketData/chartHeaderChangeFact.ts"),
+        "utf8",
+      );
+      // The scope is concatenated into the same template literal as the
+      // number, so no call site can receive one without the other.
+      expect(factSrc).toMatch(/vs prior \$\{tf\} bar/);
+      // And the surface renders that text verbatim rather than reformatting it.
+      expect(src).toContain("headerChangeFact.text");
+      // The header may not re-derive a change of its own alongside the module.
+      expect(src).not.toMatch(/ticker\.changePct\.toFixed\(2\)\}%/);
     });
 
     /* FIFTH FINDING — THIS SENTINEL WAS PINNED TO A SPELLING, NOT A MEANING.
@@ -206,10 +287,35 @@ describe("chart header day-change truth", () => {
       }
     });
 
-    it("both sites read the sentence from one owner", () => {
+    /* Re-pinned with the SIXTH FINDING. The meaning was never "both files
+     * contain this import path" — it was ONE OWNER OF THE SENTENCE. A direct
+     * import is one way to satisfy that; reading it through a module that
+     * itself imports from `changeAbsence` is another, and it is strictly
+     * better, because that module can often say something truer than the
+     * absence. What must never happen is a site that spells the sentence out
+     * for itself — which is exactly the FOURTH FINDING's four-way drift.
+     *
+     * So the chain is followed rather than assumed, and the assertion is
+     * stronger than before: every hop must terminate at `changeAbsence`, and
+     * no hop may re-type the words. */
+    it("both sites read the sentence from one owner, however many hops away", () => {
+      const factSrc = fs.readFileSync(
+        path.join(process.cwd(), "src/lib/marketData/chartHeaderChangeFact.ts"),
+        "utf8",
+      );
+      // The delegate terminates at the single owner.
+      expect(factSrc).toContain("./changeAbsence");
+      expect(factSrc).toContain("CHANGE_UNAVAILABLE_TEXT");
+      // Neither render site spells the sentence out for itself — the whole
+      // point. A literal here is the drift the module exists to prevent.
       for (const file of [src, mainChart]) {
-        expect(file).toContain("@/lib/marketData/changeAbsence");
-        expect(file).toContain("CHANGE_UNAVAILABLE_TITLE");
+        expect(file).not.toContain('"Change unavailable — no verified');
+        expect(file).not.toContain('"— (change unavailable)"');
+        // …and each still reaches the owner, directly or through the delegate.
+        const reachesOwner =
+          file.includes("@/lib/marketData/changeAbsence") ||
+          file.includes("@/lib/marketData/chartHeaderChangeFact");
+        expect(reachesOwner).toBe(true);
       }
     });
 
@@ -330,8 +436,27 @@ describe("chart header day-change truth", () => {
       // MainChart's fallback must be an ELSE branch of the provider check —
       // not itself gated on width, a flag, or a second condition. If this ever
       // becomes conditional, the phone has no one left to say the absence.
-      expect(mainChart).toContain(": CHANGE_UNAVAILABLE_TEXT}");
-      expect(mainChart).not.toContain("&& CHANGE_UNAVAILABLE_TEXT");
+      //
+      // RE-PINNED (2026-09-17). It used to assert the ELSE-BRANCH SPELLING:
+      //   expect(mainChart).toContain(": CHANGE_UNAVAILABLE_TEXT}");
+      // There is no ternary left to be the else-branch OF — the cell is now
+      // compiled, and the compiler ALWAYS returns a `text`, on all three arms.
+      // That is strictly stronger than what the old spelling bought: the old
+      // shape could still have been gated from outside. So the re-pin asserts
+      // the property the phone actually depends on — that the change span's
+      // CHILD is an unconditional read of `headerChangeFact.text`, with no
+      // `&&` and no `?` between the braces.
+      const child = mainChart.match(/\{headerChangeFact\.text\}/g) ?? [];
+      expect(child.length).toBeGreaterThan(0);
+      expect(mainChart).not.toContain("&& headerChangeFact.text}");
+      expect(mainChart).not.toMatch(/\?\s*headerChangeFact\.text\s*:/);
+      // And the compiler must have no arm that can return an empty cell — an
+      // absence rendered as nothing is the original defect by another route.
+      const factSrc = fs.readFileSync(
+        path.join(process.cwd(), "src/lib/marketData/chartHeaderChangeFact.ts"), "utf8",
+      );
+      expect(factSrc).not.toMatch(/text:\s*""/);
+      expect(factSrc).not.toMatch(/return null/);
     });
 
     it("nothing hides the chart's own price row on a phone", () => {
@@ -394,7 +519,18 @@ describe("chart header day-change truth", () => {
       // Named explicitly on top of the population walk above, because THIS is
       // the site globals.css depends on. If the general rule is ever relaxed,
       // this one must still fail.
-      expect(mainChart).toContain("aria-label={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}");
+      //
+      // RE-PINNED (2026-09-17), STRONGER. The old assertion was
+      //   "aria-label={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}"
+      // which announced the reason ONLY on absence. That was adequate while
+      // the cell could only ever say a session change or nothing. It is not
+      // adequate now: the cell can also say a BAR-OVER-BAR delta, whose entire
+      // safety rests on the reader learning it is not the session change. A
+      // phone reader hearing the number without the scope is the fabrication
+      // this whole atom exists to prevent. So the announcement is now
+      // UNCONDITIONAL, and this Sentinel requires it to be.
+      expect(mainChart).toContain("aria-label={`${symbol} change: ${headerChangeFact.text}. ${headerChangeFact.reason}`}");
+      expect(mainChart).not.toContain("aria-label={hasProviderChange ?");
       expect(mainChartRaw).toContain("absence-reason-must-be-announced-not-only-hovered");
     });
   });
