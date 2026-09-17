@@ -272,6 +272,28 @@ const ROOMS = [
         deps: "[chartPassportVM]",
         depth: "MarketObjectPassportPanel",
       },
+      /**
+       * ORDER FLOW — the largest single burial this room had, and the reason
+       * the `reads` pin below names the ROOM'S OWN tape rather than the hook.
+       *
+       * Five finished readings lived in exactly one place each: a scrolling
+       * column inside a legacy side panel. They are compiled here now, off
+       * `recentTicks` — the very stream this room already holds for its
+       * candles — so the equipment cannot report a verdict on a different
+       * moment of the tape than the chart underneath it is drawing.
+       *
+       * ONE descriptor, not five, because a trader does not decide to look at
+       * "delta divergence"; they ask whether the side pressing is being paid
+       * for its effort. The five are how that question gets answered, which is
+       * why they are depth behind one door, not five rail entries.
+       */
+      {
+        id: "order-flow",
+        memo: "chartOrderFlowEquipment",
+        reads: /readings=\{chartOrderFlowReadings\}/,
+        deps: "[chartOrderFlowReadings, chartOrderFlowStanding, symbol]",
+        depth: "OrderFlowDepthPanel",
+      },
     ],
   },
 ] as const;

@@ -351,6 +351,51 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
     },
+    /**
+     * THE CHART ROOM'S THIRD TENANT — AND THE LARGEST SINGLE BURIAL IN WM.
+     *
+     * Five finished, tested inventions — value candle, absorption anatomy,
+     * delta divergence, liquidity weather, stacked imbalance — each had exactly
+     * ONE mount in the entire product, and it was the same mount: a long
+     * scrolling column inside `SmartMoneyPanel`, a legacy side panel that must
+     * first be opened from a chart control and then scrolled past several other
+     * sections. Five inventions, one door, and the door was a scroll.
+     *
+     * That is this file's own header clause, at its worst: "every one of its
+     * inventions was reached by opening a legacy panel and scrolling". The chart
+     * room is where the trader spends the most time and it could hand them the
+     * least.
+     *
+     * WHY THIS IS ONE ENTRY AND NOT FIVE. Five rail entries would be a card farm
+     * on a rail — and worse, it would ask a trader to know which of five nouns
+     * answers the question they actually have. They have ONE question: is this
+     * push real. All five readings are answers to it, and the preview ranks them
+     * by how much each CONSTRAINS A DECISION rather than by how loud it is.
+     *
+     * IT IS A SUBTRACTION, NOT AN ADDITION. The legacy panel keeps its column;
+     * nothing is deleted and no surface is duplicated. Both surfaces read ONE
+     * compilation out of `useOrderFlowReadings` — not the same rule written
+     * twice, literally the same objects — so the widget cannot say ABSORBED over
+     * a panel that says BALANCED. Two copies of a rule agree exactly until one
+     * is edited.
+     *
+     * THE FEED'S OWN LIMIT TRAVELS WITH THE EQUIPMENT. These readings need a
+     * per-trade aggressor tape, and not every feed carries one. The preview says
+     * NO TAPE before the trader presses anything, and says which feeds do carry
+     * one — so a quiet widget is a disclosed fact rather than a broken control.
+     *
+     * THE LABEL IS THE TRADER'S NOUN, NOT THE MACHINERY'S. Not "microstructure",
+     * not "tape selectors" — order flow is what a trader calls this.
+     *
+     * THE HINT NAMES THE QUESTION, NOT THE MODULES. A count of five would be an
+     * implementation number; what the trader gets is whether the effort being
+     * spent is being paid for.
+     */
+    {
+      id: "order-flow",
+      label: "Order flow",
+      hint: "Whether the side pressing is being paid for the effort it spends",
+    },
   ],
 };
 

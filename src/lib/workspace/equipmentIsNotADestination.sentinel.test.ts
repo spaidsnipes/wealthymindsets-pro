@@ -84,6 +84,45 @@ const ROOM_SOURCES: Readonly<Record<string, string>> = {
 
 const ROOMS_WITH_EQUIPMENT = Object.keys(ROOM_SOURCES);
 
+/**
+ * WHERE A DESCRIPTOR IS ALLOWED TO LIVE — and why that is a STRENGTHENING.
+ *
+ * The first attempt at ORDER FLOW made it a self-mounting tenant with its own
+ * tape subscription, on the reasoning that a room-level hook would hold a
+ * stream open behind a closed drawer. This Sentinel went red — correctly,
+ * because it could not see a descriptor anywhere the room owned.
+ *
+ * The cure was not to move the descriptor to satisfy the scan, and never to
+ * delete the assertion. Widening the scan exposed the real defect: the room
+ * ALREADY subscribes to that tape for its own candles, so the tenant was not
+ * saving a subscription — it was opening a second one, and reading a different
+ * moment of the same tape than the chart a few pixels away. The tenant was
+ * deleted and the descriptor moved into the room, where its two siblings live.
+ *
+ * The mechanism stays, empty, because it is the CONDITION any future tenant
+ * must meet, and it demands more than the old rule did:
+ *
+ *   1. the descriptor still has to exist, with a title matching the rail label;
+ *   2. and the room must actually IMPORT the file it lives in — so a descriptor
+ *      can never satisfy this Sentinel from a component no room ever mounts.
+ *
+ * Point 2 is a check the original could not make at all, because a literal in
+ * the room's own file is imported by definition.
+ */
+const ROOM_TENANT_SOURCES: Readonly<Record<string, readonly string[]>> = {};
+
+function readSource(rel: string): string {
+  return fs
+    .readFileSync(path.join(process.cwd(), rel), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
+/** Every file allowed to carry a descriptor for this room, room's own first. */
+function descriptorSources(room: string): readonly string[] {
+  return [ROOM_SOURCES[room], ...(ROOM_TENANT_SOURCES[room] ?? [])];
+}
+
 describe("SENTINEL — equipment is not a destination", () => {
   it("the detector is not vacuous — it can see both lists", () => {
     // POSITIVE CONTROL on the source scan. If the destination regex ever stops
@@ -199,21 +238,58 @@ describe("SENTINEL — equipment is not a destination", () => {
     // something the single-room version could not: both rooms must land on the
     // same title, because both are compared against the same registry label.
     for (const room of ROOMS_WITH_EQUIPMENT) {
-      const rel = ROOM_SOURCES[room];
-      const src = fs
-        .readFileSync(path.join(process.cwd(), rel), "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/(^|[^:])\/\/.*$/gm, "$1");
+      const roomRel = ROOM_SOURCES[room];
+      const roomSrc = readSource(roomRel);
+      const candidates = descriptorSources(room).map((rel) => ({ rel, src: readSource(rel) }));
 
       for (const e of roomEquipment(room)) {
-        const at = src.indexOf(`equipmentId: "${e.id}"`);
-        expect(at, `${rel} → no descriptor for ${room} equipment "${e.id}"`).toBeGreaterThan(-1);
-        const title = /title:\s*"([^"]+)"/.exec(src.slice(at, at + 400))?.[1];
-        expect(title, `${rel} → "${e.id}" descriptor has no title to compare`).toBeDefined();
+        // A tenant may carry its own id as a constant — the id is the product's
+        // URL contract, so a component that owns the descriptor owns the word.
+        const found = candidates
+          .map(({ rel, src }) => ({
+            rel,
+            src,
+            at: src.indexOf(`equipmentId: "${e.id}"`) >= 0
+              ? src.indexOf(`equipmentId: "${e.id}"`)
+              : src.indexOf(`= "${e.id}"`),
+          }))
+          .find((c) => c.at > -1);
+
+        expect(
+          found,
+          `no descriptor for ${room} equipment "${e.id}" in ${descriptorSources(room).join(" or ")}`,
+        ).toBeDefined();
+
+        const title = /title:\s*"([^"]+)"/.exec(found!.src.slice(found!.at, found!.at + 1200))?.[1];
+        expect(title, `${found!.rel} → "${e.id}" descriptor has no title to compare`).toBeDefined();
         expect(
           title,
           `${room}: the rail says "${e.label}" but the widget that opens says "${title}"`,
         ).toBe(e.label);
+
+        // A DESCRIPTOR IN A FILE NOBODY MOUNTS IS NOT A DOOR. The old rule got
+        // this for free by only reading the room's own file; a delegated tenant
+        // has to prove the room reaches it, or this Sentinel would happily be
+        // satisfied by dead code.
+        if (found!.rel !== roomRel) {
+          const mod = found!.rel.replace(/^src\//, "@/").replace(/\.tsx?$/, "");
+          expect(
+            roomSrc.includes(mod),
+            `${roomRel} does not import ${mod}, so ${room} cannot actually open "${e.id}"`,
+          ).toBe(true);
+        }
+
+        // PRESSING A NAME MUST OPEN SOMETHING WITH DEPTH IN IT.
+        //
+        // The old rule proved the widget agreed about its NAME and stopped
+        // there — a descriptor that was nothing but a title and a verdict would
+        // have passed it. That is the card farm the directive bans: a label
+        // that looks like a door and opens onto a restatement of itself.
+        expect(
+          /renderDepth:/.test(found!.src.slice(found!.at, found!.at + 1200)),
+          `${found!.rel} → "${e.id}" is a label with no depth behind it — ` +
+            `pressing it would open a restatement of the preview, not a room`,
+        ).toBe(true);
       }
     }
   });

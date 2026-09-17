@@ -113,7 +113,10 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 // journey hook are the SAME three modules /command-deck mounts; none of them is a
 // chart-room variant. See the /charts block in roomEquipment.ts for why the
 // equipment id is deliberately identical to the deck's rather than forked.
+import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
+import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
 import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
+import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
@@ -671,7 +674,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
   }, []);
 
-  const { ticker, recentTicks, source, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
+  const { ticker, recentTicks, source, tapeSource, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
   // The hook clears ticker state after a symbol transition. Retain the symbol
   // that actually owns the current render's ticker until that clear lands, so
   // the next Options request can never inherit the prior underlying's spot.
@@ -932,6 +935,54 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   );
 
   /*
+    THE ROOM'S THIRD TENANT — and the largest single burial this room had.
+
+    Five finished readings — stacked imbalance, absorption, delta divergence,
+    liquidity weather, value candle — were each mounted in exactly ONE place: a
+    long scrolling column inside a legacy side panel. Everything else in this
+    room could see the chart; none of it could see the tape's verdict on the
+    chart.
+
+    Compiled HERE, off the room's own `recentTicks`, because the room already
+    holds that stream for its chart. A hook that subscribed on its own would
+    read a DIFFERENT moment of the same tape than the candles a few pixels away
+    — Canon Weakness #1 reintroduced by the very change meant to cure it.
+
+    ONE entry, not five, because a trader does not decide to look at "delta
+    divergence". They ask whether the side pressing is being paid for its
+    effort, and these five are the ways that question gets answered.
+  */
+  const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource);
+  /* Ranked and phrased OUTSIDE the descriptor: the memo may only ASSEMBLE what
+     the room already compiled, never compile a second opinion inside itself. */
+  const chartOrderFlowStanding = React.useMemo(
+    () => selectOrderFlowStanding(chartOrderFlowReadings),
+    [chartOrderFlowReadings],
+  );
+  const chartOrderFlowEquipment = React.useMemo(
+    () => ({
+      equipmentId: "order-flow",
+      title: "Order flow",
+      verdict: chartOrderFlowStanding.verdict,
+      headline: chartOrderFlowStanding.headline,
+      counts: [
+        {
+          testId: "equipment-count-orderflow-measured",
+          label: `${chartOrderFlowStanding.measuredCount} of 5 measured`,
+        },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <OrderFlowDepthPanel
+          readings={chartOrderFlowReadings}
+          symbol={symbol}
+          unabridged={unabridged}
+        />
+      ),
+    }),
+    [chartOrderFlowReadings, chartOrderFlowStanding, symbol],
+  );
+
+  /*
     The chooser. The room hands the layer ONE descriptor — the one the rail
     asked for — so the layer never learns that this room has more than one piece
     of equipment, and never has to choose. Choosing is the room's job because
@@ -941,6 +992,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     ({
       "market-reality": chartMarketRealityEquipment,
       "market-object-passport": chartPassportEquipment,
+      "order-flow": chartOrderFlowEquipment,
     }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
 
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(

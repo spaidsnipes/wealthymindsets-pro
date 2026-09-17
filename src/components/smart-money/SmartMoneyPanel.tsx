@@ -5,10 +5,8 @@ import { motion } from "framer-motion";
 import { X, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, Zap, Eye, Swords, GraduationCap, Info, Droplets, Minimize2, Maximize2 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
-import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { WM } from "@/lib/design/wmTokens";
 import {
   selectAggressorFlow,
@@ -19,15 +17,12 @@ import { aggressorTapeReason } from "@/lib/marketData/aggressorTapeReason";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
-import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
-import { selectAbsorption } from "@/lib/marketData/viewModels/selectAbsorption";
+import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import AbsorptionAnatomyPanel from "@/components/experience/AbsorptionAnatomyPanel";
-import { selectDeltaDivergence } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 import DeltaDivergencePanel from "@/components/experience/DeltaDivergencePanel";
-import { selectLiquidityWeather } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel";
-import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel";
 import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 import {
@@ -311,9 +306,30 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   };
 
+  /*
+    ONE BRAIN, AND THIS IS THE LINE THAT PROVES IT.
+
+    This panel used to be the only place in WM where the five microstructure
+    readings existed: it called `useWebSocket`, applied the aggressor-tape gate,
+    and ran five `useMemo`s of its own. When the chart room grew a door to the
+    same readings, the obvious move was to repeat that block there — which would
+    have produced two compilations of one tape, at two moments, able to
+    contradict each other inside one viewport.
+
+    So the block moved OUT, into `useOrderFlowReadings`, and this panel became a
+    reader of it like any other surface. Nothing about what it renders changed;
+    what changed is that there is no longer a second copy to drift.
+  */
   const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
+  const {
+    realTape,
+    valueCandle,
+    absorption,
+    deltaDivergence,
+    liquidityWeather,
+    stackedImbalance,
+  } = useOrderFlowReadings(recentTicks, tapeSource);
   const livePrice = ticker.price > 0 ? ticker.price : 0;
-  const realTape = hasVerifiedAggressorTape(tapeSource);
 
   // ── Build the REAL order-flow snapshot from live ticks + the live 1m bar ────
   const flow: Flow = React.useMemo(() => {
@@ -347,73 +363,19 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     };
   }, [recentTicks, liveBar, livePrice, realTape]);
 
-  /**
-   * WM Value Candle. Same honesty rule as the bubbles and the flow snapshot:
-   * no real tape → the selector is handed NOTHING, and it owns what "no volume
-   * observed" looks like. Passing an empty array would be equivalent, but
-   * passing the raw ticks while the feed has no aggressor tape would ask the
-   * selector to weight prints the panel has already said it cannot trust.
-   *
-   * Note this selector does NOT need aggressor sides — a price and a size is
-   * enough to locate value. It is gated on `realTape` anyway because that is
-   * the same predicate that decides whether `recentTicks` are per-trade prints
-   * at all, and a quote stream is not a tape.
-   */
-  const valueCandle = React.useMemo(
-    () => selectValueCandle(realTape ? recentTicks : null),
-    [realTape, recentTicks],
-  );
+  /*
+    The five readings that used to be compiled here — value candle, absorption
+    anatomy, delta divergence, liquidity weather, stacked imbalance — are now
+    destructured from `useOrderFlowReadings` above, together with the
+    aggressor-tape gate every one of them depended on.
 
-  /**
-   * Absorption anatomy. Unlike the value candle, this one DOES need aggressor
-   * sides — "buyer effort" is a claim about who initiated — so the `realTape`
-   * gate is load-bearing rather than merely consistent. The selector composes
-   * the flow owner and the value candle owner itself; this panel hands it the
-   * same tick array both of those already read and adds no third source.
-   */
-  const absorption = React.useMemo(
-    () => selectAbsorption(realTape ? recentTicks : null),
-    [realTape, recentTicks],
-  );
-
-  /**
-   * Delta divergence. The one selector in this group that reads SEQUENCE, so
-   * `recentTicks` must reach it in tape order — which is the order this panel
-   * already holds them in, and the reason nothing between here and the selector
-   * is allowed to sort or regroup them.
-   */
-  const deltaDivergence = React.useMemo(
-    () => selectDeltaDivergence(realTape ? recentTicks : null),
-    [realTape, recentTicks],
-  );
-
-  /**
-   * Liquidity weather. The only selector in this group that does NOT need
-   * aggressor sides — it reads price and size alone. The `realTape` gate is
-   * still here, but for a different reason than its neighbours: not because
-   * the sides would be guesses, but because a synthetic tape has no real
-   * cost-to-travel to report. Gating on the same flag keeps every panel in
-   * this column speaking about the same window.
-   */
-  const liquidityWeather = React.useMemo(
-    () => selectLiquidityWeather(realTape ? recentTicks : null),
-    [realTape, recentTicks],
-  );
-
-  /**
-   * Stacked imbalance. Built ENTIRELY out of who paid, so the `realTape` gate
-   * is load-bearing here in a way it is not for its neighbour above: on a
-   * tick-rule tape every level it would draw is downstream of a guess, and the
-   * panel's whole output is a verdict about those levels.
-   *
-   * Named `stackedImbalance` rather than the shorter noun because this file
-   * already binds `divergence` further down for the RSI/price read, and a
-   * second short noun in the same scope is how that collision happened once.
-   */
-  const stackedImbalance = React.useMemo(
-    () => selectStackedImbalance(realTape ? recentTicks : null),
-    [realTape, recentTicks],
-  );
+    The reasons each selector needs that gate did not disappear with the code;
+    they moved with it, and are written down where the gate now lives. The one
+    fact worth restating HERE is the naming: `stackedImbalance` keeps its long
+    name because this file binds `divergence` further down for the RSI/price
+    read, and a second short noun in this scope is how that collision happened
+    once before.
+  */
 
   // ── WM DELTA BUBBLES — live net delta at each price level ────────────────────
   // The level definition is NOT decided here. `selectDeltaLevels` measures the
