@@ -180,6 +180,32 @@ Probed red both ways: restoring the sentence names `backtesting/page.tsx:361`
 and quotes it; blinding the extractor goes red on the CONTROL while all four
 bans pass green.
 
+## A THIRD RULE CONSIDERED AND REFUSED
+
+The `/backtesting` line carried a LIVENESS overclaim as well as a vendor name,
+so the obvious next move was a third ban on liveness words. The scan found two
+sites and **both are legitimate**, which is the finding:
+
+- `paper/page.tsx:2888` — "premium trade ideas, real-time alerts" describes
+  **Upside Only, an external partner platform**, inside a card headed "Partner
+  Platform" with a link off-site. WM is not claiming its own data is real-time;
+  it is describing somebody else's product.
+- `radio/page.tsx:579` — "STREAMING LIVE" is gated on `now.type === "station"`,
+  and the gate is real: stations are dispatched with `duration: 0` and a stream
+  URL, episodes carry a duration and render a seek bar instead (`page.tsx:563`
+  vs `:576`). A continuous stream saying it is streaming is simply true.
+
+So no rule was written. A `/\bLIVE\b/` ban would forbid a radio player from
+saying it is on the air, and the canon's own labels contain the word LIVE —
+`LIVE — CERTIFIED QUOTE`. **The liveness defect is a claim about MARKET DATA
+FIDELITY, and that is a property of the value being labelled, not of the words
+used.** A JSX-text scan cannot see it, and pretending otherwise would have
+produced the fourth enumeration in a day. The instrument for that class is
+`canonicalFidelityLabels` at the point the label is CHOSEN.
+
+Recorded so the next author does not re-derive this and reach the opposite
+conclusion.
+
 ## A SUBTRACTION DELIBERATELY NOT MADE
 
 The deck's second `MarketCanvasPanel` mount (`page.tsx:~2260`) sits inside a
@@ -189,6 +215,36 @@ implementation containers. `buriedOnlyIsARegister` already ruled on this: two
 existing Sentinels pin that mount as intentional scene composition, and
 "writing a rule that forces a visible subtraction is how a Sentinel starts
 deciding the product." Left in place. **DECISION REQUESTED**, still.
+
+## THE CHART ROOM HAS NO THIRD TENANT, AND THAT IS THE ANSWER
+
+The directive's next step is "reuse that proven interaction grammar across the
+remaining legitimate WM Pro inventions", so the chart Room was audited for a
+third piece of equipment. It does not have one, and the reason is worth keeping.
+
+Both existing tenants were built under one rule, stated in the code: a tenant
+reuses an ALREADY-COMPILED memo, because a second `useMarketCanvasVM` call
+"would be the second semantic brain the grammar bans, just one that happened to
+agree most of the time." `market-object-passport` qualified on a second test —
+correct intelligence with ZERO DOORS (its only path was a `<details>` nested in
+a drawer behind a trigger gated on `narrowViewport || optionsOpen`, i.e. no path
+at all on a desktop Chart tab).
+
+`ChartsDashboard` compiles exactly two view-models — `chartPassportVM` and
+`chartFlowSnap` — and **both already have doors**: the passport is the second
+tenant, and `chartFlowSnap` already feeds the capability report that lights the
+ORDER FLOW chip. There is nothing compiled-but-unreachable left in this room.
+
+The deck's other six (`behaviour-mirror`, `personal-edge`, `learning-genome`,
+`practice-honesty`, `session-watch`, `decision-chain`) are about the TRADER, not
+about the market object in front of them. Moving them onto the chart is the
+directive's own named failure — "permanently displaying every invention on
+MARKET" and "permanent card farms" — dressed as propagation.
+
+**So the correct action was to add nothing.** Recorded because "the grammar was
+not reused further" reads like unfinished work, and it is not: the room's
+supply of honest tenants is exhausted, and the next one has to arrive as a new
+compiled intelligence with a reason to exist, not as a card moved between rooms.
 
 ## UNCHANGED
 
