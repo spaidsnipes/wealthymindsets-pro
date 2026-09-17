@@ -151,6 +151,35 @@ check caught what the list missed.
 
 Re-scan after the fix: `FILES WITH HITS: 0`.
 
+**Live on prod `/backtesting`, and this one is a STRONG proof** — unlike the
+`DLAR` fix above, this strip renders unconditionally, so absence means absence:
+
+```
+yahooOnScreen:            false
+liveDataOnScreen:         false
+historicalBarsVerified:   true
+strip rect:               151×15 at (622,101), 1 match, check icon present
+```
+
+Then pinned, because the fix could regress silently and the existing guard would
+not have noticed. `PROVIDER_NAMES` is a SEPARATE export from `INTERNAL_NAMES`,
+not an append: the bans have different reasons and so different bars for
+admission, and one docblock covering both would hand the next author the wrong
+bar. The refusals are the entries that matter — **`Polygon` is NOT banned**
+(`ChartToolbar:218` lists it as the crypto asset MATIC, it is also an SVG
+element and a drawing shape), and brokers are permanently ineligible because the
+trader connects them BY NAME. That is the CLC error one list later, caught this
+time before it shipped: *"looks like a vendor"* is no better evidence than
+*"looks internal"*.
+
+`/readiness` says provider names and passes, because it renders them through an
+EXPRESSION rather than a JsxText node. Correct rather than lucky — honest
+disclosure is the opposite of a leak, and the parser draws that line for free.
+
+Probed red both ways: restoring the sentence names `backtesting/page.tsx:361`
+and quotes it; blinding the extractor goes red on the CONTROL while all four
+bans pass green.
+
 ## A SUBTRACTION DELIBERATELY NOT MADE
 
 The deck's second `MarketCanvasPanel` mount (`page.tsx:~2260`) sits inside a
