@@ -2891,13 +2891,36 @@ function CommandDeckInner() {
               </div>
             )}
 
-            {/* ATHOS — silent when nothing worth surfacing */}
-            {chainVm && (
-              <ATHOSInterventionPanel
-                interventions={athos.interventions as readonly ATHOSIntervention[]}
-                onDismiss={(id) => console.debug("dismissed", id)}
-              />
-            )}
+            {/* ATHOS — silent when nothing worth surfacing.
+             *
+             * NOT gated on `chainVm`, and the removal of that gate is the whole
+             * point of this comment, because a standing Sentinel used to pin the
+             * gate as CORRECT on the argument that "ATHOS interventions are
+             * compiled WITH chainVm".
+             *
+             * That argument is true of two of the seven detectors and false of
+             * the other five. `detectPreEntryConfirmation` and
+             * `detectPreEntryAbsorption` read `clc`/`dlar` — and each one
+             * already opens with its own `if (!input.clc || !input.dlar) return
+             * null`. The compiler censors its own market claims, on the exact
+             * inputs the render gate was testing. So for those two the gate was
+             * redundant.
+             *
+             * For the other five it was destructive. Post-exit integrity,
+             * missed-profit re-entry, success-triggered rule bending, rule-
+             * violation separation and max-losses-reached read ONLY
+             * `sessionDecisions` — the trader's own record. Gating them behind
+             * market resolution meant that on a session where the tape was
+             * unreadable, WM went quiet about the trader having hit their
+             * declared loss limit. That is the same inversion already fixed for
+             * the Opening Bell and the Mirror: the panel disappeared precisely
+             * when it was most useful.
+             *
+             * The gate belongs where the claim is, not in front of the panel. */}
+            <ATHOSInterventionPanel
+              interventions={athos.interventions as readonly ATHOSIntervention[]}
+              onDismiss={(id) => console.debug("dismissed", id)}
+            />
             </details>
 
             {/* Opening Bell — only during PREPARATION phase.

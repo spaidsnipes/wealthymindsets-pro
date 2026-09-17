@@ -146,11 +146,92 @@ describe("the Mirror reflects the trader, not the tape", () => {
     expect(sel).toMatch(/No decisions in scope/);
   });
 
-  it("OVER-CORRECTION: panels that genuinely ARE about the market keep their gate", () => {
-    // ATHOS interventions are compiled WITH chainVm. Stripping every `chainVm
-    // &&` on the page would be the opposite error — rendering market claims
-    // built from an unresolved market.
+  /**
+   * RE-PINNED. This rule used to read:
+   *
+   *     expect(deck).toMatch(/\{chainVm && \(\s*<ATHOSInterventionPanel/);
+   *
+   * …on the argument that "ATHOS interventions are compiled WITH chainVm", so
+   * stripping that gate would be the opposite error — market claims rendered
+   * from an unresolved market.
+   *
+   * The GUARDRAIL was right and the EXAMPLE was wrong. ATHOS has seven
+   * detectors. Two consume `clc`/`dlar`; five consume only `sessionDecisions`.
+   * So the panel-level gate silenced five statements about the TRADER in order
+   * to guard two statements about the MARKET — and it did not even guard those,
+   * because both market detectors already open with their own null-check on the
+   * same inputs.
+   *
+   * Pinning a redundant gate as the example of a correct one made this rule an
+   * active obstacle: the honest fix could not be made without the suite going
+   * red, and the cheapest way to quiet it was to leave the defect in place.
+   *
+   * So the guardrail is kept and re-pinned to the thing the old form was
+   * reaching for — market claims must be guarded BY THEIR OWN MARKET INPUT,
+   * inside the compiler, where the claim is. That is strictly stronger: the old
+   * assertion could be satisfied by a blanket gate in front of a compiler that
+   * guarded nothing, which is the weaker arrangement of the two.
+   */
+  it("OVER-CORRECTION: market claims are guarded by their own market input", () => {
+    const sel = codeOnly(read("lib/traderMemory/viewModels/selectATHOSIntervention.ts"));
+
+    // Every detector that READS the chain must also CHECK it. Anything else is
+    // a market claim compiled from an unresolved market — the real defect the
+    // old form of this rule was trying to name.
+    const bodies = [...sel.matchAll(/const (detect\w+): Detector = \(input\) => \{([\s\S]*?)\n\};/g)];
+    expect(bodies.length, "no detectors found — this rule would pass vacuously")
+      .toBeGreaterThan(0);
+
+    let marketDetectors = 0;
+    for (const [, name, body] of bodies) {
+      const readsChain = /input\.(clc|dlar)\b/.test(body);
+      if (!readsChain) continue;
+      marketDetectors += 1;
+      expect(
+        body,
+        `${name} reads input.clc/input.dlar but never checks it is present. ` +
+          "A market claim must be guarded by the market input it is built from.",
+      ).toMatch(/if \(!input\.(clc|dlar)[\s\S]*?\) return null;/);
+    }
+    expect(marketDetectors, "no detector consumes the chain — re-examine this rule")
+      .toBeGreaterThan(0);
+  });
+
+  it("OVER-CORRECTION: the trader-memory detectors are not gated on the market at all", () => {
+    // The other half of the same truth, and the half the old rule inverted.
+    // If a behaviour detector ever grows a chain input, the ungating below
+    // stops being obviously correct and must be re-argued.
+    const sel = codeOnly(read("lib/traderMemory/viewModels/selectATHOSIntervention.ts"));
+    const behaviourDetectors = [
+      "detectPostRuleViolationSeparation",
+      "detectMaxLossesReached",
+      "detectSuccessTriggeredRuleBending",
+    ];
+    for (const name of behaviourDetectors) {
+      const m = sel.match(new RegExp(`const ${name}: Detector = \\(input\\) => \\{([\\s\\S]*?)\\n\\};`));
+      expect(m, `${name} is gone — re-pin this rule to whatever replaced it`).not.toBeNull();
+      expect(
+        m![1],
+        `${name} is a statement about the TRADER and has grown a market input. ` +
+          "That would make the deck's ungated ATHOS mount an overclaim.",
+      ).not.toMatch(/input\.(clc|dlar|marketState)\b/);
+    }
+  });
+
+  it("THE DEFECT: ATHOS is not gated behind market-state resolution", () => {
+    // The five behaviour detectors are exactly what a trader needs on a session
+    // they could not read the tape on. Max-losses-reached going quiet because
+    // the MARKET was unreadable is the inversion this whole file is about.
     const deck = codeOnly(read("app/command-deck/page.tsx"));
-    expect(deck).toMatch(/\{chainVm && \(\s*<ATHOSInterventionPanel/);
+    expect(deck).toContain("ATHOSInterventionPanel");
+    expect(deck).not.toMatch(/\{chainVm && \(\s*<ATHOSInterventionPanel/);
+    expect(deck).not.toMatch(/chainVm &&\s*<ATHOSInterventionPanel/);
+  });
+
+  it("OVER-CORRECTION: ATHOS still self-silences when it has nothing to say", () => {
+    // Founder doctrine §14 "silence is a feature" is what stops the ungating
+    // from becoming an empty frame on every deck render.
+    const panel = codeOnly(read("components/athos/ATHOSInterventionPanel.tsx"));
+    expect(panel).toMatch(/visible\.length === 0\)? return null/);
   });
 });

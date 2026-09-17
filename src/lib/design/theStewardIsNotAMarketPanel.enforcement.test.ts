@@ -115,15 +115,69 @@ describe("the Steward is not a market panel", () => {
     expect(sel).toContain("No CLC evaluation available.");
   });
 
-  it("OVER-CORRECTION: panels that genuinely dereference chainVm keep their gate", () => {
+  /**
+   * RE-PINNED FROM A MEMBERSHIP LIST TO THE CRITERION ITSELF.
+   *
+   * This rule used to name three gates as examples of gates worth keeping:
+   *
+   *     expect(deck).toMatch(/\{chainVm && \(/);
+   *     expect(deck).toMatch(/dlar=\{chainVm\.dlar\}/);
+   *     expect(deck).toMatch(/\{chainVm && <StructureContextNote vm=\{chainVm\} \/>\}/);
+   *     expect(deck).toMatch(/\{chainVm && \(\s*<ATHOSInterventionPanel/);
+   *
+   * The first three satisfy the rule's own stated criterion — they GENUINELY
+   * DEREFERENCE `chainVm`, so removing the gate would crash them or would render
+   * a market claim built from an unresolved market. The fourth never did.
+   * `<ATHOSInterventionPanel>` is handed `athos.interventions` and touches
+   * `chainVm` nowhere; the gate in front of it was deleting five statements
+   * about the TRADER — including max-losses-reached — on exactly the sessions
+   * where the tape could not be read. Same inversion as the Steward above.
+   *
+   * A rule that ENUMERATES its members cannot notice when a member stops
+   * belonging. Worse, it actively obstructs: the honest fix could not be made
+   * without this suite going red, and the cheapest way to quiet it was to put
+   * the defect back. A rule whose cheapest cure is the disease is worse than
+   * no rule.
+   *
+   * So the guardrail is kept and re-pinned to what the old form was reaching
+   * for: EVERY surviving `chainVm &&` gate on the page must guard an expression
+   * that actually dereferences `chainVm`. That is strictly stronger — it now
+   * catches both directions. Strip a real gate and it goes red; add a decorative
+   * one in front of a panel that never touches the chain and it goes red too.
+   */
+  it("OVER-CORRECTION: every surviving chainVm gate guards a real dereference", () => {
     const deck = codeOnly(read("src/app/command-deck/page.tsx"));
-    // Stripping every `chainVm &&` on the page would crash these three and
-    // would render market claims built from an unresolved market. That is the
-    // opposite error, not the cure.
-    expect(deck).toMatch(/\{chainVm && \(/);
+
+    // The two genuine dereferences that motivated the old rule. Kept as
+    // explicit pins because they are the ones a careless "remove every gate"
+    // sweep would crash.
     expect(deck).toMatch(/dlar=\{chainVm\.dlar\}/);
     expect(deck).toMatch(/\{chainVm && <StructureContextNote vm=\{chainVm\} \/>\}/);
-    expect(deck).toMatch(/\{chainVm && \(\s*<ATHOSInterventionPanel/);
+
+    // …and now the criterion, checked rather than illustrated.
+    const gates = [...deck.matchAll(/\{chainVm && [(<]/g)];
+    expect(
+      gates.length,
+      "no `{chainVm && …}` gate remains on the deck — either the page was " +
+        "rewritten or this rule has gone vacuous. Re-pin it, do not delete it.",
+    ).toBeGreaterThan(0);
+
+    for (const g of gates) {
+      // The window starts AFTER the gate's own `chainVm`, so the gate cannot
+      // satisfy itself. It is cut at the first memo dependency array, because
+      // `}, [chainVm, …]` is a declaration of what a hook READS and would let
+      // an unrelated gate borrow a neighbour's honesty.
+      const after = deck.slice(g.index! + "{chainVm &&".length, g.index! + 400);
+      const depsAt = after.indexOf("}, [");
+      const guarded = depsAt === -1 ? after : after.slice(0, depsAt);
+      expect(
+        guarded,
+        "a `{chainVm && …}` gate guards an expression that never consumes " +
+          "`chainVm`. That gate is not protecting a market claim — it is " +
+          "silencing something on a domain it does not depend on:\n\n" +
+          guarded.slice(0, 200),
+      ).toContain("chainVm");
+    }
   });
 
   it("OVER-CORRECTION: the sections inside the drawer that ARE about the market stay withheld", () => {
