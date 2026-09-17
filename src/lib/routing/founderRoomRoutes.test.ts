@@ -79,6 +79,7 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/paper",
       "/journal",
       "/scanner",
+      "/news",
       "/education",
       "/proof-lane",
       "/copy-trading",
@@ -116,11 +117,22 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     // using it. Repairable, and held only until it does.
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/radio");
 
-    // /news stays out on a MEASURED defect, not on taste: at 390x844 its
-    // search field and source rail run off the viewport edge with no way back.
-    // The phone is the primary device; a room that loses controls there has
-    // not cleared the frame however correct it looks at 1440.
-    expect(FOUNDER_ROOM_ROUTES).not.toContain("/news");
+    // /news USED TO BE ASSERTED OUT OF THE FAMILY HERE, on a MEASURED defect
+    // rather than on taste: at 390x844 its search field and source rail ran off
+    // the viewport edge with no way back, and the phone is the primary device.
+    //
+    // It is in the family now because THE DEFECT WAS FIXED, which is the
+    // outcome that hold was written to produce. That distinction matters and is
+    // the reason this comment survives its own verdict: /backtesting was
+    // promoted by WITHDRAWING a bad hold, /news by REPAIRING the room a good
+    // hold had correctly stopped. A fence that cannot tell those apart teaches
+    // the next reader that holds are noise.
+    //
+    // Re-measured at 390x844 after the repair: search field, AUTO-REFRESH,
+    // Connect API Keys, every filter chip and Minimize all sit inside the
+    // viewport. The two cures differ because the constraints differ — the
+    // topbar wraps, the fixed-height LIVE NEWS bar scrolls. See wmDestinations.
+    expect(FOUNDER_ROOM_ROUTES).toContain("/news");
 
     // /copy-trading USED TO BE ASSERTED OUT OF THE FAMILY HERE, and this fence
     // is what made its promotion a conversation rather than a slip. It was
@@ -172,7 +184,7 @@ describe("isFounderRoomRoute", () => {
     expect(isFounderRoomRoute("/charts")).toBe(true);
     expect(isFounderRoomRoute("/scanner")).toBe(true);
     expect(isFounderRoomRoute("/radio")).toBe(false);
-    expect(isFounderRoomRoute("/news")).toBe(false);
+    expect(isFounderRoomRoute("/news")).toBe(true);
     expect(isFounderRoomRoute("/heatmaps")).toBe(true);
     expect(isFounderRoomRoute("/copy-trading")).toBe(true);
     expect(isFounderRoomRoute("/shop")).toBe(false);

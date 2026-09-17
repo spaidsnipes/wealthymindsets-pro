@@ -417,14 +417,24 @@ function LiveNewsPlayer() {
   return (
     <div className="shrink-0 border-b border-wm-border bg-wm-dark" style={{ height: minimized ? 36 : 300 }}>
       {/* Header */}
+      {/*
+        PHONE REACHABILITY. This bar was a plain `flex` with no wrap and no
+        scroll. At 390px the stream rail pushed Mute and Minimize past the
+        viewport edge and there was no gesture that brought them back — the
+        controls were not small or awkward, they were GONE. The rail is the
+        part that should give way, so it scrolls; the controls are pinned with
+        `shrink-0` so they cannot be pushed out again. `min-w-0` is what
+        actually permits the scroll: without it a flex child refuses to shrink
+        below its content and overflows the parent instead.
+      */}
       <div className="flex items-center gap-2 px-3 h-9 border-b border-wm-border shrink-0">
-        <span className="w-1.5 h-1.5 rounded-full bg-wm-red animate-pulse" />
-        <span className="text-[10px] font-black text-wm-red uppercase tracking-wider">LIVE NEWS</span>
-        <div className="flex gap-1 ml-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-wm-red animate-pulse shrink-0" />
+        <span className="text-[10px] font-black text-wm-red uppercase tracking-wider shrink-0">LIVE NEWS</span>
+        <div className="flex gap-1 ml-2 min-w-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {LIVE_STREAMS.map((s, i) => (
             <button key={s.label} onClick={() => setActiveIdx(i)}
               className={clsx(
-                "flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all border",
+                "flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all border shrink-0 whitespace-nowrap",
                 activeIdx === i
                   ? "bg-wm-red/20 text-wm-red border-wm-red/40"
                   : "text-wm-text-dim border-transparent hover:text-wm-text"
@@ -436,7 +446,7 @@ function LiveNewsPlayer() {
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           {embedUrl && (
             <button onClick={() => setMuted(m => !m)}
               className="text-[9px] text-wm-text-dim hover:text-wm-text px-2 py-0.5 rounded hover:bg-wm-surface transition-colors border border-wm-border/30">
@@ -472,7 +482,16 @@ function LiveNewsPlayer() {
                 title={stream.label}
               />
             ) : isStockedUpOffline && recentVideos.length > 0 ? (
-              <div className="w-full h-full flex flex-col" style={{ background:"#0D1117" }}>
+              /*
+                ONE OS: this pane no longer paints its own fill. It is one of
+                three mutually exclusive contents of the video letterbox above,
+                which is ALREADY `bg-black` — the honest surface for a video
+                well. The `#0D1117` it used to carry was a second opinion about
+                that surface, and a GitHub-dark one at that: not a WM token, one
+                shade off the letterbox it sat inside, and full-extent, which is
+                the exact shape the sanctuary law is written about.
+              */
+              <div className="w-full h-full flex flex-col">
                 <div className="px-3 py-2 border-b border-wm-border/40 flex items-center gap-2 shrink-0">
                   <span className="text-[9px] font-black text-wm-green uppercase tracking-wider">📊 Stocked Up — Recent Videos (Last 5 Days)</span>
                 </div>
@@ -498,8 +517,16 @@ function LiveNewsPlayer() {
                 </div>
               </div>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-3"
-                style={{ background: "linear-gradient(135deg,#0D1117,#1C2128)" }}>
+              /*
+                Same letterbox, same cure. This is the "Not live right now"
+                state, and it used to fill itself with a 135° gradient between
+                two near-black stops. A gradient does not exempt a slab: both
+                ends were opaque and near-black, so the result was a full-extent
+                plane with a soft edge sitting on top of an already-black video
+                well. The icon and the two lines of copy are the content; the
+                well underneath is the surface.
+              */
+              <div className="w-full h-full flex flex-col items-center justify-center gap-3">
                 <span className="text-4xl">{stream.icon}</span>
                 <div className="text-center">
                   <p className="text-sm font-bold text-wm-text">{stream.label}</p>
@@ -704,15 +731,29 @@ export default function NewsPage() {
       {/* ── Topbar ── WM atmosphere: warm-gold hairline, serif hero,
            tabular indicator. Belongs to the same OS as /command-deck
            and /nectar. ─────────────────────────────────────────── */}
+      {/*
+        PHONE REACHABILITY (the other half of the same defect as the LIVE NEWS
+        bar above). This topbar was a single non-wrapping flex row holding the
+        identity block, a fixed `w-40` search field and an `ml-auto` action
+        group. At 390px the search field and the whole action group — AUTO
+        REFRESH, Connect API Keys, every source filter — were cut off by the
+        viewport edge with no scroll and no wrap to bring them back.
+
+        The cure is `flex-wrap`: this bar has a `minHeight`, not a fixed
+        height, so it is allowed to become two lines on a narrow screen where
+        the LIVE NEWS bar (fixed 300px parent) was not. The search field
+        becomes `min-w-0` + `flex-1` so it gives up width instead of forcing
+        overflow, and the action group wraps rather than being pushed off.
+      */}
       <div
-        className="flex items-center gap-3 px-4 shrink-0"
+        className="flex flex-wrap items-center gap-y-2 gap-3 px-4 py-1.5 shrink-0"
         style={{
           minHeight: 44,
           borderBottom: "1px solid rgba(139,106,41,0.15)",
           background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <span
             aria-hidden="true"
             style={{
@@ -754,17 +795,17 @@ export default function NewsPage() {
         </div>
 
         {/* Search */}
-        <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2 py-1 ml-4">
-          <Search size={11} className="text-wm-text-dim" />
+        <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2 py-1 min-w-0 flex-1 basis-40">
+          <Search size={11} className="text-wm-text-dim shrink-0" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search news, symbols..."
-            className="bg-transparent text-[11px] text-wm-text outline-none w-40 placeholder-wm-text-dim"
+            className="bg-transparent text-[11px] text-wm-text outline-none w-full min-w-0 placeholder-wm-text-dim"
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex flex-wrap items-center gap-1">
           <button
             onClick={() => setLiveMode(l => !l)}
             className={clsx(

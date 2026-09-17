@@ -180,16 +180,33 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // "QUOTE STATE: DELAYED" and "Not yet received" rather than implying live
   // ticks. The honesty is on the page, not in a tooltip.
   { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "os" },
-  // /news RENDERS INSIDE THE FRAME BUT FAILS THE PHONE, and the phone is the
-  // primary device. At 390x844 the search field and the right-most source
-  // chip are cut off by the viewport edge and the source rail runs off-screen
-  // with no way back. A room that loses controls at the primary width has not
-  // cleared the frame no matter how correct it looks at 1440.
+  // /news WAS HELD ON A MEASURED PHONE DEFECT, THE DEFECT WAS FIXED, AND IT IS
+  // PROMOTED ON THE REPAIR — not on a second opinion about the same pixels.
   //
-  // Held on a MEASURED defect with a known cure, not on taste — this one is
-  // repairable, unlike the /shop and /radio holds below, and should be fixed
-  // rather than argued about.
-  { href: "/news", label: "News", icon: Newspaper, group: "TOOL", tier: 1, frame: "legacy" },
+  // The hold, written earlier the same day: at 390x844 the search field and the
+  // right-most source chip were cut off by the viewport edge, and the LIVE NEWS
+  // stream rail ran off-screen carrying Mute and Minimize past it with no
+  // gesture that brought them back. Not small, not awkward — gone. The phone is
+  // the primary device, so a room that loses controls there has not cleared the
+  // frame however correct it looks at 1440.
+  //
+  // Two structures caused it and each needed a DIFFERENT cure, because the
+  // constraint above them differs:
+  //   • The topbar has a `minHeight`, so it is allowed to become two lines. It
+  //     wraps: `flex-wrap`, the search field made `min-w-0 flex-1` so it yields
+  //     width instead of forcing overflow, and the action group wraps rather
+  //     than being pushed off the edge.
+  //   • The LIVE NEWS bar sits inside a FIXED 300px parent, so wrapping there
+  //     would eat the video. It scrolls instead: the rail takes `min-w-0
+  //     overflow-x-auto` and the Mute/Minimize controls take `shrink-0`, so the
+  //     rail is the part that gives way and the controls stay put.
+  // In both cases `min-w-0` is the load-bearing class — without it a flex child
+  // refuses to shrink below its content and overflows its parent instead.
+  //
+  // RE-MEASURED at 390x844 after the fix: search field, AUTO-REFRESH, Connect
+  // API Keys, every filter chip and Minimize are all inside the viewport. Same
+  // method and the same limit as its siblings (static first paint).
+  { href: "/news", label: "News", icon: Newspaper, group: "TOOL", tier: 1, frame: "os" },
   // LOOKED AT 2026-09-16 (static first paint, see header): lesson rail, progress
   // ring and challenge chip all sit correctly under the masthead; on-canon.
   { href: "/education", label: "Academy", icon: GraduationCap, group: "TOOL", tier: 2, frame: "os" },

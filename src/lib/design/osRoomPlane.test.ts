@@ -264,15 +264,27 @@ describe("osRoomPlane · every OS room lets the sanctuary through", () => {
     // remove them, and the damage only appears on the commit that promotes the
     // route — where the promotion gets blamed for it.
     //
-    // /news is the one left, and it is left HONESTLY. Its two remaining fills
-    // are `w-full h-full` on the offline-state and no-stream views INSIDE a
-    // video player box whose own height is set to 300px. `h-full` there means
-    // the player, not the room. The instrument cannot see an ancestor, so it
-    // cannot tell those from a room plane — see `enclosingOpenTag`. Rather
-    // than add a third heuristic that guesses, the blindness is named and
-    // /news waits for a human to look at it, which is what the register is
-    // for. Do NOT "fix" /news by widening the detector.
-    expect(blocked.sort()).toEqual(["/news"]);
+    // /news WAS the one left, and the note here said it was "waiting for a
+    // human to look at it". Someone did (2026-09-16), and the answer turned out
+    // to be better than the standoff this comment described.
+    //
+    // The note was right that the instrument could not tell a room plane from a
+    // full-extent fill inside a 300px video box, and right to refuse to widen
+    // the detector to guess. But it framed the choice as "widen the instrument
+    // or leave the room dirty", and there was a third option: LOOK AT THE FILLS
+    // AND ASK WHETHER THEY SHOULD EXIST. They should not. Both sat directly on
+    // a parent that is already `bg-black` — the honest surface for a video well
+    // — and both painted `#0D1117`, a GitHub-dark hex that is not a WM token
+    // and is one shade off the letterbox it covered. They were a second opinion
+    // about a surface that already had an owner.
+    //
+    // Deleting them made the room CORRECT, not merely detectable-as-clean. That
+    // is the outcome to reach for when this instrument reports something it
+    // admits it cannot fully see: the report is a prompt to go look, and the
+    // looking is allowed to conclude that the code was wrong.
+    //
+    // Do NOT reintroduce a fill here to "restore" a plane the letterbox draws.
+    expect(blocked.sort()).toEqual([]);
   });
 
   /**
@@ -303,17 +315,21 @@ describe("osRoomPlane · every OS room lets the sanctuary through", () => {
     // instrument rules out ONE way of failing; a human has not looked.
     for (const href of cleared) expect(OS_FRAMED_ROUTES).not.toContain(href);
 
-    // /news is the one room still `"legacy"`, and it is left that way
-    // HONESTLY. Its two remaining fills are `w-full h-full` on the offline
-    // and no-stream views INSIDE a video player box whose own height is set
-    // to 300px. `h-full` there means the player, not the room. The instrument
-    // cannot see an ancestor, so it cannot tell those from a room plane — see
-    // `enclosingOpenTag`. Rather than add a third heuristic that guesses, the
-    // blindness is named and /news waits for eyes.
+    // NO ROOM IS `"legacy"` ANY MORE, and that is worth one sentence of
+    // suspicion rather than a victory lap.
     //
-    // Do NOT "fix" /news by widening the detector.
-    expect(WM_DESTINATIONS.filter((d) => d.frame === "legacy").map((d) => d.href)).toEqual([
-      "/news",
-    ]);
+    // /news was the last one. It got eyes on 2026-09-16: the two fills the
+    // instrument could not classify were deleted outright (they sat on an
+    // already-black video letterbox and used an off-canon hex), and a separate,
+    // real phone defect was found and fixed in the same pass — its topbar and
+    // stream rail lost controls off the right edge at 390px.
+    //
+    // An EMPTY list here does not mean the work is over. It means this
+    // particular instrument has nothing left to say, and every remaining
+    // question about a room — does it hold the phone, does it draw a landmark
+    // the frame owns, does it re-introduce the company — is asked by a
+    // DIFFERENT fence. `"legacy"` becoming unused is a state to notice, not a
+    // finish line: the next room added to the product starts there again.
+    expect(WM_DESTINATIONS.filter((d) => d.frame === "legacy").map((d) => d.href)).toEqual([]);
   });
 });
