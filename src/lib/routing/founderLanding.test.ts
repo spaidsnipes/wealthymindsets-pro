@@ -71,11 +71,53 @@ describe("the Founder landing route has one owner", () => {
   });
 
   it("landing and instrument-view are not the same decision", () => {
-    // They were the same string for months, which is precisely how the landing
-    // decision hid: every consumer could claim it was "just going to charts".
-    // If these ever collapse back together, the distinction has been lost and
-    // the next cutover will be a three-file change wearing a one-file mask.
-    expect(FOUNDER_LANDING_ROUTE).not.toBe(INSTRUMENT_VIEW_ROUTE);
+    /**
+     * They were the same string for months, which is precisely how the landing
+     * decision hid: every consumer could claim it was "just going to charts".
+     *
+     * ── RE-PINNED TO THE MEANING, NOT WEAKENED ──────────────────────────────
+     *
+     * This read `expect(FOUNDER_LANDING_ROUTE).not.toBe(INSTRUMENT_VIEW_ROUTE)`.
+     * The 2026-09-17 Founder cut points the landing at the chart, so the two
+     * constants hold the same VALUE — and that assertion would have failed for
+     * a product decision it was never written to have an opinion about.
+     *
+     * The defect it exists to catch was never equal values. It was ONE
+     * declaration wearing two names, so that editing "where a Founder lands"
+     * silently edited "where a named instrument link goes". What has to stay
+     * true is INDEPENDENCE: two separate declarations, neither defined in terms
+     * of the other, each a literal a human can re-point alone.
+     *
+     * So the guard now reads the owner, and holds that invariant DIRECTLY
+     * rather than inferring it from a value.
+     *
+     * Honest about the trade: this no longer fails when the two hold equal
+     * strings, because equal strings are not the defect. What it gains is the
+     * derived-but-unequal case the old assertion was blind to —
+     *
+     *   export const INSTRUMENT_VIEW_ROUTE = FOUNDER_LANDING_ROUTE.replace(…)
+     *
+     * — which is one declaration wearing two names while still LOOKING like
+     * two decisions, and which the old `not.toBe` passed. Both mutations are
+     * recorded in the commit that re-pinned this.
+     */
+    const owner = read("lib/routing/founderLanding.ts");
+
+    for (const name of ["FOUNDER_LANDING_ROUTE", "INSTRUMENT_VIEW_ROUTE"] as const) {
+      const decl = new RegExp(`export const ${name}\\s*=\\s*("[^"]+"|'[^']+')\\s*;`);
+      expect(owner, `${name} is no longer its own literal declaration`).toMatch(decl);
+    }
+
+    // Neither may be expressed through the other. An alias is the relapse.
+    expect(owner, "the landing route is an alias of the instrument view")
+      .not.toMatch(/export const FOUNDER_LANDING_ROUTE\s*=\s*INSTRUMENT_VIEW_ROUTE/);
+    expect(owner, "the instrument view is an alias of the landing route")
+      .not.toMatch(/export const INSTRUMENT_VIEW_ROUTE\s*=\s*FOUNDER_LANDING_ROUTE/);
+
+    // And both must still resolve to real, separately-nameable routes.
+    for (const route of [FOUNDER_LANDING_ROUTE, INSTRUMENT_VIEW_ROUTE]) {
+      expect(route).toMatch(/^\/[a-z0-9-]+$/);
+    }
   });
 
   it("the landing surface does not offer a way BACK out of itself", () => {

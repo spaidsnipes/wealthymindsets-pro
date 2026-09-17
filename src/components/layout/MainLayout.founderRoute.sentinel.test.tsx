@@ -33,12 +33,33 @@ const SOURCE = readFileSync(MAIN_LAYOUT_PATH, "utf-8");
 
 describe("MainLayout · Founder-route parent — Ticket T G2 gate", () => {
   it("names the Founder landing route in code, not by hand", () => {
-    // The audit's P0 was "record concrete PARENT_SCENE_OWNER_FILE/COMPONENT",
-    // and the same discipline applies to the ROUTE identity — hard-coding
-    // "/command-deck" here and there was the "three-independent-owners"
-    // defect the recent Ticket T commit already retired. This gate confirms
-    // the shell reads the canonical constant.
-    expect(FOUNDER_LANDING_ROUTE).toBe("/command-deck");
+    /**
+     * The audit's P0 was "record concrete PARENT_SCENE_OWNER_FILE/COMPONENT",
+     * and the same discipline applies to the ROUTE identity — hard-coding
+     * "/command-deck" here and there was the "three-independent-owners" defect
+     * Ticket T retired. This gate confirms the shell reads the canonical
+     * constant.
+     *
+     * ── RE-PINNED TO ITS OWN SENTENCE ───────────────────────────────────────
+     *
+     * It read `expect(FOUNDER_LANDING_ROUTE).toBe("/command-deck")`. That is a
+     * test whose body does the exact thing its name forbids: it names the route
+     * BY HAND. It could not tell "the shell retyped a literal" — the defect —
+     * apart from "the Founder decided to land somewhere else" — a product call
+     * this file has no standing to veto. The 2026-09-17 cut to /charts is the
+     * second kind, and this assertion failed on it.
+     *
+     * What the sentinel is FOR is that the landing decision has one owner and
+     * this shell does not keep a private copy. So it now reads the shell.
+     */
+    expect(typeof FOUNDER_LANDING_ROUTE, "the landing owner stopped exporting a route")
+      .toBe("string");
+
+    // The shell may not carry its own landing literal. Comments are prose and
+    // explain history; only code counts.
+    const code = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    expect(code, "MainLayout retypes a landing route instead of importing the owner")
+      .not.toMatch(/["'`]\/(command-deck|readiness)["'`]/);
   });
 
   it("identifies the Founder operating room from the registry, not a hard-coded string", () => {

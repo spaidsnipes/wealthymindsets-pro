@@ -37,8 +37,25 @@
  *
  * This is the surface that has to answer "what is true right now, and what is
  * the next thing anyone can DO?" before the Founder has asked anything.
+ *
+ * ── WHY THIS IS THE CHART (2026-09-17 Founder cut) ───────────────────────────
+ *
+ * It was "/command-deck", and the production recording is the receipt for why
+ * that was wrong. Measured on the live build at 1920x840, the deck's first
+ * viewport was: an ACTIVE QUESTION headline, a MARKET OBJECT PASSPORT strip, a
+ * price block, and four columns of prose — and the candles were a 112-bar
+ * sliver starting at y=520, half of it below the fold. A human arriving with no
+ * destination was handed a page ABOUT the market instead of the market.
+ *
+ * WM Pro is the advanced chart. The no-destination arrival is therefore the
+ * chart, and every reading the deck compiled — right of way, evidence debt,
+ * available R, WHY — belongs WITH price rather than instead of it.
+ *
+ * The deck is not deleted and is not demoted to a dead room: it is one door in
+ * the rail like any other, and the reading it compiles is the SAME canonical
+ * decision the chart now shows. Nothing was rebuilt to make this true.
  */
-export const FOUNDER_LANDING_ROUTE = "/command-deck";
+export const FOUNDER_LANDING_ROUTE = "/charts";
 
 /**
  * Where a human goes when they HAVE named an instrument and want to see it.
@@ -47,5 +64,14 @@ export const FOUNDER_LANDING_ROUTE = "/command-deck";
  * for months, which is how the landing decision hid: every consumer could claim
  * it was "just going to charts". Naming them separately means a future change to
  * one can no longer silently drag the other along.
+ *
+ * As of the 2026-09-17 cut they hold the same VALUE again — and that is not a
+ * relapse, because the defect was never the value. The defect was that the
+ * decision had no name of its own, so nothing could tell "the Founder lands on
+ * the chart" apart from "this link goes to a chart". Both are declared here,
+ * independently, neither defined in terms of the other: re-pointing the landing
+ * at a future room is still a one-line change to ONE constant, and it cannot
+ * drag named instrument links with it. The guard in founderLanding.test.ts is
+ * pinned to that independence rather than to inequality.
  */
 export const INSTRUMENT_VIEW_ROUTE = "/charts";
