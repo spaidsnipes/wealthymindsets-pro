@@ -62,6 +62,7 @@ import {
   selectWhySeverityBar,
   type WhySeverityState,
 } from "@/lib/marketData/viewModels/selectWhySeverityBar";
+import { selectRiskReachBar } from "@/lib/traderMemory/viewModels/selectRiskReachBar";
 
 /**
  * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
@@ -333,6 +334,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   // The WHY cell's own census, re-presented. Same VM the headline reads.
   const severity = selectWhySeverityBar(decisionWhy);
+  // R is a ratio; this is the only cell whose meaning IS a proportion. Same VM
+  // the two numbers beside it are printed from — no second arithmetic.
+  const reach = selectRiskReachBar(availableR);
   const cellStyle: React.CSSProperties = rail
     ? {
         ...CELL,
@@ -509,6 +513,79 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             ? `Available R ${rText(availableR.conservativeR)} · risk/unit ${rText(availableR.riskPerUnit)}`
             : "Available R UNKNOWN"}
         </span>
+        {/* ONE AXIS: risk is one unit by definition, reward is drawn against it.
+            Absent entirely when the conservative figure is UNKNOWN, because a
+            flat reward block is a confident picture of a bad trade and the
+            truth in that case is that we cannot tell. */}
+        {reach ? (
+          <span
+            data-testid="risk-reach-bar"
+            data-adverse={reach.adverse ? "true" : undefined}
+            aria-hidden="true"
+            style={{ display: "flex", alignItems: "stretch", height: 8, margin: "3px 0 1px", gap: 1 }}
+          >
+            <span
+              data-testid="risk-reach-risk"
+              style={{
+                width: `${reach.riskPct}%`,
+                background: "rgba(224,138,138,0.55)",
+                borderRadius: "1px 0 0 1px",
+              }}
+            />
+            {/* The entry line. Everything left of it is what this trade can
+                lose; everything right is what it can reach. */}
+            <span style={{ width: 1, background: "#f3efe6", flex: "0 0 auto" }} />
+            {reach.adverse ? (
+              <span
+                data-testid="risk-reach-adverse"
+                style={{
+                  flex: "1 1 auto",
+                  background:
+                    "repeating-linear-gradient(135deg, rgba(224,138,138,0.30) 0 3px, transparent 3px 6px)",
+                }}
+              />
+            ) : (
+              <>
+                <span
+                  data-testid="risk-reach-conservative"
+                  style={{
+                    width: `${reach.conservativePct}%`,
+                    background: "#c9c2a7",
+                    position: "relative",
+                  }}
+                >
+                  {reach.costDragPct !== null ? (
+                    /* Cost drag is bitten out of the far end of the reach, not
+                       drawn beside it — costs do not extend the target, they
+                       shorten it. */
+                    <span
+                      data-testid="risk-reach-cost-drag"
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: `${(reach.costDragPct / Math.max(reach.conservativePct, 0.0001)) * 100}%`,
+                        background:
+                          "repeating-linear-gradient(135deg, rgba(7,8,10,0.55) 0 2px, transparent 2px 4px)",
+                      }}
+                    />
+                  ) : null}
+                </span>
+                {reach.optimisticPct !== null ? (
+                  <span
+                    data-testid="risk-reach-optimistic"
+                    style={{
+                      width: `${reach.optimisticPct}%`,
+                      background: "rgba(201,194,167,0.30)",
+                      borderRadius: "0 1px 1px 0",
+                    }}
+                  />
+                ) : null}
+              </>
+            )}
+          </span>
+        ) : null}
         <span style={MUTED} data-testid="spine-available-r-detail">
           {availableRDetail}
         </span>
