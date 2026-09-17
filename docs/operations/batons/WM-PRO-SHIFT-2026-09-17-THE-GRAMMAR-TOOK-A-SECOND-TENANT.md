@@ -125,7 +125,13 @@ The room-at-rest capture shows the rail reading `Passport` (ROOMS) four lines
 above `Object passport` (WORKSPACE) — the trader's own memory vault and a market
 object's evidence lineage, sharing a noun with nothing to tell them apart. Fixed
 in `1d225210`: the equipment now carries the canon name in full, *Market object
-passport*, matching the stamp band above the chart. Awaiting its own deploy.
+passport*, matching the stamp band above the chart.
+
+That fix is now live too, and was re-probed the same way it was found — at
+`https://wealthymindsetspro.com/command-deck`, reading the rail's own button
+text rather than trusting the deploy: `["Passport", "Market object passport…"]`.
+The trader's room and the market object's equipment no longer differ by a
+qualifier the eye has to supply.
 
 That defect was invisible in every test and obvious in the first screenshot,
 which is the entire argument for looking.
