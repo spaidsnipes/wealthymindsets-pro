@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { provenSessionClosure } from "./canonicalIdentity";
+// The sampling interval is declared where the compiler that TOLERATES it lives.
+// Two numbers — one here, one there — is how "our clock is 15s coarse" and "we
+// forgive 15s of coarseness" silently stop being the same statement.
+import { FEED_CLOCK_SAMPLE_INTERVAL_MS } from "@/lib/os/osChrome";
 
 /**
  * Hydration-safe session-closure truth for client surfaces.
@@ -53,7 +57,7 @@ export function useProvenSessionClosure(symbol: string): false | null {
  * real observation is stamped after the epoch, so a 0 clock produces a negative
  * age, which the compiler reads as unestablished rather than as fresh.
  */
-export function useFeedEvaluationClock(intervalMs = 15_000): number {
+export function useFeedEvaluationClock(intervalMs = FEED_CLOCK_SAMPLE_INTERVAL_MS): number {
   const [now, setNow] = useState(0);
 
   useEffect(() => {

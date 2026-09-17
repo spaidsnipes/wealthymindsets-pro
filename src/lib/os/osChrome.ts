@@ -203,6 +203,56 @@ export type FeedDeclaration = FeedObservation | typeof FEEDLESS_SURFACE | null;
 export const LIVE_STALENESS_BUDGET_MS = 90_000;
 
 /**
+ * HOW OFTEN THE FRAME RESAMPLES "NOW" — AND THEREFORE HOW WRONG "NOW" CAN BE.
+ *
+ * ── THE DEFECT, MEASURED LIVE ──────────────────────────────────────────────
+ *
+ * wealthymindsetspro.com/ai-bot, 2026-09-17, production, symbol BTC on a live
+ * Coinbase socket. The room read, in its own labelled cells:
+ *
+ *   CONNECTION  Observed · coinbase      PRICE FEED  COINBASE
+ *   TRADE TAPE  COINBASE                 LATENCY     216 ms
+ *
+ * …with the price ticking. The masthead read `FEED UNKNOWN`, and its title
+ * attribute — sampled from the live DOM, not from the source — said why:
+ *
+ *   "provider clock ahead of ours"
+ *
+ * Coinbase's clock was not ahead. OURS WAS BEHIND, BY CONSTRUCTION.
+ * `useFeedEvaluationClock` resamples `Date.now()` on an interval. Between two
+ * samples the frame's idea of the present moment is frozen while the exchange
+ * keeps printing, so on any continuous feed the newest print is almost always
+ * stamped AFTER the frame's last sample. The guard below then read that as a
+ * provider clock disagreement and threw the whole reading away.
+ *
+ * The duty cycle is the measurement: prints arrive sub-second, the clock moves
+ * every 15s, so the badge was correct for a sliver of each interval and wrong
+ * for the rest. A 4s live sample of `[data-testid="os-feed-standing"]` at 50ms
+ * returned UNKNOWN on all 63 frames.
+ *
+ * ── WHY THE CURE IS A TOLERANCE AND NOT A FASTER CLOCK ─────────────────────
+ *
+ * Ticking every 100ms would shrink the window, not close it — the race is
+ * structural, and one frame of it still prints a lie. It would also re-render
+ * the whole frame ten times a second to fix an arithmetic error.
+ *
+ * `evaluatedAtMs` is a SAMPLE of the present, and a sample carries the
+ * resolution of its sampler. An observation newer than our last sample by less
+ * than one sampling interval is not evidence about the PROVIDER's clock at
+ * all; it is evidence about OURS. So the negative-age guard is given exactly
+ * that tolerance, and inside it the age settles to 0 — which is TRUE, because
+ * such a print is at most one interval old either way.
+ *
+ * Beyond the tolerance the guard still bites with its original force, and the
+ * pre-mount `0` clock — which puts every real print roughly 55 years in the
+ * future — is still nowhere near it.
+ *
+ * ONE OWNER: the hook takes this as its default interval rather than declaring
+ * its own number, so the tolerance and the sampler can never drift apart.
+ */
+export const FEED_CLOCK_SAMPLE_INTERVAL_MS = 15_000;
+
+/**
  * Which tone each canon reading wears in the masthead.
  *
  * `Record<CanonicalFidelityLabel, …>` rather than a switch, so the day the
@@ -308,13 +358,21 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     };
   }
 
-  const ageMs = evaluatedAtMs - obs.lastObservedAtMs;
-  // A negative age means the print is stamped in the future — a clock
-  // disagreement between us and the provider. That is not freshness, and
-  // reading it as "0ms old" would turn a broken clock into a LIVE badge.
-  // Checked BEFORE the budget below, so a bad clock can never be rounded into
-  // the `fresh: true` the delegate would then certify.
-  if (ageMs < 0) {
+  const rawAgeMs = evaluatedAtMs - obs.lastObservedAtMs;
+  // A print stamped materially in the future is a clock disagreement between us
+  // and the provider. That is not freshness, and reading it as "0ms old" would
+  // turn a broken clock into a LIVE badge. Checked BEFORE the budget below, so
+  // a bad clock can never be rounded into the `fresh: true` the delegate would
+  // then certify.
+  //
+  // MATERIALLY is doing the work, and it was measured: `evaluatedAtMs` is a
+  // SAMPLE taken every FEED_CLOCK_SAMPLE_INTERVAL_MS, so on a live exchange
+  // socket the newest print is newer than our last sample nearly all the time.
+  // Bare `rawAgeMs < 0` therefore read OUR stale clock as THEIR broken one and
+  // threw away a ticking Coinbase feed — see the constant's header for the live
+  // measurement. Inside one sampling interval the negative sign carries no
+  // information about the provider at all.
+  if (rawAgeMs < -FEED_CLOCK_SAMPLE_INTERVAL_MS) {
     return {
       label: FEED_UNKNOWN,
       detail: "provider clock ahead of ours",
@@ -322,6 +380,12 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
       established: false,
     };
   }
+
+  // Settled to 0 rather than left negative: within the tolerance the honest
+  // statement is "at most one sampling interval old", and 0 is the only value
+  // that cannot make the budget comparison below read as MORE certain than the
+  // evidence. It is also why the tolerance must stay well under the budget.
+  const ageMs = Math.max(0, rawAgeMs);
 
   // ── THE ONE DERIVATION THIS FRAME OWNS ───────────────────────────────────
   // `priceSourceBadge` documents `fresh` as evidence its callers supply and

@@ -10,6 +10,7 @@ import {
   resolveChartSurfaceBadge,
 } from "@/lib/priceSource";
 import {
+  FEED_CLOCK_SAMPLE_INTERVAL_MS,
   LIVE_STALENESS_BUDGET_MS,
   compileFeedStanding,
   compileProvenanceSegments,
@@ -660,10 +661,55 @@ describe("useFeedEvaluationClock — the frame's clock, and why 0 is safe", () =
 
   it("ticks faster than the staleness budget it is compared against", () => {
     // Otherwise a dead feed stays green for longer than the budget it is
-    // supposed to enforce.
-    const declared = CLOCK.match(/intervalMs = (\d[\d_]*)/);
-    expect(declared, "the default interval must be declared literally").not.toBeNull();
-    expect(Number(declared![1].replace(/_/g, ""))).toBeLessThan(LIVE_STALENESS_BUDGET_MS);
+    // supposed to enforce. Pinned to the CONSTANT rather than to a literal in
+    // the hook's source: the literal moved into osChrome so the compiler's
+    // future-print tolerance and the sampler that creates the need for it are
+    // the same number, and a regex for `intervalMs = 15_000` would have passed
+    // vacuously the moment that happened.
+    expect(FEED_CLOCK_SAMPLE_INTERVAL_MS).toBeLessThan(LIVE_STALENESS_BUDGET_MS);
+  });
+
+  it("uses that one constant as its default, so sampler and tolerance cannot drift", () => {
+    // The compiler forgives a print up to one SAMPLING INTERVAL in the future.
+    // If the hook re-declared its own number, the two could diverge and the
+    // forgiveness would stop matching the coarseness it exists to forgive.
+    expect(CLOCK).toMatch(/intervalMs = FEED_CLOCK_SAMPLE_INTERVAL_MS/);
+    expect(CLOCK).not.toMatch(/intervalMs = \d/);
+  });
+
+  it("THE MEASURED DEFECT — a print newer than our last clock sample is still a reading", () => {
+    // /ai-bot, BTC, live Coinbase socket, 2026-09-17: the room read
+    // "Observed · coinbase" with a 216ms latency and a ticking price while the
+    // masthead read FEED UNKNOWN, title "provider clock ahead of ours".
+    // Coinbase was not ahead — our sampled clock was behind, which on a
+    // sub-second feed is the NORMAL case, not the exceptional one.
+    const feed = compileFeedStanding(
+      { ...LIVE_OBS, lastObservedAtMs: NOW + FEED_CLOCK_SAMPLE_INTERVAL_MS - 1 },
+      NOW,
+    );
+    expect(feed.label).not.toBe("FEED UNKNOWN");
+    expect(feed.established).toBe(true);
+  });
+
+  it("still refuses a provider genuinely ahead of us, just past the tolerance", () => {
+    const feed = compileFeedStanding(
+      { ...LIVE_OBS, lastObservedAtMs: NOW + FEED_CLOCK_SAMPLE_INTERVAL_MS + 1 },
+      NOW,
+    );
+    expect(feed.label).toBe("FEED UNKNOWN");
+    expect(feed.detail).toBe("provider clock ahead of ours");
+    expect(feed.established).toBe(false);
+  });
+
+  it("the tolerance never becomes a licence to age a print BACKWARDS into freshness", () => {
+    // A future print settles to age 0. That must not be reachable from a print
+    // old enough to be stale — i.e. the clamp only ever runs on negative ages,
+    // so a genuinely stale observation keeps its full age.
+    const stale = compileFeedStanding(
+      { ...LIVE_OBS, lastObservedAtMs: NOW - 10 * LIVE_STALENESS_BUDGET_MS },
+      NOW,
+    );
+    expect(stale.tone).toBe("IDLE");
   });
 
   it("the frame supplies the clock, so rooms never carry one in their publication", () => {
