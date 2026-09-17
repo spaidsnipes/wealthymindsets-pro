@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as ts from "typescript";
-import { INTERNAL_NAMES, INTERNAL_NAME_WORDS } from "./internalNames";
+import {
+  INTERNAL_NAMES,
+  INTERNAL_NAME_WORDS,
+  PROVIDER_NAMES,
+  PROVIDER_NAME_WORDS,
+} from "./internalNames";
 
 /**
  * EVERY JSX TEXT NODE IN THE PRODUCT, NOT THE TWO THAT ALREADY LEAKED.
@@ -166,6 +171,47 @@ describe("the trader never reads our names for things", () => {
           `so reading it here is not a hint — it is a leak. Say the thing in ` +
           `the trader's own vocabulary instead; see src/lib/design/internalNames.ts ` +
           `for why this name is on the list and what it costs to add another.\n\n` +
+          `Sites:\n`,
+      ).toBe("");
+    });
+  }
+
+  /**
+   * THE SAME CRITERION, POINTED AT THE VENDORS.
+   *
+   * Written because the extractor above, pointed at vendor names on the day it
+   * shipped, found `backtesting/page.tsx` saying "Live data — real Yahoo OHLCV
+   * bars" — the only place in 202 components naming a vendor, and wrong twice
+   * over: a liveness claim on a backtester reading 3000 historical candles, and
+   * a vendor name the canon quarantines.
+   *
+   * It is a SEPARATE list from `INTERNAL_NAMES` and not an append to it,
+   * because the two bans have different reasons and therefore different rules
+   * for admission. Ours are names the trader was never taught. These are names
+   * that belong to somebody else and answer a question the trader never asked.
+   * Merging them would mean the next author reads one docblock and applies the
+   * wrong bar — and this list's refusals (`Polygon` is a listed crypto asset;
+   * brokers are connected BY NAME) are the entries that actually matter.
+   */
+  for (const [i, pattern] of PROVIDER_NAMES.entries()) {
+    const word = PROVIDER_NAME_WORDS[i] ?? String(pattern);
+
+    it(`no Founder-facing text names the data vendor "${word}"`, () => {
+      const leaks = copy.filter((c) => pattern.test(c.text));
+      expect(
+        leaks.map((c) => `  ${c.file}:${c.line}  ${JSON.stringify(c.text)}`).join("\n"),
+        `Founder-facing copy names the data vendor "${word}".\n\n` +
+          `Which company filled the bars is plumbing. The trader's question is ` +
+          `whether the bars are REAL, and the Visual Systems Canon already owns ` +
+          `the vocabulary for answering it — import a label from ` +
+          `src/lib/marketData/canonicalFidelityLabels.ts instead of writing a ` +
+          `sentence. Check the label you pick actually matches the data: the ` +
+          `line that produced this rule also claimed "Live data" about ` +
+          `historical candles.\n\n` +
+          `If you believe this vendor name must be visible, read the refusals ` +
+          `in src/lib/design/internalNames.ts first — /readiness discloses ` +
+          `providers on purpose, and it does so through an expression, which is ` +
+          `why this rule never sees it.\n\n` +
           `Sites:\n`,
       ).toBe("");
     });

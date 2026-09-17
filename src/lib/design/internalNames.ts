@@ -48,3 +48,57 @@ export const INTERNAL_NAMES: readonly RegExp[] = [/\bATHOS\b/, /\bDLAR\b/];
 
 /** The bare words, for assembling human-readable failure messages. */
 export const INTERNAL_NAME_WORDS: readonly string[] = ["ATHOS", "DLAR"];
+
+/**
+ * THE VENDORS THE TRADER MUST NEVER READ.
+ *
+ * A different category from the list above and it earns its own export. These
+ * are not OUR names — they are the names of companies we buy bars from. The
+ * trader's question is never "who filled this candle", it is "is this candle
+ * real", and the Visual Systems Canon answers the second question with a fixed
+ * vocabulary (`canonicalFidelityLabels.ts`) precisely so no surface has to
+ * answer the first. The interaction directive states the same ban in its own
+ * words: do not expose provider internals in Founder-facing UI.
+ *
+ * Found by pointing the JSX-text extractor at vendor names across all 202
+ * components. Exactly one line in the product named one, and that line carried
+ * a second defect riding along with it:
+ *
+ *   `backtesting/page.tsx`  — "Live data — real Yahoo OHLCV bars", on a
+ *                             BACKTESTER whose `fetchBars` requests 3000
+ *                             HISTORICAL candles. The vendor name and the
+ *                             liveness overclaim died to one canon label.
+ *
+ * The pre-existing guard could not have caught it: `QUARANTINED_FIDELITY_-
+ * PHRASES` is a four-entry list of exact strings, and this sentence is not one
+ * of the four. Enumeration again.
+ *
+ * ── NAMES DELIBERATELY REFUSED ────────────────────────────────────────
+ *   Polygon    — A CRYPTO ASSET THE TRADER NAVIGATES TO. `ChartToolbar`
+ *                line 218: `{ sym:"MATIC", name:"Polygon", cat:"Crypto" }`.
+ *                It is also a drawing-tool shape. Banning it would forbid the
+ *                product from naming an asset it lists — the CLC error exactly,
+ *                one list later. This is why "looks like a vendor" is not
+ *                evidence either.
+ *   CoinGecko   — zero occurrences anywhere in `src/`. Not a vendor this
+ *   Twelve Data   codebase reads. A ban over a name the product never had is a
+ *                rule that can only ever fire on a future author's innocent
+ *                sentence.
+ *
+ * ── BROKERS ARE NOT VENDORS AND MUST NEVER BE ADDED ───────────────────
+ * `Alpaca`, `Webull`, `Tastytrade`, `moomoo`. The trader CONNECTS these by
+ * name, chooses between them by name, and reads their status by name on
+ * `/readiness`. Whose account holds the money is the trader's business in a way
+ * that whose server holds the bars never is.
+ *
+ * ── AND `/readiness` IS ALLOWED TO SAY THEM ───────────────────────────
+ * It renders `row.label` ("Finnhub market data") from `providerReadiness.ts` —
+ * an EXPRESSION, not a `JsxText` node, so this rule does not reach it. That is
+ * correct rather than lucky: `/readiness` is the one surface whose entire job
+ * is disclosing which integrations this host actually carries, and honest
+ * disclosure is the opposite of a leak. The parser draws the line for free.
+ */
+export const PROVIDER_NAMES: readonly RegExp[] = [/\bFinnhub\b/i, /\bYahoo\b/i];
+
+/** The bare words, for assembling human-readable failure messages. */
+export const PROVIDER_NAME_WORDS: readonly string[] = ["Finnhub", "Yahoo"];
