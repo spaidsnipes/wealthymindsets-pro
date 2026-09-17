@@ -62,8 +62,27 @@ function words(label: string): Set<string> {
   );
 }
 
-/** Every room that actually has equipment, so the rule follows new rooms. */
-const ROOMS_WITH_EQUIPMENT = ["/command-deck"] as const;
+/**
+ * Every room that has equipment, and the file that BUILDS that room's
+ * descriptors.
+ *
+ * This was a bare list of hrefs while `/command-deck` was the only room with
+ * equipment, and the name-agreement test below simply hardcoded the deck's
+ * page. `/charts` adopting the grammar made that hardcoding a silent hole: the
+ * new room's descriptors would never have been checked against the rail's
+ * labels, and the test would have kept passing while reporting on one room.
+ *
+ * So the room now arrives WITH its source. Adding a room to
+ * `roomEquipment.ts` and forgetting to add it here is caught by the coverage
+ * assertion in the positive control — the registry is the authority on which
+ * rooms exist, and this map has to keep up with it, not the other way round.
+ */
+const ROOM_SOURCES: Readonly<Record<string, string>> = {
+  "/command-deck": "src/app/command-deck/page.tsx",
+  "/charts": "src/components/chart/ChartsDashboard.tsx",
+};
+
+const ROOMS_WITH_EQUIPMENT = Object.keys(ROOM_SOURCES);
 
 describe("SENTINEL — equipment is not a destination", () => {
   it("the detector is not vacuous — it can see both lists", () => {
@@ -84,6 +103,36 @@ describe("SENTINEL — equipment is not a destination", () => {
     const equipment = ROOMS_WITH_EQUIPMENT.flatMap((r) => roomEquipment(r));
     expect(equipment.length, "no room has any equipment — this suite proves nothing").
       toBeGreaterThan(1);
+
+    // COVERAGE CONTROL. `ROOM_SOURCES` is hand-maintained; the registry is the
+    // authority. A room that gains equipment but never gains an entry here
+    // would be invisible to every assertion in this file, and the file would
+    // keep reporting green about the rooms it still remembers.
+    const registry = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/workspace/roomEquipment.ts"),
+      "utf8",
+    );
+    //
+    // Counted, not name-matched. A room key may be a literal (`"/command-deck"`)
+    // or a computed reference to the route's owner (`[INSTRUMENT_VIEW_ROUTE]`),
+    // and a scan that only understood literals would go quietly blind on the
+    // second form — reporting "all rooms covered" about a list it could no
+    // longer read. The count survives both spellings.
+    const body = registry.slice(registry.indexOf("EQUIPMENT_BY_ROOM"));
+    const keys = [...body.matchAll(/^\s*(?:"\/[a-z0-9-]+"|\[[A-Z0-9_]+\]):\s*\[/gm)];
+    expect(keys.length, "the registry scan found no rooms at all").toBeGreaterThan(1);
+    expect(
+      keys.length,
+      `roomEquipment.ts registers ${keys.length} rooms but this Sentinel checks ` +
+        `${ROOMS_WITH_EQUIPMENT.length} — add the new room to ROOM_SOURCES with the ` +
+        `file that builds its descriptors`,
+    ).toBe(ROOMS_WITH_EQUIPMENT.length);
+    for (const href of ROOMS_WITH_EQUIPMENT) {
+      expect(
+        roomEquipment(href).length,
+        `ROOM_SOURCES names "${href}" but the registry gives it no equipment`,
+      ).toBeGreaterThan(0);
+    }
   });
 
   it("no equipment label is a destination label", () => {
@@ -143,25 +192,76 @@ describe("SENTINEL — equipment is not a destination", () => {
   it("the ROOM the trader presses and the WIDGET that opens agree on the name", () => {
     // A rail entry called one thing that opens a panel titled another reads as
     // a different thing having loaded — the directive's "another app loaded"
-    // sensation in miniature. The deck builds the descriptor; this pins that
-    // its `title` is the registry's `label`, verbatim.
-    const deck = fs
-      .readFileSync(path.join(process.cwd(), "src/app/command-deck/page.tsx"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    // sensation in miniature. The ROOM builds the descriptor; this pins that
+    // its `title` is the registry's `label`, verbatim, in EVERY room.
+    //
+    // Two rooms now share the `market-reality` id, so this also quietly pins
+    // something the single-room version could not: both rooms must land on the
+    // same title, because both are compared against the same registry label.
+    for (const room of ROOMS_WITH_EQUIPMENT) {
+      const rel = ROOM_SOURCES[room];
+      const src = fs
+        .readFileSync(path.join(process.cwd(), rel), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-    for (const e of roomEquipment("/command-deck")) {
-      const at = deck.indexOf(`equipmentId: "${e.id}"`);
-      expect(at, `/command-deck → no descriptor for equipment "${e.id}"`).toBeGreaterThan(-1);
-      const title = /title:\s*"([^"]+)"/.exec(deck.slice(at, at + 400))?.[1];
+      for (const e of roomEquipment(room)) {
+        const at = src.indexOf(`equipmentId: "${e.id}"`);
+        expect(at, `${rel} → no descriptor for ${room} equipment "${e.id}"`).toBeGreaterThan(-1);
+        const title = /title:\s*"([^"]+)"/.exec(src.slice(at, at + 400))?.[1];
+        expect(title, `${rel} → "${e.id}" descriptor has no title to compare`).toBeDefined();
+        expect(
+          title,
+          `${room}: the rail says "${e.label}" but the widget that opens says "${title}"`,
+        ).toBe(e.label);
+      }
+    }
+  });
+
+  /**
+   * THE PLUMBING HAS EXACTLY ONE IMPLEMENTATION.
+   *
+   * The grammar's stages live in a shared reducer, so two rooms can never
+   * disagree about what DRAWER means. What they CAN disagree about is
+   * everything wrapped around it: whether the room announces its stage (the
+   * rail marks equipment open in one room and dead in the other), and whether
+   * RETURN restores `os-room.scrollTop` or `window.scrollY` (the "return to
+   * the exact room" promise silently degrades to "return to the top" on
+   * whichever room got it wrong). Both mistakes were made and measured on the
+   * deck before `useEquipmentJourney` existed.
+   *
+   * A room that re-implements the wiring inline would pass every other test in
+   * this file. So the rule is stated where it can be seen: rooms CONSUME the
+   * hook; only the hook touches the channel.
+   */
+  it("no room re-implements the journey wiring", () => {
+    const CHANNEL = [
+      "subscribeEquipment",
+      "reflectJourneyInUrl",
+      "announceEquipmentStage",
+      "pendingScrollRestore",
+      "equipmentJourneyReducer",
+    ];
+
+    for (const room of ROOMS_WITH_EQUIPMENT) {
+      const rel = ROOM_SOURCES[room];
+      const src = fs
+        .readFileSync(path.join(process.cwd(), rel), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
       expect(
-        title,
-        `/command-deck → "${e.id}" descriptor has no title to compare`,
-      ).toBeDefined();
-      expect(
-        title,
-        `the rail says "${e.label}" but the widget that opens says "${title}"`,
-      ).toBe(e.label);
+        src.includes("useEquipmentJourney("),
+        `${rel} → ${room} has equipment but never calls useEquipmentJourney`,
+      ).toBe(true);
+
+      for (const symbol of CHANNEL) {
+        expect(
+          src.includes(symbol),
+          `${rel} → ${room} reaches for "${symbol}" directly. That wiring has one ` +
+            `owner (useEquipmentJourney); a per-room copy is a second semantic brain`,
+        ).toBe(false);
+      }
     }
   });
 });

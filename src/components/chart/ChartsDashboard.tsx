@@ -103,6 +103,13 @@ import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { standingFromOneStory } from "@/components/os/standingFromOneStory";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
+// WORKSPACE — /charts is the grammar's SECOND room. The layer, the panel and the
+// journey hook are the SAME three modules /command-deck mounts; none of them is a
+// chart-room variant. See the /charts block in roomEquipment.ts for why the
+// equipment id is deliberately identical to the deck's rather than forked.
+import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
+import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
+import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -815,6 +822,68 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Scope synchronously during render. The cleanup effect below releases stale
   // state, but it cannot prevent one React paint after a symbol/owner switch.
   const currentSceneDecision = currentDecisionIdentity(sceneDecision, decisionScope);
+
+  /*
+    WORKSPACE — the equipment journey for THIS room.
+
+    Placed here and not beside `chartMarketCanvas` for one reason: the journey
+    captures a decision identity at OPEN and never recomputes it, and
+    `currentSceneDecision` is the line directly above. A journey that opened
+    before the room knew which decision it was standing in would carry `null`
+    forever and the equipment would name no object at all.
+
+    The hook is the whole room-side implementation — subscribe to the rail,
+    refuse ids this room does not have, cold-open from the URL, reflect the
+    journey back into the URL, announce the stage, restore the room's scroll on
+    RETURN. /command-deck ran ~55 inline lines of exactly this until /charts
+    made a second copy inevitable; see useEquipmentJourney's header for the two
+    ways the copies were measured to drift.
+  */
+  const {
+    journey: chartEquipment,
+    onExpand: onChartEquipmentExpand,
+    onEnter: onChartEquipmentEnter,
+    onReturn: onChartEquipmentReturn,
+    onClose: onChartEquipmentClose,
+    // The route comes from its owner, never retyped. `founderLanding.ts` is the
+    // single writer of this path and a Sentinel enforces it repo-wide — a
+    // private "/charts" here would make the room's equipment silently
+    // unreachable the day the route moves.
+  } = useEquipmentJourney(INSTRUMENT_VIEW_ROUTE, currentSceneDecision?.decisionId ?? null);
+
+  /*
+    THE ROOM'S FIRST PIECE OF EQUIPMENT — and deliberately not a new invention.
+
+    `chartMarketCanvas` is the object the CanvasSummaryPill in the wordmark row
+    already renders. The pill can only ever say the VERDICT; this is the first
+    time /charts can show the trader WHY. Building it from the same memo is what
+    keeps the pill and the equipment from ever disagreeing — a second
+    `useMarketCanvasVM` call here would be the "second semantic brain" the
+    grammar bans, just one that happened to agree most of the time.
+
+    Every field mirrors the deck's `marketRealityEquipment` because it IS the
+    same equipment, picked up in a different room. The title matches the rail's
+    label exactly; a Sentinel pins that so a trader cannot press one name and
+    land on another.
+  */
+  const chartEquipmentContent = React.useMemo(
+    () => ({
+      equipmentId: "market-reality",
+      title: "Market reality",
+      verdict: chartMarketCanvas.verdict,
+      headline: chartMarketCanvas.headline,
+      counts: [
+        { testId: "equipment-count-resolved", label: `${chartMarketCanvas.resolved.length} resolved` },
+        { testId: "equipment-count-missing", label: `${chartMarketCanvas.missing.length} missing` },
+        { testId: "equipment-count-blockers", label: `${chartMarketCanvas.blockerCount} blocking` },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <MarketCanvasPanel vm={chartMarketCanvas} unabridged={unabridged} />
+      ),
+    }),
+    [chartMarketCanvas],
+  );
+
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(
     "No decision born yet — permission has not crossed.",
   );
@@ -2521,6 +2590,33 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         symbol={symbol}
         settings={chartSettings}
         onSettingsChange={setChartSettings}
+      />
+
+      {/* ── WORKSPACE EQUIPMENT — the grammar's second ROOM ──────────────────
+          Renders NOTHING until the trader presses "Market reality" in the
+          rail's Workspace block. Fixed-position and last in the tree for the
+          same reason it is on the deck: a widget that reflows the chart it is
+          meant to sit beside has already broken the "same room" promise.
+
+          /charts is the room where the trader spends the most time and, until
+          this, the room that could hand them the least — every one of its
+          inventions was reached by opening a legacy panel and scrolling. The
+          first one to arrive as EQUIPMENT is the reading this room was already
+          holding: `chartMarketCanvas` is the exact object the wordmark pill a
+          few pixels above renders, so pressing the equipment cannot show a
+          verdict the pill disagrees with. */}
+      <RoomEquipmentLayer
+        journey={chartEquipment}
+        content={chartEquipmentContent}
+        // The room's own bindings. Resolving a symbol inside the equipment
+        // would let the full experience name a different market than the chart
+        // the trader entered from — and full is the stage that takes the chart
+        // away, so nothing would contradict it.
+        subject={{ symbol, timeframe }}
+        onExpand={onChartEquipmentExpand}
+        onEnter={onChartEquipmentEnter}
+        onReturn={onChartEquipmentReturn}
+        onClose={onChartEquipmentClose}
       />
     </div>
   );

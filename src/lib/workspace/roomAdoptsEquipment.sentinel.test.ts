@@ -20,6 +20,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+
 /** COMMENT-STRIPPED: every claim below is also discussed in prose in-file. */
 const read = (rel: string) =>
   fs
@@ -30,6 +32,61 @@ const read = (rel: string) =>
 const RAIL = "src/components/os/WMOperatingSystem.tsx";
 const DECK = "src/app/command-deck/page.tsx";
 const LAYER = "src/components/experience/RoomEquipmentLayer.tsx";
+const HOOK = "src/lib/workspace/useEquipmentJourney.ts";
+
+/**
+ * EVERY ROOM THAT HAS ADOPTED THE GRAMMAR, AND WHAT EACH ONE OWES.
+ *
+ * WHY THIS TABLE REPLACED A CONSTANT NAMED `DECK`.
+ * ------------------------------------------------
+ * Every assertion in the adoption block used to read `/command-deck`'s page,
+ * because it was the only room with equipment. Two things then happened at
+ * once: `/charts` adopted the grammar, and the fifty lines of journey wiring
+ * the deck ran inline moved into `useEquipmentJourney` so the second room
+ * could not fork them.
+ *
+ * Either change alone would have turned this block red, and the tempting fix
+ * in both cases is a deletion — drop the wiring assertions because the deck no
+ * longer contains that code, or leave them pointed at the deck and never check
+ * the new room. Both are the "green and dead" failure this file was written
+ * against. So the rules were SPLIT by owner instead:
+ *
+ *   the WIRING assertions now read the HOOK  — proven once, for every room
+ *   the ADOPTION assertions loop over ROOMS  — proven per room, every room
+ *
+ * A room that appears in `roomEquipment.ts` and not in this table is caught by
+ * the coverage control in `equipmentIsNotADestination.sentinel.test.ts`.
+ */
+const ROOMS = [
+  {
+    href: "/command-deck",
+    /** How the room spells its own href at the call site — a literal, or the
+     *  route owner's constant where one exists. /charts may not retype "/charts". */
+    hrefExpr: '"/command-deck"',
+    rel: DECK,
+    /** The prop the layer is handed — a chooser here, one descriptor on /charts. */
+    content: "equipmentContent",
+    descriptors: [
+      { memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]" },
+      { memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]" },
+    ],
+  },
+  {
+    href: INSTRUMENT_VIEW_ROUTE,
+    // NOT a literal. `founderLanding.ts` owns this path repo-wide, and the room
+    // that retyped it would drift from the registry entry the moment it moved.
+    hrefExpr: "INSTRUMENT_VIEW_ROUTE",
+    rel: "src/components/chart/ChartsDashboard.tsx",
+    content: "chartEquipmentContent",
+    descriptors: [
+      {
+        memo: "chartEquipmentContent",
+        reads: /verdict:\s*chartMarketCanvas\.verdict/,
+        deps: "[chartMarketCanvas]",
+      },
+    ],
+  },
+] as const;
 
 describe("SENTINEL — WORKSPACE sits beneath ROOMS and opens equipment, not pages", () => {
   const rail = read(RAIL);
@@ -111,21 +168,24 @@ describe("SENTINEL — WORKSPACE sits beneath ROOMS and opens equipment, not pag
   });
 });
 
-describe("SENTINEL — the market room ADOPTS the journey", () => {
-  const deck = read(DECK);
+describe("SENTINEL — the journey wiring has ONE owner", () => {
+  const hook = read(HOOK);
 
-  it("the room mounts the equipment layer and answers the rail", () => {
-    expect(deck, `${DECK} → the layer is imported but never rendered`).toMatch(
-      /<RoomEquipmentLayer[\s/>]/,
-    );
-    expect(deck, `${DECK} → nothing listens for the rail's request`).toMatch(
+  it("the wiring listens for the rail's request and answers back", () => {
+    expect(hook, `${HOOK} → nothing listens for the rail's request`).toMatch(
       /subscribeEquipment\(/,
     );
     // And answers BACK. The rail can only show what is in the trader's hand if
     // the room says what it is holding; a room that only listens leaves the
     // Workspace entry looking identical open and closed.
-    expect(deck, `${DECK} → the room never tells the rail what it is holding`).toMatch(
+    expect(hook, `${HOOK} → the room never tells the rail what it is holding`).toMatch(
       /announceEquipmentStage\(/,
+    );
+    // A room may only OPEN equipment it actually has. Without this, a stale
+    // request broadcast while the trader was mid-navigation would open, in the
+    // NEW room, a piece of equipment that room does not own.
+    expect(hook, `${HOOK} → a room would accept equipment it does not have`).toMatch(
+      /isRoomEquipment\(roomHref/,
     );
   });
 
@@ -133,26 +193,98 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     // Computed in separate effects, they drift: the address bar says `drawer`
     // while the Workspace entry says nothing is open, and the trader is looking
     // at both. Pinned to adjacency in the SAME effect body.
-    const reflect = deck.indexOf("reflectJourneyInUrl(equipment");
-    const announce = deck.indexOf("announceEquipmentStage(equipment");
-    expect(reflect, `${DECK} → the URL reflection is gone; re-pin this`).toBeGreaterThan(-1);
-    expect(announce, `${DECK} → the rail announcement is gone; re-pin this`).toBeGreaterThan(-1);
+    const reflect = hook.indexOf("reflectJourneyInUrl(journey");
+    const announce = hook.indexOf("announceEquipmentStage(journey");
+    expect(reflect, `${HOOK} → the URL reflection is gone; re-pin this`).toBeGreaterThan(-1);
+    expect(announce, `${HOOK} → the rail announcement is gone; re-pin this`).toBeGreaterThan(-1);
     expect(
       announce - reflect,
-      `${DECK} → the URL and the rail are computed apart; they will disagree`,
+      `${HOOK} → the URL and the rail are computed apart; they will disagree`,
     ).toBeLessThan(200);
     expect(announce).toBeGreaterThan(reflect);
   });
 
-  it("every stage of the journey is actually reachable from the room", () => {
+  it("every stage of the journey is actually reachable", () => {
     // A layer wired for OPEN only would render a widget that can never be
     // expanded, entered, or returned from — the grammar written down and then
     // half-built, which is the shape this file exists to catch.
     for (const action of ["OPEN", "EXPAND", "ENTER", "RETURN", "CLOSE"]) {
-      expect(deck, `${DECK} → no dispatch reaches the ${action} stage`).toMatch(
+      expect(hook, `${HOOK} → no dispatch reaches the ${action} stage`).toMatch(
         new RegExp(`type:\\s*"${action}"`),
       );
     }
+  });
+
+  it("ENTER measures the ROOM's scroll, not the window's", () => {
+    // The room scrolls in this OS; the document does not. `window.scrollY` is
+    // permanently 0 here, so a RETURN built on it would pass every unit test
+    // and always drop the trader at the top — losing their place while
+    // reporting success.
+    //
+    // Scoped to the reader ENTER calls, not to the whole file: the fallback for
+    // surfaces genuinely outside the OS frame legitimately mentions `window`,
+    // and a file-wide ban would have to be softened rather than re-pinned.
+    const at = hook.indexOf("export function readRoomScroll");
+    expect(at, `${HOOK} → readRoomScroll is gone; re-pin this`).toBeGreaterThan(-1);
+    const body = hook.slice(at, hook.indexOf("\n}", at));
+    expect(body, `${HOOK} → ENTER must record the room's own offset FIRST`).toMatch(
+      /room\.scrollTop[\s\S]*window\.scrollY/,
+    );
+    expect(hook, `${HOOK} → the room scroller must be found by its OS testid`).toMatch(
+      /data-testid="os-room"/,
+    );
+  });
+
+  it("the offset is restored when the full experience is left", () => {
+    expect(hook, `${HOOK} → RETURN promises a place and nothing keeps it`).toMatch(
+      /pendingScrollRestore\(/,
+    );
+  });
+
+  it("the journey never becomes a route", () => {
+    // reflectJourneyInUrl uses replaceState on the SAME pathname. A router
+    // push, or an /equipment/... route, is the banned shape.
+    expect(hook, `${HOOK} → the journey must stay in this room`).toMatch(/reflectJourneyInUrl\(/);
+    expect(hook, `${HOOK} → a push would make Back walk the stages`).not.toMatch(
+      /router\.push\([^)]*equip/,
+    );
+  });
+
+  it("the wiring compiles nothing — a room hands its own readings down", () => {
+    // The hook is now the one place every room's journey passes through, which
+    // makes it the most expensive possible location for a second brain: a
+    // `useMarketCanvasVM` here would silently become every room's second
+    // opinion at once.
+    expect(hook, `${HOOK} → the wiring must never compile a reading`).not.toMatch(
+      /\b(compose|select|use)[A-Z]\w*VM\(/,
+    );
+    expect(hook, `${HOOK} → fetching here would be every room's second brain`).not.toMatch(
+      /useSyncExternalStore|useSWR|fetch\(/,
+    );
+  });
+});
+
+describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
+  const rel = room.rel;
+  const src = read(rel);
+  // The room's source and its path, under the names the assertions below have
+  // used since this file only knew about one room. Kept so the re-pin is a
+  // change of SCOPE, not a rewrite of every message the Sentinel can print.
+  const deck = src;
+  const DECK = rel;
+
+  it("the room mounts the equipment layer and consumes the shared wiring", () => {
+    expect(src, `${rel} → the layer is imported but never rendered`).toMatch(
+      /<RoomEquipmentLayer[\s/>]/,
+    );
+    // The room names ITSELF to the hook. A room that passed another room's href
+    // would accept that room's equipment ids and refuse its own.
+    expect(
+      src,
+      `${rel} → ${room.href} does not consume useEquipmentJourney under its own href`,
+    ).toMatch(
+      new RegExp(`useEquipmentJourney\\(\\s*${room.hrefExpr}`),
+    );
   });
 
   it("the layer is handed the ROOM'S OWN compilation — not a second one", () => {
@@ -175,27 +307,27 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     // guards is not "the first equipment forked a second brain" — it is any of
     // them doing it.
     expect(props, `${DECK} → the equipment must be handed a descriptor`).toMatch(
-      /content=\{equipmentContent\}/,
+      new RegExp(`content=\\{${room.content}\\}`),
     );
-    const chooser = deck.indexOf("const equipmentContent");
-    expect(chooser, `${DECK} → the room no longer chooses which equipment it handed`).toBeGreaterThan(
-      -1,
-    );
+    const chooser = deck.indexOf(`const ${room.content}`);
+    expect(chooser, `${DECK} → the room no longer builds ${room.content}`).toBeGreaterThan(-1);
     const choice = deck.slice(chooser, chooser + 400);
-    expect(choice, `${DECK} → the choice must be keyed by the id the RAIL asked for`).toMatch(
-      /equipment\.equipmentId/,
-    );
+    // A room with more than one tenant must SELECT by the id the rail asked
+    // for. A room with exactly one has nothing to select between, and demanding
+    // a chooser there would be demanding dead code — so the rule follows the
+    // room's actual tenancy instead of being stated once and worked around.
+    if (room.descriptors.length > 1) {
+      expect(choice, `${DECK} → the choice must be keyed by the id the RAIL asked for`).toMatch(
+        /equipment\.equipmentId/,
+      );
+    }
 
-    // Every descriptor, not just the first. `DESCRIPTORS` names the memo and
+    // Every descriptor, not just the first. `descriptors` names the memo and
     // the room binding it is required to read; a new equipment whose memo is
     // absent from this list still cannot escape, because the chooser above
     // must map an id to a descriptor and a descriptor that compiles is caught
     // by the scan below.
-    const DESCRIPTORS = [
-      { memo: "marketRealityEquipment", reads: /verdict:\s*marketCanvas\.verdict/, deps: "[marketCanvas]" },
-      { memo: "passportEquipment", reads: /vm=\{passport\}/, deps: "[passport]" },
-    ] as const;
-    for (const d of DESCRIPTORS) {
+    for (const d of room.descriptors) {
       const at = deck.indexOf(`const ${d.memo}`);
       expect(at, `${DECK} → the room no longer builds ${d.memo}`).toBeGreaterThan(-1);
       expect(choice, `${DECK} → ${d.memo} is built but never handed to anything`).toContain(d.memo);
@@ -216,32 +348,17 @@ describe("SENTINEL — the market room ADOPTS the journey", () => {
     );
   });
 
-  it("ENTER measures the ROOM's scroll, not the window's", () => {
-    // The room scrolls in this OS; the document does not. `window.scrollY` is
-    // permanently 0 here, so a RETURN built on it would pass every unit test
-    // and always drop the trader at the top — losing their place while
-    // reporting success.
-    const enter = deck.slice(deck.indexOf('type: "ENTER"'), deck.indexOf('type: "ENTER"') + 220);
-    expect(enter, `${DECK} → window.scrollY is always 0 in this frame`).not.toMatch(
-      /window\.scrollY/,
-    );
-    expect(enter, `${DECK} → ENTER must record the room's own offset`).toMatch(/scrollTop/);
-  });
+  /*
+    THE SCROLL / URL / ROUTE RULES MOVED UP, THEY DID NOT GO AWAY.
 
-  it("the room restores that offset when the full experience is left", () => {
-    expect(deck, `${DECK} → RETURN promises a place and nothing keeps it`).toMatch(
-      /pendingScrollRestore\(/,
-    );
-  });
-
-  it("the journey never becomes a route", () => {
-    // reflectJourneyInUrl uses replaceState on the SAME pathname. A router
-    // push, or an /equipment/... route, is the banned shape.
-    expect(deck, `${DECK} → the journey must stay in this room`).toMatch(/reflectJourneyInUrl\(/);
-    expect(deck, `${DECK} → a push would make Back walk the stages`).not.toMatch(
-      /router\.push\([^)]*equip/,
-    );
-  });
+    "ENTER measures the ROOM's scroll", "the offset is restored on RETURN" and
+    "the journey never becomes a route" used to be asserted here, against the
+    deck's inline wiring. That wiring now has exactly one implementation, so
+    asserting it once in the hook block above proves it for EVERY room — and
+    the "no room re-implements the journey wiring" gate in
+    equipmentIsNotADestination.sentinel.test.ts is what stops a room from
+    growing a private copy that these rules would no longer be looking at.
+  */
 
   it("the ROOM is what decides the canvas gets uncapped at depth", () => {
     // The other half of the layer's re-pinning. When the chrome stopped

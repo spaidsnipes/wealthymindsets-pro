@@ -22,6 +22,15 @@
  * before (see the note on OS_ROOMS in WMOperatingSystem).
  */
 
+/**
+ * The chart room's path comes from its OWNER, not from a string typed here.
+ * `founderLanding.ts` is the single writer of that route, and a repo-wide
+ * Sentinel enforces it — a private copy of "/charts" in this file would keep
+ * compiling and keep passing on the day the route moved, while quietly
+ * unregistering the room's entire Workspace.
+ */
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+
 export interface RoomEquipment {
   /** Stable id. Appears in the URL, so it is part of the product's contract. */
   readonly id: string;
@@ -78,6 +87,38 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "market-object-passport",
       label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
+    },
+  ],
+
+  /**
+   * THE GRAMMAR'S SECOND ROOM — and the first evidence it is a grammar at all.
+   *
+   * Two tenants proved the equipment LAYER was not the market canvas's private
+   * chrome. Both of them still lived in one room, so what remained unproven was
+   * the other half: that a ROOM can adopt the grammar without the grammar being
+   * rebuilt for it. /charts adopting `market-reality` costs one entry here and
+   * one descriptor in the dashboard, and nothing else — no route, no second
+   * compiler, no per-room copy of the journey wiring (see useEquipmentJourney).
+   *
+   * WHY THIS ID AND NOT A NEW INVENTION. /charts already reads
+   * `useMarketCanvasVM` for the summary pill in its wordmark row — the SAME
+   * compilation the deck's first tenant renders, off the same canonical
+   * identity. The pill can only ever say the verdict; pressing it is the first
+   * time the room can show the trader WHY. That is equipment appearing where
+   * the reading already was, which is the opposite of the "one route per
+   * invention" this file's header was written against.
+   *
+   * The id is deliberately IDENTICAL to the deck's. Equipment is named by what
+   * it IS, not by where it was picked up; forking `charts-market-reality` would
+   * be two names for one compilation, and the rail would then be telling the
+   * trader that the chart room's market reality is a different object from the
+   * deck's. It is not.
+   */
+  [INSTRUMENT_VIEW_ROUTE]: [
+    {
+      id: "market-reality",
+      label: "Market reality",
+      hint: "What is resolved, what is missing, what blocks entry",
     },
   ],
 };

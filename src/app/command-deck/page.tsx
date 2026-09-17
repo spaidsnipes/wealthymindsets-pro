@@ -125,13 +125,7 @@ import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeB
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
-import {
-  EQUIPMENT_CLOSED,
-  equipmentJourneyReducer,
-  pendingScrollRestore,
-} from "@/lib/workspace/equipmentJourney";
-import { announceEquipmentStage, readJourneyFromUrl, reflectJourneyInUrl, subscribeEquipment } from "@/lib/workspace/equipmentChannel";
-import { isRoomEquipment } from "@/lib/workspace/roomEquipment";
+import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -555,60 +549,20 @@ function CommandDeckInner() {
         the room is still /command-deck. No route per invention.
       · ENTER records the scroll offset and RETURN restores it, so "return to
         the exact room" is a measured promise rather than a hopeful one.
+
+    All fifty-odd lines of that wiring used to sit right here. They now live in
+    `useEquipmentJourney`, because /charts became the grammar's second ROOM and
+    a per-room copy of this plumbing is a second semantic brain wearing a
+    quieter disguise — see that hook's header for the two specific ways the
+    copies drift.
   */
-  const [equipment, dispatchEquipment] = React.useReducer(
-    equipmentJourneyReducer,
-    EQUIPMENT_CLOSED,
-  );
-  const equipmentDecisionId = currentSceneDecision?.decisionId ?? null;
-
-  React.useEffect(() => {
-    return subscribeEquipment((req) => {
-      if (!isRoomEquipment("/command-deck", req.equipmentId)) return;
-      dispatchEquipment({
-        type: "OPEN",
-        equipmentId: req.equipmentId,
-        decisionId: equipmentDecisionId,
-      });
-    });
-  }, [equipmentDecisionId]);
-
-  // A shared link opens where it says it does. `full` is deliberately not
-  // cold-openable — see readJourneyFromUrl.
-  React.useEffect(() => {
-    const fromUrl = readJourneyFromUrl(window.location.search);
-    if (!isRoomEquipment("/command-deck", fromUrl.equipmentId) || !fromUrl.equipmentId) return;
-    dispatchEquipment({
-      type: "OPEN",
-      equipmentId: fromUrl.equipmentId,
-      decisionId: equipmentDecisionId,
-    });
-    if (fromUrl.stage === "drawer") dispatchEquipment({ type: "EXPAND" });
-    // Mount only: re-running this on every decision id would drag the trader
-    // back to the threshold every time the market compiled a new decision.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const priorEquipment = React.useRef(equipment);
-  React.useEffect(() => {
-    reflectJourneyInUrl(equipment.equipmentId, equipment.stage);
-    // Tell the rail what is in the trader's hand. Same effect as the URL
-    // reflection deliberately: the address bar and the Workspace entry are two
-    // readings of ONE fact, and computing them in separate places is how they
-    // come to disagree about whether the drawer is open.
-    announceEquipmentStage(equipment.equipmentId, equipment.stage);
-    const owed = pendingScrollRestore(priorEquipment.current, equipment);
-    priorEquipment.current = equipment;
-    // The room is what scrolls in this OS, not the document — see the note on
-    // `os-room` in WMOperatingSystem. Restoring `window` here would silently
-    // do nothing and the trader would land at the top of the room, which is
-    // the "lost my place" failure wearing a passing test.
-    if (owed !== null) {
-      const room = document.querySelector('[data-testid="os-room"]');
-      if (room) room.scrollTop = owed;
-      else window.scrollTo({ top: owed });
-    }
-  }, [equipment]);
+  const {
+    journey: equipment,
+    onExpand: onEquipmentExpand,
+    onEnter: onEquipmentEnter,
+    onReturn: onEquipmentReturn,
+    onClose: onEquipmentClose,
+  } = useEquipmentJourney("/command-deck", currentSceneDecision?.decisionId ?? null);
 
   const permissionVerdict = permission?.verdict ?? "UNKNOWN";
   const priorPermission = React.useRef<typeof permissionVerdict | null>(null);
@@ -2578,15 +2532,10 @@ function CommandDeckInner() {
       // own, or the full experience could name a different market than the
       // chart the trader entered from.
       subject={{ symbol, timeframe }}
-      onExpand={() => dispatchEquipment({ type: "EXPAND" })}
-      onEnter={() =>
-        dispatchEquipment({
-          type: "ENTER",
-          scrollY: document.querySelector('[data-testid="os-room"]')?.scrollTop ?? 0,
-        })
-      }
-      onReturn={() => dispatchEquipment({ type: "RETURN" })}
-      onClose={() => dispatchEquipment({ type: "CLOSE" })}
+      onExpand={onEquipmentExpand}
+      onEnter={onEquipmentEnter}
+      onReturn={onEquipmentReturn}
+      onClose={onEquipmentClose}
     />
     </SanctuarySessionProvider>
   );
