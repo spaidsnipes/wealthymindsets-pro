@@ -86,15 +86,25 @@ profile measured but not decision-grade." **1 + 3 + 4 = 8.**
 
 Three counts by membership, summing to the total. No subtraction.
 
-**`52bb844c` — THE DEFECT CAPTURED LIVE, PRE-DEPLOY.** Workspace → Market
-reality preview on the same frame:
+**`52bb844c` — CAPTURED LIVE PRE-DEPLOY, THEN PROVEN POST-DEPLOY.** The defect
+frame, Workspace → Market reality preview:
 
     1 resolved · 4 missing · 8 blocking
 
 Five of eight. `location`, `aggression`, `profile` absent from the rail entirely
-while the passport one press away listed three of them as FORMING. The fix is in
-HEAD and pushed; the deployed build sits between `1387e70e` and `52bb844c`.
-**Re-probe after deploy.**
+while the passport one press away listed three of them as FORMING.
+
+Re-probed after deploy on the same route, same instrument:
+
+    1 resolved · 3 measured · 4 missing · 8 blocking
+
+**1 + 3 + 4 = 8.** All three buckets present, by membership. **PROVEN.**
+
+**`66e3f9e0` RE-PROVEN in the same frame.** The `/charts` header pill:
+
+    WAIT · 4 unresolved · 3 measured · 8 blockers · 1 cleared
+
+The middle bucket has its own count on the primary trading surface.
 
 ## THE EQUIPMENT IS CONNECTED — an honest negative, resolved
 
@@ -130,14 +140,95 @@ Mutation receipt on each: mutated the guarded token, confirmed RED **by test
 name**, restored, confirmed green. A guard that has never been seen to fail is
 not a guard.
 
+## TWO MORE COMMITS, SAME FAMILY
+
+    317c67d8  fix(order-flow): the NO TAPE sentence answers wait-or-stop from the facts in hand
+    dcecc624  fix(canvas-pill): the blocker count gets the door this room actually has
+
+### `317c67d8` — A GENERAL RULE IS NOT AN ANSWER WHEN YOU HOLD THE PARTICULAR FACT
+
+FOUND FROM USE, production `/charts?symbol=TSLA`. Workspace → Order flow read
+
+    "Crypto streams it around the clock; stocks stream it during market hours"
+
+over a TSLA chart, on a feed the OS chrome badged ACTIVE in the same frame. Half
+the sentence was about an instrument the trader was not looking at; the other
+half handed back a rule and left them to work out which side of it they were on.
+
+Same family as the three-bucket defect: **a surface doing work in the reader's
+head that the code could have done in its own.** The room already holds the
+SYMBOL and a PROVEN session closure, so the sentence is compiled from them:
+
+    crypto, no tape          → the clock is not the reason. STOP LOOKING.
+    non-crypto, proven shut  → the clock IS the reason. WAIT, and say for what.
+    non-crypto, not proven   → name the rule, but only the half about THIS
+                               instrument.
+
+`provenSessionClosure` is one-sided by design — `false` only where closure is
+PROVEN, `null` everywhere else, never `true`. So the settle can only sharpen a
+vague answer, never introduce a wrong one.
+
+**PROVEN LIVE**, same route, post-deploy:
+
+    "No per-trade buy/sell tape for TSLA yet. Stock tape streams during market hours."
+
+No crypto clause. Names the instrument on the screen.
+
+### `dcecc624` — A DESTINATION THAT IS NOT ON THE PAGE IS STILL A DESTINATION
+
+`edde7236` (above) correctly stopped the pill saying "open the canvas" on a page
+with no canvas — and left a count of 8 blockers with nowhere to go. That was
+recorded as OPEN in this baton's own list.
+
+`scrollToSelector` can only point at something ALREADY RENDERED, which is the
+wrong shape for the instrument room: Market Reality there is **press-gated
+equipment**, genuinely absent until requested on the equipment channel.
+
+The pill now takes `openEquipment={{ roomHref, id }}`. **THE ROOM IS PART OF THE
+ADDRESS** — the label is looked up in the canonical registry, never typed at the
+call site, so an id this href does not list yields *no button at all*. The
+refusal `edde7236` shipped is now ENFORCED rather than remembered, and the pill
+cannot drift into calling one destination by a second name.
+
+`canvasDisclosureTruth`'s openHint case RE-STATED: it pinned the exact spelling
+`scrollToSelector ? "…" : ""`, welding the INTENT (only point somewhere
+reachable) to ONE KIND of destination — and made the equipment door unreachable
+BY CONSTRUCTION. **A test that pins a spelling does not defend a rule; it
+freezes one implementation of it.**
+
+Gates: `VITEST EXIT=0` 764 files 9544 passed | 2 skipped · `TSC EXIT=0`.
+Mutation receipt: door lookup `.find(e => e.id === …)` → `.find(() => true)`,
+RED **by name** on *"REFUSES a door this room does not have"*, restored, green.
+
+## ALL FIVE BURIED ORDER-FLOW INVENTIONS — READ AT FULL DEPTH, LIVE
+
+`?equip=order-flow&stage=full` on production TSLA. Each renders AND discloses its
+own limit rather than printing an absence as a finding:
+
+    STACKED IMBALANCE   "aggressor side on this tape is undisclosed — so these
+                         levels are downstream of a guess, not of a venue stamp"
+    ABSORPTION ANATOMY  "Aggressor side: not disclosed by the feed. Every number
+                         above rests on sides this tape never stated."
+    DELTA DIVERGENCE    "Two paths are needed to compare, and this window has not
+                         produced one yet."
+    LIQUIDITY WEATHER   "Measured from executed prints only … No order book is in
+                         evidence here."
+    WM VALUE CANDLE     "A Center of Gravity needs prints that carry both a price
+                         and a size; none have been observed in this window."
+
+PRESENT · REACHABLE · FED · OBSERVABLE, and honest about what it could not read.
+
 ## OPEN, HONEST
 
 - `selectMarketStory.ts:441` still hand-writes `!== "RESOLVED"` for the union
   before splitting by `dimensionStanding`. Could route through the partition.
 - `selectCLC.ts:66,82` — `contextPartial` / `locationPartial` use `!== "UNKNOWN"`
   as "some evidence exists". NOT audited; may be legitimate.
-- `/charts` passes the pill no `scrollToSelector`, so the W14 jump-to-canvas
-  button never renders on the primary trading surface. Honest post-`edde7236`,
-  but the trader still has nowhere to go.
+- ~~`/charts` passes the pill no `scrollToSelector` … the trader still has
+  nowhere to go.~~ **CLOSED by `dcecc624`** — the door was never a scroll target;
+  it is press-gated equipment.
+- `dcecc624` is pushed but not yet observed live. The pill on the deployed build
+  is still a `<div role="status">`. **Re-probe for `<button
+  data-equipment-open="market-reality">` after deploy.**
 - `wm-canvas-summary-detail { display: none !important }` on phones is
   DELIBERATE semantic zoom with a locking test. Not a defect. Left alone.
