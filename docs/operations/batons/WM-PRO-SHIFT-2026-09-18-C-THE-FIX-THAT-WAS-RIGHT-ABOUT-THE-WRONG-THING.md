@@ -115,8 +115,12 @@ plausible diagnosis was wrong is worth more than a clean file.**
 
 - whether `evidenceless` is set *honestly* at every producing branch; the field
   is only as good as the branch that sets it, and nothing here audits that;
-- the second `ProviderWireStrip` consumer, `BrokerConnectPanel.tsx:1233`, still
+- ~~the second `ProviderWireStrip` consumer, `BrokerConnectPanel.tsx:1233`, still
   renders with **no witness** — not a defect (it renders no tape) but not proven
-  either;
+  either;~~ **FALSE. CORRECTED THE SAME DAY — see baton 2026-09-18-D.** The panel
+  renders `receipt.newestPrice.toFixed(2)` at line 648. A rendered price is tape.
+  The parenthetical was written from a case-SENSITIVE grep that returned 0, and
+  it is the exact failure this same baton records for `09732ba5`: a plausible
+  premise confirmed instead of tested. Repaired in `e4a53e29`.
 - `/charts` also renders tape beside a wire claim and was not re-examined under
   the corrected rule.
