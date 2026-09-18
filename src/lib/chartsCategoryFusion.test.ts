@@ -57,6 +57,7 @@ describe("charts category scene fusion", () => {
   it("preserves Chart, Options, and every applicable secondary destination", () => {
     expect(categoryTabsFor("equity")).toEqual([
       "Chart",
+      "Absorption",
       "Options",
       "ETFs",
       "Financials",

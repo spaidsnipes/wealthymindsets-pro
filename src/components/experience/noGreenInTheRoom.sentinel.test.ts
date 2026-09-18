@@ -107,6 +107,15 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "AbsorptionAnatomyPanel.tsx": {
     "#00d4aa": "WM brand teal, used as a section accent. Names no condition and grades nothing.",
   },
+  "AbsorptionAnatomyView.tsx": {
+    "#00d4aa":
+      "BUY side of a directional volume split — buyer-initiated volume and a "
+      + "positive aggression delta, paired with a SELL red. It encodes WHO WAS "
+      + "THE AGGRESSOR, the same statement a candle's up colour makes, and it "
+      + "grades nothing. The criterion ticks and the STRENGTH word in this file "
+      + "deliberately do NOT use it: those are conditions-met claims, and §9 "
+      + "says the shield does not exist.",
+  },
   "DeltaDivergencePanel.tsx": {
     "#00d4aa": "WM brand teal, used as a section accent. Names no condition and grades nothing.",
   },

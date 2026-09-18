@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { categoryTabsFor, effectiveCategoryTab, ALL_CATEGORY_TABS } from "./categoryTabsFor";
 
+/**
+ * ABSORPTION joins every arm deliberately, including the three classes that
+ * carry almost no reference data. It is a microstructure view, and on a symbol
+ * whose feed states no aggressor side it renders honestly empty and says so —
+ * hiding it there would make the missing input invisible, which is the exact
+ * opposite of what the drawer's missing-aggressor banner exists to do.
+ */
 describe("categoryTabsFor — asset-class-aware category strip", () => {
   it("equity gets the full 8-tab set (baseline)", () => {
     expect(categoryTabsFor("equity")).toEqual(ALL_CATEGORY_TABS);
@@ -17,14 +24,14 @@ describe("categoryTabsFor — asset-class-aware category strip", () => {
 
   it("options contract shows Chart + Profile only — no Financials on a derivative", () => {
     const tabs = categoryTabsFor("options");
-    expect(tabs).toEqual(["Chart", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Profile"]);
     expect(tabs).not.toContain("Options"); // viewing an option; no self-reference
     expect(tabs).not.toContain("Financials");
   });
 
   it("crypto drops corporate + shareholder tabs", () => {
     const tabs = categoryTabsFor("crypto");
-    expect(tabs).toEqual(["Chart", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Profile"]);
     expect(tabs).not.toContain("Corporate Actions");
     expect(tabs).not.toContain("Shareholders");
     expect(tabs).not.toContain("Financials");
@@ -33,12 +40,12 @@ describe("categoryTabsFor — asset-class-aware category strip", () => {
 
   it("futures drops corporate + shareholder tabs", () => {
     const tabs = categoryTabsFor("futures");
-    expect(tabs).toEqual(["Chart", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Profile"]);
   });
 
   it("forex drops corporate + shareholder tabs", () => {
     const tabs = categoryTabsFor("forex");
-    expect(tabs).toEqual(["Chart", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Profile"]);
   });
 
   it("Chart is ALWAYS present — every asset class needs the primary surface", () => {

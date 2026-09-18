@@ -160,6 +160,9 @@ import {
 } from "@/lib/expressionShortlist";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
+import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
+import { selectAbsorptionAnatomyView } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
+import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -719,6 +722,31 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // timeframe change, so symbol A's close can never be attributed to B.
     bars: chartBars,
   });
+
+  // ── Asset 06 · ABSORPTION ANATOMY ────────────────────────────────────
+  //
+  // The SAME `chartBars` the chart drew. Not a second fetch, not a second
+  // window: a view that measured a different set of candles than the ones on
+  // screen would be a second owner of "what happened in this window", which is
+  // the drift class this room has already been repaired for twice.
+  //
+  // askVol / bidVol are deliberately absent here. `OHLCVBar` carries no
+  // aggressor split, so the selector resolves the window's basis to VOLUME and
+  // the view says so in its own header. Synthesizing a split from candle
+  // direction would make the picture match the mockup and the reading a lie.
+  const absorptionAnatomyVM = React.useMemo(() => {
+    const input: AnatomyBarInput[] = chartBars.map(b => ({
+      time: typeof b.time === "number" ? b.time : Number(b.time),
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      volume: Number.isFinite(b.volume) ? b.volume : null,
+      askVol: null,
+      bidVol: null,
+    }));
+    return selectAbsorptionAnatomyView(input, { windowBars: 30 });
+  }, [chartBars]);
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
   // reader. Same canonicalIdentity the publisher writes → same compiler
@@ -2470,7 +2498,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               Changing symbol views must not make MARKET controls or evidence
               escape into a full-room chrome layer. */}
             {/* ── Non-Chart tab panels ──────────────────────────── */}
-            {activeTab !== "Chart" && activeTab !== "Options" && (
+            {/* Asset 06 — ABSORPTION ANATOMY, as a full view.
+                It is a sibling of Chart, not a fundamentals tab, so it is
+                excluded from FundamentalsTabPanel's arm below rather than
+                falling into it and rendering an empty reference surface. */}
+            {activeTab === "Absorption" && (
+              <div role="tabpanel" id="wm-chart-category-panel-absorption" aria-label={`Absorption anatomy for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <AbsorptionAnatomyView vm={absorptionAnatomyVM} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

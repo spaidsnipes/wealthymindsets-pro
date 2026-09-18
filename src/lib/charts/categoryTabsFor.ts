@@ -20,8 +20,19 @@
 
 import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
 
+/**
+ * ABSORPTION belongs to EVERY class, deliberately.
+ *
+ * It is a microstructure view, and the Founder's Asset 06 is a full surface,
+ * not a drawer tile. On a symbol whose feed carries no aggressor side it
+ * renders honestly empty rather than being hidden — hiding it would make the
+ * missing input invisible, which is the opposite of what the drawer's own
+ * missing-aggressor banner exists to do. So it is never filtered out by class,
+ * only by whether the tape actually supports a reading, and the view says which.
+ */
 export const ALL_CATEGORY_TABS = [
   "Chart",
+  "Absorption",
   "Options",
   "ETFs",
   "Financials",
@@ -41,25 +52,25 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
       // ETFs have Financials + Valuation + Profile + Shareholders
       // (holdings). No Corporate Actions, no separate ETFs tab
       // (redundant when the symbol IS an ETF).
-      return ["Chart", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
+      return ["Chart", "Absorption", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
     case "options":
       // Viewing an options contract already IS the options view;
       // Financials/Valuation belong to the underlying, not the
       // derivative. Keep Chart + Profile only.
-      return ["Chart", "Profile"] as const;
+      return ["Chart", "Absorption", "Profile"] as const;
     case "crypto":
     case "futures":
     case "forex":
       // No corporate structure, no shareholders, no ETF wrapper.
       // Chart is the whole thing; Profile carries what little
       // reference data exists (name / venue / contract spec).
-      return ["Chart", "Profile"] as const;
+      return ["Chart", "Absorption", "Profile"] as const;
     default: {
       // Exhaustiveness guard — if CanonicalAssetClass grows, this
       // narrows to `never` and TS errors at build time.
       const _never: never = cls;
       void _never;
-      return ["Chart", "Profile"] as const;
+      return ["Chart", "Absorption", "Profile"] as const;
     }
   }
 }
