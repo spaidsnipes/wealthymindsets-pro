@@ -1013,7 +1013,15 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           selectValueCandle over the SAME real per-trade prints — never a
           synthesised profile, and `null` (not zero) when nothing traded. */}
       <div className="mx-2 my-1.5 shrink-0">
-        <ValueCandlePanel vm={valueCandle} symbol={symbol} window="session tape" />
+        <ValueCandlePanel
+          vm={valueCandle}
+          symbol={symbol}
+          window="session tape"
+          /* The banner above already named this reading as blocked. Passing
+             the banner's PRESENCE — not a re-derived boolean — keeps the
+             deferral and the declaration impossible to get out of step. */
+          absenceDeclaredAbove={missingTape !== null}
+        />
       </div>
 
       {/* ── ABSORPTION ANATOMY — effort against response ─────────────────────
@@ -1034,7 +1042,12 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           one, and it is the only panel here whose answer would change if the
           prints arrived in a different order. */}
       <div className="mx-2 my-1.5 shrink-0">
-        <DeltaDivergencePanel vm={deltaDivergence} symbol={symbol} window="session tape" />
+        <DeltaDivergencePanel
+          vm={deltaDivergence}
+          symbol={symbol}
+          window="session tape"
+          absenceDeclaredAbove={missingTape !== null}
+        />
       </div>
 
       {/* ── LIQUIDITY WEATHER — what it is costing to move this market ───────

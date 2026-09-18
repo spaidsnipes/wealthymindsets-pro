@@ -58,6 +58,17 @@ export interface DeltaDivergencePanelProps {
   readonly vm: DeltaDivergenceVM;
   readonly symbol?: string;
   readonly window?: string;
+  /**
+   * Set by a SURFACE that has already declared the missing input above this
+   * panel and listed this reading among the ones it blocks. See the same prop
+   * on ValueCandlePanel for the measured failure this closes; in short, the
+   * Smart Money drawer now names the absent feed ONCE and this panel was
+   * still printing its own paragraph about the same absence underneath it.
+   *
+   * Default keeps the full sentence, because standing alone — with no banner
+   * over it — this panel must still say what is missing.
+   */
+  readonly absenceDeclaredAbove?: boolean;
 }
 
 const VERDICT_TONE: Record<DivergenceVerdict, string> = {
@@ -99,6 +110,7 @@ export function DeltaDivergencePanel({
   vm,
   symbol,
   window: windowLabel,
+  absenceDeclaredAbove = false,
 }: DeltaDivergencePanelProps): React.ReactElement {
   const header = (
     <div
@@ -143,8 +155,9 @@ export function DeltaDivergencePanel({
   if (vm.segments.length === 0) {
     return shell(
       <div style={{ fontSize: 12, color: MUTED, fontStyle: "italic", lineHeight: 1.5 }}>
-        {vm.detail}. Two paths are needed to compare, and this window has not
-        produced one yet.
+        {absenceDeclaredAbove
+          ? "Blocked by the missing input named at the top of this drawer."
+          : `${vm.detail}. Two paths are needed to compare, and this window has not produced one yet.`}
       </div>,
     );
   }

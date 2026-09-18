@@ -54,6 +54,25 @@ export interface ValueCandlePanelProps {
   readonly symbol?: string;
   /** What window these prints came from, e.g. "session tape". */
   readonly window?: string;
+  /**
+   * Set by a SURFACE that has already declared the missing input above this
+   * panel and listed this reading among the ones it blocks.
+   *
+   * Observed live 2026-09-17: the Smart Money drawer grew a MISSING INPUT
+   * banner naming the absent feed once and listing the five readings that
+   * depend on it — and this panel went on printing its own paragraph about
+   * the same absence directly underneath, so the trader still read the bad
+   * news twice. The paragraph is not wrong; it is redundant IN THAT CONTEXT
+   * and nowhere else.
+   *
+   * So this is a prop and not a rewrite. Standing alone — on any surface with
+   * no banner over it — the panel must still say what is missing in full, and
+   * the default keeps that. It only shortens when a caller takes ownership of
+   * the statement, which is the same discipline as `selectMissingTapeBanner`
+   * passing the sentence through verbatim: one fact, one voice, and the voice
+   * is whichever one is closest to the whole picture.
+   */
+  readonly absenceDeclaredAbove?: boolean;
 }
 
 function Reading({
@@ -86,6 +105,7 @@ export function ValueCandlePanel({
   vm,
   symbol,
   window: windowLabel,
+  absenceDeclaredAbove = false,
 }: ValueCandlePanelProps): React.ReactElement {
   const header = (
     <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
@@ -113,8 +133,9 @@ export function ValueCandlePanel({
       >
         {header}
         <div style={{ fontSize: 12, color: MUTED, fontStyle: "italic", lineHeight: 1.5 }}>
-          {vm.migrationDetail}. A Center of Gravity needs prints that carry both a
-          price and a size; none have been observed in this window.
+          {absenceDeclaredAbove
+            ? "Blocked by the missing input named at the top of this drawer."
+            : `${vm.migrationDetail}. A Center of Gravity needs prints that carry both a price and a size; none have been observed in this window.`}
         </div>
       </section>
     );

@@ -112,6 +112,41 @@ describe("the panel reads the reason instead of retyping the facts", () => {
     expect(panel).not.toContain("aggressorTapeReason(");
   });
 
+  it("the two panels that own their own absence prose defer to the banner", () => {
+    // 2026-09-17, observed live on prod /charts with the banner SHIPPED: the
+    // banner correctly named the missing input once and listed five blocked
+    // readings — and two of those five went on printing their own paragraph
+    // about the same absence a few hundred pixels below it. Three voices had
+    // been removed and two were still talking.
+    //
+    // The panels are reusable and their standalone paragraphs are correct, so
+    // the fix is a prop the SURFACE sets, not a rewrite. That makes this a
+    // wiring fact, and wiring is what can silently come undone — hence a
+    // Sentinel rather than trust.
+    const panel = stripComments(fs.readFileSync(PANEL, "utf8"));
+    const calls = panel.match(/absenceDeclaredAbove=\{missingTape !== null\}/g) ?? [];
+    expect(calls.length, "both blocked panels must be told the absence is declared").toBe(2);
+
+    // And each panel must actually BRANCH on it. A prop that is accepted and
+    // ignored would pass the assertion above while changing nothing on screen,
+    // which is the most expensive kind of green test.
+    for (const file of ["ValueCandlePanel.tsx", "DeltaDivergencePanel.tsx"]) {
+      const src = stripComments(
+        fs.readFileSync(path.resolve(__dirname, "..", "..", "components/experience", file), "utf8"),
+      );
+      expect(src, `${file} must read the flag`).toContain("absenceDeclaredAbove");
+      // The pattern must include the DEFERRAL TEXT, not just a `?`. An earlier
+      // version of this assertion matched `absenceDeclaredAbove\s*\?` and was
+      // satisfied by the OPTIONAL-PROPERTY question mark in the interface
+      // (`readonly absenceDeclaredAbove?: boolean`), so it stayed green when
+      // the branch was mutated away. Verified by mutation: replacing the
+      // condition with `false` now fails this test.
+      expect(src, `${file} must branch on it`).toMatch(
+        /absenceDeclaredAbove\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
+      );
+    }
+  });
+
   it("the banner passes the sentence through instead of composing its own", () => {
     // The banner removes four voices. If it paraphrased the fifth it would
     // have removed four and added one — a net change of nothing, dressed up.
