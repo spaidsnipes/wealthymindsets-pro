@@ -34,6 +34,7 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
+import { PrepChecklistBand } from "@/components/experience/PrepChecklistBand";
 import OpeningBellEvidence from "@/components/opening-bell/OpeningBellEvidence";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 // The single writer for every contradiction claim WM makes. A contradiction
@@ -3404,37 +3405,16 @@ function TodayPrepBridge({ userId }: { userId: string | null }) {
             because a count of what the trader did is a FINDING; the brass this
             replaced is the one direction the house may raise its voice, and it
             was raising it at the trader. No verdict, no percentage. */}
-        {prepBand && (
-          <>
-            <div
-              data-testid="prep-checklist-band"
-              data-done={prepBand.done}
-              data-total={prepBand.total}
-              aria-hidden="true"
-              style={{ display: "flex", gap: 2, width: 76 }}
-            >
-              {prepBand.marks.map((mark, i) => (
-                <span
-                  key={i}
-                  data-testid="prep-checklist-mark"
-                  data-checked={mark.checked ? "true" : "false"}
-                  style={{
-                    flex: "1 1 0",
-                    minWidth: 0,
-                    height: 4,
-                    borderRadius: 1,
-                    background: mark.checked ? "#ede6d3" : "rgba(138,130,113,0.22)",
-                  }}
-                />
-              ))}
-            </div>
-            {/* The band is aria-hidden, so this carries the whole reading for a
-                screen reader rather than captioning a picture. */}
-            <div data-testid="prep-checklist-count" style={{ fontSize: 10, color: "#8a8271", letterSpacing: 0.3 }}>
-              {prepBand.done} of {prepBand.total} checked
-            </div>
-          </>
-        )}
+        {/* THE PICTURE HAS AN OWNER TOO, NOW. This room and /journal drew the
+            same band by hand and had already drifted four pixels apart. The
+            caption is a FUNCTION of the compiled band, so the room supplies the
+            words and still cannot reach the arithmetic. The band is
+            aria-hidden, so that caption carries the whole reading. */}
+        <PrepChecklistBand
+          band={prepBand}
+          testId="prep-checklist"
+          caption={(b) => `${b.done} of ${b.total} checked`}
+        />
         <Link
           href="/morning-prep"
           prefetch={false}

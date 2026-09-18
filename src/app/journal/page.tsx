@@ -23,6 +23,7 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
+import { PrepChecklistBand } from "@/components/experience/PrepChecklistBand";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
@@ -793,36 +794,18 @@ function TodayIntentStrip({ userId }: { userId: string | null }) {
           One anonymous mark per item on the trader's OWN list. The marks say
           HOW MANY and never WHICH — `openingBellPrep` refuses to map a count
           onto named rows, and this strip shows no rows to map onto. */}
-      {band && (
-        <>
-          <span
-            data-testid="journal-prep-band"
-            data-done={band.done}
-            data-total={band.total}
-            aria-hidden="true"
-            style={{ display: "inline-flex", gap: 2, width: 72 }}
-          >
-            {band.marks.map((mark, i) => (
-              <span
-                key={i}
-                data-testid="journal-prep-mark"
-                data-checked={mark.checked ? "true" : "false"}
-                style={{
-                  flex: "1 1 0",
-                  minWidth: 0,
-                  height: 4,
-                  borderRadius: 1,
-                  background: mark.checked ? "#ede6d3" : "rgba(138,130,113,0.22)",
-                }}
-              />
-            ))}
-          </span>
-          {/* The band is aria-hidden, so this carries the whole reading. */}
-          <span data-testid="journal-prep-count" style={{ fontSize: 10, color: "#8a8271", letterSpacing: 0.2 }}>
-            checklist {band.done} of {band.total}
-          </span>
-        </>
-      )}
+      {/* Drawn by the band's OWNER now. This strip had it at 72px wide, the
+          deck at 76 — nobody decided that; it is what two hands produce. The
+          caption keeps its own words ("checklist" first, because this strip has
+          no heading above it to say what is being counted) while the figures
+          arrive already compiled. `inline` because this sits in a run of text
+          and a block element would break the line. */}
+      <PrepChecklistBand
+        band={band}
+        testId="journal-prep"
+        inline
+        caption={(b) => `checklist ${b.done} of ${b.total}`}
+      />
       <Link
         href="/morning-prep"
         prefetch={false}

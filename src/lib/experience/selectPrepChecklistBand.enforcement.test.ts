@@ -66,27 +66,55 @@ describe("prep checklist band — enforcement", () => {
     expect(band).toMatch(/done == null \|\| total == null\) return null/);
   });
 
-  it("gives an unchecked item the same width as a checked one", () => {
-    // The denominator may not shrink to flatter the numerator. Asserted on the
-    // route because that is where a width is chosen.
-    const bandMarkup = deck.match(/data-testid="prep-checklist-mark"[\s\S]{0,320}/)![0];
-    expect(bandMarkup).toContain('flex: "1 1 0"');
-    // One conditional — the FILL — and nothing conditional about the geometry.
-    expect(bandMarkup).toMatch(/background: mark\.checked \?/);
-    expect(bandMarkup).not.toMatch(/(width|flex|height): mark\.checked \?/);
+  it("draws no band of its own — it asks the single owner for the picture", () => {
+    /* ── THIS LAW MOVED HOUSE, AND GOT STRONGER DOING IT ────────────────────
+     *
+     * The denominator may not shrink to flatter the numerator. That was
+     * asserted here, against the route, "because that is where a width is
+     * chosen" — and it no longer is. The band is
+     * `components/experience/PrepChecklistBand.tsx` now, and the width is not
+     * even reachable from a call site.
+     *
+     * The law travelled with it. `PrepChecklistBand.test.tsx` →
+     * "KEEPS THE WIDTH OF WHAT THE TRADER HAS NOT DONE" reads the style that
+     * actually ships on every mark, and its neighbour compares a checked mark
+     * against an unchecked one property by property rather than forbidding
+     * three by name. What stood here asserted that the literal `flex: "1 1 0"`
+     * appeared within 320 characters of a test id: a band written `flexGrow: 1`
+     * would have passed it while obeying nothing.
+     *
+     * What is left here is the part that is genuinely about THIS ROUTE.
+     */
+    expect(deck).toContain("<PrepChecklistBand");
+    // Not one hand-rolled mark anywhere on the route. A second copy of the band
+    // is how the four-pixel drift that caused the extraction starts again.
+    expect(deck).not.toMatch(/data-testid="prep-checklist-mark"/);
+    expect(deck).not.toMatch(/flex: "1 1 0"[\s\S]{0,240}mark\.checked/);
   });
 
-  it("states the count in the house's FINDING colour, not its raised voice", () => {
-    // The fraction was brass #c9a55c — the one direction the house may raise
-    // its voice — and it was raising it at the trader about the trader.
-    const count = deck.match(/data-testid="prep-checklist-count"[\s\S]{0,200}/)![0];
-    expect(count).toContain("#8a8271");
-    expect(count).not.toContain("#c9a55c");
+  it("chooses the WORDS of the reading, and never its arithmetic", () => {
+    // The caption is a FUNCTION of the already-compiled band. The route may
+    // phrase the count; there is nothing there for it to divide.
+    expect(deck).toMatch(/caption=\{\(b\) =>[\s\S]{0,120}b\.done[\s\S]{0,60}b\.total/);
+    expect(deck).not.toMatch(/\{prepBand\.done\}\s*of\s*\{prepBand\.total\}/);
   });
 
-  it("puts no readiness verdict or percentage beside the band — §15", () => {
-    const region = deck.match(/data-testid="prep-checklist-band"[\s\S]{0,900}/)![0];
-    expect(region).not.toMatch(/\b(READY|NOT_READY|SCORE|GRADE|%)\b/);
+  it("keeps the colour and §15 laws enforced SOMEWHERE — they are not simply gone", () => {
+    /* A migrated Sentinel is indistinguishable from a deleted one unless
+     * something checks that the new owner picked it up. Two laws left this file
+     * with the band — the count's FINDING colour, and the §15 silence beside
+     * it — and this is the receipt that they landed.
+     *
+     * Asserted by NAME against the new suite, so deleting a law over there
+     * fails over here, where the reason it exists is written down.
+     */
+    const migrated = read("components/experience/PrepChecklistBand.test.tsx");
+    expect(migrated).toContain("states the count in the house's FINDING colour");
+    expect(migrated).toContain("no readiness verdict and no percentage");
+    expect(migrated).toContain("KEEPS THE WIDTH OF WHAT THE TRADER HAS NOT DONE");
+    // And it must actually render the component, not read its source — the
+    // whole reason the move was worth making.
+    expect(migrated).toContain("renderToStaticMarkup");
   });
 });
 
@@ -121,30 +149,97 @@ describe("prep checklist band — every room asks the same owner", () => {
     expect(src).not.toMatch(/\bdone\}\s*\/\s*\{total\b/);
   });
 
-  it.each(ROOMS)("%s colours no prep count green — §9", (room) => {
-    // The journal turned #7fbf7f on a full list and /morning-prep turned
-    // #00D4AA at 100%: green-means-safe, aimed at the trader's own discipline.
-    // A full checklist is not a safe trade, and the room has no standing to
-    // congratulate anyone for one.
-    //
-    // Asserted against the EXPRESSIONS that decide a prep colour, not against
-    // proximity. A window-based guard failed here on unrelated growth-practice
-    // chips that happen to sit on a route with "prep" in its name — and a guard
-    // that makes a route rename its own palette to satisfy a rule about the
-    // prep count has started distorting the thing it protects.
-    const src = stripComments(read(room));
+  /* ── THE §9 SCAN FOLLOWS THE DECISION, NOT THE ROUTE ──────────────────────
+   *
+   * The journal turned #7fbf7f on a full list and /morning-prep turned #00D4AA
+   * at 100%: green-means-safe, aimed at the trader's own discipline. A full
+   * checklist is not a safe trade, and no room has standing to congratulate
+   * anyone for one.
+   *
+   * This scanned every room for the EXPRESSIONS that decide a prep colour,
+   * rather than for green near the word "prep" — a proximity guard had already
+   * false-fired here on unrelated growth-practice chips that happen to sit on a
+   * route with "prep" in its name, and a guard that makes a route rename its
+   * own palette to satisfy a rule about the prep count has started distorting
+   * the thing it protects.
+   *
+   * Two of the three rooms now decide NO prep colour at all: the conditional
+   * fill moved into the band's owner. Left as it was, the non-vacuity check
+   * (`decisions.length > 0`) would fail them for having become STRUCTURALLY
+   * incapable of the defect — the guard punishing the cure.
+   *
+   * So the scan is aimed where the decision now lives, and the rooms that gave
+   * it up are held to the stronger statement instead: they choose no prep
+   * colour whatsoever.
+   */
+  const COLOUR_DECIDERS = [
+    "components/experience/PrepChecklistBand.tsx",
+    "app/morning-prep/page.tsx",
+  ] as const;
+
+  it.each(COLOUR_DECIDERS)("%s decides no prep colour green — §9", (file) => {
+    const src = stripComments(read(file));
     const decisions = [
       ...src.matchAll(/(?:done|i\.done|mark\.checked|pct)\s*===?[^?]*\?[^:]*:[^,}\n]*/g),
       ...src.matchAll(/(?:mark\.checked|i\.done)\s*\?[^:]*:[^,}\n]*/g),
     ].map((m) => m[0]);
-    expect(decisions.length).toBeGreaterThan(0); // not vacuous on any room
+    expect(decisions.length, "nothing here decides a prep colour any more").toBeGreaterThan(0);
     for (const d of decisions) {
       for (const c of d.matchAll(/#([0-9a-f]{6})\b/gi)) {
         const [r, g, b] = [0, 2, 4].map((i) => parseInt(c[1].slice(i, i + 2), 16));
-        expect(g > r && g > b, `green #${c[1]} decides a prep colour in ${room}: ${d}`).toBe(false);
+        expect(g > r && g > b, `green #${c[1]} decides a prep colour in ${file}: ${d}`).toBe(false);
       }
     }
   });
+
+  it("the band's WHOLE palette is the prep palette — every colour in it, checked", () => {
+    /* NARROW ON PURPOSE, AND THE NARROWING IS THE POINT.
+     *
+     * The band names its fills as constants (`CHECKED`, `UNCHECKED`, `COUNT`)
+     * rather than writing literals at the decision site, so the scan above —
+     * which reads conditional EXPRESSIONS — cannot see them. A green would now
+     * be introduced at the constant, where nothing was looking.
+     *
+     * The fix is a whole-file palette sweep, and it is sound HERE for a reason
+     * that does not generalise: `PrepChecklistBand.tsx` is a single-purpose
+     * file whose entire palette IS the prep palette. There is no other element
+     * in it to have an opinion about colour.
+     *
+     * Aimed one file wider, this same sweep failed `/morning-prep` over
+     * `#88F5D3` — a rule-adherence day-streak chip, nothing to do with the
+     * checklist. That is verbatim the false positive this suite's author
+     * already cured once: "a guard that makes a route rename its own palette to
+     * satisfy a rule about the prep count has started distorting the thing it
+     * protects." A route is a room full of other people's decisions; a
+     * component is one decision. The sweep belongs only on the second.
+     *
+     * (The streak chip's green is a real §9 question and it is NOT this
+     * Sentinel's to answer — `noGreenInTheRoom` is scoped to
+     * `components/experience/` and does not reach app routes, so today nothing
+     * guards it. Filed separately rather than smuggled in here, because a guard
+     * that grows a new jurisdiction every time it notices something is how
+     * these become unmaintainable.)
+     */
+    const src = stripComments(read("components/experience/PrepChecklistBand.tsx"));
+    const colours = [...src.matchAll(/#([0-9a-f]{6})\b/gi)];
+    expect(colours.length, "no colour constants left to check").toBeGreaterThan(0);
+    for (const c of colours) {
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(c[1].slice(i, i + 2), 16));
+      expect(g > r && g > b, `green-dominant #${c[1]} in the band`).toBe(false);
+    }
+  });
+
+  it.each(["app/command-deck/page.tsx", "app/journal/page.tsx"] as const)(
+    "%s decides no prep colour AT ALL — the stronger state",
+    (room) => {
+      // Not "chooses no green": chooses nothing. There is no conditional fill
+      // left on these routes to turn any colour, which is why the band could
+      // not drift between them again even if someone wanted it to.
+      const src = stripComments(read(room));
+      expect(src).not.toMatch(/mark\.checked\s*\?/);
+      expect(src).toContain("<PrepChecklistBand");
+    },
+  );
 
   it("states no percentage of the trader anywhere on the prep routes — §15", () => {
     // /morning-prep drew `width: {pct}%` over the checklist. Three of eleven
