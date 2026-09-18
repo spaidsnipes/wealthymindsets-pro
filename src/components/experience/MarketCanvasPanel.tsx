@@ -24,6 +24,7 @@
 
 import * as React from "react";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
+import { DimensionStandingBand } from "./DimensionStandingBand";
 
 export interface MarketCanvasPanelProps {
   readonly vm: MarketCanvasVM;
@@ -69,112 +70,20 @@ const MUTED = "#8a8271";
  */
 const RESOLVED_LABEL = "#ede6d3";
 
-/**
- * THE CANONICAL DIMENSIONS, AS GEOMETRY RATHER THAN AS THREE COUNTS.
+/*
+ * THE STANDING BAND MOVED OUT — see components/experience/DimensionStandingBand.
  *
- * Every ledger in this panel was a count in a label above a list of 11px
- * strings. That is a readable panel and a mute one: nothing about its SHAPE
- * says how much of the market this snapshot actually resolved, so the trader
- * has to read three headings and do the arithmetic themselves before they know
- * whether they are looking at a well-lit board or a dark one.
+ * It was born here, and then `CanvasSummaryPill` needed the same reading in a
+ * header. The pill was printing it as WORDS ("8 unresolved · 1 measured") beside
+ * this panel drawing it as geometry — one fact in two registers, which is how
+ * two surfaces start disagreeing. They already had: the pill read "7 unresolved"
+ * on live TSLA while this panel said "RESOLVED (4)", eleven of eight, because
+ * PARTIAL was counted in both.
  *
- * `partitionDimensionStandings` walks `MARKET_STATE_DIMENSION_KEYS` and files
- * each key under exactly one standing, so RESOLVED / MEASURED / MISSING are
- * TOTAL and DISJOINT over the canonical dimension set. That makes them the rare
- * thing a band is allowed to draw: a real denominator that already exists in
- * the compiler. One mark per name, in the order the buckets arrive — no sum is
- * computed here, because the marks ARE the sum.
- *
- * THE DENOMINATOR DOES NOT SHRINK. An unresolved dimension keeps its full width
- * and loses its light. A band that dropped the dark marks would show a full row
- * of ivory on a snapshot that resolved two things out of eight.
- *
- * §9 — the three standings differ by FILL, never by hue. There is no green mark
- * for a resolved dimension, because resolved is not safe; it only means the
- * board is lit there.
+ * The band now takes the VM rather than three arrays, so the bucket ORDER is no
+ * longer something a caller can get wrong. Every law it carried came with it,
+ * and DimensionStandingBand.test.tsx renders it rather than reading its source.
  */
-const STANDING = {
-  /** A FINDING. Ivory is what the house pays for something it actually knows. */
-  RESOLVED: { fill: "#ede6d3", word: "resolved" },
-  /**
-   * A reading exists and is not decision-grade. Dimmer ivory rather than a
-   * separate colour: the light reached this dimension, it just did not arrive
-   * at full strength. Calling it a third colour would make it a third KIND of
-   * thing, and it is the same kind, half-lit.
-   */
-  MEASURED: { fill: "rgba(237,230,211,0.40)", word: "measured, not decision-grade" },
-  /**
-   * ABSENCE. Present in the row, holding its place, carrying no light.
-   *
-   * The word is "unresolved", not "missing", because that is what the heading
-   * below it says and this band is readable only by its adjacency to that
-   * heading. The key stays MISSING because that is the compiler's name for the
-   * bucket, and renaming a compiler's vocabulary to match a label is how two
-   * surfaces start disagreeing about which bucket they are in.
-   */
-  MISSING: { fill: "rgba(138,130,113,0.22)", word: "unresolved" },
-} as const;
-
-type Standing = keyof typeof STANDING;
-
-/**
- * The band. Pure arrangement of names the compiler already sorted — it reads
- * `.length` nowhere and adds nothing up.
- */
-function DimensionStandingBand({
-  buckets,
-}: {
-  readonly buckets: readonly (readonly [Standing, readonly string[]])[];
-}): React.ReactElement | null {
-  /**
-   * ONE MARK PER NAME, AND THEN THE NAME IS DROPPED.
-   *
-   * The first cut of this band hung the dimension name on each mark's `title`.
-   * That quietly defeated the panel's own row cap: the ledger below declines to
-   * draw more than six rows and says `+3 more`, and a ninth name arriving in a
-   * tooltip makes that disclosure false about the markup. It was also a second
-   * place to read a name the ledgers already own.
-   *
-   * The band answers HOW MUCH OF THE BOARD IS LIT. It is not a second index of
-   * WHICH dimensions those are, so it carries the standing and nothing else.
-   */
-  const marks = buckets.flatMap(([standing, names]) => names.map(() => standing));
-  // No snapshot means no dimensions, and an empty band is a denominator of
-  // zero drawn as if it were a row. §Silence Is A Feature.
-  if (marks.length === 0) return null;
-
-  return (
-    <div data-testid="market-canvas-standing" style={{ marginBottom: 10 }}>
-      <div
-        style={{
-          fontSize: 9,
-          letterSpacing: 0.5,
-          color: MUTED,
-          marginBottom: 4,
-          textTransform: "uppercase",
-        }}
-      >
-        Dimension standing
-      </div>
-      <div style={{ display: "flex", gap: 3 }}>
-        {marks.map((standing, i) => (
-          <div
-            key={`${standing}-${i}`}
-            data-testid="market-canvas-standing-mark"
-            data-standing={standing}
-            title={STANDING[standing].word}
-            style={{
-              flex: "1 1 0",
-              height: 6,
-              borderRadius: 1,
-              background: STANDING[standing].fill,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
   ACTION: "#d4af37",
@@ -255,13 +164,7 @@ export function MarketCanvasPanel({
           appear, so the band needs no legend — the headings under it ARE the
           legend. Outside the `ledgers` grid because it is the whole canonical
           set, not one more column of it. */}
-      <DimensionStandingBand
-        buckets={[
-          ["RESOLVED", vm.resolved],
-          ["MEASURED", vm.measured],
-          ["MISSING", vm.missing],
-        ]}
-      />
+      <DimensionStandingBand vm={vm} testId="market-canvas-standing" scale="panel" />
 
       <div data-testid="market-canvas-ledgers" style={ledgers}>
       {vm.resolved.length > 0 && (

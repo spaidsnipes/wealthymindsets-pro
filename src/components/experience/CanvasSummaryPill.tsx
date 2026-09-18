@@ -18,6 +18,7 @@
 
 import * as React from "react";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
+import { DimensionStandingBand, standingInWords } from "./DimensionStandingBand";
 import { requestEquipment } from "@/lib/workspace/equipmentChannel";
 import { roomEquipment } from "@/lib/workspace/roomEquipment";
 
@@ -111,12 +112,26 @@ export function CanvasSummaryPill({
   // a live chart — the pill was shipping "NO TRADE · 8 unresolved · 1 blockers
   // · 1 cleared" on production /charts. Sloppy copy on the surface that
   // explains WHY a trade is refused undercuts the refusal itself.
+  /* THE DIMENSION STANDING IS NOW DRAWN, NOT SPELLED.
+   *
+   * Two of these counters used to be words here: "8 unresolved · 1 measured".
+   * They are the same fact `MarketCanvasPanel` draws as a row of marks, and one
+   * fact in two registers is how two surfaces start disagreeing — these two
+   * already had, this pill reading "7 unresolved" on live TSLA while the panel
+   * beside it said "RESOLVED (4)", eleven of eight.
+   *
+   * As words they were also the wrong half of the truth. The pill printed only
+   * the DARK buckets and never the lit one, so a trader could read the counts
+   * and learn what the house does not know while never learning what it does.
+   * The band carries all three, including the resolved marks nothing here
+   * showed, and it does it in less room than the words took.
+   *
+   * What stays in words is what is NOT the same universe: blockers, clearances
+   * and invalidators are evidence entries, not canonical dimensions, and no
+   * denominator exists across them. Drawing them in the same row would invent
+   * one.
+   */
   const parts: string[] = [];
-  if (vm.missing.length > 0) parts.push(`${vm.missing.length} unresolved`);
-  // The third bucket. This pill read "7 unresolved" on live TSLA while the
-  // panel beside it said "RESOLVED (4)" — 11 of 8 — because PARTIAL was in
-  // both. It is now its own count, and the three sum to eight.
-  if (vm.measured.length > 0) parts.push(`${vm.measured.length} measured`);
   // COUNT from `blockerCount`, never from `blockers.length` — the list is a
   // sample capped at 3 labels per evidence bucket. See DecisionWhyVM.
   if (vm.blockerCount > 0) {
@@ -143,6 +158,11 @@ export function CanvasSummaryPill({
   // so a mouse-hover surfaces reasoning without scrolling to the panel.
   const tooltipLines: string[] = [`Canvas · ${vm.verdict}`];
   if (vm.headline) tooltipLines.push("", vm.headline);
+  // THE BAND IS HIDDEN FROM ASSISTIVE TECHNOLOGY, SO THE WORDS MUST CARRY IT.
+  // Built by the band's own owner from the same arrays in the same order, so
+  // the picture and the sentence cannot drift into disagreeing.
+  const standingWords = standingInWords(vm);
+  if (standingWords) tooltipLines.push("", `Dimension standing: ${standingWords}.`);
   // The tooltip is a summary by design, but it must say how much it is
   // withholding — an unmarked truncation reads as a complete list.
   //
@@ -216,6 +236,13 @@ export function CanvasSummaryPill({
         }}
       >
         {vm.verdict}
+      </span>
+      {/* HOW MUCH OF THE BOARD IS LIT, at chip scale. Drawn by the same owner
+          as the panel's, so the header and the panel are one instrument at two
+          sizes. aria-hidden because the whole reading is in the tooltip — a
+          picture is not a caption for a screen reader, it is nothing at all. */}
+      <span aria-hidden="true" style={{ display: "inline-flex", alignItems: "center" }}>
+        <DimensionStandingBand vm={vm} testId="canvas-summary-standing" scale="pill" />
       </span>
       {parts.length > 0 && (
         <span className="wm-canvas-summary-detail" style={{ color: "#8a8271" }}>·</span>
