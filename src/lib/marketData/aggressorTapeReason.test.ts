@@ -79,13 +79,43 @@ describe("the panel reads the reason instead of retyping the facts", () => {
     "components/smart-money/SmartMoneyPanel.tsx",
   );
 
+  const BANNER = path.resolve(__dirname, "selectMissingTapeBanner.ts");
+
   it("SmartMoneyPanel no longer hand-types asset-class coverage", () => {
     // Comments are stripped so the file may still QUOTE the removed paragraph
     // as the record of what failed — prose about a defect is not the defect.
     const src = stripComments(fs.readFileSync(PANEL, "utf8"));
-    expect(src).toContain("aggressorTapeReason(");
     expect(src).not.toMatch(/carries them 24\/7/);
     expect(src).not.toMatch(/while the market is open/);
     expect(src).not.toMatch(/no aggressor tape wired up here yet/);
+    // The class facts also may not come back through the SECOND paragraph
+    // that used to recite the same menu under the delta-bubble tile.
+    expect(src).not.toMatch(/Crypto streams it/);
+    expect(src).not.toMatch(/Futures carry no aggressor tape here yet/);
+  });
+
+  it("the panel reaches the reason through exactly ONE path", () => {
+    // 2026-09-17: the panel stopped calling `aggressorTapeReason` directly and
+    // now reads it through `selectMissingTapeBanner`, which states the absence
+    // ONCE for the whole drawer. That is a stronger arrangement, not a weaker
+    // one — but only while the indirection actually terminates at this module.
+    // Both halves are asserted, so the chain cannot be quietly cut at either
+    // end and leave the panel free to retype the facts again.
+    const panel = stripComments(fs.readFileSync(PANEL, "utf8"));
+    const banner = stripComments(fs.readFileSync(BANNER, "utf8"));
+
+    expect(panel).toContain("selectMissingTapeBanner(");
+    expect(banner).toContain("aggressorTapeReason(");
+
+    // And it must be ONE path: a panel that called both would be back to
+    // having two voices for one fact, which is the defect this closed.
+    expect(panel).not.toContain("aggressorTapeReason(");
+  });
+
+  it("the banner passes the sentence through instead of composing its own", () => {
+    // The banner removes four voices. If it paraphrased the fifth it would
+    // have removed four and added one — a net change of nothing, dressed up.
+    const banner = stripComments(fs.readFileSync(BANNER, "utf8"));
+    expect(banner).toMatch(/sentence:\s*reason\.sentence/);
   });
 });

@@ -13,7 +13,10 @@ import {
   type AggressorFlowSnapshot,
 } from "@/lib/marketData/selectAggressorFlow";
 import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNote";
-import { aggressorTapeReason } from "@/lib/marketData/aggressorTapeReason";
+// `aggressorTapeReason` is no longer read here directly — the drawer's single
+// missing-input banner owns the call now, so this surface cannot state the
+// absence twice. See selectMissingTapeBanner for why that mattered.
+import { selectMissingTapeBanner } from "@/lib/marketData/selectMissingTapeBanner";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
@@ -402,13 +405,28 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // and the same level would render a different size at 5 than at 15.
   const maxAbsDelta = deltaVM.maxAbsDelta;
 
-  // Why THIS symbol has no signed tape. Null whenever one is flowing, so the
-  // absence copy below cannot survive into a render that has data. The asset
-  // -class facts live in `capabilityRegistry` and are read, never retyped: the
-  // paragraph this replaced recited every class at once and told equity traders
-  // to wait for an opening bell that would not have fixed an unwired provider.
-  const tapeAbsence = React.useMemo(
-    () => aggressorTapeReason(symbol, flow.hasFlow),
+  // ONE missing input, stated once, with its cost named. Observed live on NQ1!
+  // (2026-09-17): five of this drawer's six tiles were each writing their own
+  // paragraph about the same absent aggressor tape. Every sentence was true;
+  // the defect was emergent, visible only with all five on screen at once.
+  // Five absences read as a broken product. One named absence with five
+  // consequences reads as a diagnosis. The banner carries the sentence VERBATIM
+  // from `aggressorTapeReason` — it removes voices, it does not add one.
+  const missingTape = React.useMemo(
+    () =>
+      selectMissingTapeBanner({
+        symbol,
+        hasSignedTape: flow.hasFlow,
+        // Reading order on screen, so a trader scanning the list meets them
+        // in the order they will scroll past them.
+        blockedReadings: [
+          "Delta domination",
+          "Tape pressure",
+          "Delta bubbles by level",
+          "Value candle · center of gravity",
+          "Delta divergence",
+        ],
+      }),
     [symbol, flow.hasFlow],
   );
 
@@ -529,7 +547,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     : null;
   const pressureReason =
     !flow.hasFlow
-      ? "No aggressor-tagged tape is available, so pressure is unavailable."
+      // Short by design. The reason the tape is absent belongs to the banner at
+      // the top of this drawer; repeating it here is what made five tiles read
+      // like five separate failures.
+      ? "Unavailable — needs the aggressor tape named above."
     : pressureSide === "BUY"
       ? `Observed buyers account for ${buyPct}% of aggressive tape (Δ ${fmtDelta(deltaVal)}). This is evidence, not an entry signal.`
     : pressureSide === "SELL"
@@ -680,6 +701,50 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           gap: compact ? "0.25rem" : undefined,
         }}>
 
+      {/* ── MISSING INPUT — the drawer's one absence, said once ─────────────
+          Spans every column deliberately. It is not a tile among tiles; it is
+          a statement ABOUT the tiles, and a trader must meet it before the
+          readings it governs rather than alongside them. Rendered only while
+          the absence is real — `selectMissingTapeBanner` returns null the
+          moment a signed print arrives, so this cannot outlive its cause. */}
+      {missingTape && (
+        <div
+          className="mx-2 my-1.5 p-2.5 rounded-lg border shrink-0"
+          style={{
+            gridColumn: "1 / -1",
+            background: "rgba(212,175,55,0.06)",
+            borderColor: "rgba(212,175,55,0.28)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <AlertCircle size={11} className="text-wm-gold shrink-0" />
+            <span className="text-[10px] font-bold tracking-wide text-wm-gold">
+              MISSING INPUT · {missingTape.missingInput}
+            </span>
+          </div>
+          <p className="text-[9px] text-wm-text-dim leading-relaxed">{missingTape.sentence}</p>
+          {missingTape.blockedCount > 0 && (
+            <div className="mt-1.5 pt-1.5 border-t border-wm-border">
+              <div className="text-[8px] font-semibold tracking-wide text-wm-text-dim mb-1">
+                {missingTape.blockedCount} READING{missingTape.blockedCount === 1 ? "" : "S"} BELOW
+                CANNOT BE TAKEN
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {missingTape.blockedReadings.map((name) => (
+                  <span
+                    key={name}
+                    className="text-[8px] px-1.5 py-0.5 rounded text-wm-text-dim"
+                    style={{ background: "rgba(255,255,255,0.04)" }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── DELTA DOMINATION (the tug-of-war) ─────────────────────────────── */}
       <div className="mx-2 my-1.5 p-2 rounded-lg bg-wm-surface border border-wm-border shrink-0">
         <div className="flex items-center gap-1.5 mb-1.5">
@@ -754,9 +819,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             <div className="mt-2 text-[8px] text-wm-text-dim">Pressure describes observed tape only. It does not resolve location, risk, or permission to trade.</div>
           </>
         ) : (
+          /* The WHY is stated once, in the banner at the top of this drawer.
+             What is left here is only what is specific to THIS reading: what
+             it needed, and the refusal to fake it. */
           <div className="text-[9px] text-wm-text-dim leading-relaxed">
-            {tapeAbsence?.sentence} Delta domination needs aggressor-tagged ticks, and we won&apos;t fake a winner
-            without them.
+            Needs aggressor-tagged ticks. We won&apos;t fake a winner without them.
           </div>
         )}
 
@@ -927,9 +994,14 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             </div>
           </div>
         ) : (
+          /* This paragraph was the last hand-typed recital of the whole
+             asset-class menu — the exact defect `aggressorTapeReason` was
+             built to end, surviving here because it was typed into a second
+             place. The banner above now states the case the trader is
+             actually in, derived from the capability registry. What remains
+             is only this reading's own promise. */
           <p className="text-[9px] text-wm-text-dim leading-relaxed">
-            No per-trade buy/sell tape on this feed — bubbles appear the moment real aggressor flow arrives.
-            Crypto streams it 24/7; stocks stream it during market hours. Futures carry no aggressor tape here yet.
+            Bubbles appear the moment real aggressor flow arrives.
           </p>
         )}
       </div>
