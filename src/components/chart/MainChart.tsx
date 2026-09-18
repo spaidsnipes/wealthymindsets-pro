@@ -6541,15 +6541,40 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // levels needs it whether or not the span was capped. "IN VIEW"
             // rather than "LAST": these are the bars in front of the eye, and
             // on a scrolled-back chart they are emphatically not the last.
+            //
+            // ANCHORED TO THE PLOT'S BOTTOM, NOT THE CONTAINER'S. This label
+            // was drawn at `H - 18`, and `H` is `cont.offsetHeight` — the whole
+            // chart container, time axis included. MEASURED LIVE on prod: the
+            // container is 560px, the price pane ends at 530, and the time axis
+            // occupies 530–558. `H - 18` = 542 put this label TWELVE PIXELS
+            // INSIDE the axis band, underneath the date row, where it has never
+            // once been visible.
+            //
+            // The previous baton recorded this label as "not observed, not
+            // claimed" and attributed it to the capture viewport. The viewport
+            // was real but it was not the cause: the label was never on the
+            // chart to begin with. That is the same defect as the zone chip
+            // clamped to `W` — a mark positioned correctly against a boundary
+            // that is not the one the trader's eye actually stops at — and it
+            // is the third time on this one layer that measuring the container
+            // instead of the plot has made a correct drawing invisible.
+            const axisH = (() => {
+              try {
+                const h = ts.height();
+                if (Number.isFinite(h) && h > 0) return Math.ceil(h);
+              } catch {}
+              return 28;
+            })();
+            const plotBottom = Math.max(20, H - axisH);
             const winTxt = `${pts.length} BARS IN VIEW`;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const winW = ctx.measureText(winTxt).width;
             ctx.fillStyle = "rgba(14,12,8,0.86)";
-            ctx.fillRect(firstX + 3, H - 18, winW + 10, 13);
+            ctx.fillRect(firstX + 3, plotBottom - 18, winW + 10, 13);
             ctx.fillStyle = "rgba(201,165,92,0.9)";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
-            ctx.fillText(winTxt, firstX + 8, H - 11.5);
+            ctx.fillText(winTxt, firstX + 8, plotBottom - 11.5);
 
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             for (const zone of anatomy.zones) {
