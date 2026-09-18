@@ -29,7 +29,12 @@ describe("selectMarketIntelFeedObservation — what the live monitor actually sa
     const standing = compileFeedStanding(selectMarketIntelFeedObservation(OBSERVING), AT);
     expect(standing.label).not.toBe("FEED UNKNOWN");
     expect(standing.established).toBe(true);
-    expect(standing.detail).toContain("coinbase");
+    // RE-PINNED under WM-CHART-PROV-EMERG-01 (leak measured live
+    // 2026-09-17 as `SOURCE YAHOO · OBSERVED`). What this line
+    // protects — the standing rests on a NAMED provider, not on
+    // nothing — moved to `provenance`, which no chrome renders.
+    expect(standing.provenance).toBe("coinbase");
+    expect(standing.detail).not.toContain("coinbase");
   });
 
   it("THE MEASURED STATE — socket down still reads FEED UNKNOWN, and that is TRUE", () => {

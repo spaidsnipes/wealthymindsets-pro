@@ -15,7 +15,12 @@ describe("selectHeatmapFeedObservation — the evidence /heatmaps actually holds
     );
     expect(standing.label).not.toBe("FEED UNKNOWN");
     expect(standing.established).toBe(true);
-    expect(standing.detail).toContain("yahoo");
+    // RE-PINNED under WM-CHART-PROV-EMERG-01 (leak measured live
+    // 2026-09-17 as `SOURCE YAHOO · OBSERVED`). What this line
+    // protects — the standing rests on a NAMED provider, not on
+    // nothing — moved to `provenance`, which no chrome renders.
+    expect(standing.provenance).toBe("yahoo");
+    expect(standing.detail).not.toContain("yahoo");
   });
 
   it("an UNDATED board keeps reading FEED UNKNOWN — tiles are not an observation", () => {

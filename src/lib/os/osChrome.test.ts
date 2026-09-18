@@ -47,7 +47,20 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     expect(feed.label).toBe(L.LIVE_CERTIFIED_QUOTE);
     expect(feed.tone).toBe("LIVE");
     expect(feed.established).toBe(true);
-    expect(feed.detail).toContain("polygon");
+    /**
+     * RE-PINNED, not weakened. This line used to read
+     * `expect(feed.detail).toContain("polygon")` — and it was therefore a
+     * Sentinel REQUIRING the vendor leak that WM-CHART-PROV-EMERG-01 forbids,
+     * measured live on 2026-09-17 as `SOURCE YAHOO · OBSERVED`.
+     *
+     * What it was protecting is that the standing RESTS ON A NAMED PROVIDER
+     * rather than on nothing — a change of SLOT, not of authority. That fact
+     * now lives in `provenance`, which no chrome renders, and `detail` states
+     * the reading it always stated. Both halves are pinned so the repair
+     * cannot be achieved by deleting the fact.
+     */
+    expect(feed.provenance).toBe("polygon");
+    expect(feed.detail).toBe("certified realtime");
   });
 
   /**
@@ -138,7 +151,10 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     it("never lets bars downgrade a live certified quote", () => {
       const feed = compileFeedStanding({ ...LIVE_OBS, barsPresent: true }, NOW);
       expect(feed.label).toBe(L.LIVE_CERTIFIED_QUOTE);
-      expect(feed.detail).toContain("polygon");
+      // Same re-pin as above: the provider identity moved to `provenance`
+      // under WM-CHART-PROV-EMERG-01. The quote arm still wins over bars.
+      expect(feed.provenance).toBe("polygon");
+      expect(feed.detail).toBe("certified realtime");
     });
 
     /**
@@ -513,7 +529,11 @@ describe("compileProvenanceSegments — the bottom bar cannot smuggle a claim", 
     const feed = compileFeedStanding(LIVE_OBS, NOW);
     expect(compileProvenanceSegments(feed, null)).toHaveLength(1);
     expect(compileProvenanceSegments(feed, "10:42:17 ET")).toEqual([
-      "SOURCE POLYGON · CERTIFIED REALTIME",
+      // Was "SOURCE POLYGON · CERTIFIED REALTIME" — the exact shape of the
+      // live leak (`SOURCE YAHOO · OBSERVED`), uppercased by this very
+      // function. The slot was never a source NAME: the bars-only arm has
+      // always filled it with "historical bars". Only the vendor is gone.
+      "SOURCE CERTIFIED REALTIME",
       "AS OF 10:42:17 ET",
     ]);
   });
@@ -725,5 +745,108 @@ describe("useFeedEvaluationClock — the frame's clock, and why 0 is safe", () =
       "utf8",
     );
     expect(CHARTS).not.toContain("evaluatedAtMs");
+  });
+});
+
+/**
+ * WM-CHART-PROV-EMERG-01 — the Founder emergency of 2026-08-06, verbatim:
+ *   "stop exposing where our api keys are from … it can say delayed but stop
+ *    telling people where the apis come from"
+ *
+ * MEASURED LIVE 2026-09-17 on wealthymindsetspro.com/charts, one synchronous
+ * DOM pass:
+ *
+ *   masthead feed badge   title="yahoo · observed"
+ *   provenance footer     SOURCE YAHOO · OBSERVED      ← VISIBLE body text
+ *
+ * `priceSourceBadge` has enforced the rule on the LABEL since the emergency and
+ * marks its own `provenance` field "INTERNAL only — never render in user
+ * chrome". `compileFeedStanding` read that rule for the label and broke it one
+ * field over, in the string rendered beside it — and the footer UPPERCASED the
+ * vendor, which is the loudest a leak can be.
+ *
+ * These Sentinels pin the repair from BOTH ends: the compiler may not put a
+ * vendor in `detail`, and the two renderers may not reach for `provenance`.
+ */
+describe("× THE VENDOR MAY NOT REACH THE GLASS (WM-CHART-PROV-EMERG-01)", () => {
+  const VENDORS = [
+    "polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo",
+    "moomoo", "longbridge", "webull", "acme-quotes",
+  ] as const;
+
+  it("no vendor name survives into `detail`, on any provider, in any arm", () => {
+    const arms: ReadonlyArray<readonly [string, Partial<FeedObservation>]> = [
+      ["live", {}],
+      ["closed session", { sessionOpen: false }],
+      ["dead transport", { connected: false }],
+      ["stale print", { lastObservedAtMs: NOW - LIVE_STALENESS_BUDGET_MS * 10 }],
+      ["clock ahead", { lastObservedAtMs: NOW + FEED_CLOCK_SAMPLE_INTERVAL_MS * 10 }],
+      ["bars only", { quotePresent: false, barsPresent: true }],
+      ["nothing", { quotePresent: false, barsPresent: false }],
+    ];
+    for (const source of VENDORS) {
+      for (const [arm, patch] of arms) {
+        const feed = compileFeedStanding({ ...LIVE_OBS, source, ...patch }, NOW);
+        expect(
+          feed.detail.toLowerCase(),
+          `vendor "${source}" leaked into the ${arm} detail: "${feed.detail}"`,
+        ).not.toContain(source.toLowerCase());
+      }
+    }
+  });
+
+  it("the footer segment the leak was MEASURED in carries no vendor", () => {
+    // The exact live reading was `SOURCE YAHOO · OBSERVED`. This is the
+    // end-to-end shape, not a unit of the compiler, because the footer
+    // UPPERCASES `detail` — a leak is louder here than anywhere else.
+    const feed = compileFeedStanding({ ...LIVE_OBS, source: "yahoo" }, NOW);
+    const segments = compileProvenanceSegments(feed, null);
+    expect(segments.join(" · ")).not.toMatch(/YAHOO/);
+    for (const source of VENDORS) {
+      const seg = compileProvenanceSegments(
+        compileFeedStanding({ ...LIVE_OBS, source }, NOW),
+        null,
+      ).join(" · ");
+      expect(seg.toLowerCase(), `footer leaked "${source}"`).not.toContain(source.toLowerCase());
+    }
+  });
+
+  it("§35 — the vendor is RE-HOMED, not deleted: `provenance` still carries it", () => {
+    // A repair that answers an overclaim with a blindness is the same family of
+    // defect. The diagnostics fact survives; only its slot changed.
+    for (const source of VENDORS) {
+      expect(compileFeedStanding({ ...LIVE_OBS, source }, NOW).provenance).toBe(source);
+    }
+    expect(
+      compileFeedStanding({ ...LIVE_OBS, quotePresent: false, barsPresent: true }, NOW).provenance,
+    ).toBe("polygon");
+  });
+
+  it("§35 — the DISTINCTION `detail` exists to carry is fully preserved", () => {
+    const at = (patch: Partial<FeedObservation>) =>
+      compileFeedStanding({ ...LIVE_OBS, ...patch }, NOW).detail;
+    expect(at({})).toBe("certified realtime");
+    expect(at({ source: "yahoo" })).toBe("observed");
+    expect(at({ sessionOpen: false })).toBe("session closed");
+    expect(at({ connected: false })).toBe("transport disconnected");
+    expect(at({ lastObservedAtMs: NOW - LIVE_STALENESS_BUDGET_MS * 10 })).toMatch(
+      /^last print \d+s ago$/,
+    );
+    expect(at({ source: "acme-quotes" })).toBe("provider not recognised");
+  });
+
+  it("neither renderer reaches for `provenance`", () => {
+    // The whole point of the re-homing is that the field exists in a slot no
+    // chrome reads. A later hand restoring "helpful" vendor context to the
+    // badge title or the footer is the emergency coming back.
+    const FRAME = readFileSync(
+      new URL("../../components/os/WMOperatingSystem.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(FRAME).not.toMatch(/feed\.provenance/);
+    const OWNER = readFileSync(new URL("./osChrome.ts", import.meta.url), "utf8");
+    // `compileProvenanceSegments` is the footer's only writer.
+    const footer = OWNER.slice(OWNER.indexOf("export function compileProvenanceSegments"));
+    expect(footer).not.toMatch(/\.provenance/);
   });
 });

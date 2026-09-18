@@ -93,8 +93,39 @@ const FEED_UNKNOWN = "FEED UNKNOWN";
 export interface FeedStanding {
   /** Badge text. A canonical fidelity label, or FEED UNKNOWN. */
   readonly label: string;
-  /** Why the badge says what it says. Never invented. */
+  /**
+   * Why the badge says what it says. Never invented — and NEVER A VENDOR NAME.
+   *
+   * ── MEASURED LIVE, 2026-09-17, wealthymindsetspro.com/charts ──────────────
+   * The masthead feed badge carried `title="yahoo · observed"` and the
+   * provenance footer printed, in VISIBLE body text:
+   *
+   *     SOURCE YAHOO · OBSERVED
+   *
+   * That is WM-CHART-PROV-EMERG-01 — the Founder emergency, verbatim: "stop
+   * exposing where our api keys are from … it can say delayed but stop telling
+   * people where the apis come from". `priceSourceBadge` has said so in its own
+   * header since 2026-08-06, and marks its `provenance` field "INTERNAL only —
+   * never render in user chrome". This compiler read that rule for the LABEL
+   * and broke it one field over, in the string that is rendered beside it.
+   *
+   * §35 — nothing is traded away for the repair. The DISTINCTION `detail` exists
+   * to carry (observed vs certified realtime vs session closed vs a print age
+   * vs a dead transport) is exactly what it carried before; only the vendor
+   * prefix is gone. The slot was never a source NAME anyway: the bars-only arm
+   * has always filled it with "historical bars".
+   *
+   * The vendor identity is not deleted, it is RE-HOMED to `provenance` below,
+   * where the diagnostics inspector can read it and no chrome can render it.
+   */
   readonly detail: string;
+  /**
+   * INTERNAL diagnostics only — the vendor that produced the observation, or
+   * `null` when no provider was in play. MUST NOT be rendered in user chrome.
+   * It exists so the emergency above is a RE-HOMING rather than a deletion:
+   * the fact survives, in a slot no badge or footer reads.
+   */
+  readonly provenance: string | null;
   readonly tone: FeedTone;
   /** True only when the label rests on an observation, not on its absence. */
   readonly established: boolean;
@@ -343,6 +374,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
         // the footer's `SOURCE …` slot would be the overclaim this fix exists
         // to prevent. What we can prove is that bars were observed.
         detail: "historical bars",
+        provenance: obs.source,
         tone: TONE_BY_LABEL[bars.label],
         // TRUE, and this is the load-bearing half of the fix: `established`
         // is what the provenance footer reads to decide between printing the
@@ -353,6 +385,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     return {
       label: FEED_UNKNOWN,
       detail: "no observation yet",
+      provenance: obs.source,
       tone: "UNKNOWN",
       established: false,
     };
@@ -376,6 +409,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     return {
       label: FEED_UNKNOWN,
       detail: "provider clock ahead of ours",
+      provenance: obs.source,
       tone: "UNKNOWN",
       established: false,
     };
@@ -418,7 +452,8 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
   if (badge.unresolved || badge.availability === "unavailable") {
     return {
       label: FEED_UNKNOWN,
-      detail: `${obs.source} · provider not recognised`,
+      detail: "provider not recognised",
+      provenance: obs.source,
       tone: "UNKNOWN",
       established: false,
     };
@@ -442,6 +477,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     return {
       label: CANONICAL_FIDELITY_LABELS.STALE_PIPELINE,
       detail: "transport disconnected",
+      provenance: obs.source,
       tone: "IDLE",
       established: true,
     };
@@ -453,10 +489,13 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     // closed session it is not the reason and stating it invites the trader to
     // read a normal weekend as decay.
     detail: sessionClosed
-      ? `${obs.source} · session closed`
+      ? "session closed"
       : fresh === false
-        ? `${obs.source} · last print ${Math.floor(ageMs / 1000)}s ago`
-        : `${obs.source} · ${badge.live ? "certified realtime" : "observed"}`,
+        ? `last print ${Math.floor(ageMs / 1000)}s ago`
+        : badge.live
+          ? "certified realtime"
+          : "observed",
+    provenance: obs.source,
     tone: TONE_BY_LABEL[badge.label],
     established: true,
   };
