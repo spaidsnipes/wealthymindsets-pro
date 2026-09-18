@@ -43,6 +43,7 @@
 
 import * as React from "react";
 import type { AbsorptionVM } from "@/lib/marketData/viewModels/selectAbsorption";
+import { formatMagnitude } from "@/lib/marketData/viewModels/measuredNumber";
 
 const GOLD = "#d4af37";
 const GOLD_DIM = "#c9a55c";
@@ -304,9 +305,16 @@ export function AbsorptionAnatomyPanel({
               value={num(vm.displacementInSpread, 2, "×")}
               note="of this window's own spread"
             />
+            {/* MEASURED ON PRODUCTION, BTCUSD 2026-09-18: this tile printed
+                `EFFICIENCY RATIO 4.37e+2` at a trader. The number is 437.
+                `toExponential(2)` was chosen for a defensible reason — the
+                ratio's scale is instrument-specific, as the note directly
+                below says — but scientific notation answers that by making the
+                reader do the arithmetic. `formatMagnitude` keeps the same
+                scale-honesty and renders "437" and "0.00042" alike. */}
             <Reading
               label="Efficiency ratio"
-              value={vm.efficiency == null ? "—" : vm.efficiency.toExponential(2)}
+              value={formatMagnitude(vm.efficiency)}
               note="price per unit of net effort"
             />
           </div>

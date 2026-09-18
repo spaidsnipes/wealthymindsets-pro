@@ -54,6 +54,7 @@
 
 import { selectAggressorFlow, type AggressorTick, type AggressorProvenance } from "../selectAggressorFlow";
 import { selectValueCandle } from "./selectValueCandle";
+import { roundSig } from "./measuredNumber";
 
 export const ABSORPTION_VERSION = "wm.absorption.v1" as const;
 
@@ -250,14 +251,13 @@ function round6(v: number): number {
 }
 
 /**
- * Round to significant figures, so a quantity whose magnitude is set by the
- * instrument rather than by this file survives being reported. Fixed-decimal
- * rounding is only safe when you already know the scale; the efficiency ratio
- * is precisely the number where nobody does.
+ * `roundSig` is IMPORTED, not defined here.
+ *
+ * It used to be defined here, byte-for-byte identically to a copy in
+ * `selectLiquidityWeather.ts`, each sitting under its own comment explaining
+ * the same reasoning to a reader who would never see the other one. Two
+ * modules had independently worked out that a quantity whose magnitude is set
+ * by the instrument cannot be rounded to a fixed number of decimals — and
+ * having worked it out, each then shipped a panel that did exactly that
+ * anyway. See `./measuredNumber` for what was measured on production.
  */
-function roundSig(v: number, digits: number): number {
-  if (!Number.isFinite(v) || v === 0) return 0;
-  const mag = Math.ceil(Math.log10(Math.abs(v)));
-  const factor = Math.pow(10, digits - mag);
-  return Math.round(v * factor) / factor;
-}

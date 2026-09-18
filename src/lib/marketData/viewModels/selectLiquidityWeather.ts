@@ -43,6 +43,7 @@ import {
   type AggressorProvenance,
 } from "../selectAggressorFlow";
 import { selectValueCandle } from "./selectValueCandle";
+import { formatMagnitude, formatRatio, roundSig } from "./measuredNumber";
 
 export const LIQUIDITY_WEATHER_VERSION = "wm.liquidity-weather.v1" as const;
 
@@ -184,19 +185,6 @@ function median(values: readonly number[]): number | null {
   const s = [...values].sort((a, b) => a - b);
   const mid = s.length >> 1;
   return s.length % 2 === 1 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
-/**
- * Significant-figure rounding, not fixed-decimal. A cost is denominated in
- * shares-per-spread, whose natural magnitude is whatever the instrument's
- * volume happens to be — six decimals is meaningless on one symbol and
- * destroys the reading on another.
- */
-function roundSig(v: number, digits = 4): number {
-  if (!Number.isFinite(v) || v === 0) return 0;
-  const mag = Math.ceil(Math.log10(Math.abs(v)));
-  const factor = Math.pow(10, digits - mag);
-  return Math.round(v * factor) / factor;
 }
 
 function empty(
@@ -365,7 +353,7 @@ export function selectLiquidityWeather(
   if (last.stalled) {
     stage = "HEAVY";
     detail =
-      `The last segment traded ${formatCost(last.volume)} without moving price at all. ` +
+      `The last segment traded ${formatMagnitude(last.volume)} without moving price at all. ` +
       `Whatever is sitting there absorbed everything that hit it.`;
   } else if (dispersion >= ERRATIC_DISPERSION) {
     stage = "ERRATIC";
@@ -396,7 +384,7 @@ export function selectLiquidityWeather(
   } else {
     stage = "STEADY";
     detail =
-      `Cost to travel one spread has held near ${formatCost(med)} across the window. ` +
+      `Cost to travel one spread has held near ${formatMagnitude(med)} across the window. ` +
       `No build-up and no vacuum.`;
   }
 
@@ -418,54 +406,20 @@ export function selectLiquidityWeather(
 }
 
 /**
- * Format a RATIO for reading. Exported because the panel must format these the
- * same way this module's own prose does — two owners formatting the same number
- * differently is how a headline and its explanation end up disagreeing.
+ * `formatRatio` and `formatCost` are RE-EXPORTED here, not defined here.
  *
- * FOUND BY LOOKING AT A RENDERED PANEL, which said a genuine vacuum cost
- * "0.00× what its neighbours paid". Two decimals is fine for a ratio near one
- * and destroys one near zero: the real value was about 0.002, and "0.00" reads
- * as free rather than as very cheap. It is the same failure the absorption
- * panel shipped with its efficiency ratio, in a different module, which is why
- * the formatter lives somewhere both callers can share rather than being
- * written out twice.
+ * They used to live in this file, and that is exactly how the product ended up
+ * with three different answers to "render a number whose scale belongs to the
+ * instrument" — `toFixed(0)` here, `toFixed(2)` and `toExponential(2)` over in
+ * the absorption panel, plus a byte-for-byte duplicate of `roundSig` in
+ * `selectAbsorption.ts` under its own copy of the same explanation. Both wrong
+ * answers were caught on PRODUCTION, not in review.
+ *
+ * So the owner is now `./measuredNumber`, and this module is one of its
+ * callers. The names stay exported from here because this module's public
+ * surface is part of the contract its panel already imports: moving the owner
+ * is not a reason to make every consumer re-decide where to import from, and
+ * a second CALLER of one owner is fine — a second ANSWER is not.
  */
-export function formatRatio(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  if (v === 0) return "0";
-  const a = Math.abs(v);
-  if (a >= 100) return Math.round(v).toLocaleString("en-US");
-  if (a >= 0.01) return v.toFixed(2);
-  return Number(v.toPrecision(2)).toString();
-}
-
-/**
- * Format a COST for reading — size per spread, not a ratio.
- *
- * SAME SPECIES AS `formatRatio`, ONE FIELD OVER, AND IT SHIPPED. `formatRatio`
- * was written because a vacuum measured at 0.002 rendered as "0.00×" and read
- * as free. The cost the ratios are computed FROM was left on the panel's own
- * fixed-decimal helper at ZERO digits, so on an instrument whose volume is
- * denominated in fractions — BTC, where a segment moves on ~0.065 — the panel
- * printed `MEDIAN COST 0 size per spread` beside `LATEST VS PEERS 5.38×`.
- * MEASURED on production 2026-09-18 at /command-deck?equip=order-flow&stage=full.
- * A ratio against a true zero is Infinity, so the non-zero ratios were proof
- * the median was non-zero and the FORMATTER was the liar. The pixel told the
- * trader it costs nothing to move this market. That is the headline number of
- * the invention.
- *
- * It is significant-figure, not fixed-decimal, for the reason `roundSig` gives
- * above: a cost's natural magnitude is whatever the instrument's volume is, so
- * any fixed number of decimals is meaningless on one symbol and destroys the
- * reading on another.
- *
- * Exported for the same reason `formatRatio` is: this module's own prose
- * already says "cost to travel one spread has held near X" using this helper,
- * so a panel that formatted the same number differently would make the
- * headline and its explanation disagree. One number, one owner.
- */
-export function formatCost(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString("en-US");
-  return String(roundSig(v, 3));
-}
+export { formatRatio } from "./measuredNumber";
+export { formatMagnitude as formatCost } from "./measuredNumber";
