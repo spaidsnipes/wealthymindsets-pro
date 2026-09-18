@@ -205,6 +205,48 @@ export function hiddenRemainder(trueCount: number, shownLabels: number): string 
  * contradiction surfaced"). That is typography. It is not a second answer
  * about what is hidden, which is the only thing this function owns.
  */
+/**
+ * A LABEL IS A NAME. LOWERCASING A NAME CAN DESTROY IT.
+ *
+ * ── The measured defect ───────────────────────────────────────────────────
+ *
+ * Production /charts?symbol=TSLA, immediately after the venue-blocking atom
+ * landed. The NEXT cell read:
+ *
+ *     Resolve available r
+ *     available r is the first directly-resolvable of 7 unpaid evidence nodes…
+ *
+ * The node's label is `"Available R"`. The R is the R-multiple — the unit the
+ * entire Proof Lane, the journal's Planned/Realized columns and the shutdown
+ * gate are denominated in. `.toLowerCase()` applied to the whole string turned
+ * a named unit into a stray letter, and "available r" is not a thing the
+ * product has ever called anything.
+ *
+ * `CLC` had the same fate waiting one node further on.
+ *
+ * ── Why the rule is per-WORD and not per-LABEL ─────────────────────────────
+ *
+ * Mid-sentence, "Direction" genuinely should read "direction" — sentence case
+ * is what makes these sentences read as prose rather than as a form. The
+ * defect is not lowercasing; it is lowercasing INDISCRIMINATELY.
+ *
+ * So each word is judged on its own shape. A plain capitalised word
+ * (`/^[A-Z][a-z]+$/`) is an ordinary noun and is lowered. Anything else — an
+ * acronym (`CLC`), a bare unit (`R`), an internally-capitalised name — was
+ * capitalised ON PURPOSE by whoever authored the label, and this function has
+ * no standing to overrule that. "Available R" becomes "available R".
+ *
+ * WHY NOT A LIST OF EXCEPTIONS: a hard-coded set of acronyms is a second place
+ * to remember when a node is added, and the node author would have no reason
+ * to look here. The shape of the word already carries the intent.
+ */
+export function inSentence(label: string): string {
+  return label
+    .split(" ")
+    .map((w) => (/^[A-Z][a-z]+$/.test(w) ? w.toLowerCase() : w))
+    .join(" ");
+}
+
 export function sampledLabelPhrase(
   labels: readonly string[],
   trueCount: number,
@@ -216,7 +258,7 @@ export function sampledLabelPhrase(
 ): string {
   const limit = opts.limit ?? 2;
   const shown = labels.slice(0, limit);
-  const desc = (opts.lowercase ? shown.map(l => l.toLowerCase()) : shown).join(
+  const desc = (opts.lowercase ? shown.map(inSentence) : shown).join(
     opts.separator ?? " + ",
   );
   return `${desc}${hiddenRemainder(trueCount, shown.length)}`;

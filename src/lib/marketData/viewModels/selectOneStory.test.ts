@@ -86,7 +86,10 @@ describe("selectOneStory — canon §7 shape guarantee", () => {
     });
     expect(vm.missing).toContain("2 evidence nodes unpaid");
     expect(vm.missing).toContain("aggression");
-    expect(vm.missing).toContain("clc");
+    // WAS `toContain("clc")` — a second fixture, on a second surface,
+    // preserving the same destroyed name. CLC is an acronym. See
+    // `inSentence` in decisionPermissionCompiler.
+    expect(vm.missing).toContain("CLC");
   });
 
   it("decision.value cannot be ACTION when missing evidence exists — canon rejection #1 preserved", () => {

@@ -4,6 +4,7 @@ import {
   computeRightOfWay,
   hiddenRemainder,
   sampledLabelPhrase,
+  inSentence,
   EVIDENCE_LABEL_SAMPLE_LIMIT,
   type EvidenceDebt,
 } from "./decisionPermissionCompiler";
@@ -135,7 +136,10 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     expect(r.tone).toBe("warn");
     expect(r.detail).toContain("evidence debt");
     expect(r.detail).toContain("aggression");
-    expect(r.detail).toContain("clc");
+    // WAS `toContain("clc")`. That assertion was not catching the defect, it
+    // was PRESERVING it: CLC is an acronym and the product has never called
+    // it "clc". See × THE DESTROYED UNIT below.
+    expect(r.detail).toContain("CLC");
   });
 
   it("Rule 1: missing evidence forces WAIT even when permission ADVISORY", () => {
@@ -287,6 +291,36 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     });
 
     describe("sampledLabelPhrase — the suffix had an owner, the PHRASE did not", () => {
+      // ── TENTH SIGHTING, and the first that was a DESTROYED NAME rather
+      // than a hidden remainder. MEASURED LIVE on /charts?symbol=TSLA:
+      // "Resolve available r". The label is "Available R" — the R-multiple
+      // the whole Proof Lane is denominated in. `lowercase: true` fed every
+      // label through a blanket toLowerCase, so SIX call sites (the ribbon
+      // x2, one story x2, the compiler's own `need` clause, and the NEXT
+      // cell) were all capable of printing it.
+      it("× THE DESTROYED UNIT: lowercase: true does not flatten 'Available R'", () => {
+        expect(sampledLabelPhrase(["Available R"], 1, { lowercase: true }))
+          .toBe("available R");
+        expect(sampledLabelPhrase(["CLC", "Direction"], 2, { lowercase: true }))
+          .toBe("CLC + direction");
+      });
+
+      it("× THE OVER-CORRECTION: ordinary nouns are STILL lowered", () => {
+        // The defect was never lowercasing. It was lowercasing
+        // INDISCRIMINATELY. Sentence case is what makes these read as prose.
+        expect(sampledLabelPhrase(["Regime", "Direction"], 2, { lowercase: true }))
+          .toBe("regime + direction");
+        expect(inSentence("Location")).toBe("location");
+      });
+
+      it("× THE SECOND RULE: one casing rule, not one per surface", () => {
+        // `inSentence` lives in THIS module because sampledLabelPhrase needs
+        // it and selectOneNextThing needs it. Two copies of a casing rule is
+        // exactly how one label starts reading two ways on one screen.
+        expect(sampledLabelPhrase(["Available R"], 1, { lowercase: true }))
+          .toBe(inSentence("Available R"));
+      });
+
       // `hiddenRemainder` owned the "+N" and nothing owned the three lines
       // around it, so those three lines were re-typed at six call sites. The
       // sixth — CommandContextRibbon's WARN branch, one line below a correct
