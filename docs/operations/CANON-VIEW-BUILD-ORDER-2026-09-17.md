@@ -161,6 +161,34 @@ ALERTS) is a *navigation* invention — ship only the sections that have owners.
 - 01 / 11 / 12 / 13 / 18 — progressive scaffolding; zero data dependencies.
 - 19 / 20 — Liquidity Weather lifecycle; **gated behind the same depth provider as 08.**
 
+#### AMENDED 2026-09-18 — THREE OF THOSE FOUR LINES WERE WRONG, AND THIS FILE IS THE FILE THAT SHOULD KNOW BETTER
+
+The three bullets above were written from the mockup titles. The Founder's
+**Visual Implementation Contract & Asset Ledger** (Drive
+`11xOCJYbc8-B-B1A_1R0AaBh2Xm7GY5OVL5hKQbE6KHI`, section CURRENT TRANSFORMATION
+ASSET SET) was read on 2026-09-18 and contradicts them:
+
+1. **19 and 20 are NOT depth-gated.** The ledger names 19 "Absorption Anatomy
+   **Alternate**" and 20 "Big Trade Intelligence **Alternate**" — alternate
+   compositions of the already-shipped 06 and 05, to be compared against them
+   and merged. Only **08** needs the licensed Level 2 depth provider. Two assets
+   were parked behind a blocker that was never theirs.
+2. **"zero data dependencies" is false for two of the five.** Asset **13**
+   (Mastery Path) depends on the user having decision history; Asset **18**
+   (Order Flow Long Division) depends on **signed tape**, which most symbols do
+   not carry — a worksheet whose every term reads `—` teaches nothing, so 18 is
+   honest today only on crypto, where the side is venue-stated.
+3. **04 does not need `composeMarketCanvasVM`.** It is Asset 06's evidence
+   re-composed around the question. Both halves were already in the repo: the
+   compiler `selectAbsorptionAnatomyView`, and the finished-and-tested
+   `ActiveQuestionBar`, which was sitting unused on the wrong route
+   (`/command-deck` only, zero references from `ChartsDashboard`).
+
+This is the SAME failure this file was created to stop — believing a source of
+words about the work instead of reading the work — committed by this file, one
+section below the paragraph where it says so. **AN OWNER BEATS A CONVENTION**
+applies to the build order too.
+
 ---
 
 ## THE THREE FOUNDER ACCEPTANCE QUESTIONS
