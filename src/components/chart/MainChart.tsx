@@ -61,6 +61,7 @@ import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
+import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -234,17 +235,11 @@ function getIntervalSec(tf: string): number {
   return v;
 }
 
-/* ── Countdown formatter ─────────────────────────────────── */
-function formatCountdown(remaining: number, intervalSec: number): string {
-  const r = Math.max(0, Math.ceil(remaining));
-  if (intervalSec < 60) return `${r}s`;
-  if (intervalSec < 3600) {
-    const m = Math.floor(r / 60), s = r % 60;
-    return `${m}:${String(s).padStart(2, "0")}`;
-  }
-  const h = Math.floor(r / 3600), m = Math.floor((r % 3600) / 60), s = r % 60;
-  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+/* ── Countdown wording ───────────────────────────────────────
+   The formatter that used to live here emitted `15:12` for a 30m bar — a
+   duration in a clock's clothes, rendered two inches from `LAST 07:04 PM`.
+   Both the glyph AND the claim it makes about the feed now belong to
+   `chartBarCountdown`; see that file's docblock for the live reading. */
 
 /* ── Polygon symbol mapping ─────────────────────────────── */
 function toPolygonTicker(sym: string): string | null {
@@ -1312,18 +1307,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // or the window regains focus after the user placed a trade on /paper) → re-read.
   const [paperNonce, setPaperNonce] = useState(0);
 
-  // Countdown state
-  const [countdown,   setCountdown]   = useState("--:--");
+  // Countdown state. The RAW REMAINDER, not a formatted string: the wording
+  // and the feed claim are compiled at the render, where `candleDataStatus`
+  // is in scope. A string here is a second, unconsultable opinion.
+  const [remainingSec, setRemainingSec] = useState<number | null>(null);
+  const [intervalSec,  setIntervalSec]  = useState<number | null>(null);
   // The header's OHLC strip needs a clock to tell a CLOSED bar from a FORMING
   // one. It starts at 0 — "no clock yet" — so the first render on both server
   // and client is identical (a Date.now() read during render is what caused the
   // #418 hydration class) and the selector degrades to its honest NOW label
   // until the countdown's own tick supplies a real reading a second later.
   const [nowMs,       setNowMs]       = useState(0);
-  const [closeFlash,  setCloseFlash]  = useState(false);
   // Refs so the RAF canvas loop can read the live countdown each frame without
   // being re-created every second (which would tear down the VP/footprint draw).
-  const countdownRef  = useRef("--:--");
+  // Both are now written from the owner's verdict, so the on-canvas pill and
+  // the header strip cannot say different things about the same bar.
+  const countdownRef  = useRef("—");
   const closeFlashRef  = useRef(false);
   const progressRef    = useRef(0); // 0→1 fraction of current candle elapsed
   const candleTimerRef = useRef(true); // live-readable copy of chartSettings.candleTimer
@@ -1633,13 +1632,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const barStart  = Math.floor(now / sec) * sec;
       const barEnd    = barStart + sec;
       const remaining = barEnd - now;
-      const txt = formatCountdown(remaining, sec);
-      const flash = remaining <= 5 && remaining > 0;
-      setCountdown(txt);
+      setRemainingSec(remaining);
+      setIntervalSec(sec);
       setNowMs(now * 1000);
-      setCloseFlash(flash);
-      countdownRef.current = txt;
-      closeFlashRef.current = flash;
       progressRef.current = Math.max(0, Math.min(1, (now - barStart) / sec));
     };
 
@@ -7236,6 +7231,60 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     } catch {}
   }, [hitTestDrawing]);
 
+  /* ── ONE FEED VERDICT, TWO READERS ───────────────────────────
+     Hoisted out of the data-truth strip's IIFE because the candle countdown
+     three elements to its left was counting down over a frozen candle
+     without ever asking whether the tape was flowing. THE EVIDENCE WAS
+     ALREADY IN THE ROOM — this call. A second `candleDataStatus(...)` for
+     the countdown would be a second opinion about the same tape, and it
+     would agree with this one only until someone edited one of them. */
+  void freshVer; // periodic recheck so the verdict can go stale when ticks stop
+  const lastBarT = candles.length ? (candles[candles.length - 1].time as number) : 0;
+  const lastStr = lastBarT
+    ? new Date(lastBarT * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : "—";
+  const candleStatus = candleDataStatus(
+    source,
+    connected,
+    candleSource !== "__unresolved__" && candles.length > 0,
+    lastTickAtRef.current,
+    undefined,
+    undefined,
+    // Canon §8 — this chip sat beside a rail already reading
+    // SESSION CLOSED and printed ACTIVE DEGRADED on a Saturday.
+    sessionOpen,
+    // THE EVIDENCE WAS ALREADY IN THE ROOM, ONE LINE ABOVE.
+    //
+    // `candleSource` is "" until the bars fetch settles and is then
+    // set — unconditionally, in the same statement — to either a
+    // provider name or the "__unresolved__" sentinel. So `!== ""` IS
+    // "we have finished asking", exactly and already.
+    //
+    // The line above this one was ALSO reading `candleSource`, and
+    // threw this fact away by collapsing it into the `hasCandles`
+    // boolean. The chip then had no way to tell a request in flight
+    // from a request that came back empty, and printed DATA
+    // UNAVAILABLE for both. Nothing new had to be computed or
+    // fetched to fix it; the distinction only had to survive the
+    // trip into the function.
+    candleSource !== "",
+  );
+
+  /* The countdown's wording AND its claim about the feed, from one owner.
+     AWAITING is not a reading — there is no certified tape, so the number
+     is about the clock only, which is exactly what `live: false` says. */
+  const barCountdown = chartBarCountdown(
+    remainingSec,
+    intervalSec,
+    candleStatus.live,
+    candleStatus.label,
+  );
+
+  // The RAF canvas pill draws the same glyph and the same flash verdict, so
+  // the on-chart pill can never disagree with the header strip.
+  countdownRef.current = barCountdown.glyph;
+  closeFlashRef.current = barCountdown.closing;
+
   return (
     <div
       ref={wrapRef}
@@ -7465,52 +7514,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         {/* Right side: countdown + live */}
         <div className="ml-auto flex items-center gap-3">
           {/* Candle countdown */}
-          <div className={`flex items-center gap-1 text-[10px] font-mono font-bold transition-colors ${
-            chartSettings?.candleTimer === false ? "hidden" : ""
-          } ${
-            closeFlash ? "text-wm-red" : "text-wm-text-dim"
-          }`}>
-            <svg width="8" height="8" viewBox="0 0 8 8" className="shrink-0">
+          <div
+            role="group"
+            aria-label={barCountdown.spoken}
+            title={barCountdown.title}
+            data-bar-countdown-kind={barCountdown.kind}
+            className={`flex items-center gap-1 text-[10px] font-mono font-bold transition-colors ${
+              chartSettings?.candleTimer === false ? "hidden" : ""
+            } ${
+              barCountdown.closing ? "text-wm-red" : "text-wm-text-dim"
+            }`}>
+            <svg width="8" height="8" viewBox="0 0 8 8" className="shrink-0" aria-hidden="true">
               <circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" strokeWidth="1.2" />
               <line x1="4" y1="4" x2="4" y2="1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               <line x1="4" y1="4" x2="6" y2="4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
-            <span className={closeFlash ? "animate-pulse" : ""}>{countdown}</span>
+            <span className={barCountdown.closing ? "animate-pulse" : ""}>{barCountdown.glyph}</span>
           </div>
 
           {/* Data-truth strip — vendor-agnostic status + real feed freshness. */}
           {(() => {
-            void freshVer; // periodic recheck so the badge can go stale when ticks stop
-            const lastBarT = candles.length ? (candles[candles.length - 1].time as number) : 0;
-            const lastStr = lastBarT
-              ? new Date(lastBarT * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-              : "—";
-            const status = candleDataStatus(
-              source,
-              connected,
-              candleSource !== "__unresolved__" && candles.length > 0,
-              lastTickAtRef.current,
-              undefined,
-              undefined,
-              // Canon §8 — this chip sat beside a rail already reading
-              // SESSION CLOSED and printed ACTIVE DEGRADED on a Saturday.
-              sessionOpen,
-              // THE EVIDENCE WAS ALREADY IN THE ROOM, ONE LINE ABOVE.
-              //
-              // `candleSource` is "" until the bars fetch settles and is then
-              // set — unconditionally, in the same statement — to either a
-              // provider name or the "__unresolved__" sentinel. So `!== ""` IS
-              // "we have finished asking", exactly and already.
-              //
-              // The line above this one was ALSO reading `candleSource`, and
-              // threw this fact away by collapsing it into the `hasCandles`
-              // boolean. The chip then had no way to tell a request in flight
-              // from a request that came back empty, and printed DATA
-              // UNAVAILABLE for both. Nothing new had to be computed or
-              // fetched to fix it; the distinction only had to survive the
-              // trip into the function.
-              candleSource !== "",
-            );
+            // Compiled once above the return; the candle countdown to the
+            // left of this badge reads the very same verdict.
+            const status = candleStatus;
             const noFeed = status.state === "UNAVAILABLE";
             // AWAITING is not a reading, so there is nothing to show. The
             // wrapper goes too, not just the text inside it — an empty

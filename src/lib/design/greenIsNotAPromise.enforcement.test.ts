@@ -158,10 +158,19 @@ describe("§9 COLOR + MOTION LAW — no green pulsing pip anywhere in WM Pro", (
     }> = [
       {
         // Two, and both earned. `status.live` is a certified quote actually
-        // arriving; `closeFlash` fires as the bar is about to close, which is
-        // the one moment where urgency on a chart is the literal truth.
+        // arriving; `barCountdown.closing` fires as the bar is about to
+        // close, which is the one moment where urgency on a chart is the
+        // literal truth.
+        //
+        // That second gate used to be a bare `closeFlash` computed as
+        // `remaining <= 5 && remaining > 0` — wall-clock arithmetic that never
+        // asked whether the tape was flowing, so it pulsed red over a frozen
+        // candle. `chartBarCountdown` now returns `closing: false` on every
+        // degraded feed, which makes this gate STRICTLY STRONGER than the one
+        // it replaces: the urgency is now conditioned on the bar actually
+        // arriving, not merely on the clock running out.
         file: "components/chart/MainChart.tsx",
-        gate: /status\.live|closeFlash/,
+        gate: /status\.live|barCountdown\.closing/,
         lookbehind: 20,
         pulses: 2,
       },
