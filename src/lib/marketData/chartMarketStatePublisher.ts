@@ -18,6 +18,12 @@ import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
 import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDimension";
 import { deriveRegimeDimension } from "./deriveRegimeDimension";
+import { deriveProfileDimension } from "./deriveProfileDimension";
+import {
+  buildLivingProfileSnapshot,
+  selectLivingProfile,
+} from "./viewModels/selectLivingProfile";
+import type { ProfileBar } from "@/lib/vpEngine";
 import {
   deriveLastBarClose,
   lastBarCloseRecheckAtMs,
@@ -58,13 +64,50 @@ export interface ChartMarketStatePublicationInput {
    * able to publish without inventing any. Optional is a legitimate state; an
    * un-revisited comment is what made it a silent one.
    */
-  readonly bars?: readonly BarCloseCandidate[] | null;
+  /**
+   * `BarCloseCandidate` is deliberately the MINIMUM a bar must carry to own a
+   * close. The OHLCV fields are intersected in as OPTIONAL because a second
+   * reader — the value-area derivation below — needs high/low/volume, and a
+   * surface that holds only closes must still be able to publish. Widening
+   * rather than forking keeps ONE bars input: two fields would let a room feed
+   * the close-owner and the profile-owner different candles.
+   */
+  readonly bars?: readonly (BarCloseCandidate & Partial<ProfileBar>)[] | null;
 }
 
 // Asset class + instrument id + session all delegate to the single canonical
 // helper module so producer/consumer identities cannot drift (b46fa64 class of
 // P0). If you find yourself reaching for a local inference here, extend
 // canonicalIdentity.ts and add a contract test instead.
+/**
+ * Keep ONLY the bars that carry a whole candle.
+ *
+ * A bar missing high/low/volume cannot contribute to a distribution, and
+ * substituting a close for a missing high would invent a range the venue never
+ * printed. So such bars are dropped rather than patched — if that leaves too
+ * few, the profile compiler says it has no measurement, which is the honest
+ * end state.
+ */
+function profileBarsFrom(
+  bars: ChartMarketStatePublicationInput["bars"],
+): ProfileBar[] {
+  const out: ProfileBar[] = [];
+  for (const bar of bars ?? []) {
+    if (!bar) continue;
+    const { time, open, high, low, close, volume } = bar;
+    if (
+      typeof time !== "number" || !Number.isFinite(time) ||
+      typeof open !== "number" || !Number.isFinite(open) ||
+      typeof high !== "number" || !Number.isFinite(high) ||
+      typeof low !== "number" || !Number.isFinite(low) ||
+      typeof close !== "number" || !Number.isFinite(close) ||
+      typeof volume !== "number" || !Number.isFinite(volume)
+    ) continue;
+    out.push({ time, open, high, low, close, volume });
+  }
+  return out;
+}
+
 function assetClassFor(symbol: string): CanonicalAssetClass {
   return canonicalAssetClass(symbol);
 }
@@ -195,6 +238,28 @@ export function createChartMarketStatePublication(
     tradeCount: countTradeTicks(input.recentTicks),
   });
 
+  // PROFILE — the third repair of one shape. Measured live on /charts
+  // 2026-09-17, BTC: the Living Profile panel published VAH 76280 / POC 76000
+  // / VAL 75700 from 248 populated buckets while the Market Object Passport in
+  // the rail beside it read "Unresolved: location, aggression, structure,
+  // profile." One screen, one instrument, one instant, two answers.
+  //
+  // The source decision is NOT made here. `buildLivingProfileSnapshot` is the
+  // single chooser between the per-trade tape and the candle estimate, exactly
+  // as ChartsDashboard calls it, so the Passport can never seal a POC the
+  // panel never drew. The deriver reads that compiled VM and mints no new
+  // observation of its own.
+  const profile = deriveProfileDimension({
+    vm: selectLivingProfile(
+      buildLivingProfileSnapshot(input.recentTicks, profileBarsFrom(input.bars)),
+      { livePrice: input.ticker.price },
+    ),
+    source: typeof input.source === "string" ? input.source : null,
+    latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
+    capturedAt: input.capturedAt,
+    snapshotIdSeed: snapshotId,
+  });
+
   // ONE UNKNOWN PER UNRESOLVED DIMENSION.
   //
   // Real from-USE defect (2026-09-03): this previously emitted a single
@@ -213,7 +278,7 @@ export function createChartMarketStatePublication(
     ...(regime.resolution === "RESOLVED" ? [] : ["Regime"]),
     "Structure",
     ...(volatility.resolution === "RESOLVED" ? [] : ["Volatility"]),
-    "Profile",
+    ...(profile.resolution === "RESOLVED" ? [] : ["Profile"]),
     ...(orderFlow.resolution === "RESOLVED" ? [] : ["Order flow"]),
   ];
   const unknowns = unresolvedDimensions.map(
@@ -263,7 +328,7 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
-      dimensions: { orderFlow, volatility, direction, regime },
+      dimensions: { orderFlow, volatility, direction, regime, profile },
     },
   };
 }
