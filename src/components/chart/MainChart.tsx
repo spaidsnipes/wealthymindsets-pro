@@ -111,6 +111,8 @@ import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueC
 import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
 import { selectDeltaDivergenceGlass } from "@/lib/marketData/viewModels/selectDeltaDivergenceGlass";
 import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaDivergence";
+import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
+import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -605,6 +607,12 @@ interface Props {
    * has no reading; nothing is drawn.
    */
   deltaDivergence?: DeltaDivergenceVM | null;
+  /**
+   * LIQUIDITY WEATHER — what it is costing to move this market. Mostly NOT a
+   * price-axis reading, and `selectLiquidityWeatherGlass` says so: only the
+   * stalled-segment shelves get a level. Null means the room has no reading.
+   */
+  liquidityWeather?: LiquidityWeatherVM | null;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -854,6 +862,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   imbalanceStack = null,
   valueCandle = null,
   deltaDivergence = null,
+  liquidityWeather = null,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -922,6 +931,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    *  every one of them arrives through a ref for the same documented cause. */
   const deltaDivergenceRef = useRef<DeltaDivergenceVM | null>(null);
   useEffect(() => { deltaDivergenceRef.current = deltaDivergence; }, [deltaDivergence]);
+
+  /** And the fourth. Four tape-rate readings, one rule. */
+  const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
+  useEffect(() => { liquidityWeatherRef.current = liquidityWeather; }, [liquidityWeather]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -7311,6 +7324,82 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         if (!painted) {
           // A stale lean keeps asserting a swing that is no longer on screen.
           delete ds.deltaDivergenceLean;
+        }
+      } catch { /* chart may be mid-transition; safe to skip this frame */ }
+
+      /* ══════════════════════════════════════════════════════════════════════
+         LIQUIDITY WEATHER — AND THE ADMISSION THAT MOST OF IT HAS NO PRICE.
+
+         The other three readings above were prices trapped in a drawer, and the
+         repair was to put them back on the axis. This one is not, and treating
+         it the same way would be the more expensive mistake.
+
+         Liquidity weather measures COST — size required to move price one unit
+         of the window's own spread — and whether that cost is rising. A cost
+         has no level. THINNING is true of the window, not of $431.40, and a
+         THINNING band drawn at any price would invent a location for a finding
+         that has none. So the stage and its statistics are painted as WORDS in
+         the chrome, and `selectLiquidityWeatherGlass` deliberately emits no
+         field a renderer here could mistake for a coordinate.
+
+         THE ONE EXCEPTION IS THE BEST PART OF THE READING. A STALLED SEGMENT IS
+         A PRICE: every print in it landed at the same number, so size went in
+         and the market did not move. That is a shelf, it is a level, and it is
+         exactly the perceivable market geometry the Founder asks for. Those get
+         the axis. Nothing else does.
+      ══════════════════════════════════════════════════════════════════════ */
+      try {
+        const glass = selectLiquidityWeatherGlass(liquidityWeatherRef.current);
+        const ds = canvas.dataset;
+        ds.liquidityWeather = glass.reason;
+
+        if (glass.drawn) {
+          ctx.save();
+
+          // ── THE SHELVES, at their prices. Drawn as a short dotted mark so a
+          // level where nothing moved does not read as a support line somebody
+          // is defending — it is an observation, not a claim about intent.
+          let shelves = 0;
+          ctx.setLineDash([1, 3]);
+          ctx.strokeStyle = "rgba(237,230,211,0.50)";
+          ctx.lineWidth = 1;
+          for (const p of glass.stallPrices) {
+            const yr = srs.priceToCoordinate(p);
+            if (yr == null) continue;
+            const y = Math.round(+yr) + 0.5;
+            ctx.beginPath();
+            ctx.moveTo(158, y);
+            ctx.lineTo(238, y);
+            ctx.stroke();
+            shelves++;
+          }
+          ctx.setLineDash([]);
+
+          // ── THE WORDS, in the chrome and nowhere near a price. Bottom-left of
+          // the plot, which the price-anchored layers above do not use.
+          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "bottom";
+          let wy = Math.max(20, H - 6);
+          if (glass.stallLabel && shelves > 0) {
+            ctx.fillStyle = "rgba(237,230,211,0.65)";
+            ctx.fillText(glass.stallLabel, 8, wy);
+            wy -= 11;
+          }
+          ctx.fillStyle = "rgba(237,230,211,0.75)";
+          ctx.fillText(glass.detail, 8, wy);
+          wy -= 11;
+          ctx.fillStyle = "#d4af37";
+          ctx.fillText(glass.label, 8, wy);
+          ctx.restore();
+
+          ds.liquidityWeatherStage = glass.stage;
+          if (shelves > 0) ds.liquidityWeatherShelves = String(shelves);
+          else delete ds.liquidityWeatherShelves;
+        } else {
+          // A stale stage keeps describing weather that is no longer measured.
+          delete ds.liquidityWeatherStage;
+          delete ds.liquidityWeatherShelves;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 

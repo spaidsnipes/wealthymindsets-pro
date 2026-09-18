@@ -2872,6 +2872,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         component either.
                       */
                       deltaDivergence={chartOrderFlowReadings.deltaDivergence}
+                      /*
+                        The fifth and last of the order-flow readings. Most of
+                        it is not a price-axis claim at all and the glass
+                        compiler says so — only the stalled-segment shelves get
+                        a level. It is handed over anyway so the one honest
+                        price in it stops living exclusively in a drawer.
+                      */
+                      liquidityWeather={chartOrderFlowReadings.liquidityWeather}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
