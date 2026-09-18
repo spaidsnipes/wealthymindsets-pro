@@ -6369,8 +6369,55 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (absorptionAnatomyActive) {
         try {
           const srcBars = barsRef.current;
-          const WINDOW = 30;
-          const tail = srcBars.slice(-WINDOW);
+          const ts = chart.timeScale();
+
+          // ── THE WINDOW FOLLOWS THE EYE ─────────────────────────────────
+          // Observed live on /charts (2026-09-17): this was pinned at the
+          // trailing 30 bars. The number of bars ON SCREEN is not pinned at
+          // anything — at the default zoom the chart draws several hundred,
+          // so a 30-bar field collapsed into a sliver at the right edge,
+          // underneath the volume profile, where it could not be read at any
+          // zoom step. The layer was live, correct, and invisible.
+          //
+          // A fixed bar count cannot be right, because the question the field
+          // answers — "was the effort in FRONT OF ME paid for?" — is asked
+          // about whatever the trader is looking at. So the window is the
+          // VISIBLE range. It is not `slice(-N)`: a trader who has scrolled
+          // back into history must get the field over the bars actually in
+          // front of them, not over the live edge they cannot see.
+          //
+          // The selector normalises effort and displacement against whatever
+          // window it is handed, so a moving window stays self-scaling — the
+          // tallest column is always the biggest effort IN VIEW, which is the
+          // only claim the drawing ever makes.
+          const vis = ts.getVisibleLogicalRange();
+          let from = 0;
+          let to = srcBars.length;
+          if (vis) {
+            const lo = Math.floor(vis.from);
+            const hi = Math.ceil(vis.to) + 1;
+            if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
+              from = Math.max(0, Math.min(srcBars.length, lo));
+              to = Math.max(from, Math.min(srcBars.length, hi));
+            }
+          }
+          // Upper bound is a drawing constraint, not a market one: past a few
+          // hundred columns the strata are thinner than a pixel and the field
+          // stops being readable as shape. When the cap bites we keep the
+          // RIGHT-hand end of the view, because the newest bars in view are
+          // the ones a decision is being made about — and the dashed edge
+          // below declares exactly where the covered span starts, so a capped
+          // window is visible as a capped window rather than passing for the
+          // whole view.
+          const MAX_COLUMNS = 240;
+          const windowCapped = to - from > MAX_COLUMNS;
+          if (windowCapped) from = to - MAX_COLUMNS;
+          // No floor is enforced here. A window too small to measure flows
+          // into the selector, comes back UNMEASURED, and lands in the refusal
+          // branch below — which is the correct render, and one fewer place
+          // that decides what "enough" means.
+          const tail = srcBars.slice(from, to);
+          const WINDOW = tail.length;
 
           const anatomyInput: AnatomyBarInput[] = tail.map(b => {
             // Real tape or null — never synthesized. Unstamped on purpose:
@@ -6392,7 +6439,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           });
 
           const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW });
-          const ts = chart.timeScale();
 
           // Screen positions for every bar that is actually on screen.
           const pts = anatomy.bars.map(b => {
@@ -6468,22 +6514,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // RELATIONSHIP (field vs slope) and letting the existing candles be
             // the slope. Field here, price from the series — one owner each.
 
-            // ── WINDOW EDGE. The field covers the TRAILING 30 bars, not the
-            // whole visible range, so without a declared edge it reads as an
-            // unexplained smear at the right. The mockup names its own extent
-            // ("BARS (LAST 30)"); so does this.
+            // ── WINDOW EDGE, drawn ONLY when the field stops short of the
+            // view. The window now follows the visible range, so in the normal
+            // case the field's left edge IS the left edge of the chart and a
+            // dashed line there would be decoration marking nothing. It earns
+            // its ink in exactly one case: the MAX_COLUMNS cap bit, so the
+            // covered span is narrower than what the trader can see, and the
+            // boundary between "measured" and "not drawn" falls in the middle
+            // of the screen. That boundary must be declared, or the field
+            // reads as an unexplained smear at the right.
             const firstX = pts[0]!.x;
-            ctx.save();
-            ctx.setLineDash([2, 4]);
-            ctx.strokeStyle = "rgba(212,175,55,0.30)";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(firstX, 0);
-            ctx.lineTo(firstX, H);
-            ctx.stroke();
-            ctx.restore();
+            if (windowCapped) {
+              ctx.save();
+              ctx.setLineDash([2, 4]);
+              ctx.strokeStyle = "rgba(212,175,55,0.30)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(firstX, 0);
+              ctx.lineTo(firstX, H);
+              ctx.stroke();
+              ctx.restore();
+            }
 
-            const winTxt = `LAST ${pts.length} BARS`;
+            // The count is always printed. It is the field's own statement of
+            // how many bars it measured, and a trader comparing two zoom
+            // levels needs it whether or not the span was capped. "IN VIEW"
+            // rather than "LAST": these are the bars in front of the eye, and
+            // on a scrolled-back chart they are emphatically not the last.
+            const winTxt = `${pts.length} BARS IN VIEW`;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const winW = ctx.measureText(winTxt).width;
             ctx.fillStyle = "rgba(14,12,8,0.86)";
