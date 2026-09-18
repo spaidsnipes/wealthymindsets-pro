@@ -31,6 +31,44 @@ export interface WhyInspectorProps {
   className?: string;
 }
 
+/**
+ * The "+N more" line, owned once.
+ *
+ * ── 2026-09-18: TWO OF FOUR TRUNCATIONS IN THIS FILE DISCLOSED NOTHING ────
+ *
+ * This component truncates four lists. Two of them said so and two did not:
+ *
+ *   evidence group items   slice(0, 4)   "+N more from {src}"   correct
+ *   coverage channels      slice(0, 6)   "+N more channels"     correct
+ *   contradictions         slice(0, 5)   —                      DRIFTED
+ *   unknowns               slice(0, 5)   —                      DRIFTED
+ *
+ * All four are in one component, and the two correct ones are the author's own
+ * proof of what the other two were supposed to do. That is the fourth time this
+ * repo has found the same shape: a convention re-decided at every call site,
+ * and some of the decisions are wrong.
+ *
+ * Weaker than the evidence-debt case — the section headers here DO print the
+ * true count, `Unknowns (9)`, so a trader who counts the rows can see the gap.
+ * Fixing it anyway, because "the number is technically elsewhere on the screen"
+ * is the argument that lost every previous round of this, and because the fix
+ * is to delete two decisions rather than to add a rule.
+ *
+ * `total` is the AUTHORITATIVE length, never the sliced array — that inversion
+ * is the defect `hiddenRemainder` exists for, and it renders "+0" or worse.
+ * Returns null rather than an empty node when nothing is hidden: a "+0 more"
+ * is a pixel with nothing behind it.
+ */
+function MoreNotice({ total, shown, noun }: { total: number; shown: number; noun: string }) {
+  const hidden = total - shown;
+  if (!(hidden > 0)) return null;
+  return (
+    <div style={{ fontSize: 9, color: WM.text.muted, fontStyle: "italic" }}>
+      +{hidden} more {noun}
+    </div>
+  );
+}
+
 function dimEvidence(dim: MarketStateDimension | null | undefined) {
   if (!dim) return { evidence: [], contradictions: [], unknowns: [], value: null, resolution: null, confidence: null };
   return {
@@ -239,11 +277,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                         <span style={{ fontSize: 9, color: WM.text.muted, minWidth: 60, textAlign: "right" }}>{fmtAge(nowTs - e.observedAt)}</span>
                       </div>
                     ))}
-                    {g.items.length > 4 && (
-                      <div style={{ fontSize: 9, color: WM.text.muted, fontStyle: "italic" }}>
-                        +{g.items.length - 4} more from {g.src}
-                      </div>
-                    )}
+                    <MoreNotice total={g.items.length} shown={4} noun={`from ${g.src}`} />
                   </div>
                 </div>
               ))}
@@ -274,6 +308,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                 {c}
               </div>
             ))}
+            <MoreNotice total={contradictions.length} shown={5} noun="contradictions" />
           </div>
         ) : null;
 
@@ -287,6 +322,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                 {u}
               </div>
             ))}
+            <MoreNotice total={unknowns.length} shown={5} noun="unknowns" />
           </div>
         ) : null;
 
@@ -312,11 +348,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                   </div>
                 );
               })}
-              {state.coverage.length > 6 && (
-                <div style={{ fontSize: 9, color: WM.text.muted, fontStyle: "italic" }}>
-                  +{state.coverage.length - 6} more channels
-                </div>
-              )}
+              <MoreNotice total={state.coverage.length} shown={6} noun="channels" />
             </div>
           </div>
         ) : null;
