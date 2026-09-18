@@ -173,6 +173,55 @@ export function ContinuationHealthView({
         </section>
       )}
 
+      {/* WHERE IT TURNED. Asset 17 draws this as KEY LEVELS · Resistance /
+          Support; those two words are refused in the compiler because they are
+          forward-looking claims nothing here owns. What is printed is the
+          observed pivot and the owner that confirmed it.
+
+          This block survives an UNREADABLE verdict on purpose: when the regime
+          is short but the structure is not, the pivots are still known, and the
+          "where" is the question every continuation reading ends on. */}
+      {vm.levels.length > 0 && (
+        <section
+          aria-label="Confirmed levels"
+          data-testid="continuation-levels"
+          style={{ display: "flex", flexWrap: "wrap", gap: 10 }}
+        >
+          {vm.levels.map((l) => (
+            <div
+              key={l.label}
+              data-testid="continuation-level"
+              style={{
+                flex: "1 1 160px",
+                background: PANEL,
+                border: `1px solid ${HAIR}`,
+                borderRadius: 6,
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <span
+                style={{ fontSize: 9, letterSpacing: 1.6, textTransform: "uppercase", color: MUTED }}
+              >
+                {l.label}
+              </span>
+              {/* A price the market printed — not a grade, so §9 has no quarrel
+                  with it. Monospaced so two levels align digit-for-digit. */}
+              <span
+                style={{ fontSize: 17, color: GOLD_DIM, fontFamily: "ui-monospace, monospace" }}
+              >
+                {l.price}
+              </span>
+              <span style={{ fontSize: 10, color: MUTED, fontFamily: "ui-monospace, monospace" }}>
+                {l.owner}
+              </span>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* THE PERMANENT LAG — carried, not summarised. */}
       {vm.confirmationLagNote && (
         <p

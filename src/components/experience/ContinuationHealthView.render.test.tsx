@@ -62,10 +62,27 @@ function visibleText(html: string): string {
   return html.replace(/<[^>]*>/g, " ");
 }
 
-const render = (bias: MarketStructureVM["bias"], verdict: RegimeVerdict) =>
+/**
+ * The two confirmed pivots Asset 17 draws as `KEY LEVELS`. Opt-in, because the
+ * default fixture carries null swings and most assertions here are about a
+ * surface with no level on it.
+ */
+const SWINGS = {
+  lastSwingHigh: { time: 1_700_000_000, price: 143.5 },
+  lastSwingLow: { time: 1_699_900_000, price: 126 },
+} as const;
+
+const render = (
+  bias: MarketStructureVM["bias"],
+  verdict: RegimeVerdict,
+  over: Partial<MarketStructureVM> = {},
+) =>
   renderToStaticMarkup(
     <ContinuationHealthView
-      vm={selectContinuationHealth({ structure: structureOf({ bias }), regime: regimeOf(verdict) })}
+      vm={selectContinuationHealth({
+        structure: structureOf({ bias, ...over }),
+        regime: regimeOf(verdict),
+      })}
       symbol="BTC"
       timeframe="15m"
     />,
@@ -86,6 +103,7 @@ describe("ContinuationHealthView", () => {
           symbol="BTC"
         />,
       ), //                                 UNREADABLE
+      render("HIGHER_HIGHS", "TREND", SWINGS), // COHERENT, with prices on screen
     ];
     for (const out of html) {
       // VISIBLE TEXT ONLY. Asserting against raw markup would catch the `100%`
@@ -125,8 +143,52 @@ describe("ContinuationHealthView", () => {
 
   it("carries the permanent pivot lag on a directional reading, and omits it otherwise", () => {
     expect(render("HIGHER_HIGHS", "TREND")).toContain("the newest 5 bars cannot yet be a pivot");
-    // ROTATING states no direction, so there is no lag claim to make.
+    // ROTATING states no direction AND this fixture prints no level, so the
+    // surface rests on no pivot at all and has no lag claim to make. The moment
+    // a level appears the note returns — asserted in the levels block below.
     expect(render("RANGE", "BALANCE")).not.toContain("cannot yet be a pivot");
+  });
+
+  describe("confirmed levels — the one block of Asset 17 with an owner", () => {
+    it("draws the pivots, each beside the owner that confirmed it", () => {
+      const out = render("HIGHER_HIGHS", "TREND", SWINGS);
+      expect(out).toContain('data-testid="continuation-levels"');
+      const text = visibleText(out);
+      expect(text).toContain("Last confirmed swing high");
+      expect(text).toContain("143.5");
+      expect(text).toContain("Last confirmed swing low");
+      expect(text).toContain("126");
+      expect(text).toContain("selectMarketStructure");
+    });
+
+    it("NEVER PRINTS 'resistance' OR 'support' — those are forward-looking claims", () => {
+      // Asset 17 labels this block `KEY LEVELS · Resistance / Support`. Both
+      // words say price WILL struggle at a number; nothing here owns that.
+      const out = render("HIGHER_HIGHS", "TREND", SWINGS);
+      expect(out).not.toMatch(/resistance/i);
+      expect(out).not.toMatch(/support/i);
+    });
+
+    it("keeps the levels on an UNREADABLE verdict — the pivots were still measured", () => {
+      // The live TSLA state observed 2026-09-18: regime short, structure not.
+      const out = renderToStaticMarkup(
+        <ContinuationHealthView
+          vm={selectContinuationHealth({
+            structure: structureOf(SWINGS),
+            regime: { ...regimeOf("UNKNOWN"), reason: "No dimension resolved." } as RegimeVM,
+          })}
+          symbol="BTC"
+        />,
+      );
+      expect(out).toContain("UNREADABLE");
+      expect(out).toContain('data-testid="continuation-levels"');
+      // A level is a pivot, so it drags its disclosure onto the screen with it.
+      expect(out).toContain("the newest 5 bars cannot yet be a pivot");
+    });
+
+    it("draws no empty levels shell when no pivot was confirmed", () => {
+      expect(render("HIGHER_HIGHS", "TREND")).not.toContain('data-testid="continuation-levels"');
+    });
   });
 
   it("heads the surface with the question the reading actually licenses", () => {

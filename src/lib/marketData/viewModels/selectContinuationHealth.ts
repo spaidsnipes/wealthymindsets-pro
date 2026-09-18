@@ -88,6 +88,28 @@ export interface ContinuationReading {
   readonly owner: string;
 }
 
+/**
+ * A price the sequence actually turned at. Asset 17 draws these as `KEY LEVELS ·
+ * Resistance / Support` — and those two words are refused here.
+ *
+ * "Resistance" and "support" are forward-looking claims: they say price WILL
+ * struggle at a number. Nothing in this repo owns that. What `selectMarketStructure`
+ * owns is narrower and true — a confirmed fractal pivot, a bar the market has
+ * already turned at. So the label states what was observed, and the reader is
+ * left to decide what it means. This is the same refusal Asset 03 made of
+ * `IMPLICATION: SIDEWAYS / REVERSAL RISK`.
+ *
+ * `price` is a real observed extreme, not a derived score — which is why it is
+ * the one number this VM carries. §9 bans grading a VERDICT in hue and painting
+ * a number on it; it does not ban reporting a price the market printed.
+ */
+export interface ContinuationLevel {
+  readonly label: string;
+  readonly price: number;
+  readonly time: number;
+  readonly owner: string;
+}
+
 export interface ContinuationHealthVM {
   readonly version: typeof CONTINUATION_HEALTH_VERSION;
   readonly health: ContinuationHealth;
@@ -103,8 +125,26 @@ export interface ContinuationHealthVM {
   /** One sentence naming which owners said what, and why that is the verdict. */
   readonly reason: string;
   /**
+   * WHERE the sequence turned. Empty when no pivot was confirmed.
+   *
+   * These survive a verdict this compiler could NOT reach. When structure is
+   * measured but the regime is unknown, `health` is UNREADABLE and yet the
+   * pivots are perfectly well known — refusing to state them because a DIFFERENT
+   * owner is short would withhold a fact that was actually observed. An
+   * unreadable continuation is still allowed to say where the market last turned.
+   */
+  readonly levels: readonly ContinuationLevel[];
+  /**
    * The permanent pivot-confirmation lag, carried verbatim from the structure
-   * owner on every directional reading. Null when no direction was stated.
+   * owner. Non-null whenever this VM makes ANY claim resting on a pivot — a
+   * stated direction, a carried level, or both.
+   *
+   * It used to be carried only on a DIRECTIONAL reading, on the reasoning that a
+   * rotating market states no direction and so makes no lagged claim. That was
+   * true until `levels` existed. A level IS a pivot, so it carries the lag
+   * whatever the bias did, and a rotating range is defined by exactly the two
+   * pivots now being printed. Omitting the note there would have put the repo's
+   * most lag-sensitive numbers on screen with the lag disclosure removed.
    */
   readonly confirmationLagNote: string | null;
 }
@@ -138,7 +178,39 @@ const UNREAD_DIMENSIONS = [
   + "so the mockup's VOLUME CONFIRMATION card has no basis here and is not drawn.",
 ] as const;
 
-function unreadable(reason: string): ContinuationHealthVM {
+/**
+ * The pivots the sequence actually turned at, in the structure owner's own
+ * terms. Returns empty when nothing was confirmed — never a guessed level.
+ */
+function levelsFrom(structure: MarketStructureVM): readonly ContinuationLevel[] {
+  const out: ContinuationLevel[] = [];
+  if (structure.lastSwingHigh) {
+    out.push({
+      label: "Last confirmed swing high",
+      price: structure.lastSwingHigh.price,
+      time: structure.lastSwingHigh.time,
+      owner: "selectMarketStructure",
+    });
+  }
+  if (structure.lastSwingLow) {
+    out.push({
+      label: "Last confirmed swing low",
+      price: structure.lastSwingLow.price,
+      time: structure.lastSwingLow.time,
+      owner: "selectMarketStructure",
+    });
+  }
+  return out;
+}
+
+/**
+ * `structure` is optional because the FIRST unreadable branch is reached when
+ * there is no structure at all — no pivots, therefore no levels. The second
+ * branch has a measured structure and passes it, so a reading that cannot state
+ * a verdict can still state where the market turned.
+ */
+function unreadable(reason: string, structure?: MarketStructureVM): ContinuationHealthVM {
+  const levels = structure ? levelsFrom(structure) : [];
   return {
     version: CONTINUATION_HEALTH_VERSION,
     health: "UNREADABLE",
@@ -146,7 +218,9 @@ function unreadable(reason: string): ContinuationHealthVM {
     readings: [],
     unread: UNREAD_DIMENSIONS,
     reason,
-    confirmationLagNote: null,
+    levels,
+    // A level is a pivot, so carrying one obliges the lag note even here.
+    confirmationLagNote: levels.length > 0 ? (structure?.confirmationLagNote ?? null) : null,
   };
 }
 
@@ -170,9 +244,12 @@ export function selectContinuationHealth(
   }
 
   if (!regime || regime.verdict === "UNKNOWN") {
+    // Structure IS measured on this branch — the pivots are known even though the
+    // verdict is not. Pass it, so the reading can still answer "where did it turn".
     return unreadable(
       regime?.reason
       ?? "No regime was resolved, so the sequence cannot be read against the environment it printed in.",
+      structure,
     );
   }
 
@@ -221,6 +298,8 @@ export function selectContinuationHealth(
       + "the environment says a move is running while the swings have not made one.";
   }
 
+  const levels = levelsFrom(structure);
+
   return {
     version: CONTINUATION_HEALTH_VERSION,
     health,
@@ -228,9 +307,13 @@ export function selectContinuationHealth(
     readings,
     unread: UNREAD_DIMENSIONS,
     reason,
-    // Carried on every DIRECTIONAL reading, COHERENT included. The lag is the
-    // reason a healthy-looking continuation can already be over.
-    confirmationLagNote: directional ? structure.confirmationLagNote : null,
+    levels,
+    // Carried on every DIRECTIONAL reading, COHERENT included — the lag is the
+    // reason a healthy-looking continuation can already be over. Also carried
+    // whenever a LEVEL is on screen, direction or not: a level is a pivot, and a
+    // rotating range is defined by precisely the two pivots being printed above.
+    confirmationLagNote:
+      directional || levels.length > 0 ? structure.confirmationLagNote : null,
   };
 }
 

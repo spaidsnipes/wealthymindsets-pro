@@ -15,6 +15,17 @@ import type { RegimeVM, RegimeVerdict } from "./selectRegime";
 
 const LAG = "the newest 5 bars cannot yet be a pivot — permanent";
 
+/**
+ * The two confirmed pivots Asset 17 draws as `KEY LEVELS`. Present on a
+ * SEPARATE fixture on purpose: the default `structureOf` carries null swings,
+ * and if the swing-bearing case shared that default every assertion below would
+ * pass against an empty array without exercising a line of the branch.
+ */
+const SWINGS = {
+  lastSwingHigh: { time: 1_700_000_000, price: 143.5 },
+  lastSwingLow: { time: 1_699_900_000, price: 126 },
+} as const;
+
 function structureOf(over: Partial<MarketStructureVM> = {}): MarketStructureVM {
   return {
     measured: true,
@@ -134,12 +145,94 @@ describe("selectContinuationHealth", () => {
     }
   });
 
-  it("states no lag when no direction was stated — there is no stale high to warn about", () => {
+  it("states no lag when no direction was stated AND no pivot is on screen", () => {
+    // Both halves of that sentence matter. This fixture carries null swings, so
+    // the reading makes no pivot-resting claim at all and there is nothing to
+    // warn about. The moment a level IS carried the note comes back — asserted
+    // directly below, because that is the case a reader would assume is covered
+    // by this one.
     const out = selectContinuationHealth({
       structure: structureOf({ bias: "RANGE" }),
       regime: regimeOf("BALANCE"),
     });
+    expect(out.levels).toEqual([]);
     expect(out.confirmationLagNote).toBeNull();
+  });
+
+  it("CARRIES THE LAG on a ROTATING reading that prints levels — a level IS a pivot", () => {
+    // A rotating range is defined by exactly the two pivots being printed. Were
+    // the note dropped here, the repo's most lag-sensitive numbers would sit on
+    // screen with their disclosure removed.
+    const out = selectContinuationHealth({
+      structure: structureOf({ bias: "RANGE", ...SWINGS }),
+      regime: regimeOf("BALANCE"),
+    });
+    expect(out.health).toBe("ROTATING");
+    expect(out.levels).toHaveLength(2);
+    expect(out.confirmationLagNote).toBe(LAG);
+  });
+
+  it("carries the confirmed pivots as LEVELS, with the owner that confirmed them", () => {
+    const out = selectContinuationHealth({
+      structure: structureOf({ bias: "HIGHER_HIGHS", ...SWINGS }),
+      regime: regimeOf("TREND"),
+    });
+    expect(out.health).toBe("COHERENT");
+    expect(out.levels).toEqual([
+      {
+        label: "Last confirmed swing high",
+        price: 143.5,
+        time: 1_700_000_000,
+        owner: "selectMarketStructure",
+      },
+      {
+        label: "Last confirmed swing low",
+        price: 126,
+        time: 1_699_900_000,
+        owner: "selectMarketStructure",
+      },
+    ]);
+  });
+
+  it("REFUSES the mockup's words — a pivot is not resistance or support", () => {
+    // Asset 17 labels this block `KEY LEVELS · Resistance / Support`. Both words
+    // are forward-looking claims: they say price WILL struggle at a number, and
+    // nothing in this repo owns that. What IS owned is narrower and observed.
+    const out = selectContinuationHealth({
+      structure: structureOf({ bias: "HIGHER_HIGHS", ...SWINGS }),
+      regime: regimeOf("TREND"),
+    });
+    const rendered = JSON.stringify(out);
+    expect(rendered).not.toMatch(/resistance/i);
+    expect(rendered).not.toMatch(/support/i);
+  });
+
+  it("KEEPS THE LEVELS when the verdict could not be reached but the pivots were", () => {
+    // The regime is short; the structure is not. This is the exact live TSLA
+    // state observed 2026-09-18. Withholding a fact THIS owner measured because
+    // a DIFFERENT owner is silent would be a refusal nothing asked for.
+    const out = selectContinuationHealth({
+      structure: structureOf({ ...SWINGS }),
+      regime: regimeOf("UNKNOWN", { reason: "Neither dimension has verified evidence." }),
+    });
+    expect(out.health).toBe("UNREADABLE");
+    expect(out.measured).toBe(false);
+    expect(out.levels).toHaveLength(2);
+    expect(out.confirmationLagNote).toBe(LAG);
+  });
+
+  it("states NO levels when there is no structure owner to have confirmed one", () => {
+    const out = selectContinuationHealth({ structure: null, regime: null });
+    expect(out.levels).toEqual([]);
+    expect(out.confirmationLagNote).toBeNull();
+  });
+
+  it("carries only the pivot that exists — one confirmed side is not two", () => {
+    const out = selectContinuationHealth({
+      structure: structureOf({ bias: "HIGHER_HIGHS", lastSwingHigh: SWINGS.lastSwingHigh }),
+      regime: regimeOf("TREND"),
+    });
+    expect(out.levels.map((l) => l.label)).toEqual(["Last confirmed swing high"]);
   });
 
   it("MINTS NO SCORE — the mockup's four percentages have no owner and must not appear", () => {
