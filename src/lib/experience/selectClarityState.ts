@@ -307,17 +307,33 @@ export function selectClarityState(input: ClarityStateInput): ClarityStateVM {
   // Reported as QUIET (the inverse) so every component bar in the tile points
   // the same way: higher is better. A tile with one bar whose polarity is
   // reversed is a misreading waiting to happen.
-  if (noise) {
-    const quietPercent = noise.state === "QUIETED" ? 100 : noise.state === "ACTIVE" ? 0 : 50;
+  // UNWATCHED IS THE SENSOR SAYING "I HAVE NOTHING", NOT A READING OF 50%.
+  //
+  // This branch used to be `if (noise)`, with a three-way percent whose middle
+  // arm — the one reached ONLY by UNWATCHED — scored 50 and printed "not being
+  // watched". selectSecondaryNoise returns UNWATCHED in exactly one case: its
+  // `reading` argument was `null`, i.e. no prior snapshot existed to compare
+  // against. So the middle arm converted a declared ABSENCE into a measured
+  // half-mark, and then counted it in the numerator as a component that had
+  // been measured.
+  //
+  // That is the same defect the roster fix above removed from the denominator,
+  // arriving from the other side. `noise: null` and `noise: UNWATCHED` are the
+  // same fact wearing two shapes, and they must land in the same column —
+  // OWNED, NOT SUPPLIED — or a surface could improve its own score simply by
+  // handing over a sensor that has not read anything yet.
+  //
+  // A NUMBER IS NOT OWED TO EVERY INPUT THAT ARRIVES. Only QUIETED and ACTIVE
+  // are claims about the screen; both are settled, and neither is 50.
+  if (noise && noise.state !== "UNWATCHED") {
+    const quietPercent = noise.state === "QUIETED" ? 100 : 0;
     components.push({
       label: "Screen Quiet",
       percent: quietPercent,
       reading:
         noise.state === "QUIETED"
           ? "secondary surfaces quieted"
-          : noise.state === "ACTIVE"
-            ? "secondary surfaces competing for attention"
-            : "not being watched",
+          : "secondary surfaces competing for attention",
       source: "selectSecondaryNoise",
     });
   }

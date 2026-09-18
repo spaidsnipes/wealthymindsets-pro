@@ -364,3 +364,87 @@ describe("selectClarityState — the denominator is a roster, not a headcount", 
     }
   });
 });
+
+/**
+ * ── UNWATCHED IS NOT A READING ───────────────────────────────────────────────
+ *
+ * The suite above fixed the DENOMINATOR: it stopped shrinking when an input
+ * failed to arrive. This block fixes the NUMERATOR, which had the same defect
+ * arriving from the other side.
+ *
+ * `selectSecondaryNoise` returns UNWATCHED in exactly one circumstance — its
+ * `reading` argument was `null`, i.e. no prior snapshot existed to compare
+ * against. It is the sensor declaring that it has nothing, which is the same
+ * fact as `noise: null` wearing a different shape.
+ *
+ * The compiler used to treat it as a MEASUREMENT worth 50%. So a surface that
+ * honestly passed `null` scored WORSE than a surface that passed a sensor which
+ * had read nothing at all — and the fabricated half-mark was counted in the
+ * numerator as a component that had been measured. Nothing on screen
+ * distinguished it from a genuine half-quiet screen.
+ *
+ * The law: A NUMBER IS NOT OWED TO EVERY INPUT THAT ARRIVES. Only settled
+ * claims about the screen — QUIETED and ACTIVE — are measurements.
+ */
+describe("selectClarityState — an arrived-but-empty sensor is not a measurement", () => {
+  const UNWATCHED = {
+    ...QUIET,
+    state: "UNWATCHED" as const,
+    value: "Unwatched",
+    detail: "First reading — no prior snapshot to compare against.",
+    unresolved: true,
+  } as SecondaryNoiseVM;
+
+  it("treats an UNWATCHED reading exactly like no reading at all", () => {
+    // The two are the same fact. If they ever diverge, a surface can improve
+    // its own score by handing over a sensor that has not read anything.
+    const omitted = build({ noise: null });
+    const unwatched = build({ noise: UNWATCHED });
+
+    expect(unwatched.confidence).toBe(omitted.confidence);
+    expect(unwatched.components.map((c) => c.label)).toEqual(
+      omitted.components.map((c) => c.label),
+    );
+    expect(unwatched.unsuppliedComponents.map((c) => c.label)).toEqual(
+      omitted.unsuppliedComponents.map((c) => c.label),
+    );
+    expect(unwatched.level).toBe(omitted.level);
+  });
+
+  it("does not count Screen Quiet as measured when the sensor has read nothing", () => {
+    const vm = build({ noise: UNWATCHED });
+    expect(vm.components.map((c) => c.label)).not.toContain("Screen Quiet");
+    expect(vm.unsuppliedComponents.map((c) => c.label)).toContain("Screen Quiet");
+    expect(vm.hasDisclosure).toBe(true);
+  });
+
+  it("never invents a middle percent — every measured component is a settled claim", () => {
+    // 50 was the only value the old middle arm could produce, and no honest
+    // branch produces it. Asserting the PROPERTY (settled-only) rather than
+    // the absence of one magic number.
+    for (const noise of [QUIET, { ...QUIET, state: "ACTIVE" as const }, UNWATCHED, null]) {
+      const vm = build({ noise });
+      const quiet = vm.components.find((c) => c.label === "Screen Quiet");
+      if (quiet) expect([0, 100]).toContain(quiet.percent);
+    }
+  });
+
+  it("an arrived-but-empty sensor cannot raise confidence above the honest null", () => {
+    // The original law, restated for this axis: withholding a reading is free,
+    // and pretending to have one is not rewarded.
+    const supplied = build({ noise: QUIET });
+    const unwatched = build({ noise: UNWATCHED });
+    expect(unwatched.confidence).toBeLessThan(supplied.confidence);
+    expect(unwatched.askedFor).toBe(supplied.askedFor);
+  });
+
+  it("an ACTIVE screen IS a measurement, and a bad one — it must not be dropped", () => {
+    // The mirror of this fix. Hiding a measurement that WAS taken is the
+    // opposite failure and just as wrong: ACTIVE scores zero, but it scores.
+    const vm = build({ noise: { ...QUIET, state: "ACTIVE" as const } });
+    const quiet = vm.components.find((c) => c.label === "Screen Quiet");
+    expect(quiet, "an ACTIVE reading was dropped from the picture").toBeTruthy();
+    expect(quiet?.percent).toBe(0);
+    expect(vm.unsuppliedComponents.map((c) => c.label)).not.toContain("Screen Quiet");
+  });
+});

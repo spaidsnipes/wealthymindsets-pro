@@ -2562,6 +2562,11 @@ function CommandDeckInner() {
                   availableR={chainVm?.availableR ?? null}
                   permission={permission}
                   chainNodes={chainVm?.nodes}
+                  /* Screen Quiet is OWNED and MEASURED on this very page (see
+                     `secondaryNoise` above, gated on a real prior snapshot).
+                     The CLARITY tile used to report it as not-supplied purely
+                     because nobody handed it across this boundary. */
+                  noise={secondaryNoise}
                 />
               </div>
             </details>

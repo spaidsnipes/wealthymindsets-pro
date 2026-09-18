@@ -41,6 +41,7 @@ import {
   type EvidenceDebt as CanonicalEvidenceDebt,
 } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 import { selectClarityState } from "@/lib/experience/selectClarityState";
+import type { SecondaryNoiseVM } from "@/lib/experience/selectSecondaryNoise";
 import {
   selectContextDataReading,
   type ContextDataState,
@@ -69,6 +70,21 @@ export interface CommandContextRibbonProps {
    * missing, WARN nodes as watch, only OK counts as paid.
    */
   readonly chainNodes?: readonly DecisionChainNode[];
+  /**
+   * The compiled secondary-noise reading for the surface rendering this ribbon,
+   * when that surface has one.
+   *
+   * OPTIONAL ON PURPOSE, AND OMITTING IT IS AN HONEST ANSWER — not every room
+   * holds a MaterialityReading, and a room that does not must not synthesise
+   * one. `undefined` therefore coerces to `null` at the single call site below
+   * and NEVER to a manufactured reading; Screen Quiet is then disclosed as
+   * OWNED-BUT-NOT-SUPPLIED rather than quietly dropped from the picture.
+   *
+   * Handing over an UNWATCHED reading is likewise not a way to buy a better
+   * score — selectClarityState treats UNWATCHED as the sensor reporting that it
+   * has nothing, which lands in exactly the same column as omitting the prop.
+   */
+  readonly noise?: SecondaryNoiseVM | null;
 }
 
 type Tone = "resolved" | "pending" | "unknown" | "warn";
@@ -325,7 +341,7 @@ type EvidenceDebt = CanonicalEvidenceDebt;
 const computeEvidenceDebt = computeEvidenceDebtCanonical;
 
 export function CommandContextRibbon(props: CommandContextRibbonProps): React.ReactElement {
-  const { symbol, session, state, wsConnected, wsSource, availableR, permission, chainNodes } = props;
+  const { symbol, session, state, wsConnected, wsSource, availableR, permission, chainNodes, noise } = props;
   const nectar = useNectarForSymbol(symbol);
   const [nowMs, setNowMs] = React.useState<number | null>(null);
   React.useEffect(() => {
@@ -452,12 +468,21 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
     // construction: an unowned input may lower confidence and must produce a
     // disclosure, but it can never touch `level`.
     //
-    // `noise: null` is not a stub. The ribbon holds no MaterialityReading, and
-    // selectSecondaryNoise's own contract says callers must pass null rather
-    // than synthesise a comparison against an absent past. The cost of that
-    // honesty shows up in the confidence number, which is where it belongs.
+    // `noise ?? null` — the ribbon RELAYS a reading, it never invents one.
+    //
+    // This used to be a hard-coded `noise: null` justified by "the ribbon holds
+    // no MaterialityReading". That was true of the COMPONENT and false of the
+    // ROOM: /command-deck computes an honest secondaryNoise VM of its own and
+    // simply never handed it over. Screen Quiet is a WM-owned, WM-measured
+    // quantity that was sitting one scope away from the tile reporting it as
+    // absent — which is why the roster fix disclosed it as OWNED BUT NOT
+    // SUPPLIED rather than as something nothing can measure.
+    //
+    // The `?? null` is load-bearing and must stay: a room with no reading omits
+    // the prop and keeps the honest degradation. Relaying is not fabricating,
+    // and the two are one `??` apart.
     (() => {
-      const clarity = selectClarityState({ debt, rightOfWay, noise: null });
+      const clarity = selectClarityState({ debt, rightOfWay, noise: noise ?? null });
       return {
         key: "clarity",
         label: "CLARITY",
