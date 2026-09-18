@@ -42,12 +42,24 @@ import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
  * tape" is a fact a trader needs stated, not a reason to remove the door. The
  * view names that incapacity itself. Hiding the tab by class would make the
  * absent tape invisible, which is exactly the silence it exists to break.
+ *
+ * VALUE PROFILE (the Founder's Asset 06, the Living Profile) is the fourth and
+ * belongs everywhere too, but for the opposite reason to the three above: it is
+ * the ONE microstructure surface that can answer on every feed this product can
+ * reach. Volume at price can be estimated from candles when no tape exists, so
+ * the panel always has something honest to draw — and it labels which of the
+ * two it built, because an estimated profile may state its levels but may NOT
+ * state its nodes. Naming it "Value Profile" rather than "Profile" is
+ * deliberate: "Profile" already means the company reference sheet on this
+ * strip, and two tabs meaning two different things under one word is the kind
+ * of quiet collision a trader pays for.
  */
 export const ALL_CATEGORY_TABS = [
   "Chart",
   "Absorption",
   "Aggression",
   "Big Trades",
+  "Value Profile",
   "Options",
   "ETFs",
   "Financials",
@@ -67,25 +79,25 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
       // ETFs have Financials + Valuation + Profile + Shareholders
       // (holdings). No Corporate Actions, no separate ETFs tab
       // (redundant when the symbol IS an ETF).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
     case "options":
       // Viewing an options contract already IS the options view;
       // Financials/Valuation belong to the underlying, not the
       // derivative. Keep Chart + Profile only.
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Profile"] as const;
     case "crypto":
     case "futures":
     case "forex":
       // No corporate structure, no shareholders, no ETF wrapper.
       // Chart is the whole thing; Profile carries what little
       // reference data exists (name / venue / contract spec).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Profile"] as const;
     default: {
       // Exhaustiveness guard — if CanonicalAssetClass grows, this
       // narrows to `never` and TS errors at build time.
       const _never: never = cls;
       void _never;
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Profile"] as const;
     }
   }
 }

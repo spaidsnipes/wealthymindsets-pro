@@ -60,6 +60,7 @@ describe("charts category scene fusion", () => {
       "Absorption",
       "Aggression",
       "Big Trades",
+      "Value Profile",
       "Options",
       "ETFs",
       "Financials",

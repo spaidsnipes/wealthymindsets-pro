@@ -167,6 +167,11 @@ import AggressionResponseView from "@/components/experience/AggressionResponseVi
 import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggressionResponse";
 import BigTradeIntelligenceView from "@/components/experience/BigTradeIntelligenceView";
 import { selectBigTradeIntelligence } from "@/lib/marketData/viewModels/selectBigTradeIntelligence";
+import LivingProfileView from "@/components/experience/LivingProfileView";
+import {
+  buildLivingProfileSnapshot,
+  selectLivingProfile,
+} from "@/lib/marketData/viewModels/selectLivingProfile";
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
@@ -793,6 +798,29 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const bigTradeIntelligenceVM = React.useMemo(
     () => selectBigTradeIntelligence(recentTicks),
     [recentTicks],
+  );
+
+  // ── Asset 06 · THE LIVING PROFILE ─────────────────────────────────────
+  //
+  // The only one of the four microstructure siblings that can answer on EVERY
+  // feed, because volume-at-price has an honest fallback the other three do
+  // not: when no per-trade tape exists, `vpEngine` can estimate the
+  // distribution from bars and LABELS it as estimated.
+  //
+  // The source is not chosen here. `buildLivingProfileSnapshot` owns that
+  // decision so this room and any future one cannot end up drawing two
+  // different POCs for the same instrument and both being defensible.
+  //
+  // `ticker.price` IS passed, unlike the Big Trades memo: a profile's levels
+  // are static until the distribution changes, and the only thing that moves
+  // is where price sits against them. That position is the reading, and it
+  // needs the room's live price, not the last print inside the sample.
+  const livingProfileVM = React.useMemo(
+    () =>
+      selectLivingProfile(buildLivingProfileSnapshot(recentTicks, chartBars), {
+        livePrice: ticker.price,
+      }),
+    [recentTicks, chartBars, ticker.price],
   );
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
@@ -2582,7 +2610,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && (
+            {/* Asset 06 — THE LIVING PROFILE. The source decision (tape vs
+                bars) is NOT made here: `buildLivingProfileSnapshot` owns it so
+                no second surface can draw a different POC for the same
+                instrument and both be defensible. */}
+            {activeTab === "Value Profile" && (
+              <div role="tabpanel" id="wm-chart-category-panel-value-profile" aria-label={`Living profile for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <LivingProfileView vm={livingProfileVM} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>
