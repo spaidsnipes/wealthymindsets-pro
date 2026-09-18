@@ -216,12 +216,36 @@ reading the live product settles it.
 ## OPEN, HONESTLY
 
 - **Auction State live-verification** — the matcher fix remains unproven in the
-  product, and the reason is now known rather than guessed: the `/charts`
-  Auction node is fed by the evidence-debt compiler, which short-circuits on
-  unpaid evidence before any auction verdict could show. **Open question worth
-  answering next: does `selectAuctionState` have a production consumer at
-  all?** If it does not, the matcher repair is a correct fix to a dormant path
-  — still worth having, but it should be labelled as such.
+  product, but the open question is now **CLOSED YES by live observation**, not
+  by reading imports. Measured on production `/command-deck`, BTC, this block,
+  the Market Object Passport rendered:
+
+  ```
+  ? Auction UNKNOWN
+    "Insufficient evidence — no auction verdict.
+     Structure, location, regime and profile all unresolved."
+  ```
+
+  That sentence is `selectAuctionState`'s own. **`selectAuctionState` has a
+  production consumer, it renders on `/command-deck`, and it is reachable by a
+  trader today.** The matcher repair is therefore a fix to a LIVE path, not a
+  dormant one — it simply cannot fire yet, because it needs a RESOLVED
+  structure and the deck does not have one.
+
+  The `/charts` Auction node remains a different compiler (evidence debt),
+  which is why the fix looked unobservable there. Two nodes, two owners, same
+  word on the label.
+
+- **The deck's STRUCTURE is UNRESOLVED while it holds real candles** — the next
+  from-USE thread, stated as a question rather than a cause. Measured this
+  block: `/api/yahoo?sym=BTC&type=candles&tf=15m&bars=120` returns 120 real
+  candles, `STRUCTURE_RESOLVE_MIN_BARS` is 40, and `page.tsx` forwards
+  `deckCandles` into the publisher with the callback correctly wired at HEAD.
+  So the *code at HEAD* looks sufficient and the *live deck* still says
+  unresolved. The running build is older than HEAD, which is enough to explain
+  it and is therefore NOT yet evidence of a defect. **Re-measure after the
+  deploy lands before spending an atom on it** — the honest reading today is
+  "unexplained", not "broken".
 - **`structureNone` is dead config** — populated in `DEFAULT_AUCTION_MATCHERS`
   and declared on the interface, but never read in `selectAuctionState`'s body.
   Left in place as part of the public matcher contract callers may override, now
