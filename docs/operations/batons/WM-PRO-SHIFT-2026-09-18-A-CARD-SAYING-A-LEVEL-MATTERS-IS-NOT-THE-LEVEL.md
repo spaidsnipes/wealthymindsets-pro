@@ -164,14 +164,43 @@ observed failing on the right assertion, and restored.
 
 ---
 
+## LIVE OBSERVATION — WHAT WAS AND WAS NOT PROVEN
+
+A Chrome channel became available after the four commits deployed. The Founder's
+own browser, on `https://wealthymindsetspro.com/charts`, TSLA at 363, market
+state **DEGRADED**. Reading the overlay canvas dataset off the live page:
+
+```
+canvas[7].dataset = {
+  valueCandle:      "UNMEASURED",
+  imbalanceStack:   "UNMEASURED",
+  deltaDivergence:  "UNMEASURED",
+  liquidityWeather: "UNMEASURED"
+}
+```
+
+**PROVEN: the wire.** All four layers reached production, all four are running
+inside the rAF overlay, and all four are stamping their reason every frame. One
+canvas carries all four receipts, which is also the proof they share the single
+overlay rather than having quietly forked into separate ones.
+
+**NOT PROVEN: the drawing.** Every reading reports UNMEASURED, which is the
+correct and expected state: the feed is DEGRADED, so `hasVerifiedAggressorTape`
+is false, the gated tick array is null, and each selector returns its own
+"nothing measured" verdict rather than inventing one. **No ink has been observed
+on the axis.** Nothing in this document claims otherwise.
+
+The first observation had to be taken twice: the initial read found nine
+canvases and zero dataset keys, because the tab was holding a bundle from before
+the deploy. A reload produced the receipts above. Worth remembering — a stale
+bundle looks exactly like a missing feature.
+
 ## HONEST GAPS — READ THIS BEFORE CLAIMING THE BLOCK IS PROVEN
 
-**None of the four layers has been observed painting on production.** No PROVEN
-claim is made here and none should be inherited from this document. Two
-reasons, both real:
+**No layer has been observed PAINTING.** No PROVEN claim about the drawing is
+made here and none should be inherited from this document.
 
-1. The Chrome extension was disconnected for the duration of this block, so no
-   live observation channel was available.
+1. The wire is proven; the ink is not. See the live observation above.
 2. These layers paint only on **real per-trade tape with an open session**. The
    readings are compiled from a tick array that `hasVerifiedAggressorTape`
    gates; without a subscribed feed during market hours every one of them
