@@ -91,6 +91,32 @@
  * `canonRegime` is REQUIRED, for the same reason `change` is: a caller that can
  * omit it is a caller that can silently reopen the contradiction. The chip may
  * not render at all without being handed the dimension it must not contradict.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * FOURTH OBSERVATION, 2026-09-17, read out of the live DOM on /charts, NQ1! 30m.
+ * The word fix from the third observation is holding. The chip rendered:
+ *
+ *   DAY BIAS · BULL · +2.52% today · REGIME · UNRESOLVED
+ *
+ * and every one of those six spans came back as `[text, "", ""]` — no `title`,
+ * no `aria-label`, on the spans and on the wrapper alike.
+ *
+ * So the distinction this file exists to draw — that BULL is a band over a
+ * day-change percent and has never looked at the tape, while REGIME is a
+ * different question with a different evidence standard that nobody has
+ * answered yet — is stated nowhere the trader can reach it. It lives in these
+ * comments. On screen, two verdict words sit side by side, one confident and
+ * one refusing, with nothing saying why they are allowed to differ. A trader
+ * who reads that as one instrument contradicting itself is reading exactly
+ * what is rendered.
+ *
+ * AND THE USUAL REPAIR IS UNAVAILABLE HERE. The chip is an overlay carrying
+ * `pointerEvents: "none"` so the crosshair keeps working underneath it. A
+ * `title` on a pointer-events-none element is never reachable by any pointer —
+ * adding one would look like a fix in the diff and be unreachable in the
+ * product. That is why this owner publishes `spoken` and the chip carries it
+ * as an ACCESSIBLE NAME: the one channel that does not depend on hovering
+ * something the page has deliberately made unhoverable.
  */
 
 import { provenSessionClosure } from "./canonicalIdentity";
@@ -137,6 +163,15 @@ export type RegimeBadgeView =
       readonly verdictLabel: typeof DAY_BIAS_LABEL;
       /** The canonical regime dimension, so one chip cannot contradict it. */
       readonly canon: CanonRegimeView;
+      /**
+       * The chip's ACCESSIBLE NAME — the whole reading in one sentence, plus
+       * the reason its two verdict words are allowed to differ.
+       *
+       * Not a `title`: this chip is a `pointerEvents: "none"` overlay, so a
+       * hover tooltip on it can never be reached. See the fourth observation
+       * in this file's header.
+       */
+      readonly spoken: string;
     };
 
 export interface RegimeBadgeInput {
@@ -180,14 +215,46 @@ export function selectRegimeBadge(input: RegimeBadgeInput): RegimeBadgeView {
   const regime: RegimeClass =
     pct > BULL_THRESHOLD ? "BULL" : pct < BEAR_THRESHOLD ? "BEAR" : "SIDE";
 
+  const periodLabel = selectRegimePeriodLabel(input.symbol, input.at);
+  const canon = selectCanonRegimeView(input.canonRegime);
+
   return {
     displayable: true,
     regime,
     changePct: pct,
-    periodLabel: selectRegimePeriodLabel(input.symbol, input.at),
+    periodLabel,
     verdictLabel: DAY_BIAS_LABEL,
-    canon: selectCanonRegimeView(input.canonRegime),
+    canon,
+    spoken: speak(input.symbol, regime, pct, periodLabel, canon),
   };
+}
+
+/**
+ * One sentence per claim, and one sentence explaining why the two verdict
+ * words on this chip are allowed to differ.
+ *
+ * The order matters: the reading first, then what it was measured FROM, then
+ * canon's separate answer. A trader who stops after the first sentence has
+ * heard something true; a trader who hears all three knows that BULL beside
+ * UNRESOLVED is two questions, not a contradiction.
+ */
+function speak(
+  symbol: string,
+  regime: RegimeClass,
+  pct: number,
+  periodLabel: RegimePeriodLabel,
+  canon: CanonRegimeView,
+): string {
+  const move = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%${periodLabel ? ` ${periodLabel}` : ""}`;
+  return (
+    `${symbol} day bias ${regime}, from a change of ${move}. ` +
+    `Day bias is a band over that day-change percent only — it has not read ` +
+    `the tape. Market regime is a different question, derived from classified ` +
+    `per-trade tape, and ` +
+    (canon.resolved
+      ? `it says ${canon.value}.`
+      : `it is not resolved yet, which is why no regime word is shown beside it.`)
+  );
 }
 
 /**

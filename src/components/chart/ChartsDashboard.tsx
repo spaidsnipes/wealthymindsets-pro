@@ -2519,7 +2519,25 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       const rc = reg === "BULL" ? "#00D4AA" : reg === "BEAR" ? "#FF4D6A" : "#F0B429";
                       const pc = p >= 0 ? "#00D4AA" : "#FF4D6A";
                       return (
-                        <div style={{
+                        <div
+                        /* MEASURED LIVE 2026-09-17: every span on this chip
+                           read back as [text, "", ""] — no title, no aria.
+                           The chip showed `DAY BIAS BULL +2.52% today REGIME
+                           UNRESOLVED` and said nowhere why a confident word
+                           and a refusal are allowed to sit side by side.
+
+                           A `title` cannot fix it: `pointerEvents:"none"`
+                           below is deliberate (the crosshair must keep working
+                           underneath), and a hover tooltip on a
+                           pointer-events-none element is unreachable by any
+                           pointer. It would look like a fix in the diff and be
+                           nothing in the product. So the reading is carried as
+                           an ACCESSIBLE NAME, compiled by the same owner that
+                           decides the words. */
+                        role="group"
+                        aria-label={badge.spoken}
+                        data-regime-badge-canon={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
+                        style={{
                           // top:36 clears the 28px OHLCV strip above the chart — at top:8
                           // this centered chip overlapped and covered the "C" close value
                           // in the OHLC readout when the chart is narrow (DOM + side panels

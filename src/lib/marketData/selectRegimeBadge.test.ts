@@ -11,6 +11,8 @@ import {
   DAY_BIAS_LABEL,
 } from "./selectRegimeBadge";
 import type { MarketStateDimension } from "./canonicalMarketState";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const SAT = new Date("2026-09-05T19:59:00Z"); // Saturday — session proven closed
 const TUE = new Date("2026-09-08T18:00:00Z"); // Tuesday — closure NOT established
@@ -192,5 +194,96 @@ describe("the chip does not impersonate the canonical regime dimension", () => {
       expect(selectCanonRegimeView(dim({ resolution: "RESOLVED", value })))
         .toEqual({ resolved: true, value });
     }
+  });
+});
+
+/**
+ * FOURTH LIVE OBSERVATION, 2026-09-17 — read out of the DOM on /charts, NQ1! 30m.
+ * The chip rendered `DAY BIAS · BULL · +2.52% today · REGIME · UNRESOLVED` and
+ * EVERY span came back `[text, "", ""]`: no title, no aria-label, wrapper
+ * included. The distinction this module exists to draw was stated only in its
+ * own source comments.
+ */
+describe("the reason the two words may differ is SPOKEN, not buried in source", () => {
+  const dim = (over: Partial<MarketStateDimension>): MarketStateDimension => ({
+    resolution: "UNKNOWN", value: null, confidence: null,
+    evidence: [], contradictions: [], unknowns: ["none supplied"],
+    ...over,
+  });
+  const spokenOf = (canonRegime: MarketStateDimension | null, pct = 2.52) => {
+    const v = selectRegimeBadge({ canonRegime, ...backed(pct), symbol: "NQ1!", at: TUE });
+    if (!v.displayable) throw new Error("expected displayable");
+    return v.spoken;
+  };
+
+  it("× THE UNEXPLAINED PAIR: a confident word beside a refusal says why", () => {
+    // The photographed pairing. BULL and UNRESOLVED are two QUESTIONS, not one
+    // instrument disagreeing with itself — and the chip has to say so, because
+    // a trader reads what is rendered, not what the module believes.
+    const s = spokenOf(dim({ resolution: "UNKNOWN" }));
+    expect(s).toMatch(/day bias BULL/);
+    expect(s).toMatch(/not resolved yet/);
+    expect(s).toMatch(/different question/);
+  });
+
+  it("× THE MEASUREMENT UNNAMED: it says what the band was measured FROM", () => {
+    // "BULL" with no stated input is a market opinion. "BULL from the day
+    // change percent, which has not read the tape" is a measurement.
+    const s = spokenOf(null);
+    expect(s).toMatch(/day-change percent/);
+    expect(s).toMatch(/has not read\s+the tape/);
+  });
+
+  it("the number and its period travel with the verdict", () => {
+    expect(spokenOf(null)).toMatch(/\+2\.52%/);
+    expect(spokenOf(null)).toMatch(/today/);
+    const sat = selectRegimeBadge({ canonRegime: null, ...backed(-2.62), symbol: "TSLA", at: SAT });
+    if (!sat.displayable) throw new Error("expected displayable");
+    expect(sat.spoken).toMatch(/-2\.62% last session/);
+  });
+
+  it("canon is quoted in the spoken line when canon has resolved", () => {
+    const s = spokenOf(dim({ resolution: "RESOLVED", value: "BALANCE" }));
+    expect(s).toMatch(/it says BALANCE/);
+    expect(s).not.toMatch(/not resolved yet/);
+  });
+
+  it("the instrument is named — a loose sentence belongs to no chart", () => {
+    expect(spokenOf(null)).toMatch(/^NQ1!/);
+  });
+
+  it("the spoken line never calls the day-bias half a REGIME", () => {
+    // The third observation's law, re-pinned in the new channel: the reserved
+    // word may appear only attached to the canonical dimension's own answer.
+    const s = spokenOf(dim({ resolution: "UNKNOWN" }));
+    const before = s.slice(0, s.indexOf("Market regime"));
+    expect(before, "the reserved word leaked into the day-bias half")
+      .not.toMatch(/regime/i);
+  });
+});
+
+describe("ChartsDashboard adoption", () => {
+  const CODE = readFileSync(
+    join(process.cwd(), "src", "components", "chart", "ChartsDashboard.tsx"),
+    "utf8",
+  ).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  it("× THE UNREACHABLE HOVER: the chip carries an accessible NAME, not a title", () => {
+    /**
+     * This chip is `pointerEvents:"none"` so the crosshair keeps working under
+     * it. A `title` there is unreachable by any pointer — it would read as a
+     * fix in the diff and be nothing in the product. The assertion below is
+     * the one that stops that non-fix from being shipped.
+     */
+    const at = CODE.indexOf("aria-label={badge.spoken}");
+    expect(at, "the regime chip lost its accessible name").toBeGreaterThan(-1);
+    const chip = CODE.slice(at, CODE.indexOf("selectRegimeBadge", at) + 1 || at + 2600);
+    expect(chip, "a title was added to a pointerEvents:none overlay")
+      .not.toMatch(/title=\{/);
+    expect(CODE).toContain('pointerEvents:"none"');
+  });
+
+  it("the canon half is readable from the DOM, not only from pixels", () => {
+    expect(CODE).toContain("data-regime-badge-canon=");
   });
 });
