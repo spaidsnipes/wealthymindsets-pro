@@ -450,9 +450,40 @@ export function HeroTruth({
             {state ? `${state.coverage.length} channel${state.coverage.length === 1 ? "" : "s"}` : "unknown"}
           </span>
         </span>
+        {/* THE NOUN IS THE REPAIR, AND THIS COUNT WAS MISSED BY IT.
+            ────────────────────────────────────────────────────────────────
+            FOUND FROM USE, production /command-deck BTC, 2026-09-18. In one
+            frame the deck printed three counts of "what is missing":
+
+              RESOLVED       4 of 8 dimensions          ← noun
+              …  coverage 1 channel · unknowns 4        ← BARE
+              EVIDENCE DEBT  0 of 6 paid
+                             6 evidence nodes unpaid    ← noun
+
+            `4` and `6` are both correct and neither is a bug: `state.unknowns`
+            is built one-per-unresolved-DIMENSION (chartMarketStatePublisher —
+            "ONE UNKNOWN PER UNRESOLVED DIMENSION"), while the ledger counts
+            decision-chain NODES, which include non-dimension nodes such as
+            permission. Two counts of different sets, side by side, with
+            nothing on screen saying so: canon Weakness #1.
+
+            selectPassportStamp already diagnosed exactly this and shipped the
+            fix — "The repair is a NOUN, never a number." It was applied to the
+            RESOLVED band and not to this strip, so a repair with a correct
+            general statement of itself survived incompletely. Re-deriving
+            either count to make 4 equal 6 would mint a second answer to a
+            question that already has two correct owners (§24).
+
+            Note the grammar was already here to copy: `coverage` one span up
+            prints "1 channel", not "1". This span was the only member of the
+            strip carrying a bare integer. */}
         <span>
           <span style={{ color: "#55503f" }}>unknowns</span>{" "}
-          <span style={{ color: "#c9a55c" }}>{state ? state.unknowns.length : "unknown"}</span>
+          <span style={{ color: "#c9a55c" }}>
+            {state
+              ? `${state.unknowns.length} dimension${state.unknowns.length === 1 ? "" : "s"}`
+              : "unknown"}
+          </span>
         </span>
         {state?.contradictions && state.contradictions.length > 0 && (
           <span>
