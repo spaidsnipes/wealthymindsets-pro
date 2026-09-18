@@ -190,6 +190,41 @@ function structureBarsFrom(
   return out;
 }
 
+/**
+ * THE DIFFERENCE BETWEEN A QUIET MARKET AND A SILENT VENUE.
+ *
+ * Profile, location and aggression all rest on per-bar volume, and all three
+ * correctly decline without it. But their compilers only ever see the bars
+ * that SURVIVED `profileBarsFrom`, so when every bar is dropped they report
+ * the same thing an empty feed would: "no volume has been distributed yet",
+ * "no bar carried measurable effort". Both sentences imply that waiting, or
+ * a busier tape, would fix it.
+ *
+ * On /command-deck neither is true. 120 candles are loaded and drawn; they are
+ * invisible to those three because the venue does not publish per-bar volume
+ * at all. Waiting changes nothing. A trader reading "not yet" would keep
+ * looking at a number that is never coming.
+ *
+ * This function is the only place that can tell the two apart, because it is
+ * the only place holding BOTH counts. It returns null whenever there is no
+ * such contradiction to disclose — no bars at all is a genuinely empty feed
+ * and the compilers' own wording is already right for it.
+ */
+function candleVolumeGapNote(
+  rawBars: ChartMarketStatePublicationInput["bars"],
+  usableCount: number,
+  venue: string | null,
+): string | null {
+  const rawCount = rawBars?.length ?? 0;
+  if (rawCount === 0 || usableCount > 0) return null;
+  const where = venue && venue.trim() ? ` from ${venue.trim()}` : "";
+  return (
+    `${rawCount} candle${rawCount === 1 ? " is" : "s are"} loaded${where}, but `
+    + `none carries per-bar volume, and this reading is a volume measurement. `
+    + `Waiting will not change that — the venue does not publish it.`
+  );
+}
+
 function assetClassFor(symbol: string): CanonicalAssetClass {
   return canonicalAssetClass(symbol);
 }
@@ -350,8 +385,15 @@ export function createChartMarketStatePublication(
   // ONE compiled VM feeds BOTH profile and location. Compiling it twice would
   // be two chooser calls on the same inputs — identical today, and a silent
   // divergence the day either path grows a tie-break.
+  //
+  // Hoisted rather than called twice: the COUNT is now load-bearing. See
+  // `candleVolumeGapNote` — the gap it discloses is the difference between the
+  // bars that arrived and the bars that survived, and two independent calls
+  // would let that difference be measured against a set nobody used.
+  const profileBars = profileBarsFrom(input.bars);
+  const volumeGapNote = candleVolumeGapNote(input.bars, profileBars.length, barSourceName);
   const livingProfile = selectLivingProfile(
-    buildLivingProfileSnapshot(input.recentTicks, profileBarsFrom(input.bars)),
+    buildLivingProfileSnapshot(input.recentTicks, profileBars),
     { livePrice: input.ticker.price },
   );
   const profileEvidenceInput = {
@@ -360,6 +402,9 @@ export function createChartMarketStatePublication(
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
+    // Only this function holds both the raw and the usable bar count, so only
+    // it can say "the venue does not publish volume" instead of "not yet".
+    evidenceGapNote: volumeGapNote,
   };
   const profile = deriveProfileDimension(profileEvidenceInput);
 
@@ -390,12 +435,13 @@ export function createChartMarketStatePublication(
   // verdict at PARTIAL, carrying the owner's own sentence about why the side
   // is absent.
   const aggression = deriveAggressionDimension({
-    vm: selectAggressionResponse(profileBarsFrom(input.bars), { windowBars: 30 }),
+    vm: selectAggressionResponse(profileBars, { windowBars: 30 }),
     // Candles only — never a tick. So the CANDLE venue, not the tape venue.
     source: barSourceName,
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
+    evidenceGapNote: volumeGapNote,
   });
 
   // STRUCTURE — the SIXTH and LAST repair of this one shape. Measured live on

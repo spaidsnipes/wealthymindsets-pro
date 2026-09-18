@@ -111,6 +111,17 @@ export interface DeriveProfileInput {
   readonly capturedAt: number;
   /** Stable id used in the evidence eventId (typically the snapshot id). */
   readonly snapshotIdSeed: string;
+  /**
+   * WHY THERE IS NOTHING TO MEASURE, when the caller knows something this
+   * deriver cannot see. See the matching field on `DeriveAggressionInput` for
+   * the live measurement that made it necessary: on /command-deck the Passport
+   * reported no profile while 120 candles were drawn beside it, because that
+   * venue publishes no per-bar volume and a profile is a volume distribution.
+   * "None has been distributed YET" implies waiting will help. It will not.
+   *
+   * Optional — absent leaves the previous wording exactly as it was.
+   */
+  readonly evidenceGapNote?: string | null;
 }
 
 function unknown(note: string): MarketStateDimension {
@@ -161,12 +172,15 @@ function evidenceRefFor(
 
 export function deriveProfileDimension(input: DeriveProfileInput): MarketStateDimension {
   const vm = input.vm;
-  if (!vm) return unknown("No profile compiled at snapshot time.");
+  // See `evidenceGapNote`: only the caller can tell "no volume has been
+  // distributed yet" apart from "this venue does not report volume at all".
+  const gap = input.evidenceGapNote?.trim() || null;
+  if (!vm) return unknown(gap ?? "No profile compiled at snapshot time.");
 
   // The owner's own sentence, not one composed here — two surfaces wording the
   // same silence differently is the defect this whole lane exists to prevent.
   if (!vm.measured) {
-    return unknown(vm.missingInputNote ?? "No volume has been distributed across price yet.");
+    return unknown(gap ?? vm.missingInputNote ?? "No volume has been distributed across price yet.");
   }
 
   const { poc, vah, val, curve } = vm;

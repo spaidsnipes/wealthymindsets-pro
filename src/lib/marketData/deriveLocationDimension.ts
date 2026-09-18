@@ -82,6 +82,12 @@ export interface DeriveLocationInput {
   readonly latestTickAtMs: number | null;
   readonly capturedAt: number;
   readonly snapshotIdSeed: string;
+  /**
+   * WHY THERE IS NOTHING TO LOCATE PRICE AGAINST, when the caller knows
+   * something this deriver cannot see. See `DeriveAggressionInput` for the
+   * live measurement. Optional — absent preserves the previous wording.
+   */
+  readonly evidenceGapNote?: string | null;
 }
 
 function unknown(note: string): MarketStateDimension {
@@ -119,13 +125,20 @@ function evidenceRefFor(
 
 export function deriveLocationDimension(input: DeriveLocationInput): MarketStateDimension {
   const vm = input.vm;
-  if (!vm) return unknown("No profile compiled at snapshot time, so price has nothing to be located against.");
+  const gap = input.evidenceGapNote?.trim() || null;
+  if (!vm) {
+    return unknown(
+      gap ?? "No profile compiled at snapshot time, so price has nothing to be located against.",
+    );
+  }
 
   if (!vm.measured) {
     // The compiler's own sentence. It already explains WHY there is no value
-    // area, and that explanation is the honest answer to "where is price".
+    // area, and that explanation is the honest answer to "where is price" —
+    // unless the caller can name a cause the compiler could not observe.
     return unknown(
-      vm.missingInputNote
+      gap
+      ?? vm.missingInputNote
       ?? "No volume has been distributed across price yet, so there is no value area to locate price against.",
     );
   }

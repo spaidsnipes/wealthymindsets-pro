@@ -97,6 +97,23 @@ export interface DeriveAggressionInput {
   readonly latestTickAtMs: number | null;
   readonly capturedAt: number;
   readonly snapshotIdSeed: string;
+  /**
+   * WHY THERE IS NOTHING TO MEASURE, when the caller knows something this
+   * deriver cannot see.
+   *
+   * A compiler handed an empty window says "no bar carried measurable
+   * effort". On /command-deck that sentence was FALSE in the way that matters:
+   * 120 bars were loaded and drawn, every one of them spending real effort.
+   * They were dropped upstream because that venue publishes no per-bar volume,
+   * and effort here IS traded volume. The deriver had no way to tell the
+   * difference between "a quiet market" and "a venue that does not report",
+   * and those are opposite facts for a trader.
+   *
+   * Only the publisher knows both the raw bar count and the usable one, so
+   * only the publisher can write this sentence. Optional: a caller that does
+   * not supply one gets exactly the previous wording.
+   */
+  readonly evidenceGapNote?: string | null;
 }
 
 const UNKNOWN_BASE = {
@@ -164,14 +181,22 @@ export function deriveAggressionDimension(
   input: DeriveAggressionInput,
 ): MarketStateDimension {
   const vm = input.vm;
+  // A caller-supplied gap note outranks both defaults below, because it is the
+  // only one of the three that can distinguish a quiet market from a silent
+  // venue. See `evidenceGapNote`.
+  const gap = input.evidenceGapNote?.trim() || null;
+
   if (!vm) {
-    return unknown("No aggression window compiled at snapshot time.");
+    return unknown(gap ?? "No aggression window compiled at snapshot time.");
   }
 
   if (!vm.measured) {
-    // The compiler already knows why, and its sentence is the honest answer.
+    // The compiler already knows why, and its sentence is the honest answer —
+    // unless the caller knows the window was empty for a reason the compiler
+    // could not observe.
     return unknown(
-      vm.effortSpreadNote
+      gap
+      ?? vm.effortSpreadNote
       ?? "No bar in the window carried measurable effort, so there is no push to describe.",
     );
   }

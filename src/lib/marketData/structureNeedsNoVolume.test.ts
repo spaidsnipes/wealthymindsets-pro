@@ -156,6 +156,47 @@ describe("the repair is NARROW — the volume-hungry dimensions stay honest", ()
     expect(state.dimensions?.structure?.resolution).toBe("RESOLVED");
   });
 
+  it("but they name the VENUE, not a wait — a quiet market is not a silent venue", () => {
+    // The repair this block exists for. Declining is correct; declining with
+    // "no volume has been distributed YET" is not, because it tells the trader
+    // that waiting, or a busier tape, will fix something that no amount of
+    // either can fix. 120 candles are drawn on /command-deck and every one of
+    // them spent real effort — they are invisible here because the venue
+    // publishes no per-bar volume at all.
+    const { state } = publish(volumelessBars());
+    for (const key of ["profile", "location", "aggression"] as const) {
+      const note = state.dimensions?.[key]?.unknowns?.[0] ?? "";
+      expect(note, `${key} disclosed no reason at all`).not.toBe("");
+      expect(note, `${key} still blames the clock, not the venue`).not.toMatch(/\byet\b/i);
+      expect(note, `${key} did not name the venue that is silent`).toContain("yahoo");
+      expect(note).toMatch(/does not publish it/);
+    }
+  });
+
+  it("a GENUINELY empty feed keeps the compilers' own wording", () => {
+    // The narrowness guard for the note above. With no bars at all there is no
+    // contradiction to disclose — nothing was loaded, so nothing was dropped,
+    // and inventing a venue complaint would be its own fabrication.
+    const { state } = publish([]);
+    for (const key of ["profile", "location", "aggression"] as const) {
+      const note = state.dimensions?.[key]?.unknowns?.[0] ?? "";
+      expect(note, `${key} blamed a venue when no candle was ever loaded`).not.toMatch(
+        /does not publish it/,
+      );
+    }
+  });
+
+  it("and the note is absent once the venue does print volume", () => {
+    const { state } = publish(withVolume(volumelessBars()));
+    for (const key of ["profile", "location", "aggression"] as const) {
+      for (const note of state.dimensions?.[key]?.unknowns ?? []) {
+        expect(note, `${key} claimed a volume gap while volume was present`).not.toMatch(
+          /does not publish it/,
+        );
+      }
+    }
+  });
+
   it("a bar missing open or close is still dropped — thin is not malformed", () => {
     // `structureBarsFrom` relaxes ONLY the volume requirement. A candle with
     // no close is not a low-information candle, it is a broken one.
