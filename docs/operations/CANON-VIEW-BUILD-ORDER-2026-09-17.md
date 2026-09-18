@@ -122,3 +122,58 @@ that panel prints four separate sentences about the absence the banner above it
 already declared once — and the last of them calls "these levels" downstream of
 a guess when there are no levels at all. Finish or revert deliberately; do not
 leave it half-gated.
+
+**CLOSED — `c8aee84d`.** The panel now defers on a DERIVED gate (`notCarried` =
+the flag AND UNMEASURED AND an empty level list), so a banner can never blank a
+ladder that actually has levels in it, and it uses the same house sentence the
+other three deferring panels use rather than inventing a fourth phrasing. Both
+Sentinels were raised with it: the pinned caller count 3 → 4, a GATE regex so
+the prop cannot be accepted-and-ignored, and a seventh entry in the banner's
+`blockedReadings` list.
+
+---
+
+## ASSET 06 — SHIPPED AND LIVE-OBSERVED
+
+`f7bd2697` is live on `https://wealthymindsetspro.com/charts`. The VIEW dropdown
+reads `Chart | Absorption | Profile` on every asset class, and on NQ1! · 15m the
+view renders `TRADED VOLUME 120,048` (real), `BUYER INITIATED —` and
+`SELLER INITIATED —` (**not `0`** — the tape never stated a side), the five
+criteria each with a written basis, and `EFFICIENCY RATIO —` with the mockup's
+own `> 5.0 strong · 2.0–5.0 moderate · < 2.0 weak` ladder printed beneath it.
+
+Against the three Founder acceptance questions:
+
+| Question | Answer |
+|---|---|
+| Same invention recognisable? | YES — three columns, effort field + price path, criteria checklist, ratio ladder. |
+| Useful while candles remain visible? | **PARTIAL.** It is a full-tab sibling of `Chart`, so the candles are not on screen at the same time. This is the honest gap and it is not yet closed. |
+| Fed real/honest WM information? | YES. No mockup literal survives; every absent field says `—` and names why. |
+
+---
+
+## ASSET 03 — DESIGN DECIDED, NOT YET BUILT
+
+Two things must be settled before a line is written, because both are places
+where the mockup's art direction would quietly become a lie.
+
+**1. The x-axis term does not exist yet, and must not be faked.**
+`selectAbsorptionAnatomy` computes `displacement = |close − open|` — UNSIGNED,
+in price units. Asset 03's x-axis is SIGNED displacement in ticks, `−10 … +10`.
+The signed term is a genuinely new quantity. Build it in the Asset 03 view
+compiler from the same `AnatomyBarInput[]` (`close − open`), NOT by changing the
+series selector — the zones and effort must keep exactly one owner. Tick size is
+not carried by the feed either, so the axis is labelled in PRICE units until a
+contract spec owns a tick size; do not divide by a guessed tick.
+
+**2. The y-axis is `NET BUYER / SELLER INITIATED`, which NQ1! does not carry.**
+The scatter must be basis-aware and say so on the axis itself: with a signed
+tape, y = net aggression; with only `VOLUME`, y = normalised effort and the axis
+label states the substitution. A scatter that silently swaps its own y term is
+worse than an empty one.
+
+**3. Do not ship the mockup's `IMPLICATION: SIDEWAYS / REVERSAL RISK`.**
+It is a forward-looking prediction and no selector in this repo owns it.
+`CONVICTION HIGH` is likewise a grade — §9 applies. Ship only the sections that
+have owners; the left `MARKET CONTEXT` rail and the bottom `MICROSTRUCTURE
+SUMMARY` are already-owned fields and are fine.
