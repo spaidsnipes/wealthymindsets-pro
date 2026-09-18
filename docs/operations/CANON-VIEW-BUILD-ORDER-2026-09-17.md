@@ -532,3 +532,11 @@ different decimal counts (`363.94`, `362.355`) because that is what the bars
 carry. Rounding them for alignment would be the renderer editing a number
 another owner measured. If a future atom wants a tick-aligned column it needs a
 tick-size owner, which this composition does not have.
+
+**AND THE OBVIOUS "FIX" IS THE WRONG ONE.** The repo already owns a magnitude
+formatter, `measuredNumber.formatMagnitude`, and reaching for it here is the
+first thing a reader will think of. It would print **`364`** for `363.94`. That
+module says so itself — it is the owner for costs, efforts and efficiencies,
+quantities whose scale nobody can bound in advance, and it explicitly disclaims
+quantities whose surface already knows their scale. A price is the second kind.
+Recorded so the next operator does not discover this by shipping it.
