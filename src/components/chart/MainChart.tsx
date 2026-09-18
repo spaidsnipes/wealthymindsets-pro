@@ -105,6 +105,8 @@ import {
   selectAbsorptionAnatomy,
   type AnatomyBarInput,
 } from "@/lib/marketData/selectAbsorptionAnatomy";
+import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
+import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -568,6 +570,22 @@ interface Props {
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
   absorptionAnatomyActive?: boolean;
+  /**
+   * STACKED IMBALANCE, AT ITS PRICE.
+   *
+   * The reading is compiled by the ROOM (`ChartsDashboard` already calls
+   * `useOrderFlowReadings` for the panels) and handed down here already
+   * reduced to the few facts a canvas needs — see
+   * `selectStackedImbalanceGlass`. This component never computes a second
+   * opinion about the tape; if the band and the drawer ever disagreed, the
+   * trader would have two houses telling them different things about the same
+   * three prices.
+   *
+   * Null is an ordinary value: it means the room has no reading, and the glass
+   * draws nothing rather than an empty band, because an empty band at a price
+   * reads as "nothing here" and that is a claim.
+   */
+  imbalanceStack?: StackedImbalanceVM | null;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -814,6 +832,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   compareSymbol, onPriceAtCursor, onOHLCAtCursor,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
+  imbalanceStack = null,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -860,6 +879,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // without tearing down & rebuilding the whole pane on each tick.
   const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: Bar[]) => { value: number; color?: string } | null }>>([]);
   const barsRef       = useRef<Bar[]>([]);
+  /*
+    THE STACK READING LIVES IN A REF, NOT IN THE OVERLAY'S DEPENDENCY ARRAY.
+
+    `imbalanceStack` is recompiled by the room on every batch of ticks — many
+    times a second on a liquid instrument. Naming it as a dependency of the
+    overlay effect would tear down and rebuild the whole `requestAnimationFrame`
+    loop at tape rate, which is the exact mistake the `candles` note further
+    down records: the VP and footprint flashed off four times a second on
+    crypto. The loop reads this ref each frame instead, so a fresh reading
+    appears on the very next paint without the effect ever re-running.
+  */
+  const imbalanceStackRef = useRef<StackedImbalanceVM | null>(null);
+  useEffect(() => { imbalanceStackRef.current = imbalanceStack; }, [imbalanceStack]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -6832,6 +6864,169 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
       }
+
+      /* ══════════════════════════════════════════════════════════════════════
+         STACKED IMBALANCE — PUT BACK ON THE PRICE IT IS A CLAIM ABOUT.
+
+         `selectStackedImbalance` has been a complete engine for some time, and
+         until now its only readers were two DRAWER PANELS. The VM carries
+         `stackLow`, `stackHigh` and a price for every level in the run, and not
+         one of those numbers ever reached the glass. A panel reading "3 levels
+         stacked, DEFENDED" tells the trader that something happened somewhere.
+         The invention is that it happened HERE, at THESE prices, and those
+         prices are already on the screen with candles drawn through them.
+
+         Founder law, verbatim: imbalances belong "at their price levels".
+
+         WHAT IS DECIDED HERE AND WHAT IS NOT. Everything that can be settled
+         before a coordinate exists — whether to draw at all, the band extent,
+         the level list, the edge style, the words — is settled in
+         `selectStackedImbalanceGlass`, which has tests. This block owns
+         arithmetic and ink only. That split is why the §9 rule below can be
+         enforced: the compiler emits no colour field at all, so no future edit
+         here can be handed a hue to grade a verdict with.
+
+         THE VERDICT IS CARRIED BY EDGE, NOT BY HUE. DEFENDED is solid — the
+         boundary held, so draw it as a boundary. BROKEN is dashed — what is on
+         the screen is the memory of a wall. UNTESTED is dotted — a claim
+         nobody has tested yet, so it gets the faintest edge there is. All three
+         in the same gold as the rest of the evidence layer, because a level
+         holding is not a reassurance and a level breaking is not a scolding.
+
+         THE BAND SPANS THE PLOT, unlike the absorption zone above it, and that
+         difference is deliberate. An absorption zone is a thing that HAPPENED
+         over a span of bars; it has a start and an end in time. A stack is a
+         PRICE THAT MATTERS NOW. Boxing it to the bars that built it would say
+         the level expired when those bars scrolled off, which is the opposite
+         of the claim being made.
+      ══════════════════════════════════════════════════════════════════════ */
+      try {
+        const glass = selectStackedImbalanceGlass(imbalanceStackRef.current);
+        const ds = canvas.dataset;
+        // The receipt is published in EVERY state, including the two that draw
+        // nothing. An absent attribute means "this build has no stack layer";
+        // `UNMEASURED` means "the layer ran and the tape could not be read".
+        // Collapsing those is how a silent regression passes for a quiet tape.
+        ds.imbalanceStack = glass.reason;
+
+        if (glass.drawn && glass.priceLow != null && glass.priceHigh != null) {
+          const yHiR = srs.priceToCoordinate(glass.priceHigh);
+          const yLoR = srs.priceToCoordinate(glass.priceLow);
+          if (yHiR != null && yLoR != null) {
+            const yHi = Math.min(+yHiR, +yLoR);
+            const yLo = Math.max(+yHiR, +yLoR);
+
+            // The right price scale is painted OVER this overlay, so the edge
+            // that actually clips is the plot's, not the container's — the same
+            // lesson the absorption chip block records after shipping a clamp
+            // that was arithmetically correct against the wrong boundary. The
+            // axis width is queried, never guessed: 29,731.00 is wider than
+            // 12.40.
+            const axisW = (() => {
+              try {
+                const w = chart.priceScale("right").width();
+                if (Number.isFinite(w) && w > 0) return Math.ceil(w);
+              } catch {}
+              return 90;
+            })();
+            const plotRight = Math.max(8, W - axisW);
+
+            ctx.save();
+
+            // A band one tick tall is a line, and a line drawn as a 1px-high
+            // rectangle disappears at some device pixel ratios. Floor the drawn
+            // height without moving the edges: the strokes below still land on
+            // the true prices.
+            const bandH = Math.max(1, yLo - yHi);
+            ctx.fillStyle = "rgba(212,175,55,0.07)";
+            ctx.fillRect(0, yHi, plotRight, bandH);
+
+            const DASH: Record<typeof glass.edgeStyle, number[]> = {
+              SOLID: [],
+              DASHED: [5, 4],
+              DOTTED: [1, 3],
+            };
+            ctx.setLineDash(DASH[glass.edgeStyle]);
+            ctx.strokeStyle = "rgba(212,175,55,0.70)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, yHi + 0.5); ctx.lineTo(plotRight, yHi + 0.5);
+            ctx.moveTo(0, yLo - 0.5); ctx.lineTo(plotRight, yLo - 0.5);
+            ctx.stroke();
+
+            // ── EVERY LEVEL IN THE RUN, AT ITS OWN PRICE.
+            //
+            // The band alone would say "somewhere between these two prices".
+            // The word STACKED means a RUN OF ADJACENT LEVELS all leaning the
+            // same way, and that run is only perceivable if the individual
+            // levels are. Drawn short and at the left so they read as rungs
+            // inside the band rather than as three more support lines
+            // competing with it.
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "rgba(212,175,55,0.45)";
+            for (const lvl of glass.levels) {
+              const yr = srs.priceToCoordinate(lvl.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) + 0.5;
+              ctx.beginPath();
+              ctx.moveTo(0, y);
+              ctx.lineTo(Math.min(plotRight, 56), y);
+              ctx.stroke();
+            }
+
+            // ── THE RETEST MARK — the difference between a level that held
+            // comfortably and one that nearly went. Both are the word
+            // DEFENDED, and they are not the same information. Drawn at the
+            // right so it does not sit on top of the rungs.
+            if (glass.retestPrice != null) {
+              const rr = srs.priceToCoordinate(glass.retestPrice);
+              if (rr != null) {
+                const ry = Math.round(+rr) + 0.5;
+                ctx.strokeStyle = "rgba(237,230,211,0.65)";
+                ctx.beginPath();
+                ctx.moveTo(Math.max(0, plotRight - 40), ry);
+                ctx.lineTo(plotRight, ry);
+                ctx.stroke();
+              }
+            }
+
+            // ── THE LABEL. A whole sentence, because the glass has no
+            // footnotes: the role the level plays, the verdict, how many
+            // levels, and — when the venue did not assert the aggressor side —
+            // the disclosure that every number here is downstream of a tick
+            // rule. A drawer can put that in fine print. A chart cannot.
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            const lw = ctx.measureText(glass.label).width;
+            const chipH = 14;
+            const chipW = lw + 12;
+            const chipX = 2;
+            // Above the band by preference; below it when the band is already
+            // near the top of the pane, so the chip is never pushed off-plot.
+            const chipY = yHi - chipH - 2 >= 2 ? yHi - chipH - 2 : Math.min(H - chipH - 2, yLo + 2);
+            ctx.fillStyle = "rgba(14,12,8,0.92)";
+            ctx.fillRect(chipX, chipY, chipW, chipH);
+            ctx.strokeStyle = "rgba(212,175,55,0.65)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(chipX + 0.5, chipY + 0.5, chipW - 1, chipH - 1);
+            ctx.fillStyle = "#d4af37";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+
+            ctx.restore();
+
+            ds.imbalanceStackLevels = String(glass.levels.length);
+            ds.imbalanceStackEdge = glass.edgeStyle;
+          }
+        } else {
+          // Nothing is drawn, so nothing is claimed — and the two receipt
+          // fields that describe a drawing are removed rather than left at
+          // their last value, which would keep asserting a band that is no
+          // longer on the screen.
+          delete ds.imbalanceStackLevels;
+          delete ds.imbalanceStackEdge;
+        }
+      } catch { /* chart may be mid-transition; safe to skip this frame */ }
 
       // Release the plot-area clip established right after the data guard.
       ctx.restore();

@@ -2838,6 +2838,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
                       absorptionAnatomyActive={absorptionAnatomy}
+                      /*
+                        THE STACK GOES ON THE PRICE, NOT ONLY IN THE DRAWER.
+
+                        This reading was already being computed here — the
+                        `useOrderFlowReadings` call above compiles it for the
+                        Order flow depth panel — and its level prices had never
+                        left this component. Handing the SAME object to the
+                        glass is what keeps the band and the drawer from
+                        becoming two houses with two opinions about the same
+                        three prices; the chart does not recompute it.
+
+                        Ungated on purpose. A stack needs real tape, a readable
+                        tick grid, and at least three adjacent levels leaning
+                        the same way before the engine will name one, so it is
+                        rare and it is material — the two conditions the quiet
+                        canvas asks for. Everything else draws nothing.
+                      */
+                      imbalanceStack={chartOrderFlowReadings.stackedImbalance}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
