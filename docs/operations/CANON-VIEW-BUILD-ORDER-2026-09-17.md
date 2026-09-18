@@ -503,3 +503,32 @@ it actually covers, rather than being deleted.
   the `levels` clause from the lag reddened exactly
   `CARRIES THE LAG on a ROTATING reading that prints levels`. Both restored, and
   the restore re-verified green.
+
+### LIVE OBSERVATION — TSLA, 2026-09-18, after `91cd493c`
+
+Driven in the Founder's already-authenticated Chrome. The category select was
+switched to `Continuation` and **restored to `Chart`** afterwards.
+
+| Probe | Reading |
+| --- | --- |
+| `data-health` | `UNREADABLE` (unchanged — the regime is still short) |
+| reason | `Neither regime nor volatility dimension has verified evidence at snapshot time.` |
+| `continuation-levels` present | **true** |
+| level 1 | `LAST CONFIRMED SWING HIGH · 363.94 · selectMarketStructure` |
+| level 2 | `LAST CONFIRMED SWING LOW · 362.355 · selectMarketStructure` |
+| lag note | `the newest 5 bars cannot yet be a pivot — a swing needs 5 bars on BOTH sides to confirm, so the most recent move is always unconfirmed structure` |
+| any `\d\s*%` in the view's text | **false** |
+| `resistance` or `support` anywhere in the view's text | **false** |
+| chart canvas beside it | **530px**, view 504px |
+
+**This is the point of the atom, measured rather than argued.** The same
+`UNREADABLE` verdict that yesterday left the surface with nothing but a refusal
+now answers "where did it turn" with two prices the market actually printed,
+each naming the owner that confirmed it, under the disclosure that the newest
+bars cannot yet be pivots.
+
+**One thing observed and deliberately NOT changed:** the two prices print with
+different decimal counts (`363.94`, `362.355`) because that is what the bars
+carry. Rounding them for alignment would be the renderer editing a number
+another owner measured. If a future atom wants a tick-aligned column it needs a
+tick-size owner, which this composition does not have.
