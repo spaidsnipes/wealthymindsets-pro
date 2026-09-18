@@ -90,6 +90,27 @@ export interface MarketObjectPassportVM {
   readonly qualityState: MarketQualityState | "UNKNOWN";
   readonly objects: readonly MarketObjectPassport[];
   readonly resolvedCount: number;
+  /**
+   * THE MIDDLE BUCKET, PUBLISHED — because subtraction cannot find it.
+   *
+   * This VM already knew there were THREE lifecycles: `lifecycleOf` returns
+   * RESOLVED | FORMING | UNRESOLVED, and the panel prints each object's own
+   * word. But the VM published only `resolvedCount` and `totalCount`, so both
+   * consumers (/command-deck page.tsx and ChartsDashboard.tsx) wrote
+   *
+   *     `${totalCount - resolvedCount} unresolved`
+   *
+   * — TOTAL minus RESOLVED, which is the exact arithmetic that printed
+   * "RESOLVED (4) · UNRESOLVED (7)" for EIGHT dimensions on live /charts. A
+   * FORMING object was counted as unresolved in the chip WHILE the panel two
+   * rows down labelled that same object FORMING.
+   *
+   * A count that can only be reached by subtraction has no owner, and the
+   * middle bucket is exactly what subtraction destroys. So the three counts
+   * are published, and they sum to `totalCount` by construction.
+   */
+  readonly formingCount: number;
+  readonly unresolvedCount: number;
   readonly totalCount: number;
 }
 
@@ -251,6 +272,8 @@ export function selectMarketObjectPassport(
       qualityState: "UNKNOWN",
       objects: [],
       resolvedCount: 0,
+      formingCount: 0,
+      unresolvedCount: 0,
       totalCount: 0,
     };
   }
@@ -265,7 +288,12 @@ export function selectMarketObjectPassport(
     capturedAt: state.capturedAt,
     qualityState: state.qualityState,
     objects,
+    // Counted by MEMBERSHIP, never by subtraction. Each object contributes to
+    // exactly one of the three, so the three sum to `totalCount` for free and
+    // no consumer has to invent the middle bucket out of a difference.
     resolvedCount: objects.filter((o) => o.lifecycle === "RESOLVED").length,
+    formingCount: objects.filter((o) => o.lifecycle === "FORMING").length,
+    unresolvedCount: objects.filter((o) => o.lifecycle === "UNRESOLVED").length,
     totalCount: objects.length,
   };
 }

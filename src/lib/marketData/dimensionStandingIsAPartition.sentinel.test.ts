@@ -144,6 +144,41 @@ describe("the former authors of the buckets now ask for them", () => {
     expect(src).toContain("partitionDimensionStandings");
   });
 
+  /**
+   * THE SAME DEFECT WEARING ARITHMETIC INSTEAD OF A PREDICATE.
+   *
+   * `selectMarketObjectPassport` has ALWAYS had three lifecycles — `lifecycleOf`
+   * returns RESOLVED | FORMING | UNRESOLVED and the panel prints each object's
+   * own word. But the VM published only `resolvedCount` and `totalCount`, so
+   * BOTH consumers wrote `${totalCount - resolvedCount} unresolved`.
+   *
+   * TOTAL MINUS RESOLVED IS THE SAME LIE AS `!== "RESOLVED"`. It is the
+   * complement of one half of a three-valued type, reached by subtraction
+   * instead of a filter. A FORMING object was counted as unresolved in the chip
+   * while the panel one depth below labelled that same object FORMING.
+   *
+   * A count that can only be reached by subtraction has no owner.
+   */
+  it.each([
+    "src/app/command-deck/page.tsx",
+    "src/components/chart/ChartsDashboard.tsx",
+  ])("%s does not reach the middle bucket by subtraction", (rel) => {
+    const src = read(rel);
+    expect(src).not.toMatch(/totalCount\s*-\s*\w*[Rr]esolvedCount/);
+    expect(src).toContain("unresolvedCount");
+    expect(src).toContain("formingCount");
+  });
+
+  it("the passport publishes three counts that sum to the total", () => {
+    const src = read("src/lib/marketData/viewModels/selectMarketObjectPassport.ts");
+    for (const bucket of ["RESOLVED", "FORMING", "UNRESOLVED"] as const) {
+      expect(
+        src,
+        `${bucket} must be counted by MEMBERSHIP, not left to a consumer's subtraction`,
+      ).toContain(`o.lifecycle === "${bucket}"`);
+    }
+  });
+
   it("selectMarketStory consumes the rule it used to own privately", () => {
     const src = read("src/lib/marketData/viewModels/selectMarketStory.ts");
     expect(src).toContain("dimensionStanding");

@@ -1033,9 +1033,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           testId: "equipment-count-passport-resolved",
           label: `${chartPassportVM.resolvedCount} resolved`,
         },
+        // WAS `totalCount - resolvedCount` — see the same repair on
+        // /command-deck. A FORMING object is not unresolved; it is the middle
+        // bucket, and subtraction is exactly what erases it.
+        ...(chartPassportVM.formingCount > 0
+          ? [
+              {
+                testId: "equipment-count-passport-forming",
+                label: `${chartPassportVM.formingCount} forming`,
+              },
+            ]
+          : []),
         {
           testId: "equipment-count-passport-unresolved",
-          label: `${chartPassportVM.totalCount - chartPassportVM.resolvedCount} unresolved`,
+          label: `${chartPassportVM.unresolvedCount} unresolved`,
         },
         { testId: "equipment-count-passport-objects", label: `${chartPassportVM.totalCount} objects` },
       ],

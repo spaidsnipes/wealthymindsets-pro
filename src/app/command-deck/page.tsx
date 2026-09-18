@@ -826,9 +826,21 @@ function CommandDeckInner() {
           testId: "equipment-count-passport-resolved",
           label: `${passport.resolvedCount} resolved`,
         },
+        // WAS `totalCount - resolvedCount`. Subtraction cannot see the middle
+        // bucket, so every FORMING object was counted here as unresolved while
+        // the panel one depth down printed FORMING beside its name. The VM now
+        // publishes all three; this chip reads them.
+        ...(passport.formingCount > 0
+          ? [
+              {
+                testId: "equipment-count-passport-forming",
+                label: `${passport.formingCount} forming`,
+              },
+            ]
+          : []),
         {
           testId: "equipment-count-passport-unresolved",
-          label: `${passport.totalCount - passport.resolvedCount} unresolved`,
+          label: `${passport.unresolvedCount} unresolved`,
         },
         { testId: "equipment-count-passport-objects", label: `${passport.totalCount} objects` },
       ],
