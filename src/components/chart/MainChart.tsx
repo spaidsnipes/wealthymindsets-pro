@@ -60,6 +60,38 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
+import { STRUCTURE_DEFAULT_LOOKBACK } from "@/lib/marketData/viewModels/selectMarketStructure";
+
+/**
+ * THE PIVOT LOOKBACK THIS CHART DRAWS SWINGS AT — AND THE ONE IT DOESN'T.
+ *
+ * `swingHighLow` is called inline four times in this file. Until now all four
+ * lookbacks were bare numeric literals — 5, 5, 4, 4 — with nothing connecting
+ * them to `selectMarketStructure`, the compiled owner the Market Object
+ * Passport reads. The Passport uses 5.
+ *
+ * That is the producer/matcher drift hazard one level down. If either number
+ * moved, the chart would draw a swing the Passport's sequence does not contain,
+ * or omit one it does, on the same bars at the same instant — canon Weakness
+ * #1 — and the symptom would be nothing. No throw, no red test. Two lines on a
+ * chart that quietly disagree with the words beside them.
+ *
+ * Swing High/Low and Strong Highs/Lows are the SAME question the Passport
+ * answers, so they now read the owner's constant. They cannot drift from it
+ * because there is no longer a second number to move.
+ *
+ * ── THE 4 IS NOT ENDORSED, IT IS DISCLOSED ──────────────────────────────────
+ *
+ * Liquidity Pools and Change of Character use 4, and no comment, commit or
+ * doc in this repo says why. It predates the compiled owner. Harmonising it to
+ * 5 would silently change what the Founder's chart draws, which is not a
+ * refactor's business, so the number is preserved EXACTLY and merely given a
+ * name that admits it is unexplained. Naming it is what makes the divergence
+ * reviewable instead of invisible; deciding it is a separate atom with the
+ * Founder in the room.
+ */
+const CHART_SWING_LOOKBACK = STRUCTURE_DEFAULT_LOOKBACK;
+const LIQUIDITY_SWEEP_LOOKBACK = 4;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
@@ -3196,7 +3228,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } catch {}
     }
     if (inds.has("Swing High/Low")) {
-      const swings = IND.swingHighLow(bars);
+      const swings = IND.swingHighLow(bars, CHART_SWING_LOOKBACK);
       swings.highs.forEach(h => {
         const s = chart.addSeries(LW.LineSeries,{ color: "#ef5350", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         s.setData([{ time: h.time as any, value: h.price }]);
@@ -3643,7 +3675,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     //    above it; a swing low is "strong" (protected support) if none traded below.
     if (inds.has("Strong Highs/Lows")) {
       try {
-        const sw = IND.swingHighLow(bars, 5);
+        const sw = IND.swingHighLow(bars, CHART_SWING_LOOKBACK);
         const maxHighAfter = (idx: number) => bars.slice(idx + 1).reduce((m, b) => Math.max(m, b.high), -Infinity);
         const minLowAfter  = (idx: number) => bars.slice(idx + 1).reduce((m, b) => Math.min(m, b.low),  Infinity);
         const idxOf = (t: number) => bars.findIndex(b => b.time === t);
@@ -3671,7 +3703,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     //    tends to sweep. Dashed gold zones anchored at the equal levels.
     if (inds.has("Liquidity Pools")) {
       try {
-        const sw = IND.swingHighLow(bars, 4);
+        const sw = IND.swingHighLow(bars, LIQUIDITY_SWEEP_LOOKBACK);
         const tol = (bars[bars.length - 1]?.close ?? 100) * 0.0012;
         const cluster = (pts: { time: number; price: number }[]) => {
           const out: { price: number; from: number }[] = [];
@@ -3701,7 +3733,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     //    below the last higher-low flags a bullish→bearish CHoCH (and vice-versa).
     if (inds.has("Change of Character")) {
       try {
-        const sw = IND.swingHighLow(bars, 4);
+        const sw = IND.swingHighLow(bars, LIQUIDITY_SWEEP_LOOKBACK);
         const chochMarkers: { time: any; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown"; text: string; size: number }[] = [];
         const lows  = sw.lows.slice();
         const highs = sw.highs.slice();
