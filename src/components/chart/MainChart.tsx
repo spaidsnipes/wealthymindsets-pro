@@ -107,6 +107,8 @@ import {
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
+import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueCandleGlass";
+import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -586,6 +588,14 @@ interface Props {
    * reads as "nothing here" and that is a claim.
    */
   imbalanceStack?: StackedImbalanceVM | null;
+  /**
+   * THE WM VALUE CANDLE (Founder invention) — where the trading actually
+   * happened, as opposed to where price went. Compiled by the room from the
+   * same tape the drawer reads, reduced for the canvas by
+   * `selectValueCandleGlass`. Null means the room has no reading; nothing is
+   * drawn, and no centre of gravity is invented at zero.
+   */
+  valueCandle?: ValueCandleVM | null;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -833,6 +843,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
   imbalanceStack = null,
+  valueCandle = null,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -892,6 +903,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   */
   const imbalanceStackRef = useRef<StackedImbalanceVM | null>(null);
   useEffect(() => { imbalanceStackRef.current = imbalanceStack; }, [imbalanceStack]);
+  /** Same reasoning as the stack above: a tape-rate value must not be a
+   *  dependency of the overlay effect. */
+  const valueCandleRef = useRef<ValueCandleVM | null>(null);
+  useEffect(() => { valueCandleRef.current = valueCandle; }, [valueCandle]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -6864,6 +6879,158 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
       }
+
+      /* ══════════════════════════════════════════════════════════════════════
+         THE WM VALUE CANDLE — FINALLY DRAWN ON A CANDLE.
+
+         `selectValueCandle` answers the question an OHLC bar refuses to: not
+         where price went, but WHERE THE TRADING ACTUALLY HAPPENED. Centre of
+         gravity is Σ(P×V)/Σ(V); the value band is CoG ± one volume-weighted
+         sigma. Every one of those numbers is A PRICE, and until now every one
+         of them lived in a drawer. The invention is called the WM Value CANDLE
+         and there was no candle.
+
+         WHAT IS DECIDED HERE AND WHAT IS NOT. Whether to draw, the band, the
+         rung list, the relative widths and the words are all settled in
+         `selectValueCandleGlass`, which has tests and emits NO COLOUR FIELD.
+         This block owns arithmetic and ink only.
+
+         WHERE IT SITS, AND WHY IT DOES NOT COLLIDE. The rungs are a histogram
+         at the right edge, which is exactly where the Fixed and Session VP
+         columns already live. Rather than suppress one or overdraw the other,
+         this takes THE NEXT COLUMN from the same `vpColumnLayout` the profiles
+         use — the mechanism the file already trusts to keep two histograms
+         apart. When the pane is too narrow to hold another column, the layout
+         says `fits:false` and this declines out loud (`NO_ROOM`) instead of
+         painting at a negative x, which is the exact failure that helper was
+         extracted to end.
+
+         IT IS DRAWN BEFORE THE STACKED IMBALANCE BAND, deliberately: the stack
+         is a claim about a price RIGHT NOW and must read on top of the
+         distribution that produced it.
+
+         CONCENTRATION IS NOT TIGHTNESS, and the label refuses to let it
+         pretend to be — the headline is BAND COVERAGE. That refusal is
+         upstream in the compiler; it is named here so an edit to this block
+         cannot quietly reintroduce the flattering number.
+      ══════════════════════════════════════════════════════════════════════ */
+      try {
+        const glass = selectValueCandleGlass(valueCandleRef.current);
+        const ds = canvas.dataset;
+        // Published in every state, including the silent ones. An absent
+        // attribute means this build has no value-candle layer; UNMEASURED
+        // means the layer ran and the tape could not be read.
+        ds.valueCandle = glass.reason;
+
+        let painted = false;
+        if (glass.drawn && glass.cog != null) {
+          const axisW = (() => {
+            try {
+              const w = chart.priceScale("right").width();
+              if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
+            } catch {}
+            return 90;
+          })();
+          // The profiles already on screen own columns 0..n-1; this takes n.
+          const vpCols = (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0);
+          const col = vpColumnLayout(W, axisW, vpCols, vpCols + 1);
+          const yCogR = srs.priceToCoordinate(glass.cog);
+
+          if (col.fits && yCogR != null && Number.isFinite(+yCogR)) {
+            const right = col.right;
+            const width = col.width;
+            ctx.save();
+
+            // ── THE RUNGS. Each bin at its own two price edges, so a shelf is
+            // drawn at the price it traded at and nowhere else. Width is the
+            // compiler's `widthFrac` — relative to the heaviest bin IN THIS
+            // WINDOW and nothing else, because no absolute volume scale
+            // survives a symbol change.
+            let rungs = 0;
+            for (const r of glass.rungs) {
+              const yTop = srs.priceToCoordinate(r.hiPrice);
+              const yBot = srs.priceToCoordinate(r.loPrice);
+              if (yTop == null || yBot == null) continue;
+              const rect = vpRowRect(+yTop, +yBot, 24);
+              if (!rect) continue;
+              const w = Math.max(1, Math.round(width * r.widthFrac));
+              // Inside the measured band is brighter than outside it. Alpha,
+              // not a second hue: the band is a measurement, not a verdict, so
+              // it gets emphasis rather than a grade.
+              ctx.fillStyle = r.inValue ? "rgba(212,175,55,0.55)" : "rgba(212,175,55,0.22)";
+              ctx.fillRect(right - w, rect.y, w, rect.drawHeight);
+              rungs++;
+            }
+
+            // ── THE VALUE BAND EDGES, across the rung lane only. The stacked
+            // imbalance band spans the whole plot because it is a price that
+            // matters now; this one is the extent of a distribution, so it
+            // stays inside the distribution it describes.
+            if (glass.valueLow != null && glass.valueHigh != null) {
+              const yHi = srs.priceToCoordinate(glass.valueHigh);
+              const yLo = srs.priceToCoordinate(glass.valueLow);
+              if (yHi != null && yLo != null) {
+                ctx.strokeStyle = "rgba(212,175,55,0.40)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(right - width, Math.round(+yHi) + 0.5);
+                ctx.lineTo(right, Math.round(+yHi) + 0.5);
+                ctx.moveTo(right - width, Math.round(+yLo) + 0.5);
+                ctx.lineTo(right, Math.round(+yLo) + 0.5);
+                ctx.stroke();
+                ctx.setLineDash([]);
+              }
+            }
+
+            // ── THE SPINE. Σ(P×V)/Σ(V) is the one number the whole reading is
+            // built on, so it is the one mark that reaches past the lane.
+            const yCog = Math.round(+yCogR) + 0.5;
+            ctx.strokeStyle = "rgba(237,230,211,0.85)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(right - width - 10, yCog);
+            ctx.lineTo(right, yCog);
+            ctx.stroke();
+
+            // ── THE LABEL, and the finding beneath it only when one was found.
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            const lw = ctx.measureText(glass.label).width;
+            const chipH = 14;
+            const chipX = Math.max(2, right - Math.max(width, lw + 12));
+            const chipY = Math.max(2, Math.min(H - chipH - 2, yCog - chipH - 6));
+            ctx.fillStyle = "rgba(14,12,8,0.92)";
+            ctx.fillRect(chipX, chipY, lw + 12, chipH);
+            ctx.strokeStyle = "rgba(212,175,55,0.65)";
+            ctx.strokeRect(chipX + 0.5, chipY + 0.5, lw + 11, chipH - 1);
+            ctx.fillStyle = "#d4af37";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+            if (glass.migrationLabel) {
+              ctx.fillStyle = "rgba(237,230,211,0.80)";
+              ctx.fillText(glass.migrationLabel, chipX + 6, chipY + chipH + 8);
+            }
+
+            ctx.restore();
+
+            ds.valueCandleRungs = String(rungs);
+            ds.valueCandleCog = String(glass.cog);
+            painted = true;
+          } else if (!col.fits) {
+            // The reading was good and the pane could not hold another column.
+            // That is a different fact from an unreadable tape and is recorded
+            // as one.
+            ds.valueCandle = "NO_ROOM";
+          }
+        }
+        if (!painted) {
+          // A stale rung count keeps asserting a distribution that is no
+          // longer on the screen.
+          delete ds.valueCandleRungs;
+          delete ds.valueCandleCog;
+        }
+      } catch { /* chart may be mid-transition; safe to skip this frame */ }
 
       /* ══════════════════════════════════════════════════════════════════════
          STACKED IMBALANCE — PUT BACK ON THE PRICE IT IS A CLAIM ABOUT.

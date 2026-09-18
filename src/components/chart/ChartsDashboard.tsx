@@ -2856,6 +2856,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         canvas asks for. Everything else draws nothing.
                       */
                       imbalanceStack={chartOrderFlowReadings.stackedImbalance}
+                      /*
+                        THE SAME READING THE DRAWER GETS, for the same reason.
+                        `selectValueCandle` has been computing a centre of
+                        gravity and a value band — both PRICES — that only ever
+                        reached a panel. One reading, two renderings: if the
+                        chart compiled its own, the spine on the glass and the
+                        number in the drawer could disagree about the same
+                        symbol, which is Canon Weakness #1 word for word.
+                      */
+                      valueCandle={chartOrderFlowReadings.valueCandle}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
