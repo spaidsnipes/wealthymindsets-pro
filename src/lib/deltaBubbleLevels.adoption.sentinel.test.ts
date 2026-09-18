@@ -164,8 +164,25 @@ describe("deltaBubbleLevels adoption — MainChart must delegate (Sentinel)", ()
     // The sibling big-trade cull site already carries a comment calling an
     // unreachable duplicate of `bigTradeLevelKey` "a loaded gun". This is that
     // gun unloaded by a gate rather than by a comment.
+    //
+    // READ CODE, NOT PROSE. This assertion used to run against raw `chartSrc`,
+    // which meant it FORBADE ITS OWN DOCUMENTATION: writing a comment in
+    // MainChart that quotes the removed `dt:` template — the single most
+    // useful thing to leave for the next reader at that line — turned this
+    // gate red with zero behaviour change. MEASURED: inserting exactly such a
+    // comment above `const spawnKey = deltaBubbleLevelKey(` failed this test
+    // while the big-trade sibling stayed green.
+    //
+    // The sibling had this right already and said why: "a gate that punishes
+    // that teaches people to delete their explanations." Two gates enforcing
+    // one rule must not give two answers. This is the second answer withdrawn.
+    const code = chartSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     expect(
-      chartSrc,
+      code.length,
+      "the comment stripper must not have eaten MainChart.tsx",
+    ).toBeGreaterThan(50_000);
+    expect(
+      code,
       "MainChart must not build a delta spawn key itself — delegate to deltaBubbleLevelKey",
     ).not.toMatch(/`dt:\$\{/);
     expect(IMPORTED).toContain("deltaBubbleLevelKey");
