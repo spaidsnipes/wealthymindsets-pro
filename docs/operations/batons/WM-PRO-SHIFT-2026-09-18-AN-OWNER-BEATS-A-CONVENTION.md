@@ -373,7 +373,64 @@ fail. Mutation receipt for `83e8de81` is real rather than synthetic --
 the sentinel was written first and failed against production, naming all
 seven files.
 
+## CORRECTION -- I OVERCLAIMED THE MECHANISM, THEN MEASURED IT
+
+The first draft of this addendum ended: *"`priorStory` now survives a
+door."* **That sentence was wrong, and it was wrong in the specific way
+this shift keeps warning about -- it was reasoned, not observed.**
+
+Reading the source: `priorStory` is `React.useState` plus a `useRef`
+INSIDE the deck component (`command-deck/page.tsx:737-738`). A soft
+transition preserves the JS heap, module-level stores and the live tape
+subscription. It does NOT preserve component state -- React unmounts the
+deck when you cross to another room. So the mechanism claim was false.
+
+Then I measured instead of reasoning, and the measurement disagreed with
+BOTH the claim and the correction. Round trip through two doors,
+deck -> /charts -> deck, probe alive the whole way:
+
+    path                 /command-deck
+    probeStillAlive      true
+    SECONDARY NOISE      "Quieted"
+    detail               "Compared against the last reading;
+                          nothing decision-relevant moved."
+    saysUnwatched        false
+
+**Observed: after a door round-trip the deck has a prior reading to
+compare against.** Not "Unwatched".
+
+What is honestly established, and what is not:
+
+- ESTABLISHED, observed: crossing a door is now a client-side
+  transition (`navStartedAtUrl` unchanged, probe alive, resources
+  appended). And on arrival the Auto-Quiet cell reads a real
+  comparison rather than the first-reading state.
+- NOT ESTABLISHED: *why*. The likely path is that the warm module-level
+  store delivers a second reading immediately on remount instead of
+  after a cold fetch, so a genuine prior->current pair forms inside the
+  newly mounted deck. That is a HYPOTHESIS. It has not been measured.
+- NOT ESTABLISHED: the pre-fix reading of this exact cell. I inferred
+  it would say "Unwatched"; I never observed it. The comparison
+  "before it could only say Unwatched" is therefore NOT a measurement
+  and must not be quoted as one.
+
+The sentence that was wrong survived three of my own passes because it
+sounded like the rest of the document. **A claim that is not itself
+checked drifts silently -- including a claim in the baton that names
+the species.**
+
 ## What this unblocks
 
-`90d3f3d7`'s live materiality frame was blocked partly because every
-door reset `priorStory` to `null`. `priorStory` now survives a door.
+`90d3f3d7`'s live materiality frame no longer has to fight a reset on
+every door: the deck arrives holding a comparison. What is still needed
+is a transition firing 3+ materiality reason families so `summary`
+renders a remainder -- today's live frame read "nothing decision-relevant
+moved", which is the QUIETED branch, not the ACTIVE one.
+
+## Open, newly surfaced
+
+Whether the Auto-Quiet prior SHOULD live in component state at all is a
+real architectural question this exposed. If the product's claim is that
+it remembers how long the trader has been watching, an owner outside the
+component is the shape that makes the claim checkable. Surfaced, not
+rush-wired.
