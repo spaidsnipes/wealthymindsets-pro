@@ -124,6 +124,33 @@ describe("Living Profile view wiring", () => {
     expect(src).not.toMatch(/\?\?\s*0\b/);
   });
 
+  it("THE PROFILE FITS — the histogram may not be put back in a scroll box", () => {
+    // Found from live USE, not from a test: on BTC 15m the compiler produced
+    // 248 buckets, which at the original fixed 7px row height was 1736px of
+    // content inside a 460px scroll window. The trader saw roughly a quarter
+    // of the distribution, the POC was off-screen, and nothing said so — the
+    // panel read as a thin column rather than a profile. The shape IS the
+    // claim this view makes, so the shape has to be on screen whole.
+    const src = stripComments(read("src/components/experience/LivingProfileView.tsx"));
+    expect(src).toMatch(/rowHeight/);
+    expect(src).toMatch(/CURVE_HEIGHT\s*\/\s*vm\.curve\.length/);
+    // A scroll box is the defect itself returning.
+    expect(src).not.toMatch(/maxHeight:\s*CURVE_HEIGHT/);
+    expect(src).not.toMatch(/overflow:\s*"auto"/);
+  });
+
+  it("FITTING IS NOT MERGING — the view may not combine buckets to save room", () => {
+    // Merging would move the POC, and a POC that moves because of a layout
+    // decision is not a POC. The compiler refuses the same thing at MAX_CURVE.
+    // Thinner rows change how much ink a bucket gets, never what was measured.
+    const src = stripComments(read("src/components/experience/LivingProfileView.tsx"));
+    expect(src).toMatch(/vm\.curve\.map\(/);
+    for (const forbidden of ["reduce(", "slice(", "filter("]) {
+      expect(src, `${forbidden} on the curve would drop or fuse buckets`)
+        .not.toMatch(new RegExp(`vm\\.curve\\.${forbidden.replace("(", "\\(")}`));
+    }
+  });
+
   it("the view never hard-codes the mockup's art-direction literals", () => {
     const src = stripColors(stripComments(read("src/components/experience/LivingProfileView.tsx")));
     for (const literal of ["4,285", "4285.50", "4,312", "4,250", "68.4%", "$4.2M"]) {

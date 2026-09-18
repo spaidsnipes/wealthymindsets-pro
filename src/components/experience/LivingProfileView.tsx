@@ -46,6 +46,30 @@ const PANEL = "rgba(18,16,12,0.72)";
 const VA_FILL = "rgba(212,175,55,0.55)";
 const OUT_FILL = "rgba(139,106,41,0.30)";
 
+/**
+ * THE PROFILE MUST FIT. A scrolled profile is not a profile.
+ *
+ * The whole claim of this view is the SHAPE — where the distribution bulges
+ * and where it thins. That claim is only readable if the entire distribution
+ * is on screen at once. A fixed row height inside a scroll box breaks it
+ * silently at exactly the moment the profile gets interesting: 248 buckets at
+ * 7px is 1736px of content in a 460px window, so the trader sees a quarter of
+ * the distribution, the POC is very likely off-screen, and nothing on the
+ * panel says so. It reads as a thin column rather than a profile.
+ *
+ * The fix is to scale the ROW HEIGHT, never to merge buckets. Merging is the
+ * one thing this view may not do — it would move the POC, and a POC that moves
+ * because of a layout decision is not a POC (the compiler refuses the same
+ * thing at MAX_CURVE for the same reason). Thinner rows change nothing about
+ * what was measured; they only change how much ink each bucket gets.
+ */
+const CURVE_HEIGHT = 460;
+const ROW_MAX = 7;
+const ROW_MIN = 1;
+/** Below this a row has no vertical room for a 9px label, so price and node
+ *  captions are withheld rather than overlapping into an unreadable smear. */
+const ROW_LABEL_MIN = 5;
+
 /** Price as measured; only the DISPLAY is rounded, never the datum. */
 function px(v: number | null): string {
   if (v == null) return "—";
@@ -103,6 +127,12 @@ export interface LivingProfileViewProps {
 }
 
 export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfileViewProps) {
+  // Every bucket keeps its own row; only the row's thickness adapts.
+  const rowHeight = vm.curve.length > 0
+    ? Math.max(ROW_MIN, Math.min(ROW_MAX, CURVE_HEIGHT / vm.curve.length))
+    : ROW_MAX;
+  const showRowLabels = rowHeight >= ROW_LABEL_MIN;
+
   return (
     <div data-testid="living-profile-view" style={{ padding: 14, color: TEXT, fontFamily: "inherit" }}>
       <div
@@ -158,11 +188,11 @@ export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfi
                 {vm.curveNote}
               </p>
             ) : (
-              <div data-testid="living-profile-curve" style={{ maxHeight: 460, overflow: "auto" }}>
+              <div data-testid="living-profile-curve" style={{ height: CURVE_HEIGHT, overflow: "hidden" }}>
                 {vm.curve.map((b) => (
                   <div
                     key={b.price}
-                    style={{ display: "flex", alignItems: "center", gap: 8, height: 7 }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, height: rowHeight }}
                   >
                     <span
                       style={{
@@ -173,7 +203,7 @@ export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfi
                         opacity: b.isPoc || b.node ? 1 : 0.55,
                       }}
                     >
-                      {b.isPoc || b.node ? px(b.price) : ""}
+                      {showRowLabels && (b.isPoc || b.node) ? px(b.price) : ""}
                     </span>
                     <div style={{ flex: 1, height: 5, position: "relative" }}>
                       <div
@@ -192,7 +222,7 @@ export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfi
                         minWidth: 34,
                       }}
                     >
-                      {b.isPoc ? "POC" : (b.node ?? "")}
+                      {showRowLabels ? (b.isPoc ? "POC" : (b.node ?? "")) : ""}
                     </span>
                   </div>
                 ))}
@@ -203,6 +233,20 @@ export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfi
               A brighter bar sits inside the {Math.round(vm.valueAreaPct * 100)}% value area. Bucket
               size is {qty(vm.tickSize)}, chosen by the profile engine from this sample&apos;s price
               range — it is not a display setting.
+              {/* The thinning is disclosed because it is a change to what the
+                  trader can READ, even though it changes nothing that was
+                  measured. No bucket was merged: every one still has its own
+                  row, so the POC is exactly where the engine put it. */}
+              {!showRowLabels && (
+                <>
+                  {" "}
+                  <span data-testid="living-profile-fit-note">
+                    All {vm.curve.length} buckets are drawn at once so the shape can be read whole —
+                    none were merged — but the rows are too thin to caption, so the levels are named
+                    beside the histogram instead of on it.
+                  </span>
+                </>
+              )}
             </p>
           </div>
 
