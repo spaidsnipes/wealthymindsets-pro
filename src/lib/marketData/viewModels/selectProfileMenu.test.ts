@@ -17,7 +17,25 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { selectProfileMenu, type ProfileId, type ProfileMenuInput } from "./selectProfileMenu";
 
-const ALL_IDS: readonly ProfileId[] = ["FIXED_RANGE", "SESSION", "DELTA_VP", "ABSORPTION"];
+const ALL_IDS: readonly ProfileId[] = [
+  "FIXED_RANGE",
+  "SESSION",
+  "DELTA_VP",
+  "ABSORPTION",
+  "IMBALANCE_STACK",
+  "VALUE_CANDLE",
+  "DELTA_DIVERGENCE",
+  "LIQUIDITY_WEATHER",
+];
+
+/** The rows that cannot be computed from volume alone. */
+const SIDED: readonly ProfileId[] = [
+  "DELTA_VP",
+  "IMBALANCE_STACK",
+  "VALUE_CANDLE",
+  "DELTA_DIVERGENCE",
+  "LIQUIDITY_WEATHER",
+];
 
 function input(over: Partial<ProfileMenuInput> = {}): ProfileMenuInput {
   return {
@@ -83,16 +101,45 @@ describe("selectProfileMenu — availability is measured, never assumed", () => 
     expect(vm.readyCount).toBe(ALL_IDS.length);
   });
 
-  it("DELTA+VP alone waits on a sided tape — the others draw from volume", () => {
-    // Most feeds this product can reach never state an aggressor. Showing the
-    // split as ready and drawing nothing is the defect Asset 03 exists to avoid.
+  it("the tape-fed rows wait on a sided tape — the bar-fed ones draw from volume", () => {
+    // Most feeds this product can reach never state an aggressor. Showing any
+    // of these as ready and drawing nothing is the defect Asset 03 exists to
+    // avoid: a shape that keeps its look and loses its meaning.
     const vm = selectProfileMenu(input({ observedAggressorFlow: false }));
     const byId = Object.fromEntries(vm.entries.map(e => [e.id, e]));
-    expect(byId.DELTA_VP.availability).toBe("NEEDS_SIDED_TAPE");
+    for (const id of SIDED) {
+      expect(byId[id].availability, `${id} should need a sided tape`).toBe("NEEDS_SIDED_TAPE");
+    }
     expect(byId.FIXED_RANGE.availability).toBe("READY");
     expect(byId.SESSION.availability).toBe("READY");
     expect(byId.ABSORPTION.availability).toBe("READY");
-    expect(vm.readyCount).toBe(3);
+    expect(vm.readyCount).toBe(ALL_IDS.length - SIDED.length);
+  });
+
+  it("the four order-flow readings share ONE fact about the tape, not four", () => {
+    // `useOrderFlowReadings` gates all of them behind a single call to
+    // `hasVerifiedAggressorTape` and hands every selector the same null array
+    // when it fails — precisely so they can never momentarily disagree about
+    // whether the tape was real. The menu must not re-open that question.
+    const off = selectProfileMenu(input({ observedAggressorFlow: false }));
+    const notes = new Set(
+      off.entries.filter(e => SIDED.includes(e.id)).map(e => e.availabilityNote),
+    );
+    expect(notes.size, "the sided rows gave different reasons for one fact").toBe(1);
+  });
+
+  it("names ONLY coordinates in `levels` — a cost has no price", () => {
+    // Liquidity weather measures size per unit of spread. Its stage, trend and
+    // cost figures are words in the chrome and have no location on the axis;
+    // the menu is the easiest place in the product to imply that they do.
+    const vm = selectProfileMenu(input());
+    const weather = vm.entries.find(e => e.id === "LIQUIDITY_WEATHER")!;
+    expect(weather.levels).toEqual(["Stall shelves"]);
+
+    // And delta is counted in contracts while the axis is in dollars, so the
+    // divergence row may name its two pivot PRICES and nothing else.
+    const div = vm.entries.find(e => e.id === "DELTA_DIVERGENCE")!;
+    expect(div.levels.join(" ")).not.toMatch(/delta|cvd/i);
   });
 
   it("with no bars, NOTHING is ready — including the ones that only need volume", () => {
@@ -134,10 +181,10 @@ describe("selectProfileMenu — the chip counts what is DRAWN, not what is possi
     // A badge reading "4" over a chart with nothing drawn on it is a claim the
     // chart contradicts the moment the trader looks up.
     const vm = selectProfileMenu(input({ active: { FIXED_RANGE: true } }));
-    expect(vm.readyCount).toBe(4);
+    expect(vm.readyCount).toBe(ALL_IDS.length);
     expect(vm.activeCount).toBe(1);
     expect(vm.summary).toContain("1");
-    expect(vm.summary).not.toContain("4");
+    expect(vm.summary).not.toContain(String(ALL_IDS.length));
   });
 
   it("an active profile stays active even when the feed cannot draw it", () => {

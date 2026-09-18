@@ -613,6 +613,22 @@ interface Props {
    * stalled-segment shelves get a level. Null means the room has no reading.
    */
   liquidityWeather?: LiquidityWeatherVM | null;
+  /*
+    ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
+
+    A layer that paints owes the trader a way to stop it painting. These are
+    the four switches, routed from the Profiles menu.
+
+    They are deliberately SEPARATE from the four view-model props above, and
+    the distinction is the honest part: passing `null` to turn a layer off
+    would make "the trader closed this" indistinguishable from "the tape could
+    not answer", and the canvas publishes a receipt that must tell those apart.
+    A reading that exists and is not shown reports OFF, never UNMEASURED.
+  */
+  imbalanceStackOnChart?: boolean;
+  valueCandleOnChart?: boolean;
+  deltaDivergenceOnChart?: boolean;
+  liquidityWeatherOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -863,6 +879,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   valueCandle = null,
   deltaDivergence = null,
   liquidityWeather = null,
+  // Default TRUE: these four shipped drawing, and silently switching one off
+  // would be a second surprise dressed as a fix. The switch is the new thing.
+  imbalanceStackOnChart = true,
+  valueCandleOnChart = true,
+  deltaDivergenceOnChart = true,
+  liquidityWeatherOnChart = true,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -935,6 +957,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   /** And the fourth. Four tape-rate readings, one rule. */
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
   useEffect(() => { liquidityWeatherRef.current = liquidityWeather; }, [liquidityWeather]);
+
+  /*
+    The four switches, read the same way as the readings they gate. They change
+    far more slowly than the tape does, but they are read INSIDE the rAF loop,
+    and the rule in this file is about where a value is read, not how often it
+    changes: anything the overlay reads comes through a ref, so the loop is
+    never torn down and rebuilt underneath a frame.
+  */
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true });
+  useEffect(() => {
+    layerOnRef.current = {
+      stack: imbalanceStackOnChart,
+      value: valueCandleOnChart,
+      divergence: deltaDivergenceOnChart,
+      weather: liquidityWeatherOnChart,
+    };
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -6948,10 +6987,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Published in every state, including the silent ones. An absent
         // attribute means this build has no value-candle layer; UNMEASURED
         // means the layer ran and the tape could not be read.
-        ds.valueCandle = glass.reason;
+        //
+        // OFF is its own word and must never collapse into UNMEASURED: one says
+        // the trader closed this layer, the other says the tape could not speak.
+        // A single receipt for both would make a switched-off chart and a broken
+        // feed read identically to anyone verifying live.
+        const on = layerOnRef.current.value;
+        ds.valueCandle = on ? glass.reason : "OFF";
 
         let painted = false;
-        if (glass.drawn && glass.cog != null) {
+        if (on && glass.drawn && glass.cog != null) {
           const axisW = (() => {
             try {
               const w = chart.priceScale("right").width();
@@ -7102,9 +7147,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // nothing. An absent attribute means "this build has no stack layer";
         // `UNMEASURED` means "the layer ran and the tape could not be read".
         // Collapsing those is how a silent regression passes for a quiet tape.
-        ds.imbalanceStack = glass.reason;
+        // `OFF` is a third distinct word for the third distinct fact: the
+        // trader switched this layer off. It is not a failure to measure.
+        const on = layerOnRef.current.stack;
+        ds.imbalanceStack = on ? glass.reason : "OFF";
 
-        if (glass.drawn && glass.priceLow != null && glass.priceHigh != null) {
+        if (on && glass.drawn && glass.priceLow != null && glass.priceHigh != null) {
           const yHiR = srs.priceToCoordinate(glass.priceHigh);
           const yLoR = srs.priceToCoordinate(glass.priceLow);
           if (yHiR != null && yLoR != null) {
@@ -7256,10 +7304,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Published in every state. NO_SWING is not UNMEASURED: one says the
         // window held no two comparable points, the other that there was not
         // enough tape to look. Collapsing them hides which.
-        ds.deltaDivergence = glass.reason;
+        // And OFF is neither: the trader closed this layer, the tape did not
+        // fail to speak. Three distinct silences, three distinct receipts.
+        const on = layerOnRef.current.divergence;
+        ds.deltaDivergence = on ? glass.reason : "OFF";
 
         let painted = false;
-        if (glass.drawn && glass.priorPrice != null && glass.recentPrice != null && !glass.timeKnown) {
+        if (on && glass.drawn && glass.priorPrice != null && glass.recentPrice != null && !glass.timeKnown) {
           const yPriorR = srs.priceToCoordinate(glass.priorPrice);
           const yRecentR = srs.priceToCoordinate(glass.recentPrice);
           if (yPriorR != null && yRecentR != null) {
@@ -7351,9 +7402,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       try {
         const glass = selectLiquidityWeatherGlass(liquidityWeatherRef.current);
         const ds = canvas.dataset;
-        ds.liquidityWeather = glass.reason;
+        // OFF is not UNMEASURED. The tape answered; the trader closed the
+        // layer. A receipt that conflated the two would make a switched-off
+        // layer indistinguishable from a feed that cannot speak.
+        const on = layerOnRef.current.weather;
+        ds.liquidityWeather = on ? glass.reason : "OFF";
 
-        if (glass.drawn) {
+        if (on && glass.drawn) {
           ctx.save();
 
           // ── THE SHELVES, at their prices. Drawn as a short dotted mark so a

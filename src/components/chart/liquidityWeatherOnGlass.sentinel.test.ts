@@ -131,11 +131,28 @@ describe("a shelf does not pose as a defended level", () => {
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.liquidityWeather = glass\.reason/);
+    expect(block).toMatch(/ds\.liquidityWeather = on \? glass\.reason : "OFF"/);
   });
 
   it("withdraws the stage receipt rather than letting a stale one describe the tape", () => {
     expect(block).toMatch(/delete ds\.liquidityWeatherStage/);
     expect(block).toMatch(/delete ds\.liquidityWeatherShelves/);
+  });
+});
+
+describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
+  it("a switched-off layer paints NOTHING, not merely fewer shelves", () => {
+    expect(block).toMatch(/if \(on && glass\.drawn\) \{/);
+  });
+
+  it("reads the switch from a REF, never from the overlay's dependency array", () => {
+    expect(block).toMatch(/const on = layerOnRef\.current\.weather/);
+    const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
+    expect(deps.slice(0, 400)).not.toMatch(/liquidityWeatherOnChart/);
+  });
+
+  it("the switch travels as its OWN prop, not as a null reading", () => {
+    expect(CHART).toMatch(/liquidityWeatherOnChart\?: boolean/);
+    expect(ROOM).toMatch(/liquidityWeatherOnChart=\{liquidityWeatherOn\}/);
   });
 });

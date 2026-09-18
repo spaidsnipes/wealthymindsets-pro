@@ -40,7 +40,15 @@
 export const PROFILE_MENU_VERSION = 1;
 
 /** Each id is one real invention with one real owner module. */
-export type ProfileId = "FIXED_RANGE" | "SESSION" | "DELTA_VP" | "ABSORPTION";
+export type ProfileId =
+  | "FIXED_RANGE"
+  | "SESSION"
+  | "DELTA_VP"
+  | "ABSORPTION"
+  | "IMBALANCE_STACK"
+  | "VALUE_CANDLE"
+  | "DELTA_DIVERGENCE"
+  | "LIQUIDITY_WEATHER";
 
 /**
  * READY — it can draw now.
@@ -152,6 +160,62 @@ const CATALOGUE: readonly ProfileSpec[] = [
     owner: "src/lib/marketData/selectAbsorptionAnatomy.ts",
     levels: ["Zone high", "Zone low", "Efficiency ratio"],
   },
+
+  /*
+    ── THE FOUR ORDER-FLOW READINGS THAT NOW DRAW ON THE PRICE AXIS ──────────
+
+    These four spent their whole existence complete, tested, and confined to a
+    drawer panel while the prices they computed never reached the chart. They
+    now paint, and the moment a layer paints it owes the trader a way to stop
+    it painting — a chart the trader cannot quiet is not a chart the trader
+    owns.
+
+    Every one of them is compiled from the SAME gated tick array by
+    `useOrderFlowReadings`, which is why all four are in NEEDS_SIDED_TAPE
+    below. That is not four independent judgements about four feeds; it is one
+    fact about one tape, stated four times because the menu lists four rows.
+
+    `levels` is the honest part. It names ONLY what each reading publishes as a
+    coordinate. Liquidity weather's row says "Stall shelves" and nothing about
+    its stage, trend or cost, because a cost has no level and the menu would be
+    the easiest place in the product to imply that it does.
+  */
+  {
+    id: "IMBALANCE_STACK",
+    label: "Stacked Imbalance",
+    what: "consecutive price levels where one side kept out-trading the other",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectStackedImbalance.ts",
+    levels: ["Stack high", "Stack low", "Rung prices"],
+  },
+  {
+    id: "VALUE_CANDLE",
+    label: "WM Value Candle",
+    what: "where the window's volume actually concentrated, bin by bin",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectValueCandle.ts",
+    levels: ["Centre of gravity", "Value high", "Value low"],
+  },
+  {
+    id: "DELTA_DIVERGENCE",
+    label: "Delta Divergence",
+    what: "the two swing pivots where price and cumulative delta disagreed",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectDeltaDivergence.ts",
+    // The cumulative delta itself is NOT listed, and must never be: it is
+    // counted in contracts and this axis is denominated in dollars.
+    levels: ["Prior pivot price", "Recent pivot price"],
+  },
+  {
+    id: "LIQUIDITY_WEATHER",
+    label: "Liquidity Weather",
+    what: "how much size it costs to move price, and where size moved it none",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectLiquidityWeather.ts",
+    // A cost has no price. The shelves are the ONLY thing this reading puts on
+    // the axis; the stage and its statistics are words in the chrome.
+    levels: ["Stall shelves"],
+  },
 ];
 
 const GESTURE_NOTE: Readonly<Record<ProfileGesture, string>> = {
@@ -159,7 +223,24 @@ const GESTURE_NOTE: Readonly<Record<ProfileGesture, string>> = {
   DRAW: "drag a box on the chart to choose the range",
 };
 
-const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>(["DELTA_VP"]);
+/**
+ * Everything that cannot be computed from volume alone.
+ *
+ * `useOrderFlowReadings` gates all five order-flow readings behind ONE call to
+ * `hasVerifiedAggressorTape` and hands every selector the same null array when
+ * it fails — deliberately, so the five can never momentarily disagree about
+ * whether the tape was real. This set is the menu's side of that same fact.
+ *
+ * A row here reports NEEDS_SIDED_TAPE rather than WAITING_FOR_BARS, and the
+ * difference is the whole point: one says wait, the other says do not.
+ */
+const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>([
+  "DELTA_VP",
+  "IMBALANCE_STACK",
+  "VALUE_CANDLE",
+  "DELTA_DIVERGENCE",
+  "LIQUIDITY_WEATHER",
+]);
 
 export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
   const entries: ProfileMenuEntry[] = CATALOGUE.map(spec => {

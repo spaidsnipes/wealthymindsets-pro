@@ -459,6 +459,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    */
   const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", false) as boolean);
 
+  /*
+    ── THE FOUR ORDER-FLOW LAYERS THE TRADER MAY QUIET ───────────────────────
+
+    These four readings now paint on the price axis, and a layer that paints
+    owes the trader a way to stop it. A chart you cannot quiet is not a chart
+    you own — and four layers arriving at once, unbidden, the moment a real
+    tape connects is exactly the kind of surprise that makes a trader stop
+    trusting the surface.
+
+    They default ON because they were shipped ON, and silently switching off a
+    layer the product just started drawing would be a second surprise dressed
+    as a fix. The switch is the new thing here, not the drawing.
+
+    Each is its own key rather than one "order flow" master switch: the four
+    answer different questions and a trader who wants the stall shelves without
+    the divergence marks should not have to give up both.
+  */
+  const [imbalanceStackOn, setImbalanceStackOn] = useState<boolean>(() => lsGet("wm_ofImbalanceStack", true) as boolean);
+  const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", true) as boolean);
+  const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
+  const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
+
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
   // ephemeral: restoring the old rail-open preference would auto-open a modal,
@@ -612,6 +634,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => { lsSet("wm_fixedVP",      fixedVPActive); },    [fixedVPActive]);
   useEffect(() => { lsSet("wm_sessionVP",    sessionVPChart); },   [sessionVPChart]);
   useEffect(() => { lsSet("wm_absorptionAnatomy", absorptionAnatomy); }, [absorptionAnatomy]);
+  useEffect(() => { lsSet("wm_ofImbalanceStack", imbalanceStackOn); }, [imbalanceStackOn]);
+  useEffect(() => { lsSet("wm_ofValueCandle", valueCandleOn); }, [valueCandleOn]);
+  useEffect(() => { lsSet("wm_ofDeltaDivergence", deltaDivergenceOn); }, [deltaDivergenceOn]);
+  useEffect(() => { lsSet("wm_ofLiquidityWeather", liquidityWeatherOn); }, [liquidityWeatherOn]);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2229,11 +2255,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   // Delta + VP is ARMED, not drawn — it is active exactly when
                   // its drawing tool is the one the cursor is holding.
                   DELTA_VP: drawingTool === "delta-vp",
+                  // The four order-flow readings that now draw on the axis.
+                  IMBALANCE_STACK: imbalanceStackOn,
+                  VALUE_CANDLE: valueCandleOn,
+                  DELTA_DIVERGENCE: deltaDivergenceOn,
+                  LIQUIDITY_WEATHER: liquidityWeatherOn,
                 }}
                 onToggle={(id) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
                   else if (id === "SESSION") setSessionVPChart(v => !v);
                   else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
+                  else if (id === "IMBALANCE_STACK") setImbalanceStackOn(v => !v);
+                  else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
+                  else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
+                  else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -2880,6 +2915,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         price in it stops living exclusively in a drawer.
                       */
                       liquidityWeather={chartOrderFlowReadings.liquidityWeather}
+                      /*
+                        The trader's four switches, carried SEPARATELY from the
+                        four readings above. Passing `null` for a switched-off
+                        layer would have been fewer props and a lie: `null`
+                        already means "the tape could not answer", and a chart
+                        cannot tell a trader why nothing is drawn if one value
+                        carries two different reasons.
+                      */
+                      imbalanceStackOnChart={imbalanceStackOn}
+                      valueCandleOnChart={valueCandleOn}
+                      deltaDivergenceOnChart={deltaDivergenceOn}
+                      liquidityWeatherOnChart={liquidityWeatherOn}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}

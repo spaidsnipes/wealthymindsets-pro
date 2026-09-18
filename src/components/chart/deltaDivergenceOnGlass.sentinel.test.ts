@@ -132,10 +132,36 @@ describe("the words the glass owes the trader", () => {
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.deltaDivergence = glass\.reason/);
+    expect(block).toMatch(/ds\.deltaDivergence = on \? glass\.reason : "OFF"/);
   });
 
   it("withdraws the drawing receipt when the drawing goes away", () => {
     expect(block).toMatch(/delete ds\.deltaDivergenceLean/);
+  });
+});
+
+describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
+  // The moment a layer paints it owes the trader a way to stop it painting —
+  // a chart the trader cannot quiet is not a chart the trader owns.
+  it("a switched-off layer paints NOTHING, not merely fewer marks", () => {
+    // UNMEASURED is a claim about the TAPE. If a switched-off layer said it,
+    // the trader would stop trusting a feed that was never at fault, and the
+    // one person verifying live could not tell a regression from a preference.
+    // Named to this block's OWN condition — the slice window reaches the next
+    // layer, whose identical gate would satisfy a looser pattern.
+    expect(block).toMatch(/if \(on && glass\.drawn && glass\.priorPrice != null/);
+  });
+
+  it("reads the switch from a REF, never from the overlay's dependency array", () => {
+    expect(block).toMatch(/const on = layerOnRef\.current\.divergence/);
+    const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
+    expect(deps.slice(0, 400)).not.toMatch(/deltaDivergenceOnChart/);
+  });
+
+  it("the switch travels as its OWN prop, not as a null reading", () => {
+    // Passing `null` for a closed layer would be fewer props and a lie: `null`
+    // already means "the tape could not answer".
+    expect(CHART).toMatch(/deltaDivergenceOnChart\?: boolean/);
+    expect(ROOM).toMatch(/deltaDivergenceOnChart=\{deltaDivergenceOn\}/);
   });
 });

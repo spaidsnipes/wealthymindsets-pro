@@ -143,11 +143,33 @@ describe("the headline number stays the honest one", () => {
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.valueCandle = glass\.reason/);
+    expect(block).toMatch(/ds\.valueCandle = on \? glass\.reason : "OFF"/);
   });
 
   it("withdraws the drawing receipts when the drawing goes away", () => {
     expect(block).toMatch(/delete ds\.valueCandleRungs/);
     expect(block).toMatch(/delete ds\.valueCandleCog/);
+  });
+});
+
+describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
+  it("a switched-off layer paints NOTHING, not merely fewer bins", () => {
+    // Named down to this block's OWN condition on purpose. The slice window is
+    // wide enough to reach the next layer's code, and a bare `if (on &&
+    // glass.drawn` was satisfied by the NEIGHBOUR while this block's gate was
+    // deleted — proven by mutation. A sentinel that can be satisfied by a file
+    // it is not guarding is decoration.
+    expect(block).toMatch(/if \(on && glass\.drawn && glass\.cog != null\)/);
+  });
+
+  it("reads the switch from a REF, never from the overlay's dependency array", () => {
+    expect(block).toMatch(/const on = layerOnRef\.current\.value/);
+    const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
+    expect(deps.slice(0, 400)).not.toMatch(/valueCandleOnChart/);
+  });
+
+  it("the switch travels as its OWN prop, not as a null reading", () => {
+    expect(CHART).toMatch(/valueCandleOnChart\?: boolean/);
+    expect(ROOM).toMatch(/valueCandleOnChart=\{valueCandleOn\}/);
   });
 });

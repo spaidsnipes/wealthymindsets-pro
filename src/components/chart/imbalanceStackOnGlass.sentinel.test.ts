@@ -129,7 +129,27 @@ describe("the layer publishes a receipt in every state, including the silent one
     // means "the layer ran and the tape could not be read". Collapsing the two
     // is how a silent regression passes for a quiet tape — the same lesson the
     // VP suspension stamp a few hundred lines down already records.
-    expect(block).toMatch(/ds\.imbalanceStack = glass\.reason/);
+    expect(block).toMatch(/ds\.imbalanceStack = on \? glass\.reason : "OFF"/);
+  });
+
+  it("a switched-off layer paints NOTHING, not merely fewer rungs", () => {
+    // This block's OWN condition, not a bare `on && glass.drawn`: the slice
+    // window reaches the next layer, whose identical gate would satisfy a loose
+    // pattern while this one was deleted.
+    expect(block).toMatch(
+      /if \(on && glass\.drawn && glass\.priceLow != null && glass\.priceHigh != null\)/,
+    );
+  });
+
+  it("reads the switch from a REF, never from the overlay's dependency array", () => {
+    expect(block).toMatch(/const on = layerOnRef\.current\.stack/);
+    const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
+    expect(deps.slice(0, 400)).not.toMatch(/imbalanceStackOnChart/);
+  });
+
+  it("the switch travels as its OWN prop, not as a null reading", () => {
+    expect(CHART).toMatch(/imbalanceStackOnChart\?: boolean/);
+    expect(ROOM).toMatch(/imbalanceStackOnChart=\{imbalanceStackOn\}/);
   });
 
   it("withdraws the drawing receipt when the drawing goes away", () => {
