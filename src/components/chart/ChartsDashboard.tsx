@@ -2866,6 +2866,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         symbol, which is Canon Weakness #1 word for word.
                       */
                       valueCandle={chartOrderFlowReadings.valueCandle}
+                      /*
+                        And the third, for the third time the same reason. The
+                        divergence engine's two pivot prices had never left this
+                        component either.
+                      */
+                      deltaDivergence={chartOrderFlowReadings.deltaDivergence}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}

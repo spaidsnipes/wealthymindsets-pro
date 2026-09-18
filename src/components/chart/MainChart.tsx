@@ -109,6 +109,8 @@ import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectS
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueCandleGlass";
 import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
+import { selectDeltaDivergenceGlass } from "@/lib/marketData/viewModels/selectDeltaDivergenceGlass";
+import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -596,6 +598,13 @@ interface Props {
    * drawn, and no centre of gravity is invented at zero.
    */
   valueCandle?: ValueCandleVM | null;
+  /**
+   * DELTA DIVERGENCE — the two pivot PRICES the engine compared. Compiled by
+   * the room and reduced by `selectDeltaDivergenceGlass`, which is where the
+   * refusal to put cumulative delta on a DOLLAR axis lives. Null means the room
+   * has no reading; nothing is drawn.
+   */
+  deltaDivergence?: DeltaDivergenceVM | null;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -844,6 +853,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   absorptionAnatomyActive = false,
   imbalanceStack = null,
   valueCandle = null,
+  deltaDivergence = null,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -907,6 +917,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    *  dependency of the overlay effect. */
   const valueCandleRef = useRef<ValueCandleVM | null>(null);
   useEffect(() => { valueCandleRef.current = valueCandle; }, [valueCandle]);
+
+  /** Same reasoning again. Three tape-rate readings now reach the overlay, and
+   *  every one of them arrives through a ref for the same documented cause. */
+  const deltaDivergenceRef = useRef<DeltaDivergenceVM | null>(null);
+  useEffect(() => { deltaDivergenceRef.current = deltaDivergence; }, [deltaDivergence]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -7192,6 +7207,110 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // longer on the screen.
           delete ds.imbalanceStackLevels;
           delete ds.imbalanceStackEdge;
+        }
+      } catch { /* chart may be mid-transition; safe to skip this frame */ }
+
+      /* ══════════════════════════════════════════════════════════════════════
+         DELTA DIVERGENCE — THE TWO PRICES IT COMPARED, AT THOSE PRICES.
+
+         `selectDeltaDivergence` is the most careful engine in this family: it
+         finds pivots by a written fractal rule, requires the swing to clear the
+         window's own volume-weighted spread, and requires the delta to have
+         actually moved before it will use the word. All of that care shipped to
+         two drawer panels. `priorPivot.price` and `recentPivot.price` are
+         PRICES, and the trader was being asked to take on faith that they meant
+         the levels already on the screen.
+
+         WHAT IS NOT DRAWN HERE, AND WHY IT IS THE POINT.
+
+         The VM carries a `segments` array with a cumulative delta on every
+         segment — a beautiful line, and a forgery. Delta is counted in
+         CONTRACTS; this axis is denominated in DOLLARS. Drawing one against the
+         other requires a scale the house invented, and once two lines share a
+         frame, a trader reads their crossing as an event. There is no crossing.
+         `selectDeltaDivergenceGlass` therefore emits no segment path at all, so
+         no edit here can be handed one.
+
+         AND THE MARKS DO NOT CLAIM A MOMENT. The pivots are indexed by SEGMENT
+         — equal-count slices of the tape — not by timestamp. There is no honest
+         x. So the two prices are drawn as marks in a LANE, never at a bar, and
+         the compiler's `timeKnown` is asserted false before anything is placed;
+         the day the engine carries timestamps, that flag is the hinge.
+      ══════════════════════════════════════════════════════════════════════ */
+      try {
+        const glass = selectDeltaDivergenceGlass(deltaDivergenceRef.current);
+        const ds = canvas.dataset;
+        // Published in every state. NO_SWING is not UNMEASURED: one says the
+        // window held no two comparable points, the other that there was not
+        // enough tape to look. Collapsing them hides which.
+        ds.deltaDivergence = glass.reason;
+
+        let painted = false;
+        if (glass.drawn && glass.priorPrice != null && glass.recentPrice != null && !glass.timeKnown) {
+          const yPriorR = srs.priceToCoordinate(glass.priorPrice);
+          const yRecentR = srs.priceToCoordinate(glass.recentPrice);
+          if (yPriorR != null && yRecentR != null) {
+            const yPrior = Math.round(+yPriorR) + 0.5;
+            const yRecent = Math.round(+yRecentR) + 0.5;
+
+            // The lane. Sits to the RIGHT of the stacked-imbalance rungs (which
+            // own 0..56) so two price-anchored marks never sit on top of each
+            // other and get read as one.
+            const laneL = 64;
+            const laneR = 150;
+
+            ctx.save();
+            ctx.strokeStyle = "rgba(237,230,211,0.55)";
+            ctx.lineWidth = 1;
+            // Two marks, one per compared pivot, each at its own price.
+            ctx.beginPath();
+            ctx.moveTo(laneL, yPrior); ctx.lineTo(laneL + 22, yPrior);
+            ctx.moveTo(laneR - 22, yRecent); ctx.lineTo(laneR, yRecent);
+            ctx.stroke();
+
+            // The connector says price went FROM here TO here. It is drawn
+            // left-to-right because the later pivot is later, and that is the
+            // ONLY thing its horizontal extent means — the lane is 86px wide on
+            // every symbol and every timeframe, which is exactly how a reader
+            // can tell it is not a time axis.
+            ctx.setLineDash(glass.diverged ? [4, 3] : []);
+            ctx.strokeStyle = "rgba(212,175,55,0.65)";
+            ctx.beginPath();
+            ctx.moveTo(laneL + 22, yPrior);
+            ctx.lineTo(laneR - 22, yRecent);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // ── THE WORDS. The headline always; the engine's own sentence only
+            // when it found something; the aggressor-side disclosure whenever
+            // the venue did not assert the sides, because a chart has no fine
+            // print and cumulative delta is a claim about who initiated.
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            const topY = Math.min(yPrior, yRecent);
+            let ty = topY - 8 >= 10 ? topY - 8 : Math.min(H - 10, Math.max(yPrior, yRecent) + 12);
+            ctx.fillStyle = "#d4af37";
+            ctx.fillText(glass.label, laneL, ty);
+            if (glass.findingLabel) {
+              ty += 11;
+              ctx.fillStyle = "rgba(237,230,211,0.80)";
+              ctx.fillText(glass.findingLabel, laneL, ty);
+            }
+            if (glass.disclosure) {
+              ty += 11;
+              ctx.fillStyle = "rgba(237,230,211,0.55)";
+              ctx.fillText(glass.disclosure, laneL, ty);
+            }
+            ctx.restore();
+
+            ds.deltaDivergenceLean = glass.lean;
+            painted = true;
+          }
+        }
+        if (!painted) {
+          // A stale lean keeps asserting a swing that is no longer on screen.
+          delete ds.deltaDivergenceLean;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 
