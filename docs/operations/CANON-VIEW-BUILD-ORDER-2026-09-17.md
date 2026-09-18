@@ -84,7 +84,7 @@ Prose in this file is commentary. The table is the claim.
 | Aggression | SHIPPED | `42a495e4` — BTC, both gate arms live-observed |
 | Big Trades | SHIPPED | BTC 15m live-observed 2026-09-18 — `LARGE PRINTS · 6 cleared the cut`, top-10%-within-window cut stated on the surface, `SIDE · VENUE-STATED` |
 | Value Profile | SHIPPED | BTC 15m live-observed 2026-09-18 — `LIVING PROFILE`, `248 price buckets took volume`, `VALUE AREA HIGH 77940.00`, provenance stated as `ESTIMATED FROM CANDLES` |
-| Continuation | SHIPPED | Asset 15, wired 2026-09-18. Compiler + banner + view + 24 tests; reads `selectMarketStructure` against `selectRegime` off the same `canvasIdentity` this room already publishes with. The mockup's four percentages are refused in the compiler, so no renderer can print them. Live observation pending, and recorded in the Asset 15 section below the moment it is taken. |
+| Continuation | SHIPPED | Asset 15, wired 2026-09-18. Compiler + banner + view + 24 tests; reads `selectMarketStructure` against `selectRegime` off the same `canvasIdentity` this room already publishes with. The mockup's four percentages are refused in the compiler, so no renderer can print them. TSLA live-observed 2026-09-18 — read `UNREADABLE`, zero percentages in the visible text, candles still on screen beneath it, and an independent owner in the same room agreed the regime was unresolved. Full reading in the Asset 15 section below. |
 <!-- VIEW-STATUS:END -->
 
 Every row above is a MICROSTRUCTURE view, so each renders WITH the candles
@@ -318,8 +318,121 @@ tape, y = net aggression; with only `VOLUME`, y = normalised effort and the axis
 label states the substitution. A scatter that silently swaps its own y term is
 worse than an empty one.
 
-**3. Do not ship the mockup's `IMPLICATION: SIDEWAYS / REVERSAL RISK`.**
+**3. Do not ship the mockup's `IMPLICATION: SIDEWAYS / REVERSAL RISK`.** (Asset 03)
 It is a forward-looking prediction and no selector in this repo owns it.
 `CONVICTION HIGH` is likewise a grade — §9 applies. Ship only the sections that
 have owners; the left `MARKET CONTEXT` rail and the bottom `MICROSTRUCTURE
 SUMMARY` are already-owned fields and are fine.
+
+---
+
+## ASSET 15 — SHIPPED AND LIVE-OBSERVED (`cf23c7ba`, `7f006b52`)
+
+Shipped as the `Continuation` view, the fifth member of `MICROSTRUCTURE_TABS`.
+
+### WHAT THE MOCKUP ASKED FOR, AND WHAT WENT IN INSTEAD
+
+`WM_Transformation_UI_15_Question_Driven_Continuation_Health` stacks five cards,
+four of them a percentage over a filled green bar: `STRUCTURE ALIGNMENT 92%`,
+`MOMENTUM SUSTAINMENT 78%`, `VOLUME CONFIRMATION 84%`, `CONTINUATION HEALTH
+SCORE 85%`.
+
+Not one of those four numbers has an owner in this repo. A filled green bar
+would also be §9 twice over — a verdict graded in hue, at the REWARD end of the
+scale, with a number painted on it.
+
+**The refusal is done in the COMPILER, not the renderer.** `ContinuationHealthVM`
+carries no numeric field at all, so `ContinuationHealthView` could not print a
+score if it wanted to. That is the point of the placement: a renderer can be
+edited by someone who never reads this file, and "somebody adds a bar because the
+picture wants one" is the natural failure mode of a mockup like this one.
+
+It is then asserted a SECOND time at the markup level
+(`ContinuationHealthView.render.test.tsx`), against markup compiled from the real
+owner rather than a hand-built VM — a view test that mocks its own reading can go
+green while the two files disagree about the shape they share.
+
+That assertion runs against **visible text, not raw markup**. Asserting on markup
+catches the `100%` in a gradient stop and reddens on an unrelated style edit,
+which trains the next reader to weaken the guard. What is banned is a percentage
+a *trader* can read, so the tags come off first.
+
+### THE ABSENT CARD IS DRAWN AS AN ABSENCE
+
+This composition has no volume owner, so the mockup's `VOLUME CONFIRMATION` card
+cannot be drawn. Rendering four of five cards silently would teach the reviewer
+the fifth was never asked for. `vm.unread` names it on screen instead.
+
+### LIVE OBSERVATION — TSLA, 2026-09-18
+
+Observed on `https://wealthymindsetspro.com/charts` by driving the Founder's
+already-authenticated Chrome, category select switched to `Continuation` and
+**restored to `Chart`** afterwards.
+
+| Probe | Reading |
+| --- | --- |
+| `data-health` | `UNREADABLE` |
+| verdict | `UNREADABLE` |
+| `data-focus-basis` | `CONTINUATION_UNREADABLE` |
+| question bar | `Is this continuation healthy?` / focus `Continuation health — no sequence in hand` |
+| reason | `Neither regime nor volatility dimension has verified evidence at snapshot time.` |
+| `unread` block | `Volume confirmation — no volume owner is read by this composition, so the mockup's VOLUME CONFIRMATION card has no basis here and is not drawn.` |
+| any `\d\s*%` in visible text | **false** |
+| chart panel still displayed | **true**, 262px beside a 374px reading |
+
+**THE UNREADABLE IS CORROBORATED, NOT ASSUMED.** An independent owner in the same
+room — the story ribbon — said in its own words, at the same instant:
+
+> No chapter resolved (1/8 dimensions resolved). … Balance, Trend Expansion,
+> Breakout, Liquidity Probe, Value Migration, Rotation could not be evaluated:
+> direction, regime, volatility, order flow unresolved; location, aggression,
+> profile measured but not decision-grade.
+
+That is exactly the branch the compiler landed in: **structure measured** (it is
+the one resolved dimension), **regime UNKNOWN**. `selectContinuationHealth`
+carries `regime.reason` verbatim rather than minting a sentence of its own, so
+the two surfaces cannot drift. A reviewer seeing `UNREADABLE` here should NOT
+read it as a wiring gap — it is the honest reading of a tape that has not yet
+produced a volatility observation, and it will resolve on its own the moment the
+regime dimension does.
+
+No screenshot was taken: the Chrome window was backgrounded
+(`document.hidden === true`), which makes canvas receipts unreadable. The DOM
+text above is verbatim and is the stronger evidence for these claims anyway.
+
+### THE LAG IS NOT A FOOTNOTE
+
+`confirmationLagNote` rides every directional reading, COHERENT included. A
+fractal pivot needs `lookback` bars on BOTH sides, so the newest bars can never
+be pivots and the sequence always describes a market that has already moved past
+it. A continuation surface is the single worst place to omit that: the trader is
+asking about the NEXT bar while the evidence is structurally about an earlier
+one. This is not cured by loading more bars.
+
+### THE FALSE LEDGER NOTE THIS ATOM CORRECTED
+
+`23c15ac4` added two `AWAITING_SURFACE` entries to the screenReach LEDGER whose
+stated reason was *"/charts has no CanonicalMarketState + history to hand
+selectRegime"*. **That was false.** `/charts` has had both since `b46fa64`;
+`ChartsDashboard` already memoised the exact `canvasIdentity` the note claimed
+did not exist. The note was written from memory of the repo rather than from a
+grep of it.
+
+A ledger entry is a PROMISE that an orphan has a stated reason. A false reason is
+worse than no entry, because the enforcement suite goes green over it and the
+falsehood acquires a passing test. The remedy was not to rewrite the sentence —
+it was to wire the surface the sentence called impossible, which took one
+identity that already existed. A headstone comment is left at the removal site so
+the failure mode stays legible.
+
+### RECEIPTS
+
+- Gates unpiped: `tsc --noEmit` EXIT=0; `vitest run` EXIT=0, **792 files /
+  9953 passed | 2 skipped**.
+- Mutation receipt: injecting `85%` into the verdict span failed exactly
+  `PRINTS NO PERCENTAGE, on any of the four states` (1 failed | 6 passed).
+  Restored; `85%` then occurred only in the two docblock mentions.
+- Two "second owner" traps avoided during wiring: the view reuses the room's
+  existing `chartCanvasState` rather than opening a second subscription on the
+  same identity, and reuses the room's `chartBars` so the sequence describes the
+  same candles the chart drew.
