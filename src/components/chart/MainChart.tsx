@@ -6601,7 +6601,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               // — and MODERATE and MASSIVE would both have begun that way, so
               // the clipping did not merely look bad, it made the chip
               // ambiguous about the one word it exists to deliver.
-              const chipX = Math.min(Math.max(2, x0), Math.max(2, W - chipW - 2));
+              //
+              // THE FIRST VERSION OF THIS CLAMP DID NOTHING, AND LOOKING IS
+              // WHAT CAUGHT IT. It clamped to `W`, which is `cont.offsetWidth`
+              // — the whole chart container, price axis included. The edge
+              // that actually cuts the chip is the PLOT's, ~90–130px further
+              // left, because the right price scale is painted over the
+              // overlay. So the clamp was arithmetically correct against a
+              // boundary nothing was ever clipped by: re-deployed, re-opened,
+              // and the chip still read "ABSORPTION 3.86 M".
+              //
+              // The axis width is not a constant — it grows with the digits in
+              // the price (29,731.00 is wider than 12.40) — so it is QUERIED,
+              // the same way the volume-profile histogram already queries it
+              // rather than reserving a guessed 60px.
+              const axisW = (() => {
+                try {
+                  const w = chart.priceScale("right").width();
+                  if (Number.isFinite(w) && w > 0) return Math.ceil(w);
+                } catch {}
+                return 90;
+              })();
+              const plotRight = Math.max(4, W - axisW);
+              const chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
               const chipY = Math.max(2, yHi - chipH - 2);
               ctx.fillStyle = "rgba(14,12,8,0.92)";
               ctx.fillRect(chipX, chipY, chipW, chipH);
