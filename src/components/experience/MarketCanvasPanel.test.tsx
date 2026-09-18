@@ -216,3 +216,140 @@ describe("MarketCanvasPanel — `unabridged` composes sideways, and changes noth
     expect(html).toContain("+6 more blocking, not named here");
   });
 });
+
+/**
+ * THE DIMENSION STANDING BAND.
+ *
+ * Three counts in three headings became one row of marks. The tests below are
+ * about the two ways that change can go wrong: it can start computing (and
+ * then it is a second brain, not a harvest), or it can start flattering (and
+ * then it is a progress bar, which is what a denominator becomes the moment
+ * it is allowed to shrink).
+ */
+describe("MarketCanvasPanel — dimension standing, as geometry", () => {
+  const marks = (html: string) =>
+    [...html.matchAll(/data-testid="market-canvas-standing-mark"[^>]*/g)].map((m) => m[0]);
+
+  const standings = (html: string) =>
+    marks(html).map((m) => m.match(/data-standing="(\w+)"/)?.[1]);
+
+  it("is silent when there are no dimensions — an empty band is a denominator of zero", () => {
+    // Not "0 of 0 resolved" and not a bare row of dark marks. No snapshot
+    // means the question has not been asked yet, and a row of unlit marks
+    // answers it with "nothing is known", which is a different claim.
+    const html = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ hasSnapshot: false })} />);
+    expect(html).not.toContain('data-testid="market-canvas-standing"');
+  });
+
+  it("draws one mark per canonical dimension, across all three standings", () => {
+    const html = renderToStaticMarkup(
+      <MarketCanvasPanel
+        vm={vm({
+          resolved: ["Regime", "Direction"],
+          measured: ["Location"],
+          missing: ["Participation", "Volatility", "Liquidity", "Time", "Correlation"],
+        })}
+      />,
+    );
+    // Eight dimensions in, eight marks out. The band never samples.
+    expect(marks(html)).toHaveLength(8);
+  });
+
+  it("KEEPS THE WIDTH OF WHAT IT DOES NOT KNOW", () => {
+    // The whole reason this is a band and not a meter. One resolved dimension
+    // out of eight must read as one lit mark in a row of eight, never as a
+    // full row of one. A denominator that shrinks reports a dark board as a
+    // complete one.
+    const html = renderToStaticMarkup(
+      <MarketCanvasPanel
+        vm={vm({
+          resolved: ["Regime"],
+          missing: ["A", "B", "C", "D", "E", "F", "G"],
+        })}
+      />,
+    );
+    expect(marks(html)).toHaveLength(8);
+    for (const m of marks(html)) expect(m).toContain("flex:1 1 0");
+  });
+
+  it("orders the marks to match the ledgers beneath them", () => {
+    // The band carries no legend. It is readable only because the headings
+    // directly below it arrive in the same order, so this ordering is load
+    // bearing rather than cosmetic.
+    const html = renderToStaticMarkup(
+      <MarketCanvasPanel
+        vm={vm({ resolved: ["A"], measured: ["B"], missing: ["C"] })}
+      />,
+    );
+    expect(standings(html)).toEqual(["RESOLVED", "MEASURED", "MISSING"]);
+  });
+
+  it("distinguishes the three standings by FILL, never by hue — §9", () => {
+    const html = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ resolved: ["A"], measured: ["B"], missing: ["C"] })} />,
+    );
+    const fills = marks(html).map((m) => m.match(/background:([^;"]+)/)?.[1]?.trim());
+    // Three distinct treatments, so the row is readable...
+    expect(new Set(fills).size).toBe(3);
+    // ...and not one of them is a colour. No green shield: a resolved
+    // dimension means the board is LIT there, not that the trade is safe.
+    for (const f of fills) {
+      const rgb = f!.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      const [r, g, b] = rgb
+        ? [+rgb[1], +rgb[2], +rgb[3]]
+        : [
+            parseInt(f!.slice(1, 3), 16),
+            parseInt(f!.slice(3, 5), 16),
+            parseInt(f!.slice(5, 7), 16),
+          ];
+      expect(g, `${f} is green-dominant`).not.toBeGreaterThan(Math.max(r, b));
+    }
+  });
+
+  it("adds nothing up — the marks ARE the count", () => {
+    // A band that computed a total would be a second owner of a number the
+    // compiler already publishes, and the two would eventually disagree. The
+    // panel prints no figure here at all; the ledger headings below keep the
+    // only counts on the surface. §24, one answer per question.
+    const band = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ resolved: ["A", "B"], missing: ["C"] })} />,
+    );
+    const start = band.indexOf('data-testid="market-canvas-standing"');
+    const end = band.indexOf('data-testid="market-canvas-ledgers"');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    // Between the band's label and the ledgers there is not a digit.
+    const inside = band.slice(start, end).replace(/data-[a-z-]+="[^"]*"|style="[^"]*"/g, "");
+    expect(inside).not.toMatch(/\d/);
+  });
+});
+
+describe("MarketCanvasPanel — the band answers HOW MUCH, never WHICH", () => {
+  it("does not leak a name the ledger's own cap declined to draw", () => {
+    // Found by the cap test above failing when the first cut of this band hung
+    // the dimension name on each mark's `title`. The ledger draws six rows and
+    // says `+3 more`; a ninth name arriving in a tooltip makes that disclosure
+    // false about the markup it is printed in.
+    //
+    // The band still draws all nine MARKS — the denominator is the one thing
+    // that may never be capped — it simply stops being a second index of which
+    // dimensions they are.
+    const many = Array.from({ length: 9 }, (_, i) => `Dim ${i + 1}`);
+    const html = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ missing: many })} />);
+
+    expect(
+      [...html.matchAll(/data-testid="market-canvas-standing-mark"/g)],
+    ).toHaveLength(9);
+    expect(html).toContain("+3 more");
+    expect(html).not.toContain("Dim 7");
+  });
+
+  it("speaks the heading's word, not the compiler's key", () => {
+    // The band has no legend; it is legible because the ledger headings sit
+    // directly beneath it. A mark whose tooltip said "missing" over a heading
+    // that says "Unresolved" would be two names for one bucket on one screen.
+    const html = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ missing: ["Direction"] })} />);
+    expect(html).toContain('title="unresolved"');
+    expect(html).toContain('data-standing="MISSING"');
+  });
+});
