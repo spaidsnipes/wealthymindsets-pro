@@ -179,6 +179,20 @@ describe("the former authors of the buckets now ask for them", () => {
     }
   });
 
+  /**
+   * THE TRUTH STRIP PRINTED TWO OF THREE BUCKETS AND A COMMENT SAYING SO WAS
+   * FINE. `HeroTruth` showed "RESOLVED 4 of 8 … unknowns 4" with a comment
+   * reasoning the pair was correct. It sums only on a frame with zero partials.
+   * A strip that names RESOLVED and UNKNOWN but not MEASURED invites the reader
+   * to do the subtraction the code no longer does.
+   */
+  it("the hero truth strip names the middle bucket instead of implying it", () => {
+    const src = read("src/components/command-deck/HeroTruth.tsx");
+    expect(src).toContain("partitionDimensionStandings");
+    expect(src).toContain("hero-measured-dimensions");
+    expect(src).toContain("hero-unknown-dimensions");
+  });
+
   it("selectMarketStory consumes the rule it used to own privately", () => {
     const src = read("src/lib/marketData/viewModels/selectMarketStory.ts");
     expect(src).toContain("dimensionStanding");

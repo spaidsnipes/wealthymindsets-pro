@@ -1,6 +1,11 @@
 "use client";
 import * as React from "react";
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
+import {
+  MARKET_STATE_DIMENSION_KEYS,
+  dimensionName,
+  partitionDimensionStandings,
+} from "@/lib/marketData/canonicalMarketState";
 import { selectHeroPriceChronology } from "@/lib/marketData/heroTruthChronology";
 import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 
@@ -476,15 +481,59 @@ export function HeroTruth({
 
             Note the grammar was already here to copy: `coverage` one span up
             prints "1 channel", not "1". This span was the only member of the
-            strip carrying a bare integer. */}
-        <span>
-          <span style={{ color: "#55503f" }}>unknowns</span>{" "}
-          <span style={{ color: "#c9a55c" }}>
-            {state
-              ? `${state.unknowns.length} dimension${state.unknowns.length === 1 ? "" : "s"}`
-              : "unknown"}
-          </span>
-        </span>
+            strip carrying a bare integer.
+
+            ── 2026-09-18 ADDENDUM: "4 AND 6 ARE BOTH CORRECT" WAS TRUE OF THE
+            PAIR ABOVE, AND THE READING BELOW IT WAS STILL A COINCIDENCE.
+            The band said RESOLVED 4 of 8 and this span said unknowns 4, and the
+            comment reasoned the pair was fine. It sums only because that BTC
+            frame carried ZERO partials. On live /charts TSLA the same shapes
+            printed RESOLVED 1 and unresolved 7 for EIGHT dimensions, because
+            two surfaces took complements of DIFFERENT halves of a three-valued
+            type. `dimensionStanding` now owns the split, and `state.unknowns`
+            narrowed to the MISSING bucket alone — so this span became HONEST
+            but INCOMPLETE: a reader who computes 8 − resolved still lands on
+            the wrong number, because subtraction cannot see MEASURED.
+
+            So the middle bucket is printed beside it. No count on this strip is
+            reachable by subtracting another. */}
+        {(() => {
+          const standings = state ? partitionDimensionStandings(state) : null;
+          return (
+            <>
+              {standings && standings.MEASURED.length > 0 && (
+                <span>
+                  <span style={{ color: "#55503f" }}>measured</span>{" "}
+                  <span
+                    data-testid="hero-measured-dimensions"
+                    style={{ color: "#c9a55c" }}
+                    title={`Measured but not decision-grade: ${standings.MEASURED.map(dimensionName).join(", ")}. The engine published a reading; it is not strong enough to act on. These are neither resolved nor unknown.`}
+                  >
+                    {`${standings.MEASURED.length} dimension${standings.MEASURED.length === 1 ? "" : "s"}`}
+                  </span>
+                </span>
+              )}
+              <span>
+                <span style={{ color: "#55503f" }}>unknowns</span>{" "}
+                <span
+                  data-testid="hero-unknown-dimensions"
+                  style={{ color: "#c9a55c" }}
+                  title={
+                    standings
+                      ? `Dimensions with no verified evidence at all: ${
+                          standings.MISSING.map(dimensionName).join(", ") || "none"
+                        }. Resolved ${standings.RESOLVED.length} · measured ${standings.MEASURED.length} · unknown ${standings.MISSING.length} — the three sum to ${MARKET_STATE_DIMENSION_KEYS.length}.`
+                      : undefined
+                  }
+                >
+                  {state
+                    ? `${state.unknowns.length} dimension${state.unknowns.length === 1 ? "" : "s"}`
+                    : "unknown"}
+                </span>
+              </span>
+            </>
+          );
+        })()}
         {state?.contradictions && state.contradictions.length > 0 && (
           <span>
             <span style={{ color: "#55503f" }}>contradictions</span>{" "}
