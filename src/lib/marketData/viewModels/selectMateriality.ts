@@ -18,6 +18,7 @@
  */
 
 import type { OneStoryVM } from "./selectOneStory";
+import { sampledLabelPhrase } from "./decisionPermissionCompiler";
 
 /**
  * Reasons a change is material. Ordered so the strongest signal
@@ -93,8 +94,15 @@ export function selectMateriality(
   if (prev.primary !== next.primary) reasons.push("PRIMARY_CHANGED");
 
   const material = reasons.length > 0;
+  // A sample of the reasons must say it is a sample. Four reasons can fire at
+  // once and only two are named; `selectSecondaryNoise` forwards this string
+  // verbatim as a rendered `detail`, with no true count printed beside it.
+  // Owned by sampledLabelPhrase — the ninth call site of one answer, not a
+  // ninth answer. See its header.
   const summary = material
-    ? reasons.slice(0, 2).map(r => REASON_LABEL[r]).join(" · ")
+    ? sampledLabelPhrase(reasons.map(r => REASON_LABEL[r]), reasons.length, {
+        separator: " · ",
+      })
     : "no material change";
 
   return { material, reasons, summary };

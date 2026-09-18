@@ -113,3 +113,74 @@ describe("selectMateriality — canon §4 gate for Auto-Quiet", () => {
     expect(r.summary).toContain("contradiction");
   });
 });
+
+/**
+ * ── 2026-09-18: NINTH SIGHTING — A SAMPLED SUMMARY THAT SAID NOTHING ──────
+ *
+ * `summary` named the first two reasons and dropped the rest in silence. Up
+ * to FOUR can fire at once. `selectSecondaryNoise` forwards this string
+ * verbatim as a rendered `detail` and NO true count is printed beside it, so
+ * unlike the WhyInspector lists nothing on screen could disclose the gap.
+ *
+ * Now the ninth CALLER of `sampledLabelPhrase` — not a ninth answer. §24.
+ */
+describe("selectMateriality — a sampled summary must say it was sampled", () => {
+  /** Fires exactly `n` of the four independent reason families. */
+  const pair = (n: number) => {
+    const debtA = { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] };
+    const debtB = { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], warnLabels: [] };
+    const prev = story({
+      decisionValue: "WAIT",
+      primary: "In balance.",
+      contradiction: null,
+      debt: debtA,
+    });
+    const next = story({
+      decisionValue: n >= 1 ? "ACTION" : "WAIT",
+      primary: n >= 4 ? "Trend expanding." : "In balance.",
+      contradiction: n >= 3 ? "Weak participation" : null,
+      debt: n >= 2 ? debtB : debtA,
+    });
+    return selectMateriality(prev, next);
+  };
+
+  it("names all four families when four fire — so the fixture really can reach 4", () => {
+    expect(pair(4).reasons).toHaveLength(4);
+  });
+
+  it("discloses the reasons it did not name", () => {
+    const r = pair(4);
+    expect(r.summary).toContain("decision changed");
+    expect(r.summary).toContain("new evidence debt");
+    expect(r.summary).toContain("+2");
+  });
+
+  it("says nothing when nothing is hidden", () => {
+    expect(pair(2).summary).toBe("decision changed · new evidence debt");
+    expect(pair(1).summary).toBe("decision changed");
+  });
+
+  it("the remainder derives from the TRUE count, not the capped array", () => {
+    // A remainder computed off the sliced array would be pinned at +0 for
+    // every one of these; the true count moves it one for one.
+    expect(pair(2).summary).not.toContain("+");
+    expect(pair(3).summary).toContain("+1");
+    expect(pair(4).summary).toContain("+2");
+  });
+
+  it("the disclosed remainder and reasons.length reconcile", () => {
+    const r = pair(4);
+    // 2 named + 2 disclosed must equal the array a consumer can count.
+    expect(r.reasons).toHaveLength(4);
+    expect(r.summary).toContain("+2");
+  });
+
+  it("keeps the ' · ' separator — these are independent events, not co-requirements", () => {
+    expect(pair(2).summary).toContain(" · ");
+    expect(pair(2).summary).not.toContain(" + ");
+  });
+
+  it("a non-material reading still says so rather than rendering an empty phrase", () => {
+    expect(pair(0).summary).toBe("no material change");
+  });
+});

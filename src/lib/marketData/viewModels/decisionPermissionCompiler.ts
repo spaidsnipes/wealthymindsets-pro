@@ -131,15 +131,39 @@ export function hiddenRemainder(trueCount: number, shownLabels: number): string 
  * the story speak lowercase mid-sentence ("need regime + direction +3"), the
  * question focus speaks Title Case as a label ("Regime + Direction +3"). That
  * is typography, not a second answer about what is hidden.
+ *
+ * ── 2026-09-18: NINTH SIGHTING — `selectMateriality.summary` ───────────────
+ *
+ * `reasons.slice(0, 2).map(REASON_LABEL).join(" · ")` — the same three lines
+ * again, minus the remainder. Up to FOUR reasons can fire at once (decision +
+ * missing + contradiction + primary), so a trader could be told "decision
+ * changed · contradiction surfaced" while two more reasons went unnamed.
+ *
+ * That phrase is not decoration: `selectSecondaryNoise` passes it through
+ * verbatim as the `detail` a surface renders, and unlike the WhyInspector
+ * lists there is NO true count printed anywhere beside it. Nothing on that
+ * screen could have told the trader something was withheld.
+ *
+ * `separator` joins `lowercase` as a parameter for the same reason: the debt
+ * phrases enumerate co-required evidence ("regime + direction"), the
+ * materiality summary enumerates independent events ("decision changed ·
+ * contradiction surfaced"). That is typography. It is not a second answer
+ * about what is hidden, which is the only thing this function owns.
  */
 export function sampledLabelPhrase(
   labels: readonly string[],
   trueCount: number,
-  opts: { readonly limit?: number; readonly lowercase?: boolean } = {},
+  opts: {
+    readonly limit?: number;
+    readonly lowercase?: boolean;
+    readonly separator?: string;
+  } = {},
 ): string {
   const limit = opts.limit ?? 2;
   const shown = labels.slice(0, limit);
-  const desc = (opts.lowercase ? shown.map(l => l.toLowerCase()) : shown).join(" + ");
+  const desc = (opts.lowercase ? shown.map(l => l.toLowerCase()) : shown).join(
+    opts.separator ?? " + ",
+  );
   return `${desc}${hiddenRemainder(trueCount, shown.length)}`;
 }
 
