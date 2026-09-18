@@ -142,10 +142,23 @@ describe("atmosphere legibility — why the room sits ABOVE the vignette", () =>
   });
 
   it("keeps the vignette itself un-lifted", () => {
-    // The grain may rise (see the suite below). The vignette may not, and the
+    // The grain may rise (see the next test). The vignette may not, and the
     // arithmetic two tests up is why.
     const before = SHELL.match(/\.wm-sanctuary::before\s*\{[^}]*\}/)?.[0] ?? "";
     expect(before).not.toMatch(/z-index:\s*(?!0)\d+/);
+  });
+
+  it("keeps the GRAIN lifted onto the room", () => {
+    // The tile spent its whole life at z-index 0, under the content plane,
+    // where it was only ever visible in the gaps between panels — dirt on the
+    // wallpaper rather than grain on the photograph. The Canon's §6 puts it
+    // above the room, the mockups are single exposures, and the suite above is
+    // what proves the lift costs no legibility.
+    //
+    // Asserted because a merge that dropped this one line would restore the old
+    // look while every other test in the repo stayed green.
+    const after = SHELL.match(/\.wm-sanctuary::after\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(after).toMatch(/z-index:\s*40\b/);
   });
 });
 

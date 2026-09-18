@@ -269,8 +269,16 @@ function SanctuaryRoom({
             or the audit's "NO OWNER = STILL" rule kills it.
           · pointer-events: none on every atmosphere layer so click/tap
             never lands on the vignette by accident.
-          · z-index: 0 with the content plane at z-index: 1 keeps focus
-            outlines and drawer transitions above the atmosphere.
+          · The content plane sits at z-index: 1, which keeps focus
+            outlines and drawer transitions above the VIGNETTE — that
+            one is load-bearing for legibility, not taste, and
+            atmosphereLegibility.enforcement.test.ts carries the
+            arithmetic (a vignette over the text as well as its ground
+            takes the body token to 3.68:1).
+          · The GRAIN is the exception and rides at z-index: 40, over
+            the room, per the Canon's §6. It is luminance-neutral by
+            construction, and the same suite proves every legal
+            text/surface pair still clears AA through it.
       */}
       <style>{`
         /* ── THE OS ROOM CLIPPED ITSELF ON A PHONE ────────────────────────
@@ -337,12 +345,42 @@ function SanctuaryRoom({
 
            Opacity lives on the layer, not in the tile. The Canon's window is
            0.04-0.07; above 0.10 is FALSE_RIPENESS and fails the merge. */
+        /* ── THE GRAIN SITS ON THE ROOM, NOT BEHIND IT ────────────────────
+           This layer used to share the z-index: 0 above, which put it UNDER
+           the content plane. The tile was therefore only ever visible in the
+           gaps between panels: dirt on the wallpaper, not grain on the
+           photograph. The Canon's §6 is explicit — "z 40 grain overlay ...
+           vignette and grain are ABOVE the room and BELOW dialogs" — and the
+           mockups it describes are single exposures, where one film stock
+           covers the whole frame and ties the panels to the field.
+
+           Lifting it is only safe because the ratio was MEASURED first.
+           atmosphereLegibility.enforcement.test.ts composites every pair
+           TEXT_ON_SURFACE permits through this exact layer at this exact
+           opacity, using the shipped tile's real excursion, and holds the lot
+           to 4.5:1. The thinnest rung, muted-on-mid, spends 4.86 -> 4.66 and
+           keeps AA. That guard is what licenses this line; without it this is
+           a pretty change that quietly costs legibility.
+
+           The vignette deliberately does NOT come with it, and that is not an
+           oversight — the same suite shows a vignette over the text taking the
+           body token to 3.68:1. Grain is luminance-neutral by construction
+           (mean 128 is overlay's identity); the vignette is not. One may rise.
+           The other may not.
+
+           40 clears the room without a tie: every direct child of the
+           sanctuary is given its own stacking context at z-index 1 below, so
+           the equipment layer's local 60/70 stays inside the room and under
+           this tile. Dialogs are portaled out of the sanctuary entirely and
+           are unreachable from here, which is the Canon's "below dialogs"
+           arrived at structurally rather than by number. */
         .wm-sanctuary::after {
           background-image: url("/wm/grain-256.webp");
           background-repeat: repeat;
           background-size: 256px 256px;
           opacity: 0.06;
           mix-blend-mode: overlay;
+          z-index: 40;
         }
         /* A phone is held closer and its pixels are smaller; the same tile
            reads stronger there. */

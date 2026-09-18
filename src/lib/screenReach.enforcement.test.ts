@@ -203,6 +203,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Build-time detector, sibling of osRoomPlane.ts: does a room floor itself at the height of the SCREEN while living inside the frame's room, which begins below the masthead? Consumed by gates, never rendered. It exists because osRoomPlane measures the colour, so the repairs it prompted fixed the colour and left the height on the same elements.",
   },
+  "src/lib/design/sanctuaryComposite.ts": {
+    reason: "OPS_TOOLING",
+    note: "The atmosphere blend arithmetic — overlay on non-linear sRGB, the grain tile's measured excursion, the vignette's peak alpha. Consumed by atmosphereLegibility.enforcement.test.ts to ask the Canon's §7 question ('measure ivory-on-field AFTER grain') about the COMPOSITED pixel rather than the clean token. A trader loses nothing by it having no screen; the browser already performs this blend in hardware, and a component importing it would be re-deriving in JavaScript what the compositor just did. Its whole job is to be asked at build time whether a layer the trader cannot opt out of has quietly taken the text ramp under AA.",
+  },
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",
