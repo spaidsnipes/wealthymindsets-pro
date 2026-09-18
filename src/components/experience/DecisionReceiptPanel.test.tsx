@@ -341,3 +341,78 @@ describe("× THE RECEIPT'S ORDERED FACTS ARE DRAWN IN ORDER — without inventin
     expect(SRC).not.toMatch(/\/5\b/);
   });
 });
+
+/**
+ * THE FLAT TRADE IS NOT A WIN.
+ *
+ * The outcome row used to read `realizedR >= 0 ? "#9db88a" : "#e07b5c"` — mint
+ * for a gain, warm for a loss. One expression, two separate defects, and the
+ * §9 colour sweep only names the first.
+ *
+ * THE COLOUR is the §9 breach: green means safe, and the house does not get to
+ * tell a trader that a profitable trade was therefore a good one. A loss taken
+ * BY RULE is the receipt working; a win taken discretionarily is a rule that
+ * was broken and got away with it. That fact — the one thing on this row the
+ * house actually judges — is printed immediately to the right in muted grey,
+ * while the P&L held the loud channel.
+ *
+ * THE SIGN is the quieter defect, and it survives any colour repair. `>= 0`
+ * prefixed a `+` to a scratch, so a trade closed flat was filed under the
+ * favourable outcome for free. That is H1's shape: a nothing drawn as a
+ * something, in the one place a trader will read fastest.
+ *
+ * These tests exist because the Sentinel next door CANNOT SEE EITHER FROM
+ * SOURCE ALONE. `noGreenInTheRoom` guards the file by shape — it forbids the
+ * `realizedR >= 0 ? "#..."` construction — and that guard stays green if the
+ * ternary is restored for the SIGN alone, with no colour attached. So these
+ * read the rendered glyph instead.
+ */
+describe("DecisionReceiptPanel — the P&L states its sign and passes no verdict", () => {
+  const closed = (realizedR: number) =>
+    render(attachOutcome(seal(), { closedAt: 1_800_001_200_000, realizedR, reason: "TARGET" }));
+
+  const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+
+  /** The style of the one span whose whole text is the R figure. */
+  const figureStyle = (html: string, glyph: string): string => {
+    const m = html.match(
+      new RegExp(`<span style="([^"]*)"[^>]*>${glyph.replace(/[+.\-]/g, "\\$&")}</span>`),
+    );
+    expect(m, `no span renders exactly "${glyph}"`).not.toBeNull();
+    return m![1];
+  };
+
+  it("DRAWS A SCRATCH AS 0R — NEVER +0R", () => {
+    const TEXT = text(closed(0));
+    expect(TEXT).toMatch(/(?:^|\s)0R\b/);
+    expect(TEXT, "a flat trade filed as a gain").not.toContain("+0R");
+  });
+
+  it("keeps the + on a real gain, and does not double the minus on a loss", () => {
+    expect(text(closed(1.4))).toContain("+1.4R");
+    expect(text(closed(-1))).toContain("-1R");
+    // The number already carries its own sign; a prefix on top would read
+    // "+-1R" and make the row unparseable at a glance.
+    expect(text(closed(-1))).not.toContain("+-1R");
+  });
+
+  it("GIVES GAIN, SCRATCH AND LOSS THE SAME IVORY — the house does not cheer", () => {
+    const styles = ["+1.4R", "0R", "-1R"].map((glyph, i) =>
+      figureStyle(closed([1.4, 0, -1][i]), glyph),
+    );
+    // One colour across all three outcomes. If any sign gets its own, the
+    // panel has started grading the result rather than reporting it.
+    expect(new Set(styles).size, "the figure changes appearance with its sign").toBe(1);
+    expect(styles[0]).toContain("color:#ede6d3");
+  });
+
+  it("carries no green-dominant colour on a winning receipt — §9", () => {
+    // The regression this whole block was written over. Read on the RENDERED
+    // pixel rather than the source, so a green arriving by any route — a
+    // token, a variable, a computed string — still fails here.
+    for (const m of closed(1.4).matchAll(/#([0-9a-f]{6})\b/gi)) {
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+      expect(g > r && g > b, `green-dominant #${m[1]}`).toBe(false);
+    }
+  });
+});

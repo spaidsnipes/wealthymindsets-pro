@@ -140,27 +140,32 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 };
 
 /**
- * OUTSTANDING §9 DEBT — known violations this shift did not have the standing
- * to repair. Deliberately NOT folded into ALLOWED: an allowance says "a human
- * looked and this is fine", and that would be a lie about these.
+ * OUTSTANDING §9 DEBT — known violations a shift did not have the standing to
+ * repair. Deliberately NOT folded into ALLOWED: an allowance says "a human
+ * looked and this is fine", and that would be a lie about a violation.
  *
- * DecisionReceiptPanel.tsx carries `affirm: "#9db88a", // green — process
- * honored`, a REVIEWED grade in the same sage, and a realised-R figure that
- * turns green when the number is positive. The first two are §9 violations on
- * their face — green meaning a condition was met. The third is the subtler
- * one: a positive R rendered green teaches that a won trade was a good
- * decision, which is precisely the process/outcome conflation the receipt
- * exists to prevent.
+ * ── CLOSED 2026-09-18. The list is empty, and that is the point. ────────────
  *
- * It is not repaired here because the file carries uncommitted work by another
- * owner, and the house rule is that contractors may not overwrite Decision /
- * Position files without collision review. Listing it keeps the debt visible
- * and bounded: the test below fails if the list GROWS, so this cannot become a
- * quiet parking space for new green.
+ * It carried one entry: DecisionReceiptPanel.tsx and `#9db88a`, three uses.
+ * `affirm: "#9db88a", // green — process honored` and a REVIEWED stage in the
+ * same sage were §9 violations on their face — a colour whose job was to mean
+ * a condition had been met. The third was the subtle one: a realised-R figure
+ * that turned green above zero, teaching that a WON trade was a GOOD decision
+ * — precisely the process/outcome conflation the receipt exists to prevent.
+ *
+ * The blocker was never the repair, it was standing: the file carried
+ * uncommitted work by another owner, and contractors may not overwrite
+ * Decision / Position files without collision review. That work landed in
+ * 19c25d39; the tree was clean and no stash touched the file, so the review
+ * cleared and the repair went in. All three now render ivory #ede6d3 — a
+ * FINDING — and the R carries its sign in the glyph rather than in a verdict
+ * colour.
+ *
+ * The mechanism is kept rather than deleted. An empty debt list that still has
+ * teeth is worth more than no list: the tests below fail if anything is added
+ * here, and fail again if an entry ever outlives the colour it names.
  */
-const OUTSTANDING: Readonly<Record<string, readonly string[]>> = {
-  "DecisionReceiptPanel.tsx": ["#9db88a"],
-};
+const OUTSTANDING: Readonly<Record<string, readonly string[]>> = {};
 
 /**
  * Test files are excluded from the scan for one narrow reason: the §9 GUARDS
@@ -223,16 +228,29 @@ describe("§9 Sentinel — the decision room wears no green shield", () => {
     }
   });
 
-  it("holds the outstanding debt at exactly one file and does not let it grow", () => {
-    // A debt list that can absorb new entries silently is not a debt list, it
-    // is a bypass. Pinned by count AND by name.
-    expect(Object.keys(OUTSTANDING)).toEqual(["DecisionReceiptPanel.tsx"]);
+  it("carries no outstanding debt, and cannot absorb a new one silently", () => {
+    // A debt list that can take entries without anyone noticing is not a debt
+    // list, it is a bypass. It is empty as of 2026-09-18 and adding to it is a
+    // deliberate act that fails here first.
+    expect(Object.keys(OUTSTANDING)).toEqual([]);
   });
 
-  it("closes the debt automatically once the file is repaired", () => {
-    // When DecisionReceiptPanel's green is removed under collision review,
-    // this fails and forces the entry out of OUTSTANDING — so the list cannot
-    // outlive the violation and become a pre-approved green for the next author.
+  it("keeps the receipt panel's three repaired greens gone", () => {
+    // The debt this list was created for. `affirm`, the REVIEWED stage, and a
+    // realised R that turned green above zero — all three now ivory. Asserted
+    // by name because the entry that used to defend it has been removed, and a
+    // regression would otherwise only be caught by the generic scan, which
+    // reports a colour rather than the reason it was forbidden HERE.
+    const source = readFileSync(path.join(ROOM, "DecisionReceiptPanel.tsx"), "utf8");
+    expect(greenDominantLiterals(source)).toEqual([]);
+    // Specifically: the R is no longer painted by the sign of the number.
+    expect(source).not.toMatch(/realizedR\s*>=?\s*0\s*\?\s*"#/);
+  });
+
+  it("closes any FUTURE debt automatically once its file is repaired", () => {
+    // The mechanism, kept after the list emptied. An entry that outlives its
+    // colour becomes a pre-approved green sitting in the ledger for the next
+    // author to find.
     for (const [file, colours] of Object.entries(OUTSTANDING)) {
       const source = readFileSync(path.join(ROOM, file), "utf8");
       const present = greenDominantLiterals(source);

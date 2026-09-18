@@ -28,17 +28,40 @@ export interface DecisionReceiptPanelProps {
   readonly vm: DecisionReceiptVM;
 }
 
+/**
+ * §9 — "No green shield. No green means safe."
+ *
+ * `affirm` used to render in sage #9db88a under the comment "green — process
+ * honored", which is the violation stated out loud: a colour whose entire job
+ * is to mean A CONDITION WAS MET. It sat two lines from `flag`, so the receipt
+ * — the surface whose whole purpose is to separate PROCESS from OUTCOME — read
+ * as a traffic light.
+ *
+ * Ivory is the house colour for a FINDING, and a process fact the trader
+ * honored is a finding. It stays distinct from `neutral` parchment by being
+ * brighter, which is the §9 instruction: distinguish by how much light the
+ * house pays, not by hue.
+ */
 const TONE_COLOR: Record<ReceiptTone, string> = {
-  affirm: "#9db88a", // green — process honored
+  affirm: "#ede6d3", // ivory — a finding: this is what the record shows
   neutral: "#c2b892", // parchment — informational
-  flag: "#e07b5c", // amber — needs attention
+  flag: "#e07b5c", // warm — needs attention
 };
 
+/**
+ * The lifecycle, not a ranking. REVIEWED was the same sage green, which turned
+ * the last stage of a receipt into a passing mark — and a receipt that can be
+ * PASSED is a score, which §15 forbids this panel from keeping.
+ *
+ * REVIEWED takes ivory for the same reason `affirm` does: the trader came back
+ * and recorded what happened, and recorded knowledge is what ivory is for. It
+ * says the record is complete. It does not say the trade was good.
+ */
 const STAGE_COLOR: Record<string, string> = {
   SEALED: "#c9a55c",
   MANAGED: "#d4af37",
   CLOSED: "#c2b892",
-  REVIEWED: "#9db88a",
+  REVIEWED: "#ede6d3",
 };
 
 const MUTED = "#8a8271";
@@ -305,8 +328,29 @@ export function DecisionReceiptPanel({ vm }: DecisionReceiptPanelProps): React.R
           {vm.outcome && (
             <div style={{ display: "flex", gap: 8, alignItems: "baseline", borderTop: `1px solid ${HAIR}`, paddingTop: 8 }}>
               <span style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase" }}>Outcome</span>
-              <span style={{ fontSize: 12, color: vm.outcome.realizedR >= 0 ? "#9db88a" : "#e07b5c" }}>
-                {vm.outcome.realizedR >= 0 ? "+" : ""}
+              {/*
+                THE R DOES NOT CHANGE COLOUR WITH ITS SIGN.
+
+                It used to: green above zero, warm below. That is the subtlest
+                of this file's three §9 breaches and the most damaging, because
+                this panel's own docblock says it renders no grade — and then
+                painted the one number a trader is already primed to worship in
+                the two colours of a win and a loss.
+
+                A loss taken BY RULE is the receipt working. A win taken
+                discretionarily is a rule that was broken and got away with it.
+                Colouring by sign puts the house's light on the outcome and
+                leaves the discipline — the fact printed immediately to the
+                right, and the only one here the house actually judges — in
+                muted grey. The sign is already in the glyph; it does not need
+                a second, louder channel saying the same thing with a verdict
+                attached.
+
+                `> 0` rather than `>= 0`: a scratch is not a gain, and "+0R"
+                swept the flat case into the favourable bucket for free.
+              */}
+              <span style={{ fontSize: 12, color: "#ede6d3" }}>
+                {vm.outcome.realizedR > 0 ? "+" : ""}
                 {vm.outcome.realizedR}R
               </span>
               <span style={{ fontSize: 11, letterSpacing: 0.4, color: MUTED, textTransform: "uppercase" }}>
