@@ -67,9 +67,28 @@ export interface AuctionMatchers {
 }
 
 export const DEFAULT_AUCTION_MATCHERS: AuctionMatchers = {
-  structureBOS:    looseMatch(["bos", "breakofstructure", "break", "breakup", "breakdown"]),
+  // `higherhighs` / `lowerlows` are the live vocabulary of
+  // `deriveStructureDimension`, which became the STRUCTURE producer when the
+  // Passport wire shipped. A confirmed higher high means price traded through
+  // the prior swing high — that IS a break of structure, and EXPANDING gates it
+  // further behind a resolved direction and a RESPONDING displacement.
+  //
+  // WHY THIS LINE MATTERS MORE THAN IT LOOKS: when a producer's words and a
+  // matcher's list drift apart, nothing throws and no test turns red. The
+  // guard simply never fires and Auction State prints its fallback forever.
+  // `auctionMatchersKnowTheProducers.test.ts` now asserts the symmetry.
+  structureBOS:    looseMatch([
+    "bos", "breakofstructure", "break", "breakup", "breakdown",
+    "higherhighs", "lowerlows",
+  ]),
   structureSweep:  looseMatch(["sweep", "liquiditysweep"]),
-  structureNone:   looseMatch(["none", "unclear", "forming"]),
+  // NOTE: `structureNone` is declared on the interface and populated here but
+  // is not read anywhere in this file's body. Left in place rather than
+  // deleted because it is part of the public matcher contract callers may
+  // override; surfaced here so the next reader does not assume it is wired.
+  // "ROTATING IN RANGE" is deliberately absent from structureBOS — a rotation
+  // is the ABSENCE of a break, and that is what lets BALANCING fire.
+  structureNone:   looseMatch(["none", "unclear", "forming", "rotatinginrange"]),
   regimeBalance:   looseMatch(["balance", "balanced", "range", "ranging"]),
   profileMigrating: looseMatch(["migrating", "shifting", "valuemigration"]),
   profileStable:   looseMatch(["stable", "balanced", "poc-centered", "poccentered"]),
