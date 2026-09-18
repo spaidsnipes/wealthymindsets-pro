@@ -6425,11 +6425,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
             // ── EFFORT (PRESSURE): layered strata, widest/faintest outside.
             // "Height = aggression intensity."
+            //
+            // ALPHAS ARE A TRUTH CONSTRAINT, NOT A TASTE SETTING. This canvas
+            // sits ABOVE the candles, so every unit of opacity here is a unit
+            // of price action taken away from the trader. The four strata
+            // overlap at the spine, so the budget that matters is the SUM. It
+            // is held at 0.22 — enough to read the field's shape, low enough
+            // that a candle body under the tallest column is still legible.
             const LAYERS: Array<{ frac: number; alpha: number }> = [
-              { frac: 1.0,  alpha: 0.07 },
-              { frac: 0.74, alpha: 0.09 },
-              { frac: 0.50, alpha: 0.11 },
-              { frac: 0.28, alpha: 0.14 },
+              { frac: 1.0,  alpha: 0.04 },
+              { frac: 0.74, alpha: 0.05 },
+              { frac: 0.50, alpha: 0.06 },
+              { frac: 0.28, alpha: 0.07 },
             ];
             for (const layer of LAYERS) {
               ctx.beginPath();
@@ -6448,14 +6455,43 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               ctx.fill();
             }
 
-            // ── PRICE DISPLACEMENT: the path itself. "Flatter slope =
-            // inefficiency." Drawn last of the two so the slope stays legible
-            // against the field it is being compared to.
+            // ── PRICE DISPLACEMENT is NOT redrawn here.
+            //
+            // The mockup's centre panel carries a white price path because that
+            // panel has no candles under it — the path IS the price there. On
+            // this chart the candles are already the price, at the same scale,
+            // from the same series. Stroking a second price line over them does
+            // not add displacement to the picture; it only adds a near-opaque
+            // line across the bars the trader came to read, and it invites the
+            // question of which of the two lines is authoritative when they are
+            // one line. Translating the mockup faithfully means keeping the
+            // RELATIONSHIP (field vs slope) and letting the existing candles be
+            // the slope. Field here, price from the series — one owner each.
+
+            // ── WINDOW EDGE. The field covers the TRAILING 30 bars, not the
+            // whole visible range, so without a declared edge it reads as an
+            // unexplained smear at the right. The mockup names its own extent
+            // ("BARS (LAST 30)"); so does this.
+            const firstX = pts[0]!.x;
+            ctx.save();
+            ctx.setLineDash([2, 4]);
+            ctx.strokeStyle = "rgba(212,175,55,0.30)";
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-            ctx.strokeStyle = "rgba(245,241,230,0.85)";
-            ctx.lineWidth = 1.25;
+            ctx.moveTo(firstX, 0);
+            ctx.lineTo(firstX, H);
             ctx.stroke();
+            ctx.restore();
+
+            const winTxt = `LAST ${pts.length} BARS`;
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            const winW = ctx.measureText(winTxt).width;
+            ctx.fillStyle = "rgba(14,12,8,0.86)";
+            ctx.fillRect(firstX + 3, H - 18, winW + 10, 13);
+            ctx.fillStyle = "rgba(201,165,92,0.9)";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(winTxt, firstX + 8, H - 11.5);
 
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             for (const zone of anatomy.zones) {
