@@ -61,6 +61,7 @@ export const ALL_CATEGORY_TABS = [
   "Big Trades",
   "Value Profile",
   "Continuation",
+  "Worksheet",
   "Options",
   "ETFs",
   "Financials",
@@ -73,7 +74,12 @@ export const ALL_CATEGORY_TABS = [
 export type CategoryTab = (typeof ALL_CATEGORY_TABS)[number];
 
 /**
- * THE FOUR MICROSTRUCTURE VIEWS — and why they need to be nameable as a set.
+ * THE MICROSTRUCTURE VIEWS — and why they need to be nameable as a set.
+ *
+ * (The count is deliberately absent from this heading. It read "THE FOUR" while
+ * there were four, and the fifth arrival left the sentence quietly wrong. A
+ * comment that must be edited to stay true is a comment that will eventually
+ * lie, and the array below is the only place the count should live.)
  *
  * Each of these reads the same tape the candles are drawn from, and each
  * answers a question ABOUT price rather than instead of it. "Was that bar
@@ -87,8 +93,8 @@ export type CategoryTab = (typeof ALL_CATEGORY_TABS)[number];
  * leave the price to look at it is a reading you have to memorise and carry
  * back, and a number carried in the head is a number that drifts.
  *
- * So these four are a SET, not four coincidences, and the set is named HERE
- * rather than spelled out at the wiring site. A fifth microstructure view added
+ * So these are a SET, not a run of coincidences, and the set is named HERE
+ * rather than spelled out at the wiring site. A new microstructure view added
  * to the strip without being added here would silently ship as a full-screen
  * takeover again — the regression would be an omission, which is the one shape
  * of bug that renders something rather than nothing.
@@ -110,6 +116,13 @@ export const MICROSTRUCTURE_TABS = [
   // four do, and shipping it outside the set would hide the candles it is
   // describing.
   "Continuation",
+  // Asset 01, the long-division worksheet. It belongs to the set for the
+  // strongest version of the reason the other five do: the worksheet's first
+  // rung PRINTS THE BAR COUNT IT DIVIDED. A surface whose entire claim is that
+  // you can check its arithmetic cannot be shipped in place of the bars it
+  // names — the reader would have to take the dividend on trust, which is the
+  // one thing this view exists to refuse.
+  "Worksheet",
 ] as const satisfies readonly CategoryTab[];
 
 export type MicrostructureTab = (typeof MICROSTRUCTURE_TABS)[number];
@@ -128,25 +141,25 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
       // ETFs have Financials + Valuation + Profile + Shareholders
       // (holdings). No Corporate Actions, no separate ETFs tab
       // (redundant when the symbol IS an ETF).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
     case "options":
       // Viewing an options contract already IS the options view;
       // Financials/Valuation belong to the underlying, not the
       // derivative. Keep Chart + Profile only.
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Profile"] as const;
     case "crypto":
     case "futures":
     case "forex":
       // No corporate structure, no shareholders, no ETF wrapper.
       // Chart is the whole thing; Profile carries what little
       // reference data exists (name / venue / contract spec).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Profile"] as const;
     default: {
       // Exhaustiveness guard — if CanonicalAssetClass grows, this
       // narrows to `never` and TS errors at build time.
       const _never: never = cls;
       void _never;
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Profile"] as const;
     }
   }
 }

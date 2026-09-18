@@ -165,6 +165,8 @@ import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
 import ContinuationHealthView from "@/components/experience/ContinuationHealthView";
 import { selectContinuationHealth } from "@/lib/marketData/viewModels/selectContinuationHealth";
+import DivisionWorksheetView from "@/components/experience/DivisionWorksheetView";
+import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
 import { useCanonicalMarketStateHistory } from "@/lib/marketData/useCanonicalMarketState";
@@ -962,6 +964,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // identity would be two readers of one fact, harmless today only because the
   // store is single-valued, which is not a property to build on.
   const continuationHistory = useCanonicalMarketStateHistory(canvasIdentity, 6);
+  // LIFTED OUT of the continuation memo below, because a SECOND surface now
+  // reads it. The alternative — calling `selectRegime` again inside the
+  // worksheet memo — would make two authors of one reading, and the two could
+  // drift the moment either memo's dependency list changed. One owner, two
+  // readers.
+  const chartRegimeVM = React.useMemo(
+    () =>
+      chartCanvasState
+        ? selectRegime({ state: chartCanvasState, history: continuationHistory })
+        : null,
+    [chartCanvasState, continuationHistory],
+  );
   const continuationHealthVM = React.useMemo(() => {
     const structure = selectMarketStructure(
       chartBars.map(b => ({
@@ -972,11 +986,39 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         close: b.close,
       })),
     );
-    const regime = chartCanvasState
-      ? selectRegime({ state: chartCanvasState, history: continuationHistory })
-      : null;
-    return selectContinuationHealth({ structure, regime });
-  }, [chartBars, chartCanvasState, continuationHistory]);
+    return selectContinuationHealth({ structure, regime: chartRegimeVM });
+  }, [chartBars, chartRegimeVM]);
+
+  // ── Asset 01 · LONG-DIVISION WORKSHEET ───────────────────────────────
+  //
+  // Composes six owners ALREADY in this room and invents none. It is the one
+  // surface here that prints the STEPS rather than a conclusion, so every
+  // reading it shows must be the same object the neighbouring tab shows —
+  // hence the memos above are passed straight through rather than recomputed.
+  //
+  // The seventh rung (MISSING EVIDENCE) and the RIGHT OF WAY footer are drawn
+  // as named absences: `decisionPermissionCompiler` compiles its debt from
+  // decision nodes this room has never had. Wiring it in to fill the blank
+  // would mean inventing its input.
+  const divisionWorksheetVM = React.useMemo(
+    () =>
+      selectDivisionWorksheet({
+        barCount: chartBars.length,
+        tickCount: recentTicks.length,
+        anatomy: absorptionAnatomyVM,
+        response: aggressionResponseVM,
+        regime: chartRegimeVM,
+        continuation: continuationHealthVM,
+      }),
+    [
+      chartBars.length,
+      recentTicks.length,
+      absorptionAnatomyVM,
+      aggressionResponseVM,
+      chartRegimeVM,
+      continuationHealthVM,
+    ],
+  );
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2747,7 +2789,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && (
+            {/* Asset 01 — THE LONG-DIVISION WORKSHEET. The mockup's seven
+                values are the image generator's own canvas dimensions and are
+                refused in the compiler; what survives is the idea that a
+                reading should show its working. Sibling of Chart for the
+                strongest version of the same reason as the other five: this
+                view names the bars it divided, so hiding them would strand the
+                one surface whose whole claim is that you can check its
+                arithmetic. */}
+            {activeTab === "Worksheet" && (
+              <div role="tabpanel" id="wm-chart-category-panel-worksheet" aria-label={`Long-division worksheet for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <DivisionWorksheetView vm={divisionWorksheetVM} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && activeTab !== "Worksheet" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

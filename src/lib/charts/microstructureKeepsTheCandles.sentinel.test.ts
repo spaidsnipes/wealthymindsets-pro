@@ -42,7 +42,7 @@ function dashboard(): string {
 }
 
 describe("the microstructure set", () => {
-  it("names exactly the five tape-reading views", () => {
+  it("names exactly the tape-reading views, and no more", () => {
     expect([...MICROSTRUCTURE_TABS]).toEqual([
       "Absorption",
       "Aggression",
@@ -52,6 +52,10 @@ describe("the microstructure set", () => {
       // the regime those candles printed in; the verdict ends with the trader
       // asking WHERE the sequence turned, which only the price pane answers.
       "Continuation",
+      // Asset 01. Its first rung prints the BAR COUNT it divided, so shipping
+      // it without the bars would ask the reader to take the dividend on
+      // trust — the one thing the worksheet exists to refuse.
+      "Worksheet",
     ]);
   });
 
@@ -108,6 +112,12 @@ describe("ChartsDashboard keeps price on screen beneath the reading", () => {
       "wm-chart-category-panel-aggression",
       "wm-chart-category-panel-big-trades",
       "wm-chart-category-panel-value-profile",
+      // Added when each arrived. The first version of this loop listed only
+      // the four that existed then, so Continuation and Worksheet could have
+      // been placed BELOW the chart in source and this check would have
+      // stayed green — a guard that shrinks relative to the set it guards.
+      "wm-chart-category-panel-continuation",
+      "wm-chart-category-panel-worksheet",
     ]) {
       const at = src.indexOf(`id="${id}"`);
       expect(at, `${id} not found`).toBeGreaterThan(-1);
