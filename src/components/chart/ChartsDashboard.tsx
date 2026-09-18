@@ -162,6 +162,8 @@ import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
 import { selectAbsorptionAnatomyView } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
+import AggressionResponseView from "@/components/experience/AggressionResponseView";
+import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggressionResponse";
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
@@ -746,6 +748,30 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       bidVol: null,
     }));
     return selectAbsorptionAnatomyView(input, { windowBars: 30 });
+  }, [chartBars]);
+
+  // CANON ASSET 03 — the same window, the same bars, the same absent aggressor
+  // split. It is built from an INDEPENDENT memo rather than derived from the
+  // Absorption view model on purpose: the view model above is already shaped
+  // for columns, and reaching through it would make the scatter a reader of a
+  // rendering rather than of the measurement. Both memos call the same series
+  // selector underneath, so the two surfaces can never disagree about which
+  // bars absorbed.
+  //
+  // askVol / bidVol are null for the same reason as above, and that is exactly
+  // what flips the scatter's y-axis to EFFORT and makes it say so.
+  const aggressionResponseVM = React.useMemo(() => {
+    const input: AnatomyBarInput[] = chartBars.map(b => ({
+      time: typeof b.time === "number" ? b.time : Number(b.time),
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      volume: Number.isFinite(b.volume) ? b.volume : null,
+      askVol: null,
+      bidVol: null,
+    }));
+    return selectAggressionResponse(input, { windowBars: 30 });
   }, [chartBars]);
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
@@ -2508,7 +2534,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && (
+            {/* Asset 03 — AGGRESSION vs RESPONSE, the same measurement turned
+                ninety degrees. Sibling of Chart for the same reason Absorption
+                is, and excluded from the fundamentals arm for the same reason. */}
+            {activeTab === "Aggression" && (
+              <div role="tabpanel" id="wm-chart-category-panel-aggression" aria-label={`Aggression versus response for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <AggressionResponseView vm={aggressionResponseVM} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

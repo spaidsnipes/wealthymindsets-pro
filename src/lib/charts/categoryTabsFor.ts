@@ -29,10 +29,17 @@ import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
  * missing input invisible, which is the opposite of what the drawer's own
  * missing-aggressor banner exists to do. So it is never filtered out by class,
  * only by whether the tape actually supports a reading, and the view says which.
+ *
+ * AGGRESSION (the Founder's Asset 03) joins on exactly the same footing: it is
+ * the same measurement plotted as a scatter, fed by the same selector, so the
+ * two views can never disagree about which bars absorbed. Its y-axis discloses
+ * whether it is showing net aggression or effort, which is precisely the kind
+ * of missing input that must stay visible rather than be hidden by class.
  */
 export const ALL_CATEGORY_TABS = [
   "Chart",
   "Absorption",
+  "Aggression",
   "Options",
   "ETFs",
   "Financials",
@@ -52,25 +59,25 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
       // ETFs have Financials + Valuation + Profile + Shareholders
       // (holdings). No Corporate Actions, no separate ETFs tab
       // (redundant when the symbol IS an ETF).
-      return ["Chart", "Absorption", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
     case "options":
       // Viewing an options contract already IS the options view;
       // Financials/Valuation belong to the underlying, not the
       // derivative. Keep Chart + Profile only.
-      return ["Chart", "Absorption", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Profile"] as const;
     case "crypto":
     case "futures":
     case "forex":
       // No corporate structure, no shareholders, no ETF wrapper.
       // Chart is the whole thing; Profile carries what little
       // reference data exists (name / venue / contract spec).
-      return ["Chart", "Absorption", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Profile"] as const;
     default: {
       // Exhaustiveness guard — if CanonicalAssetClass grows, this
       // narrows to `never` and TS errors at build time.
       const _never: never = cls;
       void _never;
-      return ["Chart", "Absorption", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Profile"] as const;
     }
   }
 }

@@ -58,6 +58,7 @@ describe("charts category scene fusion", () => {
     expect(categoryTabsFor("equity")).toEqual([
       "Chart",
       "Absorption",
+      "Aggression",
       "Options",
       "ETFs",
       "Financials",
