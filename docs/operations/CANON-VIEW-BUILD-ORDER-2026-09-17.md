@@ -16,12 +16,20 @@ That was a scoping defect in the order, not a blocker in the code.
 
 | State | Assets |
 |---|---|
-| RUNTIME MATCH | 10 (Full OS Overview), 14 + 16 (Market Object Passport) |
-| PARTIAL | 09 (Order Flow Cockpit, via OrderFlowCockpitStrip), 07 (Evidence Debt, via CanvasSummaryPill) |
-| GENUINELY BLOCKED | 08 (Liquidity Weather Heatmap) — needs a licensed Level 2 depth provider. Building it now would be decoration and would violate LIVING-PIXEL LAW. |
-| NOT BLOCKED, NOT PRIORITISED | 01, 03, 04, 05, 06, 11, 12, 13, 15, 17, 18, 19, 20 |
+| RUNTIME MATCH | 10 (Full OS Overview), 14 + 16 (Market Object Passport) — as of 2026-09-02 |
+| SHIPPED SINCE | 06 (Absorption, `f7bd2697`), 03 (Aggression, `42a495e4`), 05 (Big Trades, live-observed 2026-09-18) — see the gated VIEW-STATUS table below, which is the authority |
+| PARTIAL | 09 (Order Flow Cockpit, via OrderFlowCockpitStrip), 07 (Evidence Debt, via CanvasSummaryPill) — as of 2026-09-02, not re-measured since |
+| GENUINELY BLOCKED | 08 (Liquidity Weather Heatmap) — needs a licensed Level 2 depth provider. Building it now would be decoration and would violate LIVING-PIXEL LAW. Unchanged 2026-09-18. |
+| NOT BLOCKED, NOT PRIORITISED | 01, 04, 11, 12, 13, 15, 17, 18, 19, 20 — as of 2026-09-18 |
 
 Only **one** asset is actually blocked. The rest were simply never asked for.
+
+**THIS TABLE WAS ALSO DRIFTED.** Until 2026-09-18 its last row read
+`01, 03, 04, 05, 06, …` — listing Assets 06, 03 and 05 as never asked for while
+all three were shipped views in the live dropdown. It was inherited verbatim
+from a 2026-09-02 register and never re-dated. Every row now carries the date it
+was last true, because **a status with no date is a status that cannot go
+stale — it can only be wrong quietly.**
 
 ---
 
@@ -53,8 +61,8 @@ into the view.
 
 This table is the ONLY place this file states what is built. It is checked
 against `ALL_CATEGORY_TABS` by `src/lib/charts/viewBuildOrder.sentinel.test.ts`,
-so a row claiming TO-BUILD for a view that is already in the dropdown fails the
-suite BY NAME.
+so a row this sentinel finds claiming TO-BUILD for a view that is already in the
+dropdown fails the suite BY NAME.
 
 **WHY IT IS GATED.** On 2026-09-18 an operator took this file as the authority,
 believed the build order below, and spent three atoms re-opening work that had
@@ -75,13 +83,26 @@ Prose in this file is commentary. The table is the claim.
 | Absorption | SHIPPED | `f7bd2697` — NQ1! 15m, live-observed |
 | Aggression | SHIPPED | `42a495e4` — BTC, both gate arms live-observed |
 | Big Trades | SHIPPED | BTC 15m live-observed 2026-09-18 — `LARGE PRINTS · 6 cleared the cut`, top-10%-within-window cut stated on the surface, `SIDE · VENUE-STATED` |
-| Value Profile | SHIPPED | present in the live VIEW dropdown on BTC |
+| Value Profile | SHIPPED | BTC 15m live-observed 2026-09-18 — `LIVING PROFILE`, `248 price buckets took volume`, `VALUE AREA HIGH 77940.00`, provenance stated as `ESTIMATED FROM CANDLES` |
 <!-- VIEW-STATUS:END -->
 
 Every row above is a MICROSTRUCTURE view, so each renders WITH the candles
 rather than in place of them (`MICROSTRUCTURE_TABS` in `categoryTabsFor.ts`) —
-which is the Founder's second acceptance question, and it is now closed for all
-four. The PARTIAL recorded against Asset 06 further down predates that set.
+which is the Founder's second acceptance question.
+
+**THAT CLAIM WAS REASONED BEFORE IT WAS MEASURED, AND SAYING SO IS THE POINT.**
+The sentence above originally ended "and it is now closed for all four," derived
+from the comment in `categoryTabsFor.ts` rather than from a rendered frame. That
+is the same move that produced the stale build order this table exists to fix:
+believing a source of words about the code instead of looking at the code's
+output. It has since been measured on BTC · 15m, viewport 784px, `scrollY 0` —
+the price canvas spans **y 140 → 373** and the view's own heading sits at
+**y 388**, identically for all four views, with the price canvas carrying 3,134
+inked samples across 7 colours rather than being blank. The claim survived
+contact with a measurement. It was still a claim until it did.
+
+The Asset 06 acceptance row further down was corrected from PARTIAL on
+2026-09-18 in the same pass.
 
 ---
 
@@ -174,7 +195,7 @@ the prop cannot be accepted-and-ignored, and a seventh entry in the banner's
 
 ---
 
-## ASSET 06 — SHIPPED AND LIVE-OBSERVED
+## ASSET 06 — SHIPPED AND LIVE-OBSERVED (`f7bd2697`)
 
 `f7bd2697` is live on `https://wealthymindsetspro.com/charts`. The VIEW dropdown
 reads `Chart | Absorption | Profile` on every asset class, and on NQ1! · 15m the
@@ -188,7 +209,7 @@ Against the three Founder acceptance questions:
 | Question | Answer |
 |---|---|
 | Same invention recognisable? | YES — three columns, effort field + price path, criteria checklist, ratio ladder. |
-| Useful while candles remain visible? | **PARTIAL.** It is a full-tab sibling of `Chart`, so the candles are not on screen at the same time. This is the honest gap and it is not yet closed. |
+| Useful while candles remain visible? | **CLOSED — MEASURED 2026-09-18.** This row read PARTIAL ("a full-tab sibling of `Chart`, so the candles are not on screen at the same time") until it was measured instead of remembered. `MICROSTRUCTURE_TABS` renders the four views BENEATH the price pane rather than instead of it. On BTC · 15m, viewport 784px, `scrollY 0`: the price canvas spans **y 140 → 373** and the reading's own heading sits at **y 388** — for all four views, at identical geometry (`Absorption Anatomy`, `AGGRESSION vs RESPONSE`, `BIG TRADE INTELLIGENCE`, `LIVING PROFILE`). The price canvas is drawn, not blank: 3,134 inked samples across 7 distinct colours. |
 | Fed real/honest WM information? | YES. No mockup literal survives; every absent field says `—` and names why. |
 
 ---

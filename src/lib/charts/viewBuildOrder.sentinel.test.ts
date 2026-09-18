@@ -33,7 +33,15 @@
  *   · whether a SHIPPED view actually renders anything honest — the view's own
  *     tests and a live observation are the authority for that
  *   · whether the EVIDENCE column's commit SHAs are real
- *   · prose elsewhere in the document contradicting the table
+ *
+ * It USED to be unable to see prose elsewhere in the document contradicting the
+ * table. That limitation bit within a single atom: minutes after this file was
+ * committed, two ungated prose claims were found stale in the same document —
+ * an acceptance row still reading PARTIAL for a gap that had been closed, and
+ * an inherited status table still listing three SHIPPED assets as "never asked
+ * for". Neither carried a date, so neither could ever look old. The last test
+ * below now requires any build-status word outside the fenced table to name the
+ * day or the commit it was last true for.
  *
  * It closes ONE thing, which is the thing that actually cost a shift: the
  * document cannot claim a view is still TO-BUILD once that view is in the
@@ -147,6 +155,71 @@ describe("view build order (Sentinel)", () => {
       bare,
       `these rows state a build status with no evidence to check it ` +
         `against:\n  ${bare.join("\n  ")}`,
+    ).toEqual([]);
+  });
+
+  it("a build-status word in ungated prose must name the day or commit it was last true", () => {
+    // THE PROSE DIRECTION — added the same day the table gate shipped, because
+    // the limitation named in this file's header bit within one atom.
+    //
+    // The gated table is not the only place this document states what is built.
+    // Two ungated claims were found stale minutes after the table landed: an
+    // acceptance row still reading PARTIAL for a gap that had been closed, and
+    // an inherited status table still listing Assets 06 / 03 / 05 as "NOT
+    // BLOCKED, NOT PRIORITISED" while all three were live views in the dropdown.
+    //
+    // Neither could be caught by comparing against ALL_CATEGORY_TABS — one was a
+    // claim about LAYOUT, the other about PRIORITY. What they had in common is
+    // that neither carried a date. A STATUS WITH NO DATE CANNOT GO STALE; IT CAN
+    // ONLY BE WRONG QUIETLY. A reader has no way to tell "true today" from "true
+    // in September and never revisited", so the safe reading and the wrong
+    // reading look identical.
+    //
+    // So: outside the fenced block, a build-status word must sit on a line that
+    // also names a date or a commit. This does not check that the date is
+    // honest — nothing here can. It checks that the claim is DATEABLE, which is
+    // what makes a later reader able to distrust it.
+    const src = docSource();
+    const gated = src.replace(
+      /<!--\s*VIEW-STATUS:BEGIN\s*-->[\s\S]*?<!--\s*VIEW-STATUS:END\s*-->/,
+      "",
+    );
+    const STATUS = /\b(SHIPPED|TO[ -]BUILD|NOT BUILT|PARTIAL|NOT PRIORITISED)\b/;
+    const DATED = /\b20\d\d-\d\d-\d\d\b/;
+    const SHA = /`[0-9a-f]{7,40}`/;
+
+    // THE UNIT IS A PARAGRAPH, NOT A LINE. A line-based version of this test
+    // was written first and immediately produced a false positive: the date had
+    // simply wrapped to the next line. Hard-wrapped markdown means a line is not
+    // a claim — a paragraph is. A table ROW, however, is a claim on its own, so
+    // rows are split out individually.
+    const units: string[] = [];
+    for (const para of gated.split(/\n\s*\n/)) {
+      const rows = para.split("\n").filter((l) => l.trim().startsWith("|"));
+      if (rows.length) units.push(...rows);
+      const prose = para
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("|"))
+        .join(" ");
+      if (prose.trim()) units.push(prose);
+    }
+
+    const undated = units
+      .map((u) => u.replace(/\s+/g, " ").trim())
+      .filter((u) => STATUS.test(u))
+      // A unit explaining the RULE rather than making a claim is not a status
+      // claim. Those name this very sentinel or the table it guards.
+      .filter((u) => !/VIEW-STATUS|sentinel|this table|the table above/i.test(u))
+      .filter((u) => !DATED.test(u) && !SHA.test(u))
+      .map((u) => (u.length > 120 ? u.slice(0, 120) + "…" : u));
+
+    expect(
+      undated,
+      `${DOC_REL} states a build status in prose without naming the day or ` +
+        `the commit it was last true for. A reader cannot tell whether this is ` +
+        `current or inherited from a register nobody has re-measured, and the ` +
+        `undated version of this exact sentence is what sent an operator to ` +
+        `rebuild a shipped view:\n  ${undated.join("\n  ")}`,
     ).toEqual([]);
   });
 });
