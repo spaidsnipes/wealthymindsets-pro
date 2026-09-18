@@ -76,7 +76,17 @@ export type QuestionFocusBasis =
   | "ABSORPTION_ZONE" //         a measured zone — lo/hi are real prices
   | "ABSORPTION_ABSENT" //       measured, capable, found none. A FINDING.
   | "ABSORPTION_UNANSWERABLE" // effort too concentrated for the window to answer
-  | "ABSORPTION_UNMEASURED"; //  no bar window in hand at all
+  | "ABSORPTION_UNMEASURED" //   no bar window in hand at all
+  // ── ASSET 15, the Question-Driven Continuation Health canvas ─────────────
+  // Owner: `selectContinuationQuestion`, reading `selectContinuationHealth`.
+  // Here for the same reason the absorption four are: ONE greppable list of
+  // every origin a focus line can have. Note there is no *_SCORE basis and
+  // never will be — the mockup's four percentages have no owner, and a basis
+  // value is a licence to render.
+  | "CONTINUATION_COHERENT" //   sequence and regime both say a move is running
+  | "CONTINUATION_CONTESTED" //  both were read and they disagree
+  | "CONTINUATION_ROTATING" //   both agree there is no move to continue
+  | "CONTINUATION_UNREADABLE"; // one of the two owners produced nothing
 
 export interface QuestionFocusVM {
   /** Short noun phrase naming the subject of the question. Never a claim. */

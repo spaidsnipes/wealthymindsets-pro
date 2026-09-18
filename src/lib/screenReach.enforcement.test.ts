@@ -334,6 +334,16 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "Cross-surface link resolution, unrouted.",
   },
+  // ── ASSET 15, compiled 2026-09-18. The surface is owed, and the reason it is
+  // owed is a real missing input rather than an unwritten component.
+  "src/lib/marketData/viewModels/selectContinuationHealth.ts": {
+    reason: "AWAITING_SURFACE",
+    note: "Asset 15 'Question-Driven Continuation Health'. Compiles the agreement between selectMarketStructure and selectRegime into COHERENT / CONTESTED / ROTATING / UNREADABLE, refusing the mockup's four unauditable percentages. It is ledgered rather than wired because the surface it belongs on is /charts, and /charts has no CanonicalMarketState + history to hand selectRegime — the only production caller of selectRegime today is selectDecisionChain, on surfaces that already hold one. Wiring a fifth microstructure tab before that input exists would ship a view that reads UNREADABLE on every symbol forever, which is a worse lie than an absent tab. What a human loses meanwhile: the swing sequence and the regime are both already on screen elsewhere and nothing states whether they AGREE, so a trader reads a higher-highs sequence inside a balance regime as a trend.",
+  },
+  "src/lib/experience/selectContinuationQuestion.ts": {
+    reason: "AWAITING_SURFACE",
+    note: "The Asset 15 banner, blocked behind exactly the same missing input as selectContinuationHealth above — it compiles from that reading and can reach a screen only when the reading does. Shipped with it rather than after it so the question and the evidence are reviewed as one composition, which is the whole premise of a question-driven canvas.",
+  },
   // REMOVED 2026-09-08: "expressionCard.ts — §10 EXPRESSION_CARD, the last §10
   // compiler with no screen." /paper's open-contracts list now compiles one per
   // contract and renders it: the §7 protection grade with its uncovered size,
