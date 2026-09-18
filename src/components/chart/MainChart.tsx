@@ -59,6 +59,7 @@ import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelit
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
+import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -8167,6 +8168,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           padding: "3px 4px", borderRadius: 6,
           background: "rgba(8,12,20,0.55)", backdropFilter: "blur(3px)",
         }}>
+          {/* MEASURED LIVE 2026-09-17: all four of these glyphs returned
+              aria-label="" and aria-pressed=null, so their accessible names
+              were "R", "A", "percent" and "L" — and `%` and `L` carried their
+              state in a background colour and nowhere else. Their titles were
+              bare nouns, identical in both states, on a control that decides
+              whether the price axis is showing PRICES or PERCENTAGES.
+              chartAxisControlLabel owns the name, the hover and the pressed
+              state for all four. The glyphs are deliberately unchanged. */}
           {/* Reset View — undo vertical drag, re-fit price + time to the data */}
           <button
             onClick={() => {
@@ -8177,20 +8186,21 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 chartRef.current?.timeScale().scrollToRealTime();
               } catch {}
             }}
-            title="R — Reset View: re-center the chart and undo any vertical drag"
+            title={chartAxisControlLabel("RESET", false).title}
+            aria-label={chartAxisControlLabel("RESET", false).spoken}
             style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               background: "rgba(47,128,237,0.16)", border: "1px solid rgba(47,128,237,0.5)", color: "#2F80ED",
             }}>
-            R
+            {chartAxisControlLabel("RESET", false).glyph}
           </button>
           {/* Clear Auto/Lock toggle — when LOCKED, drag the price axis up/down freely */}
           <button
             onClick={() => setAutoScale(v => !v)}
-            title={autoScale
-              ? "A — Auto Scale ON: chart auto-fits price. Click to LOCK, then drag the price axis up/down to see higher/lower prices."
-              : "A — Scale LOCKED: drag the price axis (right side) up/down to pan, or scroll to zoom. Click to re-enable Auto Scale."}
+            title={chartAxisControlLabel("AUTO_SCALE", autoScale).title}
+            aria-label={chartAxisControlLabel("AUTO_SCALE", autoScale).spoken}
+            aria-pressed={chartAxisControlLabel("AUTO_SCALE", autoScale).pressed}
             style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -8198,21 +8208,28 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               border: `1px solid ${autoScale ? "rgba(0,200,118,0.5)" : "rgba(240,180,41,0.6)"}`,
               color: autoScale ? "#00C076" : "#F0B429",
             }}>
-            A
+            {chartAxisControlLabel("AUTO_SCALE", autoScale).glyph}
           </button>
-          {[
-            { label: "%", title: "Percentage mode", active: pctMode, onClick: () => setPctMode(v => !v) },
-            { label: "L", title: "Log scale",       active: logScale, onClick: () => setLogScale(v => !v) },
-          ].map(btn => (
-            <button key={btn.label} onClick={btn.onClick} title={btn.title} style={{
+          {([
+            { control: "PERCENT" as const, active: pctMode, onClick: () => setPctMode(v => !v) },
+            { control: "LOG" as const,     active: logScale, onClick: () => setLogScale(v => !v) },
+          ]).map(btn => {
+            // The state of these two lived in `background` and nowhere else.
+            // The owner supplies a name, a hover and an aria-pressed that all
+            // say which way the mode is currently set.
+            const c = chartAxisControlLabel(btn.control, btn.active);
+            return (
+            <button key={btn.control} onClick={btn.onClick} title={c.title}
+              aria-label={c.spoken} aria-pressed={c.pressed} style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
               background: btn.active ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
               border: `1px solid ${btn.active ? "rgba(47,128,237,0.5)" : "#263050"}`,
               color: btn.active ? "#2F80ED" : "#8896BE",
             }}>
-              {btn.label}
+              {c.glyph}
             </button>
-          ))}
+            );
+          })}
           {/* Declutter: cycle order-flow overlay opacity (footprint/bubbles/VP)
               100% → 40% → 15% → 100% so drawings + price read clean over a busy
               chart, TradingView-style. Dimmed state is highlighted. */}
