@@ -350,32 +350,126 @@ describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
   // real classifier, and fail BY NAME on any that lands on the generic arm.
   // A new unclassified note cannot reach production without turning this red.
   //
-  // SCOPE, HONESTLY STATED: this covers `zeroState(...)` arguments, which are
-  // refusals by construction. moomoo/longbridge author their refusal notes
-  // inline on capability rows instead, and separating those from ACCEPTED-row
-  // notes statically is not reliable — they are NOT covered here. That gap is
-  // real and is recorded rather than papered over.
+  // SCOPE — WIDENED, AND THE OLD SCOPE NOTE WAS WRONG.
+  //
+  // This block originally covered only `zeroState(...)` arguments and recorded
+  // the rest as an unclosable gap: "moomoo/longbridge author their refusal
+  // notes inline on capability rows instead, and separating those from
+  // ACCEPTED-row notes statically is not reliable."
+  //
+  // THAT WAS A PREMISE NOBODY TESTED. Measured: only 2 of the 7 non-test
+  // adapters call `zeroState` at all, so the Sentinel was auditing a minority
+  // of the corpus while its own comment implied coverage. And the separation IS
+  // reliable, because the thing that decides whether a note is a refusal — the
+  // `CapabilityCertStatus` — is a STRING LITERAL sitting in the same call or
+  // object literal as the note. Attribute each note to the nearest preceding
+  // status literal and the ACCEPTED rows fall away on their own.
+  //
+  // §14.1 applied to the instrument, exactly as the case-sensitive grep was on
+  // 2026-09-18-D: a gap asserted without measuring is a default, not a finding.
   const ADAPTER_DIR = "src/lib/marketData/adapters";
 
-  function extractZeroStateNotes(): ReadonlyArray<{ file: string; note: string }> {
-    const out: { file: string; note: string }[] = [];
+  // Anything NOT in this set is a row the strip must be able to explain. The
+  // two ACTIVE_* statuses are ACCEPTED rows: `matrixProviderWireView` never
+  // reaches the prose classifier for them, so running their notes through it
+  // would manufacture failures for sentences nothing parses.
+  const REFUSAL_STATUSES = [
+    "BLOCKED_ENTITLEMENT",
+    "BLOCKED_AUTH",
+    "UNSUPPORTED",
+    "NOT_IMPLEMENTED",
+  ] as const;
+  const ALL_STATUSES = ["ACTIVE_CERTIFIED", "ACTIVE_DEGRADED", ...REFUSAL_STATUSES] as const;
+
+  function extractZeroStateNotes(): ReadonlyArray<{ file: string; note: string; status: string }> {
+    const out: { file: string; note: string; status: string }[] = [];
     for (const file of readdirSync(ADAPTER_DIR)) {
       if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
       const src = readFileSync(`${ADAPTER_DIR}/${file}`, "utf8");
-      // zeroState("..."), zeroState('...'), zeroState(`...`) — first argument only.
-      const re = /zeroState\(\s*(["'`])((?:\\.|(?!\1)[\s\S])*)\1/g;
+      // zeroState("note") or zeroState("note", "BLOCKED_AUTH"). The SECOND
+      // argument is captured because a note authored on a BLOCKED_AUTH row is
+      // classified through that status, not through its prose — replaying it
+      // as NOT_IMPLEMENTED would test a row the adapter never produces.
+      const re = /zeroState\(\s*(["'`])((?:\\.|(?!\1)[\s\S])*)\1\s*(?:,\s*["'`](\w+)["'`])?/g;
       let m: RegExpExecArray | null;
       while ((m = re.exec(src)) !== null) {
         // Template placeholders stand in for runtime values. `999` is chosen so
         // that unit-carrying notes ("within ${ms} ms", "HTTP ${status}") remain
         // well-formed rather than degenerating into unparseable text.
-        out.push({ file, note: m[2].replace(/\$\{[^}]*\}/g, "999") });
+        out.push({
+          file,
+          note: m[2].replace(/\$\{[^}]*\}/g, "999"),
+          status: m[3] ?? "NOT_IMPLEMENTED",
+        });
       }
     }
     return out;
   }
 
-  const notes = extractZeroStateNotes();
+  /**
+   * THE OTHER FOUR-FIFTHS OF THE CORPUS.
+   *
+   * moomoo and longbridge never call `zeroState`. They build capability rows
+   * directly, and the note sits in the same literal as the status:
+   *
+   *   report("PRICE", "NOT_IMPLEMENTED", { note: "NOT CONFIGURED — …" })
+   *   { capability: "TICKS", status: "BLOCKED_AUTH", note: `…` }
+   *
+   * ATTRIBUTION RULE, AND THE ONE THIS REPLACED.
+   *
+   * First draft: "the note belongs to the nearest preceding status literal."
+   * It reported a fall-through in webullMarketData.ts that DOES NOT EXIST —
+   * `note: "Bounded on-demand stock prints…"` sits on a `state: "OBSERVED"`
+   * success envelope 46 lines BELOW an unrelated `BLOCKED_ENTITLEMENT`, and
+   * "nearest preceding" happily reached across both. A probe that
+   * mis-attributes is a broken probe, not a finding about the code.
+   *
+   * Corrected rule: walk forward from the status literal tracking bracket
+   * depth and STOP the moment the enclosing construct closes. That is exactly
+   * the `report(…{ … })` argument list and the `{ capability, status, note }`
+   * object above, and nothing wider. The four moomoo findings survived the
+   * correction; the webull one correctly vanished.
+   */
+  function extractRowNotes(): ReadonlyArray<{ file: string; note: string; status: string }> {
+    const out: { file: string; note: string; status: string }[] = [];
+    const statusRe = new RegExp(`["'\`](${ALL_STATUSES.join("|")})["'\`]`, "g");
+    const noteRe = /note:\s*(["'`])((?:\\.|(?!\1)[\s\S])*)\1/;
+    for (const file of readdirSync(ADAPTER_DIR)) {
+      if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
+      const src = readFileSync(`${ADAPTER_DIR}/${file}`, "utf8");
+      const marks = [...src.matchAll(statusRe)];
+      for (let i = 0; i < marks.length; i++) {
+        const status = marks[i][1];
+        if (!(REFUSAL_STATUSES as readonly string[]).includes(status)) continue;
+        const start = marks[i].index ?? 0;
+        // Bracket-depth scan: the note may only be read out of the SAME
+        // construct the status was declared in.
+        let depth = 0;
+        let end = src.length;
+        for (let j = start; j < src.length; j++) {
+          const ch = src[j];
+          if (ch === "(" || ch === "{" || ch === "[") depth++;
+          else if (ch === ")" || ch === "}" || ch === "]") {
+            if (depth === 0) { end = j; break; }
+            depth--;
+          }
+        }
+        const m = noteRe.exec(src.slice(start, end));
+        if (!m) continue;
+        const note = m[2].replace(/\$\{[^}]*\}/g, "999");
+        // A note built ENTIRELY from runtime values carries no prose for a
+        // static reader to classify — longbridge's `${label} — ${detail}` is
+        // the only one, and it is a real limit of this instrument rather than
+        // a pass. Excluded here and pinned by name below so it cannot grow
+        // silently into a hiding place.
+        if (!/[A-Za-z]/.test(note.replace(/999/g, ""))) continue;
+        out.push({ file, note, status });
+      }
+    }
+    return out;
+  }
+
+  const notes = [...extractZeroStateNotes(), ...extractRowNotes()];
 
   it("PRECONDITION: the adapter corpus was actually found and is non-trivial", () => {
     // Without this, a rename of `zeroState` or a move of the adapter directory
@@ -385,11 +479,39 @@ describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
     expect(new Set(notes.map((n) => n.file)).size).toBeGreaterThanOrEqual(2);
   });
 
+  it("PRECONDITION: the inline-row half of the corpus is non-empty and reaches moomoo", () => {
+    // The `zeroState` extractor alone would keep this whole block green while
+    // auditing only 2 of the 7 adapters. Naming the file the widening exists
+    // for means a regression in the extractor cannot masquerade as coverage.
+    const rows = extractRowNotes();
+    expect(rows.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(rows.map((r) => r.file))).toContain("moomooMarketData.ts");
+  });
+
+  it("names the one refusal note no static reader can classify", () => {
+    // HONEST LIMIT, PINNED. longbridgeTicks builds its refusal note purely from
+    // runtime values, so this Sentinel genuinely cannot see the sentence a user
+    // will read. Asserting the exact shape means adding a SECOND such note —
+    // the real way this gap would widen — turns this red.
+    const src = readFileSync(`${ADAPTER_DIR}/longbridgeTicks.ts`, "utf8");
+    expect(src).toContain("note: `${result.status.label} — ${result.status.detail}`");
+  });
+
   it("no adapter refusal note is flattened into the generic label", () => {
     const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
-    const flattened = notes.filter(({ note }) => {
+    // REPLAYED UNDER THE NOTE'S OWN STATUS. This filter used to hardcode
+    // NOT_IMPLEMENTED, which fabricated a row no adapter emits: moomoo's
+    // "OpenD gateway offline or not logged in" is authored on a BLOCKED_AUTH
+    // row, and BLOCKED_AUTH is resolved by STATUS, never by prose. Replaying
+    // it as NOT_IMPLEMENTED reported a flattening the product cannot reach.
+    const flattened = notes.filter(({ note, status }) => {
       const matrix = buildAthosCapabilityMatrix([
-        { certification: certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", note }]), providerTier: "CERTIFIED_NEW" },
+        {
+          certification: certifySource("alpaca", [
+            { capability: "PRICE", status: status as "NOT_IMPLEMENTED", note },
+          ]),
+          providerTier: "CERTIFIED_NEW",
+        },
       ], session);
       const label = matrixProviderWireView(matrix, "alpaca").label;
       return label === "Not receiving" || label === "Status unavailable";
@@ -419,6 +541,11 @@ describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
     ["Webull data bridge configured (https://x) but its response envelope is not yet verified in this adapter — refusing to claim capabilities from an unproven transport.", "Transport unproven", "OFFLINE"],
     // An HTTP code nobody has met yet still names itself rather than claiming silence.
     ["Alpaca returned HTTP 404; the failed edge is not proven and no capability is claimed.", "HTTP 404", "OFFLINE"],
+    // Found by widening the corpus to moomoo's inline capability-row notes.
+    // Everything upstream is up; the thing that is missing is OURS.
+    ["CANARY NOT SELECTED — MOOMOO_CANARY_SYMBOL is absent; OpenD was reachable but no symbol-scoped quote probe was executed.", "No probe target", "OFFLINE"],
+    ["CANARY NOT SELECTED — MOOMOO_CANARY_SYMBOL is absent; no symbol-scoped tick retrieval was executed.", "No probe target", "OFFLINE"],
+    ["OpenD reachable but the /quote canary probe threw — transport error.", "Probe failed", "OFFLINE"],
   ];
 
   for (const [note, label, tone] of cases) {
@@ -478,6 +605,39 @@ describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
     expect(classify("Alpaca returned HTTP 403; the failed edge is not proven and no capability is claimed.").label).toBe("Access unproven");
     expect(classify("Alpaca IEX snapshot did not respond within 2500 ms; no market observation was returned.").label).toBe("Timed out");
     expect(classify("Alpaca returned a valid TSLA IEX trade, but its provider timestamp was 43549376 ms old; stale evidence was not exposed as current.").label).toBe("Stale data");
+  });
+
+  it("`No probe target` and `Probe failed` did not swallow their nearest neighbours", () => {
+    // The two arms added for moomoo's inline notes are the widest new regexes
+    // in the ladder, and both sit in the same semantic neighbourhood as arms
+    // that already worked. Each of these SHOULD keep its old verdict.
+    //
+    // The genuine risk: "Probe failed" matches the bare phrase "transport
+    // error", and "No probe target" matches "no … probe was attempted" — both
+    // of which a future note could plausibly reuse to mean something else.
+    expect(classify("NOT CONFIGURED — MOOMOO_BRIDGE_URL is missing in this runtime; no bridge or provider event was probed.").label)
+      .toBe("Not configured");
+    expect(classify("NOT CONFIGURED — MOOMOO_BRIDGE_TOKEN is missing in this runtime; OpenD was reachable but no authenticated quote probe was attempted.").label)
+      .toBe("Not configured");
+    expect(classify("Alpaca IEX snapshot transport was unreachable; no market observation was returned.").label)
+      .toBe("Unreachable");
+    // A configuration absence outranks a probe-target absence: the token note
+    // above says BOTH "missing in this runtime" AND "no authenticated quote
+    // probe was attempted". Ladder ORDER is what decides it, so this pins the
+    // order, not merely the regexes.
+    expect(classify("Alpaca returned HTTP 503; the provider failed.").label).toBe("Provider error");
+  });
+
+  it("neither new arm can be reached by a witness-overrulable default", () => {
+    // Both are FINDINGS — moomoo measured that OpenD was up and that the probe
+    // was never targeted or threw. `evidenceless` is what lets a witness
+    // contradict a wire claim, and neither of these may ever be contradicted.
+    for (const note of [
+      "CANARY NOT SELECTED — MOOMOO_CANARY_SYMBOL is absent; OpenD was reachable but no symbol-scoped quote probe was executed.",
+      "OpenD reachable but the /quote canary probe threw — transport error.",
+    ]) {
+      expect(classify(note).evidenceless, note).not.toBe(true);
+    }
   });
 });
 

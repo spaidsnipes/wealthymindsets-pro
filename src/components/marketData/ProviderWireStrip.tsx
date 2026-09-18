@@ -412,6 +412,25 @@ export function matrixProviderWireView(
   if (/\bunproven transport\b|\bnot yet verified in this adapter\b|\bresponse envelope is not\b/i.test(detail)) {
     return { source, tone: "OFFLINE", label: "Transport unproven", detail };
   }
+  // SURFACED BY WIDENING THE PROSE ROUND-TRIP SENTINEL past `zeroState(...)`
+  // to the notes moomoo/longbridge author inline on capability rows. Only 2 of
+  // 7 adapters call `zeroState` at all, so the audit had been covering a
+  // minority of the corpus while its own comment implied otherwise.
+  //
+  // moomoo: the bridge is up, OpenD is up, the token is present — and
+  // MOOMOO_CANARY_SYMBOL was never set, so NOTHING WAS ASKED. "Not configured"
+  // would send a Founder to check bridge credentials that are fine, and "Not
+  // receiving" would claim a delivery failure that never had a request. The
+  // missing thing is OURS, and the row should say which.
+  if (/\bcanary not selected\b|\bno (?:symbol-scoped|authenticated) [\w-]+ (?:probe|retrieval) was (?:executed|attempted)\b/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "No probe target", detail };
+  }
+  // And the probe that RAN and threw. Distinct from `Unreachable` (never got
+  // there) and from `Provider error` (the provider answered badly): this note
+  // states the gateway WAS reachable and the call still failed in transport.
+  if (/\bprobe threw\b|\btransport error\b/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "Probe failed", detail };
+  }
   // MEASURED LIVE 2026-09-18, /command-deck TSLA. Alpaca's rejection note read:
   //
   //   "Alpaca returned a valid TSLA IEX trade, but its provider timestamp was
