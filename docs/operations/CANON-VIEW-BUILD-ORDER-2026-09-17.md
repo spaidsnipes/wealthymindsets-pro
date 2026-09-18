@@ -17,12 +17,20 @@ That was a scoping defect in the order, not a blocker in the code.
 | State | Assets |
 |---|---|
 | RUNTIME MATCH | 10 (Full OS Overview), 14 + 16 (Market Object Passport) — as of 2026-09-02 |
-| SHIPPED SINCE | 06 (Absorption, `f7bd2697`), 03 (Aggression, `42a495e4`), 05 (Big Trades, live-observed 2026-09-18) — see the gated VIEW-STATUS table below, which is the authority |
+| SHIPPED SINCE | 06 (Absorption, `f7bd2697`), 03 (Aggression, `42a495e4`), 05 (Big Trades, live-observed 2026-09-18), 15 (Continuation, `cf23c7ba`), 17-in-part (one owned block inside Continuation, `91cd493c`), 01 (Worksheet, `06da4454`) — see the gated VIEW-STATUS table below, which is the authority |
 | PARTIAL | 09 (Order Flow Cockpit, via OrderFlowCockpitStrip), 07 (Evidence Debt, via CanvasSummaryPill) — as of 2026-09-02, not re-measured since |
 | GENUINELY BLOCKED | 08 (Liquidity Weather Heatmap) — needs a licensed Level 2 depth provider. Building it now would be decoration and would violate LIVING-PIXEL LAW. Unchanged 2026-09-18. |
-| NOT BLOCKED, NOT PRIORITISED | 01, 04, 11, 12, 13, 15, 17, 18, 19, 20 — as of 2026-09-18 |
+| NOT BLOCKED, NOT PRIORITISED | 04, 11, 12, 13, 19, 20 — as of 2026-09-18 |
+| REFUSED IN SUBSTANCE, RECORDED NOT SILENT | 17 — nine of its ten elements are hue-graded percentages with no owner anywhere in this repo. Refusing them is the decision; the one block that had an owner shipped inside Continuation. 18 — needs a signed tape and is honest only on crypto. |
 
 Only **one** asset is actually blocked. The rest were simply never asked for.
+
+**THIS ROW DRIFTED AGAIN ON 2026-09-18 AND WAS CAUGHT BY ITS OWN SENTINEL.** It
+listed 01, 15 and 17 as "not prioritised" while all three were shipped or
+deliberately refused, for the same reason as last time: the row is prose, and
+prose is not gated. `viewBuildOrder.sentinel.test.ts` reads the VIEW-STATUS
+table, not this paragraph. **When the two disagree, the table wins** — and the
+right repair is to shrink this row toward nothing, not to keep retyping it.
 
 **THIS TABLE WAS ALSO DRIFTED.** Until 2026-09-18 its last row read
 `01, 03, 04, 05, 06, …` — listing Assets 06, 03 and 05 as never asked for while
