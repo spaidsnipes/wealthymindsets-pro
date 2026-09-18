@@ -400,10 +400,42 @@ function explainNoChapter(
       `and did not match — more evidence will not change ${rejected.length === 1 ? "it" : "them"}.`,
     );
   }
+  // WHICH ABSENCE, NOT JUST THAT ONE EXISTS.
+  //
+  // `unresolved` above is everything that is not RESOLVED, which collapses two
+  // materially different states into the single word "unresolved":
+  //
+  //   UNKNOWN — nothing was measured. `value` is null by contract.
+  //   PARTIAL — something WAS measured and published a value; it simply is not
+  //             decision-grade, so no chapter guard will accept it.
+  //
+  // MEASURED LIVE on /charts TSLA 15m: the story printed "profile ...
+  // unresolved" while 120 candles carrying real per-bar volume were drawn on
+  // the same screen. Fed those exact production bars, the profile chain returns
+  // PARTIAL / "DEFINED VALUE" with POC 360.40, VAH 364.05, VAL 355.00 off 401
+  // populated buckets. The reading EXISTS. Calling it unresolved is Canon
+  // Weakness #1 — two owners, one instrument, one instant, disagreeing about
+  // whether evidence exists at all — and it sends the trader to wait for a
+  // measurement that has already been taken.
+  //
+  // PER THE LEDGER: a sharper sentence must not become a stronger claim.
+  // `unresolved` still drives `partitionChaptersByEvidence` unchanged, PARTIAL
+  // still blocks every chapter it touches, and `resolvedCount` is untouched.
+  // The only thing that changes is which word names which absence.
+  const partial = unresolved.filter(
+    (name) => (state[name] as MarketStateDimension).resolution === "PARTIAL",
+  );
+  const missing = unresolved.filter((name) => !partial.includes(name));
+
   if (blocked.length > 0) {
-    parts.push(
-      `${blocked.join(", ")} could not be evaluated: ${unresolved.join(", ")} unresolved.`,
-    );
+    const causes: string[] = [];
+    if (missing.length > 0) causes.push(`${missing.join(", ")} unresolved`);
+    if (partial.length > 0) {
+      causes.push(
+        `${partial.join(", ")} measured but not decision-grade`,
+      );
+    }
+    parts.push(`${blocked.join(", ")} could not be evaluated: ${causes.join("; ")}.`);
   }
   return parts.join(" ");
 }

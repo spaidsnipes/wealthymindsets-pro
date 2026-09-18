@@ -169,6 +169,78 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
     const modelGap = selectMarketStory(allResolvedNoGuard()).reason;
     expect(missing).not.toEqual(modelGap);
   });
+
+  /**
+   * A MEASURED-BUT-PARTIAL DIMENSION IS NOT AN ABSENT ONE.
+   *
+   * MEASURED LIVE, production /charts?symbol=TSLA, 15m: the story read
+   * "profile ... unresolved" while the chart beside it drew 120 candles
+   * carrying real per-bar volume (header V 57,398, "64 BARS BEHIND"). Fed
+   * those exact production bars, the profile chain returns PARTIAL /
+   * "DEFINED VALUE" — POC 360.40, VAH 364.05, VAL 355.00 off 401 populated
+   * buckets. The reading EXISTS and is drawn. Naming it "unresolved" is the
+   * same two-owners-one-instant defect this whole block exists to refuse,
+   * and it sends the trader to wait for a measurement already taken.
+   *
+   * The split is a WORD change only: PARTIAL still blocks, the resolved count
+   * is untouched, and the blocked/decided partition is byte-identical.
+   */
+  const partialDim = (value: string): MarketStateDimension => ({
+    resolution: "PARTIAL", value, confidence: 0.4,
+    evidence: [{ eventId: "e", observedAt: 1, availableAt: 2, source: "test", fidelity: "OBSERVED", basis: "test" }],
+    contradictions: [], unknowns: ["nodes withheld — candle-estimated"],
+  });
+
+  it("does not call a PARTIAL dimension unresolved", () => {
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP"), profile: partialDim("DEFINED VALUE") }),
+    );
+    // profile must still be NAMED — it is genuinely blocking chapters.
+    expect(vm.reason).toMatch(/profile/);
+    // But it must not appear in the list of things that were never measured.
+    const unresolvedList = vm.reason?.match(/could not be evaluated: ([^.]*)/)?.[1] ?? "";
+    const missingClause = unresolvedList.split(";")[0] ?? "";
+    expect(missingClause).toMatch(/unresolved/);
+    expect(missingClause).not.toMatch(/profile/);
+    expect(vm.reason).toMatch(/profile measured but not decision-grade/);
+  });
+
+  it("still names genuinely-UNKNOWN dimensions as unresolved alongside a PARTIAL one", () => {
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP"), profile: partialDim("DEFINED VALUE") }),
+    );
+    expect(vm.reason).toMatch(/volatility/);
+    expect(vm.reason).toMatch(/structure/);
+    expect(vm.reason).toMatch(/unresolved;/);
+  });
+
+  it("a PARTIAL dimension still BLOCKS — a sharper sentence is not a stronger claim", () => {
+    // VALUE_MIGRATION reads `profile`. With profile PARTIAL its verdict is
+    // still not in, so it must stay out of the DECIDED list exactly as it was
+    // when profile was UNKNOWN. If the wording change ever promoted PARTIAL to
+    // usable, this turns red.
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP"), profile: partialDim("DEFINED VALUE") }),
+    );
+    const decided = vm.reason?.split("had every input")[0] ?? "";
+    expect(decided).not.toMatch(/VALUE_MIGRATION/);
+    expect(vm.reason).toMatch(/VALUE_MIGRATION/);
+    // And the resolved COUNT is unchanged: PARTIAL is not resolved.
+    expect(vm.reason).toMatch(/2\/8 dimensions resolved/);
+  });
+
+  it("omits the partial clause entirely when nothing is PARTIAL", () => {
+    // Over-correction guard: the old sentence must survive byte-for-byte in
+    // the all-UNKNOWN case, or every existing reader breaks for a state that
+    // never had this problem.
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") }),
+    );
+    expect(vm.reason).not.toMatch(/decision-grade/);
+    expect(vm.reason).toMatch(
+      /location, aggression, structure, volatility, profile, orderFlow unresolved\./,
+    );
+  });
 });
 
 describe("selectMarketStory — UNKNOWN / freshness path", () => {
