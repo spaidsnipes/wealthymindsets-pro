@@ -320,3 +320,50 @@ describe("selectDLAR — capturedAt propagation (deterministic replay)", () => {
     expect(vm.capturedAt).toBe(s.capturedAt);
   });
 });
+
+/**
+ * A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE — and the
+ * MIRROR failure is just as bad: a sentence that calls a MEASURED dimension
+ * "unresolved" HIDES a reading that was actually taken.
+ *
+ * `aggressionResolved` is `resolution === "RESOLVED"`, so `!aggressionResolved`
+ * is the complement of the RESOLVED half and covers MEASURED *and* MISSING. The
+ * response reason said "Aggression unresolved" for both, which tells a trader
+ * holding a PARTIAL reading to go wait for a measurement they already have.
+ *
+ * Property assertions, not spellings.
+ */
+describe("selectDLAR — the response reason names aggression's actual standing", () => {
+  const measuredAggression = (value: string): MarketStateDimension => ({
+    resolution: "PARTIAL",
+    value,
+    confidence: 0.4,
+    evidence: [],
+    contradictions: [],
+    unknowns: [],
+  });
+
+  const reasonFor = (aggression: MarketStateDimension) =>
+    selectDLAR({
+      state: stateAt(105, { direction: resolved("LONG"), aggression }),
+      history: [stateAt(100), stateAt(102)],
+      atrExtractor: () => 1,
+    }).response.reason ?? "";
+
+  it("a MISSING aggression still reads as unresolved (no regression)", () => {
+    expect(reasonFor(unknown())).toMatch(/aggression unresolved/i);
+  });
+
+  it("a MEASURED aggression is not described the same way as a MISSING one", () => {
+    const measured = reasonFor(measuredAggression("HIGH"));
+    expect(measured).not.toBe(reasonFor(unknown()));
+    // The reading is SHOWN — hiding a measurement that was taken is the
+    // opposite failure from overclaiming one.
+    expect(measured).toContain("HIGH");
+    expect(measured.toLowerCase()).toContain("measured");
+  });
+
+  it("a MEASURED aggression is not described the same way as a RESOLVED one", () => {
+    expect(reasonFor(measuredAggression("HIGH"))).not.toBe(reasonFor(resolved("HIGH")));
+  });
+});

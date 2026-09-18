@@ -26,6 +26,7 @@ import type {
   MarketStateEvidenceRef,
   MarketStateResolution,
 } from "../canonicalMarketState";
+import { describeDimension } from "../canonicalMarketState";
 
 export interface DimensionMatcher {
   matches(dim: MarketStateDimension): boolean;
@@ -150,7 +151,15 @@ export function selectDLAR(input: SelectDLARInput): DLARVM {
     const aggressionResolved = state.aggression.resolution === "RESOLVED";
 
     if (!aggressionResolved) {
-      responseReason = "Aggression unresolved — cannot judge whether price is responding to it";
+      // `!aggressionResolved` is the complement of the RESOLVED half, so it
+      // covers MEASURED *and* MISSING. The old sentence said "Aggression
+      // unresolved" for BOTH — which for a PARTIAL aggression carrying a real
+      // reading is the OPPOSITE failure from the `?? "unresolved"` family: it
+      // HIDES a measurement that was actually taken and tells the trader to go
+      // wait for one. `describeDimension` names the reading and its standing in
+      // the same breath; for a MISSING dimension it still returns the bare word
+      // "unresolved", so the missing case reads exactly as before.
+      responseReason = `Aggression ${describeDimension(state.aggression)} — cannot judge whether price is responding to it`;
     } else if (highAggression && displacementRatio < absorbedThreshold) {
       verdict = "ABSORBED";
       responseResolution = "RESOLVED";
@@ -182,7 +191,12 @@ export function selectDLAR(input: SelectDLARInput): DLARVM {
     } else {
       verdict = "UNKNOWN";
       responseResolution = "PARTIAL";
-      responseReason = `Aggression ${state.aggression.value ?? "unresolved"} with ${displacementRatio.toFixed(2)}× ATR displacement — no clear pattern`;
+      // HONEST NEGATIVE: this branch sits under `aggressionResolved`, so the
+      // dimension is RESOLVED by construction and `?? "unresolved"` could only
+      // ever fire for a RESOLVED-with-null-value — which `describeDimension`
+      // renders identically. Routed through it anyway so the sentence cannot
+      // drift if the enclosing guard is ever loosened; NOT claimed as a fix.
+      responseReason = `Aggression ${describeDimension(state.aggression)} with ${displacementRatio.toFixed(2)}× ATR displacement — no clear pattern`;
     }
   }
 

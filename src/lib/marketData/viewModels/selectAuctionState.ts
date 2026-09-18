@@ -32,6 +32,7 @@ import type {
   MarketStateEvidenceRef,
   MarketStateResolution,
 } from "../canonicalMarketState";
+import { describeDimension } from "../canonicalMarketState";
 import type { DLARVM } from "./selectDLAR";
 
 export type AuctionVerdict =
@@ -211,12 +212,22 @@ export function selectAuctionState(input: SelectAuctionStateInput): AuctionState
   }
 
   // BALANCING check — regime balance + structure not breaking
+  //
+  // The structure leg is a NEGATED matcher. `looseMatch` returns false unless
+  // `resolution === "RESOLVED"`, so `!m.structureBOS.matches(...)` is satisfied
+  // by a structure that was MEASURED and equally by one that was never measured
+  // at all. `${state.structure.value ?? "unresolved"}` tested NULLISHNESS, and
+  // nullishness is not a standing: a PARTIAL structure carries a value, so the
+  // `??` never fired for it and the measured sentence came out byte-for-byte
+  // identical to the committed one. `regime` is positively matched here and so
+  // is RESOLVED by construction — routed through `describeDimension` anyway so
+  // the next edit to this guard cannot silently re-open the hole.
   if (m.regimeBalance.matches(state.regime) && !m.structureBOS.matches(state.structure)) {
     return {
       verdict: "BALANCING",
       resolution: "RESOLVED",
       confidence: state.regime.confidence,
-      narrative: `Regime ${state.regime.value}, structure ${state.structure.value ?? "unresolved"} — auction balancing.`,
+      narrative: `Regime ${describeDimension(state.regime)}, structure ${describeDimension(state.structure)} — auction balancing.`,
       evidence,
       contradictions,
       capturedAt: state.capturedAt,
@@ -233,8 +244,15 @@ export function selectAuctionState(input: SelectAuctionStateInput): AuctionState
     verdict: "UNKNOWN",
     resolution: anyResolved ? "PARTIAL" : "UNKNOWN",
     confidence: null,
+    // `anyResolved` is true when ONE of four dimensions is RESOLVED, but the
+    // heading read "Some dimensions resolved (…)" and then listed THREE — it
+    // asserted the strongest standing for all of them while having checked it
+    // for none of them individually. Worse, `?? "?"` collapsed MEASURED and
+    // MISSING into the same bare value / question mark. Each named dimension now
+    // carries its OWN bucket via `describeDimension`, which is total over the
+    // three standings.
     narrative: anyResolved
-      ? `Some dimensions resolved (structure ${state.structure.value ?? "?"}, location ${state.location.value ?? "?"}, regime ${state.regime.value ?? "?"}) but no auction verdict pattern matched.`
+      ? `Dimensions read as structure ${describeDimension(state.structure)}, location ${describeDimension(state.location)}, regime ${describeDimension(state.regime)} — no auction verdict pattern matched.`
       : "Insufficient evidence — no auction verdict.",
     evidence,
     contradictions,

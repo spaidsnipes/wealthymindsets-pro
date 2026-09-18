@@ -112,3 +112,65 @@ describe("selectAuctionState", () => {
     expect(r.capturedAt).toBe(999);
   });
 });
+
+/**
+ * A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.
+ *
+ * Two auction narratives had the defect:
+ *
+ *   BALANCING — its structure leg is a NEGATED matcher, and `looseMatch`
+ *   requires `resolution === "RESOLVED"`. So the branch is reachable with a
+ *   structure that is MEASURED and equally with one never measured at all, and
+ *   `${structure.value ?? "unresolved"}` tested NULLISHNESS — which PARTIAL
+ *   passes, because PARTIAL is exactly the standing that CARRIES a value.
+ *
+ *   The fallback — `anyResolved` is true when ONE of four dimensions is
+ *   RESOLVED, but the heading said "Some dimensions resolved (…)" and then
+ *   listed THREE, and `?? "?"` collapsed MEASURED and MISSING together.
+ *
+ * Properties, not spellings.
+ */
+describe("auction narratives name the standing they actually checked", () => {
+  const measured = (value: string): MarketStateDimension => ({
+    resolution: "PARTIAL", value, confidence: 0.4, evidence: [], contradictions: [], unknowns: [],
+  });
+
+  it("BALANCING does not print a MEASURED structure the way it prints a RESOLVED one", () => {
+    const m = selectAuctionState({ state: mkState({ regime: dim("balance"), structure: measured("none") }) });
+    const r = selectAuctionState({ state: mkState({ regime: dim("balance"), structure: dim("none") }) });
+    expect(m.verdict).toBe("BALANCING");
+    expect(r.verdict).toBe("BALANCING");
+    expect(m.narrative).not.toBe(r.narrative);
+    // Shown, not hidden — a measurement that was taken must still be named.
+    expect(m.narrative).toContain("none");
+    expect(m.narrative.toLowerCase()).toContain("measured");
+  });
+
+  it("BALANCING still calls a never-measured structure unresolved", () => {
+    const r = selectAuctionState({ state: mkState({ regime: dim("balance"), structure: UNK }) });
+    expect(r.narrative).toContain("unresolved");
+  });
+
+  it("the fallback does not assert 'resolved' for dimensions it did not check", () => {
+    // Only LOCATION is RESOLVED here; structure and regime have no reading at
+    // all. The old heading claimed "Some dimensions resolved (structure …,
+    // location …, regime …)" — naming three while having checked one.
+    const r = selectAuctionState({ state: mkState({ location: dim("outside_value") }) });
+    expect(r.verdict).toBe("UNKNOWN");
+    expect(r.resolution).toBe("PARTIAL");
+    expect(r.narrative).not.toMatch(/dimensions resolved/i);
+    expect(r.narrative).toContain("outside_value");
+  });
+
+  it("the fallback distinguishes a MEASURED dimension from a MISSING one", () => {
+    const withMeasured = selectAuctionState({
+      state: mkState({ location: dim("outside_value"), regime: measured("choppy") }),
+    }).narrative;
+    const withMissing = selectAuctionState({
+      state: mkState({ location: dim("outside_value") }),
+    }).narrative;
+    expect(withMeasured).not.toBe(withMissing);
+    expect(withMeasured).toContain("choppy");
+    expect(withMeasured.toLowerCase()).toContain("measured");
+  });
+});
