@@ -149,6 +149,96 @@ files over.
 
 ---
 
+## ADDENDUM — `6b2c1000` · `90d3f3d7` · AND TWO LIVE PROOFS
+
+Two more atoms shipped after this baton was first sealed, and **both of the
+"corrected but unproven" gripes above were closed by observation.**
+
+### `6b2c1000` — WhyInspector: two of four truncations disclosed nothing
+
+Four truncated lists in ONE component. `evidence group items` (4) and
+`coverage channels` (6) each printed a "+N more". `contradictions` (5) and
+`unknowns` (5) printed nothing. The two correct copies are the author's own
+statement of what the other two were meant to do. `<MoreNotice>` now owns all
+four; it takes the AUTHORITATIVE length and returns null rather than an empty
+node when nothing is hidden.
+
+**The NEXT list above called this one "weaker, the true count IS in the
+header." That was right about the mitigation and wrong about the reach.**
+`unknowns` is built from EIGHT dimensions in `chartMarketStatePublisher.ts:488`
+(Direction, Location, Aggression, Regime, Structure, Volatility, Profile, Order
+flow). A cold symbol resolves none of them. The cap of 5 is not defensive
+padding — it is reached by any symbol WM has not yet observed.
+
+**PROVEN LIVE.** Production `/command-deck?symbol=SOFI`, hero WHY inspector
+open, one render:
+
+```
+UNKNOWNS (7) — WHY UNKNOWN
+  Direction  · Location · Aggression · Regime · Volatility     ← 5 rows
+  +2 more unknowns
+```
+
+5 printed + 2 disclosed = the 7 in the header. Before `6b2c1000` that list
+simply stopped after Volatility. The null branch is proven too, on the same
+build: `?symbol=BTC` shows `UNKNOWNS (4)` with four rows and **no** notice — a
+"+0 more" is a pixel with nothing behind it, and none is drawn.
+
+### `90d3f3d7` — ninth sighting: `selectMateriality.summary`
+
+`reasons.slice(0, 2).map(REASON_LABEL).join(" · ")`. Four reason families are
+independent and can all fire in one tick, so two could go unnamed.
+
+**This one is STRONGER than the WhyInspector case, not weaker as the NEXT list
+guessed.** `selectSecondaryNoise` forwards the string VERBATIM as a rendered
+`detail` — its own comment says re-wording it would be a second answer — and
+there is no true count printed beside it. With the WhyInspector lists a trader
+who counts could find the gap in the section header. Here nothing on the screen
+could. Now the ninth CALLER of `sampledLabelPhrase`.
+
+`separator` joins `lowercase` as a parameter for the stated reason: the debt
+phrases enumerate co-required evidence ("regime + direction"), the materiality
+summary enumerates independent events ("decision changed · contradiction
+surfaced"). Typography, not a second answer about what is hidden.
+
+**NOT proven live** — needs a snapshot-to-snapshot transition firing 3+ reason
+families, which is a state I did not force. Proven at the owner only.
+
+### §PROVEN — four surfaces reconciling on one number, one instant
+
+Production `/command-deck?symbol=BTC`, one read. The `sampledLabelPhrase`
+migration touches four of these cells, and all four agree:
+
+```
+EVIDENCE DEBT   5 OPEN
+EVIDENCE DEBT   1 of 6 paid
+                5 evidence nodes unpaid: location + auction +3
+QUESTION FOCUS  Unpaid evidence: Location + Auction +3
+RIGHT OF WAY    evidence debt: need location + auction +3
+```
+
+2 named + 3 disclosed = 5, in four places, with 1 paid of 6 payable. The
+earlier receipt in this baton reconciled TWO cells; this reconciles four.
+
+**A correction against myself, recorded because the method matters more than
+the result:** my first probe of this screen captured only 60 characters and
+read `6 evidence nodes unpaid: location + auction +3` as a 6-vs-5 contradiction.
+It was not. The leading count is `missing + warn`; the trailing semicolon my
+regex had chopped off introduced the warn clause. **The defect was in the
+instrument, not the product** — which is exactly the failure mode this whole
+baton is about, pointed the other way.
+
+### Species census — is there an instance ten?
+
+Swept every `.slice(0, N)` in `src/`. The remainder are ring buffers
+(`[...prev].slice(0, 20)`), ISO date slices (`toISOString().slice(0, 10)`),
+and avatar initials — not decision-relevant lists compiled into a phrase. One
+genuine candidate is left and it is weak: `profile/page.tsx:1086`
+`recentEarnings.slice(0, 8)` off a ring already capped at 20. **The species is
+closed at nine call sites, one owner.**
+
+---
+
 ## SPECIES LEDGER — THIS REPO HAS NOW NAMED IT FOUR TIMES
 
 **A CLAIM THAT IS NOT ITSELF CHECKED DRIFTS SILENTLY.**
@@ -171,9 +261,10 @@ owner, and make the owner's answer the only answer.**
 - Force `missing === 0 && warn > 2` on the deck to close `f6c516a6` live.
 - Find a click path into the Indicators list (it is not DOM-enumerable through
   the current channel) to close `bb8c28bb`'s corrected half live.
-- Remaining truncation candidates, lower value: `WhyInspector.tsx:285`
-  `unknowns.slice(0, 5)` (true count IS in the header, so weaker) and
-  `state.coverage.slice(0, 6)` (no count in the header at all);
-  `selectMateriality.ts:97` `reasons.slice(0, 2)`.
+- ~~Remaining truncation candidates~~ — **all three done and swept.** See the
+  addendum: `6b2c1000` (WhyInspector, PROVEN LIVE), `90d3f3d7`
+  (selectMateriality, proven at the owner). Census found no instance ten.
+- `90d3f3d7` needs a live frame: force a snapshot transition firing 3+
+  materiality reason families so `summary` renders a remainder on the deck.
 - Open architectural question, unchanged: Decision Memory sealing still has
   **zero production callers**. Surface it; do not rush-wire it.
