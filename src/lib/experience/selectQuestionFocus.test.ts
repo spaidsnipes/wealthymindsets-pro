@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { selectQuestionFocus, QUESTION_FOCUS_VERSION } from "./selectQuestionFocus";
 import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
+import { hiddenRemainder } from "../marketData/viewModels/decisionPermissionCompiler";
 import type { EvidenceDebt } from "../marketData/viewModels/decisionPermissionCompiler";
 
 const debtOf = (over: Partial<EvidenceDebt> = {}): EvidenceDebt => ({
@@ -52,7 +53,8 @@ describe("selectQuestionFocus", () => {
         }),
       );
       expect(vm.basis).toBe("EVIDENCE_DEBT");
-      expect(vm.focus).toBe("Unpaid evidence: Regime + Direction");
+      // 3 unpaid, 2 named — the third is disclosed, not silently dropped.
+      expect(vm.focus).toBe("Unpaid evidence: Regime + Direction +1");
     });
 
     it("falls to the DECISION detail when the ledger is clean but a rule engaged", () => {
@@ -95,11 +97,12 @@ describe("selectQuestionFocus", () => {
     });
   });
 
-  describe("LIVING-PIXEL LAW — the focus may never mint a number", () => {
-    it("names the sampled labels but states NO count, because missingLabels is capped", () => {
+  describe("LIVING-PIXEL LAW — every number on the focus line has an owner", () => {
+    it("derives the remainder from `missing`, NEVER from the capped label array", () => {
       // The authoritative count is `missing` and it belongs to the Evidence
-      // Debt cell. A count derived from the capped sample array is the exact
-      // defect that once rendered '9 evidence nodes unpaid: regime + direction +1'.
+      // Debt cell. A remainder derived from `missingLabels.length` is the exact
+      // defect that once rendered '9 evidence nodes unpaid: regime + direction +1'
+      // — here missingLabels is capped at 3, so that bug would print '+1'.
       const vm = selectQuestionFocus(
         story({
           debt: debtOf({
@@ -108,8 +111,43 @@ describe("selectQuestionFocus", () => {
           }),
         }),
       );
+      expect(vm.focus).toBe("Unpaid evidence: Regime + Direction +7");
+      expect(vm.focus).not.toContain("+1");
+    });
+
+    it("MEASURED LIVE 2026-09-18 — five unpaid, two named, the gap is disclosed", () => {
+      // Production /command-deck?symbol=BTC read, one instant, two cells:
+      //   EVIDENCE DEBT     5 OPEN · unpaid information
+      //   QUESTION FOCUS    Unpaid evidence: Location + Auction
+      // The focus read as a complete list. It is not one.
+      const vm = selectQuestionFocus(
+        story({
+          debt: debtOf({ missing: 5, missingLabels: ["Location", "Auction", "Regime"] }),
+        }),
+      );
+      expect(vm.focus).toBe("Unpaid evidence: Location + Auction +3");
+    });
+
+    it("adds no suffix when the two named labels ARE the whole debt", () => {
+      // A '+0' would be noise, and an unmarked line is only a lie when
+      // something is hidden. Nothing is hidden here.
+      const vm = selectQuestionFocus(
+        story({ debt: debtOf({ missing: 2, missingLabels: ["Regime", "Direction"] }) }),
+      );
       expect(vm.focus).toBe("Unpaid evidence: Regime + Direction");
       expect(vm.focus).not.toMatch(/\d/);
+    });
+
+    it("uses the SAME owner selectOneStory does — not a re-typed rule", () => {
+      // §24: a second CALLER of one owner is fine, a second ANSWER is not.
+      for (const missing of [1, 2, 3, 5, 9, 40]) {
+        const labels = ["Regime", "Direction", "Location"].slice(0, Math.min(3, missing));
+        const vm = selectQuestionFocus(story({ debt: debtOf({ missing, missingLabels: labels }) }));
+        const shown = labels.slice(0, 2);
+        expect(vm.focus).toBe(
+          `Unpaid evidence: ${shown.join(" + ")}${hiddenRemainder(missing, shown.length)}`,
+        );
+      }
     });
 
     it("does not claim EVIDENCE_DEBT when the count is positive but no labels sampled", () => {

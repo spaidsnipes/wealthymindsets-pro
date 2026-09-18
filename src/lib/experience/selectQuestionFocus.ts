@@ -20,8 +20,34 @@
  * a pixel with no owner is not allowed on the canvas.
  *
  * PURE / DETERMINISTIC — no React, no I/O, no clock.
+ *
+ * ── 2026-09-18: SAYING NOTHING NUMERIC BECAME SAYING NOTHING AT ALL ───────
+ *
+ * The EVIDENCE_DEBT branch showed two labels out of a list that is itself
+ * capped at EVIDENCE_LABEL_SAMPLE_LIMIT, and marked the truncation nowhere.
+ * Read live on production /command-deck?symbol=BTC at one instant:
+ *
+ *     EVIDENCE DEBT     5 OPEN · unpaid information
+ *     QUESTION FOCUS    Unpaid evidence: Location + Auction
+ *
+ * Five are unpaid; two are named; nothing on the line says so. A trader reads
+ * that as the complete list and believes paying two nodes clears the debt.
+ * The adjacent cell says 5. Canon Weakness #1, two cells apart.
+ *
+ * The old rule — "names the sample and says nothing numeric" — was written to
+ * prevent a REAL defect (a count derived from the capped array, which once
+ * rendered "9 evidence nodes unpaid: regime + direction +1"). But it banned
+ * the cure along with the disease. `hiddenRemainder(debt.missing, shown)`
+ * derives the remainder from the AUTHORITATIVE count, so its number has an
+ * owner and cannot contradict the cell that owns it.
+ *
+ * `selectOneStory.missingPhrase` had this exactly right, with the same
+ * `slice(0, 2)`, one directory away. A law applied in one place and missed in
+ * its sibling — the same species this repo has now named three times. Both
+ * sites call ONE owner (§24: a second CALLER is fine, a second ANSWER is not).
  */
 
+import { hiddenRemainder } from "../marketData/viewModels/decisionPermissionCompiler";
 import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
 
 export const QUESTION_FOCUS_VERSION = "wm.question-focus.v1" as const;
@@ -81,12 +107,20 @@ export function selectQuestionFocus(oneStory: OneStoryVM | null): QuestionFocusV
 
   const debt = oneStory.debt;
   if (debt && debt.missing > 0 && debt.missingLabels.length > 0) {
-    // Name the unpaid nodes themselves. The AUTHORITATIVE count is `missing`;
-    // `missingLabels` is capped at EVIDENCE_LABEL_SAMPLE_LIMIT and must never
-    // be used as a count — so the focus names the sample and says nothing
-    // numeric. The count belongs to the Evidence Debt cell, which owns it.
-    const shown = debt.missingLabels.slice(0, 2).join(" + ");
-    return { focus: `Unpaid evidence: ${asLabel(shown)}`, basis: "EVIDENCE_DEBT", unresolved: false };
+    // Name the unpaid nodes themselves, and DISCLOSE the ones not named.
+    //
+    // The AUTHORITATIVE count is `missing`. `missingLabels` is capped at
+    // EVIDENCE_LABEL_SAMPLE_LIMIT and must never be used as a count — that is
+    // the "+1 contradicting the 9" defect `hiddenRemainder` was written for.
+    // The remainder below is derived from `missing`, so it is not a minted
+    // number: it is the owner's own count, minus what this line showed.
+    const shown = debt.missingLabels.slice(0, 2);
+    const rest = hiddenRemainder(debt.missing, shown.length);
+    return {
+      focus: `Unpaid evidence: ${asLabel(shown.join(" + "))}${rest}`,
+      basis: "EVIDENCE_DEBT",
+      unresolved: false,
+    };
   }
 
   if (oneStory.decision.value !== "UNKNOWN" && oneStory.decision.detail) {
