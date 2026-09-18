@@ -19,6 +19,7 @@ import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
 import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDimension";
 import { deriveRegimeDimension } from "./deriveRegimeDimension";
 import { deriveProfileDimension } from "./deriveProfileDimension";
+import { deriveLocationDimension } from "./deriveLocationDimension";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -249,16 +250,33 @@ export function createChartMarketStatePublication(
   // as ChartsDashboard calls it, so the Passport can never seal a POC the
   // panel never drew. The deriver reads that compiled VM and mints no new
   // observation of its own.
-  const profile = deriveProfileDimension({
-    vm: selectLivingProfile(
-      buildLivingProfileSnapshot(input.recentTicks, profileBarsFrom(input.bars)),
-      { livePrice: input.ticker.price },
-    ),
+  //
+  // ONE compiled VM feeds BOTH profile and location. Compiling it twice would
+  // be two chooser calls on the same inputs — identical today, and a silent
+  // divergence the day either path grows a tie-break.
+  const livingProfile = selectLivingProfile(
+    buildLivingProfileSnapshot(input.recentTicks, profileBarsFrom(input.bars)),
+    { livePrice: input.ticker.price },
+  );
+  const profileEvidenceInput = {
+    vm: livingProfile,
     source: typeof input.source === "string" ? input.source : null,
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
-  });
+  };
+  const profile = deriveProfileDimension(profileEvidenceInput);
+
+  // LOCATION — the fourth repair of this one shape, and the cheapest, because
+  // the evidence was already in the variable above. Measured live on /charts
+  // 2026-09-17: the Passport read "Location unresolved — No verified evidence
+  // supplied at snapshot time." while this very VM held "price is ABOVE the
+  // value area".
+  //
+  // Location is a PROFILE reading, not a price reading: a number alone has no
+  // position, and the value area is the only reference on this surface that
+  // was measured rather than chosen by a settings panel.
+  const location = deriveLocationDimension(profileEvidenceInput);
 
   // ONE UNKNOWN PER UNRESOLVED DIMENSION.
   //
@@ -273,7 +291,7 @@ export function createChartMarketStatePublication(
   // a LEDGER of individually payable questions, not one lump narrative.
   const unresolvedDimensions: readonly string[] = [
     ...(direction.resolution === "RESOLVED" ? [] : ["Direction"]),
-    "Location",
+    ...(location.resolution === "RESOLVED" ? [] : ["Location"]),
     "Aggression",
     ...(regime.resolution === "RESOLVED" ? [] : ["Regime"]),
     "Structure",
@@ -328,7 +346,7 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
-      dimensions: { orderFlow, volatility, direction, regime, profile },
+      dimensions: { orderFlow, volatility, direction, regime, profile, location },
     },
   };
 }

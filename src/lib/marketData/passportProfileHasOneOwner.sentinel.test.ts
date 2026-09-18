@@ -73,3 +73,28 @@ describe("the Passport profile dimension has exactly one source owner", () => {
     expect(src).toMatch(/dimensions:\s*\{[^}]*\bprofile\b[^}]*\}/);
   });
 });
+
+describe("LOCATION is read from the same compiled profile, not a second one", () => {
+  it("both derivations share ONE compiled VM", () => {
+    const src = publisher();
+    // Compiling twice is identical today and a silent divergence the day
+    // either path grows a tie-break. One variable, two readers.
+    expect(src.match(/selectLivingProfile\(/g) ?? []).toHaveLength(1);
+    expect(src).toMatch(/const livingProfile = selectLivingProfile\(/);
+    expect(src).toContain("deriveLocationDimension(profileEvidenceInput)");
+    expect(src).toContain("deriveProfileDimension(profileEvidenceInput)");
+  });
+
+  it("THE DISAGREEMENT CANNOT RETURN: Location is no longer hard-coded unresolved", () => {
+    const src = publisher();
+    expect(src).toMatch(
+      /\.\.\.\(location\.resolution === "RESOLVED" \? \[\] : \["Location"\]\)/,
+    );
+    expect(src).not.toMatch(/^\s*"Location",\s*$/m);
+  });
+
+  it("location reaches canonical state", () => {
+    const src = publisher();
+    expect(src).toMatch(/dimensions:\s*\{[^}]*\blocation\b[^}]*\}/);
+  });
+});
