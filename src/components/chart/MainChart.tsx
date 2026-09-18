@@ -69,6 +69,10 @@ import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
+import {
+  selectAbsorptionAnatomy,
+  type AnatomyBarInput,
+} from "@/lib/marketData/selectAbsorptionAnatomy";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -526,6 +530,11 @@ interface Props {
   // WM VP indicators
   fixedVPActive?:  boolean;
   sessionVPActive?:boolean;
+  /**
+   * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
+   * ABSORPTION ZONE band directly in price/time space. See the draw block.
+   */
+  absorptionAnatomyActive?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -771,6 +780,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor,
   fixedVPActive = false, sessionVPActive = false,
+  absorptionAnatomyActive = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -6321,6 +6331,224 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         }
       }
 
+      /* ══════════════════════════════════════════════════════════════════════
+         ABSORPTION ANATOMY — Founder Asset 06, drawn in price/time space.
+
+         THE MOCKUP IS THE IMPLEMENTATION TARGET, NOT A WRITING PROMPT.
+
+         Asset 06's centre panel is a RELATIONSHIP between two series plotted
+         against the same price axis: an EFFORT field whose vertical extent at
+         each bar is that bar's aggression intensity, and the PRICE PATH riding
+         on top of it, whose SLOPE is the displacement. Absorption is the place
+         where the field is tall and the path is flat — and the mockup pins a
+         band AT THAT PRICE, because the whole point is that the trader can see
+         where in the auction it happened while the candles are still visible.
+
+         A paragraph saying "HIGH EFFORT · WEAK DISPLACEMENT" is that picture
+         with the geometry deleted. It carries the conclusion and throws away
+         the evidence, which is the opposite of what this panel was invented
+         for. So the field, the path and the band are drawn here, over the real
+         candles, in the chart's own coordinate system — `priceToCoordinate`
+         and `timeToCoordinate`, the same transforms the candles use, so the
+         band cannot drift away from the price it is a claim about.
+
+         TRUTH FEEDS THE SHAPE. The series comes from `selectAbsorptionAnatomy`
+         (pure, tested); this block owns pixels only and derives no market fact.
+         Per-bar aggressor volume comes from `getBarSubProfile`, which returns
+         REAL TAPE OR NULL — it never synthesizes a footprint. The chart's tick
+         accumulator does not record the venue's aggressor METHOD, so a split
+         sourced here can never be claimed as PROVIDER; it goes in unstamped and
+         the selector's weakest-link rule lands it on INFERRED_DELTA. Most of
+         the day there is no tape at all and the basis is VOLUME — real,
+         observed, unsigned effort. The basis is PRINTED ON THE CHART, never
+         hovered, because the label is part of the pixel.
+
+         When nothing is measurable the field is not drawn at all. A flat band
+         would read as "no pressure", which is a claim; absence is not.
+      ══════════════════════════════════════════════════════════════════════ */
+      if (absorptionAnatomyActive) {
+        try {
+          const srcBars = barsRef.current;
+          const WINDOW = 30;
+          const tail = srcBars.slice(-WINDOW);
+
+          const anatomyInput: AnatomyBarInput[] = tail.map(b => {
+            // Real tape or null — never synthesized. Unstamped on purpose:
+            // we cannot prove the venue asserted these sides.
+            const sub = getBarSubProfile(b);
+            let askVol: number | null = null;
+            let bidVol: number | null = null;
+            if (sub) {
+              let a = 0, d = 0;
+              for (const s of sub) { a += s.ask; d += s.bid; }
+              if (a + d > 0) { askVol = a; bidVol = d; }
+            }
+            return {
+              time: b.time as number,
+              open: b.open, high: b.high, low: b.low, close: b.close,
+              volume: Number.isFinite(b.volume) ? b.volume : 0,
+              askVol, bidVol,
+            };
+          });
+
+          const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW });
+          const ts = chart.timeScale();
+
+          // Screen positions for every bar that is actually on screen.
+          const pts = anatomy.bars.map(b => {
+            const xr = ts.timeToCoordinate(b.time as never);
+            const yr = srs.priceToCoordinate(b.close);
+            return xr == null || yr == null
+              ? null
+              : { b, x: +xr, y: +yr };
+          }).filter((p): p is { b: typeof anatomy.bars[number]; x: number; y: number } => p != null);
+
+          const BASIS_LABEL: Record<typeof anatomy.basis, string> = {
+            SIGNED_DELTA: "EFFORT · DELTA",
+            INFERRED_DELTA: "EFFORT · DELTA (INFERRED)",
+            VOLUME: "EFFORT · VOLUME",
+            UNMEASURED: "EFFORT UNMEASURED",
+          };
+
+          // Publish what was drawn so chrome can agree with the glass instead
+          // of narrating its own version of it.
+          const ds = canvas.dataset;
+          ds.absorptionBasis = anatomy.basis;
+          ds.absorptionZones = String(anatomy.zones.length);
+
+          if (anatomy.measured && pts.length >= 2) {
+            ctx.save();
+
+            // Half-height of the field at effortNorm === 1. Bounded so a quiet
+            // instrument cannot paint the whole pane.
+            const halfMax = Math.min(72, H * 0.14);
+
+            // ── EFFORT (PRESSURE): layered strata, widest/faintest outside.
+            // "Height = aggression intensity."
+            const LAYERS: Array<{ frac: number; alpha: number }> = [
+              { frac: 1.0,  alpha: 0.07 },
+              { frac: 0.74, alpha: 0.09 },
+              { frac: 0.50, alpha: 0.11 },
+              { frac: 0.28, alpha: 0.14 },
+            ];
+            for (const layer of LAYERS) {
+              ctx.beginPath();
+              // top edge, left → right
+              pts.forEach((p, i) => {
+                const yTop = p.y - p.b.effortNorm * halfMax * layer.frac;
+                if (i === 0) ctx.moveTo(p.x, yTop); else ctx.lineTo(p.x, yTop);
+              });
+              // bottom edge, right → left, closing the ribbon
+              for (let i = pts.length - 1; i >= 0; i--) {
+                const p = pts[i]!;
+                ctx.lineTo(p.x, p.y + p.b.effortNorm * halfMax * layer.frac);
+              }
+              ctx.closePath();
+              ctx.fillStyle = `rgba(212,175,55,${layer.alpha})`;
+              ctx.fill();
+            }
+
+            // ── PRICE DISPLACEMENT: the path itself. "Flatter slope =
+            // inefficiency." Drawn last of the two so the slope stays legible
+            // against the field it is being compared to.
+            ctx.beginPath();
+            pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+            ctx.strokeStyle = "rgba(245,241,230,0.85)";
+            ctx.lineWidth = 1.25;
+            ctx.stroke();
+
+            // ── ABSORPTION ZONE: pinned at the price the auction happened at.
+            for (const zone of anatomy.zones) {
+              const x0r = ts.timeToCoordinate(zone.startTime as never);
+              const x1r = ts.timeToCoordinate(zone.endTime as never);
+              const yHiR = srs.priceToCoordinate(zone.priceHi);
+              const yLoR = srs.priceToCoordinate(zone.priceLo);
+              if (x0r == null || x1r == null || yHiR == null || yLoR == null) continue;
+
+              // Widen by roughly half a bar each side so the band covers the
+              // candles it is made of rather than their centre points.
+              const spacing = pts.length >= 2 ? Math.abs(pts[1]!.x - pts[0]!.x) : 6;
+              const x0 = +x0r - spacing / 2;
+              const x1 = +x1r + spacing / 2;
+              const yHi = +yHiR, yLo = +yLoR;
+              const bw = Math.max(2, x1 - x0);
+              const bh = Math.max(2, yLo - yHi);
+
+              ctx.fillStyle = "rgba(212,175,55,0.10)";
+              ctx.fillRect(x0, yHi, bw, bh);
+
+              ctx.setLineDash([4, 3]);
+              ctx.strokeStyle = "rgba(212,175,55,0.75)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(x0, yHi + 0.5); ctx.lineTo(x1, yHi + 0.5);
+              ctx.moveTo(x0, yLo - 0.5); ctx.lineTo(x1, yLo - 0.5);
+              ctx.stroke();
+              ctx.setLineDash([]);
+
+              // Compact chip. The ratio is the mockup's own reading; when the
+              // run displaced price not at all the ratio is unbounded and we
+              // print that rather than inventing a ceiling.
+              const ratioTxt = zone.unbounded
+                ? "∞"
+                : zone.efficiencyRatio == null
+                  ? "—"
+                  : zone.efficiencyRatio.toFixed(2);
+              const chip = `ABSORPTION ${ratioTxt} ${zone.strength}`;
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              const cw2 = ctx.measureText(chip).width;
+              const chipH = 14;
+              const chipX = Math.max(2, x0);
+              const chipY = Math.max(2, yHi - chipH - 2);
+              ctx.fillStyle = "rgba(14,12,8,0.92)";
+              ctx.fillRect(chipX, chipY, cw2 + 12, chipH);
+              ctx.strokeStyle = "rgba(212,175,55,0.65)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(chipX + 0.5, chipY + 0.5, cw2 + 11, chipH - 1);
+              ctx.fillStyle = "#d4af37";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5);
+            }
+
+            // ── BASIS. Compact, always visible, never a vendor name.
+            const basisTxt = BASIS_LABEL[anatomy.basis];
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            const bwTxt = ctx.measureText(basisTxt).width;
+            const bx = 8, by = 8;
+            ctx.fillStyle = "rgba(14,12,8,0.86)";
+            ctx.fillRect(bx, by, bwTxt + 12, 14);
+            ctx.strokeStyle = "rgba(139,106,41,0.45)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx + 0.5, by + 0.5, bwTxt + 11, 13);
+            ctx.fillStyle = "rgba(201,165,92,0.95)";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(basisTxt, bx + 6, by + 7.5);
+
+            ctx.restore();
+          } else {
+            // REFUSAL IS A FIRST-CLASS RENDER. No field, no band, no implied
+            // calm — just the statement that nothing was measurable, in the
+            // same slot the basis would have occupied.
+            ctx.save();
+            const txt = BASIS_LABEL.UNMEASURED;
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            const tw2 = ctx.measureText(txt).width;
+            ctx.fillStyle = "rgba(14,12,8,0.86)";
+            ctx.fillRect(8, 8, tw2 + 12, 14);
+            ctx.strokeStyle = "rgba(139,106,41,0.35)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(8.5, 8.5, tw2 + 11, 13);
+            ctx.fillStyle = "rgba(138,130,113,0.95)";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(txt, 14, 15.5);
+            ctx.restore();
+          }
+        } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      }
+
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
     };
@@ -6376,7 +6604,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.

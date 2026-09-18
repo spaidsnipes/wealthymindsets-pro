@@ -437,6 +437,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
   const [sessionVPChart,  setSessionVPChart]  = useState<boolean>(() => lsGet("wm_sessionVP", false) as boolean);
+  /**
+   * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
+   * band, drawn on the chart in price/time space by MainChart's overlay pass.
+   * Contextual by design: it is a reading you switch on, not a permanent
+   * fixture, exactly as the mockup's interaction intends.
+   */
+  const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -590,6 +597,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => { lsSet("wm_extHours",     extHours); },         [extHours]);
   useEffect(() => { lsSet("wm_fixedVP",      fixedVPActive); },    [fixedVPActive]);
   useEffect(() => { lsSet("wm_sessionVP",    sessionVPChart); },   [sessionVPChart]);
+  useEffect(() => { lsSet("wm_absorptionAnatomy", absorptionAnatomy); }, [absorptionAnatomy]);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2168,6 +2176,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 >
                   WM Session VP
                 </button>
+                <button
+                  onClick={() => setAbsorptionAnatomy(v => !v)}
+                  className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border shrink-0 whitespace-nowrap"
+                  style={{
+                    background: absorptionAnatomy ? "rgba(212,175,55,0.15)" : "#131520",
+                    borderColor: absorptionAnatomy ? "rgba(212,175,55,0.5)" : "#1E2030",
+                    color: absorptionAnatomy ? "#d4af37" : "#8B8FA8",
+                  }}
+                  title="Absorption Anatomy — effort field vs price displacement, with absorption zones pinned at price"
+                >
+                  Absorption
+                </button>
                 <VPColorGear />
               </div>
             </div>
@@ -2605,6 +2625,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       compareSymbol={compareSymbol}
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
+                      absorptionAnatomyActive={absorptionAnatomy}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
