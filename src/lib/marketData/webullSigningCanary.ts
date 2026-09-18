@@ -123,3 +123,40 @@ export function summarizeWebullCanaryReceipt(
 export function failedWebullCanaryReceipt(profile: WebullSigningProfile): WebullCanaryReceipt {
   return { ...invalidReceipt(profile), state: "REQUEST_FAILED" };
 }
+
+/**
+ * THE WITNESS BrokerConnectPanel WAS MISSING.
+ *
+ * The 2026-09-18-C baton recorded the broker panel as "renders with no witness
+ * — not a defect (it renders no tape)". THAT CLAIM IS FALSE, and it was
+ * disproven by re-reading the panel rather than trusting the note: the signing
+ * canary renders `N prints · $PRICE · size N · time` whenever a receipt is
+ * OBSERVED. A rendered price IS tape. So the panel reproduces Canon Weakness
+ * #1 exactly — a strip may claim webull is evidenceless inches above a webull
+ * print this page drew.
+ *
+ * This reduces the canary's receipts to the ONLY shape a wire strip is allowed
+ * to hear: what the page is currently attributing a drawn observation to. It
+ * computes no verdict, and it is deliberately unable to express one.
+ *
+ * The bar is the SAME predicate the panel itself uses to decide whether to draw
+ * the price line (`state === "OBSERVED" && tickCount > 0`) AND the presence of
+ * a finite positive price. If the panel drew nothing, this witnesses nothing —
+ * a witness that outruns its own surface is a fabrication with extra steps.
+ */
+export function webullCanaryObservation(
+  receipts: readonly WebullCanaryReceipt[],
+): { readonly source: "webull"; readonly quotePresent: true; readonly barsPresent: false } | null {
+  const drawnPrice = receipts.some(
+    receipt =>
+      receipt.state === "OBSERVED" &&
+      receipt.tickCount > 0 &&
+      receipt.newestPrice !== null &&
+      Number.isFinite(receipt.newestPrice) &&
+      receipt.newestPrice > 0,
+  );
+  // The canary draws no candles, so `barsPresent` is false and stays false.
+  // Claiming bars here would let a snapshot receipt speak for a chart that does
+  // not exist on this surface.
+  return drawnPrice ? { source: "webull", quotePresent: true, barsPresent: false } : null;
+}

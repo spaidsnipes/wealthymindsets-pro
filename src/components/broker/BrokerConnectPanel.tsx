@@ -6,13 +6,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
-import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
+import ProviderWireStrip, { type SourcedObservation } from "@/components/marketData/ProviderWireStrip";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { readClassifiedJsonReceipt, submitClassifiedJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 import {
   WEBULL_SIGNING_PROFILES,
   failedWebullCanaryReceipt,
   summarizeWebullCanaryReceipt,
+  webullCanaryObservation,
   type WebullCanaryReceipt,
   type WebullSigningProfile,
 } from "@/lib/marketData/webullSigningCanary";
@@ -562,7 +563,7 @@ const WEBULL_CANARY_LABELS: Record<WebullCanaryReceipt["state"], string> = {
   REQUEST_FAILED: "Request failed",
 };
 
-function WebullSigningCanary() {
+function WebullSigningCanary({ onObservation }: { onObservation?: (observation: SourcedObservation | null) => void }) {
   const [loading, setLoading] = useState(false);
   const [receipts, setReceipts] = useState<readonly WebullCanaryReceipt[]>([]);
   const requestSequence = useRef(0);
@@ -575,6 +576,9 @@ function WebullSigningCanary() {
     activeRequest.current = controller;
     setLoading(true);
     setReceipts([]);
+    // A re-run retracts the previous witness BEFORE it has a new one. The strip
+    // must never keep speaking for a print that is no longer on screen.
+    onObservation?.(null);
 
     const readProfile = async (profile: WebullSigningProfile): Promise<WebullCanaryReceipt> => {
       try {
@@ -592,11 +596,16 @@ function WebullSigningCanary() {
 
     try {
       const next = await Promise.all(WEBULL_SIGNING_PROFILES.map(readProfile));
-      if (sequence === requestSequence.current && !controller.signal.aborted) setReceipts(next);
+      if (sequence === requestSequence.current && !controller.signal.aborted) {
+        setReceipts(next);
+        // Emitted from the SAME branch that commits the receipts to render, so
+        // the witness cannot describe a frame this component never drew.
+        onObservation?.(webullCanaryObservation(next));
+      }
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, []);
+  }, [onObservation]);
 
   useEffect(() => () => {
     ++requestSequence.current;
@@ -841,7 +850,13 @@ function CapabilityLadderStatus({ broker }: { broker: Broker }) {
   );
 }
 
-function ManagedConnectionStatus({ broker }: { broker: Broker }) {
+function ManagedConnectionStatus({
+  broker,
+  onObservation,
+}: {
+  broker: Broker;
+  onObservation?: (observation: SourcedObservation | null) => void;
+}) {
   const managed = broker.managedConnection!;
   const [loading, setLoading] = useState(true);
   const [receipt, setReceipt] = useState<ManagedConnectionReceipt | null>(null);
@@ -1001,7 +1016,7 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
           <ExternalLink size={10} /> Webull API
         </a>
       </div>
-      <WebullSigningCanary />
+      <WebullSigningCanary onObservation={onObservation} />
       <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
         This verifies WM Pro&apos;s server-side signed OpenAPI wire. Webull Connect OAuth—authorize, callback, token refresh,
         per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website is separate and does not connect this app.
@@ -1011,7 +1026,12 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
 }
 
 /* ── Broker Card ────────────────────────────────────────── */
-function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: boolean; onToggle: () => void }) {
+function BrokerCard({ broker, selected, onToggle, onObservation }: {
+  broker: Broker;
+  selected: boolean;
+  onToggle: () => void;
+  onObservation?: (observation: SourcedObservation | null) => void;
+}) {
   const [showApiModal, setShowApiModal] = useState(false);
 
   return (
@@ -1063,7 +1083,7 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
         {/* API-enabled brokers can be verified, but are not called connected until
             their provider has a real OAuth callback and token vault configured. */}
         {broker.managedConnection ? (
-          <ManagedConnectionStatus broker={broker} />
+          <ManagedConnectionStatus broker={broker} onObservation={onObservation} />
         ) : broker.apiSupport ? (
           <div className="space-y-2">
             <button
@@ -1160,6 +1180,13 @@ export function BrokerConnectPanel({
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [selectedOnly, setSelectedOnly] = useState(false);
   const [receiptOrigin, setReceiptOrigin] = useState("");
+  // THE PANEL'S OWN WITNESS. Canon Weakness #1 is multi-fidelity disagreement
+  // on ONE page: below, a broker card can render `N prints · $PRICE` from the
+  // webull signing canary while the strip above it claims webull returned
+  // nothing at all. The strip may only be overruled where it admits it measured
+  // nothing (`evidenceless`), which `witnessedProviderWireView` enforces — this
+  // supplies the evidence, never the verdict.
+  const [panelObservation, setPanelObservation] = useState<SourcedObservation | null>(null);
 
   useEffect(() => {
     setReceiptOrigin(window.location.origin);
@@ -1230,7 +1257,7 @@ export function BrokerConnectPanel({
         )}
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
-          <ProviderWireStrip compact />
+          <ProviderWireStrip compact sourcedObservation={panelObservation} />
           {receiptOrigin && (
             <p className="mt-2 text-[9px] leading-snug text-wm-text-dim" data-provider-receipt-origin={receiptOrigin}>
               Verifying this runtime only · <span className="font-mono text-wm-text-muted">{receiptOrigin}</span>. Local and hosted receipts must each pass; one never proves the other.
@@ -1272,6 +1299,7 @@ export function BrokerConnectPanel({
               broker={b}
               selected={selected.has(b.id)}
               onToggle={() => toggleSelected(b.id)}
+              onObservation={setPanelObservation}
             />
           ))}
         </div>

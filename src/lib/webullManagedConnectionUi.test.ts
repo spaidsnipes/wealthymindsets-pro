@@ -7,7 +7,11 @@ const panel = readFileSync(resolve(process.cwd(), "src/components/broker/BrokerC
 describe("Webull managed connection UI", () => {
   it("uses WM Pro's authenticated server receipt instead of a website login as the connection", () => {
     expect(panel).toContain('endpoint:"/api/broker/webull/status"');
-    expect(panel).toContain("<ManagedConnectionStatus broker={broker} />");
+    // Pinned as an exact self-closing tag, which froze the component's ENTIRE
+    // prop list into an unrelated test. What this line is for is that the
+    // managed receipt — not a website login — is what the card renders, so
+    // assert the broker is handed to it and let its props evolve.
+    expect(panel).toMatch(/<ManagedConnectionStatus\s+broker=\{broker\}/);
     expect(panel).toContain("Signing into Webull&apos;s website is separate and does not connect this app.");
   });
 

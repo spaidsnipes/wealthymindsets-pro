@@ -180,7 +180,11 @@ describe("ProviderWireStrip touch truth surface", () => {
   it("uses compact connection summaries on the chart and command deck surfaces", () => {
     const brokers = readFileSync(new URL("../broker/BrokerConnectPanel.tsx", import.meta.url), "utf8");
     const deck = readFileSync(new URL("../../app/command-deck/page.tsx", import.meta.url), "utf8");
-    expect(brokers).toContain("<ProviderWireStrip compact />");
+    // Was pinned as the exact string `<ProviderWireStrip compact />`, which
+    // made "renders NO witness" a REQUIREMENT of the broker panel rather than
+    // an oversight. What this test is actually for is `compact` — assert that,
+    // and leave the witness to the consumer Sentinel below.
+    expect(brokers).toContain("<ProviderWireStrip compact ");
     expect(deck).toContain("<ProviderWireStrip");
     expect(deck).toContain('className="wm-cd-connection-diagnostics"');
     expect(deck).toContain("Connections · provider readiness");
@@ -474,5 +478,47 @@ describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
     expect(classify("Alpaca returned HTTP 403; the failed edge is not proven and no capability is claimed.").label).toBe("Access unproven");
     expect(classify("Alpaca IEX snapshot did not respond within 2500 ms; no market observation was returned.").label).toBe("Timed out");
     expect(classify("Alpaca returned a valid TSLA IEX trade, but its provider timestamp was 43549376 ms old; stale evidence was not exposed as current.").label).toBe("Stale data");
+  });
+});
+
+describe("EVERY ProviderWireStrip CONSUMER IS ACCOUNTED FOR", () => {
+  /**
+   * The 2026-09-18-C baton left this exact gap open: "the second
+   * ProviderWireStrip consumer, BrokerConnectPanel.tsx:1233, still renders with
+   * NO witness — not a defect (it renders no tape) but not proven either."
+   *
+   * It renders tape. `receipt.newestPrice.toFixed(2)` is a drawn price. So the
+   * panel had the same Canon Weakness #1 shape as /command-deck did, and the
+   * only reason nobody saw it is that webull currently answers HTTP 401 — the
+   * strip states a FINDING, which a witness may not overrule. It was one
+   * working token away from a strip saying "nothing came back" above a printed
+   * price.
+   *
+   * This Sentinel does not verify the wiring is CORRECT — no source-reading
+   * test can. It verifies nobody may add or restore a witness-less strip
+   * without this failing by name and having to say why.
+   */
+  const CONSUMERS = [
+    "src/app/command-deck/page.tsx",
+    "src/components/broker/BrokerConnectPanel.tsx",
+  ] as const;
+
+  it("PRECONDITION: the named consumers exist and still render the strip", () => {
+    for (const path of CONSUMERS) {
+      const src = readFileSync(path, "utf8");
+      expect(src.length, path).toBeGreaterThan(2000);
+      expect(src, path).toContain("<ProviderWireStrip");
+    }
+  });
+
+  it("no consumer renders ProviderWireStrip without handing it the page's own witness", () => {
+    const naked: string[] = [];
+    for (const path of CONSUMERS) {
+      const src = readFileSync(path, "utf8");
+      for (const tag of src.match(/<ProviderWireStrip[\s\S]*?\/>/g) ?? []) {
+        if (!tag.includes("sourcedObservation")) naked.push(`${path}: ${tag.replace(/\s+/g, " ")}`);
+      }
+    }
+    expect(naked).toEqual([]);
   });
 });
