@@ -50,6 +50,36 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(css.slice(rule, phoneQuery)).toContain("display: none !important");
   });
 
+  /**
+   * FOUND FROM USE, production /charts?symbol=TSLA, 2026-09-18. The tooltip
+   * read "+5 more — open the canvas" on a surface that renders no canvas and
+   * gives the pill no `scrollToSelector`, so the pill was a static
+   * `<div role="status">`. The withheld COUNT was true; the DIRECTION was not.
+   */
+  const manyBlockers = ["Regime", "Direction", "Auction", "Location", "Profile"];
+
+  it("states the withheld count on a surface with no canvas — without directing there", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill vm={vm({ verdict: "WAIT", hasSnapshot: true, blockers: manyBlockers })} />,
+    );
+    expect(html).toContain("+2 more");
+    expect(html, "no canvas on this surface — the pill must not send the trader to one")
+      .not.toContain("open the canvas");
+    // …and it is genuinely the non-control rendering, which is WHY.
+    expect(html).toContain('role="status"');
+  });
+
+  it("earns the direction when it is actually the control that reaches the canvas", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill
+        vm={vm({ verdict: "WAIT", hasSnapshot: true, blockers: manyBlockers })}
+        scrollToSelector="#market-canvas"
+      />,
+    );
+    expect(html).toContain("+2 more — open the canvas");
+    expect(html).toContain("<button");
+  });
+
   it("renders nothing when the VM is fully silent (canon §Silence Is A Feature)", () => {
     const html = renderToStaticMarkup(<CanvasSummaryPill vm={vm()} />);
     expect(html).toBe("");

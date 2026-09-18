@@ -54,8 +54,19 @@ describe("market canvas blocker disclosure", () => {
 
 describe("canvas summary pill disclosure", () => {
   it("marks every truncated list with its remainder", () => {
-    expect(pill).toContain("more — open the canvas");
+    // RE-STATED. This asserted the literal "more — open the canvas", which
+    // welded a FACT (how many items are withheld) to an INSTRUCTION (go open
+    // the canvas). On live /charts the pill has no `scrollToSelector`, renders
+    // as a static div, and the page carries no canvas at all — so the
+    // instruction named a destination that does not exist while the count was
+    // the only true half. The remainder is what this test is for; it must be
+    // unconditional, and the direction must be earned separately.
+    expect(pill).toContain("more${openHint}");
     expect(pill).toContain("const withRemainder");
+  });
+
+  it("the direction is earned by the surface, not printed by default", () => {
+    expect(pill).toContain('const openHint = scrollToSelector ? " — open the canvas" : ""');
   });
 
   it("no list is sliced without going through the disclosing helper", () => {

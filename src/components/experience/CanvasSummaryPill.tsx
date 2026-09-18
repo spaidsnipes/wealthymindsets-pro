@@ -111,13 +111,30 @@ export function CanvasSummaryPill({
   // the array is already a capped sample — otherwise the remainder is computed
   // against the cap and reports "+0 more" while real items are withheld. That
   // is the same lie as an unmarked truncation, arrived at by arithmetic.
+  //
+  // THE REMAINDER IS A FACT; "OPEN THE CANVAS" IS AN INSTRUCTION, AND ONLY ONE
+  // OF THE TWO IS TRUE ON EVERY SURFACE.
+  //
+  // FOUND FROM USE, production https://wealthymindsetspro.com/charts?symbol=TSLA,
+  // 2026-09-18. The pill's tooltip read "+5 more — open the canvas". /charts
+  // passes no `scrollToSelector`, so the pill rendered as a static
+  // `<div role="status">` — there is no button, and the Market Reality canvas
+  // is not on that page at all. The tooltip told the trader to perform an
+  // action the surface cannot perform, and named a destination that does not
+  // exist there.
+  //
+  // The truncation marker must survive — an unmarked truncation reads as a
+  // complete list, which is the defect this helper was written to prevent. So
+  // the COUNT is unconditional and the DIRECTION is earned: it appears only
+  // when this pill is actually the control that reaches the canvas.
+  const openHint = scrollToSelector ? " — open the canvas" : "";
   const withRemainder = (
     items: readonly string[],
     shown: number,
     total: number = items.length,
   ): string[] => {
     const lines = items.slice(0, shown).map((x) => `  · ${x}`);
-    if (total > shown) lines.push(`  · +${total - shown} more — open the canvas`);
+    if (total > shown) lines.push(`  · +${total - shown} more${openHint}`);
     return lines;
   };
   if (vm.blockerCount > 0) {
