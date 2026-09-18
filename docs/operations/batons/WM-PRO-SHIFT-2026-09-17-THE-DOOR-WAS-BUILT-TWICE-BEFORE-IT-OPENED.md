@@ -108,9 +108,16 @@ range"* — the gesture published rather than assumed.
 
 **The Repair-2 defect was observed in the same sitting**, on the then-current
 build: `getComputedStyle(panel).backgroundColor === "rgba(0, 0, 0, 0)"`, with
-the four rows visibly overlapping the candles and the price ladder. `f0cdf666`
-is pushed; the post-deploy re-read is **NOT YET TAKEN** and is the first thing
-the next session should do.
+the four rows visibly overlapping the candles and the price ladder.
+
+**`f0cdf666` — PROVEN.** After deploy, the same query on the same surface reads
+`rgb(17, 17, 17)` — `#111111`, which is `wm-surface` in the scale. The panel is
+opaque and the menu is legible against the chart.
+
+Both arms of that measurement matter together. The BEFORE reading is what makes
+the AFTER reading mean something: a transparent panel and an opaque one are the
+same DOM, the same test result and the same commit status. Only the computed
+style told them apart.
 
 Asset 03 was live-observed separately (see `CANON-VIEW-BUILD-ORDER`), including
 both arms of the effort-concentration gate in one sitting — `NO ZONE QUALIFIED`
@@ -128,21 +135,19 @@ matters more than either alone: it proves the gate is mechanical, not stuck.
 
 ## WHAT THE NEXT SESSION PICKS UP
 
-1. **Re-read the panel background on prod** once `f0cdf666` deploys. Do not
-   mark Repair 2 closed without it.
-2. **Asset 05 — Big Trade Intelligence**, next in the documented build order.
+1. **Asset 05 — Big Trade Intelligence**, next in the documented build order.
    Needs a large-print detector over the tape and a session-relative size
    percentile; renders the named missing-input state where there is no
    per-trade tape. The mockup's left rail is navigation invention — ship only
    sections with owners.
-3. **Asset 06's honest gap is still open.** Absorption is a full-tab sibling of
+2. **Asset 06's honest gap is still open.** Absorption is a full-tab sibling of
    `Chart`, so the candles are not on screen beside it. The Founder's second
    acceptance question — *"is it useful while candles remain visible?"* — is
    answered PARTIAL, and saying so is not the same as fixing it.
-4. **Deferred, needs the Founder:** whether plain crypto symbols should prefer
+3. **Deferred, needs the Founder:** whether plain crypto symbols should prefer
    `/api/exchange` (Coinbase) over Alpaca's thin keyless venue. Broad blast
    radius; the 88%-effort-concentration reading is a direct consequence.
-5. **Still blocked, unchanged:** Gate 4 responsive proof (`outerWidth` pinned
+4. **Still blocked, unchanged:** Gate 4 responsive proof (`outerWidth` pinned
    under programmatic resize); `/journal` detail canvas (0 entries); the
    Liquidity Weather depth family (no licensed Level 2 provider). Assets 19 /
    20 / 08 stay gated behind that provider — building them now would be
