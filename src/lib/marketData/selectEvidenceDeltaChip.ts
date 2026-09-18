@@ -51,6 +51,26 @@
  * always signed, always prefixed with `Δ`. §35 PROTECTED TRUTH rejects trading
  * an overclaim for a blindness just as firmly as the overclaim: a trader who
  * cannot see the delta at all is worse off than one who sees it uncoloured.
+ *
+ * ── THE FIRST VERSION OF THIS FILE COMMITTED ITS OWN DEFECT ───────────
+ * MEASURED LIVE the same day, in the shipped build, reading the titles this
+ * owner had just written:
+ *
+ *   BTC   "Buyers lifted 19.3% more volume than the other side"
+ *   TSLA  "Sellers lifted 95.9% more volume than the other side"
+ *
+ * Both sentences name a quantity that was never computed. `imbalance` is
+ * |delta| ÷ (buy + sell) — the share of the tape left UNMATCHED. "X% more
+ * volume than the other side" is buy ÷ sell − 1, a different number entirely.
+ * On BTC's own figures the two are 19.3% and 21.5%. On TSLA they are 95.9%
+ * and roughly FOUR THOUSAND SEVEN HUNDRED PERCENT.
+ *
+ * That is canon Weakness #1 again — a number wearing another quantity's
+ * clothes — written by the file whose entire purpose is to remove it. It is
+ * recorded here rather than quietly corrected, because the lesson is that a
+ * ratio's PROSE is as load-bearing as its arithmetic: the denominator has to
+ * survive into the sentence. Every sentence this owner emits now names the
+ * denominator out loud — "OF ALL SIDED VOLUME".
  */
 
 export type EvidenceDeltaKind =
@@ -144,9 +164,10 @@ export function selectEvidenceDeltaChip(
       direction: 0,
       title:
         `${sym}: Δ is NET AGGRESSIVE VOLUME — shares, contracts or coins, never ` +
-        `currency. Buy and sell volume are within ${(DIRECTION_MIN_IMBALANCE * 100).toFixed(0)}% ` +
-        `of each other (${(imbalance * 100).toFixed(2)}% net imbalance across ${sample}), ` +
-        `so WM shows the number but will not colour it as a direction.`,
+        `currency. Buy and sell volume differ by only ${(imbalance * 100).toFixed(2)}% ` +
+        `OF ALL SIDED VOLUME observed (${sample}), under WM's ` +
+        `${(DIRECTION_MIN_IMBALANCE * 100).toFixed(0)}% convention — so WM shows the ` +
+        `number but will not colour it as a direction.`,
       spoken: `Delta ${fmtDelta(delta)} net volume, balanced — no direction claimed`,
     };
   }
@@ -157,9 +178,13 @@ export function selectEvidenceDeltaChip(
     direction: delta > 0 ? 1 : -1,
     title:
       `${sym}: Δ is NET AGGRESSIVE VOLUME — shares, contracts or coins, never ` +
-      `currency. ${delta > 0 ? "Buyers" : "Sellers"} lifted ` +
-      `${(imbalance * 100).toFixed(1)}% more volume than the other side across ${sample}. ` +
-      `This is a statement about the tape this browser saw, not about the whole market.`,
-    spoken: `Delta ${fmtDelta(delta)} net volume, ${delta > 0 ? "buy" : "sell"} side ahead`,
+      `currency. ${delta > 0 ? "Buy" : "Sell"}-initiated volume exceeds the other ` +
+      `side by ${(imbalance * 100).toFixed(1)}% OF ALL SIDED VOLUME observed ` +
+      `(${sample}) — that is the share of the tape left unmatched, not a ratio of ` +
+      `one side to the other. This is a statement about the tape this browser saw, ` +
+      `not about the whole market.`,
+    spoken:
+      `Delta ${fmtDelta(delta)} net volume, ${delta > 0 ? "buy" : "sell"} side ahead by ` +
+      `${(imbalance * 100).toFixed(1)} percent of all sided volume`,
   };
 }

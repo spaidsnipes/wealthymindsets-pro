@@ -74,6 +74,27 @@ describe("selectEvidenceDeltaChip — a signed coloured number beside a ticker i
     }
   });
 
+  it("× THE DENOMINATOR THAT FELL OUT OF THE SENTENCE: the ratio names what it is over", () => {
+    // MEASURED LIVE in the shipped build: "Sellers lifted 95.9% more volume
+    // than the other side". `imbalance` is |delta| ÷ (buy+sell) — the share of
+    // the tape left UNMATCHED — and on those TSLA figures "more than the other
+    // side" is roughly 4,700%, not 95.9%. Two different quantities, one number.
+    const TSLA = { delta: -0.188, buyVol: 0.004, sellVol: 0.192, tradeCount: 100 };
+    for (const s of [BTC, TSLA, AAPL, META]) {
+      const f = selectEvidenceDeltaChip(s, "X");
+      expect(f.title, "the denominator must survive into the prose")
+        .toMatch(/OF ALL SIDED VOLUME/);
+      expect(f.title, 'the side-to-side phrasing names a quantity that was never computed')
+        .not.toMatch(/more volume than the other side/);
+    }
+    // And the arithmetic the prose now describes is the one actually done.
+    const t = selectEvidenceDeltaChip(TSLA, "TSLA");
+    expect(t.kind).toBe("DIRECTIONAL");
+    expect(t.title).toContain(
+      `${((0.188 / (0.004 + 0.192)) * 100).toFixed(1)}% OF ALL SIDED VOLUME`,
+    );
+  });
+
   it("× THE OVERCLAIM IN THE OTHER COAT: it speaks about the tape THIS BROWSER saw", () => {
     const f = selectEvidenceDeltaChip(BTC, "BTC");
     expect(f.title).toMatch(/not about the whole market/i);
