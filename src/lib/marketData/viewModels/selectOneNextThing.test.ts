@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import {
   selectOneNextThing,
   isVerdictEcho,
+  inSentence,
   type OneNextThingInput,
 } from "./selectOneNextThing";
 import { computeEvidenceDebt } from "./decisionPermissionCompiler";
@@ -421,5 +422,57 @@ describe("× the impossible instruction, one node down", () => {
     // is the same fabrication pointing the other way.
     expect(d?.venueBlocked).toBe(0);
     expect(d?.missingPayable).toBe(1);
+  });
+});
+
+describe("× a label is a name", () => {
+  // MEASURED LIVE on production /charts?symbol=TSLA immediately after the
+  // venue-blocking atom landed: "Resolve available r". The R is the R-multiple
+  // the whole Proof Lane is denominated in, not a stray letter.
+  const withPayable = (label: string): EvidenceDebt => ({
+    missing: 3,
+    warn: 0,
+    total: 8,
+    missingLabels: [label],
+    missingPayable: 1,
+    missingPayableLabels: [label],
+    venueBlocked: 0,
+    venueBlockedLabels: [],
+  } as unknown as EvidenceDebt);
+
+  it("× THE DESTROYED UNIT: 'Available R' does not become 'available r'", () => {
+    const r = selectOneNextThing({
+      rightOfWay: WAIT,
+      debt: withPayable("Available R"),
+      hasExpression: false,
+    });
+    expect(r.headline).toBe("Resolve available R");
+    expect(r.headline).not.toContain("available r");
+    expect(r.detail).toContain("available R is the first");
+  });
+
+  it("× THE FLATTENED ACRONYM: 'CLC' survives intact", () => {
+    expect(inSentence("CLC")).toBe("CLC");
+    expect(inSentence("Available R")).toBe("available R");
+  });
+
+  it("× THE OVER-CORRECTION: ordinary nouns are STILL lowered", () => {
+    // Sentence case is what makes these read as prose. The defect was
+    // lowercasing indiscriminately, not lowercasing at all.
+    expect(inSentence("Direction")).toBe("direction");
+    expect(inSentence("Aggression")).toBe("aggression");
+    const r = selectOneNextThing({
+      rightOfWay: WAIT,
+      debt: withPayable("Direction"),
+      hasExpression: false,
+    });
+    expect(r.headline).toBe("Resolve direction");
+  });
+
+  it("× THE SHOUTED LABEL: an all-caps label is not re-capitalised either", () => {
+    // inSentence only ever LOWERS. It must never add capitals — inventing a
+    // capital is the same overreach pointing the other way.
+    expect(inSentence("ORDER FLOW")).toBe("ORDER FLOW");
+    expect(inSentence("regime")).toBe("regime");
   });
 });
