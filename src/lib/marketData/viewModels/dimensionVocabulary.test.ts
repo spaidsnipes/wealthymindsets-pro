@@ -7,6 +7,31 @@
  * BREAKOUT guard reads `direction.resolution`, never `direction.value`, so
  * direction has no vocabulary contract to keep and a fake one would be theatre.
  *
+ * ── THE ABOVE PARAGRAPH WAS FALSE WHEN WRITTEN, AND SAID SO CONFIDENTLY ──────
+ *
+ * It names direction as the ONE deliberate absence. There were five. The
+ * guards also read `structure.value`, `location.value`, `aggression.value` and
+ * `profile.value`, and every one of those producers had since shipped an
+ * exported verdict vocabulary that NO matcher in DEFAULT_MATCHERS can hear.
+ *
+ * Measured, not argued — see the final describe block. The consequence is that
+ * SWEEP, BREAKOUT, LIQUIDITY_PROBE, ABSORPTION and VALUE_MIGRATION are
+ * structurally unreachable: five of the fourteen chapters in `StoryChapter`
+ * cannot occur for any market, on any venue, in any session.
+ *
+ * This is the volatility defect again, four times over, and it survived the
+ * file written to prevent it — because that file scoped itself by a sentence
+ * rather than by the guard table. A coverage claim that is not itself checked
+ * is the same species as a diagnosis that is not itself checked.
+ *
+ * NOTHING IS REWIRED HERE. Whether "EFFORT ABSORBED" should trip the
+ * ABSORPTION chapter, or "ABOVE VALUE" should count as `location.atHigh`, is a
+ * question about what those words MEAN in the market — a Founder call, not a
+ * refactor. Inventing the mapping to make a chapter light up would be exactly
+ * the fabrication this lane exists to refuse. So the dead pairs are locked as
+ * dead, the way `rotation` already is, and the tests fail the moment either
+ * side moves.
+ *
  * ── The defect this file exists to make impossible ──────────────────────────
  *
  * `deriveVolatilityDimension` seals the dimension with the value
@@ -51,6 +76,14 @@ import {
 import type { AggressorTick } from "../selectAggressorFlow";
 import type { CanonicalMarketState, MarketStateDimension } from "../canonicalMarketState";
 import { deriveRegimeDimension, REGIME_VERDICTS } from "../deriveRegimeDimension";
+// Value imports, deliberately, for the same reason as REGIME_VERDICTS above:
+// the lock below must be built FROM each shipping producer's vocabulary, so
+// that adding, renaming or removing a verdict is what moves the test — not a
+// retyped copy of the words that can drift away from the producer in silence.
+import { STRUCTURE_VERDICTS } from "../deriveStructureDimension";
+import { LOCATION_VERDICTS } from "../deriveLocationDimension";
+import { AGGRESSION_VERDICTS } from "../deriveAggressionDimension";
+import { PROFILE_VERDICTS } from "../deriveProfileDimension";
 import { DEFAULT_MATCHERS, selectMarketStory } from "./selectMarketStory";
 
 const trade = (price: number): AggressorTick => ({ side: "buy", size: 1, price, trade: true });
@@ -247,5 +280,100 @@ describe("regime vocabulary — producer ↔ DEFAULT_MATCHERS symmetry", () => {
     });
     expect(thin.resolution).not.toBe("RESOLVED");
     expect(regimeBuckets(thin)).toEqual([]);
+  });
+});
+
+/**
+ * THE FOUR DIMENSIONS THIS FILE CLAIMED NOT TO NEED.
+ *
+ * Each block below pairs a producer's OWN exported vocabulary against the
+ * matchers that listen for it. The vocabularies are imported as values, never
+ * retyped, so adding a verdict to a producer fails the exhaustiveness case here
+ * until someone states what the matchers should do with it.
+ *
+ * Every one of these currently resolves to "no matcher hears anything". That is
+ * recorded as the measured fact it is — not softened, and not repaired by
+ * guessing what the words ought to mean.
+ */
+describe("the guard table reads four more dimensions by VALUE", () => {
+  const heard = (
+    buckets: Record<string, { matches: (d: MarketStateDimension) => boolean } | undefined>,
+    value: string,
+  ): string[] => {
+    const dim: MarketStateDimension = {
+      resolution: "RESOLVED", value, confidence: 0.7,
+      evidence: [{ eventId: "e", observedAt: 1, availableAt: 2, source: "test", fidelity: "DERIVED", basis: "b" }],
+      contradictions: [], unknowns: [],
+    };
+    return Object.keys(buckets).filter((k) => buckets[k]?.matches(dim));
+  };
+
+  it("STRUCTURE: no verdict it can emit is heard by bos or sweep", () => {
+    // The producer says HIGHER HIGHS / LOWER LOWS / ROTATING IN RANGE. The
+    // matchers listen for "bos" and "sweep". A sequence of higher highs is NOT
+    // a break of structure, so the honest answer is that this producer cannot
+    // currently speak to either chapter — not that the words need bending.
+    expect(Object.values(STRUCTURE_VERDICTS)).toEqual([
+      "HIGHER HIGHS", "LOWER LOWS", "ROTATING IN RANGE",
+    ]);
+    for (const v of Object.values(STRUCTURE_VERDICTS)) {
+      expect(heard(DEFAULT_MATCHERS.structure, v), `structure "${v}" is now heard`).toEqual([]);
+    }
+  });
+
+  it("LOCATION: no verdict it can emit is heard by atHigh or atLow", () => {
+    // ABOVE VALUE is not AT resistance — price beyond the value area and price
+    // sitting on a level are different facts, and LIQUIDITY_PROBE is about the
+    // second one.
+    expect(Object.values(LOCATION_VERDICTS)).toEqual([
+      "ABOVE VALUE", "INSIDE VALUE", "BELOW VALUE",
+    ]);
+    for (const v of Object.values(LOCATION_VERDICTS)) {
+      expect(heard(DEFAULT_MATCHERS.location, v), `location "${v}" is now heard`).toEqual([]);
+    }
+  });
+
+  it("AGGRESSION: no verdict it can emit is heard by high or low", () => {
+    // The closest thing to a real mapping in this whole block: EFFORT ABSORBED
+    // is, almost by definition, what the ABSORPTION chapter is looking for. It
+    // is still not wired, because "almost by definition" is the voice a
+    // fabrication uses. Founder call.
+    expect(Object.values(AGGRESSION_VERDICTS)).toEqual([
+      "EFFORT ABSORBED", "EFFORT MATCHED", "EFFORT REWARDED",
+      "BUYERS PRESSING", "SELLERS PRESSING", "TWO-SIDED",
+    ]);
+    for (const v of Object.values(AGGRESSION_VERDICTS)) {
+      expect(heard(DEFAULT_MATCHERS.aggression, v), `aggression "${v}" is now heard`).toEqual([]);
+    }
+  });
+
+  it("PROFILE: no verdict it can emit is heard by migrating", () => {
+    // TIGHT / DEFINED / BROAD describe the SHAPE of value at one instant.
+    // Migration is a claim about value MOVING, which needs two snapshots. The
+    // matcher is not merely mis-worded here — it is asking a question this
+    // producer's single-snapshot vocabulary cannot answer at all.
+    expect(Object.values(PROFILE_VERDICTS)).toEqual([
+      "TIGHT VALUE", "DEFINED VALUE", "BROAD VALUE",
+    ]);
+    for (const v of Object.values(PROFILE_VERDICTS)) {
+      expect(heard(DEFAULT_MATCHERS.profile, v), `profile "${v}" is now heard`).toEqual([]);
+    }
+  });
+
+  it("names the five chapters that therefore cannot occur", () => {
+    // ANTI-DRIFT. If someone wires one of the matchers above, this list must
+    // shrink in the same commit — so the repair and the record move together
+    // and the file can never again describe a coverage it does not have.
+    const unreachable = ["SWEEP", "BREAKOUT", "LIQUIDITY_PROBE", "ABSORPTION", "VALUE_MIGRATION"];
+    const deadMatchers = [
+      ...Object.values(STRUCTURE_VERDICTS).flatMap((v) => heard(DEFAULT_MATCHERS.structure, v)),
+      ...Object.values(LOCATION_VERDICTS).flatMap((v) => heard(DEFAULT_MATCHERS.location, v)),
+      ...Object.values(AGGRESSION_VERDICTS).flatMap((v) => heard(DEFAULT_MATCHERS.aggression, v)),
+      ...Object.values(PROFILE_VERDICTS).flatMap((v) => heard(DEFAULT_MATCHERS.profile, v)),
+    ];
+    expect(
+      deadMatchers,
+      `a matcher came alive — ${unreachable.join(", ")} may now be reachable and this test must be updated`,
+    ).toEqual([]);
   });
 });
