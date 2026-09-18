@@ -382,9 +382,39 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
         established: true,
       };
     }
+    // ── AN ABSENCE MUST BE A FINDING, NOT A DEFAULT (§14.1) ─────────────────
+    //
+    // Three materially different states used to collapse into one sentence,
+    // exactly as `Not receiving` did in ProviderWireStrip before 2026-09-18-D:
+    //
+    //   source === null                 nothing was even ATTRIBUTED — an
+    //                                   absence that was ASSUMED;
+    //   source named, no quote          a provider IS attributed and answered
+    //                                   without a price — a MEASUREMENT;
+    //   quote present, no timestamp     a price DID arrive and cannot be aged
+    //                                   — "no observation yet" is flatly false.
+    //
+    // The label stays FEED UNKNOWN in all three: this frame holds no
+    // certification and may not invent one. `established` stays false in all
+    // three: nothing here sources a reading, and the provenance footer must
+    // keep printing SOURCE UNKNOWN rather than credit a provider that supplied
+    // nothing. ONLY the detail changes — which is the whole repair, because
+    // the detail is the only part a human reads to know what to go fix.
+    //
+    // THE FIRST DRAFT OF THIS INTERPOLATED `obs.source` AND WENT RED BY NAME on
+    // the WM-CHART-PROV-EMERG-01 Sentinel — `detail` is rendered, and the
+    // provenance footer UPPERCASES it. The distinction that matters here is
+    // WHAT was absent, never WHO was asked. The vendor identity stays in
+    // `provenance`, which no chrome renders.
+    const detail =
+      obs.source === null
+        ? "no observation yet"
+        : obs.quotePresent
+          ? "quote arrived without a provider timestamp"
+          : "provider returned no quote";
     return {
       label: FEED_UNKNOWN,
-      detail: "no observation yet",
+      detail,
       provenance: obs.source,
       tone: "UNKNOWN",
       established: false,

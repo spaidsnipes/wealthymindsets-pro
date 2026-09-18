@@ -176,6 +176,96 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     });
   });
 
+  /**
+   * ── §14.1 AGAIN, IN THE OTHER WIRE-CLAIM OWNER ───────────────────────────
+   *
+   * `ProviderWireStrip` was repaired on 2026-09-18 because one generic
+   * sentence — `Not receiving` — was reached both by branches that had
+   * MEASURED an absence and by branches that had merely run out of ladder.
+   * `compileFeedStanding` held the identical defect under a different string:
+   * `"no observation yet"` was printed whether no provider had been attributed
+   * at all, or a NAMED provider had answered without a price, or a price had
+   * arrived that could not be aged.
+   *
+   * The repair is deliberately DETAIL-ONLY. All three remain FEED UNKNOWN and
+   * all three remain `established: false` — this frame still holds no
+   * certification and must not invent one. What changes is the only part a
+   * human reads to know what to go fix.
+   */
+  describe("FEED UNKNOWN names WHICH absence it found", () => {
+    const NOTHING: FeedObservation = {
+      source: null,
+      quotePresent: false,
+      lastObservedAtMs: null,
+      connected: null,
+      sessionOpen: null,
+      barsPresent: false,
+    };
+
+    it("says 'no observation yet' ONLY when nothing was even attributed", () => {
+      const feed = compileFeedStanding(NOTHING, NOW);
+      expect(feed.detail).toBe("no observation yet");
+      expect(feed.provenance).toBeNull();
+    });
+
+    /**
+     * WHAT was absent, never WHO was asked. The first draft of this repair
+     * interpolated the source name and went red BY NAME on the
+     * WM-CHART-PROV-EMERG-01 Sentinel below — `detail` is rendered, and the
+     * provenance footer UPPERCASES it. The vendor stays in `provenance`.
+     */
+    it("distinguishes a provider that answered without a price, without naming it", () => {
+      const feed = compileFeedStanding({ ...NOTHING, source: "alpaca" }, NOW);
+      expect(feed.detail).toBe("provider returned no quote");
+      expect(feed.detail).not.toContain("alpaca");
+      expect(feed.provenance).toBe("alpaca");
+    });
+
+    /**
+     * The one that made the old wording FLATLY FALSE rather than merely
+     * vague: a price DID arrive. It simply cannot be aged, so it cannot be
+     * certified. "No observation yet" contradicts the evidence in hand.
+     */
+    it("says a quote arrived when it did, even though it cannot be aged", () => {
+      const feed = compileFeedStanding({ ...NOTHING, source: "alpaca", quotePresent: true }, NOW);
+      expect(feed.detail).toBe("quote arrived without a provider timestamp");
+      expect(feed.detail).not.toBe("no observation yet");
+      expect(feed.detail).not.toContain("alpaca");
+    });
+
+    /**
+     * ANTI-OVERCORRECTION, the load-bearing half. A sharper SENTENCE must
+     * never become a stronger CLAIM. `established` is what the provenance
+     * footer reads to decide between printing the detail and printing SOURCE
+     * UNKNOWN — if naming the provider here also flipped this flag, the footer
+     * would start crediting a provider that supplied nothing.
+     */
+    it.each([
+      ["nothing attributed", NOTHING],
+      ["named provider, no quote", { ...NOTHING, source: "alpaca" }],
+      ["quote with no timestamp", { ...NOTHING, source: "alpaca", quotePresent: true }],
+    ] as const)("keeps the label and withholds the standing when %s", (_why, obs) => {
+      const feed = compileFeedStanding(obs, NOW);
+      expect(feed.label).toBe("FEED UNKNOWN");
+      expect(feed.tone).toBe("UNKNOWN");
+      expect(feed.established).toBe(false);
+      expect(compileProvenanceSegments(feed, null)).toEqual(["SOURCE UNKNOWN"]);
+    });
+
+    /**
+     * And the sharper detail may not steal the bars arm either. Bars are a
+     * REAL observation and outrank all three of these sentences.
+     */
+    it("still lets bars rescue the badge from every one of these", () => {
+      for (const source of [null, "alpaca"] as const) {
+        const feed = compileFeedStanding({ ...NOTHING, source, barsPresent: true }, NOW);
+        expect(feed.label, `source=${source}`).toBe(L.HISTORICAL_BARS_VERIFIED);
+        expect(feed.detail, `source=${source}`).toBe("historical bars");
+        expect(feed.established, `source=${source}`).toBe(true);
+      }
+    });
+  });
+
   it("a provider nobody recognises is UNKNOWN, never a canon reading", () => {
     // The delegate reports this through two doors — `unresolved` and
     // `availability: "unavailable"` — and its `label` on that path is an
