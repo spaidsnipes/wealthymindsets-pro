@@ -132,7 +132,7 @@ function CustomBubbleQtyInput({ maxN, onCommit }: { maxN: number; onCommit: (n: 
           aria-label="Custom bubble quantity"
           aria-invalid={hasError}
           className={clsx(
-            "flex-1 min-w-0 px-2 py-1 rounded text-[11px] font-mono bg-wm-bg border transition-colors focus:outline-none",
+            "flex-1 min-w-0 px-2 py-1 rounded text-[11px] font-mono bg-wm-dark border transition-colors focus:outline-none",
             hasError
               ? "border-wm-red/70 text-wm-red focus:border-wm-red"
               : isCustomActive
@@ -240,7 +240,7 @@ function BigTradesControls() {
         <div className="w-full rounded-md border border-wm-border bg-wm-surface shadow-xl p-1">
           <button
             onClick={toggleSound}
-            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-bg/60"
+            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-card"
           >
             <span className="flex items-center gap-2">
               {sound ? <Volume2 size={13} /> : <VolumeX size={13} />} Sound
@@ -251,7 +251,7 @@ function BigTradesControls() {
           </button>
           <button
             onClick={togglePause}
-            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-bg/60"
+            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-card"
           >
             <span className="flex items-center gap-2">
               {paused ? <Play size={13} /> : <Pause size={13} />} Pause
@@ -301,7 +301,7 @@ function BigTradesControls() {
               alone (exclusive) and turns the other order-flow tools off. */}
           <button
             onClick={toggleSimul}
-            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-bg/60 border-t border-wm-border/40 mt-1 pt-2"
+            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-card border-t border-wm-border/40 mt-1 pt-2"
           >
             <span className="flex flex-col items-start text-left">
               <span className="font-semibold">Simultaneous Mode</span>
@@ -321,7 +321,7 @@ function BigTradesControls() {
           </button>
           <button
             onClick={reset}
-            className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-bg/60 border-t border-wm-border/40 mt-1 pt-2"
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-card border-t border-wm-border/40 mt-1 pt-2"
           >
             <RotateCcw size={13} /> Reset to defaults
           </button>
@@ -476,7 +476,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
             <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm" style={{ background: sell }} /> Negative (ask / sell)</span>
             <input type="color" value={sell} onChange={e => onSell(e.target.value)} className="w-7 h-6 rounded cursor-pointer bg-transparent border border-wm-border" />
           </label>
-          <button onClick={reset} className="flex items-center gap-2 w-full px-2 py-1.5 mt-1 rounded text-[12px] text-wm-text hover:bg-wm-bg/60 border-t border-wm-border/40 pt-2">
+          <button onClick={reset} className="flex items-center gap-2 w-full px-2 py-1.5 mt-1 rounded text-[12px] text-wm-text hover:bg-wm-card border-t border-wm-border/40 pt-2">
             <RotateCcw size={13} /> Reset (Royal Blue / Purple)
           </button>
         </div>

@@ -75,11 +75,11 @@ function ShareLiveMenu({ roomName, roomLabel, color }: { roomName: string; roomL
           <div className="absolute right-0 mt-1 w-52 rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-2 z-[220]">
             <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-1.5 px-1">Share live link</div>
             <div className="flex items-center gap-1 mb-2 px-1">
-              <input readOnly value={shareUrl} className="flex-1 min-w-0 bg-wm-bg/60 border border-wm-border rounded px-2 py-1 text-[10px] text-wm-text-dim truncate" />
+              <input readOnly value={shareUrl} className="flex-1 min-w-0 bg-wm-dark border border-wm-border rounded px-2 py-1 text-[10px] text-wm-text-dim truncate" />
             </div>
             {targets.map(t => (
               <button key={t.label} onClick={() => { t.onClick(); if (t.label !== "Copy link") setOpen(false); }}
-                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-wm-text hover:bg-wm-bg/60 transition-colors">
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-wm-text hover:bg-wm-card transition-colors">
                 {t.icon} {t.label}
               </button>
             ))}
@@ -377,7 +377,7 @@ function RoomInner({ roomName, isHost, onLeave, userName }: {
           )}
           {myRequestState === "pending" && (
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-wm-surface border border-wm-border/40">
-              <span className="w-1.5 h-1.5 rounded-full bg-wm-yellow animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-wm-gold animate-pulse" />
               <span className="text-[10px] text-wm-text-dim">Waiting for host…</span>
               <button onClick={cancelRequest} className="text-[9px] text-wm-red underline ml-1">Cancel</button>
             </div>
@@ -525,7 +525,7 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
         <span className="text-xs font-black text-wm-text">{roomLabel}</span>
         <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-red bg-wm-red/15 border border-wm-red/30">LIVE</span>
         {isHost && (
-          <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-yellow bg-wm-yellow/15 border border-wm-yellow/30">HOST</span>
+          <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-gold bg-wm-gold/15 border border-wm-gold/30">HOST</span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
           {/* Share is available as soon as the room exists so a host can invite

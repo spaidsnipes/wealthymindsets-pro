@@ -240,13 +240,38 @@ function FillPriceAgeNote({ trade }: { trade: Trade }) {
     : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   return (
     <span
-      className={clsx("block text-[9px]", seconds >= 60 ? "text-wm-amber" : "text-wm-text-muted/70")}
+      className={clsx("block text-[9px]", seconds >= 60 ? undefined : "text-wm-text-muted/70")}
+      style={seconds >= 60 ? WATCH_TEXT : undefined}
       title={describeFillPriceAge(trade) ?? undefined}
     >
       quote {label} old
     </span>
   );
 }
+
+/**
+ * THE ADVISORY VOICE ON THIS PAGE — an inline style, not a Tailwind class.
+ *
+ * Every disclosure below used to be painted with `text-wm-amber` /
+ * `bg-wm-amber/5`. There is no `amber` key in the `wm` colour scale
+ * (tailwind.config.ts has gold / red / green and no warn colour), so Tailwind
+ * emitted NOTHING for any of them: eighteen risk notes rendered in inherited
+ * body colour, indistinguishable from ordinary copy.
+ *
+ * That is the worst possible place for a silent style failure. These are the
+ * sentences that say the fill was not real, the cancel could not have raced,
+ * the short located no shares. A caution that does not look like a caution is
+ * a caution the trader reads as a fact.
+ *
+ * The file already knew this — see the `reachNote` comment further down, which
+ * names the trap verbatim and reaches for `WM.state.watch` instead. That was
+ * the right answer in one place and is now the answer in all of them. The
+ * colour is the canonical advisory tone, so it cannot drift from the rest of
+ * the product, and it cannot silently evaporate: a missing token is a type
+ * error here, not an empty stylesheet.
+ */
+const WATCH_TEXT = { color: WM.state.watch } as const;
+const WATCH_BLOCK = { background: WM.halo.watch } as const;
 
 /**
  * The queue assumption behind a filled limit order, as a blotter note.
@@ -266,7 +291,7 @@ function FillQueueBasisNote({ ord }: { ord: Order }) {
   const sentence = describeFillQueueBasis(selectFillQueueBasis(ord, ord.fillPx));
   if (sentence == null) return null;
   return (
-    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed" style={WATCH_TEXT}>
       {sentence}
     </p>
   );
@@ -297,9 +322,10 @@ function ExecutionRealismNote({ orders }: { orders: readonly Order[] }) {
     <section
       role="note"
       aria-label="What these fills assumed"
-      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5"
+      className="px-3 py-2 border-b border-wm-border/40"
+      style={WATCH_BLOCK}
     >
-      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={WATCH_TEXT}>
         {heading}
       </p>
       <ul className="mt-1 space-y-1">
@@ -353,7 +379,7 @@ function RestingOrderNote({ ord, nowMs }: { ord: Order; nowMs: number | null }) 
   const sentence = selectOrderRest(ord, nowMs).sentence;
   if (sentence == null) return null;
   return (
-    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed" style={WATCH_TEXT}>
       {sentence}
     </p>
   );
@@ -368,7 +394,8 @@ function RestingBookNote({ orders, nowMs }: { orders: readonly Order[]; nowMs: n
     <p
       role="note"
       aria-label="Working orders with no time-in-force"
-      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5 text-[10px] font-bold uppercase tracking-wider text-wm-amber/90"
+      className="px-3 py-2 border-b border-wm-border/40 text-[10px] font-bold uppercase tracking-wider"
+      style={{ ...WATCH_BLOCK, ...WATCH_TEXT }}
     >
       {heading} — /paper has no time-in-force
     </p>
@@ -387,13 +414,14 @@ function CancelCertaintyNote({ orders }: { orders: readonly Order[] }) {
     <div
       role="note"
       aria-label="Cancels on /paper never race a fill"
-      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5"
+      className="px-3 py-2 border-b border-wm-border/40"
+      style={WATCH_BLOCK}
     >
-      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={WATCH_TEXT}>
         {r.heading}
       </p>
       {r.sentences.map(s => (
-        <p key={s} className="mt-1 text-[10px] leading-relaxed text-wm-amber/90">{s}</p>
+        <p key={s} className="mt-1 text-[10px] leading-relaxed" style={WATCH_TEXT}>{s}</p>
       ))}
     </div>
   );
@@ -403,7 +431,7 @@ function CancelledOrderNote({ ord }: { ord: Order }) {
   const sentence = selectCancelledOrderNote(ord);
   if (sentence == null) return null;
   return (
-    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed" style={WATCH_TEXT}>
       {sentence}
     </p>
   );
@@ -422,13 +450,14 @@ function StopRealismNote({ orders }: { orders: readonly Order[] }) {
     <div
       role="note"
       aria-label="Stops on /paper fill at the price that triggered them"
-      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5"
+      className="px-3 py-2 border-b border-wm-border/40"
+      style={WATCH_BLOCK}
     >
-      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={WATCH_TEXT}>
         {r.heading}
       </p>
       {r.sentences.map(s => (
-        <p key={s} className="mt-1 text-[10px] leading-relaxed text-wm-amber/90">{s}</p>
+        <p key={s} className="mt-1 text-[10px] leading-relaxed" style={WATCH_TEXT}>{s}</p>
       ))}
     </div>
   );
@@ -438,7 +467,7 @@ function StopOrderNote({ ord }: { ord: Order }) {
   const sentence = selectStopOrderNote(ord);
   if (sentence == null) return null;
   return (
-    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed" style={WATCH_TEXT}>
       {sentence}
     </p>
   );
@@ -449,10 +478,10 @@ function ShortRealismNote({ positions }: { positions: readonly Position[] }) {
   if (r.heading == null) return null;
   return (
     <div role="note" aria-label="Shorts on /paper were opened with no shares located"
-         className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">{r.heading}</p>
+         className="px-3 py-2 border-b border-wm-border/40" style={WATCH_BLOCK}>
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={WATCH_TEXT}>{r.heading}</p>
       {r.sentences.map(s => (
-        <p key={s} className="mt-1 text-[10px] leading-relaxed text-wm-amber/90">{s}</p>
+        <p key={s} className="mt-1 text-[10px] leading-relaxed" style={WATCH_TEXT}>{s}</p>
       ))}
     </div>
   );
@@ -462,7 +491,7 @@ function ShortPositionNote({ pos }: { pos: Position }) {
   const sentence = selectShortPositionNote(pos);
   if (sentence == null) return null;
   return (
-    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">{sentence}</p>
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed" style={WATCH_TEXT}>{sentence}</p>
   );
 }
 

@@ -152,10 +152,25 @@ Against the three Founder acceptance questions:
 
 ---
 
-## ASSET 03 — DESIGN DECIDED, NOT YET BUILT
+## ASSET 03 — BUILT AND LIVE-OBSERVED (`42a495e4`)
 
-Two things must be settled before a line is written, because both are places
-where the mockup's art direction would quietly become a lie.
+Shipped as the `Aggression` view. The three constraints below were written
+before it was built and all three held; they are kept in the present tense
+because they are the standing rules for that surface, not a to-do list.
+
+Observed on `https://wealthymindsetspro.com/charts?symbol=BTC`, both arms of the
+effort-concentration gate (`951de52d`) seen in one sitting: first
+`NO ZONE QUALIFIED`, then the window reporting that it could not answer at all —
+
+> only 1 of 30 bars reached the high-effort line (one print holds 88% of the
+> window's effort) — a zone needs 2, so no run could have qualified here
+> whatever the market did
+
+Seeing both arms matters more than either alone: it proves the gate is mechanical
+and responsive rather than stuck on one branch. Alongside it, `NET AGGRESSION`
+read `—` with "not carried on this tape — no side was stated on every bar", and
+the y-axis carried its substitution note. Point 2 below is therefore not a plan;
+it is a live-observed behaviour.
 
 **1. The x-axis term does not exist yet, and must not be faked.**
 `selectAbsorptionAnatomy` computes `displacement = |close − open|` — UNSIGNED,

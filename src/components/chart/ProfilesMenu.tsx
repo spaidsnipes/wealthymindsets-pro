@@ -88,7 +88,7 @@ export function ProfilesMenu({
       <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={296}>
         <div
           role="menu"
-          className="rounded-lg border border-wm-border bg-wm-panel shadow-2xl p-1.5"
+          className="rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-1.5"
           data-testid="profiles-menu-panel"
         >
           <div className="px-2 pt-1 pb-2 text-[9px] uppercase tracking-[0.14em] text-wm-text-dim">
@@ -109,7 +109,7 @@ export function ProfilesMenu({
                 data-profile-id={entry.id}
                 data-profile-availability={entry.availability}
                 data-profile-active={entry.active ? "1" : "0"}
-                className="w-full text-left px-2 py-2 rounded hover:bg-wm-bg/60 transition-colors"
+                className="w-full text-left px-2 py-2 rounded hover:bg-wm-card transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <span
