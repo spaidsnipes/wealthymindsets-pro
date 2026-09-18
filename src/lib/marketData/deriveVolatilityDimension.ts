@@ -166,7 +166,11 @@ export function deriveVolatilityDimension(input: DeriveVolatilityInput): MarketS
   const agg = aggregateFor(input.ticks);
   if (!agg) {
     const gap = input.evidenceGapNote?.trim() || null;
-    return gap ? { ...UNKNOWN_DIMENSION, unknowns: [gap] } : UNKNOWN_DIMENSION;
+    // Rides with the note and only with the note — see the sibling comment in
+    // deriveDirectionDimension and MarketStateDimension.venueBlocked.
+    return gap
+      ? { ...UNKNOWN_DIMENSION, unknowns: [gap], venueBlocked: true }
+      : UNKNOWN_DIMENSION;
   }
 
   if (agg.count < VOLATILITY_RESOLVE_MIN_TRADES) {

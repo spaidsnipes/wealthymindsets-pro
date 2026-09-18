@@ -194,7 +194,13 @@ export function deriveDirectionDimension(input: DeriveDirectionInput): MarketSta
   const agg = aggregateFor(input.ticks);
   if (!agg) {
     const gap = input.evidenceGapNote?.trim() || null;
-    return gap ? { ...UNKNOWN_DIMENSION, unknowns: [gap] } : UNKNOWN_DIMENSION;
+    // `venueBlocked` rides with the note and ONLY with the note. The publisher
+    // emits it exactly when bars are loaded but this lane is structurally
+    // absent, which is the difference between "not measured yet" and "cannot be
+    // measured here". See MarketStateDimension.venueBlocked.
+    return gap
+      ? { ...UNKNOWN_DIMENSION, unknowns: [gap], venueBlocked: true }
+      : UNKNOWN_DIMENSION;
   }
 
   if (agg.count < DIRECTION_RESOLVE_MIN_TRADES) {

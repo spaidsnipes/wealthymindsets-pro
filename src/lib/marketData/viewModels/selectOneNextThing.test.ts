@@ -285,3 +285,141 @@ describe("× THE RAIL REVERTS", () => {
     expect(rail).not.toContain("oneStory.decision.value");
   });
 });
+
+/**
+ * × PAYABLE BY KIND IS NOT PAYABLE ON THIS VENUE.
+ *
+ * MEASURED LIVE, production /charts?symbol=TSLA. The regime chip said, truly,
+ * "no per-trade tape has arrived ... The candles cannot answer it." Inches
+ * away this engine said "Resolve direction" — and direction is measured trade
+ * by trade too. 28b6cde8 did not remove the impossible instruction, it moved
+ * it one node down, where it is HARDER to see because direction genuinely is
+ * measured directly.
+ *
+ * Every test is named for the specific way the fix can be undone.
+ */
+describe("× the impossible instruction, one node down", () => {
+  /** direction + volatility blocked by the feed; 4 compositions behind them. */
+  function tapeless(): EvidenceDebt {
+    return {
+      payable: 8,
+      watch: 0,
+      resolved: 1,
+      missing: 7,
+      warn: 0,
+      missingLabels: ["Regime", "Direction", "Location"],
+      warnLabels: [],
+      missingPayableLabels: [],
+      missingPayable: 0,
+      venueBlockedLabels: ["Direction", "Location", "Aggression"],
+      venueBlocked: 3,
+    };
+  }
+
+  it("× THE RELOCATION: never instructs the trader to resolve a venue-blocked node", () => {
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: tapeless(), hasExpression: false });
+    expect(r.headline).not.toMatch(/resolve direction/i);
+    expect(r.headline).not.toMatch(/resolve location/i);
+    expect(r.headline).not.toMatch(/resolve aggression/i);
+  });
+
+  it("× THE WAIT WITH NO END: names the human action instead of a wait", () => {
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: tapeless(), hasExpression: false });
+    expect(r.headline).toBe("Connect a per-trade data source");
+    expect(r.detail).toContain("Waiting will not resolve them");
+  });
+
+  it("× THE MISLABEL: a venue-blocked node is NOT called a composition", () => {
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: tapeless(), hasExpression: false });
+    // Direction IS measured directly. Calling it "composed from other readings"
+    // would be a brand-new false statement replacing the one being removed.
+    expect(r.detail).not.toMatch(/composed from other readings/i);
+    expect(r.detail).toContain("measured directly");
+  });
+
+  it("× THE OVER-CORRECTION: it still does not authorise anything", () => {
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: tapeless(), hasExpression: false });
+    expect(r.kind).toBe("ESTABLISH_EVIDENCE");
+    expect(r.headline).not.toMatch(/\b(buy|sell|long|short|enter)\b/i);
+  });
+
+  it("× THE VENDOR PITCH: it names no broker, price or product", () => {
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: tapeless(), hasExpression: false });
+    const said = `${r.headline} ${r.detail}`;
+    // WM knows the lane is absent. It does not know which venue this trader
+    // should buy, and guessing would be a fresh fabrication.
+    expect(said).not.toMatch(/polygon|databento|alpaca|coinbase|\$\d|subscribe|upgrade/i);
+  });
+
+  it("× THE SHRUNK LEDGER: the true size of the debt is still reported", () => {
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: tapeless(), hasExpression: false });
+    // 3 blocked out of 7 unpaid. Neither number may be quietly dropped to make
+    // the sentence read better.
+    expect(r.detail).toContain("3 unpaid node");
+  });
+
+  it("× THE HIJACK: a payable node still outranks a venue block", () => {
+    const d: EvidenceDebt = {
+      ...tapeless(),
+      missingPayableLabels: ["Risk"],
+      missingPayable: 1,
+    };
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: d, hasExpression: false });
+    // Something CAN be paid, so that is the next thing — but the blocked nodes
+    // must still be disclosed, and still not as compositions.
+    expect(r.headline).toBe("Resolve risk");
+    expect(r.detail).toContain("cannot be resolved on this feed");
+    expect(r.detail).toContain("3 of them");
+  });
+
+  it("× THE DOUBLE COUNT: blocked nodes are not also counted as compositions", () => {
+    const d: EvidenceDebt = {
+      ...tapeless(),
+      missingPayableLabels: ["Risk"],
+      missingPayable: 1,
+    };
+    const r = selectOneNextThing({ rightOfWay: WAIT, debt: d, hasExpression: false });
+    // 7 unpaid = 1 payable + 3 blocked + 3 compositions. If the composition
+    // clause said 6 it would be counting the blocked three twice.
+    expect(r.detail).toContain("3 of them cannot be worked on at all");
+  });
+
+  it("× THE REGRESSION: a debt with no venue block reads exactly as before", () => {
+    const r = selectOneNextThing({
+      rightOfWay: WAIT,
+      debt: debt(7, [...REGIME_FIRST], [...REGIME_FIRST_PAYABLE], 2),
+      hasExpression: false,
+    });
+    expect(r.headline).toBe("Resolve direction");
+    expect(r.detail).not.toContain("cannot be resolved on this feed");
+    expect(r.detail).toContain("composed from other readings");
+  });
+
+  it("× THE SILENT FIELD: computeEvidenceDebt always emits both venue fields", () => {
+    // The fields are optional on the TYPE so 16 pre-existing fixtures did not
+    // have to change. The guarantee that production never sees `undefined`
+    // lives HERE, because every production site routes through this function.
+    const d = computeEvidenceDebt([
+      { key: "d", label: "Direction", verdict: "UNRESOLVED", resolution: "UNKNOWN",
+        narrative: "n", indicator: "UNKNOWN", payableBy: "EVIDENCE", venueBlocked: true },
+      { key: "r", label: "Risk", verdict: "UNRESOLVED", resolution: "UNKNOWN",
+        narrative: "n", indicator: "UNKNOWN", payableBy: "DECLARATION" },
+    ]);
+    expect(d?.venueBlocked).toBe(1);
+    expect(d?.venueBlockedLabels).toEqual(["Direction"]);
+    // And the blocked node must have LEFT the payable set, not joined it.
+    expect(d?.missingPayable).toBe(1);
+    expect(d?.missingPayableLabels).toEqual(["Risk"]);
+  });
+
+  it("× THE UNPROVEN BLOCK: an unflagged node is still payable", () => {
+    const d = computeEvidenceDebt([
+      { key: "d", label: "Direction", verdict: "UNRESOLVED", resolution: "UNKNOWN",
+        narrative: "n", indicator: "UNKNOWN", payableBy: "EVIDENCE" },
+    ]);
+    // `undefined` means NOT ESTABLISHED. Assuming a venue block nobody proved
+    // is the same fabrication pointing the other way.
+    expect(d?.venueBlocked).toBe(0);
+    expect(d?.missingPayable).toBe(1);
+  });
+});

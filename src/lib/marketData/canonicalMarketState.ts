@@ -22,6 +22,37 @@ export interface MarketStateDimension {
   evidence: readonly MarketStateEvidenceRef[];
   contradictions: readonly string[];
   unknowns: readonly string[];
+  /**
+   * THIS DIMENSION IS UNRESOLVED BECAUSE THE VENUE CANNOT ANSWER IT — NOT
+   * BECAUSE NOBODY HAS LOOKED YET.
+   *
+   * MEASURED LIVE, production /charts?symbol=TSLA. The regime chip said, truly:
+   * "no per-trade tape has arrived, and this reading is measured trade by
+   * trade. The candles cannot answer it." Three inches away, the ONE NEXT
+   * THING cell said: "Resolve direction."
+   *
+   * Direction is ALSO measured trade by trade. It is exactly as unresolvable on
+   * a yahoo candle feed as regime is. Commit 28b6cde8 taught the engine that a
+   * COMPOSITION is not a debt the trader can pay; this field exists because
+   * that was only half the law. `payableBy: "EVIDENCE"` says the node MINTS ITS
+   * OWN EVIDENCE. It says nothing whatsoever about whether THIS FEED can supply
+   * that evidence. So the impossible instruction did not go away — it moved one
+   * node down the list, from regime to direction, and got harder to spot.
+   *
+   * WHO MAY SET THIS: only a deriver that was handed a publisher-authored
+   * `evidenceGapNote`. That note is computed in chartMarketStatePublisher and
+   * emitted ONLY when the publisher has seen BOTH lanes and established that
+   * bars ARE loaded while the required lane is structurally absent. A deriver
+   * cannot work this out alone — it sees one lane — which is exactly why it
+   * must never raise this flag on its own initiative.
+   *
+   * ABSENT (`undefined`) MEANS "NOT ESTABLISHED", NOT "FALSE". A dimension that
+   * is merely thin, early, or still filling must leave this unset. Defaulting
+   * the other way would let ordinary transient silence masquerade as a
+   * permanent venue limitation — the same false-certainty defect pointing in
+   * the opposite direction.
+   */
+  venueBlocked?: boolean;
 }
 
 export interface CanonicalMarketStateInput {

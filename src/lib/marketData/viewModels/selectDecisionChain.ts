@@ -129,6 +129,33 @@ export interface DecisionChainNode {
    * fall back to the pre-existing behaviour rather than inventing a claim.
    */
   readonly payableBy?: "EVIDENCE" | "DECLARATION" | "COMPOSITION";
+
+  /**
+   * PAYABLE BY KIND IS NOT PAYABLE ON THIS VENUE.
+   *
+   * Read the EVIDENCE clause directly above: "Pays when the market produces the
+   * observation. The trader waits; THE WAIT ENDS."
+   *
+   * MEASURED LIVE on production /charts?symbol=TSLA, that last clause is false.
+   * The regime chip renders, truly, "no per-trade tape has arrived, and this
+   * reading is measured trade by trade. The candles cannot answer it." Inches
+   * away the ONE NEXT THING cell renders "Resolve direction" — and direction is
+   * measured trade by trade too. The wait does not end. It cannot: a yahoo
+   * candle feed does not carry a per-trade tape and never will.
+   *
+   * So `payableBy` was only half the law. It classifies the node by KIND (does
+   * it mint its own evidence?) and says nothing about SUPPLY (can this feed
+   * deliver that evidence?). 28b6cde8 removed the impossible instruction from
+   * regime; without this field it simply reappeared one node down the list,
+   * where it is harder to see because direction genuinely IS directly measured.
+   *
+   * Sourced from `MarketStateDimension.venueBlocked`, which is raised only by a
+   * deriver holding a publisher-authored `evidenceGapNote`. Nothing here infers
+   * it. `undefined` means NOT ESTABLISHED, and is treated as payable — the
+   * pre-existing behaviour — because assuming a venue block nobody proved would
+   * be the same fabrication in the opposite direction.
+   */
+  readonly venueBlocked?: boolean;
 }
 
 export interface DecisionChainVM {
@@ -245,6 +272,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         : "Direction unresolved — no verified evidence at snapshot time.",
       indicator: dimIndicator(state.direction.resolution, state.direction.value),
       payableBy: "EVIDENCE",
+      venueBlocked: state.direction.venueBlocked,
     },
     {
       key: "location",
@@ -256,6 +284,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         : "Location unresolved.",
       indicator: dimIndicator(state.location.resolution, state.location.value),
       payableBy: "EVIDENCE",
+      venueBlocked: state.location.venueBlocked,
     },
     {
       key: "auction",
@@ -278,6 +307,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         : "Aggression unresolved.",
       indicator: dimIndicator(state.aggression.resolution, state.aggression.value),
       payableBy: "EVIDENCE",
+      venueBlocked: state.aggression.venueBlocked,
     },
     {
       key: "clc",

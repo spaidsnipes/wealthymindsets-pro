@@ -111,6 +111,31 @@ export interface EvidenceDebt {
    * assuming payability is exactly the fabrication this field exists to end.
    */
   readonly missingPayable: number;
+
+  /**
+   * Unpaid nodes THIS VENUE CANNOT SUPPLY — measured directly, but not here.
+   *
+   * These are excluded from `missingPayable`, so the invariant is now
+   * `missingPayable + venueBlocked <= missing`. They are counted apart from the
+   * composition remainder on purpose: a composition resolves when its inputs
+   * do, and telling the trader to wait is honest. A venue-blocked node resolves
+   * only if the trader CHANGES FEED, and telling them to wait is a lie with no
+   * expiry date.
+   *
+   * OPTIONAL, unlike `missingPayable` — and the reason is measured, not
+   * stylistic. When `missingPayableLabels`/`missingPayable` were added as
+   * REQUIRED in 28b6cde8, tsc named sixteen files that had to change and every
+   * single one was a TEST: no production site builds an `EvidenceDebt` by hand,
+   * they all route through `computeEvidenceDebt` below. Required-ness therefore
+   * bought no drift protection from production — it bought a sixteen-file
+   * fixture edit. `computeEvidenceDebt` ALWAYS emits both of these fields, and
+   * a Sentinel test asserts that it does, which is where the real guarantee
+   * lives. `undefined` reads as "this debt was built by a fixture that predates
+   * venue-blocking", which correctly yields the old behaviour.
+   */
+  readonly venueBlockedLabels?: readonly string[];
+  /** Authoritative count for `venueBlockedLabels` — never capped. */
+  readonly venueBlocked?: number;
 }
 
 /** Max labels retained for surface detail. Counts are never capped. */
@@ -221,8 +246,10 @@ export function computeEvidenceDebt(
   let missing = 0;
   let warn = 0;
   let missingPayable = 0;
+  let venueBlocked = 0;
   const missingLabels: string[] = [];
   const missingPayableLabels: string[] = [];
+  const venueBlockedLabels: string[] = [];
   const warnLabels: string[] = [];
   for (const n of nodes) {
     if (n.indicator === "OK") {
@@ -230,10 +257,23 @@ export function computeEvidenceDebt(
     } else if (n.indicator === "UNKNOWN") {
       missing += 1;
       if (missingLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) missingLabels.push(n.label);
-      // An UNASSERTED node is deliberately not payable. Defaulting the other
-      // way would re-create the exact defect: a node nobody classified would
-      // silently become a legal instruction to the trader.
-      if (n.payableBy === "EVIDENCE" || n.payableBy === "DECLARATION") {
+      // A node the VENUE cannot supply is not payable no matter what kind it
+      // is. `payableBy` classifies the node; `venueBlocked` reports the feed.
+      // Both must clear before WM may instruct a trader to go and resolve it —
+      // see DecisionChainNode.venueBlocked ("PAYABLE BY KIND IS NOT PAYABLE ON
+      // THIS VENUE"). Counted separately rather than merged into the
+      // composition bucket: a venue-blocked node IS measured directly, so
+      // calling it "composed from other readings" would be a fresh false
+      // statement replacing the one being removed.
+      if (n.venueBlocked === true) {
+        venueBlocked += 1;
+        if (venueBlockedLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) {
+          venueBlockedLabels.push(n.label);
+        }
+      } else if (n.payableBy === "EVIDENCE" || n.payableBy === "DECLARATION") {
+        // An UNASSERTED node is deliberately not payable. Defaulting the other
+        // way would re-create the exact defect: a node nobody classified would
+        // silently become a legal instruction to the trader.
         missingPayable += 1;
         if (missingPayableLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) {
           missingPayableLabels.push(n.label);
@@ -260,6 +300,8 @@ export function computeEvidenceDebt(
     warnLabels,
     missingPayableLabels,
     missingPayable,
+    venueBlockedLabels,
+    venueBlocked,
   };
 }
 

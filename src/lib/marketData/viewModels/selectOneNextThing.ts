@@ -133,8 +133,33 @@ export function isVerdictEcho(text: string): boolean {
  */
 function payEvidence(debt: EvidenceDebt): OneNextThing {
   const payableFirst = debt.missingPayableLabels[0];
+  const blocked = debt.venueBlocked ?? 0;
+  const blockedFirst = debt.venueBlockedLabels?.[0];
 
   if (payableFirst === undefined) {
+    // THE FEED IS THE BLOCKER, AND THAT IS A HUMAN ACTION, NOT A WAIT.
+    //
+    // Checked BEFORE the composition branch below, because when both kinds are
+    // present the venue block is the one the trader can actually do something
+    // about — and "wait for the compositions" would be advice with no end.
+    //
+    // The canon's ONE-NEXT-THING ENGINE names this lane explicitly: "the single
+    // next market fact OR HUMAN ACTION capable of changing the trader's job."
+    // Connecting a tape source is exactly such an action. This is the first
+    // time the engine has had grounds to emit one.
+    //
+    // It names no vendor and no price. WM knows THAT the lane is absent because
+    // the publisher established it; WM does not know which venue this trader
+    // should buy, and inventing a recommendation here would be a fresh
+    // fabrication in place of the one removed.
+    if (blocked > 0 && blockedFirst !== undefined) {
+      return {
+        kind: "ESTABLISH_EVIDENCE",
+        headline: "Connect a per-trade data source",
+        detail: `${blocked} unpaid node${blocked === 1 ? "" : "s"} — ${blockedFirst.toLowerCase()} among them — ${blocked === 1 ? "is" : "are"} measured directly, but this feed does not carry the lane they read. Waiting will not resolve them; only a venue that publishes that data will.`,
+      };
+    }
+
     const named = debt.missingLabels[0];
     if (named === undefined) {
       // The ledger counts a debt it cannot name. Report the gap honestly
@@ -159,14 +184,24 @@ function payEvidence(debt: EvidenceDebt): OneNextThing {
   // It counts ALL unpaid nodes, not just payable ones: the trader is owed the
   // true size of the debt even though only some of it is workable.
   const rest = hiddenRemainder(debt.missing, 1);
-  const derived = debt.missing - debt.missingPayable;
+  // TWO DIFFERENT REASONS A NODE CANNOT BE WORKED ON, AND THEY ARE NOT
+  // INTERCHANGEABLE. Before venueBlocked existed, `missing - missingPayable`
+  // was entirely compositions, so one sentence covered it. It no longer is, and
+  // calling a venue-blocked node "composed from other readings" would be a
+  // brand-new false statement — direction IS measured directly; the feed simply
+  // does not carry the lane. Each count now gets its own clause, and a count of
+  // zero gets no clause at all.
+  const derived = debt.missing - debt.missingPayable - (debt.venueBlocked ?? 0);
+  const blockedNote = blocked > 0
+    ? ` ${blocked} of them cannot be resolved on this feed at all — they are measured directly, but this venue does not publish the lane they read.`
+    : "";
   const derivedNote = derived > 0
     ? ` ${derived} of them cannot be worked on at all — they are composed from other readings and clear on their own.`
     : "";
   return {
     kind: "PAY_EVIDENCE",
     headline: `Resolve ${payableFirst.toLowerCase()}`,
-    detail: `${payableFirst.toLowerCase()} is the first directly-resolvable of ${debt.missing} unpaid evidence node${debt.missing === 1 ? "" : "s"}${rest ? ` (${rest.trim()} behind it)` : ""}.${derivedNote} Resolving it does not authorise entry — it removes one block.`,
+    detail: `${payableFirst.toLowerCase()} is the first directly-resolvable of ${debt.missing} unpaid evidence node${debt.missing === 1 ? "" : "s"}${rest ? ` (${rest.trim()} behind it)` : ""}.${blockedNote}${derivedNote} Resolving it does not authorise entry — it removes one block.`,
   };
 }
 

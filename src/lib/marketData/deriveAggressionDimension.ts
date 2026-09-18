@@ -187,7 +187,12 @@ export function deriveAggressionDimension(
   const gap = input.evidenceGapNote?.trim() || null;
 
   if (!vm) {
-    return unknown(gap ?? "No aggression window compiled at snapshot time.");
+    // venueBlocked rides with the NOTE, never with the default — the default
+    // describes a snapshot that has not compiled yet, which is transient. See
+    // MarketStateDimension.venueBlocked.
+    return gap
+      ? { ...unknown(gap), venueBlocked: true }
+      : unknown("No aggression window compiled at snapshot time.");
   }
 
   if (!vm.measured) {

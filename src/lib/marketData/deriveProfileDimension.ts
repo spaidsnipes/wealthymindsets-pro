@@ -175,7 +175,13 @@ export function deriveProfileDimension(input: DeriveProfileInput): MarketStateDi
   // See `evidenceGapNote`: only the caller can tell "no volume has been
   // distributed yet" apart from "this venue does not report volume at all".
   const gap = input.evidenceGapNote?.trim() || null;
-  if (!vm) return unknown(gap ?? "No profile compiled at snapshot time.");
+  // venueBlocked rides with the NOTE, never with the default — see
+  // MarketStateDimension.venueBlocked.
+  if (!vm) {
+    return gap
+      ? { ...unknown(gap), venueBlocked: true }
+      : unknown("No profile compiled at snapshot time.");
+  }
 
   // The owner's own sentence, not one composed here — two surfaces wording the
   // same silence differently is the defect this whole lane exists to prevent.

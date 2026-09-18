@@ -127,9 +127,13 @@ export function deriveLocationDimension(input: DeriveLocationInput): MarketState
   const vm = input.vm;
   const gap = input.evidenceGapNote?.trim() || null;
   if (!vm) {
-    return unknown(
-      gap ?? "No profile compiled at snapshot time, so price has nothing to be located against.",
-    );
+    // venueBlocked rides with the NOTE, never with the default — see
+    // MarketStateDimension.venueBlocked.
+    return gap
+      ? { ...unknown(gap), venueBlocked: true }
+      : unknown(
+          "No profile compiled at snapshot time, so price has nothing to be located against.",
+        );
   }
 
   if (!vm.measured) {
