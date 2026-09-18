@@ -22,6 +22,8 @@ import { deriveProfileDimension } from "./deriveProfileDimension";
 import { deriveLocationDimension } from "./deriveLocationDimension";
 import { deriveAggressionDimension } from "./deriveAggressionDimension";
 import { selectAggressionResponse } from "./viewModels/selectAggressionResponse";
+import { deriveStructureDimension } from "./deriveStructureDimension";
+import { selectMarketStructure } from "./viewModels/selectMarketStructure";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -303,6 +305,30 @@ export function createChartMarketStatePublication(
     snapshotIdSeed: snapshotId,
   });
 
+  // STRUCTURE — the SIXTH and LAST repair of this one shape. Measured live on
+  // /charts 2026-09-17: the Passport read "Structure unresolved — No verified
+  // evidence supplied at snapshot time." while the chart beside it was drawing
+  // Strong Highs/Lows, Liquidity Pools and CHoCH markers off `swingHighLow` on
+  // the very same bars.
+  //
+  // Structure had no compiled owner — MainChart called the raw detector inline,
+  // four times, at two different lookbacks. Deriving here off the raw detector
+  // would have made this file a FIFTH inline caller and a second opinion about
+  // the same swings, so `selectMarketStructure` was written first and this file
+  // only reads it.
+  //
+  // The deriver carries the owner's confirmation-lag sentence on EVERY stated
+  // verdict, RESOLVED included: a fractal pivot needs `lookback` bars on both
+  // sides, so the newest bars can never be pivots. That caveat is permanent,
+  // not a shortage a longer window would cure.
+  const structure = deriveStructureDimension({
+    vm: selectMarketStructure(profileBarsFrom(input.bars)),
+    source: typeof input.source === "string" ? input.source : null,
+    latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
+    capturedAt: input.capturedAt,
+    snapshotIdSeed: snapshotId,
+  });
+
   // ONE UNKNOWN PER UNRESOLVED DIMENSION.
   //
   // Real from-USE defect (2026-09-03): this previously emitted a single
@@ -319,7 +345,7 @@ export function createChartMarketStatePublication(
     ...(location.resolution === "RESOLVED" ? [] : ["Location"]),
     ...(aggression.resolution === "RESOLVED" ? [] : ["Aggression"]),
     ...(regime.resolution === "RESOLVED" ? [] : ["Regime"]),
-    "Structure",
+    ...(structure.resolution === "RESOLVED" ? [] : ["Structure"]),
     ...(volatility.resolution === "RESOLVED" ? [] : ["Volatility"]),
     ...(profile.resolution === "RESOLVED" ? [] : ["Profile"]),
     ...(orderFlow.resolution === "RESOLVED" ? [] : ["Order flow"]),
@@ -372,7 +398,7 @@ export function createChartMarketStatePublication(
       contradictions,
       unknowns,
       dimensions: {
-        orderFlow, volatility, direction, regime, profile, location, aggression,
+        orderFlow, volatility, direction, regime, profile, location, aggression, structure,
       },
     },
   };
