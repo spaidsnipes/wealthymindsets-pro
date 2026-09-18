@@ -54,14 +54,31 @@
 export const DECISION_IDENTITY_LAW_VERSION = "wm.decision-identity.v1" as const;
 
 /**
- * The two acts §4 permits as a birth. Both are transitions performed by or for
- * the human — neither is a state a selector can find itself in.
+ * The acts permitted as a birth. Every one is a transition performed by or for
+ * the human — none is a state a selector can find itself in.
+ *
+ * WIDENED 2026-09-18 from two to four, per SUPPORT — DECISION_ID Lifecycle §2.
+ * The additions are not new machinery; they are two stances the trader could
+ * already take that the house was declining to remember.
+ *
+ * RECORDED_WAIT is the important one, and the canon puts the whole distinction
+ * in one line: "Keep WAIT-without-ID for ambient observation; mint when WAIT
+ * is recorded." A trader who looks at a chart and does nothing has not made a
+ * decision. A trader who writes down "debt remains — I am holding this thesis
+ * as WAIT" HAS, and it is often the most valuable entry the book can carry.
+ * Leaving it unminted meant the only decisions with identity were the ones
+ * that reached for capital — which quietly taught the record that declining to
+ * trade is not a decision.
  */
 export type DecisionBirthCause =
   /** Permission crossed into GRANTED. Not "permission is currently ALLOWED". */
   | "PERMISSION_GRANTED"
   /** The human's first explicit intent — a press, not an inference. */
-  | "EXPLICIT_INTENT";
+  | "EXPLICIT_INTENT"
+  /** A WAIT the trader WROTE DOWN. Ambient calm on a chart is not this. */
+  | "RECORDED_WAIT"
+  /** The human deliberately took the controls — chosen, not fallen back to. */
+  | "MANUAL_MODE_ENTERED";
 
 /**
  * Nominal type. A plain `string` cannot be passed where a DecisionId is

@@ -207,6 +207,11 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "The atmosphere blend arithmetic — overlay on non-linear sRGB, the grain tile's measured excursion, the vignette's peak alpha. Consumed by atmosphereLegibility.enforcement.test.ts to ask the Canon's §7 question ('measure ivory-on-field AFTER grain') about the COMPOSITED pixel rather than the clean token. A trader loses nothing by it having no screen; the browser already performs this blend in hardware, and a component importing it would be re-deriving in JavaScript what the compositor just did. Its whole job is to be asked at build time whether a layer the trader cannot opt out of has quietly taken the text ramp under AA.",
   },
+  "src/lib/traderMemory/decisionLifecycle.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "Birth/camera/closure classifier from SUPPORT — DECISION_ID Lifecycle (2026-09-18), extending decisionIdentity.ts rather than forking it. What a human loses by it having no screen is nothing yet — it takes no pixels and answers no question a trader asks out loud. What it holds is the canon's two lists, which are not each other's complement: the long list of camera events that must NOT mint an identity (zoom, overlay, symbol change, laptop close, Spaidbot), and the separate list that must NOT close one (a dropped broker session is a joint, not a death; SHOW OPPOSING is the trader looking harder at their own thesis). The danger was never that someone deliberately mints on a zoom — it is that minting is one line and a camera event is the convenient place to put it, and until now nothing in the codebase said no. Its first consumer will be whichever surface next mints or retires a decision; delete this entry then.",
+  },
   "src/lib/marketData/marketFidelityAlgebra.ts": {
     reason: "AWAITING_SURFACE",
     note:
