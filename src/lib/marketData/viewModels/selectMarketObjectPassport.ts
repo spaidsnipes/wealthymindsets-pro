@@ -34,7 +34,10 @@ import type {
   MarketStateDimension,
   MarketStateEvidenceRef,
   MarketQualityState,
+  MarketStateDimensionKey,
 } from "../canonicalMarketState";
+// Value import: the dimension's NAME has one owner. See DIMENSION_ORDER below.
+import { dimensionName } from "../canonicalMarketState";
 import type { MarketFidelityClass } from "../marketEvent";
 
 export const MARKET_OBJECT_PASSPORT_VERSION = "wm.market-object-passport.v1" as const;
@@ -90,16 +93,25 @@ export interface MarketObjectPassportVM {
   readonly totalCount: number;
 }
 
-/** Canonical dimension order + labels. Mirrors surfaceLink's DIMENSION_ORDER. */
-const DIMENSION_ORDER: readonly (readonly [keyof CanonicalMarketState, string])[] = [
-  ["direction", "Direction"],
-  ["location", "Location"],
-  ["structure", "Structure"],
-  ["aggression", "Aggression"],
-  ["orderFlow", "Order Flow"],
-  ["regime", "Regime"],
-  ["profile", "Profile"],
-  ["volatility", "Volatility"],
+/**
+ * Canonical dimension order for THIS surface.
+ *
+ * The comment here used to read "Mirrors surfaceLink's DIMENSION_ORDER", and
+ * the labels alongside each key were the mirror. A copy that DECLARES itself a
+ * copy is still a copy: nothing made the two move together, and a third
+ * spelling ("Order flow") had already appeared in `chartMarketStatePublisher`
+ * while both of these said "Order Flow". The name now has one owner; what is
+ * mirrored is only the ORDER, which is a real property of these two surfaces.
+ */
+const DIMENSION_ORDER: readonly MarketStateDimensionKey[] = [
+  "direction",
+  "location",
+  "structure",
+  "aggression",
+  "orderFlow",
+  "regime",
+  "profile",
+  "volatility",
 ];
 
 /**
@@ -243,8 +255,8 @@ export function selectMarketObjectPassport(
     };
   }
 
-  const objects = DIMENSION_ORDER.map(([key, label]) =>
-    passportFor(String(key), label, state[key] as unknown as MarketStateDimension),
+  const objects = DIMENSION_ORDER.map((key) =>
+    passportFor(key, dimensionName(key), state[key] as unknown as MarketStateDimension),
   );
 
   return {

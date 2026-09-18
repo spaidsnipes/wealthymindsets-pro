@@ -22,6 +22,9 @@
  */
 
 import type { CanonicalMarketState } from "../canonicalMarketState";
+// Value imports: the dimension KEY LIST and the dimension NAME each have one
+// owner. This surface used to keep a private copy of both.
+import { MARKET_STATE_DIMENSION_KEYS, dimensionName } from "../canonicalMarketState";
 import type { DecisionWhyVM } from "./selectDecisionWhyNot";
 
 export const MARKET_CANVAS_VERSION = "wm.market-canvas.v1" as const;
@@ -112,22 +115,20 @@ export function selectMarketCanvas(
   const missing = state ? [...state.unknowns] : [];
 
   // Symmetric to `missing`: name each canonical dimension whose
-  // resolution is RESOLVED or PARTIAL (i.e., not UNKNOWN). The order
-  // matches CanonicalMarketState's canonical dimension ordering.
+  // resolution is RESOLVED or PARTIAL (i.e., not UNKNOWN).
+  //
+  // "Symmetric" was the claim; it was not true of the WORDS. `missing` carries
+  // the publisher's sentences, which begin with a human name ("Order Flow is
+  // unresolved until…"), while this list pushed the raw camelCase KEY. On
+  // MarketCanvasPanel those two lists sit in adjacent columns — so one panel
+  // printed `orderFlow` under Resolved and `Order Flow` under Missing, for the
+  // same dimension, in the same instant. Both the key ORDER and the NAME now
+  // come from the module that owns the dimensions, so the symmetry is real.
   const resolved: string[] = [];
   if (state) {
-    const dims: readonly (readonly [string, { resolution: string } | undefined])[] = [
-      ["direction", state.direction],
-      ["location", state.location],
-      ["aggression", state.aggression],
-      ["regime", state.regime],
-      ["structure", state.structure],
-      ["volatility", state.volatility],
-      ["profile", state.profile],
-      ["orderFlow", state.orderFlow],
-    ];
-    for (const [name, dim] of dims) {
-      if (dim && dim.resolution !== "UNKNOWN") resolved.push(name);
+    for (const key of MARKET_STATE_DIMENSION_KEYS) {
+      const dim = state[key] as { resolution: string } | undefined;
+      if (dim && dim.resolution !== "UNKNOWN") resolved.push(dimensionName(key));
     }
   }
   const verdict = whyNot?.verdict ?? "UNKNOWN";

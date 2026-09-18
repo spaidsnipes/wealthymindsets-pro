@@ -22,6 +22,10 @@
 import { describe, it, expect } from "vitest";
 import { selectMarketStory, chapterName, CHAPTER_NAMES, DEFAULT_MATCHERS, DEFAULT_GUARDS, type ChapterEntry } from "./selectMarketStory";
 import type { CanonicalMarketState, MarketStateDimension } from "../canonicalMarketState";
+// The dimension's NAME has one owner; `inSentence` owns how it reads mid-prose.
+// Fixtures COMPOSE the same two rules the selector does.
+import { dimensionName } from "../canonicalMarketState";
+import { inSentence } from "./decisionPermissionCompiler";
 
 const dim = (value: string | null): MarketStateDimension => ({
   resolution: "RESOLVED", value, confidence: 0.8,
@@ -242,9 +246,17 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
       mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") }),
     );
     expect(vm.reason).not.toMatch(/decision-grade/);
-    expect(vm.reason).toMatch(
-      /location, aggression, structure, volatility, profile, orderFlow unresolved\./,
-    );
+    // The list is BUILT from the owner, not typed here. The old literal ended
+    // "…profile, orderFlow unresolved." — a raw machine identifier, observed
+    // live in this exact sentence on production /charts. Spelling it here made
+    // this file one more author of the dimension's name, and pinned the defect
+    // in place: the fixture AGREED with the bug.
+    const named = ["location", "aggression", "structure", "volatility", "profile", "orderFlow"]
+      .map((k) => inSentence(dimensionName(k)))
+      .join(", ");
+    expect(vm.reason).toContain(`${named} unresolved.`);
+    // …and the identifier itself never appears in trader prose.
+    expect(vm.reason).not.toContain("orderFlow");
   });
 });
 

@@ -26,7 +26,10 @@ import type {
   CanonicalMarketState,
   MarketStateDimension,
   MarketQualityState,
+  MarketStateDimensionKey,
 } from "../marketData/canonicalMarketState";
+// Value import: the dimension's NAME has one owner. See DIMENSION_ORDER below.
+import { dimensionName } from "../marketData/canonicalMarketState";
 import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
 import type { RightOfWay as CanonRightOfWay } from "../marketData/viewModels/decisionPermissionCompiler";
 
@@ -81,16 +84,25 @@ export interface ExperiencePacket {
   readonly sourceSnapshotId: string | null;
 }
 
-/** Human-facing labels for the canonical dimensions, in inspection priority order. */
-const DIMENSION_ORDER: readonly (readonly [keyof CanonicalMarketState, string])[] = [
-  ["direction", "Direction"],
-  ["location", "Location"],
-  ["structure", "Structure"],
-  ["aggression", "Aggression"],
-  ["orderFlow", "Order Flow"],
-  ["regime", "Regime"],
-  ["profile", "Profile"],
-  ["volatility", "Volatility"],
+/**
+ * The canonical dimensions in THIS surface's inspection priority order.
+ *
+ * The ORDER is genuinely owned here — inspection priority is a property of the
+ * surface, not of the market state, and it deliberately differs from
+ * `MARKET_STATE_DIMENSION_KEYS`. The NAMES were not owned here; they were a
+ * second copy of a table that also lived in `selectMarketObjectPassport`, and a
+ * third spelling of it lived in `chartMarketStatePublisher`. `dimensionName`
+ * owns the name now, so this list states only the thing it actually decides.
+ */
+const DIMENSION_ORDER: readonly MarketStateDimensionKey[] = [
+  "direction",
+  "location",
+  "structure",
+  "aggression",
+  "orderFlow",
+  "regime",
+  "profile",
+  "volatility",
 ] as const;
 
 function dim(state: CanonicalMarketState, key: keyof CanonicalMarketState): MarketStateDimension {
@@ -131,7 +143,7 @@ export function buildExperiencePacket(
   const qualityState: MarketQualityState | "UNKNOWN" = state?.qualityState ?? "UNKNOWN";
   const sourceSnapshotId = state?.snapshotId ?? null;
   const relevantObjects = state
-    ? DIMENSION_ORDER.filter(([k]) => isResolved(dim(state, k))).map(([, label]) => label)
+    ? DIMENSION_ORDER.filter((k) => isResolved(dim(state, k))).map(dimensionName)
     : [];
 
   if (!oneStory) {

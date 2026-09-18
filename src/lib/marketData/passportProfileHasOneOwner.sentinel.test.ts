@@ -59,11 +59,24 @@ describe("the Passport profile dimension has exactly one source owner", () => {
 
   it("THE DISAGREEMENT CANNOT RETURN: Profile is no longer hard-coded unresolved", () => {
     const src = publisher();
-    // The old line was a bare `"Profile",` entry in the unresolved array.
-    expect(src).toMatch(
-      /\.\.\.\(profile\.resolution === "RESOLVED" \? \[\] : \["Profile"\]\)/,
-    );
+    // WHAT THIS GUARD PROTECTS, RESTATED.
+    //
+    // It used to spell one ternary verbatim:
+    //   ...(profile.resolution === "RESOLVED" ? [] : ["Profile"])
+    // which locked the SHAPE of the code, not the rule. The rule is: whether
+    // profile is unresolved must be READ from the derived dimension, never
+    // asserted by a literal typed into this file.
+    //
+    // The ternary is gone — the eight of them were also eight authors of the
+    // dimension's NAME, and one of them spelled it "Order flow" while the rest
+    // of the product said "Order Flow". The publisher now pairs each KEY with
+    // its derived dimension and asks `dimensionName` for the word. The rule is
+    // unchanged; both halves of it are asserted below, neither coupled to how
+    // the branch is written.
+    expect(src).toMatch(/\["profile",\s*profile\]/);
     expect(src).not.toMatch(/^\s*"Profile",\s*$/m);
+    // …and the display name is not authored here at all any more.
+    expect(src).not.toContain('"Profile"');
   });
 
   it("the derived dimension actually reaches canonical state", () => {
@@ -87,10 +100,11 @@ describe("LOCATION is read from the same compiled profile, not a second one", ()
 
   it("THE DISAGREEMENT CANNOT RETURN: Location is no longer hard-coded unresolved", () => {
     const src = publisher();
-    expect(src).toMatch(
-      /\.\.\.\(location\.resolution === "RESOLVED" \? \[\] : \["Location"\]\)/,
-    );
+    // See the sibling guard above for why this asserts the KEY→dimension
+    // pairing rather than one spelling of a ternary.
+    expect(src).toMatch(/\["location",\s*location\]/);
     expect(src).not.toMatch(/^\s*"Location",\s*$/m);
+    expect(src).not.toContain('"Location"');
   });
 
   it("location reaches canonical state", () => {

@@ -76,10 +76,15 @@ describe("the Passport aggression dimension has exactly one source owner", () =>
   it("THE DISAGREEMENT CANNOT RETURN: Aggression is no longer hard-coded unresolved", () => {
     const src = read(PUBLISHER);
     // The old line was a bare `"Aggression",` entry in the unresolved array.
-    expect(src).toMatch(
-      /\.\.\.\(aggression\.resolution === "RESOLVED" \? \[\] : \["Aggression"\]\)/,
-    );
+    //
+    // The ternary that replaced it is gone too — those eight ternaries were
+    // also eight authors of the dimension's NAME, and one of them spelled it
+    // "Order flow" against the rest of the product's "Order Flow". The RULE is
+    // unchanged and is what is asserted here: unresolved-ness is READ from the
+    // derived dimension, and no display name is authored in the publisher.
+    expect(src).toMatch(/\["aggression",\s*aggression\]/);
     expect(src).not.toMatch(/^\s*"Aggression",\s*$/m);
+    expect(src).not.toContain('"Aggression"');
   });
 
   it("the derived dimension actually reaches canonical state", () => {

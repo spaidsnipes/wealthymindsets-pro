@@ -214,6 +214,71 @@ export const MARKET_STATE_DIMENSION_KEYS = [
   "structure", "volatility", "profile", "orderFlow",
 ] as const;
 
+export type MarketStateDimensionKey = (typeof MARKET_STATE_DIMENSION_KEYS)[number];
+
+/**
+ * THE ONE NAME A DIMENSION HAS ON EVERY SURFACE.
+ *
+ * The key list above already had one owner. The NAME did not — and the seven
+ * one-word dimensions hid that, because `direction` and `Direction` differ only
+ * by a capital nobody reads twice. `orderFlow` is the two-word one, so it is
+ * where the disagreement finally became legible. FIVE owners, THREE spellings,
+ * for one dimension:
+ *
+ *   surfaceLink.ts              "Order Flow"   (private DIMENSION_ORDER)
+ *   selectMarketObjectPassport  "Order Flow"   (a second private DIMENSION_ORDER
+ *                                               whose comment ADMITS it "Mirrors
+ *                                               surfaceLink's" — a copy declared
+ *                                               as a copy is still a copy)
+ *   chartMarketStatePublisher   "Order flow"   (sentence case, into state.unknowns)
+ *   selectMarketStory           "orderFlow"    (raw key, into trader prose)
+ *   selectMarketCanvas          "orderFlow"    (raw key, into vm.resolved)
+ *
+ * The last two were OBSERVED LIVE on production /charts, inside one sentence:
+ *   "…direction, regime, volatility, orderFlow unresolved; location,
+ *    aggression, profile measured but not decision-grade."
+ *
+ * A camelCase field identifier is a machine's word for the thing. It reached
+ * the trader because the surface that prints it never had to ask anyone what
+ * the dimension is CALLED — it had the key in hand and the key looked close
+ * enough. That is the chapter-name defect on the dimension axis: two owners,
+ * one instrument, one moment, disagreeing about what the thing is NAMED.
+ *
+ * TOTAL over the key union ON PURPOSE. A ninth dimension added to
+ * `CanonicalMarketState` fails the build here until somebody names it, rather
+ * than silently leaking its identifier onto a surface the way `orderFlow` did.
+ *
+ * This map owns WHAT a dimension is called. It does not own how that name reads
+ * mid-sentence — `inSentence` owns that, and prose call sites COMPOSE the two
+ * rather than keeping a lowercase copy of this table.
+ */
+export const DIMENSION_NAMES: Record<MarketStateDimensionKey, string> = {
+  direction: "Direction",
+  location: "Location",
+  aggression: "Aggression",
+  regime: "Regime",
+  structure: "Structure",
+  volatility: "Volatility",
+  profile: "Profile",
+  orderFlow: "Order Flow",
+};
+
+/**
+ * The name of a dimension, for any surface that has a key in hand.
+ *
+ * Falls back to de-camelCasing an unrecognised key rather than throwing: a
+ * selector explaining a silence must not become a new source of noise. The
+ * fallback Title-Cases nothing it was not already given — it only inserts the
+ * space the identifier omitted — so an unnamed key still LOOKS like the raw
+ * key it is, and discloses that nobody named it.
+ */
+export function dimensionName(key: string): string {
+  return (
+    DIMENSION_NAMES[key as MarketStateDimensionKey] ??
+    key.replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+  );
+}
+
 export type ContradictionDetectability =
   /** Fewer than two determinations exist. Nothing COULD have disagreed. */
   | "NOTHING_TO_COMPARE"

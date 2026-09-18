@@ -7,7 +7,13 @@ import {
   type SessionNectarSnapshot,
 } from "./sessionNectar";
 import type { ProduceMarketStateInput } from "./produceCanonicalMarketState";
-import type { MarketQualityState } from "./canonicalMarketState";
+import type {
+  MarketQualityState,
+  MarketStateDimension,
+  MarketStateDimensionKey,
+} from "./canonicalMarketState";
+// Value import: one owner for the dimension's name. See `unresolvedDimensions`.
+import { dimensionName } from "./canonicalMarketState";
 import {
   canonicalAssetClass,
   canonicalInstrumentId,
@@ -529,16 +535,27 @@ export function createChartMarketStatePublication(
   //
   // Canon grammar: Visual Systems Execution Canon Asset 07 — evidence debt is
   // a LEDGER of individually payable questions, not one lump narrative.
-  const unresolvedDimensions: readonly string[] = [
-    ...(direction.resolution === "RESOLVED" ? [] : ["Direction"]),
-    ...(location.resolution === "RESOLVED" ? [] : ["Location"]),
-    ...(aggression.resolution === "RESOLVED" ? [] : ["Aggression"]),
-    ...(regime.resolution === "RESOLVED" ? [] : ["Regime"]),
-    ...(structure.resolution === "RESOLVED" ? [] : ["Structure"]),
-    ...(volatility.resolution === "RESOLVED" ? [] : ["Volatility"]),
-    ...(profile.resolution === "RESOLVED" ? [] : ["Profile"]),
-    ...(orderFlow.resolution === "RESOLVED" ? [] : ["Order flow"]),
+  //
+  // THE NAMES COME FROM `dimensionName`, NOT FROM LITERALS TYPED HERE.
+  // The eight literals this replaced spelled the last one "Order flow" while
+  // two other surfaces spelled it "Order Flow" and two more printed the raw key
+  // `orderFlow` — which is how a machine identifier reached a live trader mid
+  // sentence. Nothing in the eight was WRONG, which is exactly why it survived:
+  // seven of them happen to agree with the owner. Only the two-word dimension
+  // was ever going to show that this list was a second author of the name.
+  const dimensionResolutions: readonly (readonly [MarketStateDimensionKey, MarketStateDimension])[] = [
+    ["direction", direction],
+    ["location", location],
+    ["aggression", aggression],
+    ["regime", regime],
+    ["structure", structure],
+    ["volatility", volatility],
+    ["profile", profile],
+    ["orderFlow", orderFlow],
   ];
+  const unresolvedDimensions: readonly string[] = dimensionResolutions
+    .filter(([, d]) => d.resolution !== "RESOLVED")
+    .map(([key]) => dimensionName(key));
   const unknowns = unresolvedDimensions.map(
     name => `${name} is unresolved until a verified engine publishes evidence.`,
   );

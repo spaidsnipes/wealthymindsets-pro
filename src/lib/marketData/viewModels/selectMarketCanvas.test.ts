@@ -13,6 +13,10 @@ import type {
   CanonicalMarketState,
   MarketStateDimension,
 } from "../canonicalMarketState";
+import {
+  MARKET_STATE_DIMENSION_KEYS,
+  dimensionName,
+} from "../canonicalMarketState";
 import type { DecisionWhyVM } from "./selectDecisionWhyNot";
 
 const emptyDim = (): MarketStateDimension => ({
@@ -118,12 +122,17 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
       regime: { ...s.regime, resolution: "PARTIAL" as const },
     };
     const vm = selectMarketCanvas(withResolved, null);
-    expect(vm.resolved).toContain("direction");
-    expect(vm.resolved).toContain("regime");
-    expect(vm.resolved).not.toContain("location");
+    // Asserted THROUGH the owner. A literal "Direction" typed here would make
+    // this file a second author of the dimension's name — the exact defect the
+    // panel exposed when it printed `orderFlow` beside `Order Flow`.
+    expect(vm.resolved).toContain(dimensionName("direction"));
+    expect(vm.resolved).toContain(dimensionName("regime"));
+    expect(vm.resolved).not.toContain(dimensionName("location"));
+    // …and the RAW KEY may never appear on the panel again.
+    expect(vm.resolved).not.toContain("direction");
   });
 
-  it("RESOLVED order matches the canonical dimension order (direction, location, aggression, regime, structure, volatility, profile, orderFlow)", () => {
+  it("RESOLVED order matches the canonical dimension order, named by the owner", () => {
     const s = emptyState();
     const allResolved = {
       ...s,
@@ -137,10 +146,9 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
       orderFlow: { ...s.orderFlow, resolution: "RESOLVED" as const },
     };
     const vm = selectMarketCanvas(allResolved, null);
-    expect(vm.resolved).toEqual([
-      "direction", "location", "aggression", "regime",
-      "structure", "volatility", "profile", "orderFlow",
-    ]);
+    // Both the ORDER and the NAMES come from the module that owns the
+    // dimensions. Spelling either here would re-create the copy.
+    expect(vm.resolved).toEqual(MARKET_STATE_DIMENSION_KEYS.map(dimensionName));
   });
 
   it("copies WhyNot clearances into the CLEARED panel", () => {

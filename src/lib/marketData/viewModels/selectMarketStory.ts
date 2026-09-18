@@ -21,6 +21,12 @@ import type {
   MarketStateEvidenceRef,
   MarketStateResolution,
 } from "../canonicalMarketState";
+// Value imports, deliberately. `dimensionName` owns WHAT a dimension is called;
+// `inSentence` owns how a name reads mid-sentence. The prose below COMPOSES the
+// two rather than keeping a private third rule — having no rule at all is how
+// the raw key `orderFlow` reached a live trader in that sentence.
+import { dimensionName } from "../canonicalMarketState";
+import { inSentence } from "./decisionPermissionCompiler";
 // Value import, deliberately: DEFAULT_MATCHERS must be built FROM the shipping
 // producer's vocabulary, not from a retyped copy of it that can drift.
 import { VOLATILITY_VERDICTS } from "../deriveVolatilityDimension";
@@ -499,12 +505,24 @@ function explainNoChapter(
   );
   const missing = unresolved.filter((name) => !partial.includes(name));
 
+  // THE KEY IS NOT THE NAME. Observed live on production /charts TSLA:
+  //
+  //   "…direction, regime, volatility, orderFlow unresolved; location,
+  //    aggression, profile measured but not decision-grade."
+  //
+  // Seven of the eight dimension keys are single lowercase words, which is
+  // exactly why this survived: `direction` reads as English by accident. Only
+  // the two-word one exposed that this sentence was printing FIELD IDENTIFIERS
+  // and had simply been lucky seven times out of eight.
+  const named = (keys: readonly string[]) =>
+    keys.map((k) => inSentence(dimensionName(k))).join(", ");
+
   if (blocked.length > 0) {
     const causes: string[] = [];
-    if (missing.length > 0) causes.push(`${missing.join(", ")} unresolved`);
+    if (missing.length > 0) causes.push(`${named(missing)} unresolved`);
     if (partial.length > 0) {
       causes.push(
-        `${partial.join(", ")} measured but not decision-grade`,
+        `${named(partial)} measured but not decision-grade`,
       );
     }
     parts.push(

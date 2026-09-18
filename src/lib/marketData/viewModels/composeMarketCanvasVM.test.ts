@@ -11,6 +11,7 @@ import type {
   CanonicalMarketState,
   MarketStateDimension,
 } from "../canonicalMarketState";
+import { dimensionName } from "../canonicalMarketState";
 
 const emptyDim = (): MarketStateDimension => ({
   resolution: "UNKNOWN",
@@ -143,6 +144,9 @@ describe("composeMarketCanvasVM — canon §Phase 3 Market Canvas compiler", () 
       ownerId: "u1",
       nowMs: 2_000,
     });
-    expect(out.canvas.resolved).toContain("direction");
+    // Through the owner — a literal here would make this file a second author
+    // of the dimension's name. The raw KEY may never reach the panel again.
+    expect(out.canvas.resolved).toContain(dimensionName("direction"));
+    expect(out.canvas.resolved).not.toContain("direction");
   });
 });
