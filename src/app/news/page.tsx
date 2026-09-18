@@ -6,12 +6,16 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import {
-  TrendingUp, TrendingDown, Minus, ExternalLink, Filter,
+  // TrendingUp / TrendingDown / Minus left with the sentiment chip. An arrow
+  // is the house pointing; the row now says which way the SENTENCE leaned.
+  ExternalLink, Filter,
   Brain, BarChart2, AlertCircle, Zap, Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
+import { selectHeadlineLean, type HeadlineLean } from "@/lib/experience/selectHeadlineLean";
+import { HeadlineLeanBand } from "@/components/experience/HeadlineLeanBand";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface NewsItem {
@@ -22,12 +26,25 @@ interface NewsItem {
   sourceIcon:string;
   sym:       string;
   impact:    "high" | "medium" | "low";
-  bullish:   boolean | null;
   title:     string;
   summary:   string;
   url?:      string;
   tags:      string[];
-  sentiment: { score: number; label: "Bullish" | "Bearish" | "Neutral"; keywordHits: number };
+  /**
+   * WHICH WAY THE HEADLINE'S WORDS LEANED — a tally, compiled once.
+   *
+   * This replaced `sentiment: { score, label, keywordHits }`, which was a 0–100
+   * number built by counting two word lists at ±6 a term and then adding a
+   * further ±12 for `bullish` — a field derived from THOSE SAME WORDS by
+   * `detectBullish`. One observation admitted through two doors.
+   *
+   * `bullish` is gone from this type because nothing else ever read it. It
+   * existed only to be counted a second time.
+   *
+   * Null means the headline was never read, which is not the same as reading it
+   * and finding no sentiment vocabulary. See selectHeadlineLean.
+   */
+  lean:      HeadlineLean | null;
   breaking?: boolean;
 }
 
@@ -77,17 +94,24 @@ function classifyImpact(item: { category: string; headline: string; summary: str
   return "low";
 }
 
-const BULLISH_WORDS = ["surge", "beat", "upgrade", "raised", "rally", "accelerating", "record", "inflow", "positive", "lead", "clear", "strong", "gains", "jumps", "rises", "top", "growth", "bullish"];
-const BEARISH_WORDS = ["drop", "fall", "concern", "underperform", "correction", "distribution", "weaken", "negative", "narrow", "signal", "declines", "falls", "losses", "crash", "warning", "bearish"];
+/*
+  THE WORD LISTS LEFT THIS FILE, AND SO DID THE SECOND READER.
 
-function detectBullish(text: string): boolean | null {
-  const lower = text.toLowerCase();
-  const bull = BULLISH_WORDS.filter(w => lower.includes(w)).length;
-  const bear = BEARISH_WORDS.filter(w => lower.includes(w)).length;
-  if (bull > bear + 1) return true;
-  if (bear > bull + 1) return false;
-  return null;
-}
+  BULLISH_WORDS and BEARISH_WORDS lived here with TWO functions walking them:
+  `detectBullish`, which returned a verdict, and `scoreSentiment`, which counted
+  the same lists again at ±6 a term AND added ±12 for `detectBullish`'s answer.
+  A headline with three bullish words collected +18 for those words and then +12
+  more because of those same words.
+
+  Vocabulary with two readers is vocabulary that will eventually be counted
+  twice. It now has exactly one reader, in selectHeadlineLean, and this room
+  cannot reach the words at all.
+
+  `detectBullish` is gone rather than migrated: its only consumer was the double
+  count. It also carried an invisible threshold — `bull > bear + 1` — so two
+  bullish terms against one bearish reported NEUTRAL, which is not what the
+  headline said.
+*/
 
 function detectTags(item: { category: string; related: string; headline: string }): string[] {
   const tags: string[] = [];
@@ -169,27 +193,29 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
       const ageDay = Math.floor(ageMs / 86_400_000);
       const timeStr = ageMin < 1 ? "JUST NOW" : ageMin < 60 ? `${ageMin}m ago` : ageHr < 24 ? `${ageHr}h ago` : `${ageDay}d ago`;
 
-      const bullish = detectBullish(`${item.headline} ${item.summary}`);
       const impact  = classifyImpact(item);
       const sym     = extractSymbol(item.related ?? "", item.headline);
-      const base: Omit<NewsItem, "sentiment" | "ageMs"> = {
+      const summary = item.summary || item.headline;
+      return {
         id:         item.id || i,
         source:     item.source || "News",
         sourceIcon: getSourceIcon(item.source || ""),
         time:       timeStr,
         title:      item.headline,
-        summary:    item.summary || item.headline,
+        summary,
         url:        item.url || undefined,
         sym,
         impact,
-        bullish,
         tags:       detectTags(item),
         breaking:   impact === "high" && ageMin < 30,
-      };
-      return {
-        ...base,
         ageMs,
-        sentiment:  scoreSentiment(base),
+        // Read ONCE, from the text, and never touched again. In particular
+        // `impact` is not folded in: the old scorer pushed a high-impact
+        // headline further in whichever direction it already leaned, which
+        // answered "how market-moving is this" and "which way does it read"
+        // with a single number. They are two questions and they keep two
+        // answers — §24.
+        lean:       selectHeadlineLean(`${item.headline} ${summary}`),
       };
     }).sort((a, b) => a.ageMs - b.ageMs);
   } catch {
@@ -197,140 +223,105 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
   }
 }
 
-/* ── Fallback seed news (shown while real data loads) ─────── */
-// WM-CHART-PROV-EMERG-01 (2026-08-09): loading placeholders no longer name the
-// upstream news provider. Genuine per-article `source` (e.g. Reuters, CNBC)
-// still renders on real items — that's the article publisher, not our API vendor.
-const BASE_NEWS: Omit<NewsItem, "sentiment" | "ageMs">[] = [
-  {
-    id: 1, time: "Loading...", source: "Market News", sourceIcon: "📡",
-    sym: "MARKET", impact: "medium", bullish: null,
-    title: "Loading real-time market news…",
-    summary: "Fetching live news feed. This will update momentarily.",
-    tags: [],
-  },
-  {
-    id: 2, time: "Loading...", source: "Market News", sourceIcon: "📡",
-    sym: "MARKET", impact: "low", bullish: null,
-    title: "Connecting to the news feed…",
-    summary: "Real financial news will appear here shortly.",
-    tags: [],
-  },
-];
+/*
+  DEAD ON ARRIVAL, AND REMOVED WITH THE SCORER.
 
-/* ── Sentiment engine ───────────────────────────────────── */
+  `BASE_NEWS` (two "Loading…" placeholders) and `hydrate` lived here and nothing
+  called either. `hydrate` was BASE_NEWS's only consumer, and no one called
+  `hydrate`. Worth recording because of what they would have done if anyone had
+  wired them back up: hydrate ran every placeholder through `scoreSentiment`, so
+  the headline "Loading real-time market news…" would have been given a
+  half-full sentiment meter reading 50. The house would have been scoring its
+  own loading message.
 
-function scoreSentiment(item: Omit<NewsItem, "sentiment" | "ageMs">): NewsItem["sentiment"] {
-  const text  = `${item.title} ${item.summary}`.toLowerCase();
-  let score   = 50; // neutral baseline
+  `scoreSentiment` is gone entirely. Its replacement is selectHeadlineLean, and
+  the four things it did that this room no longer can:
+    - counted the same vocabulary twice (±6 a word, then ±12 for a verdict
+      derived from those words)
+    - started at 50, so NO EVIDENCE rendered as a half-full bar
+    - collapsed "found nothing" and "found both" into one word and one number
+    - folded `impact` into direction
+*/
 
-  for (const w of BULLISH_WORDS) if (text.includes(w)) score += 6;
-  for (const w of BEARISH_WORDS) if (text.includes(w)) score -= 6;
-  if (item.bullish === true)  score += 12;
-  if (item.bullish === false) score -= 12;
-  if (item.impact === "high") score = score > 50 ? Math.min(score + 5, 95) : Math.max(score - 5, 5);
+/* ── The feed's lean, as a tally ─────────────────────────── */
+/*
+  THE GAUGE IS GONE.
 
-  score = Math.max(5, Math.min(95, score));
+  It drew a red→gold→green gradient with a dot at `left: ${avg - 6}%` and the
+  text `{avg}/100` beside it. Three separate defects in one control:
 
-  const label: "Bullish" | "Bearish" | "Neutral" =
-    score >= 62 ? "Bullish" : score <= 38 ? "Bearish" : "Neutral";
+    §15  "/100" is a score. There is no hundred. The number was a mean of
+         per-headline scores that were themselves fabricated from keyword
+         tallies, so the gauge was an average of inventions.
 
-  // Canon weakness #4 SCORE ADDICTION: a "confidence" percentage derived from
-  // the score's own distance from neutral measures nothing about reliability —
-  // it just restates the score. It previously read
-  // `60 + |score-50| * 0.8`, so a headline with more keyword hits looked more
-  // certain purely because it had more keyword hits.
-  //
-  // What we actually know is how many sentiment keywords matched. Report that
-  // directly and let the reader judge; never dress a tally as certainty.
-  const keywordHits =
-    BULLISH_WORDS.filter(w => text.includes(w)).length +
-    BEARISH_WORDS.filter(w => text.includes(w)).length;
+    §9   the gradient ran to green at one end. Green is the house saying safe,
+         and a bullish news feed is not safe — it is a news feed that used
+         more bullish words today.
 
-  return { score, label, keywordHits };
-}
+    H1   `?? 50` inside the mean. Every headline the compiler could not read
+         was silently entered as a neutral 50 and pulled the average toward
+         the middle, so a feed that failed to load looked calm.
 
-function hydrate(items: Omit<NewsItem, "sentiment" | "ageMs">[]): NewsItem[] {
-  return items.map((item, i) => ({
-    ...item,
-    ageMs:     i * 3 * 60 * 1000,
-    sentiment: scoreSentiment(item),
-  }));
-}
+  What replaces it is a COUNT of headlines per direction. A count has a real
+  denominator — the number of headlines — and it cannot be an average of
+  anything. Headlines that were never read are their own line rather than
+  being folded in at 50, because "we could not read it" is a fact about the
+  house and not a fact about the market.
+*/
+function FeedLeanTally({ news }: { news: NewsItem[] }) {
+  const count = (d: HeadlineLean["direction"]) =>
+    news.filter(n => n.lean?.direction === d).length;
 
-/* ── Sentiment gauge component ──────────────────────────── */
-function SentimentBar({ score }: { score: number }) {
-  const color = score >= 62 ? "#00D4AA" : score <= 38 ? "#FF4D6A" : "#F0B429";
-  return (
-    <div className="flex items-center gap-1.5 mt-1">
-      <div className="flex-1 h-1 rounded-full bg-wm-surface overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${score}%`, background: color }} />
-      </div>
-      <span className="text-[9px] font-mono" style={{ color }}>{score}</span>
-    </div>
-  );
-}
+  const bullish   = count("BULLISH");
+  const bearish   = count("BEARISH");
+  const conflicted = count("CONFLICTED");
+  const quiet     = count("NO_VOCABULARY");
+  // Not folded into any of the above. See H1 in the note.
+  const unread    = news.filter(n => n.lean === null).length;
 
-/* ── Market sentiment overview ──────────────────────────── */
-function MarketSentimentPanel({ news }: { news: NewsItem[] }) {
-  const avg = Math.round(news.reduce((s, n) => s + (n.sentiment?.score ?? 50), 0) / Math.max(1, news.length));
-  const bullCount = news.filter(n => n.sentiment?.label === "Bullish").length;
-  const bearCount = news.filter(n => n.sentiment?.label === "Bearish").length;
-  const neutCount = news.length - bullCount - bearCount;
+  // §Silence Is A Feature. No headlines is not a calm feed; it is no feed.
+  if (news.length === 0) return null;
 
-  const color = avg >= 62 ? "#00D4AA" : avg <= 38 ? "#FF4D6A" : "#F0B429";
-  const label = avg >= 62 ? "Bullish" : avg <= 38 ? "Bearish" : "Neutral";
+  const LINES: readonly (readonly [string, number, string])[] = [
+    ["lean bullish", bullish, "More bullish than bearish keywords matched."],
+    ["lean bearish", bearish, "More bearish than bullish keywords matched."],
+    ["say both", conflicted, "Bullish AND bearish keywords matched — the headline argues with itself."],
+    ["say neither", quiet, "Read, and no sentiment keywords matched. Not a neutral reading — no reading."],
+    ["unread", unread, "The house could not read these headlines at all."],
+  ];
 
   return (
     <div className="flex items-center gap-4 px-4 py-2 bg-wm-dark border-b border-wm-border shrink-0">
       <div className="flex items-center gap-2">
-        <Brain size={13} style={{ color }} />
-        <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">Sentiment Score</span>
-      </div>
-
-      {/* Gauge */}
-      <div className="flex items-center gap-2 bg-wm-surface rounded-lg px-3 py-1 border border-wm-border">
-        <div className="relative w-24 h-2 rounded-full bg-gradient-to-r from-wm-red via-wm-gold to-wm-green">
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-wm-dark shadow-lg transition-all duration-700"
-            style={{ left: `${avg - 6}%`, background: color }}
-          />
-        </div>
-        <span className="text-xs font-black" style={{ color }}>{label}</span>
-        <span className="text-[10px] text-wm-text-dim">{avg}/100</span>
-      </div>
-
-      {/* Breakdown */}
-      <div className="flex items-center gap-3">
-        <span className="flex items-center gap-1 text-[10px] text-wm-green">
-          <TrendingUp size={10} /> {bullCount} Bullish
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-wm-text-muted">
-          <Minus size={10} /> {neutCount} Neutral
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-wm-red">
-          <TrendingDown size={10} /> {bearCount} Bearish
+        <Brain size={13} style={{ color: "#8a8271" }} />
+        <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">
+          Headline keyword lean
         </span>
       </div>
 
-      {/* Symbol heat chips */}
-      <div className="flex items-center gap-1.5 ml-auto">
-        {["NQ1!", "BTC", "NVDA", "TSLA", "ES1!"].map(sym => {
-          const symNews = news.filter(n => n.sym === sym);
-          if (!symNews.length) return null;
-          const symAvg = Math.round(symNews.reduce((s, n) => s + (n.sentiment?.score ?? 50), 0) / symNews.length);
-          const symColor = symAvg >= 62 ? "#00D4AA" : symAvg <= 38 ? "#FF4D6A" : "#F0B429";
-          return (
-            <div
-              key={sym}
-              className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border"
-              style={{ color: symColor, borderColor: `${symColor}40`, background: `${symColor}15` }}
-            >
-              {sym}
-            </div>
-          );
-        })}
+      <div className="flex items-center gap-3 flex-wrap" data-testid="news-feed-tally">
+        {LINES.filter(([, n]) => n > 0).map(([word, n, why]) => (
+          <span
+            key={word}
+            className="text-[10px]"
+            style={{ color: "#c2b892" }}
+            title={why}
+          >
+            <span style={{ color: "#ede6d3" }}>{n}</span> {word}
+          </span>
+        ))}
+        <span className="text-[10px]" style={{ color: "#5d5747" }}>
+          of {news.length} headlines
+        </span>
       </div>
+
+      <span
+        className="ml-auto text-[9px] italic"
+        style={{ color: "#5d5747" }}
+        title="The word lists include 'lead', 'clear', 'top', 'signal' and 'narrow', all of which appear innocently in headlines."
+      >
+        keyword tally over the headline text — not a prediction
+      </span>
     </div>
   );
 }
@@ -341,7 +332,18 @@ const SOURCES = [
   "X / Twitter", "WatcherGuru", "TipRanks", "CoinDesk", "Benzinga",
   "Seeking Alpha", "Truth Social", "SEC Filing",
 ];
-const FILTERS = ["All", "Breaking", "High Impact", "Bullish", "Bearish", "Neutral", "Macro", "Crypto", "Earnings", "Whales"];
+/*
+  "Neutral" became "Says both".
+
+  The old filter promised one thing and delivered two: `label === "Neutral"`
+  matched headlines the scorer found NOTHING in and headlines it found BOTH in,
+  because the score landed near 50 either way. A trader filtering for Neutral
+  got a pile of quiet regulatory filings with the genuinely conflicted headlines
+  buried among them — and the conflicted ones were the only reason to look.
+
+  Those are now separate directions, and the filter names the useful one.
+*/
+const FILTERS = ["All", "Breaking", "High Impact", "Bullish", "Bearish", "Says both", "Macro", "Crypto", "Earnings", "Whales"];
 
 /* Case-insensitive, substring-tolerant source match so a filter button like
    "X / Twitter" or "WSJ" still matches feed values like "twitter.com" or
@@ -727,9 +729,9 @@ export default function NewsPage() {
     if (sourceFilter !== "All Sources" && !sourceMatches(n.source, sourceFilter)) return false;
     if (tagFilter === "Breaking"   && !n.breaking)                    return false;
     if (tagFilter === "High Impact"&& n.impact !== "high")            return false;
-    if (tagFilter === "Bullish"    && n.sentiment?.label !== "Bullish") return false;
-    if (tagFilter === "Bearish"    && n.sentiment?.label !== "Bearish") return false;
-    if (tagFilter === "Neutral"    && n.sentiment?.label !== "Neutral") return false;
+    if (tagFilter === "Bullish"    && n.lean?.direction !== "BULLISH")    return false;
+    if (tagFilter === "Bearish"    && n.lean?.direction !== "BEARISH")    return false;
+    if (tagFilter === "Says both"  && n.lean?.direction !== "CONFLICTED") return false;
     if (tagFilter === "Macro"      && !n.tags.includes("Macro"))      return false;
     if (tagFilter === "Crypto"     && !["BTC","ETH","SOL","Crypto"].some(t => n.tags.includes(t) || n.sym === t)) return false;
     if (tagFilter === "Earnings"   && !n.tags.includes("Earnings"))   return false;
@@ -860,7 +862,7 @@ export default function NewsPage() {
       </div>
 
       {/* ── AI Sentiment Overview ───────────────────────────── */}
-      <MarketSentimentPanel news={news} />
+      <FeedLeanTally news={news} />
 
       {/* ── Source filter ───────────────────────────────────── */}
       <div className="flex gap-1.5 px-4 py-2 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
@@ -918,9 +920,26 @@ export default function NewsPage() {
         )}
         <AnimatePresence initial={false}>
           {!loading && filtered.map((item, idx) => {
-            const sentColor =
-              item.sentiment?.label === "Bullish" ? "#00D4AA" :
-              item.sentiment?.label === "Bearish" ? "#FF4D6A" : "#F0B429";
+            /*
+              §9. THE ROW STOPPED TAKING A SIDE.
+
+              `sentColor` was green for bullish and red for bearish, and it was
+              spent THREE times on every card: a 3px left border, a background
+              heat gradient, and the direction chip. A keyword tally decided how
+              a whole card looked, and green told the reader a bullish headline
+              was the good kind.
+
+              It is now one ivory hairline on every row. Direction is carried by
+              the band, where it is read from WHICH SIDE has more marks — a fact
+              about the picture that no colourblind reader is cut out of, and
+              one that cannot imply approval.
+            */
+            const DIRECTION_WORD: Record<HeadlineLean["direction"], string> = {
+              BULLISH: "leans bullish",
+              BEARISH: "leans bearish",
+              CONFLICTED: "says both",
+              NO_VOCABULARY: "says neither",
+            };
 
             return (
               <motion.div
@@ -933,14 +952,15 @@ export default function NewsPage() {
               >
                 <div
                   className="glass rounded-xl p-4 hover:border-wm-border/80 transition-all cursor-pointer group relative overflow-hidden"
-                  style={{ borderLeft: `3px solid ${sentColor}60` }}
+                  style={{ borderLeft: "3px solid rgba(237,230,211,0.18)" }}
                   onClick={() => setExpandedId(id => id === item.id ? null : item.id)}
                 >
-                  {/* Subtle sentiment background heat */}
-                  <div
-                    className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                    style={{ background: `linear-gradient(90deg, ${sentColor}, transparent 40%)` }}
-                  />
+                  {/*
+                    The background heat gradient is GONE, not recoloured. It was
+                    the third spend of one keyword tally on a single card, and a
+                    card that is tinted by its own reading has had the reading
+                    made for it before it is read.
+                  */}
 
                   {/* Breaking badge */}
                   {item.breaking && (
@@ -966,14 +986,20 @@ export default function NewsPage() {
                         )}>
                           {item.impact}
                         </span>
-                        <span
-                          className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded"
-                          style={{ color: sentColor, background: `${sentColor}15` }}
-                        >
-                          {item.sentiment?.label === "Bullish" ? <TrendingUp size={9} /> :
-                           item.sentiment?.label === "Bearish" ? <TrendingDown size={9} /> : <Minus size={9} />}
-                          {item.sentiment?.label}
-                        </span>
+                        {/*
+                          No arrow and no hue. An arrow is a direction the HOUSE
+                          is pointing; the word says which way the SENTENCE
+                          leaned, and the band beside it shows by how little.
+                          A headline that was never read gets no chip at all.
+                        */}
+                        {item.lean && (
+                          <span
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                            style={{ color: "#c2b892", background: "rgba(194,184,146,0.10)" }}
+                          >
+                            {DIRECTION_WORD[item.lean.direction]}
+                          </span>
+                        )}
                         <span className="px-1.5 py-0.5 rounded bg-wm-surface text-wm-blue text-[10px] font-mono font-bold">
                           {item.sym}
                         </span>
@@ -1008,8 +1034,11 @@ export default function NewsPage() {
                         </a>
                       )}
 
-                      {/* Sentiment bar */}
-                      {item.sentiment && <SentimentBar score={item.sentiment.score} />}
+                      {/* Which way the headline leaned — a tally, drawn outward
+                          from a centre. Null lean draws nothing at all. */}
+                      <div className="mt-1.5">
+                        <HeadlineLeanBand lean={item.lean} testId={`news-lean-${item.id}`} />
+                      </div>
 
                       {/* Tags + confidence */}
                       <div className="flex items-center gap-2 mt-2">
@@ -1018,13 +1047,15 @@ export default function NewsPage() {
                             #{t}
                           </span>
                         ))}
-                        <span
-                          className="ml-auto flex items-center gap-1 text-[9px] text-wm-text-dim"
-                          title="Sentiment is a keyword heuristic over the headline and summary — not a model prediction. This is the number of sentiment keywords matched, not a confidence score."
-                        >
-                          <Brain size={8} />
-                          {item.sentiment?.keywordHits ?? 0} keyword{(item.sentiment?.keywordHits ?? 0) === 1 ? "" : "s"} matched
-                        </span>
+                        {/*
+                          The keyword count USED to be restated here, beside the
+                          bar that already drew it. Two printings of one tally is
+                          how two tallies eventually appear. It is said once now,
+                          by the band — in its tooltip and to a screen reader —
+                          together with the disclaimer that it is a keyword match
+                          and not a prediction.
+                        */}
+                        <span className="ml-auto" />
                         {item.sym && item.sym !== "MARKET" && (
                           <button
                             onClick={e => { e.stopPropagation(); goToChart(item.sym); }}
