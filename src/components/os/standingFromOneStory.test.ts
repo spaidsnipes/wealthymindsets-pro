@@ -24,6 +24,8 @@ const debt = (over: Partial<EvidenceDebt> = {}): EvidenceDebt => ({
   warn: 0,
   missingLabels: ["regime", "direction"],
   warnLabels: [],
+  missingPayableLabels: ["regime", "direction"],
+  missingPayable: 9,
   ...over,
 });
 
@@ -136,7 +138,7 @@ describe("standingFromOneStory — the chrome inherits the room's confidence", (
       // the chrome renders as "EVIDENCE DEBT PAID". A live warning would have
       // been drawn as a clean bill of health.
       const warnOnly = story({
-        debt: debt({ payable: 1, resolved: 0, missing: 0, warn: 1, missingLabels: [], warnLabels: ["permission"] }),
+        debt: debt({ payable: 1, resolved: 0, missing: 0, warn: 1, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: ["permission"] }),
       });
       expect(standingFromOneStory(warnOnly).openEvidenceItems).toBe(1);
       expect(standingFromOneStory(warnOnly).openEvidenceItems).not.toBe(0);

@@ -81,6 +81,36 @@ export interface EvidenceDebt {
    * TRUNCATED — the authoritative count is `warn`.
    */
   readonly warnLabels: readonly string[];
+  /**
+   * The subset of `missingLabels` that something can actually PAY — nodes whose
+   * producer declares `payableBy: "EVIDENCE"` or `"DECLARATION"`.
+   *
+   * ── Why a second list instead of reordering the first ─────────────────────
+   *
+   * `missingLabels` is consumed by several surfaces that print it as a plain
+   * sample of what is unpaid. That reading stays correct: regime IS unpaid, and
+   * a surface listing unpaid nodes should still name it. What is NOT correct is
+   * INSTRUCTING a trader to go and resolve it — see the `payableBy` doc on
+   * DecisionChainNode for the live measurement that produced "Resolve regime".
+   *
+   * Reordering `missingLabels` would have silently changed every one of those
+   * surfaces to serve one caller's need. A separate list changes exactly the
+   * caller that asked.
+   *
+   * TRUNCATED to the same sample limit. Its authoritative count is
+   * `missingPayable`.
+   */
+  readonly missingPayableLabels: readonly string[];
+  /**
+   * Authoritative count of unpaid nodes that something can pay.
+   *
+   * INVARIANT: `missingPayable <= missing`. The remainder
+   * (`missing - missingPayable`) are compositions that resolve only when their
+   * own inputs resolve, plus any node whose producer has not asserted a
+   * `payableBy` at all — an unasserted node is NOT counted as payable, because
+   * assuming payability is exactly the fabrication this field exists to end.
+   */
+  readonly missingPayable: number;
 }
 
 /** Max labels retained for surface detail. Counts are never capped. */
@@ -190,7 +220,9 @@ export function computeEvidenceDebt(
   let resolved = 0;
   let missing = 0;
   let warn = 0;
+  let missingPayable = 0;
   const missingLabels: string[] = [];
+  const missingPayableLabels: string[] = [];
   const warnLabels: string[] = [];
   for (const n of nodes) {
     if (n.indicator === "OK") {
@@ -198,6 +230,15 @@ export function computeEvidenceDebt(
     } else if (n.indicator === "UNKNOWN") {
       missing += 1;
       if (missingLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) missingLabels.push(n.label);
+      // An UNASSERTED node is deliberately not payable. Defaulting the other
+      // way would re-create the exact defect: a node nobody classified would
+      // silently become a legal instruction to the trader.
+      if (n.payableBy === "EVIDENCE" || n.payableBy === "DECLARATION") {
+        missingPayable += 1;
+        if (missingPayableLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) {
+          missingPayableLabels.push(n.label);
+        }
+      }
     } else if (n.indicator === "WARN") {
       warn += 1;
       if (warnLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) warnLabels.push(n.label);
@@ -217,6 +258,8 @@ export function computeEvidenceDebt(
     warn,
     missingLabels,
     warnLabels,
+    missingPayableLabels,
+    missingPayable,
   };
 }
 

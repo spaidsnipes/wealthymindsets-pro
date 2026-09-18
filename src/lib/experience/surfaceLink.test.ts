@@ -95,6 +95,8 @@ const debt = (missingLabels: string[]): EvidenceDebt => ({
   missing: missingLabels.length,
   warn: 0,
   missingLabels,
+  missingPayableLabels: missingLabels,
+  missingPayable: missingLabels.length,
   warnLabels: [],
 });
 

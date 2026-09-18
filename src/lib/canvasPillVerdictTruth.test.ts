@@ -47,6 +47,8 @@ describe("canvas pill verdict legibility", () => {
         missing,
         warn: 0,
         missingLabels: ["regime", "direction"],
+        missingPayableLabels: ["direction"],
+        missingPayable: 1,
         warnLabels: [],
       };
       const r = computeRightOfWay(null, debt);
@@ -58,7 +60,7 @@ describe("canvas pill verdict legibility", () => {
   it("zero chain debt does not itself fabricate ACTION without permission", () => {
     const debt: EvidenceDebt = {
       payable: 8, watch: 0, resolved: 8, missing: 0, warn: 0,
-      missingLabels: [], warnLabels: [],
+      missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [],
     };
     // No permission supplied → must not invent authorization.
     expect(computeRightOfWay(null, debt).value).not.toBe("ACTION");

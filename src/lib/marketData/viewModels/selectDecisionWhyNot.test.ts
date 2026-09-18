@@ -45,6 +45,8 @@ const debt = (missing: string[], warn: string[] = [], resolved = 1, payable = 9)
   warn: warn.length,
   missingLabels: missing,
   warnLabels: warn,
+  missingPayableLabels: missing,
+  missingPayable: missing.length,
 });
 
 function ruleEval(kind: "HARD" | "SOFT", label: string, reason: string): RuleEvaluation {

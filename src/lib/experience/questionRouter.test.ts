@@ -39,6 +39,8 @@ const debt: EvidenceDebt = {
   warn: 1,
   missingLabels: ["order flow"],
   warnLabels: ["volatility"],
+  missingPayableLabels: ["order flow"],
+  missingPayable: 1,
 };
 
 describe("questionRouter", () => {

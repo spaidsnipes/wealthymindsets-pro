@@ -6,9 +6,29 @@ import {
   isVerdictEcho,
   type OneNextThingInput,
 } from "./selectOneNextThing";
+import { computeEvidenceDebt } from "./decisionPermissionCompiler";
 import type { EvidenceDebt, RightOfWayReading } from "./decisionPermissionCompiler";
 
-function debt(missing: number, labels: readonly string[]): EvidenceDebt {
+/**
+ * A FIXTURE THAT MODELS THE WRONG WORLD TESTS THE WRONG PRODUCT.
+ *
+ * These fixtures used to hand `["Regime", "Direction", "Location"]` in as the
+ * unpaid sample and assert the headline read "Resolve regime". That assertion
+ * was GREEN for the entire life of the defect, because the fixture and the
+ * producer agreed with each other about a world the product does not live in:
+ * regime is a pure composition and no trader can resolve it. The test was not
+ * catching the bug, it was PRESERVING it.
+ *
+ * So `payable` is now an explicit second list, and the callers below say which
+ * of their unpaid nodes something can actually pay — the same split the real
+ * `computeEvidenceDebt` performs off `DecisionChainNode.payableBy`.
+ */
+function debt(
+  missing: number,
+  labels: readonly string[],
+  payableLabels: readonly string[] = labels,
+  missingPayable: number = missing,
+): EvidenceDebt {
   return {
     payable: missing + 2,
     watch: 0,
@@ -17,8 +37,14 @@ function debt(missing: number, labels: readonly string[]): EvidenceDebt {
     warn: 0,
     missingLabels: labels,
     warnLabels: [],
+    missingPayableLabels: payableLabels,
+    missingPayable,
   };
 }
+
+/** The live TSLA shape: regime heads the unpaid list and cannot be paid. */
+const REGIME_FIRST = ["Regime", "Direction", "Location"] as const;
+const REGIME_FIRST_PAYABLE = ["Direction", "Location"] as const;
 
 const WAIT: RightOfWayReading = {
   value: "WAIT",
@@ -47,7 +73,14 @@ describe("× A NEXT THAT REPEATS NOW IS NOT A NEXT", () => {
     // said "WAIT". Every branch must now name an ACT, not a STATE.
     for (const rightOfWay of ALL_READINGS) {
       for (const hasExpression of [true, false]) {
-        for (const d of [null, debt(9, ["Regime", "Direction"]), debt(0, [])]) {
+        for (const d of [
+          null,
+          debt(9, ["Regime", "Direction"], ["Direction"], 8),
+          debt(0, []),
+          // Every unpaid node a composition — the branch that must refuse to
+          // name a task. It is still not allowed to echo a verdict.
+          debt(3, ["Regime", "Auction"], [], 0),
+        ]) {
           const next = selectOneNextThing(input({ rightOfWay, debt: d, hasExpression }));
           expect(isVerdictEcho(next.headline), `${rightOfWay.value} → "${next.headline}"`).toBe(false);
         }
@@ -67,31 +100,36 @@ describe("× A NEXT THAT REPEATS NOW IS NOT A NEXT", () => {
   });
 
   it("× THE BACKLOG: nine unpaid nodes yield ONE next thing, not nine", () => {
-    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: debt(9, ["Regime", "Direction", "Location"]) }));
+    const next = selectOneNextThing(input({
+      rightOfWay: WAIT,
+      debt: debt(9, [...REGIME_FIRST], [...REGIME_FIRST_PAYABLE], 8),
+    }));
     expect(next.kind).toBe("PAY_EVIDENCE");
-    expect(next.headline).toBe("Resolve regime");
+    expect(next.headline).toBe("Resolve direction");
     // The other sampled labels must NOT be promoted into the headline.
-    expect(next.headline).not.toContain("direction");
     expect(next.headline).not.toContain("location");
   });
 
   it("× THE CAPPED REMAINDER: the count comes from `missing`, never the sample array", () => {
     // missingLabels is capped at 3. Deriving "+N" from its length is the
     // exact live defect that once rendered "9 nodes unpaid: regime + ... +1".
-    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: debt(9, ["Regime", "Direction", "Location"]) }));
+    const next = selectOneNextThing(input({
+      rightOfWay: WAIT,
+      debt: debt(9, [...REGIME_FIRST], [...REGIME_FIRST_PAYABLE], 8),
+    }));
     expect(next.detail).toContain("9 unpaid evidence nodes");
     expect(next.detail).toContain("+8");
     expect(next.detail).not.toContain("+2");
   });
 
   it("× THE SINGULAR PLURAL: one unpaid node reads as one, with no remainder", () => {
-    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: debt(1, ["Regime"]) }));
+    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: debt(1, ["Direction"]) }));
     expect(next.detail).toContain("1 unpaid evidence node.");
     expect(next.detail).not.toContain("behind it");
   });
 
   it("× THE PROMOTED STEP: resolving one node is not sold as permission", () => {
-    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: debt(4, ["Regime"]) }));
+    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: debt(4, ["Direction"]) }));
     expect(next.detail).toContain("does not authorise entry");
   });
 
@@ -146,16 +184,84 @@ describe("× A NEXT THAT REPEATS NOW IS NOT A NEXT", () => {
     const banned = /\b(buy|sell|long|short|enter now|go long|go short)\b/i;
     for (const rightOfWay of ALL_READINGS) {
       for (const hasExpression of [true, false]) {
-        const next = selectOneNextThing(input({ rightOfWay, debt: debt(2, ["Regime"]), hasExpression }));
+        const next = selectOneNextThing(input({ rightOfWay, debt: debt(2, ["Direction"]), hasExpression }));
         expect(banned.test(next.headline), next.headline).toBe(false);
         expect(banned.test(next.detail), next.detail).toBe(false);
       }
     }
   });
 
+  it("× THE UNPAYABLE TASK: a composition is never named as the next thing", () => {
+    // THE DEFECT, VERBATIM. Production /charts?symbol=TSLA, 12:06Z:
+    //   "Resolve regime — regime is the first of 7 unpaid evidence nodes."
+    // Regime mints no evidence. No action by any trader resolves it.
+    const next = selectOneNextThing(input({
+      rightOfWay: WAIT,
+      debt: debt(7, [...REGIME_FIRST], [...REGIME_FIRST_PAYABLE], 5),
+    }));
+    expect(next.headline.toLowerCase()).not.toContain("regime");
+    expect(next.detail).toContain("directly-resolvable");
+  });
+
+  it("\u00d7 THE SILENCED REMAINDER: the unworkable nodes are disclosed, not hidden", () => {
+    // Naming a payable node is only half the truth. The trader is owed the
+    // fact that some of the debt cannot be worked on at all \u2014 otherwise
+    // "7 unpaid nodes" reads as "7 things to do".
+    const next = selectOneNextThing(input({
+      rightOfWay: WAIT,
+      debt: debt(7, [...REGIME_FIRST], [...REGIME_FIRST_PAYABLE], 5),
+    }));
+    expect(next.detail).toContain("2 of them cannot be worked on");
+    // The true total survives the split \u2014 it is still a 7-node debt.
+    expect(next.detail).toContain("7 unpaid evidence nodes");
+  });
+
+  it("\u00d7 THE INVENTED TASK: when every unpaid node is a composition, it says so", () => {
+    // The branch that must refuse. Falling back to missingLabels[0] here is
+    // precisely how the live sentence came to exist.
+    const next = selectOneNextThing(input({
+      rightOfWay: WAIT,
+      debt: debt(3, ["Regime", "Auction", "Management"], [], 0),
+    }));
+    expect(next.kind).toBe("ESTABLISH_EVIDENCE");
+    expect(next.headline).toBe("Nothing here can be worked on");
+    expect(next.detail).toContain("composed from other readings");
+    expect(next.detail).not.toContain("Resolving it");
+  });
+
+  it("\u00d7 THE OVER-CORRECTION: with nothing unpayable, no remainder clause appears", () => {
+    // A sharper sentence must not become a longer one for everybody.
+    const next = selectOneNextThing(input({
+      rightOfWay: WAIT,
+      debt: debt(2, ["Direction", "Location"], ["Direction", "Location"], 2),
+    }));
+    expect(next.headline).toBe("Resolve direction");
+    expect(next.detail).not.toContain("cannot be worked on");
+  });
+
+  it("\u00d7 THE ASSUMED PAYER: an unclassified node is not silently payable", () => {
+    // computeEvidenceDebt counts payability only when a node ASSERTS it.
+    // Defaulting the other way would let any future unclassified node walk
+    // straight back into the NEXT cell as an instruction.
+    const computed = computeEvidenceDebt([
+      { key: "regime", label: "Regime", verdict: "UNKNOWN", resolution: "UNKNOWN",
+        narrative: "n", indicator: "UNKNOWN", payableBy: "COMPOSITION" },
+      { key: "mystery", label: "Mystery", verdict: "UNKNOWN", resolution: "UNKNOWN",
+        narrative: "n", indicator: "UNKNOWN" },
+      { key: "direction", label: "Direction", verdict: "UNKNOWN", resolution: "UNKNOWN",
+        narrative: "n", indicator: "UNKNOWN", payableBy: "EVIDENCE" },
+    ]);
+    expect(computed?.missing).toBe(3);
+    expect(computed?.missingPayable).toBe(1);
+    expect(computed?.missingPayableLabels).toEqual(["Direction"]);
+    // \u2026and the sentence that results names the asserted one, not the mystery.
+    const next = selectOneNextThing(input({ rightOfWay: WAIT, debt: computed }));
+    expect(next.headline).toBe("Resolve direction");
+  });
+
   it("× THE SILENT NEXT: every branch carries both a headline and real detail", () => {
     for (const rightOfWay of [...ALL_READINGS, null]) {
-      const next = selectOneNextThing(input({ rightOfWay, debt: debt(2, ["Regime"]) }));
+      const next = selectOneNextThing(input({ rightOfWay, debt: debt(2, ["Direction"]) }));
       expect(next.headline.length).toBeGreaterThan(3);
       expect(next.detail.length).toBeGreaterThan(30);
     }

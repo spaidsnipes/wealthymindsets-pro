@@ -127,6 +127,8 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
       warn: 0,
       missingLabels: ["Aggression", "CLC"],
       warnLabels: [],
+      missingPayableLabels: ["Aggression", "CLC"],
+      missingPayable: 2,
     };
     const r = computeRightOfWay(perm("ALLOWED"), debt);
     expect(r.value).toBe("WAIT");
@@ -139,7 +141,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 1: missing evidence forces WAIT even when permission ADVISORY", () => {
     const debt: EvidenceDebt = {
       payable: 3, watch: 0, resolved: 1, missing: 2, warn: 0,
-      missingLabels: ["A", "B"], warnLabels: [],
+      missingLabels: ["A", "B"], missingPayableLabels: ["A", "B"], missingPayable: 2, warnLabels: [],
     };
     expect(computeRightOfWay(perm("ADVISORY"), debt).value).toBe("WAIT");
   });
@@ -147,7 +149,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 1: missing evidence forces WAIT even with null permission", () => {
     const debt: EvidenceDebt = {
       payable: 1, watch: 0, resolved: 0, missing: 1, warn: 0,
-      missingLabels: ["X"], warnLabels: [],
+      missingLabels: ["X"], missingPayableLabels: ["X"], missingPayable: 1, warnLabels: [],
     };
     expect(computeRightOfWay(null, debt).value).toBe("WAIT");
   });
@@ -155,7 +157,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 2: RESTRICTED with no missing evidence → NO TRADE", () => {
     const debt: EvidenceDebt = {
       payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0,
-      missingLabels: [], warnLabels: [],
+      missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [],
     };
     const r = computeRightOfWay(perm("RESTRICTED", "Hard rule engaged"), debt);
     expect(r.value).toBe("NO TRADE");
@@ -166,7 +168,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 3: ADVISORY with no missing evidence → CAUTION", () => {
     const debt: EvidenceDebt = {
       payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0,
-      missingLabels: [], warnLabels: [],
+      missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [],
     };
     const r = computeRightOfWay(perm("ADVISORY", "Soft rule engaged"), debt);
     expect(r.value).toBe("CAUTION");
@@ -176,7 +178,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 4a: ALLOWED with no missing + no warn → ACTION", () => {
     const debt: EvidenceDebt = {
       payable: 5, watch: 0, resolved: 5, missing: 0, warn: 0,
-      missingLabels: [], warnLabels: [],
+      missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [],
     };
     const r = computeRightOfWay(perm("ALLOWED"), debt);
     expect(r.value).toBe("ACTION");
@@ -187,7 +189,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 4b: ALLOWED with no missing but warn present → CAUTION (not ACTION)", () => {
     const debt: EvidenceDebt = {
       payable: 5, watch: 0, resolved: 3, missing: 0, warn: 2,
-      missingLabels: [], warnLabels: ["Location", "Structure"],
+      missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: ["Location", "Structure"],
     };
     const r = computeRightOfWay(perm("ALLOWED"), debt);
     expect(r.value).toBe("CAUTION");
@@ -205,7 +207,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("requires paid evidence — an empty ledger is not an authorized one", () => {
     const debt: EvidenceDebt = {
-      payable: 0, watch: 0, resolved: 0, missing: 0, warn: 0, missingLabels: [], warnLabels: [],
+      payable: 0, watch: 0, resolved: 0, missing: 0, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [],
     };
     expect(computeRightOfWay(perm("ALLOWED"), debt).value).toBe("UNKNOWN");
   });
@@ -233,7 +235,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 5: UNKNOWN permission → UNKNOWN Right of Way", () => {
     const debt: EvidenceDebt = {
       payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0,
-      missingLabels: [], warnLabels: [],
+      missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [],
     };
     expect(computeRightOfWay(perm("UNKNOWN"), debt).value).toBe("UNKNOWN");
   });

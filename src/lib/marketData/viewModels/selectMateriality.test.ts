@@ -43,31 +43,31 @@ describe("selectMateriality — canon §4 gate for Auto-Quiet", () => {
   });
 
   it("MISSING_APPEARED when debt.missing goes 0 → >0", () => {
-    const prev = story({ debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] } });
-    const next = story({ debt: { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["Aggression"], warnLabels: [] } });
+    const prev = story({ debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [] } });
+    const next = story({ debt: { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["Aggression"], missingPayableLabels: ["Aggression"], missingPayable: 1, warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_APPEARED");
     expect(r.material).toBe(true);
   });
 
   it("MISSING_RESOLVED when debt.missing goes >0 → 0", () => {
-    const prev = story({ debt: { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], warnLabels: [] } });
-    const next = story({ debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] } });
+    const prev = story({ debt: { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], missingPayableLabels: ["A"], missingPayable: 1, warnLabels: [] } });
+    const next = story({ debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_RESOLVED");
   });
 
   it("MISSING_INCREASED distinguishes from APPEARED", () => {
-    const prev = story({ debt: { payable: 5, watch: 0, resolved: 3, missing: 2, warn: 0, missingLabels: ["A", "B"], warnLabels: [] } });
-    const next = story({ debt: { payable: 5, watch: 0, resolved: 2, missing: 3, warn: 0, missingLabels: ["A", "B", "C"], warnLabels: [] } });
+    const prev = story({ debt: { payable: 5, watch: 0, resolved: 3, missing: 2, warn: 0, missingLabels: ["A", "B"], missingPayableLabels: ["A", "B"], missingPayable: 2, warnLabels: [] } });
+    const next = story({ debt: { payable: 5, watch: 0, resolved: 2, missing: 3, warn: 0, missingLabels: ["A", "B", "C"], missingPayableLabels: ["A", "B", "C"], missingPayable: 3, warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_INCREASED");
     expect(r.reasons).not.toContain("MISSING_APPEARED");
   });
 
   it("MISSING_DECREASED distinguishes from RESOLVED", () => {
-    const prev = story({ debt: { payable: 5, watch: 0, resolved: 2, missing: 3, warn: 0, missingLabels: [], warnLabels: [] } });
-    const next = story({ debt: { payable: 5, watch: 0, resolved: 3, missing: 2, warn: 0, missingLabels: [], warnLabels: [] } });
+    const prev = story({ debt: { payable: 5, watch: 0, resolved: 2, missing: 3, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 3, warnLabels: [] } });
+    const next = story({ debt: { payable: 5, watch: 0, resolved: 3, missing: 2, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 2, warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_DECREASED");
     expect(r.reasons).not.toContain("MISSING_RESOLVED");
@@ -94,12 +94,12 @@ describe("selectMateriality — canon §4 gate for Auto-Quiet", () => {
     const prev = story({
       decisionValue: "WAIT",
       primary: "In balance.",
-      debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] },
+      debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [] },
     });
     const next = story({
       decisionValue: "ACTION",
       primary: "Trend expanding.",
-      debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] },
+      debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [] },
     });
     const r = selectMateriality(prev, next);
     expect(r.reasons[0]).toBe("DECISION_CHANGED");
@@ -127,8 +127,8 @@ describe("selectMateriality — canon §4 gate for Auto-Quiet", () => {
 describe("selectMateriality — a sampled summary must say it was sampled", () => {
   /** Fires exactly `n` of the four independent reason families. */
   const pair = (n: number) => {
-    const debtA = { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] };
-    const debtB = { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], warnLabels: [] };
+    const debtA = { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], missingPayableLabels: [], missingPayable: 0, warnLabels: [] };
+    const debtB = { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], missingPayableLabels: ["A"], missingPayable: 1, warnLabels: [] };
     const prev = story({
       decisionValue: "WAIT",
       primary: "In balance.",

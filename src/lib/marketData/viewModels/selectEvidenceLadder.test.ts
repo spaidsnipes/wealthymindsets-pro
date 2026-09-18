@@ -21,6 +21,8 @@ function debt(partial: Partial<EvidenceDebt>): EvidenceDebt {
     warn: 0,
     missingLabels: [],
     warnLabels: [],
+    missingPayableLabels: [],
+    missingPayable: 0,
     ...partial,
   };
 }

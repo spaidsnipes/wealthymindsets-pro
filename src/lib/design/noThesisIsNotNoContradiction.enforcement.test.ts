@@ -168,6 +168,8 @@ describe("SENTINEL — no thesis is not no contradiction", () => {
           watch: 0,
           missingLabels: [],
           warnLabels: [],
+          missingPayableLabels: [],
+          missingPayable: 0,
         } satisfies NonNullable<OneStoryVM["debt"]>,
       }),
     );

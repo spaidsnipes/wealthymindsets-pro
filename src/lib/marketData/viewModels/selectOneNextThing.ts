@@ -106,24 +106,67 @@ export function isVerdictEcho(text: string): boolean {
   return Object.prototype.hasOwnProperty.call(VERDICT_WORDS, text.trim().toUpperCase());
 }
 
+/**
+ * A COMPOSITION IS NOT A DEBT THE TRADER CAN PAY.
+ *
+ * ── The measured defect ───────────────────────────────────────────────────
+ *
+ * Production /charts?symbol=TSLA, 12:06Z. The NEXT cell read:
+ *
+ *     Resolve regime
+ *     regime is the first of 7 unpaid evidence nodes (+6 behind it).
+ *
+ * Regime mints no evidence — `deriveRegimeDimension` says so in its own
+ * capitals. It resolves when direction and volatility resolve, and by no other
+ * route. So the one cell on the rail whose entire job is to name an ACTION had
+ * named something no action can reach, and told the trader it was FIRST.
+ *
+ * "First" was reporting the order regime happens to be declared in the node
+ * array. The word read as priority and owned nothing (LIVING-PIXEL LAW).
+ *
+ * The rule below is deliberately the weakest one that fixes it: prefer a node
+ * something can actually pay, keeping the ledger's existing order WITHIN that
+ * preference. No new priority is invented — WM does not claim to know which
+ * payable node matters most, and saying so would be a second fabrication
+ * replacing the first. When nothing payable is unpaid, it says THAT, out loud,
+ * rather than falling back to instructing the impossible.
+ */
 function payEvidence(debt: EvidenceDebt): OneNextThing {
-  const first = debt.missingLabels[0];
-  if (first === undefined) {
-    // The ledger counts a debt it cannot name. Report the gap honestly
-    // rather than inventing a label to make the sentence read well.
+  const payableFirst = debt.missingPayableLabels[0];
+
+  if (payableFirst === undefined) {
+    const named = debt.missingLabels[0];
+    if (named === undefined) {
+      // The ledger counts a debt it cannot name. Report the gap honestly
+      // rather than inventing a label to make the sentence read well.
+      return {
+        kind: "PAY_EVIDENCE",
+        headline: "Resolve the unpaid evidence",
+        detail: `${debt.missing} evidence node${debt.missing === 1 ? "" : "s"} unpaid — none is named by the ledger, so WM cannot say which to read first.`,
+      };
+    }
+    // Every unpaid node is a composition (or was never classified). There is
+    // no action. Naming one anyway is what this branch exists to refuse.
     return {
-      kind: "PAY_EVIDENCE",
-      headline: "Resolve the unpaid evidence",
-      detail: `${debt.missing} evidence node${debt.missing === 1 ? "" : "s"} unpaid — none is named by the ledger, so WM cannot say which to read first.`,
+      kind: "ESTABLISH_EVIDENCE",
+      headline: "Nothing here can be worked on",
+      detail: `All ${debt.missing} unpaid node${debt.missing === 1 ? "" : "s"} — ${named.toLowerCase()} among them — are composed from other readings rather than measured directly. None can be resolved by any action; each clears only when its own inputs do.`,
     };
   }
+
   // The remainder derives from the AUTHORITATIVE count, never the capped
   // sample array. See hiddenRemainder() — this is the "9 nodes … +1" defect.
+  // It counts ALL unpaid nodes, not just payable ones: the trader is owed the
+  // true size of the debt even though only some of it is workable.
   const rest = hiddenRemainder(debt.missing, 1);
+  const derived = debt.missing - debt.missingPayable;
+  const derivedNote = derived > 0
+    ? ` ${derived} of them cannot be worked on at all — they are composed from other readings and clear on their own.`
+    : "";
   return {
     kind: "PAY_EVIDENCE",
-    headline: `Resolve ${first.toLowerCase()}`,
-    detail: `${first.toLowerCase()} is the first of ${debt.missing} unpaid evidence node${debt.missing === 1 ? "" : "s"}${rest ? ` (${rest.trim()} behind it)` : ""}. Resolving it does not authorise entry — it removes one block.`,
+    headline: `Resolve ${payableFirst.toLowerCase()}`,
+    detail: `${payableFirst.toLowerCase()} is the first directly-resolvable of ${debt.missing} unpaid evidence node${debt.missing === 1 ? "" : "s"}${rest ? ` (${rest.trim()} behind it)` : ""}.${derivedNote} Resolving it does not authorise entry — it removes one block.`,
   };
 }
 

@@ -31,6 +31,7 @@ const ledger = (p: Partial<EvidenceDebt>) =>
   selectEvidenceDebtLedger({
     payable: 0, watch: 0, resolved: 0, missing: 0, warn: 0,
     missingLabels: [], warnLabels: [],
+    missingPayableLabels: p.missingLabels ?? [], missingPayable: p.missing ?? 0,
     ...p,
   });
 

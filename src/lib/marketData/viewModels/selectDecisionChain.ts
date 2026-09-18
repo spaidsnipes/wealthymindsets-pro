@@ -87,6 +87,48 @@ export interface DecisionChainNode {
    * Absent = all hints render 'missing' tone.
    */
   readonly hintTones?: readonly ("missing" | "warn" | "watch")[];
+  /**
+   * WHAT WOULD PAY THIS NODE — and therefore whether it can be paid at all.
+   *
+   * ── The measured defect this field exists to end ──────────────────────────
+   *
+   * MEASURED LIVE on production /charts?symbol=TSLA at 12:06Z. The NEXT cell of
+   * the decision rail — the cell whose entire job is "the single next thing
+   * capable of changing the trader's job" — read:
+   *
+   *     NEXT   Resolve regime
+   *            regime is the first of 7 unpaid evidence nodes (+6 behind it).
+   *
+   * There is no action, by any trader, on any venue, that resolves regime.
+   * `deriveRegimeDimension`'s own doc block says so in capitals: "THIS PRODUCER
+   * INVENTS NO EVIDENCE. It is a pure COMPOSITION of two dimensions that were
+   * already sealed from the per-trade tape." Regime resolves when direction and
+   * volatility resolve, and never before, and never by being worked on.
+   *
+   * So the product had named a CONSEQUENCE and asked the trader to act on it —
+   * an instruction that is unfollowable 100% of the time, by construction, not
+   * by data. Nothing threw. Nothing failed tsc. The sentence reads beautifully.
+   *
+   * It was picked because `payEvidence` took `missingLabels[0]`, and regime
+   * happens to be declared first in the node array below. The word "first" in
+   * that sentence was reporting SOURCE-FILE ORDER while reading as PRIORITY
+   * (LIVING-PIXEL LAW: the word had no owner).
+   *
+   * Three answers, because there are genuinely three:
+   *   EVIDENCE    — a direct `state.<dimension>` read. Pays when the market
+   *                 produces the observation. The trader waits; the wait ends.
+   *   DECLARATION — pays when the HUMAN declares something (an entry, an
+   *                 invalidation, a rule). The canon's ONE-NEXT-THING ENGINE
+   *                 names this lane explicitly: "the single next market fact
+   *                 OR HUMAN ACTION capable of changing the trader's job."
+   *   COMPOSITION — mints nothing. Resolves only as a side effect of its
+   *                 inputs resolving. NEVER a legitimate "next thing".
+   *
+   * Optional so that a node author who has not thought about it is not silently
+   * assumed to be payable — consumers treat `undefined` as "not asserted" and
+   * fall back to the pre-existing behaviour rather than inventing a claim.
+   */
+  readonly payableBy?: "EVIDENCE" | "DECLARATION" | "COMPOSITION";
 }
 
 export interface DecisionChainVM {
@@ -189,6 +231,9 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
       narrative: regime.narrative,
       reason: regime.reason,
       indicator: REGIME_INDICATOR[regime.verdict],
+      // Pure composition of direction + volatility — deriveRegimeDimension:
+      // "THIS PRODUCER INVENTS NO EVIDENCE."
+      payableBy: "COMPOSITION",
     },
     {
       key: "direction",
@@ -199,6 +244,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         ? `Direction ${state.direction.value}`
         : "Direction unresolved — no verified evidence at snapshot time.",
       indicator: dimIndicator(state.direction.resolution, state.direction.value),
+      payableBy: "EVIDENCE",
     },
     {
       key: "location",
@@ -209,6 +255,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         ? `Price at ${state.location.value}`
         : "Location unresolved.",
       indicator: dimIndicator(state.location.resolution, state.location.value),
+      payableBy: "EVIDENCE",
     },
     {
       key: "auction",
@@ -218,6 +265,8 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
       narrative: auction.narrative,
       reason: auction.reason,
       indicator: AUCTION_INDICATOR[auction.verdict],
+      // selectAuctionState reads the compiled state + dlar — mints nothing.
+      payableBy: "COMPOSITION",
     },
     {
       key: "aggression",
@@ -228,6 +277,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         ? `${state.aggression.value} aggression (response: ${dlar.response.verdict.toLowerCase()})`
         : "Aggression unresolved.",
       indicator: dimIndicator(state.aggression.resolution, state.aggression.value),
+      payableBy: "EVIDENCE",
     },
     {
       key: "clc",
@@ -237,6 +287,8 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
       narrative: clc.narrative,
       reason: clc.reason,
       indicator: CLC_INDICATOR[clc.verdict],
+      // selectCLC composes state + history + dlar + orderFlow coverage.
+      payableBy: "COMPOSITION",
     },
     (() => {
       const missing = availableR?.missingInputs ?? [];
@@ -271,6 +323,9 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
           : "UNKNOWN",
         hints: hints.length > 0 ? hints : undefined,
         hintTones: hints.length > 0 ? hintTones : undefined,
+        // Available R needs a DECLARED entry and a DECLARED structural
+        // invalidation. Both are human acts, not market observations.
+        payableBy: "DECLARATION",
       };
     })(),
     (() => {
@@ -307,6 +362,8 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
         indicator: permission ? PERMISSION_INDICATOR[permission.verdict] : "UNKNOWN",
         hints: hints.length > 0 ? hints : undefined,
         hintTones: hintTones.length > 0 ? hintTones : undefined,
+        // Permission pays when the trader supplies rules to the chain.
+        payableBy: "DECLARATION",
       };
     })(),
     {
@@ -319,6 +376,8 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
       : phase === "POST_EXIT" ? "Trade closed — post-exit integrity applies."
       :                          "No open position — management not active.",
       indicator: phase === "POSITION" ? "OK" : phase === "POST_EXIT" ? "WATCH" : "UNKNOWN",
+      // Management is a readout of `phase`. Nothing pays it directly.
+      payableBy: "COMPOSITION",
     },
   ];
 
