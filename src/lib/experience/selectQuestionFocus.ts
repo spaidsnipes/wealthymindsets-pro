@@ -47,7 +47,7 @@
  * sites call ONE owner (§24: a second CALLER is fine, a second ANSWER is not).
  */
 
-import { hiddenRemainder } from "../marketData/viewModels/decisionPermissionCompiler";
+import { sampledLabelPhrase } from "../marketData/viewModels/decisionPermissionCompiler";
 import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
 
 export const QUESTION_FOCUS_VERSION = "wm.question-focus.v1" as const;
@@ -114,10 +114,11 @@ export function selectQuestionFocus(oneStory: OneStoryVM | null): QuestionFocusV
     // the "+1 contradicting the 9" defect `hiddenRemainder` was written for.
     // The remainder below is derived from `missing`, so it is not a minted
     // number: it is the owner's own count, minus what this line showed.
-    const shown = debt.missingLabels.slice(0, 2);
-    const rest = hiddenRemainder(debt.missing, shown.length);
+    // Title Case, not lowercase: this is a LABEL, not mid-sentence prose.
+    // Casing is the only thing that differs from the ribbon and the story.
+    const phrase = sampledLabelPhrase(debt.missingLabels, debt.missing);
     return {
-      focus: `Unpaid evidence: ${asLabel(shown.join(" + "))}${rest}`,
+      focus: `Unpaid evidence: ${asLabel(phrase)}`,
       basis: "EVIDENCE_DEBT",
       unresolved: false,
     };

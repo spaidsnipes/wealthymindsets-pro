@@ -27,7 +27,7 @@ import type { ContradictionDetectability } from "@/lib/marketData/canonicalMarke
 import {
   computeEvidenceDebt,
   computeRightOfWay,
-  hiddenRemainder,
+  sampledLabelPhrase,
   type EvidenceDebt,
   type RightOfWayReading,
 } from "./decisionPermissionCompiler";
@@ -158,19 +158,15 @@ function missingPhrase(debt: EvidenceDebt | null): string | null {
   const unpaid = debt.missing + debt.warn;
   const clauses: string[] = [];
 
+  // Remainder derives from the AUTHORITATIVE count, never the capped array —
+  // otherwise "9 evidence nodes unpaid: regime + direction +1" contradicts
+  // itself in one sentence. `sampledLabelPhrase` owns that pairing.
   if (debt.missing > 0) {
-    const shown = debt.missingLabels.slice(0, 2);
-    const desc = shown.map(l => l.toLowerCase()).join(" + ");
-    // Remainder derives from the AUTHORITATIVE count, never the capped array —
-    // otherwise "9 evidence nodes unpaid: regime + direction +1" contradicts
-    // itself in one sentence.
-    clauses.push(`${desc}${hiddenRemainder(debt.missing, shown.length)}`);
+    clauses.push(sampledLabelPhrase(debt.missingLabels, debt.missing, { lowercase: true }));
   }
   if (debt.warn > 0) {
-    const shownWarn = debt.warnLabels.slice(0, 2);
-    const warnDesc = shownWarn.map(l => l.toLowerCase()).join(" + ");
     clauses.push(
-      `${debt.warn} warned: ${warnDesc}${hiddenRemainder(debt.warn, shownWarn.length)}`,
+      `${debt.warn} warned: ${sampledLabelPhrase(debt.warnLabels, debt.warn, { lowercase: true })}`,
     );
   }
 

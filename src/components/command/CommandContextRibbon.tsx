@@ -37,7 +37,7 @@ import type { DecisionChainNode } from "@/lib/marketData/viewModels/selectDecisi
 import {
   computeEvidenceDebt as computeEvidenceDebtCanonical,
   computeRightOfWay as computeRightOfWayCanonical,
-  hiddenRemainder,
+  sampledLabelPhrase,
   type EvidenceDebt as CanonicalEvidenceDebt,
 } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 import { selectClarityState } from "@/lib/experience/selectClarityState";
@@ -413,10 +413,14 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
         : debt.missing > 0
           ? `${debt.missing} MISSING`
           : `${debt.warn} WARN`,
+      // Both branches truncate to two labels, so both must disclose what they
+      // dropped. The WARN branch did not — it sat one line below a correct
+      // application of the very same law. `sampledLabelPhrase` owns the pairing
+      // so a seventh copy cannot drift the way this sixth one did.
       detail: debt.missing > 0
-        ? `${debt.resolved}/${debt.payable} paid · need ${debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}${hiddenRemainder(debt.missing, Math.min(debt.missingLabels.length, 2))}`
+        ? `${debt.resolved}/${debt.payable} paid · need ${sampledLabelPhrase(debt.missingLabels, debt.missing, { lowercase: true })}`
         : debt.warn > 0
-          ? `${debt.resolved}/${debt.payable} paid · watch ${debt.warnLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}`
+          ? `${debt.resolved}/${debt.payable} paid · watch ${sampledLabelPhrase(debt.warnLabels, debt.warn, { lowercase: true })}`
           : `${debt.payable}/${debt.payable} paid · authorization complete`,
       tone: (debt.missing === 0 && debt.warn === 0
         ? "resolved"

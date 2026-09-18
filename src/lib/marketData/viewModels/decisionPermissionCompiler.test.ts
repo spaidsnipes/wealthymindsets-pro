@@ -3,6 +3,7 @@ import {
   computeEvidenceDebt,
   computeRightOfWay,
   hiddenRemainder,
+  sampledLabelPhrase,
   EVIDENCE_LABEL_SAMPLE_LIMIT,
   type EvidenceDebt,
 } from "./decisionPermissionCompiler";
@@ -281,6 +282,63 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     it("hiddenRemainder counts every unshown item", () => {
       expect(hiddenRemainder(9, 2)).toBe(" +7");
       expect(hiddenRemainder(3, 2)).toBe(" +1");
+    });
+
+    describe("sampledLabelPhrase — the suffix had an owner, the PHRASE did not", () => {
+      // `hiddenRemainder` owned the "+N" and nothing owned the three lines
+      // around it, so those three lines were re-typed at six call sites. The
+      // sixth — CommandContextRibbon's WARN branch, one line below a correct
+      // application of the same law — dropped the remainder entirely.
+      it("names the sample and discloses everything it did not name", () => {
+        expect(sampledLabelPhrase(["Regime", "Direction", "Location"], 9)).toBe(
+          "Regime + Direction +7",
+        );
+      });
+
+      it("derives the remainder from the TRUE count, not the capped array", () => {
+        // labels are capped at EVIDENCE_LABEL_SAMPLE_LIMIT (3). A remainder
+        // read off the array would print "+1" against a true count of 9.
+        const labels = ["Regime", "Direction", "Location"];
+        expect(labels.length).toBe(EVIDENCE_LABEL_SAMPLE_LIMIT);
+        expect(sampledLabelPhrase(labels, 9)).not.toContain("+1");
+      });
+
+      it("adds no suffix when the sample IS the whole set", () => {
+        expect(sampledLabelPhrase(["Regime", "Direction"], 2)).toBe("Regime + Direction");
+        expect(sampledLabelPhrase(["Regime"], 1)).toBe("Regime");
+      });
+
+      it("lowercases only when asked — casing is typography, not a second answer", () => {
+        expect(sampledLabelPhrase(["Regime", "Direction"], 5, { lowercase: true })).toBe(
+          "regime + direction +3",
+        );
+        expect(sampledLabelPhrase(["Regime", "Direction"], 5)).toBe("Regime + Direction +3");
+      });
+
+      it("honours a custom limit and still reconciles", () => {
+        expect(sampledLabelPhrase(["A", "B", "C"], 10, { limit: 3 })).toBe("A + B + C +7");
+        expect(sampledLabelPhrase(["A", "B", "C"], 10, { limit: 1 })).toBe("A +9");
+      });
+
+      it("shown + hidden always equals the true count, at every limit", () => {
+        for (const limit of [1, 2, 3]) {
+          for (const trueCount of [1, 2, 3, 5, 9, 40]) {
+            const labels = ["A", "B", "C"].slice(0, Math.min(3, trueCount));
+            const phrase = sampledLabelPhrase(labels, trueCount, { limit });
+            const shown = labels.slice(0, limit).length;
+            const m = /\+(\d+)$/.exec(phrase);
+            const hidden = m ? Number(m[1]) : 0;
+            expect(shown + hidden).toBe(trueCount);
+          }
+        }
+      });
+
+      it("says nothing when the ledger named nothing — no bare suffix", () => {
+        // A phrase that is only "+5" names no node and helps nobody. The
+        // caller must take its own no-labels branch.
+        expect(sampledLabelPhrase([], 5)).toBe(" +5");
+        expect(sampledLabelPhrase([], 5).trim()).toBe("+5");
+      });
     });
 
     it("the sum of shown labels and hidden remainder always equals the true count", () => {

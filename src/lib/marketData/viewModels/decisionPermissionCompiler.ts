@@ -102,6 +102,47 @@ export function hiddenRemainder(trueCount: number, shownLabels: number): string 
   return hidden > 0 ? ` +${hidden}` : "";
 }
 
+/**
+ * ── 2026-09-18: THE SUFFIX HAD AN OWNER. THE PHRASE DID NOT. ──────────────
+ *
+ * `hiddenRemainder` above owns the "+N". It does not own the three lines that
+ * must surround it, and those three lines were re-typed at SIX call sites:
+ *
+ *   selectOneStory.missingPhrase        (missing)   correct
+ *   selectOneStory.missingPhrase        (warn)      correct
+ *   computeRightOfWay                   (missing)   correct
+ *   selectOneNextThing                  (missing)   correct
+ *   CommandContextRibbon detail         (missing)   correct
+ *   CommandContextRibbon detail         (warn)      DRIFTED — no remainder
+ *
+ * The sixth is one line below the fifth, in one template literal, in one file.
+ * Five correct copies did not make the sixth correct; they only made it look
+ * correct, because a reader scanning the file sees `hiddenRemainder` and stops.
+ * That is the whole argument for an owner over a convention: a convention is
+ * re-decided at every call site, and the sixth decision was wrong.
+ *
+ * Found the same day as selectQuestionFocus's silent truncation, which was a
+ * SEVENTH instance of the same three lines. Fixing instance six and seven
+ * without giving the phrase an owner would only have set up instance eight.
+ *
+ * §24: a second CALLER of one owner is fine, a second ANSWER is not.
+ *
+ * Casing is a parameter because it is genuinely per-surface — the ribbon and
+ * the story speak lowercase mid-sentence ("need regime + direction +3"), the
+ * question focus speaks Title Case as a label ("Regime + Direction +3"). That
+ * is typography, not a second answer about what is hidden.
+ */
+export function sampledLabelPhrase(
+  labels: readonly string[],
+  trueCount: number,
+  opts: { readonly limit?: number; readonly lowercase?: boolean } = {},
+): string {
+  const limit = opts.limit ?? 2;
+  const shown = labels.slice(0, limit);
+  const desc = (opts.lowercase ? shown.map(l => l.toLowerCase()) : shown).join(" + ");
+  return `${desc}${hiddenRemainder(trueCount, shown.length)}`;
+}
+
 export type RightOfWay = "ACTION" | "WAIT" | "NO TRADE" | "CAUTION" | "UNKNOWN";
 export type RightOfWayTone = "resolved" | "pending" | "unknown" | "warn";
 
@@ -170,13 +211,11 @@ export function computeRightOfWay(
 ): RightOfWayReading {
   // Rule 1 — Missing evidence blocks Right of Way (canon rejection #1).
   if (debt && debt.missing > 0) {
-    const shown = debt.missingLabels.slice(0, 2);
-    const missingDesc = shown.map(l => l.toLowerCase()).join(" + ");
     // Remainder derives from the AUTHORITATIVE count, never the capped array.
-    const rest = hiddenRemainder(debt.missing, shown.length);
+    const need = sampledLabelPhrase(debt.missingLabels, debt.missing, { lowercase: true });
     return {
       value: "WAIT",
-      detail: `evidence debt: need ${missingDesc}${rest}`,
+      detail: `evidence debt: need ${need}`,
       tone: "warn",
     };
   }
