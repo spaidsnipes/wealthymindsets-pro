@@ -333,13 +333,30 @@ export default function ProofLanePage() {
               <div className="text-[10px] uppercase tracking-widest text-neutral-500">Manual Scenario</div>
               <div className="mt-1 font-mono text-lg text-neutral-100">{fmtUsd(status.actualBalance)}</div>
             </div>
+            {/*
+              §9 — THE HUE USED TO CONTRADICT THE SENTENCE TWELVE LINES BELOW.
+
+              This card graded ON_PACE emerald, AHEAD amber and BEHIND rose,
+              while the standing note under it reads: "Behind pace changes the
+              timeline, not the setup standard. Ahead of pace does not lower the
+              setup standard." Those cannot both be true. A trader reads the
+              colour before the paragraph, so the paragraph was losing.
+
+              A pace status is an assessment against a TARGET THE TRADER CHOSE.
+              It is not a P&L sign and it is not price direction — the two things
+              §9 leaves green and red alone for. So the distinction moves into
+              border WEIGHT and DASH, which are neutral, and ON_PACE takes no
+              tint at all: the calm state has to be genuinely silent, because a
+              reassuring green card is itself a claim about a standard that has
+              not moved.
+            */}
             <div
               className={`rounded-lg border px-3 py-2 ${
                 status.status === "ON_PACE"
-                  ? "border-emerald-700/60 bg-emerald-950/30"
+                  ? "border-neutral-800 bg-black/40"
                   : status.status === "AHEAD"
-                    ? "border-amber-700/60 bg-amber-950/30"
-                    : "border-rose-800/60 bg-rose-950/30"
+                    ? "border-amber-700/40 border-dashed bg-black/40"
+                    : "border-amber-600/70 bg-black/40"
               }`}
             >
               <div className="text-[10px] uppercase tracking-widest text-neutral-400">Pace Status</div>
@@ -353,14 +370,17 @@ export default function ProofLanePage() {
             </div>
           </div>
 
+          {/*
+            The SECOND grading of the same verdict, and the reason a sweep that
+            repairs one site is not a repair. `status.humanMessage` already says
+            in words what the pace is; colouring the sentence too was the same
+            claim repeated in the faster channel. ON_PACE now renders in the
+            ordinary body tone.
+          */}
           <p
             data-testid="pace-message"
             className={`text-sm ${
-              status.status === "BEHIND"
-                ? "text-rose-300"
-                : status.status === "AHEAD"
-                  ? "text-amber-300"
-                  : "text-emerald-300"
+              status.status === "ON_PACE" ? "text-neutral-300" : "text-amber-300"
             }`}
           >
             {status.humanMessage}

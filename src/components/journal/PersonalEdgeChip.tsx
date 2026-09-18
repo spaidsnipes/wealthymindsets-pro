@@ -39,10 +39,23 @@ export function PersonalEdgeChip({ vm, unabridged = false }: PersonalEdgeChipPro
     return null; // nothing to show
   }
 
+  /*
+    §9 — THE SAME GREEN RESOLUTION GRADE AS PersonalEdgePanel, IN THE CHIP.
+
+    Found by sweeping for the shade rather than the surface, which is the only
+    reason it was found at all: the panel and the chip render the same VM field
+    through two independently-written ternaries, so repairing one leaves the
+    other shipping the identical claim on a different route.
+
+    RESOLVED counts DECISIONS RECORDED. It is not a verdict on the trader, and
+    green said it was. It is now the quiet tone, and this colour also drives the
+    chip's BORDER below — so the whole chip used to glow green for having a
+    large enough sample.
+  */
   const color =
-    vm.resolution === "RESOLVED" ? "#5cb85c" :
+    vm.resolution === "RESOLVED" ? "#8a8271" :
     vm.resolution === "PARTIAL"  ? "#c9a55c" :
-                                    "#8a8271";
+                                    "#55503f";
 
   /** Infinity, not a bigger number: "as many as I was handed" is the rule. */
   const bucketCap = unabridged ? Number.POSITIVE_INFINITY : 1;

@@ -766,16 +766,35 @@ function ProfilePageInner() {
                   rules: defaultFounderRules(),
                   sessionDecisions: [],
                 });
-                const verdictColor =
-                  permission.verdict === "ALLOWED" ? "text-wm-green border-wm-green/40" :
-                  permission.verdict === "ADVISORY" ? "text-yellow-400 border-yellow-400/40" :
-                  permission.verdict === "RESTRICTED" ? "text-orange-400 border-orange-400/50" :
-                  "text-wm-text-muted border-wm-text-muted/40";
+                /*
+                  §9 — A VERDICT IS NEVER GRADED IN HUE.
+
+                  This chip used to run green → yellow → orange across the four
+                  verdicts, which contradicted the comment directly above it in
+                  the same file: ALLOWED means "no rule is engaged", and a green
+                  badge says "you are clear to trade". Colour is read before the
+                  word is, so the pixel was making the louder claim and it was
+                  the wrong one.
+
+                  So the verdict travels as the WORD — which was already printed
+                  — and the escalation travels as border WEIGHT and line style,
+                  which carry no safe/danger connotation. ALLOWED is silent: no
+                  accent at all, because the absence of a warning is only honest
+                  if the calm state is genuinely quiet. Nothing here is green,
+                  and nothing here is red.
+                */
+                const verdictChrome =
+                  permission.verdict === "ADVISORY" ? "border-wm-gold/40 border-dashed" :
+                  permission.verdict === "RESTRICTED" ? "border-wm-gold/70" :
+                  permission.verdict === "ALLOWED" ? "border-transparent" :
+                  "border-wm-text-muted/30";
+                const verdictWord =
+                  permission.verdict === "ALLOWED" ? "text-wm-text-muted" : "text-wm-gold";
                 return (
-                  <div className={clsx("glass rounded-xl p-4 border-l-2", verdictColor)}>
+                  <div className={clsx("glass rounded-xl p-4 border-l-2", verdictChrome)}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-[10px] tracking-[0.28em] uppercase text-wm-text-muted">Steward rules</span>
-                      <span className={clsx("text-[10px] tracking-[0.28em] uppercase font-bold", verdictColor)}>
+                      <span className={clsx("text-[10px] tracking-[0.28em] uppercase font-bold", verdictWord)}>
                         {permission.verdict}
                       </span>
                       <span className="text-[10px] text-wm-text-dim ml-auto">

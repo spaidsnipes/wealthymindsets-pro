@@ -32,9 +32,22 @@ interface Cell {
   reason?: string;
 }
 
+/**
+ * §9 — RESOLVED IS "WE COULD READ IT", NOT "IT IS GOING WELL".
+ *
+ * This returned #5cb85c for RESOLVED. The dimension's resolution says whether
+ * the evidence was sufficient to NAME a direction, location or aggression — it
+ * carries no opinion whatsoever about whether that reading favours the trader.
+ * A RESOLVED direction of "down" into a long position was painted green, which
+ * is not merely a §9 violation but an inverted one.
+ *
+ * The three states now run as a brightness ramp — quiet, brass, dim — and the
+ * glyphs ● ◐ ? already carry the distinction without colour. Confidence is
+ * expressible as presence. It is not expressible as safety.
+ */
 function chipStateForDim(dim: MarketStateDimension): { value: string; color: string; glyph: string } {
   if (dim.resolution === "RESOLVED" && dim.value) {
-    return { value: dim.value, color: "#5cb85c", glyph: "●" };
+    return { value: dim.value, color: "#ede6d3", glyph: "●" };
   }
   if (dim.resolution === "PARTIAL") {
     return { value: dim.value ?? "partial", color: "#c9a55c", glyph: "◐" };
@@ -66,8 +79,23 @@ export function DLARStrip({ dlar, onDrillClick, className }: DLARStripProps) {
       key: "response",
       label: KEY_LABELS.response,
       value: dlar.response.verdict.toLowerCase(),
+      /*
+        §9 — THE R IN DLAR IS A VERDICT, AND IT WAS THE GREEN ONE.
+
+        RESPONDING rendered #5cb85c. Of the four §9 words this is the most
+        expensive one to paint: "the market is responding" is precisely the
+        observation a trader is looking for permission in, and green supplies
+        the permission before the reason string below is read. RESPONDING is
+        also symmetric — price responding DOWN is the same verdict — so the
+        colour was answering a question the verdict does not even ask.
+
+        FADING keeps its red, deliberately and narrowly: the four glyphs
+        ● ◐ ! ○ carry the states, and `!` plus a warm tone is an attention
+        marker rather than a grade. What is removed is the reward end. §9's
+        second corollary is that the calm, confirming state must be SILENT.
+      */
       color:
-        dlar.response.verdict === "RESPONDING" ? "#5cb85c" :
+        dlar.response.verdict === "RESPONDING" ? "#ede6d3" :
         dlar.response.verdict === "ABSORBED"  ? "#c9a55c" :
         dlar.response.verdict === "FADING"    ? "#c05a4a" :
         dlar.response.verdict === "QUIET"     ? "#8a8271" : "#55503f",

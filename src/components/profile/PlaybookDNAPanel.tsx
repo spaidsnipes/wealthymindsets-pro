@@ -10,11 +10,32 @@ import type { PlaybookDNAVM, PlaybookDNAEntry, PlaybookMaturity } from "@/lib/tr
  * failure signature. UNKNOWN metrics render as '?' — never 0.
  */
 
+/**
+ * §9 — A MATURITY LADDER IS A GRADE, AND A GRADE MAY NOT BE PAINTED GREEN.
+ *
+ * This ramp used to run grey → amber → GREEN (#5cb85c) → dark gold, and the
+ * green sat on ESTABLISHED. That is the §9 shield exactly: a colour a trader
+ * reads as "safe" before they read the word, attached to a claim that is not
+ * about safety at all. Maturity here counts DECISIONS RECORDED — it says the
+ * sample is large enough to talk about, and says nothing whatsoever about
+ * whether the playbook makes money. A green ESTABLISHED badge over a playbook
+ * with a negative avgR is the product telling the trader the opposite of what
+ * its own numbers say, in the faster channel.
+ *
+ * The replacement is a monotonic BRIGHTNESS ramp in the house brass. Weight is
+ * a legal §9 distinction and this is the honest one: more evidence, more
+ * presence. It is also strictly more readable than the old ramp, which DIMMED
+ * at the top step (#5cb85c → #8b6a29) and so encoded its own scale backwards.
+ *
+ * The glyphs ○ ◐ ● ◈ already carry the four steps without any colour at all.
+ * The hue was never the distinction; it was redundancy, and redundancy in a
+ * pre-verbal channel is how a grade becomes a promise.
+ */
 const MATURITY_STYLES: Record<PlaybookMaturity, { color: string; label: string; glyph: string }> = {
   EMBRYONIC:       { color: "#55503f", label: "Embryonic",       glyph: "○" },
-  MATURING:        { color: "#c9a55c", label: "Maturing",        glyph: "◐" },
-  ESTABLISHED:     { color: "#5cb85c", label: "Established",     glyph: "●" },
-  HIGH_CONFIDENCE: { color: "#8b6a29", label: "High confidence", glyph: "◈" },
+  MATURING:        { color: "#8a8271", label: "Maturing",        glyph: "◐" },
+  ESTABLISHED:     { color: "#c9a55c", label: "Established",     glyph: "●" },
+  HIGH_CONFIDENCE: { color: "#ede6d3", label: "High confidence", glyph: "◈" },
 };
 
 export function PlaybookDNAPanel({ vm, onPlaybookClick }: { vm: PlaybookDNAVM; onPlaybookClick?: (entry: PlaybookDNAEntry) => void }) {

@@ -1278,11 +1278,24 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
               {/* Win rate */}
               {/* An unknown win rate gets the MUTED colour, not the red one.
                   Colouring "no closed trades yet" as failure is the same
-                  overclaim as printing 0%. */}
+                  overclaim as printing 0%.
+
+                  §9 — AND THE THREE-TIER GRADE ABOVE 0% WAS THE SAME OVERCLAIM
+                  WEARING A NUMBER.
+
+                  This cell used to read green at ≥60, gold at ≥50 and red
+                  below. The PNL cell two rows up is legitimately signed — a
+                  loss is a loss and every trader reads that colour correctly.
+                  A win RATE is not a sign: 60 and 50 are thresholds the house
+                  invented, and a 45%-win trader running 3R winners is more
+                  profitable than a 70%-win trader scalping ticks. The colour
+                  graded the trader against a standard the product never stated
+                  and cannot defend, and it graded it in the channel that lands
+                  before the number is read.
+
+                  The figure is now printed plainly. It is a measurement. */}
               <div className={clsx("text-[10px] font-mono font-bold",
-                entry.win == null ? "text-wm-text-muted"
-                  : entry.win >= 60 ? "text-wm-green"
-                  : entry.win >= 50 ? "text-wm-gold" : "text-wm-red")}>
+                entry.win == null ? "text-wm-text-muted" : "text-wm-text")}>
                 {entry.win == null ? "—" : `${entry.win}%`}
               </div>
             </div>

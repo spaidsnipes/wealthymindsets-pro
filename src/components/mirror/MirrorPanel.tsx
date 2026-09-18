@@ -13,10 +13,27 @@ import type { MirrorVM, MirrorPattern, EvidenceClass } from "@/lib/traderMemory/
  * nothing to reflect — same as ATHOS §14).
  */
 
+/**
+ * §9 — A REFLECTION THAT PAINTS STRENGTH GREEN HAS STOPPED REFLECTING.
+ *
+ * STRENGTH used to render in #5cb85c. Read that against this file's own
+ * docblock four lines up — "Mirror REFLECTS, never diagnoses" — and the
+ * contradiction is in the file, not in the rule: green is the fastest verdict
+ * a screen can deliver, and it arrives before the trader has read the word or
+ * the evidenceClass beside it. A SYSTEM_CANDIDATE hypothesis wearing a green
+ * badge is a diagnosis the panel explicitly promises not to make.
+ *
+ * WATCH keeps the brass, and that asymmetry is deliberate rather than an
+ * oversight. §9's second corollary is that the calm state must be genuinely
+ * SILENT — a reassuring badge is itself a claim — so the thing worth the
+ * trader's attention may be the brighter one, and the thing that is going well
+ * gets the quiet tone. The glyphs ◇ ◐ ○ and the words already carry all three
+ * directions; the hue was never doing the distinguishing.
+ */
 const DIRECTION_STYLES: Record<MirrorPattern["direction"], { color: string; glyph: string; label: string }> = {
-  STRENGTH: { color: "#5cb85c", glyph: "◇", label: "Strength" },
+  STRENGTH: { color: "#8a8271", glyph: "◇", label: "Strength" },
   WATCH:    { color: "#c9a55c", glyph: "◐", label: "Watch" },
-  NEUTRAL:  { color: "#8a8271", glyph: "○", label: "Neutral" },
+  NEUTRAL:  { color: "#55503f", glyph: "○", label: "Neutral" },
 };
 
 const EVIDENCE_LABEL: Record<EvidenceClass, string> = {

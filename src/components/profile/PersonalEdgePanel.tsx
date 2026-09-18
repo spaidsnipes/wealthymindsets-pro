@@ -42,8 +42,23 @@ export function PersonalEdgePanel({ vm, onBucketClick, className }: PersonalEdge
             fontSize: 9,
             letterSpacing: 0.3,
             textTransform: "uppercase",
+            /*
+              §9 — RESOLVED IS A STATEMENT ABOUT THE SAMPLE, NOT ABOUT THE
+              TRADER, AND IT USED TO BE GREEN.
+
+              `vm.resolution` says whether enough decisions have been recorded
+              to talk about an edge at all. It says nothing about whether that
+              edge is any good — a RESOLVED panel sitting over a negative avgR
+              is an ordinary and important outcome. Painting it #5cb85c told
+              the trader "you are fine" in the channel that lands first, on the
+              strength of having merely ATTAINED A SAMPLE SIZE.
+
+              Now RESOLVED is the quiet one. PARTIAL keeps the brass because
+              PARTIAL is the state that should make a trader hesitate before
+              trusting the numbers underneath it.
+            */
             color:
-              vm.resolution === "RESOLVED" ? "#5cb85c" :
+              vm.resolution === "RESOLVED" ? "#8a8271" :
               vm.resolution === "PARTIAL"  ? "#c9a55c" :
                                               "#55503f",
             fontWeight: 700,

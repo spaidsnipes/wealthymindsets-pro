@@ -13,15 +13,39 @@ import type { OpeningBellVM, ReadinessVerdict, ItemVerdict } from "@/lib/traderM
  * required — WM does not impose spiritual practices on any user.
  */
 
+/**
+ * §9 — "INFORMS, NEVER GATES" WAS TRUE OF THE WORDS AND FALSE OF THE COLOUR.
+ *
+ * READY rendered #5cb85c, nine lines under a docblock promising that WM "does
+ * not grant or withhold permission to trade". A green READY badge over a
+ * pre-market checklist IS a grant of permission — it is the single most direct
+ * instance of the green shield this product has ever shipped, and the file
+ * disclaiming it in prose did not stop it, because a trader decodes the hue
+ * before they read the paragraph.
+ *
+ * READY is now ivory: a FINDING, stated plainly. NOT_READY keeps its warm tone
+ * and its `!`, because §9 bans the reward end of the scale rather than the
+ * attention end — the corollary is that the calm, all-clear state must be
+ * SILENT, not that a warning may not look like one.
+ *
+ * This was found by `aVerdictIsNeverGraded.sentinel.test.ts`, not by a human
+ * reading files. A hand sweep the same day read six surfaces and missed this
+ * one, which is the argument for the sentinel in one sentence.
+ */
 const VERDICT_STYLES: Record<ReadinessVerdict, { color: string; glyph: string; label: string }> = {
-  READY:         { color: "#5cb85c", glyph: "●", label: "Ready" },
+  READY:         { color: "#ede6d3", glyph: "●", label: "Ready" },
   MOSTLY_READY:  { color: "#c9a55c", glyph: "◐", label: "Mostly ready" },
   NOT_READY:     { color: "#c05a4a", glyph: "!", label: "Not ready" },
   UNKNOWN:       { color: "#55503f", glyph: "?", label: "Unknown" },
 };
 
+/**
+ * The per-item scale feeds the verdict above, so repairing only the aggregate
+ * would leave the shield assembled out of parts: a column of green ticks says
+ * READY just as loudly as the badge did. The `✓` already carries completion.
+ */
 const ITEM_STYLES: Record<ItemVerdict, { color: string; glyph: string; label: string }> = {
-  DONE:      { color: "#5cb85c", glyph: "✓", label: "Done" },
+  DONE:      { color: "#ede6d3", glyph: "✓", label: "Done" },
   PARTIAL:   { color: "#c9a55c", glyph: "◐", label: "Partial" },
   NOT_DONE:  { color: "#8a8271", glyph: "○", label: "Not done" },
   SKIPPED:   { color: "#55503f", glyph: "—", label: "Skipped" },
