@@ -10,6 +10,8 @@ import {
   providerConfigReadinessWireView,
   tastytradeWireView,
   longbridgeTickWireView,
+  witnessedProviderWireView,
+  selectProviderWires,
 } from "./ProviderWireStrip";
 import { buildAthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
 import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
@@ -179,8 +181,105 @@ describe("ProviderWireStrip touch truth surface", () => {
     const brokers = readFileSync(new URL("../broker/BrokerConnectPanel.tsx", import.meta.url), "utf8");
     const deck = readFileSync(new URL("../../app/command-deck/page.tsx", import.meta.url), "utf8");
     expect(brokers).toContain("<ProviderWireStrip compact />");
-    expect(deck).toContain("<ProviderWireStrip compact />");
+    expect(deck).toContain("<ProviderWireStrip");
     expect(deck).toContain('className="wm-cd-connection-diagnostics"');
     expect(deck).toContain("Connections · provider readiness");
+  });
+
+  it("the deck hands the strip its own witness, from the same values it publishes upward", () => {
+    // THE ADOPTION GATE. `witnessedProviderWireView` is inert unless a surface
+    // actually passes `sourcedObservation`, and an owner nobody calls is a
+    // convention with extra steps. This pins the CALL, not just the export.
+    //
+    // It also pins that the three witness values are the SAME expressions the
+    // deck already publishes in `usePublishOsStanding({ feed })`. If the strip
+    // were fed a second, independently-derived notion of "did a quote arrive",
+    // this whole fix would have re-created the defect it closes one panel over.
+    const deck = readFileSync(new URL("../../app/command-deck/page.tsx", import.meta.url), "utf8");
+    expect(deck).toContain("sourcedObservation={");
+    expect(deck).toContain('wsFeed.source && wsFeed.source !== "unavailable"');
+    expect(deck).toContain("quotePresent: Number.isFinite(wsFeed.ticker.price) && wsFeed.ticker.price > 0");
+    expect(deck).toContain("barsPresent: (deckCandles?.length ?? 0) > 0");
+  });
+});
+
+/**
+ * §14.1 — AN ABSENCE MUST BE A FINDING, NOT A DEFAULT.
+ *
+ * Reproduces the live 2026-09-18 /command-deck contradiction: the Connections
+ * strip printed `alpaca Not receiving` while the hero inches above it printed
+ * `source alpaca · 365.65` over 120 drawn bars.
+ */
+describe("witnessedProviderWireView (canon Weakness #1, third panel)", () => {
+  const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
+  const notReceiving = { source: "alpaca", tone: "OFFLINE", label: "Not receiving", detail: "refresh token missing" } as const;
+  const witness = { source: "alpaca", quotePresent: true, barsPresent: true };
+
+  it("PRECONDITION: the matrix ladder really does end at Not receiving", () => {
+    // Without this the assertions below could pass over a label that no longer
+    // exists, which is the vacuous green this suite must not rot into.
+    const matrix = buildAthosCapabilityMatrix([
+      { certification: certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", note: "refresh token missing" }]), providerTier: "CERTIFIED_NEW" },
+    ], session);
+    expect(matrixProviderWireView(matrix, "alpaca")).toMatchObject({ tone: "OFFLINE", label: "Not receiving" });
+  });
+
+  it("a provider sourcing a drawn observation may not be called Not receiving", () => {
+    const wire = witnessedProviderWireView(notReceiving, witness);
+    expect(wire.label).toBe("Observed · not certified");
+    expect(wire.tone).toBe("LIMITED");
+  });
+
+  it("keeps the witnessed reason rather than deleting it", () => {
+    // The matrix was not wrong about what it measured. Losing "refresh token
+    // missing" would trade one silent inaccuracy for another.
+    expect(witnessedProviderWireView(notReceiving, witness).detail).toContain("refresh token missing");
+    expect(witnessedProviderWireView(notReceiving, witness).detail).toContain("alpaca");
+  });
+
+  it("bars alone are enough — a closed session serves no quote and hundreds of bars", () => {
+    const barsOnly = witnessedProviderWireView(notReceiving, { source: "alpaca", quotePresent: false, barsPresent: true });
+    expect(barsOnly.label).toBe("Observed · not certified");
+    expect(barsOnly.detail).toContain("drawn bars");
+  });
+
+  it("NOT an over-correction: an earned BLOCKED verdict survives the witness", () => {
+    // A provider can be authenticated-blocked for ORDERS while still relaying
+    // PRICE. The witness answers "did anything arrive", never "is this wire
+    // healthy", and it must never launder a probe that actually ran and failed.
+    const blocked = { source: "alpaca", tone: "BLOCKED", label: "Authentication blocked", detail: "HTTP 401" } as const;
+    expect(witnessedProviderWireView(blocked, witness)).toEqual(blocked);
+  });
+
+  it("NOT an over-correction: a certified LIVE wire is not demoted to LIMITED", () => {
+    const live = { source: "alpaca", tone: "LIVE", label: "1 certified", detail: "price realtime" } as const;
+    expect(witnessedProviderWireView(live, witness)).toEqual(live);
+  });
+
+  it("speaks only for the provider it witnessed", () => {
+    // The bug this guards against is a witness for alpaca silencing an honest
+    // absence on tastytrade, which would be a far worse lie than the original.
+    const tasty = { ...notReceiving, source: "tastytrade" } as const;
+    expect(witnessedProviderWireView(tasty, witness)).toEqual(tasty);
+  });
+
+  it("an absent or empty witness changes nothing", () => {
+    expect(witnessedProviderWireView(notReceiving, null)).toEqual(notReceiving);
+    expect(witnessedProviderWireView(notReceiving, { source: "alpaca", quotePresent: false, barsPresent: false })).toEqual(notReceiving);
+  });
+
+  it("selectProviderWires applies the witness AFTER the readiness override", () => {
+    // ORDER IS THE WHOLE POINT. The readiness override runs late and can stamp
+    // "Not configured" over a matrix result; if the witness ran first, that
+    // override would reinstate the absence the page had already disproved.
+    const wires = selectProviderWires({
+      matrix: null, readiness: null, moomooTicks: null, longbridgeTicks: null,
+      webullTicks: null, failures: new Set(["market"]), suspended: false,
+      sourcedObservation: witness,
+    });
+    const alpaca = wires.find((w) => w.source === "alpaca");
+    expect(alpaca?.label).toBe("Observed · not certified");
+    // and every provider the page did NOT witness still reports honestly
+    expect(wires.find((w) => w.source === "moomoo")?.label).toBe("Status unavailable");
   });
 });

@@ -2476,7 +2476,26 @@ function CommandDeckInner() {
               >
                 Connections · provider readiness
               </summary>
-              <ProviderWireStrip compact />
+              {/*
+                THE WITNESS — the same three values this page already publishes
+                upward in `feed` above, handed sideways to the wire strip so the
+                two panels cannot answer "is this provider delivering?" twice.
+                Measured live 2026-09-18: this strip read `alpaca Not receiving`
+                while the hero inches above it read `source alpaca · 365.65` over
+                120 drawn bars. Nothing is derived here; the strip still grades.
+              */}
+              <ProviderWireStrip
+                compact
+                sourcedObservation={
+                  wsFeed.source && wsFeed.source !== "unavailable"
+                    ? {
+                        source: wsFeed.source,
+                        quotePresent: Number.isFinite(wsFeed.ticker.price) && wsFeed.ticker.price > 0,
+                        barsPresent: (deckCandles?.length ?? 0) > 0,
+                      }
+                    : null
+                }
+              />
             </details>
 
             {/* RAW context rail — SHOW FIRST, EXPLAIN SECOND, RAW THIRD

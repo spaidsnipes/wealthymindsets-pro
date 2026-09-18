@@ -389,6 +389,79 @@ export function matrixProviderWireView(
 
 export const PROVIDER_SOURCES = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
 
+/**
+ * THE WITNESS — what the SAME PAGE is currently attributing a drawn observation
+ * to. Evidence, never a verdict: no grade is computed here, and nothing in this
+ * shape can make a wire look better than the page itself looks.
+ */
+export interface SourcedObservation {
+  /** The provider the rendered observation is sourced from. */
+  readonly source: string;
+  /** A finite, positive price arrived. */
+  readonly quotePresent: boolean;
+  /** Bars are drawn, which a closed session serves when no quote does. */
+  readonly barsPresent: boolean;
+}
+
+/**
+ * Labels that assert a provider delivered NOTHING. These are the only claims a
+ * witnessed observation is allowed to contradict — an earned BLOCKED verdict,
+ * a rate limit, a stale print, or a certified LIVE row all survive untouched.
+ */
+const ABSENCE_LABELS = new Set([
+  "Not receiving",
+  "Status unavailable",
+  "Not runtime-wired",
+  "Not configured",
+]);
+
+/**
+ * §14.1 — AN ABSENCE MUST BE A FINDING, NOT A DEFAULT.
+ *
+ * MEASURED LIVE 2026-09-18, https://wealthymindsetspro.com/command-deck, TSLA:
+ *
+ *   Connections strip   alpaca   Not receiving
+ *   hero truth          source alpaca · coverage 1 channel · 365.65 · 120 bars
+ *
+ * One screen, one instant, one provider, two answers to the question "is alpaca
+ * delivering?" — and the panel claiming NOTHING ARRIVED sat inches above the
+ * panel rendering what arrived.
+ *
+ * ROOT CAUSE, identical in species to the masthead FEED UNKNOWN repaired at
+ * `command-deck/page.tsx` the day before: `matrixProviderWireView` answers only
+ * "does this provider hold an ACCEPTED row in the canonical capability matrix?"
+ * When the answer is no it falls through to "Not receiving" — a claim about
+ * DELIVERY that the matrix never measured. The absence was a DEFAULT reached by
+ * exhausting a ladder, not a FINDING about the wire.
+ *
+ * The repair is NOT to soften the label into optimism. It is to let the owner
+ * see the evidence already on its own page: a provider that is sourcing a drawn
+ * observation is receiving, whatever the matrix can certify about it. The
+ * witnessed reason is kept in `detail`, because "we cannot certify this wire"
+ * remains true and remains worth reading.
+ */
+export function witnessedProviderWireView(
+  wire: ProviderWireView,
+  observation: SourcedObservation | null | undefined,
+): ProviderWireView {
+  if (!observation || observation.source !== wire.source) return wire;
+  if (!observation.quotePresent && !observation.barsPresent) return wire;
+  if (!ABSENCE_LABELS.has(wire.label)) return wire;
+  const arrived = observation.quotePresent
+    ? observation.barsPresent ? "a quote and drawn bars" : "a quote"
+    : "drawn bars";
+  return {
+    source: wire.source,
+    // Amber, not green. Data is arriving and the capability is still uncertified
+    // — that is precisely LIMITED, and it must not read as a certified wire.
+    tone: "LIMITED",
+    label: "Observed · not certified",
+    detail:
+      `This surface is rendering ${arrived} sourced from ${wire.source}, so it is receiving. ` +
+      `No canonical capability row certifies it: ${wire.detail}`,
+  };
+}
+
 export interface ProviderWireInputs {
   readonly matrix: AthosCapabilityMatrix | null;
   readonly readiness: ReadinessPayload | null;
@@ -397,6 +470,8 @@ export interface ProviderWireInputs {
   readonly webullTicks: MoomooTickReceipt | null;
   readonly failures: ReadonlySet<string>;
   readonly suspended: boolean;
+  /** Optional: the page's own witness. Absent on surfaces that render no tape. */
+  readonly sourcedObservation?: SourcedObservation | null;
 }
 
 /**
@@ -408,7 +483,7 @@ export interface ProviderWireInputs {
  * function with a name and a test.
  */
 export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireView[] {
-  const { matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended } = inputs;
+  const { matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation } = inputs;
 
   // A pause may only speak for a strip holding NO verdict at all — no receipt
   // and no observed failure. "We stopped checking" must never erase "we
@@ -436,7 +511,7 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
     alpaca: providerConfigReadinessWireView(readiness, "alpaca", ["alpaca-paper", "alpaca-live"]),
   } as const;
 
-  return marketWires.map((wire) => {
+  const resolved = marketWires.map((wire) => {
     if (wire.source === "moomoo" && moomooWire) return moomooWire;
     if (wire.source === "longbridge" && longbridgeWire) return longbridgeWire;
     if (wire.source === "webull" && webullWire) return webullWire;
@@ -450,6 +525,11 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
     }
     return wire;
   });
+
+  // LAST, deliberately. The witness may only contradict the claim this function
+  // finally settled on — running it earlier would let a readiness override
+  // reinstate an absence the page had already disproved.
+  return resolved.map((wire) => witnessedProviderWireView(wire, sourcedObservation));
 }
 
 const TONE_COLOR: Record<WireTone, string> = {
@@ -463,7 +543,14 @@ const TONE_COLOR: Record<WireTone, string> = {
   SUSPENDED: "#6b7189",
 };
 
-export default function ProviderWireStrip({ compact = false }: { readonly compact?: boolean }) {
+export default function ProviderWireStrip({
+  compact = false,
+  sourcedObservation = null,
+}: {
+  readonly compact?: boolean;
+  /** The host surface's own witness — see `witnessedProviderWireView`. */
+  readonly sourcedObservation?: SourcedObservation | null;
+}) {
   const [matrix, setMatrix] = React.useState<AthosCapabilityMatrix | null>(null);
   const [readiness, setReadiness] = React.useState<ReadinessPayload | null>(null);
   const [moomooTicks, setMoomooTicks] = React.useState<MoomooTickReceipt | null>(null);
@@ -574,7 +661,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
   }, []);
 
-  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended });
+  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation });
 
   return (
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
