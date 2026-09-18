@@ -612,7 +612,25 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
       // no-receipt result. Never replace an observed/auth/entitlement probe,
       // and never promote configured-to-attempt over a failed live probe.
       if (override && override.tone === "OFFLINE" && wire.tone === "OFFLINE") return override;
-      if (override && (wire.label === "Status unavailable" || wire.label === "Not runtime-wired")) return override;
+      // THE THIRD INSTANCE OF THE SAME DEFECT IN THIS FILE, found by auditing
+      // whether `evidenceless` is set honestly at every branch — the gap the
+      // 2026-09-18-C baton named as unproven.
+      //
+      // This arm used to read `wire.label === "Status unavailable" ||
+      // wire.label === "Not runtime-wired"`. Both are display strings, and the
+      // second one is produced by TWO different branches that mean opposite
+      // things: one where the capability row carried a NOTE (the provider said
+      // why — a finding) and one where it carried nothing (a default). The
+      // label cannot tell them apart; `evidenceless` can, which is why it is a
+      // field.
+      //
+      // The arm above already lets an OFFLINE override replace an OFFLINE wire,
+      // so the only behaviour this line adds is a NON-OFFLINE override — a
+      // readiness read saying "configured" — replacing the matrix verdict. Over
+      // an assumed absence that is a genuine improvement. Over a measured note
+      // it is a PROMOTION over evidence, which is the same move the witness was
+      // forbidden from making.
+      if (override && wire.evidenceless === true) return override;
     }
     return wire;
   });

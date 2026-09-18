@@ -427,6 +427,44 @@ describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
     });
   }
 
+  it("SENTINEL: no composed wire's display LABEL is ever used as control flow", () => {
+    // THE RULE THIS FILE HAD TO LEARN THREE TIMES.
+    //
+    //   1. `receiptAffirmsTicks` re-detected "prints arrived" by comparing a
+    //      composed label to the literal "Ticks receiving".
+    //   2. `witnessedProviderWireView` gated on a SET of labels including
+    //      "Not receiving" — which let a witness overrule a MEASURED absence.
+    //   3. `selectProviderWires` decided whether a readiness override could
+    //      replace a matrix verdict by testing for "Status unavailable" or
+    //      "Not runtime-wired". The second of those is emitted by two branches
+    //      that mean OPPOSITE things (noted = a finding, no-note = a default),
+    //      so the label could not express the distinction the code needed.
+    //
+    // Each time, a display string was load-bearing: renaming a chip would have
+    // silently changed which claims the code believed. Verdicts must be carried
+    // by FIELDS (`tone`, `evidenceless`), never re-parsed from what the user
+    // happens to read on screen. A point fix would not have stopped a fourth
+    // instance, so the rule itself is pinned.
+    //
+    // Receipt labels ("RECEIVING", "AUTH BLOCKED") are deliberately NOT covered:
+    // those are protocol tokens arriving from an API, not text this file chose
+    // for display. That distinction is the whole point.
+    const src = readFileSync("src/components/marketData/ProviderWireStrip.tsx", "utf8");
+    const code = src
+      .split("\n")
+      .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line))
+      .join("\n");
+    // PRECONDITION: the file was actually read and comment-stripping did not
+    // eat the implementation, or this assertion would pass over nothing.
+    expect(code.length).toBeGreaterThan(8000);
+    expect(code).toContain("evidenceless");
+
+    const offenders = code
+      .split("\n")
+      .filter((line) => /\b(?:wire|view|resolved|override)\.label\s*[!=]==/.test(line));
+    expect(offenders).toEqual([]);
+  });
+
   it("the arms added above did not steal the verdicts the ladder already got right", () => {
     // Over-correction guard. Widening a classifier is how a previously-correct
     // row quietly changes meaning; these are the neighbours most at risk.
