@@ -240,6 +240,46 @@ Against the three Founder acceptance questions:
 | Useful while candles remain visible? | **CLOSED — MEASURED 2026-09-18.** This row read PARTIAL ("a full-tab sibling of `Chart`, so the candles are not on screen at the same time") until it was measured instead of remembered. `MICROSTRUCTURE_TABS` renders the four views BENEATH the price pane rather than instead of it. On BTC · 15m, viewport 784px, `scrollY 0`: the price canvas spans **y 140 → 373** and the reading's own heading sits at **y 388** — for all four views, at identical geometry (`Absorption Anatomy`, `AGGRESSION vs RESPONSE`, `BIG TRADE INTELLIGENCE`, `LIVING PROFILE`). The price canvas is drawn, not blank: 3,134 inked samples across 7 distinct colours. |
 | Fed real/honest WM information? | YES. No mockup literal survives; every absent field says `—` and names why. |
 
+### ASSET 04 ON TOP OF IT — SHIPPED AND LIVE-OBSERVED (`c961deb5`)
+
+Asset 04, "Question-Driven Absorption Canvas", is not new evidence. It is the
+SAME compiler's output re-composed around the question, so the first thing the
+eye lands on is the thing the screen exists to settle. `selectAbsorptionQuestion`
+compiles the canonical `QuestionFocusVM` from `selectAbsorptionAnatomyView`, and
+the canonical `ActiveQuestionBar` heads the surface — no second focus vocabulary
+exists beside the audited one.
+
+Live on `https://wealthymindsetspro.com/charts` → VIEW `Absorption`, read from
+`[data-testid="active-question-bar"]`:
+
+```
+data-focus-basis = ABSORPTION_ABSENT
+
+ACTIVE QUESTION
+OBSERVE
+Is any level absorbing effort right now?
+QUESTION FOCUS
+Absorption of effort across the last 30 bars
+```
+
+Three things that reading proves, which a constant banner string could not:
+
+1. **The banner inherited the epistemic state.** `ABSORPTION_ABSENT`, not
+   `ABSORPTION_UNMEASURED` — the window RAN and answered "no zone". It therefore
+   renders in the resolved look, not the italic UNRESOLVED one. A surface that
+   reported a measured absence as a failure would tell the trader the screen
+   broke when the screen worked.
+2. **It named no aggressor.** The same surface's reason line reads
+   `effort is traded volume — this tape never stated an aggressor side`. The
+   aggression rail is null on a partially-signed window by design, so the banner
+   says "effort", not "seller effort". The canon mockup names the seller because
+   its mockup was drawn on signed tape; naming one here would have put a
+   fabricated actor in the largest sentence on the canvas.
+3. **The focus is a SUBJECT, not the finding.** "Absorption of effort across the
+   last 30 bars" — the finding stays with `vm.reason` eight lines down. The first
+   draft returned the finding in both places, which is the two-owners-of-one-fact
+   defect `ActiveQuestionBar`'s own docblock refuses by name.
+
 ---
 
 ## ASSET 03 — BUILT AND LIVE-OBSERVED (`42a495e4`)
