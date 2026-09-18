@@ -9,9 +9,34 @@
 
 | SHA | Atom | Live status |
 |---|---|---|
-| `a36339aa` | Passport AGGRESSION reads the Asset 03 scatter | pushed; CI green; **deploy not yet observed** |
-| `bc23cef1` | Passport STRUCTURE reads a compiled swing sequence | pushed; **deploy not yet observed** |
-| `6dca05ae` | Auction matchers learn the STRUCTURE vocabulary | pushed; **deploy not yet observed** |
+| `a36339aa` | Passport AGGRESSION reads the Asset 03 scatter | **LIVE — PROVEN** |
+| `bc23cef1` | Passport STRUCTURE reads a compiled swing sequence | **LIVE — PROVEN** |
+| `6dca05ae` | Auction matchers learn the STRUCTURE vocabulary | pushed; **live effect not observable on this surface** |
+
+Measured on production BTC after the deploy landed, in the same drawer read:
+
+```
+BEFORE  3/8 resolved
+        AGGRESSION / UNRESOLVED / DNA · 0 REFS
+        STRUCTURE  / UNRESOLVED / DNA · 0 REFS
+
+AFTER   5/8 resolved
+        AGGRESSION / FORMING  / INFERRED / 45% / DNA · 1 REF
+                   "y is EFFORT, not net aggression — this tape never stated
+                    an aggressor side…"
+        STRUCTURE  / RESOLVED / HIGHER HIGHS / INFERRED / 50% / DNA · 1 REF
+```
+
+Both landed exactly as designed: AGGRESSION refuses to name a side and says so
+in the owner's own words; STRUCTURE states a sequence at `INFERRED`, capped at
+50%, never promoting the detector's self-declared class.
+
+`6dca05ae` is a **different honesty problem**. The `/charts` Auction node reads
+the evidence-debt compiler, not `selectAuctionState` — it currently prints
+*"Auction — Required evidence is unpaid… CLC verdict is WAIT"*. So the matcher
+repair is correct at the unit level and **unobservable from this surface**. It
+is recorded as unproven rather than assumed, and the honest next question is
+whether `selectAuctionState` has a production consumer at all.
 
 Carried over and now **PROVEN**: `be4d35a9` (LOCATION), left pending in the
 previous baton, was measured live on production BTC this block:
@@ -190,13 +215,13 @@ reading the live product settles it.
 
 ## OPEN, HONESTLY
 
-- **AGGRESSION + STRUCTURE live-verification** — pushed, CI green, deploy not
-  yet observed. Re-open the "Full evidence" drawer on production BTC and confirm
-  AGGRESSION shows an effort verdict with 1 ref, and STRUCTURE leaves `0 REFS`.
-  Written here as pending on purpose.
-- **Auction State live-verification** — the matcher fix is unproven in the
-  product. Its consumer is `selectDecisionChain`; whether that node visibly
-  changes has not been measured.
+- **Auction State live-verification** — the matcher fix remains unproven in the
+  product, and the reason is now known rather than guessed: the `/charts`
+  Auction node is fed by the evidence-debt compiler, which short-circuits on
+  unpaid evidence before any auction verdict could show. **Open question worth
+  answering next: does `selectAuctionState` have a production consumer at
+  all?** If it does not, the matcher repair is a correct fix to a dormant path
+  — still worth having, but it should be labelled as such.
 - **`structureNone` is dead config** — populated in `DEFAULT_AUCTION_MATCHERS`
   and declared on the interface, but never read in `selectAuctionState`'s body.
   Left in place as part of the public matcher contract callers may override, now

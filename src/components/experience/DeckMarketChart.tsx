@@ -106,6 +106,27 @@ type FetchState =
   | { kind: "EMPTY" }
   | { kind: "UNAVAILABLE"; reason: string };
 
+/**
+ * THE VENUE THESE CANDLES COME FROM — exported so the deck can attribute them.
+ *
+ * This file is the only fetcher of the deck's candles, so it is the only thing
+ * that can honestly answer "which venue?". The deck publishes those candles
+ * into canonical market state, where CANDLE-ONLY dimensions (structure,
+ * aggression) mint evidence refs naming a source. Before this constant the
+ * deck had no way to say, and the publisher fell back to the TAPE source.
+ *
+ * Measured live on production BTC 15m, 2026-09-18: `/command-deck` attributed
+ * its swing-sequence evidence to `coinbase` — the WebSocket tape — while the
+ * numbers were computed from Yahoo candles, which is why `/charts` (Coinbase
+ * candles via /api/exchange) read `HIGHER HIGHS` at the same instant that the
+ * deck read `structure ?`. The disagreement is legitimate; two venues print
+ * different candles. Both receipts naming the SAME venue was not.
+ *
+ * Kept as one constant that builds the URL below, so the label and the request
+ * cannot drift into disagreeing about where the bars came from.
+ */
+export const DECK_CANDLE_SOURCE = "yahoo";
+
 export interface DeckMarketChartProps {
   readonly symbol: string;
   readonly timeframe: string;
@@ -221,7 +242,7 @@ export function DeckMarketChart({
     // shows LOADING; a refresh happens underneath the chart already on screen.
     if (!isRefresh) setState({ kind: "LOADING" });
 
-    const url = `/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(timeframe)}&bars=${bars}`;
+    const url = `/api/${DECK_CANDLE_SOURCE}?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(timeframe)}&bars=${bars}`;
     const doFetch = fetcher ?? ((u: string) => fetch(u, { cache: "no-store" }));
 
     /**

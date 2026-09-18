@@ -174,7 +174,20 @@ describe("the publisher actually re-asks — the wire, not just the arithmetic",
       "the publish effect does not depend on `recheck`; the timer fires, state " +
         "bumps, and canonical state is never republished — the live defect " +
         "measured at 2026-09-15T18:23:39Z returns",
-    ).toMatch(/connected,\s*bars,\s*recheck\s*\]/);
+    //
+    // ANCHORED ON THE EFFECT, NOT ON ITS NEIGHBOURS. This assertion used to
+    // read /connected,\s*bars,\s*recheck\s*\]/ — three adjacent names. On
+    // 2026-09-18 a legitimate new dependency (`barSource`) was inserted
+    // between `bars` and `recheck` and this test went red while the property
+    // it guards was still perfectly intact. A sentinel that fails on a correct
+    // change teaches the next reader to edit the test reflexively, which is
+    // exactly how a real failure gets waved through.
+    //
+    // `[symbol,` is what distinguishes the PUBLISHING effect's array from the
+    // timer-arming effect's `[bars, timeframe, recheck]` one directory up, so
+    // the anchor is still specific. `[^\]]*` cannot run past the closing
+    // bracket, so `recheck` must genuinely be inside THIS array.
+    ).toMatch(/\}, \[symbol,[^\]]*\brecheck\s*\]/);
   });
 
   it("the timer is cleared on re-run — no leaked republish after unmount", () => {

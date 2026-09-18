@@ -81,7 +81,10 @@ import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassp
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
-import DeckMarketChart, { type Candle as DeckCandle } from "@/components/experience/DeckMarketChart";
+import DeckMarketChart, {
+  DECK_CANDLE_SOURCE,
+  type Candle as DeckCandle,
+} from "@/components/experience/DeckMarketChart";
 import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 import AvailableRChip from "@/components/experience/AvailableRChip";
 import CapitalPostureLine from "@/components/experience/CapitalPostureLine";
@@ -346,6 +349,12 @@ function CommandDeckInner() {
     source: wsFeed.source,
     connected: wsFeed.connected,
     bars: deckCandles,
+    // `source` above is the TAPE venue (coinbase on a crypto symbol). These
+    // candles are not from that tape — DeckMarketChart fetches them from
+    // /api/yahoo. Candle-only dimensions must cite the venue that actually
+    // printed the bars, or the receipt names a venue the numbers never came
+    // from. See DECK_CANDLE_SOURCE for the live measurement that found this.
+    barSource: DECK_CANDLE_SOURCE,
   });
 
   const state = useCanonicalMarketState(identity);

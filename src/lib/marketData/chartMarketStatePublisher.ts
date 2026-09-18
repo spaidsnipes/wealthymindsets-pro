@@ -78,6 +78,36 @@ export interface ChartMarketStatePublicationInput {
    * the close-owner and the profile-owner different candles.
    */
   readonly bars?: readonly (BarCloseCandidate & Partial<ProfileBar>)[] | null;
+  /**
+   * THE VENUE THE **CANDLES** CAME FROM — which is not always the venue the
+   * TICKS came from.
+   *
+   * `source` above names the live tape feed. Until this field existed it was
+   * also stamped onto every dimension's evidence ref, including the two that
+   * are derived from CANDLES ALONE and never touch a tick. On a surface where
+   * the two feeds differ, that made the evidence receipt name the wrong venue.
+   *
+   * FOUND FROM USE, production BTC 15m, 2026-09-18. `/charts` read
+   * `STRUCTURE / RESOLVED / HIGHER HIGHS` while `/command-deck`, same symbol,
+   * same timeframe, same instant, read `structure ?`. Neither surface was
+   * internally wrong: `/charts` compiles the swing sequence from
+   * `/api/exchange` candles (MainChart.tsx, Coinbase for a crypto symbol) and
+   * the deck compiles it from `/api/yahoo` candles (DeckMarketChart.tsx). Two
+   * venues, one instrument, one instant, two answers — canon Weakness #1,
+   * arriving through DATA PROVENANCE rather than through a wrong computation.
+   *
+   * The disagreement itself is legitimate and is NOT what this field fixes:
+   * two venues genuinely print different candles, and forcing them equal here
+   * would be inventing agreement. What was NOT legitimate is that the deck's
+   * structure evidence claimed `coinbase` as its source while the numbers came
+   * from Yahoo. A reader comparing the two receipts could not even SEE why
+   * they differed, because both receipts named the same venue.
+   *
+   * Optional, and falls back to `source` when absent — which is exactly the
+   * pre-existing claim, so a caller that has not been taught the distinction
+   * is left no worse than it was rather than silently relabelled.
+   */
+  readonly barSource?: string | null;
 }
 
 // Asset class + instrument id + session all delegate to the single canonical
@@ -202,6 +232,21 @@ export function createChartMarketStatePublication(
     (mx, t) => (Number.isFinite(t.time) && t.time > 0 ? Math.max(mx, t.time) : mx),
     0,
   );
+  // The venue for CANDLE-derived evidence. Falls back to the tape source so a
+  // caller that has not named a bar venue keeps making exactly the claim it
+  // made before — no caller is silently relabelled by this field's arrival.
+  //
+  // Deliberately NOT applied to profile/location: `buildLivingProfileSnapshot`
+  // chooses between the per-trade tape and the candle estimate at runtime, so
+  // stamping either venue on that pair would replace one wrong attribution
+  // with a different one. They keep the tape source and that limitation is
+  // named here rather than left for a reader to discover.
+  const barSourceName =
+    typeof input.barSource === "string" && input.barSource.trim().length > 0
+      ? input.barSource
+      : typeof input.source === "string"
+        ? input.source
+        : null;
   const orderFlow = deriveOrderFlowDimension({
     ticks: input.recentTicks,
     livePrice: input.ticker.price,
@@ -299,7 +344,8 @@ export function createChartMarketStatePublication(
   // is absent.
   const aggression = deriveAggressionDimension({
     vm: selectAggressionResponse(profileBarsFrom(input.bars), { windowBars: 30 }),
-    source: typeof input.source === "string" ? input.source : null,
+    // Candles only — never a tick. So the CANDLE venue, not the tape venue.
+    source: barSourceName,
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
@@ -323,7 +369,10 @@ export function createChartMarketStatePublication(
   // not a shortage a longer window would cure.
   const structure = deriveStructureDimension({
     vm: selectMarketStructure(profileBarsFrom(input.bars)),
-    source: typeof input.source === "string" ? input.source : null,
+    // Candles only — never a tick. So the CANDLE venue, not the tape venue.
+    // This is the receipt that named `coinbase` for a Yahoo-derived swing
+    // sequence on /command-deck; see `barSource` on the input type.
+    source: barSourceName,
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
@@ -434,6 +483,10 @@ export function usePublishChartMarketState(
     source,
     connected,
     bars,
+    // Named explicitly for the reason the block above exists: an optional field
+    // this forwarder does not destructure is silently discarded, and a dropped
+    // input is indistinguishable from absent evidence at the far end.
+    barSource,
   }: Omit<ChartMarketStatePublicationInput, "capturedAt" | "nectar">,
 ): void {
   // THE BAR THAT CLOSES WHILE NOTHING CHANGES.
@@ -481,6 +534,7 @@ export function usePublishChartMarketState(
       source,
       connected,
       bars,
+      barSource,
       capturedAt: Date.now(),
       nectar: getSessionNectarSnapshot(),
     });
@@ -499,5 +553,10 @@ export function usePublishChartMarketState(
     // `recheck` belongs here for the same reason, one level up: without it the
     // close stays frozen at whatever the last INPUT CHANGE happened to see,
     // even after the clock alone has made a newer bar provably closed.
-  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, recheck]);
+    //
+    // `barSource` belongs here for the same reason as `bars`: a surface that
+    // switches candle venue without re-publishing would keep stamping the old
+    // venue on new numbers — a receipt that is wrong in the one way receipts
+    // are supposed to make impossible.
+  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, barSource, recheck]);
 }
