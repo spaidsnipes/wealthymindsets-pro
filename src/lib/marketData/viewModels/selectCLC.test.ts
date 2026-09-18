@@ -250,6 +250,73 @@ describe("selectCLC — M27 CLC = Context + Location + Confirmation", () => {
     expect(vm.location.verdict).toBe("PARTIAL");
   });
 
+  /**
+   * A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.
+   *
+   * The PARTIAL summaries rendered `${dim.value ?? "unresolved"}`. That fallback
+   * tests NULLISHNESS, and nullishness is not a standing: `PARTIAL` is exactly
+   * the resolution that CARRIES a value while not being decision-grade, so the
+   * `??` never fired for it and the sentence came out identical to the
+   * SATISFIED one. The middle bucket again — disguised this time as AN
+   * IDENTICAL SENTENCE.
+   *
+   * These assert the PROPERTY (a measured reading is distinguishable from a
+   * committed one, and is not called "unresolved"), never a spelling, so a
+   * future rewording is free and a future regression is not.
+   */
+  describe("a measured reading is not dressed as a resolved one", () => {
+    const contextSummary = (direction: MarketStateDimension) =>
+      selectCLC({
+        state: makeState({
+          regime: resolved("TREND"),
+          direction,
+          location: resolved("VAL"),
+          structure: resolved("BOS"),
+        }),
+        signedOrderFlowCoverage: 0.8,
+      }).context.summary;
+
+    it("CONTEXT does not print a PARTIAL dimension the way it prints a RESOLVED one", () => {
+      const measured = contextSummary(partial("LONG"));
+      const committed = contextSummary(resolved("LONG"));
+      expect(
+        measured,
+        "one sentence for two standings is the defect — the reader cannot tell them apart",
+      ).not.toBe(committed);
+      // The value is still SHOWN. Hiding a measurement that was taken is the
+      // opposite failure, and the one `?? "unresolved"` was already committing.
+      expect(measured).toContain("LONG");
+      expect(measured.toLowerCase()).toContain("measured");
+    });
+
+    it("CONTEXT still calls a genuinely absent dimension unresolved, not measured", () => {
+      // The MISSING bucket must not drift the other way. `value` is null by
+      // contract there, so there is nothing to name and nothing was measured.
+      const absent = contextSummary(unknown());
+      expect(absent).toContain("unresolved");
+      expect(absent.toLowerCase()).not.toContain("measured");
+    });
+
+    it("LOCATION carries the same rule — one leg fixed is one surface's good luck", () => {
+      const summaryFor = (structure: MarketStateDimension) =>
+        selectCLC({
+          state: makeState({
+            regime: resolved("TREND"),
+            direction: resolved("LONG"),
+            location: resolved("VAL"),
+            structure,
+          }),
+          signedOrderFlowCoverage: 0.8,
+        }).location.summary;
+
+      const measured = summaryFor(partial("BOS"));
+      expect(measured).not.toBe(summaryFor(resolved("BOS")));
+      expect(measured).toContain("BOS");
+      expect(measured.toLowerCase()).toContain("measured");
+      expect(summaryFor(unknown()).toLowerCase()).not.toContain("measured");
+    });
+  });
+
   it("narrative concatenates all three leg summaries with a middle dot", () => {
     const s = satisfiedLongState();
     const vm = selectCLC({
