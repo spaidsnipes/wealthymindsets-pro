@@ -165,6 +165,8 @@ import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView
 import { selectAbsorptionAnatomyView } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
 import AggressionResponseView from "@/components/experience/AggressionResponseView";
 import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggressionResponse";
+import BigTradeIntelligenceView from "@/components/experience/BigTradeIntelligenceView";
+import { selectBigTradeIntelligence } from "@/lib/marketData/viewModels/selectBigTradeIntelligence";
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
@@ -774,6 +776,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }));
     return selectAggressionResponse(input, { windowBars: 30 });
   }, [chartBars]);
+
+  // ── Asset 05 · BIG TRADE INTELLIGENCE ─────────────────────────────────
+  //
+  // Fed from `recentTicks` — the PER-TRADE tape — and not from `chartBars`,
+  // unlike the two views above. That is the whole point of this surface: "was
+  // that ONE print large" is a question about a single execution, and a candle
+  // has already thrown away the executions that made it. Deriving a print from
+  // a bar's volume would be a fabricated trade, which is the exact defect the
+  // bubble owner in src/lib/bigTradeLevels.ts was written to end.
+  //
+  // No `base` is passed: the selector keys the chart's absolute floor on the
+  // latest print's own price, which is the same input `minBigTradeLot` is given
+  // everywhere else. Passing `ticker.price` here would introduce a second
+  // owner of "what this instrument costs" for no gain.
+  const bigTradeIntelligenceVM = React.useMemo(
+    () => selectBigTradeIntelligence(recentTicks),
+    [recentTicks],
+  );
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
   // reader. Same canonicalIdentity the publisher writes → same compiler
@@ -2550,7 +2570,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && (
+            {/* Asset 05 — BIG TRADE INTELLIGENCE. Fed by the room's own
+                `recentTicks`, which is the per-trade tape itself rather than a
+                bar aggregate: the question "was that one print large" cannot be
+                asked of a candle, and answering it from a candle would be a
+                fabricated print. On a feed with no tape the view names that,
+                which is why it is offered on every class. */}
+            {activeTab === "Big Trades" && (
+              <div role="tabpanel" id="wm-chart-category-panel-big-trades" aria-label={`Big trade intelligence for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <BigTradeIntelligenceView vm={bigTradeIntelligenceVM} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

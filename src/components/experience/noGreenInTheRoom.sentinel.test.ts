@@ -116,6 +116,17 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       + "deliberately do NOT use it: those are conditions-met claims, and §9 "
       + "says the shield does not exist.",
   },
+  "BigTradeIntelligenceView.tsx": {
+    "#00d4aa":
+      "BUY side of a directional print ledger — the aggressor side the tape "
+      + "stated for one execution, paired with a SELL red. Same statement a "
+      + "candle's up colour makes; it grades nothing and names no condition. "
+      + "Deliberately the SAME shade AbsorptionAnatomyView uses for "
+      + "buyer-initiated volume: a second green would teach the eye that the "
+      + "two surfaces measure two different things. An UNSIDED print takes the "
+      + "muted tone, never a third bright colour — an absence must not compete "
+      + "with the two real readings.",
+  },
   "DeltaDivergencePanel.tsx": {
     "#00d4aa": "WM brand teal, used as a section accent. Names no condition and grades nothing.",
   },
