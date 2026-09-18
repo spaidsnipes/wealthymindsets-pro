@@ -41,6 +41,30 @@
  */
 
 import * as React from "react";
+// ── 2026-09-18: A ROOM MAY NOT REBOOT THE MACHINE ─────────────────────────
+//
+// Every door in this frame — the desktop rail and the phone bar — was a raw
+// `<a href>`. A raw anchor is a DOCUMENT LOAD. Measured live on production by
+// clicking the rail's Charts door from /command-deck:
+//
+//     navType "navigate" · loadEventEnd 745ms · 35 resources refetched
+//     a window global set one instant earlier: GONE
+//
+// That is not navigation between rooms, it is a power cycle between rooms, and
+// it takes the whole in-memory session with it — the live tape subscription,
+// and `priorStory`, the prior snapshot the Auto-Quiet gate compares against.
+// Which means the SECONDARY NOISE readout can only ever say "Unwatched" on the
+// first paint after any door is used, no matter how long the trader has been
+// watching. A frame whose own chrome claims to remember cannot be the thing
+// that forgets.
+//
+// `next/link` is the fix and the fork's own doc names the defect in its first
+// example — it annotates a bare `<a>` with "No prefetching". Kept at
+// `prefetch={false}` deliberately: the claim this change makes is ONE claim,
+// that crossing a door is a client-side transition. Prefetching 22 rooms on
+// viewport entry is a different claim about network cost, unmeasured here, and
+// it does not belong in the same commit.
+import Link from "next/link";
 // Where the product's rooms are has ONE owner. Retyping them here is what made
 // this rail a second definition — see the note on OS_ROOMS below.
 import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDestinations";
@@ -193,8 +217,9 @@ function RailLink({
 }): React.ReactElement {
   const active = href === activeHref;
   return (
-    <a
+    <Link
       href={href}
+      prefetch={false}
       aria-current={active ? "page" : undefined}
       style={{
         position: "relative",
@@ -216,7 +241,7 @@ function RailLink({
         />
       )}
       {label}
-    </a>
+    </Link>
   );
 }
 
@@ -966,9 +991,10 @@ export function WMOperatingSystem({
           const active = d.href === activeHref;
           const Icon = d.icon;
           return (
-            <a
+            <Link
               key={d.href}
               href={d.href}
+              prefetch={false}
               aria-current={active ? "page" : undefined}
               style={{
                 flex: "1 1 0",
@@ -1000,7 +1026,7 @@ export function WMOperatingSystem({
               >
                 {d.label}
               </span>
-            </a>
+            </Link>
           );
         })}
       </nav>

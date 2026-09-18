@@ -279,3 +279,78 @@ describe("OS frame · the two frame laws are complementary, not contradictory", 
     expect(OS_PHONE_NAV_HEIGHT_PX).toBeGreaterThan(0);
   });
 });
+
+/**
+ * ── 2026-09-18: A ROOM MAY NOT REBOOT THE MACHINE ─────────────────────────
+ *
+ * Both door components in this frame — `RailLink` on the desktop rail and the
+ * phone bar's tile — were raw `<a href>` elements. A raw anchor is a DOCUMENT
+ * LOAD, so every crossing between rooms power-cycled the application.
+ *
+ * MEASURED LIVE on production, clicking the rail's Charts door from
+ * /command-deck and then reading the Navigation Timing entry:
+ *
+ *     navType "navigate" · loadEventEnd 745ms · 35 resources refetched
+ *     a window global set one instant earlier: GONE
+ *
+ * The lost state is not incidental. `priorStory` on /command-deck is the prior
+ * snapshot the canon §4 Auto-Quiet gate compares against, and it lives in
+ * React state. Destroy it and SECONDARY NOISE can only read "Unwatched" after
+ * every door, however long the trader has been watching. The frame that draws
+ * the memory chrome was the thing erasing the memory.
+ *
+ * WHY THIS IS A SOURCE SCAN AND WHY THAT IS ENOUGH HERE. The file header above
+ * is right that presence is not reachability — but the defect here is not a
+ * box model, it is an ELEMENT TYPE, and the element type is exactly what
+ * source can see. `renderToStaticMarkup` cannot help: `next/link` and a raw
+ * anchor both emit `<a href="...">` in static markup, which is the same reason
+ * `ShellAccessParity`'s href assertions survived this change untouched. The
+ * difference only exists at runtime, in the browser, where this suite cannot
+ * go. So: measured once in a real browser, pinned here as a tripwire.
+ */
+describe("the OS frame · doors are transitions, not document loads", () => {
+  /** Comments stripped, so this rule judges CODE and never its own prose. */
+  const CODE = OS.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+  it("the comment stripper is not eating the file", () => {
+    // VACUITY GUARD. Every assertion below is a negative match against CODE.
+    // If stripping ever over-reached and returned something tiny, they would
+    // all pass for the most boring reason imaginable. This fails first.
+    expect(CODE.length).toBeGreaterThan(8000);
+    expect(CODE).toContain("function RailLink");
+    // And it really did remove prose: the header block above RailLink quotes
+    // the very anchor syntax the next assertion forbids.
+    expect(OS).toContain("`<a href>`");
+    expect(CODE).not.toContain("`<a href>`");
+  });
+
+  it("no door in the frame is a raw anchor", () => {
+    // Rename-resilient: this forbids the ELEMENT, not a component name. A
+    // third door group added tomorrow as an `<a>` fails here.
+    expect(CODE, "a raw <a> door reintroduces the full document load")
+      .not.toMatch(/<a[\s>]/);
+  });
+
+  it("both door groups route through next/link", () => {
+    expect(CODE).toContain('from "next/link"');
+    // Two `<Link` openings: the rail door and the phone-bar door. Pinned by
+    // count so deleting one and leaving the other passes nothing.
+    expect([...CODE.matchAll(/<Link[\s>]/g)]).toHaveLength(2);
+  });
+
+  it("the doors do not silently take up prefetching as a side effect", () => {
+    // This commit makes ONE claim — crossing a door is a client-side
+    // transition. Prefetching every room on viewport entry is a different
+    // claim about network cost, and it was not measured. Both doors say so
+    // explicitly rather than inheriting the default.
+    expect([...CODE.matchAll(/prefetch=\{false\}/g)]).toHaveLength(2);
+  });
+
+  it("the active door still answers 'where am I' to a screen reader", () => {
+    // The `aria-current="page"` treatment is the non-visual half of the gold
+    // spine. Swapping the element is exactly the kind of edit that drops a
+    // forwarded attribute, and nothing else in this suite reads it.
+    expect([...CODE.matchAll(/aria-current=\{active \? "page" : undefined\}/g)])
+      .toHaveLength(2);
+  });
+});
