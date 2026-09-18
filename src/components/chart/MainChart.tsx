@@ -6592,10 +6592,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               const cw2 = ctx.measureText(chip).width;
               const chipH = 14;
-              const chipX = Math.max(2, x0);
+              const chipW = cw2 + 12;
+              // Clamp BOTH edges. The left was already held off the frame; the
+              // right was not, and once the window started following the eye
+              // the zones moved out to the live edge, where the chip ran past
+              // the plot area and was cut. Observed live 2026-09-17: a zone
+              // read "ABSORPTION 3.86 M" with the strength word sliced in half
+              // — and MODERATE and MASSIVE would both have begun that way, so
+              // the clipping did not merely look bad, it made the chip
+              // ambiguous about the one word it exists to deliver.
+              const chipX = Math.min(Math.max(2, x0), Math.max(2, W - chipW - 2));
               const chipY = Math.max(2, yHi - chipH - 2);
               ctx.fillStyle = "rgba(14,12,8,0.92)";
-              ctx.fillRect(chipX, chipY, cw2 + 12, chipH);
+              ctx.fillRect(chipX, chipY, chipW, chipH);
               ctx.strokeStyle = "rgba(212,175,55,0.65)";
               ctx.lineWidth = 1;
               ctx.strokeRect(chipX + 0.5, chipY + 0.5, cw2 + 11, chipH - 1);
