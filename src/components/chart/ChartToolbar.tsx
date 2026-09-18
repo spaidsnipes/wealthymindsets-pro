@@ -565,6 +565,25 @@ interface ChartToolbarProps {
   studyToolsOpen?:     boolean;
   chartLayout?:        ChartLayout;
   onLayoutChange?:     (l: ChartLayout) => void;
+  /**
+   * THE PROFILES MENU, PINNED — not a study tool.
+   *
+   * This slot exists for the same reason the Smart Money trigger moved up here
+   * (see the pinned cluster below). The Founder asked for "a profiles drop down
+   * for all the different vps and the profiles i created, the inventions" —
+   * the whole point of that menu is that the inventions become ENUMERABLE. It
+   * first shipped inside the `studyToolsOpen` row, which defaults to CLOSED, so
+   * a trader who had not built the toolbar still could not list what the product
+   * owns. A catalogue behind a closed lid catalogues nothing.
+   *
+   * It costs one chip, not a row: the menu is already its own progressive
+   * disclosure, so pinning the chip does not charge the chart a second lid.
+   *
+   * Passed as a node rather than four props because the availability facts and
+   * the toggle wiring belong to the dashboard that owns that state; the toolbar
+   * only owes it a place where it can be seen.
+   */
+  profilesSlot?:       React.ReactNode;
 }
 
 // Pin high-priority categories first so they're always visible without scrolling
@@ -621,7 +640,7 @@ export function ChartToolbar({
   onAlerts, alertsActive, onSettings, onAppearanceToggle, appearanceLabel, toolsTriggerRef,
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
-  onToggleStudyTools, studyToolsOpen,
+  onToggleStudyTools, studyToolsOpen, profilesSlot,
   chartLayout = "1", onLayoutChange,
 }: ChartToolbarProps) {
   const [symbolSearch,   setSymbolSearch]  = useState("");
@@ -1251,6 +1270,10 @@ export function ChartToolbar({
         className="wm-chart-toolbar-pinned wm-room-chrome flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, borderLeft: "1px solid rgba(139,106,41,0.24)", zIndex: 5 }}
       >
+        {/* The one door in front of every profile this product owns. Pinned for
+            the reason given on `profilesSlot`: a catalogue behind a closed lid
+            catalogues nothing. */}
+        {profilesSlot}
         <button
           type="button"
           onClick={onSmartMoney}

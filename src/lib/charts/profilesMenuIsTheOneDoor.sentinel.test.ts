@@ -32,6 +32,58 @@ describe("Profiles menu wiring", () => {
     expect(src).toContain("<ProfilesMenu");
   });
 
+  it("THE MENU IS PINNED, NOT BEHIND THE STUDY LID", () => {
+    /*
+     * This is the defect this menu shipped with, caught on prod.
+     *
+     * The menu first went where the three buttons it replaced had been: inside
+     * the second toolbar row, which is gated by `studyToolsOpen` and defaults to
+     * FALSE. Every test passed and the chip was nowhere on the live chart.
+     *
+     * That is not a new failure. It is exactly what the Founder reported once
+     * already — "the wm pro smartmoney button was taken from the charts and i
+     * dont know why" — when e3ce41f moved that whole row behind the same lid.
+     *
+     * And it bites this menu HARDER than it bit that button. The Smart Money
+     * button hid a panel the trader already knew existed. This menu's entire
+     * job is to let a trader ENUMERATE what the product owns. A catalogue
+     * behind a closed lid catalogues nothing: you cannot discover, from a shut
+     * drawer, that the drawer is where discovery lives.
+     *
+     * So the invariant is positional, because the bug was positional.
+     */
+    const src = read("src/components/chart/ChartsDashboard.tsx");
+
+    // 1. It is handed to the toolbar as the pinned slot, not rendered inline.
+    expect(src).toContain("profilesSlot={");
+
+    // 2. It is not inside the row that defaults closed. The study row opens at
+    //    `studyToolsOpen && <div` and runs to the end of the toolbar block, so a
+    //    mount that appears BEFORE that opening cannot be inside it.
+    const lid = src.indexOf("studyToolsOpen && <div");
+    const mount = src.indexOf("<ProfilesMenu");
+    expect(lid, "the study-tools lid moved — re-derive this check").toBeGreaterThan(-1);
+    expect(mount, "ChartsDashboard no longer mounts ProfilesMenu").toBeGreaterThan(-1);
+    expect(
+      mount,
+      "ProfilesMenu is mounted inside the `studyToolsOpen` row, which defaults to CLOSED — " +
+        "the chip will not exist on the live chart until the trader opens a drawer they have " +
+        "no reason to know about. Pass it as ChartToolbar's `profilesSlot` instead.",
+    ).toBeLessThan(lid);
+  });
+
+  it("the toolbar renders the slot INSIDE the always-visible pinned cluster", () => {
+    // A slot prop that is accepted and never rendered is the same silence with
+    // extra ceremony, so the render site is pinned too — and pinned to the one
+    // cluster documented as "always visible, never clipped".
+    const src = read("src/components/chart/ChartToolbar.tsx");
+    const cluster = src.indexOf("wm-chart-toolbar-pinned");
+    const slot = src.indexOf("{profilesSlot}");
+    expect(cluster, "the pinned cluster class moved — re-derive this check").toBeGreaterThan(-1);
+    expect(slot, "ChartToolbar accepts `profilesSlot` but never renders it").toBeGreaterThan(-1);
+    expect(slot, "`profilesSlot` renders outside the pinned cluster").toBeGreaterThan(cluster);
+  });
+
   it("EVERY compiled profile is routed — a catalogue entry with no handler is a dead row", () => {
     // The menu prints what `selectProfileMenu` compiles. If an id reaches the
     // screen with no branch at the wiring site, the trader clicks it and the

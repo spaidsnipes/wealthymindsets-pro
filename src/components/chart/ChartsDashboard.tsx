@@ -2117,6 +2117,44 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             studyToolsOpen={studyToolsOpen}
             chartLayout={chartLayout}
             onLayoutChange={setChartLayout}
+            /*
+              THE PROFILES MENU — one door in front of every profile this repo
+              owns (Founder: "there should also have a profiles drop down for
+              all the different vps and the profiles i created, the
+              inventions"). It replaces three standalone toggle buttons and also
+              offers Delta + VP, which was only ever reachable from the drawing
+              rail. The list, the availability and the reasons are all compiled
+              by `selectProfileMenu`; this site only routes clicks.
+
+              It is PINNED rather than living in the study row, because that row
+              defaults to closed — the same disappearance the Founder reported
+              for the Smart Money button. A catalogue behind a closed lid
+              catalogues nothing.
+            */
+            profilesSlot={
+              <ProfilesMenu
+                barsPresent={chartBars.length > 0}
+                observedAggressorFlow={chartFlowSnap.hasFlow}
+                active={{
+                  FIXED_RANGE: fixedVPActive,
+                  SESSION: sessionVPChart,
+                  ABSORPTION: absorptionAnatomy,
+                  // Delta + VP is ARMED, not drawn — it is active exactly when
+                  // its drawing tool is the one the cursor is holding.
+                  DELTA_VP: drawingTool === "delta-vp",
+                }}
+                onToggle={(id) => {
+                  if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
+                  else if (id === "SESSION") setSessionVPChart(v => !v);
+                  else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
+                  else if (id === "DELTA_VP") {
+                    // Re-picking the armed tool disarms it, so the row behaves
+                    // like the toggles beside it rather than being a one-way door.
+                    setDrawingTool(t => (t === "delta-vp" ? "cursor" : "delta-vp"));
+                  }
+                }}
+              />
+            }
           />}
 
           {/* ── Extra controls bar (Footprint, candle type, etc.) ──
@@ -2205,37 +2243,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   }
                 }}
               />
-              {/*
-                THE PROFILES MENU — one door in front of every profile this repo
-                owns (Founder directive). It replaces three standalone toggle
-                buttons that sat here and did not name what they drew, and it
-                also offers Delta + VP, which was only ever reachable from the
-                drawing rail. The list, the availability and the reasons are all
-                compiled by `selectProfileMenu`; this site only routes clicks.
-              */}
+              {/* The Profiles menu itself is PINNED in ChartToolbar — see
+                  `profilesMenu` below and the `profilesSlot` prop. Only the VP
+                  colour gear stays here: it styles profiles that are already
+                  drawing, so it is genuinely a study-row setting, whereas the
+                  catalogue of what this product owns is not. */}
               <div className="flex items-center gap-1 px-2 border-l border-wm-border/50 h-full shrink-0">
-                <ProfilesMenu
-                  barsPresent={chartBars.length > 0}
-                  observedAggressorFlow={chartFlowSnap.hasFlow}
-                  active={{
-                    FIXED_RANGE: fixedVPActive,
-                    SESSION: sessionVPChart,
-                    ABSORPTION: absorptionAnatomy,
-                    // Delta + VP is ARMED, not drawn — it is active exactly when
-                    // its drawing tool is the one the cursor is holding.
-                    DELTA_VP: drawingTool === "delta-vp",
-                  }}
-                  onToggle={(id) => {
-                    if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
-                    else if (id === "SESSION") setSessionVPChart(v => !v);
-                    else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
-                    else if (id === "DELTA_VP") {
-                      // Re-picking the armed tool disarms it, so the row behaves
-                      // like the toggles beside it rather than being a one-way door.
-                      setDrawingTool(t => (t === "delta-vp" ? "cursor" : "delta-vp"));
-                    }
-                  }}
-                />
                 <VPColorGear />
               </div>
             </div>
