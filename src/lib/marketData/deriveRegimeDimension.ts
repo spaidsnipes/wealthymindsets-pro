@@ -26,6 +26,39 @@
  * accept exactly those tokens (looseMatch on trend|trending|… and
  * balance|balanced|range|ranging). A value outside that vocabulary would seal
  * the dimension while leaving the hero UNKNOWN — silent failure.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A COMPOSITION MUST NOT LAUNDER ITS INPUTS' FINDINGS INTO A DEFAULT.
+ *
+ * Measured on production /charts?symbol=TSLA, 12:17:39Z. Commit 487a24fd had
+ * just taught direction and volatility to stop saying "No verified price
+ * evidence supplied at snapshot time" over a fully-drawn chart, and to say the
+ * true thing instead: candles ARE loaded, the PER-TRADE TAPE is what is absent,
+ * and this reading is measured trade by trade, so the candles cannot answer it.
+ *
+ * On /charts both of those legs are UNKNOWN — that is the whole point of the
+ * finding. And this producer's first branch answered that case with a MODULE
+ * CONSTANT: "No verified direction or volatility evidence supplied at snapshot
+ * time." The sharpened sentence was computed, carried into this function on
+ * both inputs, and then thrown away one line later.
+ *
+ * The damage is not cosmetic, because regime is the dimension the Founder's
+ * chip prints in large type and the dimension the NEXT cell used to point at.
+ * The trader was told the regime is unknown "at snapshot time" — a phrase that
+ * reads as TRANSIENT, as though a later snapshot would carry it. On this venue
+ * no later snapshot ever will. That is not a pending state, it is a standing
+ * property of the feed, and it was being reported as the former.
+ *
+ * So the UNKNOWN branch now carries its inputs' own unknowns, in order,
+ * de-duplicated, and falls back to the constant ONLY when neither leg
+ * explained itself. A composition may summarise its inputs. It may not
+ * overwrite them with something it made up, however true that thing is in
+ * general — the specific sentence was RIGHT THERE.
+ *
+ * NOT DONE HERE, ON PURPOSE: this producer still does not know WHY its inputs
+ * are silent, and it must not learn. Only the publisher sees both lanes (see
+ * the evidenceGapNote pattern in chartMarketStatePublisher). This branch
+ * forwards; it does not author.
  */
 
 import type { MarketStateDimension } from "./canonicalMarketState";
@@ -88,12 +121,39 @@ function unionContradictions(a: MarketStateDimension, b: MarketStateDimension) {
   return [...a.contradictions, ...b.contradictions];
 }
 
+/**
+ * The inputs' own explanations for their silence, direction first, blanks
+ * dropped, duplicates collapsed.
+ *
+ * DE-DUPLICATION IS THE POINT, not tidiness. Both legs are fed the SAME
+ * publisher-authored gap note (chartMarketStatePublisher computes it once
+ * precisely so the two sentences cannot drift), so the naive union prints the
+ * identical paragraph twice and the surface reads like a stutter. Collapsing
+ * on exact text keeps two genuinely DIFFERENT explanations — the case where
+ * direction and volatility are silent for unrelated reasons — as two lines.
+ */
+function carryUnknowns(
+  direction: MarketStateDimension,
+  volatility: MarketStateDimension,
+): readonly string[] {
+  const out: string[] = [];
+  for (const note of [...direction.unknowns, ...volatility.unknowns]) {
+    const text = note.trim();
+    if (text.length === 0 || out.includes(text)) continue;
+    out.push(text);
+  }
+  return out;
+}
+
 export function deriveRegimeDimension(input: DeriveRegimeInput): MarketStateDimension {
   const { direction, volatility, tradeCount } = input;
 
-  // No tape at all behind either input → the honest answer is silence.
+  // No tape at all behind either input → the honest answer is silence, spoken
+  // in the INPUTS' OWN WORDS. See "A COMPOSITION MUST NOT LAUNDER ITS INPUTS'
+  // FINDINGS INTO A DEFAULT" in this file's header.
   if (direction.resolution === "UNKNOWN" && volatility.resolution === "UNKNOWN") {
-    return UNKNOWN_DIMENSION;
+    const carried = carryUnknowns(direction, volatility);
+    return carried.length > 0 ? { ...UNKNOWN_DIMENSION, unknowns: carried } : UNKNOWN_DIMENSION;
   }
 
   // Regime is a claim about HOW the market is behaving. Both legs must be

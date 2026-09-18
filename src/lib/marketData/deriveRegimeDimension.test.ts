@@ -32,6 +32,90 @@ function dim(
 
 const UNKNOWN = dim("UNKNOWN", null, null);
 
+/** An UNKNOWN leg that explains ITSELF, the way 487a24fd taught it to. */
+function silentWith(...notes: string[]): MarketStateDimension {
+  return { ...dim("UNKNOWN", null, null), unknowns: notes };
+}
+
+/**
+ * The exact sentence chartMarketStatePublisher hands to BOTH legs on /charts.
+ * Quoted rather than paraphrased so a reword upstream shows up here as a
+ * failing assertion instead of as a silently weaker test.
+ */
+const TAPE_NOTE =
+  "120 candles are loaded for TSLA, but no per-trade tape has arrived, and this reading is measured trade by trade. The candles cannot answer it.";
+
+/**
+ * × A COMPOSITION MUST NOT LAUNDER ITS INPUTS' FINDINGS INTO A DEFAULT.
+ *
+ * Every test below is named for the specific way the fix can be undone. The
+ * old test — "UNKNOWN in, UNKNOWN out" — asserted resolution, value and
+ * evidence and never once looked at `unknowns`, which is why it stayed green
+ * for the entire life of the defect.
+ */
+describe("× the laundered finding", () => {
+  it("× THE OVERWRITE: carries the inputs' own explanation, not the module constant", () => {
+    const r = deriveRegimeDimension({
+      direction: silentWith(TAPE_NOTE),
+      volatility: silentWith(TAPE_NOTE),
+      tradeCount: 0,
+    });
+    expect(r.resolution).toBe("UNKNOWN");
+    expect(r.unknowns).toEqual([TAPE_NOTE]);
+    // "at snapshot time" reads as transient. On a venue with no tape it never is.
+    expect(r.unknowns.join(" ")).not.toContain("at snapshot time");
+  });
+
+  it("× THE STUTTER: one shared note from two legs is printed once", () => {
+    const r = deriveRegimeDimension({
+      direction: silentWith(TAPE_NOTE),
+      volatility: silentWith(TAPE_NOTE),
+      tradeCount: 0,
+    });
+    expect(r.unknowns).toHaveLength(1);
+  });
+
+  it("× THE COLLAPSE: two genuinely different silences stay two lines, in order", () => {
+    const r = deriveRegimeDimension({
+      direction: silentWith("Direction says one thing."),
+      volatility: silentWith("Volatility says another."),
+      tradeCount: 0,
+    });
+    expect(r.unknowns).toEqual(["Direction says one thing.", "Volatility says another."]);
+  });
+
+  it("× THE OVER-CORRECTION: a leg that explains nothing still gets the constant", () => {
+    const r = deriveRegimeDimension({ direction: UNKNOWN, volatility: UNKNOWN, tradeCount: 0 });
+    expect(r.unknowns).toEqual([
+      "No verified direction or volatility evidence supplied at snapshot time.",
+    ]);
+  });
+
+  it("× THE BLANK: whitespace-only notes are not counted as an explanation", () => {
+    const r = deriveRegimeDimension({
+      direction: silentWith("   "),
+      volatility: silentWith(""),
+      tradeCount: 0,
+    });
+    expect(r.unknowns).toEqual([
+      "No verified direction or volatility evidence supplied at snapshot time.",
+    ]);
+  });
+
+  it("× THE PROMOTION: carrying a sentence does not carry a VERDICT", () => {
+    const r = deriveRegimeDimension({
+      direction: silentWith(TAPE_NOTE),
+      volatility: silentWith(TAPE_NOTE),
+      tradeCount: 0,
+    });
+    // A sharper sentence must not become a stronger claim.
+    expect(r.resolution).toBe("UNKNOWN");
+    expect(r.value).toBeNull();
+    expect(r.confidence).toBeNull();
+    expect(r.evidence).toHaveLength(0);
+  });
+});
+
 describe("deriveRegimeDimension", () => {
   it("UNKNOWN in, UNKNOWN out — no tape behind either leg", () => {
     const r = deriveRegimeDimension({ direction: UNKNOWN, volatility: UNKNOWN, tradeCount: 0 });
