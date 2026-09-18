@@ -62,6 +62,7 @@ import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
+import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -7240,9 +7241,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
      would agree with this one only until someone edited one of them. */
   void freshVer; // periodic recheck so the verdict can go stale when ticks stop
   const lastBarT = candles.length ? (candles[candles.length - 1].time as number) : 0;
-  const lastStr = lastBarT
-    ? new Date(lastBarT * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-    : "—";
+  /* The formatter that used to live here produced the string `LAST 07:23 PM`
+     — a bar's OPENING time, rendered with a word that reads as "most recent
+     activity", in the one slot a trader consults to judge how stale the
+     screen is. Worse, a bar-open time cannot answer that question at all
+     without the interval: twelve minutes old is the FORMING bar on a 30m
+     chart and ELEVEN BARS DEAD on a 1m chart. See chartFeedRecency's
+     docblock for the live reading and the arithmetic. */
   const candleStatus = candleDataStatus(
     source,
     connected,
@@ -7279,6 +7284,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     candleStatus.live,
     candleStatus.label,
   );
+
+  /* ONE INTERVAL, TWO READERS — same law as the feed verdict above. The
+     countdown and the recency reading are both statements about where a bar
+     sits in its interval, so they take `intervalSec` from the same state. A
+     second derivation would agree with the first only until someone edited
+     one of them. */
+  const feedRecency = chartFeedRecency(lastBarT, intervalSec, nowMs);
 
   // The RAF canvas pill draws the same glyph and the same flash verdict, so
   // the on-chart pill can never disagree with the header strip.
@@ -7574,8 +7586,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             return (
               <div
                 className="flex items-center gap-1.5"
+                aria-label={feedRecency.spoken}
+                data-feed-recency-kind={feedRecency.kind}
                 title={
-                  `Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}` +
+                  `Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}` +
+                  `\n\n${feedRecency.title}` +
                   (quoteRefusal ? `\n\nQUOTE NOT CERTIFIED — ${quoteRefusal}` : "")
                 }
               >
@@ -7593,9 +7608,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                         tape's "quote pending" did. A timestamped bar still
                         earns the historical receipt either way. */}
                     {!showFidelityChrome
-                      ? `LAST ${lastStr}`
+                      ? feedRecency.glyph
                       : lastBarT
-                      ? `HISTORICAL ONLY · LAST ${lastStr}`
+                      ? `HISTORICAL ONLY · ${feedRecency.glyph}`
                       : quoteRefusal ? "QUOTE NOT CERTIFIED" : "DATA UNAVAILABLE"}
                   </span>
                 ) : status.live ? (
@@ -7613,12 +7628,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
                     <span className="text-[10px] text-wm-text font-semibold">
-                      {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : `LAST ${lastStr}`}
+                      {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : feedRecency.glyph}
                     </span>
                   </span>
                 ) : (
                   <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>
-                    {showFidelityChrome ? `${status.label} · LAST ${lastStr}` : `LAST ${lastStr}`}
+                    {showFidelityChrome ? `${status.label} · ${feedRecency.glyph}` : feedRecency.glyph}
                   </span>
                 )}
               </div>

@@ -13,7 +13,22 @@ describe("chart fidelity chrome", () => {
     expect(dashboard).toContain("showFidelityChrome={false}");
     expect(chart).toContain("showFidelityChrome = true");
     expect(chart).toContain("showFidelityChrome ? (() =>");
-    expect(chart).toContain('showFidelityChrome ? `${status.label} · LAST ${lastStr}` : `LAST ${lastStr}`');
+    /**
+     * What this line protects is a SHAPE, not a spelling: in the workspace
+     * (`showFidelityChrome === false`) the badge still renders the standalone
+     * freshness reading, and with chrome on it renders that reading PREFIXED
+     * by the canonical verdict — one verdict, never two, and never a chrome
+     * flag that silently deletes the reading underneath it.
+     *
+     * The reading itself used to be `LAST ${lastStr}` — a bar's OPENING time
+     * wearing a last-update word, and unreadable as staleness without the
+     * interval. It is now `feedRecency.glyph`, which names the verb and the
+     * age in bars. That is a change of WORDING, not of this contract, so the
+     * assertion is re-pinned to the new owner rather than deleted.
+     */
+    expect(chart).toContain(
+      'showFidelityChrome ? `${status.label} · ${feedRecency.glyph}` : feedRecency.glyph',
+    );
   });
 
   it("keeps the canonical verdict visible in the phone market header", () => {
