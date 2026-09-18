@@ -268,3 +268,112 @@ owner, and make the owner's answer the only answer.**
   materiality reason families so `summary` renders a remainder on the deck.
 - Open architectural question, unchanged: Decision Memory sealing still has
   **zero production callers**. Surface it; do not rush-wire it.
+
+---
+
+# ADDENDUM — A ROOM MAY NOT REBOOT THE MACHINE
+
+`2dcb1fb6` · `83e8de81` · **PROVEN LIVE on wealthymindsetspro.com**
+
+The fifth instance of the species, and the largest. It was not a number
+this time. It was an ELEMENT TYPE.
+
+## The defect
+
+Every door in the OS frame -- the desktop rail's `RailLink` and the phone
+bar's tile -- was a raw `<a href>`. A raw anchor is a DOCUMENT LOAD.
+
+MEASURED LIVE. Clicked the rail's Charts door from `/command-deck`, then
+read the Navigation Timing entry:
+
+    navType "navigate" · loadEventEnd 745ms · 35 resources refetched
+    a window global set one instant earlier: GONE
+
+Crossing a room was a power cycle. The lost state is not incidental:
+`priorStory` is the prior snapshot the canon §4 Auto-Quiet gate compares
+against, and it lives in React state. Destroy it and SECONDARY NOISE can
+only read "Unwatched" after every door, however long the trader has been
+watching. **The frame that draws the memory chrome was the thing erasing
+the memory.**
+
+## How it was found
+
+By an instrument failing. I clicked the header door expecting a soft
+transition while probing something else entirely, and my own probe's
+window global vanished with it. I first read that as a broken probe.
+
+## The owner, and why it beat me by three
+
+`2dcb1fb6` fixed the frame's two doors. It did not fix the species.
+`83e8de81` ships the OWNER -- `src/lib/internalAnchorNavigation.sentinel.test.ts`
+-- and lets it find the rest.
+
+My hand census (a regex over literal `href="/..."`) found **four**.
+The sentinel found **seven**. The three I missed were TEMPLATE literals
+carrying a symbol across a door mid-decision:
+
+    command-deck    href={`${INSTRUMENT_VIEW_ROUTE}?symbol=...&tf=...`}
+    journal         href={`/command-deck?symbol=...`}
+    ChartsDashboard href={`/command-deck?symbol=...&tf=...`}
+
+plus a fourth in a file I had never opened, OpeningBellEvidence.
+
+**That is the whole argument for an owner, demonstrated against me.**
+
+## Instrument honesty
+
+- It is a SOURCE SCAN and says so in its own header. That is weaker than
+  measurement. It is also the right instrument here: the defect is an
+  element type, and `next/link` and a raw anchor emit the IDENTICAL
+  `<a href="...">` in static markup -- which is exactly why
+  `ShellAccessParity`'s href and `>label</a>` assertions survived
+  untouched. The difference exists only at runtime.
+- The tag walker tracks brace depth and quoting rather than `[^>]*`,
+  because `onClick={e => e.stopPropagation()}` ends a naive match before
+  the href is seen. That shape is pinned as a unit test.
+- The rule is a FILTER, not a ban. 13 anchors are genuinely external and
+  an anchor is correct for them. A third test counts the externals and
+  fails at zero, so the real rule can never pass vacuously.
+- Comments are stripped first, so the rule judges code and never the
+  prose above it quoting the forbidden syntax.
+- `prefetch={false}` throughout, deliberately. Prefetching 22 rooms is a
+  different claim about network cost. It was not measured. It does not
+  belong here.
+
+## Live proof (the acceptance evidence)
+
+Planted `window.__probe` on `/command-deck`, clicked the rail's Charts
+door, re-read in a separate call:
+
+    pathNow          "/charts"
+    PROBE_SURVIVED   true   · marker SOFT-NAV-PROOF-gdgzqg, 9178ms old
+    navStartedAtUrl  "https://wealthymindsetspro.com/command-deck"
+    resources        43 → 60 (appended to ONE timeline, not refetched)
+
+`navStartedAtUrl` is the decisive field. The browser is displaying
+`/charts` while the Navigation Timing entry still names `/command-deck`
+-- it was never replaced, because no document was ever loaded.
+
+Before: global GONE, 35 resources refetched.
+After:  global ALIVE, one continuous session.
+
+## Collateral repair, same species one level up
+
+`journalPublicEvidence.test.ts` asserted `</a>` on the journal return
+action while actually testing a 44px touch target. It now reads
+`</Link>` and states in a comment that the element type is OWNED
+elsewhere and this line must not re-decide it.
+
+## Gates
+
+    TSC EXIT=0 · VITEST EXIT=0 · 760 files · 9384 passed | 2 skipped
+
+Mutation receipt for `2dcb1fb6`: revert `RailLink` to `<a>` → 3 tests
+fail. Mutation receipt for `83e8de81` is real rather than synthetic --
+the sentinel was written first and failed against production, naming all
+seven files.
+
+## What this unblocks
+
+`90d3f3d7`'s live materiality frame was blocked partly because every
+door reset `priorStory` to `null`. `priorStory` now survives a door.
