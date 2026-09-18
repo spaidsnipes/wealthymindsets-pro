@@ -99,7 +99,7 @@ import { normalizeTFId } from "@/lib/timeframes";
 import { normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity, selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
-import { categoryTabsFor, effectiveCategoryTab } from "@/lib/charts/categoryTabsFor";
+import { categoryTabsFor, effectiveCategoryTab, isMicrostructureTab } from "@/lib/charts/categoryTabsFor";
 import { identifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 // Micah + Noah 2026-09-02 — /charts joins the Phase 3 Market Canvas.
 // Composes the SAME canonical compiler /command-deck already routes through
@@ -2627,7 +2627,30 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             )}
 
             {/* ── Chart area ─────────────────────────── */}
-            <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`} style={{ flex:1, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options") ? "flex" : "none" }}>
+            {/* THE CANDLES DO NOT LEAVE WHEN A MICROSTRUCTURE VIEW OPENS.
+                The Founder's acceptance question for every one of these four
+                inventions is "is it useful WHILE candles remain visible?", and
+                shipped as plain siblings of Chart the answer was no — selecting
+                Absorption hid the price it was describing. Each of these views
+                answers a question ABOUT a bar, so the reading ends with the
+                trader asking WHERE, and a reading you must leave price to see
+                is a reading you have to carry back in your head.
+
+                This is a DISPLAY change only. The chart was already never
+                unmounted — it has always been hidden with `display:none` so
+                drawings and the series survive a tab trip — so showing it costs
+                nothing that was not already being paid, and no drawing is lost
+                by switching into a reading and back.
+
+                `order: -1` lifts it above the reading without moving this JSX,
+                which matters: the panels above are pinned by sentinels that
+                read this file literally, and reordering the source to reorder
+                the screen would move the exclusion guards out from under them.
+
+                The split is 42/58 in favour of the reading. The chart here is
+                context for a question asked elsewhere on the screen, not the
+                subject — so it gets enough room to locate a level and no more. */}
+            <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`} style={{ flex: isMicrostructureTab(activeTab) ? "0 0 42%" : 1, order: isMicrostructureTab(activeTab) ? -1 : 0, borderBottom: isMicrostructureTab(activeTab) ? "1px solid rgba(183, 138, 52, 0.28)" : undefined, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options" || isMicrostructureTab(activeTab)) ? "flex" : "none" }}>
 
             {/* Chart + VP ladder (snapshot target) */}
             <div ref={chartWrapRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>

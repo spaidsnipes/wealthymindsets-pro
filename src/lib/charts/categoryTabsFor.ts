@@ -71,6 +71,47 @@ export const ALL_CATEGORY_TABS = [
 
 export type CategoryTab = (typeof ALL_CATEGORY_TABS)[number];
 
+/**
+ * THE FOUR MICROSTRUCTURE VIEWS — and why they need to be nameable as a set.
+ *
+ * Each of these reads the same tape the candles are drawn from, and each
+ * answers a question ABOUT price rather than instead of it. "Was that bar
+ * absorbed", "was the side pressing paid for its effort", "was that one print
+ * large", "where did this auction actually trade" — every one of those
+ * questions ends with the trader looking back at the chart to see WHERE.
+ *
+ * They shipped as plain siblings of `Chart`, which meant selecting one HID the
+ * candles. The Founder's own acceptance question names the defect exactly:
+ * *"Is it now useful while candles remain visible?"* A reading that makes you
+ * leave the price to look at it is a reading you have to memorise and carry
+ * back, and a number carried in the head is a number that drifts.
+ *
+ * So these four are a SET, not four coincidences, and the set is named HERE
+ * rather than spelled out at the wiring site. A fifth microstructure view added
+ * to the strip without being added here would silently ship as a full-screen
+ * takeover again — the regression would be an omission, which is the one shape
+ * of bug that renders something rather than nothing.
+ *
+ * This deliberately does NOT replace the explicit `!==` chain that excludes
+ * these tabs from the fundamentals arm. That chain is pinned by sentinels which
+ * read the source literally, and collapsing it behind a helper would hide the
+ * exclusion from exactly the check that exists to prove it is still there.
+ */
+export const MICROSTRUCTURE_TABS = [
+  "Absorption",
+  "Aggression",
+  "Big Trades",
+  "Value Profile",
+] as const satisfies readonly CategoryTab[];
+
+export type MicrostructureTab = (typeof MICROSTRUCTURE_TABS)[number];
+
+/** True when the tab reads the tape the candles are drawn from, and therefore
+ *  must be shown WITH the candles rather than in place of them. */
+export function isMicrostructureTab(tab: string): tab is MicrostructureTab {
+  return (MICROSTRUCTURE_TABS as readonly string[]).includes(tab);
+}
+
 export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[] {
   switch (cls) {
     case "equity":
