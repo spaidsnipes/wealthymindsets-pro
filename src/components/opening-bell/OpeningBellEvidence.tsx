@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { PREP_VERDICT_WITHHELD, type PrepEvidence } from "@/lib/experience/openingBellPrep";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 
@@ -109,8 +110,9 @@ export default function OpeningBellEvidence({
       </div>
 
       {showPrepLink && (
-        <a
+        <Link
           href="/morning-prep"
+          prefetch={false}
           style={{
             display: "inline-block",
             marginTop: 10,
@@ -125,7 +127,7 @@ export default function OpeningBellEvidence({
           aria-label="Open Morning Prep to review or complete your prep list"
         >
           Open Morning Prep →
-        </a>
+        </Link>
       )}
     </div>
   );

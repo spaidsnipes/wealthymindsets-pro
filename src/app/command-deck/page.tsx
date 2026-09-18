@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2735,8 +2736,9 @@ function CommandDeckInner() {
                   ))}
                 </div>
                 <div style={{ marginTop: 16, textAlign: "center" }}>
-                  <a
+                  <Link
                     href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`}
+                    prefetch={false}
                     style={{
                       display: "inline-block",
                       padding: "10px 18px",
@@ -2752,7 +2754,7 @@ function CommandDeckInner() {
                     }}
                   >
                     Open Charts →
-                  </a>
+                  </Link>
                 </div>
               </div>
             )}
@@ -3380,13 +3382,14 @@ function TodayPrepBridge({ userId }: { userId: string | null }) {
             </div>
           </>
         )}
-        <a
+        <Link
           href="/morning-prep"
+          prefetch={false}
           style={{ fontSize: 9, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8271", textDecoration: "none" }}
           aria-label="Open Morning Prep"
         >
           Prep →
-        </a>
+        </Link>
       </div>
     </div>
   );

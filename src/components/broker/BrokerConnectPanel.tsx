@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
@@ -1102,10 +1103,10 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
               <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">{broker.runtimeConnection.note}</p>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
-              <a href="/readiness" onClick={e => e.stopPropagation()}
+              <Link href="/readiness" prefetch={false} onClick={e => e.stopPropagation()}
                 className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border bg-wm-surface text-[10px] font-semibold text-wm-text-muted transition-all hover:text-wm-text">
                 <Zap size={10} /> Inspect wire
-              </a>
+              </Link>
               <a href={broker.runtimeConnection.docsUrl} target="_blank" rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
                 className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border bg-wm-surface text-[10px] font-semibold text-wm-text-muted transition-all hover:text-wm-text">

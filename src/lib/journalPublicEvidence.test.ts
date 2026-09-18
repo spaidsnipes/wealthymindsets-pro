@@ -22,7 +22,12 @@ describe("Journal public market-evidence contract", () => {
   });
 
   it("keeps the return action at the shared touch-target minimum", () => {
-    expect(journalPage).toMatch(/Open current evidence →[\s\S]*?<\/a>/);
+    // The closer is `</Link>`, not `</a>`: this return action crosses a door,
+    // and a raw anchor there is a full document load that would drop the live
+    // session on the way back to the deck. The element type is OWNED by
+    // src/lib/internalAnchorNavigation.sentinel.test.ts — this line only has
+    // to stay consistent with it, and must not re-decide it.
+    expect(journalPage).toMatch(/Open current evidence →[\s\S]*?<\/Link>/);
     expect(journalPage).toContain("style={{ minHeight: 44 }}");
   });
 });

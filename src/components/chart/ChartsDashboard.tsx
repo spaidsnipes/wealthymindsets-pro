@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
@@ -1522,13 +1523,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#6d7288", letterSpacing: 0.2 }}
         >
           <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
-          <a
+          <Link
             href={INSTRUMENT_VIEW_ROUTE}
+            prefetch={false}
             style={{ color: "#a89b6f", textDecoration: "none", fontWeight: 600, letterSpacing: 0.32, textTransform: "uppercase" }}
             aria-current={activeTab === "Chart" ? "page" : undefined}
           >
             Charts
-          </a>
+          </Link>
           <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
           <span style={{ color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>
             {symbol}
@@ -1692,9 +1694,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             )}
           </div>
         )}
-        <a
+        <Link
           className="wm-chart-orientation-action wm-chart-command-deck-link"
           href={`/command-deck?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`}
+          prefetch={false}
           style={{
             marginLeft: "auto",
             fontSize: 10,
@@ -1721,7 +1724,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           }}
         >
           Command Deck →
-        </a>
+        </Link>
         </div>
       </div>
       {/* Asset class, symbol truth, and secondary views share one compact

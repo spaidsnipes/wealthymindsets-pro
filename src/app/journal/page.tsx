@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
@@ -822,8 +823,9 @@ function TodayIntentStrip({ userId }: { userId: string | null }) {
           </span>
         </>
       )}
-      <a
+      <Link
         href="/morning-prep"
+        prefetch={false}
         style={{
           marginLeft: "auto",
           fontSize: 9,
@@ -835,7 +837,7 @@ function TodayIntentStrip({ userId }: { userId: string | null }) {
         }}
       >
         Open Prep →
-      </a>
+      </Link>
     </div>
   );
 }
@@ -2942,14 +2944,15 @@ Trade the system, trust the process, winners every day 🚀`,
                     {/* Return to the canonical public workspace while the
                         private snapshot owner remains unchanged. */}
                     <div className="mt-3 pt-2 border-t border-wm-gold/15 flex flex-wrap items-center gap-2">
-                      <a
+                      <Link
                         href={`/command-deck?symbol=${encodeURIComponent(selected.symbol)}`}
+                        prefetch={false}
                         aria-label={`Open current market evidence for ${selected.symbol}`}
                         className="inline-flex items-center gap-1 text-[10px] font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
                         style={{ minHeight: 44 }}
                       >
                         Open current evidence →
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>
