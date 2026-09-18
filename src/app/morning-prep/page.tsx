@@ -26,6 +26,10 @@ import { projectJournalRecordsToEdge } from "@/lib/proofLane/journalEdgeAdapter"
 import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
+import {
+  DisciplineStreakChip,
+  streakIsWorthShowing,
+} from "@/components/experience/DisciplineStreakChip";
 import type { EdgeEntry } from "@/lib/proofLane/selectSessionEdge";
 import {
   readMorningPrepEntries,
@@ -135,13 +139,24 @@ function MorningPrepStreakBadge({ userId }: { userId: string }) {
      be told, including (especially) when the streaks came back zero, because
      "you have no streak" and "WM could not read four of your records" look
      identical on a screen that renders nothing. */
-  if (focusStreak.current === 0 && dayStreak.current === 0 && coverage?.note == null) return null;
+  /* The guard asks the SAME question the chips ask, so this badge can never
+     render as an empty frame around two streaks that both declined to show. */
+  if (
+    !streakIsWorthShowing(focusStreak.current) &&
+    !streakIsWorthShowing(dayStreak.current) &&
+    coverage?.note == null
+  )
+    return null;
   return (
     <section
       aria-label="Morning discipline continuity"
       className="rounded-2xl px-4 py-3 mb-3"
       style={{
-        background: "linear-gradient(135deg, rgba(240,180,41,0.10), rgba(0,212,170,0.06))",
+        /* §9. The second stop of this gradient was teal — the same green-means-
+           safe verdict as the chip it sat behind, spent a second time on the
+           whole panel. Brass is the only direction this house raises its voice,
+           and it fades to nothing rather than to a colour with an opinion. */
+        background: "linear-gradient(135deg, rgba(240,180,41,0.10), rgba(240,180,41,0.02))",
         border: "1px solid rgba(240,180,41,0.30)",
       }}
     >
@@ -152,32 +167,32 @@ function MorningPrepStreakBadge({ userId }: { userId: string }) {
         >
           Continuity
         </span>
-        {focusStreak.current > 0 && (
-          <span
-            className="text-[11px] px-2 py-0.5 rounded-full"
-            style={{
-              background: "rgba(240,180,41,0.15)",
-              color: "#F8D477",
-              border: "1px solid rgba(240,180,41,0.35)",
-            }}
-            title="Consecutive plan-followed trades (§Public Blessing focus streak)"
-          >
-            Focus streak {focusStreak.current} · best {focusStreak.best}
-          </span>
-        )}
-        {dayStreak.current > 0 && (
-          <span
-            className="text-[11px] px-2 py-0.5 rounded-full"
-            style={{
-              background: "rgba(0,212,170,0.13)",
-              color: "#88F5D3",
-              border: "1px solid rgba(0,212,170,0.35)",
-            }}
-            title="Consecutive days with zero BROKE_RULES entries"
-          >
-            Clean days {dayStreak.current} · best {dayStreak.best}
-          </span>
-        )}
+        {/* Both streaks now come from the one chip, so this morning and the
+            /journal header cannot draw the same book two different ways —
+            which they did: teal here, `wm-green` there, and two different
+            floors for when the streak exists at all. */}
+        <DisciplineStreakChip
+          kind="FOCUS"
+          current={focusStreak.current}
+          best={focusStreak.best}
+          testId="prep-streak-focus"
+        />
+        <DisciplineStreakChip
+          kind="CLEAN_DAYS"
+          current={dayStreak.current}
+          best={dayStreak.best}
+          measured={dayStreak.days_measured}
+          testId="prep-streak-days"
+        />
+        {/* Neither chip drew, but the coverage note below did — so say what the
+            badge is here for rather than leaving the word "Continuity" hanging
+            over an empty row. */}
+        {!streakIsWorthShowing(focusStreak.current) &&
+          !streakIsWorthShowing(dayStreak.current) && (
+            <span className="text-[11px]" style={{ color: "#8a8271" }}>
+              No streak measured yet.
+            </span>
+          )}
       </div>
       {/* §24 D — what the streak was NOT computed from.
         * Renders only when something was actually skipped, so it can never

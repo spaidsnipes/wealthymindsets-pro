@@ -70,6 +70,7 @@ import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/sel
 import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
+import { DisciplineStreakChip } from "@/components/experience/DisciplineStreakChip";
 import { selectSetupGradeReasons } from "@/lib/learningGenome/selectSetupGradeReasons";
 import { selectAnalysisMaturity } from "@/lib/learningGenome/selectAnalysisMaturity";
 import { selectDayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
@@ -1851,35 +1852,27 @@ Trade the system, trust the process, winners every day 🚀`,
               <span className="ml-1 opacity-75">/100</span>
             </span>
           )}
-          {/* DAY streak chip — canon §Loss-as-Data. Consecutive
-              clean-day count (day-level discipline, complements FOCUS).
-              Silent when current is 0. */}
-          {dayStreak.current >= 2 && (
-            <span
-              title={`${dayStreak.current} consecutive clean days · best ${dayStreak.best} · ${dayStreak.days_measured} days measured`}
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-green/40 bg-wm-green/5 text-wm-green"
-              aria-label={`Rule-adherence day streak: ${dayStreak.current} clean days in a row`}
-            >
-              DAYS · {dayStreak.current}
-              {dayStreak.best > dayStreak.current && (
-                <span className="ml-1 opacity-75">/ best {dayStreak.best}</span>
-              )}
-            </span>
-          )}
-          {/* FOCUS streak chip — canon §Public Blessing. Silent when
-              the current streak is 0 (no fabricated encouragement). */}
-          {focusStreak.current >= 3 && (
-            <span
-              title={`${focusStreak.current} consecutive plan-followed trades this week (best ${focusStreak.best})`}
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-green/40 bg-wm-green/10 text-wm-green"
-              aria-label={`Focus streak: ${focusStreak.current} plan-followed trades in a row`}
-            >
-              FOCUS · {focusStreak.current}
-              {focusStreak.best > focusStreak.current && (
-                <span className="ml-1 opacity-75">/ best {focusStreak.best}</span>
-              )}
-            </span>
-          )}
+          {/* DAYS and FOCUS streak chips.
+              §9: both were `wm-green`, which told a trader their own discipline
+              was the safe kind. A streak of clean days can be a fortnight of
+              not trading — the selector counts a no-trade day as clean — so
+              green here is a verdict the number does not support. Both now
+              come from the one chip in the decision room, in ivory, where the
+              §9 Sentinel can see them. The two visibility floors (2 here, 3
+              for FOCUS, 1 on /morning-prep) also collapsed into one owner. */}
+          <DisciplineStreakChip
+            kind="CLEAN_DAYS"
+            current={dayStreak.current}
+            best={dayStreak.best}
+            measured={dayStreak.days_measured}
+            testId="journal-streak-days"
+          />
+          <DisciplineStreakChip
+            kind="FOCUS"
+            current={focusStreak.current}
+            best={focusStreak.best}
+            testId="journal-streak-focus"
+          />
           {/* Genome trend chip — canon §9 "distinguish skill from luck".
               Two arrows: ▲ most_improved (green) + ▼ most_degraded (red).
               Silent when neither moved past the noise threshold. */}

@@ -70,9 +70,26 @@ describe("§24 D — what was skipped reaches the screen", () => {
     // "you have no streak" and "WM could not read four of your records" render
     // identically on a component that returns null. The early return must
     // consider coverage.
-    const guard = page.match(/if \(focusStreak\.current === 0[^\n]*\n?[^\n]*return null;/);
-    expect(guard).not.toBeNull();
+    //
+    // This used to match `if (focusStreak.current === 0` LITERALLY, and broke
+    // when the threshold moved into `streakIsWorthShowing` — a Sentinel that
+    // names an expression defends the spelling and loses the law. The law is
+    // that the badge's early return consults both streaks AND coverage, so it
+    // is now read off whatever guard is actually there.
+    const guard = page.match(/if \([\s\S]{0,240}?\)\s*\n?\s*return null;/);
+    expect(guard, "the badge has no early return to inspect").not.toBeNull();
     expect(guard![0]).toMatch(/coverage/);
+    expect(guard![0]).toMatch(/focusStreak/);
+    expect(guard![0]).toMatch(/dayStreak/);
+  });
+
+  it("the badge never renders as an empty frame — §14 cuts both ways", () => {
+    // The corollary the old guard could not express. Now that the chips own
+    // their own visibility floor, coverage can hold this badge open while BOTH
+    // chips decline to draw. A panel headed "Continuity" with nothing under it
+    // is absence rendered as furniture, so the badge must say in words that no
+    // streak was measured.
+    expect(page).toMatch(/No streak measured yet/);
   });
 
   it("the note is not rewritten beside the badge", () => {
