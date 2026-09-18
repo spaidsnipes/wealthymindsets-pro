@@ -365,7 +365,7 @@ export function selectLiquidityWeather(
   if (last.stalled) {
     stage = "HEAVY";
     detail =
-      `The last segment traded ${fmt(last.volume)} without moving price at all. ` +
+      `The last segment traded ${formatCost(last.volume)} without moving price at all. ` +
       `Whatever is sitting there absorbed everything that hit it.`;
   } else if (dispersion >= ERRATIC_DISPERSION) {
     stage = "ERRATIC";
@@ -396,7 +396,7 @@ export function selectLiquidityWeather(
   } else {
     stage = "STEADY";
     detail =
-      `Cost to travel one spread has held near ${fmt(med)} across the window. ` +
+      `Cost to travel one spread has held near ${formatCost(med)} across the window. ` +
       `No build-up and no vacuum.`;
   }
 
@@ -439,8 +439,33 @@ export function formatRatio(v: number | null | undefined): string {
   return Number(v.toPrecision(2)).toString();
 }
 
-function fmt(v: number): string {
-  if (!Number.isFinite(v)) return "—";
+/**
+ * Format a COST for reading — size per spread, not a ratio.
+ *
+ * SAME SPECIES AS `formatRatio`, ONE FIELD OVER, AND IT SHIPPED. `formatRatio`
+ * was written because a vacuum measured at 0.002 rendered as "0.00×" and read
+ * as free. The cost the ratios are computed FROM was left on the panel's own
+ * fixed-decimal helper at ZERO digits, so on an instrument whose volume is
+ * denominated in fractions — BTC, where a segment moves on ~0.065 — the panel
+ * printed `MEDIAN COST 0 size per spread` beside `LATEST VS PEERS 5.38×`.
+ * MEASURED on production 2026-09-18 at /command-deck?equip=order-flow&stage=full.
+ * A ratio against a true zero is Infinity, so the non-zero ratios were proof
+ * the median was non-zero and the FORMATTER was the liar. The pixel told the
+ * trader it costs nothing to move this market. That is the headline number of
+ * the invention.
+ *
+ * It is significant-figure, not fixed-decimal, for the reason `roundSig` gives
+ * above: a cost's natural magnitude is whatever the instrument's volume is, so
+ * any fixed number of decimals is meaningless on one symbol and destroys the
+ * reading on another.
+ *
+ * Exported for the same reason `formatRatio` is: this module's own prose
+ * already says "cost to travel one spread has held near X" using this helper,
+ * so a panel that formatted the same number differently would make the
+ * headline and its explanation disagree. One number, one owner.
+ */
+export function formatCost(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
   if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString("en-US");
   return String(roundSig(v, 3));
 }

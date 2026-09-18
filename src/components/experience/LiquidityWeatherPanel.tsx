@@ -30,6 +30,7 @@
 
 import * as React from "react";
 import {
+  formatCost,
   formatRatio,
   type LiquidityWeatherVM,
   type WeatherStage,
@@ -69,11 +70,11 @@ const STAGE_GLOSS: Record<WeatherStage, string> = {
   UNMEASURED: "not enough tape to price the move",
 };
 
-function num(v: number | null | undefined, digits = 2, suffix = ""): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString("en-US") + suffix;
-  return v.toFixed(digits) + suffix;
-}
+/* This file used to carry its own fixed-decimal `num` helper. It is GONE, not
+   merely unused: every number this panel prints is a cost or a ratio, both of
+   which the selector already owns a formatter for, and leaving a second
+   formatter lying in the file is how the median came to be printed as "0" in
+   the first place. A tool left on the bench gets picked up. */
 
 function Reading({
   label,
@@ -171,7 +172,7 @@ export default function LiquidityWeatherPanel({
               title={
                 s.stalled
                   ? `Segment ${s.index + 1}: ${s.prints} prints, no travel at all`
-                  : `Segment ${s.index + 1}: ${num(s.cost, 0)} per spread over ${s.prints} prints`
+                  : `Segment ${s.index + 1}: ${formatCost(s.cost)} per spread over ${s.prints} prints`
               }
               style={{
                 flex: 1,
@@ -223,13 +224,25 @@ export default function LiquidityWeatherPanel({
           borderBottom: `1px solid ${HAIR}`,
         }}
       >
+        {/* COSTS ARE FORMATTED BY THE SELECTOR'S OWN HELPER too, for the same
+            reason the ratios below are — and this one shipped broken. It read
+            `num(vm.medianCost, 0)`: ZERO decimals on a quantity denominated in
+            whatever the instrument's volume happens to be. MEASURED on
+            production 2026-09-18, BTCUSD: `MEDIAN COST 0 size per spread`
+            beside `LATEST VS PEERS 5.38×`. A ratio against a true zero is
+            Infinity, so the non-zero ratios proved the median was non-zero and
+            the formatter was the liar — the headline number of this invention
+            telling a trader it costs NOTHING to move this market.
+            `selectLiquidityWeather`'s own prose already formats this same
+            number with `formatCost`; the panel formatting it differently is
+            precisely the disagreement the note below forbids. */}
         <Reading
           label="Median cost"
-          value={num(vm.medianCost, 0)}
+          value={formatCost(vm.medianCost)}
           note="size per spread"
         />
-        {/* RATIOS ARE FORMATTED BY THE SELECTOR'S OWN HELPER, not by this
-            file's `num`. Two decimals is fine for a ratio near one and lies
+        {/* RATIOS ARE FORMATTED BY THE SELECTOR'S OWN HELPER, not by a
+            fixed-decimal one. Two decimals is fine for a ratio near one and lies
             about one near zero: a genuine vacuum measured at 0.002× rendered
             as "0.00×", which reads as free rather than as very cheap. The
             headline and its explanation must not format the same number two

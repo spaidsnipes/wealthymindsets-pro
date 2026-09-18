@@ -24,6 +24,7 @@ import {
   HEAVY_RATIO,
   TREND_RATIO,
   ERRATIC_DISPERSION,
+  formatCost,
   formatRatio,
 } from "./selectLiquidityWeather";
 import type { AggressorTick } from "../selectAggressorFlow";
@@ -400,6 +401,59 @@ describe("selectLiquidityWeather — shape", () => {
     expect(formatRatio(0.0021)).toBe("0.0021");
     expect(formatRatio(0.000004)).toBe("0.000004");
     expect(formatRatio(1240)).toBe("1,240");
+  });
+
+  /**
+   * THE SAME BUG, ONE FIELD OVER, AND IT SHIPPED.
+   *
+   * The two tests above were written about the RATIOS. The COST those ratios
+   * are computed FROM was left on the panel's own fixed-decimal helper at ZERO
+   * digits. MEASURED on production 2026-09-18, BTCUSD at
+   * /command-deck?equip=order-flow&stage=full:
+   *
+   *     MEDIAN COST   0        size per spread
+   *     LATEST VS PEERS        5.38×
+   *
+   * A ratio taken against a true zero is Infinity, so a finite non-zero ratio
+   * is PROOF the median was non-zero — the number was right and the rendering
+   * lied, exactly as it did for the ratios. What the trader read was that it
+   * costs NOTHING to move this market: the headline number of the invention,
+   * inverted.
+   *
+   * On an instrument whose size is denominated in fractions a cost of 0.065 is
+   * an ordinary reading, not an edge case, so this is not a rounding nicety.
+   * It is why `formatCost` is significant-figure rather than fixed-decimal.
+   */
+  it("never renders a real, non-zero COST as zero", () => {
+    // A fractional-size tape — BTC-shaped, where the shipped defect was seen.
+    const vm = selectLiquidityWeather([
+      ...leg(30000, 2000, 60, 0.005),
+      ...leg(32000, 2000, 60, 0.008),
+    ]);
+    expect(vm.medianCost!).toBeGreaterThan(0);
+    expect(vm.medianCost!).toBeLessThan(1);
+
+    // THE MUTATION RECEIPT, pinned rather than described. This is what the
+    // shipped code did to this exact number: `num(v, 0)` was `v.toFixed(0)`.
+    // If a future fixture change makes the median a value that survives
+    // `toFixed(0)`, this line goes red and tells the reader the fixture has
+    // stopped reproducing the defect — a gate that no longer witnesses its own
+    // bug is worse than no gate, because it reads as coverage.
+    expect(vm.medianCost!.toFixed(0)).toBe("0");
+
+    expect(formatCost(vm.medianCost)).not.toBe("0");
+    expect(formatCost(vm.medianCost)).not.toBe("0.00");
+    expect(Number(formatCost(vm.medianCost))).toBeGreaterThan(0);
+  });
+
+  it("formats a cost at whatever scale it actually has", () => {
+    expect(formatCost(null)).toBe("—");
+    expect(formatCost(Number.NaN)).toBe("—");
+    expect(formatCost(0)).toBe("0"); // an exact zero is allowed to say zero
+    expect(formatCost(0.065)).toBe("0.065"); // the live BTC reading that read "0"
+    expect(formatCost(0.0004)).toBe("0.0004");
+    expect(formatCost(412)).toBe("412");
+    expect(formatCost(12400)).toBe("12,400");
   });
 
   it("is a statement about SEQUENCE — a reversed tape may read the other way", () => {
