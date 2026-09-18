@@ -40,6 +40,7 @@ describe("compileVpRenderReceipt — nothing requested is not nothing drawn", ()
       declined: 0,
       rows: 0,
       note: null,
+      axisClearancePx: null,
     });
   });
 
@@ -250,5 +251,106 @@ describe("SENTINEL — MainChart publishes the receipt it compiles", () => {
     // with VP switched off would manufacture a permanent false defect for any
     // reader of this channel — including the live geometry proof.
     expect(src).toMatch(/delete\s+ds\.vpRequested/);
+  });
+
+  it("the RENDERER hands over its own geometry instead of the receipt guessing", () => {
+    // The whole value of the clearance is that it is computed from the numbers
+    // the layout was ACTUALLY given this frame. A version that re-derived the
+    // canvas width or the axis width at publish time would be measuring a
+    // different frame than the one on screen — and would have been perfectly
+    // happy with all three of the container-edge defects of 2026-09-17.
+    expect(src, `${REL} → geometry must be built at the layout site`).toMatch(
+      /const\s+geometry:\s*VpColumnGeometry\s*=\s*\{[\s\S]{0,200}?canvasWidth:\s*W,[\s\S]{0,200}?priceScaleWidth:\s*priceScaleW,[\s\S]{0,200}?right:\s*vpRight,/,
+    );
+    expect(src, `${REL} → and returned with the drawn column`).toMatch(
+      /return\s*\{\s*declined:\s*null,\s*rows:\s*rowsPainted,\s*geometry\s*\}/,
+    );
+    expect(src, `${REL} → and published`).toMatch(/ds\.vpAxisClearance\s*=/);
+    // Absent, not zero, when unmeasured — 0 is an alarm on this channel.
+    expect(src, `${REL} → unmeasured clearance must be deleted`).toMatch(
+      /receipt\.axisClearancePx\s*===\s*null\)\s*delete\s+ds\.vpAxisClearance/,
+    );
+  });
+});
+
+describe("axis clearance — the claim vpDrawGeometry could not make executable", () => {
+  const geom = (canvasWidth: number, priceScaleWidth: number, right: number) => ({
+    canvasWidth,
+    priceScaleWidth,
+    right,
+  });
+
+  const drewAt = (
+    profile: "FIXED" | "SESSION",
+    rows: number,
+    g: ReturnType<typeof geom>,
+  ): VpColumnAttempt => ({ profile, declined: null, rows, geometry: g });
+
+  it("reports the real gap between the profile and the price axis", () => {
+    // These are the numbers measured live on prod /charts, NQ1! 15m, on
+    // 2026-09-17: a 1564px overlay canvas, 84px reserved for the axis, and a
+    // column right edge at 1474. The 6px that remain are VP_AXIS_MARGIN_PX.
+    const r = compileVpRenderReceipt([drewAt("FIXED", 366, geom(1564, 84, 1474))]);
+    expect(r.axisClearancePx).toBe(6);
+    expect(r.note).toBeNull();
+  });
+
+  it("THE FAILURE IT EXISTS FOR: a profile painted onto the price labels", () => {
+    // This is the container-vs-plot confusion expressed in the VP's own terms.
+    // A right edge measured against the CANVAS (1564) rather than the plot
+    // leaves the histogram 84px deep inside the axis gutter, on top of the
+    // numbers. It draws every frame and every count is healthy.
+    const r = compileVpRenderReceipt([drewAt("FIXED", 366, geom(1564, 84, 1564))]);
+    expect(r.drawn).toBe(1);
+    expect(r.rows).toBe(366);
+    expect(r.axisClearancePx).toBe(-84);
+    expect(r.note).toContain("over the price axis by 84px");
+  });
+
+  it("flush against the axis is already a complaint, not a pass", () => {
+    // 0 clearance means the first pixel of the profile shares a column with the
+    // first pixel of a price label. There is no safe side of that boundary.
+    const r = compileVpRenderReceipt([drewAt("FIXED", 10, geom(1000, 80, 920))]);
+    expect(r.axisClearancePx).toBe(0);
+    expect(r.note).toContain("over the price axis by 0px");
+  });
+
+  it("takes the WORST column, so a safe one cannot cover for a buried one", () => {
+    // Fixed + Session sit side by side. Averaging, or taking the first, would
+    // let a comfortable Fixed column hide a Session column on the labels —
+    // which is the exact shape of the original "Session VP disappeared" report.
+    const r = compileVpRenderReceipt([
+      drewAt("FIXED", 300, geom(1564, 84, 1380)),
+      drewAt("SESSION", 300, geom(1564, 84, 1490)),
+    ]);
+    expect(r.axisClearancePx).toBe(-10);
+  });
+
+  it("a DECLINED column's geometry is never folded in", () => {
+    // A column that did not draw describes pixels nobody saw. Letting it set
+    // the clearance would report a collision on a profile that is not on the
+    // screen at all.
+    const r = compileVpRenderReceipt([
+      drewAt("FIXED", 300, geom(1564, 84, 1474)),
+      { profile: "SESSION", declined: "NO_BARS", rows: 0, geometry: geom(1564, 84, 9999) },
+    ]);
+    expect(r.axisClearancePx).toBe(6);
+  });
+
+  it("no geometry is NOT a measurement of zero", () => {
+    // Null and 0 are different facts on this channel: null is "nobody looked",
+    // 0 is "looked, and it is flush against the axis". Collapsing them would
+    // either raise a permanent false alarm or hide a real collision.
+    const r = compileVpRenderReceipt([drew("FIXED", 61)]);
+    expect(r.axisClearancePx).toBeNull();
+    expect(r.note).toBeNull();
+  });
+
+  it("a NaN width raises no alarm — a false alarm costs the same trust", () => {
+    const r = compileVpRenderReceipt([
+      drewAt("FIXED", 61, geom(Number.NaN, 84, 1474)),
+    ]);
+    expect(r.axisClearancePx).toBeNull();
+    expect(r.note).toBeNull();
   });
 });

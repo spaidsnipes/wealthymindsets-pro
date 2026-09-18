@@ -121,7 +121,7 @@ import {
 // are pure and cannot know whether the draw loop ran; every one of drawWMVP's
 // five declines used to vanish into a void return.
 import { compileVpRenderReceipt } from "@/lib/vpRenderReceipt";
-import type { VpColumnAttempt, VpDeclineReason } from "@/lib/vpRenderReceipt";
+import type { VpColumnAttempt, VpColumnGeometry, VpDeclineReason } from "@/lib/vpRenderReceipt";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
@@ -5686,7 +5686,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         reasons are compiled into a receipt by src/lib/vpRenderReceipt.ts and
         stamped onto the overlay canvas by runWMVP. §5 SYSTEM TRUTH LAW.
       */
-      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1): { declined: VpDeclineReason | null; rows: number } {
+      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
         // `rows` is incremented at the one place a row is actually painted, so
         // the count is of pixels committed and not of buckets considered.
         let rowsPainted = 0;
@@ -5860,6 +5860,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         if (!col.fits) return { declined: "NO_ROOM", rows: 0 };
         const vpW = col.width;
         const vpRight = col.right;
+        // The SAME three numbers the layout was computed from, carried out to
+        // the receipt. Not re-derived there: re-deriving is how a measurement
+        // starts describing a frame other than the one that was painted.
+        const geometry: VpColumnGeometry = {
+          canvasWidth: W,
+          priceScaleWidth: priceScaleW,
+          right: vpRight,
+        };
 
         // ── PRICE-ANCHORED vertical scale ───────────────────────────────
         // Anchor every row to its REAL price via the candle series' price scale.
@@ -6091,7 +6099,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // already indicated by the highlighted toolbar toggle + its gear.)
         void labelText; void yOffset; void barColor;
         ctx.restore();
-        return { declined: null, rows: rowsPainted };
+        return { declined: null, rows: rowsPainted, geometry };
       }
 
       // Hoisted so big-trades mode can draw VP early (under the bubbles). The
@@ -6165,12 +6173,30 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         if (!ds) return;
         if (receipt.requested === 0) {
           delete ds.vpRequested; delete ds.vpDrawn; delete ds.vpDeclined;
-          delete ds.vpRows; delete ds.vpNote;
+          delete ds.vpRows; delete ds.vpNote; delete ds.vpAxisClearance;
         } else {
           ds.vpRequested = String(receipt.requested);
           ds.vpDrawn = String(receipt.drawn);
           ds.vpDeclined = String(receipt.declined);
           ds.vpRows = String(receipt.rows);
+          /*
+            THE EDGE THE PROFILE WAS ACTUALLY MEASURED AGAINST.
+
+            Published separately from the counts because it answers a different
+            question. `vpDrawn` says the profile was painted; this says it was
+            painted somewhere the trader can see. Three marks on this very
+            canvas were, on 2026-09-17, found to be drawn correctly against
+            `cont.offsetWidth` — the container edge, which is behind the price
+            axis — and therefore never read by anyone. Counts cannot catch that
+            class; a clearance can.
+
+            Removed, not zeroed, when no drawn column reported geometry. `0`
+            here means "measured, and flush against the axis", which is an
+            alarm. Its ABSENCE means no measurement was taken. Encoding those
+            the same way would either cry wolf or hide a real collision.
+          */
+          if (receipt.axisClearancePx === null) delete ds.vpAxisClearance;
+          else ds.vpAxisClearance = String(receipt.axisClearancePx);
           if (receipt.note) ds.vpNote = receipt.note;
           else delete ds.vpNote;
         }
