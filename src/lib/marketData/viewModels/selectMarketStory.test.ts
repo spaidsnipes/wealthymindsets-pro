@@ -102,7 +102,11 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
     const vm = selectMarketStory(
       mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") }),
     );
-    expect(vm.reason).toMatch(/Unresolved:/);
+    // The wording moved from "Unresolved: …" to naming which CHAPTERS the
+    // unresolved dimensions actually block. The intent is unchanged and is
+    // still asserted below: name the missing evidence, accuse nothing that is
+    // present. Only the sentence that carries it grew a second half.
+    expect(vm.reason).toMatch(/could not be evaluated/i);
     // The resolved two must NOT be accused.
     expect(vm.reason).not.toMatch(/\bregime\b/);
     expect(vm.reason).not.toMatch(/\bdirection\b/);
@@ -110,6 +114,51 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
     expect(vm.reason).toMatch(/volatility/);
     expect(vm.reason).toMatch(/structure/);
     expect(vm.reason).toMatch(/2\/8 dimensions resolved/);
+  });
+
+  it("does not tell the trader to wait for a chapter that was already decided", () => {
+    // THE LIVE DEFECT, production /command-deck BTC. Five of eight dimensions
+    // resolved; the three that did not are location, aggression and profile,
+    // and that venue publishes no per-bar volume, so they never will. The old
+    // sentence named those three and stopped — which reads as "wait for these".
+    //
+    // ROTATION reads only `regime`, which IS resolved here. Its verdict is in.
+    // Filing it under missing evidence would send the trader to wait for a
+    // question that has already been answered.
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") }),
+    );
+    expect(vm.reason).toMatch(/more evidence will not change/i);
+    // The DECIDED list is the one preceding "had every input …". Splitting on
+    // the blocked clause instead would capture both lists — the first draft of
+    // this test did exactly that and passed the wrong assertion for it.
+    const decided = vm.reason?.split("had every input")[0] ?? "";
+    expect(decided).toMatch(/ROTATION/);
+  });
+
+  it("a chapter blocked by missing evidence is never reported as decided", () => {
+    // The mirror guard. VALUE_MIGRATION reads `profile`, which is unresolved
+    // in this fixture, so its verdict is genuinely NOT in — and claiming
+    // "more evidence will not change it" would be the fabricated-certainty
+    // twin of the defect above.
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") }),
+    );
+    // The DECIDED list is the one preceding "had every input …". Splitting on
+    // the blocked clause instead would capture both lists — the first draft of
+    // this test did exactly that and passed the wrong assertion for it.
+    const decided = vm.reason?.split("had every input")[0] ?? "";
+    expect(decided).not.toMatch(/VALUE_MIGRATION/);
+    expect(vm.reason).toMatch(/VALUE_MIGRATION/);
+  });
+
+  it("evaluating the guards a second time does not change the verdict", () => {
+    // The diagnosis re-runs every guard against a recording proxy. If any
+    // guard were impure — or the proxy perturbed one — the explanation could
+    // contradict the chapter selection it is explaining, which is Canon
+    // Weakness #1 inside a single function.
+    const state = mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") });
+    expect(selectMarketStory(state).reason).toEqual(selectMarketStory(state).reason);
   });
 
   it("keeps the two no-chapter causes textually distinguishable", () => {

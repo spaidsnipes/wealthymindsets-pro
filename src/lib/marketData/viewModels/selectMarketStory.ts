@@ -354,7 +354,11 @@ const GUARDED_DIMENSIONS = [
  *                                  a DATA gap, and no amount of waiting fixes
  *                                  it. Saying so is the honest answer.
  */
-function explainNoChapter(state: CanonicalMarketState): string {
+function explainNoChapter(
+  state: CanonicalMarketState,
+  history: readonly CanonicalMarketState[],
+  config: StoryConfig,
+): string {
   const unresolved = GUARDED_DIMENSIONS.filter(
     (name) => (state[name] as MarketStateDimension).resolution !== "RESOLVED",
   );
@@ -367,10 +371,93 @@ function explainNoChapter(state: CanonicalMarketState): string {
   }
 
   const resolvedCount = GUARDED_DIMENSIONS.length - unresolved.length;
-  return (
-    `No chapter resolved. Unresolved: ${unresolved.join(", ")} ` +
-    `(${resolvedCount}/${GUARDED_DIMENSIONS.length} dimensions resolved).`
-  );
+  const { blocked, rejected } = partitionChaptersByEvidence(state, history, config, unresolved);
+
+  // THE SENTENCE THIS FUNCTION USED TO PRINT, and why it was wrong.
+  //
+  // It named the unresolved dimensions and stopped, which reads as a CAUSE:
+  // "no chapter resolved BECAUSE these are missing". That is an assertion, not
+  // a measurement, and on production /command-deck BTC it was false. Five of
+  // eight dimensions resolved there; the three that did not are location,
+  // aggression and profile, and that venue publishes no per-bar volume, so
+  // they never will. Meanwhile BALANCE, TREND_EXPANSION, SWEEP, BREAKOUT and
+  // ROTATION had every input they need and simply did not match.
+  //
+  // Told "unresolved: location, aggression, profile", the trader waits for
+  // evidence that is never coming, for chapters that were already decided.
+  //
+  // So the partition below is MEASURED, not declared: each guard is re-run
+  // against a recording proxy and we observe which dimensions it actually
+  // touched. A declared per-chapter dependency list would be a second place to
+  // state one fact, and would drift silently the first time a guard body grew
+  // a condition — the exact failure mode this codebase keeps finding.
+  const parts = [
+    `No chapter resolved (${resolvedCount}/${GUARDED_DIMENSIONS.length} dimensions resolved).`,
+  ];
+  if (rejected.length > 0) {
+    parts.push(
+      `${rejected.join(", ")} had every input ${rejected.length === 1 ? "it needs" : "they need"} ` +
+      `and did not match — more evidence will not change ${rejected.length === 1 ? "it" : "them"}.`,
+    );
+  }
+  if (blocked.length > 0) {
+    parts.push(
+      `${blocked.join(", ")} could not be evaluated: ${unresolved.join(", ")} unresolved.`,
+    );
+  }
+  return parts.join(" ");
+}
+
+/**
+ * WHICH CHAPTERS WERE DECIDED, AND WHICH WERE NEVER REACHED.
+ *
+ * Re-runs every guard against a proxy that records which dimensions it reads,
+ * then splits the non-matching chapters in two:
+ *
+ *   blocked  — touched at least one unresolved dimension. Its verdict is not
+ *              in yet, and more evidence could still change it.
+ *   rejected — touched only resolved dimensions. Its verdict IS in. Waiting
+ *              cannot change it, and implying otherwise is the fabricated
+ *              diagnosis this whole function exists to refuse.
+ *
+ * Short-circuiting means a guard that failed on its first condition records
+ * only that one. That is the right answer, not a limitation: it genuinely did
+ * not need the rest to decide.
+ *
+ * A guard that throws is reported as blocked. A selector explaining a silence
+ * must not become a second source of noise.
+ */
+function partitionChaptersByEvidence(
+  state: CanonicalMarketState,
+  history: readonly CanonicalMarketState[],
+  config: StoryConfig,
+  unresolved: readonly string[],
+): { blocked: string[]; rejected: string[] } {
+  const unresolvedSet = new Set<string>(unresolved);
+  const blocked: string[] = [];
+  const rejected: string[] = [];
+
+  for (const cm of config.chapters) {
+    const touched = new Set<string>();
+    const recorder = new Proxy(state, {
+      get(target, prop, receiver) {
+        if (typeof prop === "string") touched.add(prop);
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    let supports = false;
+    let threw = false;
+    try {
+      supports = cm.guard(recorder, history, config).supports;
+    } catch {
+      threw = true;
+    }
+    if (supports) continue;
+    const hitUnresolved = [...touched].some((name) => unresolvedSet.has(name));
+    (threw || hitUnresolved ? blocked : rejected).push(cm.chapter);
+  }
+
+  return { blocked, rejected };
 }
 
 /**
@@ -414,7 +501,7 @@ export function selectMarketStory(
       current: null,
       recent: priorChapters.slice(-config.historyCap),
       resolution: "UNKNOWN",
-      reason: explainNoChapter(state),
+      reason: explainNoChapter(state, history, config),
     };
   }
 
