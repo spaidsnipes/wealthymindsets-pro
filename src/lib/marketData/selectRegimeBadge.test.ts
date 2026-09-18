@@ -222,7 +222,7 @@ describe("the reason the two words may differ is SPOKEN, not buried in source", 
     // a trader reads what is rendered, not what the module believes.
     const s = spokenOf(dim({ resolution: "UNKNOWN" }));
     expect(s).toMatch(/day bias BULL/);
-    expect(s).toMatch(/not resolved yet/);
+    expect(s).toMatch(/not resolved/);
     expect(s).toMatch(/different question/);
   });
 
@@ -245,11 +245,81 @@ describe("the reason the two words may differ is SPOKEN, not buried in source", 
   it("canon is quoted in the spoken line when canon has resolved", () => {
     const s = spokenOf(dim({ resolution: "RESOLVED", value: "BALANCE" }));
     expect(s).toMatch(/it says BALANCE/);
-    expect(s).not.toMatch(/not resolved yet/);
+    expect(s).not.toMatch(/not resolved/);
   });
 
   it("the instrument is named — a loose sentence belongs to no chart", () => {
     expect(spokenOf(null)).toMatch(/^NQ1!/);
+  });
+
+  /**
+   * FIFTH LIVE OBSERVATION, 2026-09-18, production /charts?symbol=TSLA 12:20:07Z.
+   * The chip's accessible name said regime "is not resolved YET".
+   *
+   *     AN ABSENCE THAT CANNOT END IS NOT A PENDING STATE.
+   *
+   * Regime is composed from per-trade tape; /charts has none and structurally
+   * cannot get any. "Yet" tells the trader to wait for something that will
+   * never arrive. The true explanation was already sitting on the dimension's
+   * `unknowns` — this selector was dropping it.
+   */
+  const TAPE_NOTE =
+    "120 candles are loaded for TSLA, but no per-trade tape has arrived, and this reading is measured trade by trade. The candles cannot answer it.";
+
+  it("× THE FALSE PROMISE: the word 'yet' never appears beside an unresolved regime", () => {
+    for (const d of [
+      null,
+      dim({ resolution: "UNKNOWN" }),
+      dim({ resolution: "UNKNOWN", unknowns: [TAPE_NOTE] }),
+      dim({ resolution: "PARTIAL", unknowns: [TAPE_NOTE] }),
+      dim({ resolution: "RESOLVED", value: null, unknowns: [TAPE_NOTE] }),
+    ]) {
+      expect(spokenOf(d), "a promise the venue cannot keep").not.toMatch(/\byet\b/i);
+    }
+  });
+
+  it("× THE DISCARDED REASON: the dimension's own explanation is spoken", () => {
+    const s = spokenOf(dim({ resolution: "UNKNOWN", unknowns: [TAPE_NOTE] }));
+    expect(s).toMatch(/because 120 candles are loaded for TSLA/);
+    expect(s).toMatch(/The candles cannot answer it\./);
+  });
+
+  it("× THE PARAPHRASE: the quoted reason is altered in exactly one character", () => {
+    const s = spokenOf(dim({ resolution: "UNKNOWN", unknowns: ["Direction is unresolved, so the regime cannot be characterised."] }));
+    // Lower-cased first letter to splice after "because" — nothing else touched.
+    expect(s).toContain("because direction is unresolved, so the regime cannot be characterised.");
+  });
+
+  it("× THE MANGLED QUOTE: a reason that starts with a digit or an acronym is untouched", () => {
+    expect(spokenOf(dim({ resolution: "UNKNOWN", unknowns: ["120 candles are loaded."] })))
+      .toContain("because 120 candles are loaded.");
+    expect(spokenOf(dim({ resolution: "UNKNOWN", unknowns: ["TSLA has no tape."] })))
+      .toContain("because TSLA has no tape.");
+  });
+
+  it("× THE INVENTED REASON: no canonical state at all yields no 'because' clause", () => {
+    // `null` dimension is NOT the same situation as a dimension that explains
+    // its silence. The chip must not blur them by manufacturing a sentence.
+    const s = spokenOf(null);
+    expect(s).not.toMatch(/because/);
+    expect(s).toMatch(/it is not resolved, which is why no regime word is shown/);
+  });
+
+  it("× THE PARAGRAPH: only the first reason is spoken, however many exist", () => {
+    const s = spokenOf(dim({ resolution: "UNKNOWN", unknowns: ["  ", "First reason.", "Second reason."] }));
+    expect(s).toContain("because first reason.");
+    expect(s).not.toContain("Second reason");
+  });
+
+  it("× THE OVER-CORRECTION: a reason does not promote the reading to resolved", () => {
+    const v = selectRegimeBadge({
+      canonRegime: dim({ resolution: "UNKNOWN", unknowns: [TAPE_NOTE] }),
+      ...backed(2.52), symbol: "NQ1!", at: TUE,
+    });
+    if (!v.displayable) throw new Error("expected displayable");
+    // A sharper sentence must not become a stronger claim.
+    expect(v.canon.resolved).toBe(false);
+    expect(v.regime).toBe("BULL");
   });
 
   it("the spoken line never calls the day-bias half a REGIME", () => {

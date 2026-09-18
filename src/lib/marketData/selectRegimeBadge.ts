@@ -117,6 +117,45 @@
  * product. That is why this owner publishes `spoken` and the chip carries it
  * as an ACCESSIBLE NAME: the one channel that does not depend on hovering
  * something the page has deliberately made unhoverable.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * FIFTH OBSERVATION, 2026-09-18, production /charts?symbol=TSLA at 12:20:07Z.
+ * The chip read DAY BIAS · BULL · +2.52% today · REGIME · UNRESOLVED, and the
+ * accessible name ended:
+ *
+ *   "…Market regime is a different question, derived from classified per-trade
+ *    tape, and it is not resolved YET, which is why no regime word is shown."
+ *
+ * ONE WORD IS WRONG AND IT IS THE SMALLEST ONE. "Yet" is a promise about the
+ * future: keep the tab open, keep waiting, and a regime word will appear. On
+ * this venue it will not. Regime is a pure composition of direction and
+ * volatility (deriveRegimeDimension says so in its own capitals), both of which
+ * are measured trade by trade, and /charts has no per-trade tape at all — free
+ * Alpaca REST is 15-minute-delayed bars and the serverless host cannot carry
+ * the WS proxy. Every reload produces the same UNRESOLVED, forever.
+ *
+ *     AN ABSENCE THAT CANNOT END IS NOT A PENDING STATE.
+ *
+ * A trader who hears "not yet" waits. A trader who hears "the candles cannot
+ * answer this question" goes and finds a venue that can, or stops asking. Those
+ * are opposite actions, and the chip was choosing the wrong one by omission.
+ *
+ * THE REASON IS ALREADY IN THE DATA and this owner was discarding it. The
+ * publisher authors the gap sentence once (evidenceGapNote), the derivers carry
+ * it, and dd63cdab stopped the regime composition overwriting it — so the
+ * dimension handed to this selector arrives with `unknowns` already populated
+ * with the true, specific, venue-aware explanation. `selectCanonRegimeView`
+ * read `resolution` and `value` and dropped everything else on the floor.
+ *
+ * So the unresolved arm of CanonRegimeView now carries `reason`, quoted from
+ * the dimension and never paraphrased, and `speak` states it in place of the
+ * word "yet". When the dimension offers no explanation the sentence falls back
+ * to the previous wording MINUS the promise — "it is not resolved" is true in
+ * every case; "not resolved yet" is not.
+ *
+ * NOTE ON WHAT DID NOT CHANGE: the rendered word is still UNRESOLVED and the
+ * day-bias verdict is untouched. A sharper sentence must not become a stronger
+ * claim — this atom adds a REASON to an absence, it does not resolve one.
  */
 
 import { provenSessionClosure } from "./canonicalIdentity";
@@ -138,7 +177,20 @@ export const DAY_BIAS_LABEL = "DAY BIAS";
 /** What the canonical regime dimension says, carried through unchanged. */
 export type CanonRegimeView =
   | { readonly resolved: true; readonly value: string }
-  | { readonly resolved: false };
+  | {
+      readonly resolved: false;
+      /**
+       * The dimension's OWN explanation for its silence, quoted verbatim, or
+       * `null` when it offered none.
+       *
+       * See the fifth observation in this file's header. Without this the chip
+       * says regime is "not resolved yet" — a promise /charts cannot keep,
+       * because regime is composed from per-trade tape this venue never
+       * supplies. The explanation is already computed upstream; this field
+       * exists because this selector used to throw it away.
+       */
+      readonly reason: string | null;
+    };
 
 /**
  * `null` means "no period word". Used before mount, when the clock has not
@@ -253,8 +305,34 @@ function speak(
     `per-trade tape, and ` +
     (canon.resolved
       ? `it says ${canon.value}.`
-      : `it is not resolved yet, which is why no regime word is shown beside it.`)
+      : canon.reason
+        ? // The dimension's own words. "Yet" is deliberately absent: see the
+          // fifth observation — an absence that cannot end is not pending.
+          `it is not resolved, because ${lowerFirst(canon.reason)} That is why no regime word is shown beside it.`
+        : `it is not resolved, which is why no regime word is shown beside it.`)
   );
+}
+
+/**
+ * Splice an upstream sentence in after "because" without rewriting it.
+ *
+ * Only the FIRST character is touched, and only when it is an uppercase letter
+ * immediately followed by a lowercase one — so "120 candles are loaded" and
+ * "TSLA has no tape" both survive untouched, while "Regime needs a sealed
+ * volatility read" reads correctly mid-sentence. Trailing punctuation is left
+ * exactly as the author wrote it; the caller supplies no full stop of its own.
+ *
+ * This is the smallest possible edit to a quoted sentence. Anything more would
+ * be paraphrasing an upstream finding, which is the thing this whole lane
+ * exists to stop.
+ */
+function lowerFirst(text: string): string {
+  const t = text.trim();
+  if (t.length < 2) return t;
+  const [a, b] = [t[0]!, t[1]!];
+  if (a !== a.toUpperCase() || a === a.toLowerCase()) return t;
+  if (b !== b.toLowerCase() || b === b.toUpperCase()) return t;
+  return a.toLowerCase() + t.slice(1);
 }
 
 /**
@@ -266,10 +344,29 @@ function speak(
  * recreate the exact contradiction this field exists to prevent.
  */
 export function selectCanonRegimeView(dimension: MarketStateDimension | null): CanonRegimeView {
-  if (!dimension || dimension.resolution !== "RESOLVED") return { resolved: false };
+  if (!dimension || dimension.resolution !== "RESOLVED") return unresolved(dimension);
   const value = dimension.value?.trim();
-  if (!value) return { resolved: false };
+  if (!value) return unresolved(dimension);
   return { resolved: true, value };
+}
+
+/**
+ * An unresolved reading, carrying the dimension's FIRST unknown as its reason.
+ *
+ * FIRST, not joined: this reason is spoken aloud as part of a single-sentence
+ * accessible name, and concatenating an unbounded list into it produces a
+ * paragraph a screen-reader user must sit through before reaching anything
+ * actionable. The upstream composition already de-duplicates and orders these
+ * (deriveRegimeDimension.carryUnknowns), so the first is the most direct one.
+ * The full list stays available on the dimension for surfaces with room.
+ *
+ * A null dimension yields `reason: null` rather than an invented sentence —
+ * "no canonical state exists yet" is genuinely a different situation from "the
+ * state exists and explains why it is silent", and the chip must not blur them.
+ */
+function unresolved(dimension: MarketStateDimension | null): CanonRegimeView {
+  const first = dimension?.unknowns.find((u) => u.trim().length > 0)?.trim();
+  return { resolved: false, reason: first ?? null };
 }
 
 /**
