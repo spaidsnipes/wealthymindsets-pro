@@ -23,7 +23,7 @@ import { deriveLocationDimension } from "./deriveLocationDimension";
 import { deriveAggressionDimension } from "./deriveAggressionDimension";
 import { selectAggressionResponse } from "./viewModels/selectAggressionResponse";
 import { deriveStructureDimension } from "./deriveStructureDimension";
-import { selectMarketStructure } from "./viewModels/selectMarketStructure";
+import { selectMarketStructure, type StructureBar } from "./viewModels/selectMarketStructure";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -139,6 +139,53 @@ function profileBarsFrom(
       typeof volume !== "number" || !Number.isFinite(volume)
     ) continue;
     out.push({ time, open, high, low, close, volume });
+  }
+  return out;
+}
+
+/**
+ * Keep the bars a SWING SEQUENCE can be read from — which is not the same set.
+ *
+ * FOUND FROM USE, production /command-deck BTC, 2026-09-18. The deck's market
+ * field disclosed "120 bars · Read just now"; the Market Object Passport below
+ * it read `4/8 dimensions resolved` with the unresolved four being location,
+ * aggression, structure and profile — EXACTLY the four candle-derived ones.
+ *
+ * Every one of them was reading `profileBarsFrom`, and `DeckMarketChart`
+ * forwards no `volume` on purpose (see its `Candle` doc block: Yahoo's volume
+ * is not trusted there, and `volume: 0` would be an invention). So the filter
+ * above dropped all 120 bars.
+ *
+ * For three of those four that is the correct answer and this function does
+ * not touch them: profile and location are volume-weighted DISTRIBUTIONS, and
+ * aggression's "effort" axis is literally traded volume — without it there is
+ * genuinely nothing to measure, and saying so is the honest end state.
+ *
+ * Structure is the odd one out. It is a sequence of highs and lows. It asked
+ * for volume only because it borrowed the profile adapter, and that borrowing
+ * cost the Founder a STRUCTURE verdict on 120 perfectly good candles while the
+ * chart eleven pixels away drew every one of them — canon Weakness #1, two
+ * surfaces on one page disagreeing about whether the evidence even exists.
+ *
+ * `open` and `close` are still required. A bar missing either is a malformed
+ * candle rather than a thin one, and admitting it here would widen this beyond
+ * the volume question it was written to answer.
+ */
+function structureBarsFrom(
+  bars: ChartMarketStatePublicationInput["bars"],
+): StructureBar[] {
+  const out: StructureBar[] = [];
+  for (const bar of bars ?? []) {
+    if (!bar) continue;
+    const { time, open, high, low, close } = bar;
+    if (
+      typeof time !== "number" || !Number.isFinite(time) ||
+      typeof open !== "number" || !Number.isFinite(open) ||
+      typeof high !== "number" || !Number.isFinite(high) ||
+      typeof low !== "number" || !Number.isFinite(low) ||
+      typeof close !== "number" || !Number.isFinite(close)
+    ) continue;
+    out.push({ time, high, low });
   }
   return out;
 }
@@ -368,7 +415,10 @@ export function createChartMarketStatePublication(
   // sides, so the newest bars can never be pivots. That caveat is permanent,
   // not a shortage a longer window would cure.
   const structure = deriveStructureDimension({
-    vm: selectMarketStructure(profileBarsFrom(input.bars)),
+    // `structureBarsFrom`, NOT `profileBarsFrom`. A swing sequence needs no
+    // volume, and routing it through the profile adapter starved this
+    // dimension of 120 live candles on /command-deck. See that function.
+    vm: selectMarketStructure(structureBarsFrom(input.bars)),
     // Candles only — never a tick. So the CANDLE venue, not the tape venue.
     // This is the receipt that named `coinbase` for a Yahoo-derived swing
     // sequence on /command-deck; see `barSource` on the input type.

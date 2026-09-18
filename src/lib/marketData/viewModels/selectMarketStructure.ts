@@ -40,7 +40,19 @@
  * PURE — no I/O, no clock.
  */
 
-import { swingHighLow, type Bar } from "@/components/chart/indicators";
+/**
+ * `PivotBar`, not `Bar`, and the distinction is load-bearing.
+ *
+ * A swing sequence is read off highs and lows. It needs no `volume`, and
+ * demanding one is not a harmless over-specification: on /command-deck the
+ * candles come from a venue whose volume this codebase deliberately refuses
+ * to forward, so a volume requirement is the difference between 120 usable
+ * bars and zero. See `PivotBar` in indicators.ts for the live measurement.
+ */
+import { swingHighLow, type PivotBar } from "@/components/chart/indicators";
+
+/** Re-exported so callers can name the shape this owner actually needs. */
+export type StructureBar = PivotBar;
 
 /** The detector's own default, and the lookback MainChart draws swings at. */
 export const STRUCTURE_DEFAULT_LOOKBACK = 5;
@@ -127,7 +139,7 @@ const BIAS_NOTE: Readonly<Record<StructureBias, string>> = {
 };
 
 export function selectMarketStructure(
-  bars: readonly Bar[] | null | undefined,
+  bars: readonly StructureBar[] | null | undefined,
   options: SelectMarketStructureOptions = {},
 ): MarketStructureVM {
   const lookback = Math.max(1, Math.trunc(options.lookback ?? STRUCTURE_DEFAULT_LOOKBACK));
@@ -146,7 +158,9 @@ export function selectMarketStructure(
     );
   }
 
-  const { highs, lows } = swingHighLow(input as Bar[], lookback);
+  // No cast. The parameter type now states exactly what the detector reads,
+  // so there is nothing left to assert away.
+  const { highs, lows } = swingHighLow(input, lookback);
 
   if (
     highs.length < STRUCTURE_MIN_PIVOTS_PER_SIDE

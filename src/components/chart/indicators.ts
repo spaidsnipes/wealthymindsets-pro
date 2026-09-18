@@ -6,6 +6,34 @@
 
 export interface Bar { time: number; open: number; high: number; low: number; close: number; volume: number; }
 
+/**
+ * THE ONLY THREE FIELDS PIVOT DETECTION READS.
+ *
+ * `swingHighLow` compares highs to highs and lows to lows and stamps the
+ * result with a time. It has never opened `open`, `close` or `volume`. It
+ * nonetheless ASKED for a full `Bar`, and a parameter type is a requirement
+ * whether or not the body honours it.
+ *
+ * FOUND FROM USE, production /command-deck BTC, 2026-09-18. The deck's chart
+ * disclosed "120 bars · Read just now" while the Market Object Passport
+ * eleven pixels below it read STRUCTURE UNRESOLVED. Both were internally
+ * honest. `DeckMarketChart` deliberately forwards NO `volume` — Yahoo's
+ * volume is not trusted on that surface and inventing `volume: 0` would be
+ * the invention this codebase exists to refuse — and the publisher's
+ * `profileBarsFrom` correctly drops any bar without finite volume, because a
+ * bar with no volume cannot contribute to a DISTRIBUTION.
+ *
+ * Profile, location and aggression are distributions and effort; their
+ * unresolved verdicts on that venue are true. Structure is a sequence of
+ * highs and lows. It was starved of 120 perfectly good bars by a requirement
+ * belonging to three other dimensions.
+ *
+ * Widening the parameter rather than casting at the call site is the whole
+ * repair: a cast asserts the volume exists, which on that venue is a lie, and
+ * `Bar` is still assignable here so every existing caller is untouched.
+ */
+export interface PivotBar { time: number; high: number; low: number; }
+
 /* ─── Helpers ──────────────────────────────────────────────────── */
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const nz = (v: number, d = 0) => isFinite(v) && !isNaN(v) ? v : d;
@@ -962,7 +990,7 @@ export function fairValueGaps(bars: Bar[]): { time: number; top: number; bot: nu
   return gaps;
 }
 
-export function swingHighLow(bars: Bar[], lookback = 5): { highs: { time: number; price: number }[]; lows: { time: number; price: number }[] } {
+export function swingHighLow(bars: readonly PivotBar[], lookback = 5): { highs: { time: number; price: number }[]; lows: { time: number; price: number }[] } {
   const highs: { time: number; price: number }[] = [];
   const lows:  { time: number; price: number }[] = [];
   for (let i = lookback; i < bars.length - lookback; i++) {
