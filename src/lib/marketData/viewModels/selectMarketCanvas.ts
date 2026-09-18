@@ -24,7 +24,10 @@
 import type { CanonicalMarketState } from "../canonicalMarketState";
 // Value imports: the dimension KEY LIST and the dimension NAME each have one
 // owner. This surface used to keep a private copy of both.
-import { MARKET_STATE_DIMENSION_KEYS, dimensionName } from "../canonicalMarketState";
+import {
+  dimensionName,
+  partitionDimensionStandings,
+} from "../canonicalMarketState";
 import type { DecisionWhyVM } from "./selectDecisionWhyNot";
 
 export const MARKET_CANVAS_VERSION = "wm.market-canvas.v1" as const;
@@ -65,6 +68,16 @@ export interface MarketCanvasVM {
    * both are silent when the input is silent (canon §Silence).
    */
   readonly resolved: readonly string[];
+  /**
+   * The MEASURED panel — dimensions that published a reading which is not
+   * decision-grade. The third bucket, and the reason this VM used to lie.
+   *
+   * These were counted as RESOLVED here (`resolution !== "UNKNOWN"`) AND swept
+   * into `missing` by the publisher (`resolution !== "RESOLVED"`), so the same
+   * dimension printed in both adjacent columns of MarketCanvasPanel. See
+   * `DimensionStanding`. Naming the bucket is what makes the columns disjoint.
+   */
+  readonly measured: readonly string[];
   /**
    * The WHY NOT panel — blocker labels from the compiled DecisionWhy.
    * Ordered by severity (HARD_RULE first). Empty on ACTION.
@@ -124,13 +137,16 @@ export function selectMarketCanvas(
   // printed `orderFlow` under Resolved and `Order Flow` under Missing, for the
   // same dimension, in the same instant. Both the key ORDER and the NAME now
   // come from the module that owns the dimensions, so the symmetry is real.
-  const resolved: string[] = [];
-  if (state) {
-    for (const key of MARKET_STATE_DIMENSION_KEYS) {
-      const dim = state[key] as { resolution: string } | undefined;
-      if (dim && dim.resolution !== "UNKNOWN") resolved.push(dimensionName(key));
-    }
-  }
+  //
+  // …and it was not true of the MEMBERSHIP either. This loop read
+  // `resolution !== "UNKNOWN"`, which is the complement of the OTHER half of a
+  // three-valued type from the publisher's `!== "RESOLVED"`. PARTIAL satisfied
+  // both, so location/aggression/profile were listed under Resolved AND under
+  // Unresolved in the same frame — 4 + 7 = 11 for eight dimensions, observed
+  // live on /charts TSLA. The owner now hands back three disjoint buckets.
+  const standings = partitionDimensionStandings(state ?? {});
+  const resolved = state ? standings.RESOLVED.map(dimensionName) : [];
+  const measured = state ? standings.MEASURED.map(dimensionName) : [];
   const verdict = whyNot?.verdict ?? "UNKNOWN";
   const clear = whyNot?.clear === true;
   const blockers = whyNot ? whyNot.blockers.map((b) => b.label) : [];
@@ -154,6 +170,7 @@ export function selectMarketCanvas(
     headline,
     missing,
     resolved,
+    measured,
     blockers,
     blockerCount,
     clearances,

@@ -111,6 +111,7 @@ export function MarketCanvasPanel({
   const anyBodyPresent =
     vm.missing.length > 0 ||
     vm.resolved.length > 0 ||
+    vm.measured.length > 0 ||
     vm.blockerCount > 0 ||
     vm.clearances.length > 0 ||
     vm.invalidators.length > 0;
@@ -149,15 +150,37 @@ export function MarketCanvasPanel({
           data-testid="market-canvas-resolved"
           style={{ marginBottom: (vm.missing.length || vm.blockerCount || vm.invalidators.length) ? 10 : 0 }}
         >
-          {/* canon §Phase 3 Market Canvas — RESOLVED. Symmetric to
-              MISSING: names each canonical dimension the snapshot has
-              resolved (or resolved-partial). Silent when nothing is
-              resolved (canon §Silence). */}
+          {/* canon §Phase 3 Market Canvas — RESOLVED. Names each canonical
+              dimension the snapshot has RESOLVED.
+              "(or resolved-partial)" is what this comment used to say, and it
+              was the defect: PARTIAL was ALSO swept into `missing` by the
+              publisher, so three dimensions printed here AND in the column
+              directly below, in the same frame — RESOLVED (4) beside
+              UNRESOLVED (7), for eight dimensions. The three buckets are now
+              disjoint by construction; see `DimensionStanding`. */}
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: RESOLVED_LABEL, marginBottom: 4, textTransform: "uppercase" }}>
             Resolved ({vm.resolved.length})
           </div>
           <div style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>
             {vm.resolved.join(", ")}
+          </div>
+        </div>
+      )}
+
+      {vm.measured.length > 0 && (
+        <div
+          data-testid="market-canvas-measured"
+          style={{ marginBottom: (vm.missing.length || vm.blockerCount || vm.invalidators.length) ? 10 : 0 }}
+        >
+          {/* THE MIDDLE BUCKET, which had no column and therefore no home.
+              A reading EXISTS for these — the profile chain returns POC/VAH/VAL
+              off real populated buckets — it is simply not decision-grade. Told
+              "unresolved", the trader waits for evidence already gathered. */}
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4, textTransform: "uppercase" }}>
+            Measured, not decision-grade ({vm.measured.length})
+          </div>
+          <div style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>
+            {vm.measured.join(", ")}
           </div>
         </div>
       )}

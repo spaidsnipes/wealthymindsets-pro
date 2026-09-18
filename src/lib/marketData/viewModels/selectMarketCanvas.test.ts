@@ -16,6 +16,7 @@ import type {
 import {
   MARKET_STATE_DIMENSION_KEYS,
   dimensionName,
+  partitionDimensionStandings,
 } from "../canonicalMarketState";
 import type { DecisionWhyVM } from "./selectDecisionWhyNot";
 
@@ -113,7 +114,13 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
     expect(vm.resolved).toEqual([]);
   });
 
-  it("RESOLVED corner names each dimension whose resolution is not UNKNOWN", () => {
+  // THE TEST NAME USED TO SPELL THE DEFECT. It read "RESOLVED corner names
+  // each dimension whose resolution is not UNKNOWN" — a complement of the
+  // WRONG half of a three-valued type, stated as an intention. The publisher
+  // held the complement of the OTHER half (`!== "RESOLVED"`), so their two
+  // columns both claimed PARTIAL and live /charts printed 4 resolved beside 7
+  // unresolved for EIGHT dimensions. RESOLVED means RESOLVED.
+  it("RESOLVED corner names ONLY the dimensions that are decision-grade", () => {
     const s = emptyState();
     // Cast to mutate for test fixture only.
     const withResolved = {
@@ -126,10 +133,13 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
     // this file a second author of the dimension's name — the exact defect the
     // panel exposed when it printed `orderFlow` beside `Order Flow`.
     expect(vm.resolved).toContain(dimensionName("direction"));
-    expect(vm.resolved).toContain(dimensionName("regime"));
     expect(vm.resolved).not.toContain(dimensionName("location"));
     // …and the RAW KEY may never appear on the panel again.
     expect(vm.resolved).not.toContain("direction");
+
+    // The PARTIAL dimension has its own column now, and appears in exactly one.
+    expect(vm.measured).toEqual([dimensionName("regime")]);
+    expect(vm.resolved).not.toContain(dimensionName("regime"));
   });
 
   it("RESOLVED order matches the canonical dimension order, named by the owner", () => {
@@ -146,9 +156,14 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
       orderFlow: { ...s.orderFlow, resolution: "RESOLVED" as const },
     };
     const vm = selectMarketCanvas(allResolved, null);
-    // Both the ORDER and the NAMES come from the module that owns the
-    // dimensions. Spelling either here would re-create the copy.
-    expect(vm.resolved).toEqual(MARKET_STATE_DIMENSION_KEYS.map(dimensionName));
+    // Both the ORDER and the MEMBERSHIP come from the module that owns the
+    // dimensions. Spelling either here would re-create the copy — and a
+    // hand-written `MARKET_STATE_DIMENSION_KEYS.map(dimensionName)` would make
+    // this file a second author of "which keys belong in RESOLVED".
+    expect(vm.resolved).toEqual(
+      partitionDimensionStandings(allResolved).RESOLVED.map(dimensionName),
+    );
+    expect(vm.resolved).toHaveLength(MARKET_STATE_DIMENSION_KEYS.length);
   });
 
   it("copies WhyNot clearances into the CLEARED panel", () => {

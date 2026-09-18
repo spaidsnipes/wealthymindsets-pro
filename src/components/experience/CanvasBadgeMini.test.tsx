@@ -17,6 +17,7 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
     headline: "No market snapshot yet — canvas is unresolved.",
     missing: [],
     resolved: [],
+    measured: [],
     blockers: [],
     clearances: [],
     invalidators: [],

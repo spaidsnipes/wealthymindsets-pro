@@ -31,6 +31,7 @@ const vm: MarketCanvasVM = {
   headline: "Right-of-way is withheld — the market has not earned entry.",
   missing: ["Direction is unresolved."],
   resolved: [],
+  measured: [],
   blockers: ["Regime", "Direction"],
   blockerCount: 11,
   clearances: [],

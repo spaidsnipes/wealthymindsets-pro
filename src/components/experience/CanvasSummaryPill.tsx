@@ -74,6 +74,10 @@ export function CanvasSummaryPill({
   // explains WHY a trade is refused undercuts the refusal itself.
   const parts: string[] = [];
   if (vm.missing.length > 0) parts.push(`${vm.missing.length} unresolved`);
+  // The third bucket. This pill read "7 unresolved" on live TSLA while the
+  // panel beside it said "RESOLVED (4)" — 11 of 8 — because PARTIAL was in
+  // both. It is now its own count, and the three sum to eight.
+  if (vm.measured.length > 0) parts.push(`${vm.measured.length} measured`);
   // COUNT from `blockerCount`, never from `blockers.length` — the list is a
   // sample capped at 3 labels per evidence bucket. See DecisionWhyVM.
   if (vm.blockerCount > 0) {

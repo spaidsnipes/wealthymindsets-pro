@@ -18,6 +18,7 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
     headline: "Right-of-way is granted — the path is clear.",
     missing: [],
     resolved: [],
+    measured: [],
     blockers: [],
     clearances: [],
     invalidators: [],

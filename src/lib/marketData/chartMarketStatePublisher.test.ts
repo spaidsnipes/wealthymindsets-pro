@@ -7,6 +7,11 @@ import {
 } from "./chartMarketStatePublisher";
 import type { SessionNectarSnapshot } from "./sessionNectar";
 import { produceCanonicalMarketState } from "./produceCanonicalMarketState";
+import {
+  MARKET_STATE_DIMENSION_KEYS,
+  dimensionName,
+  partitionDimensionStandings,
+} from "./canonicalMarketState";
 import { selectMarketStory } from "./viewModels/selectMarketStory";
 
 const nectar: SessionNectarSnapshot = {
@@ -143,19 +148,43 @@ describe("chart Market State publisher", () => {
       }
     });
 
-    it("unknowns.length equals the number of dimensions NOT resolved by the publisher", () => {
+    /**
+     * THIS TEST NAME USED TO SPELL THE DEFECT.
+     *
+     * It read "unknowns.length equals the number of dimensions NOT resolved by
+     * the publisher" and asserted `TOTAL - RESOLVED` — the complement of ONE
+     * half of a THREE-valued type. `selectMarketCanvas` held the complement of
+     * the OTHER half (`!== "UNKNOWN"`), so PARTIAL fell into BOTH columns and
+     * live /charts printed 4 resolved beside 7 unresolved for EIGHT dimensions.
+     *
+     * `unknowns` is a ledger of payable questions, and every entry says "… is
+     * unresolved until a verified engine publishes evidence." That sentence is
+     * TRUE only of UNKNOWN. A PARTIAL dimension HAS published; its reading is
+     * merely not decision-grade. So the ledger is the MISSING bucket — not the
+     * not-RESOLVED bucket — and the three buckets sum to the key count.
+     */
+    it("unknowns.length is exactly the MISSING bucket — the three buckets sum to eight", () => {
       const publication = createChartMarketStatePublication(base());
       const unknowns = publication.state.unknowns ?? [];
-      const dims = publication.state.dimensions ?? {};
+      const dims = (publication.state.dimensions ?? {}) as Parameters<
+        typeof partitionDimensionStandings
+      >[0];
 
-      // The publisher derives orderFlow + volatility; the other six canonical
-      // dimensions have no engine yet. Total canonical dimensions = 8.
-      const TOTAL_DIMENSIONS = 8;
-      const resolvedByPublisher = Object.values(dims).filter(
-        (d) => d && (d as { resolution?: string }).resolution === "RESOLVED",
-      ).length;
+      const standings = partitionDimensionStandings(dims);
+      expect(unknowns.length).toBe(standings.MISSING.length);
 
-      expect(unknowns.length).toBe(TOTAL_DIMENSIONS - resolvedByPublisher);
+      // The arithmetic that failed live: 4 + 7 = 11 for eight dimensions.
+      expect(
+        standings.RESOLVED.length + standings.MEASURED.length + standings.MISSING.length,
+      ).toBe(MARKET_STATE_DIMENSION_KEYS.length);
+
+      // And the ledger may never quietly re-absorb the middle bucket.
+      for (const key of standings.MEASURED) {
+        expect(
+          unknowns.some((u) => u.startsWith(dimensionName(key))),
+          `${key} is MEASURED and must not be told to wait for a publication it already made`,
+        ).toBe(false);
+      }
     });
 
     it("a resolved dimension is removed from the debt ledger, not just reworded", () => {
@@ -270,15 +299,33 @@ describe("chart Market State publisher", () => {
       expect(story.current).toBeNull();
     });
 
-    it("NOT an over-correction — two-sided chop leaves Direction unpaid", () => {
+    it("NOT an over-correction — two-sided chop leaves Direction MEASURED, not decision-grade", () => {
       const chop = [
         ...trendTicks(65_000, 65_400, 20),
         ...trendTicks(65_400, 65_000, 20).map((t, i) => ({ ...t, time: 1_950 + i })),
       ];
       const publication = createChartMarketStatePublication({ ...base(), recentTicks: chop });
-      const dir = (publication.state.dimensions as Record<string, { resolution?: string }>).direction;
+      const dims = publication.state.dimensions as Record<string, { resolution?: string }>;
+      const dir = dims.direction;
       expect(dir?.resolution).toBe("PARTIAL");
-      expect(publication.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(true);
+
+      // THE STRONGER PROPERTY, restated. This used to assert Direction was in
+      // `state.unknowns`, whose every entry reads "… is unresolved until a
+      // verified engine publishes evidence." That sentence is FALSE of a
+      // PARTIAL dimension: the engine DID publish, the reading simply is not
+      // decision-grade. Sweeping PARTIAL into that list is exactly half of the
+      // overlap that printed 7 unresolved + 4 resolved for EIGHT dimensions on
+      // live /charts. So Direction must be absent from `unknowns`…
+      expect(publication.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(false);
+
+      // …and it must NOT have silently become resolved either. The middle
+      // bucket is a named place, not a gap between two claims.
+      const standings = partitionDimensionStandings(
+        dims as Parameters<typeof partitionDimensionStandings>[0],
+      );
+      expect(standings.MEASURED).toContain("direction");
+      expect(standings.RESOLVED).not.toContain("direction");
+      expect(standings.MISSING).not.toContain("direction");
     });
   });
 

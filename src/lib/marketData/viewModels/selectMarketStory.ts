@@ -25,7 +25,7 @@ import type {
 // `inSentence` owns how a name reads mid-sentence. The prose below COMPOSES the
 // two rather than keeping a private third rule — having no rule at all is how
 // the raw key `orderFlow` reached a live trader in that sentence.
-import { dimensionName } from "../canonicalMarketState";
+import { dimensionName, dimensionStanding } from "../canonicalMarketState";
 import { inSentence } from "./decisionPermissionCompiler";
 // Value import, deliberately: DEFAULT_MATCHERS must be built FROM the shipping
 // producer's vocabulary, not from a retyped copy of it that can drift.
@@ -500,8 +500,14 @@ function explainNoChapter(
   // `unresolved` still drives `partitionChaptersByEvidence` unchanged, PARTIAL
   // still blocks every chapter it touches, and `resolvedCount` is untouched.
   // The only thing that changes is which word names which absence.
+  //
+  // THIS WAS THE ONLY PLACE THE RULE EXISTED, AND IT WAS A LOCAL.
+  // The distinction above is correct and shipped first here — as a `filter`
+  // private to this function. No other surface could ask for it, so the canvas
+  // kept its own two loose predicates and printed PARTIAL in both columns. The
+  // rule now has an owner; this call site is a CONSUMER of it, not its author.
   const partial = unresolved.filter(
-    (name) => (state[name] as MarketStateDimension).resolution === "PARTIAL",
+    (name) => dimensionStanding(state[name] as MarketStateDimension) === "MEASURED",
   );
   const missing = unresolved.filter((name) => !partial.includes(name));
 

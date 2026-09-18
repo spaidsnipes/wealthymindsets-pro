@@ -279,6 +279,99 @@ export function dimensionName(key: string): string {
   );
 }
 
+/**
+ * WHICH ABSENCE — the three buckets a dimension can be in, with ONE owner.
+ *
+ * FOUND FROM USE, production /charts?symbol=TSLA, 2026-09-18. One page, one
+ * instant, one instrument, three numbers for "how much does WM know?":
+ *
+ *   DECISION rail        "No chapter resolved (1/8 dimensions resolved)"
+ *   Canvas pill          "WAIT · 7 unresolved · 8 blockers · 1 cleared"
+ *   MarketCanvasPanel     RESOLVED (4)  ·  UNRESOLVED (7)
+ *
+ * 7 + 4 = 11, for eight dimensions. THREE of them — location, aggression and
+ * profile — were printed in BOTH adjacent columns of the same panel, in the
+ * same frame. The pill's own tooltip said *"Location is unresolved until a
+ * verified engine publishes evidence"* while the story sentence four lines
+ * below it said *"location, aggression, profile measured but not
+ * decision-grade."* Both were rendered from the same snapshot.
+ *
+ * WHY: `PARTIAL` fell through two different loose predicates and landed in both
+ * buckets.
+ *
+ *   chartMarketStatePublisher   `resolution !== "RESOLVED"` → RESOLVED excluded,
+ *                                PARTIAL swept into `state.unknowns`
+ *   selectMarketCanvas          `resolution !== "UNKNOWN"`  → UNKNOWN excluded,
+ *                                PARTIAL swept into `vm.resolved`
+ *
+ * Neither predicate is wrong on its own terms. They are complements of
+ * DIFFERENT halves of a THREE-valued type, so their union is everything and
+ * their intersection is PARTIAL. Two owners, one instrument, one moment,
+ * disagreeing about whether a measurement exists at all: canon Weakness #1.
+ *
+ * `/command-deck` even printed the coincidence that hid this and reasoned it
+ * away — "RESOLVED 4 of 8 … unknowns 4" — which is coherent only because that
+ * BTC frame happened to carry ZERO partials. 4 + 4 = 8 was luck, not a rule,
+ * the same way seven-of-eight one-word dimension keys was luck on the NAME axis.
+ *
+ * THE RULE ALREADY EXISTED AND HAD NO OWNER. `selectMarketStory.explainNoChapter`
+ * shipped this exact distinction under the heading "WHICH ABSENCE, NOT JUST THAT
+ * ONE EXISTS" — as a `const partial = unresolved.filter(...)` private to one
+ * function. A correct rule that no other surface can ask for is not a rule; it
+ * is one surface's good luck. Both call sites now ask HERE.
+ *
+ *   RESOLVED — WM committed to a value. Decision-grade.
+ *   MEASURED — evidence WAS published; it is not decision-grade. Saying
+ *              "unresolved" here sends the trader to wait for a measurement
+ *              that has already been taken.
+ *   MISSING  — nothing was measured. `value` is null by contract.
+ */
+export type DimensionStanding = "RESOLVED" | "MEASURED" | "MISSING";
+
+/**
+ * The standing of one dimension. TOTAL over `MarketStateResolution` by a
+ * switch, so a fourth resolution fails the BUILD here rather than silently
+ * picking a bucket — which is precisely how PARTIAL ended up in two of them.
+ *
+ * A missing dimension is MISSING, not a throw: a selector explaining a silence
+ * must not become a new source of noise.
+ */
+export function dimensionStanding(
+  dimension: { readonly resolution: MarketStateResolution } | null | undefined,
+): DimensionStanding {
+  if (!dimension) return "MISSING";
+  switch (dimension.resolution) {
+    case "RESOLVED":
+      return "RESOLVED";
+    case "PARTIAL":
+      return "MEASURED";
+    case "UNKNOWN":
+      return "MISSING";
+  }
+}
+
+/**
+ * Partition the eight canonical dimensions into the three standings.
+ *
+ * DISJOINT AND TOTAL BY CONSTRUCTION — every key is pushed exactly once, in
+ * canonical order, so no caller can produce a panel whose columns overlap. The
+ * arithmetic a surface prints beside these lists (`4 of 8`, `7 unresolved`) is
+ * therefore guaranteed to sum, which is the property that failed live.
+ */
+export function partitionDimensionStandings(
+  state: Partial<Record<MarketStateDimensionKey, { readonly resolution: MarketStateResolution }>>,
+): Record<DimensionStanding, readonly MarketStateDimensionKey[]> {
+  const out: Record<DimensionStanding, MarketStateDimensionKey[]> = {
+    RESOLVED: [],
+    MEASURED: [],
+    MISSING: [],
+  };
+  for (const key of MARKET_STATE_DIMENSION_KEYS) {
+    out[dimensionStanding(state[key])].push(key);
+  }
+  return out;
+}
+
 export type ContradictionDetectability =
   /** Fewer than two determinations exist. Nothing COULD have disagreed. */
   | "NOTHING_TO_COMPARE"

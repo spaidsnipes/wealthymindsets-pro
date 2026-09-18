@@ -13,7 +13,7 @@ import type {
   MarketStateDimensionKey,
 } from "./canonicalMarketState";
 // Value import: one owner for the dimension's name. See `unresolvedDimensions`.
-import { dimensionName } from "./canonicalMarketState";
+import { dimensionName, partitionDimensionStandings } from "./canonicalMarketState";
 import {
   canonicalAssetClass,
   canonicalInstrumentId,
@@ -553,9 +553,28 @@ export function createChartMarketStatePublication(
     ["profile", profile],
     ["orderFlow", orderFlow],
   ];
-  const unresolvedDimensions: readonly string[] = dimensionResolutions
-    .filter(([, d]) => d.resolution !== "RESOLVED")
-    .map(([key]) => dimensionName(key));
+  //
+  // AND THE SENTENCE IS ONLY TRUE OF ONE BUCKET.
+  //
+  // This filter was `resolution !== "RESOLVED"`, which sweeps PARTIAL in beside
+  // UNKNOWN and then tells the trader the same thing about both: *"…is
+  // unresolved until a verified engine publishes evidence."* For a PARTIAL
+  // dimension a verified engine HAS published evidence — it simply is not
+  // decision-grade — so the sentence sends the trader to wait for a measurement
+  // that has already been taken.
+  //
+  // It also made the two canvas columns overlap. `selectMarketCanvas` listed
+  // RESOLVED as `!== "UNKNOWN"`; this listed UNRESOLVED as `!== "RESOLVED"`.
+  // Complements of different halves of a three-valued type: their union is
+  // everything and their intersection is PARTIAL. MEASURED LIVE on /charts TSLA
+  // 2026-09-18 — location, aggression and profile printed in BOTH adjacent
+  // columns, RESOLVED (4) beside UNRESOLVED (7), for eight dimensions.
+  //
+  // `state.unknowns` now means what it is named: the dimensions nothing was
+  // measured for. The middle bucket is not lost — it is named, on the canvas,
+  // as `vm.measured`. See `DimensionStanding`.
+  const standings = partitionDimensionStandings(Object.fromEntries(dimensionResolutions));
+  const unresolvedDimensions: readonly string[] = standings.MISSING.map(dimensionName);
   const unknowns = unresolvedDimensions.map(
     name => `${name} is unresolved until a verified engine publishes evidence.`,
   );
