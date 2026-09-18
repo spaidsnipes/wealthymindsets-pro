@@ -20,6 +20,8 @@ import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDime
 import { deriveRegimeDimension } from "./deriveRegimeDimension";
 import { deriveProfileDimension } from "./deriveProfileDimension";
 import { deriveLocationDimension } from "./deriveLocationDimension";
+import { deriveAggressionDimension } from "./deriveAggressionDimension";
+import { selectAggressionResponse } from "./viewModels/selectAggressionResponse";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -278,6 +280,29 @@ export function createChartMarketStatePublication(
   // was measured rather than chosen by a settings panel.
   const location = deriveLocationDimension(profileEvidenceInput);
 
+  // AGGRESSION — the fifth repair of this one shape. Measured live on /charts
+  // 2026-09-17: the Passport read "Aggression unresolved — No verified evidence
+  // supplied at snapshot time." while the Founder's own Asset 03 scatter,
+  // shipped the same day, was plotting effort against response from
+  // `selectAggressionResponse` with a measured efficiency ratio.
+  //
+  // `windowBars: 30` matches ChartsDashboard exactly. Two surfaces reading the
+  // same bars over DIFFERENT windows would be the disagreement defect wearing
+  // a config value.
+  //
+  // The deriver may not name a side unless the owner published a
+  // NET_AGGRESSION axis — which requires every bar to have stated one. It does
+  // not on this surface today, so the honest output is the effort/response
+  // verdict at PARTIAL, carrying the owner's own sentence about why the side
+  // is absent.
+  const aggression = deriveAggressionDimension({
+    vm: selectAggressionResponse(profileBarsFrom(input.bars), { windowBars: 30 }),
+    source: typeof input.source === "string" ? input.source : null,
+    latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
+    capturedAt: input.capturedAt,
+    snapshotIdSeed: snapshotId,
+  });
+
   // ONE UNKNOWN PER UNRESOLVED DIMENSION.
   //
   // Real from-USE defect (2026-09-03): this previously emitted a single
@@ -292,7 +317,7 @@ export function createChartMarketStatePublication(
   const unresolvedDimensions: readonly string[] = [
     ...(direction.resolution === "RESOLVED" ? [] : ["Direction"]),
     ...(location.resolution === "RESOLVED" ? [] : ["Location"]),
-    "Aggression",
+    ...(aggression.resolution === "RESOLVED" ? [] : ["Aggression"]),
     ...(regime.resolution === "RESOLVED" ? [] : ["Regime"]),
     "Structure",
     ...(volatility.resolution === "RESOLVED" ? [] : ["Volatility"]),
@@ -346,7 +371,9 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
-      dimensions: { orderFlow, volatility, direction, regime, profile, location },
+      dimensions: {
+        orderFlow, volatility, direction, regime, profile, location, aggression,
+      },
     },
   };
 }
