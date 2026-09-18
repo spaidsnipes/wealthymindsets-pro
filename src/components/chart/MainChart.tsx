@@ -60,6 +60,7 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
+import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -8247,35 +8248,65 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           </button>
         </div>
 
-        {/* ── Data Window ──────────────────────────────── */}
-        {dataWindowOpen && dataWindow && (
-          <div style={{
-            position: "absolute", top: 8, left: 48, zIndex: 60,
-            background: "rgba(20,24,36,0.92)",
-            border: "1px solid #2F80ED",
-            borderRadius: 6, padding: "7px 10px",
-            pointerEvents: "none",
-            minWidth: 140,
-          }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#2F80ED", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
-              Data Window
+        {/* ── Data Window ──────────────────────────────────
+            MEASURED LIVE 2026-09-17, NQ1! 30m, ONE viewport: this panel read
+            "C 29558.25" while the OHLC strip six rows above read "C 29698.25"
+            and the header read 29698.25. One instrument, one instant, 140
+            points apart, both labelled C — canon Weakness #1 / moat #1 stated
+            as plainly as the product will ever state it. Neither number was
+            wrong; this panel reports the CROSSHAIR bar. What was missing was
+            WHICH BAR, and `dataWindow.time` was already in state and simply
+            never rendered. dataWindowBarScope owns the heading, the scope line
+            and every cell's hover, and composes selectChartCloseLabel so `C`
+            still has to earn the word on a bar that is still forming. */}
+        {dataWindowOpen && dataWindow && (() => {
+          const lastBar = barsRef.current[barsRef.current.length - 1];
+          const scope = dataWindowBarScope(
+            dataWindow.time,
+            timeframe,
+            !!lastBar && lastBar.time === dataWindow.time,
+            nowMs,
+          );
+          return (
+          <div
+            role="group"
+            aria-label={scope.spoken}
+            data-data-window-historical={scope.historical ? "true" : "false"}
+            style={{
+              position: "absolute", top: 8, left: 48, zIndex: 60,
+              background: "rgba(20,24,36,0.92)",
+              // The border is the one place this panel may shout. It is chosen
+              // from scope.historical, never from "a value is present".
+              border: `1px solid ${scope.historical ? "#F0B429" : "#2F80ED"}`,
+              borderRadius: 6, padding: "7px 10px",
+              pointerEvents: "none",
+              minWidth: 140,
+            }}>
+            <div title={scope.spoken} style={{ fontSize: 9, fontWeight: 700, color: scope.historical ? "#F0B429" : "#2F80ED", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {scope.heading}
+            </div>
+            {/* The scope line, not a hover. A panel whose scope is reachable
+                only by hovering is a panel that competes with the header. */}
+            <div style={{ fontSize: 8.5, fontWeight: 600, color: scope.historical ? "#F0B429" : "#62697d", marginBottom: 5, whiteSpace: "nowrap" }}>
+              {scope.subheading}
             </div>
             {[
-              { label: "O", value: dataWindow.o, color: "#E2E8FF" },
-              { label: "H", value: dataWindow.h, color: "#00C076" },
-              { label: "L", value: dataWindow.l, color: "#FF4D67" },
-              { label: "C", value: dataWindow.c, color: "#E2E8FF" },
-              { label: "V", value: dataWindow.v, color: "#8896BE", fmt: (v: number) => v.toLocaleString() },
+              { cell: scope.open,   value: dataWindow.o, color: "#E2E8FF" },
+              { cell: scope.high,   value: dataWindow.h, color: "#00C076" },
+              { cell: scope.low,    value: dataWindow.l, color: "#FF4D67" },
+              { cell: scope.close,  value: dataWindow.c, color: "#E2E8FF" },
+              { cell: scope.volume, value: dataWindow.v, color: "#8896BE", fmt: (v: number) => v.toLocaleString() },
             ].map(row => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
-                <span style={{ fontSize: 10, color: "#4A5580", fontFamily: "monospace" }}>{row.label}</span>
+              <div key={row.cell.label} title={row.cell.title} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
+                <span style={{ fontSize: 10, color: "#4A5580", fontFamily: "monospace" }}>{row.cell.label}</span>
                 <span style={{ fontSize: 10, color: row.color, fontFamily: "monospace" }}>
                   {row.fmt ? row.fmt(row.value) : row.value.toFixed(base < 10 ? 4 : 2)}
                 </span>
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
 
         {/* Toggle data window button */}
         <button
