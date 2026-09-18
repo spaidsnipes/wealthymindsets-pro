@@ -146,6 +146,24 @@ export interface ClarityStateVM {
    */
   readonly unownedComponents: readonly UnownedComponent[];
   /**
+   * Components this product DOES own, whose input this call site did not supply.
+   *
+   * Distinct from `unownedComponents` and the distinction matters to a reader:
+   * "no biometric sensor exists" is a permanent property of WM Pro, while
+   * "screen noise was not supplied here" is a property of THIS SCREEN and could
+   * be fixed by wiring it. Collapsing the two would tell a trader a fixable gap
+   * is permanent.
+   */
+  readonly unsuppliedComponents: readonly UnownedComponent[];
+  /**
+   * The size of the asked-for picture — the confidence DENOMINATOR.
+   *
+   * Published so no surface re-derives it. A denominator computed from the
+   * components that happened to arrive is the defect this field exists to make
+   * unreachable.
+   */
+  readonly askedFor: number;
+  /**
    * How much of the asked-for picture is actually measured, 0–100.
    *
    * This is the ONLY place an unowned input is allowed to have an effect, and
@@ -184,6 +202,70 @@ export const UNOWNED_CLARITY_COMPONENTS: readonly UnownedComponent[] = [
     reason: "not observable; Screen Noise is measured in its place and is not the same thing",
   },
 ] as const;
+
+/**
+ * ── THE THIRD STANDING THIS FILE FORGOT IT HAD ────────────────────────────
+ *
+ * A clarity component has THREE standings, not two:
+ *
+ *   MEASURED           an owner ran and produced a number
+ *   OWNED, NOT SUPPLIED  an owner EXISTS, but this call site had no input for it
+ *   NOT OWNED          nothing in this product can ever measure it
+ *
+ * The header of this file forbids one specific failure by name: "unavailable
+ * data is skipped, the average is taken over what remains, and the missing
+ * input silently makes the score BETTER than the evidence supports." It
+ * defended the THIRD standing against that — `UNOWNED_CLARITY_COMPONENTS` is a
+ * CONSTANT, so it is in the denominator whether or not anything arrived.
+ *
+ * It did not defend the SECOND. `asked` used to read
+ *
+ *     components.length + UNOWNED_CLARITY_COMPONENTS.length
+ *
+ * and `components` is the list of things that ARRIVED. So an owned component
+ * whose input was not supplied left the numerator AND the denominator together,
+ * and the ratio of what remained was reported as the ratio of the whole.
+ *
+ * Observed live on /command-deck, 2026-09-18 — the CLARITY tile read
+ *
+ *     CLOUDED · 33%
+ *     1 of 3 measured · 8 evidence nodes unpaid
+ *
+ * THREE. The Founder's Overview asks for FOUR, this module's own VM doc says
+ * "two of the four requested components have no source", and the one call site
+ * in the product passes `noise: null` — honestly, deliberately, with a comment
+ * explaining why. Its honesty was converted into a better score: 1/4 is 25%,
+ * and the screen said 33%.
+ *
+ * THE ASKED-FOR PICTURE DOES NOT CHANGE SIZE BECAUSE AN INPUT FAILED TO ARRIVE.
+ * The denominator is therefore a ROSTER, declared here, and never a count of
+ * what showed up.
+ *
+ * `absentReason` is what makes this a DISCLOSURE rather than just arithmetic —
+ * the same standard the unowned list is already held to. A gap that only moves
+ * a percentage is a gap the reader cannot name.
+ */
+export const OWNED_CLARITY_COMPONENTS = [
+  {
+    label: "Evidence Clarity",
+    source: "decisionPermissionCompiler.computeEvidenceDebt",
+    absentReason: "no evidence ledger has been evaluated, so the settled share is not known",
+  },
+  {
+    label: "Screen Quiet",
+    source: "selectSecondaryNoise",
+    absentReason: "this surface holds no materiality reading, so screen noise was not supplied",
+  },
+] as const;
+
+/**
+ * The size of the asked-for picture. CONSTANT by construction — that is the
+ * entire point. Exported so a surface can never re-derive it from what it
+ * happens to be holding (§24: a second CALLER of one owner is fine, a second
+ * ANSWER is not — the ribbon used to compute this denominator itself).
+ */
+export const CLARITY_ASKED_FOR: number =
+  OWNED_CLARITY_COMPONENTS.length + UNOWNED_CLARITY_COMPONENTS.length;
 
 export interface ClarityStateInput {
   readonly debt: EvidenceDebt | null;
@@ -279,8 +361,22 @@ export function selectClarityState(input: ClarityStateInput): ClarityStateVM {
   // and adding a real sensor raises it. Notice that `level` is already final at
   // this point: nothing below can change the verdict, only describe how much of
   // the asked-for picture stands behind it.
-  const asked = components.length + UNOWNED_CLARITY_COMPONENTS.length;
-  const confidence = pct(components.length, asked);
+  // THE DENOMINATOR IS A ROSTER, NOT A HEADCOUNT OF WHO TURNED UP.
+  //
+  // `CLARITY_ASKED_FOR` is constant, so an input that fails to arrive can only
+  // ever lower this ratio — which is the law stated at the top of the file,
+  // now actually enforced for the owned components too and not just the
+  // unowned ones.
+  const confidence = pct(components.length, CLARITY_ASKED_FOR);
+
+  // An owned component with no input is DISCLOSED, not dropped. Matching on
+  // label couples the roster to the pushes above; an enforcement test asserts
+  // that a fully-supplied call measures every roster entry, so renaming one
+  // without the other is a red build rather than a silent phantom gap.
+  const measuredLabels = new Set(components.map((c) => c.label));
+  const unsuppliedComponents: readonly UnownedComponent[] = OWNED_CLARITY_COMPONENTS.filter(
+    (c) => !measuredLabels.has(c.label),
+  ).map((c) => ({ label: c.label, reason: c.absentReason }));
 
   const value =
     level === "CLEAR"
@@ -298,8 +394,11 @@ export function selectClarityState(input: ClarityStateInput): ClarityStateVM {
     detail,
     components,
     unownedComponents: UNOWNED_CLARITY_COMPONENTS,
+    unsuppliedComponents,
+    askedFor: CLARITY_ASKED_FOR,
     confidence,
-    hasDisclosure: UNOWNED_CLARITY_COMPONENTS.length > 0,
+    hasDisclosure:
+      UNOWNED_CLARITY_COMPONENTS.length > 0 || unsuppliedComponents.length > 0,
   };
 }
 

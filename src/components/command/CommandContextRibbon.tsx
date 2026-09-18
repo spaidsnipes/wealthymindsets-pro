@@ -480,9 +480,16 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
         // that cannot be inferred from anywhere else on the screen. The level
         // is already legible in the value above it; "2 of 4 measured" is not.
         value: `${clarity.value} · ${clarity.confidence}%`,
-        detail: `${clarity.components.length} of ${
-          clarity.components.length + clarity.unownedComponents.length
-        } measured · ${clarity.detail}`,
+        // `clarity.askedFor` — NOT a denominator computed here.
+        //
+        // This line used to read `components.length + unownedComponents.length`,
+        // which is the count of what ARRIVED plus the count of what can never
+        // arrive. This tile passes `noise: null` (honestly, two comments up), so
+        // Screen Quiet left the numerator and the denominator together and the
+        // tile rendered "1 of 3 measured · 33%" for a picture the canon asks
+        // FOUR components of. The honesty of the null was paid back as a better
+        // score. The owner now publishes the roster size and nothing re-derives it.
+        detail: `${clarity.components.length} of ${clarity.askedFor} measured · ${clarity.detail}`,
         tone: (clarity.level === "CLEAR"
           ? "resolved"
           : clarity.level === "CONTESTED"

@@ -26,6 +26,8 @@ import {
   CLARITY_LEVELS,
   CLARITY_STATE_VERSION,
   UNOWNED_CLARITY_COMPONENTS,
+  OWNED_CLARITY_COMPONENTS,
+  CLARITY_ASKED_FOR,
   type ClarityLevel,
   type ClarityStateInput,
 } from "./selectClarityState";
@@ -233,6 +235,132 @@ describe("selectClarityState — shape", () => {
         expect(CLARITY_LEVELS).toContain(vm.level);
         expect(vm.detail.length, `${vm.level} shipped an empty detail`).toBeGreaterThan(0);
       }
+    }
+  });
+});
+
+/**
+ * THE ASKED-FOR PICTURE DOES NOT CHANGE SIZE BECAUSE AN INPUT FAILED TO ARRIVE.
+ *
+ * The suite above fenced the law for components NOBODY OWNS, and it worked:
+ * `UNOWNED_CLARITY_COMPONENTS` is a constant, so it sits in the denominator
+ * whether or not anything arrived.
+ *
+ * It did not fence the same law for components that ARE owned but whose input
+ * a given call site did not supply. `asked` was
+ *
+ *     components.length + UNOWNED_CLARITY_COMPONENTS.length
+ *
+ * and `components` is what ARRIVED. So Screen Quiet left the numerator and the
+ * denominator together, and the ratio of the remainder was published as the
+ * ratio of the whole.
+ *
+ * Observed live on /command-deck, 2026-09-18 — the CLARITY tile read
+ *
+ *     CLOUDED · 33%
+ *     1 of 3 measured · 8 evidence nodes unpaid
+ *
+ * THREE, for a picture the canon asks FOUR components of. The single call site
+ * in the product passes `noise: null` deliberately and says why in a comment;
+ * its honesty was paid back as a better score. 1/4 is 25%.
+ *
+ * WHY THE EXISTING SUITE MISSED IT — worth writing down, because the near-miss
+ * is the instructive part. `build()` defaults to `noise: QUIET`, so almost
+ * every case supplied both owned inputs. The one test that did drop it asserted
+ *
+ *     expect(withoutNoise.confidence).toBeLessThan(withNoise.confidence)
+ *
+ * and 33 IS less than 50. The confidence fell — just not as far as the loss
+ * warranted. A DIRECTIONAL assertion cannot see a denominator that moves with
+ * the numerator. These pin the denominator itself.
+ */
+describe("selectClarityState — the denominator is a roster, not a headcount", () => {
+  it("asks for the same number of components no matter what arrives", () => {
+    // The core property, stated with no arithmetic to argue with. Every
+    // combination of present/absent inputs, one constant denominator.
+    for (const debt of [PAID, UNPAID, FLAGGED, null]) {
+      for (const noise of [QUIET, null]) {
+        for (const rightOfWay of [ACTION, null]) {
+          const vm = selectClarityState({ debt, rightOfWay, noise });
+          expect(vm.askedFor, `debt=${!!debt} noise=${!!noise}`).toBe(CLARITY_ASKED_FOR);
+        }
+      }
+    }
+  });
+
+  it("withholding an owned input LOWERS confidence by the full component", () => {
+    // The exact live case. Two measured of four asked is 50; one of four is 25.
+    // The old code said 33 — the remainder's ratio wearing the whole's clothes.
+    const withNoise = build({ noise: QUIET });
+    const withoutNoise = build({ noise: null });
+    expect(withNoise.components).toHaveLength(2);
+    expect(withoutNoise.components).toHaveLength(1);
+    expect(withNoise.confidence).toBe(50);
+    expect(withoutNoise.confidence).toBe(25);
+  });
+
+  it("confidence is always measured / askedFor — the surface cannot be told two stories", () => {
+    // Relational, so a future roster change cannot silently decouple the
+    // published denominator from the one the percentage was computed with.
+    for (const debt of [PAID, UNPAID, null]) {
+      for (const noise of [QUIET, null]) {
+        const vm = selectClarityState({ debt, rightOfWay: ACTION, noise });
+        expect(vm.confidence).toBe(Math.round((vm.components.length / vm.askedFor) * 100));
+      }
+    }
+  });
+
+  it("names an owned-but-unsupplied component instead of dropping it", () => {
+    // Arithmetic alone is not a disclosure. A gap that only moves a percentage
+    // is a gap the reader cannot name — the same standard the unowned list is
+    // already held to.
+    const vm = build({ noise: null });
+    expect(vm.unsuppliedComponents.map((c) => c.label)).toEqual(["Screen Quiet"]);
+    expect(vm.unsuppliedComponents[0].reason.length).toBeGreaterThan(10);
+    expect(vm.hasDisclosure).toBe(true);
+  });
+
+  it("keeps 'not supplied here' distinct from 'no sensor exists'", () => {
+    // Collapsing the two would tell a trader a FIXABLE gap is permanent.
+    // Screen Quiet has an owner and could be wired; a heart rate cannot.
+    const vm = build({ noise: null });
+    const unsupplied = vm.unsuppliedComponents.map((c) => c.label);
+    const unowned = vm.unownedComponents.map((c) => c.label);
+    expect(unsupplied).toContain("Screen Quiet");
+    expect(unowned).not.toContain("Screen Quiet");
+    for (const label of unsupplied) expect(unowned).not.toContain(label);
+  });
+
+  it("reports nothing unsupplied when every owned input arrived", () => {
+    // The negative half. A disclosure that is ALWAYS present is decoration, and
+    // decoration is how a real disclosure stops being read.
+    expect(build({ debt: PAID, noise: QUIET }).unsuppliedComponents).toEqual([]);
+  });
+
+  it("the roster matches what the compiler actually measures", () => {
+    // COUPLING GUARD. `unsuppliedComponents` is derived by matching labels, so
+    // renaming a pushed label without renaming the roster entry would invent a
+    // permanent phantom gap that no input could ever close. With every input
+    // supplied, the measured set must be exactly the roster.
+    const vm = build({ debt: PAID, noise: QUIET });
+    expect(vm.components.map((c) => c.label).sort()).toEqual(
+      OWNED_CLARITY_COMPONENTS.map((c) => c.label).sort(),
+    );
+    // And each roster entry carries the reason it will be disclosed WITH.
+    for (const c of OWNED_CLARITY_COMPONENTS) {
+      expect(c.absentReason.length, `${c.label} has no absentReason`).toBeGreaterThan(10);
+    }
+  });
+
+  it("an absent input still cannot raise the level — the original law holds", () => {
+    // Re-asserted against the new arithmetic. Fixing a denominator must not
+    // have opened the door the whole module exists to hold shut.
+    const rank = (l: ClarityLevel) => CLARITY_LEVELS.indexOf(l);
+    for (const debt of [PAID, UNPAID, FLAGGED]) {
+      const full = selectClarityState({ debt, rightOfWay: ACTION, noise: QUIET });
+      const starved = selectClarityState({ debt, rightOfWay: ACTION, noise: null });
+      expect(rank(starved.level)).toBeLessThanOrEqual(rank(full.level));
+      expect(starved.confidence).toBeLessThan(full.confidence);
     }
   });
 });
