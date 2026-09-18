@@ -37,6 +37,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   aggressorSide,
+  bubbleClaimMagnitude,
   describeBubbleClaim,
   formatBubbleExact,
   formatBubblePrice,
@@ -321,5 +322,102 @@ describe("MainChart delegates the claim rather than writing its own", () => {
       expect(spawn).toMatch(/bid:\s*lv\.bid/);
       expect(spawn).toMatch(/ask:\s*lv\.ask/);
     }
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────
+/**
+ * ── 2026-09-18: THE WORDS WERE FIXED AND THE PIXELS WERE NOT ───────────────
+ *
+ * Everything above this line is about the SENTENCE on a bubble. It shipped,
+ * and MainChart adopted it — while continuing to size the big-trade disc by
+ * `lv.total`, the two-sided total this very module had just finished removing
+ * from under the word BUY.
+ *
+ * So one bubble, at one instant, made two different magnitude claims: the
+ * tooltip said 7,000 and the area drew 12,400. Weakness #1 inside a single
+ * glyph, and it INVERTED the ranking of the printed number (see below).
+ *
+ * The delta path was already correct — but by coincidence, since |ask − bid|
+ * happens to be both its size input and its claim. These tests make the
+ * agreement a LAW rather than an accident, and prove it against
+ * `describeBubbleClaim` itself instead of against a re-typed copy of its rule.
+ */
+describe("a bubble's SIZE and its SENTENCE claim the same number", () => {
+  const cases = [
+    { bid: 5_400, ask: 7_000 },
+    { bid: 0, ask: 10_000 },
+    { bid: 11_000, ask: 250 },
+    { bid: 0.0431, ask: 0.0182 },
+    { bid: 4, ask: 4 },
+  ];
+
+  it("bubbleClaimMagnitude equals |describeBubbleClaim().value| for both kinds", () => {
+    for (const kind of ["big-trade", "delta"] as const) {
+      for (const { bid, ask } of cases) {
+        const claim = describeBubbleClaim({ kind, bid, ask, price: 150.01 })!;
+        expect(claim, `no claim for ${kind} ${bid}/${ask}`).not.toBeNull();
+        expect(bubbleClaimMagnitude(kind, bid, ask)).toBeCloseTo(Math.abs(claim.value), 10);
+      }
+    }
+  });
+
+  it("MEASURED: sizing by the two-sided total inverts the printed ranking", () => {
+    // Two levels on one bar. A prints the larger number; B traded more in
+    // total because it was churned back and forth.
+    const A = { bid: 0, ask: 10_000 };
+    const B = { bid: 5_000, ask: 6_000 };
+
+    const headlineA = Math.abs(describeBubbleClaim({ kind: "big-trade", ...A, price: 1 })!.value);
+    const headlineB = Math.abs(describeBubbleClaim({ kind: "big-trade", ...B, price: 1 })!.value);
+    expect(headlineA).toBeGreaterThan(headlineB); // 10,000 > 6,000
+
+    const oldSizeA = A.bid + A.ask; // 10,000
+    const oldSizeB = B.bid + B.ask; // 11,000
+    expect(oldSizeB).toBeGreaterThan(oldSizeA); // the disc said the opposite
+
+    // The repair restores the ordering the tooltip states.
+    expect(bubbleClaimMagnitude("big-trade", A.bid, A.ask))
+      .toBeGreaterThan(bubbleClaimMagnitude("big-trade", B.bid, B.ask));
+  });
+
+  it("is a magnitude, never signed — a radius has no direction", () => {
+    for (const kind of ["big-trade", "delta"] as const) {
+      for (const { bid, ask } of cases) {
+        expect(bubbleClaimMagnitude(kind, bid, ask)).toBeGreaterThanOrEqual(0);
+      }
+    }
+    // A sell-dominant level is a positive magnitude, and the side is not lost:
+    // it is `aggressorSide`'s answer, which colour reads.
+    expect(bubbleClaimMagnitude("big-trade", 11_000, 250)).toBe(11_000);
+    expect(aggressorSide(11_000, 250)).toBe("sell");
+  });
+
+  it("garbage in does not become a confident radius", () => {
+    expect(bubbleClaimMagnitude("delta", Number.NaN, 5)).toBe(5);
+    expect(bubbleClaimMagnitude("big-trade", -3, Number.POSITIVE_INFINITY)).toBe(0);
+  });
+
+  it("BAN: the big-trade renderer no longer sizes by the two-sided total", () => {
+    const sizing = stripComments(
+      region(chartSrc(), "const barPeak = ranked.reduce(", "bubblesRef.current.push({", 200),
+    );
+    // Both the numerator and the peak must come from the claim owner. Taking
+    // the peak over a different quantity than the numerator is the same defect
+    // one level up, and it would be invisible on a single bubble.
+    expect(sizing).toMatch(/bigTradeBubbleRadius\(\s*bubbleClaimMagnitude\(/);
+    expect(sizing).toMatch(/Math\.max\(m,\s*bubbleClaimMagnitude\(/);
+    expect(sizing).not.toMatch(/bigTradeBubbleRadius\([^)]*lv\.total/);
+    expect(sizing).not.toMatch(/Math\.max\(m,\s*lv\.total\)/);
+  });
+
+  it("BAN: the delta renderer sizes through the owner too", () => {
+    const sizing = stripComments(
+      region(chartSrc(), "const maxAbsD = Math.max(", 'kind: "delta"', 200),
+    );
+    expect(sizing).toMatch(/bubbleClaimMagnitude\(\s*"delta"/);
+    // The old inline form. Equal in value today, and that is exactly why it
+    // could drift without anything going red.
+    expect(sizing).not.toMatch(/absDelta\s*=\s*Math\.abs\(lv\.delta\)/);
   });
 });

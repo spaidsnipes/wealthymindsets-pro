@@ -108,6 +108,49 @@ export function aggressorSide(bid: number, ask: number): "buy" | "sell" {
 }
 
 /**
+ * THE NUMBER A BUBBLE'S SIZE MUST ENCODE — the same one its headline states.
+ *
+ * ── FOUND FROM USE, 2026-09-18, reading the big-trade path ────────────────
+ *
+ * This module fixed the WORDS on a bubble and left the PIXELS saying the old
+ * thing. `describeBubbleClaim` decided that a big trade's headline is the
+ * DOMINANT side's own volume — "not the level's two-sided total, which is what
+ * used to sit under the word BUY" — and MainChart adopted that sentence. It
+ * kept sizing the disc by `lv.total`, the two-sided total this module had just
+ * finished rejecting.
+ *
+ * So one bubble, at one instant, made two different magnitude claims: the
+ * tooltip said one number and the area drew another. Canon Weakness #1, inside
+ * a single glyph.
+ *
+ * It is not merely a scale offset. It INVERTS the ranking of the very figure
+ * it prints, which is measurable in two levels on one bar:
+ *
+ *   A   ask 10,000  bid      0   headline +10,000   total 10,000
+ *   B   ask  6,000  bid  5,000   headline  +6,000   total 11,000
+ *
+ * B painted the LARGER disc while printing the SMALLER number. A trader
+ * scanning size — which is the entire reason bubbles exist rather than a table
+ * — read the two-sided churn of B as the louder event, and had to open a
+ * tooltip to find out the picture was backwards.
+ *
+ * The delta path was already correct by coincidence (|ask − bid| is both its
+ * size input and its claim), and a coincidence is not a guarantee. Both sizing
+ * call sites now ask HERE, and the test proves this function agrees with
+ * `describeBubbleClaim` for every kind rather than re-typing its rule.
+ *
+ * Returns a MAGNITUDE, never signed: a radius has no direction. Side is
+ * `aggressorSide`'s answer and colour's job.
+ */
+export function bubbleClaimMagnitude(kind: BubbleKind, bid: number, ask: number): number {
+  const b = clean(bid);
+  const a = clean(ask);
+  // delta: the NET, which is what the zone's headline and colour both encode.
+  // big-trade: the dominant side's own volume, exactly as the headline reads.
+  return kind === "delta" ? Math.abs(a - b) : Math.max(a, b);
+}
+
+/**
  * Volume magnitudes, in the chart's existing M/k house style.
  *
  * Sub-1 values keep real precision: crypto zones are legitimately 0.0431 BTC
