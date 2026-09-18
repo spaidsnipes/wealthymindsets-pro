@@ -142,9 +142,24 @@ export function dataWindowBarScope(
         `not closed yet.`
       : `These are the values of the ${barName}, which is the latest bar and has closed.`;
 
-  const cell = (label: string, quantity: string): DataWindowCell => ({
+  // `note` exists because the first shipped version of this file read, LIVE:
+  //
+  //   "Volume — contracts, shares or coins traded, never currency of the
+  //    30m bar beginning Sep 14, 00:00."
+  //
+  // The unit qualifier ran straight into the bar clause and produced "never
+  // currency OF THE 30m bar" — which scopes the currency refusal to one bar,
+  // saying something the module never meant and does not believe. Same lesson
+  // as `selectEvidenceDeltaChip`'s denominator: A QUALIFIER IS AS
+  // LOAD-BEARING AS THE NUMBER, and it has to survive the sentence it lands
+  // in. Anything that is not a noun phrase now gets its own sentence, AFTER
+  // the bar has been named.
+  const cell = (label: string, quantity: string, note?: string): DataWindowCell => ({
     label,
-    title: `${quantity} of the ${barName}. ${scopeSentence}`,
+    title:
+      `${quantity} of the ${barName}.` +
+      (note ? ` ${note}` : "") +
+      ` ${scopeSentence}`,
   });
 
   return {
@@ -161,6 +176,10 @@ export function dataWindowBarScope(
       label: closeWord.label,
       title: `${closeWord.title} ${scopeSentence}`,
     },
-    volume: cell("V", "Volume — contracts, shares or coins traded, never currency"),
+    volume: cell(
+      "V",
+      "Volume — the quantity traded",
+      "Measured in contracts, shares or coins; never currency.",
+    ),
   };
 }

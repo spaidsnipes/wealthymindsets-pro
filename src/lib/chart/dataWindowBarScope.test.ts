@@ -76,6 +76,30 @@ describe("dataWindowBarScope — two numbers for one instrument, both wearing C"
     expect(s.volume.title).toMatch(/never currency/i);
   });
 
+  it("× THE QUALIFIER MUST NOT BE SCOPED TO ONE BAR", () => {
+    /**
+     * The first shipped version of this module rendered, LIVE:
+     *
+     *   "Volume — contracts, shares or coins traded, never currency of the
+     *    30m bar beginning Sep 14, 00:00."
+     *
+     * The unit qualifier ran straight into the bar clause, producing "never
+     * currency OF THE 30m bar" — scoping a universal refusal to a single bar,
+     * which is not what this module believes. Any qualifier that is not a
+     * noun phrase must land in its OWN sentence, after the bar is named.
+     */
+    const s = dataWindowBarScope(BAR_OPEN_S, "30m", false, TWO_HOURS_LATER, UTC);
+    expect(s.volume.title).not.toMatch(/never currency of the/i);
+    // And the refusal must still be present, in a sentence of its own: the
+    // fix may not be achieved by simply deleting the qualifier.
+    const sentences = s.volume.title.split(". ");
+    const refusal = sentences.find((x) => /never currency/i.test(x));
+    expect(refusal, "the currency refusal was deleted rather than re-homed").toBeTruthy();
+    expect(refusal, "the refusal is still sharing a sentence with the bar").not.toMatch(
+      /30m bar/,
+    );
+  });
+
   it("the scope is SPOKEN, not hover-only", () => {
     const s = dataWindowBarScope(BAR_OPEN_S, "30m", false, TWO_HOURS_LATER, UTC);
     expect(s.spoken).toMatch(/NOT the latest bar/);
