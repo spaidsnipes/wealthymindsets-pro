@@ -213,6 +213,9 @@ describe("ProviderWireStrip touch truth surface", () => {
 describe("witnessedProviderWireView (canon Weakness #1, third panel)", () => {
   const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
   const notReceiving = { source: "alpaca", tone: "OFFLINE", label: "Not receiving", detail: "refresh token missing" } as const;
+  // The only absence a witness may contradict: the branch that KNOWS it
+  // measured nothing at all. See `ProviderWireView.evidenceless`.
+  const unknown = { source: "alpaca", tone: "OFFLINE", label: "Status unavailable", detail: "The canonical capability probe did not return.", evidenceless: true } as const;
   const witness = { source: "alpaca", quotePresent: true, barsPresent: true };
 
   it("PRECONDITION: the matrix ladder really does end at Not receiving", () => {
@@ -224,23 +227,63 @@ describe("witnessedProviderWireView (canon Weakness #1, third panel)", () => {
     expect(matrixProviderWireView(matrix, "alpaca")).toMatchObject({ tone: "OFFLINE", label: "Not receiving" });
   });
 
-  it("a provider sourcing a drawn observation may not be called Not receiving", () => {
-    const wire = witnessedProviderWireView(notReceiving, witness);
+  it("a provider sourcing a drawn observation may not be called Status unavailable", () => {
+    const wire = witnessedProviderWireView(unknown, witness);
     expect(wire.label).toBe("Observed · not certified");
     expect(wire.tone).toBe("LIMITED");
   });
 
   it("keeps the witnessed reason rather than deleting it", () => {
-    // The matrix was not wrong about what it measured. Losing "refresh token
-    // missing" would trade one silent inaccuracy for another.
-    expect(witnessedProviderWireView(notReceiving, witness).detail).toContain("refresh token missing");
-    expect(witnessedProviderWireView(notReceiving, witness).detail).toContain("alpaca");
+    // The owner was not wrong about what it measured. Losing the stated reason
+    // would trade one silent inaccuracy for another.
+    expect(witnessedProviderWireView(unknown, witness).detail).toContain("did not return");
+    expect(witnessedProviderWireView(unknown, witness).detail).toContain("alpaca");
   });
 
   it("bars alone are enough — a closed session serves no quote and hundreds of bars", () => {
-    const barsOnly = witnessedProviderWireView(notReceiving, { source: "alpaca", quotePresent: false, barsPresent: true });
+    const barsOnly = witnessedProviderWireView(unknown, { source: "alpaca", quotePresent: false, barsPresent: true });
     expect(barsOnly.label).toBe("Observed · not certified");
     expect(barsOnly.detail).toContain("drawn bars");
+  });
+
+  it("THE CORRECTION: a MEASURED absence survives the witness — only an assumed one yields", () => {
+    // MEASURED LIVE 2026-09-18 on /command-deck TSLA, by going BACK to
+    // production to observe the previous fix rather than trusting it worked.
+    // Alpaca's rejection note read: "...its provider timestamp was 43549376 ms
+    // old; stale evidence was not exposed as current." 12.1 hours — a
+    // MEASUREMENT, not a default.
+    //
+    // The first draft of this witness gated on a set of LABEL STRINGS that
+    // included "Not receiving". That label is only ever produced when a
+    // rejected capability row EXISTS, so the draft would have promoted a
+    // staleness refusal to "Observed · not certified" — laundering an earned
+    // verdict. The over-correction guards below covered BLOCKED and LIVE; they
+    // did not cover an OFFLINE verdict that had been EARNED. This one does.
+    expect(witnessedProviderWireView(notReceiving, witness)).toEqual(notReceiving);
+  });
+
+  it("the live staleness wording is classified as Stale data, not flattened to Not receiving", () => {
+    // Root cause #1 of the same live reading: the classifier matched PHRASING
+    // ("stale prints"/"stale data"/"print … old") rather than MEANING, so the
+    // synonym "stale evidence" and the unit-carrying "43549376 ms old" both
+    // fell through, and a SPECIFIC verdict was flattened into a generic one.
+    // Rewording an upstream note must not silently downgrade its verdict.
+    const matrix = buildAthosCapabilityMatrix([
+      {
+        certification: certifySource("alpaca", [{
+          capability: "PRICE",
+          status: "NOT_IMPLEMENTED",
+          note: "Alpaca returned a valid TSLA IEX trade, but its provider timestamp was 43549376 ms old; stale evidence was not exposed as current.",
+        }]),
+        providerTier: "CERTIFIED_NEW",
+      },
+    ], session);
+    const wire = matrixProviderWireView(matrix, "alpaca");
+    expect(wire.label).toBe("Stale data");
+    expect(wire.tone).toBe("LIMITED");
+    expect(wire.detail).toContain("43549376 ms old");
+    // and being a finding, no witness may overrule it
+    expect(witnessedProviderWireView(wire, witness)).toEqual(wire);
   });
 
   it("NOT an over-correction: an earned BLOCKED verdict survives the witness", () => {
@@ -259,13 +302,13 @@ describe("witnessedProviderWireView (canon Weakness #1, third panel)", () => {
   it("speaks only for the provider it witnessed", () => {
     // The bug this guards against is a witness for alpaca silencing an honest
     // absence on tastytrade, which would be a far worse lie than the original.
-    const tasty = { ...notReceiving, source: "tastytrade" } as const;
+    const tasty = { ...unknown, source: "tastytrade" } as const;
     expect(witnessedProviderWireView(tasty, witness)).toEqual(tasty);
   });
 
   it("an absent or empty witness changes nothing", () => {
-    expect(witnessedProviderWireView(notReceiving, null)).toEqual(notReceiving);
-    expect(witnessedProviderWireView(notReceiving, { source: "alpaca", quotePresent: false, barsPresent: false })).toEqual(notReceiving);
+    expect(witnessedProviderWireView(unknown, null)).toEqual(unknown);
+    expect(witnessedProviderWireView(unknown, { source: "alpaca", quotePresent: false, barsPresent: false })).toEqual(unknown);
   });
 
   it("selectProviderWires applies the witness AFTER the readiness override", () => {

@@ -18,6 +18,19 @@ export interface ProviderWireView {
   readonly tone: WireTone;
   readonly label: string;
   readonly detail: string;
+  /**
+   * TRUE only where the producing branch KNOWS it obtained no measurement at
+   * all — no accepted row, no rejected row, nothing returned. This is the
+   * §14.1 distinction made machine-readable: an absence that is a DEFAULT
+   * (nothing was measured) versus an absence that is a FINDING (something was
+   * measured and refused). Only the former may be contradicted by a witness.
+   *
+   * It is a FIELD rather than a label test because labels are display strings
+   * and reusing a display string as control flow is the exact defect this file
+   * already records at `receiptAffirmsTicks` — renaming a chip would silently
+   * change which claims a witness is allowed to overrule.
+   */
+  readonly evidenceless?: boolean;
 }
 
 type BrokerStatus = {
@@ -214,7 +227,7 @@ export function alpacaReadinessWireView(payload: ReadinessPayload | null | undef
       detail: missing.length > 0 ? `Missing required variables: ${missing.join(", ")}.` : "No Alpaca runtime readiness receipt returned.",
     };
   }
-  return { source: "alpaca", tone: "OFFLINE", label: "Status unavailable", detail: "The readiness endpoint returned no Alpaca lanes." };
+  return { source: "alpaca", tone: "OFFLINE", label: "Status unavailable", detail: "The readiness endpoint returned no Alpaca lanes.", evidenceless: true };
 }
 
 export function providerConfigReadinessWireView(
@@ -303,7 +316,11 @@ export function providerWireView(source: SourceCertification): ProviderWireView 
   if (blockedAuth) {
     return { source: source.source, tone: "BLOCKED", label: "Authentication blocked", detail: blockedAuth.note || blockedAuth.capability };
   }
-  return { source: source.source, tone: "OFFLINE", label: "Not runtime-wired", detail: source.rows.find((row) => row.note)?.note || "No capability evidence returned." };
+  // A note on a row IS a measurement — the provider said something about why.
+  // Only the no-note arm is evidenceless, and it says so in its own detail.
+  const noted = source.rows.find((row) => row.note)?.note;
+  if (noted) return { source: source.source, tone: "OFFLINE", label: "Not runtime-wired", detail: noted };
+  return { source: source.source, tone: "OFFLINE", label: "Not runtime-wired", detail: "No capability evidence returned.", evidenceless: true };
 }
 
 /**
@@ -374,7 +391,19 @@ export function matrixProviderWireView(
   if (/\bno (?:valid,? )?(?:symbol-matched )?(?:tick )?(?:observations|events|prints)\b/i.test(detail)) {
     return { source, tone: "LIMITED", label: "No events", detail };
   }
-  if (/\bstale (?:prints?|data)|prints? .* old\b/i.test(detail)) {
+  // MEASURED LIVE 2026-09-18, /command-deck TSLA. Alpaca's rejection note read:
+  //
+  //   "Alpaca returned a valid TSLA IEX trade, but its provider timestamp was
+  //    43549376 ms old; stale evidence was not exposed as current."
+  //
+  // 43,549,376 ms is 12.1 HOURS. That is a staleness refusal, measured and
+  // worded precisely — and this classifier did not recognise it, because the
+  // pattern demanded the literal words "stale prints"/"stale data" or the word
+  // "print" next to "old". The synonym "stale evidence" and the unit-carrying
+  // "ms old" both fell through, and a SPECIFIC finding was flattened into the
+  // generic "Not receiving" below. Matching on PHRASING rather than on MEANING
+  // means any rewording of an upstream note silently downgrades its verdict.
+  if (/\bstale\b|\b\d+\s*(?:ms|s|m|h)\s+old\b|prints? .* old\b/i.test(detail)) {
     return { source, tone: "LIMITED", label: "Stale data", detail };
   }
   // A provider-denied request is more specific than the generic absence of
@@ -384,7 +413,12 @@ export function matrixProviderWireView(
   if (/HTTP 403/i.test(detail) && /not proven/i.test(detail)) {
     return { source, tone: "BLOCKED", label: "Access unproven", detail };
   }
-  return { source, tone: "OFFLINE", label: rejected.length > 0 ? "Not receiving" : "Status unavailable", detail };
+  // `rejected.length > 0` means the provider WAS measured and its observation
+  // was refused for a reason no branch above recognised. That is a finding.
+  // `rejected.length === 0` means nothing came back at all — that, and only
+  // that, is the evidenceless default a witness may contradict.
+  if (rejected.length > 0) return { source, tone: "OFFLINE", label: "Not receiving", detail };
+  return { source, tone: "OFFLINE", label: "Status unavailable", detail, evidenceless: true };
 }
 
 export const PROVIDER_SOURCES = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
@@ -402,18 +436,6 @@ export interface SourcedObservation {
   /** Bars are drawn, which a closed session serves when no quote does. */
   readonly barsPresent: boolean;
 }
-
-/**
- * Labels that assert a provider delivered NOTHING. These are the only claims a
- * witnessed observation is allowed to contradict — an earned BLOCKED verdict,
- * a rate limit, a stale print, or a certified LIVE row all survive untouched.
- */
-const ABSENCE_LABELS = new Set([
-  "Not receiving",
-  "Status unavailable",
-  "Not runtime-wired",
-  "Not configured",
-]);
 
 /**
  * §14.1 — AN ABSENCE MUST BE A FINDING, NOT A DEFAULT.
@@ -434,6 +456,34 @@ const ABSENCE_LABELS = new Set([
  * DELIVERY that the matrix never measured. The absence was a DEFAULT reached by
  * exhausting a ladder, not a FINDING about the wire.
  *
+ * ── CORRECTION, 2026-09-18, LATER THE SAME DAY, AND IT MATTERS ──────────────
+ *
+ * The paragraph above is kept because it is the reasoning that shipped, and it
+ * was WRONG IN ITS DECISIVE DETAIL. Going back to production to observe the fix
+ * — rather than trusting that it worked — turned up alpaca's actual rejection
+ * note, which had never been read:
+ *
+ *   "Alpaca returned a valid TSLA IEX trade, but its provider timestamp was
+ *    43549376 ms old; stale evidence was not exposed as current."
+ *
+ * That is 12.1 HOURS, and it is a MEASUREMENT. `Not receiving` was never the
+ * evidenceless default I described; it is only ever produced when a rejected
+ * capability row exists, so it always rests on something the system measured.
+ * Two distinct defects were hiding under one label:
+ *
+ *   1. the staleness classifier above matched PHRASING ("stale prints/data",
+ *      "print … old") rather than MEANING, so "stale evidence … ms old" fell
+ *      through and a specific verdict was flattened into a generic one;
+ *   2. this witness, gated on a set of LABEL STRINGS, would then have promoted
+ *      that flattened staleness refusal to "Observed · not certified" — the
+ *      precise over-correction its own guards were written to prevent. The
+ *      guards covered BLOCKED and LIVE. They did not cover an OFFLINE verdict
+ *      that had been EARNED.
+ *
+ * So the gate is no longer a label set. It is `wire.evidenceless`, set only by
+ * the branches that know nothing came back at all. A witness may contradict an
+ * absence that was assumed. It may never contradict an absence that was found.
+ *
  * The repair is NOT to soften the label into optimism. It is to let the owner
  * see the evidence already on its own page: a provider that is sourcing a drawn
  * observation is receiving, whatever the matrix can certify about it. The
@@ -446,7 +496,9 @@ export function witnessedProviderWireView(
 ): ProviderWireView {
   if (!observation || observation.source !== wire.source) return wire;
   if (!observation.quotePresent && !observation.barsPresent) return wire;
-  if (!ABSENCE_LABELS.has(wire.label)) return wire;
+  // THE WHOLE CORRECTION IS THIS LINE. Not "does the label sound like nothing
+  // arrived", but "does the producing branch know it measured nothing".
+  if (wire.evidenceless !== true) return wire;
   const arrived = observation.quotePresent
     ? observation.barsPresent ? "a quote and drawn bars" : "a quote"
     : "drawn bars";
@@ -495,16 +547,16 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
   }
 
   const marketWires: ProviderWireView[] = failures.has("market") && !matrix
-    ? PROVIDER_SOURCES.map((source) => ({ source, tone: "OFFLINE" as const, label: "Status unavailable", detail: "The canonical capability probe did not return." }))
+    ? PROVIDER_SOURCES.map((source) => ({ source, tone: "OFFLINE" as const, label: "Status unavailable", detail: "The canonical capability probe did not return.", evidenceless: true }))
     : PROVIDER_SOURCES.map((source) => matrixProviderWireView(matrix, source));
   const moomooWire = failures.has("moomoo") && !moomooTicks
-    ? { source: "moomoo", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated tick receipt did not return." }
+    ? { source: "moomoo", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated tick receipt did not return.", evidenceless: true }
     : moomooTicks ? moomooTickWireView(moomooTicks) : null;
   const longbridgeWire = failures.has("longbridge") && !longbridgeTicks
-    ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return." }
+    ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return.", evidenceless: true }
     : longbridgeTicks ? longbridgeTickWireView(longbridgeTicks) : null;
   const webullWire = failures.has("webull") && !webullTicks
-    ? { source: "webull", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Webull tick receipt did not return." }
+    ? { source: "webull", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Webull tick receipt did not return.", evidenceless: true }
     : webullTicks ? webullTickWireView(webullTicks) : null;
   const readinessOverrides = {
     tastytrade: providerConfigReadinessWireView(readiness, "tastytrade", ["tastytrade"]),
