@@ -995,6 +995,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       headline: chartMarketCanvas.headline,
       counts: [
         { testId: "equipment-count-resolved", label: `${chartMarketCanvas.resolved.length} resolved` },
+        // The middle bucket, on the equipment rail. This row named RESOLVED and
+        // MISSING only, so on the live TSLA frame it read "1 resolved · 4
+        // missing" — five of eight, with `location`, `aggression` and `profile`
+        // absent from the rail entirely while the panel one depth below listed
+        // them under "Measured, not decision-grade". A rail that omits a bucket
+        // is the same lie as a predicate that mis-sorts one.
+        ...(chartMarketCanvas.measured.length > 0
+          ? [
+              {
+                testId: "equipment-count-measured",
+                label: `${chartMarketCanvas.measured.length} measured`,
+              },
+            ]
+          : []),
         { testId: "equipment-count-missing", label: `${chartMarketCanvas.missing.length} missing` },
         { testId: "equipment-count-blockers", label: `${chartMarketCanvas.blockerCount} blocking` },
       ],

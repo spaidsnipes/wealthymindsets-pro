@@ -783,6 +783,19 @@ function CommandDeckInner() {
       headline: marketCanvas.headline,
       counts: [
         { testId: "equipment-count-resolved", label: `${marketCanvas.resolved.length} resolved` },
+        // The middle bucket, on the equipment rail. This row named RESOLVED and
+        // MISSING only, so the two counts summed to eight ONLY on a frame with
+        // zero partials — the same coincidence that let the deck print
+        // "RESOLVED 4 of 8 … unknowns 4" and look correct. See
+        // partitionDimensionStandings: the three buckets are disjoint and total.
+        ...(marketCanvas.measured.length > 0
+          ? [
+              {
+                testId: "equipment-count-measured",
+                label: `${marketCanvas.measured.length} measured`,
+              },
+            ]
+          : []),
         { testId: "equipment-count-missing", label: `${marketCanvas.missing.length} missing` },
         { testId: "equipment-count-blockers", label: `${marketCanvas.blockerCount} blocking` },
       ],

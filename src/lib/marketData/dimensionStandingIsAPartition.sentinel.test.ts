@@ -169,6 +169,23 @@ describe("the former authors of the buckets now ask for them", () => {
     expect(src).toContain("formingCount");
   });
 
+  /**
+   * A RAIL THAT OMITS A BUCKET IS THE SAME LIE AS A PREDICATE THAT MIS-SORTS
+   * ONE. Both Market-reality equipment rails counted `resolved` and `missing`
+   * and nothing else, so on the live TSLA frame the rail read "1 resolved · 4
+   * missing" — five of eight — while the panel one depth below listed the other
+   * three under "Measured, not decision-grade".
+   */
+  it.each([
+    "src/app/command-deck/page.tsx",
+    "src/components/chart/ChartsDashboard.tsx",
+  ])("%s equipment rail counts all three buckets", (rel) => {
+    const src = read(rel);
+    expect(src).toContain("equipment-count-resolved");
+    expect(src).toContain("equipment-count-measured");
+    expect(src).toContain("equipment-count-missing");
+  });
+
   it("the passport publishes three counts that sum to the total", () => {
     const src = read("src/lib/marketData/viewModels/selectMarketObjectPassport.ts");
     for (const bucket of ["RESOLVED", "FORMING", "UNRESOLVED"] as const) {
