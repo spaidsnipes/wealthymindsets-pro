@@ -1092,9 +1092,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource);
   /* Ranked and phrased OUTSIDE the descriptor: the memo may only ASSEMBLE what
      the room already compiled, never compile a second opinion inside itself. */
+  /* The room hands down WHICH MARKET this is and WHAT THE CLOCK HAS PROVEN.
+     Without them the NO TAPE sentence could only recite the general rule, and
+     on a TSLA chart half of that rule was about crypto. Both facts already sit
+     in this component; the selector derives neither. */
   const chartOrderFlowStanding = React.useMemo(
-    () => selectOrderFlowStanding(chartOrderFlowReadings),
-    [chartOrderFlowReadings],
+    () => selectOrderFlowStanding(chartOrderFlowReadings, { symbol, sessionClosed: sessionOpen }),
+    [chartOrderFlowReadings, symbol, sessionOpen],
   );
   const chartOrderFlowEquipment = React.useMemo(
     () => ({

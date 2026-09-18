@@ -33,8 +33,79 @@ describe("selectOrderFlowStanding", () => {
     expect(out.verdict).toBe("NO TAPE");
     expect(out.silent).toBe(true);
     expect(out.measuredCount).toBe(0);
-    // The headline must send the trader somewhere real, not just say "none".
-    expect(out.headline.toLowerCase()).toContain("crypto");
+    // RE-STATED. This asserted the literal word "crypto", which welded the
+    // INTENT ("send the trader somewhere real") to ONE spelling of it. With no
+    // subject handed down the selector genuinely cannot say more than the
+    // general rule, so that is what this case checks — that the sentence still
+    // tells the trader where a tape DOES exist rather than only saying "none".
+    expect(out.headline).toMatch(/around the clock/);
+    expect(out.headline).toMatch(/market hours/);
+  });
+
+  /**
+   * A GENERAL RULE IS NOT AN ANSWER WHEN YOU HOLD THE PARTICULAR FACT.
+   *
+   * FOUND FROM USE, production /charts?symbol=TSLA, 2026-09-18. Workspace →
+   * Order flow read "Crypto streams it around the clock; stocks stream it
+   * during market hours" over a TSLA chart, on a feed the OS chrome badged
+   * ACTIVE in the same frame. Half the sentence was about an instrument the
+   * trader was not looking at; the other half handed back a rule and left them
+   * to work out which side of it they were on.
+   *
+   * This file's own header says the preview exists so a trader "knows whether
+   * to WAIT or to STOP LOOKING". These four cases are that question, answered
+   * from the facts the room already holds.
+   */
+  describe("the NO TAPE sentence answers wait-or-stop from the facts in hand", () => {
+    it("× CRYPTO: the clock is not the reason, so it does not send them to wait", () => {
+      const out = selectOrderFlowStanding({}, { symbol: "BTCUSD" });
+      expect(out.verdict).toBe("NO TAPE");
+      expect(out.headline).toContain("BTCUSD");
+      expect(out.headline).toMatch(/waiting will not change it/i);
+      // Crypto tape never stops. Naming market hours here would send the
+      // trader to wait for a condition that is permanently already true.
+      expect(out.headline, "crypto has no market hours to wait for")
+        .not.toMatch(/during market hours/);
+    });
+
+    it("× PROVEN SHUT: the clock IS the reason, so it says what to wait for", () => {
+      const out = selectOrderFlowStanding({}, { symbol: "TSLA", sessionClosed: false });
+      expect(out.headline).toContain("TSLA");
+      expect(out.headline).toMatch(/session is closed/i);
+      expect(out.headline).toMatch(/resume when the session opens/i);
+    });
+
+    it("× NOT PROVEN: names the rule, but only the half about THIS instrument", () => {
+      // `provenSessionClosure` returns null far more often than false — it only
+      // proves weekends. The honest middle must still drop the crypto clause.
+      const out = selectOrderFlowStanding({}, { symbol: "TSLA", sessionClosed: null });
+      expect(out.headline).toContain("TSLA");
+      expect(out.headline).toMatch(/market hours/);
+      expect(out.headline, "the trader is not looking at a crypto chart")
+        .not.toMatch(/[Cc]rypto/);
+    });
+
+    it("a room that hands down nothing gets exactly the sentence it had before", () => {
+      // Nothing may regress by OMISSION. The sentence only sharpens when the
+      // room supplies what it already holds.
+      expect(selectOrderFlowStanding({}, {}).headline).toBe(
+        selectOrderFlowStanding({}).headline,
+      );
+      expect(selectOrderFlowStanding({}, { symbol: "   " }).headline).toBe(
+        selectOrderFlowStanding({}).headline,
+      );
+    });
+
+    it("the sentence only speaks when there is genuinely no tape", () => {
+      // A measured reading outranks all of this — the subject must never be
+      // able to overwrite a real finding with a disclosure about the feed.
+      const out = selectOrderFlowStanding(
+        { absorption: absorb("ABSORBED", "BUYERS") },
+        { symbol: "TSLA", sessionClosed: false },
+      );
+      expect(out.verdict).not.toBe("NO TAPE");
+      expect(out.headline).not.toMatch(/session is closed/i);
+    });
   });
 
   it("treats every module's own empty state as nothing measured", () => {

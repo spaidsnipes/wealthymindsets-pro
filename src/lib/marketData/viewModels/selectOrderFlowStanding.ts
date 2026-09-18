@@ -55,8 +55,38 @@
  * provider, not a fault in WM. When nothing is measurable the standing is
  * `NO TAPE` with a headline that says which feeds do carry one — so a trader
  * looking at a silent widget knows whether to wait or to stop looking.
+ *
+ * ── A GENERAL RULE IS NOT AN ANSWER WHEN YOU HOLD THE PARTICULAR FACT ─────
+ * FOUND FROM USE, production /charts?symbol=TSLA, 2026-09-18. Workspace →
+ * Order flow read, over a feed the OS chrome badged ACTIVE in the same frame:
+ *
+ *   "No per-trade buy/sell tape on this feed yet. Crypto streams it around the
+ *    clock; stocks stream it during market hours."
+ *
+ * One sentence, two clauses, and on a TSLA chart ONE OF THEM IS ABOUT AN
+ * INSTRUMENT THE TRADER IS NOT LOOKING AT. The other hands back a rule and
+ * makes the trader work out which side of it they are on — which is precisely
+ * the "wait or stop looking" question the paragraph above says this file
+ * exists to answer. It answered it with a textbook.
+ *
+ * This is the same family as the three-bucket defect: a surface doing
+ * arithmetic in the reader's head that the code could have done in its own.
+ * The room already knows the SYMBOL and already holds a PROVEN session
+ * closure — so the sentence is compiled from the facts in hand:
+ *
+ *   crypto, no tape          → the clock is not the reason. STOP LOOKING.
+ *   non-crypto, proven shut  → the clock IS the reason. WAIT, and say for what.
+ *   non-crypto, not proven   → the honest middle: name the rule, but only the
+ *                              half that is about THIS instrument.
+ *
+ * `provenSessionClosure` is deliberately one-sided — it returns `false` only
+ * where closure is PROVEN (weekends) and `null` everywhere else. It never
+ * claims a session is open, so this file never does either. `null` keeps the
+ * general sentence, which is why the settle can only ever sharpen a vague
+ * answer and never introduce a wrong one.
  */
 
+import { canonicalAssetClass } from "../canonicalIdentity";
 import type { AbsorptionVM } from "./selectAbsorption";
 import type { DeltaDivergenceVM } from "./selectDeltaDivergence";
 import type { LiquidityWeatherVM } from "./selectLiquidityWeather";
@@ -97,7 +127,59 @@ export interface OrderFlowStanding {
   readonly silent: boolean;
 }
 
+/**
+ * WHICH MARKET, AND WHAT THE CLOCK HAS PROVEN — handed down, never derived.
+ *
+ * Both fields are optional and both default to "not established". A caller
+ * that has neither gets exactly the sentence this file shipped before: the
+ * general rule. Nothing regresses by omission; the sentence only SHARPENS when
+ * the room hands over what it already holds.
+ *
+ * `sessionClosed` mirrors `provenSessionClosure` exactly — `false` means PROVEN
+ * SHUT, `null` means not established. There is no `true`, because no clock in
+ * this codebase is allowed to assert a session is open.
+ */
+export interface OrderFlowSubject {
+  readonly symbol?: string | null;
+  readonly sessionClosed?: false | null;
+}
+
 const TOTAL_READINGS = 5;
+
+/**
+ * The NO TAPE sentence, compiled from the facts the room actually holds.
+ *
+ * Every branch says the same two things — that there is no per-trade tape, and
+ * WHETHER WAITING WILL HELP. The difference between them is only how much the
+ * room was able to prove.
+ */
+function noTapeHeadline(subject: OrderFlowSubject | undefined): string {
+  const symbol = subject?.symbol?.trim() || null;
+  const named = symbol ? `for ${symbol}` : "on this feed";
+
+  // The room could not tell us which instrument this is. Fall back to the rule
+  // — stated as a rule, which is honest when nothing particular is known.
+  if (!symbol) {
+    return "No per-trade buy/sell tape on this feed yet. Crypto streams it around the clock; stocks stream it during market hours.";
+  }
+
+  if (canonicalAssetClass(symbol) === "crypto") {
+    // Crypto tape never stops, so the clock cannot be the explanation. Saying
+    // "during market hours" here would send the trader away to wait for a
+    // condition that is permanently already true.
+    return `No per-trade buy/sell tape ${named} on this feed. Crypto tape streams around the clock, so this is the feed's limit, not the clock's — waiting will not change it.`;
+  }
+
+  if (subject?.sessionClosed === false) {
+    // PROVEN shut. This is the one case where waiting is the right advice, so
+    // it is the one case that says so.
+    return `No per-trade buy/sell tape ${named} — the session is closed. Stock tape streams during market hours; it will resume when the session opens.`;
+  }
+
+  // Not proven either way. Name the rule, but only the half that is about the
+  // instrument on the screen.
+  return `No per-trade buy/sell tape ${named} yet. Stock tape streams during market hours.`;
+}
 
 /** A stack verdict only speaks when it is about a level that exists. */
 function stackSentence(vm: StackedImbalanceVM | null | undefined): string | null {
@@ -145,7 +227,10 @@ function measured(sentence: string | null): boolean {
   return sentence !== null;
 }
 
-export function selectOrderFlowStanding(readings: OrderFlowReadings): OrderFlowStanding {
+export function selectOrderFlowStanding(
+  readings: OrderFlowReadings,
+  subject?: OrderFlowSubject,
+): OrderFlowStanding {
   // Compiled ONCE each, in constraint order. The array is the ranking — there
   // is no second place in this file where priority is written down, because a
   // second copy of a priority list agrees exactly until one of them is edited.
@@ -162,8 +247,7 @@ export function selectOrderFlowStanding(readings: OrderFlowReadings): OrderFlowS
   if (measuredCount === 0) {
     return {
       verdict: "NO TAPE",
-      headline:
-        "No per-trade buy/sell tape on this feed yet. Crypto streams it around the clock; stocks stream it during market hours.",
+      headline: noTapeHeadline(subject),
       measuredCount: 0,
       silent: true,
     };

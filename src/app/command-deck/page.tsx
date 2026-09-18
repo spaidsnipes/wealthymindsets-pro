@@ -1436,9 +1436,13 @@ function CommandDeckInner() {
   const orderFlowReadings = useOrderFlowReadings(wsFeed.recentTicks, wsFeed.source ?? null);
   /* Ranked and phrased OUTSIDE the descriptor: the memo may only ASSEMBLE what
      the room already compiled, never compile a second opinion inside itself. */
+  /* The room hands down WHICH MARKET this is and WHAT THE CLOCK HAS PROVEN, so
+     the NO TAPE sentence names THIS instrument's rule rather than reciting both
+     halves of a general one. The deck holds `symbol` and `sessionOpen` already;
+     the selector derives neither. */
   const orderFlowStanding = React.useMemo(
-    () => selectOrderFlowStanding(orderFlowReadings),
-    [orderFlowReadings],
+    () => selectOrderFlowStanding(orderFlowReadings, { symbol, sessionClosed: sessionOpen }),
+    [orderFlowReadings, symbol, sessionOpen],
   );
   const orderFlowEquipment = React.useMemo(
     () => ({
