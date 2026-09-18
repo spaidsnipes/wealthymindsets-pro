@@ -64,7 +64,19 @@ export type QuestionFocusBasis =
   | "EVIDENCE_DEBT" // oneStory.debt.missingLabels — unpaid evidence nodes
   | "DECISION" //      oneStory.decision.detail — the right-of-way reading
   | "PRIMARY" //       oneStory.primary — the resolved market chapter
-  | "UNRESOLVED"; //   nothing compiled at all
+  | "UNRESOLVED" //    nothing compiled at all
+  // ── ASSET 04, the Question-Driven Absorption canvas ──────────────────────
+  // These four are NOT produced by `selectQuestionFocus`. Their owner is
+  // `selectAbsorptionQuestion`, which compiles this same VM shape from
+  // `selectAbsorptionAnatomyView` so the canonical `ActiveQuestionBar` can
+  // head an absorption surface without a SECOND focus vocabulary existing
+  // unaudited beside this one. They live in THIS enum on purpose: the whole
+  // point of the enum is that a reviewer can grep every origin a focus line
+  // can have, and a parallel type would defeat that in its first week.
+  | "ABSORPTION_ZONE" //         a measured zone — lo/hi are real prices
+  | "ABSORPTION_ABSENT" //       measured, capable, found none. A FINDING.
+  | "ABSORPTION_UNANSWERABLE" // effort too concentrated for the window to answer
+  | "ABSORPTION_UNMEASURED"; //  no bar window in hand at all
 
 export interface QuestionFocusVM {
   /** Short noun phrase naming the subject of the question. Never a claim. */

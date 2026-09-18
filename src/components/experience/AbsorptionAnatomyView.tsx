@@ -41,6 +41,8 @@ import type {
   AbsorptionCriterion,
 } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
 import type { EffortBasis } from "@/lib/marketData/selectAbsorptionAnatomy";
+import { selectAbsorptionQuestion } from "@/lib/experience/selectAbsorptionQuestion";
+import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
 
 const GOLD = "#d4af37";
 const GOLD_DIM = "#c9a55c";
@@ -269,11 +271,25 @@ export function AbsorptionAnatomyView({
   // promising the trader that anything has been cleared.
   const strengthTone = strength === "STRONG" ? GOLD : strength === "MODERATE" ? GOLD_DIM : MUTED;
 
+  /**
+   * ASSET 04 — the question this surface exists to answer, at the top, in the
+   * largest type on the canvas.
+   *
+   * Asset 06 shipped as a panel grid: header, reason line, effort field,
+   * checklist, gauge. Every cell true, none of them the QUESTION. The Founder's
+   * ledger calls that out by name — the canon's worked example of the Active
+   * Question banner IS this surface, and this surface was the one place it was
+   * missing. Compiled, not written: the same VM that draws the field below.
+   */
+  const asked = React.useMemo(() => selectAbsorptionQuestion(vm), [vm]);
+
   return (
     <div
       data-testid="absorption-anatomy-view"
       style={{ padding: 14, color: TEXT, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}
     >
+      <ActiveQuestionBar question={asked.question} focus={asked.focus} mode="Observe" />
+
       <header style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, letterSpacing: 1.4, color: GOLD, textTransform: "uppercase" }}>
           Absorption Anatomy
