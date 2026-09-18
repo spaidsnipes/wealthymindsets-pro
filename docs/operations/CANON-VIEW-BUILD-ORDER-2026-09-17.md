@@ -49,7 +49,48 @@ into the view.
 
 ---
 
+## VIEW STATUS — GATED, NOT RETYPED
+
+This table is the ONLY place this file states what is built. It is checked
+against `ALL_CATEGORY_TABS` by `src/lib/charts/viewBuildOrder.sentinel.test.ts`,
+so a row claiming TO-BUILD for a view that is already in the dropdown fails the
+suite BY NAME.
+
+**WHY IT IS GATED.** On 2026-09-18 an operator took this file as the authority,
+believed the build order below, and spent three atoms re-opening work that had
+already shipped — Delta Bubbles ownership and VP geometry both already had
+adoption Sentinels, and Asset 05 was already a live tab. Nothing was wrong with
+the code. The list had drifted from it, and a list that is re-typed from memory
+at the start of every shift is a CONVENTION. The same law this repo applied to
+number formatting on the same day applies to the order of work:
+
+> **AN OWNER BEATS A CONVENTION.** A convention is re-decided every time, and
+> one of the decisions was wrong.
+
+Prose in this file is commentary. The table is the claim.
+
+<!-- VIEW-STATUS:BEGIN -->
+| VIEW TAB | STATE | EVIDENCE |
+|---|---|---|
+| Absorption | SHIPPED | `f7bd2697` — NQ1! 15m, live-observed |
+| Aggression | SHIPPED | `42a495e4` — BTC, both gate arms live-observed |
+| Big Trades | SHIPPED | BTC 15m live-observed 2026-09-18 — `LARGE PRINTS · 6 cleared the cut`, top-10%-within-window cut stated on the surface, `SIDE · VENUE-STATED` |
+| Value Profile | SHIPPED | present in the live VIEW dropdown on BTC |
+<!-- VIEW-STATUS:END -->
+
+Every row above is a MICROSTRUCTURE view, so each renders WITH the candles
+rather than in place of them (`MICROSTRUCTURE_TABS` in `categoryTabsFor.ts`) —
+which is the Founder's second acceptance question, and it is now closed for all
+four. The PARTIAL recorded against Asset 06 further down predates that set.
+
+---
+
 ## BUILD ORDER
+
+*Superseded for Assets 06 / 03 / 05 by the table above — all three are SHIPPED.
+The sections are kept because they record the REASONING and the standing
+constraints for those surfaces, which remain binding. They are not a to-do
+list. The still-unbuilt work is `Later`, below.*
 
 ### 1 · Asset 06 — Absorption Anatomy (START HERE)
 
