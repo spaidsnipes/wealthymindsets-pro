@@ -1,6 +1,6 @@
 # THE MIDDLE BUCKET — 2026-09-18
 
-Six commits, one defect, five disguises.
+Nine commits, one defect, seven disguises — and then a gate so there is no eighth.
 
     66e3f9e0  fix(market-state): a dimension is in exactly one bucket — PARTIAL gets a home
     1387e70e  fix(passport): the middle bucket cannot be reached by subtraction
@@ -8,6 +8,9 @@ Six commits, one defect, five disguises.
     edde7236  fix(canvas-pill): the withheld count is a fact, "open the canvas" is an instruction
     52bb844c  fix(equipment-rail): Market reality counts all three buckets, not two of three
     a4a9073e  fix(clc): a value printed without its standing reads as a resolved value
+    47f2ea1c  fix(regime): a fallback is not a place to name a standing you did not check
+    2ed6bb5a  fix(auction,dlar): a sentence must name the standing it actually checked
+    912b748c  test(sentinel): reaching for `?? "unresolved"` instead of describeDimension is a red build
 
 ## THE DEFECT
 
@@ -30,7 +33,7 @@ instrument, three irreconcilable counts of how much WM knows:
 **7 + 4 = 11, for EIGHT dimensions.** `location`, `aggression` and `profile`
 printed in BOTH adjacent columns of the same panel, in the same frame.
 
-## THE FIVE DISGUISES
+## THE SEVEN DISGUISES
 
 1. **A LOOSE PREDICATE** — `!== "RESOLVED"` / `!== "UNKNOWN"`.  → `66e3f9e0`
 2. **ARITHMETIC** — `totalCount - resolvedCount`. *Total minus resolved is the
@@ -46,11 +49,49 @@ printed in BOTH adjacent columns of the same panel, in the same frame.
    that CARRIES a value. The `??` labelled the MISSING bucket and dressed the
    MEASURED bucket in RESOLVED's clothes — two standings, one sentence.*
    → `a4a9073e`
+6. **A FALLBACK THAT NAMES THE WRONG STANDING OUTRIGHT** —
+   `${volatility.value ?? "resolved"}` in `selectRegime`'s TREND branch printed
+   the literal word **resolved** for a dimension with no reading at all. The
+   guard there is a NEGATED `looseMatch`, and `looseMatch` demands
+   `resolution === "RESOLVED"` — so `!volatilityLow.matches(v)` is satisfied by
+   a MEASURED volatility *and equally by one that was never measured*. That
+   branch is REACHABLE WITH NO VOLATILITY READING WHATSOEVER, and it asserted
+   the STRONGEST of the three standings for the emptiest of them.
+   → `47f2ea1c`
+7. **A HEADING THAT COUNTS ONE AND NAMES THREE — and its MIRROR** —
+   `selectAuctionState`'s fallback said "Some dimensions resolved (structure …,
+   location …, regime …)" while `anyResolved` required only ONE of four to be
+   RESOLVED, with `?? "?"` collapsing MEASURED into MISSING besides. And
+   `selectDLAR` had the same defect *pointing the other way*: `!aggressionResolved`
+   covers MEASURED and MISSING, and the sentence said "Aggression unresolved"
+   for BOTH — telling a trader holding a PARTIAL reading to go wait for a
+   measurement that had already been taken.
+   → `2ed6bb5a`
 
 **A COUNT THAT CAN ONLY BE REACHED BY SUBTRACTION HAS NO OWNER, and the middle
 bucket is exactly what subtraction destroys.**
 
 **A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.**
+
+**A FALLBACK IS NOT A PLACE TO NAME A STANDING YOU DID NOT CHECK.**
+
+**AND THE MIRROR: HIDING A MEASUREMENT THAT WAS TAKEN IS THE OPPOSITE FAILURE,
+AND JUST AS WRONG.**
+
+### THE NEGATED-MATCHER REACHABILITY PATTERN — the thing to look for next time
+
+Every one of disguises 5–7 lived behind the same structural fact. `looseMatch`
+returns false unless `resolution === "RESOLVED"`. Therefore:
+
+* a branch guarded by a **POSITIVE** matcher has its dimension RESOLVED **by
+  construction** — a `??` there is dead code, not a lie;
+* a branch guarded by a **NEGATED** matcher is reachable with the dimension
+  MEASURED **and equally with it never measured at all** — and that is exactly
+  where every live instance was found.
+
+Prove reachability from the guard BEFORE claiming a defect. Two of the sites
+audited this shift were cleared on precisely this test and are recorded below as
+honest negatives rather than manufactured fixes.
 
 ## WHAT HID IT
 
@@ -299,9 +340,13 @@ because there was nothing left to fix. *Read the file before claiming the defect
   nowhere to go.~~ **CLOSED by `dcecc624`** — the door was never a scroll target;
   it is press-gated equipment.
 - ~~`dcecc624` is pushed but not yet observed live.~~ **PROVEN LIVE** — see below.
-- `a4a9073e` is pushed but not yet observed live on the CLC chain node.
-  **Re-probe `DecisionChainPanel`'s `clc` narrative after deploy**, on a frame
-  carrying a PARTIAL regime/direction/location/structure.
+- `a4a9073e`, `47f2ea1c` and `2ed6bb5a` are pushed but **not yet observed live**.
+  All three land in narratives rendered at `DecisionChainPanel.tsx:295`
+  (`{node.narrative}`), so reachability is proven from source — but a LIVE frame
+  needs a dimension actually sitting at PARTIAL, which cannot be forced from
+  outside. **Re-probe with `textContent`** (see the probe constraint below) on a
+  frame carrying a PARTIAL regime / direction / location / structure /
+  volatility / aggression. Do not mark PROVEN without that frame.
 - LIQUIDITY WEATHER at FULL depth prints a four-row legend (MEDIAN COST / LATEST
   VS PEERS / HALF OVER HALF / DISAGREEING) with no values beside "0 equal-count
   segments". Low priority, but a legend without values is a label without a fact.
@@ -328,3 +373,85 @@ The label in that tooltip is the RAIL'S OWN, looked up from the canonical
 registry — never typed at the call site. One destination, one name.
 - `wm-canvas-summary-detail { display: none !important }` on phones is
   DELIBERATE semantic zoom with a locking test. Not a defect. Left alone.
+
+## THE REPAIR GOT AN OWNER, AND THEN A GATE
+
+`47f2ea1c` did not copy the CLC fix into `selectRegime`. It MOVED it.
+
+`describeDimension()` now lives in `canonicalMarketState.ts`, immediately beside
+`dimensionStanding()`, and its `switch` is TOTAL over `DimensionStanding` — a
+fourth standing fails the BUILD, not a review. `selectCLC`'s private
+`dimensionPhrase()` was deleted and both its call sites collapsed onto the
+owner; `selectRegime`, `selectAuctionState` and `selectDLAR` route through it
+too.
+
+**A RULE PRIVATE TO ONE SELECTOR IS THAT SELECTOR'S GOOD LUCK.** `selectRegime`
+is the empirical proof: the very next narrative written after `a4a9073e` reached
+for `??` again, in a sharper form, having never seen the CLC fix.
+
+But an owner only protects the call sites that remember to reach for it. So
+`912b748c` added `describeDimensionIsTheOwner.enforcement.test.ts` — a
+source-level gate, because **the defect is invisible at runtime**: nothing
+throws, no assertion trips, and the sentence is grammatical. The only place it
+is legible is the source text.
+
+Exceptions are allowlisted BY FILE WITH A REASON, and a second test fails when
+an allowlist entry no longer matches anything — a stale excuse is a licence
+waiting to cover a new offence in the same file.
+
+### THE REPO CAUGHT ME
+
+The first draft of that Sentinel asserted its violation set was empty without
+ever proving its scan had found anything. `src/lib/ops/sentinelsProveTheyScanned.test.ts`
+— a META-Sentinel this repo already had — turned RED and named the file. It was
+right: a Sentinel policing nothing is indistinguishable from a Sentinel finding
+nothing wrong, and that has already happened three times here. A vacuity guard
+was added (`expect(sources.length).toBeGreaterThan(20)`) rather than an entry to
+the frozen debt ledger. **The ledger only shrinks.**
+
+## FOUR HONEST NEGATIVES — AUDITED, CLEARED, NOT FIXED
+
+Recorded so the next reader does not re-open them, and so the count of "fixes"
+stays true.
+
+1. **`selectDecisionChain.ts:265-310`** — the direction / location / aggression
+   nodes do use `verdict: state.X.value ?? "UNRESOLVED"`. **Not the same
+   defect:** each node also carries `resolution` and
+   `indicator: dimIndicator(resolution, value)`, and `dimIndicator` is a real
+   three-way split (UNKNOWN / WATCH / OK). `DecisionChainPanel` renders the
+   indicator and folds it into the a11y label. The standing reaches the reader
+   structurally.
+2. **`selectMarketObjectPassport.ts` `summarise()`** — already branches on a
+   three-way `lifecycle`. "resolved to" appears ONLY in the RESOLVED branch; the
+   middle bucket gets "is forming". Three standings, three sentences, written
+   correctly the first time.
+3. **`DLARStrip.tsx:34-41`** — `dim.value ?? "partial"` sits inside an explicit
+   `resolution === "PARTIAL"` branch, and each of the three branches carries its
+   own colour and glyph (● / ◐ / ?). The standing is disclosed twice over.
+4. **`selectDLAR`'s "no clear pattern" line** — guarded by `aggressionResolved`,
+   so the dimension is RESOLVED by construction and the `??` could never fire
+   for a PARTIAL. Routed through `describeDimension` anyway so the sentence
+   cannot drift if that guard is loosened, but **explicitly not claimed as a
+   fix** — the code comment says so in place.
+
+Plus the already-recorded fifth: **`selectRegime`'s BALANCE branch**, where both
+guards are positive `looseMatch`es, so the old `?? "resolved"` there was DEAD
+CODE rather than a lie.
+
+## GATES — 2ed6bb5a, 912b748c
+
+    2ed6bb5a   VITEST EXIT=0   764 files   9557 passed | 2 skipped
+               TSC    EXIT=0
+    912b748c   VITEST EXIT=0   765 files   9560 passed | 2 skipped
+               TSC    EXIT=0
+
+Both run UNPIPED and redirected to a file with `echo "EXIT=$?"` — piping `tsc`
+through `head` has reported EXIT=0 in this repo while four real errors existed.
+
+Mutation receipts taken for every claim:
+
+* restoring the BALANCING `??`, the auction fallback heading and the DLAR
+  "Aggression unresolved" sentence turned **4 tests RED BY NAME**;
+* restoring the BALANCING `??` alone turned the new Sentinel RED and printed the
+  offending file and line;
+* each restore was undone with a targeted `Edit`, never `git checkout --`.
