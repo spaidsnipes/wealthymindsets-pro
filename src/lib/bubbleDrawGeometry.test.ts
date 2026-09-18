@@ -19,6 +19,7 @@ import {
   DELTA_BUBBLE_MAX_R,
   bigTradeBubbleRadius,
   bubbleEarnedRadius,
+  bubbleFramePeak,
   bubbleRadius,
   bubbleRadiusIsFloored,
   deltaBubbleRadius,
@@ -199,5 +200,64 @@ describe("regression record — the inline formulas that used to ship", () => {
     // Same three prints, same volumes, smaller bubbles — because of a trade
     // that happened somewhere else on the bar.
     expect(oldBigTrade(300, meanLoud)).toBeLessThan(oldBigTrade(300, meanQuiet));
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────
+/**
+ * ── 2026-09-18: THE PEAK WAS THE RIGHT STATISTIC OVER THE WRONG SET ───────
+ *
+ * The "TWO NORMALIZERS" fix chose PEAK over MEAN and never asked over WHICH
+ * SET. Both callers used one BAR, so every bar's loudest zone painted at
+ * exactly maxR — a three-lot bar and a thirty-thousand-lot bar drew the same
+ * 25px disc, side by side, in one frame.
+ *
+ * MainChart's own type comment states the law that breaks: "TRUE trade size
+ * (bigger order → bigger bubble)". Under a per-bar peak a bigger order does
+ * not get a bigger bubble.
+ */
+describe("the peak is taken over the frame, not over one bar", () => {
+  it("MEASURED: a per-bar peak paints every bar's loudest zone identically", () => {
+    // Two bars in one frame. Bar B carried 1,000x the flow of bar A.
+    const quietBar = [3, 1];
+    const violentBar = [30_000, 12_000];
+
+    const perBar = (bar: number[]) => bar.map(v => deltaBubbleRadius(v, Math.max(...bar)));
+    expect(perBar(quietBar)[0]).toBe(DELTA_BUBBLE_MAX_R);
+    expect(perBar(violentBar)[0]).toBe(DELTA_BUBBLE_MAX_R);
+    // Same picture, three orders of magnitude apart. That is the defect.
+
+    const framePeak = bubbleFramePeak([...quietBar, ...violentBar]);
+    expect(framePeak).toBe(30_000);
+    expect(deltaBubbleRadius(quietBar[0]!, framePeak))
+      .toBeLessThan(deltaBubbleRadius(violentBar[0]!, framePeak));
+  });
+
+  it("is a magnitude over the whole population, sign-blind", () => {
+    // Delta bubbles carry a SIGNED value (side). A sell-dominant zone is not
+    // a smaller zone, so the peak reads magnitudes.
+    expect(bubbleFramePeak([-40, 12, -3])).toBe(40);
+    expect(bubbleFramePeak([12, -40, 3])).toBe(40);
+  });
+
+  it("an empty frame has no peak, and no bubble claims one", () => {
+    expect(bubbleFramePeak([])).toBe(0);
+    // peak <= 0 is the `fraction` guard: zero share, so the floor is all that
+    // survives — a legible dot, never a confident full-size disc.
+    expect(bubbleEarnedRadius(500, bubbleFramePeak([]), { maxR: DELTA_BUBBLE_MAX_R })).toBe(0);
+    expect(deltaBubbleRadius(500, bubbleFramePeak([]))).toBe(BUBBLE_MIN_R);
+  });
+
+  it("skips non-finite values rather than poisoning the whole frame", () => {
+    // One NaN from a bad tick must not make every bubble on screen floor out.
+    expect(bubbleFramePeak([Number.NaN, 7, Number.POSITIVE_INFINITY, 2])).toBe(7);
+  });
+
+  it("area stays linear in value across the frame, not within a bar", () => {
+    const peak = bubbleFramePeak([-30_000, 7_500, 3]);
+    const rQuarter = bubbleEarnedRadius(7_500, peak, { maxR: DELTA_BUBBLE_MAX_R });
+    const rFull = bubbleEarnedRadius(30_000, peak, { maxR: DELTA_BUBBLE_MAX_R });
+    // 1/4 the value → 1/4 the AREA → 1/2 the radius. The whole claim.
+    expect(rQuarter / rFull).toBeCloseTo(0.5, 10);
   });
 });

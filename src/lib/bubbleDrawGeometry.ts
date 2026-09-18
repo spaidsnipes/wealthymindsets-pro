@@ -75,6 +75,52 @@
  * those, and whether the assembled picture reads well remains HUMAN_PROOF.
  */
 
+/**
+ * ── 2026-09-18: THE FOURTH DEFECT — THE PEAK WAS THE WRONG POPULATION ─────
+ *
+ * Defect 3 above is "TWO NORMALIZERS", and the fix chose PEAK over MEAN. It
+ * settled which STATISTIC, and never asked over WHICH SET. Both callers took
+ * the peak over ONE BAR.
+ *
+ * So the loudest zone of every bar paints at exactly `maxR`. A bar carrying
+ * three lots and a bar carrying thirty thousand draw the same 25px disc, side
+ * by side, in one frame. MainChart's own type comment states the law this
+ * breaks, in its own words:
+ *
+ *     // TRUE trade size (bigger order → bigger bubble).
+ *
+ * Under a per-bar peak a bigger order does NOT get a bigger bubble — it gets
+ * a bubble relative to whatever else happened to trade in its own candle. A
+ * trader scanning a screen for where the size went cannot see it, because
+ * every bar volunteers a maximum.
+ *
+ * The repo had already MEASURED this consequence and acted on half of it: the
+ * size Sentinel removed `playBloop(baseR > 24)` because "with size normalized
+ * to the bar's peak it would sound on every single bar." That sentence is
+ * equally true of the pixels. The audio was fixed; the picture it was derived
+ * from was left alone.
+ *
+ * The population a human actually compares is the bubbles ON SCREEN, so that
+ * is the population the peak is taken over. This makes the peak a moving
+ * quantity — a new whale re-scales the frame — which is why `baseR` can no
+ * longer be "fixed once at spawn". The caller re-derives it every frame from
+ * the value each bubble already carries; nothing new is stored and nothing is
+ * re-derived twice.
+ *
+ * NOT a cross-KIND peak. Big trades and delta zones measure different things
+ * (a print's dominant side vs a zone's net) and pooling them would be a third
+ * normalizer defect, not a fix for this one. Each family gets its own frame.
+ */
+export function bubbleFramePeak(values: readonly number[]): number {
+  let peak = 0;
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue;
+    const a = Math.abs(v);
+    if (a > peak) peak = a;
+  }
+  return peak;
+}
+
 /** Smallest radius a bubble may paint at. Below this it reads as absent. */
 export const BUBBLE_MIN_R = 6;
 

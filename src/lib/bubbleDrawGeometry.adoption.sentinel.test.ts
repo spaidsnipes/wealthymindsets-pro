@@ -7,6 +7,15 @@
  * RADIUS stayed inline in MainChart.tsx in two separate places, unowned and
  * untested, disagreeing with each other about how to encode size.
  *
+ * WHAT THIS GUARD CANNOT SEE — measured, not guessed. Mutation-testing the
+ * frame-peak assertions below: replacing `bubbleFramePeak(...)` with a
+ * constant FAILS them, as intended. Neutering the rescale LOOP BODY
+ * (`if (true) continue;`) leaves them GREEN — `b.baseR = nextR` is still
+ * present in the text, and source text cannot tell reachable code from dead
+ * code. A rendered canvas of bubbles on live tape is the only witness for
+ * that, and canvas has no DOM. Recorded so the next reader does not mistake
+ * this file's green for a pixel proof.
+ *
  * This guard is written as an INVARIANT swept across src/ and scripts/, not as
  * a check on one file. deltaBubbleBinning.test.ts named a FILE, stayed green,
  * and missed a third copy of the binning loop sitting in scripts/ the entire
@@ -96,6 +105,28 @@ describe("bubble draw geometry — single writer, repo-wide", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("BOTH bubble families rescale against a FRAME peak, every frame", () => {
+    // The per-bar peak made every bar volunteer a maximum-size disc, so a
+    // three-lot bar and a thirty-thousand-lot bar drew the same picture side
+    // by side. A source assertion, because the population a peak is taken
+    // over is not visible in any single call's output.
+    const src = codeOf(MAIN_CHART);
+    expect(src).toContain("bubbleFramePeak(deltaBubblesRef.current.map(");
+    expect(src).toContain("bubbleFramePeak(bubblesRef.current.map(");
+    // And the rescale must actually WRITE baseR — computing a frame peak and
+    // leaving the spawn-time radius in place is the failure this guards.
+    expect(src).toMatch(/nextR\s*=\s*deltaBubbleRadius\([\s\S]{0,80}?deltaFramePeak\)/);
+    expect(src).toMatch(/nextR\s*=\s*bigTradeBubbleRadius\([\s\S]{0,80}?bigFramePeak\)/);
+    expect(src.match(/b\.baseR\s*=\s*nextR/g) ?? []).toHaveLength(2);
+  });
+
+  it("the two families are never pooled into one peak", () => {
+    // A print's dominant side and a zone's net measure different things.
+    // One peak across both would be a third normalizer defect, not a fix.
+    const src = codeOf(MAIN_CHART);
+    expect(src).not.toMatch(/bubbleFramePeak\(\s*\[\s*\.\.\.(bubblesRef|deltaBubblesRef)/);
   });
 
   it("loudness is not decided by a pixel count", () => {

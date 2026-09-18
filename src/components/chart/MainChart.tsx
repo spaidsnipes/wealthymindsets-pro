@@ -137,7 +137,7 @@ import {
   type BigTradeLevel,
 } from "@/lib/bigTradeLevels";
 import { bubbleClaimMagnitude, describeBubbleClaim } from "@/lib/bubbleClaim";
-import { bigTradeBubbleRadius, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
+import { bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
@@ -976,7 +976,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     y:       number;   // current canvas px
     vx:      number;   // velocity px/frame
     vy:      number;   // velocity px/frame
-    baseR:   number;   // target radius (∝ order size) — fixed once at spawn
+    // Target radius. NOT fixed at spawn: it encodes this bubble's share of the
+    // peak ON SCREEN, and the screen changes. Re-derived every frame from
+    // `value` by the one rescale pass per kind. See bubbleFramePeak's header
+    // for why a per-BAR peak made every bar volunteer a maximum-size disc.
+    baseR:   number;
     r:       number;   // current radius (eases up to baseR on spawn only)
     phase:   number;   // wobble / bob phase
     big:     boolean;  // kept for compat; every bubble is now a real trade
@@ -5063,6 +5067,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // every zone still on screen and drew a second disc on top of the first.
         deltaBubbleSpawnRef.current = compactSpawnKeys(deltaBubbleSpawnRef.current, deltaBubblesRef.current);
 
+        // ── SIZE IS A CLAIM ABOUT THE FRAME, NOT ABOUT ONE BAR ──────────
+        // The single writer of `baseR` for delta bubbles. The spawn loop
+        // above seeds it against its own bar's peak purely so the ease-in has
+        // a proportion to grow from; this pass overwrites every bubble before
+        // anything is painted, so that seed is never a claim anyone reads.
+        // Peak over the bubbles ON SCREEN is what makes two discs in one
+        // frame comparable — see bubbleFramePeak.
+        const deltaFramePeak = bubbleFramePeak(deltaBubblesRef.current.map(b => b.value));
+        for (const b of deltaBubblesRef.current) {
+          const nextR = deltaBubbleRadius(Math.abs(b.value), deltaFramePeak);
+          if (nextR === b.baseR) continue;
+          // Carry the spawn ease-in across the rescale as a PROPORTION, so a
+          // bubble mid-grow is re-aimed rather than snapped to full size.
+          b.r = b.baseR > 0 ? (b.r / b.baseR) * nextR : nextR;
+          b.baseR = nextR;
+        }
+
         const nowDelta = performance.now();
         for (const b of deltaBubblesRef.current) {
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
@@ -5545,7 +5566,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               barPeak,
             );
             const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
-            const value = (side === "buy" ? 1 : -1) * Math.round(lv.total);
+            // The magnitude this bubble claims — signed for side only. It used
+            // to be `Math.round(lv.total)`: the two-sided total (the wrong
+            // quantity, per bubbleClaim.ts) put through a DISPLAY rounding
+            // that erased sub-1 crypto sizes entirely. `value` is now the
+            // sizing input for the frame-wide rescale below, so a lossy
+            // display number in it would become a lossy radius.
+            const value = (side === "buy" ? 1 : -1) * bubbleClaimMagnitude("big-trade", lv.bid, lv.ask);
             const sph   = Math.sin((c.time as number) * 0.017 + lv.priceLevel * 0.531 + rankIdx * 1.7) * 43758.5453;
             const phase = (sph - Math.floor(sph)) * Math.PI * 2;
             const rawLevY = srs.priceToCoordinate(lv.priceLevel);
@@ -5585,6 +5612,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // holding — the same defect the delta path carried. See
         // src/lib/bubbleSpawnCache.ts for the measured failure.
         bubbleSpawnRef.current = compactSpawnKeys(bubbleSpawnRef.current, bubblesRef.current);
+
+        // ── SIZE IS A CLAIM ABOUT THE FRAME, NOT ABOUT ONE BAR ──────────
+        // The single writer of `baseR` for big-trade bubbles. Its own frame,
+        // never pooled with the delta family: a print's dominant side and a
+        // zone's net are different measurements, and one peak across both
+        // would be a third normalizer defect rather than a fix for this one.
+        const bigFramePeak = bubbleFramePeak(bubblesRef.current.map(b => b.value));
+        for (const b of bubblesRef.current) {
+          const nextR = bigTradeBubbleRadius(Math.abs(b.value), bigFramePeak);
+          if (nextR === b.baseR) continue;
+          b.r = b.baseR > 0 ? (b.r / b.baseR) * nextR : nextR;
+          b.baseR = nextR;
+        }
 
         // ── Pass B: update + draw all active bubbles (🫧 hover at key levels) ──
         const nowMs = performance.now();
