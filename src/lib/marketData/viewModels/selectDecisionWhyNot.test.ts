@@ -372,3 +372,114 @@ describe("selectDecisionWhyNot — evidenceLedger", () => {
     expect(selectDecisionWhyNot(story({ decision: reading("WAIT") })).evidenceLedger).toBeNull();
   });
 });
+
+/**
+ * ZERO PAID IS NOT A CLEARANCE.
+ *
+ * `clearances` is the AFFIRMATIVE column, and every surface that renders it
+ * counts its LENGTH — DecisionWhyPanel prints "Cleared (N)". Pushing
+ * "0/8 evidence nodes paid." unconditionally bought a zero-paid chain a
+ * clearance for free. Observed live on /command-deck for TSLA, 2026-09-18:
+ *
+ *     Cleared (1)
+ *     0/8 evidence nodes paid.
+ *
+ * ONE thing cleared, and the one thing is a sentence saying nothing cleared.
+ *
+ * This is the THIRD head of a shape this file already killed twice — the
+ * thesis clearance (a bare `else`) and the trader-rules clearance (vacuously
+ * true with zero rules). Both were corrected to gate on the subject existing.
+ *
+ * PROPERTIES, NOT SPELLINGS. These assert what the column MEANS — that its
+ * length never exceeds the number of facts that are actually affirmative —
+ * so a future rewording cannot re-open the hole.
+ */
+describe("selectDecisionWhyNot — the affirmative column only counts affirmatives", () => {
+  const noRules = undefined;
+
+  /**
+   * `EvidenceDebt` carries the invariant `payable === resolved + warn + missing`,
+   * and `selectEvidenceDebtLedger` REFUSES to build a ledger that breaks it —
+   * it returns null rather than draw the reconcilable part. So a fixture must
+   * balance, or it silently tests the refusal path instead of the gate.
+   * (This caught a bad fixture on the first run of these tests.)
+   */
+  const balanced = (resolved: number, payable = 8) =>
+    debt(
+      Array.from({ length: payable - resolved }, (_, i) => `node-${i}`),
+      [],
+      resolved,
+      payable,
+    );
+
+  it("a chain with nothing paid earns no clearance from the evidence ledger", () => {
+    const vm = selectDecisionWhyNot(
+      story({ decision: reading("WAIT"), debt: balanced(0) }),
+      noRules,
+    );
+    expect(vm.clearances.some((c) => c.includes("evidence nodes paid"))).toBe(false);
+  });
+
+  it("the shortfall is still fully reported — the number keeps its place", () => {
+    // The gate must not HIDE the ledger. Hiding a debt is the opposite failure
+    // from miscounting it, and just as wrong.
+    const vm = selectDecisionWhyNot(
+      story({ decision: reading("WAIT"), debt: balanced(0) }),
+      noRules,
+    );
+    expect(vm.evidenceLedger).not.toBeNull();
+    expect(vm.evidenceLedger!.payable).toBe(8);
+    expect(vm.evidenceLedger!.resolved).toBe(0);
+    expect(vm.evidenceLedger!.unpaid).toBe(8);
+    expect(vm.evidenceLedger!.marks).toHaveLength(8);
+    // And the unpaid nodes are named on the BLOCKING side, where they belong.
+    expect(vm.blockers.some((b) => b.label === "node-0")).toBe(true);
+  });
+
+  it("a PARTIAL payment IS affirmative and still publishes", () => {
+    // Five nodes genuinely paid is five a trader no longer owes. The gate is
+    // `resolved > 0`, not "only when everything is paid".
+    const vm = selectDecisionWhyNot(
+      story({ decision: reading("WAIT"), debt: balanced(5) }),
+      noRules,
+    );
+    const sentence = vm.clearances.find((c) => c.includes("evidence nodes paid"));
+    expect(sentence).toBeDefined();
+    expect(sentence).toContain("5");
+    expect(sentence).toContain("8");
+  });
+
+  it("a zero-paid chain reports FEWER clearances than a part-paid one", () => {
+    // The relational form is the durable one: whatever the sentences say, the
+    // affirmative column must SHRINK when nothing was paid.
+    const base = { decision: reading("WAIT") };
+    const none = selectDecisionWhyNot(story({ ...base, debt: balanced(0) }), noRules);
+    const some = selectDecisionWhyNot(story({ ...base, debt: balanced(5) }), noRules);
+    expect(none.clearances.length).toBeLessThan(some.clearances.length);
+  });
+
+  it("the evidence clearance appears exactly when something was paid, across the range", () => {
+    // NOT "no clearance may ever have a zero numerator" — that law is FALSE
+    // here, and the reason is worth writing down. Two branches of this compiler
+    // push a count into the affirmative column, and ZERO MEANS OPPOSITE THINGS
+    // IN THEM:
+    //
+    //   "0/6 trader rules engaged."  → zero is the GOOD outcome. Nothing
+    //                                  objected. Affirmative, correctly.
+    //   "0/8 evidence nodes paid."   → zero is the BAD outcome. Nothing was
+    //                                  earned. Not affirmative at all.
+    //
+    // THE POLARITY OF THE COUNT DECIDES WHICH COLUMN IT BELONGS IN, not the
+    // presence of a denominator. So this pins the evidence sentence alone.
+    for (const resolved of [0, 1, 5, 8]) {
+      const vm = selectDecisionWhyNot(
+        story({ decision: reading("WAIT"), debt: balanced(resolved) }),
+        noRules,
+      );
+      expect(
+        vm.clearances.some((c) => c.includes("evidence nodes paid")),
+        `resolved=${resolved}`,
+      ).toBe(resolved > 0);
+    }
+  });
+});

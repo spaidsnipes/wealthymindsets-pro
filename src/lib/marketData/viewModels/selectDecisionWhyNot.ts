@@ -214,7 +214,37 @@ export function selectDecisionWhyNot(
     for (const label of debt.warnLabels) {
       blockers.push({ kind: "EVIDENCE_WARN", label, detail: "Evidence present but below confirmation." });
     }
-    clearances.push(`${debt.resolved}/${debt.payable} evidence nodes paid.`);
+    // THE THIRD HEAD OF THE SHAPE THIS FILE ALREADY KILLED TWICE.
+    //
+    // The two branches around this one were both corrected for the same thing:
+    // the ABSENCE OF A SUBJECT REPORTED AS THE ABSENCE OF AN OBJECTION. The
+    // thesis clearance was a bare `else` (no thesis ever resolved → "no
+    // contradiction"), and the rules clearance was vacuously true with zero
+    // rules configured. Both now gate on the subject existing. This push never
+    // did, and `debt.resolved === 0` is exactly the same failure: NOTHING WAS
+    // PAID, filed under the affirmative half of the ledger.
+    //
+    // Observed live on /command-deck for TSLA, 2026-09-18 — the panel printed
+    //
+    //     Cleared (1)
+    //     0/8 evidence nodes paid.
+    //
+    // A count of things cleared reading ONE, where the one thing cleared is a
+    // sentence saying nothing cleared. `clearances` is documented on this VM as
+    // the affirmative column, and every surface that renders it counts its
+    // LENGTH — so a zero-paid chain bought itself a clearance for free.
+    //
+    // NOTHING IS LOST BY THE GATE. DecisionWhyPanel already states this exact
+    // fact, with the same denominator and the node names, two lines ABOVE the
+    // CLEARED column — live text: "0 of 8 paid / 8 evidence nodes unpaid:
+    // regime + direction +6" — and `evidenceLedger` still draws all `payable`
+    // marks. The number keeps its place; it just stops being counted as a win.
+    //
+    // A PARTIAL payment IS an affirmative: five nodes genuinely paid is five
+    // nodes a trader no longer owes, so `resolved > 0` still publishes.
+    if (debt.resolved > 0) {
+      clearances.push(`${debt.resolved}/${debt.payable} evidence nodes paid.`);
+    }
   } else if (oneStory.missing) {
     blockers.push({ kind: "EVIDENCE_DEBT", label: oneStory.missing, detail: "Required evidence is unpaid." });
   }
