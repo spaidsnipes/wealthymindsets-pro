@@ -83,7 +83,20 @@ describe("chart OHLCV strip adoption", () => {
   it("the NOW/C value is never suppressed — an overclaim may not become a blindness", () => {
     const at = CODE.indexOf("chartBarRangeFact(last, timeframe)");
     const strip = CODE.slice(at, CODE.indexOf("V <span", at));
-    expect(strip).toContain("closeWord.label");
+    /**
+     * The graded word used to be read straight off `closeWord.label`. It now
+     * arrives as `stripScope.close.label`, because the strip composes
+     * `dataWindowBarScope` so that it and the Data Window are scoped by ONE
+     * owner and cannot disagree about which bar they describe.
+     *
+     * That is a change of ROUTE, not of authority: `dataWindowBarScope.close`
+     * is itself `selectChartCloseLabel`'s output, so C-vs-NOW still has
+     * exactly one decider. This assertion accepts either spelling on purpose
+     * — what §35 protects is that the WORD and the VALUE both still render,
+     * not which variable carries them.
+     */
+    expect(strip, "the graded close word is no longer rendered at all")
+      .toMatch(/(?:closeWord|stripScope\.close)\.label/);
     expect(strip).toContain("last.close.toFixed(dp)");
   });
 });

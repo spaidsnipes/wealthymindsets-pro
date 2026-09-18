@@ -42,6 +42,25 @@ import { selectChartCloseLabel } from "../marketData/selectChartCloseLabel";
  * opinion about whether a bar has closed is a second owner of the same truth,
  * and it would agree with the first only until someone edited one of them.
  *
+ * ── TWO READERS, ONE OWNER (added after the first fix half-closed it) ─
+ * Fixing the Data Window alone did NOT close this defect, and the live DOM
+ * said so. With the scoped panel already shipped, the OHLC strip six rows
+ * above it still read back as:
+ *
+ *   ["29697.25","",""] ["29700.25","",""] ["29689.50","",""]
+ *   ["29694.25","",""] ["57","",""]        ← [text, title, aria-label]
+ *
+ * One of the two disagreeing panels could now name its bar and the other
+ * still could not, which leaves the trader exactly one hover away from the
+ * same confusion. So the strip COMPOSES this module too, with
+ * `isLatestBar: true` — a fact there, not a guess, because the strip renders
+ * the final candle by construction.
+ *
+ * The point of routing both through one function is not tidiness. Two
+ * panels scoped by two functions agree only until someone edits one of
+ * them; two panels scoped by THIS function cannot be made to contradict
+ * each other without changing what both of them say.
+ *
  * ── WHAT IS NOT CLAIMED ───────────────────────────────────────────────
  * `isLatestBar` is REQUIRED, not inferred. This module is handed one bar; it
  * cannot see the series, and a module that guessed "probably the latest" would

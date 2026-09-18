@@ -7475,13 +7475,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
              drawn; it refuses only when volume AND range are BOTH empty, so a
              feed that simply does not report volume keeps its real extremes. */
           const rangeFact = chartBarRangeFact(last, timeframe);
+          /* THE OTHER HALF OF THE 140-POINT PAIR.
+             MEASURED LIVE 2026-09-17, NQ1! 30m, straight out of the DOM —
+             every cell of this strip, read back with its attributes:
+
+               ["29697.25","",""] ["29700.25","",""] ["29689.50","",""]
+               ["29694.25","",""] ["57","",""]           ← [text, title, aria]
+
+             Empty. That is the SAME reading the Data Window gave before
+             18576463 fixed it — and it is why fixing one panel did not close
+             the defect. The Data Window now announces `30M BAR · Sep 14,
+             00:00 — NOT the latest bar`; this strip, six rows above it and
+             140 points away, still announces nothing at all. A trader who
+             hovers the scoped panel can reconcile the two numbers; a trader
+             who hovers THIS one still cannot.
+
+             So the strip composes the very same owner. `isLatestBar` is
+             literally true here — `last` IS the final candle — and passing it
+             is not a guess. One function now names the bar for BOTH panels,
+             which means they can no longer disagree about what a bar is: to
+             make them contradict each other you would have to edit one
+             function, and it would change both. */
+          const stripScope = dataWindowBarScope(
+            last.time as number, timeframe, true, nowMs,
+          );
           return (
-            <div className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim">
+            <div
+              role="group"
+              aria-label={stripScope.spoken}
+              data-ohlc-strip-scope={stripScope.subheading}
+              className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim">
               {rangeFact.measured ? (
                 <>
-                  <span>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
-                  <span>H <span className="text-wm-green">{last.high.toFixed(dp)}</span></span>
-                  <span>L <span className="text-wm-red">{last.low.toFixed(dp)}</span></span>
+                  <span title={stripScope.open.title}>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
+                  <span title={stripScope.high.title}>H <span className="text-wm-green">{last.high.toFixed(dp)}</span></span>
+                  <span title={stripScope.low.title}>L <span className="text-wm-red">{last.low.toFixed(dp)}</span></span>
                 </>
               ) : (
                 <span
@@ -7493,13 +7521,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 </span>
               )}
               <span
-                title={closeWord.title}
+                title={stripScope.close.title}
                 className={closeWord.forming ? "text-wm-gold/80" : undefined}
               >
-                {closeWord.label}{" "}
+                {stripScope.close.label}{" "}
                 <span className="text-wm-text">{last.close.toFixed(dp)}</span>
               </span>
-              <span>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
+              <span title={stripScope.volume.title}>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
             </div>
           );
         })()}

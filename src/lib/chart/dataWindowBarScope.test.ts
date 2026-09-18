@@ -159,4 +159,37 @@ describe("MainChart adoption", () => {
   it("colour is chosen from the verdict, never from mere presence", () => {
     expect(CODE).toContain("scope.historical ? \"#F0B429\"");
   });
+
+  it("× THE HALF-CLOSED PAIR: the OHLC strip is scoped by the SAME owner", () => {
+    /**
+     * The Data Window and the OHLC strip are the two panels that showed
+     * `C 29558.25` and `C 29698.25` in one viewport. Scoping only one of them
+     * leaves the trader one hover away from the same confusion — measured
+     * live after the first fix shipped, the strip's cells still read back
+     * [text, "", ""] with empty title AND empty aria-label.
+     *
+     * Both panels must derive their scope from dataWindowBarScope, so that
+     * no edit can make them disagree about what a bar is.
+     */
+    expect((CODE.match(/dataWindowBarScope\(/g) || []).length,
+      "one of the two disagreeing panels is no longer scoped by the owner",
+    ).toBe(2);
+    expect(CODE).toContain("stripScope.open.title");
+    expect(CODE).toContain("stripScope.high.title");
+    expect(CODE).toContain("stripScope.low.title");
+    expect(CODE).toContain("stripScope.close.title");
+    expect(CODE).toContain("stripScope.volume.title");
+    // The strip's C must come from the owner too — not a second opinion.
+    expect(CODE).toContain("{stripScope.close.label}");
+    // Scope must not be hover-only here either.
+    expect(CODE).toContain("aria-label={stripScope.spoken}");
+    expect(CODE).toContain("data-ohlc-strip-scope=");
+  });
+
+  it("the strip's isLatestBar is a fact, not an inference", () => {
+    // `last` IS the final candle by construction, so `true` is a statement
+    // about the code's own structure. Passing a guessed value here would
+    // manufacture the certainty the panel lacked in the first place.
+    expect(CODE).toMatch(/last\.time as number,\s*timeframe,\s*true,\s*nowMs/);
+  });
 });
