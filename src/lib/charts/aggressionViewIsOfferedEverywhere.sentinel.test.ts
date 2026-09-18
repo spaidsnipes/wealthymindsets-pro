@@ -88,6 +88,20 @@ describe("Aggression vs Response view wiring", () => {
     expect(src).toContain("aggressionAxis");
   });
 
+  it("THE INCAPACITY REACHES THE SCREEN: an empty zone list is not printed as a finding", () => {
+    // Measured live: on a thin crypto venue one 15m print held ~85% of the
+    // window's volume, so every other bar's effortNorm sat near zero and no run
+    // could clear the effort gate. The panel printed NO ZONE QUALIFIED — which
+    // reads as a fact about the market and was a fact about the feed. The
+    // compiler now publishes `zoneQualificationPossible`; this pins that the
+    // view BRANCHES on it rather than accepting and ignoring it.
+    const src = stripComments(read("src/components/experience/AggressionResponseView.tsx"));
+    expect(src).toContain("zoneQualificationPossible");
+    expect(src).toContain("effortSpreadNote");
+    // The market claim must be reachable only through the capacity gate.
+    expect(src).toMatch(/zoneQualificationPossible[\s\S]{0,200}NO ZONE QUALIFIED/);
+  });
+
   it("the view never hard-codes the mockup's art-direction literals", () => {
     const src = stripColors(stripComments(read("src/components/experience/AggressionResponseView.tsx")));
     for (const literal of ["+0.62", "+2.1", "0.34", "412.7K", "18,732", "-2,552", "−2,552", "98.7"]) {

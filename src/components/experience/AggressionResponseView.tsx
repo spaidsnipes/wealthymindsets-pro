@@ -383,8 +383,24 @@ export default function AggressionResponseView({
               style={{ borderTop: `1px solid ${HAIR}`, paddingTop: 10, marginTop: 2 }}
             >
               <div style={{ fontSize: 9, letterSpacing: "0.1em", color: MUTED }}>REGIME SIGNAL</div>
-              <div style={{ fontSize: 13, color: vm.zones.length > 0 ? GOLD : MUTED, marginTop: 3 }}>
-                {vm.zones.length > 0 ? "ABSORPTION ZONE PRESENT" : "NO ZONE QUALIFIED"}
+              {/* THREE STATES, NOT TWO. "no zone qualified" is a reading of the
+                  market and may only be printed when the window was CAPABLE of
+                  producing one. When a single print holds nearly all the
+                  window's effort, every other bar's effortNorm collapses toward
+                  zero and no run can clear the gate — an empty `zones` there is
+                  arithmetic, and saying otherwise is a lie by omission. */}
+              <div
+                style={{
+                  fontSize: 13,
+                  color: vm.zones.length > 0 ? GOLD : MUTED,
+                  marginTop: 3,
+                }}
+              >
+                {vm.zones.length > 0
+                  ? "ABSORPTION ZONE PRESENT"
+                  : vm.zoneQualificationPossible
+                    ? "NO ZONE QUALIFIED"
+                    : "NOT ANSWERABLE IN THIS WINDOW"}
               </div>
               {/* The mockup prints HIGH PROBABILITY here. Nothing in this repo
                   computes a probability, so the line states the count and
@@ -392,7 +408,9 @@ export default function AggressionResponseView({
               <div style={{ fontSize: 9.5, color: MUTED, marginTop: 3, lineHeight: 1.45 }}>
                 {vm.zones.length > 0
                   ? `${vm.zones.length} qualifying run${vm.zones.length === 1 ? "" : "s"} in this window · no probability is computed for this`
-                  : "no run of bars held high effort against weak displacement long enough"}
+                  : vm.zoneQualificationPossible
+                    ? "no run of bars held high effort against weak displacement long enough"
+                    : vm.effortSpreadNote}
               </div>
             </div>
 

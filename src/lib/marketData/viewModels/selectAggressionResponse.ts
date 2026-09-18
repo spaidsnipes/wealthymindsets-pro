@@ -121,6 +121,17 @@ export interface AggressionResponseVM {
   /** The zones Asset 06 found, unchanged. This view does not re-derive them. */
   readonly zones: readonly AbsorptionZone[];
   readonly windowBars: number;
+  /**
+   * Passed through from Asset 06, not re-derived. When false, `zones` is empty
+   * because the window's effort sits in too few bars for a run to have formed —
+   * so the panel must NOT print "no zone qualified" as if that were a reading
+   * of the market. See the long note on `AbsorptionAnatomyVM`.
+   */
+  readonly zoneQualificationPossible: boolean;
+  /** The sentence naming that incapacity, or `null` when the window could answer. */
+  readonly effortSpreadNote: string | null;
+  /** Share of the window's total effort held by its single largest bar, 0..1. */
+  readonly effortConcentration: number | null;
 }
 
 export interface AggressionResponseOptions extends AbsorptionAnatomyOptions {
@@ -208,5 +219,8 @@ export function selectAggressionResponse(
     efficiencyScaleNote: EFFICIENCY_SCALE_NOTE,
     zones: anatomy.zones,
     windowBars: anatomy.windowBars,
+    zoneQualificationPossible: anatomy.zoneQualificationPossible,
+    effortSpreadNote: anatomy.effortSpreadNote,
+    effortConcentration: anatomy.effortConcentration,
   };
 }

@@ -194,6 +194,28 @@ describe("selectAggressionResponse — classification and efficiency", () => {
     }
   });
 
+  it("carries Asset 06's CAPACITY verdict, so an empty zone list is never printed as a finding", () => {
+    // Live on a thin crypto venue, one 15m print held ~85% of the window's
+    // volume. Every other bar's effortNorm collapsed toward zero, no run could
+    // clear the effort gate, and the panel said NO ZONE QUALIFIED — a sentence
+    // about the market, when the truth was a sentence about the feed.
+    const dominated = selectAggressionResponse([
+      bar(0, 100, 100.01, 1_000_000),
+      ...Array.from({ length: 11 }, (_, i) => bar(i + 1, 100, 100.01, 3)),
+    ]);
+    expect(dominated.zones).toEqual([]);
+    expect(dominated.zoneQualificationPossible).toBe(false);
+    expect(dominated.effortConcentration).toBeGreaterThan(0.9);
+    expect(dominated.effortSpreadNote).not.toBeNull();
+
+    // A well-spread window keeps its right to say "no zone qualified".
+    const spread = selectAggressionResponse(
+      Array.from({ length: 12 }, (_, i) => bar(i, 100, 100 + (i % 2 ? 1 : -1), 1000)),
+    );
+    expect(spread.zoneQualificationPossible).toBe(true);
+    expect(spread.effortSpreadNote).toBeNull();
+  });
+
   it("does not re-derive zones — it passes through the ones Asset 06 found", () => {
     // Two owners of "which bars absorbed" is the drift class this repo has
     // already been repaired for. The scatter reads; it does not decide.

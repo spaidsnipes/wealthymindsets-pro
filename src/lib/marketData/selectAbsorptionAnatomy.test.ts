@@ -257,3 +257,78 @@ describe("selectAbsorptionAnatomy — thresholds are tunable but honest by defau
     expect(selectAbsorptionAnatomy(series(specs), { minZoneBars: 3 }).zones).toEqual([]);
   });
 });
+
+/**
+ * These were written from a LIVE OBSERVATION, not from imagination.
+ *
+ * On a thin crypto venue a 15-minute BTC window carried per-bar volumes of
+ * 0.0003–0.137 BTC — one print held roughly 85% of the whole window. Every
+ * other bar's `effortNorm` therefore sat near zero, no run could clear the
+ * effort gate, and the panel printed "NO ZONE QUALIFIED — no run of bars held
+ * high effort against weak displacement long enough". That is a sentence about
+ * the market. The truth was a sentence about the feed. The same window on a
+ * deep venue read a healthy 5.6× max-to-median.
+ *
+ * The fix is not to suppress the reading — it is to publish the incapacity as a
+ * field so no surface can present arithmetic as observation.
+ */
+describe("selectAbsorptionAnatomy — a window that CANNOT answer says so", () => {
+  it("one dominant print makes zone qualification impossible, and that is published", () => {
+    // 1 monster bar, 11 dust bars — exactly the live BTC shape.
+    const specs = [
+      { volume: 1_000_000, open: 100, close: 100, high: 100.4, low: 99.6 },
+      ...Array.from({ length: 11 }, () => ({
+        volume: 3, open: 100, close: 100, high: 100.4, low: 99.6,
+      })),
+    ];
+    const vm = selectAbsorptionAnatomy(series(specs));
+
+    expect(vm.measured).toBe(true);
+    expect(vm.zones).toEqual([]);           // the same empty result as before…
+    expect(vm.zoneQualificationPossible).toBe(false); // …but now it is EXPLAINED
+    expect(vm.effortQualifyingBars).toBe(1);
+    expect(vm.effortConcentration).toBeGreaterThan(0.9);
+    expect(vm.effortSpreadNote).toContain("no run could have qualified");
+  });
+
+  it("the note names the arithmetic, not a market opinion", () => {
+    const vm = selectAbsorptionAnatomy(
+      series([
+        { volume: 1_000_000, open: 100, close: 100, high: 100.4, low: 99.6 },
+        ...Array.from({ length: 5 }, () => ({
+          volume: 1, open: 100, close: 100, high: 100.4, low: 99.6,
+        })),
+      ]),
+    );
+    // BEHAVIOUR, not wording: it must not be sayable as an absorption claim.
+    expect(vm.effortSpreadNote).not.toMatch(/absorb/i);
+    expect(vm.effortSpreadNote).toContain("high-effort line");
+  });
+
+  it("a well-spread window stays capable, and carries no incapacity note", () => {
+    const absorbing = { volume: 1_000, open: 100, close: 100, high: 100.4, low: 99.6 };
+    const vm = selectAbsorptionAnatomy(
+      series([absorbing, absorbing, absorbing, { volume: 900, open: 100, close: 104, high: 104, low: 100 }]),
+    );
+    expect(vm.zoneQualificationPossible).toBe(true);
+    expect(vm.effortSpreadNote).toBeNull();
+    expect(vm.effortQualifyingBars).toBeGreaterThanOrEqual(2);
+  });
+
+  it("an unmeasured window publishes the fields as absent, never as zero findings", () => {
+    const vm = selectAbsorptionAnatomy([]);
+    expect(vm.effortConcentration).toBeNull();
+    expect(vm.zoneQualificationPossible).toBe(false);
+    // `measured: false` is already the louder disclosure; the note must not
+    // double up and start nagging with a second sentence about the same gap.
+    expect(vm.effortSpreadNote).toBeNull();
+  });
+
+  it("concentration is a SHARE of the window, so it never exceeds 1", () => {
+    const vm = selectAbsorptionAnatomy(
+      series(Array.from({ length: 8 }, (_, i) => ({ volume: 100 * (i + 1) }))),
+    );
+    expect(vm.effortConcentration).toBeGreaterThan(0);
+    expect(vm.effortConcentration).toBeLessThanOrEqual(1);
+  });
+});

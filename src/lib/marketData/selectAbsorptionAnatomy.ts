@@ -150,6 +150,42 @@ export interface AbsorptionAnatomyVM {
   readonly zones: readonly AbsorptionZone[];
   /** How many bars actually survived into the window. */
   readonly windowBars: number;
+
+  /* ── CAN THIS WINDOW ANSWER THE QUESTION AT ALL? ──────────────────────────
+   *
+   * Every term here is normalised against the window's OWN peak effort. That
+   * is what makes one scale mean the same thing on a 5-tick future and a $400
+   * stock — and it has a failure mode that is invisible in the output.
+   *
+   * If a single bar carries almost all of the window's traded effort, every
+   * other bar's `effortNorm` collapses toward 0 and can never clear
+   * `effortThreshold`. `zones` then comes back EMPTY — not because the market
+   * absorbed nothing, but because the arithmetic could not have produced a
+   * zone no matter what the market did.
+   *
+   * Observed live, not imagined: on a thin crypto venue a 15-minute BTC window
+   * carried volumes of 0.0003–0.137 BTC. One print held ~85% of the window and
+   * the surface printed "NO ZONE QUALIFIED — no run of bars held high effort
+   * against weak displacement long enough". That reads as a finding about the
+   * market. It was a fact about the feed. The same window on a deep venue read
+   * a healthy 5.6× max-to-median.
+   *
+   * So the incapacity is PUBLISHED rather than left to look like an answer.
+   * `0` zones and "this window could not have produced a zone" are different
+   * sentences and a reader is owed the second one.
+   */
+
+  /** Share of the window's TOTAL effort held by its single largest bar, 0..1. `null` when nothing was measured. */
+  readonly effortConcentration: number | null;
+  /** How many bars in the window cleared the HIGH EFFORT line. */
+  readonly effortQualifyingBars: number;
+  /**
+   * False when fewer bars cleared the effort gate than `minZoneBars` requires —
+   * i.e. an empty `zones` is arithmetic, not observation.
+   */
+  readonly zoneQualificationPossible: boolean;
+  /** One sentence naming the incapacity, or `null` when the window could answer. */
+  readonly effortSpreadNote: string | null;
 }
 
 export interface AbsorptionAnatomyOptions {
@@ -231,7 +267,21 @@ export function selectAbsorptionAnatomy(
   const basis = resolveBasis(window);
 
   if (basis === "UNMEASURED" || window.length === 0) {
-    return { basis: "UNMEASURED", measured: false, bars: [], zones: [], windowBars: window.length };
+    return {
+      basis: "UNMEASURED",
+      measured: false,
+      bars: [],
+      zones: [],
+      windowBars: window.length,
+      effortConcentration: null,
+      effortQualifyingBars: 0,
+      // Not "the window could have answered" — an unmeasured window is not a
+      // capable one. But the note stays null because `measured: false` is
+      // already the louder, more specific disclosure and two sentences saying
+      // the same absence is how a surface starts nagging.
+      zoneQualificationPossible: false,
+      effortSpreadNote: null,
+    };
   }
 
   const useDelta = basis === "SIGNED_DELTA" || basis === "INFERRED_DELTA";
@@ -308,5 +358,31 @@ export function selectAbsorptionAnatomy(
   }
   sealRun();
 
-  return { basis, measured: true, bars, zones, windowBars: bars.length };
+  // ── The window's capacity to have answered at all (see AbsorptionAnatomyVM).
+  const totalEffort = raw.reduce((s, r) => s + r.effort, 0);
+  const effortConcentration = totalEffort > 0 ? maxEffort / totalEffort : null;
+  const effortQualifyingBars = bars.reduce(
+    (n, b) => (b.effortNorm >= effortThreshold ? n + 1 : n),
+    0,
+  );
+  const zoneQualificationPossible = effortQualifyingBars >= minZoneBars;
+  const effortSpreadNote = zoneQualificationPossible
+    ? null
+    : `only ${effortQualifyingBars} of ${bars.length} bars reached the high-effort line`
+      + (effortConcentration != null
+        ? ` (one print holds ${Math.round(effortConcentration * 100)}% of the window's effort)`
+        : "")
+      + ` — a zone needs ${minZoneBars}, so no run could have qualified here whatever the market did`;
+
+  return {
+    basis,
+    measured: true,
+    bars,
+    zones,
+    windowBars: bars.length,
+    effortConcentration,
+    effortQualifyingBars,
+    zoneQualificationPossible,
+    effortSpreadNote,
+  };
 }

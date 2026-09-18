@@ -121,6 +121,13 @@ export interface AbsorptionAnatomyViewVM {
   readonly conviction: ConvictionReading;
   /** One honest line about the whole view. Never empty, in any state. */
   readonly reason: string;
+  /**
+   * Passed through from the measurement, not re-derived. False when an empty
+   * `zones` is arithmetic rather than a finding — see `AbsorptionAnatomyVM`.
+   */
+  readonly zoneQualificationPossible: boolean;
+  /** The sentence naming that incapacity, or `null` when the window could answer. */
+  readonly effortSpreadNote: string | null;
 }
 
 const BASIS_LINE: Record<EffortBasis, string> = {
@@ -333,6 +340,8 @@ const EMPTY: AbsorptionAnatomyViewVM = {
   checklist: [],
   conviction: { strength: null, ratio: null, unbounded: false, ladderFill: null },
   reason: BASIS_LINE.UNMEASURED,
+  zoneQualificationPossible: false,
+  effortSpreadNote: null,
 };
 
 export function selectAbsorptionAnatomyView(
@@ -354,10 +363,19 @@ export function selectAbsorptionAnatomyView(
 
   const aggression = buildAggressionRail(inputs, anatomy);
 
+  // "No absorption zone in the last N bars" is a CLAIM ABOUT THE MARKET, and it
+  // may only be made when the window was capable of producing one. When a single
+  // print holds nearly all of the window's effort, every other bar's effortNorm
+  // collapses toward zero, no run can clear the gate, and the empty result is
+  // arithmetic rather than observation. Live on a thin crypto venue this line
+  // asserted "no absorption" about a window whose effort was 85% one print.
+  // See the long note on `AbsorptionAnatomyVM`.
   const reason =
-    focusZone == null
-      ? `${BASIS_LINE[anatomy.basis]} — no absorption zone in the last ${anatomy.windowBars} bars`
-      : `${BASIS_LINE[anatomy.basis]} — ${focusZone.barCount} bars absorbed between ${focusZone.priceLo} and ${focusZone.priceHi}`;
+    focusZone != null
+      ? `${BASIS_LINE[anatomy.basis]} — ${focusZone.barCount} bars absorbed between ${focusZone.priceLo} and ${focusZone.priceHi}`
+      : anatomy.zoneQualificationPossible
+        ? `${BASIS_LINE[anatomy.basis]} — no absorption zone in the last ${anatomy.windowBars} bars`
+        : `${BASIS_LINE[anatomy.basis]} — this window cannot answer: ${anatomy.effortSpreadNote}`;
 
   return {
     version: ABSORPTION_ANATOMY_VIEW_VERSION,
@@ -376,5 +394,7 @@ export function selectAbsorptionAnatomyView(
       ladderFill: focusZone ? ladderFillOf(focusZone.efficiencyRatio, focusZone.unbounded) : null,
     },
     reason,
+    zoneQualificationPossible: anatomy.zoneQualificationPossible,
+    effortSpreadNote: anatomy.effortSpreadNote,
   };
 }
