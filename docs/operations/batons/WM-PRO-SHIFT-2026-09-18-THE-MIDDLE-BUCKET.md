@@ -1,12 +1,13 @@
 # THE MIDDLE BUCKET — 2026-09-18
 
-Five commits, one defect, four disguises.
+Six commits, one defect, five disguises.
 
     66e3f9e0  fix(market-state): a dimension is in exactly one bucket — PARTIAL gets a home
     1387e70e  fix(passport): the middle bucket cannot be reached by subtraction
     3a3d81a5  fix(hero-truth): the truth strip names the middle bucket instead of implying it
     edde7236  fix(canvas-pill): the withheld count is a fact, "open the canvas" is an instruction
     52bb844c  fix(equipment-rail): Market reality counts all three buckets, not two of three
+    a4a9073e  fix(clc): a value printed without its standing reads as a resolved value
 
 ## THE DEFECT
 
@@ -29,7 +30,7 @@ instrument, three irreconcilable counts of how much WM knows:
 **7 + 4 = 11, for EIGHT dimensions.** `location`, `aggression` and `profile`
 printed in BOTH adjacent columns of the same panel, in the same frame.
 
-## THE FOUR DISGUISES
+## THE FIVE DISGUISES
 
 1. **A LOOSE PREDICATE** — `!== "RESOLVED"` / `!== "UNKNOWN"`.  → `66e3f9e0`
 2. **ARITHMETIC** — `totalCount - resolvedCount`. *Total minus resolved is the
@@ -40,9 +41,16 @@ printed in BOTH adjacent columns of the same panel, in the same frame.
 4. **AN INCOMPLETE COUNT ROW** — both equipment rails counted `resolved` and
    `missing` and nothing else. *A rail that omits a bucket is the same lie as a
    predicate that mis-sorts one.* → `52bb844c`
+5. **AN IDENTICAL SENTENCE** — `${dim.value ?? "unresolved"}`. *A fallback on
+   NULLISHNESS is not a fallback on STANDING, and PARTIAL is exactly the bucket
+   that CARRIES a value. The `??` labelled the MISSING bucket and dressed the
+   MEASURED bucket in RESOLVED's clothes — two standings, one sentence.*
+   → `a4a9073e`
 
 **A COUNT THAT CAN ONLY BE REACHED BY SUBTRACTION HAS NO OWNER, and the middle
 bucket is exactly what subtraction destroys.**
+
+**A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.**
 
 ## WHAT HID IT
 
@@ -135,6 +143,7 @@ Every commit: `./node_modules/.bin/vitest run` and `tsc --noEmit`, UNPIPED.
     3a3d81a5   VITEST EXIT=0   764 files   9531 passed | 2 skipped    TSC EXIT=0
     edde7236   VITEST EXIT=0   764 files   9534 passed | 2 skipped    TSC EXIT=0
     52bb844c   VITEST EXIT=0   764 files   9536 passed | 2 skipped    TSC EXIT=0
+    a4a9073e   VITEST EXIT=0   764 files   9547 passed | 2 skipped    TSC EXIT=0
 
 Mutation receipt on each: mutated the guarded token, confirmed RED **by test
 name**, restored, confirmed green. A guard that has never been seen to fail is
@@ -218,17 +227,104 @@ own limit rather than printing an absence as a finding:
 
 PRESENT · REACHABLE · FED · OBSERVABLE, and honest about what it could not read.
 
+### `a4a9073e` — THE FIFTH DISGUISE, FOUND FROM SOURCE, PROVEN REACHABLE FIRST
+
+The baton's own OPEN list flagged `selectCLC.ts:66,82` as "NOT audited; may be
+legitimate". **The predicates are legitimate** — `contextResolved ? … :
+contextPartial ? … :` is a chained ternary, so the two branches are disjoint and
+total and `!== "UNKNOWN"` there genuinely means "some evidence exists". CLEARED.
+
+The defect was ONE LINE BELOW, in the sentence those predicates select:
+
+    PARTIAL   `Regime ${state.regime.value ?? "unresolved"}, direction …`
+    SATISFIED `Regime ${state.regime.value}, direction …`
+
+`??` tests NULLISHNESS. **Nullishness is not a standing.** `PARTIAL` is precisely
+the resolution that CARRIES a value, so the `??` never fires for it:
+
+    regime RESOLVED "TRENDING" + direction RESOLVED "LONG" → "Regime TRENDING, direction LONG"
+    regime RESOLVED "TRENDING" + direction PARTIAL  "LONG" → "Regime TRENDING, direction LONG"
+
+Two standings, ONE SENTENCE, byte-for-byte. The fallback labelled the MISSING
+bucket and dressed the MEASURED bucket in RESOLVED's clothes.
+
+**The function convicted itself.** CONFIRMATION — the third leg, same function —
+already printed `order flow ${state.orderFlow.resolution.toLowerCase()}` and so
+named what it was looking at. One function, three legs, one of which disclosed.
+
+**REACHABILITY PROVEN BEFORE THE FIX WAS CLAIMED:** `clc.narrative` is composed
+from all three leg summaries → the `clc` node in `selectDecisionChain.ts` →
+rendered at `DecisionChainPanel.tsx:295` `{node.narrative}`. A live surface.
+
+Repair: `dimensionPhrase()` routes through the canonical `dimensionStanding`
+switch, giving three distinct spellings for three standings. A fourth
+`MarketStateResolution` now fails the BUILD rather than quietly picking one here.
+
+Tests assert the PROPERTY — *measured sentence ≠ committed sentence*, *the value
+is still SHOWN*, *an absent dimension is still called unresolved and never
+"measured"* — never a spelling. Rewording stays free; regression does not.
+
+Gates: `VITEST EXIT=0` 764 files **9547 passed** | 2 skipped (+3, matching the
+three tests added) · `TSC EXIT=0`. Mutation receipt: MEASURED branch reverted to
+`?? "unresolved"` → RED **by name** on *"CONTEXT does not print a PARTIAL
+dimension the way it prints a RESOLVED one"* and *"LOCATION carries the same rule
+— one leg fixed is one surface's good luck"*, restored by targeted edit, green.
+
+## AN HONEST NEGATIVE — THE 8-vs-9 LEAD, CHASED AND CLEARED
+
+A recorded live frame showed the rail at `EVIDENCE DEBT 8 OPEN` beside a cell
+reading `0 of 9 paid`. I suspected a sixth disguise in
+`standingFromOneStory.ts:113`:
+
+    openEvidenceItems: debt && debt.payable > 0 ? debt.payable - debt.resolved : null
+
+**It is not one.** `payable === resolved + missing + warn` is definitional, so
+`payable - resolved` is a TRUE TWO-WAY complement — subtraction over a genuinely
+binary split destroys nothing. Better: this line IS the 2026-09-16 fix for that
+exact frame, where `debt.missing` had omitted the WARN bucket (`1 warned:
+permission` → payable 9, missing 8).
+
+Re-probed live: `8 OPEN` and `0 of 8 paid`. **Consistent.** Cleared, not fixed —
+because there was nothing left to fix. *Read the file before claiming the defect.*
+
 ## OPEN, HONEST
 
 - `selectMarketStory.ts:441` still hand-writes `!== "RESOLVED"` for the union
-  before splitting by `dimensionStanding`. Could route through the partition.
-- `selectCLC.ts:66,82` — `contextPartial` / `locationPartial` use `!== "UNKNOWN"`
-  as "some evidence exists". NOT audited; may be legitimate.
+  before splitting by `dimensionStanding`. Audited and CLEARED as correct; could
+  still route through the partition as a tidy-up. Not a defect.
+- ~~`selectCLC.ts:66,82` — `contextPartial` / `locationPartial` use `!== "UNKNOWN"`
+  … NOT audited.~~ **CLOSED by `a4a9073e`.** Predicates CLEARED; the real defect
+  was the sentence below them.
 - ~~`/charts` passes the pill no `scrollToSelector` … the trader still has
   nowhere to go.~~ **CLOSED by `dcecc624`** — the door was never a scroll target;
   it is press-gated equipment.
-- `dcecc624` is pushed but not yet observed live. The pill on the deployed build
-  is still a `<div role="status">`. **Re-probe for `<button
-  data-equipment-open="market-reality">` after deploy.**
+- ~~`dcecc624` is pushed but not yet observed live.~~ **PROVEN LIVE** — see below.
+- `a4a9073e` is pushed but not yet observed live on the CLC chain node.
+  **Re-probe `DecisionChainPanel`'s `clc` narrative after deploy**, on a frame
+  carrying a PARTIAL regime/direction/location/structure.
+- LIQUIDITY WEATHER at FULL depth prints a four-row legend (MEDIAN COST / LATEST
+  VS PEERS / HALF OVER HALF / DISAGREEING) with no values beside "0 equal-count
+  segments". Low priority, but a legend without values is a label without a fact.
+
+## A PROBE CONSTRAINT THAT SILENTLY BLINDS
+
+`innerText` returns `""` for any element nested inside a **closed `<details>`**,
+even with a non-null `offsetParent` and a real `getBoundingClientRect().height`.
+All seven `market-canvas-*` testids read empty this way; the panel sits inside two
+nested `<details>`. **Use `textContent` for content probes.** This is a PROBE
+ARTIFACT, not a defect — and earlier `innerText`-based findings in this shift may
+have been blinded by it and are worth re-running.
+
+## `dcecc624` — PROVEN LIVE, FULL LADDER
+
+`https://wealthymindsetspro.com/charts?symbol=TSLA`, post-deploy:
+
+    PRESENT      <button data-equipment-open="market-reality">  (role: null)
+    REACHABLE    click → URL ?equip=market-reality&stage=preview
+    FED          1 resolved · 3 measured · 4 missing · 8 blocking   (1+3+4 = 8)
+    OBSERVABLE   tooltip "+5 more — open Market reality"
+
+The label in that tooltip is the RAIL'S OWN, looked up from the canonical
+registry — never typed at the call site. One destination, one name.
 - `wm-canvas-summary-detail { display: none !important }` on phones is
   DELIBERATE semantic zoom with a locking test. Not a defect. Left alone.
