@@ -207,6 +207,11 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "The atmosphere blend arithmetic — overlay on non-linear sRGB, the grain tile's measured excursion, the vignette's peak alpha. Consumed by atmosphereLegibility.enforcement.test.ts to ask the Canon's §7 question ('measure ivory-on-field AFTER grain') about the COMPOSITED pixel rather than the clean token. A trader loses nothing by it having no screen; the browser already performs this blend in hardware, and a component importing it would be re-deriving in JavaScript what the compositor just did. Its whole job is to be asked at build time whether a layer the trader cannot opt out of has quietly taken the text ramp under AA.",
   },
+  "src/lib/marketData/marketFidelityAlgebra.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "The four-line composition from SUPPORT — Truth Resolver Fidelity (2026-09-18): what a surface may PAINT, when it may compile an INTENT, when a GO is permitted, and that WAIT is always legal. It has no screen yet on purpose — the canon's own build order puts contracts before pixels, and the alternative was to wire it to a surface this week so the import graph would look tidy, which is the false implementation the Harvest directive names. What a human loses meanwhile is nothing they had: no surface draws a market-fidelity plaque today. What the house gains now is that the first one to try cannot spell the rule itself, because the algebra exists and its Sentinel is already watching. The specific lie it is holding the door against is 'an EXECUTABLE badge on a canvas the adapter does not own', which is on the automatic-reject list in SUPPORT — Last Mile §2. Delete this entry the day the canvas asks it a question.",
+  },
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",
