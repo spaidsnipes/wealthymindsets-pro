@@ -84,7 +84,7 @@ Prose in this file is commentary. The table is the claim.
 | Aggression | SHIPPED | `42a495e4` — BTC, both gate arms live-observed |
 | Big Trades | SHIPPED | BTC 15m live-observed 2026-09-18 — `LARGE PRINTS · 6 cleared the cut`, top-10%-within-window cut stated on the surface, `SIDE · VENUE-STATED` |
 | Value Profile | SHIPPED | BTC 15m live-observed 2026-09-18 — `LIVING PROFILE`, `248 price buckets took volume`, `VALUE AREA HIGH 77940.00`, provenance stated as `ESTIMATED FROM CANDLES` |
-| Continuation | SHIPPED | Asset 15, wired 2026-09-18. Compiler + banner + view + 24 tests; reads `selectMarketStructure` against `selectRegime` off the same `canvasIdentity` this room already publishes with. The mockup's four percentages are refused in the compiler, so no renderer can print them. TSLA live-observed 2026-09-18 — read `UNREADABLE`, zero percentages in the visible text, candles still on screen beneath it, and an independent owner in the same room agreed the regime was unresolved. Full reading in the Asset 15 section below. |
+| Continuation | SHIPPED | Asset 15, wired 2026-09-18. Compiler + banner + view + 24 tests; reads `selectMarketStructure` against `selectRegime` off the same `canvasIdentity` this room already publishes with. The mockup's four percentages are refused in the compiler, so no renderer can print them. TSLA live-observed 2026-09-18 — read `UNREADABLE`, zero percentages in the visible text, candles still on screen beneath it, and an independent owner in the same room agreed the regime was unresolved. Full reading in the Asset 15 section below. Extended 2026-09-18 by `91cd493c` with Asset 17's one owned block — the confirmed swing high/low, labelled as observed pivots rather than the mockup's `Resistance / Support`; the remaining nine elements of Asset 17 are hue-graded scores with no owner and are refused. |
 <!-- VIEW-STATUS:END -->
 
 Every row above is a MICROSTRUCTURE view, so each renders WITH the candles
@@ -436,3 +436,70 @@ the failure mode stays legible.
   existing `chartCanvasState` rather than opening a second subscription on the
   same identity, and reuses the room's `chartBars` so the sequence describes the
   same candles the chart drew.
+
+---
+
+## ASSET 17 — MOSTLY REFUSED, ONE BLOCK KEPT (`91cd493c`, 2026-09-18)
+
+`WM_Transformation_UI_17_Cinematic_Continuation_Health_Canvas` is a second
+composition of the same subject as Asset 15. It adds **no new owner**, so the
+ledger note "reuses `selectContinuationHealth`, no new compiler" held on
+inspection — and that is exactly why most of it could not be drawn.
+
+### THE NINE SCORES, AND WHY NONE OF THEM WENT IN
+
+The canvas is built around numbers graded in hue: a `71%` HEALTHY arc gauge,
+`72% CLEAR`, `28% DEBT`, and four filled metric bars. Nine figures, zero owners.
+Each is Build Order §9 twice over — a verdict graded in hue, most of them at the
+REWARD end of the scale, with a number painted on top.
+
+There is no version of "build Asset 17 as drawn" that does not mint those. The
+refusal is not a deferral; nothing in this repo computes them, and nothing
+should be written that does, because a number a trader cannot audit is worse
+than a blank.
+
+### THE ONE BLOCK THAT HAD AN OWNER
+
+`KEY LEVELS` does. `selectMarketStructure` already confirms `lastSwingHigh` and
+`lastSwingLow` — a bar the market has ALREADY turned at, which is an observation
+rather than a score. A price the market printed is not a grade, so §9 has no
+quarrel with it, and it is the one number `ContinuationHealthVM` now carries.
+
+**The mockup's two WORDS were refused with the scores.** It labels the block
+`Resistance / Support`. Both are forward-looking claims — they say price WILL
+struggle at a number, and nothing here owns that. What is printed instead is
+`Last confirmed swing high` / `Last confirmed swing low`, with
+`selectMarketStructure` named beside each. This is the same refusal Asset 03
+made of `IMPLICATION: SIDEWAYS / REVERSAL RISK`.
+
+### TWO CONSEQUENCES THAT WERE NOT OBVIOUS FROM THE PICTURE
+
+**1. Levels survive a verdict the compiler could not reach.** When the regime
+owner is short but the structure owner is not, `health` is `UNREADABLE` and the
+pivots are nonetheless perfectly well known. Withholding a fact THIS owner
+measured because a DIFFERENT owner is silent is a refusal nothing asked for.
+That is the exact TSLA state recorded in the Asset 15 section above — the
+surface that read `UNREADABLE` and showed nothing else now answers "where did it
+turn".
+
+**2. The lag note had to widen.** `confirmationLagNote` used to ride only a
+DIRECTIONAL reading. That was true until levels existed. A level IS a pivot, and
+a ROTATING range is defined by precisely the two pivots now being drawn — so the
+old rule would have put the surface's most lag-sensitive numbers on screen with
+their disclosure removed. The note now fires whenever any level is carried. The
+prior test's premise changed by design and its title was corrected to say what
+it actually covers, rather than being deleted.
+
+### RECEIPTS
+
+- Gates unpiped: `tsc --noEmit` EXIT=0; `vitest run` EXIT=0, **792 files /
+  9963 passed | 2 skipped** (+10 over the Asset 15 seal).
+- The first green run after the feature landed was **treated as a failure
+  signal**: the suite total had not moved, because the existing `structureOf`
+  fixture carries `lastSwingHigh: null`, so the whole new branch was uncovered.
+  A swing-bearing fixture was added on both sides before anything was committed.
+- Mutation receipts taken, not claimed. Relabelling a level `"Resistance"`
+  reddened 5 tests across BOTH the compiler and the rendered markup. Dropping
+  the `levels` clause from the lag reddened exactly
+  `CARRIES THE LAG on a ROTATING reading that prints levels`. Both restored, and
+  the restore re-verified green.
