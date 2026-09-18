@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { selectOneStory } from "./selectOneStory";
-import type { StoryVM } from "./selectMarketStory";
+import { chapterName, type StoryVM } from "./selectMarketStory";
+import { inSentence } from "./decisionPermissionCompiler";
 import type { DecisionChainNode } from "./selectDecisionChain";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
 
@@ -56,13 +57,43 @@ describe("selectOneStory — canon §7 shape guarantee", () => {
     expect(vm.primary).toContain("expanding");
   });
 
-  it("unmapped chapter → renders lowercase spaced fallback (never blank)", () => {
+  it("unmapped chapter → spaced, never blank, never an underscore", () => {
+    // WHAT THIS GUARD ACTUALLY PROTECTS, restated.
+    //
+    // It used to assert `toContain("some new chapter")`, which locked an
+    // IMPLEMENTATION detail — a private `.replace(/_/g," ").toLowerCase()`
+    // living here — rather than the intent. That private rule is what made
+    // this surface say "opening auction" while StoryRibbon said "Open" and
+    // WhyInspector said "OPENING_AUCTION" for the same chapter.
+    //
+    // The intent was always: NEVER BLANK, and NEVER A MACHINE IDENTIFIER.
+    // Both are asserted below, and neither is coupled to how casing is done.
     const vm = selectOneStory({
       story: story("SOME_NEW_CHAPTER"),
       chainNodes: undefined,
       permission: null,
     });
-    expect(vm.primary).toContain("some new chapter");
+    expect(vm.primary).toContain("SOME NEW CHAPTER");
+    expect(vm.primary).not.toContain("_");
+    expect(vm.primary.trim().length).toBeGreaterThan("Current chapter: ".length);
+  });
+
+  it("× THE PRIVATE RULE: a named chapter reads through the ONE casing rule", () => {
+    // A mapped chapter mid-sentence composes chapterName with inSentence.
+    // If this surface ever grows its own third rule, "Trend Expansion" and
+    // "trend expansion" stop being the same word to the same reader.
+    const vm = selectOneStory({
+      story: story("VALUE_MIGRATION"),
+      chainNodes: undefined,
+      permission: null,
+    });
+    // VALUE_MIGRATION has a CHAPTER_SENTENCE preset, so `primary` never takes
+    // the fallback path. The composition itself is asserted directly instead —
+    // that is the rule the fallback uses, and the thing that must not fork.
+    expect(inSentence(chapterName("VALUE_MIGRATION"))).toBe("value migration");
+    // …and the acronym case the old .toLowerCase() would have destroyed.
+    expect(inSentence(chapterName("VWAP_RECLAIM"))).toBe("VWAP RECLAIM");
+    expect(vm.primary.length).toBeGreaterThan(0);
   });
 
   it("contradiction surfaces the first item from the current chapter", () => {

@@ -4,6 +4,7 @@ import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState
 import Panel from "@/components/ui/Panel";
 import Ribbon from "@/components/ui/Ribbon";
 import {
+  CHAPTER_NAMES,
   selectMarketStory,
   type StoryVM,
   type ChapterEntry,
@@ -50,22 +51,10 @@ const DEFAULT_GLYPHS: Record<StoryChapter, string> = {
   CLOSING_AUCTION: "◈",
 };
 
-const DEFAULT_NAMES: Record<StoryChapter, string> = {
-  OPENING_AUCTION: "Open",
-  BALANCE: "Balance",
-  COMPRESSION: "Compression",
-  LIQUIDITY_PROBE: "Liquidity Probe",
-  SWEEP: "Sweep",
-  ABSORPTION: "Absorption",
-  RECLAIM: "Reclaim",
-  BREAKOUT: "Breakout",
-  ACCEPTANCE: "Acceptance",
-  TREND_EXPANSION: "Trend Expansion",
-  ROTATION: "Rotation",
-  VALUE_MIGRATION: "Value Migration",
-  EXHAUSTION: "Exhaustion",
-  CLOSING_AUCTION: "Close",
-};
+// The chapter's name is owned by the module that owns the chapter TYPE.
+// This map used to live here, which is why the ribbon said "Open" while the
+// WHY panel said "OPENING_AUCTION" for the same chip. See CHAPTER_NAMES.
+const DEFAULT_NAMES: Record<StoryChapter, string> = CHAPTER_NAMES;
 
 export interface StoryRibbonProps {
   /** Current market state snapshot. When null → renders UNKNOWN placeholder. */

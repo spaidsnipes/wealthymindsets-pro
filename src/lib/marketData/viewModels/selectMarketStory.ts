@@ -47,6 +47,78 @@ export type StoryChapter =
   | "EXHAUSTION"
   | "CLOSING_AUCTION";
 
+/**
+ * THREE NAMES FOR ONE CHAPTER, ON SURFACES THE TRADER READS TOGETHER.
+ *
+ * ── The measured defect ───────────────────────────────────────────────────
+ *
+ * `StoryChapter` is a machine identifier. Four surfaces rendered it four
+ * different ways, and at least three of them are visible at once on /charts:
+ *
+ *   StoryRibbon      "Open"              (a local Record, Title Case, ABBREVIATED)
+ *   WhyInspector     "OPENING_AUCTION"   (raw enum, underscore and all)
+ *   selectOneStory   "opening auction"   (raw enum .replace().toLowerCase())
+ *   explainNoChapter "OPENING_AUCTION"   (raw enum, joined into prose)
+ *
+ * A trader who clicks the ribbon chip labelled **Open** to ask WHY is shown a
+ * panel naming **OPENING_AUCTION**, while the story sentence beneath it says
+ * **opening auction**. Nothing here is factually wrong and nothing disagrees
+ * about the market — which is exactly why it survived this long. It is Canon
+ * Weakness #1 in its quietest form: two owners, one instrument, one moment,
+ * disagreeing about what the thing is CALLED. The trader cannot tell whether
+ * they are looking at one chapter or three.
+ *
+ * ── Why the name lives HERE ───────────────────────────────────────────────
+ *
+ * In the module that owns the `StoryChapter` type, for the same reason
+ * `inSentence` was moved down into `decisionPermissionCompiler`: a display
+ * rule with two copies is a disagreement waiting for its first edit. Adding a
+ * chapter to the union above now fails the build here until it is named,
+ * rather than silently leaking `LIQUIDITY_VACUUM` onto a surface.
+ *
+ * ── What this function does NOT do ────────────────────────────────────────
+ *
+ * It has no opinion about casing. It returns the chapter's NAME in its
+ * canonical Title Case form and stops. A surface that needs it mid-sentence
+ * composes it with `inSentence` — the ONE casing rule, which lowers
+ * `Trend Expansion` to `trend expansion` but leaves a future `VWAP Reclaim`
+ * intact. Two rules, each owning one thing, composed at the call site. That
+ * is deliberately NOT the same as a second copy of either rule.
+ *
+ * `Open` / `Close` are preserved from the ribbon's own map. They are the
+ * Founder-facing short forms for a chip with ~10 characters of room, and they
+ * are a NAMING decision, not a truncation this module is free to undo.
+ */
+export const CHAPTER_NAMES: Record<StoryChapter, string> = {
+  OPENING_AUCTION: "Open",
+  BALANCE: "Balance",
+  COMPRESSION: "Compression",
+  LIQUIDITY_PROBE: "Liquidity Probe",
+  SWEEP: "Sweep",
+  ABSORPTION: "Absorption",
+  RECLAIM: "Reclaim",
+  BREAKOUT: "Breakout",
+  ACCEPTANCE: "Acceptance",
+  TREND_EXPANSION: "Trend Expansion",
+  ROTATION: "Rotation",
+  VALUE_MIGRATION: "Value Migration",
+  EXHAUSTION: "Exhaustion",
+  CLOSING_AUCTION: "Close",
+};
+
+/**
+ * The one name a chapter has on every surface.
+ *
+ * Falls back to de-underscoring an unrecognised chapter rather than throwing:
+ * the config's `chapters` array is caller-extensible by design (see the
+ * `StoryChapter` doc above), so an unnamed chapter is a legitimate state, and
+ * a selector explaining a silence must not become a new source of noise.
+ * Machine underscores never reach the trader either way.
+ */
+export function chapterName(chapter: string): string {
+  return CHAPTER_NAMES[chapter as StoryChapter] ?? chapter.replace(/_/g, " ");
+}
+
 export interface ChapterEntry {
   chapter: StoryChapter;
   enteredAt: number;
@@ -396,7 +468,7 @@ function explainNoChapter(
   ];
   if (rejected.length > 0) {
     parts.push(
-      `${rejected.join(", ")} had every input ${rejected.length === 1 ? "it needs" : "they need"} ` +
+      `${rejected.map(chapterName).join(", ")} had every input ${rejected.length === 1 ? "it needs" : "they need"} ` +
       `and did not match — more evidence will not change ${rejected.length === 1 ? "it" : "them"}.`,
     );
   }
@@ -435,7 +507,9 @@ function explainNoChapter(
         `${partial.join(", ")} measured but not decision-grade`,
       );
     }
-    parts.push(`${blocked.join(", ")} could not be evaluated: ${causes.join("; ")}.`);
+    parts.push(
+      `${blocked.map(chapterName).join(", ")} could not be evaluated: ${causes.join("; ")}.`,
+    );
   }
   return parts.join(" ");
 }

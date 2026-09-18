@@ -20,13 +20,14 @@
  * Semantic Zoom depth reveal.
  */
 
-import type { StoryVM } from "./selectMarketStory";
+import { chapterName, type StoryVM } from "./selectMarketStory";
 import type { DecisionChainNode } from "./selectDecisionChain";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
 import type { ContradictionDetectability } from "@/lib/marketData/canonicalMarketState";
 import {
   computeEvidenceDebt,
   computeRightOfWay,
+  inSentence,
   sampledLabelPhrase,
   type EvidenceDebt,
   type RightOfWayReading,
@@ -107,7 +108,15 @@ function primarySentence(story: StoryVM | null): string {
   const ch = story.current.chapter;
   const preset = CHAPTER_SENTENCE[ch];
   if (preset) return preset;
-  return `Current chapter: ${ch.replace(/_/g, " ").toLowerCase()}.`;
+  // TWO RULES, EACH OWNING ONE THING, COMPOSED — not a third copy of either.
+  //
+  // `chapterName` owns WHAT the chapter is called; `inSentence` owns how a name
+  // reads mid-sentence. The `.replace(/_/g," ").toLowerCase()` this replaced
+  // owned both, privately, and disagreed with StoryRibbon and WhyInspector
+  // about the first. It was also the indiscriminate-lowercase bug waiting for
+  // its first acronym chapter: a future `VWAP_RECLAIM` would have printed
+  // "vwap reclaim" here. inSentence leaves VWAP standing.
+  return `Current chapter: ${inSentence(chapterName(ch))}.`;
 }
 
 function contradictionSentence(story: StoryVM | null): string | null {

@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { selectMarketStory, DEFAULT_MATCHERS, DEFAULT_GUARDS, type ChapterEntry } from "./selectMarketStory";
+import { selectMarketStory, chapterName, CHAPTER_NAMES, DEFAULT_MATCHERS, DEFAULT_GUARDS, type ChapterEntry } from "./selectMarketStory";
 import type { CanonicalMarketState, MarketStateDimension } from "../canonicalMarketState";
 
 const dim = (value: string | null): MarketStateDimension => ({
@@ -133,7 +133,12 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
     // the blocked clause instead would capture both lists — the first draft of
     // this test did exactly that and passed the wrong assertion for it.
     const decided = vm.reason?.split("had every input")[0] ?? "";
-    expect(decided).toMatch(/ROTATION/);
+    // Asserted THROUGH chapterName, not against a hardcoded string. A guard
+    // that spells the name itself is a second owner of the name — which is the
+    // exact defect this atom removed.
+    expect(decided).toContain(chapterName("ROTATION"));
+    // …and the machine identifier must never reach the trader.
+    expect(vm.reason).not.toMatch(/_/);
   });
 
   it("a chapter blocked by missing evidence is never reported as decided", () => {
@@ -148,8 +153,8 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
     // the blocked clause instead would capture both lists — the first draft of
     // this test did exactly that and passed the wrong assertion for it.
     const decided = vm.reason?.split("had every input")[0] ?? "";
-    expect(decided).not.toMatch(/VALUE_MIGRATION/);
-    expect(vm.reason).toMatch(/VALUE_MIGRATION/);
+    expect(decided).not.toContain(chapterName("VALUE_MIGRATION"));
+    expect(vm.reason).toContain(chapterName("VALUE_MIGRATION"));
   });
 
   it("evaluating the guards a second time does not change the verdict", () => {
@@ -223,8 +228,8 @@ describe("selectMarketStory — the no-chapter diagnosis must be measured, not a
       mkState(1000, { regime: dim("BALANCE"), direction: dim("UP"), profile: partialDim("DEFINED VALUE") }),
     );
     const decided = vm.reason?.split("had every input")[0] ?? "";
-    expect(decided).not.toMatch(/VALUE_MIGRATION/);
-    expect(vm.reason).toMatch(/VALUE_MIGRATION/);
+    expect(decided).not.toContain(chapterName("VALUE_MIGRATION"));
+    expect(vm.reason).toContain(chapterName("VALUE_MIGRATION"));
     // And the resolved COUNT is unchanged: PARTIAL is not resolved.
     expect(vm.reason).toMatch(/2\/8 dimensions resolved/);
   });
@@ -475,5 +480,40 @@ describe("DEFAULT_MATCHERS — synonym coverage", () => {
     expect(DEFAULT_MATCHERS.regime.balance!.matches(UNK)).toBe(false);
     expect(DEFAULT_MATCHERS.structure.sweep!.matches(UNK)).toBe(false);
     expect(DEFAULT_MATCHERS.aggression.high!.matches(UNK)).toBe(false);
+  });
+});
+
+describe("chapterName — one name, every surface", () => {
+  it("× THE MACHINE IDENTIFIER: no chapter name reaches the trader with an underscore", () => {
+    // The live defect: explainNoChapter and WhyInspector joined the raw enum
+    // into prose, so /charts printed "TREND_EXPANSION" in a sentence.
+    for (const chapter of Object.keys(CHAPTER_NAMES)) {
+      expect(chapterName(chapter)).not.toContain("_");
+    }
+  });
+
+  it("× THE THIRD NAME: every chapter in the union is named exactly once", () => {
+    // TOTAL over StoryChapter by construction. Adding a chapter to the union
+    // without naming it is a compile error in selectMarketStory.ts, not a
+    // silent leak of the identifier onto a surface.
+    const names = Object.values(CHAPTER_NAMES);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.every((n) => n.length > 0)).toBe(true);
+  });
+
+  it("× THE PRESERVED SHORT FORM: the auctions keep the ribbon's own naming", () => {
+    // Open / Close are a Founder-facing NAMING decision for a ~10-char chip,
+    // not a truncation this module invented or is free to undo.
+    expect(chapterName("OPENING_AUCTION")).toBe("Open");
+    expect(chapterName("CLOSING_AUCTION")).toBe("Close");
+  });
+
+  it("× THE UNNAMED CHAPTER: an unmapped chapter discloses that nobody named it", () => {
+    // `config.chapters` is caller-extensible by design, so an unnamed chapter
+    // is legitimate. It renders de-underscored but NOT dressed up as prose:
+    // leaving it in its identifier casing is what tells the reader this is a
+    // raw id with no human name behind it. Lowercasing it would hide that.
+    expect(chapterName("SOME_NEW_CHAPTER")).toBe("SOME NEW CHAPTER");
+    expect(chapterName("SOME_NEW_CHAPTER")).not.toContain("_");
   });
 });

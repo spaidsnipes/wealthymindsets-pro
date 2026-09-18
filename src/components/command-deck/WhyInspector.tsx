@@ -3,6 +3,10 @@ import * as React from "react";
 import type { CanonicalMarketState, MarketStateDimension } from "@/lib/marketData/canonicalMarketState";
 import type { DLARVM } from "@/lib/marketData/viewModels/selectDLAR";
 import type { CLCVM } from "@/lib/marketData/viewModels/selectCLC";
+// One owner for what a chapter is CALLED. Before this, the WHY panel printed
+// the raw enum — so clicking a ribbon chip labelled "Open" opened a panel
+// naming OPENING_AUCTION, and the trader could not tell it was the same thing.
+import { chapterName } from "@/lib/marketData/viewModels/selectMarketStory";
 import { WM } from "@/lib/design/wmTokens";
 import { SemanticZoom, type SemanticZoomLevels } from "@/components/experience/SemanticZoom";
 
@@ -134,7 +138,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
   } else if (target.kind === "story") {
     title = "Why this chapter?";
     subtitle = target.chapter
-      ? `Current chapter: ${target.chapter}`
+      ? `Current chapter: ${chapterName(target.chapter)}`
       : "No chapter currently supported — state.dimensions unresolved.";
     unknowns = state ? [...state.unknowns] : [];
     contradictions = state ? [...state.contradictions] : [];
