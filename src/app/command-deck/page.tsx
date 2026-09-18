@@ -80,6 +80,7 @@ import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from "@/lib/marketData/perCapabilityFidelity";
 import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
+import ObjectPassportSlots from "@/components/experience/ObjectPassportSlots";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -859,7 +860,20 @@ function CommandDeckInner() {
         { testId: "equipment-count-passport-objects", label: `${passport.totalCount} objects` },
       ],
       renderDepth: (unabridged: boolean) => (
-        <MarketObjectPassportPanel vm={passport} unabridged={unabridged} />
+        <>
+          {/* THE OBJECT PASSPORT, ABOVE THE DIMENSION PASSPORT.
+              Two different things have been called a Passport in this codebase.
+              The panel below lists the canonical DIMENSIONS the resolver
+              sealed; this band states the shared-slot contract that governs
+              market OBJECTS, whose seven kinds are closed. It is mounted with
+              `object={null}` rather than omitted, and the difference is a
+              claim: the deck HAS asked and nothing is selected. Omitting it
+              would say the deck never looked. Nothing here manufactures an
+              object — when a producer exists it passes one in and the five
+              slots fill. */}
+          <ObjectPassportSlots object={null} />
+          <MarketObjectPassportPanel vm={passport} unabridged={unabridged} />
+        </>
       ),
     }),
     [passport],
