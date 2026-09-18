@@ -388,8 +388,29 @@ export function matrixProviderWireView(
   if (/\b(?:HTTP 429|rate limit)/i.test(detail)) {
     return { source, tone: "LIMITED", label: "Rate limited", detail };
   }
-  if (/\bno (?:valid,? )?(?:symbol-matched )?(?:tick )?(?:observations|events|prints)\b/i.test(detail)) {
+  if (/\bno (?:valid,? )?(?:symbol-matched )?(?:tick )?(?:observations|events|prints)\b/i.test(detail)
+    || /\bdid not contain a valid\b|\bempty (?:quote|tick|trade) set\b|\breturned an empty\b/i.test(detail)) {
     return { source, tone: "LIMITED", label: "No events", detail };
+  }
+  // FOUND BY TRACING THE ROUND-TRIP, not by another live reading. The notes
+  // this classifier reads are AUTHORED IN THIS REPO — `zeroState(...)` in
+  // `src/lib/marketData/adapters/*` writes an English sentence and this
+  // function parses it back with a regex. Three more of those sentences still
+  // fell through to the generic arm below for exactly the reason the staleness
+  // note did: no arm spoke their wording.
+  if (/\b(?:not configured|credentials are not configured|is missing in this runtime)\b/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "Not configured", detail };
+  }
+  if (/\b(?:transport was unreachable|unreachable|could not connect|connection refused)\b/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "Unreachable", detail };
+  }
+  // SURFACED BY THE PROSE ROUND-TRIP SENTINEL, not by a human re-reading the
+  // adapters. Webull's bridge note says the bridge IS configured and DID answer,
+  // but this adapter refuses to read its envelope. "Not receiving" would have
+  // been false twice over — it is configured, and something came back. The
+  // refusal is the adapter's own caution, and the row should say so.
+  if (/\bunproven transport\b|\bnot yet verified in this adapter\b|\bresponse envelope is not\b/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "Transport unproven", detail };
   }
   // MEASURED LIVE 2026-09-18, /command-deck TSLA. Alpaca's rejection note read:
   //
@@ -413,6 +434,24 @@ export function matrixProviderWireView(
   if (/HTTP 403/i.test(detail) && /not proven/i.test(detail)) {
     return { source, tone: "BLOCKED", label: "Access unproven", detail };
   }
+  // LAST RESORT BEFORE THE GENERIC ARM. A provider that answered with an HTTP
+  // status told us something specific, and the arms above only speak for the
+  // codes anyone has met so far (401/403/429/5xx). An unmet code — 404, 409,
+  // 451 — would otherwise be flattened into "Not receiving", which is a claim
+  // about DELIVERY that a status line disproves: the transport plainly worked.
+  // Name the code rather than invent a silence.
+  //
+  // CAUGHT BY THIS COMMIT'S OWN OVER-CORRECTION GUARD, which is the point of
+  // having one. The "Authentication blocked" verdict above is reached through
+  // `reason.includes("BLOCKED_AUTH")` — a STATUS, not the note text. A 401 that
+  // arrives without that status would have been demoted from a named auth
+  // failure to a bare code by the arm below. 401 and 403 mean something
+  // specific in every HTTP deployment; say it before falling back to the code.
+  if (/\bHTTP 401\b/i.test(detail)) {
+    return { source, tone: "BLOCKED", label: "Authentication blocked", detail };
+  }
+  const http = /\bHTTP (\d{3})\b/i.exec(detail);
+  if (http) return { source, tone: "OFFLINE", label: `HTTP ${http[1]}`, detail };
   // `rejected.length > 0` means the provider WAS measured and its observation
   // was refused for a reason no branch above recognised. That is a finding.
   // `rejected.length === 0` means nothing came back at all — that, and only

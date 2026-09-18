@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { certifySource } from "@/lib/marketData/sourceCapabilityCertification";
 import {
   alpacaReadinessWireView,
@@ -324,5 +324,117 @@ describe("witnessedProviderWireView (canon Weakness #1, third panel)", () => {
     expect(alpaca?.label).toBe("Observed · not certified");
     // and every provider the page did NOT witness still reports honestly
     expect(wires.find((w) => w.source === "moomoo")?.label).toBe("Status unavailable");
+  });
+});
+
+describe("THE PROSE ROUND-TRIP (the generalised root cause)", () => {
+  // WHY THIS SENTINEL EXISTS.
+  //
+  // The 2026-09-18 staleness defect was not a one-off typo in a regex. It was
+  // an instance of a STRUCTURAL arrangement this repo builds on purpose:
+  //
+  //   `zeroState(...)` in src/lib/marketData/adapters/* AUTHORS AN ENGLISH
+  //   SENTENCE, and `matrixProviderWireView` below PARSES THAT SENTENCE BACK
+  //   with regular expressions to decide a verdict.
+  //
+  // Prose is the wire format. Nothing type-checks it, so rewording a note — or
+  // adding a new one — silently downgrades a SPECIFIC, MEASURED refusal into
+  // the generic "Not receiving", which is a claim about DELIVERY that no branch
+  // measured. That is §14.1 violated by drift rather than by decision.
+  //
+  // So: read the notes out of the adapters, run every one of them through the
+  // real classifier, and fail BY NAME on any that lands on the generic arm.
+  // A new unclassified note cannot reach production without turning this red.
+  //
+  // SCOPE, HONESTLY STATED: this covers `zeroState(...)` arguments, which are
+  // refusals by construction. moomoo/longbridge author their refusal notes
+  // inline on capability rows instead, and separating those from ACCEPTED-row
+  // notes statically is not reliable — they are NOT covered here. That gap is
+  // real and is recorded rather than papered over.
+  const ADAPTER_DIR = "src/lib/marketData/adapters";
+
+  function extractZeroStateNotes(): ReadonlyArray<{ file: string; note: string }> {
+    const out: { file: string; note: string }[] = [];
+    for (const file of readdirSync(ADAPTER_DIR)) {
+      if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
+      const src = readFileSync(`${ADAPTER_DIR}/${file}`, "utf8");
+      // zeroState("..."), zeroState('...'), zeroState(`...`) — first argument only.
+      const re = /zeroState\(\s*(["'`])((?:\\.|(?!\1)[\s\S])*)\1/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(src)) !== null) {
+        // Template placeholders stand in for runtime values. `999` is chosen so
+        // that unit-carrying notes ("within ${ms} ms", "HTTP ${status}") remain
+        // well-formed rather than degenerating into unparseable text.
+        out.push({ file, note: m[2].replace(/\$\{[^}]*\}/g, "999") });
+      }
+    }
+    return out;
+  }
+
+  const notes = extractZeroStateNotes();
+
+  it("PRECONDITION: the adapter corpus was actually found and is non-trivial", () => {
+    // Without this, a rename of `zeroState` or a move of the adapter directory
+    // would empty the corpus and every assertion below would pass over nothing.
+    // A vacuous gate is worse than no gate: it reports safety it never checked.
+    expect(notes.length).toBeGreaterThanOrEqual(8);
+    expect(new Set(notes.map((n) => n.file)).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it("no adapter refusal note is flattened into the generic label", () => {
+    const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
+    const flattened = notes.filter(({ note }) => {
+      const matrix = buildAthosCapabilityMatrix([
+        { certification: certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", note }]), providerTier: "CERTIFIED_NEW" },
+      ], session);
+      const label = matrixProviderWireView(matrix, "alpaca").label;
+      return label === "Not receiving" || label === "Status unavailable";
+    });
+    // Reported as file + note so a failure names the exact sentence to classify,
+    // not merely a count.
+    expect(flattened.map((n) => `${n.file}: ${n.note}`)).toEqual([]);
+  });
+
+  // The Sentinel above proves no note lands on the generic arm. It does NOT
+  // prove each lands on the RIGHT arm — "not generic" is a weaker claim than
+  // "correct". These pin the verdict itself for every note the round-trip
+  // audit moved off the generic arm, so a later regex widening that captures
+  // one of them into the wrong bucket fails by name.
+  const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
+  function classify(note: string) {
+    const matrix = buildAthosCapabilityMatrix([
+      { certification: certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", note }]), providerTier: "CERTIFIED_NEW" },
+    ], session);
+    return matrixProviderWireView(matrix, "alpaca");
+  }
+
+  const cases: ReadonlyArray<readonly [string, string, string]> = [
+    ["Alpaca live market-data credentials are not configured together in this runtime.", "Not configured", "OFFLINE"],
+    ["Alpaca IEX snapshot transport was unreachable; no market observation was returned.", "Unreachable", "OFFLINE"],
+    ["Alpaca IEX snapshot did not contain a valid provider-timestamped trade for the canary symbol.", "No events", "LIMITED"],
+    ["Webull data bridge configured (https://x) but its response envelope is not yet verified in this adapter — refusing to claim capabilities from an unproven transport.", "Transport unproven", "OFFLINE"],
+    // An HTTP code nobody has met yet still names itself rather than claiming silence.
+    ["Alpaca returned HTTP 404; the failed edge is not proven and no capability is claimed.", "HTTP 404", "OFFLINE"],
+  ];
+
+  for (const [note, label, tone] of cases) {
+    it(`classifies as ${label}: ${note.slice(0, 56)}…`, () => {
+      const wire = classify(note);
+      expect(wire.label).toBe(label);
+      expect(wire.tone).toBe(tone);
+      // Every one of these is a FINDING, so none may be overruled by a witness.
+      expect(wire.evidenceless).not.toBe(true);
+    });
+  }
+
+  it("the arms added above did not steal the verdicts the ladder already got right", () => {
+    // Over-correction guard. Widening a classifier is how a previously-correct
+    // row quietly changes meaning; these are the neighbours most at risk.
+    expect(classify("Alpaca returned HTTP 401; the credential was rejected.").label).toBe("Authentication blocked");
+    expect(classify("Alpaca returned HTTP 503; the provider failed.").label).toBe("Provider error");
+    expect(classify("Alpaca returned HTTP 429. The bounded read was rate limited.").label).toBe("Rate limited");
+    expect(classify("Alpaca returned HTTP 403; the failed edge is not proven and no capability is claimed.").label).toBe("Access unproven");
+    expect(classify("Alpaca IEX snapshot did not respond within 2500 ms; no market observation was returned.").label).toBe("Timed out");
+    expect(classify("Alpaca returned a valid TSLA IEX trade, but its provider timestamp was 43549376 ms old; stale evidence was not exposed as current.").label).toBe("Stale data");
   });
 });
