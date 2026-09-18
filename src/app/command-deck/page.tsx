@@ -81,6 +81,7 @@ import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from
 import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import ObjectPassportSlots from "@/components/experience/ObjectPassportSlots";
+import MarketHonestyPlaque from "@/components/experience/MarketHonestyPlaque";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -871,6 +872,15 @@ function CommandDeckInner() {
               would say the deck never looked. Nothing here manufactures an
               object — when a producer exists it passes one in and the five
               slots fill. */}
+          {/* THE HONESTY PLAQUE, mounted with reading={null} — which renders
+              UNMEASURED, and that is the true answer today. The deck composes
+              no market fidelity: nothing here calls readMarketFidelity, so
+              there is no reading to show. Passing null states that in the one
+              place a trader would look for it, where the alternative was to
+              keep saying nothing at all — and an unmeasured canvas that says
+              nothing looks exactly like a certified one. When the resolver
+              starts composing, it passes a reading in and the word changes. */}
+          <MarketHonestyPlaque reading={null} />
           <ObjectPassportSlots object={null} />
           <MarketObjectPassportPanel vm={passport} unabridged={unabridged} />
         </>

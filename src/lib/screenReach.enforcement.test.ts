@@ -212,11 +212,6 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     note:
       "Birth/camera/closure classifier from SUPPORT — DECISION_ID Lifecycle (2026-09-18), extending decisionIdentity.ts rather than forking it. What a human loses by it having no screen is nothing yet — it takes no pixels and answers no question a trader asks out loud. What it holds is the canon's two lists, which are not each other's complement: the long list of camera events that must NOT mint an identity (zoom, overlay, symbol change, laptop close, Spaidbot), and the separate list that must NOT close one (a dropped broker session is a joint, not a death; SHOW OPPOSING is the trader looking harder at their own thesis). The danger was never that someone deliberately mints on a zoom — it is that minting is one line and a camera event is the convenient place to put it, and until now nothing in the codebase said no. Its first consumer will be whichever surface next mints or retires a decision; delete this entry then.",
   },
-  "src/lib/marketData/marketFidelityAlgebra.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "The four-line composition from SUPPORT — Truth Resolver Fidelity (2026-09-18): what a surface may PAINT, when it may compile an INTENT, when a GO is permitted, and that WAIT is always legal. It has no screen yet on purpose — the canon's own build order puts contracts before pixels, and the alternative was to wire it to a surface this week so the import graph would look tidy, which is the false implementation the Harvest directive names. What a human loses meanwhile is nothing they had: no surface draws a market-fidelity plaque today. What the house gains now is that the first one to try cannot spell the rule itself, because the algebra exists and its Sentinel is already watching. The specific lie it is holding the door against is 'an EXECUTABLE badge on a canvas the adapter does not own', which is on the automatic-reject list in SUPPORT — Last Mile §2. Delete this entry the day the canvas asks it a question.",
-  },
   "src/lib/marketData/canonicalBar.ts": {
     reason: "AWAITING_SURFACE",
     note:
