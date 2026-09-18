@@ -341,6 +341,74 @@ describe("chart Market State publisher", () => {
   });
 
   /**
+   * A DEAD FEED AND A VENUE WITH NO TAPE ARE NOT THE SAME ABSENCE.
+   *
+   * MEASURED LIVE, production /charts?symbol=TSLA 15m: direction and
+   * volatility both returned UNKNOWN carrying "No verified price evidence
+   * supplied at snapshot time." while 120 candles were drawn on the same
+   * screen, the header printed O/H/L/C and V 57,398, and the session change
+   * read +2.85%. Price evidence was abundant. The tape was not.
+   *
+   * Because regime is a pure composition of those two, that single absence
+   * took THREE of eight dimensions down and the story panel printed
+   * "1/8 dimensions resolved" over a fully-drawn chart. The reading is still
+   * correctly withheld — only the sentence explaining it changes.
+   */
+  describe("tape-absent disclosure", () => {
+    const barsOnly = (): ChartMarketStatePublicationInput => ({
+      ...base(),
+      recentTicks: [],
+      bars: [
+        { time: 1_700, open: 1, high: 2, low: 0.5, close: 1.5, volume: 10 },
+        { time: 1_800, open: 1.5, high: 2.5, low: 1, close: 2, volume: 12 },
+      ],
+    } as ChartMarketStatePublicationInput);
+
+    it("stops claiming no price evidence when candles are loaded", () => {
+      const dimensions = createChartMarketStatePublication(barsOnly()).state.dimensions!;
+      for (const name of ["direction", "volatility"] as const) {
+        expect(dimensions[name]!.resolution).toBe("UNKNOWN");
+        expect(dimensions[name]!.unknowns.join(" ")).not.toMatch(/No verified price evidence/i);
+        expect(dimensions[name]!.unknowns.join(" ")).toMatch(/2 candles are loaded/);
+        expect(dimensions[name]!.unknowns.join(" ")).toMatch(/no per-trade tape has arrived/);
+      }
+    });
+
+    it("keeps the original wording when the feed is genuinely silent", () => {
+      // OVER-CORRECTION GUARD. No bars AND no ticks is a dead feed, and the
+      // deriver's own sentence is already the honest answer for it. A note
+      // fired here would invent a contradiction that does not exist.
+      const dimensions = createChartMarketStatePublication({
+        ...base(), recentTicks: [], bars: undefined,
+      }).state.dimensions!;
+      expect(dimensions.direction!.unknowns.join(" ")).toMatch(/No verified price evidence/i);
+      expect(dimensions.volatility!.unknowns.join(" ")).toMatch(/No verified price evidence/i);
+    });
+
+    it("says nothing at all once real trades arrive", () => {
+      // The note describes an ABSENCE. With tape present there is none, and a
+      // dimension that resolved must not carry an excuse for not resolving.
+      const dimensions = createChartMarketStatePublication({
+        ...base(),
+        bars: [{ time: 1_700, open: 1, high: 2, low: 0.5, close: 1.5, volume: 10 }],
+      } as ChartMarketStatePublicationInput).state.dimensions!;
+      expect(dimensions.volatility!.unknowns.join(" ")).not.toMatch(/no per-trade tape/);
+      expect(dimensions.direction!.unknowns.join(" ")).not.toMatch(/no per-trade tape/);
+    });
+
+    it("does not promote either dimension — a sharper sentence is not a stronger claim", () => {
+      const silent = createChartMarketStatePublication({
+        ...base(), recentTicks: [], bars: undefined,
+      }).state.dimensions!;
+      const withCandles = createChartMarketStatePublication(barsOnly()).state.dimensions!;
+      for (const name of ["direction", "volatility", "regime"] as const) {
+        expect(withCandles[name]!.resolution).toBe(silent[name]!.resolution);
+        expect(withCandles[name]!.value).toBe(silent[name]!.value);
+      }
+    });
+  });
+
+  /**
    * SOURCE-TEXT SENTINEL against the silent-drop CLASS.
    *
    * The behavioural tests above exercise the pure producer, which the old bug

@@ -77,6 +77,22 @@ export interface DeriveDirectionInput {
   readonly capturedAt: number;
   /** Stable id used in the evidence eventId (typically the snapshot id). */
   readonly snapshotIdSeed: string;
+  /**
+   * WHY THERE IS NOTHING TO MEASURE, when the caller knows something this
+   * deriver cannot see.
+   *
+   * MEASURED LIVE on production /charts?symbol=TSLA: this dimension returned
+   * UNKNOWN carrying "No verified price evidence supplied at snapshot time."
+   * while 120 candles were drawn on the same screen and the header printed a
+   * real session change of +2.85%. Price evidence WAS supplied. What was
+   * absent is the PER-TRADE TAPE this deriver reads, and the two are not the
+   * same absence. See the matching field on `DeriveVolatilityInput`.
+   *
+   * Only the publisher can see both lanes, so only the publisher can write
+   * this sentence. Optional: a caller that supplies none gets exactly the
+   * previous wording.
+   */
+  readonly evidenceGapNote?: string | null;
 }
 
 interface DirectionAggregate {
@@ -176,7 +192,10 @@ function confidenceFor(count: number, rangeShare: number): number {
 
 export function deriveDirectionDimension(input: DeriveDirectionInput): MarketStateDimension {
   const agg = aggregateFor(input.ticks);
-  if (!agg) return UNKNOWN_DIMENSION;
+  if (!agg) {
+    const gap = input.evidenceGapNote?.trim() || null;
+    return gap ? { ...UNKNOWN_DIMENSION, unknowns: [gap] } : UNKNOWN_DIMENSION;
+  }
 
   if (agg.count < DIRECTION_RESOLVE_MIN_TRADES) {
     return {

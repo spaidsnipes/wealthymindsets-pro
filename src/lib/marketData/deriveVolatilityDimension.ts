@@ -56,6 +56,28 @@ export interface DeriveVolatilityInput {
   readonly capturedAt: number;
   /** Stable id used in the evidence eventId (typically the snapshot id). */
   readonly snapshotIdSeed: string;
+  /**
+   * WHY THERE IS NOTHING TO MEASURE, when the caller knows something this
+   * deriver cannot see.
+   *
+   * MEASURED LIVE on production /charts?symbol=TSLA: this dimension returned
+   * UNKNOWN carrying "No verified price evidence supplied at snapshot time."
+   * while 120 candles carrying real per-bar volume were drawn on the same
+   * screen. Price evidence WAS supplied. What was absent is the PER-TRADE
+   * TAPE this deriver reads, and the two are not the same absence — the same
+   * distinction `deriveProfileDimension` and `deriveAggressionDimension`
+   * already carry, for the same reason.
+   *
+   * It matters because the sentences imply opposite actions. "No price
+   * evidence" tells a trader the feed is down and to wait; "candles are here,
+   * the tape is not" tells them this venue will not answer this question
+   * however long they wait.
+   *
+   * Only the publisher can see both lanes, so only the publisher can write
+   * this sentence. Optional: a caller that supplies none gets exactly the
+   * previous wording.
+   */
+  readonly evidenceGapNote?: string | null;
 }
 
 interface VolatilityAggregate {
@@ -142,7 +164,10 @@ function evidenceRefFor(input: DeriveVolatilityInput, agg: VolatilityAggregate):
 
 export function deriveVolatilityDimension(input: DeriveVolatilityInput): MarketStateDimension {
   const agg = aggregateFor(input.ticks);
-  if (!agg) return UNKNOWN_DIMENSION;
+  if (!agg) {
+    const gap = input.evidenceGapNote?.trim() || null;
+    return gap ? { ...UNKNOWN_DIMENSION, unknowns: [gap] } : UNKNOWN_DIMENSION;
+  }
 
   if (agg.count < VOLATILITY_RESOLVE_MIN_TRADES) {
     return {

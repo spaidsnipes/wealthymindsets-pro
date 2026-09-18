@@ -225,6 +225,40 @@ function candleVolumeGapNote(
   );
 }
 
+/**
+ * THE DIFFERENCE BETWEEN A DEAD FEED AND A VENUE WITH NO TAPE.
+ *
+ * Sibling of `candleVolumeGapNote`, one lane over. Direction and volatility
+ * read the PER-TRADE TAPE and nothing else, so with no ticks they both return
+ * UNKNOWN carrying "No verified price evidence supplied at snapshot time."
+ *
+ * MEASURED LIVE, production /charts?symbol=TSLA 15m: that sentence was false.
+ * 120 candles were loaded and drawn, the header printed O/H/L/C and V 57,398,
+ * and the session change read +2.85%. Price evidence was abundant. What was
+ * missing is the tape — and because regime is a pure composition of direction
+ * and volatility, that one absence took three of eight dimensions down and the
+ * story panel printed "1/8 dimensions resolved" over a fully-drawn chart.
+ *
+ * Only the publisher holds both lanes, so only the publisher can say which
+ * absence it is. Returns null when there is no contradiction to disclose: with
+ * no bars AND no ticks the feed really is silent, and the derivers' own
+ * wording is already the honest answer.
+ */
+function tapeAbsentGapNote(
+  rawBars: ChartMarketStatePublicationInput["bars"],
+  tradeTickCount: number,
+  venue: string | null,
+): string | null {
+  const rawCount = rawBars?.length ?? 0;
+  if (rawCount === 0 || tradeTickCount > 0) return null;
+  const where = venue && venue.trim() ? ` from ${venue.trim()}` : "";
+  return (
+    `${rawCount} candle${rawCount === 1 ? " is" : "s are"} loaded${where}, but `
+    + `no per-trade tape has arrived, and this reading is measured trade by `
+    + `trade. The candles cannot answer it.`
+  );
+}
+
 function assetClassFor(symbol: string): CanonicalAssetClass {
   return canonicalAssetClass(symbol);
 }
@@ -337,12 +371,21 @@ export function createChartMarketStatePublication(
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
   });
+  // ONE note, computed ONCE, handed to both tape-only derivers. Computing it
+  // twice would let the two sentences drift the day either call site grows a
+  // condition — the same reason `profileBars` is hoisted below.
+  const tapeGapNote = tapeAbsentGapNote(
+    input.bars,
+    countTradeTicks(input.recentTicks),
+    barSourceName,
+  );
   const volatility = deriveVolatilityDimension({
     ticks: input.recentTicks,
     source: typeof input.source === "string" ? input.source : null,
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
+    evidenceGapNote: tapeGapNote,
   });
   // DIRECTION — the dimension the Founder actually reads first, because it is
   // the word rendered in the largest type on /command-deck. It was hard-coded
@@ -356,6 +399,7 @@ export function createChartMarketStatePublication(
     latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
+    evidenceGapNote: tapeGapNote,
   });
 
   // REGIME — pure composition of the two dimensions sealed above. It mints no
