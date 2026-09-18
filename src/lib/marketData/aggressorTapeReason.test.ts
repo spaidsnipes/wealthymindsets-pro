@@ -147,6 +147,38 @@ describe("the panel reads the reason instead of retyping the facts", () => {
     }
   });
 
+  it("THE CONTRADICTION: no tile promises a wait the banner has ruled out", () => {
+    // 2026-09-17, observed live on prod /charts, NQ1!, with the banner and both
+    // sibling deferrals shipped. These two sentences were on one screen a few
+    // hundred pixels apart:
+    //
+    //   banner    "...it is not carried here at all, and waiting will not
+    //              change it."
+    //   bubbles   "Bubbles appear the moment real aggressor flow arrives."
+    //
+    // This is a harder failure than the five-voices one the banner closed.
+    // Five voices repeating a true fact cost the trader time; these two
+    // DISAGREE, and the trader who believes the wrong one waits on a feed
+    // that does not exist for this symbol.
+    //
+    // The promise is still correct on a NOT_FLOWING symbol with no banner
+    // over it, so — as with the two sibling panels — it is kept and gated,
+    // not deleted.
+    const panel = stripComments(fs.readFileSync(PANEL, "utf8"));
+
+    expect(panel, "the wait-promise must be behind the banner check").toMatch(
+      /missingTape\s*!==\s*null\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named[\s\S]{0,200}?Bubbles appear the moment/,
+    );
+
+    // And the control that sets a cap for this blocked reading must not be
+    // offered while it governs nothing. Four 44px buttons with an aria-pressed
+    // selected state, under a NO TAPE badge, is agency the product does not
+    // have: pressing any of them moved no pixel on this card or on the chart.
+    expect(panel, "the levels control must be gated on the banner").toContain(
+      "{missingTape === null ? (",
+    );
+  });
+
   it("the banner passes the sentence through instead of composing its own", () => {
     // The banner removes four voices. If it paraphrased the fifth it would
     // have removed four and added one — a net change of nothing, dressed up.

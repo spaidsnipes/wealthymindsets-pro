@@ -907,7 +907,27 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
         {/* WM-UX-P0-01 — Delta level-count control (migrated from the Big Trades
             gear). Four discrete presets, not a slider: the domain is 4 meaningful
-            values, and a segmented control gives an unambiguous a11y selected state. */}
+            values, and a segmented control gives an unambiguous a11y selected state.
+
+            2026-09-17, OBSERVED LIVE ON NQ1!: this control rendered at full
+            strength — four 44px buttons, one of them showing an `aria-pressed`
+            selected state — directly beneath a NO TAPE badge, for a reading the
+            banner above had already listed as one it cannot take. Pressing any
+            of the four moved nothing, on this card or on the chart, because
+            both draw from a tape this symbol does not carry.
+
+            A control whose effect the trader cannot see is not a preference: it
+            is a choice they have no way to evaluate. So it is not shown while
+            the reading is blocked. Nothing is lost — the cap lives in
+            localStorage under `deltaLevelCap`'s one key, so the stored value
+            survives and the control returns, already set, the moment a signed
+            tape makes its effect visible again.
+
+            The condition is the BANNER'S OWN PRESENCE, not a re-derived
+            `!flow.hasFlow`, for the same reason the two sibling panels read it
+            that way: the declaration and everything that defers to it must be
+            impossible to get out of step. */}
+        {missingTape === null ? (
         <div className="mb-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-semibold text-wm-text">Levels shown</span>
@@ -945,6 +965,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             })}
           </div>
         </div>
+        ) : null}
 
         {flow.hasFlow && deltaLevels.length > 0 ? (
           <div className="space-y-1.5">
@@ -998,10 +1019,33 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
              asset-class menu — the exact defect `aggressorTapeReason` was
              built to end, surviving here because it was typed into a second
              place. The banner above now states the case the trader is
-             actually in, derived from the capability registry. What remains
-             is only this reading's own promise. */
+             actually in, derived from the capability registry. What remained
+             was only this reading's own promise.
+
+             THE PROMISE WAS A CONTRADICTION, NOT A REDUNDANCY. Observed live
+             on NQ1! with the banner shipped, these two sentences were on one
+             screen, a few hundred pixels apart:
+
+               banner   "…it is not carried here at all, and waiting will not
+                         change it."
+               this card "Bubbles appear the moment real aggressor flow
+                         arrives."
+
+             Both are grammatical, and one of them is telling the trader to
+             wait for something the other has just told them will never come.
+             That is worse than the five-voices defect the banner closed: five
+             voices repeating one true fact cost the trader time, but these two
+             disagree, and a trader who believes the wrong one sits waiting on
+             a feed that does not exist.
+
+             So this reading defers exactly as WM Value Candle and Delta
+             Divergence do, in the same words, off the same single condition —
+             and keeps its own full sentence for any surface with no banner
+             over it. */
           <p className="text-[9px] text-wm-text-dim leading-relaxed">
-            Bubbles appear the moment real aggressor flow arrives.
+            {missingTape !== null
+              ? "Blocked by the missing input named at the top of this drawer."
+              : "Bubbles appear the moment real aggressor flow arrives."}
           </p>
         )}
       </div>
