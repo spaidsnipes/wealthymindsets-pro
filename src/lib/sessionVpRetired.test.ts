@@ -40,11 +40,22 @@ describe("session VP panel stays retired", () => {
     expect(code).not.toContain("setSessionVPOpen");
   });
 
-  it("the surviving on-chart VP surfaces are untouched", () => {
-    // Session VP + Fixed VP still draw on the chart.
+  it("the surviving on-chart VP surfaces are still REACHABLE", () => {
+    // Session VP + Fixed VP still draw on the chart, and the trader can still
+    // switch them on. Both halves matter: state that nothing can set is exactly
+    // the dead branch this file was written about.
     expect(code).toContain("sessionVPChart");
-    expect(raw).toContain("WM Session VP");
-    expect(raw).toContain("WM Fixed VP");
+    expect(code).toContain("fixedVPActive");
+
+    // The door changed. They used to be two standalone toolbar buttons labelled
+    // "WM Session VP" and "WM Fixed VP"; they are now two entries in the
+    // Profiles menu (Founder: "there should also have a profiles drop down for
+    // all the different vps"). This test used to pin those button captions,
+    // which made the LABELS the proof — so a rename read as a retirement. What
+    // it always meant to assert is REACHABILITY, so it now asserts the door.
+    expect(code).toContain("<ProfilesMenu");
+    expect(code).toContain("SESSION:");
+    expect(code).toContain("FIXED_RANGE:");
   });
 
   it("the retired component itself is preserved for history/future use", () => {

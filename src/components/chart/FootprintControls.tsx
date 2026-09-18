@@ -19,7 +19,7 @@ function emitBigTradesControl(action: "pause" | "resume" | "refresh") {
    user sees "nothing opens". Rendering into document.body with position:fixed at
    a very high z-index guarantees the popover sits above the chart. Owns its own
    outside-click + Escape handling (anchor + content are in different DOM trees). */
-function PortalPopover({
+export function PortalPopover({
   anchorRef, open, onClose, width, align = "left", children,
 }: {
   anchorRef: React.RefObject<HTMLElement | null>;
