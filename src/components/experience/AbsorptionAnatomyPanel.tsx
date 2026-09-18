@@ -56,6 +56,38 @@ export interface AbsorptionAnatomyPanelProps {
   readonly vm: AbsorptionVM;
   readonly symbol?: string;
   readonly window?: string;
+  /**
+   * True when a banner above this panel has already named the missing
+   * aggressor tape. Then the effort half stops printing numbers.
+   *
+   * WHY THIS READING NEEDED IT AND THE OTHERS' VERSION WAS NOT ENOUGH.
+   * `ValueCandlePanel` and `DeltaDivergencePanel` take the same flag and use
+   * it to swap one sentence. This panel had a harder problem, observed live
+   * on NQ1! 2026-09-17 with the banner already shipped:
+   *
+   *   drawer  AGGRESSIVE BUYS 0 · AGGRESSIVE SELLS 0 · IMBALANCE 0%
+   *           "neither side" · VERDICT UNMEASURED
+   *   chart   EFFORT · VOLUME, and two live ABSORPTION zones reading
+   *           "ABSORPTION 3.86 MODERATE" and "ABSORPTION 6.59 STRONG"
+   *
+   * Two failures in one frame. First, `0` is a MEASUREMENT: it says we
+   * counted the aggressive buys and there were none. The truth is that this
+   * tape never stated a side, which this file's own `num()` helper already
+   * legislates one screen above — "a number that is absent renders as an em
+   * dash, never as zero" — and which `vol()` was quietly exempt from.
+   *
+   * Second, UNMEASURED and MODERATE are the same word ABSORPTION reaching
+   * opposite verdicts a few hundred pixels apart. That is the contradiction
+   * class, not the redundancy class: a trader who believes the drawer
+   * discards a reading the chart is drawing, and a trader who believes the
+   * chart thinks the aggressor split is known.
+   *
+   * Both are true statements about DIFFERENT BASES, so the repair is not to
+   * silence either one. It is to say which basis is missing and which one
+   * the chart fell back to — the one sentence that makes the two readings
+   * compose instead of collide.
+   */
+  readonly absenceDeclaredAbove?: boolean;
 }
 
 const VERDICT_TONE: Record<AbsorptionVM["verdict"], string> = {
@@ -109,6 +141,7 @@ export function AbsorptionAnatomyPanel({
   vm,
   symbol,
   window: windowLabel,
+  absenceDeclaredAbove = false,
 }: AbsorptionAnatomyPanelProps): React.ReactElement {
   const total = vm.buyEffort + vm.sellEffort;
   // The bar is drawn at true proportion. When there is no effort at all both
@@ -116,6 +149,11 @@ export function AbsorptionAnatomyPanel({
   // honest picture of an unmeasured window.
   const buyPct = total > 0 ? (vm.buyEffort / total) * 100 : 0;
   const sellPct = total > 0 ? (vm.sellEffort / total) * 100 : 0;
+
+  // The declaration only suppresses numbers when the reading is in fact
+  // empty. A banner must never blank a measurement that exists: if this tape
+  // DID carry sides, the flag is irrelevant and the readings stand.
+  const effortNotCarried = absenceDeclaredAbove && total === 0;
 
   const tone = VERDICT_TONE[vm.verdict];
 
@@ -177,7 +215,11 @@ export function AbsorptionAnatomyPanel({
               marginBottom: 8,
             }}
             role="img"
-            aria-label={`Aggressive buy volume ${vm.buyEffort}, aggressive sell volume ${vm.sellEffort}`}
+            aria-label={
+              effortNotCarried
+                ? "Aggressive buy and sell volume are not carried by this feed"
+                : `Aggressive buy volume ${vm.buyEffort}, aggressive sell volume ${vm.sellEffort}`
+            }
           >
             <div
               style={{
@@ -198,13 +240,31 @@ export function AbsorptionAnatomyPanel({
           </div>
 
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <Reading label="Aggressive buys" value={vol(vm.buyEffort)} tone={BUY} />
-            <Reading label="Aggressive sells" value={vol(vm.sellEffort)} tone={SELL} />
+            {/* "—, not carried" and "0" are different claims. 0 says the count
+                was taken; the dash says the feed never stated a side. */}
+            <Reading
+              label="Aggressive buys"
+              value={effortNotCarried ? "—" : vol(vm.buyEffort)}
+              note={effortNotCarried ? "not carried" : undefined}
+              tone={effortNotCarried ? MUTED : BUY}
+            />
+            <Reading
+              label="Aggressive sells"
+              value={effortNotCarried ? "—" : vol(vm.sellEffort)}
+              note={effortNotCarried ? "not carried" : undefined}
+              tone={effortNotCarried ? MUTED : SELL}
+            />
             <Reading
               label="Imbalance"
-              value={`${Math.round(vm.imbalance * 100)}%`}
-              note={vm.pressingSide ? `${vm.pressingSide.toLowerCase()} pressing` : "neither side"}
-              tone={vm.pressingSide ? GOLD : MUTED}
+              value={effortNotCarried ? "—" : `${Math.round(vm.imbalance * 100)}%`}
+              note={
+                effortNotCarried
+                  ? "no sides to weigh"
+                  : vm.pressingSide
+                    ? `${vm.pressingSide.toLowerCase()} pressing`
+                    : "neither side"
+              }
+              tone={!effortNotCarried && vm.pressingSide ? GOLD : MUTED}
             />
           </div>
         </div>
@@ -281,7 +341,14 @@ export function AbsorptionAnatomyPanel({
           {vm.verdict}
         </span>
         <span style={{ fontSize: 11, color: MUTED, flex: "1 1 100%", lineHeight: 1.4 }}>
-          {vm.detail}
+          {/* The chart clause is the whole point. Without it the trader reads
+              UNMEASURED here and MODERATE on the glass and has no way to know
+              those are two different bases rather than a broken product. The
+              chart's own basis chip says EFFORT · VOLUME; this names the same
+              fall-back from the other side, so the two compose. */}
+          {effortNotCarried
+            ? "Blocked by the missing input named at the top of this drawer. The chart's ABSORPTION zones fall back to a volume basis — volume can show that effort was spent, never which side spent it."
+            : vm.detail}
         </span>
 
         {vm.requiresDisclosure ? (

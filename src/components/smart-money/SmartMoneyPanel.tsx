@@ -424,6 +424,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           "Tape pressure",
           "Delta bubbles by level",
           "Value candle · center of gravity",
+          "Absorption anatomy · effort vs response",
           "Delta divergence",
         ],
       }),
@@ -1077,7 +1078,20 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           because it reuses that candle's spread as its scale — reading them
           adjacently is reading one measurement, not two. */}
       <div className="mx-2 my-1.5 shrink-0">
-        <AbsorptionAnatomyPanel vm={absorption} symbol={symbol} window="session tape" />
+        <AbsorptionAnatomyPanel
+          vm={absorption}
+          symbol={symbol}
+          window="session tape"
+          /* The sixth blocked reading, and the LAST to be told. The banner
+             listed five; this one kept printing AGGRESSIVE BUYS 0 /
+             AGGRESSIVE SELLS 0 / VERDICT UNMEASURED beneath a banner that had
+             just said the sides are not carried — a measurement of zero where
+             there was no measurement, and a verdict that disagreed with the
+             chart's own live ABSORPTION zones. Same flag, same single
+             condition, so the banner's list and the panel's silence cannot
+             drift apart. */
+          absenceDeclaredAbove={missingTape !== null}
+        />
       </div>
 
       {/* ── DELTA DIVERGENCE — did delta follow price to the new extreme ─────

@@ -112,7 +112,7 @@ describe("the panel reads the reason instead of retyping the facts", () => {
     expect(panel).not.toContain("aggressorTapeReason(");
   });
 
-  it("the two panels that own their own absence prose defer to the banner", () => {
+  it("the three panels that own their own absence prose defer to the banner", () => {
     // 2026-09-17, observed live on prod /charts with the banner SHIPPED: the
     // banner correctly named the missing input once and listed five blocked
     // readings — and two of those five went on printing their own paragraph
@@ -123,14 +123,36 @@ describe("the panel reads the reason instead of retyping the facts", () => {
     // the fix is a prop the SURFACE sets, not a rewrite. That makes this a
     // wiring fact, and wiring is what can silently come undone — hence a
     // Sentinel rather than trust.
+    // RAISED FROM TWO TO THREE, 2026-09-17 — and this Sentinel is the thing
+    // that made the third one land. Absorption Anatomy is a SIXTH reading off
+    // the same missing input, and it had never been wired. It was found by
+    // reading the live drawer, and the moment the wire was added this count
+    // went 2 → 3 and the test went red. A pinned exact count is what turns
+    // "someone added a panel" into a decision rather than a drift.
     const panel = stripComments(fs.readFileSync(PANEL, "utf8"));
     const calls = panel.match(/absenceDeclaredAbove=\{missingTape !== null\}/g) ?? [];
-    expect(calls.length, "both blocked panels must be told the absence is declared").toBe(2);
+    expect(calls.length, "every blocked panel must be told the absence is declared").toBe(3);
 
     // And each panel must actually BRANCH on it. A prop that is accepted and
     // ignored would pass the assertion above while changing nothing on screen,
     // which is the most expensive kind of green test.
-    for (const file of ["ValueCandlePanel.tsx", "DeltaDivergencePanel.tsx"]) {
+    //
+    // The pattern is PER PANEL because they do not all branch identically, and
+    // flattening that into one loose regex would be the same mistake this
+    // assertion already made once. AbsorptionAnatomyPanel gates on a DERIVED
+    // condition — `effortNotCarried`, which is the flag AND an actually-empty
+    // reading — precisely so a banner can never blank a measurement that
+    // exists. Asserting its literal gate keeps that guard from being
+    // simplified away into the plain flag.
+    const GATE: Record<string, RegExp> = {
+      "ValueCandlePanel.tsx":
+        /absenceDeclaredAbove\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
+      "DeltaDivergencePanel.tsx":
+        /absenceDeclaredAbove\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
+      "AbsorptionAnatomyPanel.tsx":
+        /effortNotCarried\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
+    };
+    for (const [file, gate] of Object.entries(GATE)) {
       const src = stripComments(
         fs.readFileSync(path.resolve(__dirname, "..", "..", "components/experience", file), "utf8"),
       );
@@ -141,10 +163,22 @@ describe("the panel reads the reason instead of retyping the facts", () => {
       // (`readonly absenceDeclaredAbove?: boolean`), so it stayed green when
       // the branch was mutated away. Verified by mutation: replacing the
       // condition with `false` now fails this test.
-      expect(src, `${file} must branch on it`).toMatch(
-        /absenceDeclaredAbove\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
-      );
+      expect(src, `${file} must branch on it`).toMatch(gate);
     }
+
+    // The absorption panel's guard, pinned directly. `total === 0` is the
+    // whole difference between "the banner silenced a reading that was empty"
+    // and "the banner silenced a reading that was there".
+    const abs = stripComments(
+      fs.readFileSync(
+        path.resolve(__dirname, "..", "..", "components/experience/AbsorptionAnatomyPanel.tsx"),
+        "utf8",
+      ),
+    );
+    expect(
+      abs,
+      "the deferral must require the reading to actually be empty, never the flag alone",
+    ).toContain("absenceDeclaredAbove && total === 0");
   });
 
   it("THE CONTRADICTION: no tile promises a wait the banner has ruled out", () => {
