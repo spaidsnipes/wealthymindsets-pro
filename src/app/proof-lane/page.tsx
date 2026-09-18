@@ -429,12 +429,33 @@ export default function ProofLanePage() {
           </section>
         )}
         {measured && measured.rTaggedEntries > 0 && (
-          <section aria-labelledby="measured-journal" className="rounded-xl border border-emerald-800/50 bg-emerald-950/10 p-5">
+          /*
+            §9 — MEASURED IS A PROVENANCE, AND PROVENANCE WAS PAINTED AS PRAISE.
+
+            This whole card was framed in emerald — border, wash, heading and
+            badge — on the condition `rTaggedEntries > 0`. That condition asks
+            ONE question: did the trader tag any entries with R? It asks nothing
+            whatsoever about what those entries say. A trader eight R in the
+            hole got the green frame for having filled the field in.
+
+            The badge is the sharpest case. MEASURED is the same KIND of word as
+            RESOLVED: it names the EVIDENCE TIER, not the outcome. Its opposite
+            on this page is THEORETICAL, and nobody would argue THEORETICAL
+            should be red. So MEASURED has no business being green.
+
+            It is worse in company. The sibling section a dozen lines above
+            renders UNAVAILABLE in rose. Side by side the pair reads good/bad
+            when the real axis is present/absent. The rose stays — §9 bans the
+            reward end of the scale, not the attention end — and this end goes
+            quiet. The brass badge still separates MEASURED from THEORETICAL at
+            a glance, which is the only distinction it was ever entitled to make.
+          */
+          <section aria-labelledby="measured-journal" className="rounded-xl border border-neutral-800 bg-black/40 p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 id="measured-journal" className="text-sm uppercase tracking-widest text-emerald-400/90">
+              <h2 id="measured-journal" className="text-sm uppercase tracking-widest text-neutral-300">
                 Measured Journal — Personal Edge (browser-local 7d window)
               </h2>
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/40 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-700/40 bg-black/40 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest text-amber-300/90">
                 MEASURED JOURNAL
               </span>
             </div>
@@ -494,9 +515,30 @@ export default function ProofLanePage() {
               >
                 {lossLine.text}
               </div>
+              {/*
+                §9 — AN UNCONDITIONAL GREEN ON A GRADE IS THE WORST CASE, NOT
+                THE MILDEST.
+
+                These two were emerald with NO condition attached. 12% rules
+                adherence rendered in exactly the same green as 98%. The colour
+                was not grading badly; it was not grading at all — it was a flat
+                congratulation stapled to a number, which is strictly less
+                honest than a wrong threshold, because a wrong threshold can at
+                least be argued with.
+
+                Both are now plain, which is what the four tiles above them
+                already do: `toneClass` drives colour from a DECLARED tone and
+                these two never had one. The percentage is the finding. The
+                nullish arms were already correctly neutral and are untouched.
+
+                This shape is invisible to `aVerdictIsNeverGraded.sentinel` by
+                construction — that rule looks for a grade word in a CONDITION,
+                and there is no condition here. The sentinel gained a third
+                shape in the same commit because of these two lines.
+              */}
               <div className="text-neutral-400">
                 Rules Adhered: {measured.rulesAdheredPct != null ? (
-                  <span className="text-emerald-300 font-mono">{(measured.rulesAdheredPct * 100).toFixed(0)}%</span>
+                  <span className="text-neutral-100 font-mono">{(measured.rulesAdheredPct * 100).toFixed(0)}%</span>
                 ) : (
                   <span className="text-neutral-500">— (no graded process yet)</span>
                 )}
@@ -504,7 +546,7 @@ export default function ProofLanePage() {
               <div className="text-neutral-400">
                 Capture % (canon §7): {measured.avgCaptureRatio != null ? (
                   <>
-                    <span className="text-emerald-300 font-mono">{(measured.avgCaptureRatio * 100).toFixed(0)}%</span>
+                    <span className="text-neutral-100 font-mono">{(measured.avgCaptureRatio * 100).toFixed(0)}%</span>
                     <span className="text-neutral-500"> · n={measured.captureSampleSize}</span>
                   </>
                 ) : (

@@ -125,7 +125,40 @@ const GRADE_TABLE =
   */
   /\b[A-Z_]*(?:MATURITY|VERDICT|RESOLUTION|STAGE|COMPLIANCE|GRADE|OUTCOME|QUALITY)[A-Z_]*\b|Record<\s*\w*(?:Maturity|Verdict|Resolution|Stage|Compliance|Grade|Outcome|Quality)\w*/;
 
-const looksGraded = (context: string) => GRADE_COMPARED.test(context) || GRADE_TABLE.test(context);
+/**
+ * Shape 3 — the grade is UNCONDITIONAL. This is the worst case, not the mildest,
+ * and both shapes above are blind to it BY CONSTRUCTION.
+ *
+ * /proof-lane shipped `<span className="text-emerald-300 font-mono">{(measured
+ * .rulesAdheredPct * 100)…}</span>`. There is no comparison and no table — there
+ * is no condition AT ALL. 12% adherence rendered in exactly the same green as
+ * 98%. The colour was not grading badly; it was not grading at all. It was a
+ * flat congratulation stapled to a number, which is strictly less honest than a
+ * wrong threshold, because a wrong threshold can at least be argued with.
+ *
+ * THE VOCABULARY IS DELIBERATELY NARROW, and that is the whole design of this
+ * shape. The obvious rule — any `\w+(?:Pct|Ratio|Rate|Score)` near a green —
+ * was prototyped first and returned 19 hits repo-wide, of which roughly
+ * seventeen are §9-EXEMPT signed readings: `changePct`, `myPct >= 0`,
+ * `avgPct >= 0`, `bidPct`, `buyPct`, `sessionPct`, `up ? … : …`. §9 has never
+ * banned green for a SIGN. Shipping that rule would have bought one real catch
+ * at the price of a seventeen-entry allowance ledger, and a ledger that long is
+ * skimmed, which is how a scanner becomes a rubber stamp.
+ *
+ * So the stem list names only words that are grades of the TRADER — did they
+ * follow the plan, did they capture the move, are they compliant, accurate,
+ * disciplined. None of these can be negative. A sign is not a grade, and this
+ * regex cannot see one.
+ *
+ * Current repo-wide count after the /proof-lane repair: ZERO. The ledger below
+ * carries no entry for this shape, which is the state a narrow rule should be
+ * in — it bites, and it is quiet.
+ */
+const GRADE_UNCONDITIONAL =
+  /\b\w*(?:adher|captur|complian|quality|accuracy|success|discipline|consistency|grade|readiness|process)\w*(?:Pct|Ratio|Rate|Score)\b/i;
+
+const looksGraded = (context: string) =>
+  GRADE_COMPARED.test(context) || GRADE_TABLE.test(context) || GRADE_UNCONDITIONAL.test(context);
 
 /** Hex, rgb(a), and the Tailwind/token names — a class is a colour too. */
 const COLOUR =
@@ -302,7 +335,7 @@ describe("§9 Sentinel — a verdict may not choose its own colour", () => {
     }
   });
 
-  it("CATCHES THE EIGHT SHAPES THIS SHIFT REPAIRED — the detector must bite", () => {
+  it("CATCHES THE SHAPES THIS SHIFT REPAIRED — the detector must bite", () => {
     // Proof it is not passing vacuously. Every one of these shipped.
     const shapes: readonly string[] = [
       // DLARStrip — the two the human sweep missed.
@@ -317,6 +350,11 @@ describe("§9 Sentinel — a verdict may not choose its own colour", () => {
       'status.status === "BEHIND" ? "text-rose-300" : "text-emerald-300"',
       // /paper win-rate tiering.
       'entry.winRate >= 60 ? "text-wm-green" : "text-wm-red"',
+      // Shape 3 — /proof-lane, the two lines with NO condition at all. Both
+      // shapes above are structurally blind to these; they are the reason the
+      // third exists.
+      '<span className="text-emerald-300 font-mono">{(measured.rulesAdheredPct * 100).toFixed(0)}%</span>',
+      '<span className="text-emerald-300 font-mono">{(measured.avgCaptureRatio * 100).toFixed(0)}%</span>',
     ];
     for (const shape of shapes) {
       expect(gradedGreens(shape).length, `not caught: ${shape}`).toBeGreaterThan(0);
@@ -333,6 +371,13 @@ describe("§9 Sentinel — a verdict may not choose its own colour", () => {
       'upColor: "#5cb85c", downColor: "#c05a4a"',
       'side === "BUY" ? "#00d4aa" : "#c05a4a"',
       'realizedR > 0 ? "#5cb85c" : "#c05a4a"',
+      // Shape 3's exemptions, named as fixtures so the narrow vocabulary cannot
+      // be widened later without this test going red. Every one of these is a
+      // SIGNED reading — a percent that can be negative is not a grade.
+      '<span className="text-wm-green">{changePct}%</span>',
+      'myPct >= 0 ? "text-emerald-300" : "text-rose-300"',
+      'const c = bidPct > 50 ? "#5cb85c" : "#c05a4a";',
+      'buyPct >= 50 ? "rgba(0,212,170,0.9)" : "rgba(255,77,106,0.9)"',
     ];
     for (const sign of signs) {
       expect(gradedGreens(sign), `false positive on a sign: ${sign}`).toEqual([]);
