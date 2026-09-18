@@ -222,29 +222,85 @@ dataset key can never describe a tape that is no longer being measured. **To
 verify live:** open `/charts` on a real-tape symbol during an open session and
 read those keys off the overlay canvas.
 
+### AMENDED 2026-09-18 — THE RECEIPTS ARE UNREADABLE FROM A BACKGROUND TAB, AND THE CHART SAYS SO
+
+The instruction above is true but incomplete, and the missing half cost an
+attempt. Reading the overlay canvas from a Chrome tab whose window is not
+frontmost returns an EMPTY dataset — no `valueCandle`, no `liquidityWeather`,
+nothing. The natural conclusion is "the build is stale" or "the layer is
+missing", and both are wrong.
+
+The overlay carries exactly one attribute in that state:
+
+```
+data-vp-suspended="hidden"     (document.visibilityState === "hidden")
+```
+
+`overlayFrameVerdict` deliberately performs no background paint, and `draw()`
+is the only publisher of every layer receipt — so on a hidden tab the receipts
+are not stale, they were never written. The chart is not withholding; it is
+saying so in the one channel still open to it. That attribute is the product
+working, and it is the first thing a probe should read.
+
+**Consequence for any future live-verification:** a canvas receipt can only be
+read with the Chrome window actually in the foreground. A DOM-level probe
+driving a backgrounded browser cannot prove OR disprove anything painted, and
+must report BLOCKED rather than ABSENT. The DOM-rendered surfaces — the
+profiles menu, its `aria-checked` state, its refusal sentences — are readable
+either way, which is why the menu half of `6ac949dd` could be proven above and
+the receipt half could not.
+
 ---
 
 ## NEXT
 
 - **Live-verify `290c243e`, `3175cc12`, `26895afe`, `b2a7b7fa`** via the
   dataset receipts above, once a Chrome channel and an open session coincide.
-- **`ProfilesMenu` / `selectProfileMenu` still offers only FIXED_RANGE /
-  SESSION / ABSORPTION / DELTA_VP.** The Founder asked for "a profiles drop
-  down for all the different vps and the profiles i created" — the stack and
-  the value candle are now drawn but not selectable.
+- ~~**`ProfilesMenu` / `selectProfileMenu` still offers only FIXED_RANGE /
+  SESSION / ABSORPTION / DELTA_VP.**~~ **CLOSED by `6ac949dd`, LIVE-VERIFIED.**
+  The menu now lists eight, and the four new entries are individually
+  switchable. Observed on `https://wealthymindsetspro.com/charts` (TSLA) after
+  reload: the chip reads `PROFILES · 4`, the panel header reads
+  `PROFILES · 3 OF 8 CAN DRAW NOW`, and the eight rows are Fixed Range VP /
+  Session VP / Delta + VP / Absorption / Stacked Imbalance / WM Value Candle /
+  Delta Divergence / Liquidity Weather. Clicking Fixed Range VP flipped its
+  `aria-checked` `false → true → false`, so the switch is real and not a label.
+  The four checked rows all carry the one shared tape-gate sentence — "this
+  tape has not stated an aggressor side" — rather than four separate excuses,
+  which is the behaviour `useOrderFlowReadings` was restructured to produce.
+  `20e0826b` is a source-reading sentinel and has no live surface to verify.
 - **Magnet + Path is ABSENT, not mis-homed.** `grep -rln
   "MagnetPath|magnetPath|Magnet \+ Path|MAGNET_PATH|magnetAndPath" src` returns
   zero. The `magnetActive` in `MainChart` is the unrelated drawing-tool snap.
   Mockups 25 and 62 exist and have not been built against.
-- **Extend the §9 verdict-colour sweep** to `/paper`, `/proof-lane`,
-  `/profile`, `/morning-prep`. `/journal` was swept in `5bf301a9` and the third
-  of its four graded verdicts was found by accident, which suggests the sweep
-  is not exhaustive anywhere it has not been run deliberately.
+- ~~**Extend the §9 verdict-colour sweep** to `/paper`, `/proof-lane`,
+  `/profile`, `/morning-prep`.~~ **CLOSED by `a05a65c3`**, and closed as a
+  MECHANISM rather than a sweep, because the suspicion recorded here turned out
+  to be right: the sweep is not exhaustive anywhere. Eight more graded verdicts
+  were repaired — `PlaybookDNAPanel`, `MirrorPanel`, `PersonalEdgePanel`,
+  `PersonalEdgeChip`, `/proof-lane` (two sites), `/paper`, `DLARStrip` (two
+  sites), `OpeningBellPanel` — and **three of those were found by the machine
+  AFTER a human sweep the same day read six surfaces and missed them.**
+  `src/lib/design/aVerdictIsNeverGraded.sentinel.test.ts` now enforces the rule
+  repo-wide: a grade word in a condition may not select a green.
+
+  Two findings from that block worth carrying forward:
+  1. `PersonalEdgeChip` was found by grepping the SHADE (`5cb85c`) rather than
+     walking surfaces. It was the same `vm.resolution` ternary as
+     `PersonalEdgePanel`, on a route nobody had listed. **Sweep by colour, not
+     by page.**
+  2. `OpeningBellPanel` painted `READY` green nine lines below its own docblock
+     promising that WM "does not grant or withhold permission to trade". The
+     prose disclaimer did not stop the hue, because the hue is read first.
 
 ### Unchanged blockers, restated so they are not re-discovered
 
 - Gate 4 responsive device proof — programmatic window resize does not take
   effect, `outerWidth` stays pinned.
+- Canvas dataset receipts cannot be read while the Chrome window is
+  backgrounded (`data-vp-suspended="hidden"`). See the amendment above. This is
+  correct product behaviour, not a defect, and it bounds what any background
+  probe may claim.
 - `/journal` detail canvas — 0 entries exist to render.
 - Decision Memory sealing has zero production callers. **Architectural. Surface
   it; do not rush-wire it.**
