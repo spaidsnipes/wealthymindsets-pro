@@ -131,7 +131,12 @@ describe("the panel reads the reason instead of retyping the facts", () => {
     // "someone added a panel" into a decision rather than a drift.
     const panel = stripComments(fs.readFileSync(PANEL, "utf8"));
     const calls = panel.match(/absenceDeclaredAbove=\{missingTape !== null\}/g) ?? [];
-    expect(calls.length, "every blocked panel must be told the absence is declared").toBe(3);
+    // RAISED FROM THREE TO FOUR, 2026-09-17 — same shift, same method. Read
+    // live on NQ1! under a banner already declaring the absence, Stacked
+    // Imbalance printed FOUR sentences about it, the last of which was subtly
+    // false: "so these levels are downstream of a guess" when there were no
+    // levels at all. A seventh reading off the same missing input.
+    expect(calls.length, "every blocked panel must be told the absence is declared").toBe(4);
 
     // And each panel must actually BRANCH on it. A prop that is accepted and
     // ignored would pass the assertion above while changing nothing on screen,
@@ -151,6 +156,12 @@ describe("the panel reads the reason instead of retyping the facts", () => {
         /absenceDeclaredAbove\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
       "AbsorptionAnatomyPanel.tsx":
         /effortNotCarried\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
+      // Same shape as Absorption's and for the same reason: a DERIVED gate, so
+      // a banner can never blank a ladder that actually has levels in it. The
+      // flag alone is not enough — `notCarried` also requires UNMEASURED and an
+      // empty level list.
+      "StackedImbalancePanel.tsx":
+        /notCarried\s*\n?\s*\?\s*\n?\s*"Blocked by the missing input named/,
     };
     for (const [file, gate] of Object.entries(GATE)) {
       const src = stripComments(

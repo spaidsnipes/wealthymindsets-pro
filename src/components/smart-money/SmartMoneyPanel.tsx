@@ -426,6 +426,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           "Value candle · center of gravity",
           "Absorption anatomy · effort vs response",
           "Delta divergence",
+          // Seventh. A stacked-imbalance LEVEL is a claim about who was the
+          // aggressor at a price; with no sided tape there is no ladder to
+          // build, so the panel falls silent rather than writing a fourth
+          // sentence about the same absence.
+          "Stacked imbalance · defended levels",
         ],
       }),
     [symbol, flow.hasFlow],
@@ -1122,7 +1127,12 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           specific PRICES and then shows whether price came back and respected
           them, which is the only form in which a level is worth printing. */}
       <div className="mx-2 my-1.5 shrink-0">
-        <StackedImbalancePanel vm={stackedImbalance} symbol={symbol} window="session tape" />
+        <StackedImbalancePanel
+          vm={stackedImbalance}
+          symbol={symbol}
+          window="session tape"
+          absenceDeclaredAbove={missingTape !== null}
+        />
       </div>
 
       {/* CLC Summary Card — Context / Location / Confirmation.

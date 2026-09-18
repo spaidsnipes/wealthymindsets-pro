@@ -77,14 +77,43 @@ export default function StackedImbalancePanel({
   vm,
   symbol,
   window: windowLabel,
+  absenceDeclaredAbove = false,
 }: {
   vm: StackedImbalanceVM;
   symbol?: string;
   window?: string;
+  /**
+   * THE SEVENTH VOICE. Observed live on prod /charts, NQ1!, 2026-09-17, a few
+   * hundred pixels under a banner that had already named the missing aggressor
+   * tape once:
+   *
+   *     No stack in this window.
+   *     UNMEASURED  not enough sided tape to build a ladder
+   *     no tape observed — no level can be claimed
+   *     Every level here is a claim about who was the aggressor, and aggressor
+   *     side on this tape is undisclosed — so these levels are downstream of a
+   *     guess, not of a venue stamp.
+   *
+   * Four sentences about one absence, and the last of them is not even true:
+   * it calls "these levels" downstream of a guess when there are no levels at
+   * all. The unconditional disclosure at the top of this file is right whenever
+   * a ladder is on screen; with an empty ladder it is describing nothing.
+   *
+   * When the surface sets this, the tile keeps its verdict word and says the
+   * absence ONCE, by pointing at where it was already stated.
+   */
+  absenceDeclaredAbove?: boolean;
 }) {
   const tone = VERDICT_TONE[vm.verdict];
   const isBuy = vm.direction === "BUY";
   const hasStack = vm.levels.length > 0 && vm.stackLow != null && vm.stackHigh != null;
+
+  // The flag defers ONLY the unreadable case. `NO_STACK` means the tape WAS
+  // read and no run of levels leaned one way — that is a finding, and a banner
+  // that could blank it would be a worse failure than the repetition this
+  // removes. `UNMEASURED` with an empty ladder is the only state the banner
+  // upstream has already accounted for.
+  const notCarried = absenceDeclaredAbove && vm.verdict === "UNMEASURED" && vm.levels.length === 0;
 
   // Heaviest level sets the bar scale, so the rows are comparable to each
   // other rather than each one filling its own width.
@@ -169,7 +198,7 @@ export default function StackedImbalancePanel({
             </div>
           ))}
         </div>
-      ) : (
+      ) : notCarried ? null : (
         <div style={{ fontSize: 10, color: MUTED, padding: "10px 0 12px" }}>
           No stack in this window.
         </div>
@@ -195,11 +224,21 @@ export default function StackedImbalancePanel({
         >
           {vm.verdict.replace("_", " ")}
         </span>
-        <span style={{ fontSize: 10, color: MUTED }}>{VERDICT_GLOSS[vm.verdict]}</span>
+        {notCarried ? null : (
+          <span style={{ fontSize: 10, color: MUTED }}>{VERDICT_GLOSS[vm.verdict]}</span>
+        )}
       </div>
 
-      <p style={{ fontSize: 10.5, lineHeight: 1.45, color: TEXT, margin: "5px 0 0" }}>
-        {vm.detail}
+      {/* THE VERDICT WORD SURVIVES; THE RETELLING DOES NOT.
+          In this state `vm.detail` reads "no tape observed — no level can be
+          claimed", which is the banner's own sentence in different words. The
+          tile keeps UNMEASURED and points at where the absence was already
+          stated, so a trader reads one absence once and can see that these two
+          voices are the same voice rather than two independent findings. */}
+      <p style={{ fontSize: 10.5, lineHeight: 1.45, color: notCarried ? MUTED : TEXT, margin: "5px 0 0" }}>
+        {notCarried
+          ? "Blocked by the missing input named at the top of this drawer."
+          : vm.detail}
       </p>
 
       {/* ── WHAT THIS READING RESTS ON ─────────────────────────────────────
@@ -230,13 +269,24 @@ export default function StackedImbalancePanel({
             against the rest — it is never graded on the prints that made it.{" "}
           </>
         ) : null}
-        Every level here is a claim about who was the aggressor, and aggressor side on this tape is{" "}
-        <span style={{ color: vm.provenance === "PROVIDER" ? GOLD_DIM : BEAR }}>
-          {vm.provenance.toLowerCase().replace(/_/g, " ")}
-        </span>
-        {vm.provenance === "PROVIDER"
-          ? "."
-          : " — so these levels are downstream of a guess, not of a venue stamp."}
+        {/* THE SENTENCE THAT WAS NOT MERELY REPETITIVE BUT WRONG.
+            Photographed live on prod NQ1! 2026-09-17: with no ladder at all,
+            this still printed "so THESE LEVELS are downstream of a guess" —
+            describing levels that do not exist, as the fourth voice on one
+            absence. It is a true and necessary disclosure whenever there ARE
+            levels, so it is deferred rather than deleted. */}
+        {notCarried ? null : (
+          <>
+            Every level here is a claim about who was the aggressor, and aggressor side on this tape
+            is{" "}
+            <span style={{ color: vm.provenance === "PROVIDER" ? GOLD_DIM : BEAR }}>
+              {vm.provenance.toLowerCase().replace(/_/g, " ")}
+            </span>
+            {vm.provenance === "PROVIDER"
+              ? "."
+              : " — so these levels are downstream of a guess, not of a venue stamp."}
+          </>
+        )}
       </div>
     </div>
   );

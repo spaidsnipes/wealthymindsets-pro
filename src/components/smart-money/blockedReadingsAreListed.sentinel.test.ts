@@ -86,6 +86,7 @@ const PANEL_READINGS: Record<string, string> = {
   ValueCandlePanel: "Value candle · center of gravity",
   AbsorptionAnatomyPanel: "Absorption anatomy · effort vs response",
   DeltaDivergencePanel: "Delta divergence",
+  StackedImbalancePanel: "Stacked imbalance · defended levels",
 };
 
 function source(): string {
