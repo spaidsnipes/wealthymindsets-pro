@@ -71,6 +71,7 @@ import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
 import { DisciplineStreakChip } from "@/components/experience/DisciplineStreakChip";
+import { RealizedRFigure } from "@/components/experience/RealizedRFigure";
 import { selectSetupGradeReasons } from "@/lib/learningGenome/selectSetupGradeReasons";
 import { selectAnalysisMaturity } from "@/lib/learningGenome/selectAnalysisMaturity";
 import { selectDayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
@@ -1762,18 +1763,41 @@ Trade the system, trust the process, winners every day 🚀`,
               when INSUFFICIENT_EVIDENCE). Highest-signal chip on
               the header — canon: "Win condition = faithful execution
               and stewardship, not P&L alone." */}
+          {/* §9, third instance in this file, and found only because the Mental
+              Gate Sentinel swept the whole module rather than the one
+              expression it was written for.
+
+              HELD was a green shield: the house congratulating the trader for
+              keeping a rule they set themselves, in the safety colour. Holding
+              your own rules is the baseline, not an achievement, and paying it
+              in green makes the absence of green read as danger on a day the
+              trader simply did not trade.
+
+              BROKEN KEEPS ITS RED, deliberately. A broken rule is an adverse
+              PROCESS fact the trader committed, which is exactly the class of
+              thing the house has standing to raise its voice about — unlike an
+              outcome, which it does not. The asymmetry is the point: colour is
+              spent only where the house owns the claim.
+
+              The ticks and crosses go regardless. HELD, MIXED and BROKEN are
+              three different words and do not need a glyph grading them a
+              second time. */}
           {todayStewardship.verdict !== "INSUFFICIENT_EVIDENCE" && (
             <span
               title={todayStewardship.reasons.map(r => `${r.message} [${r.canon}]`).join(" · ")}
               className={clsx(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                todayStewardship.verdict === "HELD" && "bg-wm-green/15 text-wm-green border-wm-green/40",
-                todayStewardship.verdict === "MIXED" && "bg-wm-surface text-wm-text border-wm-border",
-                todayStewardship.verdict === "BROKEN" && "bg-wm-red/15 text-wm-red border-wm-red/50",
+                todayStewardship.verdict === "BROKEN"
+                  ? "bg-wm-red/15 text-wm-red border-wm-red/50"
+                  : "bg-wm-surface border-wm-border",
               )}
+              style={
+                todayStewardship.verdict === "BROKEN" ? undefined : { color: "#ede6d3" }
+              }
+              data-steward-verdict={todayStewardship.verdict}
               aria-label={`Today's stewardship verdict: ${todayStewardship.verdict.toLowerCase()}`}
             >
-              STEWARD · {todayStewardship.verdict === "HELD" ? "✓ HELD" : todayStewardship.verdict === "BROKEN" ? "✕ BROKEN" : "MIXED"}
+              STEWARD · {todayStewardship.verdict}
             </span>
           )}
           {/* Recovery-trade tell (canon §Daily Risk): highlights when
@@ -2464,14 +2488,19 @@ Trade the system, trust the process, winners every day 🚀`,
                         {e.dayModel && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold">{e.dayModel}</span>
                         )}
-                        {typeof e.realizedR === "number" && Number.isFinite(e.realizedR) && (
-                          <span className={clsx(
-                            "px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border",
-                            e.realizedR >= 0 ? "text-wm-green border-wm-green/40 bg-wm-green/10" : "text-wm-red border-wm-red/40 bg-wm-red/10",
-                          )}>
-                            {e.realizedR >= 0 ? "+" : ""}{e.realizedR.toFixed(2)}R
-                          </span>
-                        )}
+                        {/* §9 + the sign. This chip painted R green at `>= 0`
+                            and prefixed a `+` on the same comparator, so a
+                            scratch was filed under the favourable outcome
+                            twice — once in colour and once in the glyph. The
+                            identical expression was repaired on the Decision
+                            Receipt in c2d5087b and survived here, which is the
+                            argument for the figure having ONE owner rather
+                            than three. It does now. */}
+                        <RealizedRFigure
+                          realizedR={e.realizedR}
+                          scale="CHIP"
+                          testId={`journal-row-r-${e.id}`}
+                        />
                         {e.contractType === "option" && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-purple/40 bg-wm-purple/10 text-wm-purple">OPT</span>
                         )}
@@ -2643,12 +2672,14 @@ Trade the system, trust the process, winners every day 🚀`,
                     {typeof selected.realizedR === "number" && Number.isFinite(selected.realizedR) && (
                       <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
                         <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Realized R</div>
-                        <div className={clsx(
-                          "text-sm font-mono font-bold mt-0.5",
-                          selected.realizedR >= 0 ? "text-wm-green" : "text-wm-red",
-                        )}>
-                          {selected.realizedR >= 0 ? "+" : ""}{selected.realizedR.toFixed(2)}R
-                        </div>
+                        {/* The SAME number as the list chip, drawn a second
+                            time — so it gets the same owner, or the two drift
+                            the way the chip and the Receipt already did. */}
+                        <RealizedRFigure
+                          realizedR={selected.realizedR}
+                          scale="FIGURE"
+                          testId="journal-detail-r"
+                        />
                       </div>
                     )}
                     <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
@@ -2666,7 +2697,19 @@ Trade the system, trust the process, winners every day 🚀`,
                       {typeof selected.mfeR === "number" && Number.isFinite(selected.mfeR) && (
                         <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
                           <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">MFE</div>
-                          <div className="text-sm font-mono font-bold text-wm-green mt-0.5">
+                          {/* §9, one row down from the R figure and the same
+                              law. MFE is favourable BY DEFINITION — it is the
+                              best the trade ever looked — so green here is not
+                              even a verdict on an outcome, it is a hue spent on
+                              a tautology, sitting opposite a red MAE. The two
+                              are already told apart by their labels and by
+                              their signs. A large MFE beside a small realized R
+                              is a trade that gave profit back; that is not a
+                              green fact. */}
+                          <div
+                            className="text-sm font-mono font-bold mt-0.5"
+                            style={{ color: "#ede6d3", fontVariantNumeric: "tabular-nums" }}
+                          >
                             +{selected.mfeR.toFixed(2)}R
                           </div>
                         </div>
@@ -2674,7 +2717,17 @@ Trade the system, trust the process, winners every day 🚀`,
                       {typeof selected.maeR === "number" && Number.isFinite(selected.maeR) && (
                         <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
                           <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">MAE</div>
-                          <div className="text-sm font-mono font-bold text-wm-red mt-0.5">
+                          {/* Ivory too, and not because red is forbidden — it
+                              is not. MFE and MAE are ONE reading in two halves
+                              and are only meaningful against each other. With
+                              MFE repaired, leaving MAE red would make the
+                              adverse half the only coloured figure on the row,
+                              which is a louder claim than the pair ever made.
+                              The minus sign carries the direction. */}
+                          <div
+                            className="text-sm font-mono font-bold mt-0.5"
+                            style={{ color: "#ede6d3", fontVariantNumeric: "tabular-nums" }}
+                          >
                             {selected.maeR.toFixed(2)}R
                           </div>
                         </div>
@@ -2756,13 +2809,34 @@ Trade the system, trust the process, winners every day 🚀`,
                         typeof selected.mfeR === "number" && selected.mfeR >= 1.5 ? 2 : 0,
                     });
                     if (maturity.verdict === "INSUFFICIENT_INPUT") return null;
+                    /*
+                      §9. FULFILLED was green, and this is the subtlest of the
+                      three because the verdict sounds like a grade. It is not.
+                      §6 classifies what the ANALYSIS did — whether the thesis
+                      reached its destination — and a FULFILLED thesis can be a
+                      trade the trader should never have taken, while WRONG is
+                      frequently the most valuable entry in the book: a plan
+                      followed to a structural invalidation is the process
+                      working exactly as designed. Green for FULFILLED and red
+                      for WRONG told the trader the opposite of that.
+
+                      The four verdicts are already four different WORDS, printed
+                      at size, immediately below. They do not need a hue as well,
+                      and the hue was carrying a judgement the classifier does
+                      not make. Brass marks the one state that is still open —
+                      ACTIVE — because an unfinished reading is the only thing
+                      here the house has standing to raise its voice about.
+                    */
                     const color =
-                      maturity.verdict === "FULFILLED" ? "text-wm-green border-wm-green/40 bg-wm-green/10" :
-                      maturity.verdict === "ACTIVE"    ? "text-wm-gold border-wm-gold/40 bg-wm-gold/10" :
-                      maturity.verdict === "WRONG"     ? "text-wm-red border-wm-red/40 bg-wm-red/10" :
-                      "text-wm-text-muted border-wm-border bg-wm-surface";
+                      maturity.verdict === "ACTIVE"
+                        ? "text-wm-gold border-wm-gold/40 bg-wm-gold/10"
+                        : "border-wm-border bg-wm-surface/60";
                     return (
-                      <div className={clsx("mt-2 rounded-md border p-2", color)}>
+                      <div
+                        className={clsx("mt-2 rounded-md border p-2", color)}
+                        data-maturity={maturity.verdict}
+                        style={maturity.verdict === "ACTIVE" ? undefined : { color: "#ede6d3" }}
+                      >
                         <div className="flex items-baseline justify-between">
                           <div className="text-[9px] font-bold uppercase tracking-wider">Analysis maturity</div>
                           <div className="text-[9px] font-mono opacity-70">canon §6</div>
@@ -3154,25 +3228,49 @@ Trade the system, trust the process, winners every day 🚀`,
                   Not gated (canon: the trader is authoritative), but
                   the verdict is visible so a WAIT answer is honest.
                   Silent when M0 (no trade to gate). */}
+              {/*
+                §9, and the most literal breach of it in the product: a GREEN
+                SHIELD around the words "✓ ACTION AUTHORIZED". The canon phrase
+                is "No green shield. No green means safe," and this was one.
+
+                Worse, the panel's own docblock says the gate is NOT GATED —
+                "the trader is authoritative". So the house was issuing, in the
+                safety colour and with a tick, a permission it has no standing
+                to issue, over four questions the trader answered about
+                themselves thirty seconds earlier. PASS is now ivory and says
+                what actually happened: the trader answered yes to all four.
+
+                The Yes/No buttons went the same way, and that one is worse
+                than decoration. "Am I calm and clear enough to follow the
+                plan?" answered NO is not a bad answer — it is the honest one,
+                and it is the only answer that makes the gate worth anything.
+                Painting it red and its opposite green pays the trader in colour
+                for the reply the house prefers, on an instrument whose entire
+                value is that they tell the truth on it. Selection is now shown
+                by FILL, which is what §9 asks for.
+              */}
               {form.dayModel !== "M0" && (
-                <div className={clsx(
-                  "mb-4 rounded-xl border p-3",
-                  mentalGateResult.verdict === "PASS" && "border-wm-green/40 bg-wm-green/5",
-                  mentalGateResult.verdict === "WAIT" && "border-wm-red/40 bg-wm-red/5",
-                  mentalGateResult.verdict === "INSUFFICIENT_INPUT" && "border-wm-border bg-wm-surface/40",
-                )}>
+                <div
+                  className="mb-4 rounded-xl border p-3 border-wm-border bg-wm-surface/40"
+                  data-gate-verdict={mentalGateResult.verdict}
+                >
                   <div className="mb-2 flex items-baseline justify-between">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-wm-text-dim">
                       Mental Gate · canon §17
                     </div>
-                    <div className={clsx(
-                      "text-[10px] font-bold",
-                      mentalGateResult.verdict === "PASS" && "text-wm-green",
-                      mentalGateResult.verdict === "WAIT" && "text-wm-red",
-                      mentalGateResult.verdict === "INSUFFICIENT_INPUT" && "text-wm-text-dim",
-                    )}>
-                      {mentalGateResult.verdict === "PASS" && "✓ ACTION AUTHORIZED"}
-                      {mentalGateResult.verdict === "WAIT" && "✕ WAIT"}
+                    <div
+                      className="text-[10px] font-bold"
+                      style={{
+                        color:
+                          mentalGateResult.verdict === "INSUFFICIENT_INPUT" ? "#8a8271" : "#ede6d3",
+                      }}
+                    >
+                      {/* No tick and no cross. A glyph that grades the answer is
+                          the same verdict the colour was carrying, one channel
+                          over — and WAIT is not a failure, it is the gate
+                          doing its job. */}
+                      {mentalGateResult.verdict === "PASS" && "Answered yes to all four"}
+                      {mentalGateResult.verdict === "WAIT" && "WAIT — one answer says not yet"}
                       {mentalGateResult.verdict === "INSUFFICIENT_INPUT" && `${4 - mentalGateResult.unanswered.length}/4 answered`}
                     </div>
                   </div>
@@ -3189,23 +3287,23 @@ Trade the system, trust the process, winners every day 🚀`,
                           type="button"
                           onClick={() => setMentalGate(g => ({ ...g, [key]: true }))}
                           aria-pressed={mentalGate[key] === true}
-                          className={clsx(
-                            "min-h-8 min-w-11 rounded-md border px-2 text-[10px] font-bold transition-colors",
+                          className="min-h-8 min-w-11 rounded-md border px-2 text-[10px] font-bold transition-colors"
+                          style={
                             mentalGate[key] === true
-                              ? "border-wm-green/50 bg-wm-green/15 text-wm-green"
-                              : "border-wm-border bg-wm-surface text-wm-text-muted hover:border-wm-green/30",
-                          )}
+                              ? { borderColor: "rgba(237,230,211,0.45)", background: "rgba(237,230,211,0.14)", color: "#ede6d3" }
+                              : { borderColor: "rgba(138,130,113,0.30)", background: "transparent", color: "#8a8271" }
+                          }
                         >Yes</button>
                         <button
                           type="button"
                           onClick={() => setMentalGate(g => ({ ...g, [key]: false }))}
                           aria-pressed={mentalGate[key] === false}
-                          className={clsx(
-                            "min-h-8 min-w-11 rounded-md border px-2 text-[10px] font-bold transition-colors",
+                          className="min-h-8 min-w-11 rounded-md border px-2 text-[10px] font-bold transition-colors"
+                          style={
                             mentalGate[key] === false
-                              ? "border-wm-red/50 bg-wm-red/15 text-wm-red"
-                              : "border-wm-border bg-wm-surface text-wm-text-muted hover:border-wm-red/30",
-                          )}
+                              ? { borderColor: "rgba(237,230,211,0.45)", background: "rgba(237,230,211,0.14)", color: "#ede6d3" }
+                              : { borderColor: "rgba(138,130,113,0.30)", background: "transparent", color: "#8a8271" }
+                          }
                         >No</button>
                       </div>
                     ))}
