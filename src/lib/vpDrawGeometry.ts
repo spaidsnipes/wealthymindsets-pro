@@ -150,6 +150,39 @@ export function vpRowRect(
 }
 
 /**
+ * Whether a row rectangle lands inside the pane the renderer clips to.
+ *
+ * ── 2026-09-18: THE CLIP DELETED PIXELS THE RECEIPT STILL COUNTED ──────────
+ *
+ * `drawWMVP` clips the profile to pane 0 and says why in its own comment: with
+ * native indicator panes stacked below, `priceToCoordinate` EXTRAPOLATES prices
+ * outside pane 0's visible range to y-values below it, and without the clip the
+ * bars bleed into the Speed-of-Tape / CVD panes.
+ *
+ * Extrapolated coordinates are finite. `vpRowRect` therefore returns a perfectly
+ * valid rectangle for them — its own null case is "the price scale could not
+ * place this row", which is a different thing — and the draw loop counted every
+ * one of those into `rowsPainted`. The canvas then threw the pixels away.
+ *
+ * That is precisely the failure `vpRenderReceipt`'s header forbids in the
+ * neighbouring case: "A DRAWN column that painted zero rows is counted as
+ * DECLINED … a column that painted nothing is not a column the trader can see."
+ * The row count is the number that decides it, and it was counting rows nobody
+ * could see. A receipt that counts clipped rows is certifying work, not
+ * recording it.
+ *
+ * Intersection, not containment: a row straddling the pane boundary IS partly
+ * visible, and calling it invisible would under-report in the other direction.
+ * An unusable `paneHeight` returns true — this function may not invent a
+ * decline out of a number it could not read.
+ */
+export function vpRowVisible(rect: VpRowRect | null, paneHeight: number): boolean {
+  if (!rect) return false;
+  if (!Number.isFinite(paneHeight) || paneHeight <= 0) return true;
+  return rect.y < paneHeight && rect.y + rect.drawHeight > 0;
+}
+
+/**
  * Bar length for a level, normalized to the peak (POC) bucket.
  *
  * DIRECTLY proportional — no aesthetic baseline, no power curve. Those made low

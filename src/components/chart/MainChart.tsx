@@ -148,6 +148,7 @@ import {
   vpColumnLayout,
   vpLabelFits,
   vpRowRect,
+  vpRowVisible,
 } from "@/lib/vpDrawGeometry";
 // …and vpRenderReceipt owns WHETHER THE PIXELS ARRIVED. The two modules above
 // are pure and cannot know whether the draw loop ran; every one of drawWMVP's
@@ -6045,6 +6046,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // draw nothing — the honest gap TradingView shows too.
           const rect = vpRowRect(yOf(price + tickSz), yOf(price), rowCap);
           if (!rect) continue; // off-screen row
+          // …and a row the pane-0 clip will discard is equally not a row. The
+          // clip above exists because priceToCoordinate EXTRAPOLATES beyond
+          // pane 0 when indicator panes are stacked below; those coordinates are
+          // finite, so `rect` is non-null and the loop used to count them. The
+          // canvas then dropped the pixels. Owned by vpDrawGeometry.
+          if (!vpRowVisible(rect, pane0H)) continue;
           // Counted HERE — past every `continue` — so the receipt reports rows
           // committed to the canvas, not buckets the loop merely considered. A
           // column whose every bucket was off-screen must report 0 and be read

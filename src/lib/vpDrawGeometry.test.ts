@@ -10,6 +10,7 @@ import {
   vpColumnLayout,
   vpLabelFits,
   vpRowRect,
+  vpRowVisible,
 } from "./vpDrawGeometry";
 
 /**
@@ -89,6 +90,70 @@ describe("vpColumnLayout — the histogram is a lane, never a wall", () => {
   it("refuses non-finite geometry rather than emitting NaN pixels", () => {
     expect(vpColumnLayout(Number.NaN, 90, 0, 1).fits).toBe(false);
     expect(vpColumnLayout(1200, Number.NaN, 0, 1).fits).toBe(false);
+  });
+});
+
+/**
+ * ── 2026-09-18 ────────────────────────────────────────────────────────────
+ *
+ * `vpRowRect`'s null case is "the price scale could not place this row". It is
+ * NOT "the row is off the pane": when indicator panes stack below the candles,
+ * priceToCoordinate extrapolates to finite y-values beneath pane 0, so the rect
+ * is perfectly valid and the canvas clip then throws the pixels away. The draw
+ * loop counted every one of those into the render receipt's row total.
+ *
+ * These cases pin the boundary, because a clipped row and a straddling row are
+ * different answers and the cheap version of this guard (y >= 0 && y <= pane)
+ * gets the straddling ones wrong in the opposite direction.
+ */
+describe("vpRowVisible — a clipped row is not a painted row", () => {
+  const rect = (y: number, drawHeight = 4) => ({ y, height: drawHeight + 1, drawHeight });
+
+  it("counts a row wholly inside the pane", () => {
+    expect(vpRowVisible(rect(100), 560)).toBe(true);
+  });
+
+  it("does NOT count a row extrapolated below the pane", () => {
+    expect(vpRowVisible(rect(600), 560)).toBe(false);
+  });
+
+  it("does NOT count a row extrapolated above the pane", () => {
+    expect(vpRowVisible(rect(-40), 560)).toBe(false);
+  });
+
+  it("DOES count a row straddling the bottom edge — it is partly visible", () => {
+    expect(vpRowVisible(rect(558), 560)).toBe(true);
+  });
+
+  it("DOES count a row straddling the top edge", () => {
+    expect(vpRowVisible(rect(-2), 560)).toBe(true);
+  });
+
+  it("a row flush against the bottom edge paints nothing", () => {
+    expect(vpRowVisible(rect(560), 560)).toBe(false);
+  });
+
+  it("a row ending exactly at y=0 paints nothing", () => {
+    expect(vpRowVisible(rect(-4), 560)).toBe(false);
+  });
+
+  it("null rect is never visible", () => {
+    expect(vpRowVisible(null, 560)).toBe(false);
+  });
+
+  it("an unreadable pane height may not invent a decline", () => {
+    // This function must not turn "I could not measure the pane" into "the
+    // trader cannot see this row". A false decline costs the same trust as a
+    // missed one — the rule vpRenderReceipt.columnClearance already follows.
+    expect(vpRowVisible(rect(600), Number.NaN)).toBe(true);
+    expect(vpRowVisible(rect(600), 0)).toBe(true);
+    expect(vpRowVisible(rect(600), -10)).toBe(true);
+  });
+
+  it("uses drawHeight, not height — the gap pixel is not painted", () => {
+    // A 1px row at y = pane-1 ends exactly at the boundary via drawHeight.
+    expect(vpRowVisible({ y: 559, height: 2, drawHeight: 1 }, 560)).toBe(true);
+    expect(vpRowVisible({ y: 560, height: 2, drawHeight: 1 }, 560)).toBe(false);
   });
 });
 
@@ -271,6 +336,19 @@ describe("MainChart delegates the draw geometry instead of re-typing it", () => 
       code,
       "rounding the height independently is the hairline-gap defect",
     ).not.toContain("Math.round(yTop)");
+  });
+
+  it("does not count a row the pane-0 clip will discard", () => {
+    expect(
+      code,
+      "priceToCoordinate extrapolates below pane 0, so rect is non-null for rows the clip deletes",
+    ).toMatch(/vpRowVisible\(rect,\s*pane0H\)/);
+    // The visibility test must come BEFORE the tally, or the receipt counts
+    // pixels the canvas threw away — the exact failure vpRenderReceipt's own
+    // header forbids for a column.
+    expect(code.indexOf("vpRowVisible(rect, pane0H)")).toBeLessThan(
+      code.indexOf("rowsPainted += 1"),
+    );
   });
 
   it("gets its bar length and split from the owner", () => {
