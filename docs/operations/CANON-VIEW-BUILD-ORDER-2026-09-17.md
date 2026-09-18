@@ -84,6 +84,7 @@ Prose in this file is commentary. The table is the claim.
 | Aggression | SHIPPED | `42a495e4` — BTC, both gate arms live-observed |
 | Big Trades | SHIPPED | BTC 15m live-observed 2026-09-18 — `LARGE PRINTS · 6 cleared the cut`, top-10%-within-window cut stated on the surface, `SIDE · VENUE-STATED` |
 | Value Profile | SHIPPED | BTC 15m live-observed 2026-09-18 — `LIVING PROFILE`, `248 price buckets took volume`, `VALUE AREA HIGH 77940.00`, provenance stated as `ESTIMATED FROM CANDLES` |
+| Continuation | SHIPPED | Asset 15, wired 2026-09-18. Compiler + banner + view + 24 tests; reads `selectMarketStructure` against `selectRegime` off the same `canvasIdentity` this room already publishes with. The mockup's four percentages are refused in the compiler, so no renderer can print them. Live observation pending, and recorded in the Asset 15 section below the moment it is taken. |
 <!-- VIEW-STATUS:END -->
 
 Every row above is a MICROSTRUCTURE view, so each renders WITH the candles

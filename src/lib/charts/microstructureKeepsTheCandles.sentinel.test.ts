@@ -42,12 +42,16 @@ function dashboard(): string {
 }
 
 describe("the microstructure set", () => {
-  it("names exactly the four tape-reading views", () => {
+  it("names exactly the five tape-reading views", () => {
     expect([...MICROSTRUCTURE_TABS]).toEqual([
       "Absorption",
       "Aggression",
       "Big Trades",
       "Value Profile",
+      // Asset 15. Reads the swing sequence the candles are drawn from against
+      // the regime those candles printed in; the verdict ends with the trader
+      // asking WHERE the sequence turned, which only the price pane answers.
+      "Continuation",
     ]);
   });
 

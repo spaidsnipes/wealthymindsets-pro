@@ -163,6 +163,11 @@ import {
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
+import ContinuationHealthView from "@/components/experience/ContinuationHealthView";
+import { selectContinuationHealth } from "@/lib/marketData/viewModels/selectContinuationHealth";
+import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
+import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
+import { useCanonicalMarketStateHistory } from "@/lib/marketData/useCanonicalMarketState";
 import { selectAbsorptionAnatomyView } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
 import AggressionResponseView from "@/components/experience/AggressionResponseView";
 import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggressionResponse";
@@ -867,6 +872,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
 
+
   /*
     ONE OS — the frame is never LESS confident than the room inside it.
 
@@ -936,6 +942,41 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => selectMarketObjectPassport(chartCanvasState),
     [chartCanvasState],
   );
+
+  // ── Asset 15 · QUESTION-DRIVEN CONTINUATION HEALTH ────────────────────
+  //
+  // Two owners, read against each other. The swing sequence comes from the
+  // SAME `chartBars` the candles are drawn from — a view that measured a
+  // different set of candles than the ones on screen would be a second owner
+  // of "what happened in this window". The regime comes from the canonical
+  // store under `canvasIdentity`, which is the identity the publisher on this
+  // very component writes with, so reader and writer cannot drift.
+  //
+  // `selectRegime` needs a CanonicalMarketState. Until the store has one for
+  // this identity, `regime` is null and `selectContinuationHealth` returns
+  // UNREADABLE carrying its own reason — which is the honest reading, not a
+  // placeholder. Nothing here fabricates a regime to fill the gap.
+  //
+  // It reads `chartCanvasState` — the subscription declared just above — and
+  // does NOT open a second one. Two calls to the same hook on the same
+  // identity would be two readers of one fact, harmless today only because the
+  // store is single-valued, which is not a property to build on.
+  const continuationHistory = useCanonicalMarketStateHistory(canvasIdentity, 6);
+  const continuationHealthVM = React.useMemo(() => {
+    const structure = selectMarketStructure(
+      chartBars.map(b => ({
+        time: typeof b.time === "number" ? b.time : Number(b.time),
+        open: b.open,
+        high: b.high,
+        low: b.low,
+        close: b.close,
+      })),
+    );
+    const regime = chartCanvasState
+      ? selectRegime({ state: chartCanvasState, history: continuationHistory })
+      : null;
+    return selectContinuationHealth({ structure, regime });
+  }, [chartBars, chartCanvasState, continuationHistory]);
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2694,7 +2735,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && (
+            {/* Asset 15 — QUESTION-DRIVEN CONTINUATION HEALTH. The mockup's
+                four percentages have no owner and are refused in the compiler,
+                so this view states the reading in words and names the owner of
+                every one of them. Sibling of Chart for the same reason the
+                other four microstructure views are: the verdict ends with the
+                trader asking WHERE the sequence turned. */}
+            {activeTab === "Continuation" && (
+              <div role="tabpanel" id="wm-chart-category-panel-continuation" aria-label={`Continuation health for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <ContinuationHealthView vm={continuationHealthVM} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

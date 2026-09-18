@@ -60,6 +60,7 @@ export const ALL_CATEGORY_TABS = [
   "Aggression",
   "Big Trades",
   "Value Profile",
+  "Continuation",
   "Options",
   "ETFs",
   "Financials",
@@ -102,6 +103,13 @@ export const MICROSTRUCTURE_TABS = [
   "Aggression",
   "Big Trades",
   "Value Profile",
+  // Asset 15. It reads the SWING SEQUENCE the candles are drawn from against
+  // the regime those candles printed in, and its verdict ends with the trader
+  // asking "where did that sequence turn" — which is a question only the price
+  // pane can answer. So it belongs to the set for the same reason the other
+  // four do, and shipping it outside the set would hide the candles it is
+  // describing.
+  "Continuation",
 ] as const satisfies readonly CategoryTab[];
 
 export type MicrostructureTab = (typeof MICROSTRUCTURE_TABS)[number];
@@ -120,25 +128,25 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
       // ETFs have Financials + Valuation + Profile + Shareholders
       // (holdings). No Corporate Actions, no separate ETFs tab
       // (redundant when the symbol IS an ETF).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
     case "options":
       // Viewing an options contract already IS the options view;
       // Financials/Valuation belong to the underlying, not the
       // derivative. Keep Chart + Profile only.
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Profile"] as const;
     case "crypto":
     case "futures":
     case "forex":
       // No corporate structure, no shareholders, no ETF wrapper.
       // Chart is the whole thing; Profile carries what little
       // reference data exists (name / venue / contract spec).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Profile"] as const;
     default: {
       // Exhaustiveness guard — if CanonicalAssetClass grows, this
       // narrows to `never` and TS errors at build time.
       const _never: never = cls;
       void _never;
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Profile"] as const;
     }
   }
 }
