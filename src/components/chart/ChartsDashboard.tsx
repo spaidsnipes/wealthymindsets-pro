@@ -1414,9 +1414,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       : null,
     onOpenWhy: openWhyFrom,
     canvasSummary: (
+      /* The pill counts blockers; THIS room holds the equipment that explains
+         them. `edde7236` stopped the pill telling the trader to "open the
+         canvas" here — true, because there is no canvas on this page to scroll
+         to — and that left a count with no destination. The destination is
+         press-gated equipment, so the pill is handed the room and the id and
+         looks the door up itself. */
       <CanvasSummaryPill
         vm={chartMarketCanvas}
         ariaLabel="Chart market canvas summary"
+        openEquipment={{ roomHref: INSTRUMENT_VIEW_ROUTE, id: "market-reality" }}
       />
     ),
   };

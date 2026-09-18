@@ -188,6 +188,56 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(html).not.toContain('<button');
   });
 
+  /**
+   * A DESTINATION THAT IS NOT ON THE PAGE IS STILL A DESTINATION.
+   *
+   * `edde7236` made this pill stop telling a trader to "open the canvas" on
+   * /charts, where there is no canvas to scroll to. Honest — and it left a
+   * count of blockers with nowhere to go, which the 2026-09-18 baton recorded
+   * as OPEN. The chart room's Market Reality is PRESS-GATED equipment: it is
+   * genuinely absent until requested, so a scroll selector could never reach
+   * it. These cases are the door, and the guard on pointing at a wrong one.
+   */
+  describe("the equipment door", () => {
+    const anyVM = () => vm({ verdict: "WAIT", hasSnapshot: true, blockers: ["regime"] });
+
+    it("becomes a control, and names the door in the rail's own words", () => {
+      const html = renderToStaticMarkup(
+        <CanvasSummaryPill
+          vm={anyVM()}
+          openEquipment={{ roomHref: "/charts", id: "market-reality" }}
+        />,
+      );
+      expect(html).toContain("<button");
+      expect(html).toContain('data-equipment-open="market-reality"');
+      // The label is LOOKED UP, never typed here — so the pill and the rail
+      // cannot drift into two names for one destination.
+      expect(html).toContain("open Market reality");
+      expect(html).not.toContain('role="status"');
+    });
+
+    it("REFUSES a door this room does not have", () => {
+      // The whole point of handing down the ROOM as well as the id. /charts
+      // lists no "decision-chain" equipment, so offering to open one would be
+      // exactly the defect `edde7236` cured, reintroduced by a typo.
+      const html = renderToStaticMarkup(
+        <CanvasSummaryPill
+          vm={anyVM()}
+          openEquipment={{ roomHref: "/charts", id: "decision-chain" }}
+        />,
+      );
+      expect(html).toContain('role="status"');
+      expect(html).not.toContain("<button");
+      expect(html).not.toMatch(/open /);
+    });
+
+    it("a surface that hands down no door is unchanged", () => {
+      const html = renderToStaticMarkup(<CanvasSummaryPill vm={anyVM()} />);
+      expect(html).toContain('role="status"');
+      expect(html).not.toMatch(/ — open /);
+    });
+  });
+
   it("tooltip carries the headline + top blockers/invalidators/missing (X8 hover-truth)", () => {
     const html = renderToStaticMarkup(
       <CanvasSummaryPill

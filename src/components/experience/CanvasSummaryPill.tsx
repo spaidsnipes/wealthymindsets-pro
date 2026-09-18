@@ -18,6 +18,8 @@
 
 import * as React from "react";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
+import { requestEquipment } from "@/lib/workspace/equipmentChannel";
+import { roomEquipment } from "@/lib/workspace/roomEquipment";
 
 export interface CanvasSummaryPillProps {
   readonly vm: MarketCanvasVM;
@@ -31,6 +33,37 @@ export interface CanvasSummaryPillProps {
    * role="status">.
    */
   readonly scrollToSelector?: string;
+  /**
+   * A DESTINATION THAT IS NOT ON THE PAGE IS STILL A DESTINATION.
+   *
+   * FOUND FROM USE, production /charts?symbol=TSLA, 2026-09-18, and left OPEN
+   * in the 2026-09-18 baton: `edde7236` made this pill stop TELLING the trader
+   * to "open the canvas" on a surface that has no canvas — honest, but it left
+   * them with a count of blockers and nowhere to go.
+   *
+   * `scrollToSelector` can only ever point at something already rendered. It
+   * was the wrong shape for the instrument room, where the Market Reality panel
+   * is PRESS-GATED equipment: genuinely absent until asked for, and asked for
+   * by publishing on the equipment channel — not by scrolling.
+   *
+   * So the pill takes the door it is actually given. Supplying neither keeps
+   * the passive `role="status"` pill, which is still correct for any surface
+   * that truly has no destination.
+   *
+   * THE ROOM IS PART OF THE ADDRESS. The caller hands down BOTH its own route
+   * and the equipment id, and the label is looked up in the canonical registry
+   * rather than typed here. Two consequences, both deliberate:
+   *
+   *   - the pill can never name a door THIS room does not have — an id the
+   *     registry does not list for this href yields no button at all, which is
+   *     the same refusal `edde7236` shipped, now enforced instead of remembered;
+   *   - the hint reads the rail's own wording, so the pill and the rail cannot
+   *     drift into calling one destination by two names.
+   */
+  readonly openEquipment?: {
+    readonly roomHref: string;
+    readonly id: string;
+  };
 }
 
 const HAIR = "rgba(139,106,41,0.22)";
@@ -48,7 +81,13 @@ export function CanvasSummaryPill({
   className,
   ariaLabel,
   scrollToSelector,
+  openEquipment,
 }: CanvasSummaryPillProps): React.ReactElement | null {
+  /* The door, VERIFIED AGAINST THE ROOM. A caller may ask for anything; only an
+     entry the registry actually lists for this href becomes a control. */
+  const door = openEquipment
+    ? roomEquipment(openEquipment.roomHref).find((e) => e.id === openEquipment.id) ?? null
+    : null;
   // Canon §Silence Is A Feature: without a snapshot AND without a
   // compiled decision, there's nothing to summarise. Render nothing.
   const hasAnything =
@@ -127,7 +166,15 @@ export function CanvasSummaryPill({
   // complete list, which is the defect this helper was written to prevent. So
   // the COUNT is unconditional and the DIRECTION is earned: it appears only
   // when this pill is actually the control that reaches the canvas.
-  const openHint = scrollToSelector ? " — open the canvas" : "";
+  //
+  // The DIRECTION is still earned, and it now names the door it was handed:
+  // "open the canvas" on a page that scrolls to one, the rail's own label on a
+  // room that presses one open, and nothing at all where neither exists.
+  const openHint = scrollToSelector
+    ? " — open the canvas"
+    : door
+      ? ` — open ${door.label}`
+      : "";
   const withRemainder = (
     items: readonly string[],
     shown: number,
@@ -187,6 +234,23 @@ export function CanvasSummaryPill({
         aria-label={ariaLabel ?? "Canvas summary — jump to detail"}
         title={tooltip}
         data-testid="canvas-summary-pill"
+        className={className}
+        style={{ ...commonStyle, cursor: "pointer", minHeight: 24 }}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  if (door) {
+    return (
+      <button
+        type="button"
+        onClick={() => requestEquipment(door.id)}
+        aria-label={ariaLabel ?? `Canvas summary — open ${door.label}`}
+        title={tooltip}
+        data-testid="canvas-summary-pill"
+        data-equipment-open={door.id}
         className={className}
         style={{ ...commonStyle, cursor: "pointer", minHeight: 24 }}
       >

@@ -66,7 +66,22 @@ describe("canvas summary pill disclosure", () => {
   });
 
   it("the direction is earned by the surface, not printed by default", () => {
-    expect(pill).toContain('const openHint = scrollToSelector ? " — open the canvas" : ""');
+    // RE-STATED. This pinned the exact spelling
+    // `scrollToSelector ? " — open the canvas" : ""`, which welded the INTENT
+    // ("only point somewhere this surface can actually reach") to ONE KIND of
+    // destination — a selector for something already on the page.
+    //
+    // /charts has no canvas to scroll to, but it does have press-gated Market
+    // Reality equipment, and that spelling made the door unreachable from the
+    // pill BY CONSTRUCTION. A test that pins a spelling does not defend a rule;
+    // it freezes one implementation of it.
+    //
+    // What is pinned now is the rule: there is a branch that yields NOTHING,
+    // and no branch yields a direction that was not handed down by the surface.
+    expect(pill).toMatch(/const openHint =[\s\S]*?: "";/);
+    expect(pill, "a hint must never be produced from thin air").not.toMatch(
+      /const openHint = ["'`]/,
+    );
   });
 
   it("no list is sliced without going through the disclosing helper", () => {
