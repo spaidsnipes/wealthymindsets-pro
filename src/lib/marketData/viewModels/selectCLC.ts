@@ -20,54 +20,8 @@
  */
 
 import type { CanonicalMarketState, MarketStateEvidenceRef, MarketStateResolution } from "../canonicalMarketState";
-import { dimensionStanding } from "../canonicalMarketState";
+import { describeDimension } from "../canonicalMarketState";
 import { selectDLAR, type DLARVM, type SelectDLARInput } from "./selectDLAR";
-
-/**
- * A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.
- *
- * The CONTEXT and LOCATION legs used to render their PARTIAL summaries as
- * `${dim.value ?? "unresolved"}` — a fallback on NULLISHNESS. Nullishness is
- * not a standing. `MarketStateResolution` has three values, and the middle one
- * (`PARTIAL`) is precisely the one that CARRIES a value while not being
- * decision-grade, so the `??` never fired for it and the sentence came out
- * byte-for-byte identical to the SATISFIED branch:
- *
- *     regime RESOLVED "TRENDING" + direction RESOLVED "LONG"
- *       → "Regime TRENDING, direction LONG"        (SATISFIED)
- *     regime RESOLVED "TRENDING" + direction PARTIAL  "LONG"
- *       → "Regime TRENDING, direction LONG"        (PARTIAL)
- *
- * Two different standings, ONE SENTENCE. The `??` labelled the MISSING bucket
- * and dressed the MEASURED bucket in RESOLVED's clothes — the middle bucket
- * again, this time disguised as AN IDENTICAL SENTENCE rather than as a loose
- * predicate or a subtraction.
- *
- * The third leg in this same function already got it right: CONFIRMATION's
- * PARTIAL branch prints `order flow ${state.orderFlow.resolution.toLowerCase()}`
- * and so names what it is looking at. One function, three legs, one of which
- * disclosed. This makes the other two say it too.
- *
- * `dimensionStanding` is the canonical owner of the three-way split — a switch
- * TOTAL over `MarketStateResolution` — so a fourth resolution fails the BUILD
- * rather than silently picking a spelling here.
- */
-function dimensionPhrase(
-  dimension: { readonly resolution: MarketStateResolution; readonly value: string | null } | null | undefined,
-): string {
-  switch (dimensionStanding(dimension)) {
-    case "RESOLVED":
-      return dimension?.value ?? "unresolved";
-    case "MEASURED":
-      // NAMED, not hedged. "measured" tells the trader the reading exists and
-      // that WM will not stake a decision on it — which is a different
-      // instruction from "go wait for a measurement", the one `?? "unresolved"`
-      // was giving for a measurement that had already been taken.
-      return dimension?.value ? `${dimension.value} (measured, not decision-grade)` : "measured";
-    case "MISSING":
-      return "unresolved";
-  }
-}
 
 export type CLCVerdict = "CLC_LONG" | "CLC_SHORT" | "WAIT" | "INVALID" | "UNKNOWN";
 export type LegVerdict = "SATISFIED" | "PARTIAL" | "NOT_SATISFIED" | "UNKNOWN";
@@ -117,7 +71,7 @@ export function selectCLC(input: SelectCLCInput): CLCVM {
     summary: contextResolved
       ? `Regime ${state.regime.value}, direction ${state.direction.value}`
       : contextPartial
-        ? `Regime ${dimensionPhrase(state.regime)}, direction ${dimensionPhrase(state.direction)}`
+        ? `Regime ${describeDimension(state.regime)}, direction ${describeDimension(state.direction)}`
         : "No regime or direction evidence",
     evidence: [...state.regime.evidence, ...state.direction.evidence],
     contradictions: [...state.regime.contradictions, ...state.direction.contradictions],
@@ -133,7 +87,7 @@ export function selectCLC(input: SelectCLCInput): CLCVM {
     summary: locationResolved
       ? `At ${state.location.value} with structure ${state.structure.value}`
       : locationPartial
-        ? `Location ${dimensionPhrase(state.location)}, structure ${dimensionPhrase(state.structure)}`
+        ? `Location ${describeDimension(state.location)}, structure ${describeDimension(state.structure)}`
         : "No location or structure evidence",
     evidence: [...state.location.evidence, ...state.structure.evidence],
     contradictions: [...state.location.contradictions, ...state.structure.contradictions],

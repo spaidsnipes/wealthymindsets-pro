@@ -27,6 +27,7 @@ import type {
   MarketStateEvidenceRef,
   MarketStateResolution,
 } from "../canonicalMarketState";
+import { describeDimension } from "../canonicalMarketState";
 
 export type RegimeVerdict = "TREND" | "BALANCE" | "TRANSITION" | "EXPANSION" | "COMPRESSION" | "UNKNOWN";
 
@@ -159,12 +160,26 @@ export function selectRegime(input: SelectRegimeInput): RegimeVM {
   }
 
   // TREND: regime dim says trend + volatility non-low
+  //
+  // `!m.volatilityLow.matches(volatility)` is satisfied by a volatility that is
+  // MEASURED, and equally by one that was never measured at all — `looseMatch`
+  // requires `resolution === "RESOLVED"`, so anything else fails to match. This
+  // branch is therefore REACHABLE WITH NO VOLATILITY READING WHATSOEVER, and it
+  // used to print `${volatility.value ?? "resolved"}`:
+  //
+  //     "Regime TREND with resolved volatility — trend environment."
+  //
+  // A fallback is not a place to name a standing you did not check. That one
+  // asserted the STRONGEST of the three buckets for the emptiest of them. The
+  // verdict itself stands — TREND rests on the regime dimension, not on
+  // volatility — so only the sentence was lying, which is exactly what makes it
+  // the kind of defect that survives review.
   if (m.regimeTrend.matches(regime) && !m.volatilityLow.matches(volatility)) {
     return {
       verdict: "TREND",
       resolution: "RESOLVED",
       confidence: regime.confidence,
-      narrative: `Regime ${regime.value} with ${volatility.value ?? "resolved"} volatility — trend environment.`,
+      narrative: `Regime ${describeDimension(regime)} with ${describeDimension(volatility)} volatility — trend environment.`,
       evidence,
       contradictions,
       capturedAt: state.capturedAt,
@@ -180,7 +195,11 @@ export function selectRegime(input: SelectRegimeInput): RegimeVM {
       verdict: "BALANCE",
       resolution: "RESOLVED",
       confidence: regime.confidence,
-      narrative: `Regime ${regime.value} with ${volatility.value ?? "resolved"} volatility — balanced environment.`,
+      // Unlike TREND above, BOTH guards here are `looseMatch`es, so volatility
+      // is RESOLVED by construction and `describeDimension` returns the bare
+      // value. Routed through it anyway: the next edit to this guard must not
+      // silently re-open the hole TREND had.
+      narrative: `Regime ${describeDimension(regime)} with ${describeDimension(volatility)} volatility — balanced environment.`,
       evidence,
       contradictions,
       capturedAt: state.capturedAt,
@@ -192,7 +211,10 @@ export function selectRegime(input: SelectRegimeInput): RegimeVM {
     verdict: "UNKNOWN",
     resolution: "PARTIAL",
     confidence: null,
-    narrative: `Regime ${regime.value ?? "unresolved"} + volatility ${volatility.value ?? "unresolved"} — no verdict rule matched.`,
+    // This is the PARTIAL fall-through — by definition at least one dimension
+    // here is MEASURED, which is the exact bucket `?? "unresolved"` could not
+    // see. It printed a measured reading identically to a committed one.
+    narrative: `Regime ${describeDimension(regime)} + volatility ${describeDimension(volatility)} — no verdict rule matched.`,
     evidence,
     contradictions,
     reason: "Regime + volatility combination did not match any known verdict pattern.",

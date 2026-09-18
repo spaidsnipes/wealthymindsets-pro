@@ -351,6 +351,51 @@ export function dimensionStanding(
 }
 
 /**
+ * A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.
+ *
+ * Narratives across the view models rendered dimension values as
+ * `${dim.value ?? "unresolved"}`. That fallback tests NULLISHNESS, and
+ * **nullishness is not a standing**: `PARTIAL` is precisely the resolution that
+ * CARRIES a value while not being decision-grade, so the `??` never fires for it
+ * and the measured sentence comes out byte-for-byte identical to the committed
+ * one:
+ *
+ *     direction RESOLVED "LONG" → "direction LONG"
+ *     direction PARTIAL  "LONG" → "direction LONG"
+ *
+ * Two standings, ONE SENTENCE. The `??` labels the MISSING bucket and dresses the
+ * MEASURED bucket in RESOLVED's clothes — the middle bucket again, disguised this
+ * time as an identical sentence rather than as a loose predicate or a subtraction.
+ *
+ * `selectRegime` shipped a sharper form of the same mistake: `${volatility.value
+ * ?? "resolved"}` printed the literal word **resolved** for a dimension that had
+ * no reading at all. A fallback is not a place to name a standing you did not
+ * check.
+ *
+ * THIS IS THE OWNER, for the same reason `dimensionStanding` is. A phrasing rule
+ * that lives inside one selector is that selector's good luck; the next narrative
+ * to be written will reach for `??` again. Both call sites now ask HERE, and the
+ * switch is TOTAL over `DimensionStanding` so a fourth standing fails the BUILD.
+ */
+export function describeDimension(
+  dimension: { readonly resolution: MarketStateResolution; readonly value: string | null } | null | undefined,
+): string {
+  switch (dimensionStanding(dimension)) {
+    case "RESOLVED":
+      return dimension?.value ?? "unresolved";
+    case "MEASURED":
+      // NAMED, not hedged. "measured" tells the trader the reading EXISTS and
+      // that WM will not stake a decision on it — a different instruction from
+      // "go wait for a measurement", which is what `?? "unresolved"` gives for a
+      // measurement that has already been taken.
+      return dimension?.value ? `${dimension.value} (measured, not decision-grade)` : "measured";
+    case "MISSING":
+      // `value` is null by contract here, so there is nothing to name.
+      return "unresolved";
+  }
+}
+
+/**
  * Partition the eight canonical dimensions into the three standings.
  *
  * DISJOINT AND TOTAL BY CONSTRUCTION — every key is pushed exactly once, in

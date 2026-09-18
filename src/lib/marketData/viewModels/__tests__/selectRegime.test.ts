@@ -103,3 +103,54 @@ describe("selectRegime", () => {
     expect(r.capturedAt).toBe(12345);
   });
 });
+
+/**
+ * A VALUE PRINTED WITHOUT ITS STANDING READS AS A RESOLVED VALUE.
+ *
+ * TREND's volatility guard is a NEGATION of a `looseMatch`, and `looseMatch`
+ * requires `resolution === "RESOLVED"`. So `!volatilityLow.matches(v)` is
+ * satisfied by a MEASURED volatility and equally by one that was never measured
+ * at all — and the narrative printed `${volatility.value ?? "resolved"}`, which
+ * asserted the STRONGEST of the three standings for the emptiest of them.
+ *
+ * These assert the PROPERTY — a narrative never claims a standing it did not
+ * check, and never prints two standings the same way — not any spelling, so a
+ * future rewording stays free.
+ */
+describe("regime narrative names the standing it actually has", () => {
+  const narrativeFor = (volatility: MarketStateDimension) =>
+    selectRegime({ state: mkState({ regime: dim("trend"), volatility }) }).narrative;
+
+  it("never calls an unmeasured volatility 'resolved'", () => {
+    const r = selectRegime({ state: mkState({ regime: dim("trend"), volatility: UNK }) });
+    // The verdict is NOT the defect — TREND rests on the regime dimension.
+    expect(r.verdict).toBe("TREND");
+    expect(
+      r.narrative,
+      "the fallback asserted the strongest standing for a dimension with no reading",
+      // Anchored on the preceding word: "unresolved volatility" CONTAINS
+      // "resolved volatility", so a bare substring check passes the defect.
+    ).not.toMatch(/\bwith resolved volatility/i);
+    expect(r.narrative).toMatch(/unresolved volatility/i);
+  });
+
+  it("does not print a MEASURED volatility the way it prints a RESOLVED one", () => {
+    const measured = narrativeFor(dim("high", "PARTIAL"));
+    expect(measured).not.toBe(narrativeFor(dim("high")));
+    // Still SHOWN — hiding a measurement that was taken is the opposite failure.
+    expect(measured).toContain("high");
+    expect(measured.toLowerCase()).toContain("measured");
+  });
+
+  it("the PARTIAL fall-through distinguishes measured from committed too", () => {
+    const measured = selectRegime({
+      state: mkState({ regime: dim("uncategorized", "PARTIAL") }),
+    }).narrative;
+    const committed = selectRegime({
+      state: mkState({ regime: dim("uncategorized") }),
+    }).narrative;
+    expect(measured).not.toBe(committed);
+    expect(measured).toContain("uncategorized");
+    expect(measured.toLowerCase()).toContain("measured");
+  });
+});
