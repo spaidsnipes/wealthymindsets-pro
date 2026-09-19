@@ -68,9 +68,29 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx"]);
  * below REQUIRES the removal once the guard exists.
  */
 const UNGUARDED_SCANNERS_DEBT: readonly string[] = [
+  // KNOWN FALSE POSITIVE of the scope heuristic below — diagnosed 2026-09-19,
+  // left listed deliberately. This file is not a scanner. Its `toEqual([])` is
+  // `expect(chunks).toEqual([])`, a RUNTIME assertion that disposal emptied a
+  // capture buffer, and its single `readFileSync` reads one hardcoded path
+  // (`LeftSidebar.tsx`) rather than enumerating a file set. The detector's
+  // in-scope test is `/readdirSync|readFileSync/`, which it trips on the second
+  // alternative.
+  //
+  // IT IS NOT REMOVED, AND THE REASON MATTERS. The obvious "fix" is to narrow
+  // the scope test to `readdirSync` — files that actually WALK. MEASURED: that
+  // would drop NINE of this ledger's entries at a stroke, and eight of them are
+  // real gates that read a DECLARED LIST of paths instead of walking one
+  // (phoneAuditCoversPublicSurface, instrumentLabelTruth, regimeBadgeTruth,
+  // founderLanding, …). A fixed-list gate goes vacuous exactly like a walking
+  // one — the list empties, or its pattern goes stale — so narrowing the
+  // heuristic would buy one cosmetic removal by silently exempting eight live
+  // gates. That is the ledger lying in the DANGEROUS direction, which is worse
+  // than the harmless over-inclusion of one lifecycle test.
+  //
+  // A conservative detector costs one wrong name on a list. A permissive one
+  // costs coverage nobody can see they lost. Keeping this entry is the cheaper
+  // error, taken with eyes open.
   "components/chart/LeftSidebar.lifecycle.test.ts",
-  "components/experience/MarketCanvasPanel.enforcement.test.ts",
-  "components/experience/SemanticZoom.enforcement.test.ts",
   "components/marketData/CanonicalFidelityBadge.enforcement.test.ts",
   "components/systemHealth/FailureStateChip.enforcement.test.ts",
   "components/truthStatus/TruthStatusChip.enforcement.test.ts",

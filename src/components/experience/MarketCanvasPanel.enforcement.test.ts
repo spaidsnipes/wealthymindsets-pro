@@ -58,9 +58,64 @@ function walk(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
+/** The one detection pattern the rule below depends on. Named once so the
+ *  vacuity guard and the rule can never drift apart. */
+const CANON_TOKEN = /["'>]\s*Would invalidate\s*["'<(]/;
+
+/** Walked ONCE so the guard and the rule see the same tree. */
+const ALL_FILES = walk(SRC_ROOT);
+
 describe("<MarketCanvasPanel> enforcement — canon §Single-Writer / Many-Readers", () => {
+  /**
+   * ANTI-VACUITY — added 2026-09-19, paying down the frozen debt recorded in
+   * `src/lib/ops/sentinelsProveTheyScanned.test.ts`.
+   *
+   * The rule below asserts a collection is EMPTY, and it has TWO ways to be
+   * empty for the wrong reason:
+   *
+   *   1. THE WALK finds nothing — `src/` renamed, the extension set narrowed,
+   *      a `statSync` throwing. Zero files scanned, zero violations found.
+   *   2. THE TOKEN moves. This is the likelier failure and the nastier one.
+   *      The rule hunts for one English string the canon happens to use today.
+   *      Reword the Market Canvas corner to "Invalidated by" or push the label
+   *      behind an i18n key, and the regex matches nothing anywhere — forever.
+   *      The single-writer rule then reports a clean repo while every surface
+   *      in the tree is free to hand-roll the new wording.
+   *
+   * Case 2 cannot be caught by counting files, so the guard below is a
+   * POSITIVE CONTROL: the two canon owner-writers must themselves trip the
+   * exact regex the rule uses. They are the known-good matches. If they stop
+   * matching, the pattern is stale and must be re-derived from how the label
+   * is actually written now — not left pointing at a string that has left the
+   * codebase.
+   */
+  it("ANTI-VACUITY: the walk reaches source and the canon token still matches its owners", () => {
+    expect(
+      ALL_FILES.length,
+      "walk(src) found almost no code files — did src/ move, or did the " +
+        "extension set change? An empty scan makes the rule below permanently " +
+        "green while enforcing nothing",
+    ).toBeGreaterThan(200);
+
+    const OWNERS = [
+      "components/experience/MarketCanvasPanel.tsx",
+      "components/experience/DecisionWhyPanel.tsx",
+    ];
+    const ownersThatTrip = OWNERS.filter((rel) =>
+      CANON_TOKEN.test(readFileSync(resolve(SRC_ROOT, rel), "utf8")),
+    );
+    expect(
+      ownersThatTrip.sort(),
+      "the canon owner-writers no longer render a string this rule's regex " +
+        "recognises. The 'Would invalidate' label was reworded or moved behind " +
+        "an indirection, so the single-writer rule below is now searching for " +
+        "text that exists nowhere and will pass over any amount of hand-rolled " +
+        "duplication. Re-derive the pattern from the label as written today",
+    ).toEqual(OWNERS.sort());
+  });
+
   it("no file outside the whitelist hand-rolls the canon 'Would invalidate' token", () => {
-    const files = walk(SRC_ROOT).filter((f) => !isAllowedFile(f));
+    const files = ALL_FILES.filter((f) => !isAllowedFile(f));
     const violations: string[] = [];
 
     for (const file of files) {
@@ -74,7 +129,7 @@ describe("<MarketCanvasPanel> enforcement — canon §Single-Writer / Many-Reade
 
       // Otherwise: rendering the canon 'Would invalidate' label directly
       // is a violation.
-      if (/["'>]\s*Would invalidate\s*["'<(]/.test(content)) {
+      if (CANON_TOKEN.test(content)) {
         violations.push(file.replace(SRC_ROOT + "/", ""));
       }
     }
