@@ -1228,4 +1228,30 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
       /removeEventListener\("keydown"/,
     );
   });
+
+  it("touching the market also puts the equipment down — the thumb's way out", () => {
+    // Escape is the keyboard's exit. On a phone it does not exist, and the
+    // canon names both halves in one sentence for that reason. Shipping only
+    // the key half leaves every touch trader inside the mode.
+    const room = rail.indexOf('data-testid="os-room"');
+    expect(room, `${RAIL} → the room element is gone; re-pin this`).toBeGreaterThan(-1);
+    const main = rail.slice(room, room + 1400);
+    expect(main, `${RAIL} → pressing the market does not dismiss the equipment`).toMatch(
+      /onPointerDown=\{[\s\S]*?setEquipment\(null\)/,
+    );
+    expect(
+      main,
+      `${RAIL} → the dismiss must be inert in rail mode, or one gesture has two meanings`,
+    ).toMatch(/equipmentMode && equipment !== null/);
+  });
+
+  it("the market press is OBSERVED, not consumed — no first-tap-eaten defect", () => {
+    // Swallowing the press would mean a trader with equipment open has to
+    // press every chart control twice. The room's own click must still land.
+    const room = rail.indexOf('data-testid="os-room"');
+    const main = rail.slice(room, room + 1400);
+    expect(main, `${RAIL} → the room press is being consumed`).not.toMatch(
+      /preventDefault\(\)|stopPropagation\(\)/,
+    );
+  });
 });

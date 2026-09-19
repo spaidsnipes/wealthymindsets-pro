@@ -1210,6 +1210,26 @@ export function WMOperatingSystem({
 
         <main
           data-testid="os-room"
+          /* ── TOUCHING THE MARKET PUTS THE EQUIPMENT DOWN ───────────────────
+             The second half of the canon's §3 dismiss clause: "Escape /
+             tap-chart-background closes the overlay. URL unchanged." Escape is
+             the keyboard's way out; this is the thumb's, and on a phone it is
+             the ONLY intuitive one — reaching back to the small control that
+             opened the panel is not what a hand does when it wants the chart.
+
+             POINTERDOWN, NOT CLICK, AND NO preventDefault. The press is
+             OBSERVED, never consumed: whatever the trader actually aimed at in
+             the room still receives its own click. So this cannot become the
+             "first tap is eaten" defect, where a trader with equipment open
+             has to press every chart control twice.
+
+             It does not run in rail mode. There the panel is a map of
+             destinations with its own long-standing behaviour, and a frame
+             whose panel dismisses differently depending on an invisible mode
+             is a frame that has two answers to one gesture. */
+          onPointerDown={
+            equipmentMode && equipment !== null ? () => setEquipment(null) : undefined
+          }
           style={{
             flex: "1 1 auto",
             minWidth: 0,
