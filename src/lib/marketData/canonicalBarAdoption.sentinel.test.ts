@@ -1,10 +1,14 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is TWENTY as of the
+ * The count below started at twenty-two on 2026-09-18 and is EIGHTEEN as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when two of the
  * shapes were deleted — only its size.
+ *
+ * TWENTY-TWO TO EIGHTEEN IS NOT FOUR RETIREMENTS. It is two retirements and one
+ * measurement correction, and the array's docblock separates them line by line
+ * so nobody reads this header as four ingresses migrated. None were.
  *
  * ── THE MEASUREMENT, TAKEN 2026-09-18 ──────────────────────────────────────
  *
@@ -77,13 +81,34 @@ function productionSources(): readonly string[] {
  * projection — a `{ close }` price fact is not a second bar, it is a reading
  * OF one, and the distinction is the whole difference between this gate
  * finding real duplication and it finding noise.
+ *
+ * AND ALL FOUR AS SCALAR NUMBERS, added 2026-09-18 after the first version of
+ * this matcher was found counting two things that are not bars. The same
+ * sentence above already contained the principle; it just was not enforced.
+ *
+ *   `ExecContext` in `lib/pine/interpreter.ts` declares `open: number[]` — the
+ *   Pine interpreter's execution frame, holding the WHOLE series as parallel
+ *   columns. There is exactly one of these per script run and it cannot hold a
+ *   competing 09:31, because it is not a record of a bar at all.
+ *
+ *   `DataWindowBarScope` in `lib/chart/dataWindowBarScope.ts` declares
+ *   `open: DataWindowCell`, and a `DataWindowCell` is `{ label, title }` — two
+ *   strings for a panel. It carries NO price. It is the view-model of a data
+ *   window, which is a reading OF a bar in exactly the sense the paragraph
+ *   above already excludes.
+ *
+ * So the four fields must be annotated `number`, and `number[]` must not
+ * qualify. The negative lookahead is the whole point of the expression and is
+ * guarded by a test below, because losing it silently re-inflates the census
+ * with shapes nobody can migrate.
  */
 function ohlcDeclarations(src: string): readonly string[] {
   const DECL = /(?:export\s+)?(?:interface|type)\s+([A-Za-z0-9_]+)\s*(?:=\s*)?\{([\s\S]*?)\n\s*\}/g;
   const names: string[] = [];
   for (const m of src.matchAll(DECL)) {
     const body = m[2];
-    const carries = (field: string) => new RegExp(`\\b${field}\\s*\\??\\s*:`).test(body);
+    const carries = (field: string) =>
+      new RegExp(`\\b${field}\\s*\\??\\s*:\\s*number\\b(?!\\s*\\[)`).test(body);
     if (carries("open") && carries("high") && carries("low") && carries("close")) {
       names.push(m[1]);
     }
@@ -116,8 +141,9 @@ const THE_ARTERY: readonly string[] = [
 ];
 
 /**
- * FROZEN 2026-09-18 at twenty-two. LOWERED TO TWENTY-ONE, THEN TO TWENTY, both
- * on 2026-09-18.
+ * FROZEN 2026-09-18 at twenty-two. LOWERED TO TWENTY-ONE, THEN TO TWENTY, THEN
+ * TO EIGHTEEN, all on 2026-09-18. The third step is a different KIND of change
+ * from the first two and is labelled as such at the bottom of this block.
  *
  * Each line is one place the product decided what a bar is without asking the
  * artery. Sorted, so a diff on this array reads as exactly what changed.
@@ -155,6 +181,31 @@ const THE_ARTERY: readonly string[] = [
  * dead source that the census was counting as if it were live. The number is
  * honest either way, but a reader comparing twenty-two to twenty should know
  * that only ONE of those two steps touched running code.
+ *
+ * ── TWENTY TO EIGHTEEN IS A MEASUREMENT CORRECTION, NOT A RETIREMENT ───────
+ *
+ * NOTHING WAS MIGRATED AND NOTHING WAS DELETED for this step. Both shapes are
+ * still in the product, unchanged, exactly where they were. What changed is the
+ * matcher: it was requiring open/high/low/close and accepting ANY type for
+ * them, so it counted two declarations that are not records of a bar —
+ * `lib/pine/interpreter.ts::ExecContext`, whose four fields are `number[]`
+ * columns of a whole series, and `lib/chart/dataWindowBarScope.ts::
+ * DataWindowBarScope`, whose four fields are `DataWindowCell` label/title pairs
+ * carrying no price at all. Neither can hold a competing 09:31, which is the
+ * only thing this census exists to count.
+ *
+ * THIS IS RECORDED RATHER THAN QUIETLY DROPPED because the rule above says
+ * removing an entry fails deliberately, on the grounds that the list is the
+ * scoreboard. Two entries leaving with no note would read as two migrations
+ * that never happened — the exact inverse of the failure the freeze was built
+ * to prevent, and the more flattering one. The number went down; the work did
+ * not. Eighteen was always the true size of M8.
+ *
+ * THE FLATTERING REPAIR WAS AVAILABLE AND WAS REFUSED: name-excluding these two
+ * entries would have produced the same eighteen while leaving the matcher still
+ * wrong, so the NEXT `open: number[]` anyone declares would have re-inflated the
+ * census with a shape nobody can migrate. The predicate was narrowed instead,
+ * and the narrowing is guarded by its own test.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "app/api/exchange/route.ts::Bar",
@@ -164,13 +215,11 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/experience/DeckMarketChart.tsx::Candle",
   "lib/api/kraken.ts::KrakenOHLC",
   "lib/backtest/engine.ts::Bar",
-  "lib/chart/dataWindowBarScope.ts::DataWindowBarScope",
   "lib/marketData/liveBarPolicy.ts::LiveBar",
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
   "lib/markov.ts::Bar",
-  "lib/pine/interpreter.ts::ExecContext",
   "lib/pine/types.ts::OHLCVBar",
   "lib/sessionVP.ts::Candle",
   "lib/timeframes.ts::Candle",
@@ -198,7 +247,48 @@ describe("M8 · the private-bar census is a ratchet", () => {
     expect(census().length, "OHLC declarations found").toBeGreaterThan(10);
   });
 
-  it("holds at twenty private pasts and may only SHRINK", () => {
+  /**
+   * THE NARROWING IS THE MATCHER, so it gets a guard of its own rather than
+   * being trusted to survive a later tidy of the regex. Explicit source text
+   * rather than real files on purpose: a case pointed at `interpreter.ts` stops
+   * testing the predicate the day that file is edited for an unrelated reason.
+   */
+  it("counts a SCALAR ohlc shape as a bar and a non-scalar one as nothing", () => {
+    const decl = (fields: string) => `interface X {\n${fields}\n}`;
+
+    expect(
+      ohlcDeclarations(decl("  open: number; high: number; low: number; close: number;")),
+      "a plain four-scalar shape is a private past and must be counted",
+    ).toEqual(["X"]);
+
+    expect(
+      ohlcDeclarations(
+        decl("  readonly open: number;\n  readonly high: number;\n" +
+             "  readonly low: number;\n  readonly close?: number;"),
+      ),
+      "readonly and optional are still scalar prices — still a bar",
+    ).toEqual(["X"]);
+
+    expect(
+      ohlcDeclarations(decl("  open: number[]; high: number[]; low: number[]; close: number[];")),
+      "columns of a whole series cannot hold a competing 09:31 — not a bar",
+    ).toEqual([]);
+
+    expect(
+      ohlcDeclarations(
+        decl("  open: DataWindowCell; high: DataWindowCell;\n" +
+             "  low: DataWindowCell; close: DataWindowCell;"),
+      ),
+      "a label/title view-model carries no price — a reading OF a bar, not one",
+    ).toEqual([]);
+
+    expect(
+      ohlcDeclarations(decl("  open: number; high: number; low: number;")),
+      "three of four is a partial projection and was never counted",
+    ).toEqual([]);
+  });
+
+  it("holds at eighteen private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));
