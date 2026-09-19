@@ -97,8 +97,40 @@ const STANDING_AUTHORITY = /<!--\s*ath-standing-authority:\s*(20\d\d-\d\d-\d\d)\
  *  preceded by an underscore — which is most of them. */
 const FILENAME_DAY = /20\d\d-\d\d-\d\d/;
 
+/**
+ * WALKS SUBDIRECTORIES, AND THE REASON IS THIS FILE'S OWN WORST BUG.
+ *
+ * The first version of this function was `readdirSync(OPS_DIR).filter(...)`.
+ * It was not recursive, and nobody noticed, because `docs/operations` has 89
+ * markdown files sitting directly in it and that felt like the whole tree.
+ *
+ * MEASURED 2026-09-19, one commit after this file shipped: the five
+ * subdirectories — `batons/`, `dispatches/`, `scoreboards/`, `handoffs/`,
+ * `huddles/` — hold 311 more markdown files, of which **231 carry a date in
+ * the filename and NOT ONE was demoted**. Five times the 47 the flat scan
+ * found. Every one of those directories is point-in-time BY NAME: a baton is
+ * a handoff at a moment, a huddle is a meeting on a day, a scoreboard is a
+ * count at a time.
+ *
+ * So the gate below was green while the largest concentration of exactly the
+ * defect it describes sat one directory level down. That is the vacuous green
+ * this suite exists to refuse, committed by the file that refuses it — which
+ * is worth leaving on the record rather than quietly fixing, because the
+ * lesson is not "use a recursive walk". The lesson is that a scan's SCOPE is
+ * an assertion about the world, and this file asserted one without measuring
+ * it.
+ */
 function opsDocs(): string[] {
-  return readdirSync(OPS_DIR).filter((f) => f.endsWith(".md"));
+  const out: string[] = [];
+  const walk = (rel: string) => {
+    for (const entry of readdirSync(join(OPS_DIR, rel), { withFileTypes: true })) {
+      const next = rel ? join(rel, entry.name) : entry.name;
+      if (entry.isDirectory()) walk(next);
+      else if (entry.name.endsWith(".md")) out.push(next);
+    }
+  };
+  walk("");
+  return out;
 }
 
 function read(file: string): string {

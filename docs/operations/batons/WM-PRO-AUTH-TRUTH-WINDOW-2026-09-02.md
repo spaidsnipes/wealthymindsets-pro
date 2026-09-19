@@ -1,3 +1,27 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **shift baton** — a hand-off written at the end of one shift. Its filename names its own day. It was true
+> on that day and is preserved as evidence of what was observed and decided
+> then. Do not take a current action, diagnosis, release decision or task claim
+> from it.
+>
+> **The current front door is in Drive, not in this repository.** A worker who
+> arrived here from a search result or a shared link has not passed through
+> `README.md` and has not met its demotion notice — this block is that notice,
+> delivered at the door of the document itself.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal: the
+> Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-19 by `src/lib/ops/datedDocsAreDemoted.sentinel.test.ts`, which
+> until that day scanned only the top level of `docs/operations` and could not
+> see this directory at all. See `docs/operations/CANON-SHIFT-GATE-STATUS.md`.
+<!-- END:ath-historical-lineage -->
+
 # WM Pro — Auth-Truth Shift Receipt — 2026-09-02
 
 Baton followed: **WM Pro — Current Project Brief** (Drive ID `1WH6-8WwjpIKdPibjT_NyALUQesm4Tv0QdQhtKh6LvmQ`, updated 2026-09-01 21:34Z). Governing law: **WM Pro is priority #1, sole active build, NO-GO until Sentinel closes ALL P0 gates.** Founder explicitly named two failing P0s: sign-in email delivery, and phone/iPad UI. Also inherits the new **WM Pro — Transformation UI Visual Implementation Contract — 2026-09-01** (LIVING-PIXEL LAW, no design theater, three-device graduation).
