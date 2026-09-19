@@ -226,8 +226,66 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
               // Choosing is the whole reason the panel opened. Leaving it open
               // would put a 7-button panel back over the candles.
               setOpen(false);
+              // AND THE HAND THAT CHOSE HAS TO LAND SOMEWHERE.
+              //
+              // MEASURED 2026-09-19 on live /charts at 1920: focus this button,
+              // press it, and `document.activeElement` is `BODY`. The line above
+              // unmounts the panel this button lives in, so the keyboard user who
+              // just made a choice is dropped into the document with no announced
+              // position — they have to Tab from the top of the page to get back
+              // to where they were standing.
+              //
+              // That is the identical stranding the Escape handler at the head of
+              // this component was written to prevent, and whose law it states in
+              // its own words: dismissing a trap by opening a quieter one. The
+              // handler covered the person who CHANGED THEIR MIND and left the
+              // person who DECIDED stranded — so the law held for the two ways out
+              // that were noticed and not for the one the control exists for.
+              //
+              // The chip is where they were standing before they opened it, and
+              // its accessible name carries the mode they just chose, so landing
+              // there also announces the outcome. `?.` is the whole guard: the ref
+              // is only ever populated in `collapsed`, which is the only mode in
+              // which anything is unmounted here.
+              chipRef.current?.focus();
             }}
-            aria-pressed={active}
+            // A MODE IS NOT A TOGGLE, AND `aria-pressed` SAYS IT IS.
+            //
+            // MEASURED 2026-09-19 on live /charts at 1920: OBSERVE reported
+            // `aria-pressed="true"`; pressing it again left it `"true"`. The
+            // control described itself as pressed and could not be un-pressed.
+            //
+            // This repo has already ruled on that exact shape, in
+            // `roomAdoptsEquipment.sentinel.test.ts` — "a control rendering
+            // `aria-pressed` promises a reversal; re-requesting is not one" — and
+            // there the honest repair was to BUILD the reversal, because a piece
+            // of equipment can genuinely be put down. A mode cannot. There are
+            // always exactly seven and exactly one is current; un-choosing OBSERVE
+            // is not a state this application has. So the attribute is not
+            // under-implemented here, it is the wrong attribute: no amount of
+            // handler work can make a single-select set reversible.
+            //
+            // `aria-current` is the sentence that is actually true — "the current
+            // item within a set of related items" — and it promises nothing this
+            // control cannot do. The other six now carry NOTHING rather than
+            // `aria-pressed="false"`, which is the correct default and also the
+            // shape this file's own header argues for: seven equal tabs "answer it
+            // seven times, once loudly and six times quietly."
+            //
+            // Note what is NOT done here: `aria-pressed` is not merely DELETED.
+            // The rail comment in `WMOperatingSystem` names that as the cheap
+            // direction — it would trade a screen reader's only source of "which
+            // job am I on" for the silence that makes the defect invisible. The
+            // claim is replaced, not dropped.
+            //
+            // Nor is this promoted to `role="radiogroup"`/`aria-checked`, which is
+            // the other correct widget for single-select: that role carries a
+            // keyboard contract (roving tabindex, arrow-key selection, Home/End)
+            // and claiming it without building it would swap a control that lies
+            // about reversal for one that lies about navigation — the quieter and
+            // therefore more expensive kind. It would also cost the `<nav>`
+            // landmark below, which a Founder audit names by role.
+            aria-current={active ? "true" : undefined}
             title={modeHint(mode)}
             style={{
               flex: "1 1 auto",

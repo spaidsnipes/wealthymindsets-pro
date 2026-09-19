@@ -10,8 +10,8 @@
  *
  * This file gates the component's OWN honesty: the seven modes must render in
  * canon order; the ONE active mode must be marked so the trader can see
- * "which job am I on"; the button carries aria-pressed so the state is
- * announced not just coloured (§H19 dead vocabulary); a click commits
+ * "which job am I on"; the button announces that state rather than only
+ * colouring it (§H19 dead vocabulary); a click commits
  * IMMEDIATELY through the shared bus (user intent bypasses hysteresis, per
  * the header); and the bar is findable by its aria-label so a Founder audit
  * can name it in code.
@@ -111,33 +111,77 @@ describe("ExperienceModeBar — every canon mode is present, in canon order", ()
   });
 });
 
+/**
+ * REMAPPED 2026-09-19 — these three asserted the defect.
+ *
+ * MEASURED that day on live /charts at 1920: OBSERVE reported
+ * `aria-pressed="true"`, and pressing it a second time left it `"true"` with
+ * nothing changed. `aria-pressed` is a contract and not a lamp — the whole
+ * meaning of the role is that pressing again reverses it — so the three tests
+ * below were pinning a control into being a liar, and the suite was green.
+ *
+ * The rail in `WMOperatingSystem` failed the identical check on the identical
+ * day and was repaired in the opposite direction: a piece of equipment can be
+ * put down, so the reversal was BUILT. A mode cannot be put down. There are
+ * seven, exactly one is current, and un-choosing OBSERVE is not a state this
+ * application has — so no handler could have rescued the attribute. It is the
+ * wrong attribute for the widget, which is why the tests move rather than the
+ * threshold.
+ *
+ * What does NOT move: the law these tests were written to hold. "Screen readers
+ * cannot see gold" is still the whole point, and every case below still demands
+ * the state be announced, still demands exactly ONE announcement, and still
+ * walks the whole enum so a rename elsewhere is caught. Only the carrier
+ * changed — from a claim about a reversal that does not exist to a claim about
+ * currency within a set, which is what is actually true.
+ */
 describe("ExperienceModeBar — exactly one mode is active, and it is announced", () => {
-  it("marks the current mode with aria-pressed=true", () => {
+  it("marks the current mode with aria-current", () => {
     const html = render(busAt("WAIT"));
-    // Screen-readers cannot see gold; aria-pressed must carry the truth
-    // regardless of color. This gates §H19: state is a claim, not a
-    // decoration.
+    // Screen-readers cannot see gold; the state must carry regardless of
+    // colour. This gates §H19: state is a claim, not a decoration.
     const at = html.indexOf(">WAIT<");
     const tag = html.slice(html.lastIndexOf("<button", at), at);
-    expect(tag).toContain('aria-pressed="true"');
+    expect(tag).toContain('aria-current="true"');
   });
 
-  it("marks every other mode as NOT pressed — never two active at once", () => {
+  it("marks every other mode with NOTHING — never two current at once", () => {
     const html = render(busAt("WAIT"));
-    const pressed = (html.match(/aria-pressed="true"/g) || []).length;
-    expect(pressed).toBe(1);
-    const notPressed = (html.match(/aria-pressed="false"/g) || []).length;
-    expect(notPressed).toBe(EXPERIENCE_MODES.length - 1);
+    // Absence is the correct and complete way to say "not current", so the
+    // other six carry no attribute rather than a second, quieter claim.
+    expect((html.match(/aria-current="true"/g) || []).length).toBe(1);
+    expect((html.match(/aria-current=/g) || []).length).toBe(1);
   });
 
-  it("keeps aria-pressed correct across every canon mode", () => {
+  it("never claims a reversal it cannot perform", () => {
+    /**
+     * The measurement itself, turned into a gate. A single-select set has no
+     * un-press, so any `aria-pressed` on these seven is a promise the widget
+     * cannot keep — including, and especially, `aria-pressed="false"` on the
+     * six, which invites a press that will never reverse anything.
+     *
+     * Walked across every mode because the defect is per-button: the original
+     * shipped ONE true and SIX false, and a partial repair that fixed only the
+     * active one would leave six liars and read as green on the case above.
+     */
+    for (const mode of EXPERIENCE_MODES) {
+      expect(
+        render(busAt(mode)),
+        `the ${mode} frame carries aria-pressed. A mode cannot be un-chosen, so the attribute ` +
+          `promises a reversal the bar has no way to perform`,
+      ).not.toContain("aria-pressed");
+    }
+  });
+
+  it("keeps the current-mode mark correct across every canon mode", () => {
     // Renaming a mode elsewhere without touching the bar would drift the
     // aria mapping. This walks the whole enum so a rename is caught.
     for (const mode of EXPERIENCE_MODES) {
       const html = render(busAt(mode));
       const at = html.indexOf(`>${mode}<`);
       const tag = html.slice(html.lastIndexOf("<button", at), at);
-      expect(tag).toContain('aria-pressed="true"');
+      expect(tag, `${mode} is the bus mode but its own button is not marked current`)
+        .toContain('aria-current="true"');
     }
   });
 });

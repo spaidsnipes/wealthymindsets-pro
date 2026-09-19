@@ -95,6 +95,41 @@ describe("SENTINEL — the mode panel over the market can be dismissed from the 
     ).toMatch(/chipRef\.current\?\.focus\(\)/);
   });
 
+  it("CHOOSING returns focus to the chip too — the third way out", () => {
+    /**
+     * MEASURED 2026-09-19 on live /charts at 1920, in the same session that
+     * proved the Escape defect above: focus a mode button, press it, and
+     * `document.activeElement` is `BODY`.
+     *
+     * The header of this file counts "three ways a human leaves a disclosure"
+     * and the original defect was that the law held for exactly one of them —
+     * the choose path, which closed the panel. It turns out the choose path was
+     * only half-compliant: it put the panel away and dropped the human, which is
+     * the very stranding the Escape repair was written to prevent, stated in
+     * that repair's own words. So the law held for the two ways out that were
+     * NOTICED and not for the one the control exists for.
+     *
+     * Anchored at `setMode(mode)`, which appears once and only in the choose
+     * handler — a whole-file match would be satisfied by the Escape path's own
+     * `focus()` call and would pass while this path stayed broken.
+     *
+     * Whitespace is collapsed first because `read` strips comments but leaves
+     * their newlines behind, and the choose handler carries a long one. A
+     * fixed character window against the raw stripped text measures the blank
+     * lines rather than the code, which is how this assertion first failed
+     * against a handler that already satisfied it.
+     */
+    const compact = src.replace(/\s+/g, " ");
+    const at = compact.indexOf("setMode(mode)");
+    expect(at, `${BAR} → no choose-handler to anchor to`).toBeGreaterThan(-1);
+    expect(
+      compact.slice(at, at + 120),
+      `${BAR} → choosing a mode closes the panel without restoring focus, so the keyboard ` +
+        `user who just made a decision is dropped into the document body with no announced ` +
+        `position. Closing the panel is only half of putting it away`,
+    ).toMatch(/chipRef\.current\?\.focus\(\)/);
+  });
+
   it("the chip is actually wired to the ref the Escape path focuses", () => {
     expect(
       src,
