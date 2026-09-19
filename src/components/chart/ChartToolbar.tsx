@@ -973,7 +973,38 @@ export function ChartToolbar({
             // Which timeframe the chart was on was expressed by exactly one
             // thing, a background colour — and the timeframe is the provenance
             // word on every number in the header above ("LAST 30m BAR CLOSE").
-            aria-pressed={active}
+            // …and the attribute that repair reached for promises something this
+            // control cannot do.
+            //
+            // MEASURED 2026-09-19 on live /charts at 1920: 5m reported
+            // `aria-pressed="true"`; pressing it again left it `"true"` with the
+            // chart unchanged. `aria-pressed` is a contract and not a lamp — the
+            // whole meaning of the role is that pressing again reverses it — and
+            // there is no such thing as a chart with no timeframe. Nine exist,
+            // exactly one is current, and un-pressing 5m is not a state this
+            // application has, so no handler could have rescued the attribute.
+            //
+            // Same law, same day, as the seven-mode `ExperienceModeBar`, and the
+            // same direction of repair: the claim is REPLACED, not dropped.
+            // Dropping it would undo the 2026-09-17 fix above and hand the state
+            // back to `bg-wm-blue/20` — colour carrying provenance again.
+            //
+            // Not promoted to `role="radiogroup"`/`role="radio"`/`aria-checked`,
+            // which is the textbook widget for a nine-item single select and is
+            // cheaper here than it was in the mode bar (the container is already
+            // a plain `role="group"`, so there is no landmark to lose). It is
+            // declined for a behavioural reason, not a cosmetic one: a radio
+            // group's arrow keys move the SELECTION, not merely the focus, so
+            // arrowing across this strip would fire a bar refetch per keypress on
+            // the primary trading surface. Claiming the role without the arrows
+            // would trade a control that lies about reversal for one that lies
+            // about navigation — the quieter and therefore more expensive kind.
+            //
+            // What that costs, recorded honestly rather than left implied: the
+            // nine buttons remain nine tab stops. That is unchanged by this
+            // commit, and it is the reason the radiogroup is worth revisiting
+            // once selection can be decoupled from a fetch.
+            aria-current={active ? "true" : undefined}
             // `1m` and `1M` are spoken identically, and they are a minute and a
             // month. The canonical owner derives this phrase from the same
             // candleIntervalSec the fetch path sends to the provider, so the

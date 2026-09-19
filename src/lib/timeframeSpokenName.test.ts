@@ -78,8 +78,34 @@ describe("chart toolbar adoption — the selected timeframe is said, not only co
     expect(group, "the group carries a name with no role to hang it on").toContain('role="group"');
   });
 
-  it("× THE COLOUR-ONLY SELECTION: every button declares pressed state", () => {
-    expect(group).toContain("aria-pressed={active}");
+  it("× THE COLOUR-ONLY SELECTION: the selected timeframe is declared, not only coloured", () => {
+    /**
+     * REMAPPED 2026-09-19 — this pinned `aria-pressed={active}`, which was the
+     * 2026-09-17 repair for the colour-only defect this case is named after and
+     * was itself the wrong attribute.
+     *
+     * MEASURED that day on live /charts at 1920: 5m reported
+     * `aria-pressed="true"`, and pressing it again left it `"true"`.
+     * `aria-pressed` promises a reversal, and there is no such thing as a chart
+     * with no timeframe — so the attribute could not be rescued by any handler.
+     *
+     * The DEFECT this case exists for is unchanged and still gated below: the
+     * selection must be announced, not carried by `bg-wm-blue/20` alone. Only
+     * the carrier moved. Both halves are asserted, because a repair that simply
+     * deleted `aria-pressed` would restore the original colour-only defect and
+     * would otherwise read as a fix.
+     */
+    expect(
+      group,
+      "the timeframe group claims aria-pressed. A chart always has a timeframe, so the " +
+        "attribute promises a reversal the strip has no way to perform",
+    ).not.toContain("aria-pressed");
+    expect(
+      group,
+      "no button declares which timeframe is current, so the selection is back to being " +
+        "carried by a background colour — and the timeframe is the provenance word on " +
+        "every number in the header above it",
+    ).toContain('aria-current={active ? "true" : undefined}');
   });
 
   it("× THE RETYPED LABEL: the spoken name comes from the canonical owner", () => {
