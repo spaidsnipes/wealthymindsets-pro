@@ -482,6 +482,14 @@ function SanctuaryRoom({
            everywhere else choosing where to go IS part of the job. See
            WMOperatingSystem's railDefaultOpen for the measurement. */
         railDefaultOpen={!onInstrumentView}
+        /* AND THE PHONE GETS THE SAME ANSWER, WHICH IS THE WHOLE POINT.
+           `railDefaultOpen` alone only cleared the desk: at 390 the instrument
+           view still carried a pinned five-door strip across the bottom of the
+           market, so one room was a workspace at one width and a destination
+           mall at the other. ONE predicate, BOTH widths — the doors sit behind
+           one labelled toggle everywhere, and on the phone that toggle now
+           reaches twenty-one of them where the strip reached five. */
+        phoneDestinations={onInstrumentView ? "door" : "bar"}
         surface={standing.surface}
         openEvidenceItems={standing.openEvidenceItems}
         rightOfWay={standing.rightOfWay}

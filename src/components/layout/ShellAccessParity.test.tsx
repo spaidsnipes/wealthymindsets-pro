@@ -23,16 +23,78 @@
  * available instrument, and it is sufficient: every control below is present
  * on first paint, not behind an effect.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
-import { phoneNavDestinations, WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
 
-const HTML = renderToStaticMarkup(
-  <WMExperienceShell brand={<span>WM</span>}>
+/**
+ * THE ROUTE IS AN INPUT TO THE SHELL, SO THE TEST HAS TO BE ABLE TO SET IT.
+ *
+ * Until 2026-09-18 this file rendered the shell exactly once, with no route at
+ * all — `usePathname()` returns null outside a router, so every assertion here
+ * described the shell's NON-instrument shape and nothing in this suite had an
+ * opinion about /charts. That is how the live-market room kept a five-door
+ * phone strip while the desk version of the same room had already cleared its
+ * navigation: the two widths disagreed, and no gate could see it, because the
+ * only render the gate had was the one where they agree.
+ *
+ * `importOriginal` is spread rather than replacing the module, because
+ * `useRouter` is reached through the access chrome's settings panel and a bare
+ * factory would have silently removed it.
+ */
+let MOCK_PATHNAME: string | null = null;
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  usePathname: () => MOCK_PATHNAME,
+}));
+
+import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
+import { WMOperatingSystem } from "@/components/os/WMOperatingSystem";
+import { phoneNavDestinations, WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+
+function renderShellAt(pathname: string | null): string {
+  MOCK_PATHNAME = pathname;
+  try {
+    return renderToStaticMarkup(
+      <WMExperienceShell brand={<span>WM</span>}>
+        <div data-testid="room">ROOM</div>
+      </WMExperienceShell>,
+    );
+  } finally {
+    MOCK_PATHNAME = null;
+  }
+}
+
+/** Every room that is not the market. The shape this file has always asserted. */
+const HTML = renderShellAt(null);
+
+/** The one room where the market itself is the job. */
+const INSTRUMENT_HTML = renderShellAt(INSTRUMENT_VIEW_ROUTE);
+
+/**
+ * The frame in a `"door"` room with the rail OPEN — what the phone sheet holds
+ * once the trader taps the toggle.
+ *
+ * Rendered from the frame directly rather than through the shell because the
+ * shell's job is to decide `railDefaultOpen={false}`, and this is the other
+ * side of that decision: what the trader gets when they overrule it. A test
+ * that could only see the closed state could not tell "the doors moved behind
+ * one toggle" apart from "the doors are gone".
+ */
+const OPEN_SHEET_HTML = renderToStaticMarkup(
+  <WMOperatingSystem
+    activeHref={INSTRUMENT_VIEW_ROUTE}
+    surface="Market"
+    openEvidenceItems={null}
+    rightOfWay="UNKNOWN"
+    rightOfWayResolved={false}
+    feed={null}
+    phoneDestinations="door"
+    railDefaultOpen
+  >
     <div data-testid="room">ROOM</div>
-  </WMExperienceShell>,
+  </WMOperatingSystem>,
 );
 
 describe("one OS · the access chrome is reachable from an OS room", () => {
@@ -122,6 +184,97 @@ describe("one OS · a phone can leave the room", () => {
     // claim — an overlap renders two navigations, a gap renders none.
     expect(HTML).toContain(".wm-os-phone-nav { display: none !important; }");
     expect(HTML).toContain(".wm-os-rail { display: none !important; }");
+  });
+});
+
+describe("one OS · 390 is not a different application", () => {
+  /**
+   * ── THE DEFECT THIS GATE CLOSES (M1) ────────────────────────────────
+   *
+   * The two tests directly above are correct AND they were protecting the
+   * wrong thing on one route. They assert a five-door strip pinned across the
+   * bottom of the viewport, which is right for every room where choosing where
+   * to go next IS the job — and wrong for the one room where the market is the
+   * job, because at 1920 that same room had already cleared its navigation
+   * behind a single labelled toggle.
+   *
+   * So the instrument view was a workspace on the desk and a consumer app with
+   * a tab bar on the phone. Same route. Same product. Two architectures.
+   *
+   * ── AND THE GATE HAS TO ASSERT THE DOORS ARE STILL THERE ────────────
+   *
+   * "No strip" is half a claim, and on its own it describes an amputation: a
+   * trader at 390 on /charts with the strip gone and nothing in its place is
+   * stranded in the room. The other half — the toggle, the doors it reaches,
+   * and the way back out — is what makes the removal a repair. Both halves are
+   * asserted below, deliberately, in the same block.
+   */
+  it("actually rendered the instrument view", () => {
+    // VACUITY GUARD. Every `not.toContain` below passes on an empty string,
+    // and a route mock that silently stopped working would produce exactly
+    // that — this suite's own "renders an href for every destination" gate was
+    // once green for a shell that drew fourteen fewer doors than it claimed.
+    expect(INSTRUMENT_HTML.length).toBeGreaterThan(400);
+    expect(INSTRUMENT_HTML).toContain('data-testid="room"');
+    expect(INSTRUMENT_HTML).toContain("wm-os-masthead");
+    // And it is genuinely a DIFFERENT render from the one above, not the same
+    // string handed back twice by a mock that never took effect.
+    expect(INSTRUMENT_HTML).not.toEqual(HTML);
+    // THE FIRST DRAFT OF THIS GUARD ASSERTED `href="/charts"` WAS PRESENT, and
+    // it failed — correctly. With the strip gone and the rail closed there is
+    // no destination anchor anywhere in the instrument view's first paint,
+    // which is the whole point of the change. A vacuity guard that assumes the
+    // old architecture is a vacuity guard that argues for it.
+    expect(INSTRUMENT_HTML).not.toContain(`href="${INSTRUMENT_VIEW_ROUTE}"`);
+  });
+
+  it("draws NO pinned destination strip over the market", () => {
+    expect(INSTRUMENT_HTML).not.toContain('data-testid="os-phone-nav"');
+    // Nor the reservation that belonged to it. A band of dead black under the
+    // provenance line is the strip's footprint outliving the strip.
+    expect(INSTRUMENT_HTML).not.toContain(".wm-os-provenance {");
+  });
+
+  it("keeps the one labelled door", () => {
+    expect(INSTRUMENT_HTML).toContain('data-testid="os-rail-toggle"');
+    expect(INSTRUMENT_HTML).toContain('aria-label="Rooms"');
+  });
+
+  it("reaches MORE doors through it than the strip ever did, not fewer", () => {
+    // ── WHY THIS ASSERTS THE FRAME AND NOT THE SHELL ──────────────────
+    // The doors are not in the instrument view's first paint, by design — the
+    // rail renders nothing until the trader opens it, at BOTH widths. So the
+    // anti-amputation claim cannot be read off `INSTRUMENT_HTML`; asking it to
+    // be there would be asking for the mall back. What has to be true is the
+    // frame's contract: a room that gave up the strip gets the WHOLE rail when
+    // the door is opened, not a phone-sized subset of it.
+    expect(WM_DESTINATIONS.length).toBeGreaterThan(phoneNavDestinations().length);
+    const missing = WM_DESTINATIONS.filter((d) => !OPEN_SHEET_HTML.includes(`href="${d.href}"`));
+    expect(missing.map((d) => `${d.label} → ${d.href}`)).toEqual([]);
+  });
+
+  it("gives the opened sheet a way back out", () => {
+    // Pinned over the viewport, the sheet covers the masthead toggle that
+    // opened it. Without this control the trader who opened the navigation
+    // cannot get back to the chart — a door that only opens is a trap.
+    expect(OPEN_SHEET_HTML).toContain('data-testid="os-rail-close"');
+    expect(OPEN_SHEET_HTML).toContain('aria-label="Close rooms"');
+    expect(OPEN_SHEET_HTML).toContain(".wm-os-rail-close { display: flex !important; }");
+    // And the strip's room does NOT get that control, because on a "bar" room
+    // the rail never covers the toggle. Two close affordances on one screen is
+    // two answers to "how do I get out of here".
+    expect(HTML).not.toContain('data-testid="os-rail-close"');
+  });
+
+  it("opens no navigation the trader did not ask for", () => {
+    // `phoneDestinations="door"` makes the rail an overlay below the
+    // breakpoint. If the same room also left the rail open by default, the
+    // first phone paint would be a full-screen navigation covering the market.
+    // The frame cannot measure the viewport at render — that is the React #418
+    // class this codebase paid for five times — so the invariant is asserted
+    // against the real shell here instead of guessed at runtime.
+    expect(INSTRUMENT_HTML).toContain('aria-expanded="false"');
+    expect(INSTRUMENT_HTML).not.toContain('data-testid="os-rail"');
   });
 });
 

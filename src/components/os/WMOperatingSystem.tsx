@@ -517,6 +517,46 @@ export interface WMOperatingSystemProps {
    * deterministic on both sides of the wire.
    */
   readonly railDefaultOpen?: boolean;
+  /**
+   * How the phone reaches the rest of the product from this room.
+   *
+   * ── THE DEFECT THIS CLOSES (M1) ──────────────────────────────────────────
+   *
+   * At 1920 the instrument view shows NO destinations until the trader asks:
+   * the rail defaults shut ({@link railDefaultOpen}) and the doors live behind
+   * one labelled toggle. At 390 the same room showed a pinned five-door strip
+   * — /charts, /command-deck, /paper, /journal, /profile — permanently across
+   * the bottom of the market, {@link OS_PHONE_NAV_HEIGHT_PX}px of consumer app
+   * tab bar plus a matching reservation stolen from the provenance line.
+   *
+   * That is not a narrower version of the desktop room. It is a DIFFERENT
+   * PRODUCT: a destination mall on the phone, a workspace on the desk. The
+   * order's words are "390 is not a different application."
+   *
+   * ── AND THE FIX IS NOT A DELETION ────────────────────────────────────────
+   *
+   * Removing the bar and stopping there would strand a 390px trader on the
+   * chart with no way out, which is the capability amputation the final-lap
+   * order forbids by name. So `"door"` does not take the doors away, it puts
+   * them behind the SAME one the desk uses — and the phone sheet carries all
+   * twenty-one destinations plus the workspace block and the standing
+   * conditions, where the strip carried five. The trader gains sixteen doors
+   * and loses a permanent strip.
+   *
+   * `"bar"` (the default) is unchanged July behaviour for every room where
+   * choosing where to go next IS the job.
+   *
+   * ── A ROOM THAT ASKS FOR `"door"` MUST ALSO ASK FOR A CLOSED RAIL ────────
+   *
+   * `"door"` makes the rail an overlay below the breakpoint. If the room also
+   * left `railDefaultOpen` at its `true` default, the first phone paint would
+   * be a full-screen navigation the trader never summoned. The frame cannot
+   * measure the viewport at render — doing so is the React #418 class this
+   * codebase has already paid for five times — so the invariant is asserted in
+   * `ShellAccessParity.test.tsx` against the real shell rather than guessed at
+   * runtime.
+   */
+  readonly phoneDestinations?: "bar" | "door";
   readonly children: React.ReactNode;
 }
 
@@ -536,8 +576,13 @@ export function WMOperatingSystem({
   contextRail,
   field = "frame",
   railDefaultOpen = true,
+  phoneDestinations = "bar",
   children,
 }: WMOperatingSystemProps): React.ReactElement {
+  // Read once, named once. Three separate places below branch on it — the bar,
+  // the rail's overlay dressing and the stylesheet — and three independently
+  // typed comparisons is how two of them end up agreeing and one does not.
+  const phoneDoorOnly = phoneDestinations === "door";
   // The room's opinion SEEDS the rail; the trader's click OWNS it from then on.
   // Keyed on the default so that crossing from a rail-open room into the
   // instrument view re-seeds rather than carrying the mall in with it.
@@ -761,9 +806,15 @@ export function WMOperatingSystem({
         {/* A CLOSED RAIL RENDERS NOTHING — not a zero-width column.
             The doors are reached through the always-present masthead toggle
             above, which carries aria-expanded and aria-controls pointing here.
-            Below the rail breakpoint the phone bar owns navigation and this
-            column is already suppressed by the stylesheet, so the toggle only
-            governs the desktop frame. */}
+
+            WHAT THE TOGGLE GOVERNS DEPENDS ON `phoneDestinations`, and the
+            comment that used to sit here said it governed "only the desktop
+            frame" — true when written, and exactly the kind of sentence that
+            teaches the next reader an architecture the code has left behind.
+            In a `"bar"` room the stylesheet still suppresses this column below
+            the breakpoint and the phone strip owns navigation. In a `"door"`
+            room this same element IS the phone's navigation, pinned. One
+            state, one aria-expanded, two presentations. */}
         {!railOpen ? null : (
         <nav
           className="wm-os-rail"
@@ -812,6 +863,45 @@ export function WMOperatingSystem({
             borderRight: `1px solid ${RULE}`,
           }}
         >
+          {/* ── THE WAY BACK, AND IT IS NOT DECORATION ──────────────────────
+              Above the rail breakpoint this is `display: none` and the always
+              visible masthead toggle closes the rail. Below it, in a
+              `phoneDestinations="door"` room, the rail is pinned over the
+              whole viewport INCLUDING that toggle — so without this control
+              the trader who opened the navigation has no way to dismiss it and
+              get back to the market. A door that only opens is a trap. */}
+          {!phoneDoorOnly ? null : (
+            <button
+              type="button"
+              className="wm-os-rail-close"
+              data-testid="os-rail-close"
+              onClick={() => setRailOpen(false)}
+              aria-label="Close rooms"
+              style={{
+                display: "none",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                alignSelf: "flex-end",
+                /* 44px is the floor a thumb can actually hit — the same floor
+                   the phone strip's doors were held to. */
+                minHeight: 44,
+                minWidth: 44,
+                margin: "0 10px 6px",
+                padding: "8px 12px",
+                borderRadius: 3,
+                border: `1px solid ${RULE}`,
+                background: "transparent",
+                color: MUTED,
+                cursor: "pointer",
+                ...EYEBROW,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>✕</span>
+              Close
+            </button>
+          )}
+
           <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
 
           {OS_ROOMS.map((room) => (
@@ -954,7 +1044,17 @@ export function WMOperatingSystem({
           Five doors, from the destination owner, same labels and icons as
           every other surface. Hidden above the breakpoint, where the rail
           carries all twenty-one — two navigations on screen at once would be
-          two answers to "where can I go". */}
+          two answers to "where can I go".
+
+          ── AND OMITTED ENTIRELY WHERE THE MARKET IS THE JOB (M1) ──────────
+          `phoneDestinations="door"` rooms do not draw this strip. Not because
+          a phone needs fewer doors, but because on those rooms the rail itself
+          becomes the phone's navigation — reached through the masthead toggle
+          that is always rendered, always labelled and always keyboard
+          reachable — and it carries twenty-one where this carries five. See
+          the prop's doc for why removing the strip alone would have been the
+          amputation rather than the repair. */}
+      {phoneDoorOnly ? null : (
       <nav
         className="wm-os-phone-nav"
         aria-label="Primary navigation"
@@ -1030,10 +1130,46 @@ export function WMOperatingSystem({
           );
         })}
       </nav>
+      )}
 
       <style>{`
         @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
-          .wm-os-rail { display: none !important; }
+          ${
+            phoneDoorOnly
+              ? /* ── THE RAIL IS THE PHONE'S NAVIGATION HERE ──────────────
+                   It is the SAME element the desk shows as a column, so the
+                   toggle's aria-expanded and aria-controls keep describing
+                   the thing the trader actually sees, at both widths. A
+                   second phone-only drawer component would have been a
+                   second navigation with its own drift schedule — which is
+                   the defect the whole frame exists to end.
+
+                   The rail renders only when `railOpen`, and a room asking
+                   for "door" must seed that false (see the prop's doc), so
+                   the first phone paint is the market, not a sheet. */
+                `.wm-os-rail {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 60 !important;
+            /* The desk rail is a 176px column beside the room. Pinned over a
+               390px viewport that basis would leave 214px of untouchable
+               scrim with no visible way back, so the sheet takes the width
+               it is standing on. */
+            flex-basis: auto !important;
+            width: auto !important;
+            max-height: none !important;
+            /* Opaque. A translucent navigation over a moving chart is two
+               readings of price in the same pixels. */
+            background: ${FIELD} !important;
+            border-right: none !important;
+            padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+          }
+          /* Shown ONLY here. On the desk the masthead toggle is never covered,
+             so a second close control would be a second answer; pinned over
+             the market it is the only one left on screen. */
+          .wm-os-rail-close { display: flex !important; }`
+              : ".wm-os-rail { display: none !important; }"
+          }
           .wm-os-context { display: none !important; }
           /* ── THE MASTHEAD THAT ATE THE PHONE ──────────────────────────
              MEASURED 2026-09-16 with Playwright at 390x844 and 360x800:
@@ -1066,8 +1202,15 @@ export function WMOperatingSystem({
              it: the footer sets its padding INLINE, and an inline style beats
              a stylesheet rule. Measured — without it the computed value stayed
              at the inline 10px and the reservation silently did nothing. */
-          .wm-os-provenance {
+          ${
+            phoneDoorOnly
+              ? /* No strip, no reservation. Reserving 66px for a bar that is
+                   not drawn is a band of dead black under the provenance line
+                   on the one room that most needs the height. */
+                ""
+              : `.wm-os-provenance {
             padding-bottom: calc(${OS_PHONE_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom) + 12px) !important;
+          }`
           }
         }
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) {
