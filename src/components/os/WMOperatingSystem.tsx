@@ -702,6 +702,42 @@ export function WMOperatingSystem({
   // between the two modes precisely so the phone overlay stylesheet, the close
   // control and aria-controls keep describing the thing the trader sees.
   const panelOpen = equipmentMode ? equipment !== null : railOpen;
+
+  /**
+   * ESCAPE PUTS THE EQUIPMENT DOWN. THE ADDRESS DOES NOT MOVE.
+   *
+   * The canon's §3 component law states it as a property of both buttons:
+   * "Escape / tap-chart-background closes the overlay. URL unchanged." It is
+   * not a convenience. An overlay that can only be dismissed by finding and
+   * hitting the same small control again is a MODE, and a mode over a live
+   * chart is the thing the trader cannot get out of while price is moving.
+   *
+   * WHY NOT `router.back()`, WHICH IS THE USUAL REFLEX. Picking equipment up
+   * never pushed a history entry — that is the whole point of equipment, and
+   * of `direct` in roomEquipment — so `back()` would leave the room entirely.
+   * The trader pressed Escape to see the chart, and would land on whatever
+   * page they were on before they arrived.
+   *
+   * RAIL MODE IS DELIBERATELY UNTOUCHED. There the panel is a map of
+   * destinations with its own long-standing behaviour, and quietly changing
+   * how a shared surface dismisses in one mode only is how two modes come to
+   * disagree about what a key does.
+   */
+  const equipmentTriggers = React.useRef<
+    Record<"workspace" | "tools", HTMLButtonElement | null>
+  >({ workspace: null, tools: null });
+
+  React.useEffect(() => {
+    if (!equipmentMode || equipment === null) return;
+    const held = equipment;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setEquipment(null);
+      equipmentTriggers.current[held]?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [equipmentMode, equipment]);
   // Compiled ONCE. The rail and the provenance bar both read this array; two
   // independently-typed copies of one reading is how a screen ends up
   // disagreeing with itself.
@@ -843,6 +879,13 @@ export function WMOperatingSystem({
                 <button
                   key={kind}
                   type="button"
+                  // Escape returns focus HERE, not to the top of the document.
+                  // A keyboard trader who dismissed the panel and lost their
+                  // place has been handed the chart and taken off the chart at
+                  // the same time.
+                  ref={(el) => {
+                    equipmentTriggers.current[kind] = el;
+                  }}
                   data-testid={`os-equipment-${kind}`}
                   onClick={() => setEquipment((current) => (current === kind ? null : kind))}
                   aria-expanded={open}

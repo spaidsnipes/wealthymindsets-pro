@@ -1155,3 +1155,77 @@ describe("SENTINEL — the equipment layer is depth, not another app", () => {
     ).toBeLessThan(layer.indexOf('testId="equipment-enter"'));
   });
 });
+
+/**
+ * SENTINEL — EQUIPMENT CAN BE PUT DOWN WITHOUT LEAVING THE ROOM.
+ *
+ * The canon's §3 component law names this as a property of both equipment
+ * buttons: "Escape / tap-chart-background closes the overlay. URL unchanged."
+ *
+ * It is not a keyboard nicety. Equipment opens OVER a live chart. An overlay
+ * whose only exit is the same small control that opened it is a MODE, and a
+ * mode the trader cannot leave while price is moving is precisely the "mall"
+ * behaviour this whole shift exists to delete.
+ *
+ * Every assertion below encodes a specific wrong-but-plausible implementation:
+ * dismissing by navigating, dismissing in the wrong mode, dropping the trader's
+ * focus on the floor, and leaving a global listener attached forever.
+ */
+describe("SENTINEL — Escape puts the equipment down, and the address does not move", () => {
+  const rail = read(RAIL);
+  const at = rail.indexOf('e.key !== "Escape"');
+  // ±900 chars is the effect. Widening this to the whole file would let an
+  // Escape handler that lives somewhere unrelated satisfy every rule below.
+  const effect = rail.slice(Math.max(0, at - 700), at + 700);
+
+  it("the frame listens for Escape at all", () => {
+    expect(at, `${RAIL} → nothing dismisses the equipment overlay by key`).toBeGreaterThan(-1);
+    expect(effect, `${RAIL} → the listener is never attached`).toMatch(
+      /addEventListener\("keydown"/,
+    );
+  });
+
+  it("Escape PUTS THE EQUIPMENT DOWN — it does not navigate", () => {
+    // `router.back()` is the usual reflex and is wrong here: picking equipment
+    // up never pushed a history entry, so back() leaves the room entirely and
+    // lands the trader on whatever page preceded their arrival.
+    expect(effect, `${RAIL} → Escape must clear the held equipment`).toMatch(
+      /setEquipment\(null\)/,
+    );
+    expect(
+      effect,
+      `${RAIL} → Escape navigates; equipment is not a destination, so there is nothing to go back to`,
+    ).not.toMatch(/router\.(back|push|replace)|history\.(back|go)|location\s*=/);
+  });
+
+  it("it only fires while equipment is actually held, in equipment mode", () => {
+    // Without this guard the frame swallows Escape from every dialog, sheet and
+    // combobox in the room — and quietly changes what the key means in RAIL
+    // mode, where the panel is a map of destinations with its own behaviour.
+    expect(effect, `${RAIL} → the handler runs outside equipment mode`).toMatch(
+      /!equipmentMode/,
+    );
+    expect(effect, `${RAIL} → the handler runs with nothing in hand`).toMatch(
+      /equipment === null/,
+    );
+  });
+
+  it("the trader's focus comes back to the button they pressed", () => {
+    // Clearing state alone leaves focus on a node that just unmounted, which
+    // browsers reset to <body> — a keyboard trader is then at the top of the
+    // document, further from the chart than before they pressed a key.
+    expect(effect, `${RAIL} → focus is dropped on the floor when the overlay closes`).toMatch(
+      /equipmentTriggers\.current\[[^\]]+\]\?\.focus\(\)/,
+    );
+    expect(
+      rail,
+      `${RAIL} → the equipment buttons never register themselves, so the focus restore above can only ever find null`,
+    ).toMatch(/equipmentTriggers\.current\[kind\]\s*=/);
+  });
+
+  it("the listener is removed — a global key hook is not a permanent tenant", () => {
+    expect(effect, `${RAIL} → the keydown listener is never detached`).toMatch(
+      /removeEventListener\("keydown"/,
+    );
+  });
+});
