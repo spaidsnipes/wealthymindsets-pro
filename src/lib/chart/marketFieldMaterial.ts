@@ -37,11 +37,19 @@
  * cannot run twice and cannot stomp a later deliberate choice.
  *
  * ── WHAT THIS DELIBERATELY DOES NOT DO ────────────────────────────────────
- * It does not touch `gridColor`, the crosshair, or the candle colours. Those
- * are also pre-OS values and they are also almost certainly unchosen, but a
- * migration that rewrites everything it suspects is a migration that will
- * eventually overwrite something a trader meant. One field, one reason,
- * one version bump.
+ * It never REWRITES a value; it only ever DELETES one that is still
+ * byte-identical to a superseded product default, which is the only evidence
+ * available that the trader never moved it. Anything else in storage — a
+ * colour they picked, a value from a build whose default differed — survives
+ * untouched. And each rung is stamped independently, so a rung added later
+ * cannot re-run an earlier one over a choice made in between.
+ *
+ * ── WHY ONE MODULE AND NOT TWO ────────────────────────────────────────────
+ * The field's material and the chart's language are different subjects, and
+ * a `candleLanguage.ts` would read tidier. They share ONE stored object and
+ * ONE version stamp, though, and a version ladder split across two files is
+ * a ladder that will eventually grow two rungs numbered 3. The stamp owns
+ * the module boundary.
  */
 
 /** The room's material. Byte-identical to `FIELD` in WMOperatingSystem.tsx. */
@@ -54,8 +62,58 @@ export const MARKET_FIELD_DEFAULT = "#07080a";
  */
 export const LEGACY_MARKET_FIELD = "#0B0E1A";
 
+/* ── THE CHART'S LANGUAGE ────────────────────────────────────────────────────
+ *
+ * GOVERNING VISUAL: `WM_NewMockup_136_Fidelity_Five_Not_A_Rainbow.jpg` in the
+ * Drive Visual Canon — opened and read at 1568 wide before these values were
+ * chosen, per RULE ZERO. In it EVERY bar on the TSLA daily is brass. Up and
+ * down are separated by VALUE, not by hue. There is no green anywhere in the
+ * frame and no red anywhere in the frame. The mockup's own filename is the
+ * law: NOT A RAINBOW.
+ *
+ * Live /charts shipped the opposite — `#00C076` / `#FF4D67`, the stock
+ * TradingView casino pair, sitting inside a masthead that says A TRADING
+ * SANCTUARY in warm brass. That contradiction is the loudest thing left on
+ * the widest surface in the product now that the field material is fixed.
+ *
+ * WHERE THE NUMBERS COME FROM. They are not eyedropped from a JPEG — a JPEG
+ * is lossy and an eyedropper would mint a NINTH slightly-wrong brass. They
+ * are the room's own tokens, read from `components/os/WMOperatingSystem.tsx`:
+ * `GOLD` for full-strength brass and `MUTED` for the recessed voice. The
+ * DOWN bar is that same brass hue (~37°) held at roughly 45% of the UP bar's
+ * luminance, so the two read as one material in two states rather than as two
+ * materials.
+ *
+ * AND IT IS MORE LEGIBLE, NOT LESS. Red/green is the single worst pairing in
+ * common use for the ~8% of men with a red-green deficiency: it encodes the
+ * most important distinction on the screen in the one channel they cannot
+ * read. A luminance pair survives that, survives greyscale printing, and
+ * survives a screenshot pasted into the journal. This is the rare case where
+ * the Canon's aesthetic and the accessibility answer are the same answer.
+ *
+ * THESE MUST STAY HEX. `ChartSettingsModal` feeds each of them to an
+ * `<input type="color">`, which silently rejects `rgba()` and reports back an
+ * empty string. A `rgba(196,165,116,0.10)` grid would look right on the
+ * canvas and then blank the swatch in Appearance.
+ */
+
+/** Full-strength brass — the room's `GOLD` token. */
+export const CANDLE_UP_DEFAULT = "#c4a574";
+/** The same brass hue, recessed. Down is darker, never a different colour. */
+export const CANDLE_DOWN_DEFAULT = "#6e5a3c";
+/** A warm structural rule that reads on obsidian without competing with price. */
+export const GRID_COLOR_DEFAULT = "#211d14";
+/** The room's `MUTED` token — the crosshair is chrome, not a market claim. */
+export const CROSSHAIR_COLOR_DEFAULT = "#8a8271";
+
+/** The pre-OS TradingView pair. Named so the migration can only free these. */
+export const LEGACY_CANDLE_UP = "#00C076";
+export const LEGACY_CANDLE_DOWN = "#FF4D67";
+export const LEGACY_GRID_COLOR = "#1A2035";
+export const LEGACY_CROSSHAIR_COLOR = "#4A6080";
+
 /** Bump when a future migration needs to run once over stored settings. */
-export const CHART_SETTINGS_SCHEMA_VERSION = 2;
+export const CHART_SETTINGS_SCHEMA_VERSION = 3;
 
 /** The shape this module needs; intentionally narrower than `ChartSettings`. */
 export type StoredChartSettings = {
@@ -65,8 +123,34 @@ export type StoredChartSettings = {
 };
 
 /**
- * Drop a `background` that is still the untouched legacy default so the
- * current default can apply, then stamp the schema version.
+ * The keys the v3 step is licensed to free, each paired with the ONE legacy
+ * value it may recognise. A key whose stored value is anything else — because
+ * the trader picked it, or because a previous product default differed — is
+ * left exactly as found.
+ */
+const LEGACY_CHART_LANGUAGE: ReadonlyArray<readonly [key: string, legacy: string]> = [
+  ["candleUp", LEGACY_CANDLE_UP],
+  ["candleDown", LEGACY_CANDLE_DOWN],
+  ["wickUp", LEGACY_CANDLE_UP],
+  ["wickDown", LEGACY_CANDLE_DOWN],
+  ["borderUp", LEGACY_CANDLE_UP],
+  ["borderDown", LEGACY_CANDLE_DOWN],
+  ["gridColor", LEGACY_GRID_COLOR],
+  ["crosshairColor", LEGACY_CROSSHAIR_COLOR],
+];
+
+/**
+ * Free stored values that are STILL byte-identical to a superseded product
+ * default, so the current default can apply, then stamp the schema version.
+ *
+ * ── THIS IS A LADDER, NOT A SWITCH ────────────────────────────────────────
+ * Each step is gated on ITS OWN version, not on the current one. A single
+ * `stored.version >= CURRENT` gate looks equivalent and is not: bumping to 3
+ * would re-open the v2 step for every trader already stamped at 2, and a
+ * trader who migrated to 2 and THEN deliberately re-picked the old navy in
+ * Appearance would have that choice silently stripped by the v3 pass. The
+ * whole point of stamping was that a migration runs exactly once. Adding a
+ * rung must not un-stamp the rungs below it.
  *
  * Returns a NEW object; the input is never mutated. Callers spread the result
  * over `DEFAULT_CHART_SETTINGS`, so a dropped key simply falls through to the
@@ -74,14 +158,22 @@ export type StoredChartSettings = {
  */
 export function migrateMarketField(stored: StoredChartSettings): StoredChartSettings {
   const next: StoredChartSettings = { ...stored };
-  const alreadyMigrated = (next.wmSchemaVersion ?? 1) >= CHART_SETTINGS_SCHEMA_VERSION;
+  const from = next.wmSchemaVersion ?? 1;
 
-  if (!alreadyMigrated && next.background === LEGACY_MARKET_FIELD) {
+  // v2 — the market field's material.
+  if (from < 2 && next.background === LEGACY_MARKET_FIELD) {
     // Not `= MARKET_FIELD_DEFAULT`. Deleting the key keeps ONE owner of the
     // default — `DEFAULT_CHART_SETTINGS` — instead of minting a second copy
     // of the value inside every trader's storage, which is the exact shape
     // that made this migration necessary in the first place.
     delete next.background;
+  }
+
+  // v3 — the chart's language. Same deletion rule, same one-value licence.
+  if (from < 3) {
+    for (const [key, legacy] of LEGACY_CHART_LANGUAGE) {
+      if (next[key] === legacy) delete next[key];
+    }
   }
 
   next.wmSchemaVersion = CHART_SETTINGS_SCHEMA_VERSION;

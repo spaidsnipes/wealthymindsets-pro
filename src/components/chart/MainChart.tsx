@@ -205,7 +205,13 @@ import { NectarVaultChip } from "./NectarVaultChip";
  * fidelity and no provenance.
  */
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
-import { MARKET_FIELD_DEFAULT } from "@/lib/chart/marketFieldMaterial";
+import {
+  CANDLE_DOWN_DEFAULT,
+  CANDLE_UP_DEFAULT,
+  CROSSHAIR_COLOR_DEFAULT,
+  GRID_COLOR_DEFAULT,
+  MARKET_FIELD_DEFAULT,
+} from "@/lib/chart/marketFieldMaterial";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -1930,13 +1936,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           attributionLogo:  false,   // remove TradingView branding
         },
         grid: {
-          vertLines: { color: chartSettings?.gridColor ?? "#1A2035", style: LW.LineStyle.Dotted },
-          horzLines: { color: chartSettings?.gridColor ?? "#1A2035", style: LW.LineStyle.Dotted },
+          vertLines: { color: chartSettings?.gridColor ?? GRID_COLOR_DEFAULT, style: LW.LineStyle.Dotted },
+          horzLines: { color: chartSettings?.gridColor ?? GRID_COLOR_DEFAULT, style: LW.LineStyle.Dotted },
         },
         crosshair: {
           mode:     LW.CrosshairMode.Normal,
-          vertLine: { color: chartSettings?.crosshairColor ?? "#4A6080", labelBackgroundColor: "#141824", width: 1 },
-          horzLine: { color: chartSettings?.crosshairColor ?? "#4A6080", labelBackgroundColor: "#141824", width: 1 },
+          vertLine: { color: chartSettings?.crosshairColor ?? CROSSHAIR_COLOR_DEFAULT, labelBackgroundColor: "#141824", width: 1 },
+          horzLine: { color: chartSettings?.crosshairColor ?? CROSSHAIR_COLOR_DEFAULT, labelBackgroundColor: "#141824", width: 1 },
         },
         rightPriceScale: {
           borderColor:  "#263050",
@@ -2238,10 +2244,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          bgColor,
           downColor:        bgColor,
-          borderUpColor:    chartSettings?.borderUp   ?? chartSettings?.candleUp   ?? "#00C076",
-          borderDownColor:  chartSettings?.borderDown ?? chartSettings?.candleDown ?? "#FF4D67",
-          wickUpColor:      chartSettings?.wickUp     ?? "#00C076",
-          wickDownColor:    chartSettings?.wickDown   ?? "#FF4D67",
+          borderUpColor:    chartSettings?.borderUp   ?? chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
+          borderDownColor:  chartSettings?.borderDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+          wickUpColor:      chartSettings?.wickUp     ?? CANDLE_UP_DEFAULT,
+          wickDownColor:    chartSettings?.wickDown   ?? CANDLE_DOWN_DEFAULT,
           borderVisible:    true,
           priceLineVisible: true,
           priceLineColor:   "#F0B429",
@@ -2250,7 +2256,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         cs.setData(displayData as any);
       } else if (isVolCnl) {
         // Volume Candles — green/red body, OPACITY scales with relative volume
-        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC,
@@ -2269,7 +2275,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } else if (isVPCandles) {
         // VP Candles — green/red, but HIGH-VOLUME (value-area / POC) bars get a GOLD border
         // to mark volume-profile significance. Distinct from plain Volume Candles.
-        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC,
@@ -2292,7 +2298,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Order Flow Candles — hollow body (footprint cells show through) but a CRISP
         // green/red border so the candle stays sharp, not blurry.
         const bgOF = chartSettings?.background ?? MARKET_FIELD_DEFAULT;
-        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          bgOF,
           downColor:        bgOF,
@@ -2309,7 +2315,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } else if (isRenko) {
         // RENKO — fixed-size bricks, a new brick only when price moves one brick
         // (time-independent). Bricks are filled green/red blocks (no wicks).
-        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
         const brickSize  = base * 0.001;
         let lastBrick    = Math.floor((displayData[0]?.close ?? base) / brickSize) * brickSize;
         const renkoData: any[] = [];
@@ -2341,7 +2347,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // RANGE BARS — each bar spans a FIXED price range; a new bar opens once price
         // travels one full range from the prior bar's open. Distinct from Renko (which
         // snaps to a grid). Green/red by direction, keeps real timestamps + wicks.
-        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
         const rangeSize = base * 0.0015;
         const rbData: any[] = [];
         let cur: { time: number; open: number; high: number; low: number; close: number } | null = null;
@@ -4509,11 +4515,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         try {
           candleRef.current.applyOptions({
             upColor: chartSettings.candleUp,
-            downColor: chartSettings.candleDown ?? "#FF4D67",
+            downColor: chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
             borderUpColor: chartSettings.borderUp ?? chartSettings.candleUp,
-            borderDownColor: chartSettings.borderDown ?? chartSettings.candleDown ?? "#FF4D67",
+            borderDownColor: chartSettings.borderDown ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
             wickUpColor: chartSettings.wickUp ?? chartSettings.candleUp,
-            wickDownColor: chartSettings.wickDown ?? chartSettings.candleDown ?? "#FF4D67",
+            wickDownColor: chartSettings.wickDown ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
           });
         } catch {}
       } else if (candleRef.current && chartSettings.candleUp && candleType === "hollow") {
@@ -4524,9 +4530,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             upColor:          bgColor,
             downColor:        bgColor,
             borderUpColor:    chartSettings.borderUp   ?? chartSettings.candleUp,
-            borderDownColor:  chartSettings.borderDown ?? chartSettings.candleDown ?? "#FF4D67",
+            borderDownColor:  chartSettings.borderDown ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
             wickUpColor:      chartSettings.wickUp   ?? chartSettings.candleUp,
-            wickDownColor:    chartSettings.wickDown  ?? chartSettings.candleDown ?? "#FF4D67",
+            wickDownColor:    chartSettings.wickDown  ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
           });
         } catch {}
       }

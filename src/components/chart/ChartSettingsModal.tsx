@@ -4,7 +4,13 @@ import React, { useState } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2, TrendingUp, Sliders } from "lucide-react";
 
-import { MARKET_FIELD_DEFAULT } from "@/lib/chart/marketFieldMaterial";
+import {
+  CANDLE_DOWN_DEFAULT,
+  CANDLE_UP_DEFAULT,
+  CROSSHAIR_COLOR_DEFAULT,
+  GRID_COLOR_DEFAULT,
+  MARKET_FIELD_DEFAULT,
+} from "@/lib/chart/marketFieldMaterial";
 
 export interface ChartSettings {
   background: string;
@@ -41,9 +47,9 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   // to it.
   background: MARKET_FIELD_DEFAULT,
   gridVisible: true,
-  gridColor: "#1A2035",
+  gridColor: GRID_COLOR_DEFAULT,
   crosshairVisible: true,
-  crosshairColor: "#4A6080",
+  crosshairColor: CROSSHAIR_COLOR_DEFAULT,
   crosshairStyle: "solid",
   priceScaleVisible: true,
   priceScalePosition: "right",
@@ -52,12 +58,15 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   autoScale: true,
   percentageMode: false,
   indexedTo100: false,
-  candleUp: "#00C076",
-  candleDown: "#FF4D67",
-  wickUp: "#00C076",
-  wickDown: "#FF4D67",
-  borderUp: "#00C076",
-  borderDown: "#FF4D67",
+  // NOT A RAINBOW. Up and down are one brass held at two luminances, per
+  // `WM_NewMockup_136_Fidelity_Five_Not_A_Rainbow.jpg`. The trader can still
+  // pick anything they like in Appearance; this is only what the room ships.
+  candleUp: CANDLE_UP_DEFAULT,
+  candleDown: CANDLE_DOWN_DEFAULT,
+  wickUp: CANDLE_UP_DEFAULT,
+  wickDown: CANDLE_DOWN_DEFAULT,
+  borderUp: CANDLE_UP_DEFAULT,
+  borderDown: CANDLE_DOWN_DEFAULT,
   candleTimer: true,
   showPositions: true,
   showPnL: true,

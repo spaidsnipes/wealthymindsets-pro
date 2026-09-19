@@ -79,6 +79,42 @@ const MAIN_CHART = "components/chart/MainChart.tsx";
  */
 const FIELD = "MARKET_FIELD_DEFAULT";
 
+/**
+ * THE WHOLE LANGUAGE, NOT JUST THE FIELD — 2026-09-19.
+ *
+ * The field's material was the first constant to move out of MainChart and
+ * into `lib/chart/marketFieldMaterial.ts`. The chart's LANGUAGE — the brass
+ * candle pair, the grid, the crosshair — followed, for the same reason and
+ * into the same module. Every one of them is subject to the identical law:
+ * imported, never restated, and only ever used as the fallback arm of a
+ * `chartSettings` read so the trader's own choice always wins.
+ *
+ * So the gate is written over the LIST rather than over one name. A constant
+ * added to the module and used in MainChart without being added here is not
+ * silently exempt — `THE IMPORT IS THE LIST` below reads the import block
+ * itself and fails if the two disagree.
+ */
+const LANGUAGE = [
+  FIELD,
+  "CANDLE_UP_DEFAULT",
+  "CANDLE_DOWN_DEFAULT",
+  "GRID_COLOR_DEFAULT",
+  "CROSSHAIR_COLOR_DEFAULT",
+] as const;
+
+/**
+ * The `import { … } from "@/lib/chart/marketFieldMaterial"` block, verbatim.
+ *
+ * `[^}]*` and NOT `[\s\S]*?`. MainChart opens with ~200 import statements; a
+ * lazy any-character body anchors at the FIRST `import {` in the file and runs
+ * all the way down to this module's `from`, so the "block" swallows a hundred
+ * unrelated identifiers. Caught live by the IMPORT IS THE LIST gate below,
+ * which reported eighteen names for a five-name import. Excluding the closing
+ * brace pins the match to one statement.
+ */
+const IMPORT_BLOCK = (src: string) =>
+  src.match(/import\s*\{([^}]*)\}\s*from\s*"@\/lib\/chart\/marketFieldMaterial";/);
+
 describe("the market field has ONE material owner", () => {
   it("VACUITY GUARD: the scan actually read MainChart", () => {
     // Every negative assertion below is of the form "this pattern does NOT
@@ -175,20 +211,84 @@ describe("the market field has ONE material owner", () => {
     // claim about the room's material, so it does not take the field's owner.
     // It is named here rather than tolerated silently — an unnamed exception
     // is how the original duplicate survived in the first place.
+    // REMAPPED, NOT WEAKENED, 2026-09-19. This gate used to spell the import
+    // as the single line `import { MARKET_FIELD_DEFAULT }`. When the chart's
+    // language joined the field in the same module the import became a braced
+    // multi-line list and that regex silently found nothing — the gate would
+    // have gone red on correct code. The cure is to stop pinning the FORMAT of
+    // the import and instead read the import BLOCK, which is what the law was
+    // ever about. Reverting the import to satisfy the old spelling would have
+    // been restoring old code to make CI green.
     const src = CODE(MAIN_CHART);
-    const hits = src.match(new RegExp(FIELD, "g")) ?? [];
-    const guarded = src.match(new RegExp(`chartSettings[\\s\\S]{0,24}?\\?\\?\\s*${FIELD}`, "g")) ?? [];
-    // Pinned to the ternary itself. A looser `color:\s*…"#0B0E1A"` matches
-    // lazily ACROSS newlines and swallows the lightweight-charts option
-    // objects — `background: { color: chartSettings?.background ?? "#0B0E1A" }`
-    // — which are already counted as guarded, double-counting them.
-    // The one import line also mentions the identifier and is not a fill.
-    const imported = src.match(new RegExp(`import \\{ ${FIELD} \\}`, "g")) ?? [];
-    expect(imported, "MainChart must import the field constant, not restate it").toHaveLength(1);
+    const block = IMPORT_BLOCK(src);
+    expect(block, "MainChart must import the chart language, not restate it").not.toBeNull();
+
+    for (const name of LANGUAGE) {
+      const inImport = (block![0].match(new RegExp(`\\b${name}\\b`, "g")) ?? []).length;
+      expect(inImport, `${name} must appear exactly once in the import block`).toBe(1);
+
+      const hits = src.match(new RegExp(`\\b${name}\\b`, "g")) ?? [];
+      // The fallback arm of a chartSettings read. Bounded to 24 characters so
+      // the match cannot run lazily across newlines and swallow a neighbouring
+      // option object, which would double-count an already-guarded use.
+      const guarded =
+        src.match(new RegExp(`chartSettings[\\s\\S]{0,24}?\\?\\?\\s*${name}`, "g")) ?? [];
+      expect(
+        hits.length,
+        `every ${name} use must be a fallback on a chartSettings read ` +
+          `(found ${hits.length} uses, ${guarded.length} guarded, 1 import)`,
+      ).toBe(guarded.length + inImport);
+    }
+  });
+
+  it("THE VALUE IS OWNED TOO — no language colour appears as a bare hex", () => {
+    // FOUND BY AN ORKIN REVIVE-ATTEMPT, 2026-09-19, and the gate above did NOT
+    // catch it. That gate counts identifier USES and requires each to be a
+    // chartSettings fallback. Replacing
+    //
+    //   wickUpColor: chartSettings?.wickUp ?? CANDLE_UP_DEFAULT
+    // with
+    //   wickUpColor: "#c4a574"
+    //
+    // drops the identifier count AND the guarded count by one, so the equality
+    // still holds and the suite stayed green on a genuinely reintroduced
+    // defect — the exact VACUOUS AGREEMENT shape this file exists to police,
+    // turned on the file itself. Counting uses of a NAME cannot see a defect
+    // that removes the name. Only the VALUE can.
+    //
+    // SCOPED TO THE FOUR LANGUAGE VALUES, deliberately. A sweep over every hex
+    // would turn red on a dozen legitimate opaque popover surfaces (the trap-2
+    // popover exception the gate above documents), and on the legacy
+    // `#00C076`/`#FF4D67` still lawfully used by the cumulative-delta
+    // INDICATOR series, the Fibonacci palette and the drawing tools — none of
+    // which are the price series and none of which this slice moved. Those are
+    // recorded, not forgotten. But the room's four new values have exactly one
+    // owner each, measured: zero bare occurrences in MainChart today.
+    const src = CODE(MAIN_CHART);
+    for (const hex of ["#c4a574", "#6e5a3c", "#211d14", "#8a8271"]) {
+      const bare = src.match(new RegExp(hex, "gi")) ?? [];
+      expect(
+        bare,
+        `${hex} is restated as a literal; it has a named owner in ` +
+          `lib/chart/marketFieldMaterial.ts and will diverge from the ` +
+          `trader's Appearance choice the moment they change it`,
+      ).toEqual([]);
+    }
+  });
+
+  it("THE IMPORT IS THE LIST — a constant cannot be added and quietly exempted", () => {
+    // VACUITY GUARD for the gate above. That loop iterates `LANGUAGE`, so a
+    // sixth constant imported into MainChart and hardcoded somewhere would be
+    // policed by nothing at all — the list would simply not know about it.
+    // This pins the two together: the import block and LANGUAGE must name the
+    // same set, so adding a constant forces adding a gate.
+    const block = IMPORT_BLOCK(CODE(MAIN_CHART));
+    expect(block).not.toBeNull();
+    const named = (block![1].match(/\b[A-Z][A-Z0-9_]+\b/g) ?? []).sort();
     expect(
-      hits.length,
-      `every ${FIELD} use must be a fallback on a chartSettings read`,
-    ).toBe(guarded.length + imported.length);
+      named,
+      "MainChart imports a chart-language constant this suite does not police",
+    ).toEqual([...LANGUAGE].sort());
   });
 
   it("does not regress the five files chartsRoomChrome.test.ts already cured", () => {
