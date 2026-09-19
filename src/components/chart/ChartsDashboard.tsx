@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
@@ -1755,36 +1754,42 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         }}
       >
         <div className="wm-chart-orientation-context">
-        {/* Founder 2026-09-02: breadcrumb — orientation truth. The user
-            can always see WHERE in the OS they are and jump one level
-            up. activeTab renders as the terminal segment so switching
-            categories updates the crumb without a route change. */}
-        <nav
-          aria-label="Breadcrumb"
-          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#6d7288", letterSpacing: 0.2 }}
-        >
-          <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
-          <Link
-            href={INSTRUMENT_VIEW_ROUTE}
-            prefetch={false}
-            style={{ color: "#a89b6f", textDecoration: "none", fontWeight: 600, letterSpacing: 0.32, textTransform: "uppercase" }}
-            aria-current={activeTab === "Chart" ? "page" : undefined}
+        {/* ── THE CRUMB WAS A LINK TO THE PAGE IT WAS ON ────────────────────
+            This shipped 2026-09-02 as "orientation truth — the user can
+            always see WHERE in the OS they are and jump one level up". The
+            second half was never true: `INSTRUMENT_VIEW_ROUTE` IS `/charts`,
+            and ChartsDashboard only ever renders on `/charts`, so the
+            "Charts" crumb was a Link to the page the reader was already
+            standing on. It carried zero reachability — deleting it removes
+            no destination from the product.
+
+            The first half was true but redundant three times over: the
+            instrument plate at the top right names the symbol and its state,
+            the price row under it names the symbol and the bar, and the
+            masthead names the room. The crumb restated the symbol a fourth
+            time in cool slate (#6d7288 / #8b8fa8 — Tailwind, not sanctuary).
+
+            The Last Mile support doc §2 lists left page nav among the
+            automatic rejects, and the approved frame
+            (WM_NewMockup_64_F24_Surface_One_Canvas) has no crumb row at all.
+            What the crumb alone carried is the NON-CHART view name, so that
+            — and only that — survives, as a plain brass legend rather than
+            as navigation. On the default Chart view it renders nothing,
+            which is exactly what the Canon shows. */}
+        {activeTab !== "Chart" && (
+          <span
+            style={{
+              fontSize: 10,
+              color: "#8a8271",
+              letterSpacing: 1.1,
+              textTransform: "uppercase",
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              whiteSpace: "nowrap",
+            }}
           >
-            Charts
-          </Link>
-          <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
-          <span style={{ color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>
-            {symbol}
+            {symbol} · {activeTab}
           </span>
-          {activeTab !== "Chart" && (
-            <>
-              <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
-              <span style={{ color: "#8b8fa8", letterSpacing: 0.32, textTransform: "uppercase" }} aria-current="page">
-                {activeTab}
-              </span>
-            </>
-          )}
-        </nav>
+        )}
         {/* Phase 3 Market Canvas verdict — same compiler as /command-deck.
             Sourced via useMarketCanvasVM(canvasIdentity); silent when
             evidence is insufficient (§Silence Is A Feature). No fake

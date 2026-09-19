@@ -1411,8 +1411,24 @@ export function WMOperatingSystem({
           display: "flex",
           flexWrap: "wrap",
           alignItems: "center",
+          // ── THE CANON CENTRES THE PROVENANCE ─────────────────────────────
+          // The footer laid its two groups out edge-to-edge: the standing
+          // conditions hard left, the SOURCE / AS OF segments pushed hard
+          // right by `flex: 1 1 auto`. At 1920 that is a metre of dead black
+          // between two whispers of 9px type, and it read as a status bar —
+          // the thing an operating system puts at the bottom when it has
+          // nothing to say. The approved frame
+          // (WM_NewMockup_64_F24_Surface_One_Canvas) draws the provenance as
+          // ONE centred plate: the room signing its own reading.
+          //
+          // The vertical budget is fixed — the desktop viewport math above
+          // reserves this footer's height exactly, so growing it would clip
+          // the canvas. The plate's 1px border and 3px inset are paid for by
+          // dropping the footer's own vertical padding 10px → 6px. Net height
+          // is unchanged; only the arrangement moved.
+          justifyContent: "center",
           gap: 20,
-          padding: "10px 18px",
+          padding: "6px 18px",
           borderTop: `1px solid rgba(196,165,116,0.30)`,
           background: "linear-gradient(0deg, rgba(196,165,116,0.05) 0%, rgba(7,8,10,0) 100%)",
           minWidth: 0,
@@ -1424,7 +1440,18 @@ export function WMOperatingSystem({
         <div
           className="wm-os-standing-bar"
           data-testid="os-standing-bar"
-          style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 20, flex: "1 1 auto", minWidth: 0 }}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 20,
+            // `flex: 1 1 auto` was what shoved the provenance plate to the far
+            // right edge. The conditions occupy the width they need and no
+            // more, so the two groups sit together in the middle of the room.
+            flex: "0 1 auto",
+            minWidth: 0,
+          }}
         >
           {standingConditions.map((condition) => (
             <StateReadout key={condition.label} condition={condition} layout="bar" />
@@ -1433,7 +1460,21 @@ export function WMOperatingSystem({
 
         <div
           data-testid="os-provenance-segments"
-          style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, minWidth: 0 }}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            minWidth: 0,
+            // The engraved plate. Same brass hairline and raised ground as
+            // the rail cells, so the room's signature is drawn in the room's
+            // own material rather than floating as loose text.
+            border: "1px solid rgba(196,165,116,0.28)",
+            borderRadius: 2,
+            background: "rgba(24,20,14,0.5)",
+            padding: "3px 14px",
+          }}
         >
           {provenance.map((segment) => (
             <span key={segment} style={{ ...EYEBROW, whiteSpace: "nowrap" }}>

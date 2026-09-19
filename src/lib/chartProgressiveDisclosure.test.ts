@@ -124,10 +124,28 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).toContain("canvasSummary: (");
   });
 
+  /**
+   * ── REMAPPED FROM A SPELLING TO THE LAW ──────────────────────────────────
+   * This used to assert `aria-label="Breadcrumb"`, which pinned the crumb's
+   * SPELLING rather than the law it existed to serve. The law is the title of
+   * this test: the GLOBAL SHELL owns product identity, and the dashboard
+   * starts with CHART orientation — not with page navigation.
+   *
+   * The crumb violated the second half. `INSTRUMENT_VIEW_ROUTE` is `/charts`
+   * and ChartsDashboard renders only on `/charts`, so the "Charts" crumb was
+   * a Link to the page the reader was already on: page-nav chrome with no
+   * destination. The Last Mile support doc §2 lists left page nav among the
+   * automatic rejects, and the approved frame has no crumb row.
+   *
+   * So the negative below is now the tooth: the dashboard must not grow a
+   * navigational landmark back. The positives that carry real orientation —
+   * the symbol, the non-chart view name, the canvas verdict — are unchanged,
+   * because those were never the problem.
+   */
   it("lets the global shell own product identity and starts with chart orientation", () => {
     expect(dashboard).not.toContain('import WmWordmark from "@/components/brand/WmWordmark"');
     expect(dashboard).not.toContain("the trader's chart");
-    expect(dashboard).toContain('aria-label="Breadcrumb"');
+    expect(dashboard).not.toContain('aria-label="Breadcrumb"');
     expect(dashboard).toContain("{symbol}");
     expect(dashboard).toContain('{activeTab !== "Chart"');
     expect(dashboard).toContain("<CanvasSummaryPill");
