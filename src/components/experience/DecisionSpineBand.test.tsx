@@ -565,19 +565,23 @@ describe("DecisionSpineBand — the honesty plaque is fed, not drawn", () => {
 
   it("× THE HARD-CODED PLAQUE: /charts must compose a reading, never write a literal", () => {
     const dash = readFileSync(resolve(__dirname, "../chart/ChartsDashboard.tsx"), "utf8");
-    // The ONE sanctioned crossing from the seven pipeline labels into the five
-    // fidelities. A locally invented mapping is how the seven quietly become
-    // de-facto badges.
-    expect(dash).toContain("fidelityFromPipelineLabel");
-    expect(dash).toContain("readMarketFidelity");
+    // The composition moved OUT of the dashboard memo and into
+    // `readCanvasHonesty`, which now owns the sanctioned crossing, the choice
+    // of accept-site stamp, and the refusal. The assertions moved with it
+    // rather than being dropped — they are enforced against the new owner in
+    // lib/marketData/readCanvasHonesty.test.ts, and what is pinned HERE is
+    // that /charts still delegates instead of growing a second copy.
+    expect(dash).toContain("readCanvasHonesty");
     expect(dash).toContain("honesty: chartHonesty");
-    // asOf IS AN OBSERVATION. `lastObservedAtMs` is the transport's accept-site
-    // stamp; `Date.now()` here would stamp a 12-hour-old close as now.
-    expect(dash).toContain("readMarketFidelity(folded.fidelity, lastObservedAtMs, folded.reasons)");
     // The literal that made the organ decorative on its first caller.
     expect(dash).not.toContain("reading={null}");
     // Imported AND used — a dead import satisfies a naive source scan.
-    expect(dash.split("fidelityFromPipelineLabel").length - 1).toBeGreaterThan(1);
+    expect(dash.split("readCanvasHonesty").length - 1).toBeGreaterThan(1);
+    // AND THE SURFACE MUST NOT RE-DERIVE. A dashboard that calls the crossing
+    // itself is a second owner of the reading, which is the state this
+    // extraction exists to end.
+    expect(dash).not.toContain("fidelityFromPipelineLabel(");
+    expect(dash).not.toContain("readMarketFidelity(");
   });
 
   it("× THE SECOND GRADER: the chip and the plaque read ONE grading", () => {
@@ -590,9 +594,29 @@ describe("DecisionSpineBand — the honesty plaque is fed, not drawn", () => {
   });
 
   it("× THE SILENT DEFAULT: an unfinished question may not be folded into a word", () => {
-    const dash = readFileSync(resolve(__dirname, "../chart/ChartsDashboard.tsx"), "utf8");
+    // The refusal followed the composition into `readCanvasHonesty`. Pinned
+    // here at its new address so the breadcrumb does not simply vanish, and
+    // exercised behaviourally (not just scanned) in that module's own suite.
+    const owner = readFileSync(
+      resolve(__dirname, "../../lib/marketData/readCanvasHonesty.ts"),
+      "utf8",
+    );
     // AWAITING and UNAVAILABLE both set `availability`. Grading either into one
     // of the five manufactures a measurement out of an open question.
-    expect(dash).toContain("if (chartSurfaceBadge.availability !== undefined) return null;");
+    expect(owner).toContain("if (input.badge.availability !== undefined) return null;");
+    // asOf IS AN OBSERVATION, never a clock read at render. `Date.now()` here
+    // is the move that stamped a 12-hour-old close as now.
+    //
+    // Scanned against CODE ONLY. This assertion fired on its first run against
+    // the module's own docblock — the paragraph that promises Date.now never
+    // appears. That is the third time this shift a source scan has caught a
+    // comment, and the third time the stripper was fixed rather than the
+    // assertion weakened.
+    const ownerCode = owner
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("//"))
+      .join("\n");
+    expect(ownerCode).not.toContain("Date.now()");
   });
 });

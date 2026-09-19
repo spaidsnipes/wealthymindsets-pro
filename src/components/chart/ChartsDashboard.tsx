@@ -94,14 +94,12 @@ import { StockInfoPanel } from "./StockInfoPanel";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { resolveChartSurfaceBadge } from "@/lib/priceSource";
-// THE ONE SANCTIONED CROSSING from the seven pipeline labels into the five
-// fidelities, plus the constructor that refuses a reading with no asOf. The
-// decision rail's Honesty Plaque is fed from here and from nowhere else.
-import {
-  fidelityFromPipelineLabel,
-  readMarketFidelity,
-  type MarketFidelityReading,
-} from "@/lib/marketData/marketFidelityAlgebra";
+import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
+// THE ONE OWNER of this surface's honesty reading: it performs the sanctioned
+// crossing from the seven pipeline labels into the five fidelities, chooses
+// which accept-site stamp the plaque names, and refuses rather than defaults.
+// The decision rail's Honesty Plaque is fed from here and from nowhere else.
+import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
 import { useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -1640,11 +1638,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
      `fidelityFromPipelineLabel` is the only sanctioned crossing from the seven
      pipeline labels into the five fidelities; inventing a local mapping here
      is how the seven quietly become de-facto badges. */
-  const chartHonesty = React.useMemo<MarketFidelityReading | null>(() => {
-    if (chartSurfaceBadge.availability !== undefined) return null;
-    const folded = fidelityFromPipelineLabel(chartSurfaceBadge.label);
-    return readMarketFidelity(folded.fidelity, lastObservedAtMs, folded.reasons);
-  }, [chartSurfaceBadge, lastObservedAtMs]);
+  const chartHonesty = React.useMemo<MarketFidelityReading | null>(
+    () => readCanvasHonesty({
+      badge: chartSurfaceBadge,
+      // THE MOMENT THE MARKET CELL ALREADY PRINTS. Measured live 2026-09-19:
+      // the rail read "NO LIVE PRINT · asOf 22:32:10Z" beside a plaque reading
+      // "No fidelity has been established for this canvas", because the only
+      // clock this memo consulted was the tape's, and the tape's stamp is null
+      // on every canvas carrying bars and no live print.
+      capturedAtMs: chartCanvasState?.capturedAt ?? null,
+      observedAtMs: lastObservedAtMs,
+    }),
+    [chartSurfaceBadge, chartCanvasState?.capturedAt, lastObservedAtMs],
+  );
 
   // HYDRATION GATE — permanent fix for React #418.
   // This dashboard seeds many states from localStorage (theme, timeframe,
