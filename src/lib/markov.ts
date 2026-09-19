@@ -18,18 +18,30 @@
  */
 
 import type { TFId } from "./timeframes";
+import type { LegacyOhlcvTuple } from "./marketData/canonicalBar";
 
 export type MarkovState = "BULL" | "BEAR" | "SIDE";
 export const MARKOV_STATES: readonly MarkovState[] = ["BULL", "BEAR", "SIDE"];
 
-export interface Bar {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+/*
+ * THIS MODULE NO LONGER DECLARES ITS OWN `Bar` (2026-09-18).
+ *
+ * It used to own `interface Bar { time, open, high, low, close, volume }` — six
+ * numbers, all `number`, byte-for-byte the same fields as thirteen other private
+ * declarations elsewhere in this repo and the same fields as `LegacyOhlcvTuple`,
+ * which exists in `canonicalBar.ts` precisely so those files have somewhere to
+ * be adapted FROM rather than a reason to keep redeclaring the shape. A second
+ * name for an identical set of fields is not a second idea about what a bar is;
+ * it is the same anonymous tuple wearing another module's label, and the label
+ * is what makes the sprawl look like design.
+ *
+ * WHAT THIS DOES NOT BUY. `LegacyOhlcvTuple` is explicitly the LEGACY shape. It
+ * carries no symbolId, no sessionId, no fidelity, no provenance and no
+ * truthEpoch, so this engine still counts transitions over a past with no
+ * identity — it just stops pretending that past is its own invention. The
+ * adoption debt is unchanged; only the count of places redeclaring the shape
+ * went down, and that is the whole claim.
+ */
 
 /** Minimum observations required BEFORE the engine will publish a percentage. */
 export const MIN_TRANSITIONS_TOTAL = 100;
@@ -103,7 +115,7 @@ const EDGE_DEADBAND = 0.02;
  * Uses `open`, not previous close, so classification is bar-intrinsic and does
  * not depend on the window boundary -- a property the tests rely on.
  */
-export function classifyBar(bar: Bar, sideThreshold: number): MarkovState {
+export function classifyBar(bar: LegacyOhlcvTuple, sideThreshold: number): MarkovState {
   if (bar.open <= 0) return "SIDE";
   const r = (bar.close - bar.open) / bar.open;
   if (r > sideThreshold) return "BULL";
@@ -202,7 +214,7 @@ export function steadyState(
 }
 
 export interface ComputeInput {
-  bars: readonly Bar[];
+  bars: readonly LegacyOhlcvTuple[];
   config: MarkovConfig;
   symbol: string;
   timeframe: TFId;

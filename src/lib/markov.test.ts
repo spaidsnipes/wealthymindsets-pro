@@ -3,21 +3,25 @@ import {
   classifyBar, countTransitions, normalizeMatrix, steadyState,
   computeMarkov, markovConfidence,
   MIN_TRANSITIONS_TOTAL, MIN_TRANSITIONS_CURRENT,
-  type Bar, type MarkovConfig, type MarkovState,
+  type MarkovConfig, type MarkovState,
 } from "./markov";
 import type { TFId } from "./timeframes";
+// The engine no longer owns a `Bar` noun — it speaks the one legacy tuple, and
+// so do its tests. Aliasing it back to `Bar` here would put the retired name
+// straight back into the vocabulary this change exists to shrink.
+import type { LegacyOhlcvTuple } from "./marketData/canonicalBar";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Test helpers
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Bar whose classification is determined by the return `r` alone. */
-function bar(r: number, t = 0): Bar {
+function bar(r: number, t = 0): LegacyOhlcvTuple {
   return { time: t, open: 100, high: 100 + Math.max(0, r * 100), low: 100 + Math.min(0, r * 100), close: 100 * (1 + r), volume: 1000 };
 }
 
 /** Build a run of bars from a state sequence, given a threshold. */
-function barsFromStates(states: readonly MarkovState[], sideThreshold: number): Bar[] {
+function barsFromStates(states: readonly MarkovState[], sideThreshold: number): LegacyOhlcvTuple[] {
   const above = sideThreshold * 2;
   const below = -sideThreshold * 2;
   const inside = 0;
@@ -199,7 +203,7 @@ describe("computeMarkov honesty gates", () => {
     // plus one SIDE->BEAR), current state = BEAR, current-row count = 0.
     // That collapses to the row-unobserved case, which is a stricter form of the
     // same insufficient-current-row failure -- both must refuse to publish.
-    const bars: Bar[] = [
+    const bars: LegacyOhlcvTuple[] = [
       ...barsFromStates(Array(200).fill("SIDE"), 0.005),
       bar(-0.02, 200),
     ];

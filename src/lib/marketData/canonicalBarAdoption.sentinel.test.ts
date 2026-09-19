@@ -1,14 +1,31 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is EIGHTEEN as of the
+ * The count below started at twenty-two on 2026-09-18 and is SEVENTEEN as of the
  * same day. The prose that follows is the original measurement and is left
- * standing, because the shape of the problem did not change when two of the
+ * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO EIGHTEEN IS NOT FOUR RETIREMENTS. It is two retirements and one
- * measurement correction, and the array's docblock separates them line by line
- * so nobody reads this header as four ingresses migrated. None were.
+ * TWENTY-TWO TO SEVENTEEN IS NOT FIVE RETIREMENTS. It is three retirements and
+ * one measurement correction, and the array's docblock separates them line by
+ * line so nobody reads this header as five ingresses migrated. None were.
+ *
+ * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
+ *
+ * The remaining shapes are not seventeen competing ideas of what a bar is.
+ * THIRTEEN OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * low, close, volume`, every one of them `number` — which is also, exactly,
+ * `LegacyOhlcvTuple` in the artery. A fourteenth, `DeckMarketChart::Candle`,
+ * differs only by `volume?`. The sprawl is one anonymous six-field tuple
+ * wearing a dozen module-local labels, and a sanctioned name for precisely it
+ * already exists with a docblock saying so.
+ *
+ * That makes most of the remaining list a RENAME rather than a migration, and
+ * it is important not to let the ease flatter the result: renaming thirteen
+ * declarations to one name removes thirteen duplicate DECISIONS and delivers
+ * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
+ * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
+ * truthEpoch on the live path — is untouched by every rename and stays owed.
  *
  * ── THE MEASUREMENT, TAKEN 2026-09-18 ──────────────────────────────────────
  *
@@ -142,8 +159,8 @@ const THE_ARTERY: readonly string[] = [
 
 /**
  * FROZEN 2026-09-18 at twenty-two. LOWERED TO TWENTY-ONE, THEN TO TWENTY, THEN
- * TO EIGHTEEN, all on 2026-09-18. The third step is a different KIND of change
- * from the first two and is labelled as such at the bottom of this block.
+ * TO EIGHTEEN, THEN TO SEVENTEEN, all on 2026-09-18. The third step is a
+ * different KIND of change from the others and is labelled as such below.
  *
  * Each line is one place the product decided what a bar is without asking the
  * artery. Sorted, so a diff on this array reads as exactly what changed.
@@ -206,6 +223,29 @@ const THE_ARTERY: readonly string[] = [
  * wrong, so the NEXT `open: number[]` anyone declares would have re-inflated the
  * census with a shape nobody can migrate. The predicate was narrowed instead,
  * and the narrowing is guarded by its own test.
+ *
+ * ── EIGHTEEN TO SEVENTEEN IS A REAL RETIREMENT, AND A SMALL ONE ────────────
+ *
+ * RETIRED: `lib/markov.ts::Bar`. Six fields, all `number`, byte-for-byte the
+ * same fields as `LegacyOhlcvTuple`. The engine now speaks the artery's legacy
+ * name at both its use sites — `classifyBar(bar, threshold)` and the
+ * `bars: readonly LegacyOhlcvTuple[]` input — and so does its only importer,
+ * `markov.test.ts`. No alias was left behind: re-exporting `Bar` from this
+ * module would have put the retired noun straight back into the vocabulary the
+ * change exists to shrink, and would have made the census read seventeen while
+ * the product still spoke eighteen names.
+ *
+ * WHY THIS ONE FIRST. It has exactly one importer, and that importer is its own
+ * test file, so the whole blast radius is two files and no surface moves. It is
+ * the cheapest possible proof that the rename path works before it is walked
+ * across the twelve heavier modules behind it.
+ *
+ * AND THE CLAIM STAYS SMALL. `LegacyOhlcvTuple` is the LEGACY shape by design —
+ * six numbers, no symbolId, no sessionId, no fidelity, no provenance, no
+ * truthEpoch. The Markov engine still counts transitions over a past that
+ * cannot say which symbol or which session it belongs to. One duplicate
+ * DECISION about what a bar is was removed. Identity is still owed, and no
+ * rename in this list will ever deliver it.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "app/api/exchange/route.ts::Bar",
@@ -219,7 +259,6 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
-  "lib/markov.ts::Bar",
   "lib/pine/types.ts::OHLCVBar",
   "lib/sessionVP.ts::Candle",
   "lib/timeframes.ts::Candle",
@@ -288,7 +327,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at eighteen private pasts and may only SHRINK", () => {
+  it("holds at seventeen private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));
