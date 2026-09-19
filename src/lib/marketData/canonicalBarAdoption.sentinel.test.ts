@@ -1046,6 +1046,48 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
 
   /* ── THE FOURTH INGRESS: /api/finnhub ─────────────────────────────────────── */
 
+  /**
+   * THE LAST SILENT DROP ON THE FINNHUB LANE WAS IN THE CHART, not the route.
+   *
+   * `MainChart.fetchFinnhubCandles` filtered `b.open > 0 && b.high > 0` off
+   * the response. Three defects in one expression: it was SILENT (a removed
+   * bar is an invisible gap, not a shorter chart), it was an AMPUTATION (crude
+   * oil printed negative in 2020 — `checkBarGeometry` refuses non-finite,
+   * inside-out and un-traded bars and pointedly does NOT refuse a price for
+   * being negative), and it was ASYMMETRIC BY ACCIDENT — the sibling
+   * `fetchFinnhubCandlesDirect` requests the IDENTICAL URL, filters nothing,
+   * and runs FIRST, so two readers of one endpoint disagreed about which bars
+   * exist and the disagreement was invisible from either side.
+   *
+   * It was cleaning up after the route's own `?? 0` and `?? Math.max(o, c)`
+   * fabrications, which are retired. The route refuses at ingress across all
+   * six fields and publishes `refusedBars`. One owner, and it counts.
+   */
+  it("does not re-decide what a bar is after the route already refused", () => {
+    const chart = codeOnly(
+      readFileSync(path.join(__dirname, "../../components/chart/MainChart.tsx"), "utf8"),
+    );
+
+    // VACUITY GUARD: assert we are reading the fetcher this gate is about. A
+    // renamed function would make every negative below pass while the filter
+    // sat happily in a file this test no longer recognises.
+    expect(chart, "fetchFinnhubCandles not found — this gate is reading nothing")
+      .toContain("async function fetchFinnhubCandles(");
+
+    expect(
+      chart,
+      "A positivity filter is back on a candle response. A non-positive price " +
+        "is not a malformed price — negative crude oil was a real auction — " +
+        "and dropping bars here is silent, uncounted, and disagrees with the " +
+        "unfiltered sibling reading the very same endpoint.",
+    ).not.toMatch(/\.filter\([^)]*\bopen\s*>\s*0/);
+
+    expect(
+      chart,
+      "A candle response is being filtered on high > 0 — same defect, other field.",
+    ).not.toMatch(/\.filter\([^)]*\bhigh\s*>\s*0/);
+  });
+
   it("keeps the manufactured-wick repair out of the finnhub candles branch", () => {
     // `high: h ?? Math.max(o, c)` does not default a VALUE, it manufactures a
     // GEOMETRY — a candle with no wick, indistinguishable on screen from a real

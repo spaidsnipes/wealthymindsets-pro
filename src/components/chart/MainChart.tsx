@@ -422,7 +422,31 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number, signa
     const res = await fetch(url, { cache: "no-store", signal });
     if (!res.ok) return null;
     const json = await res.json() as { candles?: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> };
-    const bars = (json.candles ?? []).filter(b => b.open > 0 && b.high > 0) as LegacyOhlcvTuple[];
+    // THE SILENT DROP IS RETIRED HERE, 2026-09-18. This read
+    //   .filter(b => b.open > 0 && b.high > 0)
+    // and it was wrong three separate ways.
+    //
+    // 1. IT WAS SILENT. A bar removed here left an INVISIBLE GAP — the chart
+    //    simply got shorter and nothing, on screen or in a counter, said so.
+    // 2. IT WAS AN AMPUTATION. A non-positive price is not a malformed price.
+    //    Crude oil printed NEGATIVE in April 2020 and that was a real auction.
+    //    canonicalBar.ts's checkBarGeometry deliberately refuses non-finite,
+    //    inside-out and un-traded bars and deliberately does NOT refuse a
+    //    price for being small or negative. This filter did.
+    // 3. IT WAS ASYMMETRIC BY ACCIDENT, not by design. fetchFinnhubCandlesDirect
+    //    below requests the IDENTICAL /api/finnhub URL, applies no filter, and
+    //    runs FIRST — this function is only reached when that one returned
+    //    null. Two readers of one endpoint disagreed about which bars exist.
+    //
+    // What it was really cleaning up after was the route's own fabrications:
+    // `volume ?? 0` and `high ?? Math.max(open, close)` could emit a bar of
+    // zeroes, and `open > 0` swept those away. Those fabrications are gone.
+    // /api/finnhub now refuses a malformed bar at ingress, checks all six
+    // fields rather than two, and DISCLOSES the count as `refusedBars`. The
+    // protection did not disappear; it moved upstream, got stricter, and
+    // started telling the truth about itself. Re-deciding it here would be a
+    // second owner of what a bar is, which is the whole of M8.
+    const bars = (json.candles ?? []) as LegacyOhlcvTuple[];
     return bars.length ? bars.slice(-count) : null;
   } catch {
     return null;
