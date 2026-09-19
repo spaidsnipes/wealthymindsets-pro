@@ -1,5 +1,10 @@
 /**
- * M8 — THE CANONICALBAR ARTERY, AND THE TWENTY-TWO PRIVATE PASTS BESIDE IT.
+ * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
+ *
+ * The count below started at twenty-two on 2026-09-18 and is TWENTY-ONE as of
+ * the same day. The prose that follows is the original measurement and is left
+ * standing, because the shape of the problem did not change when one duplicate
+ * was deleted — only its size.
  *
  * ── THE MEASUREMENT, TAKEN 2026-09-18 ──────────────────────────────────────
  *
@@ -111,10 +116,21 @@ const THE_ARTERY: readonly string[] = [
 ];
 
 /**
- * FROZEN 2026-09-18. Twenty-two private pasts.
+ * FROZEN 2026-09-18 at twenty-two. LOWERED TO TWENTY-ONE 2026-09-18.
  *
  * Each line is one place the product decided what a bar is without asking the
  * artery. Sorted, so a diff on this array reads as exactly what changed.
+ *
+ * RETIRED: `hooks/useWebSocket.ts::OHLCVBar`. It was a verbatim six-field copy
+ * of `liveBarPolicy.ts::LiveBar` — the very module that produced every value
+ * the hook stored in it — so the hook's hot-path ref now says `LiveBar` and the
+ * PUBLISHED bar says `LegacyOhlcvTuple`, the artery's one sanctioned legacy
+ * name. Two names for one shape became one name for one shape.
+ *
+ * THE SMALLER CLAIM IS THE TRUE ONE, and it is recorded here so a later reader
+ * does not inflate it: this retirement did not give the live path canonical
+ * IDENTITY. The published bar still carries no symbolId, sessionId, fidelity,
+ * provenance or truthEpoch. A duplicate past was deleted; identity is owed.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "app/api/exchange/route.ts::Bar",
@@ -122,7 +138,6 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/chart/WatchlistGrid.tsx::Candle",
   "components/chart/indicators.ts::Bar",
   "components/experience/DeckMarketChart.tsx::Candle",
-  "hooks/useWebSocket.ts::OHLCVBar",
   "lib/api/kraken.ts::KrakenOHLC",
   "lib/backtest/engine.ts::Bar",
   "lib/chart/dataWindowBarScope.ts::DataWindowBarScope",
@@ -160,7 +175,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     expect(census().length, "OHLC declarations found").toBeGreaterThan(10);
   });
 
-  it("holds at twenty-two private pasts and may only SHRINK", () => {
+  it("holds at twenty-one private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

@@ -23,7 +23,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
-import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { applyTickToLiveBar, type LiveBar } from "@/lib/marketData/liveBarPolicy";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
@@ -65,14 +66,28 @@ export interface Tick {
   marketEvent?: CanonicalMarketEvent;
 }
 
-export interface OHLCVBar {
-  time:   number;
-  open:   number;
-  high:   number;
-  low:    number;
-  close:  number;
-  volume: number;
-}
+/* M8 ADOPTION — one private past retired, 2026-09-18.
+ *
+ * This file used to declare its own `OHLCVBar`: six fields, the same six
+ * fields, in the same order, as `LiveBar` in `liveBarPolicy.ts` — which is the
+ * module that ACTUALLY produced every value this hook ever stored in it. Two
+ * names for one shape is how a product ends up holding two 09:31s for one
+ * symbol with neither wrong by its own lights, and here it was not even a
+ * disagreement waiting to happen: it was a verbatim copy of a shape this file
+ * already imported the producer of.
+ *
+ * So the hot-path aggregate is typed as what it is (`LiveBar`, from the policy
+ * that builds it) and the PUBLISHED bar is typed as the canon's one sanctioned
+ * legacy name (`LegacyOhlcvTuple`), which exists precisely so the files that
+ * still speak six bare numbers have somewhere to be adapted FROM instead of a
+ * reason to redeclare.
+ *
+ * SAID PLAINLY, BECAUSE THE SMALLER CLAIM IS THE TRUE ONE: this does not give
+ * the live path canonical IDENTITY. The published bar still carries no
+ * symbolId, no sessionId, no fidelity, no provenance and no truthEpoch. It
+ * removes a duplicate past and points the survivor at the artery's own name.
+ * Identity on the live path is still owed.
+ */
 
 export interface OrderBookLevel {
   price: number;
@@ -82,7 +97,7 @@ export interface OrderBookLevel {
 
 export interface MarketState {
   ticker:      { price: number; change: number; changePct: number; volume: number };
-  liveBar:     OHLCVBar | null;
+  liveBar:     LegacyOhlcvTuple | null;
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
@@ -1054,7 +1069,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // this, change was computed against the hardcoded seed (e.g. TSLA 405 = a close
   // from days ago) and showed a bogus −7% on a flat day. 0 until first quote.
   const prevCloseRef = useRef(0);
-  const barRef     = useRef<OHLCVBar | null>(null);
+  // The hot-path aggregate, typed as what `applyTickToLiveBar` actually returns
+  // rather than as a local copy of that shape under a second name.
+  const barRef     = useRef<LiveBar | null>(null);
   const lastBarEventAtRef = useRef<number | null>(null);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer
   const bookRef    = useRef(buildBook());

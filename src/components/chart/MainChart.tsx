@@ -2534,6 +2534,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const prevBars = barsRef.current;
     const lastBar  = prevBars[prevBars.length - 1];
 
+    // M8: the published live bar is READ-ONLY (it is the hook's state, not this
+    // effect's scratch space). The garbage-OHLC repair below used to assign
+    // straight into `liveBar.high/low/open`, which mutated an object React had
+    // already handed out — a second writer to someone else's state, and one
+    // that could not be seen from the hook. The repair now lands in these three
+    // locals, which are what the new-candle branch reads. Same numbers, one
+    // writer.
+    let lbOpen = liveBar.open;
+    let lbHigh = liveBar.high;
+    let lbLow  = liveBar.low;
+
     // ── PERMANENT GUARD against corrupt live ticks ──────────────────────────
     // A bad tick (price ≤ 0, NaN, or a wildly wrong magnitude — e.g. a 400 print
     // on a 3017 instrument, or a stale tick from the PREVIOUS symbol right after
@@ -2553,11 +2564,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (ref > 0 && Math.abs(price - ref) / ref > 0.08) return;
       // Also reject corrupt high/low fields on a fresh bar from the provider.
       if (lastBar && Math.floor(liveBar.time) > lastBar.time) {
-        const h = liveBar.high, l = liveBar.low;
+        const h = lbHigh, l = lbLow;
         if (!Number.isFinite(h) || !Number.isFinite(l) || l <= 0 || h <= 0 ||
             (ref > 0 && (Math.abs(h - ref) / ref > 0.08 || Math.abs(l - ref) / ref > 0.08))) {
           // Provider OHLC is garbage — fold just the (validated) close into a flat bar.
-          liveBar.high = price; liveBar.low = price; liveBar.open = price;
+          lbHigh = price; lbLow = price; lbOpen = price;
         }
       }
     }
@@ -2598,9 +2609,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     } else {
       bar = {
         time:   t as any,
-        open:   liveBar.open,
-        high:   liveBar.high,
-        low:    liveBar.low,
+        open:   lbOpen,
+        high:   lbHigh,
+        low:    lbLow,
         close:  price,
         volume: liveBar.volume,
       };

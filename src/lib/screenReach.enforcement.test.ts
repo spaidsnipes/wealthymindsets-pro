@@ -161,8 +161,18 @@ const REPO_ROOT = path.dirname(SRC_DIR);
  * usually a TRUTH fix. Restoring the superseded module does not just duplicate
  * work — it restores the defect the replacement was written to kill.
  */
+/*
+ * TYPE_ONLY is the one reason in this vocabulary that is NOT a debt, added
+ * 2026-09-18 when the reachability walk stopped counting erased imports. A
+ * module whose every export is a `type` or `interface` emits no runtime code,
+ * so no screen can ever reach it and none should try. Filing such a module as
+ * AWAITING_SURFACE would put a permanent entry on a list that is supposed to
+ * shrink, and would invite someone to "finish" it by adding a runtime export
+ * it has no reason to have.
+ */
 type ReachReason =
   | "AWAITING_SURFACE"
+  | "TYPE_ONLY"
   | "TEST_FIXTURE"
   | "OPS_TOOLING"
   | "EDGE_RUNTIME"
@@ -216,6 +226,11 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note:
       "The connective tissue between canonicalBar.ts and marketObjectKinds.ts, from WM_NewMockup_135_Bar_Object_Decision_Inspect (2026-09-18): one inspect resolves barId → objectId → decisionId at the mockup's declared DEPTH: ZERO, and the law printed along its foot — 'Passport remembers. Receipt freezes. Neither reprints the bar.' — is three different failure modes that only look different once written beside each other. It has no screen yet because the drawer that would mount it has no decision producer; mounting it against invented ids would be the false implementation the canon forbids. What the house gains before that is that the three laws are testable now rather than remembered: a receipt carrying its own close is refused by name (including the disguised spellings — priceAtDecision, closeAtDecision, lastPrice — which are the same copy wearing provenance's clothes and the ones most likely to survive review), freezeReceipt deliberately accepts no `now` so a re-freeze on a later read cannot move its own timestamp, checkReceiptFrozen compares field by field because drift arrives as a NEW object with the same decisionId, and checkPassportRemembers refuses an update that goes backwards — the same authority-order-is-not-arrival-order bug admitBar and admitReconPacket each catch at their own door. Delete this entry when the inspect drawer reads a real chain.",
+  },
+  "src/lib/broker/BrokerAdapter.ts": {
+    reason: "TYPE_ONLY",
+    note:
+      "NOT A NEW ORPHAN — a pre-existing one this gate was mis-crediting until the type-only edge was excluded on 2026-09-18. Every export in this file is a `type` or an `interface` (BrokerId, UniversalOrderIntent, CanonicalAccount, CanonicalOrderAck, BrokerCapabilities, BrokerHealth, BrokerAdapter) and every one of its nine importers reaches it with `import type`, so the compiler erases the edge and the emitted bundle contains no reference to this path from any screen. Its unreachability is therefore CORRECT and permanent rather than a debt: a contract that ships no runtime code cannot be wired to a surface, and wiring one would mean giving it a runtime artifact it has no reason to have. The adapters that DO ship code — registry, alpaca, webull, tastytrade — are reached on their own edges and are not covered by this entry. Do not delete this entry by adding a runtime export here; delete it only if this file stops being types-only.",
   },
   "src/lib/marketData/canonicalBar.ts": {
     reason: "AWAITING_SURFACE",
@@ -517,9 +532,34 @@ function resolveSpecifier(spec: string, fromFile: string): string | null {
  */
 const SPECIFIER = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
 
+/**
+ * A TYPE-ONLY EDGE IS NOT REACH, measured 2026-09-18.
+ *
+ * `import type { X } from "y"` is erased by the compiler. Not tree-shaken —
+ * erased: the emitted bundle contains no reference to `y` at all, so `y` ships
+ * no code to any screen. Counting that edge as reach is how an orphan module
+ * gets marked "reachable" by a single type annotation, and this gate exists
+ * specifically to stop a module claiming a surface it does not have.
+ *
+ * This was found the honest way rather than reasoned about in advance. M8's
+ * first census reduction typed `MarketState.liveBar` as `LegacyOhlcvTuple` via
+ * a type-only import, and this gate immediately reported `canonicalBar.ts` as
+ * newly reached — with a failure message inviting the flattering repair,
+ * "delete them from LEDGER so the count stays honest". Deleting the ledger
+ * entry would have recorded the artery as having a screen because one TYPE
+ * crossed the boundary, which is precisely the fake green the board forbids.
+ * The gate was wrong, so the gate was repaired; the ledger entry stands.
+ *
+ * Note the deliberate narrowness: only a statement whose `import`/`export`
+ * keyword is IMMEDIATELY followed by `type` is stripped. An inline modifier —
+ * `import { applyTickToLiveBar, type LiveBar } from "…"` — still emits the
+ * module for its value binding, and therefore still counts as reach.
+ */
+const TYPE_ONLY_STATEMENT = /\b(?:import|export)\s+type\s+[^;]*?\bfrom\s*["'][^"']+["']/g;
+
 const DEPENDENCIES = new Map<string, readonly string[]>(
   FILES.map((file) => {
-    const source = fs.readFileSync(file, "utf8");
+    const source = fs.readFileSync(file, "utf8").replace(TYPE_ONLY_STATEMENT, "");
     const deps = new Set<string>();
     for (const match of source.matchAll(SPECIFIER)) {
       const resolved = resolveSpecifier(match[1], file);
@@ -870,6 +910,7 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
       expect(
         [
           "AWAITING_SURFACE",
+          "TYPE_ONLY",
           "TEST_FIXTURE",
           "OPS_TOOLING",
           "EDGE_RUNTIME",
@@ -882,6 +923,56 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
       // §H19: a label with no sentence behind it is dead vocabulary.
       expect(entry.note.length, `${file} has no note`).toBeGreaterThan(20);
     }
+  });
+
+  /**
+   * THE GATE'S OWN REPAIR, GUARDED.
+   *
+   * The type-only exclusion is one `.replace()` in the dependency walk, and
+   * deleting it would not break a single assertion above on the day it was
+   * deleted — it would merely make every erased edge count as reach again, and
+   * the first visible symptom would be a green ledger entry disappearing
+   * because a module "became reachable" by acquiring a type annotation. That
+   * is a silent failure, so it gets a loud test.
+   *
+   * These cases are written as source text rather than by pointing at real
+   * files on purpose: a real file can be edited out from under the assertion,
+   * and then this test would be checking nothing.
+   */
+  it("counts a VALUE edge as reach and an ERASED edge as nothing", () => {
+    const edges = (source: string): readonly string[] =>
+      [...source.replace(TYPE_ONLY_STATEMENT, "").matchAll(SPECIFIER)].map((m) => m[1]);
+
+    // Erased by the compiler. The bundle never mentions the module.
+    expect(
+      edges(`import type { CanonicalBar } from "@/lib/marketData/canonicalBar";`),
+      "a type-only import was counted as reach — an orphan can now claim a screen with an annotation",
+    ).toEqual([]);
+    expect(
+      edges(`export type { BrokerId } from "./BrokerAdapter";`),
+      "a type-only re-export was counted as reach",
+    ).toEqual([]);
+
+    // Emitted. The module really does ship to whatever screen pulls this in.
+    expect(
+      edges(`import { admitBar } from "@/lib/marketData/canonicalBar";`),
+      "a plain value import stopped counting as reach — the walk now under-reports",
+    ).toEqual(["@/lib/marketData/canonicalBar"]);
+
+    // THE CASE MOST LIKELY TO BE GOT WRONG. An INLINE `type` modifier does not
+    // make the statement type-only: `applyTickToLiveBar` is a real binding, so
+    // the module is emitted and the edge is real. A regex that keyed on the
+    // word `type` appearing anywhere would wrongly erase this one.
+    expect(
+      edges(`import { applyTickToLiveBar, type LiveBar } from "@/lib/marketData/liveBarPolicy";`),
+      "an inline type modifier erased a statement that still emits its module",
+    ).toEqual(["@/lib/marketData/liveBarPolicy"]);
+
+    // And a dynamic import is always a value edge.
+    expect(
+      edges(`const m = await import("@/lib/vpEngine");`),
+      "a dynamic import stopped counting as reach",
+    ).toEqual(["@/lib/vpEngine"]);
   });
 
   it("the §10 gap is CLOSED: EXPRESSION_CARD has a surface", () => {
