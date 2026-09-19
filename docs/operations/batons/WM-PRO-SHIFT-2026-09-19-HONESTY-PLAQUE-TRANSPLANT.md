@@ -97,10 +97,36 @@ untouched.
 
 The two absent chips live in `src/components/layout/MainLayout.tsx`; the present
 one lives in `src/components/os/WMOperatingSystem.tsx`. Both are gated on
-`authority === "legacy"` from the destination owner. MainLayout's two chips are
-**UNOBSERVED IN PRODUCTION** — not proven broken, but not proven working either,
-and a prior baton that named all three as the quarantine's instruments was
-naming two things nobody has watched fire.
+`authority === "legacy"` from the destination owner.
+
+### 3a-bis. CORRECTION TO 3a — I WAS LOOKING IN THE WRONG ROOMS
+
+The table above is a true record of what those two routes showed and a FALSE
+implication about the chips. `MainLayout` has two post-auth branches: OS-framed
+routes get `WMExperienceShell`, everything else gets the July 72px rail. Both
+routes I probed — `/journal` and `/charts` — are `frame: "os"`, so the July rail
+was never on screen. **Only `/shop` and `/profile` are not `frame: "os"`**, and
+they are the only two rooms where MainLayout's chips CAN render.
+
+Observed live on `/profile`:
+
+| testid | Result |
+|---|---|
+| `rail-legacy-chip` | **PRESENT ×1**, text `LEGACY`, inside the `/command-deck` door |
+| `drawer-legacy-chip` | ABSENT — and correctly so, see below |
+
+`drawer-legacy-chip` draws only `NAV_CORE.filter(item => railWithheld.includes(item.href))`.
+The live rail on `/profile` carries all seven ROOM doors
+(`/morning-prep`, `/command-deck`, `/charts`, `/heatmaps`, `/nectar`, `/paper`,
+`/journal`), so `railWithheld` is EMPTY, so the drawer's withheld section has
+nothing to draw. The chip is **structurally unobservable without live capital**
+— it exists for exactly the case where the rail withholds the deck while a
+position is on. Absent is the right answer here, not a defect.
+
+**Revised verdict: 2 of 3 PROVEN. The third is conditional, correctly quiet,
+and cannot be observed without opening a position.** The earlier phrasing
+("UNOBSERVED IN PRODUCTION") was accurate about my evidence and misleading about
+the code, because a null result from the wrong room is not a null result.
 
 ### 3b. NEGATIVE PROOF for Rooms — there is no door
 
@@ -143,8 +169,20 @@ statement that this room lost normal-route authority — the disclosure lives on
 the DOOR, not INSIDE the ROOM. A trader arriving by bookmark or typed URL sees a
 complete-looking workspace with no quarantine statement anywhere in it.
 
-**This is the next unblocked atom**, and it is a small one: the room should say
-the word the door says.
+**This was the next unblocked atom, and it SHIPPED as `c29d6154`.**
+`RoomAuthorityNotice` derives from `WM_DESTINATIONS` by href and renders null
+unless the registry itself says `authority === "legacy"`, making it a fourth
+READER of the one authority fact rather than a fourth owner of it. The falsifier
+test asserts the notice set EQUALS the legacy set computed from the registry in
+both directions, so a component with the route hard-coded fails the moment an
+order moves the flag. Gates: `vitest run` EXIT 0 (819 files, 10446 passed, +6),
+`tsc --noEmit` EXIT 0. **Same deploy blocker — not serving.**
+
+Its own source-scan gate fired once, against this file's own explanatory prose
+rather than its code, because a line-prefix comment filter does not understand
+this codebase's bare-indented block-comment style. The STRIPPER was fixed; the
+assertion was not weakened. That is the second time this segment a scan caught
+a comment and the comment lost.
 
 ---
 
@@ -154,8 +192,8 @@ the word the door says.
 |---|---|
 | Honesty Plaque on the `/charts` rail | **CODE SHIPPED, GATES GREEN, NOT SERVING** (deploy denied) |
 | M3 (2)(a) — Rooms negative proof | **DISCHARGED** — no `/rooms` door exists in the live nav |
-| M3 (2)(a) — LEGACY chips observed live | **1 of 3 PROVEN**; `rail-legacy-chip` + `drawer-legacy-chip` UNOBSERVED |
-| `/command-deck` in-room quarantine statement | **OPEN** — next unblocked atom, small |
+| M3 (2)(a) — LEGACY chips observed live | **2 of 3 PROVEN** (`os-rail-legacy-chip` on `/journal`, `rail-legacy-chip` on `/profile`); `drawer-legacy-chip` is conditional on live capital and correctly quiet |
+| `/command-deck` in-room quarantine statement | **CODE SHIPPED (`c29d6154`), GATES GREEN, NOT SERVING** — same deploy blocker |
 | `/charts` renders no nav shell | **OPEN QUESTION for the Founder** — decide, don't inherit |
 | Gate 4 responsive device proof | **BLOCKED** — programmatic resize does not take effect, `outerWidth` pinned at 1920 (re-confirmed this segment) |
 | `/journal` detail canvas | **BLOCKED** — 0 journal entries |
