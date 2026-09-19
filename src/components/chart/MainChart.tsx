@@ -2928,10 +2928,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const chart = chartRef.current;
     const LW    = lwRef.current;            // v5 series definitions
     if (!LW) return;
-    // `IND.Bar` is `indicators.ts`'s OWN declaration and is still in the census.
-    // This cast crosses a module boundary, so it must keep naming the type that
-    // module actually exports — retiring `indicators.ts::Bar` is its own atom.
-    const bars  = barsRef.current as IND.Bar[];
+    // THAT ATOM LANDED, 2026-09-18. `indicators.ts::Bar` is retired and NO ALIAS
+    // WAS LEFT BEHIND, so there is deliberately no `IND.LegacyOhlcvTuple` to
+    // reach for — `tsc` said so (TS2694) when this comment first claimed there
+    // was. This cast now names the artery's type imported directly, which is
+    // the whole point of the no-alias rule: the boundary is crossed to the
+    // OWNER of the type, not to a module that happens to re-export it.
+    // It is still a CAST, and a cast is an assertion the compiler cannot check:
+    // `barsRef.current` is whatever the feed handed us, and neither this line
+    // nor the type it names can say which session or fidelity those bars carry.
+    const bars  = barsRef.current as LegacyOhlcvTuple[];
 
     // Remove previous indicator series. In v5 removing a series can leave an
     // empty pane behind; we also prune empty panes at the end of this effect.

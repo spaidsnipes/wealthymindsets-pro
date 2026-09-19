@@ -14,15 +14,15 @@ import {
   STRUCTURE_DEFAULT_LOOKBACK,
   STRUCTURE_MIN_PIVOTS_PER_SIDE,
 } from "./selectMarketStructure";
-import type { Bar } from "@/components/chart/indicators";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-function bar(t: number, high: number, low: number): Bar {
+function bar(t: number, high: number, low: number): LegacyOhlcvTuple {
   const mid = (high + low) / 2;
   return { time: t, open: mid, high, low, close: mid, volume: 100 };
 }
 
 /** Flat filler that can never itself be a pivot against a taller neighbour. */
-function flat(from: number, count: number, high = 100, low = 90): Bar[] {
+function flat(from: number, count: number, high = 100, low = 90): LegacyOhlcvTuple[] {
   return Array.from({ length: count }, (_, i) => bar(from + i, high, low));
 }
 
@@ -34,10 +34,10 @@ function flat(from: number, count: number, high = 100, low = 90): Bar[] {
 function withPivots(
   spikes: readonly { high?: number; low?: number }[],
   lookback = STRUCTURE_DEFAULT_LOOKBACK,
-): Bar[] {
-  const bars: Bar[] = [];
+): LegacyOhlcvTuple[] {
+  const bars: LegacyOhlcvTuple[] = [];
   let t = 0;
-  const push = (b: Bar[]) => { b.forEach(x => bars.push(x)); t += b.length; };
+  const push = (b: LegacyOhlcvTuple[]) => { b.forEach(x => bars.push(x)); t += b.length; };
   push(flat(t, lookback));
   for (const s of spikes) {
     push([bar(t, s.high ?? 100, s.low ?? 90)]);

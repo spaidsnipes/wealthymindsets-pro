@@ -12,14 +12,15 @@
 import { describe, it, expect } from "vitest";
 import {
   keltner, donchianWidth, envelope, priceChannel, linearRegression,
-  parabolicSAR, supertrend, alligator, ichimoku, pivotPoints, type Bar,
+  parabolicSAR, supertrend, alligator, ichimoku, pivotPoints, 
 } from "./indicators";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): Bar {
+function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): LegacyOhlcvTuple {
   return { time: t, open: o, high: h, low: l, close: c, volume: v };
 }
 
-function risingBars(n: number, start = 100, step = 0.5): Bar[] {
+function risingBars(n: number, start = 100, step = 0.5): LegacyOhlcvTuple[] {
   return Array.from({ length: n }, (_, i) => {
     const c = start + i * step;
     return bar(c - 0.1, c + 0.2, c - 0.2, c, 100, i);

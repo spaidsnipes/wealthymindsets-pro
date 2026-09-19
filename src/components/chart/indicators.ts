@@ -4,14 +4,38 @@
  * Sub-pane oscillators return { values, scaleId } for easy rendering.
  */
 
-export interface Bar { time: number; open: number; high: number; low: number; close: number; volume: number; }
+/*
+ * THE INDICATOR LIBRARY NO LONGER DECLARES ITS OWN `LegacyOhlcvTuple` (2026-09-18).
+ *
+ * What stood here was byte-for-byte `LegacyOhlcvTuple`. It was left for last
+ * among the byte-for-byte duplicates because this file mentions the bare word
+ * `LegacyOhlcvTuple` sixty times, including in prose, so a blanket rename was never safe
+ * without first measuring which occurrences were types and which were English.
+ * Every one of the sixty was checked. NO ALIAS WAS LEFT BEHIND.
+ *
+ * WHAT THIS BUYS, STATED HONESTLY: one fewer duplicate DECISION about what a
+ * bar is, and ZERO canonical identity. Fifty-odd indicator functions below
+ * still receive six anonymous numbers. `vwap`, `cvd`, `obv` and every other
+ * volume-weighted function here compute a number that is only as meaningful as
+ * the FIDELITY of the volume they were handed, and nothing in the parameter
+ * type can tell them whether that volume was observed trade-by-trade, folded
+ * from a coarser feed, or reconstructed by `yahooTimeframes` for a timeframe
+ * that never traded. A VWAP computed from reconstructed volume is not a VWAP,
+ * and this signature cannot refuse it.
+ *
+ * NOTE THE CONTRAST WITH `PivotBar` DIRECTLY BELOW. That type exists because
+ * `swingHighLow` reads three fields and asking for six was a lie about its
+ * requirements. Narrowing a requirement is real work. Renaming a duplicate is
+ * not, and this docblock is not claiming otherwise.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 /**
  * THE ONLY THREE FIELDS PIVOT DETECTION READS.
  *
  * `swingHighLow` compares highs to highs and lows to lows and stamps the
  * result with a time. It has never opened `open`, `close` or `volume`. It
- * nonetheless ASKED for a full `Bar`, and a parameter type is a requirement
+ * nonetheless ASKED for a full `LegacyOhlcvTuple`, and a parameter type is a requirement
  * whether or not the body honours it.
  *
  * FOUND FROM USE, production /command-deck BTC, 2026-09-18. The deck's chart
@@ -30,7 +54,7 @@ export interface Bar { time: number; open: number; high: number; low: number; cl
  *
  * Widening the parameter rather than casting at the call site is the whole
  * repair: a cast asserts the volume exists, which on that venue is a lie, and
- * `Bar` is still assignable here so every existing caller is untouched.
+ * `LegacyOhlcvTuple` is still assignable here so every existing caller is untouched.
  */
 export interface PivotBar { time: number; high: number; low: number; }
 
@@ -130,7 +154,7 @@ export function mcginley(src: number[], p = 14): number[] {
   return out;
 }
 
-export function vwma(bars: Bar[], p: number): number[] {
+export function vwma(bars: LegacyOhlcvTuple[], p: number): number[] {
   return bars.map((_, i) => {
     if (i < p - 1) return NaN;
     let pv = 0, v = 0;
@@ -170,7 +194,7 @@ export function stdDev(src: number[], p = 20): number[] {
   });
 }
 
-export function keltner(bars: Bar[], p = 20, mult = 2): { upper: number[]; mid: number[]; lower: number[] } {
+export function keltner(bars: LegacyOhlcvTuple[], p = 20, mult = 2): { upper: number[]; mid: number[]; lower: number[] } {
   const closes = bars.map(b => b.close);
   const mid = ema(closes, p);
   const atrVals = atr(bars, p);
@@ -181,12 +205,12 @@ export function keltner(bars: Bar[], p = 20, mult = 2): { upper: number[]; mid: 
   };
 }
 
-export function kcWidth(bars: Bar[], p = 20, mult = 2): number[] {
+export function kcWidth(bars: LegacyOhlcvTuple[], p = 20, mult = 2): number[] {
   const kc = keltner(bars, p, mult);
   return bars.map((_, i) => isFinite(kc.mid[i]) ? (kc.upper[i] - kc.lower[i]) / kc.mid[i] * 100 : NaN);
 }
 
-export function donchian(bars: Bar[], p = 20): { upper: number[]; mid: number[]; lower: number[] } {
+export function donchian(bars: LegacyOhlcvTuple[], p = 20): { upper: number[]; mid: number[]; lower: number[] } {
   const upper: number[] = []; const lower: number[] = [];
   bars.forEach((_, i) => {
     if (i < p - 1) { upper.push(NaN); lower.push(NaN); return; }
@@ -197,7 +221,7 @@ export function donchian(bars: Bar[], p = 20): { upper: number[]; mid: number[];
   return { upper, mid: upper.map((u, i) => (u + lower[i]) / 2), lower };
 }
 
-export function donchianWidth(bars: Bar[], p = 20): number[] {
+export function donchianWidth(bars: LegacyOhlcvTuple[], p = 20): number[] {
   const dc = donchian(bars, p);
   return bars.map((_, i) => isFinite(dc.upper[i]) ? dc.upper[i] - dc.lower[i] : NaN);
 }
@@ -207,7 +231,7 @@ export function envelope(src: number[], p = 20, pct = 2.5): { upper: number[]; m
   return { upper: mid.map(v => v * (1 + pct / 100)), mid, lower: mid.map(v => v * (1 - pct / 100)) };
 }
 
-export function priceChannel(bars: Bar[], p = 20): { upper: number[]; lower: number[] } {
+export function priceChannel(bars: LegacyOhlcvTuple[], p = 20): { upper: number[]; lower: number[] } {
   const upper: number[] = []; const lower: number[] = [];
   bars.forEach((_, i) => {
     if (i < p - 1) { upper.push(NaN); lower.push(NaN); return; }
@@ -245,7 +269,7 @@ export function linearRegressionChannel(src: number[], p = 100): { upper: number
   return { upper: mid.map((m, i) => m + 2 * nz(dev[i])), mid, lower: mid.map((m, i) => m - 2 * nz(dev[i])) };
 }
 
-export function parabolicSAR(bars: Bar[], step = 0.02, max = 0.2): number[] {
+export function parabolicSAR(bars: LegacyOhlcvTuple[], step = 0.02, max = 0.2): number[] {
   const out: number[] = new Array(bars.length).fill(NaN);
   if (bars.length < 2) return out;
   let bull = true, sar = bars[0].low, ep = bars[0].high, af = step;
@@ -267,7 +291,7 @@ export function parabolicSAR(bars: Bar[], step = 0.02, max = 0.2): number[] {
   return out;
 }
 
-export function supertrend(bars: Bar[], p = 10, mult = 3): { line: number[]; dir: number[] } {
+export function supertrend(bars: LegacyOhlcvTuple[], p = 10, mult = 3): { line: number[]; dir: number[] } {
   const atrVals = atr(bars, p);
   const line: number[] = new Array(bars.length).fill(NaN);
   const dir: number[] = new Array(bars.length).fill(1);
@@ -290,14 +314,14 @@ export function supertrend(bars: Bar[], p = 10, mult = 3): { line: number[]; dir
   return { line, dir };
 }
 
-export function alligator(bars: Bar[]): { jaw: number[]; teeth: number[]; lips: number[] } {
+export function alligator(bars: LegacyOhlcvTuple[]): { jaw: number[]; teeth: number[]; lips: number[] } {
   const hl2 = bars.map(b => (b.high + b.low) / 2);
   const rawJaw = sma(hl2, 13); const rawTeeth = sma(hl2, 8); const rawLips = sma(hl2, 5);
   const shift = (arr: number[], n: number) => [...new Array(n).fill(NaN), ...arr.slice(0, arr.length - n)];
   return { jaw: shift(rawJaw, 8), teeth: shift(rawTeeth, 5), lips: shift(rawLips, 3) };
 }
 
-export function ichimoku(bars: Bar[]): { tenkan: number[]; kijun: number[]; senkouA: number[]; senkouB: number[]; chikou: number[] } {
+export function ichimoku(bars: LegacyOhlcvTuple[]): { tenkan: number[]; kijun: number[]; senkouA: number[]; senkouB: number[]; chikou: number[] } {
   const highest = (n: number, i: number) => { let h = -Infinity; for (let j = 0; j < n && i - j >= 0; j++) h = Math.max(h, bars[i - j].high); return h; };
   const lowest  = (n: number, i: number) => { let l = Infinity;  for (let j = 0; j < n && i - j >= 0; j++) l = Math.min(l, bars[i - j].low);  return l; };
   const tenkan:  number[] = bars.map((_, i) => (highest(9,  i) + lowest(9,  i)) / 2);
@@ -308,7 +332,7 @@ export function ichimoku(bars: Bar[]): { tenkan: number[]; kijun: number[]; senk
   return { tenkan, kijun, senkouA, senkouB, chikou };
 }
 
-export function pivotPoints(bars: Bar[], type: "standard" | "fibonacci" | "camarilla" | "woodie" | "demark" | "cpr" = "standard"): { pp: number; r1: number; r2: number; r3: number; s1: number; s2: number; s3: number; tc?: number; bc?: number } {
+export function pivotPoints(bars: LegacyOhlcvTuple[], type: "standard" | "fibonacci" | "camarilla" | "woodie" | "demark" | "cpr" = "standard"): { pp: number; r1: number; r2: number; r3: number; s1: number; s2: number; s3: number; tc?: number; bc?: number } {
   if (bars.length < 1) return { pp: 0, r1: 0, r2: 0, r3: 0, s1: 0, s2: 0, s3: 0 };
   const b = bars[bars.length - 1];
   const H = b.high, L = b.low, C = b.close, O = b.open;
@@ -343,7 +367,7 @@ export function pivotPoints(bars: Bar[], type: "standard" | "fibonacci" | "camar
 }
 
 /* ─── ATR / Volatility ─────────────────────────────────────────── */
-export function atr(bars: Bar[], p = 14): number[] {
+export function atr(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const tr: number[] = bars.map((b, i) => i === 0 ? b.high - b.low : Math.max(b.high - b.low, Math.abs(b.high - bars[i-1].close), Math.abs(b.low - bars[i-1].close)));
   const out: number[] = new Array(bars.length).fill(NaN);
   if (bars.length < p) return out;
@@ -353,7 +377,7 @@ export function atr(bars: Bar[], p = 14): number[] {
   return out;
 }
 
-export function normalizedAtr(bars: Bar[], p = 14): number[] {
+export function normalizedAtr(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const atrVals = atr(bars, p);
   return bars.map((b, i) => isFinite(atrVals[i]) ? (atrVals[i] / b.close) * 100 : NaN);
 }
@@ -369,7 +393,7 @@ export function historicalVolatility(src: number[], p = 20): number[] {
   });
 }
 
-export function volatilityStop(bars: Bar[], p = 20, mult = 1.5): { upper: number[]; lower: number[] } {
+export function volatilityStop(bars: LegacyOhlcvTuple[], p = 20, mult = 1.5): { upper: number[]; lower: number[] } {
   const atrVals = atr(bars, p);
   const closes = bars.map(b => b.close);
   const upper = bars.map((_, i) => closes[i] + mult * nz(atrVals[i]));
@@ -377,7 +401,7 @@ export function volatilityStop(bars: Bar[], p = 20, mult = 1.5): { upper: number
   return { upper, lower };
 }
 
-export function massIndex(bars: Bar[], p = 9, q = 25): number[] {
+export function massIndex(bars: LegacyOhlcvTuple[], p = 9, q = 25): number[] {
   const hl = bars.map(b => b.high - b.low);
   const e1 = ema(hl, p); const e2 = ema(e1, p);
   const ratio = e1.map((v, i) => e2[i] > 0 ? v / e2[i] : NaN);
@@ -449,7 +473,7 @@ export function stochRsi(src: number[], rsiP = 14, stochP = 14, smoothK = 3, smo
   return { k, d };
 }
 
-export function stochastic(bars: Bar[], kP = 14, dP = 3, smooth = 3): { k: number[]; d: number[] } {
+export function stochastic(bars: LegacyOhlcvTuple[], kP = 14, dP = 3, smooth = 3): { k: number[]; d: number[] } {
   const rawK = bars.map((_, i) => {
     if (i < kP - 1) return NaN;
     let hi = -Infinity, lo = Infinity;
@@ -461,7 +485,7 @@ export function stochastic(bars: Bar[], kP = 14, dP = 3, smooth = 3): { k: numbe
   return { k, d };
 }
 
-export function stochasticMomentumIndex(bars: Bar[], p = 13, dP = 25, smooth = 2): { smi: number[]; signal: number[] } {
+export function stochasticMomentumIndex(bars: LegacyOhlcvTuple[], p = 13, dP = 25, smooth = 2): { smi: number[]; signal: number[] } {
   const hl2 = bars.map(b => (b.high + b.low) / 2);
   const rel = bars.map((b, i) => {
     if (i < p - 1) return NaN;
@@ -515,7 +539,7 @@ export function tsi(src: number[], long = 25, short = 13): number[] {
   return src.map((_, i) => a2[i] > 0 ? (e2[i] / a2[i]) * 100 : 0);
 }
 
-export function ultimateOscillator(bars: Bar[], p1 = 7, p2 = 14, p3 = 28): number[] {
+export function ultimateOscillator(bars: LegacyOhlcvTuple[], p1 = 7, p2 = 14, p3 = 28): number[] {
   const bp: number[] = []; const tr2: number[] = [];
   bars.forEach((b, i) => {
     const pc = i > 0 ? bars[i - 1].close : b.close;
@@ -531,7 +555,7 @@ export function ultimateOscillator(bars: Bar[], p1 = 7, p2 = 14, p3 = 28): numbe
   return bars.map((_, i) => 100 * (4 * avg(p1, i) + 2 * avg(p2, i) + avg(p3, i)) / 7);
 }
 
-export function rvi(bars: Bar[], p = 10): { rvi: number[]; signal: number[] } {
+export function rvi(bars: LegacyOhlcvTuple[], p = 10): { rvi: number[]; signal: number[] } {
   const num = bars.map((b, i) => {
     if (i < 3) return 0;
     return (b.close - b.open + 2*(bars[i-1].close-bars[i-1].open) + 2*(bars[i-2].close-bars[i-2].open) + (bars[i-3].close-bars[i-3].open)) / 6;
@@ -552,19 +576,19 @@ export function rvi(bars: Bar[], p = 10): { rvi: number[]; signal: number[] } {
   return { rvi: rawRvi, signal };
 }
 
-export function awesomeOscillator(bars: Bar[]): number[] {
+export function awesomeOscillator(bars: LegacyOhlcvTuple[]): number[] {
   const hl2 = bars.map(b => (b.high + b.low) / 2);
   const s5 = sma(hl2, 5); const s34 = sma(hl2, 34);
   return hl2.map((_, i) => s5[i] - s34[i]);
 }
 
-export function acceleratorOscillator(bars: Bar[]): number[] {
+export function acceleratorOscillator(bars: LegacyOhlcvTuple[]): number[] {
   const ao = awesomeOscillator(bars);
   const s5 = sma(ao, 5);
   return ao.map((v, i) => v - nz(s5[i]));
 }
 
-export function cci(bars: Bar[], p = 20): number[] {
+export function cci(bars: LegacyOhlcvTuple[], p = 20): number[] {
   const tp = bars.map(b => (b.high + b.low + b.close) / 3);
   const tpSma = sma(tp, p);
   return tp.map((v, i) => {
@@ -575,7 +599,7 @@ export function cci(bars: Bar[], p = 20): number[] {
   });
 }
 
-export function williamsR(bars: Bar[], p = 14): number[] {
+export function williamsR(bars: LegacyOhlcvTuple[], p = 14): number[] {
   return bars.map((b, i) => {
     if (i < p - 1) return NaN;
     let hi = -Infinity, lo = Infinity;
@@ -596,11 +620,11 @@ export function chandeMomentum(src: number[], p = 14): number[] {
   });
 }
 
-export function balanceOfPower(bars: Bar[]): number[] {
+export function balanceOfPower(bars: LegacyOhlcvTuple[]): number[] {
   return bars.map(b => b.high !== b.low ? (b.close - b.open) / (b.high - b.low) : 0);
 }
 
-export function elderRayIndex(bars: Bar[], p = 13): { bull: number[]; bear: number[] } {
+export function elderRayIndex(bars: LegacyOhlcvTuple[], p = 13): { bull: number[]; bear: number[] } {
   const closes = bars.map(b => b.close);
   const emaVals = ema(closes, p);
   return {
@@ -609,12 +633,12 @@ export function elderRayIndex(bars: Bar[], p = 13): { bull: number[]; bear: numb
   };
 }
 
-export function forceIndex(bars: Bar[], p = 13): number[] {
+export function forceIndex(bars: LegacyOhlcvTuple[], p = 13): number[] {
   const raw = bars.map((b, i) => i === 0 ? 0 : (b.close - bars[i - 1].close) * b.volume);
   return ema(raw, p);
 }
 
-export function ttmSqueeze(bars: Bar[], bbP = 20, bbMult = 2, kcP = 20, kcMult = 1.5): { squeeze: boolean[]; hist: number[] } {
+export function ttmSqueeze(bars: LegacyOhlcvTuple[], bbP = 20, bbMult = 2, kcP = 20, kcMult = 1.5): { squeeze: boolean[]; hist: number[] } {
   const closes = bars.map(b => b.close);
   const bb = bollingerBands(closes, bbP, bbMult);
   const kc = keltner(bars, kcP, kcMult);
@@ -646,7 +670,7 @@ export function schaffTrendCycle(src: number[], fast = 23, slow = 50, cycle = 10
   return ema(stoch2, 3);
 }
 
-export function kdj(bars: Bar[], p = 9, m1 = 3, m2 = 3): { k: number[]; d: number[]; j: number[] } {
+export function kdj(bars: LegacyOhlcvTuple[], p = 9, m1 = 3, m2 = 3): { k: number[]; d: number[]; j: number[] } {
   const rawK = bars.map((b, i) => {
     if (i < p - 1) return 50;
     let hi = -Infinity, lo = Infinity;
@@ -667,7 +691,7 @@ export function coppockCurve(src: number[], wma_p = 10, roc1 = 14, roc2 = 11): n
   return wma(combined, wma_p);
 }
 
-export function aroon(bars: Bar[], p = 25): { up: number[]; down: number[]; osc: number[] } {
+export function aroon(bars: LegacyOhlcvTuple[], p = 25): { up: number[]; down: number[]; osc: number[] } {
   const up: number[] = []; const down: number[] = [];
   bars.forEach((_, i) => {
     if (i < p) { up.push(NaN); down.push(NaN); return; }
@@ -682,7 +706,7 @@ export function aroon(bars: Bar[], p = 25): { up: number[]; down: number[]; osc:
   return { up, down, osc: up.map((v, i) => v - nz(down[i])) };
 }
 
-export function adx(bars: Bar[], p = 14): { adx: number[]; diPlus: number[]; diMinus: number[] } {
+export function adx(bars: LegacyOhlcvTuple[], p = 14): { adx: number[]; diPlus: number[]; diMinus: number[] } {
   const atrVals = atr(bars, p);
   const dmPlus  = bars.map((b, i) => i === 0 ? 0 : Math.max(b.high - bars[i-1].high, 0));
   const dmMinus = bars.map((b, i) => i === 0 ? 0 : Math.max(bars[i-1].low - b.low, 0));
@@ -696,7 +720,7 @@ export function adx(bars: Bar[], p = 14): { adx: number[]; diPlus: number[]; diM
   return { adx: ema(dx, p), diPlus, diMinus };
 }
 
-export function vortex(bars: Bar[], p = 14): { viPlus: number[]; viMinus: number[] } {
+export function vortex(bars: LegacyOhlcvTuple[], p = 14): { viPlus: number[]; viMinus: number[] } {
   const vmPlus  = bars.map((b, i) => i === 0 ? 0 : Math.abs(b.high - bars[i-1].low));
   const vmMinus = bars.map((b, i) => i === 0 ? 0 : Math.abs(b.low  - bars[i-1].high));
   const trVals  = bars.map((b, i) => i === 0 ? b.high - b.low : Math.max(b.high - b.low, Math.abs(b.high - bars[i-1].close), Math.abs(b.low - bars[i-1].close)));
@@ -710,7 +734,7 @@ export function vortex(bars: Bar[], p = 14): { viPlus: number[]; viMinus: number
   return { viPlus, viMinus };
 }
 
-export function fisherTransform(bars: Bar[], p = 10): { fisher: number[]; signal: number[] } {
+export function fisherTransform(bars: LegacyOhlcvTuple[], p = 10): { fisher: number[]; signal: number[] } {
   const hl2 = bars.map(b => (b.high + b.low) / 2);
   const fish: number[] = []; let prev = 0;
   bars.forEach((_, i) => {
@@ -724,7 +748,7 @@ export function fisherTransform(bars: Bar[], p = 10): { fisher: number[]; signal
   return { fisher: fish, signal: fish.map((_, i) => i === 0 ? 0 : fish[i - 1]) };
 }
 
-export function choppinessIndex(bars: Bar[], p = 14): number[] {
+export function choppinessIndex(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const atrVals = bars.map((b, i) => i === 0 ? b.high - b.low : Math.max(b.high - b.low, Math.abs(b.high - bars[i-1].close), Math.abs(b.low - bars[i-1].close)));
   return bars.map((_, i) => {
     if (i < p - 1) return NaN;
@@ -735,7 +759,7 @@ export function choppinessIndex(bars: Bar[], p = 14): number[] {
 }
 
 /* ─── Volume ───────────────────────────────────────────────────── */
-export function obv(bars: Bar[]): number[] {
+export function obv(bars: LegacyOhlcvTuple[]): number[] {
   const out: number[] = [0];
   for (let i = 1; i < bars.length; i++) {
     const d = bars[i].close > bars[i-1].close ? bars[i].volume : bars[i].close < bars[i-1].close ? -bars[i].volume : 0;
@@ -744,7 +768,7 @@ export function obv(bars: Bar[]): number[] {
   return out;
 }
 
-export function accumDist(bars: Bar[]): number[] {
+export function accumDist(bars: LegacyOhlcvTuple[]): number[] {
   const out: number[] = [0];
   for (let i = 1; i < bars.length; i++) {
     const hl = bars[i].high - bars[i].low;
@@ -754,7 +778,7 @@ export function accumDist(bars: Bar[]): number[] {
   return out;
 }
 
-export function chaikinMoneyFlow(bars: Bar[], p = 20): number[] {
+export function chaikinMoneyFlow(bars: LegacyOhlcvTuple[], p = 20): number[] {
   const mfv = bars.map(b => {
     const hl = b.high - b.low;
     return hl > 0 ? ((b.close - b.low) - (b.high - b.close)) / hl * b.volume : 0;
@@ -767,13 +791,13 @@ export function chaikinMoneyFlow(bars: Bar[], p = 20): number[] {
   });
 }
 
-export function chaikinOscillator(bars: Bar[], fast = 3, slow = 10): number[] {
+export function chaikinOscillator(bars: LegacyOhlcvTuple[], fast = 3, slow = 10): number[] {
   const ad = accumDist(bars);
   const fastE = ema(ad, fast); const slowE = ema(ad, slow);
   return ad.map((_, i) => fastE[i] - slowE[i]);
 }
 
-export function mfi(bars: Bar[], p = 14): number[] {
+export function mfi(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const tp = bars.map(b => (b.high + b.low + b.close) / 3);
   return bars.map((_, i) => {
     if (i < p) return NaN;
@@ -786,7 +810,7 @@ export function mfi(bars: Bar[], p = 14): number[] {
   });
 }
 
-export function klingerOscillator(bars: Bar[], fast = 34, slow = 55): { osc: number[]; signal: number[] } {
+export function klingerOscillator(bars: LegacyOhlcvTuple[], fast = 34, slow = 55): { osc: number[]; signal: number[] } {
   const dm  = bars.map((b, i) => i === 0 ? 0 : (b.high + b.low + b.close) > (bars[i-1].high + bars[i-1].low + bars[i-1].close) ? b.volume : -b.volume);
   const vf  = dm.map((v, i) => {
     const tr = bars[i].high - bars[i].low;
@@ -797,7 +821,7 @@ export function klingerOscillator(bars: Bar[], fast = 34, slow = 55): { osc: num
   return { osc, signal: ema(osc, 13) };
 }
 
-export function easeOfMovement(bars: Bar[], p = 14): number[] {
+export function easeOfMovement(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const emv = bars.map((b, i) => {
     if (i === 0 || b.volume === 0) return 0;
     const midMove = (b.high + b.low) / 2 - (bars[i-1].high + bars[i-1].low) / 2;
@@ -807,7 +831,7 @@ export function easeOfMovement(bars: Bar[], p = 14): number[] {
   return sma(emv, p);
 }
 
-export function pvt(bars: Bar[]): number[] {
+export function pvt(bars: LegacyOhlcvTuple[]): number[] {
   const out: number[] = [0];
   for (let i = 1; i < bars.length; i++) {
     const roc = bars[i-1].close > 0 ? (bars[i].close - bars[i-1].close) / bars[i-1].close : 0;
@@ -816,7 +840,7 @@ export function pvt(bars: Bar[]): number[] {
   return out;
 }
 
-export function nvi(bars: Bar[]): number[] {
+export function nvi(bars: LegacyOhlcvTuple[]): number[] {
   const out: number[] = [1000];
   for (let i = 1; i < bars.length; i++) {
     if (bars[i].volume < bars[i-1].volume) {
@@ -827,7 +851,7 @@ export function nvi(bars: Bar[]): number[] {
   return out;
 }
 
-export function pvi(bars: Bar[]): number[] {
+export function pvi(bars: LegacyOhlcvTuple[]): number[] {
   const out: number[] = [1000];
   for (let i = 1; i < bars.length; i++) {
     if (bars[i].volume > bars[i-1].volume) {
@@ -838,19 +862,19 @@ export function pvi(bars: Bar[]): number[] {
   return out;
 }
 
-export function volumeOscillator(bars: Bar[], fast = 5, slow = 10): number[] {
+export function volumeOscillator(bars: LegacyOhlcvTuple[], fast = 5, slow = 10): number[] {
   const vols = bars.map(b => b.volume);
   const f = sma(vols, fast); const s = sma(vols, slow);
   return vols.map((_, i) => s[i] > 0 ? (f[i] - s[i]) / s[i] * 100 : 0);
 }
 
-export function rvol(bars: Bar[], p = 20): number[] {
+export function rvol(bars: LegacyOhlcvTuple[], p = 20): number[] {
   const vols = bars.map(b => b.volume);
   const avg = sma(vols, p);
   return vols.map((v, i) => isFinite(avg[i]) && avg[i] > 0 ? v / avg[i] : NaN);
 }
 
-export function cvd(bars: Bar[]): number[] {
+export function cvd(bars: LegacyOhlcvTuple[]): number[] {
   const out: number[] = [0];
   for (let i = 1; i < bars.length; i++) {
     const ratio = bars[i].close > bars[i].open ? 0.65 : bars[i].close < bars[i].open ? 0.35 : 0.5;
@@ -860,12 +884,12 @@ export function cvd(bars: Bar[]): number[] {
   return out;
 }
 
-export function cvdOscillator(bars: Bar[], p = 14): number[] {
+export function cvdOscillator(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const cvdVals = cvd(bars);
   return ema(cvdVals, p).map((v, i) => cvdVals[i] - v);
 }
 
-export function volumeWeightedRsi(bars: Bar[], p = 14): number[] {
+export function volumeWeightedRsi(bars: LegacyOhlcvTuple[], p = 14): number[] {
   const gains = bars.map((b, i) => i === 0 ? 0 : Math.max(b.close - bars[i-1].close, 0) * b.volume);
   const losses= bars.map((b, i) => i === 0 ? 0 : Math.max(bars[i-1].close - b.close, 0) * b.volume);
   const avgG = sma(gains, p); const avgL = sma(losses, p);
@@ -882,7 +906,7 @@ export function momentum(src: number[], p = 10): number[] {
 }
 
 /* ─── VWAP ─────────────────────────────────────────────────────── */
-export function vwap(bars: Bar[]): number[] {
+export function vwap(bars: LegacyOhlcvTuple[]): number[] {
   let cumPV = 0, cumV = 0;
   return bars.map(b => {
     const tp = (b.high + b.low + b.close) / 3;
@@ -891,7 +915,7 @@ export function vwap(bars: Bar[]): number[] {
   });
 }
 
-export function anchoredVwap(bars: Bar[], anchorIdx = 0): number[] {
+export function anchoredVwap(bars: LegacyOhlcvTuple[], anchorIdx = 0): number[] {
   let cumPV = 0, cumV = 0;
   return bars.map((b, i) => {
     if (i < anchorIdx) return NaN;
@@ -903,7 +927,7 @@ export function anchoredVwap(bars: Bar[], anchorIdx = 0): number[] {
 }
 
 /* ─── Session / Time Indicators ───────────────────────────────── */
-export function priorDayHighLow(bars: Bar[]): { high: number[]; low: number[] } {
+export function priorDayHighLow(bars: LegacyOhlcvTuple[]): { high: number[]; low: number[] } {
   // Returns prior day's high/low painted on current day bars
   const high: number[] = new Array(bars.length).fill(NaN);
   const low:  number[] = new Array(bars.length).fill(NaN);
@@ -933,7 +957,7 @@ export function priorDayHighLow(bars: Bar[]): { high: number[]; low: number[] } 
   return { high, low };
 }
 
-export function openingRangeBreakout(bars: Bar[], minutes = 30): { high: number[]; low: number[] } {
+export function openingRangeBreakout(bars: LegacyOhlcvTuple[], minutes = 30): { high: number[]; low: number[] } {
   const high: number[] = new Array(bars.length).fill(NaN);
   const low:  number[] = new Array(bars.length).fill(NaN);
   let orHigh = NaN, orLow = NaN, orDate = "";
@@ -978,7 +1002,7 @@ export function linearRegressionSlope(src: number[], p = 14): number[] {
 }
 
 /* ─── Smart Money Concepts (visual, approximate) ──────────────── */
-export function fairValueGaps(bars: Bar[]): { time: number; top: number; bot: number; bull: boolean }[] {
+export function fairValueGaps(bars: LegacyOhlcvTuple[]): { time: number; top: number; bot: number; bull: boolean }[] {
   const gaps: { time: number; top: number; bot: number; bull: boolean }[] = [];
   for (let i = 2; i < bars.length; i++) {
     const prev2 = bars[i - 2]; const curr = bars[i];
@@ -1006,7 +1030,7 @@ export function swingHighLow(bars: readonly PivotBar[], lookback = 5): { highs: 
   return { highs, lows };
 }
 
-export function orderBlocks(bars: Bar[]): { time: number; top: number; bot: number; bull: boolean }[] {
+export function orderBlocks(bars: LegacyOhlcvTuple[]): { time: number; top: number; bot: number; bull: boolean }[] {
   const blocks: { time: number; top: number; bot: number; bull: boolean }[] = [];
   for (let i = 1; i < bars.length - 1; i++) {
     const b = bars[i]; const next = bars[i + 1];
@@ -1023,7 +1047,7 @@ export function orderBlocks(bars: Bar[]): { time: number; top: number; bot: numb
 }
 
 /* ─── Pattern detection ────────────────────────────────────────── */
-export function dojiDetector(bars: Bar[]): boolean[] {
+export function dojiDetector(bars: LegacyOhlcvTuple[]): boolean[] {
   return bars.map(b => {
     const bodySize = Math.abs(b.close - b.open);
     const totalRange = b.high - b.low;
@@ -1031,7 +1055,7 @@ export function dojiDetector(bars: Bar[]): boolean[] {
   });
 }
 
-export function engulfingPattern(bars: Bar[]): { time: number; bull: boolean }[] {
+export function engulfingPattern(bars: LegacyOhlcvTuple[]): { time: number; bull: boolean }[] {
   const out: { time: number; bull: boolean }[] = [];
   for (let i = 1; i < bars.length; i++) {
     const p = bars[i-1]; const c = bars[i];
@@ -1043,7 +1067,7 @@ export function engulfingPattern(bars: Bar[]): { time: number; bull: boolean }[]
   return out;
 }
 
-export function hammerShootingStar(bars: Bar[]): { time: number; type: "hammer" | "shooting_star" }[] {
+export function hammerShootingStar(bars: LegacyOhlcvTuple[]): { time: number; type: "hammer" | "shooting_star" }[] {
   const out: { time: number; type: "hammer" | "shooting_star" }[] = [];
   bars.forEach(b => {
     const body   = Math.abs(b.close - b.open);

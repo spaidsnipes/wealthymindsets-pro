@@ -17,15 +17,16 @@
 import { describe, it, expect } from "vitest";
 import {
   atr, normalizedAtr, rsi, macd, stochastic,
-  obv, vwap, anchoredVwap, chaikinMoneyFlow, type Bar,
+  obv, vwap, anchoredVwap, chaikinMoneyFlow, 
 } from "./indicators";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): Bar {
+function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): LegacyOhlcvTuple {
   return { time: t, open: o, high: h, low: l, close: c, volume: v };
 }
 
 /** 20 bars: 100→110 rising monotonically (no gaps). */
-function risingBars(n = 20, start = 100, step = 0.5): Bar[] {
+function risingBars(n = 20, start = 100, step = 0.5): LegacyOhlcvTuple[] {
   return Array.from({ length: n }, (_, i) => {
     const c = start + i * step;
     return bar(c - 0.1, c + 0.2, c - 0.2, c, 100, i);
@@ -199,7 +200,7 @@ describe("vwap — cumulative session VWAP", () => {
 
   it("bars with zero volume don't crash — falls back to tp on empty cumV", () => {
     // First bar 0 volume — expect fallback to tp (no divide by zero)
-    const bars: Bar[] = [bar(100, 100, 100, 100, 0), bar(101, 102, 100, 102, 100, 1)];
+    const bars: LegacyOhlcvTuple[] = [bar(100, 100, 100, 100, 0), bar(101, 102, 100, 102, 100, 1)];
     const out = vwap(bars);
     expect(out[0]).toBe(100); // tp fallback
     expect(Number.isFinite(out[1])).toBe(true);

@@ -21,14 +21,15 @@ import {
   mfi, ulcerIndex, historicalVolatility,
   forceIndex, easeOfMovement, chaikinOscillator, accumDist,
   volumeOscillator, rvol, cvd, klingerOscillator,
-  type Bar,
+  
 } from "./indicators";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): Bar {
+function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): LegacyOhlcvTuple {
   return { time: t, open: o, high: h, low: l, close: c, volume: v };
 }
 
-function risingBars(n: number, start = 100, step = 0.5, vol = 100): Bar[] {
+function risingBars(n: number, start = 100, step = 0.5, vol = 100): LegacyOhlcvTuple[] {
   return Array.from({ length: n }, (_, i) => {
     const c = start + i * step;
     return bar(c - 0.1, c + 0.2, c - 0.2, c, vol, i);

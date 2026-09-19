@@ -1,28 +1,31 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is FIVE as of the
+ * The count below started at twenty-two on 2026-09-18 and is FOUR as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO FIVE IS NOT SEVENTEEN MIGRATIONS. It is sixteen renames-or-
+ * TWENTY-TWO TO FOUR IS NOT EIGHTEEN MIGRATIONS. It is seventeen renames-or-
  * deletes plus one measurement correction, and ZERO INGRESSES MIGRATED. The
  * array's docblock separates the kinds line by line so nobody reads this header
- * as seventeen ingresses routed through the artery. None were. Not one.
+ * as eighteen ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not five competing ideas of what a bar is.
- * ONE OF THEM IS STILL BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
- * low, close, volume`, every one of them `number` — which is also, exactly,
- * `LegacyOhlcvTuple` in the artery. Another, `DeckMarketChart::Candle`,
- * differs only by `volume?`. The sprawl is one anonymous six-field tuple
- * wearing a handful of module-local labels, and a sanctioned name for precisely
- * it already exists with a docblock saying so.
+ * The remaining four shapes are, for the first time since this census was
+ * opened, GENUINELY DIFFERENT SHAPES rather than one tuple under many labels.
+ * NOT ONE BYTE-FOR-BYTE DUPLICATE OF `LegacyOhlcvTuple` REMAINS. The nearest
+ * thing to one, `DeckMarketChart::Candle`, differs by `volume?` — and that
+ * optionality is load-bearing, not sloppiness, because the deck deliberately
+ * forwards no volume. The other three describe different facts entirely.
+ *
+ * WHICH MEANS THE CHEAP HALF OF M8 IS FINISHED AND THE EXPENSIVE HALF HAS NOT
+ * STARTED. Every remaining line on this list needs a judgement, not a rename,
+ * and none of them delivers canonical identity either.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming a
+ * it was important not to let the ease flatter the result: renaming a
  * declaration to one name removes one duplicate DECISION and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
@@ -423,9 +426,45 @@ const THE_ARTERY: readonly string[] = [
  * was retired days before — were deliberately NOT rewritten, because those
  * sentences are still true and blanket-renaming them would have falsified the
  * record.
+ *
+ * ── FIVE TO FOUR: THE LAST BYTE-FOR-BYTE DUPLICATE, AND THE BIGGEST ────────
+ *
+ * RETIRED: `components/chart/indicators.ts::Bar`. Deliberately left for last:
+ * that file mentions the bare word `Bar` SIXTY times, many of them English
+ * prose (`it nonetheless ASKED for a full Bar`), so a blanket rename was never
+ * safe until each of the sixty had been classified as type or sentence. Ten
+ * namers, of which exactly TWO are production — `MainChart.tsx` and
+ * `viewModels/selectMarketStructure.ts`.
+ *
+ * THE COMPILER OVERRULED ME AGAIN, AND THE RECORD SAYS SO. I wrote a comment
+ * in `MainChart.tsx` asserting the cast could stay as `IND.LegacyOhlcvTuple`
+ * because the module "re-exports the artery's type". It does not, and it must
+ * not — that would be precisely the ALIAS LEFT BEHIND this census forbids.
+ * `tsc` answered TS2694 `Namespace has no exported member`. The comment was
+ * wrong in the same direction as the last time the compiler overruled me: it
+ * assumed a convenience the no-alias rule exists to deny. `MainChart` now
+ * names the artery's type through the artery, which is the rule working.
+ *
+ * WHAT THIS BUYS, STATED HONESTLY: zero canonical identity, as every rename in
+ * this block has. But the specific consequence at THIS site is worth naming,
+ * because the file is fifty indicator functions long. `vwap`, `cvd`, `obv`,
+ * `mfi` and every other volume-weighted function compute a number that is only
+ * as meaningful as the FIDELITY of the volume handed to them, and no parameter
+ * type here can say whether that volume was observed trade-by-trade, folded
+ * from a coarser feed, or reconstructed for a timeframe that never traded. A
+ * VWAP computed from reconstructed volume is not a VWAP, and the signature
+ * cannot refuse it. Compare `PivotBar`, declared in the same file: that type
+ * exists because `swingHighLow` reads three fields and asking for six was a
+ * lie about its requirements. NARROWING A REQUIREMENT IS REAL WORK. RENAMING A
+ * DUPLICATE IS NOT, and nothing in this block should be read as the former.
+ *
+ * WITH THIS ATOM THE DUPLICATE-ELIMINATION HALF OF M8 IS DONE. No shape in the
+ * census is byte-for-byte `LegacyOhlcvTuple` any more. NOT ONE INGRESS HAS
+ * BEEN MIGRATED. `canonicalBar.ts` still has ZERO production consumers. The
+ * count fell from twenty-two to four and the artery is as unused as it was at
+ * twenty-two, which is the single most important sentence in this file.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
-  "components/chart/indicators.ts::Bar",
   "components/experience/DeckMarketChart.tsx::Candle",
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
@@ -498,7 +537,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at five private pasts and may only SHRINK", () => {
+  it("holds at four private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

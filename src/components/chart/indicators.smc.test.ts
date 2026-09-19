@@ -14,10 +14,11 @@ import {
   fairValueGaps, swingHighLow, orderBlocks,
   dojiDetector, engulfingPattern, hammerShootingStar,
   zScore, percentileRank, linearRegressionSlope, roc, momentum,
-  REQUIRES_FEED, MTF_INDICATORS, type Bar,
+  REQUIRES_FEED, MTF_INDICATORS, 
 } from "./indicators";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): Bar {
+function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): LegacyOhlcvTuple {
   return { time: t, open: o, high: h, low: l, close: c, volume: v };
 }
 
@@ -57,7 +58,7 @@ describe("fairValueGaps — 3-candle gap detector", () => {
 describe("swingHighLow — fractal pivot detector", () => {
   it("finds pivot high in the middle of a triangle series", () => {
     // 5 bars up, 1 pivot bar with highest high, 5 bars down
-    const bars: Bar[] = [];
+    const bars: LegacyOhlcvTuple[] = [];
     for (let i = 0; i < 5; i++) bars.push(bar(100 + i, 101 + i, 99 + i, 100 + i, 100, i));
     bars.push(bar(110, 120, 108, 118, 100, 5)); // pivot high
     for (let i = 0; i < 5; i++) bars.push(bar(105 - i, 106 - i, 104 - i, 105 - i, 100, 6 + i));

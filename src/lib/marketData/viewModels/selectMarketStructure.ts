@@ -41,7 +41,7 @@
  */
 
 /**
- * `PivotBar`, not `Bar`, and the distinction is load-bearing.
+ * `PivotBar`, not `LegacyOhlcvTuple`, and the distinction is load-bearing.
  *
  * A swing sequence is read off highs and lows. It needs no `volume`, and
  * demanding one is not a harmless over-specification: on /command-deck the
