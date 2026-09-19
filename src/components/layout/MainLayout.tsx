@@ -353,7 +353,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             aria-label="Search symbols"
             aria-haspopup="dialog"
             aria-expanded={searchOpen}
-            aria-controls="wm-symbol-search-dialog"
+            // MEASURED 2026-09-19 on live /charts at 1920: this button reported
+            // `aria-controls="wm-symbol-search-dialog"` while `getElementById`
+            // returned null. The dialog is mounted only while `searchOpen` — see
+            // the AnimatePresence block at the foot of this file — so the
+            // reference dangled for the whole time the control was most likely to
+            // be pressed. A dangling `aria-controls` is not ignored, it is
+            // FOLLOWED: the reader offers the jump, the human takes it, nothing is
+            // there and nothing is said, which reads as a broken page rather than
+            // a shut dialog. `aria-expanded` alone is complete and honest, so
+            // dropping the reference silences nothing. Same law, same day, as the
+            // equipment pair in WMOperatingSystem — gated per BUTTON, on the state
+            // that governs this button's own target.
+            aria-controls={searchOpen ? "wm-symbol-search-dialog" : undefined}
             className="wm-shell-action flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors group"
             title="Search symbols (Ctrl+K)"
           >
@@ -368,7 +380,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             aria-label={unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"}
             aria-haspopup="dialog"
             aria-expanded={notifsOpen}
-            aria-controls="wm-notifications-drawer"
+            // Same defect, same repair as Search above: the drawer is mounted
+            // only while `notifsOpen`, so an unconditional reference named a node
+            // that does not exist for the whole time the control is shut.
+            aria-controls={notifsOpen ? "wm-notifications-drawer" : undefined}
             className="wm-shell-action relative p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
             title="Notifications"
           >
@@ -385,7 +400,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             aria-label="Open settings"
             aria-haspopup="dialog"
             aria-expanded={settingsOpen}
-            aria-controls="wm-settings-drawer"
+            // Same defect, same repair. Gated on this button's own state rather
+            // than on any shared "a drawer is open" flag: three controls, three
+            // different targets, so a shared gate would let Settings claim the
+            // drawer Notifications opened — a reference that resolves and still
+            // lies, which is the quieter and more expensive kind.
+            aria-controls={settingsOpen ? "wm-settings-drawer" : undefined}
             className="wm-shell-action p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
             title="Settings"
           >
@@ -588,7 +608,15 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               type="button"
               aria-label="Open workspace menu"
               aria-expanded={workspaceOpen}
-              aria-controls="wm-workspace-menu"
+              // FOUND BY THE CLASS-WIDE NET, not by the live probe — this rail
+              // button is below the desktop fold the probe read, so the measured
+              // list of three carriers was three of FOUR. The drawer it names is
+              // mounted only while `workspaceOpen` (the AnimatePresence block
+              // immediately below), so the unconditional form dangled for the
+              // whole time the control was shut, exactly like the three masthead
+              // triggers. This is the argument for the net: a probe reports what
+              // it could see, and a defect class does not stop at the fold.
+              aria-controls={workspaceOpen ? "wm-workspace-menu" : undefined}
               onClick={() => setWorkspaceOpen(open => !open)}
               style={{
                 width: "100%", height: 56, border: 0, borderLeft: workspaceOpen ? "2px solid #E8B923" : "2px solid transparent",

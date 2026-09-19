@@ -51,8 +51,14 @@ describe("shared shell modal drawer accessibility", () => {
     expect(layout).toContain('aria-haspopup="dialog"');
     expect(layout).toContain("aria-expanded={notifsOpen}");
     expect(layout).toContain("aria-expanded={settingsOpen}");
-    expect(layout).toContain('aria-controls="wm-notifications-drawer"');
-    expect(layout).toContain('aria-controls="wm-settings-drawer"');
+    // REMAPPED 2026-09-19 — these pinned the UNCONDITIONAL literal, the one
+    // shape that cannot tell an open drawer from a closed one. Both drawers are
+    // mounted only while their own state is true, so the old form promised a
+    // node that did not exist for the whole time the trigger was shut, and a
+    // dangling `aria-controls` is FOLLOWED rather than ignored. Gated per
+    // BUTTON, not per shell: the two share a masthead but not a target.
+    expect(layout).toContain('aria-controls={notifsOpen ? "wm-notifications-drawer" : undefined}');
+    expect(layout).toContain('aria-controls={settingsOpen ? "wm-settings-drawer" : undefined}');
     expect(layout).toContain("fallbackTriggerRef={notificationsTriggerRef}");
     expect(layout).toContain("fallbackTriggerRef={settingsTriggerRef}");
     expect(layout).toContain('className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs text-wm-text-muted');

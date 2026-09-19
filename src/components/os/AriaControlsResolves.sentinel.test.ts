@@ -67,6 +67,30 @@ const read = (rel: string) =>
 
 const OS = "src/components/os/WMOperatingSystem.tsx";
 const BAR = "src/components/experience/ExperienceModeBar.tsx";
+/**
+ * The two masthead shells. `MainLayout` is the July header, `ShellAccessChrome`
+ * is the OS-room header, and they draw the SAME three capabilities — search,
+ * notifications, settings — against the SAME three panels in `shellPanels`.
+ *
+ * MEASURED 2026-09-19 on live /charts at 1920, after the OS-frame repair above
+ * had silenced the loud carriers, the same probe returned:
+ *
+ *   Search symbols     → wm-symbol-search-dialog   targetPresent false
+ *   Open notifications → wm-notifications-drawer   targetPresent false
+ *   Open settings      → wm-settings-drawer        targetPresent false
+ *
+ * Two files are why this is a Sentinel and not two assertions: a shell can be
+ * repaired and its twin left behind, and nothing in the product would say so.
+ */
+const JULY = "src/components/layout/MainLayout.tsx";
+const SHELL = "src/components/layout/ShellAccessChrome.tsx";
+
+/** Each masthead trigger, and the state that governs whether its target exists. */
+const TRIGGERS = [
+  ["searchOpen", "wm-symbol-search-dialog"],
+  ["notifsOpen", "wm-notifications-drawer"],
+  ["settingsOpen", "wm-settings-drawer"],
+] as const;
 
 describe("SENTINEL — every aria-controls on the market masthead resolves when it is claimed", () => {
   const os = read(OS);
@@ -105,6 +129,60 @@ describe("SENTINEL — every aria-controls on the market masthead resolves when 
       `${BAR} → the chip names the seven-button group for the whole time the group is shut, ` +
         `which is the whole time before anyone presses the chip`,
     ).toMatch(/aria-controls=\{open \? EXPERIENCE_MODE_GROUP_ID : undefined\}/);
+  });
+
+  for (const file of [JULY, SHELL]) {
+    describe(file, () => {
+      const src = read(file);
+
+      it("claims no aria-controls as an unconditional string literal", () => {
+        const literals = [...src.matchAll(/aria-controls=("[^"]*"|\{"[^"]*"\})/g)].map((m) => m[1]);
+        expect(
+          literals,
+          `${file} → an aria-controls is pinned to a constant, so it names a panel that is ` +
+            `unmounted for the whole time the trigger is shut. A dangling reference is followed, ` +
+            `not ignored: the reader offers the jump and lands the human nowhere`,
+        ).toEqual([]);
+      });
+
+      for (const [state, id] of TRIGGERS) {
+        it(`the ${id} trigger claims its panel only while ${state}`, () => {
+          expect(
+            src,
+            `${file} → the ${id} trigger does not gate aria-controls on its own \`${state}\`. ` +
+              `Gated on a shared "something is open" flag instead, one trigger would claim the ` +
+              `panel another opened — a reference that resolves and still lies`,
+          ).toContain(`aria-controls={${state} ? "${id}" : undefined}`);
+        });
+      }
+
+      it("keeps aria-expanded on all three, the half that must never be gated", () => {
+        for (const [state] of TRIGGERS) {
+          expect(
+            src,
+            `${file} → a masthead trigger lost \`aria-expanded={${state}}\`. Gating the reference ` +
+              `is only honest while the state is still announced; without it the control goes quiet`,
+          ).toContain(`aria-expanded={${state}}`);
+        }
+      });
+    });
+  }
+
+  it("the July rail's workspace drawer is claimed only while that drawer is open", () => {
+    /**
+     * The fourth carrier, and the one the live probe did NOT report — it sits
+     * in the left rail below the desktop fold the probe read, so the measured
+     * list of three was three of four. The class-wide net above found it.
+     *
+     * That is the argument for keeping a net alongside the named gates: a probe
+     * reports what it could see, and a defect class does not stop at the fold.
+     */
+    expect(
+      read(JULY),
+      `${JULY} → the workspace rail button names wm-workspace-menu while the drawer is unmounted`,
+    ).toContain('aria-controls={workspaceOpen ? "wm-workspace-menu" : undefined}');
+    expect(read(JULY), `${JULY} → the workspace button lost aria-expanded`)
+      .toContain("aria-expanded={workspaceOpen}");
   });
 
   it("aria-expanded is still present on all four, because it is the half that must never be gated", () => {

@@ -119,12 +119,54 @@ describe("one OS · the access chrome is reachable from an OS room", () => {
   });
 
   it("declares each trigger's dialog relationship, not just its icon", () => {
-    // A masthead icon that announces nothing is a picture. These are the
-    // attributes that make it a control a screen-reader can use.
-    expect(HTML).toContain('aria-controls="wm-symbol-search-dialog"');
-    expect(HTML).toContain('aria-controls="wm-notifications-drawer"');
-    expect(HTML).toContain('aria-controls="wm-settings-drawer"');
+    /**
+     * REMAPPED 2026-09-19 — this test asserted the defect.
+     *
+     * It required the literal `aria-controls="wm-symbol-search-dialog"` (and
+     * the two drawers) in THIS string — which is the CLOSED first paint, the
+     * very frame the test three cases below proves contains no dialog at all
+     * (`expect(HTML).not.toContain('id="wm-symbol-search-dialog"')`). So one
+     * test in this file demanded a reference and another proved its target was
+     * absent, and the suite was green with both.
+     *
+     * MEASURED 2026-09-19 on live /charts at 1920: all three masthead triggers
+     * reported their `aria-controls` while `getElementById` returned null.
+     *
+     * A dangling `aria-controls` is not ignored — it is FOLLOWED. The reader
+     * offers the jump, the human takes it, nothing is there and nothing is
+     * said, which reads as a broken page rather than a shut drawer.
+     *
+     * The law this test MEANT is intact and is checked below: a masthead icon
+     * that announces nothing is a picture. `aria-haspopup` says a dialog is
+     * coming and `aria-expanded` says it is currently shut — together that is
+     * the complete, honest disclosure, with no promise the frame cannot keep.
+     */
+    expect(HTML).toContain('aria-haspopup="dialog"');
     expect(HTML).toContain('aria-haspopup="menu"');
+    expect(HTML).toContain('aria-expanded="false"');
+  });
+
+  it("every aria-controls in the frame names an id the same frame actually drew", () => {
+    /**
+     * This is the assertion the remapped test above could not make, and it is
+     * strictly stronger than either the literal it replaced or a source scan.
+     * `HTML` is a whole rendered frame, so the reference can be RESOLVED here
+     * rather than merely spelled — the one thing the live browser does and a
+     * source Sentinel cannot.
+     *
+     * Note the rail toggle legitimately claims `wm-os-rail` in this frame: it
+     * is rendered with `railDefaultOpen`, so the rail exists and the claim is
+     * true. That is the point. The law is not "never claim" — it is "claim
+     * only what is there", and this check can tell those two apart.
+     */
+    const claimed = [...HTML.matchAll(/aria-controls="([^"]+)"/g)].map((m) => m[1]);
+    const dangling = [...new Set(claimed)].filter((id) => !HTML.includes(`id="${id}"`));
+    expect(
+      dangling,
+      "a control in this frame points aria-controls at an id the frame never rendered. " +
+        "A dangling reference is FOLLOWED, not ignored: the reader offers the jump, the human " +
+        "takes it, and nothing is there and nothing is said",
+    ).toEqual([]);
   });
 
   it("opens no panel before the trader asks", () => {

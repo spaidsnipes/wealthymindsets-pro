@@ -34,7 +34,14 @@ describe("global symbol search accessibility", () => {
     expect(shell).toContain("ref={searchTriggerRef}");
     expect(shell).toContain('aria-haspopup="dialog"');
     expect(shell).toContain("aria-expanded={searchOpen}");
-    expect(shell).toContain('aria-controls="wm-symbol-search-dialog"');
+    // REMAPPED 2026-09-19. This pinned the UNCONDITIONAL literal, which is the
+    // one shape that cannot tell open from closed. MEASURED that day on live
+    // /charts at 1920: the trigger reported the reference while
+    // `getElementById` returned null, because the dialog is mounted only while
+    // `searchOpen`. A dangling `aria-controls` is FOLLOWED, not ignored. The
+    // relationship this test is about is still asserted — it is simply only
+    // claimed in the frames where it is true.
+    expect(shell).toContain('aria-controls={searchOpen ? "wm-symbol-search-dialog" : undefined}');
     expect(shell).toContain("setNotifsOpen(false)");
     expect(shell).toContain("setSettingsOpen(false)");
     expect(shell).toContain("setProfileOpen(false)");

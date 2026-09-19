@@ -167,7 +167,15 @@ export function ShellAccessChrome() {
         aria-label="Search symbols"
         aria-haspopup="dialog"
         aria-expanded={searchOpen}
-        aria-controls="wm-symbol-search-dialog"
+        // MEASURED 2026-09-19 on live /charts at 1920: this button reported
+        // `aria-controls="wm-symbol-search-dialog"` while `getElementById`
+        // returned null. This file is the OS-shell twin of the July header in
+        // MainLayout and carried the identical defect; the dialog is mounted only
+        // while `searchOpen` (see the AnimatePresence block below), so the
+        // reference dangled for the whole time the control was shut. A dangling
+        // `aria-controls` is FOLLOWED, not ignored. `aria-expanded` alone carries
+        // the whole disclosure claim, so dropping the reference silences nothing.
+        aria-controls={searchOpen ? "wm-symbol-search-dialog" : undefined}
         style={ICON_BUTTON}
       >
         <Search size={14} aria-hidden="true" />
@@ -180,7 +188,8 @@ export function ShellAccessChrome() {
         aria-label={unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"}
         aria-haspopup="dialog"
         aria-expanded={notifsOpen}
-        aria-controls="wm-notifications-drawer"
+        // Same defect, same repair as Search above.
+        aria-controls={notifsOpen ? "wm-notifications-drawer" : undefined}
         style={{ ...ICON_BUTTON, position: "relative" }}
       >
         <Bell size={14} aria-hidden="true" />
@@ -207,7 +216,10 @@ export function ShellAccessChrome() {
         aria-label="Open settings"
         aria-haspopup="dialog"
         aria-expanded={settingsOpen}
-        aria-controls="wm-settings-drawer"
+        // Same defect, same repair. Per-button, not per-shell: `open()` here is a
+        // single-slot switch, so a shared gate would have every control claiming
+        // whichever panel happened to be up.
+        aria-controls={settingsOpen ? "wm-settings-drawer" : undefined}
         style={ICON_BUTTON}
       >
         <Settings size={14} aria-hidden="true" />
