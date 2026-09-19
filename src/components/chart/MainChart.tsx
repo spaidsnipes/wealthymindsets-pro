@@ -8864,11 +8864,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             );
           })()}
 
-          {/* Fullscreen button */}
+          {/* Fullscreen button
+              MEASURED 2026-09-19 on live /charts at 1920: this button rendered
+              20x20 and carried NO accessible name but `title`. A `title` is a
+              HOVER affordance — it does not exist on touch, and screen readers
+              treat it as the weakest of all naming sources. The close button in
+              SmartMoneyPanel already carries the repair this copies: a real
+              `aria-label`, an explicit `type` so a future move inside a form
+              cannot silently turn the control into a submit, and a 44px hit
+              floor grown with padding + negative margin so the TARGET grows
+              without the toolbar ROW growing. `aria-pressed` is deliberately
+              absent: the name itself flips to "Exit fullscreen", which states
+              the same truth once instead of twice. */}
           <button
+            type="button"
             onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            className="flex items-center justify-center w-5 h-5 rounded hover:bg-wm-surface transition-colors text-wm-text-dim hover:text-wm-text"
+            className="flex items-center justify-center min-w-11 min-h-11 p-3 -m-3 rounded hover:bg-wm-surface transition-colors text-wm-text-dim hover:text-wm-text"
           >
             {isFullscreen ? (
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none">

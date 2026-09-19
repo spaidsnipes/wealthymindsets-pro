@@ -629,7 +629,19 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           {bias === "BULL" ? "↑" : bias === "BEAR" ? "↓" : bias === "INSUFFICIENT" ? "?" : "–"}{" "}
           {bias === "INSUFFICIENT" ? "INSUFFICIENT" : bias}
         </div>
-        <button onClick={() => setCompact(c => !c)} title={compact ? "Comfortable density" : "Compact density"} className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
+        {/* MEASURED 2026-09-19 on live /charts at 1920: 20x20, named only by
+            `title`. Same repair as the close button on the next line, which has
+            carried it for a while — `aria-label`, explicit `type`, and a 44px
+            hit floor grown with padding + negative margin so the target grows
+            without the header row growing. The name flips with the state, so
+            `aria-pressed` would say the same thing a second time. */}
+        <button
+          type="button"
+          onClick={() => setCompact(c => !c)}
+          aria-label={compact ? "Comfortable density" : "Compact density"}
+          title={compact ? "Comfortable density" : "Compact density"}
+          className="text-wm-text-dim hover:text-wm-text p-3 -m-2 transition-colors min-w-11 min-h-11 inline-flex items-center justify-center"
+        >
           {compact ? <Maximize2 size={12} /> : <Minimize2 size={12} />}
         </button>
         <button ref={closeRef} onClick={onClose} aria-label="Close Smart Money panel" title="Close (Esc)" className="text-wm-text-dim hover:text-wm-text p-3 -m-2 transition-colors min-w-11 min-h-11 inline-flex items-center justify-center">
@@ -757,10 +769,25 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           <Swords size={11} className="text-wm-gold" />
           <span className="text-[10px] font-bold text-wm-text">DELTA DOMINATION</span>
           <span className="text-[9px] text-wm-text-dim">· who's winning?</span>
+          {/* MEASURED 2026-09-19 on live /charts at 1920: 12px wide — the
+              SMALLEST control on the route — and named only by `title`, which
+              is to say unnamed on touch.
+
+              `aria-expanded` is the second half of the repair and the half that
+              is not cosmetic: this button is a DISCLOSURE, and without the
+              attribute a screen-reader user is told "button, what does this
+              mean" with no way to learn whether the explanation is already
+              open. It is deliberately NOT paired with `aria-controls`: the
+              disclosed block is unmounted while closed, so a control reference
+              would dangle at exactly the moment it is asked, which is the
+              broken-reference defect class rather than a fix for it. */}
           <button
+            type="button"
             onClick={() => setShowEdu(s => !s)}
+            aria-expanded={showEdu}
+            aria-label="What does this mean?"
             title="What does this mean?"
-            className="ml-auto text-wm-text-dim hover:text-wm-gold transition-colors"
+            className="ml-auto text-wm-text-dim hover:text-wm-gold transition-colors p-3 -m-2 min-w-11 min-h-11 inline-flex items-center justify-center"
           >
             <GraduationCap size={12} />
           </button>
