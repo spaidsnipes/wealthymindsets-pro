@@ -151,3 +151,49 @@ Named so the next shift does not have to re-derive them:
   PLAQUE** — mockup 136 shows `CHART INTEGRITY / WOUNDED`,
   `DATA FIDELITY: DEGRADED`, `RESOLUTION: TENTATIVE`,
   `ATTACHMENT CHIP / FOOTPRINT MISSING`, `DEBT / UNATTACHED`
+
+---
+
+## Addendum — Live VP render geometry proof: HONEST NEGATIVE
+
+Attempted immediately after the baton was sealed. Recorded rather than dropped.
+
+`VP_UP_DEFAULT === CANDLE_UP_DEFAULT`, so colour alone cannot prove the Volume
+Profile renders — the same brass is in every candle body. **Geometry** is the
+only discriminator: VP rows are long horizontal runs sharing one anchor edge;
+candles are ~2-6px wide.
+
+Measured on the live 1490x389 price pane (`eae6d466`), longest contiguous
+non-background run per scanline:
+
+```
+run length   scanlines
+0                23
+1-6             241     <- candle wicks/bodies
+7-19             86
+20-49            30
+50-99             8
+100+              1
+```
+
+39 scanlines carry a run >= 20px. But they share **no common anchor**: the most
+frequent start-x occurs 1 time, the most frequent end-x 2 times, across all 39.
+A VP histogram would put all ~39 rows on one anchor. These runs are instead the
+near-horizontal moving averages in the flat region plus dense right-edge price
+action.
+
+**Conclusion: no VP histogram is painting on the price pane.**
+
+**This is not a silent failure.** The chart itself renders the disclosure
+`Delta+VP — no per-level tape for these bars (captured live only)`. The app is
+telling the truth about what it does not have. `wm_sessionVP=false`,
+`wm_fixedVP=false`, `wm_sessionVP_chart=true`.
+
+Root constraint is the one already on record: per-level volume needs real
+per-trade tape, and the free data path is 15-minute delayed. The palette work in
+`7ecaf88d` is still correct and still proven (casino red 508px -> 0 on the price
+axis) — it governs the VP's ink whenever the VP has data to draw.
+
+**Gate status: BLOCKED on data, not on code.** It cannot be closed by editing
+the renderer. Closing it requires a per-trade tape source. Do not mark this gate
+PROVEN from a screenshot of an empty profile.
