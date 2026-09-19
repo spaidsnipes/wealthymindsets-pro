@@ -8,14 +8,29 @@
  *
  * ── WHAT THIS REPO ACTUALLY LOOKS LIKE TODAY ─────────────────────────────────
  *
- * Seventeen files under src/ declare or destructure an OHLC shape, and at least
- * three of them declare the SAME anonymous six fields under three different
- * names — `LiveBar` in liveBarPolicy.ts, `Bar` in markov.ts, `OHLCVBar` in
- * types/index.ts. They are structurally identical and semantically unrelated,
- * which is the worst of both: TypeScript will let any one of them be passed
- * where another is expected, and nothing in the type says whether the number in
- * `close` is a live print, a delayed print, a synthetic aggregate, or the last
- * value a closed session happened to leave behind.
+ * WRITTEN when seventeen files under src/ declared or destructured an OHLC
+ * shape and at least three declared the SAME anonymous six fields under three
+ * different names — `LiveBar` in liveBarPolicy.ts, `Bar` in markov.ts,
+ * `OHLCVBar` in types/index.ts. The defect that made that intolerable was that
+ * they were structurally identical and semantically unrelated, which is the
+ * worst of both: TypeScript let any one be passed where another was expected,
+ * and nothing in the type said whether the number in `close` was a live print,
+ * a delayed print, a synthetic aggregate, or the last value a closed session
+ * happened to leave behind.
+ *
+ * CORRECTED 2026-09-18, and the correction matters more than the original.
+ * ALL THREE OF THOSE NAMES ARE NOW RETIRED, along with fifteen others; the
+ * census in `canonicalBarAdoption.sentinel.test.ts` fell from twenty-two to
+ * four and NOT ONE BYTE-FOR-BYTE DUPLICATE OF `LegacyOhlcvTuple` REMAINS.
+ *
+ * AND THIS FILE STILL HAS ZERO PRODUCTION CONSUMERS. Read those two sentences
+ * together, because apart they are both misleading. The duplicate-NAMING defect
+ * is fixed. The defect this file exists to fix — that a bar cannot say which
+ * symbol, session, fidelity, source, provenance or truth epoch it belongs to —
+ * is EXACTLY as open as it was at twenty-two. Consolidating twenty-two labels
+ * onto one legacy tuple moved every ingress no closer to the artery. Anyone
+ * reading the falling census as adoption progress is reading it wrong, and this
+ * paragraph is here so that misreading has to survive an explicit denial.
  *
  * That is the cut the DECISION_ID doc names. A second bar shape is a second
  * past, and two pasts that disagree produce a chart and a receipt that disagree
