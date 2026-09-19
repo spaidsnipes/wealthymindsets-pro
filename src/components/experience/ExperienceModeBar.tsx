@@ -146,7 +146,14 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
           data-testid="experience-mode-chip"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          aria-controls={EXPERIENCE_MODE_GROUP_ID}
+          // The chip is only ever rendered when `collapsed`, and in that mode
+          // the seven-button nav below is rendered only when `open`. So an
+          // unconditional `aria-controls` named a node that does not exist for
+          // the whole time the panel is shut — which is the whole time before
+          // anyone presses this. Same defect, same day, as the pair in
+          // WMOperatingSystem: a reference that dangles is followed, not
+          // ignored, and lands the human nowhere.
+          aria-controls={open ? EXPERIENCE_MODE_GROUP_ID : undefined}
           // The active mode is IN the name on purpose. A control called only
           // "Experience mode" would make a screen-reader user open the group to
           // learn something the sighted chip states outright.

@@ -100,14 +100,40 @@ describe("collapsed is not a hamburger — the answer stays on the surface", () 
     expect(frame({ collapsed: true })).toMatch(/aria-expanded="false"/);
   });
 
-  it("aria-controls names an element the EXPANDED form actually has", () => {
-    // aria-controls pointing at an id that appears nowhere is the shape of an
-    // accessibility annotation added to satisfy a reviewer rather than a user.
+  it("the chip claims no aria-controls while the group it would name is unmounted", () => {
+    /**
+     * REMAPPED 2026-09-19 — this test carried the right law in its comment and
+     * the wrong assertion under it.
+     *
+     * The comment read: "aria-controls pointing at an id that appears nowhere
+     * is the shape of an accessibility annotation added to satisfy a reviewer
+     * rather than a user." Exactly so. But the check for "appears nowhere"
+     * looked for the id ANYWHERE IN THE FILE — in a separate render, of the
+     * expanded form, which is a different frame than the one the chip is in.
+     * So it proved the id is spelled consistently and called that a target.
+     *
+     * MEASURED 2026-09-19 on live /charts at 1920, the shape it let through:
+     * the closed Workspace and Tools buttons in the OS frame carried the same
+     * unconditional attribute and `getElementById` returned null for both.
+     *
+     * A dangling `aria-controls` is not ignored — it is FOLLOWED. The reader
+     * offers the jump, the human takes it, and nothing is there and nothing is
+     * said, which reads as a broken page rather than a shut panel. The chip is
+     * only ever rendered collapsed, and collapsed it starts closed, so the
+     * static frame is precisely the frame in which the target does not exist.
+     *
+     * `aria-expanded` is checked in the test above and carries the whole
+     * disclosure claim on its own: there is more, it is currently shut. That is
+     * why removing the reference silences nothing.
+     */
     const collapsed = frame({ collapsed: true });
-    const controls = collapsed.match(/aria-controls="([^"]+)"/);
-    expect(controls, "the chip declares no aria-controls").not.toBeNull();
-    expect(controls?.[1]).toBe(EXPERIENCE_MODE_GROUP_ID);
-    expect(frame(), "aria-controls names an id the open bar does not carry")
+    expect(
+      collapsed,
+      "the closed chip points aria-controls at a group that is not rendered in this frame",
+    ).not.toMatch(/aria-controls=/);
+    // The id itself is still the shared contract: when the group IS drawn, it
+    // must be drawn under the exported name the chip will reach for.
+    expect(frame(), "the expanded bar does not carry the exported group id")
       .toContain(`id="${EXPERIENCE_MODE_GROUP_ID}"`);
   });
 });

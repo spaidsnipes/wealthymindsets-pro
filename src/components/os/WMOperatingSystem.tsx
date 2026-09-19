@@ -948,7 +948,23 @@ export function WMOperatingSystem({
                   data-testid={`os-equipment-${kind}`}
                   onClick={() => setEquipment((current) => (current === kind ? null : kind))}
                   aria-expanded={open}
-                  aria-controls="wm-os-rail"
+                  // MEASURED 2026-09-19 on live /charts at 1920: with the rail
+                  // closed, BOTH of these buttons reported
+                  // `aria-controls="wm-os-rail"` while `getElementById` returned
+                  // null. The rail comment further down states the design —
+                  // "A CLOSED RAIL RENDERS NOTHING" — and the attribute above it
+                  // then promised a region that had been deliberately unmounted.
+                  //
+                  // A dangling `aria-controls` is worse than no `aria-controls`:
+                  // it is not ignored, it is FOLLOWED. A screen-reader user who
+                  // takes the offered jump lands nowhere and is told nothing,
+                  // which reads as a broken page rather than a closed panel.
+                  //
+                  // Gated on THIS button's own `open`, not on `panelOpen`. The
+                  // two share one rail element, so gating on the shared state
+                  // would have Workspace claiming to control the panel that
+                  // Tools opened — a reference that resolves, and still lies.
+                  aria-controls={open ? "wm-os-rail" : undefined}
                   aria-label={kind === "workspace" ? "Workspace" : "Tools"}
                   style={{
                     display: "inline-flex",
@@ -975,7 +991,10 @@ export function WMOperatingSystem({
           data-testid="os-rail-toggle"
           onClick={() => setRailOpen((open) => !open)}
           aria-expanded={railOpen}
-          aria-controls="wm-os-rail"
+          // Same repair as the equipment pair above, same reason: the rail this
+          // names is unmounted while closed, so an unconditional reference
+          // dangles for the whole time the control is most likely to be used.
+          aria-controls={railOpen ? "wm-os-rail" : undefined}
           // The accessible name says what the control REACHES, not what the
           // click does. "Collapse" tells a screen-reader user about a motion;
           // "Rooms" tells them where the twenty-one doors are, which is the
