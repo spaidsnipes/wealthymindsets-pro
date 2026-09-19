@@ -124,8 +124,68 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
           display: "flex", flexWrap: "wrap", gap: 6,
         }}
       >
-        {symbols.slice(0, 6).map(({ symbol, slot }) => {
+        {/*
+          ONE SYMBOL WAS WEARING THREE FACES AND ANSWERING TO ONE NAME.
+
+          MEASURED LIVE 2026-09-19 on https://wealthymindsetspro.com/charts, in
+          this popover, at 1920:
+
+              6 bubbles in the group, aria-pressed="true" on TWO of them
+              both spoke the identical name "Switch chart to BTC. …"
+              and they disagreed: one Δ read +428.84, the other +0.0159
+
+          `localStorage['wm:session-symbol-store:v1']` says why. The store keys
+          its slots `symbol::tapeSource` and currently holds twelve, three of
+          them BTC — `BTC::coinbase`, `BTC::binance`, `BTC::unavailable`.
+          `getKnownSessionSymbols()` splits that key and RETURNS `tapeSource`
+          (sessionSymbolStore.ts:262-273). This map destructured `{ symbol, slot }`
+          and threw the other half away.
+
+          Everything broken here follows from that one discarded word:
+            · `key={symbol}` collided — React was reconciling three rows under
+              one identity;
+            · `symbol === activeSymbol` lit EVERY BTC row, because the comparison
+              was made against half of a two-part identity;
+            · two buttons carried the same accessible name while showing
+              different numbers, which is a §0 CANONICAL MARKET violation — one
+              symbol, two disagreeing readings, no way to tell which is which;
+            · and `tapeSource: "unavailable"` — a DEGRADED provenance, a number
+              WM could not source — was presented with the same authority as a
+              Coinbase record.
+
+          The repair is to stop discarding the word. Each reading now carries the
+          tape it came from, by eye and by ear, and the degraded one says so.
+        */}
+        {symbols.slice(0, 6).map(({ symbol, tapeSource, slot }) => {
+          /*
+            WHY `aria-current` AND NOT `aria-pressed`.
+
+            `onClick` is `if (!isActive) setActiveSymbol(symbol)` — pressing an
+            already-active row does NOTHING. `aria-pressed` promises a reversal
+            this control cannot perform, the same unkeepable promise ruled on
+            twice today (the seven-mode bar, the nine-button timeframe strip).
+
+            WHY THE "EXACTLY ONE CURRENT" LAW FROM THOSE TWO DOES NOT TRANSFER.
+
+            Those were single-select sets: one row selected, all others not, so a
+            second `aria-current="true"` would have been a defect. This set is
+            NOT keyed the same way the chart is. Rows are identified by
+            `symbol::tapeSource`; the chart owns only the symbol half. So when
+            three BTC records exist and the chart is on BTC, all three are
+            genuinely current — the chart really is showing that symbol, from a
+            tape this control does not choose. Collapsing that to one would be a
+            fabricated tie-break: WM would be inventing an answer to "which tape
+            is the chart on?" that it does not have.
+
+            Do not "fix" the multiple-current case. It is the honest shape until
+            the chart's own identity carries a tape source too.
+          */
           const isActive = symbol === activeSymbol;
+          /* The provenance word, spoken. "unavailable" is not a venue — it is
+             the store's marker for a reading whose tape WM could not name, so it
+             is said as the absence it is rather than dressed up as a source. */
+          const sourceSpoken =
+            tapeSource === "unavailable" ? "tape source unavailable" : `via ${tapeSource}`;
           /* MEASURED LIVE 2026-09-17 in this very popover: "AAPL  -0.01" was
              painted red and "META  +0.01" green, in the slot a trader reads as
              "change today, in dollars". It is neither. It is net aggressive
@@ -144,11 +204,15 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
             : "#8B92AC";
           return (
             <button
-              key={symbol}
+              key={`${symbol}::${tapeSource}`}
               type="button"
               onClick={() => { if (!isActive) setActiveSymbol(symbol); }}
-              aria-label={`Switch chart to ${symbol}. ${deltaChip.spoken}`}
-              aria-pressed={isActive}
+              aria-label={
+                isActive
+                  ? `${symbol}, ${sourceSpoken}. Already charted. ${deltaChip.spoken}`
+                  : `Switch chart to ${symbol}, ${sourceSpoken}. ${deltaChip.spoken}`
+              }
+              aria-current={isActive ? "true" : undefined}
               style={{
                 minHeight: 44, minWidth: 44, padding: "4px 8px", borderRadius: 8,
                 background: isActive ? "rgba(240,180,41,0.10)" : "rgba(255,255,255,0.025)",
@@ -156,9 +220,24 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
                 color: isActive ? "#D8DCEA" : "#8B92AC", cursor: isActive ? "default" : "pointer",
                 font: "inherit", display: "inline-flex", alignItems: "center", gap: 5,
               }}
-              title={`${isActive ? "Currently active" : "Click to switch chart"} — ${deltaChip.title} Big ${slot.stats.bigTradeCount}. ${slot.horizon ? fmtMemoryAge(slot.horizon.startedAtSec) : "no horizon yet"}.`}
+              title={`${isActive ? "Currently active" : "Click to switch chart"} — ${symbol} ${sourceSpoken}. ${deltaChip.title} Big ${slot.stats.bigTradeCount}. ${slot.horizon ? fmtMemoryAge(slot.horizon.startedAtSec) : "no horizon yet"}.`}
             >
               <span style={{ fontWeight: 850 }}>{symbol}</span>
+              {/* The provenance, by eye. Two BTC rows showing different numbers
+                  must be distinguishable without hovering. Dimmed because it is
+                  the reading's address, not the reading — except when the tape
+                  is unavailable, where the absence is the point and is marked
+                  with a dash rather than a venue name. */}
+              <span
+                data-evidence-tape-source={tapeSource}
+                style={{
+                  fontWeight: 700, fontSize: 8.5, letterSpacing: 0.2,
+                  color: tapeSource === "unavailable" ? "#62697d" : "#8B92AC",
+                  opacity: tapeSource === "unavailable" ? 0.75 : 1,
+                }}
+              >
+                {tapeSource === "unavailable" ? "—" : tapeSource}
+              </span>
               <span data-evidence-delta-kind={deltaChip.kind} style={{ color: dColor }}>
                 {deltaChip.text}
               </span>
