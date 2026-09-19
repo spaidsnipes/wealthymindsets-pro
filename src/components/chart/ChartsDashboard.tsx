@@ -3110,6 +3110,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 position={replayIdx}
                 total={chartBars.length}
                 currentTime={chartBars[replayIdx]?.time ?? 0}
+                /* M9 DISCLOSURE — false, and measured rather than assumed.
+                   `replayBars` is passed from NO call site in this file, and in
+                   MainChart.tsx both `replayActive` and `replayBars` appear
+                   exactly twice each: the props interface and the destructure.
+                   Nothing reads them. Until the real wire lands (frozen
+                   CanonicalBar ancestry + truth epochs, per M9 repair 2), the
+                   panel must not narrate a chart it does not drive.
+                   DO NOT flip this to true by slicing today's bars. */
+                chartFollowsCursor={false}
                 onPlay={toggleReplayPlay}
                 onPause={toggleReplayPlay}
                 onStepBack={() => setReplayIdx(i => Math.max(0, i - 1))}

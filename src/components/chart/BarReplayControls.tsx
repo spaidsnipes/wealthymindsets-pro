@@ -12,6 +12,25 @@ interface Props {
   position: number;   // bar index
   total: number;      // total bars
   currentTime: number; // unix seconds
+  /**
+   * M9 DISCLOSURE — does the chart behind this panel actually follow the cursor?
+   *
+   * This is REQUIRED and has NO DEFAULT on purpose. A default would let a call
+   * site inherit the flattering answer by saying nothing, and the flattering
+   * answer is exactly the lie this prop exists to prevent: today the cursor
+   * advances, the clock walks through the session, the counter climbs — and
+   * the chart behind it never moves, because `replayBars` is passed by nobody
+   * and read by nothing (see MainChart.tsx, where both replay props are
+   * declared, destructured, and then ignored).
+   *
+   * While this is false the panel must NOT render a walking timestamp, a
+   * progress bar, or a position-of-total counter, because every one of those
+   * is a claim about the chart. It renders the disclosure and the way out
+   * instead. Flipping this to true is M9's SECOND repair — the real wire,
+   * which must read frozen CanonicalBar ancestry, never re-derive today's
+   * version of old bars.
+   */
+  chartFollowsCursor: boolean;
   onPlay: () => void;
   onPause: () => void;
   onStepBack: () => void;
@@ -30,16 +49,56 @@ function fmtTime(t: number): string {
 }
 
 export function BarReplayControls({
-  active, playing, speed, position, total, currentTime,
+  active, playing, speed, position, total, currentTime, chartFollowsCursor,
   onPlay, onPause, onStepBack, onStepForward, onStop, onSpeedChange,
 }: Props) {
   if (!active) return null;
+
+  // M9 DISCLOSURE — the chart does not follow the cursor, so say so and stop
+  // making claims about it. No walking clock, no progress bar, no
+  // position-of-total: each of those is a sentence about a chart that is not
+  // moving. Keep the way out, because a panel the trader cannot dismiss is a
+  // worse defect than the one being disclosed.
+  if (!chartFollowsCursor) {
+    return (
+      <div
+        data-testid="bar-replay-controls"
+        data-chart-follows-cursor="false"
+        style={{
+          position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)",
+          zIndex: 400,
+          background: "#141824",
+          border: "1px solid #F5A623",
+          borderRadius: 10,
+          padding: "8px 14px",
+          display: "flex", alignItems: "center", gap: 10,
+          boxShadow: "0 4px 24px rgba(245,166,35,0.25)",
+          pointerEvents: "auto",
+          userSelect: "none",
+          maxWidth: "min(460px, calc(100vw - 32px))",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 4, paddingRight: 8, borderRight: "1px solid #263050" }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#F5A623" }} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#F5A623", letterSpacing: "0.06em" }}>BAR REPLAY</span>
+        </div>
+        <span style={{ fontSize: 11, color: "#E2E8FF", lineHeight: 1.4 }}>
+          Not wired to the chart yet — these controls would move a cursor, not the
+          candles. Nothing you see behind this panel is a replay.
+        </span>
+        <CtrlBtn onClick={onStop} icon={<Square size={12} />} title="Close replay" danger />
+      </div>
+    );
+  }
 
   const SPEEDS: ReplaySpeed[] = [0.5, 1, 2, 5];
   const pct = total > 0 ? (position / total) * 100 : 0;
 
   return (
-    <div style={{
+    <div
+      data-testid="bar-replay-controls"
+      data-chart-follows-cursor="true"
+      style={{
       position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)",
       zIndex: 400,
       background: "#141824",

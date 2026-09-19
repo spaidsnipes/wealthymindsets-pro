@@ -1,0 +1,140 @@
+/**
+ * M9 · DISCLOSURE — the replay panel may not narrate a chart it does not drive.
+ *
+ * MEASURED, not assumed. In `MainChart.tsx` the identifiers `replayActive` and
+ * `replayBars` each appear EXACTLY TWICE: once in the props interface, once in
+ * the destructure. Zero reads. `replayBars` is passed from no call site at all.
+ * Meanwhile `ChartsDashboard.tsx` runs a `500/speed` ms interval that advances
+ * `replayIdx`, and the panel rendered a pulsing BAR REPLAY badge, a walking
+ * session timestamp, a progress bar and a position-of-total counter on top of
+ * it. The trader pressed play, watched the clock walk through the session, and
+ * the candles behind it never moved.
+ *
+ * That is the same class of defect as the NO FEED badge that contradicted a
+ * loaded chart: the interface asserting something the data does not support.
+ *
+ * This file guards the SMALLER of M9's two repairs — disclosure. It does NOT
+ * claim replay works. The real wire (frozen CanonicalBar ancestry and truth
+ * epochs) is a separate repair that depends on the M8 adoption half, and it is
+ * expressly forbidden to fake it by slicing today's bars: that converts a
+ * visible lie into an invisible one, and the invisible kind is the expensive
+ * kind.
+ *
+ * The last test is the part that has to survive us. Disclosure decays the
+ * moment someone flips the flag to `true` because it looks nicer — so the flag
+ * is not allowed to claim more than the code can back.
+ */
+
+import { describe, it, expect } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { BarReplayControls } from "./BarReplayControls";
+
+const SRC = join(process.cwd(), "src", "components", "chart");
+const read = (f: string) => readFileSync(join(SRC, f), "utf8");
+
+const noop = () => {};
+
+const render = (chartFollowsCursor: boolean) =>
+  renderToStaticMarkup(
+    <BarReplayControls
+      active
+      playing
+      speed={1}
+      position={137}
+      total={390}
+      currentTime={1_758_204_000}
+      chartFollowsCursor={chartFollowsCursor}
+      onPlay={noop}
+      onPause={noop}
+      onStepBack={noop}
+      onStepForward={noop}
+      onStop={noop}
+      onSpeedChange={noop}
+    />,
+  );
+
+describe("M9 · the replay panel discloses that it does not drive the chart", () => {
+  it("has real material to reason about (FALSE_RIPENESS guard)", () => {
+    // A scan that reads nothing reports clean forever. Prove the files exist
+    // and are substantial before any assertion below is allowed to mean
+    // anything.
+    for (const f of ["BarReplayControls.tsx", "ChartsDashboard.tsx", "MainChart.tsx"]) {
+      expect(read(f).length, `${f} → read as empty; every claim below would be vacuous`).toBeGreaterThan(400);
+    }
+  });
+
+  it("makes NO claim about the chart's position while it is not driving the chart", () => {
+    const html = render(false);
+    expect(html, "the panel vanished entirely — the trader loses the way out").toContain("bar-replay-controls");
+    // Each of these is a sentence about a chart that is not moving.
+    expect(html, "a position-of-total counter over a motionless chart").not.toContain("137/390");
+    expect(html, "a walking session timestamp over a motionless chart").not.toMatch(/\d{2}:\d{2}/);
+    // The progress fill is the only percentage width in this component, and a
+    // percentage of the session is precisely the claim being withdrawn.
+    expect(html, "a progress bar is a claim about how far the replay has got").not.toMatch(/width:\s*[\d.]+%/);
+  });
+
+  it("says so in words, rather than merely going quiet", () => {
+    // Silence is not disclosure. A panel that simply drops its readouts looks
+    // like a loading state, and the trader would wait for it.
+    const html = render(false);
+    expect(html.toLowerCase(), "the panel hides the defect instead of naming it").toContain("not wired");
+    expect(html, "the disclosure branch must be machine-checkable, not just prose")
+      .toContain('data-chart-follows-cursor="false"');
+  });
+
+  it("still gives the trader a way out of the panel it is disclosing", () => {
+    // A panel that cannot be dismissed is a worse defect than the one it
+    // discloses.
+    expect(render(false), "no Close control on the disclosure panel").toContain("Close replay");
+  });
+
+  it("renders the full instrument — clock, progress and counter — ONLY when it is driving", () => {
+    const html = render(true);
+    expect(html, "the driving branch lost its position counter").toContain("137/390");
+    expect(html, "the driving branch lost its walking timestamp").toMatch(/\d{2}:\d{2}/);
+    expect(html, "the driving branch lost its progress fill").toMatch(/width:\s*[\d.]+%/);
+    expect(html, "the driving branch must be machine-checkable too")
+      .toContain('data-chart-follows-cursor="true"');
+  });
+
+  it("refuses to let a call site inherit the flattering answer by saying nothing", () => {
+    // If `chartFollowsCursor` acquired a default, a future call site could omit
+    // it and silently resume claiming a replay. The prop is required on purpose;
+    // TypeScript is the enforcement, and this is the tripwire that notices the
+    // enforcement being removed.
+    const src = read("BarReplayControls.tsx");
+    expect(src, "chartFollowsCursor gained a default — omission now means 'yes'")
+      .not.toMatch(/chartFollowsCursor\s*=\s*(true|false)/);
+    expect(src, "chartFollowsCursor is no longer a required prop")
+      .toMatch(/chartFollowsCursor:\s*boolean;/);
+  });
+
+  it("does not let the flag claim more than MainChart can back", () => {
+    // THE RATCHET. Disclosure rots the moment someone flips the flag because
+    // the honest panel looks unfinished. So the flag is bound to the evidence:
+    // a call site may only assert `chartFollowsCursor={true}` once MainChart
+    // actually READS the replay bars, rather than merely declaring and
+    // destructuring them.
+    const dash = read("ChartsDashboard.tsx");
+    const claimsDriving = /chartFollowsCursor=\{true\}/.test(dash);
+    if (!claimsDriving) {
+      expect(dash, "no call site claims to drive, and none passes replayBars — consistent")
+        .toMatch(/chartFollowsCursor=\{false\}/);
+      return;
+    }
+    const main = read("MainChart.tsx");
+    const uses = (main.match(/\breplayBars\b/g) ?? []).length;
+    expect(
+      uses,
+      "a call site now claims the chart follows the replay cursor, but MainChart.tsx " +
+        "still only DECLARES and DESTRUCTURES replayBars (two mentions, zero reads). " +
+        "Either wire it for real — frozen CanonicalBar ancestry, never a slice of " +
+        "today's bars — or set chartFollowsCursor back to false.",
+    ).toBeGreaterThan(2);
+    expect(dash, "the chart cannot follow bars nobody passes it").toMatch(/replayBars=\{/);
+  });
+});
