@@ -44,10 +44,51 @@ function walk(dir: string): string[] {
   return out;
 }
 
+/** Walked ONCE so the vacuity guard below and the rule below it agree. */
+const FILES = walk(SRC);
+
 describe("build-safety — privileged supabase client is lazy-only (migration blocker guard)", () => {
+  /**
+   * ANTI-VACUITY — added 2026-09-19, paying down the frozen debt recorded in
+   * `src/lib/ops/sentinelsProveTheyScanned.test.ts`.
+   *
+   * The rule below asserts a collection is EMPTY. That shape has a silent
+   * failure mode: if `walk()` ever returns nothing — a rename of `src/`, a
+   * changed extension filter, a thrown `statSync` swallowed upstream — the
+   * offender list is empty for the wrong reason and the gate reports green over
+   * zero bytes. Green must mean "looked and found nothing", never "did not
+   * look".
+   *
+   * Two guards, because file COUNT alone is not enough: a scan could walk a
+   * thousand files and still be blind if the import string it matches on has
+   * been renamed by an upstream package. So the positive control proves the
+   * PATTERN still matches — the approved factories must themselves trip it.
+   */
+  it("ANTI-VACUITY: the scan reaches real source and the pattern still matches", () => {
+    expect(
+      FILES.length,
+      "walk(src) found almost no TypeScript — did src/ move, or did the " +
+        "extension filter stop matching? An empty scan would make the rule " +
+        "below permanently green while enforcing nothing",
+    ).toBeGreaterThan(200);
+
+    // Positive control: the APPROVED factories are the known-good matches.
+    // If they stop tripping the pattern, the pattern is stale and the rule
+    // below would pass over a tree full of direct imports.
+    const approvedThatMatch = [...APPROVED].filter((rel) =>
+      readFileSync(join(REPO_ROOT, rel), "utf8").includes('from "@supabase/supabase-js"'),
+    );
+    expect(
+      approvedThatMatch.sort(),
+      "the approved lazy factories no longer import @supabase/supabase-js by " +
+        "the exact string this gate scans for — the import specifier changed " +
+        "and the rule below is now looking for something that does not exist",
+    ).toEqual([...APPROVED].sort());
+  });
+
   it("only the approved lazy factories import @supabase/supabase-js", () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC)) {
+    for (const file of FILES) {
       const src = readFileSync(file, "utf8");
       if (src.includes('from "@supabase/supabase-js"')) {
         const rel = relative(REPO_ROOT, file);

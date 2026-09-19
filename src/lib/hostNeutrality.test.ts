@@ -41,7 +41,36 @@ function walk(dir: string): string[] {
   return out;
 }
 
+/** Walked ONCE, so every lock below and the vacuity guard see one same set. */
+const FILES = walk(SRC);
+
 describe("host-neutrality lock — bound Vercel coupling (migration portability)", () => {
+  /**
+   * ANTI-VACUITY: THE WALK — added 2026-09-19, paying down the frozen debt in
+   * `src/lib/ops/sentinelsProveTheyScanned.test.ts`.
+   *
+   * This file already guarded its STRIPPER (the positive control below) and
+   * that guard is a good one — but it protected only half the pipeline. A scan
+   * is `walk() → stripComments() → match`, and proving the stripper keeps code
+   * says nothing about whether the walk handed it any. If `walk()` returns an
+   * empty array — `src/` renamed, the extension filter narrowed, `statSync`
+   * throwing on a broken symlink — all three locks below assert emptiness over
+   * zero files and report a host-neutral repo forever.
+   *
+   * That failure would be quiet in the worst way: this gate exists to protect a
+   * completed migration OFF Vercel. A silently-blind portability lock reports
+   * clean right up until the next host migration discovers the coupling by
+   * failing to deploy.
+   */
+  it("ANTI-VACUITY: the walk actually reaches application source", () => {
+    expect(
+      FILES.length,
+      "walk(src) found almost no non-test TypeScript. Every lock below asserts " +
+        "a collection is EMPTY, so an empty scan makes all of them green while " +
+        "enforcing nothing — did src/ move, or did the extension filter change?",
+    ).toBeGreaterThan(200);
+  });
+
   /**
    * POSITIVE CONTROL for stripComments — a vacuity guard on the guard.
    *
@@ -67,7 +96,7 @@ describe("host-neutrality lock — bound Vercel coupling (migration portability)
 
   it("no NEW @vercel/* runtime import outside the tracked allowlist", () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC)) {
+    for (const file of FILES) {
       const src = stripComments(readFileSync(file, "utf8"));
       if (/from ["']@vercel\//.test(src)) {
         const rel = relative(REPO_ROOT, file);
@@ -84,7 +113,7 @@ describe("host-neutrality lock — bound Vercel coupling (migration portability)
 
   it("no app code branches on process.env.VERCEL* (runtime host assumption)", () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC)) {
+    for (const file of FILES) {
       const src = stripComments(readFileSync(file, "utf8"));
       if (/process\.env\.VERCEL/.test(src)) offenders.push(relative(REPO_ROOT, file));
     }
@@ -200,7 +229,7 @@ describe("host-neutrality lock — bound Vercel coupling (migration portability)
 
   it("no app code reads x-vercel-* request headers (retired-host edge signal)", () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC)) {
+    for (const file of FILES) {
       const src = stripComments(readFileSync(file, "utf8"));
       if (/x-vercel-/i.test(src)) offenders.push(relative(REPO_ROOT, file));
     }
