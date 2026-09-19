@@ -495,3 +495,104 @@ describe("× NOW HAS AN OWNER, NOT JUST A HEADING", () => {
     expect(dash.split("selectCanonicalSessionToken").length - 1).toBeGreaterThan(1);
   });
 });
+
+/**
+ * ── THE HONESTY PLAQUE ON THE SPINE ─────────────────────────────────────────
+ *
+ * `MarketHonestyPlaque` existed for a day with exactly one caller — the
+ * quarantined /command-deck — written as `<MarketHonestyPlaque reading={null} />`
+ * with the null spelled out in the source. That is a picture of disclosure: it
+ * renders the UNMEASURED state whatever the market is doing, forever, and no
+ * type error and no render test would ever notice.
+ *
+ * The governing directive names the failure outright — HARD-CODED WAIT =
+ * ORGANISM FAIL — so the gates below are written against exactly that shape:
+ * the plaque must be ABSENT when nothing was attached, must render its own
+ * UNMEASURED state when a fidelity was attempted and refused, and must render
+ * the REAL word when one was established. The last of the four is the one that
+ * cannot pass while a literal is wired in.
+ */
+describe("DecisionSpineBand — the honesty plaque is fed, not drawn", () => {
+  const AS_OF = 1_700_000_000_000;
+
+  it("renders NO plate when the surface attached no fidelity at all", () => {
+    // Every caller that predates the prop. An UNMEASURED plaque invented for a
+    // surface that never claimed to measure is its own small overclaim.
+    expect(render()).not.toContain('data-testid="honesty-plaque"');
+  });
+
+  it("renders the plaque's own UNMEASURED state for an explicit null", () => {
+    // ATTACHED AND REFUSED is not ATTACHED AND FINE. `readMarketFidelity`
+    // returns null when there is no finite asOf, and that null has to reach
+    // the glass — an unmeasured canvas that renders nothing looks exactly like
+    // a certified one.
+    const html = render({ honesty: null });
+    expect(html).toContain('data-fidelity="UNMEASURED"');
+    expect(html).toContain("UNMEASURED");
+  });
+
+  it("renders the REAL fidelity word, its asOf, and its treatment", () => {
+    const html = render({
+      honesty: { fidelity: "DEGRADED", asOf: AS_OF, reasons: ["DELAYED"] },
+    });
+    expect(html).toContain('data-fidelity="DEGRADED"');
+    expect(html).toContain("asOf ");
+    // The treatment in WORDS. A dimmed chart and a dim monitor are the same
+    // picture; the word is the part that cannot be mistaken for the lighting.
+    expect(html).toContain("WOUNDED");
+    expect(html).not.toContain('data-fidelity="UNMEASURED"');
+  });
+
+  it("× THE PAINTED PLAQUE: a different reading must produce a different word", () => {
+    // The falsifier for a hard-coded plaque. If the reading were ignored,
+    // these two renders would be byte-identical and this is the only gate in
+    // the file that would notice.
+    const degraded = render({ honesty: { fidelity: "DEGRADED", asOf: AS_OF, reasons: [] } });
+    const executable = render({ honesty: { fidelity: "EXECUTABLE", asOf: AS_OF, reasons: [] } });
+    expect(degraded).not.toBe(executable);
+    expect(executable).toContain('data-fidelity="EXECUTABLE"');
+    expect(executable).toContain("INTACT");
+  });
+
+  it("carries the plaque in BOTH placements — the rail and the phone band", () => {
+    // One compiled spine, two projections. A plate that appears on desktop and
+    // vanishes on a phone is a second truth policy keyed on viewport.
+    for (const presentation of ["band", "rail"] as const) {
+      const html = render({ presentation, honesty: null });
+      expect(html, presentation).toContain('data-testid="honesty-plaque"');
+    }
+  });
+
+  it("× THE HARD-CODED PLAQUE: /charts must compose a reading, never write a literal", () => {
+    const dash = readFileSync(resolve(__dirname, "../chart/ChartsDashboard.tsx"), "utf8");
+    // The ONE sanctioned crossing from the seven pipeline labels into the five
+    // fidelities. A locally invented mapping is how the seven quietly become
+    // de-facto badges.
+    expect(dash).toContain("fidelityFromPipelineLabel");
+    expect(dash).toContain("readMarketFidelity");
+    expect(dash).toContain("honesty: chartHonesty");
+    // asOf IS AN OBSERVATION. `lastObservedAtMs` is the transport's accept-site
+    // stamp; `Date.now()` here would stamp a 12-hour-old close as now.
+    expect(dash).toContain("readMarketFidelity(folded.fidelity, lastObservedAtMs, folded.reasons)");
+    // The literal that made the organ decorative on its first caller.
+    expect(dash).not.toContain("reading={null}");
+    // Imported AND used — a dead import satisfies a naive source scan.
+    expect(dash.split("fidelityFromPipelineLabel").length - 1).toBeGreaterThan(1);
+  });
+
+  it("× THE SECOND GRADER: the chip and the plaque read ONE grading", () => {
+    const dash = readFileSync(resolve(__dirname, "../chart/ChartsDashboard.tsx"), "utf8");
+    // Two independent calls to the grader on one surface is precisely how a
+    // masthead chip reading ACTIVE DEGRADED comes to sit beside a plaque
+    // reading EXECUTABLE about one instrument at one instant.
+    expect(dash.split("resolveChartSurfaceBadge(").length - 1).toBe(1);
+    expect(dash).toContain("const b = chartSurfaceBadge;");
+  });
+
+  it("× THE SILENT DEFAULT: an unfinished question may not be folded into a word", () => {
+    const dash = readFileSync(resolve(__dirname, "../chart/ChartsDashboard.tsx"), "utf8");
+    // AWAITING and UNAVAILABLE both set `availability`. Grading either into one
+    // of the five manufactures a measurement out of an open question.
+    expect(dash).toContain("if (chartSurfaceBadge.availability !== undefined) return null;");
+  });
+});

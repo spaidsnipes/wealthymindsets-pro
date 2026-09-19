@@ -63,6 +63,8 @@ import {
   type WhySeverityState,
 } from "@/lib/marketData/viewModels/selectWhySeverityBar";
 import { selectRiskReachBar } from "@/lib/traderMemory/viewModels/selectRiskReachBar";
+import { MarketHonestyPlaque } from "@/components/experience/MarketHonestyPlaque";
+import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 
 /**
  * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
@@ -159,6 +161,28 @@ export interface DecisionSpineBandProps {
   /** Desktop charts attach the same compiled spine beside MARKET. Other
    * surfaces retain the horizontal band without forking truth ownership. */
   readonly presentation?: "band" | "rail";
+  /**
+   * THE HONESTY PLAQUE'S READING — the organ transplanted off /command-deck.
+   *
+   * Tri-state, deliberately, and mirroring `barsSettled` above so the two
+   * optional evidence props in this file mean the same thing by the same
+   * convention:
+   *
+   *   `undefined` — this surface did not attach a fidelity at all. No plate is
+   *                 rendered, and every caller that predates this prop keeps
+   *                 its exact pixels.
+   *   `null`      — a fidelity WAS attached and could not be established. The
+   *                 plaque renders its own UNMEASURED state, because an
+   *                 unmeasured canvas that renders nothing looks exactly like
+   *                 a certified one.
+   *
+   * What it must never be is a literal. The plaque spent its first day mounted
+   * once, as `reading={null}` hard-coded on the quarantined deck — a picture of
+   * disclosure rather than disclosure. `ChartsDashboard` composes the real
+   * reading from the same badge grading its masthead chip reads, which is why
+   * the chip and this plate cannot disagree.
+   */
+  readonly honesty?: MarketFidelityReading | null;
 }
 
 /**
@@ -544,6 +568,32 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <div style={cellStyle}>
           <span style={LABEL}>Market</span>
           {marketValue}
+        </div>
+      )}
+
+      {/* THE HONESTY CHIP, RESTORED TO THE SPINE.
+          WM_NewMockup_64_F24_Surface_One_Canvas names six things in this rail —
+          DECISION_ID, STATE, MARKET, RISK, WHY, and the honesty chip — and the
+          shipped rail had five. The sixth was not missing from the codebase; it
+          was mounted on the quarantined deck, hard-coded to null. It belongs
+          here, beside MARKET, where the fidelity is a fact about the very cell
+          above it.
+
+          NOT wrapped in `cellStyle`. The plaque carries its own brass hairline
+          at rgba(139,106,41,0.22) and the rail's cell frame sits at
+          rgba(196,165,116,0.20) — near enough that nesting them reads as a
+          double frame, a drawing error rather than a plate. The wrapper
+          supplies the rail's spacing and nothing else, so the plaque's own
+          frame IS the plate the mockup draws.
+
+          Rendered only on an explicit prop. `undefined` means the caller
+          attached no fidelity, and inventing an UNMEASURED plaque for a surface
+          that never claimed to measure would be its own small overclaim. */}
+      {props.honesty !== undefined && (
+        <div style={{ padding: rail ? "8px 10px" : "6px 8px", display: "flex" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <MarketHonestyPlaque reading={props.honesty} />
+          </div>
         </div>
       )}
 

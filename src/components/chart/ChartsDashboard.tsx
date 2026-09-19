@@ -94,6 +94,14 @@ import { StockInfoPanel } from "./StockInfoPanel";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { resolveChartSurfaceBadge } from "@/lib/priceSource";
+// THE ONE SANCTIONED CROSSING from the seven pipeline labels into the five
+// fidelities, plus the constructor that refuses a reading with no asOf. The
+// decision rail's Honesty Plaque is fed from here and from nowhere else.
+import {
+  fidelityFromPipelineLabel,
+  readMarketFidelity,
+  type MarketFidelityReading,
+} from "@/lib/marketData/marketFidelityAlgebra";
 import { useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -1586,6 +1594,58 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
   }, [symbol, timeframe, snapping]);
 
+  /* ── ONE GRADER, TWO READERS ────────────────────────────────────────────────
+     The masthead fidelity chip graded this surface inside a render-time IIFE
+     far below, which was fine while the chip was the only reader. It is no
+     longer: the decision rail now wears the Honesty Plaque, and a plaque that
+     re-derives its own fidelity is a SECOND WRITER of the same claim — the
+     precise mechanism by which a chip reading ACTIVE DEGRADED comes to sit
+     beside a plaque reading EXECUTABLE about one instrument at one instant.
+
+     So the grading is hoisted here, above the hydration gate (both readers are
+     below it), and the IIFE becomes a reader like every other. */
+  const chartQuoteObservation = React.useMemo(
+    () => ({ present: Number.isFinite(ticker.price) && ticker.price > 0 }),
+    [ticker.price],
+  );
+  const chartSurfaceBadge = React.useMemo(
+    () => resolveChartSurfaceBadge(
+      source, connected, chartBars.length > 0, sessionOpen, chartQuoteObservation,
+      // The badge may not grade a question that is still open.
+      barsSettled,
+    ),
+    [source, connected, chartBars.length, sessionOpen, chartQuoteObservation, barsSettled],
+  );
+
+  /* ── THE HONESTY READING ────────────────────────────────────────────────────
+     `MarketHonestyPlaque` existed for a day rendered in exactly one place —
+     /command-deck — with its reading written into the JSX as a null literal.
+     A plaque hard-coded to its own null state is not disclosure, it is a
+     picture of disclosure, and the governing directive names that failure
+     outright: HARD-CODED WAIT = ORGANISM FAIL. This is the transplant: the
+     organ moves to the live trading surface and is fed a real reading.
+
+     Two refusals are load-bearing here and neither is a default:
+
+     (1) `availability !== undefined` means the badge is AWAITING or
+         UNAVAILABLE — the house has not finished asking, or nothing answered.
+         Folding that into a fidelity word would manufacture a measurement out
+         of an open question, so the plaque gets `null` and says UNMEASURED.
+
+     (2) `readMarketFidelity` itself refuses a non-finite `asOf` and returns
+         null. `lastObservedAtMs` is the transport's accept-site stamp — the
+         same one `usePublishOsStanding` is given above — so the moment on the
+         plaque is an OBSERVATION, never `Date.now()` standing in for one.
+
+     `fidelityFromPipelineLabel` is the only sanctioned crossing from the seven
+     pipeline labels into the five fidelities; inventing a local mapping here
+     is how the seven quietly become de-facto badges. */
+  const chartHonesty = React.useMemo<MarketFidelityReading | null>(() => {
+    if (chartSurfaceBadge.availability !== undefined) return null;
+    const folded = fidelityFromPipelineLabel(chartSurfaceBadge.label);
+    return readMarketFidelity(folded.fidelity, lastObservedAtMs, folded.reasons);
+  }, [chartSurfaceBadge, lastObservedAtMs]);
+
   // HYDRATION GATE — permanent fix for React #418.
   // This dashboard seeds many states from localStorage (theme, timeframe,
   // candleType, footprint, active indicators, VP toggles, chart settings…), so
@@ -1622,6 +1682,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // five prior React #418 bugs in this repo, so it is not done here either.
     // `at: null` on the server yields the unestablished token honestly.
     now: selectCanonicalSessionToken({ symbol, at: sessionClockDate }),
+    // THE SIXTH RAIL CELL the governing mockup names and the shipped rail did
+    // not have. Composed once above off the same badge the masthead chip reads,
+    // so the chip and the plaque are two readers of one grading. `null` here is
+    // a real, rendered state (UNMEASURED) and not an omission.
+    honesty: chartHonesty,
     market: {
       symbol,
       timeframe,
@@ -2173,7 +2238,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // Dividend). The SHIFT-Q 7-question tooltip enrichment now
             // ships to every surface for free, and any future canon
             // vocabulary or color change touches ONE component.
-            const quoteObservation = {present: Number.isFinite(ticker.price) && ticker.price > 0};
+            const quoteObservation = chartQuoteObservation;
             // 2026-09-10 — measured live in production on /charts?symbol=NQ1!:
             // this header read "NQ1! — DATA UNAVAILABLE" while `chartBars`
             // (read six lines below for the tooltip) held three sessions of
@@ -2189,14 +2254,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // this surface never did. Passing the quote observation keeps the
             // refusal visible instead of letting bar presence launder it into
             // a quote claim.
-            const b = resolveChartSurfaceBadge(
-              source, connected, chartBars.length > 0, sessionOpen, quoteObservation,
-              // The badge may not grade a question that is still open. With
-              // this argument absent, the chip spent every page load asserting
-              // DATA UNAVAILABLE about an instrument whose bars were seconds
-              // from painting underneath it.
-              barsSettled,
-            );
+            // READER, NOT GRADER. This used to call `resolveChartSurfaceBadge`
+            // itself; the call now lives once at `chartSurfaceBadge` far above,
+            // because the decision rail's Honesty Plaque reads the same grading
+            // and two independent gradings of one instrument is exactly how a
+            // chip and a plaque come to contradict each other on one screen.
+            // (The `barsSettled` argument that keeps the badge from grading a
+            // still-open question moved up with it.)
+            const b = chartSurfaceBadge;
             // SHIFT-U continuation — pass the per-capability report so
             // the trader hovering the chip sees "Weakest capability"
             // hint + coverage count. Canon §Provider Status Per
