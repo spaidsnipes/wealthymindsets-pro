@@ -463,6 +463,35 @@ const THE_ARTERY: readonly string[] = [
  * BEEN MIGRATED. `canonicalBar.ts` still has ZERO production consumers. The
  * count fell from twenty-two to four and the artery is as unused as it was at
  * twenty-two, which is the single most important sentence in this file.
+ *
+ * ── THAT SENTENCE STOPPED BEING TRUE ON 2026-09-18 ──────────────────────────
+ *
+ * `/api/yahoo`'s candle path now mints CanonicalBars through
+ * `lib/marketData/yahooCandleIngress.ts`. ONE ingress, out of many. The census
+ * above did not move and SHOULD NOT HAVE — this atom retired no shape, and a
+ * census that fell here would be measuring the wrong thing again.
+ *
+ * WHY THAT INGRESS WENT FIRST, since "highest value" needs a reason: it is the
+ * only one that could fill a canonical field with a fact it ALREADY HELD.
+ * `yahooTimeframes.ts` computes `sourceMode: "reconstructed"` for nine of its
+ * eighteen plans and had nowhere to record it, so a 4h candle folded from 60m
+ * bars went onto the wire indistinguishable from one a venue printed.
+ * `BAR_PROVENANCES.DERIVED` is that sentence. Every other candidate ingress
+ * would have had to INVENT at least one field to migrate, and inventing is the
+ * failure `toLegacyTuple`'s deliberately-missing inverse exists to prevent.
+ *
+ * WHAT THE MIGRATION DID NOT BUY, named so it is not mistaken for bought:
+ * those bars carry `SESSION_UNKNOWN`, because Yahoo does not report a session
+ * and `includePrePost=true` merges RTH with pre- and after-hours into one
+ * undifferentiated array. They are therefore INDICATIVE and can never be
+ * EXECUTABLE. That is an assertion of ignorance travelling with the bar — the
+ * third door past the wall documented in `canonicalBar.ts`, not a placeholder,
+ * and not progress toward one.
+ *
+ * THE SECOND RATCHET BELOW is the scoreboard for the half that is left. The
+ * census counts what we are migrating AWAY from and may only SHRINK; the
+ * consumer list is what we are migrating TOWARD and may only GROW. One number
+ * alone can always be gamed — twenty-two to four proved that, at length.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/experience/DeckMarketChart.tsx::Candle",
@@ -583,6 +612,85 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     ] as const) {
       expect(field in bar, `CanonicalBar lost ${field}`).toBe(true);
     }
+  });
+
+  /**
+   * THE ADOPTION RATCHET — the number the census could never measure.
+   *
+   * Every file below is PRODUCTION code (the walker excludes `.test.`) that
+   * imports the artery. It is a floor, not a freeze: adding a consumer is the
+   * work, so the list may GROW freely. Losing one fails, because an ingress
+   * that silently stops minting CanonicalBars is exactly the regression this
+   * whole census exists to notice, and it would otherwise leave no trace — the
+   * wire shape is identical either way.
+   *
+   * A file may leave this list only by being deleted or renamed, and then this
+   * expectation is edited in the SAME commit with the reason written down.
+   *
+   * ── WHY THIS DEMANDS A *VALUE* IMPORT, WHICH THE FIRST VERSION DID NOT ────
+   *
+   * The first version of this gate matched ANY import of `canonicalBar`, and a
+   * mutation receipt caught it passing while broken: pointing `route.ts` at a
+   * nonexistent ingress module left this green, because the route ALSO carries
+   * `import type { LegacyOhlcvTuple } from ".../canonicalBar"` — and a
+   * type-only import is erased by the compiler. The emitted bundle would have
+   * contained no reference to the artery at all while this gate reported
+   * adoption. That is precisely the vacuous green the census was opened over,
+   * reappearing inside the gate written to prevent it.
+   *
+   * So each entry names the module it must reach ON A RUNTIME EDGE. Only
+   * `screenReach.enforcement.test.ts` caught the mutant, because it already
+   * excludes type-only edges; this gate now agrees with it rather than
+   * depending on it.
+   */
+  const REQUIRED_ARTERY_EDGES: readonly { readonly from: string; readonly to: string }[] = [
+    // The ingress must reach the artery for values, not just its types.
+    { from: "lib/marketData/yahooCandleIngress.ts", to: "canonicalBar" },
+    // And the route must actually call the ingress.
+    { from: "app/api/yahoo/route.ts", to: "yahooCandleIngress" },
+  ];
+
+  it("has at least the production consumers it had when the migration began", () => {
+    const files = productionSources();
+    // FALSE_RIPENESS: the same guard the census uses. Without it an empty walk
+    // would make every lookup below fail for the wrong reason.
+    expect(files.length, "production sources walked").toBeGreaterThan(500);
+
+    const byRelPath = new Map(
+      files.map(f => [path.relative(SRC, f).split(path.sep).join("/"), f] as const),
+    );
+
+    for (const edge of REQUIRED_ARTERY_EDGES) {
+      const abs = byRelPath.get(edge.from);
+      expect(abs, `${edge.from} is gone from the production walk`).toBeDefined();
+      const src = readFileSync(abs as string, "utf8");
+
+      // `import {` / `import x from` — but NOT `import type {`, which the
+      // compiler erases and which therefore proves nothing about the bundle.
+      const valueImport = new RegExp(
+        String.raw`import\s+(?!type\s)[\s\S]{0,400}?from\s+["'][^"']*` + edge.to + String.raw`["']`,
+      );
+      expect(
+        valueImport.test(src),
+        `${edge.from} no longer has a RUNTIME import of ${edge.to}. An ingress `
+        + "silently left the artery, and the wire shape looks identical either "
+        + "way — which is why this is a gate and not a code review.",
+      ).toBe(true);
+    }
+  });
+
+  it("proves the first ingress fills provenance from a fact it already held", () => {
+    // Not a restatement of the unit test. This asserts the LINKAGE the baton
+    // claims: that the planner's `sourceMode` is what decides provenance, so
+    // nobody can later hard-code REST_BACKFILL and keep the gate green.
+    const src = readFileSync(path.join(__dirname, "yahooCandleIngress.ts"), "utf8");
+    expect(src, "the scan read the real ingress").toContain("export function ingestYahooCandles");
+    expect(src).toMatch(/sourceMode === "reconstructed"/);
+    expect(src).toContain("BAR_PROVENANCES.DERIVED");
+    // And that it never claims a session or an executability it cannot back.
+    expect(src).toContain("SESSION_UNKNOWN");
+    expect(src).toContain("MARKET_FIDELITIES.INDICATIVE");
+    expect(src).not.toContain("MARKET_FIDELITIES.EXECUTABLE");
   });
 
   it("keeps heard-at and happened-at as two different facts", () => {

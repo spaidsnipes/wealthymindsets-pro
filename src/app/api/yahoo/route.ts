@@ -9,6 +9,12 @@
 import { NextResponse } from "next/server";
 import { aggregateYahooBars, resolveYahooTimeframe } from "@/lib/yahooTimeframes";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import {
+  YAHOO_BAR_SOURCE,
+  ingestYahooCandles,
+  toLegacySecondsTuple,
+  yahooProvenance,
+} from "@/lib/marketData/yahooCandleIngress";
 import { buildYahooQuoteObservation } from "@/lib/marketData/yahooQuoteObservation";
 import { toYahooSymbol } from "@/lib/yahooSymbol";
 
@@ -257,7 +263,37 @@ export async function GET(request: Request) {
         });
       }
 
-      const candles = aggregateYahooBars(baseCandles, plan, bars);
+      const aggregated = aggregateYahooBars(baseCandles, plan, bars);
+
+      /* ── M8: THIS IS THE ARTERY'S FIRST PRODUCTION CONSUMER ─────────────────
+         Every bar below is now minted as a CanonicalBar and run through
+         `admitBar` before it reaches the wire. Three things that were never
+         true on this path are true now:
+
+           1. GEOMETRY IS CHECKED, NOT TRUSTED. An inside-out bar (high below
+              low, or a wick the market never printed) is REFUSED. It is not
+              clamped — a repaired bar is a lie with a timestamp.
+           2. A TIMESTAMP DELIVERED TWICE IS REFUSED THE SECOND TIME, rather
+              than appended. That is the double-count family, and the volume
+              profile is downstream of it.
+           3. PROVENANCE IS RECORDED. `plan.sourceMode` has been computed here
+              for months with nowhere to put it; a reconstructed 4h bar is now
+              `DERIVED` — real, but not something a venue printed.
+
+         WHAT IS STILL NOT TRUE: `sessionId` is `SESSION_UNKNOWN`, because Yahoo
+         does not say, and `fidelity` is therefore `INDICATIVE` and can never be
+         EXECUTABLE on this path. That is an assertion of ignorance travelling
+         with the bar, not a placeholder. The wire shape below is UNCHANGED —
+         `candles` is the same six-number array it always was — so this atom is
+         observationally silent except where a bar is now refused. */
+      const ingress = ingestYahooCandles({
+        symbolId:   rawSym,
+        timeframe:  tf,
+        sourceMode: plan.sourceMode,
+        tuples:     aggregated,
+        receivedAt: Date.now(),
+      });
+      const candles = ingress.bars.map(toLegacySecondsTuple);
 
       return NextResponse.json({
         sym: rawSym,
@@ -267,6 +303,18 @@ export async function GET(request: Request) {
         sourceMode: plan.sourceMode,
         baseInterval: plan.interval,
         candles,
+        // The canonical identity these bars carry, published so a consumer can
+        // read it instead of assuming it. `sessionKnown: false` is the honest
+        // half — see `yahooCandleIngress.ts`.
+        barSource:     YAHOO_BAR_SOURCE,
+        barProvenance: yahooProvenance(plan.sourceMode),
+        barFidelity:   "INDICATIVE",
+        sessionKnown:  false,
+        // Bars the artery would not admit. Surfaced rather than swallowed: a
+        // refused bar is a gap the trader can be told about, a silently dropped
+        // one is a gap they will read as a quiet market.
+        refusedBars:   ingress.refusals.length,
+        refusals:      ingress.refusals,
       });
     }
 

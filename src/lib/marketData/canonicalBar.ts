@@ -145,9 +145,19 @@ export interface CanonicalBar {
   readonly close: number;
   readonly volume: number;
 
-  /** When the market did it. */
+  /**
+   * When the market did it. EPOCH MILLISECONDS.
+   *
+   * The unit is stated because it was not, and the omission is load-bearing:
+   * `LegacyOhlcvTuple.time` below is epoch SECONDS throughout this repo, and
+   * the two fields are both bare `number`. See `toLegacyTuple`'s warning.
+   */
   readonly asOf: number;
-  /** When we heard. Explicitly NOT an ordering authority. */
+  /**
+   * When we heard. EPOCH MILLISECONDS, the same clock unit as `asOf` — two
+   * clocks meant to be compared to each other cannot be measured in different
+   * units. Explicitly NOT an ordering authority.
+   */
   readonly receivedAt: number;
 
   readonly fidelity: MarketFidelity;
@@ -358,6 +368,22 @@ export interface LegacyOhlcvTuple {
  *
  * A caller holding only a tuple does not have a canonical bar. It has six
  * numbers, and the honest move is to go back to whoever produced them.
+ *
+ * ── UNITS, ADDED 2026-09-18 BY THE FIRST REAL CONSUMER ───────────────────────
+ *
+ * `asOf` is epoch MILLISECONDS; `time` is whatever unit the CALLER's renderer
+ * expects, and this function copies one into the other unchanged. That is
+ * correct only for a caller in milliseconds. Most of this repo — Yahoo's chart
+ * feed, lightweight-charts, every `LegacyOhlcvTuple` in the census — is in
+ * epoch SECONDS, and passing a millisecond `asOf` into a seconds `time` places
+ * the bar roughly fifty thousand years in the future without a single type
+ * error, because both fields are bare `number`.
+ *
+ * `yahooCandleIngress.ts::toLegacySecondsTuple` therefore does NOT call this
+ * function; it states the ÷1000 instead of inheriting it. Any new ingress on
+ * the seconds side must do the same. This is the census defect exactly — two
+ * structurally identical, semantically unrelated shapes the compiler cannot
+ * tell apart — reappearing one level down, in the units rather than the fields.
  */
 export function toLegacyTuple(bar: CanonicalBar): LegacyOhlcvTuple {
   return {

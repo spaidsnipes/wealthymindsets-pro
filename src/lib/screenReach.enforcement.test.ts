@@ -232,11 +232,32 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     note:
       "NOT A NEW ORPHAN — a pre-existing one this gate was mis-crediting until the type-only edge was excluded on 2026-09-18. Every export in this file is a `type` or an `interface` (BrokerId, UniversalOrderIntent, CanonicalAccount, CanonicalOrderAck, BrokerCapabilities, BrokerHealth, BrokerAdapter) and every one of its nine importers reaches it with `import type`, so the compiler erases the edge and the emitted bundle contains no reference to this path from any screen. Its unreachability is therefore CORRECT and permanent rather than a debt: a contract that ships no runtime code cannot be wired to a surface, and wiring one would mean giving it a runtime artifact it has no reason to have. The adapters that DO ship code — registry, alpaca, webull, tastytrade — are reached on their own edges and are not covered by this entry. Do not delete this entry by adding a runtime export here; delete it only if this file stops being types-only.",
   },
-  "src/lib/marketData/canonicalBar.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "The one bar contract, from SUPPORT — DECISION_ID Lifecycle + CanonicalBar (2026-09-18) §3: 'no invention ships its own bar builder.' Seventeen files under src/ already declare or destructure an OHLC shape, and several of them are the SAME six anonymous fields under different names, which means TypeScript will pass any one where another is expected while nothing in the type says whether that close is a live print, a delayed one, a synthetic aggregate, or the last number a closed session left behind. It has no screen yet because adopting it means migrating those seventeen call sites, and doing that in the same commit that declares the contract would make the contract unreviewable. What a human loses meanwhile is nothing they had. What the house gains now is that asOf and receivedAt exist as two fields instead of one 'time' — the chart cannot render the trader's morning at the end of their afternoon — that a corrected bar gets a NEW id rather than silently overwriting the one the trader already acted on, and that there is deliberately no fromLegacyTuple(): a function that manufactures a symbolId, fidelity, source and provenance out of six loose numbers is the most effective way to launder unknown data into canonical data, and it would be called everywhere within a month precisely because it is convenient. Delete this entry when the first renderer reads its candles from here.",
-  },
+  /*
+   * `src/lib/marketData/canonicalBar.ts` WAS HERE, AND ITS OWN EXIT CONDITION
+   * RETIRED IT ON 2026-09-18.
+   *
+   * The entry read: "Delete this entry when the first renderer reads its
+   * candles from here." `/api/yahoo`'s candle path now mints every bar it
+   * serves through `lib/marketData/yahooCandleIngress.ts`, so the artery is on
+   * a real edge from a real route and this gate detected it WITHOUT being told
+   * — it failed with "these are listed as unreachable but a screen now reaches
+   * them" in the same run that added the ingress.
+   *
+   * WORTH RECORDING BECAUSE OF WHO SAID IT. This gate is not part of the M8
+   * census and shares no code with it; it reads the import graph. For the whole
+   * life of that census — twenty-two private bar shapes collapsed to four —
+   * this entry sat here unmoved, which was the correct reading: renaming
+   * duplicates onto one legacy tuple moved no ingress onto the artery and this
+   * gate was never fooled by the falling count. The first atom that actually
+   * changed the import graph is the first one it objected to. An adoption claim
+   * that a disinterested gate refuses to corroborate is not an adoption.
+   *
+   * DO NOT re-add this entry to silence a future failure here. If this file
+   * becomes unreachable again, an ingress stopped minting CanonicalBars and the
+   * wire shape will look identical either way — that is the regression, not the
+   * gate. See the adoption ratchet in `canonicalBarAdoption.sentinel.test.ts`,
+   * which names the same two files as a floor from the other direction.
+   */
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",
