@@ -778,8 +778,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // aggressor split, so the selector resolves the window's basis to VOLUME and
   // the view says so in its own header. Synthesizing a split from candle
   // direction would make the picture match the mockup and the reading a lie.
-  const absorptionAnatomyVM = React.useMemo(() => {
-    const input: AnatomyBarInput[] = chartBars.map(b => ({
+  // ONE MAPPING, NOT TWO. This is the single place in this room where a chart
+  // bar becomes an anatomy input, and both views below consume this exact
+  // array. It was two verbatim-identical `chartBars.map` blocks until
+  // 2026-09-18, which made the "same bars" guarantee a matter of two blocks of
+  // code happening to still agree — a thing that survives until the first
+  // person edits one of them. Now the guarantee is structural: there is only
+  // one array, so there is nothing for the two surfaces to disagree about.
+  //
+  // askVol / bidVol are deliberately null. `OHLCVBar` carries no aggressor
+  // split, so the selector resolves the window's basis to VOLUME and each view
+  // says so in its own header. Synthesizing a split from candle direction would
+  // make the picture match the mockup and the reading a lie.
+  const anatomyInput = React.useMemo<AnatomyBarInput[]>(() => (
+    chartBars.map(b => ({
       time: typeof b.time === "number" ? b.time : Number(b.time),
       open: b.open,
       high: b.high,
@@ -788,33 +800,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       volume: Number.isFinite(b.volume) ? b.volume : null,
       askVol: null,
       bidVol: null,
-    }));
-    return selectAbsorptionAnatomyView(input, { windowBars: 30 });
-  }, [chartBars]);
+    }))
+  ), [chartBars]);
+
+  const absorptionAnatomyVM = React.useMemo(
+    () => selectAbsorptionAnatomyView(anatomyInput, { windowBars: 30 }),
+    [anatomyInput],
+  );
 
   // CANON ASSET 03 — the same window, the same bars, the same absent aggressor
-  // split. It is built from an INDEPENDENT memo rather than derived from the
-  // Absorption view model on purpose: the view model above is already shaped
-  // for columns, and reaching through it would make the scatter a reader of a
-  // rendering rather than of the measurement. Both memos call the same series
-  // selector underneath, so the two surfaces can never disagree about which
-  // bars absorbed.
-  //
-  // askVol / bidVol are null for the same reason as above, and that is exactly
-  // what flips the scatter's y-axis to EFFORT and makes it say so.
-  const aggressionResponseVM = React.useMemo(() => {
-    const input: AnatomyBarInput[] = chartBars.map(b => ({
-      time: typeof b.time === "number" ? b.time : Number(b.time),
-      open: b.open,
-      high: b.high,
-      low: b.low,
-      close: b.close,
-      volume: Number.isFinite(b.volume) ? b.volume : null,
-      askVol: null,
-      bidVol: null,
-    }));
-    return selectAggressionResponse(input, { windowBars: 30 });
-  }, [chartBars]);
+  // split, now literally the same input array. It still does NOT derive from
+  // the Absorption view model above: that view model is already shaped for
+  // columns, and reaching through it would make the scatter a reader of a
+  // rendering rather than of the measurement. Sharing the INPUT is the opposite
+  // of that — both surfaces read the same measurement and each compiles its own
+  // view of it, which is what "they can never disagree about which bars
+  // absorbed" was always trying to say.
+  const aggressionResponseVM = React.useMemo(
+    () => selectAggressionResponse(anatomyInput, { windowBars: 30 }),
+    [anatomyInput],
+  );
 
   // ── Asset 05 · BIG TRADE INTELLIGENCE ─────────────────────────────────
   //

@@ -62,11 +62,39 @@ describe("Absorption view wiring", () => {
     expect(src).toContain('activeTab !== "Absorption"');
   });
 
+  /**
+   * REMODELLED 2026-09-18, in the same change as the implementation.
+   *
+   * The fact this guards has not changed: the view measures the candles the
+   * chart drew, not a second fetch. What changed is the SHAPE of the wiring.
+   * This used to assert that the memo literally closed with `}, [chartBars])`,
+   * which was a proxy for the fact and only held while the bar mapping lived
+   * inside this one memo. The mapping is now shared with the Aggression
+   * Response scatter — one `anatomyInput` memo instead of two verbatim copies —
+   * so the derivation is two hops: chartBars → anatomyInput → VM.
+   *
+   * The old assertion would have failed a change that made the guarantee
+   * STRONGER, which is the signature of a test defending a shape rather than a
+   * fact. It is replaced by a trace of the whole chain, which the one-line
+   * proxy could not express: the input is mapped from chartBars, it re-measures
+   * when chartBars changes, and the VM is compiled from that input.
+   */
   it("the view is fed the same candles the chart drew, not a second fetch", () => {
     const src = read("src/components/chart/ChartsDashboard.tsx");
     expect(src).toContain("selectAbsorptionAnatomyView");
+    // Hop 1 — the anatomy input is mapped from the chart's own bars, and is
+    // memoised on them, so a new window is genuinely re-measured.
+    expect(src, "anatomyInput is mapped from chartBars").toMatch(
+      /anatomyInput\s*=\s*React\.useMemo[\s\S]{0,300}?chartBars\.map\(/,
+    );
+    expect(src, "anatomyInput re-measures when chartBars changes").toMatch(
+      /anatomyInput\s*=\s*React\.useMemo[\s\S]{0,600}?\[chartBars\]\)/,
+    );
+    // Hop 2 — the view model is compiled from that input and nothing else.
+    expect(src, "the VM reads the shared input").toMatch(
+      /selectAbsorptionAnatomyView\(\s*anatomyInput\s*,/,
+    );
     expect(src).toMatch(/absorptionAnatomyVM\s*=\s*React\.useMemo/);
-    expect(src).toMatch(/\}, \[chartBars\]\)/);
   });
 
   it("does not synthesize an aggressor split from candle direction", () => {

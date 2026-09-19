@@ -65,11 +65,48 @@ describe("Aggression vs Response view wiring", () => {
     expect(src).toContain('activeTab !== "Aggression"');
   });
 
+  /**
+   * REMODELLED 2026-09-18, in the same change as the implementation, and for
+   * the same reason as its twin in `absorptionViewIsOfferedEverywhere`.
+   *
+   * The scatter used to build its OWN `chartBars.map(...)`, verbatim identical
+   * to the Absorption view's. The comment above it promised the two surfaces
+   * "can never disagree about which bars absorbed" — a promise that held only
+   * while two separate blocks of code happened to still agree. They now share a
+   * single `anatomyInput` memo, so the promise is structural rather than
+   * coincidental, and this test traces the chain instead of pattern-matching
+   * the closing line of a memo that no longer exists in that shape.
+   *
+   * Sharing the INPUT is not the thing the old comment warned against. Reading
+   * through the Absorption VIEW MODEL would make the scatter a reader of a
+   * rendering; both surfaces reading the same measurement and each compiling
+   * its own view is the opposite, and is asserted below.
+   */
   it("the view is fed the same candles the chart drew, not a second fetch", () => {
     const src = read("src/components/chart/ChartsDashboard.tsx");
     expect(src).toContain("selectAggressionResponse");
+    expect(src, "anatomyInput is mapped from chartBars").toMatch(
+      /anatomyInput\s*=\s*React\.useMemo[\s\S]{0,300}?chartBars\.map\(/,
+    );
+    expect(src, "anatomyInput re-measures when chartBars changes").toMatch(
+      /anatomyInput\s*=\s*React\.useMemo[\s\S]{0,600}?\[chartBars\]\)/,
+    );
+    expect(src, "the scatter reads the shared MEASUREMENT").toMatch(
+      /selectAggressionResponse\(\s*anatomyInput\s*,/,
+    );
     expect(src).toMatch(/aggressionResponseVM\s*=\s*React\.useMemo/);
-    expect(src).toMatch(/\}, \[chartBars\]\)/);
+  });
+
+  /**
+   * AND IT STILL MUST NOT READ THE OTHER VIEW'S RENDERING. This is the half of
+   * the original comment's intent that the shared input does NOT cover, so it
+   * gets its own assertion rather than being left to prose.
+   */
+  it("compiles its own view rather than reading the Absorption view model", () => {
+    const src = read("src/components/chart/ChartsDashboard.tsx");
+    expect(src, "the scatter must not be derived from absorptionAnatomyVM").not.toMatch(
+      /selectAggressionResponse\(\s*absorptionAnatomyVM/,
+    );
   });
 
   it("does not synthesize an aggressor split from candle direction", () => {
