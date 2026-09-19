@@ -1,31 +1,41 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is SEVENTEEN as of the
+ * The count below started at twenty-two on 2026-09-18 and is THIRTEEN as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO SEVENTEEN IS NOT FIVE RETIREMENTS. It is three retirements and
- * one measurement correction, and the array's docblock separates them line by
- * line so nobody reads this header as five ingresses migrated. None were.
+ * TWENTY-TWO TO THIRTEEN IS NOT NINE MIGRATIONS. It is eight renames-or-deletes
+ * plus one measurement correction, and ZERO INGRESSES MIGRATED. The array's
+ * docblock separates the kinds line by line so nobody reads this header as nine
+ * ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not seventeen competing ideas of what a bar is.
- * THIRTEEN OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * The remaining shapes are not thirteen competing ideas of what a bar is.
+ * NINE OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
  * low, close, volume`, every one of them `number` — which is also, exactly,
- * `LegacyOhlcvTuple` in the artery. A fourteenth, `DeckMarketChart::Candle`,
+ * `LegacyOhlcvTuple` in the artery. A tenth, `DeckMarketChart::Candle`,
  * differs only by `volume?`. The sprawl is one anonymous six-field tuple
- * wearing a dozen module-local labels, and a sanctioned name for precisely it
- * already exists with a docblock saying so.
+ * wearing a handful of module-local labels, and a sanctioned name for precisely
+ * it already exists with a docblock saying so.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming thirteen
- * declarations to one name removes thirteen duplicate DECISIONS and delivers
+ * it is important not to let the ease flatter the result: renaming nine
+ * declarations to one name removes nine duplicate DECISIONS and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
  * truthEpoch on the live path — is untouched by every rename and stays owed.
+ *
+ * A NAME THAT IMPLIES A PROVENANCE THE SHAPE CANNOT HOLD is the sharpest form
+ * of the defect, and two of the renames landed on it directly: `KrakenOHLC` and
+ * `YahooCandle` both announced a source in the identifier while carrying no
+ * `source` field, so a Kraken row and a Yahoo row were freely assignable to
+ * each other's names and nothing in either type could object. The honest fix
+ * for that is CanonicalBar, which has `source` and `provenance` as real fields.
+ * The rename is the smaller, true move: stop claiming in the name what the type
+ * cannot carry.
  *
  * ── THE MEASUREMENT, TAKEN 2026-09-18 ──────────────────────────────────────
  *
@@ -246,14 +256,41 @@ const THE_ARTERY: readonly string[] = [
  * cannot say which symbol or which session it belongs to. One duplicate
  * DECISION about what a bar is was removed. Identity is still owed, and no
  * rename in this list will ever deliver it.
+ *
+ * ── SEVENTEEN TO THIRTEEN: THE FOUR WITH NO EXTERNAL IMPORTERS ─────────────
+ *
+ * RETIRED TOGETHER: `app/api/exchange/route.ts::Bar`,
+ * `components/chart/WatchlistGrid.tsx::Candle`, `lib/api/kraken.ts::KrakenOHLC`
+ * and `lib/yahooCandleConsumer.ts::YahooCandle`. All four are byte-for-byte
+ * `LegacyOhlcvTuple` and all four now say so.
+ *
+ * WHY THESE FOUR ARE ONE ATOM, and it is a measured reason rather than a
+ * batching convenience: every remaining census entry was measured for
+ * exported-ness and for importers outside its own module, and these four were
+ * exactly the ones with ZERO external importers. A name no other module imports
+ * is a name no other module can be agreeing or disagreeing with, so collapsing
+ * it changes one file's vocabulary and nothing else's. That is a different risk
+ * class from `indicators.ts::Bar` (seven importers) or `pine/types.ts::OHLCVBar`
+ * (seven), and grouping across that line would have hidden the difference.
+ *
+ * MAINCHART WAS DELIBERATELY EXCLUDED even though it also has zero importers.
+ * `components/chart/MainChart.tsx::Bar` has roughly fifty references inside the
+ * live-chart hot path, including a `useRef<Bar[]>` the tick handler MUTATES.
+ * `LegacyOhlcvTuple` declares all six fields `readonly`, so that rename is a
+ * question about whether the live path writes into its own bars — a real
+ * finding, and one that deserves its own atom rather than a ride on this one.
+ * Taking it here would have made the number four instead of three-plus-one and
+ * bought that with an unexamined mutation in the chart.
+ *
+ * TWO OF THE FOUR WERE THE PROVENANCE-IN-THE-NAME CASE described in the header:
+ * `KrakenOHLC` and `YahooCandle` named a venue that the type could not carry.
+ * Neither now claims it. Neither now has it either — that is CanonicalBar's job
+ * and CanonicalBar still has no production consumer.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
-  "app/api/exchange/route.ts::Bar",
   "components/chart/MainChart.tsx::Bar",
-  "components/chart/WatchlistGrid.tsx::Candle",
   "components/chart/indicators.ts::Bar",
   "components/experience/DeckMarketChart.tsx::Candle",
-  "lib/api/kraken.ts::KrakenOHLC",
   "lib/backtest/engine.ts::Bar",
   "lib/marketData/liveBarPolicy.ts::LiveBar",
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
@@ -263,7 +300,6 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "lib/sessionVP.ts::Candle",
   "lib/timeframes.ts::Candle",
   "lib/vpEngine.ts::ProfileBar",
-  "lib/yahooCandleConsumer.ts::YahooCandle",
   "lib/yahooTimeframes.ts::YahooOhlcvBar",
 ];
 
@@ -327,7 +363,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at seventeen private pasts and may only SHRINK", () => {
+  it("holds at thirteen private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

@@ -3,6 +3,10 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
+// This grid declared its own six-field `Candle` until 2026-09-18. It was
+// byte-for-byte `LegacyOhlcvTuple`, so it speaks that name now. A rename, not a
+// migration: the cards still draw a past with no symbolId and no fidelity.
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 /**
  * WatchlistGrid — Moomoo-style grid of live mini-chart cards.
@@ -14,8 +18,7 @@ import { readSymbolList } from "@/lib/marketData/storedSymbolList";
  * writes (`wm_watchlists`, `wm_active_watchlist`) so the two stay in sync.
  */
 
-interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number; }
-interface CardData { sym: string; candles: Candle[]; loading: boolean; }
+interface CardData { sym: string; candles: LegacyOhlcvTuple[]; loading: boolean; }
 
 const TF_RANGE: Record<string, { tf: string }> = {
   "Daily": { tf: "1D" }, "Weekly": { tf: "1W" }, "Monthly": { tf: "1M" },
@@ -55,7 +58,7 @@ function fmtVol(n: number) {
 
 const GREEN = "#26a69a", RED = "#ef5350";
 
-function MiniChart({ candles }: { candles: Candle[] }) {
+function MiniChart({ candles }: { candles: LegacyOhlcvTuple[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {

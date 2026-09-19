@@ -4,6 +4,8 @@
  * WebSocket: wss://ws.kraken.com/v2
  */
 
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+
 const REST_BASE = "https://api.kraken.com/0/public";
 
 // Kraken pair mapping from common crypto symbols
@@ -116,17 +118,19 @@ export async function getRecentTrades(sym: string): Promise<KrakenTrade[]> {
     .reverse();
 }
 
-export interface KrakenOHLC {
-  time:   number;
-  open:   number;
-  high:   number;
-  low:    number;
-  close:  number;
-  volume: number;
-}
+/*
+ * `KrakenOHLC` lived here until 2026-09-18: six fields, all `number`, and
+ * byte-for-byte `LegacyOhlcvTuple`. The venue-flavoured NAME was the only
+ * Kraken-specific thing about it — `getOHLC` already normalises the venue's
+ * eight-column row down to the same six numbers every other provider in this
+ * repo produces, so the name was claiming a distinction the shape did not make.
+ * Nothing imported it, so the rename costs nothing and removes one more private
+ * idea of what a bar is. It does not add identity: the tuple still cannot say
+ * which symbol or session these six numbers belong to.
+ */
 
 // Interval in minutes: 1,5,15,30,60,240,1440,10080,21600
-export async function getOHLC(sym: string, intervalMin = 1): Promise<KrakenOHLC[]> {
+export async function getOHLC(sym: string, intervalMin = 1): Promise<LegacyOhlcvTuple[]> {
   const pair = toKrakenPair(sym);
   if (!pair) return [];
   const krakenInternal = pair.replace("/", "").replace("BTC", "XBT");

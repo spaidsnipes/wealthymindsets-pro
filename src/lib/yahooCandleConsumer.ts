@@ -1,19 +1,26 @@
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+
 export const YAHOO_CANDLE_ENVELOPE_HEADER = "X-WM-Candle-Envelope-Version";
 export const YAHOO_CANDLE_CAPABILITIES_URL = "/api/timeframes/capabilities";
 
 export type YahooCandleMode = "legacy-compatible" | "typed-required";
 
-export interface YahooCandle {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+/*
+ * `YahooCandle` lived here until 2026-09-18: six fields, all `number`,
+ * byte-for-byte `LegacyOhlcvTuple`. The provider prefix named the SOURCE of the
+ * numbers, but the type did not carry the source — nothing in the shape said
+ * "Yahoo", so a Kraken row and a Yahoo row were assignable to each other's
+ * names without complaint. That is the whole defect the census counts: a name
+ * that implies a provenance the shape cannot hold.
+ *
+ * The honest fix for THAT is CanonicalBar, which carries `source` and
+ * `provenance` as real fields. This is not that fix. This is the smaller one:
+ * stop pretending the provenance is in the name, and say plainly that these
+ * are six numbers with no identity attached.
+ */
 
 export type YahooCandleOutcome =
-  | { status: "ready"; candles: YahooCandle[]; empty: boolean }
+  | { status: "ready"; candles: LegacyOhlcvTuple[]; empty: boolean }
   | { status: "unavailable" | "error" | "malformed"; candles: []; message: string; retryable: boolean; retryAfterMs?: number };
 
 interface YahooCandleRequest {
@@ -41,7 +48,7 @@ function sanitizedMessage(value: unknown, fallback: string): string {
   return compact.slice(0, 180);
 }
 
-function validCandle(value: unknown): value is YahooCandle {
+function validCandle(value: unknown): value is LegacyOhlcvTuple {
   if (!isRecord(value)) return false;
   const values = [value.time, value.open, value.high, value.low, value.close, value.volume];
   if (!values.every((candidate): candidate is number => typeof candidate === "number" && Number.isFinite(candidate))) return false;
@@ -49,7 +56,7 @@ function validCandle(value: unknown): value is YahooCandle {
   return time > 0 && open >= 0 && high >= Math.max(open, close) && low <= Math.min(open, close) && low >= 0 && volume >= 0;
 }
 
-function candlesFrom(value: unknown): YahooCandle[] | null {
+function candlesFrom(value: unknown): LegacyOhlcvTuple[] | null {
   if (!Array.isArray(value) || !value.every(validCandle)) return null;
   return value;
 }

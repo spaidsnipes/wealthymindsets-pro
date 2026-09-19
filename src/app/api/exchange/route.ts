@@ -15,9 +15,14 @@ import {
 } from "@/lib/marketData/exchangeTimeframes";
 import { resolveRollingChange, type ChangeWindow } from "@/lib/marketData/changeWindow";
 import { strictProviderNumber } from "@/lib/marketData/strictProviderNumber";
+// This route declared its own six-field `Bar` until 2026-09-18. It was
+// byte-for-byte `LegacyOhlcvTuple`, so it now speaks that name instead of being
+// a private synonym for it. The rename removes a duplicate decision about what
+// a bar is; it does not give this route's output canonical identity, which the
+// legacy tuple deliberately does not carry.
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 type Ex = PublicCryptoExchange;
-type Bar = { time: number; open: number; high: number; low: number; close: number; volume: number };
 
 /* Per-exchange trading-pair format for a coin */
 function pair(ex: Ex, coin: string): string {
@@ -118,7 +123,7 @@ async function getQuote(ex: Ex, coin: string): Promise<ExchangeQuote> {
 }
 
 /* ── CANDLES: normalized OHLCV ────────────────────────────────── */
-async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<Bar[]> {
+async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<LegacyOhlcvTuple[]> {
   const p = pair(ex, coin);
 
   if (ex === "coinbase") {
@@ -183,7 +188,7 @@ export async function GET(req: Request) {
         `c:${ex}:${coin}:${resolution.timeframe}:${bars}`,
         4000,
         () => getCandles(ex, coin, resolution.timeframe, resolution.seconds, bars),
-      ) as Bar[];
+      ) as LegacyOhlcvTuple[];
       return NextResponse.json({
         ex,
         coin,
