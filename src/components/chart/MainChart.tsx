@@ -2194,8 +2194,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
       } else if (isBars) {
         cs = chart.addSeries(LW.BarSeries,{
-          upColor:          chartSettings?.candleUp   ?? "#00E5CC",
-          downColor:        chartSettings?.candleDown ?? "#7B6CF7",
+          upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
+          downColor:        chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
           openVisible:      true,
           thinBars:         false,
           priceLineVisible: true,
@@ -2205,8 +2205,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         cs.setData(displayData as any);
       } else if (isHlcBars) {
         cs = chart.addSeries(LW.BarSeries,{
-          upColor:          chartSettings?.candleUp   ?? "#00E5CC",
-          downColor:        chartSettings?.candleDown ?? "#7B6CF7",
+          upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
+          downColor:        chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
           openVisible:      false,
           thinBars:         true,
           priceLineVisible: true,
@@ -2219,10 +2219,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Use background color for wicks to hide them — "transparent" breaks LWC's internal parser
         const bgCol = chartSettings?.background ?? MARKET_FIELD_DEFAULT;
         cs = chart.addSeries(LW.CandlestickSeries,{
-          upColor:          chartSettings?.candleUp   ?? "#00E5CC",
-          downColor:        chartSettings?.candleDown ?? "#7B6CF7",
-          borderUpColor:    chartSettings?.candleUp   ?? "#00E5CC",
-          borderDownColor:  chartSettings?.candleDown ?? "#7B6CF7",
+          upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
+          downColor:        chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+          borderUpColor:    chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
+          borderDownColor:  chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
           wickUpColor:      bgCol,
           wickDownColor:    bgCol,
           priceLineVisible: true,
@@ -2388,12 +2388,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } else {
         // Standard candles (default + Heikin Ashi) — Deep Charts color scheme
         cs = chart.addSeries(LW.CandlestickSeries,{
-          upColor:          chartSettings?.candleUp   ?? "#00E5CC",
-          downColor:        chartSettings?.candleDown ?? "#7B6CF7",
-          borderUpColor:    chartSettings?.borderUp   ?? "#00E5CC",
-          borderDownColor:  chartSettings?.borderDown ?? "#7B6CF7",
-          wickUpColor:      chartSettings?.wickUp     ?? "#00E5CC",
-          wickDownColor:    chartSettings?.wickDown   ?? "#7B6CF7",
+          upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
+          downColor:        chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+          borderUpColor:    chartSettings?.borderUp   ?? CANDLE_UP_DEFAULT,
+          borderDownColor:  chartSettings?.borderDown ?? CANDLE_DOWN_DEFAULT,
+          wickUpColor:      chartSettings?.wickUp     ?? CANDLE_UP_DEFAULT,
+          wickDownColor:    chartSettings?.wickDown   ?? CANDLE_DOWN_DEFAULT,
           priceLineVisible: true,
           priceLineColor:   "#F0B429",
           priceLineWidth:   1,
@@ -2405,10 +2405,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // For orderflow-candles, force bid-ask footprint in the canvas overlay
       const effectiveFP = isOrderflow ? "bid-ask" : footprintType;
 
-      // Volume histogram
+      // Volume histogram.
+      //
+      // THE LAST RED THREAD. Per-point `color` paints the BARS; it does not
+      // reach the series' own last-value furniture. Lightweight-Charts derives
+      // the price line and the axis tag from the SERIES-LEVEL `color`, which
+      // was never set here — so after the bars turned brass, a full-width
+      // dashed line and a price tag were still drawn in the old casino red
+      // across the whole frame. MEASURED LIVE by reading the canvas back:
+      // `143,46,63` at 758 px, which is `#FF4D67` composited on the field.
+      // A default nobody wrote is still a default that ships.
       const vs = chart.addSeries(LW.HistogramSeries,{
-        priceFormat:  { type: "volume" },
-        priceScaleId: "vol",
+        color:            VOLUME_UP_DEFAULT,
+        priceFormat:      { type: "volume" },
+        priceScaleId:     "vol",
+        // The bars ARE the magnitude. A second full-width rule restating the
+        // last one is furniture competing with the thing it describes.
+        priceLineVisible: false,
+        lastValueVisible: true,
       });
       chart.priceScale("vol").applyOptions({
         scaleMargins: { top: 0.78, bottom: 0 },

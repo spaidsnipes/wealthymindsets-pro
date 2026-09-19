@@ -280,11 +280,19 @@ describe("the market field has ONE material owner", () => {
       // ternary does not silently satisfy this.
       const themed =
         src.match(new RegExp(`chartSettings\\?\\.neon\\s*\\?[^;]{0,60}?:\\s*${name}`, "g")) ?? [];
+      // ONE further lawful use: the SERIES-LEVEL `color`, which is not a bar
+      // colour at all — it is what Lightweight-Charts draws the price line and
+      // the axis tag from. See THE LAST RED THREAD below for why that had to
+      // be set explicitly. It is counted, not exempted.
+      const furniture =
+        src.match(new RegExp(`color:\\s*${name},`, "g")) ?? [];
       expect(
         hits.length,
-        `every ${name} use must be the default arm of the neon theme ternary ` +
-          `(found ${hits.length} uses, ${themed.length} themed, 1 import)`,
-      ).toBe(themed.length + 1);
+        `every ${name} use must be the default arm of the neon theme ternary, ` +
+          `or the volume series' own furniture colour ` +
+          `(found ${hits.length} uses, ${themed.length} themed, ` +
+          `${furniture.length} furniture, 1 import)`,
+      ).toBe(themed.length + furniture.length + 1);
     }
 
     // OVER-CORRECTION GUARD. The point was to remove the casino from the
@@ -328,6 +336,103 @@ describe("the market field has ONE material owner", () => {
           `trader's Appearance choice the moment they change it`,
       ).toEqual([]);
     }
+  });
+
+  it("THE READ IS OWNED TOO — every settings read falls back to the owner", () => {
+    // THE THIRD FACE OF THE SAME DEFECT, and the two gates above were blind to
+    // it in OPPOSITE directions. One counts USES of the constant; one scans for
+    // the constant's VALUE. Neither can see a read that mentions NEITHER:
+    //
+    //   upColor: chartSettings?.candleUp ?? "#00E5CC"
+    //
+    // MEASURED IN THE SOURCE, 2026-09-19: twelve such lines survived the brass
+    // conversion, six of them in the `else` branch that draws STANDARD CANDLES
+    // — the default chart type on the default route. They rendered brass on
+    // production anyway, which is exactly why nobody caught them: the v3
+    // migration had already written explicit brass into the trader's storage,
+    // so the left side of every `??` was defined and the stale right side never
+    // evaluated. VACUOUS AGREEMENT again — a duplicate owner that agrees
+    // because the true owner happens to be answering. It would have surfaced
+    // the first time a trader cleared their storage, or hit "Reset" in
+    // Appearance, and the room would have handed them teal and violet candles.
+    //
+    // So the law is stated in the reading direction: if MainChart asks the
+    // settings object for a language key, the answer when it is absent is the
+    // room's, not a literal left over from a previous build.
+    const OWNER: ReadonlyArray<readonly [keys: string[], owner: string]> = [
+      [["background"], FIELD],
+      [["candleUp", "borderUp", "wickUp"], "CANDLE_UP_DEFAULT"],
+      [["candleDown", "borderDown", "wickDown"], "CANDLE_DOWN_DEFAULT"],
+      [["gridColor"], "GRID_COLOR_DEFAULT"],
+      [["crosshairColor"], "CROSSHAIR_COLOR_DEFAULT"],
+    ];
+    const src = CODE(MAIN_CHART);
+    for (const [keys, owner] of OWNER) {
+      for (const key of keys) {
+        // Capture whatever sits on the right of the `??` for this key.
+        const reads = [
+          ...src.matchAll(new RegExp(`chartSettings\\?\\.${key}\\s*\\?\\?\\s*([^,;\\n)}]+)`, "g")),
+        ].map((m) => m[1].trim());
+        expect(
+          reads.length,
+          `no chartSettings?.${key} read found — if the key was renamed, ` +
+            `rename it here too; this gate must not go quiet`,
+        ).toBeGreaterThan(0);
+        for (const tail of reads) {
+          // A CHAIN IS LAWFUL; AN UNOWNED TERMINUS IS NOT. MainChart writes
+          //
+          //   borderUpColor: chartSettings?.borderUp ?? chartSettings?.candleUp
+          //                  ?? CANDLE_UP_DEFAULT
+          //
+          // deliberately: a trader who picks a candle colour and never opens
+          // the separate border swatch should get borders that match their
+          // candles, not the room's. That is the settings object deferring to
+          // itself, which is still ONE owner. What must never happen is the
+          // chain ENDING anywhere but the room. So: every link before the last
+          // must be another settings read, and the last must be the owner.
+          const links = tail.split("??").map((s) => s.trim());
+          for (const link of links.slice(0, -1)) {
+            expect(
+              link,
+              `chartSettings?.${key} defers to ${link}, which is neither ` +
+                `another settings read nor the owner`,
+            ).toMatch(/^chartSettings\?\.\w+$/);
+          }
+          expect(
+            links[links.length - 1],
+            `the chartSettings?.${key} chain ends at ${links[links.length - 1]}, ` +
+              `not ${owner}. A trader who clears storage or resets Appearance ` +
+              `gets that value on the widest surface in the product.`,
+          ).toBe(owner);
+        }
+      }
+    }
+  });
+
+  it("THE LAST RED THREAD — volume's own furniture is brass, not the casino", () => {
+    // Per-point `color` paints the BARS. The series' price line and axis tag
+    // come from the SERIES-LEVEL `color`, which this call never set — so after
+    // the bars turned brass a full-width dashed rule and a price tag kept
+    // drawing in the old red. MEASURED LIVE by reading the canvas back on the
+    // serving build: `143,46,63` at 758 px in the volume band, which is
+    // `#FF4D67` composited on the field at ~0.55 alpha.
+    //
+    // This is the one defect class a source gate catches that LOOKING cannot
+    // reliably catch: it is furniture nobody wrote, supplied by a library
+    // default, and it is invisible in the diff because there is no line to see.
+    const src = CODE(MAIN_CHART);
+    // `priceFormat: { type: "volume" }` nests one level of braces inside the
+    // options object, so a flat `[^}]*` stops at the wrong brace and reports
+    // "the call moved" on a call that never moved. Match one nesting level.
+    const call = src.match(
+      /addSeries\(\s*LW\.HistogramSeries\s*,\s*(\{(?:[^{}]|\{[^{}]*\})*\})/,
+    );
+    expect(call, "the volume histogram call moved — re-point this gate").not.toBeNull();
+    expect(call![0], "the volume series has no brass series-level colour, so its " +
+      "price line and axis tag fall back to the library default")
+      .toMatch(/color:\s*VOLUME_UP_DEFAULT/);
+    expect(call![0], "volume draws a second full-width rule restating its own bars")
+      .toMatch(/priceLineVisible:\s*false/);
   });
 
   it("THE IMPORT IS THE LIST — a constant cannot be added and quietly exempted", () => {
