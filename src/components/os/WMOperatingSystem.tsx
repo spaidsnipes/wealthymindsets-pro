@@ -973,6 +973,11 @@ export function WMOperatingSystem({
           gap: 0,
           flex: "1 1 auto",
           minWidth: 0,
+          /* The containing block for the equipment overlay below. Equipment
+             is pinned to the ROOM region, not to the viewport, so it cannot
+             ride over the masthead or the provenance footer — the two places
+             the frame's standing truths live. */
+          position: "relative",
           /* ── THE FLEXBOX TRAP THAT CLIPPED THE DESKTOP FOOTER ────────────
              `flex: 1 1 auto` says "shrink me". `min-height: auto` — the
              default for a flex item, and the value this had — says "but
@@ -1019,10 +1024,45 @@ export function WMOperatingSystem({
           aria-label={equipmentMode ? (equipment === "tools" ? "Tools" : "Workspace") : "Rooms"}
           data-testid="os-rail"
           style={{
-            position: "sticky",
-            top: 0,
-            alignSelf: "flex-start",
-            flex: `0 0 ${OS_RAIL_WIDTH_PX}px`,
+            /* ── EQUIPMENT IS PICKED UP OVER THE MARKET, NOT BESIDE IT ──────
+               The canon's §3 geometry: the equipment wall is an OVERLAY at
+               D≈0 and "the chart stays". As a flex COLUMN — which is what
+               ROOMS is, correctly, because a map of destinations is part of
+               the furniture — the panel took 176px away from the room, so
+               reaching for a tool RESIZED the market: the chart canvas
+               reflowed and redrew, and the exact camera the trader was
+               reading moved under their hand. That is the opposite of
+               equipment. A tool you pick up must not rearrange the room.
+
+               So in equipment mode ONLY, the panel leaves the flex flow and
+               is pinned over the room region. `<main>` keeps every pixel it
+               had, the chart never reflows, and closing restores the Shot-1
+               silhouette exactly because nothing about the room changed.
+
+               OPAQUE, for the same reason the phone sheet is: a translucent
+               panel over a moving chart is two readings of price in the same
+               pixels.
+
+               ROOMS MODE IS UNTOUCHED — same sticky column it has always
+               been. The phone stylesheet below carries `!important` on every
+               property it sets, so a pinned phone sheet still wins here. */
+            ...(equipmentMode
+              ? {
+                  position: "absolute" as const,
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  zIndex: 40,
+                  width: OS_RAIL_WIDTH_PX,
+                  flex: "none" as const,
+                  background: FIELD,
+                }
+              : {
+                  position: "sticky" as const,
+                  top: 0,
+                  alignSelf: "flex-start" as const,
+                  flex: `0 0 ${OS_RAIL_WIDTH_PX}px`,
+                }),
             display: "flex",
             flexDirection: "column",
             gap: 2,

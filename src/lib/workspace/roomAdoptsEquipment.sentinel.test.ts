@@ -1255,3 +1255,67 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
     );
   });
 });
+
+/**
+ * SENTINEL — EQUIPMENT IS PICKED UP *OVER* THE MARKET, NEVER BESIDE IT.
+ *
+ * The canon's §3 geometry: the equipment wall is an OVERLAY at D≈0 and "the
+ * chart stays". The distinction is not cosmetic. As a flex COLUMN the panel
+ * takes its width out of the room, so reaching for a tool RESIZES the market
+ * — the chart canvas reflows and redraws, and the exact camera the trader was
+ * reading moves under their hand. A tool you pick up must not rearrange the
+ * room you are standing in.
+ *
+ * ROOMS mode is a column on purpose and must stay one: a map of destinations
+ * IS furniture. So every rule below is scoped to equipment mode.
+ */
+describe("SENTINEL — equipment overlays the room; the market does not move to make space", () => {
+  const rail = read(RAIL);
+  const nav = rail.slice(rail.indexOf('data-testid="os-rail"'), rail.indexOf("overscrollBehavior"));
+
+  it("the panel leaves the flex flow in equipment mode", () => {
+    expect(nav, `${RAIL} → the rail no longer branches its geometry on the mode`).toMatch(
+      /\.\.\.\(equipmentMode/,
+    );
+    expect(nav, `${RAIL} → equipment still takes width from the room, so the chart reflows`).toMatch(
+      /position:\s*"absolute"/,
+    );
+  });
+
+  it("ROOMS is still the sticky column it has always been", () => {
+    // The fix must not be "make everything an overlay". The destination map
+    // is furniture; turning it into a floating sheet is a second redesign
+    // smuggled in beside a fix.
+    expect(nav, `${RAIL} → rooms mode lost its sticky column`).toMatch(/position:\s*"sticky"/);
+    expect(nav, `${RAIL} → rooms mode lost its fixed basis`).toMatch(/OS_RAIL_WIDTH_PX\}px`/);
+  });
+
+  it("the overlay is OPAQUE — a translucent panel over a live chart is two prices in one pixel", () => {
+    const at = nav.indexOf("...(equipmentMode");
+    const branch = nav.slice(at, at + 600);
+    expect(branch, `${RAIL} → the equipment overlay has no background to sit on`).toMatch(
+      /background:\s*FIELD/,
+    );
+    expect(
+      branch,
+      `${RAIL} → the equipment overlay is see-through; the market reads through it`,
+    ).not.toMatch(/rgba\(|opacity:|transparent/);
+  });
+
+  it("it is pinned to the ROOM, not to the viewport", () => {
+    // `position: fixed` would let equipment ride over the masthead and the
+    // provenance footer — the two places the frame's standing truths live,
+    // and the ones that must never be coverable by a panel.
+    const at = nav.indexOf("...(equipmentMode");
+    const branch = nav.slice(at, at + 600);
+    expect(branch, `${RAIL} → equipment is pinned to the viewport and can cover the masthead`)
+      .not.toMatch(/position:\s*"fixed"/);
+    const bodyAt = rail.indexOf('className="wm-os-body"');
+    expect(bodyAt, `${RAIL} → the room region is gone; re-pin this`).toBeGreaterThan(-1);
+    const body = rail.slice(bodyAt, rail.indexOf('data-testid="os-rail"'));
+    expect(
+      body,
+      `${RAIL} → the room region is not a containing block, so the absolute overlay escapes it`,
+    ).toMatch(/position:\s*"relative"/);
+  });
+});
