@@ -1384,6 +1384,28 @@ export function ChartToolbar({
             onClick={() => setAdvancedOpen(open => !open)}
             aria-expanded={advancedOpen}
             aria-haspopup="menu"
+            // ── TWO DOORS, ONE NAME ──────────────────────────────────────
+            // The OS masthead renders a persistent "Tools" door (the room's
+            // lens shelf, owned by WMOperatingSystem). This control was ALSO
+            // called "Tools", eleven inches away on the same screen, opening
+            // a completely different menu. A screen reader heard two buttons
+            // with one accessible name promising one thing; a trader saw the
+            // word twice and could not know which one held Replay.
+            //
+            // This is the same class of defect the codebase already named
+            // when a second CanvasSummaryPill shipped under the first one's
+            // label — and it is fixed the same way: the narrower control
+            // takes the more specific name. This menu is scoped to the CHART
+            // (studies, Pine, replay, compare, alerts, draw, views); the
+            // masthead door is scoped to the ROOM. Its own `title` has always
+            // said "More chart tools" — the visible label now agrees with it.
+            //
+            // The contents are untouched. Which of these items eventually
+            // belong behind the masthead's Workspace and Tools doors is a
+            // real open question in the Canon's §3 and is NOT answered here;
+            // renaming a colliding label is not the same as pretending that
+            // consolidation already happened.
+            aria-label="Chart tools"
             className={clsx(
               "flex min-h-11 items-center gap-1 rounded border px-2 text-[11px] font-semibold transition-colors",
               advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen || instrumentProfileActive || captureOpen || watchlistOpen || drawOpen || viewsOpen
@@ -1392,7 +1414,7 @@ export function ChartToolbar({
             )}
             title="More chart tools"
           >
-            <MoreHorizontal size={13} /> Tools
+            <MoreHorizontal size={13} /> Chart tools
           </button>
           {advancedOpen && (() => {
             const rect = advancedRef.current?.getBoundingClientRect();
