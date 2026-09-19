@@ -130,6 +130,19 @@ describe("ChartsDashboard keeps price on screen beneath the reading", () => {
     // `display: "none"` rather than a conditional render is the whole reason
     // this change was cheap. If the panel ever becomes `{cond && <div…>}` the
     // chart is torn down on every tab switch and every drawing goes with it.
-    expect(src).toMatch(/id="wm-chart-category-panel-chart"[\s\S]{0,400}:\s*"none"/);
+    // THE WINDOW IS THE TAG, NOT A CHARACTER BUDGET. This read `{0,400}` and
+    // went red on 2026-09-19 for adding two attributes to the same element —
+    // `className` and `data-market-primary`, the C-101 phone-floor scoping
+    // flag. Nothing about the hiding mechanism changed; the pane simply grew
+    // past an arbitrary distance. A budget that fails on unrelated growth of
+    // the very tag it guards teaches the next author to delete attributes or
+    // pad the number, and neither is the invariant.
+    //
+    // `[^>]*` scopes the search to the opening tag itself, which is both
+    // tighter than 400 characters in the way that matters — a `"none"` in the
+    // NEXT element can no longer satisfy it — and immune to this element
+    // gaining honest attributes. Raising the number was the available easy
+    // move and it would have left the loose half of the bug in place.
+    expect(src).toMatch(/id="wm-chart-category-panel-chart"[^>]*:\s*"none"/);
   });
 });

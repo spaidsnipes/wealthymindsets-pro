@@ -365,6 +365,26 @@
     margin-left: auto;
     border-left: 0 !important;
   }
+
+  /* C-101 — THE MARKET IS NOT THE SLACK.
+     Measured 2026-09-19 with `npm run prove:charts-floor` at 390x844: the
+     candle field was 354x30. Thirty pixels. 4.3% of the room, against a
+     blueprint that asks for 70%. Every other row in that column is
+     inflexible — room header 125px, wrapped toolbar 153px, decision spine
+     268px — so the one flexible child absorbed the entire shortfall, and the
+     one flexible child is the reason the room exists.
+     `!important` is required, not decorative: the pane carries an inline
+     `minHeight: 0` and an inline rule cannot be outranked by a class.
+     `svh` rather than `vh` so the mobile URL bar collapsing does not change
+     the market's size underneath the trader's hand; the `min()` keeps it from
+     dominating a short landscape phone, which has its own rules below.
+     This is a FLOOR, not a height: the pane still grows where there is room,
+     and the phone already scrolls (scrollHeight 961 vs 844 at the same
+     measurement), so the chrome and the spine keep their pixels and move
+     down rather than being taken away. Nothing is hidden to buy this. */
+  .wm-chart-market-pane[data-market-primary="true"] {
+    min-height: min(60svh, 460px) !important;
+  }
 }
 
 /* Phones in landscape are a distinct command state, not a compressed desktop.

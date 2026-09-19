@@ -573,11 +573,21 @@ const EXPIRY_CHOICES = [
 ];
 
 /* ── Live price feed (real anchor + smooth ticks) ────────────
- * Anchors each symbol to a real quote (/api/yahoo, same source as
- * the chart/ticker) on mount and every 20s, then mean-reverts a
- * smooth 800ms micro-walk toward that anchor so paper fills track
- * the real market instead of drifting from a stale base. Futures
- * that have no free real feed gracefully fall back to their base. */
+ * Anchors each symbol to a real quote (/api/yahoo, same source as the
+ * chart/ticker) on mount and every 20s. THAT IS ALL IT DOES.
+ *
+ * This docblock used to promise a "smooth 800ms micro-walk" that
+ * mean-reverted toward the anchor between refreshes. The walk is gone —
+ * measured 2026-09-19: no interval in this file mutates `prices` except
+ * the 20s refresh below, so every price here was genuinely produced by
+ * the quote API — and good riddance, because an interpolated price is a
+ * number no feed printed, and fills against it would violate the
+ * PAPER-EXECUTION-REALISM-STANDARD (docs/operations/) at rung 0. A fill
+ * can therefore only occur on a real observation, at most every 20s,
+ * and that coarseness is honest rather than smoothed over.
+ *
+ * Symbols whose quote never arrives simply keep no price (readiness
+ * stays unactionable); nothing falls back to a synthetic base. */
 function useLivePrices() {
   const [prices, setPrices] = useState<Record<string,number>>({});
   const [quoteReadiness, setQuoteReadiness] = useState<Record<string, PaperQuoteReadiness>>(() =>
@@ -3468,8 +3478,17 @@ export default function PaperTradingPage() {
             {Object.entries(UNIVERSE).map(([sym,info])=>{
               const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
               const px   = readiness.price;
-              const ref  = prevCloses[sym] ?? info.base;
-              const chg  = px != null && ref ? ((px - ref)/ref)*100 : null;
+              // The reference for a % change is a REAL previous close or
+              // nothing. This used to fall back to `info.base` — a hardcoded
+              // constant from the UNIVERSE table (TSLA 400 while the market
+              // traded ~364), so a symbol whose prevClose had not arrived
+              // rendered a large, confident, wrong % against a number no feed
+              // ever produced. `paperQuoteRowTruth` already knows how to
+              // speak about a null chg; refusing is the honest branch.
+              // PAPER-EXECUTION-REALISM-STANDARD rule 2: no written value
+              // may diverge from an observed value.
+              const ref  = prevCloses[sym];
+              const chg  = px != null && ref != null && ref > 0 ? ((px - ref)/ref)*100 : null;
               const rowTruth = paperQuoteRowTruth(readiness, chg);
               return (
                 <div key={sym} className="flex items-center justify-between px-2.5 py-1.5 border-b border-wm-border/20 hover:bg-wm-surface/30 transition-colors">

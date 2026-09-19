@@ -3090,7 +3090,27 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 The split is 42/58 in favour of the reading. The chart here is
                 context for a question asked elsewhere on the screen, not the
                 subject — so it gets enough room to locate a level and no more. */}
-            <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`} style={{ flex: isMicrostructureTab(activeTab) ? "0 0 42%" : 1, order: isMicrostructureTab(activeTab) ? -1 : 0, borderBottom: isMicrostructureTab(activeTab) ? "1px solid rgba(183, 138, 52, 0.28)" : undefined, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options" || isMicrostructureTab(activeTab)) ? "flex" : "none" }}>
+            <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`}
+              /* THE MARKET'S FLOOR, AND THE FLAG THAT SCOPES IT.
+                 `minHeight: 0` below is what lets this pane flex-shrink, and on
+                 a phone it shrank all the way: measured 2026-09-19 by
+                 `npm run prove:charts-floor` at 390x844, the candle field was
+                 354x30 — THIRTY PIXELS, 4.3% of the room — because the room
+                 header (125px), the wrapped toolbar (153px) and the decision
+                 spine (268px) are all inflexible and this pane was the only
+                 thing in the column willing to give. The market is not the
+                 slack in this layout.
+                 The floor is CSS (`.wm-chart-market-pane`, phone-width only, in
+                 globals.css) rather than another inline branch here, because
+                 this element already carries four and the fifth would be the
+                 one nobody finds. `data-market-primary` scopes it: on a
+                 microstructure tab the chart is deliberately context for a
+                 question asked elsewhere (the 42/58 split above), so it gets NO
+                 floor there — a floor on a pane that is meant to be secondary
+                 would squeeze the reading it exists to support. */
+              className="wm-chart-market-pane"
+              data-market-primary={isMicrostructureTab(activeTab) ? "false" : "true"}
+              style={{ flex: isMicrostructureTab(activeTab) ? "0 0 42%" : 1, order: isMicrostructureTab(activeTab) ? -1 : 0, borderBottom: isMicrostructureTab(activeTab) ? "1px solid rgba(183, 138, 52, 0.28)" : undefined, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options" || isMicrostructureTab(activeTab)) ? "flex" : "none" }}>
 
             {/* Chart + VP ladder (snapshot target) */}
             <div ref={chartWrapRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
