@@ -135,6 +135,54 @@ export const VOLUME_UP_DEFAULT = "rgba(196,165,116,0.38)";
 /** The recessed brass, needing more alpha to read at all at this luminance. */
 export const VOLUME_DOWN_DEFAULT = "rgba(110,90,60,0.62)";
 
+/* ── THE VOLUME PROFILE — THE FOURTH COPY OF THE RAINBOW ────────────────────
+ *
+ * The VP shelves, the POC line and the two value-area boundaries carried their
+ * OWN palette, in their OWN localStorage keys (`wm_vp_up` … `wm_vp_val`),
+ * defaulted in FIVE separate places: a `useState` initialiser and a
+ * `localStorage.getItem(…) || "…"` fallback in `ChartsDashboard`'s VPColorGear,
+ * a `useRef` initialiser and a `??` fallback in `MainChart`, and a "Reset all
+ * VP colors" button that WROTE the casino literals back into storage. Five
+ * owners of one decision, none of them the room.
+ *
+ * MEASURED LIVE, 2026-09-19: the price-axis canvas on the serving build still
+ * carried `255,77,106` over 508 px — a solid `#FF4D67` tag — after the candles
+ * and the volume histogram had both gone brass. The Founder's storage held no
+ * `wm_vp_dn` at all, so the literal on line 209 of `ChartsDashboard` was the
+ * thing painting it. The rainbow had simply moved one series across.
+ *
+ * UP AND DOWN ARE ALIASES, NOT NEW VALUES. A VP shelf is the same claim a
+ * candle makes — traded-up versus traded-down — so it is the same material in
+ * the same two states. Minting a sixth brass here would be the exact mistake
+ * this module exists to prevent, so these POINT AT the candle owner rather
+ * than restating its value.
+ */
+
+/** A buy-dominant shelf is the same material an up candle is. */
+export const VP_UP_DEFAULT = CANDLE_UP_DEFAULT;
+/** A sell-dominant shelf is the same material a down candle is. */
+export const VP_DOWN_DEFAULT = CANDLE_DOWN_DEFAULT;
+/**
+ * The Point of Control — the room's `PEARL`. POC is NOT a direction claim, it
+ * is the single loudest price in the profile, so it takes the brightest token
+ * in the room rather than a third brass that would blend into the shelves it
+ * is supposed to name.
+ */
+export const VP_POC_DEFAULT = "#ede6d3";
+/**
+ * Both value-area boundaries — the room's `MUTED`. VAH and VAL are ONE idea
+ * (where the value area ends) seen twice, and each is already labelled "VAH"
+ * or "VAL" on the canvas, so the label carries the identity and the colour
+ * does not need to. Blue-for-high and purple-for-low were two more hues in a
+ * room that has one.
+ */
+export const VP_VALUE_AREA_DEFAULT = "#8a8271";
+
+/** The pre-OS VP palette. Named so the migration can only free these. */
+export const LEGACY_VP_POC = "#F0B429";
+export const LEGACY_VP_VAH = "#2563EB";
+export const LEGACY_VP_VAL = "#8B5CF6";
+
 /** The pre-OS TradingView pair. Named so the migration can only free these. */
 export const LEGACY_CANDLE_UP = "#00C076";
 export const LEGACY_CANDLE_DOWN = "#FF4D67";
@@ -207,4 +255,72 @@ export function migrateMarketField(stored: StoredChartSettings): StoredChartSett
 
   next.wmSchemaVersion = CHART_SETTINGS_SCHEMA_VERSION;
   return next;
+}
+
+/* ── THE VP PALETTE'S OWN LADDER ────────────────────────────────────────────
+ *
+ * The VP palette does NOT live in `wm_chartSettings`. It is five FLAT keys —
+ * `wm_vp_up`, `wm_vp_dn`, `wm_vp_poc`, `wm_vp_vah`, `wm_vp_val` — so
+ * `migrateMarketField` cannot reach it however much it is bumped. Hence a
+ * second, deliberately separate stamp: `wm_vp_schemaVersion`.
+ *
+ * WHY A MIGRATION IS NEEDED AT ALL WHEN THE KEYS ARE USUALLY ABSENT. Unlike
+ * the settings object, nothing writes these keys wholesale — they appear only
+ * when a trader touches the gear. That would make a migration pointless,
+ * except for one control: "Reset all VP colors" wrote the casino literals
+ * back into storage EXPLICITLY. Anyone who ever asked the product for its own
+ * defaults is now holding five frozen values that outrank every future
+ * default. Same write-once trap, same narrow cure, same single licence: a key
+ * is freed ONLY while it is still byte-identical to the superseded literal.
+ *
+ * A key that is absent stays absent. A key holding anything else — a colour
+ * the trader picked, a value from a build whose default differed — is left
+ * exactly as found.
+ */
+export const VP_PALETTE_SCHEMA_VERSION = 1;
+
+/** The stamp key. Flat, like the palette it guards. */
+export const VP_PALETTE_VERSION_KEY = "wm_vp_schemaVersion";
+
+const LEGACY_VP_PALETTE: ReadonlyArray<readonly [key: string, legacy: string]> = [
+  ["wm_vp_up", LEGACY_CANDLE_UP],
+  ["wm_vp_dn", LEGACY_CANDLE_DOWN],
+  ["wm_vp_poc", LEGACY_VP_POC],
+  ["wm_vp_vah", LEGACY_VP_VAH],
+  ["wm_vp_val", LEGACY_VP_VAL],
+];
+
+/** The slice of `Storage` this needs — narrower than the DOM interface. */
+export type PaletteStore = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+/**
+ * Free VP keys still byte-identical to the pre-OS literals, then stamp.
+ *
+ * Takes the store rather than reaching for `localStorage` so it is testable
+ * without a DOM and so a caller in a non-browser render cannot crash on it.
+ * Returns the number of keys freed — callers ignore it; tests do not.
+ */
+export function migrateVolumeProfilePalette(store: PaletteStore): number {
+  let freed = 0;
+  try {
+    const from = Number(store.getItem(VP_PALETTE_VERSION_KEY) ?? 0);
+    if (from >= VP_PALETTE_SCHEMA_VERSION) return 0;
+    for (const [key, legacy] of LEGACY_VP_PALETTE) {
+      if (store.getItem(key) === legacy) {
+        // DELETE, never rewrite — the owner below is the only copy of the
+        // value, exactly as with the candles.
+        store.removeItem(key);
+        freed++;
+      }
+    }
+    store.setItem(VP_PALETTE_VERSION_KEY, String(VP_PALETTE_SCHEMA_VERSION));
+  } catch {
+    // A storage that throws (private mode, quota) must not take the chart
+    // down with it. The palette simply falls through to the owner's defaults.
+  }
+  return freed;
 }

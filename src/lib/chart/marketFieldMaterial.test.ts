@@ -13,6 +13,17 @@ import {
   LEGACY_MARKET_FIELD,
   MARKET_FIELD_DEFAULT,
   migrateMarketField,
+  migrateVolumeProfilePalette,
+  VP_DOWN_DEFAULT,
+  VP_PALETTE_SCHEMA_VERSION,
+  VP_PALETTE_VERSION_KEY,
+  VP_POC_DEFAULT,
+  VP_UP_DEFAULT,
+  VP_VALUE_AREA_DEFAULT,
+  LEGACY_VP_POC,
+  LEGACY_VP_VAH,
+  LEGACY_VP_VAL,
+  type PaletteStore,
 } from "./marketFieldMaterial";
 
 describe("the market field's material", () => {
@@ -186,5 +197,112 @@ describe("migrateMarketField — the chart's language", () => {
     const stored = { candleUp: LEGACY_CANDLE_UP };
     migrateMarketField(stored);
     expect(stored.candleUp).toBe(LEGACY_CANDLE_UP);
+  });
+});
+
+describe("the Volume Profile palette", () => {
+  /** A localStorage stand-in. No jsdom needed; the migration takes the store. */
+  const store = (seed: Record<string, string> = {}): PaletteStore & { map: Map<string, string> } => {
+    const map = new Map(Object.entries(seed));
+    return {
+      map,
+      getItem: (k) => map.get(k) ?? null,
+      setItem: (k, v) => void map.set(k, v),
+      removeItem: (k) => void map.delete(k),
+    };
+  };
+
+  it("is the same material price is, in the same two states", () => {
+    // NOT a sixth brass. A VP shelf makes the same claim a candle makes, so
+    // it points AT the candle owner rather than restating its value — if these
+    // ever diverge, one pane of the chart is speaking a different language
+    // from the pane directly above it.
+    expect(VP_UP_DEFAULT).toBe(CANDLE_UP_DEFAULT);
+    expect(VP_DOWN_DEFAULT).toBe(CANDLE_DOWN_DEFAULT);
+  });
+
+  it("carries no green and no red — the filename is the law", () => {
+    const palette = [VP_UP_DEFAULT, VP_DOWN_DEFAULT, VP_POC_DEFAULT, VP_VALUE_AREA_DEFAULT];
+    for (const hex of palette) {
+      expect(hex, `${hex} is not a hex the colour input can show`).toMatch(/^#[0-9a-f]{6}$/i);
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      // Warm: red is never the smallest channel, and blue is never the largest.
+      // That is what separates the room's brass from both the casino green and
+      // the casino red without pinning any individual value.
+      expect(r, `${hex} is not warm — red is the weakest channel`).toBeGreaterThanOrEqual(g);
+      expect(g, `${hex} is not warm — blue outranks green`).toBeGreaterThanOrEqual(b);
+    }
+    // And neither legacy value survives anywhere in the palette.
+    expect(palette).not.toContain(LEGACY_CANDLE_UP);
+    expect(palette).not.toContain(LEGACY_CANDLE_DOWN);
+    expect(palette).not.toContain(LEGACY_VP_POC);
+    expect(palette).not.toContain(LEGACY_VP_VAH);
+    expect(palette).not.toContain(LEGACY_VP_VAL);
+  });
+
+  it("POC is louder than the value area it sits inside", () => {
+    // POC names the single loudest price in the profile. If it ever reads
+    // dimmer than the boundary lines, the chart is emphasising the edges of
+    // the value area over its centre.
+    const lum = (hex: string) =>
+      parseInt(hex.slice(1, 3), 16) * 0.299 +
+      parseInt(hex.slice(3, 5), 16) * 0.587 +
+      parseInt(hex.slice(5, 7), 16) * 0.114;
+    expect(lum(VP_POC_DEFAULT)).toBeGreaterThan(lum(VP_VALUE_AREA_DEFAULT));
+  });
+
+  it("frees a key still byte-identical to the pre-OS literal, and stamps", () => {
+    const s = store({ wm_vp_up: LEGACY_CANDLE_UP, wm_vp_dn: LEGACY_CANDLE_DOWN });
+    expect(migrateVolumeProfilePalette(s)).toBe(2);
+    expect(s.map.has("wm_vp_up"), "the key was rewritten instead of freed").toBe(false);
+    expect(s.map.has("wm_vp_dn")).toBe(false);
+    expect(s.map.get(VP_PALETTE_VERSION_KEY)).toBe(String(VP_PALETTE_SCHEMA_VERSION));
+  });
+
+  it("frees all five, POC and both value-area boundaries included", () => {
+    const s = store({
+      wm_vp_up: LEGACY_CANDLE_UP,
+      wm_vp_dn: LEGACY_CANDLE_DOWN,
+      wm_vp_poc: LEGACY_VP_POC,
+      wm_vp_vah: LEGACY_VP_VAH,
+      wm_vp_val: LEGACY_VP_VAL,
+    });
+    expect(migrateVolumeProfilePalette(s)).toBe(5);
+  });
+
+  it("NEVER touches a colour the trader actually picked", () => {
+    // The one licence is byte-identity to the superseded literal. Anything
+    // else is evidence of a choice, and a choice outranks every default.
+    const s = store({ wm_vp_up: "#123456", wm_vp_dn: LEGACY_CANDLE_DOWN });
+    expect(migrateVolumeProfilePalette(s)).toBe(1);
+    expect(s.map.get("wm_vp_up")).toBe("#123456");
+  });
+
+  it("leaves an absent key absent — it does not mint defaults into storage", () => {
+    // The whole reason this migration exists is that storage held explicit
+    // copies of a default. Writing fresh copies would recreate the trap.
+    const s = store();
+    expect(migrateVolumeProfilePalette(s)).toBe(0);
+    expect([...s.map.keys()]).toEqual([VP_PALETTE_VERSION_KEY]);
+  });
+
+  it("runs exactly once — a re-chosen casino colour survives the next load", () => {
+    const s = store({ wm_vp_dn: LEGACY_CANDLE_DOWN });
+    migrateVolumeProfilePalette(s);
+    // The trader goes back into the gear and deliberately re-picks the red.
+    s.map.set("wm_vp_dn", LEGACY_CANDLE_DOWN);
+    expect(migrateVolumeProfilePalette(s), "the stamp did not hold the rung shut").toBe(0);
+    expect(s.map.get("wm_vp_dn")).toBe(LEGACY_CANDLE_DOWN);
+  });
+
+  it("survives a storage that throws instead of taking the chart down", () => {
+    const hostile: PaletteStore = {
+      getItem: () => { throw new Error("private mode"); },
+      setItem: () => { throw new Error("quota"); },
+      removeItem: () => { throw new Error("quota"); },
+    };
+    expect(() => migrateVolumeProfilePalette(hostile)).not.toThrow();
   });
 });

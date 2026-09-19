@@ -122,6 +122,36 @@ const LANGUAGE = [
 const THEME_LANGUAGE = ["VOLUME_UP_DEFAULT", "VOLUME_DOWN_DEFAULT"] as const;
 
 /**
+ * THE VOLUME PROFILE — A THIRD USE SHAPE, NAMED RATHER THAN TOLERATED.
+ *
+ * The VP palette is neither a `chartSettings` fallback nor a neon ternary arm.
+ * It lives in FIVE FLAT localStorage keys (`wm_vp_up` … `wm_vp_val`) that
+ * `migrateMarketField` cannot reach, and MainChart consumes it as RGB
+ * TRIPLETS, not hex — so it has to convert. The defect that hid here for two
+ * brass conversions was exactly that conversion: the triplets were written out
+ * by hand,
+ *
+ *   dn: [255, 77, 103],   // red
+ *
+ * a copy of `#FF4D67` that mentions neither the constant NOR its hex, and is
+ * therefore invisible to BOTH gates above. MEASURED LIVE on the serving build
+ * after the candles and the histogram had both gone brass: 508 px of
+ * `255,77,106` still on the price-axis canvas.
+ *
+ * The cure is that MainChart derives the triplets from the owning hex. The
+ * gate below pins that derivation, and a companion gate scans for the legacy
+ * TRIPLETS by value — the third direction, for the third spelling.
+ */
+const VP_LANGUAGE = [
+  "VP_UP_DEFAULT",
+  "VP_DOWN_DEFAULT",
+  "VP_POC_DEFAULT",
+  "VP_VALUE_AREA_DEFAULT",
+] as const;
+
+const CHARTS_DASHBOARD = "components/chart/ChartsDashboard.tsx";
+
+/**
  * The `import { … } from "@/lib/chart/marketFieldMaterial"` block, verbatim.
  *
  * `[^}]*` and NOT `[\s\S]*?`. MainChart opens with ~200 import statements; a
@@ -447,7 +477,127 @@ describe("the market field has ONE material owner", () => {
     expect(
       named,
       "MainChart imports a chart-language constant this suite does not police",
-    ).toEqual([...LANGUAGE, ...THEME_LANGUAGE].sort());
+    ).toEqual([...LANGUAGE, ...THEME_LANGUAGE, ...VP_LANGUAGE].sort());
+  });
+
+  it("THE VP PALETTE IS DERIVED, NOT RESTATED — triplets come from the owning hex", () => {
+    // MainChart needs `[r,g,b]`, not `#rrggbb`, because it composites the VP
+    // shelves with per-bar alpha. A hand-written triplet is a copy of a colour
+    // that names neither the constant nor its hex, so it is invisible to every
+    // other gate in this file. The only lawful shape is a conversion of the
+    // owner.
+    const src = CODE(MAIN_CHART);
+    const block = IMPORT_BLOCK(src);
+    expect(block).not.toBeNull();
+
+    const table = src.match(/const VP_DEFAULT_TRIPLETS[^=]*=\s*\{[^}]*\}/);
+    expect(
+      table,
+      "the VP_DEFAULT_TRIPLETS table is gone — if the palette moved, re-point " +
+        "this gate rather than deleting it",
+    ).not.toBeNull();
+
+    for (const name of VP_LANGUAGE) {
+      const inImport = (block![0].match(new RegExp(`\\b${name}\\b`, "g")) ?? []).length;
+      expect(inImport, `${name} must appear exactly once in the import block`).toBe(1);
+
+      const inTable = (table![0].match(new RegExp(`\\b${name}\\b`, "g")) ?? []).length;
+      expect(
+        inTable,
+        `${name} is imported but never converted in VP_DEFAULT_TRIPLETS`,
+      ).toBeGreaterThan(0);
+
+      const hits = (src.match(new RegExp(`\\b${name}\\b`, "g")) ?? []).length;
+      expect(
+        hits,
+        `every ${name} use must be the import or a VP_DEFAULT_TRIPLETS ` +
+          `conversion (found ${hits}, ${inTable} in the table, 1 import)`,
+      ).toBe(inTable + inImport);
+    }
+  });
+
+  it("THE VP PALETTE: no bare triplet survives in the VP block", () => {
+    // The value direction, for the spelling the name-counting gate cannot see.
+    //
+    // SCOPED TO THE VP BLOCK, AND THE FIRST DRAFT OF THIS GATE WAS NOT — which
+    // is how it found something true and reported it as something false. A
+    // file-wide sweep for the legacy VAH blue `[37, 99, 235]` turned red on
+    // TWO lines that are not the VP palette at all:
+    //
+    //   const OF_DEFAULT: OFPair = { buy: [37, 99, 235], sell: [106, 13, 173] };
+    //
+    // That is the ORDER FLOW / footprint cell palette — royal blue and purple,
+    // a SEPARATE vocabulary that MainChart's own comment records the trader
+    // deliberately asked to keep distinct from VP's. This slice did not touch
+    // it and must not be read as having condemned it. It is recorded, not
+    // forgotten.
+    //
+    // So the gate scans the VP block instead, where the law is absolute: after
+    // the derivation, NO array-of-three literal belongs in there at all. That
+    // is strictly stronger than blacklisting five known values — it catches a
+    // SIXTH hand-written colour nobody thought to list.
+    const src = CODE(MAIN_CHART);
+    const start = src.indexOf("const vpColorsRef");
+    expect(start, "vpColorsRef has moved — re-point this gate").toBeGreaterThan(-1);
+    const end = src.indexOf('removeEventListener("wm-vp-colors"', start);
+    expect(end, "the VP block could not be bounded").toBeGreaterThan(start);
+    const vpBlock = src.slice(start, end);
+
+    const triplets = vpBlock.match(/\[\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]/g) ?? [];
+    expect(
+      triplets,
+      "a colour is hand-written as an RGB triplet in the VP block. That is " +
+        "the spelling that survived two brass conversions unseen, because it " +
+        "names neither the owning constant nor its hex and is therefore " +
+        "invisible to every other gate in this file.",
+    ).toEqual([]);
+
+    // POSITIVE CONTROL — the assertion above is a not-found, so a bad slice
+    // would satisfy it vacuously.
+    expect(
+      vpBlock,
+      "the VP block no longer reads the palette at all — this gate is looking " +
+        "at the wrong text",
+    ).toMatch(/localStorage\.getItem\("wm_vp_up"\)/);
+    expect(vpBlock).toMatch(/VP_DEFAULT_TRIPLETS/);
+  });
+
+  it("THE VP GEAR: the swatch defaults and RESET hand back the room", () => {
+    // The gear in ChartsDashboard declared the SAME palette a second time —
+    // once in each `useState` initialiser and again in each
+    // `localStorage.getItem(…) || "…"` fallback — and its "Reset all VP colors"
+    // button WROTE those literals into storage, which is what froze the casino
+    // past any future default. Scoped to the gear's own function body, because
+    // ChartsDashboard lawfully uses `#00C076` elsewhere for things this slice
+    // did not touch (holdings deltas, strategy chips). Those are recorded, not
+    // forgotten.
+    const src = CODE(CHARTS_DASHBOARD);
+    const start = src.indexOf("function VPColorGear()");
+    expect(start, "VPColorGear has moved — re-point this gate").toBeGreaterThan(-1);
+    const end = src.indexOf("interface Strategy", start);
+    expect(end, "the VPColorGear body could not be bounded").toBeGreaterThan(start);
+    const gear = src.slice(start, end);
+
+    for (const hex of ["#00C076", "#FF4D67", "#F0B429", "#2563EB", "#8B5CF6"]) {
+      expect(
+        gear.match(new RegExp(hex, "gi")) ?? [],
+        `the VP gear restates ${hex}; RESET would hand the trader the pre-OS ` +
+          `palette back and re-freeze it into storage`,
+      ).toEqual([]);
+    }
+
+    // POSITIVE CONTROL — the gate above is a set of NOT-founds, so a renamed
+    // component or a bad slice would satisfy all five vacuously.
+    expect(
+      gear,
+      "the VP gear no longer names the owned defaults at all — this gate is " +
+        "passing on the wrong text",
+    ).toMatch(/VP_UP_DEFAULT/);
+    expect(
+      gear,
+      "the gear reads the palette without migrating it, so a trader who once " +
+        "hit RESET keeps the frozen casino values forever",
+    ).toMatch(/migrateVolumeProfilePalette\(localStorage\)/);
   });
 
   it("does not regress the five files chartsRoomChrome.test.ts already cured", () => {

@@ -35,7 +35,14 @@ import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
-import { migrateMarketField } from "@/lib/chart/marketFieldMaterial";
+import {
+  migrateMarketField,
+  migrateVolumeProfilePalette,
+  VP_UP_DEFAULT,
+  VP_DOWN_DEFAULT,
+  VP_POC_DEFAULT,
+  VP_VALUE_AREA_DEFAULT,
+} from "@/lib/chart/marketFieldMaterial";
 import { SymbolInfoHeader } from "./SymbolInfoHeader";
 // PRICE_UNAVAILABLE_TITLE is deliberately NOT imported here any more. The price
 // slot's disclosure now comes from chartHeaderPriceFact, which says strictly
@@ -205,19 +212,26 @@ function VPColorGear() {
     }
     setOpen(o => !o);
   };
-  const [vpUp, setVpUp] = useState("#00C076");
-  const [vpDn, setVpDn] = useState("#FF4D67");
-  const [poc, setPoc]   = useState("#F0B429");
-  const [vah, setVah]   = useState("#2563EB");
-  const [val, setVal]   = useState("#8B5CF6");
+  // FIVE OWNERS BECOME ONE. Each of these carried a literal twice — here in the
+  // initialiser and again in the `||` fallback below — and `MainChart` carried
+  // a third and fourth copy as RGB triplets. See `lib/chart/marketFieldMaterial.ts`.
+  const [vpUp, setVpUp] = useState(VP_UP_DEFAULT);
+  const [vpDn, setVpDn] = useState(VP_DOWN_DEFAULT);
+  const [poc, setPoc]   = useState(VP_POC_DEFAULT);
+  const [vah, setVah]   = useState(VP_VALUE_AREA_DEFAULT);
+  const [val, setVal]   = useState(VP_VALUE_AREA_DEFAULT);
   const [labelMode, setLabelMode] = useState<"all" | "key">("all");
   useEffect(() => {
     try {
-      setVpUp(localStorage.getItem("wm_vp_up") || "#00C076");
-      setVpDn(localStorage.getItem("wm_vp_dn") || "#FF4D67");
-      setPoc(localStorage.getItem("wm_vp_poc") || "#F0B429");
-      setVah(localStorage.getItem("wm_vp_vah") || "#2563EB");
-      setVal(localStorage.getItem("wm_vp_val") || "#8B5CF6");
+      // Migrate BEFORE reading, so a trader who once hit "Reset all VP colors"
+      // — and thereby froze the casino literals into storage as explicit
+      // values — sees the room instead of the values that reset handed them.
+      migrateVolumeProfilePalette(localStorage);
+      setVpUp(localStorage.getItem("wm_vp_up") || VP_UP_DEFAULT);
+      setVpDn(localStorage.getItem("wm_vp_dn") || VP_DOWN_DEFAULT);
+      setPoc(localStorage.getItem("wm_vp_poc") || VP_POC_DEFAULT);
+      setVah(localStorage.getItem("wm_vp_vah") || VP_VALUE_AREA_DEFAULT);
+      setVal(localStorage.getItem("wm_vp_val") || VP_VALUE_AREA_DEFAULT);
       setLabelMode(localStorage.getItem("wm_vp_labels") === "key" ? "key" : "all");
     } catch {}
   }, [open]);
@@ -258,9 +272,12 @@ function VPColorGear() {
         title="Volume Profile & candle colors"
         className="flex items-center justify-center w-5 h-5 rounded border transition-all"
         style={{
-          background: open ? "rgba(0,192,118,0.15)" : "#131520",
-          borderColor: open ? "rgba(0,192,118,0.5)" : "#1E2030",
-          color: open ? "#00C076" : "#8B8FA8",
+          // The gear's own OPEN state was a green chip. An equipment control
+          // saying "I am open" is chrome, not a market claim, so it takes the
+          // room's brass like every other control in the OS.
+          background: open ? "rgba(196,165,116,0.15)" : "#131520",
+          borderColor: open ? "rgba(196,165,116,0.5)" : "#1E2030",
+          color: open ? VP_UP_DEFAULT : "#8B8FA8",
         }}
       >
         <Settings size={12} />
@@ -284,9 +301,9 @@ function VPColorGear() {
                 <button key={m} onClick={() => applyLabelMode(m)}
                   className="flex-1 px-2 py-1 rounded text-[10px] font-semibold border transition-all"
                   style={{
-                    background: labelMode === m ? "rgba(0,192,118,0.15)" : "#131520",
-                    borderColor: labelMode === m ? "rgba(0,192,118,0.5)" : "#1E2030",
-                    color: labelMode === m ? "#00C076" : "#8B8FA8",
+                    background: labelMode === m ? "rgba(196,165,116,0.15)" : "#131520",
+                    borderColor: labelMode === m ? "rgba(196,165,116,0.5)" : "#1E2030",
+                    color: labelMode === m ? VP_UP_DEFAULT : "#8B8FA8",
                   }}>
                   {m === "all" ? "Every bar" : "Key levels"}
                 </button>
@@ -298,7 +315,10 @@ function VPColorGear() {
             {field("POC (Point of Control)", poc, v => applyLevel("poc", v))}
             {field("VAH box (Value Area High)", vah, v => applyLevel("vah", v))}
             {field("VAL box (Value Area Low)", val, v => applyLevel("val", v))}
-            <button onClick={() => { applyVp("#00C076", "#FF4D67"); applyLevel("poc", "#F0B429"); applyLevel("vah", "#2563EB"); applyLevel("val", "#8B5CF6"); }}
+            {/* THE CONTROL THAT FROZE THE RAINBOW. "Reset" means "give me the
+                product's own answer", so it must hand back the ROOM — not the
+                palette the pre-OS build happened to ship with. */}
+            <button onClick={() => { applyVp(VP_UP_DEFAULT, VP_DOWN_DEFAULT); applyLevel("poc", VP_POC_DEFAULT); applyLevel("vah", VP_VALUE_AREA_DEFAULT); applyLevel("val", VP_VALUE_AREA_DEFAULT); }}
               className="mt-1 px-2 py-1 rounded text-[10px] font-semibold border border-wm-border text-wm-text-dim hover:text-wm-text">
               Reset all VP colors
             </button>

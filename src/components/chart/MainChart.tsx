@@ -213,6 +213,11 @@ import {
   MARKET_FIELD_DEFAULT,
   VOLUME_DOWN_DEFAULT,
   VOLUME_UP_DEFAULT,
+  VP_UP_DEFAULT,
+  VP_DOWN_DEFAULT,
+  VP_POC_DEFAULT,
+  VP_VALUE_AREA_DEFAULT,
+  migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -276,6 +281,21 @@ function hexToRgbTriplet(color: string): [number, number, number] | null {
   if ([r, g, b].some(n => isNaN(n))) return null;
   return [r, g, b];
 }
+
+/** The VP palette as triplets, DERIVED from the owning hex — never restated. */
+type VPTriplets = {
+  up: [number,number,number]; dn: [number,number,number];
+  poc: [number,number,number]; vah: [number,number,number]; val: [number,number,number];
+};
+const triplet = (hex: string): [number, number, number] =>
+  hexToRgbTriplet(hex) ?? [0, 0, 0];
+const VP_DEFAULT_TRIPLETS: VPTriplets = {
+  up:  triplet(VP_UP_DEFAULT),
+  dn:  triplet(VP_DOWN_DEFAULT),
+  poc: triplet(VP_POC_DEFAULT),
+  vah: triplet(VP_VALUE_AREA_DEFAULT),
+  val: triplet(VP_VALUE_AREA_DEFAULT),
+};
 
 /**
  * Colour and weight for the header change cell, chosen from DECLARED PROVENANCE
@@ -1614,30 +1634,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return () => window.removeEventListener("wm-of-colors", load);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // VP bars + Big-Trades bubbles use their OWN color pair (default GREEN / RED), set
-  // via the WM-VP gear — independent of the royal-blue/purple order-flow scheme. The
-  // user wants VP & bubbles to stay green/red while footprint cells stay blue/purple.
-  const vpColorsRef = useRef<{
-    up: [number,number,number]; dn: [number,number,number];
-    poc: [number,number,number]; vah: [number,number,number]; val: [number,number,number];
-  }>({
-    up:  [0, 192, 118],   // green → buy/ask-dominant shelf, up bubble
-    dn:  [255, 77, 103],  // red   → sell/bid-dominant shelf, down bubble
-    poc: [240, 180, 41],  // gold  → Point of Control
-    vah: [37, 99, 235],   // blue  → Value Area High
-    val: [139, 92, 246],  // purple→ Value Area Low
-  });
+  // VP bars + Big-Trades bubbles read their own pair from the WM-VP gear
+  // (`wm_vp_*`), independent of the footprint scheme. The DEFAULTS are the
+  // room's — see `lib/chart/marketFieldMaterial.ts`. They were hand-written
+  // RGB triplets here, a THIRD and FOURTH copy of a palette already declared
+  // twice in `ChartsDashboard`, which is why the red price-axis tag survived
+  // two brass conversions. Derived from the owning hex so the triplet cannot
+  // drift from the swatch a trader sees in the gear.
+  const vpColorsRef = useRef(VP_DEFAULT_TRIPLETS);
   useEffect(() => {
     const load = () => {
       try {
+        // Stamped and idempotent; runs here too because this renderer reads the
+        // keys directly and may mount before the gear ever does.
+        migrateVolumeProfilePalette(localStorage);
         const up  = hexToRgbTriplet(localStorage.getItem("wm_vp_up")  || "");
         const dn  = hexToRgbTriplet(localStorage.getItem("wm_vp_dn")  || "");
         const poc = hexToRgbTriplet(localStorage.getItem("wm_vp_poc") || "");
         const vah = hexToRgbTriplet(localStorage.getItem("wm_vp_vah") || "");
         const val = hexToRgbTriplet(localStorage.getItem("wm_vp_val") || "");
         vpColorsRef.current = {
-          up:  up  ?? [0,192,118], dn:  dn  ?? [255,77,103],
-          poc: poc ?? [240,180,41], vah: vah ?? [37,99,235], val: val ?? [139,92,246],
+          up:  up  ?? VP_DEFAULT_TRIPLETS.up,  dn:  dn  ?? VP_DEFAULT_TRIPLETS.dn,
+          poc: poc ?? VP_DEFAULT_TRIPLETS.poc, vah: vah ?? VP_DEFAULT_TRIPLETS.vah,
+          val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
       } catch {}
       setRangeVer(v => v + 1);

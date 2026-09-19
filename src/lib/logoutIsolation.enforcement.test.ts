@@ -94,6 +94,8 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_vp_up", "wm_vp_dn",     // VP colors — device chart pref
   "wm_vp_labels", "wm_vp_poc",
   "wm_vp_vah", "wm_vp_val",
+  "wm_vp_schemaVersion",      // VP palette migration stamp — device chart pref
+
   "wm_of_buy", "wm_of_sell",  // OF colors — device chart pref
   "wm_bubble_max",            // bubble scale — device chart pref
   "wm_bubble_paused",         // bubble pause — device chart pref
