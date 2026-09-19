@@ -1383,3 +1383,94 @@ describe("SENTINEL — Escape is a staircase, not a trapdoor", () => {
     ).toMatch(/!journeyOpen/);
   });
 });
+
+/**
+ * SENTINEL — IN EQUIPMENT MODE THE FRAME OFFERS NO WAY TO LEAVE THE ROOM.
+ *
+ * This is the Founder's Shot 1 gate, stated as code: the default URL must be
+ * a debt-honest HOME where the MARKET dominates and the frame offers exactly
+ * two pieces of equipment — Workspace and Tools — and NO destination rail.
+ *
+ * The governing sentence of the whole shift is "kill the competing house",
+ * and a house comes back one honest list at a time: Rooms was cut from the
+ * masthead, and the destination mall reappeared one click lower under the
+ * heading "Tools". Each of those moves looked like a small, reasonable
+ * addition on its own.
+ *
+ * So this does not check a count of buttons — a count is satisfied by hiding.
+ * It checks that every list of DESTINATIONS the frame owns is rendered on the
+ * false side of the mode branch, which is the only shape that cannot be
+ * restored by flipping a default.
+ */
+describe("SENTINEL — Shot 1: equipment mode renders no destinations at all", () => {
+  const rail = read(RAIL);
+  const LISTS = ["OS_ROOMS.map", "OS_WORKBENCH.map", "OS_COMMUNITY.map"] as const;
+
+  /**
+   * The `{` that opens the JSX expression the list is rendered inside.
+   *
+   * WHY BRACE-MATCHING AND NOT `lastIndexOf("equipmentMode ?")`. That was the
+   * first draft, and it was GREEN against a deliberately reverted frame: the
+   * nearest preceding mention of the mode belonged to a DIFFERENT, correctly
+   * guarded block higher up, so the rule proved something true about a
+   * neighbour and nothing at all about the list in front of it. A sentinel
+   * that reads the wrong expression is worse than none, because its green is
+   * mistaken for cover.
+   *
+   * Called TWICE per list, and that is deliberate. `{OS_ROOMS.map(…)}` opens
+   * its own JSX expression, so one hop lands on the brace immediately to the
+   * left of the list and reads an empty string — a rule that can only ever be
+   * red. The guard we care about is the expression ONE level out, the
+   * `{equipmentMode ? … }` that decides whether the list exists at all.
+   */
+  const openerOf = (at: number): number => {
+    let depth = 0;
+    for (let i = at; i >= 0; i -= 1) {
+      const c = rail[i];
+      if (c === "}") depth += 1;
+      else if (c === "{") {
+        if (depth === 0) return i;
+        depth -= 1;
+      }
+    }
+    return -1;
+  };
+
+  for (const list of LISTS) {
+    it(`${list} is rendered only when the frame is NOT in equipment mode`, () => {
+      const at = rail.indexOf(list);
+      expect(at, `${RAIL} → ${list} is gone from the rail; re-pin this`).toBeGreaterThan(-1);
+      const own = openerOf(at);
+      expect(own, `${RAIL} → ${list} is not inside a JSX expression at all`).toBeGreaterThan(-1);
+      const open = openerOf(own - 1);
+      expect(
+        open,
+        `${RAIL} → ${list} sits at the top of the rail with nothing wrapping it — there is no guard left to read`,
+      ).toBeGreaterThan(-1);
+      const head = rail.slice(open + 1, at).trimStart();
+      expect(
+        head.startsWith("equipmentMode ?"),
+        `${RAIL} → ${list} is rendered unconditionally — the destination mall is back over a live market`,
+      ).toBe(true);
+      // If the list sat on the TRUE side there would be no separator here,
+      // because the true arm has not been closed yet.
+      expect(
+        /null : \(|\) : \(/.test(head),
+        `${RAIL} → ${list} sits on the EQUIPMENT side of the branch; picking up a tool would hand the trader a list of places that are not here`,
+      ).toBe(true);
+    });
+  }
+
+  it("equipment mode offers exactly the canon's two hands, by name", () => {
+    // Named, not counted: "Workspace" and "Tools" are the canon's two hands.
+    // A third equipment button is a new hand and must be a Founder decision,
+    // not a merge.
+    const kinds = rail.match(/equipment === "(workspace|tools)"/g) ?? [];
+    expect(kinds.length, `${RAIL} → the two-hand split is gone`).toBeGreaterThan(0);
+    const named = new Set(kinds.map((k) => k.replace(/.*"(\w+)".*/, "$1")));
+    expect([...named].sort(), `${RAIL} → equipment mode grew a third hand`).toEqual([
+      "tools",
+      "workspace",
+    ]);
+  });
+});
