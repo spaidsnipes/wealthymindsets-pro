@@ -236,9 +236,26 @@ export function assertGranularity(expected: string, actual: string | undefined):
   }
 }
 
-export interface Candle {
-  time: number; open: number; high: number; low: number; close: number; volume: number;
-}
+/*
+ * THE TIMEFRAME REGISTRY NO LONGER DECLARES ITS OWN `Candle` (2026-09-18).
+ *
+ * Byte-for-byte `LegacyOhlcvTuple`, and its only importer was its own test file.
+ *
+ * This one is worth a sentence beyond the rename, because `aggregateCandles`
+ * below is one of the few places in the codebase that MANUFACTURES a bar that
+ * never arrived from a provider: it folds N source bars into one. Under the old
+ * local `Candle` that was invisible — the output looked exactly like an input.
+ * Under a shared legacy-tuple name it is STILL invisible, because the tuple
+ * carries no provenance either.
+ *
+ * THAT IS THE POINT, AND IT IS NOT FIXED HERE. A folded bar has a genuinely
+ * different fidelity from a provider bar, and a CanonicalBar would be obliged to
+ * say so (`fidelity`, `source`, `provenance`, `truthEpoch`). This rename gives
+ * the aggregator nowhere to record that. It removes one duplicate DECISION about
+ * what a bar is and nothing else. The aggregation-provenance gap stays open and
+ * is named here so it is not mistaken for closed.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 /**
  * Aggregate N source bars into one. Only exact integer divisors are permitted —
@@ -247,13 +264,13 @@ export interface Candle {
  *
  * Trailing partial groups are dropped: a half-formed bar is not a bar.
  */
-export function aggregateCandles(src: readonly Candle[], factor: number): Candle[] {
+export function aggregateCandles(src: readonly LegacyOhlcvTuple[], factor: number): LegacyOhlcvTuple[] {
   if (!Number.isInteger(factor) || factor < 1) {
     throw new Error(`Aggregation factor must be a positive integer, got ${factor}`);
   }
   if (factor === 1) return [...src];
 
-  const out: Candle[] = [];
+  const out: LegacyOhlcvTuple[] = [];
   for (let i = 0; i + factor <= src.length; i += factor) {
     const group = src.slice(i, i + factor);
     out.push({

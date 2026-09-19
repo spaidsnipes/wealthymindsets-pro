@@ -18,9 +18,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runRealBacktest, type Bar } from "./engine";
+import { runRealBacktest } from "./engine";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-function mkFlatBars(n: number, price = 100, tstart = 1_700_000_000): Bar[] {
+function mkFlatBars(n: number, price = 100, tstart = 1_700_000_000): LegacyOhlcvTuple[] {
   return Array.from({ length: n }, (_, i) => ({
     time: tstart + i * 60,
     open: price, high: price, low: price, close: price, volume: 1000,
@@ -32,8 +33,8 @@ function mkFlatBars(n: number, price = 100, tstart = 1_700_000_000): Bar[] {
  * upward candle at the boundary index. Guaranteed to trigger the
  * "momentum" strategy's rollingMax breakout when i > 25.
  */
-function mkMomentumBreakoutBars(): Bar[] {
-  const bars: Bar[] = [];
+function mkMomentumBreakoutBars(): LegacyOhlcvTuple[] {
+  const bars: LegacyOhlcvTuple[] = [];
   // First 30 flat @ 100 with high volume (avgVol baseline)
   for (let i = 0; i < 30; i++) {
     bars.push({ time: 1_700_000_000 + i * 60, open: 100, high: 100.5, low: 99.5, close: 100, volume: 1000 });

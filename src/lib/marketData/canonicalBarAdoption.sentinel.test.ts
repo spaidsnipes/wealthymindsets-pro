@@ -1,20 +1,20 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is TWELVE as of the
+ * The count below started at twenty-two on 2026-09-18 and is TEN as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO TWELVE IS NOT TEN MIGRATIONS. It is nine renames-or-deletes
+ * TWENTY-TWO TO TEN IS NOT TWELVE MIGRATIONS. It is eleven renames-or-deletes
  * plus one measurement correction, and ZERO INGRESSES MIGRATED. The array's
- * docblock separates the kinds line by line so nobody reads this header as ten
- * ingresses routed through the artery. None were. Not one.
+ * docblock separates the kinds line by line so nobody reads this header as
+ * twelve ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not twelve competing ideas of what a bar is.
- * EIGHT OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * The remaining shapes are not ten competing ideas of what a bar is.
+ * SIX OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
  * low, close, volume`, every one of them `number` — which is also, exactly,
  * `LegacyOhlcvTuple` in the artery. A ninth, `DeckMarketChart::Candle`,
  * differs only by `volume?`. The sprawl is one anonymous six-field tuple
@@ -22,8 +22,8 @@
  * it already exists with a docblock saying so.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming eight
- * declarations to one name removes eight duplicate DECISIONS and delivers
+ * it is important not to let the ease flatter the result: renaming six
+ * declarations to one name removes six duplicate DECISIONS and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
  * truthEpoch on the live path — is untouched by every rename and stays owed.
@@ -314,18 +314,42 @@ const THE_ARTERY: readonly string[] = [
  * `indicators.ts` exports, not the chart's own. A blanket rename rewrote it and
  * `tsc` caught that too. It is restored and commented, because retiring
  * `indicators.ts::Bar` — seven importers — is its own atom.
+ *
+ * ── TWELVE TO TEN: TWO SHAPES WHOSE ONLY IMPORTER WAS THEIR OWN TEST ───────
+ *
+ * RETIRED: `lib/backtest/engine.ts::Bar` and `lib/timeframes.ts::Candle`, both
+ * byte-for-byte `LegacyOhlcvTuple`, each with exactly ONE importer, and in both
+ * cases that importer is the module's own test file. Same grouping logic as the
+ * four-file atom, same blast radius as the markov atom. `tsc` clean first try;
+ * neither module assigns to a bar field, so `readonly` cost nothing here.
+ *
+ * A CORRECTION TO WHAT I WROTE TWO ATOMS AGO. The gate row for the four-file
+ * atom called `indicators.ts::Bar` (seven importers) and `pine/types.ts` (seven)
+ * "a different risk class" on the strength of the raw count. Re-measuring shows
+ * the count conflates test importers with production ones: of the seven on
+ * `indicators.ts::Bar`, five are that module's own test files, one more is
+ * `selectMarketStructure.test.ts`, and exactly ONE is production. Of the seven
+ * on `pine/types.ts::OHLCVBar`, three are production. The risk is real but
+ * smaller than the number I quoted, and the number I quoted was the wrong
+ * measurement to quote.
+ *
+ * THE AGGREGATOR IS THE INTERESTING HALF. `timeframes.ts::aggregateCandles`
+ * MANUFACTURES bars that never came from a provider — it folds N into one — and
+ * neither the old local `Candle` nor the shared legacy tuple has anywhere to
+ * record that a folded bar has a different fidelity from a fetched one. The
+ * rename does not close that; it just stops the module from voting on what a
+ * bar is. The gap is written into the source at the declaration site so the
+ * next reader finds it there rather than here.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/chart/indicators.ts::Bar",
   "components/experience/DeckMarketChart.tsx::Candle",
-  "lib/backtest/engine.ts::Bar",
   "lib/marketData/liveBarPolicy.ts::LiveBar",
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
   "lib/pine/types.ts::OHLCVBar",
   "lib/sessionVP.ts::Candle",
-  "lib/timeframes.ts::Candle",
   "lib/vpEngine.ts::ProfileBar",
   "lib/yahooTimeframes.ts::YahooOhlcvBar",
 ];
@@ -390,7 +414,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at twelve private pasts and may only SHRINK", () => {
+  it("holds at ten private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

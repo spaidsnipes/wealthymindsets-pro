@@ -11,14 +11,25 @@
  *  - These are rule backtests on close-to-close bars, not tick-level fills.
  */
 
-export interface Bar {
-  time:   number; // unix seconds
-  open:   number;
-  high:   number;
-  low:    number;
-  close:  number;
-  volume: number;
-}
+/*
+ * THE BACKTESTER NO LONGER DECLARES ITS OWN `Bar` (2026-09-18).
+ *
+ * What stood here was byte-for-byte `LegacyOhlcvTuple`: six numbers, the same
+ * six, under a fourth name. Its ONLY importer was its own test file, so this
+ * rename has the smallest blast radius left in the census.
+ *
+ * WHAT THIS BUYS, STATED HONESTLY: one fewer duplicate DECISION about what a
+ * bar is, and ZERO canonical identity. The backtester still has no symbolId,
+ * no sessionId, no fidelity, no provenance and no truthEpoch on the rows it
+ * reasons over. It reads them out of `/api/yahoo` as raw JSON. Until that
+ * ingress carries a CanonicalBar, a backtest here cannot say WHICH truth epoch
+ * its trades were computed against — which is exactly the claim a backtest is
+ * most tempting to overstate.
+ *
+ * NO ALIAS WAS LEFT BEHIND. `Bar` is gone from this module's exports; the test
+ * was migrated in the same change rather than shimmed.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 export interface BTTrade {
   id:     number;
@@ -61,12 +72,12 @@ export interface BTResult {
 }
 
 /* ── Data fetch (real bars) ─────────────────────────────────── */
-export async function fetchBars(symbol: string, tf: string): Promise<Bar[]> {
+export async function fetchBars(symbol: string, tf: string): Promise<LegacyOhlcvTuple[]> {
   // Ask for the maximum the endpoint allows; Yahoo decides the real coverage.
   const url = `/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(tf)}&bars=3000`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Data fetch failed (${res.status})`);
-  const json = await res.json() as { candles?: Bar[]; error?: string };
+  const json = await res.json() as { candles?: LegacyOhlcvTuple[]; error?: string };
   if (json.error) throw new Error(json.error);
   const bars = (json.candles ?? []).filter(
     b => b && [b.open, b.high, b.low, b.close].every(n => typeof n === "number" && isFinite(n) && n > 0)
@@ -82,7 +93,7 @@ function ema(values: number[], period: number): number[] {
   values.forEach((v, i) => { prev = i === 0 ? v : v * k + prev * (1 - k); out.push(prev); });
   return out;
 }
-function atr(bars: Bar[], period: number): number[] {
+function atr(bars: LegacyOhlcvTuple[], period: number): number[] {
   const tr: number[] = bars.map((b, i) => {
     if (i === 0) return b.high - b.low;
     const pc = bars[i - 1].close;
@@ -101,7 +112,7 @@ function rollingAvg(vals: number[], i: number, n: number): number {
 }
 
 /* ── Per-strategy entry signal: returns +1 long, -1 short, 0 none ─── */
-function signalAt(strategyId: string, bars: Bar[], i: number, ind: {
+function signalAt(strategyId: string, bars: LegacyOhlcvTuple[], i: number, ind: {
   emaF: number[]; emaS: number[]; atr: number[];
 }): number {
   if (i < 25) return 0;
@@ -160,7 +171,7 @@ function signalAt(strategyId: string, bars: Bar[], i: number, ind: {
 
 /* ── Engine ─────────────────────────────────────────────────── */
 export function runRealBacktest(
-  bars: Bar[], symbol: string, strategyId: string, strategyLabel: string,
+  bars: LegacyOhlcvTuple[], symbol: string, strategyId: string, strategyLabel: string,
 ): BTResult {
   const START = 100_000;
   const RISK  = 0.01;       // 1% of equity risked per trade

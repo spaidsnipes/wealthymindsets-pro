@@ -3,8 +3,9 @@ import {
   TIMEFRAMES, TF_IDS, getTimeframe, isTFId, isSupported, normalizeTFId,
   resolveFetchPlan, assertGranularity, aggregateCandles, hasEnoughBarsForState,
   CHART_TF_ORDER, HEATMAP_TF_ORDER, PROVIDER_EVIDENCE,
-  type Candle, type TFId,
+  type TFId,
 } from "./timeframes";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 describe("canonical timeframe set", () => {
   it("covers all 19 required intervals from 1m through 5Y", () => {
@@ -70,13 +71,13 @@ describe("aggregation safety — exact integer divisors only", () => {
   });
 
   it("rejects non-integer aggregation factors", () => {
-    const bars: Candle[] = [];
+    const bars: LegacyOhlcvTuple[] = [];
     expect(() => aggregateCandles(bars, 1.5)).toThrow(/positive integer/);
     expect(() => aggregateCandles(bars, 0)).toThrow(/positive integer/);
   });
 
   it("aggregates OHLCV correctly", () => {
-    const src: Candle[] = [
+    const src: LegacyOhlcvTuple[] = [
       { time: 0,   open: 10, high: 12, low: 9,  close: 11, volume: 100 },
       { time: 60,  open: 11, high: 15, low: 10, close: 14, volume: 200 },
       { time: 120, open: 14, high: 16, low: 8,  close: 9,  volume: 300 },
@@ -91,7 +92,7 @@ describe("aggregation safety — exact integer divisors only", () => {
   });
 
   it("drops trailing partial groups rather than emitting a half-formed bar", () => {
-    const src: Candle[] = Array.from({ length: 7 }, (_, i) => ({
+    const src: LegacyOhlcvTuple[] = Array.from({ length: 7 }, (_, i) => ({
       time: i * 60, open: 1, high: 1, low: 1, close: 1, volume: 1,
     }));
     expect(aggregateCandles(src, 3)).toHaveLength(2); // 7 -> 2 complete, 1 dropped
