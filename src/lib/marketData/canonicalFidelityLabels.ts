@@ -93,8 +93,12 @@ export const ALL_CANONICAL_FIDELITY_LABELS: readonly CanonicalFidelityLabel[] = 
  * Legacy phrases that must NOT appear in NEW production label
  * surfaces. Historical mentions inside comments / docstrings / test
  * fixtures are permitted so we can name what we're moving away from.
- * The audit script scripts/audit-fidelity-labels.mjs enforces this at
- * the code-string level.
+ * `canonicalFidelityLabels.enforcement.test.ts` enforces this at the
+ * code-string level. (This comment named `scripts/audit-fidelity-labels.mjs`
+ * until 2026-09-19; no such script has ever existed in this tree. The rule
+ * was real and enforced the whole time — only the pointer was wrong, which
+ * is the worse half of the two: a reader who went looking for the script
+ * and did not find it would conclude the rule was unenforced.)
  *
  * Canon anchor: §Legacy Surface Quarantine.
  */

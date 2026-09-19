@@ -231,8 +231,10 @@ export const DEFAULT_MATCHERS: Required<NonNullable<StoryConfig["matchers"]>> = 
   // market that is not in that state.
   //
   // The producer's tokens are referenced by IMPORT rather than retyped, so the
-  // two halves cannot silently drift again; volatilityVocabulary.test.ts locks
-  // the correspondence in both directions. The bare adjectives stay because
+  // two halves cannot silently drift again; dimensionVocabulary.test.ts locks
+  // the correspondence in both directions. (Named as volatilityVocabulary.test.ts
+  // here until 2026-09-19 — a file that does not exist. The lock was real; the
+  // citation was not.) The bare adjectives stay because
   // DEFAULT_MATCHERS is documented as accepting common variants from producers
   // whose vocabulary is not known here.
   volatility: {

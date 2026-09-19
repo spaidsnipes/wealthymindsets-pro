@@ -110,9 +110,15 @@ export function composeMarketCanvasVM(
    * screen. The deck now supplies `permissionInputs` to the chain, and the
    * compiler defers to it rather than re-deriving a rival answer.
    *
-   * The fallback is NOT dead code: callers with no chain (the /journal/[id]
-   * detail canvas) and callers whose chain was built without
+   * The fallback is NOT dead code: callers whose chain was built without
    * `permissionInputs` still need a permission compiled here.
+   *
+   * Until 2026-09-19 this comment also cited "the /journal/[id] detail canvas"
+   * as a live caller with no chain. That route does not exist — `src/app/journal`
+   * holds only `page.tsx`. The detail canvas is a PLANNED surface, currently
+   * blocked on there being zero journal entries to render. Naming an unbuilt
+   * route in the present tense is how a reader concludes a branch is covered
+   * when its only real justification is the second clause above.
    */
   const permission: PermissionVM = chain?.permission ?? selectPermission({
     ownerId: input.ownerId,
