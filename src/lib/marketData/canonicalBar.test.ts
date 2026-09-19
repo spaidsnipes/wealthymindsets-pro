@@ -8,7 +8,9 @@ import * as barModule from "./canonicalBar";
 import {
   admitBar,
   checkBarGeometry,
+  isSessionKnown,
   mintBarId,
+  SESSION_UNKNOWN,
   toLegacyTuple,
   type CanonicalBar,
 } from "./canonicalBar";
@@ -206,5 +208,51 @@ describe("the one sanctioned door, and the one that is deliberately missing", ()
     expect(keys).toContain("asOf");
     expect(keys).toContain("receivedAt");
     expect(keys).not.toContain("time");
+  });
+});
+
+describe("session identity — a bar may say it does not know, but not pretend", () => {
+  it("does not mistake a blank session for a real one", () => {
+    // An empty string is how "we never set this" reaches production wearing
+    // the costume of a value.
+    expect(isSessionKnown("RTH")).toBe(true);
+    expect(isSessionKnown(SESSION_UNKNOWN)).toBe(false);
+    expect(isSessionKnown("")).toBe(false);
+    expect(isSessionKnown("   ")).toBe(false);
+  });
+
+  it("REFUSES an EXECUTABLE claim from a bar that cannot place itself in a session", () => {
+    // EXECUTABLE means "the adapter will use this price". The same number is a
+    // different fact inside RTH than in extended hours, and capital gets
+    // attached to the difference — so the claim is not backable here.
+    const verdict = admitBar(null, bar({ sessionId: SESSION_UNKNOWN, fidelity: "EXECUTABLE" }));
+    expect(verdict.admitted).toBe(false);
+    expect(verdict.admitted === false && verdict.reason).toContain("session");
+  });
+
+  it("still admits an unknown-session bar at a fidelity that does not overclaim", () => {
+    // The live chart has to keep drawing. Refusing every bar whose session we
+    // cannot name would amputate the chart to protect a label — which is the
+    // capability amputation this board forbids.
+    for (const fidelity of ["INDICATIVE", "PARTIAL", "DEGRADED", "STALE"] as const) {
+      const verdict = admitBar(null, bar({ sessionId: SESSION_UNKNOWN, fidelity }));
+      expect(verdict.admitted, `${fidelity} was refused — the chart goes blank`).toBe(true);
+    }
+  });
+
+  it("does NOT silently downgrade the fidelity it disagrees with", () => {
+    // Rewriting EXECUTABLE to INDICATIVE on the way through would be the
+    // convenient repair, and it would hide from the caller that the house
+    // disagreed with it. A refusal is visible; a quiet correction is not.
+    const verdict = admitBar(null, bar({ sessionId: SESSION_UNKNOWN, fidelity: "EXECUTABLE" }));
+    expect(verdict.admitted).toBe(false);
+    expect("bar" in verdict, "a refusal that still hands back a bar is not a refusal").toBe(false);
+  });
+
+  it("leaves a KNOWN-session EXECUTABLE bar entirely alone", () => {
+    // The guard must be about ignorance, not about EXECUTABLE. If it fired on
+    // every executable bar it would be a different, much larger change wearing
+    // this one's name.
+    expect(admitBar(null, bar({ sessionId: "RTH", fidelity: "EXECUTABLE" })).admitted).toBe(true);
   });
 });

@@ -52,7 +52,44 @@
  * bars" rule pointed in the other direction.
  */
 
-import type { MarketFidelity } from "./marketFidelityAlgebra";
+import { MARKET_FIDELITIES, type MarketFidelity } from "./marketFidelityAlgebra";
+
+/* ── SESSION IDENTITY, AND THE WALL THE MIGRATION HIT ──────────────────────── */
+
+/**
+ * MEASURED 2026-09-18, while attempting M8's first real ingress migration.
+ *
+ * This artery has zero production consumers, and the reason turned out not to
+ * be neglect. `sessionId` is REQUIRED above, and NOTHING in this product
+ * produces one. The only place a session is known at all is
+ * `CanonicalMarketEvent.sessionId`, which is OPTIONAL and is populated by
+ * exactly one adapter — `webullTicksBrowser.ts`, passing through the provider's
+ * own `tradingSession` string. Every other ingress has no idea which session a
+ * print belongs to.
+ *
+ * So a migrating ingress faced two bad doors: invent a session (launder unknown
+ * data into a canonical field, which is the exact failure `toLegacyTuple`'s
+ * missing inverse was written to prevent), or refuse every bar that is not
+ * Webull's (amputate the live chart). Neither is acceptable, so the wall is
+ * named here instead of being climbed quietly.
+ *
+ * The third door: an ingress may say IT DOES NOT KNOW, out loud, in the field
+ * itself. `SESSION_UNKNOWN` is not a default and not a placeholder to be
+ * cleaned up later — it is an assertion of ignorance that travels with the bar,
+ * and the house treats it as the limitation it is (see `admitBar`).
+ */
+export const SESSION_UNKNOWN = "SESSION_UNKNOWN";
+
+/**
+ * Does this bar know which session it belongs to?
+ *
+ * Blank counts as unknown, deliberately. An empty string is how "we never set
+ * this" reaches production looking like a value.
+ */
+export function isSessionKnown(sessionId: string): boolean {
+  const trimmed = sessionId.trim();
+  return trimmed !== "" && trimmed !== SESSION_UNKNOWN;
+}
 
 /* ── PROVENANCE ────────────────────────────────────────────────────────────── */
 
@@ -218,6 +255,27 @@ export function admitBar(current: CanonicalBar | null, incoming: CanonicalBar): 
 
   if (!Number.isFinite(incoming.asOf) || !Number.isFinite(incoming.truthEpoch)) {
     return { admitted: false, reason: "A bar without a finite asOf and truthEpoch cannot be ordered." };
+  }
+
+  // A bar that does not know its session may still be admitted — the live chart
+  // has to keep drawing — but it may NOT claim EXECUTABLE. EXECUTABLE means
+  // "this surface's price is the one the adapter will use", and that is not a
+  // claim anyone can make about a print they cannot place in a session: the
+  // same number is a different fact inside RTH than it is in extended hours,
+  // and capital gets attached to the difference. The bar is refused rather than
+  // quietly downgraded, because silently rewriting a fidelity would hide from
+  // the caller that the house disagreed with it.
+  if (
+    !isSessionKnown(incoming.sessionId)
+    && incoming.fidelity === MARKET_FIDELITIES.EXECUTABLE
+  ) {
+    return {
+      admitted: false,
+      reason:
+        "This bar claims EXECUTABLE fidelity but does not know which session it "
+        + "belongs to. A price is a different fact inside RTH than outside it, so "
+        + "the claim cannot be backed. Admit it as INDICATIVE, or supply the session.",
+    };
   }
 
   if (!current) return { admitted: true, bar: incoming };
