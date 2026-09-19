@@ -82,6 +82,7 @@ import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import ObjectPassportSlots from "@/components/experience/ObjectPassportSlots";
 import MarketHonestyPlaque from "@/components/experience/MarketHonestyPlaque";
+import GateRailColumn from "@/components/experience/GateRailColumn";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -881,6 +882,12 @@ function CommandDeckInner() {
               nothing looks exactly like a certified one. When the resolver
               starts composing, it passes a reading in and the word changes. */}
           <MarketHonestyPlaque reading={null} />
+          {/* The gate rail from mockup 133. No `answers` prop, deliberately:
+              the deck has not put a single gate question to a decision, and
+              six UNASKED rungs would be a finding nobody made. It renders the
+              honest sentence instead, and starts reading the moment a caller
+              has real answers to hand it. */}
+          <GateRailColumn />
           <ObjectPassportSlots object={null} />
           <MarketObjectPassportPanel vm={passport} unabridged={unabridged} />
         </>
