@@ -209,6 +209,22 @@ const SECTIONS = [
 // Confluence engine moved to @/lib/marketData/confluence — versioned, tested,
 // and enforces a minimum-evidence gate. See computeConfluence import above.
 
+/**
+ * The panel's DOM identity, owned by the element that carries it.
+ *
+ * The trigger lives in `ChartToolbar` and needs to POINT at this panel with
+ * `aria-controls`. That attribute is only honest while the target is in the
+ * document, and `ChartsDashboard` renders this component behind
+ * `{smartMoneyOpen && <SmartMoneyPanel …/>}` — so the trigger emits the
+ * attribute only when `smartMoneyActive`, and the two are the same boolean.
+ *
+ * Exported rather than inlined for the reason the mode bar's group id is: a
+ * dangling `aria-controls` is FOLLOWED by assistive tech, so a string typed
+ * twice is a pointer that can drift to nowhere while both halves still read
+ * like care.
+ */
+export const SMART_MONEY_PANEL_ID = "wm-smart-money-panel";
+
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -586,6 +602,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
+      id={SMART_MONEY_PANEL_ID}
       role={layout.modal ? "dialog" : "complementary"}
       aria-modal={layout.modal || undefined}
       aria-label="Smart Money tools"

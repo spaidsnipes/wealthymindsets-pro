@@ -13,6 +13,9 @@ import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
 import { CHART_TF_SHIPPED, getTimeframe, timeframeSpokenName } from "@/lib/timeframes";
 import { WMLogo } from "@/components/ui/WMLogo";
+// Type-only in spirit but a runtime string: the panel owns its own DOM id so
+// the trigger's `aria-controls` cannot drift away from the element it names.
+import { SMART_MONEY_PANEL_ID } from "@/components/smart-money/SmartMoneyPanel";
 import {
   reconcileSearchCategory,
   type SearchCategory,
@@ -1308,8 +1311,43 @@ export function ChartToolbar({
         <button
           type="button"
           onClick={onSmartMoney}
-          aria-label="Open Smart Money panel"
-          aria-pressed={smartMoneyActive}
+          // A BUTTON THAT HANGS A PANEL OVER THE MARKET IS A DISCLOSURE, AND
+          // THIS ONE DESCRIBED ITSELF AS A TOGGLE THAT NEVER SAID WHAT IT OPENED.
+          //
+          // MEASURED 2026-09-19 on live /charts at 1920, by driving the real
+          // control through a full open → Escape → re-open cycle:
+          //
+          //   closed  → aria-pressed="false", 39 buttons on the page
+          //   opened  → aria-pressed="true",  52 buttons — a thirteen-button
+          //             panel now hangs over the live candles
+          //   aria-expanded / aria-controls → null / null, in both states
+          //   accessible name WHILE OPEN → still "Open Smart Money panel"
+          //
+          // Note what this is NOT. Unlike the seven-mode bar and the nine-button
+          // timeframe strip repaired earlier today, `aria-pressed` here is not
+          // an unkeepable promise: Escape genuinely closed the panel and the
+          // attribute genuinely returned to "false". The control IS reversible.
+          // So the defect is not a lie about reversal — it is that the wrong
+          // FACT is being announced. "Pressed" says a state was entered; it does
+          // not say that thirteen new controls just appeared over the price, and
+          // it gives no way to reach them.
+          //
+          // `aria-expanded` is the sentence that is true, and it is already the
+          // sentence this file uses: the `Tools` trigger seventeen lines below
+          // carries `aria-expanded` + `aria-haspopup` for exactly this shape. So
+          // this is not a new convention, it is the file agreeing with itself.
+          //
+          // `aria-controls` is emitted ONLY while the panel is mounted, because
+          // `ChartsDashboard` renders it behind the same boolean
+          // (`{smartMoneyOpen && <SmartMoneyPanel …/>}`). A pointer to an id
+          // that is not in the document is followed and lands nowhere — the
+          // atom-6 law — which is worse than no pointer at all.
+          aria-expanded={smartMoneyActive}
+          aria-controls={smartMoneyActive ? SMART_MONEY_PANEL_ID : undefined}
+          // And the name has to stop instructing the trader to open a panel they
+          // are already looking at. The verb is the only part that moves; the
+          // brand word stays, because the Founder gate below names it.
+          aria-label={smartMoneyActive ? "Close Smart Money panel" : "Open Smart Money panel"}
           className={clsx(
             "flex min-h-11 items-center gap-1.5 rounded border px-2 text-[11px] font-semibold transition-colors",
             smartMoneyActive

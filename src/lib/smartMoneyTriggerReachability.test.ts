@@ -131,7 +131,19 @@ describe("smart money trigger reachability", () => {
   });
 
   it("renders exactly one Smart Money trigger — no duplicate, single writer", () => {
-    const triggers = `${dashboard}\n${toolbar}`.match(/aria-label="Open Smart Money panel"/g) ?? [];
+    /**
+     * REMAPPED 2026-09-19 — this counted the literal
+     * `aria-label="Open Smart Money panel"`, which stopped being a literal when
+     * the name was made to follow the panel's state (see the disclosure describe
+     * below). The LAW is unchanged and is what is counted here: exactly one
+     * trigger exists across both files.
+     *
+     * Counted by `onClick={onSmartMoney}` — the single prop through which the
+     * dashboard hands this control its behaviour — rather than by any label
+     * spelling, so the count survives the next honest rename. The logo count is
+     * the independent second axis it always was.
+     */
+    const triggers = `${dashboard}\n${toolbar}`.match(/onClick=\{onSmartMoney\}/g) ?? [];
     expect(triggers).toHaveLength(1);
 
     const logos = toolbar.split(TRIGGER_LOGO).length - 1;
@@ -174,5 +186,105 @@ describe("smart money trigger reachability", () => {
       toolbar.indexOf("Flow &amp; studies") + 100,
     );
     expect(menuItem).not.toContain("Smart Money");
+  });
+});
+
+/**
+ * THE TRIGGER IS A DISCLOSURE, AND IT HAS TO SAY SO.
+ *
+ * MEASURED 2026-09-19 on live https://wealthymindsetspro.com/charts at 1920, by
+ * driving the real control through open → Escape → re-open:
+ *
+ *   closed → aria-pressed="false", 39 buttons on the page
+ *   opened → aria-pressed="true",  52 buttons — thirteen new controls now hang
+ *            over the live candles
+ *   aria-expanded / aria-controls → null / null in BOTH states
+ *   accessible name while OPEN    → still "Open Smart Money panel"
+ *
+ * Unlike the seven-mode bar and the nine-button timeframe strip repaired the
+ * same day, `aria-pressed` was not an unkeepable promise here — Escape really
+ * did close the panel and the attribute really did return to "false". The
+ * control is reversible. The defect is that the wrong FACT was announced:
+ * "pressed" reports that a state was entered and says nothing about thirteen
+ * controls appearing over the price, nor offers any way to reach them.
+ *
+ * COMMENT-STRIPPED, and here that is not a formality. The repair's own comment
+ * in `ChartToolbar` quotes `aria-pressed` several times while explaining why it
+ * was replaced, so a raw-source `not.toContain` would fail against the FIXED
+ * file and pass only if the explanation were deleted — a test that punishes the
+ * reasoning and rewards its removal.
+ */
+describe("smart money trigger — the disclosure contract", () => {
+  const strip = (code: string) =>
+    code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  /** Comment-free, whitespace-collapsed, anchored at the trigger's own prop. */
+  const triggerRegion = (() => {
+    const compact = strip(toolbar).replace(/\s+/g, " ");
+    const at = compact.indexOf("onClick={onSmartMoney}");
+    return at < 0 ? "" : compact.slice(at, at + 420);
+  })();
+
+  const panel = strip(
+    readFileSync(resolve(REPO_ROOT, "src/components/smart-money/SmartMoneyPanel.tsx"), "utf8"),
+  );
+
+  it("the region detector is not vacuous", () => {
+    // Every assertion below slices from `onClick={onSmartMoney}`. If that prop
+    // is ever renamed the slice is "" and the negative assertions would pass
+    // against nothing at all.
+    expect(triggerRegion.length, "the Smart Money trigger lost its onSmartMoney prop").toBeGreaterThan(100);
+  });
+
+  it("announces that it EXPANDS something, not that it is pressed", () => {
+    expect(
+      triggerRegion,
+      "the Smart Money trigger still claims aria-pressed. It hangs a thirteen-button panel " +
+        "over the live market, which is a disclosure, not a toggle state — and `Tools`, " +
+        "seventeen lines below in the same file, already gets this right",
+    ).not.toContain("aria-pressed");
+    expect(
+      triggerRegion,
+      "the trigger opens a panel over the candles and never says so. Removing aria-pressed " +
+        "without adding aria-expanded would leave the disclosure entirely unannounced, which " +
+        "is quieter than the defect it replaced",
+    ).toContain("aria-expanded={smartMoneyActive}");
+  });
+
+  it("POINTS at the panel — but only while the panel is in the document", () => {
+    // The atom-6 law: a dangling `aria-controls` is FOLLOWED, and lands nowhere.
+    // `ChartsDashboard` mounts the panel behind the same boolean, so the guard
+    // and the mount are the same condition.
+    expect(
+      triggerRegion,
+      "the trigger does not point at what it opened, so a screen-reader user is told a panel " +
+        "exists with no way to reach it",
+    ).toContain("aria-controls={smartMoneyActive ? SMART_MONEY_PANEL_ID : undefined}");
+    expect(
+      dashboard,
+      "the panel is no longer mounted behind `smartMoneyOpen`, so the trigger's aria-controls " +
+        "guard no longer matches the condition that puts the target in the document",
+    ).toContain("{smartMoneyOpen && <SmartMoneyPanel");
+  });
+
+  it("the id it points at is OWNED by the panel, not retyped at both ends", () => {
+    expect(
+      panel,
+      "SmartMoneyPanel stopped exporting its DOM id, so the trigger's aria-controls now names " +
+        "a string nothing is obliged to keep",
+    ).toContain('export const SMART_MONEY_PANEL_ID = "wm-smart-money-panel"');
+    expect(
+      panel,
+      "SmartMoneyPanel exports an id it does not put on any element — aria-controls would " +
+        "resolve to nothing while both halves still read like care",
+    ).toContain("id={SMART_MONEY_PANEL_ID}");
+  });
+
+  it("stops telling the trader to OPEN a panel they are already looking at", () => {
+    expect(
+      triggerRegion,
+      "the accessible name is frozen at 'Open Smart Money panel' in both states, so the only " +
+        "signal that the panel is up is one a screen reader cannot receive",
+    ).toContain('aria-label={smartMoneyActive ? "Close Smart Money panel" : "Open Smart Money panel"}');
   });
 });
