@@ -1,10 +1,10 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is TWENTY-ONE as of
- * the same day. The prose that follows is the original measurement and is left
- * standing, because the shape of the problem did not change when one duplicate
- * was deleted — only its size.
+ * The count below started at twenty-two on 2026-09-18 and is TWENTY as of the
+ * same day. The prose that follows is the original measurement and is left
+ * standing, because the shape of the problem did not change when two of the
+ * shapes were deleted — only its size.
  *
  * ── THE MEASUREMENT, TAKEN 2026-09-18 ──────────────────────────────────────
  *
@@ -116,7 +116,8 @@ const THE_ARTERY: readonly string[] = [
 ];
 
 /**
- * FROZEN 2026-09-18 at twenty-two. LOWERED TO TWENTY-ONE 2026-09-18.
+ * FROZEN 2026-09-18 at twenty-two. LOWERED TO TWENTY-ONE, THEN TO TWENTY, both
+ * on 2026-09-18.
  *
  * Each line is one place the product decided what a bar is without asking the
  * artery. Sorted, so a diff on this array reads as exactly what changed.
@@ -131,6 +132,29 @@ const THE_ARTERY: readonly string[] = [
  * does not inflate it: this retirement did not give the live path canonical
  * IDENTITY. The published bar still carries no symbolId, sessionId, fidelity,
  * provenance or truthEpoch. A duplicate past was deleted; identity is owed.
+ *
+ * RETIRED: `types/index.ts::OHLCVBar`, by deleting the whole file it lived in.
+ * That barrel had ZERO importers — not few, none. Nothing in the repo referenced
+ * `@/types` or `src/types/index`, there is no `export *` anywhere that could have
+ * re-exported it, and the only path alias is `@/*` to `./src/*`, so the
+ * resolution had nowhere else to come from. Two of its twelve exports, `Post`
+ * and `SignalStrength`, had already been RE-DECLARED inside the files that
+ * wanted them — `app/lounge/page.tsx` and `components/smart-money/
+ * SmartMoneyPanel.tsx` — which is the signature of a barrel that was abandoned
+ * rather than one that was still being written toward.
+ *
+ * THE WHOLE FILE WENT, NOT JUST THE BAR. Excising one interface and leaving
+ * eleven other unreferenced ones behind would have moved this number while
+ * leaving the actual poison in place: a future reader greps `OHLCVBar`, finds
+ * `@/types`, and learns that importing a bar from there is a thing this product
+ * does. Deleting only the counted line would have been a change made for the
+ * scoreboard rather than for the code.
+ *
+ * AND THE CLAIM HERE IS SMALLER STILL THAN THE ONE ABOVE IT. This did not
+ * migrate an ingress. It removed a declaration that no ingress was using —
+ * dead source that the census was counting as if it were live. The number is
+ * honest either way, but a reader comparing twenty-two to twenty should know
+ * that only ONE of those two steps touched running code.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "app/api/exchange/route.ts::Bar",
@@ -153,7 +177,6 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "lib/vpEngine.ts::ProfileBar",
   "lib/yahooCandleConsumer.ts::YahooCandle",
   "lib/yahooTimeframes.ts::YahooOhlcvBar",
-  "types/index.ts::OHLCVBar",
 ];
 
 describe("M8 · the private-bar census is a ratchet", () => {
@@ -175,7 +198,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     expect(census().length, "OHLC declarations found").toBeGreaterThan(10);
   });
 
-  it("holds at twenty-one private pasts and may only SHRINK", () => {
+  it("holds at twenty private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));
