@@ -121,6 +121,7 @@ import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
+import { subscribeEquipment } from "@/lib/workspace/equipmentChannel";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -1318,6 +1319,39 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     visible: drawingsVisible,
     onVisToggle: () => setDrawingsVisible(v => !v),
   };
+
+  /*
+    DIRECT EQUIPMENT — the frame asks, this room acts, nothing else moves.
+
+    `roomEquipment` declares Draw and Replay as this room's WORKSPACE hand
+    (`kind: "workspace"`, `direct: true`). They are not new inventions: both
+    controls are owned a few lines above and below this one, and until now the
+    only door to them was the chart's own toolbar — Replay behind an "Advanced"
+    menu. The canon's failure clause is "the intelligence exists but requires
+    hunting through implementation containers", and two of the three things a
+    trader reaches for most were sitting inside it.
+
+    NO JOURNEY, DELIBERATELY. `useEquipmentJourney` filters these out
+    (`isJourneyEquipment`), so pressing Draw does not open a threshold, does not
+    write `?equip=` into the URL and does not unmount the chart. The trader
+    presses the button and the instrument is in their hand — which is the
+    canon's "overlay equipment wall, D≈0, chart stays".
+
+    A SECOND CALL SITE IS NOT A SECOND IMPLEMENTATION. Both branches flip the
+    exact state the toolbar flips. There is one drawer and one replay engine;
+    this adds a door, not a copy.
+  */
+  useEffect(
+    () =>
+      subscribeEquipment((req) => {
+        // Trigger is null on purpose: the press came from the OS frame, and
+        // restoring focus to a stale chart button would send the trader
+        // somewhere they never were.
+        if (req.equipmentId === "draw-tools") openDrawingTools(null);
+        else if (req.equipmentId === "bar-replay") startReplay();
+      }),
+    [openDrawingTools, startReplay],
+  );
 
   // And the same for the seven-control primary rail: measured at 375px it was
   // display:none at 0x0, so publish idea, screenshot, voice note and video

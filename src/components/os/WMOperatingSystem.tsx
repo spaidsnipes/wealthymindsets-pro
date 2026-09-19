@@ -70,7 +70,11 @@ import Link from "next/link";
 import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDestinations";
 // WORKSPACE is not a fourth list of destinations — it is what the room the
 // trader is ALREADY standing in can hand them. See roomEquipment's header.
-import { roomEquipment } from "@/lib/workspace/roomEquipment";
+import {
+  roomEquipment,
+  roomEquipmentOfKind,
+  type RoomEquipmentKind,
+} from "@/lib/workspace/roomEquipment";
 import { requestEquipment, subscribeEquipmentStage } from "@/lib/workspace/equipmentChannel";
 import {
   compileFeedStanding,
@@ -296,8 +300,20 @@ function RailLink({
  * already (see the note on OS_ROOMS). Rooms earn the heading by having
  * equipment; until then the rail says nothing about it.
  */
-function RoomWorkspaceRail({ activeHref }: { activeHref: string }): React.ReactElement | null {
-  const equipment = roomEquipment(activeHref);
+interface RoomWorkspaceRailProps {
+  readonly activeHref: string;
+  /**
+   * When given, this rail shows ONLY that hand of the room's equipment — the
+   * canon's two-button split (see `RoomEquipmentKind`). Omitted in rail mode,
+   * where the single Workspace heading has always shown everything the room
+   * hands you and nothing about that behaviour changes.
+   */
+  readonly kind?: RoomEquipmentKind;
+  readonly heading?: string;
+}
+
+function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWorkspaceRailProps): React.ReactElement | null {
+  const equipment = kind ? roomEquipmentOfKind(activeHref, kind) : roomEquipment(activeHref);
 
   // WHAT IS CURRENTLY IN THE TRADER'S HAND.
   //
@@ -316,7 +332,7 @@ function RoomWorkspaceRail({ activeHref }: { activeHref: string }): React.ReactE
   if (equipment.length === 0) return null;
   return (
     <div data-testid="os-rail-workspace">
-      <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: GOLD }}>Workspace</div>
+      <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: GOLD }}>{heading}</div>
       {equipment.map((item) => {
         const open = item.id === openId;
         return (
@@ -1068,7 +1084,11 @@ export function WMOperatingSystem({
               In equipment mode the trader asked for one of two things by name,
               so the panel answers the question that was asked rather than
               stacking both. */}
-          {equipmentMode && equipment !== "workspace" ? null : (
+          {equipmentMode ? (
+            equipment === "workspace" ? (
+              <RoomWorkspaceRail activeHref={activeHref} kind="workspace" />
+            ) : null
+          ) : (
             <RoomWorkspaceRail activeHref={activeHref} />
           )}
 
@@ -1084,7 +1104,25 @@ export function WMOperatingSystem({
               how "equipment I can pick up here" and "somewhere else I can go"
               became indistinguishable, which is the confusion the Workspace
               restore exists to end. They are TOOLS: other destinations. */}
-          {equipmentMode && equipment !== "tools" ? null : (
+          {/* ── TOOLS: LENSES IN EQUIPMENT MODE, DESTINATIONS IN RAIL MODE ──
+              The two are not the same list and this branch is the whole reason
+              the `kind` field exists.
+
+              In RAIL mode "Tools" is a heading over the TOOL destination group
+              and always was — /scanner, /news, and the rest are genuinely other
+              places, and a rail whose job is orientation should say so.
+
+              In EQUIPMENT mode the same word means the opposite thing. The
+              Visual Systems canon's §3 component law is explicit: Tools opens
+              "lenses + overlays + graduation toggles" and must NOT "become
+              destinations". Rendering OS_WORKBENCH here shipped the destination
+              mall one click below a masthead we had just cut it out of — the
+              second house, rebuilt inside the first. */}
+          {equipmentMode ? (
+            equipment === "tools" ? (
+              <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" />
+            ) : null
+          ) : (
             <>
               <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Tools</div>
               {OS_WORKBENCH.map((d) => (

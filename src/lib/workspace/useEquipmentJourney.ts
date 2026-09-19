@@ -55,7 +55,7 @@ import {
   reflectJourneyInUrl,
   subscribeEquipment,
 } from "./equipmentChannel";
-import { isRoomEquipment } from "./roomEquipment";
+import { isJourneyEquipment } from "./roomEquipment";
 
 export interface EquipmentJourneyHandles {
   /** The current journey — hand straight to `RoomEquipmentLayer`. */
@@ -112,7 +112,10 @@ export function useEquipmentJourney(
   // grammar exists to disprove.
   React.useEffect(() => {
     return subscribeEquipment((req) => {
-      if (!isRoomEquipment(roomHref, req.equipmentId)) return;
+      // `isJourneyEquipment`, not `isRoomEquipment`: a DIRECT instrument (Draw,
+      // Replay) belongs to the room's own controls and must never arrive at a
+      // threshold. See the `direct` field's note in roomEquipment.ts.
+      if (!isJourneyEquipment(roomHref, req.equipmentId)) return;
       dispatch({ type: "OPEN", equipmentId: req.equipmentId, decisionId });
     });
   }, [roomHref, decisionId]);
@@ -121,7 +124,7 @@ export function useEquipmentJourney(
   // cold-openable — see readJourneyFromUrl.
   React.useEffect(() => {
     const fromUrl = readJourneyFromUrl(window.location.search);
-    if (!fromUrl.equipmentId || !isRoomEquipment(roomHref, fromUrl.equipmentId)) return;
+    if (!fromUrl.equipmentId || !isJourneyEquipment(roomHref, fromUrl.equipmentId)) return;
     dispatch({ type: "OPEN", equipmentId: fromUrl.equipmentId, decisionId });
     if (fromUrl.stage === "drawer") dispatch({ type: "EXPAND" });
     // Mount only. Re-running this whenever the decision id changed would drag

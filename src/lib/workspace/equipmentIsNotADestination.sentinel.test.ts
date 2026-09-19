@@ -243,6 +243,18 @@ describe("SENTINEL — equipment is not a destination", () => {
       const candidates = descriptorSources(room).map((rel) => ({ rel, src: readSource(rel) }));
 
       for (const e of roomEquipment(room)) {
+        // ── DIRECT INSTRUMENTS HAVE NO DESCRIPTOR, BY DESIGN ───────────────
+        // This rule is about READINGS: press a name, get depth, and let the
+        // widget prove it agrees about the name. An instrument (Draw, Replay)
+        // has no preview, no verdict and no `renderDepth` — it flips a control
+        // the room already owns. Demanding a descriptor for one would force a
+        // fake threshold to exist purely so a Sentinel could read its title.
+        //
+        // The instrument is NOT unguarded: the rail/room agreement test below
+        // pins every direct id to a real `subscribeEquipment` branch in the
+        // room, so a declared instrument that nothing answers still fails.
+        if (e.direct) continue;
+
         // A tenant may carry its own id as a constant — the id is the product's
         // URL contract, so a component that owns the descriptor owns the word.
         const found = candidates
@@ -311,8 +323,25 @@ describe("SENTINEL — equipment is not a destination", () => {
    * hook; only the hook touches the channel.
    */
   it("no room re-implements the journey wiring", () => {
+    // ── REMAPPED 2026-09-19 · THE BAN IS THE JOURNEY, NOT THE CHANNEL ───────
+    // `subscribeEquipment` was on this list, and that made the rule wider than
+    // its own reasoning. What must have one owner is the JOURNEY: the stages,
+    // the `?equip=` reflection, the stage announcement, the scroll restore —
+    // the five things the comment above names as having silently disagreed
+    // between rooms. Merely HEARING the channel is not one of them; it is a
+    // one-line subscription with no state of its own.
+    //
+    // The distinction became load-bearing when /charts declared its first
+    // DIRECT instruments (Draw, Replay). A direct instrument has no journey by
+    // definition — that is what `direct` means — so `useEquipmentJourney`
+    // refuses it and the room must hear the press itself. Keeping the old list
+    // would have forced one of two bad outcomes: a fake threshold around a
+    // draw tool, or the instrument left with no door at all.
+    //
+    // The four genuinely-owned symbols stay banned, and the next test pins
+    // every direct id to a real branch in the room, so a room that "hears" the
+    // channel and answers nothing still fails.
     const CHANNEL = [
-      "subscribeEquipment",
       "reflectJourneyInUrl",
       "announceEquipmentStage",
       "pendingScrollRestore",
@@ -337,6 +366,48 @@ describe("SENTINEL — equipment is not a destination", () => {
           `${rel} → ${room} reaches for "${symbol}" directly. That wiring has one ` +
             `owner (useEquipmentJourney); a per-room copy is a second semantic brain`,
         ).toBe(false);
+      }
+    }
+  });
+
+  /**
+   * A DECLARED INSTRUMENT THAT NOTHING ANSWERS IS A PAINTED DOOR.
+   *
+   * Direct equipment is exempt from the descriptor rule above, so without this
+   * a room could register "Replay" — putting a real, pressable, 44px control
+   * into the OS frame's Workspace hand — and have the press do nothing at all.
+   * That is precisely the painted door `roomEquipment`'s own header says this
+   * codebase has already paid for twice.
+   *
+   * The proof asked for is deliberately the cheapest honest one: the room's
+   * source must name the id inside a `subscribeEquipment` handler. It cannot
+   * prove the branch does the RIGHT thing — no static rule can — but it makes
+   * "declared and unanswered" impossible, which is the failure that ships
+   * silently.
+   */
+  it("every DIRECT instrument is answered by the room that declares it", () => {
+    for (const room of ROOMS_WITH_EQUIPMENT) {
+      const direct = roomEquipment(room).filter((e) => e.direct);
+      if (direct.length === 0) continue;
+
+      const rel = ROOM_SOURCES[room];
+      const src = fs
+        .readFileSync(path.join(process.cwd(), rel), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+      const at = src.indexOf("subscribeEquipment(");
+      expect(
+        at,
+        `${rel} → ${room} declares direct equipment but never hears the channel`,
+      ).toBeGreaterThan(-1);
+
+      const handler = src.slice(at, at + 1200);
+      for (const e of direct) {
+        expect(
+          handler.includes(`"${e.id}"`),
+          `${rel} → "${e.id}" is offered in the frame's Workspace and nothing answers it`,
+        ).toBe(true);
       }
     }
   });

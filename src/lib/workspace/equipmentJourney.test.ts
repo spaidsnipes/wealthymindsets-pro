@@ -9,6 +9,7 @@ import {
   type EquipmentJourney,
 } from "./equipmentJourney";
 import { isRoomEquipment, roomEquipment } from "./roomEquipment";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 const open = (id = "market-reality", decisionId: string | null = "DEC-1"): EquipmentAction => ({
   type: "OPEN",
@@ -155,8 +156,28 @@ describe("roomEquipment — WORKSPACE is the current room's equipment, not a dir
   });
 
   it("never offers an href — equipment cannot become a route", () => {
-    for (const e of roomEquipment("/command-deck")) {
-      expect(Object.keys(e).sort()).toEqual(["hint", "id", "label"]);
+    // ── REMAPPED 2026-09-19 · THE RULE IS THE ABSENCE, NOT THE ARITY ────────
+    // This asserted an EXACT key list, which made it a shape lock rather than
+    // the ban it is named for: adding any field at all — including the `kind`
+    // that finally stopped the OS frame filling "Tools" with destinations —
+    // failed it, while the one thing it exists to forbid was never named.
+    //
+    // So it now states the ban directly. Equipment may carry whatever the
+    // product decides it carries; what it may never carry is a way to travel.
+    const ROUTE_LIKE = /^(href|url|route|path|to|link)$/i;
+    for (const room of ["/command-deck", INSTRUMENT_VIEW_ROUTE]) {
+      const list = roomEquipment(room);
+      expect(list.length, room).toBeGreaterThan(0);
+      for (const e of list) {
+        const routes = Object.keys(e).filter((k) => ROUTE_LIKE.test(k));
+        expect(routes, `${room}/${e.id} can navigate — that is a route per invention`).toEqual([]);
+        for (const v of Object.values(e)) {
+          expect(
+            typeof v === "string" && v.startsWith("/"),
+            `${room}/${e.id} carries a path-shaped value: ${String(v)}`,
+          ).toBe(false);
+        }
+      }
     }
   });
 

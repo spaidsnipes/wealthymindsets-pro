@@ -31,6 +31,38 @@
  */
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
+/**
+ * WHICH OF THE TWO HANDS THIS BELONGS IN.
+ *
+ * The Visual Systems canon (`Last Mile — What Still Stops the OS`, §3 component
+ * law) splits the equipment a live market room hands a trader into exactly two
+ * named buttons, and says what each may and may not contain:
+ *
+ *   WORKSPACE — "layout, replay scrub, draw tools, session, flatten,
+ *               risk-geometry toggle". Must not become /workspace, must not
+ *               list Rooms, must not host Smart Money.
+ *   TOOLS     — "lenses + overlays + graduation toggles". **Must not become
+ *               destinations**, must not ship twenty named tools as home.
+ *
+ * Before this field existed the OS frame satisfied the TOOLS button with
+ * `OS_WORKBENCH` — the destination group. Pressing "Tools" over a live chart
+ * offered /scanner, /news and the rest: the exact failure the canon names, and
+ * the same second-house instinct that had just been cut out of the masthead.
+ * The list was one click further in than the Rooms list had been, which is
+ * lower, not different.
+ *
+ * So the kind is declared per piece of equipment, by the product, here — the
+ * one file that already refuses to hold an href. A `kind` cannot route
+ * anywhere either, which is the point: TOOLS can no longer be filled with
+ * destinations by accident, because the only thing it can be filled with is
+ * something already proven not to be one.
+ *
+ * It is REQUIRED rather than defaulted so that the compiler asks the question
+ * of every future entry. A default would silently sort new equipment into
+ * whichever hand the default happened to name.
+ */
+export type RoomEquipmentKind = "workspace" | "lens";
+
 export interface RoomEquipment {
   /** Stable id. Appears in the URL, so it is part of the product's contract. */
   readonly id: string;
@@ -38,6 +70,25 @@ export interface RoomEquipment {
   readonly label: string;
   /** What they will see, in their vocabulary. */
   readonly hint: string;
+  /** Which of the canon's two hands this is picked up with. */
+  readonly kind: RoomEquipmentKind;
+  /**
+   * TRUE when pressing it ACTS IN THE ROOM AT ONCE — no preview, no drawer, no
+   * full experience.
+   *
+   * The journey grammar (threshold → drawer → full) is right for a READING: a
+   * reading has depth, and the trader chooses how much of it to take. It is
+   * wrong for an INSTRUMENT. "Draw" and "Replay" have no threshold state worth
+   * previewing; asking a trader to press Draw and then press EXPAND to actually
+   * draw would be the burial this whole rail exists to end, reinvented with
+   * better manners.
+   *
+   * Direct equipment therefore never enters `useEquipmentJourney`. The room
+   * subscribes to the channel itself and flips the control it already owns, so
+   * the chart never unmounts and the URL never changes — which is the canon's
+   * "overlay equipment wall, D≈0, chart stays".
+   */
+  readonly direct?: boolean;
 }
 
 /**
@@ -51,6 +102,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "market-reality",
       label: "Market reality",
       hint: "What is resolved, what is missing, what blocks entry",
+      kind: "lens",
     },
     /**
      * The SECOND tenant of the grammar, and the reason the grammar was made
@@ -87,6 +139,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "market-object-passport",
       label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
+      kind: "lens",
     },
     /**
      * THE THIRD TENANT — AND THE ONE WITH THE WORST STARTING POSITION.
@@ -117,6 +170,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "decision-chain",
       label: "Decision chain",
       hint: "What the setup still has to satisfy before it is permitted",
+      kind: "lens",
     },
     /**
      * THE FOURTH TENANT, AND THE FIRST THAT IS NOT ABOUT THE MARKET.
@@ -143,6 +197,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "behaviour-mirror",
       label: "Your behaviour mirror",
       hint: "What you actually did this session, not what you meant to do",
+      kind: "lens",
     },
     /**
      * THE FIFTH TENANT — THE MIRROR'S LONGER-MEMORY SIBLING.
@@ -174,6 +229,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "personal-edge",
       label: "Your personal edge",
       hint: "Where you have actually performed, measured across your whole record",
+      kind: "lens",
     },
     /**
      * THE SIXTH TENANT — AND THE ONE THE ROOM IS ALLOWED TO REFUSE.
@@ -209,6 +265,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "learning-genome",
       label: "Your learning genome",
       hint: "Which part of your work is the bottleneck, and the drill for it",
+      kind: "lens",
     },
     /**
      * THE SEVENTH TENANT — AND THE FIRST WHOSE OWN CONTAINER WAS THE PROBLEM.
@@ -245,6 +302,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "practice-honesty",
       label: "Your practice honesty",
       hint: "How the practice book was easier than a real venue would have been",
+      kind: "lens",
     },
     /**
      * THE EIGHTH TENANT — AND THE SECOND DOUBLE BURIAL.
@@ -289,6 +347,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "session-watch",
       label: "What WM is watching",
       hint: "Anything in how you are trading this session worth stopping for",
+      kind: "lens",
     },
     /**
      * THE NINTH TENANT — and the entry that makes ORDER FLOW a property of the
@@ -314,6 +373,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "order-flow",
       label: "Order flow",
       hint: "Whether the side pressing is being paid for the effort it spends",
+      kind: "lens",
     },
   ],
 
@@ -346,6 +406,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "market-reality",
       label: "Market reality",
       hint: "What is resolved, what is missing, what blocks entry",
+      kind: "lens",
     },
     /**
      * THE CHART ROOM HAD NO DOOR TO THIS AT ALL ON DESKTOP.
@@ -375,6 +436,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "market-object-passport",
       label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
+      kind: "lens",
     },
     /**
      * THE CHART ROOM'S THIRD TENANT — AND THE LARGEST SINGLE BURIAL IN WM.
@@ -420,6 +482,46 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "order-flow",
       label: "Order flow",
       hint: "Whether the side pressing is being paid for the effort it spends",
+      kind: "lens",
+    },
+    /**
+     * ── THE TWO INSTRUMENTS THE CHART ROOM ALWAYS HAD AND NEVER DECLARED ────
+     *
+     * Everything above this line is a READING. That is why "Tools" over a live
+     * chart could be filled with destinations without anyone noticing the
+     * contradiction: this room had registered no WORKSPACE equipment at all, so
+     * the hand the canon reserves for instruments was empty and the frame
+     * quietly filled it with the only list it had — the route list.
+     *
+     * These two are not new inventions and not new routes. `ChartsDashboard`
+     * has owned both controls for a long time:
+     *
+     *   draw-tools  → `openDrawingTools()` (LeftDrawingSidebar / DrawingToolsPanel)
+     *   bar-replay  → `startReplay()`      (BarReplayControls)
+     *
+     * They were reachable only from inside the chart's own toolbar — one of
+     * them behind an "Advanced" menu — which is the canon's failure clause
+     * ("the intelligence exists but requires hunting through implementation
+     * containers") applied to the two instruments a trader reaches for most.
+     * Declaring them here gives them a door in the room's own equipment hand
+     * WITHOUT a second implementation: the room flips the state it already
+     * holds. Two doors, one owner.
+     *
+     * `direct` because neither has a reading to preview. See the field's note.
+     */
+    {
+      id: "draw-tools",
+      label: "Draw",
+      hint: "Mark the levels you are actually trading",
+      kind: "workspace",
+      direct: true,
+    },
+    {
+      id: "bar-replay",
+      label: "Replay",
+      hint: "Walk this market forward one bar at a time",
+      kind: "workspace",
+      direct: true,
     },
   ],
 };
@@ -434,8 +536,39 @@ export function roomEquipment(href: string | null | undefined): readonly RoomEqu
   return EQUIPMENT_BY_ROOM[path] ?? [];
 }
 
+/**
+ * The equipment for a room that belongs in ONE of the canon's two hands.
+ *
+ * The OS frame asks this twice — once per button — instead of holding its own
+ * idea of what Workspace and Tools contain. A frame that sorted equipment
+ * itself would be a second product decision living in a layout file.
+ */
+export function roomEquipmentOfKind(
+  href: string | null | undefined,
+  kind: RoomEquipmentKind,
+): readonly RoomEquipment[] {
+  return roomEquipment(href).filter((e) => e.kind === kind);
+}
+
 /** True when `id` is equipment this room actually has. Guards URL-supplied ids. */
 export function isRoomEquipment(href: string | null | undefined, id: string | null | undefined): boolean {
   if (!id) return false;
   return roomEquipment(href).some((e) => e.id === id);
+}
+
+/**
+ * True when `id` is equipment this room has AND it takes the journey grammar.
+ *
+ * `useEquipmentJourney` must ask THIS, not `isRoomEquipment`. A `direct`
+ * instrument that entered the journey would put the room at the threshold of a
+ * reading that does not exist — the layer would be handed an id it has no
+ * content for — and it would write `?equip=draw-tools` into the URL, which is
+ * the one thing D≈0 promises not to do.
+ */
+export function isJourneyEquipment(
+  href: string | null | undefined,
+  id: string | null | undefined,
+): boolean {
+  if (!id) return false;
+  return roomEquipment(href).some((e) => e.id === id && !e.direct);
 }

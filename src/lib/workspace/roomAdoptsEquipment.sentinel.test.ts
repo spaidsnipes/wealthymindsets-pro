@@ -412,8 +412,13 @@ describe("SENTINEL — the journey wiring has ONE owner", () => {
     // A room may only OPEN equipment it actually has. Without this, a stale
     // request broadcast while the trader was mid-navigation would open, in the
     // NEW room, a piece of equipment that room does not own.
+    // REMAPPED 2026-09-19: the guard is now `isJourneyEquipment`, which is the
+    // same refusal plus one more — a DIRECT instrument (Draw, Replay) has no
+    // threshold, so letting one into the journey would park the room in front
+    // of a reading that does not exist and write `?equip=` for a control that
+    // changed no address. Strictly stronger than what this line demanded.
     expect(hook, `${HOOK} → a room would accept equipment it does not have`).toMatch(
-      /isRoomEquipment\(roomHref/,
+      /isJourneyEquipment\(roomHref/,
     );
   });
 
@@ -799,7 +804,22 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
    * earlier literal-only scan in this codebase did.
    */
   it("every rail entry has a descriptor, and every descriptor has a rail entry", () => {
-    const registered = roomEquipment(room.href).map((e) => e.id).sort();
+    // ── REMAPPED 2026-09-19 · DESCRIPTORS ARE FOR READINGS ─────────────────
+    // A DIRECT instrument (Draw, Replay) has no descriptor and must not have
+    // one: it opens no threshold, has no verdict to preview and no depth to
+    // render — it flips a control the room already owns. Comparing it against
+    // the descriptor list would demand a fake reading be built around a draw
+    // tool purely to satisfy a scan.
+    //
+    // The bidirectional property this rule exists for is UNCHANGED for every
+    // reading. Instruments are covered by their own rule in
+    // `equipmentIsNotADestination.sentinel.test.ts` ("every DIRECT instrument
+    // is answered by the room that declares it"), so neither kind is left with
+    // a door that opens onto nothing.
+    const registered = roomEquipment(room.href)
+      .filter((e) => !e.direct)
+      .map((e) => e.id)
+      .sort();
     const described = room.descriptors.map((d) => d.id).sort();
 
     expect(
