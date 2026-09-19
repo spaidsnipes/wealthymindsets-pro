@@ -1,20 +1,20 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is SEVEN as of the
+ * The count below started at twenty-two on 2026-09-18 and is SIX as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO SEVEN IS NOT FIFTEEN MIGRATIONS. It is fourteen renames-or-
+ * TWENTY-TWO TO SIX IS NOT SIXTEEN MIGRATIONS. It is fifteen renames-or-
  * deletes plus one measurement correction, and ZERO INGRESSES MIGRATED. The
  * array's docblock separates the kinds line by line so nobody reads this header
- * as fifteen ingresses routed through the artery. None were. Not one.
+ * as sixteen ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not seven competing ideas of what a bar is.
- * THREE OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * The remaining shapes are not six competing ideas of what a bar is.
+ * TWO OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
  * low, close, volume`, every one of them `number` — which is also, exactly,
  * `LegacyOhlcvTuple` in the artery. A ninth, `DeckMarketChart::Candle`,
  * differs only by `volume?`. The sprawl is one anonymous six-field tuple
@@ -22,8 +22,8 @@
  * it already exists with a docblock saying so.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming three
- * declarations to one name removes three duplicate DECISIONS and delivers
+ * it is important not to let the ease flatter the result: renaming two
+ * declarations to one name removes two duplicate DECISIONS and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
  * truthEpoch on the live path — is untouched by every rename and stays owed.
@@ -377,6 +377,21 @@ const THE_ARTERY: readonly string[] = [
  * `screenReach.enforcement.test.ts` uses an import statement as a parser
  * fixture and that string named `LiveBar`; it does not resolve types, so it
  * would have stayed green while teaching the retired noun.
+ *
+ * ── SEVEN TO SIX: THE PROFILE ENGINE BEHIND A PUBLISHED MARKET STATE ───────
+ *
+ * RETIRED: `lib/vpEngine.ts::ProfileBar`, byte-for-byte, four namers of which
+ * two are production — `chartMarketStatePublisher.ts` and
+ * `viewModels/selectLivingProfile.ts`.
+ *
+ * WHY THIS ONE IS NOT JUST ANOTHER RENAME TO NOTE: a volume profile is a claim
+ * about how much traded at each price during a window, and it gets PUBLISHED as
+ * market state. The shape it is computed from cannot say which session the
+ * window belongs to, at what fidelity the volume was observed, or whether a
+ * later correction supersedes it. The publisher ships the result anyway,
+ * because there is nothing on the bar to gate it with. That is the adoption
+ * half of M8 stated as a concrete product consequence rather than as a list of
+ * missing fields, and the rename does not touch it.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/chart/indicators.ts::Bar",
@@ -385,7 +400,6 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
   "lib/pine/types.ts::OHLCVBar",
-  "lib/vpEngine.ts::ProfileBar",
 ];
 
 describe("M8 · the private-bar census is a ratchet", () => {
@@ -454,7 +468,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at seven private pasts and may only SHRINK", () => {
+  it("holds at six private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

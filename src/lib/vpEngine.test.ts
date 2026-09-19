@@ -1,10 +1,10 @@
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { describe, it, expect } from "vitest";
 import {
   computeProfileFromTrades,
   computeProfileFromBars,
   chooseTickSize,
   type NormalizedTradeLite,
-  type ProfileBar,
 } from "./vpEngine";
 
 // Directive §31 canonical fixture — hand-calculated expected values.
@@ -99,8 +99,8 @@ describe("timeframe-independence (directive §2/§13)", () => {
 
   it("candle-estimate DIFFERS when bar granularity changes — proving the audit", () => {
     // One wide 1h-style bar vs three narrow bars covering the same range/volume.
-    const wide: ProfileBar[] = [{ time: 0, open: 100, high: 103, low: 100, close: 103, volume: 90 }];
-    const narrow: ProfileBar[] = [
+    const wide: LegacyOhlcvTuple[] = [{ time: 0, open: 100, high: 103, low: 100, close: 103, volume: 90 }];
+    const narrow: LegacyOhlcvTuple[] = [
       { time: 0, open: 100, high: 101, low: 100, close: 101, volume: 30 },
       { time: 1, open: 101, high: 102, low: 101, close: 102, volume: 30 },
       { time: 2, open: 102, high: 103, low: 102, close: 103, volume: 30 },
@@ -283,7 +283,7 @@ describe("VP determinism matrix — founder XI acceptance", () => {
  * renderer now delegates to this engine, so these tests cover the shipped path.
  */
 describe("render geometry — a VP row must be a price the bars reached", () => {
-  const barsOf = (spec: Array<[low: number, high: number, vol: number]>): ProfileBar[] =>
+  const barsOf = (spec: Array<[low: number, high: number, vol: number]>): LegacyOhlcvTuple[] =>
     spec.map(([low, high, volume], i) => ({
       time: i, open: low, high, low, close: high, volume,
     }));
@@ -356,7 +356,7 @@ describe("render geometry — a VP row must be a price the bars reached", () => 
   });
 
   it("never places volume above the highest high or below the lowest low", () => {
-    const cases: Array<{ name: string; bars: ProfileBar[] }> = [
+    const cases: Array<{ name: string; bars: LegacyOhlcvTuple[] }> = [
       ...midBucketCases,
       // Edge-aligned and multi-bar shapes are legitimate inputs too; they just
       // cannot carry the proof on their own, which is why they come last.
@@ -404,7 +404,7 @@ describe("render geometry — a VP row must be a price the bars reached", () => 
     // Every bar overlaps 100.00-100.20; only one reaches up to 100.60. The
     // accepted price is at the bottom. A grid that leaks upward can hand the
     // POC to a level the crowd never traded.
-    const bars: ProfileBar[] = [
+    const bars: LegacyOhlcvTuple[] = [
       ...Array.from({ length: 20 }, (_, i) => ({
         time: i, open: 100.0, high: 100.2, low: 100.0, close: 100.1, volume: 1000,
       })),

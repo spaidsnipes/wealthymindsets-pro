@@ -1,3 +1,4 @@
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 /**
  * ASSET 06 · THE PRO LIVING PROFILE — VAH / POC / VAL, and the NODES.
  *
@@ -49,7 +50,6 @@ import {
   computeProfileFromBars,
   computeProfileFromTrades,
   type NormalizedTradeLite,
-  type ProfileBar,
   type ProfileQuality,
   type ProfileSnapshot,
 } from "@/lib/vpEngine";
@@ -246,7 +246,7 @@ export interface TapePrint {
  */
 export function buildLivingProfileSnapshot(
   prints: readonly TapePrint[] | null | undefined,
-  bars: readonly ProfileBar[] | null | undefined,
+  bars: readonly LegacyOhlcvTuple[] | null | undefined,
 ): ProfileSnapshot {
   const trades: NormalizedTradeLite[] = [];
   for (const p of prints ?? []) {

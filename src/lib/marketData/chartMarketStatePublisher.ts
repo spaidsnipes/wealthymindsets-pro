@@ -1,3 +1,4 @@
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { useEffect, useState } from "react";
 import type { MarketState, Tick } from "../../hooks/useWebSocket";
 import { priceSourceBadge, REST_QUOTE_SOURCES } from "../priceSource";
@@ -34,7 +35,6 @@ import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
 } from "./viewModels/selectLivingProfile";
-import type { ProfileBar } from "@/lib/vpEngine";
 import {
   deriveLastBarClose,
   lastBarCloseRecheckAtMs,
@@ -83,7 +83,7 @@ export interface ChartMarketStatePublicationInput {
    * rather than forking keeps ONE bars input: two fields would let a room feed
    * the close-owner and the profile-owner different candles.
    */
-  readonly bars?: readonly (BarCloseCandidate & Partial<ProfileBar>)[] | null;
+  readonly bars?: readonly (BarCloseCandidate & Partial<LegacyOhlcvTuple>)[] | null;
   /**
    * THE VENUE THE **CANDLES** CAME FROM — which is not always the venue the
    * TICKS came from.
@@ -131,8 +131,8 @@ export interface ChartMarketStatePublicationInput {
  */
 function profileBarsFrom(
   bars: ChartMarketStatePublicationInput["bars"],
-): ProfileBar[] {
-  const out: ProfileBar[] = [];
+): LegacyOhlcvTuple[] {
+  const out: LegacyOhlcvTuple[] = [];
   for (const bar of bars ?? []) {
     if (!bar) continue;
     const { time, open, high, low, close, volume } = bar;

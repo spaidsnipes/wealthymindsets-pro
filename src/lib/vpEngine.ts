@@ -1,3 +1,20 @@
+/*
+ * THE VOLUME-PROFILE ENGINE NO LONGER DECLARES `ProfileBar` (2026-09-18).
+ *
+ * Byte-for-byte `LegacyOhlcvTuple`. Four modules named it, two of them
+ * production: `chartMarketStatePublisher.ts` and
+ * `viewModels/selectLivingProfile.ts`.
+ *
+ * The honest note, same as everywhere else in this sweep and worth repeating
+ * because this module feeds a PUBLISHED market state: a volume profile is a
+ * claim about how much traded at each price during some window, and the shape
+ * it is computed from cannot say which session that window belongs to, at what
+ * fidelity the volume was observed, or whether a later correction has
+ * superseded it. `chartMarketStatePublisher` publishes the result anyway,
+ * because there is nothing on the bar to gate it with. CanonicalBar has
+ * `sessionId`, `fidelity` and `truthEpoch` for precisely that. Still owed.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 // ─────────────────────────────────────────────────────────────────────────────
 // WM Pro — Canonical Volume Profile Engine (v2)
 //
@@ -27,14 +44,6 @@ export interface NormalizedTradeLite {
   side: AggressorSide;
 }
 
-export interface ProfileBar {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
 
 export interface ProfileRow {
   /** Bucket LOW edge price (bucket covers [price, price + tickSize)). */
@@ -191,7 +200,7 @@ export function computeProfileFromTrades(
  * different distributions — that is the audited root cause, not an engine bug.
  */
 export function computeProfileFromBars(
-  bars: ProfileBar[],
+  bars: LegacyOhlcvTuple[],
   opts: ProfileOptions = {},
 ): ProfileSnapshot {
   const valueAreaPct = opts.valueAreaPct ?? 0.7;
