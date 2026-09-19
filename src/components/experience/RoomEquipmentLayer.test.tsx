@@ -221,3 +221,108 @@ describe("RoomEquipmentLayer — the chrome and the content agree where the page
     }
   });
 });
+
+/**
+ * M2 — THE ROOM IS NEVER DISPLACED BY ITS OWN EQUIPMENT.
+ *
+ * ── WHAT THE RE-MEASUREMENT FOUND ──────────────────────────────────────────
+ *
+ * The inherited M2 claim read: the layer "can take the chart away, goes fixed
+ * `inset:0`, and equipment state is reflected through the URL." All three are
+ * literally true and NONE of them is the defect the claim assumed.
+ *
+ *   TAKES THE CHART AWAY — only at FULL, deliberately, and it is the single
+ *   stage that carries RETURN. `useEquipmentJourney` restores the ROOM's exact
+ *   scrollTop on the way out, and the hook's own comments record that reading
+ *   `window.scrollY` instead was tried, shipped, and measured wrong.
+ *
+ *   FIXED `inset:0` — that is not the bug, that is the FIX. A fixed overlay is
+ *   precisely what keeps the chart MOUNTED underneath: no unmount, no refetch,
+ *   no blank frame, so symbol / timeframe / MarketObjects / chart state survive
+ *   by construction rather than by careful restoration.
+ *
+ *   URL REFLECTION — a reflection, not a source of truth. `full` is explicitly
+ *   NOT cold-openable, so a shared link cannot drop a stranger into a
+ *   full-screen reading with no chart behind it.
+ *
+ * ── SO WHAT IS ACTUALLY UNGUARDED ──────────────────────────────────────────
+ *
+ * The property everything above depends on: that every open depth is an
+ * OVERLAY. Thirty-plus assertions next door check where the grammar is wired,
+ * what it names, and what it refuses. Not one of them checks that the shell
+ * stays out of the room's layout flow.
+ *
+ * Which means a future "simplification" of FULL into an in-flow `<section>`
+ * would REFLOW the chart out of the room — the exact capability amputation M2
+ * names — and the entire suite would stay green. The order's sentence is
+ * "open → deepen → inspect → close must preserve symbol, timeframe,
+ * MarketObjects, DECISION_ID, chart state", and layout flow is the mechanism
+ * that last clause rests on.
+ *
+ * A property that everything depends on and nothing asserts is not a safe
+ * property. It is a lucky one.
+ */
+describe("M2 · equipment is an overlay on the room, never a replacement for it", () => {
+  /** The shell's OWN style window — not the file's, which would pass on any stage. */
+  const shellStyle = (html: string): string | null => {
+    const at = html.indexOf('data-testid="room-equipment"');
+    if (at < 0) return null;
+    return /style="([^"]*)"/.exec(html.slice(at, html.indexOf(">", at)))?.[1] ?? null;
+  };
+
+  it("takes itself OUT of the room's layout flow at every depth that renders", () => {
+    for (const stage of ["preview", "drawer", "full"] as const) {
+      const style = shellStyle(render(stage));
+      // FALSE_RIPENESS: a renamed testid would make every assertion below
+      // vacuous and this rule would report clean while reading nothing.
+      expect(style, `${stage} → no room-equipment shell was found to inspect`).not.toBeNull();
+      expect(
+        style,
+        `${stage} → the equipment sits IN the room's flow. Fixed positioning is ` +
+          `not decoration here: it is the mechanism that keeps the chart mounted ` +
+          `underneath instead of reflowed away. An in-flow equipment layer ` +
+          `displaces the market it was opened to explain.`,
+      ).toMatch(/position:\s*fixed/);
+    }
+  });
+
+  it("covers the room at FULL rather than pushing it — and only at FULL", () => {
+    // The distinction the grammar lives on. FULL claims the viewport; the
+    // docked depths claim a corner of it. Both are fixed; only one is `inset:0`.
+    expect(shellStyle(render("full")), "FULL does not claim the screen").toMatch(/inset:\s*0/);
+    for (const stage of ["preview", "drawer"] as const) {
+      expect(
+        shellStyle(render(stage)),
+        `${stage} → a docked depth claimed the whole viewport. The market above ` +
+          `it has to stay visible or this stops being the same room.`,
+      ).not.toMatch(/inset:\s*0/);
+    }
+  });
+
+  it("carries ONE decision identity, unchanged, down and back up the depths", () => {
+    // Invariant 2 of the grammar, asserted at the DOM rather than in the
+    // reducer: the reducer test proves the value is carried, this proves it is
+    // PUBLISHED, which is what makes the identity checkable from outside.
+    const withDecision = (stage: EquipmentJourney["stage"]) =>
+      renderToStaticMarkup(
+        <RoomEquipmentLayer
+          journey={{ ...journey(stage), decisionId: "dec_2026_09_18_nq" }}
+          content={content}
+          subject={{ symbol: "NQ1!", timeframe: "15m" }}
+          onExpand={noop}
+          onEnter={noop}
+          onReturn={noop}
+          onClose={noop}
+        />,
+      );
+    for (const stage of ["preview", "drawer", "full"] as const) {
+      expect(
+        withDecision(stage),
+        `${stage} → the depth changed and the decision identity did not survive it. ` +
+          `A trader who deepens into a reading and comes back out must be looking ` +
+          `at the same decision they left, or the journey was a new page wearing ` +
+          `an overlay's clothes.`,
+      ).toContain('data-decision-id="dec_2026_09_18_nq"');
+    }
+  });
+});
