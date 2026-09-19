@@ -88,6 +88,31 @@ import { CanonicalBar } from "./canonicalBar";
 const SRC = path.resolve(__dirname, "..", "..");
 
 /**
+ * The source with every comment removed, for assertions that must be blind to
+ * prose. ADDED 2026-09-18 after this trap sprang for the SECOND time.
+ *
+ * The first: `expect(src).not.toContain("SESSION_UNKNOWN")` failed against
+ * correct code, because the exchange ingress NAMES that constant while
+ * explaining why it is the wrong answer for a crypto venue. The second: the
+ * gate forbidding `volume: b.v ?? 0` failed against the fixed route, because
+ * the route's comment quotes the retired defect while recording what it was.
+ *
+ * Both times the code was right and the GATE was wrong, and both times the
+ * cheapest way to go green would have been to delete the explanation — which
+ * is the most valuable thing in the file. A gate that cannot tell an
+ * explanation from a decision is a standing incentive to stop explaining.
+ *
+ * Positive assertions can use assignment form and stay prose-immune on their
+ * own. NEGATIVE assertions ("this defect must not come back") cannot, because
+ * describing a retired defect accurately requires spelling it.
+ */
+function codeOnly(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, " ")   // block comments, including docblocks
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");   // line comments, sparing "https://"
+}
+
+/**
  * Production TypeScript. Tests are excluded ON PURPOSE: a fixture that builds
  * a bar-shaped literal to exercise a selector is not a second past, it is a
  * test doing its job. What this gate is counting is shapes the PRODUCT holds.
@@ -651,6 +676,9 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     // SECOND INGRESS, 2026-09-18. This list may only GROW.
     { from: "lib/marketData/exchangeCandleIngress.ts", to: "canonicalBar" },
     { from: "app/api/exchange/route.ts", to: "exchangeCandleIngress" },
+    // THIRD INGRESS, 2026-09-18. This list may only GROW.
+    { from: "lib/marketData/alpacaCandleIngress.ts", to: "canonicalBar" },
+    { from: "app/api/alpaca/route.ts", to: "alpacaCandleIngress" },
   ];
 
   it("has at least the production consumers it had when the migration began", () => {
@@ -748,6 +776,75 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     expect(src).toMatch(/\$\{exchange\.toUpperCase\(\)\}:/);
     expect(src, "the ingress must mint through exchangeSymbolId, not inline a coin")
       .toContain("const symbolId = exchangeSymbolId(");
+  });
+
+  /* ── THIRD INGRESS: /api/alpaca ─────────────────────────────────────────── */
+
+  it("keeps the `?? 0` volume fabrication out of the alpaca candles branch", () => {
+    // THE MOST LOAD-BEARING GATE IN THIS FILE, because this defect already
+    // survived two fixes of its own family. The route's quote branch killed
+    // `prevClose ?? price` and `changePct ... : 0` and wrote down why; the
+    // candles branch kept `volume: b.v ?? 0` regardless. "Nothing traded in
+    // this bar" is a CLAIM, not an absence, and it is the single most
+    // load-bearing input to every volume profile, delta and absorption tool
+    // in this repo — a fabricated zero drills a silent hole through the VP.
+    const route = readFileSync(
+      path.join(__dirname, "..", "..", "app", "api", "alpaca", "route.ts"), "utf8",
+    );
+    expect(route, "the scan read the real route").toContain("ingestAlpacaCandles(");
+    // BROADENED after a mutation receipt. The first form was
+    // `/volume:\s*\w+\.v\s*\?\?/` — it pinned the one HISTORICAL SPELLING
+    // (`b.v ??`) rather than the defect, and a mutation writing
+    // `volume: c.volume ?? 0` walked straight past it while the gate stayed
+    // green. The class is "a volume defaulted out of an absent value", so the
+    // gate now forbids ANY default operator on a volume assignment.
+    expect(codeOnly(route), "the fabricated zero-volume default must not come back")
+      .not.toMatch(/volume:[^,\n}]*(\?\?|\|\|)/);
+
+    // And the ingress must pass the number through rather than defaulting it.
+    const src = readFileSync(path.join(__dirname, "alpacaCandleIngress.ts"), "utf8");
+    expect(src).toContain("volume: row.v as number,");
+    expect(codeOnly(src)).not.toMatch(/volume:[^,\n}]*(\?\?|\|\|)/);
+  });
+
+  it("proves alpaca identity is venue-scoped, so it cannot collide with Coinbase", () => {
+    // Both ingresses now mint into the SAME id space. /api/exchange already
+    // publishes COINBASE:BTC; unprefixed, Alpaca's BTC would mint the identical
+    // barId for the same instant and admitBar would refuse the second at equal
+    // truthEpoch as a redelivery. This is the first place where TWO MIGRATED
+    // INGRESSES could have deleted each other's bars.
+    const src = readFileSync(path.join(__dirname, "alpacaCandleIngress.ts"), "utf8");
+    expect(src).toContain("export function alpacaSymbolId");
+    expect(src).toContain("`ALPACA:${s}`");
+    expect(src, "the ingress must mint through alpacaSymbolId, not inline a symbol")
+      .toContain("const symbolId = alpacaSymbolId(");
+  });
+
+  it("proves the alpaca timeframe is the RESOLVED bucket, never the request", () => {
+    // Measured live: ?tf=6M returned 75 bars spaced 30.4 days apart — 1Month
+    // candles labelled "6M". Seven request spellings collapse onto that one
+    // bucket, so keying identity on the request would mint seven ids for one
+    // physical bar. ASSIGNMENT FORM, so the file's own prose explaining the
+    // hazard cannot satisfy or break the gate.
+    const src = readFileSync(path.join(__dirname, "alpacaCandleIngress.ts"), "utf8");
+    expect(src).toContain("const timeframe = canonicalTimeframeForAlpacaBucket(input.bucket)");
+    const route = readFileSync(
+      path.join(__dirname, "..", "..", "app", "api", "alpaca", "route.ts"), "utf8",
+    );
+    expect(route, "the route must hand over the resolved bucket, not `tf`")
+      .toContain("bucket: timeframe,");
+    expect(route).toContain("returnedTf: ingress.timeframe,");
+  });
+
+  it("proves alpaca answers the session question per asset class, not by guess", () => {
+    const src = readFileSync(path.join(__dirname, "alpacaCandleIngress.ts"), "utf8");
+    // CRYPTO has no sessions (known). STOCK bars carry no session marking
+    // (genuinely unknown). Deriving RTH from a timestamp would invent a fact.
+    expect(src).toContain('assetClass === "CRYPTO" ? SESSION_CONTINUOUS : SESSION_UNKNOWN');
+    expect(src).toContain("const sessionId = alpacaSessionModel(input.assetClass);");
+    expect(src).toContain("fidelity: MARKET_FIDELITIES.INDICATIVE,");
+    expect(src).not.toContain("fidelity: MARKET_FIDELITIES.EXECUTABLE");
+    expect(src).toContain("provenance: BAR_PROVENANCES.REST_BACKFILL,");
   });
 
   it("keeps heard-at and happened-at as two different facts", () => {

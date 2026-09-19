@@ -16,6 +16,13 @@ import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import type { ChangeWindow } from "@/lib/marketData/changeWindow";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+// M8: THE ARTERY'S THIRD PRODUCTION CONSUMER. A RUNTIME (value) import — a
+// type-only edge is erased by the compiler, appears in no bundle, and is
+// exactly the vacuous "adoption" the M8 ratchet was rewritten to stop counting.
+import {
+  ingestAlpacaCandles,
+  toLegacySecondsTuple,
+} from "@/lib/marketData/alpacaCandleIngress";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -351,16 +358,58 @@ export async function GET(request: Request) {
         rawBars = (json?.bars ?? []).reverse(); // reverse to chronological order
       }
 
-      const candles = rawBars.map((b: any) => ({
-        time:   Math.floor(new Date(b.t).getTime() / 1000),
-        open:   b.o,
-        high:   b.h,
-        low:    b.l,
-        close:  b.c,
-        volume: b.v ?? 0,
-      }));
+      // M8: every bar now passes through the CanonicalBar artery.
+      //
+      // WAS: a hand map with `volume: b.v ?? 0` and no checks at all. That `?? 0`
+      // is the SAME fabrication this route's quote branch already killed twice
+      // (`prevClose ?? price`, `changePct ... : 0`) — "nothing traded in this
+      // bar" is a claim, not an absence, and it is the load-bearing input to
+      // every volume profile in the repo. The old mapping also emitted a NaN
+      // `time` for an absent `b.t` without a filter or a throw.
+      //
+      // Volume and OHLC are now passed through UNTOUCHED; an absent number is
+      // refused by checkBarGeometry and COUNTED below, never invented.
+      const ingress = ingestAlpacaCandles({
+        sym: crypto ? toCryptoSym(rawSym) : rawSym,
+        assetClass: crypto ? "CRYPTO" : "STOCK",
+        // The RESOLVED Alpaca bucket, never `tf`. Seven request spellings
+        // ("M"/"1M"/"3M"/"6M"/"1Y"/"3Y"/"5Y") collapse onto 1Month upstream;
+        // keying identity on the request would mint seven ids for one bar.
+        bucket: timeframe,
+        rows: rawBars,
+        receivedAt: Date.now(),
+      });
+      const candles = ingress.bars.map(toLegacySecondsTuple);
 
-      return NextResponse.json({ sym: rawSym, tf, candles, source: "alpaca" });
+      return NextResponse.json({
+        sym: rawSym,
+        // `tf` stays the REQUEST echo so existing consumers are untouched. It
+        // was also the only timeframe this route published, which is why
+        // ?tf=6M could return 1Month bars labelled "6M". The two honest fields
+        // below name the request and the answer separately — the same pair
+        // /api/yahoo already publishes.
+        tf,
+        requestedTf: tf,
+        returnedTf: ingress.timeframe,
+        candles,
+        source: "alpaca",
+        barSource: "alpaca",
+        // Alpaca publishes every bucket natively; this route never folds a
+        // finer interval into a coarser one.
+        barProvenance: "REST_BACKFILL",
+        // Crypto: no execution adapter routes through this data proxy.
+        // Stocks: feed=iex is a real but PARTIAL tape — an IEX bar's volume is
+        // IEX volume, not national volume, so it is not the size an order
+        // would meet. Two different reasons, one honest answer.
+        barFidelity: "INDICATIVE",
+        // Crypto venues have no sessions (a known fact). Stock bars carry no
+        // session marking at all (genuinely unknown). Not a better and a worse
+        // guess — two different kinds of statement.
+        sessionKnown: crypto,
+        sessionModel: crypto ? "CONTINUOUS" : "UNKNOWN",
+        refusedBars: ingress.refusals.length,
+        refusals: ingress.refusals,
+      });
     }
 
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
