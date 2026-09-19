@@ -648,6 +648,9 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     { from: "lib/marketData/yahooCandleIngress.ts", to: "canonicalBar" },
     // And the route must actually call the ingress.
     { from: "app/api/yahoo/route.ts", to: "yahooCandleIngress" },
+    // SECOND INGRESS, 2026-09-18. This list may only GROW.
+    { from: "lib/marketData/exchangeCandleIngress.ts", to: "canonicalBar" },
+    { from: "app/api/exchange/route.ts", to: "exchangeCandleIngress" },
   ];
 
   it("has at least the production consumers it had when the migration began", () => {
@@ -667,8 +670,19 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
 
       // `import {` / `import x from` — but NOT `import type {`, which the
       // compiler erases and which therefore proves nothing about the bundle.
+      //
+      // The gap is `(?!;|import)` rather than a bare `[\s\S]`, and that matters.
+      // FOUND 2026-09-18 while adding the second ingress: `/api/exchange`
+      // carries a type-only import of `canonicalBar` AND a value import of
+      // something else, and a gap that may cross statement boundaries would
+      // happily start at one `import`, run past a semicolon, and finish at a
+      // LATER statement's `from` clause — reporting a runtime edge assembled
+      // out of two unrelated imports. Refusing `;` and `import` inside the gap
+      // pins the match to a single statement, which is the only thing that
+      // answers the question being asked.
       const valueImport = new RegExp(
-        String.raw`import\s+(?!type\s)[\s\S]{0,400}?from\s+["'][^"']*` + edge.to + String.raw`["']`,
+        String.raw`import\s+(?!type\s)(?:(?!;|\bimport\b)[\s\S]){0,400}?from\s+["'][^"']*`
+        + edge.to + String.raw`["']`,
       );
       expect(
         valueImport.test(src),
@@ -691,6 +705,49 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     expect(src).toContain("SESSION_UNKNOWN");
     expect(src).toContain("MARKET_FIDELITIES.INDICATIVE");
     expect(src).not.toContain("MARKET_FIDELITIES.EXECUTABLE");
+  });
+
+  it("proves the second ingress says NO SESSIONS rather than copying UNKNOWN", () => {
+    // The cheap way to migrate a second ingress is to paste the first and
+    // leave SESSION_UNKNOWN in place. That would pass every unit test in this
+    // repo and would be false: a crypto book has no open, close or pre/post,
+    // so "unknown" would report an absence of information that is not absent.
+    const src = readFileSync(path.join(__dirname, "exchangeCandleIngress.ts"), "utf8");
+    expect(src, "the scan read the real ingress").toContain("export function ingestExchangeCandles");
+
+    // ASSIGNMENT FORM, not bare mention. Found immediately: the first version
+    // of this gate used `not.toContain("SESSION_UNKNOWN")` and failed against
+    // correct code, because the ingress's own header NAMES SESSION_UNKNOWN
+    // while explaining why it is the wrong answer here. A gate that cannot
+    // tell an explanation from a decision would be pressure to delete the
+    // explanation — the reasoning is the most valuable thing in the file.
+    expect(src).toContain("sessionId: SESSION_CONTINUOUS,");
+    expect(src).not.toContain("sessionId: SESSION_UNKNOWN");
+
+    // Still INDICATIVE — for a reason SESSION_CONTINUOUS does not repair. No
+    // execution adapter routes through a public REST proxy.
+    expect(src).toContain("fidelity: MARKET_FIDELITIES.INDICATIVE,");
+    expect(src).not.toContain("fidelity: MARKET_FIDELITIES.EXECUTABLE");
+
+    // Never DERIVED: resolveExchangeTimeframe REFUSES a timeframe a venue does
+    // not natively publish rather than folding a finer one into it, so a
+    // DERIVED branch here would be unreachable — and an unreachable branch is
+    // an invitation to reach it.
+    expect(src).toContain("provenance: BAR_PROVENANCES.REST_BACKFILL,");
+    expect(src).not.toContain("provenance: BAR_PROVENANCES.DERIVED");
+  });
+
+  it("proves venue identity is part of the crypto instrument, not decoration", () => {
+    // mintBarId keys on symbolId|timeframe|asOf|epoch. Dropping the venue
+    // prefix would make Coinbase's 15:00 BTC and Kraken's 15:00 BTC mint the
+    // SAME id, and admitBar would discard the second as a redelivery — a real
+    // bar from a real venue silently deleted. They are two order books with
+    // two prices, so they are two instruments.
+    const src = readFileSync(path.join(__dirname, "exchangeCandleIngress.ts"), "utf8");
+    expect(src).toContain("export function exchangeSymbolId");
+    expect(src).toMatch(/\$\{exchange\.toUpperCase\(\)\}:/);
+    expect(src, "the ingress must mint through exchangeSymbolId, not inline a coin")
+      .toContain("const symbolId = exchangeSymbolId(");
   });
 
   it("keeps heard-at and happened-at as two different facts", () => {

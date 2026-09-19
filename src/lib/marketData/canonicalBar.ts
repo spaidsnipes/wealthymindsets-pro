@@ -96,6 +96,39 @@ import { MARKET_FIDELITIES, type MarketFidelity } from "./marketFidelityAlgebra"
 export const SESSION_UNKNOWN = "SESSION_UNKNOWN";
 
 /**
+ * The venue does not segment its trading into sessions. ADDED 2026-09-18 by the
+ * SECOND ingress migration, and it is the opposite kind of statement to
+ * `SESSION_UNKNOWN` — which is why it must not be spelled the same way.
+ *
+ * `SESSION_UNKNOWN` says WE DO NOT KNOW which session a print belongs to.
+ * `SESSION_CONTINUOUS` says THERE IS NO SUCH THING HERE: the public crypto spot
+ * venues behind `/api/exchange` run without an open, a close, an auction, or a
+ * pre/post distinction. Yahoo's chart feed genuinely withholds the session;
+ * Coinbase is not withholding anything, because the question does not apply to
+ * a book that never stops. Answering "unknown" for a continuous venue would be
+ * its own small lie — we would be reporting an absence of information where the
+ * information exists and is "none."
+ *
+ * ── THE CONSEQUENCE, STATED BECAUSE IT IS A LOOSENING ────────────────────────
+ *
+ * `isSessionKnown` returns TRUE for this value, which means `admitBar` no
+ * longer refuses an EXECUTABLE claim on such a bar. That is deliberate and it
+ * is narrow. The reason `admitBar` blocks EXECUTABLE on a sessionless bar is
+ * written there: "a price is a different fact inside RTH than outside it." On a
+ * venue with no RTH there is no outside, so that specific objection genuinely
+ * does not arise and enforcing it anyway would be superstition rather than
+ * rigour.
+ *
+ * It does NOT follow that crypto bars are executable. `exchangeCandleIngress.ts`
+ * mints INDICATIVE and can mint nothing else, for a completely separate reason
+ * that this constant does not touch: `/api/exchange` is a public REST proxy and
+ * no execution adapter routes through it, so nobody can say its price is the one
+ * an order would meet. Two independent reasons to withhold EXECUTABLE; this
+ * constant retires exactly one of them, and the other still binds.
+ */
+export const SESSION_CONTINUOUS = "SESSION_CONTINUOUS";
+
+/**
  * Does this bar know which session it belongs to?
  *
  * Blank counts as unknown, deliberately. An empty string is how "we never set

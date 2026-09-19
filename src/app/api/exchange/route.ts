@@ -20,7 +20,16 @@ import { strictProviderNumber } from "@/lib/marketData/strictProviderNumber";
 // a private synonym for it. The rename removes a duplicate decision about what
 // a bar is; it does not give this route's output canonical identity, which the
 // legacy tuple deliberately does not carry.
+//
+// THAT SECOND SENTENCE STOPPED BEING TRUE LATER THE SAME DAY. This import is
+// still type-only — erased by the compiler, present in no bundle — which is
+// exactly the vacuous kind of "adoption" the M8 ratchet was rewritten to stop
+// counting. The RUNTIME edge is the one below.
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import {
+  ingestExchangeCandles,
+  toLegacySecondsTuple,
+} from "@/lib/marketData/exchangeCandleIngress";
 
 type Ex = PublicCryptoExchange;
 
@@ -184,17 +193,63 @@ export async function GET(req: Request) {
           reason: resolution.reason,
         }, { status: 422 });
       }
-      const candles = await cached(
+      const normalized = await cached(
         `c:${ex}:${coin}:${resolution.timeframe}:${bars}`,
         4000,
         () => getCandles(ex, coin, resolution.timeframe, resolution.seconds, bars),
       ) as LegacyOhlcvTuple[];
+
+      /* M8: THE ARTERY'S SECOND PRODUCTION CONSUMER.
+       *
+       * Five venues, five hand-written array mappings, and until now nothing
+       * downstream checked any of them. Coinbase publishes
+       * [time, low, high, open, close, volume]; Kraken publishes
+       * [time, open, high, low, close, vwap, volume, count] — low and high
+       * transposed, volume at a different index. A wrong index in one branch
+       * throws nothing and type-checks fine; it renders a full chart of
+       * inside-out candles on one venue only.
+       *
+       * Three things are newly true for these bars:
+       *   - geometry is CHECKED, so a transposed venue mapping is refused and
+       *     counted rather than drawn;
+       *   - one instant delivered twice is refused rather than double-counted;
+       *   - ordering is by asOf here, so a missing per-venue .sort() in one of
+       *     the five branches can no longer reach a chart time-reversed.
+       *
+       * And one thing is newly SAYABLE: these bars carry SESSION_CONTINUOUS,
+       * not SESSION_UNKNOWN. A crypto book has no open, close or pre/post, so
+       * unlike Yahoo this is a real answer rather than an admission. They are
+       * still INDICATIVE — no execution adapter routes through a public REST
+       * proxy, so nobody can claim this price is the one an order would meet.
+       *
+       * `candles` is byte-identical to what this route published before.
+       */
+      const ingress = ingestExchangeCandles({
+        exchange: ex,
+        coin,
+        timeframe: resolution.timeframe,
+        tuples: normalized,
+        receivedAt: Date.now(),
+      });
+      const candles = ingress.bars.map(toLegacySecondsTuple);
+
       return NextResponse.json({
         ex,
         coin,
         candles,
         qualityState: "LIVE",
         timeframe: resolution.timeframe,
+        // `qualityState: "LIVE"` above is about the route being up. It is NOT a
+        // claim that these bars streamed — every one was fetched over REST.
+        // Published separately rather than by editing qualityState, which
+        // existing consumers read.
+        barSource: ex,
+        barProvenance: "REST_BACKFILL",
+        barFidelity: "INDICATIVE",
+        sessionKnown: true,
+        sessionModel: "CONTINUOUS",
+        refusedBars: ingress.refusals.length,
+        refusals: ingress.refusals,
       });
     }
     const q = await cached(`q:${ex}:${coin}`, 1500, () => getQuote(ex, coin)) as ExchangeQuote;

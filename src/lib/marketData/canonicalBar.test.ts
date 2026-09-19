@@ -10,6 +10,7 @@ import {
   checkBarGeometry,
   isSessionKnown,
   mintBarId,
+  SESSION_CONTINUOUS,
   SESSION_UNKNOWN,
   toLegacyTuple,
   type CanonicalBar,
@@ -254,5 +255,28 @@ describe("session identity — a bar may say it does not know, but not pretend",
     // every executable bar it would be a different, much larger change wearing
     // this one's name.
     expect(admitBar(null, bar({ sessionId: "RTH", fidelity: "EXECUTABLE" })).admitted).toBe(true);
+  });
+
+  /* ── "NO SESSIONS HERE" IS NOT "I DO NOT KNOW" ───────────────────────────
+     Added 2026-09-18 with the second ingress. A crypto spot book has no open,
+     no close and no pre/post, so the session question has a real answer and
+     the answer is "none". Reporting that as UNKNOWN would claim an absence of
+     information where the information exists. */
+
+  it("treats a continuous venue as KNOWN, not as a tidier kind of unknown", () => {
+    expect(isSessionKnown(SESSION_CONTINUOUS)).toBe(true);
+    expect(SESSION_CONTINUOUS).not.toBe(SESSION_UNKNOWN);
+  });
+
+  it("does not refuse EXECUTABLE on a venue that has no RTH to be outside of", () => {
+    // This is the one guard SESSION_CONTINUOUS retires, and retiring it is the
+    // point: admitBar's objection is "the same price is a different fact
+    // inside RTH than outside it." On a book that never closes there is no
+    // outside, so enforcing the guard anyway would be superstition.
+    expect(admitBar(null, bar({ sessionId: SESSION_CONTINUOUS, fidelity: "EXECUTABLE" })).admitted)
+      .toBe(true);
+    // And the unknown case must NOT have been loosened along with it.
+    expect(admitBar(null, bar({ sessionId: SESSION_UNKNOWN, fidelity: "EXECUTABLE" })).admitted)
+      .toBe(false);
   });
 });
