@@ -85,8 +85,14 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** The single owner of the question — and the positive-control specimen below. */
+const OWNER_REL = "src/lib/marketData/symbolAssetClass.ts";
+
+/** Walked ONCE so the guard below and the rules agree on what was scanned. */
+const ALL_FILES = sourceFiles(SRC);
+
 function offenders(): string[] {
-  return sourceFiles(SRC)
+  return ALL_FILES
     .filter((file) => {
       const code = stripComments(fs.readFileSync(file, "utf8"));
       return PREDICATE_SHAPES.some((shape) => shape.test(code));
@@ -96,6 +102,61 @@ function offenders(): string[] {
 }
 
 describe("asset-class predicates have exactly one owner", () => {
+  /**
+   * ANTI-VACUITY — added 2026-09-19, paying down the frozen debt recorded in
+   * `src/lib/ops/sentinelsProveTheyScanned.test.ts`.
+   *
+   * The first rule below asserts a collection is EMPTY, and it reaches that
+   * emptiness through a walk plus four hardcoded regexes. Both halves can die
+   * quietly:
+   *
+   *   - `sourceFiles(SRC)` resolves SRC by climbing THREE directories from
+   *     __dirname and appending "src". Move this test one level, or restructure
+   *     to a monorepo `packages/*` layout, and that climb lands somewhere with
+   *     no `.ts` files under it. `readdirSync` on a wrong-but-real directory
+   *     returns a small set, not an error, and the rule reports clean.
+   *   - `PREDICATE_SHAPES` hardcodes the exact source text `.endsWith("1!")`
+   *     and friends. If the canon notation changes — say futures move to a
+   *     different continuous-contract suffix — these four regexes hunt a
+   *     notation nothing uses. Seven hand-typed predicates in the NEW notation
+   *     could then spread unopposed, exactly the disease this file was written
+   *     to cure, with the gate green the whole time.
+   *
+   * There is an existing synthetic check further down ("the scan can actually
+   * see a violation") which feeds the pattern a hand-written sample string.
+   * That proves the regexes compile, but a hand-written sample is written to
+   * match — it cannot tell you whether the notation is still what real code
+   * says. This guard uses a LIVE specimen instead: `symbolAssetClass.ts`, the
+   * declared owner. It is the right specimen precisely because it is the one
+   * file that is SUPPOSED to speak notation directly — its whole purpose is to
+   * be the single place these tests live. If the patterns cannot find the
+   * predicate THERE, they cannot find one anywhere, and the scan is blind.
+   */
+  it("ANTI-VACUITY: the walk reaches src and the predicate shapes still match the owner", () => {
+    expect(
+      ALL_FILES.length,
+      "sourceFiles(src) found almost no code files — did src/ move, did this " +
+        "test file move relative to it (SRC is resolved by climbing three " +
+        "directories from __dirname), or did the repo become a monorepo? An " +
+        "empty scan makes the rules below permanently green while policing " +
+        "nothing. Re-point SRC at the real source tree",
+    ).toBeGreaterThan(200);
+
+    const owner = stripComments(fs.readFileSync(path.join(REPO_ROOT, OWNER_REL), "utf8"));
+    expect(
+      PREDICATE_SHAPES.some((shape) => shape.test(owner)),
+      `None of PREDICATE_SHAPES matches ${OWNER_REL} — the declared OWNER of ` +
+        "this question, and the one file guaranteed to state the futures " +
+        "notation test directly. Either the owner stopped expressing the rule " +
+        "as `.endsWith(\"1!\")` / `.includes(\"=F\")` (refactored to a table, a " +
+        "shared constant, or a new notation), or the canon notation itself " +
+        "changed. Either way these four regexes now match ZERO real code: the " +
+        "rules below are green because the scan is blind, not because the " +
+        "predicate has one owner. Re-derive PREDICATE_SHAPES from how " +
+        `${OWNER_REL} actually classifies futures today`,
+    ).toBe(true);
+  });
+
   it("no file hand-types the futures notation test without a recorded reason", () => {
     const unexplained = offenders().filter((rel) => !(rel in EXEMPT));
     expect(

@@ -132,13 +132,72 @@ function callArgumentTexts(content: string, fn: string): { text: string; line: n
   return out;
 }
 
+/**
+ * The painted surfaces, resolved ONCE. `.tsx` only: these are the files that
+ * put pixels in front of a trader. Pure `.ts` producers are covered by the
+ * deliberate-gap test below.
+ */
+const SURFACES = walk(SRC_ROOT).filter(
+  (f) => f.endsWith(".tsx") && !f.endsWith(".test.tsx"),
+);
+
 describe("closed-session precedence — call-site Sentinel (canon §8)", () => {
+  /**
+   * ANTI-VACUITY — added 2026-09-19, paying down the frozen debt recorded in
+   * `src/lib/ops/sentinelsProveTheyScanned.test.ts`.
+   *
+   * CREDIT WHERE IT IS DUE: this file was ALREADY half-guarded, and better than
+   * most. The "§22 anti-placebo" self-test below proves `callArgumentTexts`
+   * still parses a call site and still tells a wired call from an unwired one.
+   * That is a genuine positive control on the DETECTOR, written by someone who
+   * had thought about this exact failure.
+   *
+   * But a scan is `walk → filter → detect`, and that self-test covers only the
+   * last step. It runs against a hardcoded `decoy` string, so it would keep
+   * passing brightly if the walk handed the rule zero files. Two ways that
+   * happens: the tree moves under `SRC_ROOT`, or — much likelier — the `.tsx`
+   * filter stops selecting anything, which a move to `.mtsx`, a co-location
+   * convention change, or a `.test.tsx` predicate edit would all do quietly.
+   *
+   * And there is a THIRD emptiness this file is uniquely exposed to, which
+   * neither a file count nor the self-test can see. The rule skips any file not
+   * containing `writer(`. If every surface stopped calling these writers — a
+   * rename of `priceSourceBadge`, a refactor behind a hook — then CLOSURE_AWARE_
+   * WRITERS would name four functions nobody calls, `violations` would be empty,
+   * and this Sentinel would report that every surface passes the closure signal
+   * while no surface asks for it at all.
+   *
+   * That is not an abstract worry here. The defect this file exists to prevent
+   * was two writers on one screen disagreeing about whether the market was
+   * open, photographed live by the Founder. The guard below therefore asserts
+   * the real thing: surfaces exist, and they are still CALLING the writers.
+   */
+  it("ANTI-VACUITY: the walk reaches painted surfaces and they still call the writers", () => {
+    expect(
+      SURFACES.length,
+      "walk(src) found almost no non-test .tsx surfaces — did src/ move, or did " +
+        "the extension filter stop selecting the files that paint pixels? An " +
+        "empty scan makes the rule below permanently green while enforcing nothing",
+    ).toBeGreaterThan(100);
+
+    const callers = SURFACES.filter((f) => {
+      const code = stripComments(readFileSync(f, "utf8"));
+      return CLOSURE_AWARE_WRITERS.some((fn) => code.includes(`${fn}(`));
+    });
+    expect(
+      callers.length,
+      `NO painted surface calls any of the closure-aware fidelity writers ` +
+        `(${CLOSURE_AWARE_WRITERS.join(", ")}). Either they were renamed, or the ` +
+        `call sites moved behind an indirection this Sentinel cannot see. Every ` +
+        `surface then trivially "passes the closure signal" because none asks for ` +
+        `it — which is the exact shape of the bug this file exists to catch, one ` +
+        `level up. Re-derive CLOSURE_AWARE_WRITERS from the fidelity writers as ` +
+        `they are actually named and called today`,
+    ).toBeGreaterThan(0);
+  });
+
   it("every rendered surface that calls a fidelity writer passes the closure signal", () => {
-    // .tsx only: these are the files that paint pixels a trader reads. Pure
-    // .ts producers are covered by the deliberate-gap test below.
-    const files = walk(SRC_ROOT).filter(
-      (f) => f.endsWith(".tsx") && !f.endsWith(".test.tsx"),
-    );
+    const files = SURFACES;
 
     const violations: string[] = [];
     for (const file of files) {
