@@ -55,6 +55,9 @@ import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLAR
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 import SectionBanner from "@/components/brand/SectionBanner";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+// The in-room half of the M3 quarantine. Reads the destination registry; a
+// room with normal authority renders nothing, so this import is not a claim.
+import { RoomAuthorityNotice } from "@/components/routing/RoomAuthorityNotice";
 import {
   normalizeMarketSurfaceSymbol,
   normalizeMarketSurfaceTimeframe,
@@ -1717,6 +1720,17 @@ function CommandDeckInner() {
         A <div> keeps every pixel and returns the landmark to its one owner.
       */}
       <div style={{ maxWidth: "min(1720px, 100%)", margin: "0 auto", padding: "12px 16px", position: "relative" }}>
+        {/*
+          M3 QUARANTINE, SAID INSIDE THE ROOM.
+
+          Three rail/drawer chips already say LEGACY on this room's DOORS. A
+          trader who arrives by bookmark or typed URL passes no door, and
+          before this the deck said nothing about itself — a complete-looking
+          workspace with the quarantine disclosed only in the hallway they
+          skipped. The notice derives from WM_DESTINATIONS, so it is a fourth
+          READER of the one authority fact and not a fourth owner of it.
+        */}
+        <RoomAuthorityNotice href="/command-deck" />
         {/*
           SCENE_FRAGMENTATION repair (Founder audit 2026-09-13, §30 STEP 3
           "Embed NOW into MARKET").
