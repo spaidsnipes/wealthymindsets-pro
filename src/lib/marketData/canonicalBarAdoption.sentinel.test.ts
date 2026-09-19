@@ -171,6 +171,25 @@ function ohlcDeclarations(src: string): readonly string[] {
   return names;
 }
 
+/**
+ * The BODY of one named declaration, as it really is in the file.
+ *
+ * The classifier below decides whether a residing shape is a bar at all, and
+ * it must decide that from CODE. A classification that reads a comment is the
+ * prose trap in a new costume: anyone could retire a real duplicate from this
+ * census by writing a sentence about it. So the distinguishing field has to be
+ * physically present in the declaration, and this is what goes and looks.
+ *
+ * Returns "" when the name is not found, which every caller below treats as a
+ * failure rather than as a passing empty match.
+ */
+function declarationBody(src: string, name: string): string {
+  const DECL = new RegExp(
+    `(?:export\\s+)?(?:interface|type)\\s+${name}\\s*(?:=\\s*)?\\{([\\s\\S]*?)\\n\\s*\\}`,
+  );
+  return DECL.exec(src)?.[1] ?? "";
+}
+
 /** `<path relative to src>::<TypeName>` for every OHLC shape in production. */
 function census(): readonly string[] {
   const found: string[] = [];
@@ -525,6 +544,105 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
 ];
 
+/**
+ * ── THE SCOREBOARD THAT COULD NEVER MOVE AGAIN (measured 2026-09-18) ────────
+ *
+ * The four above are pinned and STAY pinned. What follows is not a removal.
+ * ZERO INGRESSES WERE MIGRATED BY THIS CHANGE, and the count is still four.
+ *
+ * The defect being repaired is in the MEASUREMENT. `holds at four` can only
+ * ever tell two stories — a number went up (bad) or a number went down (good)
+ * — and by its own header the remaining four are "GENUINELY DIFFERENT SHAPES
+ * rather than one tuple under many labels". None of them is a duplicate
+ * awaiting a migration. So the honest value of this scoreboard is ALREADY
+ * ZERO, and left as a bare four it reads to every future engineer as four
+ * outstanding migrations. A gate that reports permanent debt that does not
+ * exist is a gate nobody will believe about the debt that does.
+ *
+ * Worse, it is blind in the direction that matters. If someone tomorrow drops
+ * `eventType` from `CanonicalMarketEvent`, or adds `volume` to the deck's
+ * deliberately volume-free `Candle`, a residing shape becomes a real competing
+ * bar and this census does not move a digit — the name is still on the list.
+ *
+ * So each resident is CLASSIFIED, and the classification is proved from the
+ * declaration body in the real file. The verdict text is not the evidence; the
+ * predicate beside it is. You cannot retire a shape from `UNMIGRATED` by
+ * writing a sentence about it — the distinguishing field has to be there.
+ *
+ * UNMIGRATED is the real scoreboard. It is zero, and it may only SHRINK.
+ */
+type ShapeVerdict =
+  /** A competing bar. Route it through CanonicalBar. This is the debt. */
+  | "UNMIGRATED"
+  /** Not a bar: its OHLC may all be absent, so it cannot hold a 09:31. */
+  | "NOT_A_BAR"
+  /** A bar the venue printed INCOMPLETE. CanonicalBar would need invention. */
+  | "INCOMPLETE_OBSERVATION"
+  /** A computed row. It carries verdicts no ingress could ever deliver. */
+  | "DERIVED_VIEW"
+  /** A consumer boundary accepting facts CanonicalBar does not carry. */
+  | "ADAPTER_INPUT";
+
+interface ClassifiedShape {
+  readonly verdict: ShapeVerdict;
+  /** Why, in one sentence, for the human reading a failure. */
+  readonly because: string;
+  /** The code fact that MAKES it so. Read from the real declaration body. */
+  readonly provenBy: (body: string) => boolean;
+}
+
+const carriesField = (body: string, field: string) =>
+  new RegExp(`\\b${field}\\s*\\??\\s*:`).test(body);
+const fieldIsOptional = (body: string, field: string) =>
+  new RegExp(`\\b${field}\\s*\\?\\s*:`).test(body);
+
+const SHAPE_CLASSIFICATION: Readonly<Record<string, ClassifiedShape>> = {
+  "components/experience/DeckMarketChart.tsx::Candle": {
+    verdict: "INCOMPLETE_OBSERVATION",
+    because:
+      "its volume is OPTIONAL, and the deck forwards none — Yahoo's volume is " +
+      "not trusted there. CanonicalBar requires a finite volume, so migrating " +
+      "this shape would mean writing volume: 0, which is the invention the " +
+      "artery exists to refuse. structureNeedsNoVolume.test.ts is the live " +
+      "defect that omission was measured from.",
+    // THE PROOF, and the first thing this gate caught was ME: I first wrote
+    // `!carriesField(body, "volume")` — no volume field at all — and the
+    // declaration says `volume?: number`. The census header three hundred
+    // lines above had already recorded the real fact ("differs by `volume?`").
+    // OPTIONALITY is the distinguishing field: a shape that admits a bar with
+    // no volume cannot be a CanonicalBar without inventing one. Moving the
+    // proof to the true field is not relaxing it — the required-volume clone
+    // in the reachability gate below still fails this predicate.
+    provenBy: (body) => fieldIsOptional(body, "volume"),
+  },
+  "lib/marketData/marketEvent.ts::CanonicalMarketEvent": {
+    verdict: "NOT_A_BAR",
+    because:
+      "it is a TAPE event — a trade, a quote, a depth level — that may also " +
+      "happen to carry a bar's fields. Its OHLC are every one of them " +
+      "optional, so it can be a fully valid event holding no 09:31 at all.",
+    provenBy: (body) =>
+      carriesField(body, "eventType") &&
+      ["open", "high", "low", "close"].every((f) => fieldIsOptional(body, f)),
+  },
+  "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar": {
+    verdict: "DERIVED_VIEW",
+    because:
+      "it is the OUTPUT of a selector, not an observation of a market. " +
+      "`absorbing` is a verdict and `effortNorm` is normalised against this " +
+      "window's own peak — neither is a fact any venue could send.",
+    provenBy: (body) => carriesField(body, "absorbing") && carriesField(body, "effortNorm"),
+  },
+  "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput": {
+    verdict: "ADAPTER_INPUT",
+    because:
+      "it accepts a per-bar aggressor split — askVol, bidVol and the " +
+      "provenance of that split — which CanonicalBar deliberately does not " +
+      "carry. It is a consumer boundary, not a second ingress.",
+    provenBy: (body) => carriesField(body, "askVol") && carriesField(body, "bidVol"),
+  },
+};
+
 describe("M8 · the private-bar census is a ratchet", () => {
   /**
    * FALSE_RIPENESS GUARD, and this repo has shipped the vacuous green it
@@ -612,6 +730,82 @@ describe("M8 · the private-bar census is a ratchet", () => {
         `the shape. A migration whose scoreboard nobody updated still reads ` +
         `as unfinished a quarter after it finished:\n  ` + removed.join("\n  "),
     ).toEqual([]);
+  });
+
+  /**
+   * The classification must COVER the census exactly. Without this, a shape
+   * could sit on the frozen list forever with no verdict at all and the
+   * UNMIGRATED count below would cheerfully report zero debt.
+   */
+  it("has an explicit verdict for every shape still standing in the census", () => {
+    expect(Object.keys(SHAPE_CLASSIFICATION).sort()).toEqual(
+      [...FROZEN_PRIVATE_BAR_SHAPES].sort(),
+    );
+  });
+
+  /**
+   * THE TEETH. Each verdict is re-derived from the declaration body in the
+   * real file, every run. A classification is a claim about code, so it fails
+   * the moment the code stops backing it — which is exactly the day a
+   * residing shape turns into a competing bar.
+   */
+  it("proves every NOT-A-BAR verdict from the declaration, never from its prose", () => {
+    for (const [entry, claim] of Object.entries(SHAPE_CLASSIFICATION)) {
+      if (claim.verdict === "UNMIGRATED") continue;
+      const [rel, name] = entry.split("::");
+      const body = declarationBody(readFileSync(path.join(SRC, rel), "utf8"), name);
+
+      // VACUITY GUARD: a missing declaration must not pass as a satisfied
+      // predicate. "" makes every `carriesField` false, which would silently
+      // hand INCOMPLETE_OBSERVATION a free pass.
+      expect(body.trim(), `${entry} — declaration not found; the census and the classification disagree`)
+        .not.toBe("");
+
+      expect(
+        claim.provenBy(body),
+        `${entry} is classified ${claim.verdict} because ${claim.because}\n` +
+          `That is no longer true of the code. Either the shape has become a ` +
+          `real competing bar — in which case move it to UNMIGRATED and route ` +
+          `it through CanonicalBar — or the distinguishing field moved and this ` +
+          `proof must move with it. Do not relax the predicate to match.`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * THE REAL SCOREBOARD, and the only number on this file anyone should read
+   * as outstanding work. Four residents, zero of them duplicates.
+   */
+  it("reports ZERO unmigrated competing bars, and that may only SHRINK", () => {
+    const unmigrated = Object.entries(SHAPE_CLASSIFICATION)
+      .filter(([, c]) => c.verdict === "UNMIGRATED")
+      .map(([entry]) => entry);
+
+    expect(
+      unmigrated,
+      `A shape is classified UNMIGRATED — a second module deciding what a bar ` +
+        `is. Two such modules can hold a different 09:31 for one symbol and ` +
+        `neither is wrong by its own lights. Route it through CanonicalBar:\n  ` +
+        unmigrated.join("\n  "),
+    ).toEqual([]);
+  });
+
+  /**
+   * ANTI-VACUITY for the gate above, and it is not decorative: if every
+   * verdict were reachable only by classification, "zero unmigrated" would be
+   * satisfied by a record containing nothing but labels. UNMIGRATED must
+   * remain a REACHABLE state, reachable from the same predicate machinery.
+   */
+  it("would still catch a competing bar — UNMIGRATED is reachable, not decorative", () => {
+    const clone = "interface X {\n  time: number;\n  open: number;\n  high: number;\n  low: number;\n  close: number;\n  volume: number;\n}";
+    const body = declarationBody(clone, "X");
+    expect(body.trim()).not.toBe("");
+
+    // It answers to NONE of the four escape hatches, so nothing could classify
+    // it out of the census. It is a bar, and it would have to be migrated.
+    for (const claim of Object.values(SHAPE_CLASSIFICATION)) {
+      expect(claim.provenBy(body), `a plain OHLCV bar escaped as ${claim.verdict}`).toBe(false);
+    }
   });
 });
 
