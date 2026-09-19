@@ -1,5 +1,16 @@
 /**
- * OBJECT KINDS AND SHARED SLOTS — eight nouns, one drawer.
+ * OBJECT KINDS AND SHARED SLOTS — however many nouns, one drawer.
+ *
+ * THE COUNT IS NOT WRITTEN DOWN HERE, AND THAT IS DELIBERATE. From the day this
+ * module was committed until 2026-09-18, this header spelled out a total in
+ * words that `MARKET_OBJECT_KINDS` did not hold, and the test guarding the list
+ * carried that same wrong total in its TITLE while its body asserted the real
+ * list. Nobody mis-counted twice. The total was simply typed in three places
+ * and only one of them was executable. A comment that must be edited to stay
+ * true is a comment that will eventually lie, and a TEST NAME that lies is
+ * worse than a stale comment, because a reader takes it for a finding. The
+ * array below is now the only place the total is allowed to live, and
+ * `marketObjectKinds.test.ts` fails if one is retyped beside it in either file.
  *
  * Source: SUPPORT — Truth Resolver Fidelity + MarketObject Attachments
  * (2026-09-18), §2. The section exists because of a failure mode the canon
@@ -17,11 +28,11 @@
  * That second sentence is the load-bearing one. The overbuild always arrives
  * the same way: a new kind shows up, it "needs" one extra field, the field is
  * added to that kind only, and within a quarter the Passport drawer has a
- * layout per kind and the inspect has become eight inspects. So the slots are
+ * layout per kind and the inspect has become one inspect per kind. So the slots are
  * declared ONCE here, every kind carries all of them, and a kind that needs its
  * own database is by definition too much.
  *
- * ── WHY EIGHT AND NOT EIGHTY ─────────────────────────────────────────────────
+ * ── WHY A CLOSED LIST AND NOT EIGHTY ─────────────────────────────────────────
  *
  * The canon's rejected list is more instructive than its accepted one:
  *
@@ -29,8 +40,8 @@
  *    Thing, Indicator Graduation Object. Those are READINGS of the same kinds,
  *    or overlays, or inspect notes."
  *
- * OB, FVG, MB, IFVG and BPR are five names for geometry that folds into GAP,
- * ZONE and LEVEL. They are strategies arguing, and §Strategy Is Not The OS is
+ * OB, FVG, MB, IFVG and BPR are five names for geometry that folds into
+ * GAP_FVG, ZONE and LEVEL. They are strategies arguing, and §Strategy Is Not The OS is
  * explicit that WM does not own whether a given reading is correct. Promoting
  * a reading to a KIND is how the house would accidentally take a side.
  *
@@ -62,7 +73,16 @@ export const P0_OBJECT_KINDS = [
  * this list is "Stop there for consumer chrome."
  */
 export const P1_OBJECT_KINDS = [
-  "GAP",
+  /**
+   * SPELLED `GAP_FVG`, NOT `GAP`. The short name collided with the three
+   * unrelated `GAP` vocabularies already live in this repo — `SequenceState`'s
+   * `"GAP"` (a hole in the event stream), `MarketEventWarning`'s
+   * `"SEQUENCE_GAP"`, and the coverage matrix's prose "GAP" meaning an
+   * unmeasured stage. A grep for the object kind returned all of them, which is
+   * how a rename gets done wrong. The canonical name carries the geometry it
+   * actually means and cannot be confused with a missing measurement.
+   */
+  "GAP_FVG",
   "STRUCTURE",
   "LIQUIDITY",
   "ANCHOR",
@@ -103,9 +123,9 @@ export const REJECTED_KIND_HOME: Readonly<Record<string, MarketObjectKind>> = Ob
   WYCKOFF: "STRUCTURE",
   SMART_MONEY: "ZONE",
   INDICATOR_GRADUATION: "LEVEL",
-  FVG_ROOM: "GAP",
-  BPR: "GAP",
-  IFVG: "GAP",
+  FVG_ROOM: "GAP_FVG",
+  BPR: "GAP_FVG",
+  IFVG: "GAP_FVG",
   MITIGATION_BLOCK: "ZONE",
 });
 
@@ -173,9 +193,9 @@ export interface MarketObject {
 /**
  * The slot names, as data, so the "one drawer" law is checkable.
  *
- * A Passport that renders these and only these renders identically for all
- * eight kinds — which is how eight nouns stay one inspect. The canon: "Kind
- * only changes the noun on the door. The drawer layout does not change."
+ * A Passport that renders these and only these renders identically for EVERY
+ * kind — which is how many nouns stay one inspect. The canon: "Kind only
+ * changes the noun on the door. The drawer layout does not change."
  */
 export const SHARED_ATTACHMENT_SLOTS: readonly (keyof MarketObject)[] = Object.freeze([
   "objectId",

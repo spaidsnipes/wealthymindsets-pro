@@ -3,6 +3,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
 
 import * as kindsModule from "./marketObjectKinds";
 import {
@@ -20,10 +22,70 @@ import {
 } from "./marketObjectKinds";
 
 describe("the closed kinds", () => {
-  it("IS EXACTLY EIGHT — stop there for consumer chrome", () => {
+  it("IS THIS CLOSED LIST, BY NAME — stop there for consumer chrome", () => {
+    // UNTIL 2026-09-18 THIS TEST'S TITLE STATED A TOTAL ITS OWN BODY DISPROVED.
+    // The body was right the whole time; the NAME was a second copy of the
+    // total, typed once and never re-read. A stale comment is a nuisance — a
+    // stale TEST NAME is worse, because the reader takes it for a finding, and
+    // that wrong total was then copied into the module header and downstream
+    // prose by people who trusted it. The title now names no number at all:
+    // the array is the claim, and the array is the only place a total may live.
     expect(MARKET_OBJECT_KINDS).toEqual([
-      "LEVEL", "ZONE", "INVALIDATION", "GAP", "STRUCTURE", "LIQUIDITY", "ANCHOR",
+      "LEVEL", "ZONE", "INVALIDATION", "GAP_FVG", "STRUCTURE", "LIQUIDITY", "ANCHOR",
     ]);
+  });
+
+  it("THE GAP KIND IS SPELLED GAP_FVG — the short name is already taken", () => {
+    // `SequenceState` has a `"GAP"` meaning a hole in the event stream,
+    // `MarketEventWarning` has `"SEQUENCE_GAP"`, and the coverage matrix says
+    // "GAP" for a stage nobody measured. Three live vocabularies, none of them
+    // geometry. An object kind sharing that spelling makes every grep ambiguous
+    // and makes "this symbol has a GAP" mean three different things.
+    expect(MARKET_OBJECT_KINDS).toContain("GAP_FVG");
+    expect(MARKET_OBJECT_KINDS as readonly string[]).not.toContain("GAP");
+    expect(isMarketObjectKind("GAP")).toBe(false);
+  });
+
+  it("THE COUNT IS NOWHERE IN THE PROSE — a retyped number is a number that drifts", () => {
+    // The assertion that pays for this block. Both earlier defects were the
+    // same mechanism: the count existed in the array AND in English, and only
+    // the array was executable. This reads the module's own source and refuses
+    // any spelled or numeric count standing next to the words it would be
+    // counting. It does not check the count is right — the test above does
+    // that. It removes the second place a count could be wrong from.
+    //
+    // IT SCANS THIS TEST FILE TOO, and that is not symmetry for its own sake:
+    // the original wrong total lived in a TEST TITLE, which is the one kind of
+    // prose a reader will quote back as evidence. A guard that policed only the
+    // module would have left the actual scene of the defect unwatched.
+    const src = ["marketObjectKinds.ts", "marketObjectKinds.test.ts"]
+      .map((f) => readFileSync(path.join(__dirname, f), "utf8"))
+      .join("\n");
+
+    // FALSE_RIPENESS GUARD, and it was not volunteered — `sentinelsProveTheyScanned`
+    // failed this test the first time it ran and demanded it by name. Without
+    // it, a rename of either file would make the read throw or return nothing,
+    // the offence list would be empty for the wrong reason, and this guard
+    // would report clean forever while policing an empty string.
+    expect(src.length, "the two scanned sources").toBeGreaterThan(8000);
+    expect(src, "the scan is reading the real module").toContain("MARKET_OBJECT_KINDS");
+    const COUNTED = new RegExp(
+      String.raw`\b(two|three|four|five|six|seven|eight|nine|ten|\d+)\s+` +
+        String.raw`(nouns?|kinds?|shapes?|inspects?|objects?)\b`,
+      "gi",
+    );
+    const offences = [...src.matchAll(COUNTED)]
+      .map((m) => m[0])
+      // P0 genuinely IS three, and that one is asserted by a test directly
+      // below, so it is a claim with an owner rather than a loose number.
+      .filter((s) => !/^three\s+shapes$/i.test(s));
+    expect(
+      offences,
+      `A count is stated in prose. That number cannot be executed, so it ` +
+        `drifts the first time the list changes — which is exactly how a ` +
+        `spelled-out total survived for weeks beside an array of a different ` +
+        `length, in this very file:\n  ` + offences.join("\n  "),
+    ).toEqual([]);
   });
 
   it("P0 is the three that let a trader trade the underlying", () => {
@@ -47,7 +109,7 @@ describe("the closed kinds", () => {
     expect(homeForRejectedKind("ORDER_BLOCK")).toBe("ZONE");
     expect(homeForRejectedKind("order_block")).toBe("ZONE");
     expect(homeForRejectedKind("  Wyckoff  ")).toBe("STRUCTURE");
-    expect(homeForRejectedKind("BPR")).toBe("GAP");
+    expect(homeForRejectedKind("BPR")).toBe("GAP_FVG");
     for (const rejected of REJECTED_KIND_NAMES) {
       expect(homeForRejectedKind(rejected), rejected).not.toBeNull();
     }
@@ -78,15 +140,15 @@ describe("a kind is never a permission", () => {
 describe("the shared slots — attachments must not differ by kind", () => {
   const object = (kind: MarketObjectKind): MarketObject => ({
     objectId: "o1", kind, symbolId: "TSLA", sessionId: "s1",
-    priceLow: 100, priceHigh: kind === "ZONE" || kind === "GAP" || kind === "STRUCTURE" || kind === "LIQUIDITY" ? 105 : 100,
+    priceLow: 100, priceHigh: kind === "ZONE" || kind === "GAP_FVG" || kind === "STRUCTURE" || kind === "LIQUIDITY" ? 105 : 100,
     birthBarId: "b1", testBarIds: [], lastResponseBarId: null, invalidationPrice: null,
     state: "ALIVE", evidenceIds: [], decay: 0, asOf: 1, fidelityAtBirth: "INDICATIVE",
   });
 
   it("EVERY KIND CARRIES EVERY SLOT — this is the one-drawer law", () => {
     // If a single kind could omit a slot, the Passport would need to know which
-    // kind it is looking at, and the drawer layout would start branching. Eight
-    // inspects, arriving one field at a time.
+    // kind it is looking at, and the drawer layout would start branching — one
+    // inspect per kind, arriving a field at a time.
     for (const kind of MARKET_OBJECT_KINDS) {
       const o = object(kind);
       for (const slot of SHARED_ATTACHMENT_SLOTS) {

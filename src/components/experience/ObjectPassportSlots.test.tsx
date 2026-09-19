@@ -92,7 +92,7 @@ describe("one drawer — the layout does not branch by kind", () => {
     //
     // So the assertion is scoped to the region the law is actually about: the
     // drawer. The rail's own law is tested separately, below.
-    const slots = (kind: "ZONE" | "GAP") => {
+    const slots = (kind: "ZONE" | "GAP_FVG") => {
       const html = render({ object: object({ kind }) });
       const start = html.indexOf('data-testid="object-slot-birthBarId"');
       const end = html.indexOf('data-testid="closed-kinds-rail"');
@@ -100,7 +100,7 @@ describe("one drawer — the layout does not branch by kind", () => {
       expect(end, "rail not found").toBeGreaterThan(start);
       return html.slice(start, end);
     };
-    expect(slots("ZONE")).toBe(slots("GAP"));
+    expect(slots("ZONE")).toBe(slots("GAP_FVG"));
   });
 });
 
@@ -139,7 +139,7 @@ describe("§9 — the rail distinguishes by weight, never by hue", () => {
   it("MARKS THE CURRENT KIND WITHOUT GIVING IT A COLOUR OF ITS OWN", () => {
     const html = render({ object: object({ kind: "ZONE" }) });
     expect(html).toMatch(/closed-kind-ZONE[^>]*data-current="true"/);
-    expect(html).toMatch(/closed-kind-GAP[^>]*data-current="false"/);
+    expect(html).toMatch(/closed-kind-GAP_FVG[^>]*data-current="false"/);
 
     // The colours present must come from the house's two text tones only. A
     // third hue appearing here would mean the palette had started saying
