@@ -679,6 +679,9 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     // THIRD INGRESS, 2026-09-18. This list may only GROW.
     { from: "lib/marketData/alpacaCandleIngress.ts", to: "canonicalBar" },
     { from: "app/api/alpaca/route.ts", to: "alpacaCandleIngress" },
+    // FOURTH INGRESS, 2026-09-18. This list may only GROW.
+    { from: "lib/marketData/finnhubCandleIngress.ts", to: "canonicalBar" },
+    { from: "app/api/finnhub/route.ts", to: "finnhubCandleIngress" },
   ];
 
   it("has at least the production consumers it had when the migration began", () => {
@@ -842,6 +845,64 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     // (genuinely unknown). Deriving RTH from a timestamp would invent a fact.
     expect(src).toContain('assetClass === "CRYPTO" ? SESSION_CONTINUOUS : SESSION_UNKNOWN');
     expect(src).toContain("const sessionId = alpacaSessionModel(input.assetClass);");
+    expect(src).toContain("fidelity: MARKET_FIDELITIES.INDICATIVE,");
+    expect(src).not.toContain("fidelity: MARKET_FIDELITIES.EXECUTABLE");
+    expect(src).toContain("provenance: BAR_PROVENANCES.REST_BACKFILL,");
+  });
+
+  /* ── THE FOURTH INGRESS: /api/finnhub ─────────────────────────────────────── */
+
+  it("keeps the manufactured-wick repair out of the finnhub candles branch", () => {
+    // `high: h ?? Math.max(o, c)` does not default a VALUE, it manufactures a
+    // GEOMETRY — a candle with no wick, indistinguishable on screen from a real
+    // wickless print, and a wick is exactly what a rejection reader looks at.
+    // Asserted on CODE ONLY: the ingress header must stay free to NAME the
+    // retired defect while explaining it.
+    for (const f of ["../../app/api/finnhub/route.ts", "finnhubCandleIngress.ts"]) {
+      const src = codeOnly(readFileSync(path.join(__dirname, f), "utf8"));
+      expect(src, `${f} must not repair a wick`).not.toMatch(/high:[^,\n}]*Math\.max/);
+      expect(src, `${f} must not repair a wick`).not.toMatch(/low:[^,\n}]*Math\.min/);
+      // Same broadened form the alpaca pass proved necessary: pin the DEFECT
+      // CLASS, not one historical spelling.
+      expect(src, `${f} must not fabricate volume`).not.toMatch(/volume:[^,\n}]*(\?\?|\|\|)/);
+    }
+  });
+
+  it("counts a refused finnhub bar instead of dropping it in silence", () => {
+    // `if (o == null || c == null) continue;` removed the bar with no count and
+    // no record. A silently dropped bar is an INVISIBLE gap in the chart.
+    const route = codeOnly(readFileSync(path.join(__dirname, "../../app/api/finnhub/route.ts"), "utf8"));
+    expect(route).not.toMatch(/if \(o == null \|\| c == null\) continue;/);
+    expect(route).toContain("refusedBars: ingress.refusals.length,");
+  });
+
+  it("proves finnhub identity is the instrument ANSWERED, not the one asked for", () => {
+    // "BTCUSD" is answered from BINANCE:BTCUSDT. USDT is not USD. Minting from
+    // the request would file a Binance USDT bar under a USD instrument's name.
+    const src = readFileSync(path.join(__dirname, "finnhubCandleIngress.ts"), "utf8");
+    expect(src).toContain("export function finnhubSymbolId(providerSym: string): string {");
+    expect(src).toContain("const symbolId = finnhubSymbolId(input.providerSym);");
+    const route = codeOnly(readFileSync(path.join(__dirname, "../../app/api/finnhub/route.ts"), "utf8"));
+    expect(route).toContain("providerSym: fhSym,");
+  });
+
+  it("proves the finnhub bar is widened from the provider's SECONDS exactly once", () => {
+    // First ingress whose PROVIDER speaks epoch seconds while CanonicalBar
+    // speaks milliseconds, and both are a bare `number`. Getting the direction
+    // wrong puts every bar in 1970 or 50,000 years out, with no type error.
+    const src = readFileSync(path.join(__dirname, "finnhubCandleIngress.ts"), "utf8");
+    expect(src).toContain("const asOf = at * 1000;");
+    expect(src).toContain("time: Math.floor(bar.asOf / 1000),");
+    const route = codeOnly(readFileSync(path.join(__dirname, "../../app/api/finnhub/route.ts"), "utf8"));
+    expect(route).toContain("toLegacySecondsTuple");
+    expect(route).not.toContain("toLegacyTuple(");
+  });
+
+  it("proves finnhub answers the session question by VENUE, and never EXECUTABLE", () => {
+    const src = readFileSync(path.join(__dirname, "finnhubCandleIngress.ts"), "utf8");
+    expect(src).toContain("? SESSION_CONTINUOUS");
+    expect(src).toContain(": SESSION_UNKNOWN;");
+    expect(src).toContain("const sessionId = finnhubSessionModel(input.providerSym);");
     expect(src).toContain("fidelity: MARKET_FIDELITIES.INDICATIVE,");
     expect(src).not.toContain("fidelity: MARKET_FIDELITIES.EXECUTABLE");
     expect(src).toContain("provenance: BAR_PROVENANCES.REST_BACKFILL,");

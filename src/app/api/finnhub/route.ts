@@ -13,6 +13,13 @@ import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
 import { finnhubQuoteObservedAt } from "@/lib/marketData/finnhubQuoteTime";
+// M8: THE ARTERY'S FOURTH PRODUCTION CONSUMER. A RUNTIME (value) import — a
+// type-only edge is erased by the compiler, appears in no bundle, and is
+// exactly the vacuous "adoption" the M8 ratchet was rewritten to stop counting.
+import {
+  ingestFinnhubCandles,
+  toLegacySecondsTuple,
+} from "@/lib/marketData/finnhubCandleIngress";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -233,21 +240,40 @@ export async function GET(request: Request) {
         return NextResponse.json({ candles: [], qualityState: "UNAVAILABLE", reason: json.s === "no_data" ? "Finnhub reports no data for this symbol/range" : "Finnhub error" });
       }
 
-      const candles = [];
+      // WAS: a hand loop that checked two of six fields, dropped the rest of
+      // the bar silently, and REPAIRED an absent high into Math.max(open, close)
+      // — a manufactured candle with no wick. See finnhubCandleIngress.ts.
       const start = Math.max(0, json.t.length - bars);
-      for (let i = start; i < json.t.length; i++) {
-        const o = json.o?.[i], h = json.h?.[i], l = json.l?.[i], c = json.c?.[i];
-        if (o == null || c == null) continue;
-        candles.push({
-          time:   json.t[i],
-          open:   o,
-          high:   h ?? Math.max(o, c),
-          low:    l ?? Math.min(o, c),
-          close:  c,
-          volume: json.v?.[i] ?? 0,
-        });
-      }
-      return NextResponse.json({ sym: rawSym, providerSymbol: fhSym, tf, candles, source: "finnhub" });
+      const slice = <T,>(a: unknown): readonly T[] =>
+        Array.isArray(a) ? (a.slice(start) as readonly T[]) : [];
+      const ingress = ingestFinnhubCandles({
+        providerSym: fhSym,
+        resolution,
+        columns: {
+          t: slice<number>(json.t), o: slice<number>(json.o), h: slice<number>(json.h),
+          l: slice<number>(json.l), c: slice<number>(json.c), v: slice<number>(json.v),
+        },
+        receivedAt: Date.now(),
+      });
+      const candles = ingress.bars.map(toLegacySecondsTuple);
+
+      return NextResponse.json({
+        sym: rawSym,
+        providerSymbol: fhSym,
+        tf,                                  // REQUEST echo, kept for consumers
+        requestedTf: tf,
+        returnedTf: ingress.timeframe,
+        candles,
+        source: "finnhub",
+        barSource: "finnhub",
+        barProvenance: "REST_BACKFILL",
+        barFidelity: "INDICATIVE",
+        sessionKnown: fhSym.startsWith("BINANCE:"),
+        sessionModel: fhSym.startsWith("BINANCE:") ? "CONTINUOUS" : "UNKNOWN",
+        // A silently dropped bar is an INVISIBLE gap. Counted and disclosed.
+        refusedBars: ingress.refusals.length,
+        refusals: ingress.refusals,
+      });
     }
 
     /* ── News (general or per-category) ─────────────────────── */
