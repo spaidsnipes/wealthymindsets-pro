@@ -1,3 +1,4 @@
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 "use client";
 
 /**
@@ -24,7 +25,6 @@ import {
   foldTape,
   buildTapeLevels,
   type SessionLevel,
-  type Candle,
   type SessionWindow,
   type TapeTick,
 } from "@/lib/sessionVP";
@@ -55,7 +55,7 @@ interface WMSessionVPProps {
    * these — it never fetches its own candles, so it can never diverge from the
    * chart's provider/symbol/timeframe again.
    */
-  candles:   Candle[];
+  candles:   LegacyOhlcvTuple[];
   /**
    * Monotonic version that bumps when the chart's data identity changes
    * (symbol / timeframe / provider). On change the VP drops accumulated tape

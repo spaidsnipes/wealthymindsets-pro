@@ -7,7 +7,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { aggregateYahooBars, resolveYahooTimeframe, type YahooOhlcvBar } from "@/lib/yahooTimeframes";
+import { aggregateYahooBars, resolveYahooTimeframe } from "@/lib/yahooTimeframes";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { buildYahooQuoteObservation } from "@/lib/marketData/yahooQuoteObservation";
 import { toYahooSymbol } from "@/lib/yahooSymbol";
 
@@ -242,7 +243,7 @@ export async function GET(request: Request) {
       // requested number of candles. Unknown intervals never reach this path.
       const sourceBars = Math.min(timestamps.length, bars * plan.multiplier);
       const start = Math.max(0, timestamps.length - sourceBars);
-      const baseCandles: YahooOhlcvBar[] = [];
+      const baseCandles: LegacyOhlcvTuple[] = [];
       for (let i = start; i < timestamps.length; i++) {
         const o = opens?.[i], h = highs?.[i], l = lows?.[i], c = closes?.[i];
         if (o == null || c == null) continue;

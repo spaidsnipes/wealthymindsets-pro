@@ -552,7 +552,7 @@ const SPECIFIER = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
  *
  * Note the deliberate narrowness: only a statement whose `import`/`export`
  * keyword is IMMEDIATELY followed by `type` is stripped. An inline modifier —
- * `import { applyTickToLiveBar, type LiveBar } from "…"` — still emits the
+ * `import { applyTickToLiveBar, type LegacyOhlcvTuple } from "…"` — still emits the
  * module for its value binding, and therefore still counts as reach.
  */
 const TYPE_ONLY_STATEMENT = /\b(?:import|export)\s+type\s+[^;]*?\bfrom\s*["'][^"']+["']/g;
@@ -964,7 +964,7 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     // the module is emitted and the edge is real. A regex that keyed on the
     // word `type` appearing anywhere would wrongly erase this one.
     expect(
-      edges(`import { applyTickToLiveBar, type LiveBar } from "@/lib/marketData/liveBarPolicy";`),
+      edges(`import { applyTickToLiveBar, type LegacyOhlcvTuple } from "@/lib/marketData/liveBarPolicy";`),
       "an inline type modifier erased a statement that still emits its module",
     ).toEqual(["@/lib/marketData/liveBarPolicy"]);
 

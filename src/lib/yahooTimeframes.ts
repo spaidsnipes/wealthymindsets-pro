@@ -1,3 +1,21 @@
+/*
+ * THE YAHOO TIMEFRAME PLANNER NO LONGER DECLARES `YahooOhlcvBar` (2026-09-18).
+ *
+ * The third and last of the provenance-in-the-name cases, after `KrakenOHLC`
+ * and `YahooCandle`. The identifier announced a source that the type could not
+ * hold: a Kraken row, a synthetic row and a Yahoo row were all freely
+ * assignable to `YahooOhlcvBar` and nothing in the type could object.
+ *
+ * SHARPER HERE THAN IN THE OTHER TWO, because this module is where bars get
+ * RECONSTRUCTED: several plans below are `sourceMode: "reconstructed"`, meaning
+ * the bars handed to `/api/yahoo`'s caller were folded from a finer interval
+ * and never existed at the requested timeframe on any exchange. The old name
+ * said "Yahoo" about both kinds. The new name says "six numbers" about both
+ * kinds, which is less wrong and still not right — `sourceMode` is known right
+ * here, at the planner, and there is nowhere on the bar to put it.
+ * CanonicalBar has `fidelity`, `source` and `provenance`. Still owed.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 export interface YahooTimeframePlan {
   interval: string;
   range: string;
@@ -7,14 +25,6 @@ export interface YahooTimeframePlan {
   sourceMode: "native" | "reconstructed";
 }
 
-export interface YahooOhlcvBar {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
 
 const PLANS: Record<string, YahooTimeframePlan> = {
   "1m":  { interval: "1m",  range: "1d",   multiplier: 1,  sourceMode: "native" },
@@ -42,7 +52,7 @@ export function resolveYahooTimeframe(timeframe: string): YahooTimeframePlan | n
   return PLANS[legacyBoundary] ?? null;
 }
 
-function combine(bars: YahooOhlcvBar[]): YahooOhlcvBar {
+function combine(bars: LegacyOhlcvTuple[]): LegacyOhlcvTuple {
   return {
     time: bars[0].time,
     open: bars[0].open,
@@ -60,15 +70,15 @@ function calendarBucket(time: number, months: number): number {
 }
 
 export function aggregateYahooBars(
-  bars: YahooOhlcvBar[],
+  bars: LegacyOhlcvTuple[],
   plan: YahooTimeframePlan,
   limit: number,
-): YahooOhlcvBar[] {
+): LegacyOhlcvTuple[] {
   if (plan.multiplier === 1) return bars.slice(-limit);
   if (!bars.length) return [];
 
-  const output: YahooOhlcvBar[] = [];
-  let bucket: YahooOhlcvBar[] = [];
+  const output: LegacyOhlcvTuple[] = [];
+  let bucket: LegacyOhlcvTuple[] = [];
   let bucketId: number | null = null;
 
   const flush = () => {

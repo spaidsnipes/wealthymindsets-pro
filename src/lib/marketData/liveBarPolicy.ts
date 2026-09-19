@@ -1,12 +1,21 @@
-export interface LiveBar {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
+/*
+ * THE LIVE-BAR POLICY NO LONGER DECLARES ITS OWN `LiveBar` (2026-09-18).
+ *
+ * This is the most consequential of the six-field renames, because this module
+ * is ON THE LIVE PATH: `useWebSocket` feeds every tick through
+ * `applyTickToLiveBar` and stores what comes back. The hook had already dropped
+ * its own copy of the shape; this removes the other half, so the producer and
+ * the consumer now name one type instead of two.
+ *
+ * AND IT IS STILL ONLY A RENAME. This module implements a real rule — a late
+ * event does not get to rewrite a bar (`LATE_EVENT_IGNORED`) — which is the
+ * same instinct `truthEpoch` formalises, but it enforces that rule on a shape
+ * that cannot record WHICH epoch it belongs to, WHICH symbol identity it is
+ * for, or WHERE it came from. The policy is right and the type it operates on
+ * cannot carry the policy's own reasoning. That is the M8 adoption half, and it
+ * is not done here.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 export interface LiveBarTick {
   price: number;
   size: number;
@@ -14,8 +23,8 @@ export interface LiveBarTick {
 }
 
 export type LiveBarUpdate =
-  | { status: "ACCEPTED"; bar: LiveBar; lastEventAt: number }
-  | { status: "LATE_EVENT_IGNORED"; bar: LiveBar; lastEventAt: number };
+  | { status: "ACCEPTED"; bar: LegacyOhlcvTuple; lastEventAt: number }
+  | { status: "LATE_EVENT_IGNORED"; bar: LegacyOhlcvTuple; lastEventAt: number };
 
 /**
  * Applies an arrival to the forward-only render bar.
@@ -25,7 +34,7 @@ export type LiveBarUpdate =
  * available, but they may not rewind the user-visible live bar or ticker.
  */
 export function applyTickToLiveBar(
-  current: LiveBar | null,
+  current: LegacyOhlcvTuple | null,
   lastEventAt: number | null,
   tick: LiveBarTick,
   intervalSec: number,

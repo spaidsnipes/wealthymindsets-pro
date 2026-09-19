@@ -1,3 +1,15 @@
+/*
+ * SESSION VP NO LONGER DECLARES ITS OWN `Candle` (2026-09-18).
+ *
+ * Byte-for-byte `LegacyOhlcvTuple`. One production consumer, `WMSessionVP.tsx`.
+ *
+ * Worth one line beyond the rename: a volume profile is an assertion about
+ * WHICH SESSION the volume belongs to, and the shape it is built from carries
+ * no sessionId. The session boundary is inferred from `time` by this module
+ * rather than declared by the data. CanonicalBar has `sessionId` as a real
+ * field for exactly this reason. Still owed.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 /**
  * SESSION VOLUME PROFILE — pure projection logic (WM-VP-P0-01)
  *
@@ -19,14 +31,6 @@ export interface SessionLevel {
   delta: number;
 }
 
-export interface Candle {
-  time:   number;
-  open:   number;
-  high:   number;
-  low:    number;
-  close:  number;
-  volume: number;
-}
 
 export interface TapeTick {
   price: number;
@@ -61,7 +65,7 @@ export const nyParts = (epochSeconds: number): { date: string; minute: number } 
  * empty, so the panel shows an honest "awaiting bars" state rather than
  * silently rendering YESTERDAY's profile mislabeled as today.
  */
-export function selectSessionCandles(candles: Candle[], window: SessionWindow): Candle[] {
+export function selectSessionCandles(candles: LegacyOhlcvTuple[], window: SessionWindow): LegacyOhlcvTuple[] {
   if (!candles.length) return [];
   const annotated = candles
     .filter(c => c.volume > 0 && c.high >= c.low)
@@ -85,7 +89,7 @@ export function selectSessionCandles(candles: Candle[], window: SessionWindow): 
 
 /** Bar-derived volume profile: distribute each candle's volume across the price
  *  bins it spans. Honest — reported OHLCV only, no synthesized bid/ask. */
-export function buildSessionLevels(candles: Candle[]): SessionLevel[] {
+export function buildSessionLevels(candles: LegacyOhlcvTuple[]): SessionLevel[] {
   if (!candles.length) return [];
   const low = Math.min(...candles.map(c => c.low));
   const high = Math.max(...candles.map(c => c.high));

@@ -1,3 +1,4 @@
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -7,7 +8,6 @@ import {
   buildSessionLevels,
   foldTape,
   buildTapeLevels,
-  type Candle,
   type TapeTick,
 } from "./sessionVP";
 
@@ -21,12 +21,12 @@ import {
  */
 
 // A candle at "now" (today, ET) — used where we need the live trading day.
-function candleNow(price: number, vol = 100, dPrice = 1): Candle {
+function candleNow(price: number, vol = 100, dPrice = 1): LegacyOhlcvTuple {
   const t = Math.floor(Date.now() / 1000);
   return { time: t, open: price, high: price + dPrice, low: price - dPrice, close: price, volume: vol };
 }
 // A candle on a fixed PAST weekday, at ~noon ET (RTH minute ~720). 2020-01-15.
-function candlePast(price: number, vol = 100, dPrice = 1): Candle {
+function candlePast(price: number, vol = 100, dPrice = 1): LegacyOhlcvTuple {
   const t = Math.floor(Date.UTC(2020, 0, 15, 17, 0, 0) / 1000); // 12:00 EST → ET minute 720
   return { time: t, open: price, high: price + dPrice, low: price - dPrice, close: price, volume: vol };
 }
@@ -42,7 +42,7 @@ describe("WM-VP-P0-01 · Session VP is a pure projection of chart candles", () =
     expect(lib).not.toMatch(/\/api\/yahoo/);
     expect(lib).not.toMatch(/\bfetch\s*\(/);
     // And it must accept the chart's canonical candles as a prop.
-    expect(vp).toMatch(/candles:\s*Candle\[\]/);
+    expect(vp).toMatch(/candles:\s*LegacyOhlcvTuple\[\]/);
   });
 
   // ── Test 2: Symbol-switch race guard — B never contains A's price bins ──
@@ -117,7 +117,7 @@ describe("WM-VP-P0-01 · Session VP is a pure projection of chart candles", () =
  * mislocates the POC will fail here before shipping.
  */
 describe("buildSessionLevels — runtime histogram invariants (SHIFT-R VP defense)", () => {
-  const c = (price: number, volume = 100, dPrice = 1): Candle => ({
+  const c = (price: number, volume = 100, dPrice = 1): LegacyOhlcvTuple => ({
     time: 0, open: price, high: price + dPrice, low: price - dPrice, close: price, volume,
   });
 
@@ -131,7 +131,7 @@ describe("buildSessionLevels — runtime histogram invariants (SHIFT-R VP defens
   });
 
   it("zero-range input (all candles at one price) → empty output — no divide-by-zero, no fake bins", () => {
-    const flat: Candle = { time: 0, open: 100, high: 100, low: 100, close: 100, volume: 500 };
+    const flat: LegacyOhlcvTuple = { time: 0, open: 100, high: 100, low: 100, close: 100, volume: 500 };
     expect(buildSessionLevels([flat, flat, flat])).toEqual([]);
   });
 
@@ -186,7 +186,7 @@ describe("buildSessionLevels — runtime histogram invariants (SHIFT-R VP defens
 
   it("wide-price candles spread volume across many bins (pipeline is a real projection, not point-collapse)", () => {
     // A candle spanning 90-110 with the full 48-bin range should touch most bins.
-    const wide: Candle = { time: 0, open: 100, high: 110, low: 90, close: 100, volume: 1000 };
+    const wide: LegacyOhlcvTuple = { time: 0, open: 100, high: 110, low: 90, close: 100, volume: 1000 };
     const levels = buildSessionLevels([wide]);
     const populated = levels.filter(l => l.total > 0).length;
     // Every non-zero bin means the projection is real, not a stick.

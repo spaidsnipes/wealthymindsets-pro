@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { aggregateYahooBars, resolveYahooTimeframe, type YahooOhlcvBar } from "./yahooTimeframes";
+import { aggregateYahooBars, resolveYahooTimeframe } from "./yahooTimeframes";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-const bar = (time: number, open: number, high: number, low: number, close: number, volume: number): YahooOhlcvBar =>
+const bar = (time: number, open: number, high: number, low: number, close: number, volume: number): LegacyOhlcvTuple =>
   ({ time, open, high, low, close, volume });
 
 describe("Yahoo timeframe truth", () => {

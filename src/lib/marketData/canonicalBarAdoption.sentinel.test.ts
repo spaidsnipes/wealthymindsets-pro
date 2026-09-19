@@ -1,20 +1,20 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is TEN as of the
+ * The count below started at twenty-two on 2026-09-18 and is SEVEN as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO TEN IS NOT TWELVE MIGRATIONS. It is eleven renames-or-deletes
- * plus one measurement correction, and ZERO INGRESSES MIGRATED. The array's
- * docblock separates the kinds line by line so nobody reads this header as
- * twelve ingresses routed through the artery. None were. Not one.
+ * TWENTY-TWO TO SEVEN IS NOT FIFTEEN MIGRATIONS. It is fourteen renames-or-
+ * deletes plus one measurement correction, and ZERO INGRESSES MIGRATED. The
+ * array's docblock separates the kinds line by line so nobody reads this header
+ * as fifteen ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not ten competing ideas of what a bar is.
- * SIX OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * The remaining shapes are not seven competing ideas of what a bar is.
+ * THREE OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
  * low, close, volume`, every one of them `number` — which is also, exactly,
  * `LegacyOhlcvTuple` in the artery. A ninth, `DeckMarketChart::Candle`,
  * differs only by `volume?`. The sprawl is one anonymous six-field tuple
@@ -22,8 +22,8 @@
  * it already exists with a docblock saying so.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming six
- * declarations to one name removes six duplicate DECISIONS and delivers
+ * it is important not to let the ease flatter the result: renaming three
+ * declarations to one name removes three duplicate DECISIONS and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
  * truthEpoch on the live path — is untouched by every rename and stays owed.
@@ -340,18 +340,52 @@ const THE_ARTERY: readonly string[] = [
  * rename does not close that; it just stops the module from voting on what a
  * bar is. The gap is written into the source at the declaration site so the
  * next reader finds it there rather than here.
+ *
+ * ── TEN TO SEVEN: THE LIVE PATH, THE SESSION, AND THE LAST FALSE PROVENANCE ─
+ *
+ * RETIRED: `lib/marketData/liveBarPolicy.ts::LiveBar`, `lib/sessionVP.ts::
+ * Candle`, `lib/yahooTimeframes.ts::YahooOhlcvBar`. All three byte-for-byte.
+ *
+ * THIS ATOM PROVED THE NO-ALIAS RULE WAS DOING REAL WORK. Because each module
+ * stopped EXPORTING a bar type rather than re-exporting one under a new name,
+ * `tsc` immediately failed five importers with TS2459 "declares it locally but
+ * it is not exported". Every one of them now imports `LegacyOhlcvTuple` from
+ * the artery directly. Had an alias been left behind, all five would still be
+ * routing their idea of a bar through a module that has no business owning one,
+ * and the census would have read lower for it.
+ *
+ * `liveBarPolicy::LiveBar` IS THE ONE THAT MATTERS. That module is on the live
+ * path — every websocket tick goes through `applyTickToLiveBar` — and it
+ * already implements the right instinct: a late event does not get to rewrite a
+ * bar. But it enforces that on a shape with no `truthEpoch` to enforce it
+ * against. The policy is correct and the type cannot carry the policy's own
+ * reasoning. Renaming the type does not change that by one field.
+ *
+ * `yahooTimeframes::YahooOhlcvBar` WAS THE THIRD AND LAST PROVENANCE-IN-THE-
+ * NAME CASE, and the sharpest, because that module is where bars are
+ * RECONSTRUCTED: several plans are `sourceMode: "reconstructed"`, so bars the
+ * caller receives were folded from a finer interval and never traded at the
+ * requested timeframe anywhere. The old name said "Yahoo" about both the native
+ * and the reconstructed kind. `sourceMode` is known right there at the planner
+ * and there is nowhere on the bar to put it.
+ *
+ * TWO LEGACY TESTS WERE REMODELLED IN THE SAME CHANGE, per M4. First, the
+ * FALSE_RIPENESS floor below asserted the raw scan found MORE THAN TEN
+ * declarations — a number calibrated to a bigger census, which would have
+ * failed the moment the migration succeeded. It is a matcher-liveness check,
+ * not a size assertion, and is now floored at three. Second,
+ * `screenReach.enforcement.test.ts` uses an import statement as a parser
+ * fixture and that string named `LiveBar`; it does not resolve types, so it
+ * would have stayed green while teaching the retired noun.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/chart/indicators.ts::Bar",
   "components/experience/DeckMarketChart.tsx::Candle",
-  "lib/marketData/liveBarPolicy.ts::LiveBar",
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
   "lib/pine/types.ts::OHLCVBar",
-  "lib/sessionVP.ts::Candle",
   "lib/vpEngine.ts::ProfileBar",
-  "lib/yahooTimeframes.ts::YahooOhlcvBar",
 ];
 
 describe("M8 · the private-bar census is a ratchet", () => {
@@ -370,7 +404,13 @@ describe("M8 · the private-bar census is a ratchet", () => {
       "the artery itself is inside the scanned tree",
     ).toBe(true);
     // And the matcher genuinely matches — not just that files were read.
-    expect(census().length, "OHLC declarations found").toBeGreaterThan(10);
+    // FLOOR LOWERED WITH THE CENSUS, 2026-09-18. This number exists to prove
+    // the matcher still MATCHES, not to assert a census size — the frozen
+    // array above is what asserts the size. Left at 10 it would have failed
+    // the moment the migration succeeded, which is the exact shape of a
+    // legacy test protecting a legacy architecture. It must stay BELOW the
+    // frozen count and ABOVE zero.
+    expect(census().length, "OHLC declarations found").toBeGreaterThan(3);
   });
 
   /**
@@ -414,7 +454,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at ten private pasts and may only SHRINK", () => {
+  it("holds at seven private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

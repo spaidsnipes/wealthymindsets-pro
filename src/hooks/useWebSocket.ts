@@ -23,7 +23,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
-import { applyTickToLiveBar, type LiveBar } from "@/lib/marketData/liveBarPolicy";
+import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
@@ -76,11 +76,12 @@ export interface Tick {
  * disagreement waiting to happen: it was a verbatim copy of a shape this file
  * already imported the producer of.
  *
- * So the hot-path aggregate is typed as what it is (`LiveBar`, from the policy
- * that builds it) and the PUBLISHED bar is typed as the canon's one sanctioned
- * legacy name (`LegacyOhlcvTuple`), which exists precisely so the files that
- * still speak six bare numbers have somewhere to be adapted FROM instead of a
- * reason to redeclare.
+ * UPDATED LATER THE SAME DAY: `liveBarPolicy::LiveBar` is gone too, so the
+ * distinction this note used to draw — hot-path aggregate typed as `LiveBar`,
+ * published bar typed as `LegacyOhlcvTuple` — has collapsed into one type,
+ * which is the honest end state because they were always the same six numbers.
+ * The policy module no longer declares a bar shape at all; it imports the one
+ * legacy name from the artery, as this file does.
  *
  * SAID PLAINLY, BECAUSE THE SMALLER CLAIM IS THE TRUE ONE: this does not give
  * the live path canonical IDENTITY. The published bar still carries no
@@ -1069,9 +1070,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // this, change was computed against the hardcoded seed (e.g. TSLA 405 = a close
   // from days ago) and showed a bogus −7% on a flat day. 0 until first quote.
   const prevCloseRef = useRef(0);
-  // The hot-path aggregate, typed as what `applyTickToLiveBar` actually returns
+  // The hot-path aggregate and the published bar are now the SAME type,
+  // because they always were the same six numbers. See the M8 note above.
   // rather than as a local copy of that shape under a second name.
-  const barRef     = useRef<LiveBar | null>(null);
+  const barRef     = useRef<LegacyOhlcvTuple | null>(null);
   const lastBarEventAtRef = useRef<number | null>(null);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer
   const bookRef    = useRef(buildBook());
