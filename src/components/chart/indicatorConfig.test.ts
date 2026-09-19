@@ -4,7 +4,10 @@
  * used by both MainChart rendering and IndicatorSettingsModal.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
+import { movingAverageInk } from "@/lib/chart/marketFieldMaterial";
 import {
   tfGroupOf,
   resolveParams,
@@ -72,7 +75,9 @@ describe("TF_GROUPS constant", () => {
 
 describe("resolveParams — defaults × overrides", () => {
   it("returns defaults when no overrides supplied", () => {
-    expect(resolveParams("EMA 8")).toEqual({ length: 8, color: "#C084FC" });
+    // Derived, not transcribed: this assertion used to hardcode `#C084FC`,
+    // which is precisely the literal that kept the rainbow alive.
+    expect(resolveParams("EMA 8")).toEqual({ length: 8, color: movingAverageInk(8) });
   });
 
   it("returns empty object for unknown indicator", () => {
@@ -138,5 +143,69 @@ describe("INDICATOR_CONFIG — shape guarantees", () => {
       expect(cfg?.defaults.length).toBeGreaterThan(0);
       expect(cfg?.defaults.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
+  });
+});
+
+/**
+ * THE SIXTH COPY OF THE RAINBOW.
+ *
+ * `MA_CFG` in MainChart was cleaned first, and the chart still painted the old
+ * blue/violet/orange live. The reason is this file: `resolveParams` spreads
+ * `INDICATOR_CONFIG[name].defaults` over the stored overrides, so `cp.color` is
+ * already a concrete string by the time MainChart evaluates
+ * `cp.color ?? movingAverageInk(len)`. The fallback could never fire. A hue
+ * literal here outranks the product default permanently and invisibly.
+ *
+ * These guards fail if anyone re-mints one.
+ */
+describe("THE MOVING AVERAGES: the config table mints no hue of its own", () => {
+  /** Every name whose config is the shared `ma()` shape. */
+  const MA_NAMES = [
+    "EMA 8", "EMA 9", "EMA 13", "EMA 21", "EMA 34",
+    "EMA 50", "EMA 89", "EMA 144", "EMA 200",
+    "SMA 9", "SMA 20", "SMA 50", "SMA 100", "SMA 200",
+    "WMA", "HMA", "DEMA", "TEMA", "ZLEMA",
+  ];
+
+  it("derives every MA default colour from its own period", () => {
+    for (const name of MA_NAMES) {
+      const cfg = INDICATOR_CONFIG[name];
+      expect(cfg, `${name} missing from INDICATOR_CONFIG`).toBeDefined();
+      const len = cfg!.defaults.length!;
+      expect(cfg!.defaults.color, `${name} (period ${len}) is not its ramp ink`)
+        .toBe(movingAverageInk(len));
+    }
+  });
+
+  it("never lets an MA default carry a hue", () => {
+    // The ramp runs PEARL → recessed brass, so red > green > blue always.
+    for (const name of MA_NAMES) {
+      const c = INDICATOR_CONFIG[name]!.defaults.color!;
+      const r = parseInt(c.slice(1, 3), 16);
+      const g = parseInt(c.slice(3, 5), 16);
+      const b = parseInt(c.slice(5, 7), 16);
+      expect(r > g && g > b, `${name} -> ${c} is a hue, not brass`).toBe(true);
+    }
+  });
+
+  it("resolveParams still lets a trader override the ink", () => {
+    // Deriving the default must not take the colour picker away.
+    const p = resolveParams("EMA 21", { "EMA 21": { color: "#123456" } });
+    expect(p.color).toBe("#123456");
+    expect(p.length).toBe(21);
+  });
+
+  it("no ma() entry in the source carries a colour literal any more", () => {
+    // Revive-attempt this catches: someone re-adds `ma(21, "#4FA3E0")`.
+    const src = readFileSync(
+      resolve(__dirname, "indicatorConfig.ts"), "utf8",
+    );
+    const start = src.indexOf("export const INDICATOR_CONFIG");
+    const end = src.indexOf("// ── Bands / Channels ──");
+    expect(start, "INDICATOR_CONFIG anchor moved").toBeGreaterThan(-1);
+    expect(end, "Bands anchor moved").toBeGreaterThan(start);
+    const block = src.slice(start, end);
+    expect(block.length, "MA block suspiciously small").toBeGreaterThan(300);
+    expect(block.match(/#[0-9a-fA-F]{6}/g) ?? [], "MA block regained hue literals").toEqual([]);
   });
 });

@@ -4,6 +4,8 @@
  * editable fields (length / multiplier / colors) and default values.
  */
 
+import { movingAverageInk } from "@/lib/chart/marketFieldMaterial";
+
 /** Timeframe groups for per-resolution visibility (TradingView-style). */
 export const TF_GROUPS = ["Seconds", "Minutes", "Hours", "Days", "Weeks", "Months"] as const;
 export type TfGroup = (typeof TF_GROUPS)[number];
@@ -45,34 +47,50 @@ type IndConfig = { fields: IndField[]; defaults: IndicatorParams };
 const numLen = (label = "Length"): IndField => ({ key: "length", label, type: "number", min: 1, max: 400, step: 1 });
 const colorF = (label = "Color"): IndField => ({ key: "color", label, type: "color" });
 
-// Moving-average family: length + single color
-function ma(length: number, color: string): IndConfig {
-  return { fields: [numLen(), colorF()], defaults: { length, color } };
+/**
+ * Moving-average family: length + single colour.
+ *
+ * The colour is DERIVED from the length, never hand-picked. This is the same
+ * law `MA_CFG` in MainChart obeys — hue encodes KIND, and every moving average
+ * is the same kind (price remembered at a different depth), so depth is carried
+ * by luminance instead. The legend already carries the name.
+ *
+ * It matters that the derivation lives HERE and not only at the render site.
+ * `resolveParams` merges these defaults over stored overrides, so a concrete
+ * `color` written here is always defined by the time MainChart evaluates
+ * `cp.color ?? movingAverageInk(len)` — the fallback can never fire. A
+ * hand-picked default in this table therefore silently outranks the product
+ * default forever, which is exactly how the rainbow survived its own removal
+ * from `MA_CFG`. Deriving here closes that door: there is no literal left to
+ * outrank anything.
+ */
+function ma(length: number): IndConfig {
+  return { fields: [numLen(), colorF()], defaults: { length, color: movingAverageInk(length) } };
 }
 
 export const INDICATOR_CONFIG: Record<string, IndConfig> = {
   // ── EMAs ──
-  "EMA 8":   ma(8,   "#C084FC"),
-  "EMA 9":   ma(9,   "#B070EC"),
-  "EMA 13":  ma(13,  "#8B5CF6"),
-  "EMA 21":  ma(21,  "#4FA3E0"),
-  "EMA 34":  ma(34,  "#60BFFF"),
-  "EMA 50":  ma(50,  "#F0B429"),
-  "EMA 89":  ma(89,  "#FFA500"),
-  "EMA 144": ma(144, "#FF8C00"),
-  "EMA 200": ma(200, "#FF4D6A"),
+  "EMA 8":   ma(8),
+  "EMA 9":   ma(9),
+  "EMA 13":  ma(13),
+  "EMA 21":  ma(21),
+  "EMA 34":  ma(34),
+  "EMA 50":  ma(50),
+  "EMA 89":  ma(89),
+  "EMA 144": ma(144),
+  "EMA 200": ma(200),
   // ── SMAs ──
-  "SMA 9":   ma(9,   "#70EEC0"),
-  "SMA 20":  ma(20,  "#00D4AA"),
-  "SMA 50":  ma(50,  "#30B0A0"),
-  "SMA 100": ma(100, "#20A090"),
-  "SMA 200": ma(200, "#00C0D4"),
+  "SMA 9":   ma(9),
+  "SMA 20":  ma(20),
+  "SMA 50":  ma(50),
+  "SMA 100": ma(100),
+  "SMA 200": ma(200),
   // ── Other MAs ──
-  "WMA":  ma(20, "#A78BFA"),
-  "HMA":  ma(20, "#34D399"),
-  "DEMA": ma(20, "#F472B6"),
-  "TEMA": ma(20, "#FB7185"),
-  "ZLEMA":ma(20, "#A3E635"),
+  "WMA":  ma(20),
+  "HMA":  ma(20),
+  "DEMA": ma(20),
+  "TEMA": ma(20),
+  "ZLEMA":ma(20),
   // ── Bands / Channels ──
   "Bollinger Bands": {
     fields: [numLen(), { key: "mult", label: "StdDev", type: "number", min: 0.5, max: 5, step: 0.1 }, colorF("Band Color")],
