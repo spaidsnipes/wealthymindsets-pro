@@ -3280,6 +3280,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           holding: `chartMarketCanvas` is the exact object the wordmark pill a
           few pixels above renders, so pressing the equipment cannot show a
           verdict the pill disagrees with. */}
+      {/* NO `onEnter` BELOW, DELIBERATELY — see the prop's note in
+          RoomEquipmentLayer. FULL is `position: fixed; inset: 0` over the
+          field, so entering it takes the chart away, and this room IS the
+          chart. The Last Mile canon (2026-09-18) lists `stage=full` under
+          AUTOMATIC REJECT CHROME for the default route, and its component law
+          for Workspace and Tools is "overlay equipment wall, D≈0, chart stays".
+
+          The journey still HAS a full stage and `onChartEquipmentEnter` still
+          exists — the reducer is shared, and /command-deck uses that depth
+          legitimately because a document loses nothing by filling the screen.
+          What changed is that the market canvas no longer offers the door. */}
       <RoomEquipmentLayer
         journey={chartEquipment}
         content={chartEquipmentContent}
@@ -3289,7 +3300,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         // away, so nothing would contradict it.
         subject={{ symbol, timeframe }}
         onExpand={onChartEquipmentExpand}
-        onEnter={onChartEquipmentEnter}
         onReturn={onChartEquipmentReturn}
         onClose={onChartEquipmentClose}
       />

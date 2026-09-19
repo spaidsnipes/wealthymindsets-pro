@@ -105,7 +105,31 @@ export interface RoomEquipmentLayerProps {
   readonly content: EquipmentContent;
   readonly subject: EquipmentSubject;
   readonly onExpand: () => void;
-  readonly onEnter: () => void;
+  /**
+   * OPTIONAL, AND THAT IS THE WHOLE RULE.
+   *
+   * FULL is `position: fixed; inset: 0` over the field — it takes the screen,
+   * which means it takes the chart. This file says so eleven lines above, in a
+   * note written after measuring it live: at FULL the trader "left the subject
+   * behind at exactly the depth where they can no longer see it for themselves."
+   *
+   * On the market canvas that is not a depth, it is an exit. The Last Mile
+   * canon (2026-09-18 §2) lists `stage=full` in AUTOMATIC REJECT CHROME for the
+   * default route, and §3's component law for these two buttons is "overlay
+   * equipment wall, D≈0, CHART STAYS". A room whose whole job is to be a live
+   * camera on a market cannot offer a door that closes the camera.
+   *
+   * So the capability is expressed by whether the ROOM hands it down, not by a
+   * boolean the layer interprets. A `mayEnterFull={false}` flag would have put
+   * the decision here, in the generic chrome, where the next room to be added
+   * inherits whatever default we happened to pick. Absence has no default: a
+   * room that cannot give up its market passes nothing, and the control it
+   * cannot honour does not render.
+   *
+   * /command-deck still passes it. The deck is a document, not a camera —
+   * nothing is lost by filling the screen with it.
+   */
+  readonly onEnter?: () => void;
   readonly onReturn: () => void;
   readonly onClose: () => void;
 }
@@ -286,7 +310,12 @@ export function RoomEquipmentLayer({
               {stage === "preview" && (
                 <Control label="Open drawer" onClick={onExpand} testId="equipment-expand" />
               )}
-              <Control label="Enter" onClick={onEnter} emphasis testId="equipment-enter" />
+              {/* No handler, no door. Not disabled — a disabled ENTER still
+                  advertises a depth this room does not have, and the trader
+                  spends a click finding that out. */}
+              {onEnter && (
+                <Control label="Enter" onClick={onEnter} emphasis testId="equipment-enter" />
+              )}
               <Control label="Close" onClick={onClose} testId="equipment-close" />
             </>
           )}

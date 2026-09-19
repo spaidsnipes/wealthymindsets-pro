@@ -1474,3 +1474,68 @@ describe("SENTINEL — Shot 1: equipment mode renders no destinations at all", (
     ]);
   });
 });
+
+describe("SENTINEL — the market canvas may not offer a door that closes the camera", () => {
+  const layer = read(LAYER);
+  const chart = read("src/components/chart/ChartsDashboard.tsx");
+
+  /**
+   * FULL is `position: fixed; inset: 0` over the field. On a room whose whole
+   * purpose is to be a live camera on a market, that is not a deeper stage —
+   * it is an exit, and the trader lands on a screen with no chart on it.
+   *
+   * The Last Mile canon (2026-09-18) §2 lists `stage=full` under AUTOMATIC
+   * REJECT CHROME for the default authenticated route, and §3's component law
+   * for Workspace and Tools reads "overlay equipment wall, D≈0, chart stays".
+   * /charts IS the default authenticated route (see founderLanding.ts).
+   *
+   * WHY THE RULE IS ABOUT A MISSING PROP AND NOT A HIDDEN BUTTON. A
+   * `mayEnterFull={false}` flag would move the decision into the generic
+   * chrome, where every room added later inherits whichever default we picked
+   * that day. Absence has no default.
+   */
+  it("ChartsDashboard hands the equipment layer no onEnter at all", () => {
+    const at = chart.indexOf("<RoomEquipmentLayer");
+    expect(at, "ChartsDashboard no longer mounts RoomEquipmentLayer; re-pin this").toBeGreaterThan(
+      -1,
+    );
+    const el = chart.slice(at, chart.indexOf("/>", at));
+    expect(
+      el,
+      "ChartsDashboard.tsx → the market canvas offers ENTER again. stage=full is fixed/inset-0, so the chart the trader is standing in disappears — automatic-reject chrome on the default route",
+    ).not.toMatch(/onEnter/);
+    // The sibling props must still be there, or the assertion above is passing
+    // because the element was renamed out from under it.
+    expect(el).toMatch(/onExpand=/);
+    expect(el).toMatch(/onReturn=/);
+    expect(el).toMatch(/onClose=/);
+  });
+
+  it("the layer treats onEnter as optional, so a room can decline it", () => {
+    expect(
+      layer,
+      `${LAYER} → onEnter is required again; a room with no full stage would be forced to invent one`,
+    ).toMatch(/readonly onEnter\?: \(\) => void;/);
+  });
+
+  it("the layer renders no ENTER control when no handler was handed down", () => {
+    const at = layer.indexOf('testId="equipment-enter"');
+    expect(at, `${LAYER} → the ENTER control is gone entirely; re-pin this`).toBeGreaterThan(-1);
+    const around = layer.slice(Math.max(0, at - 220), at);
+    expect(
+      around,
+      `${LAYER} → ENTER renders unconditionally, so declining the prop would crash on click instead of hiding the door`,
+    ).toMatch(/onEnter &&/);
+    // Not `disabled`: a dead control still advertises a depth this room does
+    // not have, and the trader spends a click finding that out.
+    expect(around).not.toMatch(/disabled/);
+  });
+
+  it("the deck still keeps its full stage — this is a room rule, not a retreat", () => {
+    const deck = read(DECK);
+    expect(
+      deck,
+      `${DECK} → the deck stopped passing onEnter too. A document loses nothing by filling the screen; removing it there is not what the canon asked for`,
+    ).toMatch(/onEnter=/);
+  });
+});
