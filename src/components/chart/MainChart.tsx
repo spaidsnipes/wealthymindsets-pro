@@ -169,14 +169,42 @@ import { showAlertToast } from "./AlertsPanel";
 import { NectarVaultChip } from "./NectarVaultChip";
 
 /* ── Types ─────────────────────────────────────────────── */
-interface Bar {
-  time:   number;
-  open:   number;
-  high:   number;
-  low:    number;
-  close:  number;
-  volume: number;
-}
+/*
+ * THE CHART NO LONGER DECLARES ITS OWN `Bar` (2026-09-18).
+ *
+ * It used to own `interface Bar { time, open, high, low, close, volume }` — six
+ * numbers, byte-for-byte `LegacyOhlcvTuple`, with roughly seventy references
+ * through the live-chart hot path. It was held back from the earlier group
+ * rename for a stated reason: `LegacyOhlcvTuple` declares all six fields
+ * `readonly`, and this file de-spikes bar wicks by ASSIGNING to `.high` and
+ * `.low`, so the rename was a live question about whether the chart writes into
+ * bars it shares with anything else.
+ *
+ * THE ANSWER, MEASURED RATHER THAN ASSUMED — and the first draft of this note
+ * got it wrong, so the record is kept honest here. `tsc` DID reject the rename,
+ * at four lines across two de-spike passes: the historical clamp writing
+ * `b.high` / `b.low` inside `out`, and the live-tick clamp writing `bar.high` /
+ * `bar.low`. Reading before compiling would have said "these are locally-owned
+ * objects, so nothing is at risk", which is true about OWNERSHIP and says
+ * nothing about whether the code compiles. The compiler named the lines.
+ *
+ * WHAT THE OWNERSHIP READING GOT RIGHT is that no write reaches back into
+ * `barsRef.current`. The historical clamp edits objects built one loop earlier
+ * by `out.push({ ...b, … })`; the live clamp edits a `bar` freshly built by
+ * both branches of the fold; the range-bar aggregator edits `cur`, an anonymous
+ * literal that is not this type at all. No STORED bar is edited after
+ * publication. So the repair was not a retreat — both clamps now REPLACE rather
+ * than mutate, which is the shape they should have had anyway.
+ *
+ * THAT IS THE VALUABLE PART, not the count. A chart that edits its stored
+ * history in place cannot have a truthEpoch, because a corrected bar would
+ * silently overwrite the bar the trader already acted on. This file does not do
+ * that, and now the type system enforces it rather than a convention. It is one
+ * real precondition for CanonicalBar adoption on the live path — and it is only
+ * a precondition. The bars drawn here still carry no symbolId, no sessionId, no
+ * fidelity and no provenance.
+ */
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -341,7 +369,7 @@ function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
   return map[tf] ?? null;
 }
 
-async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
+async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
   // WM-SEC-P0-05 (2026-08-08): client-side Polygon disabled — see
   // TickerTape.tsx for the full rationale. This function short-circuits
   // so callers naturally fall through to Yahoo/Alpaca. Restore behind a
@@ -386,7 +414,7 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?
  * disagreed with) the server's FH_RES on `2m` is deleted; the server is
  * the single source of truth for interval mapping — see WM-CHART-P0-03
  * for the still-open fail-closed correctness work on the server map. */
-async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
+async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
   const upper = sym.toUpperCase();
   if (isUnsupportedByEquityVendors(upper)) return null; // futures/forex unsupported by the proxy
   try {
@@ -394,7 +422,7 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number, signa
     const res = await fetch(url, { cache: "no-store", signal });
     if (!res.ok) return null;
     const json = await res.json() as { candles?: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> };
-    const bars = (json.candles ?? []).filter(b => b.open > 0 && b.high > 0) as Bar[];
+    const bars = (json.candles ?? []).filter(b => b.open > 0 && b.high > 0) as LegacyOhlcvTuple[];
     return bars.length ? bars.slice(-count) : null;
   } catch {
     return null;
@@ -451,7 +479,7 @@ function isRegularSession(tsSec: number, intervalSec: number): boolean {
 }
 
 // Filter a bar set down to regular session for intraday equity timeframes.
-function filterSession(bars: Bar[], sym: string, intervalSec: number, extendedHours: boolean): Bar[] {
+function filterSession(bars: LegacyOhlcvTuple[], sym: string, intervalSec: number, extendedHours: boolean): LegacyOhlcvTuple[] {
   if (extendedHours) return bars;
   // Multi-hour bars (4h+) open on a fixed grid (…08:00,12:00,16:00,20:00) and
   // most opens fall OUTSIDE 9:30–16:00, so RTH filtering nukes ~90% of them and
@@ -467,7 +495,7 @@ function filterSession(bars: Bar[], sym: string, intervalSec: number, extendedHo
 
 /* ── Yahoo Finance OHLCV — covers futures + crypto + stocks ── */
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
-async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
+async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
   const up = sym.toUpperCase();
   if (classifySymbol(up) === "FUTURES") return null; // Alpaca doesn't support futures
   try {
@@ -476,13 +504,13 @@ async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal
     if (res.status === 503 || res.status === 404) return null; // key not set or not supported
     const json = await res.json();
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
-    return json.candles as Bar[];
+    return json.candles as LegacyOhlcvTuple[];
   } catch {
     return null;
   }
 }
 
-async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
+async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
   // Only for stocks/ETFs — futures/crypto fall back to Yahoo
   // The crypto list here named eleven coins and none of the `-USD` forms the
   // app's own pickers emit, so BTC-USD was being asked of an equity vendor.
@@ -492,18 +520,18 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number,
     const url = `/api/finnhub?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
     const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
-    return json.candles as Bar[];
+    return json.candles as LegacyOhlcvTuple[];
   } catch {
     return null;
   }
 }
 
-async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal): Promise<Bar[] | null> {
+async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
   try {
     const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}${ext ? "&ext=1" : ""}`;
     const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
-    return json.candles as Bar[];
+    return json.candles as LegacyOhlcvTuple[];
   } catch {
     return null;
   }
@@ -532,7 +560,7 @@ interface Props {
   candleType?:     CandleType;
   pineOutput?:     PineOutput | null;
   pineCode?:       string;
-  onBarsReady?:    (bars: Bar[]) => void;
+  onBarsReady?:    (bars: LegacyOhlcvTuple[]) => void;
   // Drawing tools
   drawingTool?:    string;
   drawingStyle?:   DrawingStyle;
@@ -564,7 +592,7 @@ interface Props {
     clock24h?: boolean;
   };
   replayActive?:   boolean;
-  replayBars?:     Bar[];
+  replayBars?:     LegacyOhlcvTuple[];
   compareSymbol?:  string;
   onPriceAtCursor?: (price: number) => void;
   onOHLCAtCursor?:  (ohlc: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => void;
@@ -645,8 +673,8 @@ interface Props {
 }
 
 /* ── Heikin Ashi transform ───────────────────────────────── */
-function toHeikinAshi(bars: Bar[]): Bar[] {
-  const ha: Bar[] = [];
+function toHeikinAshi(bars: LegacyOhlcvTuple[]): LegacyOhlcvTuple[] {
+  const ha: LegacyOhlcvTuple[] = [];
   for (let i = 0; i < bars.length; i++) {
     const b = bars[i];
     const haClose = (b.open + b.high + b.low + b.close) / 4;
@@ -685,7 +713,7 @@ function computeEMA(closes: number[], period: number): number[] {
   return out;
 }
 
-function computeVWAP(bars: Bar[]): number[] {
+function computeVWAP(bars: LegacyOhlcvTuple[]): number[] {
   let cumPV = 0, cumV = 0;
   return bars.map(b => {
     const tp = (b.high + b.low + b.close) / 3;
@@ -695,7 +723,7 @@ function computeVWAP(bars: Bar[]): number[] {
   });
 }
 
-function computeBB(bars: Bar[], period = 20, mult = 2): { time: number; upper: number; middle: number; lower: number }[] {
+function computeBB(bars: LegacyOhlcvTuple[], period = 20, mult = 2): { time: number; upper: number; middle: number; lower: number }[] {
   const closes = bars.map(b => b.close);
   const dp = closes[0] > 100 ? 2 : 5;
   return bars.map((b, i) => {
@@ -720,14 +748,14 @@ function computeHMA(closes: number[], period: number): number[] {
   const half = Math.round(period / 2), sqrt = Math.round(Math.sqrt(period));
   return computeWMA(closes.map((_, i) => 2 * computeWMA(closes, half)[i] - computeWMA(closes, period)[i]), sqrt);
 }
-function computeATR(bars: Bar[], period = 14): number[] {
+function computeATR(bars: LegacyOhlcvTuple[], period = 14): number[] {
   const tr = bars.map((b, i) => i === 0 ? b.high - b.low : Math.max(b.high - b.low, Math.abs(b.high - bars[i-1].close), Math.abs(b.low - bars[i-1].close)));
   const out: number[] = [];
   let atr = tr.slice(0, period).reduce((s,v) => s+v, 0) / period;
   bars.forEach((_, i) => { if (i >= period) atr = (atr*(period-1)+tr[i])/period; out.push(+atr.toFixed(2)); });
   return out;
 }
-function computeStoch(bars: Bar[], kP = 14, dP = 3): { k: number[]; d: number[] } {
+function computeStoch(bars: LegacyOhlcvTuple[], kP = 14, dP = 3): { k: number[]; d: number[] } {
   const k = bars.map((_, i) => {
     const sl = bars.slice(Math.max(0,i-kP+1), i+1);
     const hi = Math.max(...sl.map(b=>b.high)), lo = Math.min(...sl.map(b=>b.low));
@@ -735,7 +763,7 @@ function computeStoch(bars: Bar[], kP = 14, dP = 3): { k: number[]; d: number[] 
   });
   return { k, d: computeSMA(k, dP) };
 }
-function computeCCI(bars: Bar[], period = 20): number[] {
+function computeCCI(bars: LegacyOhlcvTuple[], period = 20): number[] {
   return bars.map((_, i) => {
     const sl = bars.slice(Math.max(0,i-period+1), i+1);
     const tps = sl.map(b=>(b.high+b.low+b.close)/3);
@@ -744,21 +772,21 @@ function computeCCI(bars: Bar[], period = 20): number[] {
     return mad===0 ? 0 : +((tps[tps.length-1]-mean)/(0.015*mad)).toFixed(2);
   });
 }
-function computeWilliamsR(bars: Bar[], period = 14): number[] {
+function computeWilliamsR(bars: LegacyOhlcvTuple[], period = 14): number[] {
   return bars.map((_, i) => {
     const sl = bars.slice(Math.max(0,i-period+1), i+1);
     const hi = Math.max(...sl.map(b=>b.high)), lo = Math.min(...sl.map(b=>b.low));
     return hi===lo ? -50 : +(((hi-bars[i].close)/(hi-lo))*-100).toFixed(2);
   });
 }
-function computeOBV(bars: Bar[]): number[] {
+function computeOBV(bars: LegacyOhlcvTuple[]): number[] {
   const out = [0];
   for (let i=1;i<bars.length;i++) {
     out.push(bars[i].close > bars[i-1].close ? out[i-1]+bars[i].volume : bars[i].close < bars[i-1].close ? out[i-1]-bars[i].volume : out[i-1]);
   }
   return out;
 }
-function computeMFI(bars: Bar[], period = 14): number[] {
+function computeMFI(bars: LegacyOhlcvTuple[], period = 14): number[] {
   const tp = bars.map(b=>(b.high+b.low+b.close)/3);
   return bars.map((_,i) => {
     if (i<period) return 50;
@@ -767,16 +795,16 @@ function computeMFI(bars: Bar[], period = 14): number[] {
     return neg===0 ? 100 : +(100-100/(1+pos/neg)).toFixed(2);
   });
 }
-function computeKeltner(bars: Bar[], period=20, mult=2): {upper:number[];mid:number[];lower:number[]} {
+function computeKeltner(bars: LegacyOhlcvTuple[], period=20, mult=2): {upper:number[];mid:number[];lower:number[]} {
   const ema=computeEMA(bars.map(b=>b.close), period), atr=computeATR(bars, period);
   return { upper:ema.map((e,i)=>+(e+mult*atr[i]).toFixed(2)), mid:ema, lower:ema.map((e,i)=>+(e-mult*atr[i]).toFixed(2)) };
 }
-function computeDonchian(bars: Bar[], period=20): {upper:number[];mid:number[];lower:number[]} {
+function computeDonchian(bars: LegacyOhlcvTuple[], period=20): {upper:number[];mid:number[];lower:number[]} {
   const u=bars.map((_,i)=>Math.max(...bars.slice(Math.max(0,i-period+1),i+1).map(b=>b.high)));
   const l=bars.map((_,i)=>Math.min(...bars.slice(Math.max(0,i-period+1),i+1).map(b=>b.low)));
   return { upper:u, mid:u.map((hi,i)=>+((hi+l[i])/2).toFixed(2)), lower:l };
 }
-function computeSupertrend(bars: Bar[], period=10, mult=3): {line:number[];dir:number[]} {
+function computeSupertrend(bars: LegacyOhlcvTuple[], period=10, mult=3): {line:number[];dir:number[]} {
   const atr=computeATR(bars,period);
   const hl2=bars.map(b=>(b.high+b.low)/2);
   const ub=hl2.map((v,i)=>v+mult*atr[i]), lb=hl2.map((v,i)=>v-mult*atr[i]);
@@ -929,8 +957,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // CURRENT bars (barsRef) and pushes only the last point on every live tick, so
   // Tape Speed / Exhaustion / flow histograms visibly move with real-time data
   // without tearing down & rebuilding the whole pane on each tick.
-  const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: Bar[]) => { value: number; color?: string } | null }>>([]);
-  const barsRef       = useRef<Bar[]>([]);
+  const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null }>>([]);
+  const barsRef       = useRef<LegacyOhlcvTuple[]>([]);
   /*
     THE STACK READING LIVES IN A REF, NOT IN THE OVERLAY'S DEPENDENCY ARRAY.
 
@@ -1279,7 +1307,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const iv = barInterval();
     const candidates: number[] = [+(Math.round(price / minTick) * minTick).toFixed(dp)];
 
-    let bar: Bar | undefined;
+    let bar: LegacyOhlcvTuple | undefined;
     for (const b of bars) {
       if (Math.abs((b.time as number) - time) <= iv * 0.55) { bar = b; break; }
     }
@@ -1435,7 +1463,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
   const base = getBase(symbol);
 
-  const [candles,   setCandles]   = useState<Bar[]>([]);
+  const [candles,   setCandles]   = useState<LegacyOhlcvTuple[]>([]);
   const [lastPrice, setLastPrice] = useState(base);
   const [openPrice, setOpenPrice] = useState(base);
   const [ready,     setReady]     = useState(false);
@@ -1637,7 +1665,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const tapeSourceRef = useRef(tapeSource);
   useEffect(() => { tapeSourceRef.current = tapeSource; }, [tapeSource]);
   // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
-  const footprintSnapRef = useRef<(bar: Bar, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
+  const footprintSnapRef = useRef<(bar: LegacyOhlcvTuple, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
 
   const hasRealAggressorTape = hasVerifiedAggressorTape;
 
@@ -1963,7 +1991,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const exParsed = parseExchangeSymbol(symbol);
       const exchangeData = exParsed
         ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store", signal: myAbortSignal })
-            .then(r => r.json()).then(j => Array.isArray(j?.candles) && j.candles.length ? j.candles as Bar[] : null).catch(() => null)
+            .then(r => r.json()).then(j => Array.isArray(j?.candles) && j.candles.length ? j.candles as LegacyOhlcvTuple[] : null).catch(() => null)
         : null;
 
       // Priority: exchange-specific, Alpaca, Finnhub, Yahoo, Finnhub REST, Polygon.
@@ -2004,7 +2032,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Yahoo merges, session filtering and live-tick folding can all introduce
       // these. Sort by time, drop non-finite OHLC, and force strictly-increasing
       // unique timestamps so EVERY candle type downstream gets clean input.
-      const data: Bar[] = (() => {
+      const data: LegacyOhlcvTuple[] = (() => {
         const sorted = [...rawData]
           .filter(b =>
             b && Number.isFinite(b.time as number) &&
@@ -2012,7 +2040,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             Number.isFinite(b.low)   && Number.isFinite(b.close))
           .sort((a, b) => (a.time as number) - (b.time as number));
         let lastT = -Infinity;
-        const out: Bar[] = [];
+        const out: LegacyOhlcvTuple[] = [];
         for (const b of sorted) {
           let t = b.time as number;
           if (t <= lastT) continue; // drop duplicate/backwards bar (keep first)
@@ -2038,12 +2066,21 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
           if (med > 0) {
             const cap = med * 6;
-            for (const b of out) {
+            // CLAMPED BY REPLACEMENT, NOT BY MUTATION (2026-09-18). This loop
+            // used to assign `b.high = …` in place. The objects are ours — each
+            // was built by the `out.push({ ...b, … })` above — so mutating them
+            // was not corrupting anyone else's history. Rebuilding them is still
+            // the better shape: a bar that can be edited after it is published
+            // is the mechanism by which a corrected value silently replaces the
+            // one a trader already acted on, and that is precisely what
+            // CanonicalBar's truthEpoch exists to make impossible.
+            return out.map((b) => {
               const maxC = Math.max(b.open, b.close);
               const minC = Math.min(b.open, b.close);
-              if ((b.high as number) - maxC > cap) b.high = (maxC + cap) as any;
-              if (minC - (b.low as number) > cap) b.low = (minC - cap) as any;
-            }
+              const high = (b.high as number) - maxC > cap ? maxC + cap : b.high;
+              const low  = minC - (b.low as number) > cap ? minC - cap : b.low;
+              return { ...b, high: high as number, low: low as number };
+            });
           }
         }
         return out;
@@ -2579,7 +2616,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // BEHIND the last bar, LWC throws and the price silently never updates → frozen.
     // So: if our live time isn't strictly after the last bar, fold the live price
     // INTO the last bar (update its high/low/close), keeping a valid ascending time.
-    let bar: Bar;
+    let bar: LegacyOhlcvTuple;
     let t = Math.floor(liveBar.time);
     const intervalSec = getIntervalSec(timeframe);
     // Fold the live price into the last candle when EITHER (a) the live time is
@@ -2632,8 +2669,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const cap = med * 4;
           const maxC = Math.max(bar.open, bar.close);
           const minC = Math.min(bar.open, bar.close);
-          if (bar.high - maxC > cap) bar.high = maxC + cap;
-          if (minC - bar.low > cap) bar.low = minC - cap;
+          // Same change as the historical de-spike above: replace the forming
+          // bar rather than editing it. `bar` was built by both branches of the
+          // fold just above, so no stored history is touched either way.
+          bar = {
+            ...bar,
+            high: bar.high - maxC > cap ? maxC + cap : bar.high,
+            low:  minC - bar.low > cap ? minC - cap : bar.low,
+          };
         }
       }
     }
@@ -2659,9 +2702,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     //    histograms, volume) so they visibly move with the in-progress bar ──
     if (oscLiveRef.current.length) {
       const lb = barsRef.current;
-      let liveBars: Bar[];
-      if (lb.length && lb[lb.length - 1].time === bar.time) liveBars = [...lb.slice(0, -1), bar as Bar];
-      else liveBars = [...lb, bar as Bar];
+      let liveBars: LegacyOhlcvTuple[];
+      if (lb.length && lb[lb.length - 1].time === bar.time) liveBars = [...lb.slice(0, -1), bar as LegacyOhlcvTuple];
+      else liveBars = [...lb, bar as LegacyOhlcvTuple];
       for (const u of oscLiveRef.current) {
         try {
           const r = u.recompute(liveBars);
@@ -2678,9 +2721,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     //    in-progress bar in real time (not a frozen one-shot snapshot) ──
     if (pineCodeRef.current && pineSeriesRef.current.size) {
       const lb = barsRef.current;
-      let liveBars: Bar[];
-      if (lb.length && lb[lb.length - 1].time === bar.time) liveBars = [...lb.slice(0, -1), bar as Bar];
-      else liveBars = [...lb, bar as Bar];
+      let liveBars: LegacyOhlcvTuple[];
+      if (lb.length && lb[lb.length - 1].time === bar.time) liveBars = [...lb.slice(0, -1), bar as LegacyOhlcvTuple];
+      else liveBars = [...lb, bar as LegacyOhlcvTuple];
       try {
         const out = interpretPine(pineCodeRef.current, liveBars.map(b => ({
           time: b.time as number, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume || 0,
@@ -2885,6 +2928,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const chart = chartRef.current;
     const LW    = lwRef.current;            // v5 series definitions
     if (!LW) return;
+    // `IND.Bar` is `indicators.ts`'s OWN declaration and is still in the census.
+    // This cast crosses a module boundary, so it must keep naming the type that
+    // module actually exports — retiring `indicators.ts::Bar` is its own atom.
     const bars  = barsRef.current as IND.Bar[];
 
     // Remove previous indicator series. In v5 removing a series can leave an
@@ -2894,7 +2940,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     oscLiveRef.current = [];
     // Register a series for live tick updates: recompute pulls fresh values from
     // the current bars and returns the LAST point to update.
-    const regLive = (series: any, recompute: (bs: Bar[]) => { value: number; color?: string } | null) => {
+    const regLive = (series: any, recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null) => {
       if (series) oscLiveRef.current.push({ series, recompute });
     };
 
@@ -3384,7 +3430,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Green bars = aggressive buying tape, purple = aggressive selling tape.
     if (inds.has("Speed of Tape")) {
       setupScale("sot", 0.75);
-      const sotCompute = (bs: Bar[]) => {
+      const sotCompute = (bs: LegacyOhlcvTuple[]) => {
         const bodies = bs.map(b => Math.abs(b.close - b.open)).filter(r => r > 0).sort((a, b) => a - b);
         const scale = Math.max(bodies.length ? bodies[Math.floor(bodies.length / 2)] : 1, 1e-9);
         return bs.map(b => 100 * Math.tanh(((b.close - b.open) / scale) * 0.75));
@@ -3400,7 +3446,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // absorbing the opposing side. Shown as a histogram where high = strong absorption.
     if (inds.has("Absorption Detector")) {
       setupScale("abs", 0.75);
-      const absCompute = (bs: Bar[]) => {
+      const absCompute = (bs: LegacyOhlcvTuple[]) => {
         const avgVol = bs.reduce((s, b) => s + b.volume, 0) / Math.max(1, bs.length);
         return bs.map(b => {
           const range = b.high - b.low;
@@ -3412,7 +3458,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
       };
       const absVals = absCompute(bars);
-      const absColor = (b: Bar, v: number) => v > 50 ? (b.close >= b.open ? "rgba(0,229,204,0.85)" : "rgba(123,108,247,0.85)") : "rgba(100,120,160,0.35)";
+      const absColor = (b: LegacyOhlcvTuple, v: number) => v > 50 ? (b.close >= b.open ? "rgba(0,229,204,0.85)" : "rgba(123,108,247,0.85)") : "rgba(100,120,160,0.35)";
       const s = addOscHist(absVals, bars.map((b, i) => absColor(b, absVals[i])), "abs");
       refLine(50, "abs", "rgba(240,180,41,0.30)");
       regLive(s, (bs) => { const a = absCompute(bs); const v = a[a.length - 1]; const b = bs[bs.length - 1]; return (isFinite(v) && b) ? { value: v, color: absColor(b, v) } : null; });
@@ -3421,7 +3467,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // ── Delta Bars (order flow coloring via existing footprint) ─
     if (inds.has("Delta Bars")) {
       setupScale("deltabars", 0.75);
-      const dbCompute = (bs: Bar[]) => {
+      const dbCompute = (bs: LegacyOhlcvTuple[]) => {
         const deltas = bs.map(b => {
           const dir = b.close >= b.open ? 1 : -1;
           return b.volume * dir * (Math.abs(b.close - b.open) / Math.max(0.01, b.high - b.low));
@@ -3446,7 +3492,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // ── Volume Delta (alias to Delta Bars) ───────────────────
     if (inds.has("Volume Delta")) {
       setupScale("voldelta", 0.75);
-      const vdCompute = (bs: Bar[]) => {
+      const vdCompute = (bs: LegacyOhlcvTuple[]) => {
         // Net buying/selling pressure. The feed streams PRICE, not per-tick volume,
         // so the forming bar's volume is static — a pure volume metric freezes.
         // Drive the live magnitude from bar-to-bar price velocity (moves every tick),
@@ -3468,7 +3514,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // ── Trade Flow (directional volume flow) ─────────────────
     if (inds.has("Trade Flow")) {
       setupScale("tradeflow", 0.75);
-      const tfCompute = (bs: Bar[]) => {
+      const tfCompute = (bs: LegacyOhlcvTuple[]) => {
         // Directional flow: sign from the bar body (close vs open), magnitude from
         // bar-to-bar price velocity (live-responsive), volume-weighted. Bounded.
         const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
@@ -3491,7 +3537,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Price-velocity tape speed: driven by the live bar's body (close−open),
       // scaled by the MEDIAN bar range (stable — a freshly-formed bar with a tiny
       // range can no longer saturate the scale), lightly weighted by volume.
-      const tsCompute = (bs: Bar[]) => {
+      const tsCompute = (bs: LegacyOhlcvTuple[]) => {
         // Tape speed = rate of price change bar-to-bar (bounded, moves every tick,
         // never pins like an unbounded forming-bar body would).
         const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
@@ -3521,7 +3567,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // High volume + small price move = buying/selling exhaustion
     if (inds.has("Exhaustion Detector")) {
       setupScale("exhaust", 0.78);
-      const exCompute = (bs: Bar[]) => {
+      const exCompute = (bs: LegacyOhlcvTuple[]) => {
         // The feed streams PRICE, not per-tick volume, so a volume-vs-move ratio
         // freezes on the forming bar. Derive exhaustion from PRICE ACTION instead:
         // a strong recent trend (momentum over the last N bars) whose latest bar
@@ -3544,7 +3590,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
       };
       const exVals = exCompute(bars);
-      const exColor = (_b: Bar, v: number) => Math.abs(v) > 5 ? (v >= 0 ? "rgba(0,229,204,0.80)" : "rgba(206,147,216,0.80)") : "rgba(100,100,120,0.20)";
+      const exColor = (_b: LegacyOhlcvTuple, v: number) => Math.abs(v) > 5 ? (v >= 0 ? "rgba(0,229,204,0.80)" : "rgba(206,147,216,0.80)") : "rgba(100,100,120,0.20)";
       const s = addOscHist(exVals, bars.map((b, i) => exColor(b, exVals[i])), "exhaust");
       refLine(30, "exhaust", "rgba(240,180,41,0.25)");
       regLive(s, (bs) => { const a = exCompute(bs); const v = a[a.length - 1]; const b = bs[bs.length - 1]; return (isFinite(v) && b) ? { value: v, color: exColor(b, v) } : null; });
@@ -3712,8 +3758,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // prior real body and closing near its high (strong continuation up).
         if (inds.has("Three White Soldiers") && i >= 2) {
           const a = bars[i - 2], c = bars[i - 1], d = b;
-          const bull = (x: Bar) => x.close > x.open;
-          const strongClose = (x: Bar) => (x.high - x.close) < (x.high - x.low) * 0.35;
+          const bull = (x: LegacyOhlcvTuple) => x.close > x.open;
+          const strongClose = (x: LegacyOhlcvTuple) => (x.high - x.close) < (x.high - x.low) * 0.35;
           if (bull(a) && bull(c) && bull(d) &&
               c.close > a.close && d.close > c.close &&
               c.open > a.open && c.open < a.close &&
@@ -3726,8 +3772,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Three Black Crows — 3 consecutive falling bears, mirror of 3WS.
         if (inds.has("Three Black Crows") && i >= 2) {
           const a = bars[i - 2], c = bars[i - 1], d = b;
-          const bear = (x: Bar) => x.close < x.open;
-          const strongClose = (x: Bar) => (x.close - x.low) < (x.high - x.low) * 0.35;
+          const bear = (x: LegacyOhlcvTuple) => x.close < x.open;
+          const strongClose = (x: LegacyOhlcvTuple) => (x.close - x.low) < (x.high - x.low) * 0.35;
           if (bear(a) && bear(c) && bear(d) &&
               c.close < a.close && d.close < c.close &&
               c.open < a.open && c.open > a.close &&
@@ -3742,7 +3788,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // midpoint of the first candle (reverses the move).
         if (inds.has("Morning / Evening Star") && i >= 2) {
           const a = bars[i - 2], c = bars[i - 1], d = b;
-          const bodyOf = (x: Bar) => Math.abs(x.close - x.open);
+          const bodyOf = (x: LegacyOhlcvTuple) => Math.abs(x.close - x.open);
           const rangeA = a.high - a.low;
           const smallStar = rangeA > 0 && bodyOf(c) < rangeA * 0.35;
           const midA = (a.open + a.close) / 2;
@@ -3903,7 +3949,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     //    more efficient than close-to-close HV. Rolling 20-bar window.
     if (inds.has("Parkinson Volatility")) {
       setupScale("park", 0.80);
-      const parkCompute = (bs: Bar[]) => {
+      const parkCompute = (bs: LegacyOhlcvTuple[]) => {
         const N = 20; const k = 1 / (4 * Math.log(2));
         return bs.map((_, i) => {
           if (i < N) return 0;
@@ -4476,7 +4522,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   ───────────────────────────────────────────────────────────────────────────── */
   const SUB = 120;
 
-  const getBarSubProfile = useCallback((bar: Bar): Array<{ bid: number; ask: number }> | null => {
+  const getBarSubProfile = useCallback((bar: LegacyOhlcvTuple): Array<{ bid: number; ask: number }> | null => {
     const range = bar.high - bar.low;
     if (range <= 0) return null;
 
@@ -4509,7 +4555,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
   /** Aggressive/passive roles for a candle. Derived from the FIXED sub-profile,
    *  so these four headline numbers are identical at every zoom level. */
-  const getBarRoles = useCallback((bar: Bar) => {
+  const getBarRoles = useCallback((bar: LegacyOhlcvTuple) => {
     const sub = getBarSubProfile(bar);
     let aggBuy = 0, aggSell = 0, pasBuy = 0, pasSell = 0;
     if (!sub) return { aggBuy, aggSell, pasBuy, pasSell };
@@ -4521,7 +4567,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return { aggBuy, aggSell, pasBuy, pasSell };
   }, [getBarSubProfile]);
 
-  const getBarFootprint = useCallback((bar: Bar, numLevels: number): Array<{
+  const getBarFootprint = useCallback((bar: LegacyOhlcvTuple, numLevels: number): Array<{
     priceLevel: number; bid: number; ask: number; total: number;
     relPos: number; inBody: boolean;
   }> => {
@@ -4567,7 +4613,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    * block trades routinely became one key and the second was overwritten:
    * not merged, just gone. See that module's header.
    */
-  const getRealBigTradeLevels = useCallback((bar: Bar): BigTradeLevel[] => {
+  const getRealBigTradeLevels = useCallback((bar: LegacyOhlcvTuple): BigTradeLevel[] => {
     const realData = tickAccRef.current.get(bar.time as number);
     if (!realData || realData.size === 0) return [];
 
@@ -4592,7 +4638,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    * rounded price used as a bucket identity (which silently merged buckets on
    * tight bars and dropped their aggressor volume).
    */
-  const getDeltaBubbleLevels = useCallback((bar: Bar): DeltaBubbleLevel[] => {
+  const getDeltaBubbleLevels = useCallback((bar: LegacyOhlcvTuple): DeltaBubbleLevel[] => {
     const realData = deltaTickAccRef.current.get(bar.time as number);
     if (!realData || realData.size === 0) return [];
 
@@ -4636,14 +4682,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // the candles to "stick." Now the buffer is stable; we just clear + redraw.
     let lastCW = -1, lastCH = -1, lastDpr = -1;
     let lastOverlayDrawAt = 0;
-    let sessionBarsCache: { source: Bar[]; key: string; bars: Bar[] } | null = null;
+    let sessionBarsCache: { source: LegacyOhlcvTuple[]; key: string; bars: LegacyOhlcvTuple[] } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
     // allocated three new arrays even when neither the bars nor session changed.
     // Cache by immutable bar-array identity + session inputs; live updates replace
     // the array and naturally invalidate the cache.
-    const selectSessionBars = (allBars: Bar[]): Bar[] => {
+    const selectSessionBars = (allBars: LegacyOhlcvTuple[]): LegacyOhlcvTuple[] => {
       const key = `${symbol}|${timeframe}|${extendedHours ? "ETH" : "RTH"}`;
       if (sessionBarsCache?.source === allBars && sessionBarsCache.key === key) {
         return sessionBarsCache.bars;
@@ -4777,7 +4823,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Previously the whole draw function then `return`ed → the Volume Profile
       // (and footprint) VANISHED on interaction. Now we clamp the range and always
       // fall back to recent bars so there is ALWAYS something to render.
-      let visibleBars: Bar[];
+      let visibleBars: LegacyOhlcvTuple[];
       try {
         const visRange = chartRef.current!.timeScale().getVisibleLogicalRange();
         if (visRange) {
@@ -5913,7 +5959,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         reasons are compiled into a receipt by src/lib/vpRenderReceipt.ts and
         stamped onto the overlay canvas by runWMVP. §5 SYSTEM TRUTH LAW.
       */
-      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
+      function drawWMVP(barsToUse: LegacyOhlcvTuple[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
         // `rows` is incremented at the one place a row is actually painted, so
         // the count is of pixels committed and not of buckets considered.
         let rowsPainted = 0;
@@ -7810,7 +7856,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const pHi = Math.max(d.pts[0].price, d.pts[1].price);
           const tLo = Math.min(d.pts[0].time, d.pts[1].time);
           const tHi = Math.max(d.pts[0].time, d.pts[1].time);
-          const bs  = (barsRef.current || []).filter((x: Bar) => x.time >= tLo && x.time <= tHi);
+          const bs  = (barsRef.current || []).filter((x: LegacyOhlcvTuple) => x.time >= tLo && x.time <= tHi);
           const nBins = dvpBinCount(rh);
           const levels: DeltaVPLevel[] = [];
           for (const b of bs) for (const l of getBarFootprint(b, 14)) levels.push({ priceLevel: l.priceLevel, bid: l.bid, ask: l.ask });

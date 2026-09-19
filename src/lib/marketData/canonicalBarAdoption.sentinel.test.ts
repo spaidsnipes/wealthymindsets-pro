@@ -1,29 +1,29 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is THIRTEEN as of the
+ * The count below started at twenty-two on 2026-09-18 and is TWELVE as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO THIRTEEN IS NOT NINE MIGRATIONS. It is eight renames-or-deletes
+ * TWENTY-TWO TO TWELVE IS NOT TEN MIGRATIONS. It is nine renames-or-deletes
  * plus one measurement correction, and ZERO INGRESSES MIGRATED. The array's
- * docblock separates the kinds line by line so nobody reads this header as nine
+ * docblock separates the kinds line by line so nobody reads this header as ten
  * ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not thirteen competing ideas of what a bar is.
- * NINE OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * The remaining shapes are not twelve competing ideas of what a bar is.
+ * EIGHT OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
  * low, close, volume`, every one of them `number` — which is also, exactly,
- * `LegacyOhlcvTuple` in the artery. A tenth, `DeckMarketChart::Candle`,
+ * `LegacyOhlcvTuple` in the artery. A ninth, `DeckMarketChart::Candle`,
  * differs only by `volume?`. The sprawl is one anonymous six-field tuple
  * wearing a handful of module-local labels, and a sanctioned name for precisely
  * it already exists with a docblock saying so.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming nine
- * declarations to one name removes nine duplicate DECISIONS and delivers
+ * it is important not to let the ease flatter the result: renaming eight
+ * declarations to one name removes eight duplicate DECISIONS and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
  * truthEpoch on the live path — is untouched by every rename and stays owed.
@@ -286,9 +286,36 @@ const THE_ARTERY: readonly string[] = [
  * `KrakenOHLC` and `YahooCandle` named a venue that the type could not carry.
  * Neither now claims it. Neither now has it either — that is CanonicalBar's job
  * and CanonicalBar still has no production consumer.
+ *
+ * ── THIRTEEN TO TWELVE: THE CHART, AND THE MUTATION QUESTION IT ANSWERED ───
+ *
+ * RETIRED: `components/chart/MainChart.tsx::Bar`, the one held back above. It
+ * was held back because `LegacyOhlcvTuple` declares all six fields `readonly`
+ * and this file de-spikes wicks by assigning to `.high` and `.low`, so the
+ * rename was a live question rather than a mechanical one.
+ *
+ * THE COMPILER ANSWERED IT AND THE FIRST READING WAS WRONG. Reading the call
+ * sites said "these objects are locally owned, so nothing is at risk" — true
+ * about ownership, and irrelevant to whether it compiles. `tsc` rejected four
+ * lines across two de-spike passes and named every one. Both clamps now REPLACE
+ * the bar instead of editing it, which is the shape they should have had: a bar
+ * that can be edited after publication is the exact mechanism by which a
+ * corrected value silently replaces the one a trader already acted on, and
+ * making that impossible is what CanonicalBar's truthEpoch is for.
+ *
+ * NO STORED BAR WAS EVER EDITED, which is the finding worth keeping. Every
+ * write landed on an object the chart had just constructed; nothing reached
+ * back into `barsRef.current`. The live chart's history is append-only in
+ * practice, and after this change the type system enforces that rather than a
+ * convention — one real precondition for canonical identity on the live path.
+ *
+ * THE BLAST RADIUS WAS SEVENTY-TWO REFERENCES, not the two of the markov atom,
+ * and one of them was a trap: `barsRef.current as IND.Bar[]` names the type
+ * `indicators.ts` exports, not the chart's own. A blanket rename rewrote it and
+ * `tsc` caught that too. It is restored and commented, because retiring
+ * `indicators.ts::Bar` — seven importers — is its own atom.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
-  "components/chart/MainChart.tsx::Bar",
   "components/chart/indicators.ts::Bar",
   "components/experience/DeckMarketChart.tsx::Candle",
   "lib/backtest/engine.ts::Bar",
@@ -363,7 +390,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at thirteen private pasts and may only SHRINK", () => {
+  it("holds at twelve private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));
