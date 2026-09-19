@@ -211,6 +211,8 @@ import {
   CROSSHAIR_COLOR_DEFAULT,
   GRID_COLOR_DEFAULT,
   MARKET_FIELD_DEFAULT,
+  VOLUME_DOWN_DEFAULT,
+  VOLUME_UP_DEFAULT,
 } from "@/lib/chart/marketFieldMaterial";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -2416,8 +2418,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Solid, clearly-visible real-volume bars (was 0.20 alpha → nearly
       // invisible, so the user thought volume had been removed). These are the
       // REAL per-bar volumes from the data feed, not synthetic.
-      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : "rgba(0,212,170,0.55)";
-      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : "rgba(255,77,106,0.55)";
+      // NOT A RAINBOW, one pane down. The price series speaks brass; volume
+      // used to answer in teal and red directly beneath it, which simply moved
+      // the casino below the candles. Volume is MAGNITUDE, not a market claim,
+      // so it takes the same two-luminance brass held well back with alpha.
+      // The WM Neon theme is a deliberate trader opt-in and keeps its own
+      // vocabulary — it is a chosen costume, not the room's default material.
+      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT;
+      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT;
       vs.setData(data.map(c => ({
         time:  c.time,
         value: c.volume,

@@ -103,6 +103,25 @@ const LANGUAGE = [
 ] as const;
 
 /**
+ * VOLUME — the same module, a DIFFERENT use shape, named rather than tolerated.
+ *
+ * The five constants above are all fallback arms of a `chartSettings` read:
+ * the trader can change each one in Appearance and their choice wins. Volume
+ * has no Appearance control, so it cannot take that shape. Its two constants
+ * are instead the non-neon arm of the WM Neon theme ternary:
+ *
+ *   chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT
+ *
+ * That IS still a chartSettings-derived use — the room's material by default,
+ * the trader's chosen costume when they opt into Neon — but it will never
+ * match a `??` guard. Listing it separately keeps the gate above strict rather
+ * than loosening that regex until it admits both shapes and consequently
+ * stops distinguishing them. An unnamed exception is exactly how the original
+ * duplicate owner survived review in the first place.
+ */
+const THEME_LANGUAGE = ["VOLUME_UP_DEFAULT", "VOLUME_DOWN_DEFAULT"] as const;
+
+/**
  * The `import { … } from "@/lib/chart/marketFieldMaterial"` block, verbatim.
  *
  * `[^}]*` and NOT `[\s\S]*?`. MainChart opens with ~200 import statements; a
@@ -241,6 +260,41 @@ describe("the market field has ONE material owner", () => {
     }
   });
 
+  it("volume is brass too — each theme constant is the non-neon arm, imported", () => {
+    // Volume used to paint teal/red directly beneath a brass price series,
+    // which moved the rainbow one pane down rather than removing it. The cure
+    // has the same ONE OWNER requirement as the rest of the language.
+    const src = CODE(MAIN_CHART);
+    const block = IMPORT_BLOCK(src);
+    expect(block).not.toBeNull();
+
+    for (const name of THEME_LANGUAGE) {
+      expect(
+        (block![0].match(new RegExp(`\\b${name}\\b`, "g")) ?? []).length,
+        `${name} must appear exactly once in the import block`,
+      ).toBe(1);
+
+      const hits = src.match(new RegExp(`\\b${name}\\b`, "g")) ?? [];
+      // The FALSE arm of a `chartSettings?.neon ? … : …` ternary. Pinned to
+      // the neon read specifically, so moving volume onto some unrelated
+      // ternary does not silently satisfy this.
+      const themed =
+        src.match(new RegExp(`chartSettings\\?\\.neon\\s*\\?[^;]{0,60}?:\\s*${name}`, "g")) ?? [];
+      expect(
+        hits.length,
+        `every ${name} use must be the default arm of the neon theme ternary ` +
+          `(found ${hits.length} uses, ${themed.length} themed, 1 import)`,
+      ).toBe(themed.length + 1);
+    }
+
+    // OVER-CORRECTION GUARD. The point was to remove the casino from the
+    // ROOM'S DEFAULT, not to delete a theme the trader deliberately opted
+    // into. Neon keeps its own vocabulary.
+    expect(src, "the WM Neon volume theme was removed rather than bypassed").toMatch(
+      /chartSettings\?\.neon\s*\?\s*"rgba\(0,255,163/,
+    );
+  });
+
   it("THE VALUE IS OWNED TOO — no language colour appears as a bare hex", () => {
     // FOUND BY AN ORKIN REVIVE-ATTEMPT, 2026-09-19, and the gate above did NOT
     // catch it. That gate counts identifier USES and requires each to be a
@@ -288,7 +342,7 @@ describe("the market field has ONE material owner", () => {
     expect(
       named,
       "MainChart imports a chart-language constant this suite does not police",
-    ).toEqual([...LANGUAGE].sort());
+    ).toEqual([...LANGUAGE, ...THEME_LANGUAGE].sort());
   });
 
   it("does not regress the five files chartsRoomChrome.test.ts already cured", () => {

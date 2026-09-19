@@ -106,6 +106,35 @@ export const GRID_COLOR_DEFAULT = "#211d14";
 /** The room's `MUTED` token — the crosshair is chrome, not a market claim. */
 export const CROSSHAIR_COLOR_DEFAULT = "#8a8271";
 
+/* ── VOLUME — THE ONE PLACE rgba() IS CORRECT ───────────────────────────────
+ *
+ * The governing mockup has NO volume pane, so the Canon does not dictate these
+ * two values directly. What it dictates is the LAW, and the law is the
+ * filename: no green anywhere in the frame, no red anywhere in the frame. Live
+ * /charts had a brass price series sitting directly on top of a red-and-green
+ * volume histogram — the rainbow simply moved one pane down.
+ *
+ * VOLUME IS NOT A PRICE CLAIM. It is magnitude — how much traded, not what the
+ * market decided. So it takes the same brass as price, held back with alpha so
+ * it recedes beneath the bars it belongs to instead of competing with them.
+ * The up/down split is retained because it is real information, but it is
+ * carried by the SAME two-luminance pair price uses, so the eye reads one
+ * material in two states across both panes rather than two vocabularies.
+ *
+ * AND THESE ARE rgba(), WHICH IS THE OPPOSITE OF THE RULE ABOVE. The hex rule
+ * exists because `ChartSettingsModal` feeds the candle palette to an
+ * `<input type="color">`, which silently rejects a non-hex value and blanks
+ * the swatch. Volume has NO Appearance control — there is no `volumeUp` key in
+ * `ChartSettings` and no swatch to blank — so alpha is available here and
+ * nowhere else. That asymmetry is stated rather than left for someone to
+ * rediscover by blanking a control.
+ */
+
+/** Brass, well back — volume recedes beneath the price it belongs to. */
+export const VOLUME_UP_DEFAULT = "rgba(196,165,116,0.38)";
+/** The recessed brass, needing more alpha to read at all at this luminance. */
+export const VOLUME_DOWN_DEFAULT = "rgba(110,90,60,0.62)";
+
 /** The pre-OS TradingView pair. Named so the migration can only free these. */
 export const LEGACY_CANDLE_UP = "#00C076";
 export const LEGACY_CANDLE_DOWN = "#FF4D67";
