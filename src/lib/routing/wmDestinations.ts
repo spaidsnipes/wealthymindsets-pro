@@ -140,6 +140,23 @@ export interface WmDestination {
    *   "legacy"  — on July, and not cleared.
    */
   readonly frame: "os" | "cleared" | "legacy";
+  /**
+   * ROUTE AUTHORITY, not frame. `frame` is a measurement of which chrome wraps
+   * the route and must not be bent into a verdict about whether the route
+   * SHOULD be walked into — /command-deck is genuinely inside the OS frame
+   * (frame: "os" is true) while having lost its claim to be a normal
+   * destination. That loss is this field.
+   *
+   * "legacy" means: the Founder's 2026-09-19 order ("as soon as /charts is
+   * legal HOME, Command Deck loses normal-route authority → explicit
+   * legacy/debug quarantine") applies to this room. The door stays — capability
+   * is preserved, every organ reachable — but any rail that draws the door must
+   * SAY the word, so a trader walking in knows they are entering a surface the
+   * product no longer treats as part of the normal loop. Absent means normal
+   * authority. No room may take this value without its own recorded order;
+   * `commandDeckQuarantine.test.ts` pins the count at exactly one.
+   */
+  readonly authority?: "legacy";
 }
 
 /**
@@ -150,7 +167,7 @@ export interface WmDestination {
 export const WM_DESTINATIONS: readonly WmDestination[] = [
   // ── ROOMS — the decision family, the ones the OS frame holds ────────────
   { href: "/morning-prep", label: "Morning Prep", icon: Sun, group: "ROOM", tier: 1, frame: "os" },
-  { href: "/command-deck", label: "Command Deck", icon: Crosshair, group: "ROOM", tier: 1, frame: "os" },
+  { href: "/command-deck", label: "Command Deck", icon: Crosshair, group: "ROOM", tier: 1, frame: "os", authority: "legacy" },
   { href: INSTRUMENT_VIEW_ROUTE, label: "Charts", icon: BarChart2, group: "ROOM", tier: 1, frame: "os" },
   { href: "/heatmaps", label: "Heatmaps", icon: Map, group: "ROOM", tier: 1, frame: "os" },
   { href: "/nectar", label: "Passport", icon: Shield, group: "ROOM", tier: 1, frame: "os" },
@@ -356,7 +373,7 @@ export function destinationsInGroup(group: WmDestinationGroup): readonly WmDesti
 }
 
 /**
- * THE FIVE DOORS A PHONE GETS.
+ * THE DOORS A PHONE GETS.
  *
  * A phone cannot hold twenty-one. The rail is `display: none` under 900px in
  * the OS frame, so whatever is here is the trader's ENTIRE map on the smallest
@@ -365,14 +382,29 @@ export function destinationsInGroup(group: WmDestinationGroup): readonly WmDesti
  * branch, and the consequence was measurable: an OS room on a phone had no
  * navigation of any kind.
  *
- * Five, not seven: the loop's other two rooms (`/morning-prep`, `/heatmaps`)
- * are reachable from inside the rooms that ARE here. A sixth slot at 390px
- * makes every slot too narrow to hit, which trades a reachability problem for
- * an accuracy one.
+ * Few, not seven: the loop's other rooms are reachable from inside the rooms
+ * that ARE here. An extra slot at 390px makes every slot too narrow to hit,
+ * which trades a reachability problem for an accuracy one.
+ *
+ * ── /command-deck LOST ITS SLOT HERE (M3, 2026-09-19) ───────────────────────
+ *
+ * The landing decision moved to /charts on 2026-09-17 (founderLanding.ts holds
+ * the receipt), and after that cut this strip was the LAST surface where the
+ * deck still stood beside Charts as a peer top-level home — one of only five
+ * doors on the smallest screen, where door-count is the strongest possible
+ * claim about what the product is. Two rooms presenting as home on the phone
+ * is the second-throne defect the final-lap order names: "parity before
+ * demotion is how a second home survives forever."
+ *
+ * This is a demotion of AUTHORITY, not an amputation of CAPABILITY. The deck
+ * keeps its route, its family membership and its rail door — on the phone it
+ * is two taps away (any strip door → the Rooms toggle → the full 21-door
+ * sheet). What it no longer gets is a permanent slot on the market's own map.
+ * Four doors also means each slot is wider at 390px, which the paragraph
+ * above already names as the accuracy/reachability trade.
  */
 export const PHONE_SLOT_HREFS: readonly string[] = [
   INSTRUMENT_VIEW_ROUTE,
-  "/command-deck",
   "/paper",
   "/journal",
   "/profile",

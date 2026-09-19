@@ -45,7 +45,19 @@ describe("chart deep-link continuity", () => {
   it("carries symbol and timeframe across both Founder market surfaces", () => {
     expect(charts).toContain('searchParams?.get("tf")');
     expect(charts).toContain("<ChartsDashboard initialTimeframe={normalizeMarketSurfaceTimeframe(urlTimeframe)}");
-    expect(dashboard).toContain('/command-deck?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}');
+    // ── REMAPPED 2026-09-19 · CONTINUITY IS ONE-WAY NOW ──────────────────
+    // This used to require the chart to carry a deep link BACK to the deck,
+    // which made the round trip symmetrical and the two surfaces peers. The
+    // Founder's order for this shift ends the peerage: /charts is HOME and
+    // the deck is a legacy room, so the chart no longer advertises it and
+    // this Sentinel no longer demands that it does.
+    //
+    // The direction that still matters is preserved and still asserted below:
+    // a trader arriving from the deck (or /scanner, or /heatmaps, or a shared
+    // link) must land on the chart with the SAME symbol and timeframe. That
+    // is the continuity gate Founding Execution Contract §13 named. The
+    // return leg was a second throne wearing a continuity badge.
+    expect(dashboard).not.toContain("/command-deck?symbol=");
     expect(deck).toContain('${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}');
   });
 

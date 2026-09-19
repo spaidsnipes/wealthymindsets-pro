@@ -76,12 +76,14 @@ const NAV_CORE = destinationsInGroup("ROOM");
 const NAV_WORKBENCH = destinationsInGroup("TOOL");
 const NAV_BOTTOM = destinationsInGroup("COMMUNITY");
 
-// Mobile primary nav — 5 slots per iOS/Android convention, per the platform
-// bottom-bar limit. The five are a SLICE of the one registry, named by href so
-// a label or icon change lands here too; typing them out again is what let the
-// phone bar call /paper "Paper" while every other surface called it
-// "Paper Trade". Order follows the trader loop: OBSERVE (Charts) → DECIDE
-// (Command Deck) → PRACTICE (Paper) → REVIEW (Journal) → IDENTITY (Profile).
+// Mobile primary nav — a SLICE of the one registry, named by href so a label
+// or icon change lands here too; typing them out again is what let the phone
+// bar call /paper "Paper" while every other surface called it "Paper Trade".
+// This comment used to enumerate FIVE slots ending in "DECIDE (Command
+// Deck)" — the M3 cut (2026-09-19) removed that slot, and the count and the
+// order now live where they are owned: `PHONE_SLOT_HREFS` in wmDestinations,
+// pinned by ShellAccessParity.test.tsx. A comment restating them here would
+// be the next thing to rot.
 /* The phone slot list moved to `wmDestinations` — the destination owner — so
    the OS frame can draw the same five. It was private to this file, and the
    measured consequence was that an OS room on a phone had NO navigation at
@@ -483,7 +485,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* Five-job decision dock. The full product remains reachable from
               Workspace without forcing every destination into the live rail. */}
           <nav aria-label="Primary" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
-            {railItems.map(({ href, icon: Icon, label }) => {
+            {railItems.map(({ href, icon: Icon, label, authority }) => {
               const active = isPrimaryDestinationActive(pathname, href);
               return (
                 <Link href={href} title={label}
@@ -516,6 +518,21 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   }}>
                     {label}
                   </span>
+                  {/* M3 quarantine (Founder 2026-09-19): a room that lost
+                      normal-route authority keeps its door but the door says
+                      so. Data from the destination owner, not a local list. */}
+                  {authority === "legacy" && (
+                    <span
+                      data-testid="rail-legacy-chip"
+                      style={{
+                        fontSize: 7, letterSpacing: "0.12em", color: "#6F7490",
+                        border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3,
+                        padding: "0px 3px", marginTop: 1,
+                      }}
+                    >
+                      LEGACY
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -621,7 +638,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <div key={section.title} style={{ marginTop: 18 }}>
                       <div style={{ color: "#74798f", fontSize: 9, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>{section.title}</div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        {section.items.map(({ href, icon: Icon, label }) => {
+                        {section.items.map(({ href, icon: Icon, label, authority }) => {
                           const active = pathname.startsWith(href);
                           return (
                             <Link key={href} href={href} aria-current={active ? "page" : undefined}
@@ -632,7 +649,15 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                                 display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 9,
                               }}>
                               <Icon size={17} aria-hidden="true" />
-                              <span style={{ fontSize: 11, fontWeight: 700 }}>{label}</span>
+                              <span style={{ fontSize: 11, fontWeight: 700 }}>
+                                {label}
+                                {/* M3 quarantine: this drawer draws ROOM doors too (the
+                                    withheld-while-capital-is-live section), so the deck's
+                                    door must SAY the word here as well as on the rail. */}
+                                {authority === "legacy" && (
+                                  <span data-testid="drawer-legacy-chip" style={{ marginLeft: 6, fontSize: 7, letterSpacing: "0.12em", color: "#6F7490", border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3, padding: "0px 3px", verticalAlign: "middle" }}>LEGACY</span>
+                                )}
+                              </span>
                             </Link>
                           );
                         })}

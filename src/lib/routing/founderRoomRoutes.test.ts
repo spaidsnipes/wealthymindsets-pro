@@ -190,9 +190,12 @@ describe("isFounderRoomRoute", () => {
   });
 
   it("rejects ungraduated tool routes and the bare domain", () => {
-    // The bare domain isn't in the registry — it redirects to /command-deck
-    // via founderLanding.ts, which is the single owner. Adding it here
-    // would double-owner the landing decision.
+    // The bare domain isn't in the registry — it redirects to
+    // FOUNDER_LANDING_ROUTE (/charts since the 2026-09-17 cut) via
+    // founderLanding.ts, which is the single owner. Adding it here would
+    // double-owner the landing decision. This comment used to name
+    // /command-deck as the destination — stale prose from before the cut,
+    // exactly the source poison M6 exists to sweep.
     expect(isFounderRoomRoute("/")).toBe(false);
     expect(isFounderRoomRoute("/charts")).toBe(true);
     expect(isFounderRoomRoute("/scanner")).toBe(true);

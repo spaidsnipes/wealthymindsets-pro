@@ -12,11 +12,24 @@ describe("phone chart control reachability", () => {
     expect(dashboard).toContain('className="wm-chart-orientation-actions"');
     expect(dashboard).toContain("wm-chart-why-trigger");
     expect(dashboard).not.toContain("wm-chart-passport-trigger");
-    expect(dashboard).toContain("wm-chart-command-deck-link");
+    // ── REMAPPED 2026-09-19 · THE SECOND THRONE ──────────────────────────
+    // This used to assert the Command Deck link was PRESENT in the action row
+    // and merely hidden below the phone breakpoint. That pair of assertions
+    // was the sentinel keeping a competing home advertised directly above
+    // price on the desk, and it would have failed the cut it was meant to
+    // survive. The Founder's order for this shift: "two URLs that both feel
+    // like home" is a failed shot. So the gate now asserts the ABSENCE —
+    // neither the markup nor the stylesheet may carry the chip back.
+    //
+    // This does NOT assert /command-deck is unreachable. The deck keeps its
+    // door in every rail room and in the July 72px rail; what it does not
+    // keep is a gold chip over a live chart.
+    expect(dashboard).not.toContain("wm-chart-command-deck-link");
+    expect(dashboard).not.toContain("Command Deck →");
     expect(css).toMatch(/\.wm-chart-orientation-action\s*\{[\s\S]*?min-height:\s*44px\s*!important/);
     expect(css).toMatch(/\.wm-chart-orientation-actions\s*\{[\s\S]*?width:\s*100%/);
     expect(css).toMatch(/\.wm-chart-orientation-actions\s*\{[\s\S]*?flex-wrap:\s*nowrap/);
-    expect(css).toMatch(/\.wm-chart-command-deck-link\s*\{[\s\S]*?display:\s*none\s*!important/);
+    expect(css).not.toMatch(/\.wm-chart-command-deck-link\s*\{/);
   });
 
   it("gives all timeframes their own touch-sized horizontal rail", () => {

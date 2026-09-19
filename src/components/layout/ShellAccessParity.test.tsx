@@ -7,9 +7,10 @@
  * Search, notifications, settings and sign-out were drawn ONLY in the July
  * branch, as file-private functions. Read plainly, that meant:
  *
- *   A trader standing in /command-deck — the room the product OPENS ON —
- *   could not search for a symbol, could not open their settings, and could
- *   NOT SIGN OUT, without first walking to a room that still wore July.
+ *   A trader standing in /command-deck — at the time, the room the product
+ *   opened on; the landing moved to /charts on 2026-09-17 — could not search
+ *   for a symbol, could not open their settings, and could NOT SIGN OUT,
+ *   without first walking to a room that still wore July.
  *
  * ── WHY THIS GATE RENDERS INSTEAD OF SCANNING ─────────────────────────
  * A source scan for `ShellAccessChrome` in `WMExperienceShell.tsx` would pass
@@ -156,7 +157,15 @@ describe("one OS · every room has a door in the rail", () => {
   it("names each door with the owner's label, not a second copy of it", () => {
     // The drift this ends was real and measured: the same room was called
     // "Chart" on one rail and "Charts" on the other.
-    const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`>${d.label}</a>`));
+    //
+    // The matcher closes on `<` and not on `</a>` DELIBERATELY. A door may
+    // carry a chip after its label — /command-deck carries LEGACY since the
+    // M3 quarantine — and `>Command Deck</a>` went red for a rail that was
+    // drawing the label perfectly well. That failure was this gate reporting
+    // a MARKUP SHAPE, not the naming drift it exists to catch. `>Label<`
+    // still pins the label as the anchor's first text and still fails on
+    // "Chart" vs "Charts"; it simply stops caring what follows it.
+    const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`>${d.label}<`));
     expect(missing.map((d) => d.label)).toEqual([]);
   });
 });
@@ -171,10 +180,17 @@ describe("one OS · a phone can leave the room", () => {
    *
    * No test failed while that was true. This is that test.
    */
-  it("renders the phone bar with all five doors", () => {
+  it("renders the phone bar with every door the owner declares", () => {
     expect(HTML).toContain('data-testid="os-phone-nav"');
     const doors = phoneNavDestinations();
-    expect(doors).toHaveLength(5); // vacuity guard
+    // FOUR, exactly. Five until 2026-09-19: /command-deck lost its slot when
+    // M3 killed the deck's last standing claim to be a peer home — the landing
+    // had already moved to /charts on 2026-09-17, and a permanent door on the
+    // smallest screen was the one surface still presenting two homes. This is
+    // an exact count, not a >= floor, because REGROWING a slot is the same
+    // decision class as removing one and must show up in a diff.
+    expect(doors).toHaveLength(4);
+    expect(doors.map((d) => d.href)).not.toContain("/command-deck");
     const missing = doors.filter((d) => !HTML.includes(`href="${d.href}"`));
     expect(missing.map((d) => d.href)).toEqual([]);
   });
@@ -235,19 +251,55 @@ describe("one OS · 390 is not a different application", () => {
     expect(INSTRUMENT_HTML).not.toContain(".wm-os-provenance {");
   });
 
-  it("keeps the one labelled door", () => {
-    expect(INSTRUMENT_HTML).toContain('data-testid="os-rail-toggle"');
-    expect(INSTRUMENT_HTML).toContain('aria-label="Rooms"');
+  /**
+   * ── REMAPPED 2026-09-19 · "KEEPS THE ONE LABELLED DOOR" ────────────────
+   *
+   * This test used to require `data-testid="os-rail-toggle"` and
+   * `aria-label="Rooms"` to be PRESENT on the instrument view. It was written
+   * as the anti-amputation half of the phone-strip cut, and it was honest
+   * then. It is also, read today, the sentinel that would have made this
+   * shift's cut impossible: it pins a control labelled "Rooms" above a live
+   * market and calls that the repair.
+   *
+   * The Founder's 2026-09-19 order: the market scene is the operating system,
+   * and the only chrome the frame may offer on HOME is the equipment attached
+   * to that scene. So the gate now asserts the SHAPE THAT REPLACED the one
+   * labelled door — two equipment controls, named, keyboard-reachable, both
+   * closed on arrival — and asserts the room list is gone rather than hidden.
+   */
+  it("offers equipment, not a map", () => {
+    expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-workspace"');
+    expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-tools"');
+    expect(INSTRUMENT_HTML).toContain('aria-label="Workspace"');
+    expect(INSTRUMENT_HTML).toContain('aria-label="Tools"');
+    // The mall's own control and the mall's own name. Neither may come back.
+    expect(INSTRUMENT_HTML).not.toContain('data-testid="os-rail-toggle"');
+    expect(INSTRUMENT_HTML).not.toContain('aria-label="Rooms"');
+    // Two buttons. Not three, and not two plus a quiet third that happens to
+    // navigate — "two equipment buttons only" is the shot gate's wording.
+    expect(INSTRUMENT_HTML.match(/data-testid="os-equipment-/g)).toHaveLength(2);
   });
 
-  it("reaches MORE doors through it than the strip ever did, not fewer", () => {
+  it("does not advertise the other house above price", () => {
+    // The second throne had two carriers on this route: the rail's door and a
+    // gold "COMMAND DECK →" chip in the chart's own action row. The chip is
+    // ChartsDashboard's and is pinned dead by chartPhoneControlReachability;
+    // this is the frame's half.
+    expect(INSTRUMENT_HTML).not.toContain('href="/command-deck"');
+    expect(INSTRUMENT_HTML).not.toContain("Command Deck");
+  });
+
+  it("a rail room's opened sheet still reaches every door the owner declares", () => {
     // ── WHY THIS ASSERTS THE FRAME AND NOT THE SHELL ──────────────────
-    // The doors are not in the instrument view's first paint, by design — the
-    // rail renders nothing until the trader opens it, at BOTH widths. So the
-    // anti-amputation claim cannot be read off `INSTRUMENT_HTML`; asking it to
-    // be there would be asking for the mall back. What has to be true is the
-    // frame's contract: a room that gave up the strip gets the WHOLE rail when
-    // the door is opened, not a phone-sized subset of it.
+    // OPEN_SHEET_HTML is a `destinations="rail"` room with the rail open —
+    // /journal, /lounge, /shop, every room where choosing where to go next IS
+    // the job. Those rooms did not change this shift and must not: the strip
+    // they gave up is still replaced by a sheet carrying MORE doors than it
+    // ever did, not fewer.
+    //
+    // It is no longer a claim about the instrument view. /charts has no room
+    // list at any width now, by design, and the test directly above is the
+    // gate that says so.
     expect(WM_DESTINATIONS.length).toBeGreaterThan(phoneNavDestinations().length);
     const missing = WM_DESTINATIONS.filter((d) => !OPEN_SHEET_HTML.includes(`href="${d.href}"`));
     expect(missing.map((d) => `${d.label} → ${d.href}`)).toEqual([]);

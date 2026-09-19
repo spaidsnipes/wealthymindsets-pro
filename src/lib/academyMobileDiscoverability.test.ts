@@ -18,7 +18,7 @@ const profile = readFileSync(resolve(__dirname, "../app/profile/page.tsx"), "utf
 
   So the guard is split to follow the fact: the DESTINATION is asserted as data
   in the registry (stronger than a string match — a comment cannot satisfy it),
-  and the PHONE SLOT is asserted where the phone bar's five slots are chosen.
+  and the PHONE SLOT is asserted where the phone bar's slots are chosen.
 
   AND THEN IT MOVED AGAIN, which is the point. The slot list was still private
   to MainLayout, so the OS frame could not draw a phone bar at all — a trader

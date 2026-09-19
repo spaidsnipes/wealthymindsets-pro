@@ -490,6 +490,15 @@ function SanctuaryRoom({
            one labelled toggle everywhere, and on the phone that toggle now
            reaches twenty-one of them where the strip reached five. */
         phoneDestinations={onInstrumentView ? "door" : "bar"}
+        /* AND THE INSTRUMENT VIEW STOPS BEING A MAP AT ALL.
+           `railDefaultOpen={false}` above only made first paint quiet; the
+           masthead still carried a button labelled "Rooms" over a live market,
+           and behind it a list of twenty-one places that are not here. The
+           Founder's 2026-09-19 order removes the competing house rather than
+           collapsing it: on /charts the frame offers the two pieces of
+           equipment that belong to this scene — Workspace and Tools — and no
+           destination rail. Every other room keeps its rail unchanged. */
+        destinations={onInstrumentView ? "equipment" : "rail"}
         surface={standing.surface}
         openEvidenceItems={standing.openEvidenceItems}
         rightOfWay={standing.rightOfWay}

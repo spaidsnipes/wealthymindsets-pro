@@ -325,12 +325,11 @@
     text-align: center;
   }
 
-  /* Command Deck already has a persistent 58px target in the phone nav.
-     Repeating it here forced the chart actions onto a second row and took
-     canvas height without adding a new way through the OS. */
-  .wm-chart-command-deck-link {
-    display: none !important;
-  }
+  /* The phone-only suppression of .wm-chart-command-deck-link lived here.
+     The link itself was removed from ChartsDashboard on 2026-09-19 (the
+     second-throne cut), so the rule now has nothing to hide at any width.
+     A dangling !important for a deleted class is how a deleted thing gets
+     quietly re-added later and looks correct. */
 
   .wm-chart-toolbar {
     height: auto !important;

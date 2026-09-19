@@ -1844,37 +1844,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             )}
           </div>
         )}
-        <Link
-          className="wm-chart-orientation-action wm-chart-command-deck-link"
-          href={`/command-deck?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`}
-          prefetch={false}
-          style={{
-            marginLeft: "auto",
-            fontSize: 10,
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
-            color: "#c9a55c",
-            textDecoration: "none",
-            border: "1px solid rgba(139,106,41,0.35)",
-            padding: "3px 8px",
-            borderRadius: 4,
-            fontWeight: 700,
-            transition: "background 0.12s, color 0.12s, border-color 0.12s",
-          }}
-          aria-label="Open Command Deck"
-          onMouseEnter={e => {
-            e.currentTarget.style.background = "rgba(232, 185, 35, 0.12)";
-            e.currentTarget.style.color = "#e8b923";
-            e.currentTarget.style.borderColor = "rgba(232, 185, 35, 0.5)";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#c9a55c";
-            e.currentTarget.style.borderColor = "rgba(139,106,41,0.35)";
-          }}
-        >
-          Command Deck →
-        </Link>
+        {/* ── THE SECOND THRONE, REMOVED ──────────────────────────────────
+            A gold "COMMAND DECK →" chip sat here, directly above the chart,
+            carrying the symbol and timeframe with it. Measured on live
+            wealthymindsetspro.com/charts on 2026-09-19: it is the first piece
+            of chrome a trader's eye meets above price, and what it says is
+            "the real product is somewhere else".
+
+            The Founder's order for this shift: "the instant /charts is legal
+            HOME, Command Deck loses normal-route authority", and "two URLs
+            that both feel like home" is a failed shot by definition. So the
+            advertisement goes. The DECK ITSELF IS NOT TOUCHED — /command-deck
+            still exists, still renders, still carries every organ it had, and
+            still has its door in every `destinations="rail"` room and in the
+            July 72px rail, where it now wears a LEGACY chip. Capability
+            preserved; competing authority removed. */}
         </div>
       </div>
       {/* Asset class, symbol truth, and secondary views share one compact

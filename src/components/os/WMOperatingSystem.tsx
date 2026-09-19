@@ -86,6 +86,13 @@ import { useFeedEvaluationClock } from "@/lib/marketData/useProvenSessionClosure
 export interface ShellRoom {
   readonly label: string;
   readonly href: string;
+  /**
+   * M3 quarantine, carried from the destination owner's `authority` field.
+   * A legacy door still opens — capability preserved — but it must SAY so,
+   * or the rail keeps presenting a demoted surface as a peer of the rooms
+   * the loop actually runs through.
+   */
+  readonly legacy?: boolean;
 }
 
 /**
@@ -113,6 +120,10 @@ export interface ShellRoom {
 export const OS_ROOMS: readonly ShellRoom[] = destinationsInGroup("ROOM").map((d) => ({
   label: d.label,
   href: d.href,
+  // Not defaulted to false: absence of authority IS normal authority, and a
+  // boolean `false` here would invite a renderer to branch on a fact the
+  // owner never stated. Only a genuine "legacy" verdict survives the map.
+  ...(d.authority === "legacy" ? { legacy: true } : null),
 }));
 
 /**
@@ -209,11 +220,19 @@ function RailLink({
   label,
   activeHref,
   quiet = false,
+  legacy = false,
 }: {
   href: string;
   label: string;
   activeHref: string;
   quiet?: boolean;
+  /**
+   * Draws the LEGACY word on the door (M3 quarantine). The chip is part of
+   * the accessible name via the visible text itself — a screen reader hears
+   * "Command Deck LEGACY", which is exactly the sentence the quarantine
+   * exists to say before the click, not after it.
+   */
+  legacy?: boolean;
 }): React.ReactElement {
   const active = href === activeHref;
   return (
@@ -241,6 +260,23 @@ function RailLink({
         />
       )}
       {label}
+      {legacy && (
+        <span
+          data-testid="os-rail-legacy-chip"
+          style={{
+            marginLeft: 7,
+            padding: "1px 5px",
+            fontSize: 8,
+            letterSpacing: 0.8,
+            color: "#6f6857",
+            border: "1px solid rgba(111,104,87,0.5)",
+            borderRadius: 3,
+            verticalAlign: "middle",
+          }}
+        >
+          LEGACY
+        </span>
+      )}
     </Link>
   );
 }
@@ -557,6 +593,49 @@ export interface WMOperatingSystemProps {
    * runtime.
    */
   readonly phoneDestinations?: "bar" | "door";
+  /**
+   * WHO IS THE OPERATING SYSTEM ON THIS ROUTE: THE MAP, OR THE MARKET.
+   *
+   * `"rail"` (the default, unchanged July behaviour) says the OS is a set of
+   * DESTINATIONS. It draws a masthead control literally labelled "Rooms" and,
+   * behind it, a column that lists twenty-one places to go. For /journal,
+   * /lounge, /shop — rooms where choosing where to go next IS the job — that
+   * is correct and stays.
+   *
+   * `"equipment"` says the OS is the SCENE the trader is standing in, and the
+   * only chrome the frame may offer is the equipment attached to that scene.
+   * The Founder's 2026-09-19 order: "You are not redesigning WM Pro. You are
+   * removing the legacy shell that is preventing the already-approved WM Pro
+   * from appearing on /charts. Preserve the organs. Kill the competing house."
+   *
+   * ── WHAT THIS ACTUALLY REMOVES, AND WHY NOT JUST A DEFAULT ───────────────
+   *
+   * `railDefaultOpen={false}` already made first paint quiet. It did not make
+   * the architecture true: the control in the masthead still said "Rooms", and
+   * a trader who pressed it got a destination mall with the room's own
+   * equipment buried as one block inside it. First paint was clean and the
+   * PREMISE was still "navigation is the operating system".
+   *
+   * So `"equipment"` does not hide the rail — it deletes the ROOM LIST from
+   * this route's frame entirely, and splits the one "Rooms" button into the
+   * two the approved picture shows: WORKSPACE (this scene's equipment) and
+   * TOOLS (the instruments). No Rooms toggle, no destination rail, no
+   * five-door phone bar. The shot gate's words: "two equipment buttons only".
+   *
+   * ── AND IT IS NOT AN AMPUTATION ──────────────────────────────────────────
+   *
+   * The ROOM destinations are not deleted from the product; they are deleted
+   * from THIS FRAME. They keep their doors in every `"rail"` room, in the
+   * July 72px rail, and in the Workspace drawer. What a trader loses on the
+   * instrument view is a permanent advertisement for somewhere else, which is
+   * the entire defect. Reaching them is one route away; being sold them is
+   * what made two URLs both feel like home.
+   *
+   * A room asking for `"equipment"` should also ask for `phoneDestinations`
+   * `"door"`, so the same answer holds at 390: the panel is the phone's
+   * equipment sheet and no pinned strip is drawn.
+   */
+  readonly destinations?: "rail" | "equipment";
   readonly children: React.ReactNode;
 }
 
@@ -577,6 +656,7 @@ export function WMOperatingSystem({
   field = "frame",
   railDefaultOpen = true,
   phoneDestinations = "bar",
+  destinations = "rail",
   children,
 }: WMOperatingSystemProps): React.ReactElement {
   // Read once, named once. Three separate places below branch on it — the bar,
@@ -592,6 +672,20 @@ export function WMOperatingSystem({
     seededDefault.current = railDefaultOpen;
     setRailOpen(railDefaultOpen);
   }
+  // ── EQUIPMENT MODE ───────────────────────────────────────────────────────
+  // Read once, named once. Six places below branch on it, and six
+  // independently-typed string comparisons is how five of them agree and one
+  // silently keeps drawing the mall.
+  const equipmentMode = destinations === "equipment";
+  // Which piece of equipment the trader has picked up. `null` — nothing — is
+  // the only legal FIRST value on a market scene, and unlike `railOpen` it is
+  // not seeded from a room's opinion: there is no opinion that justifies
+  // opening a panel over price before the trader asked.
+  const [equipment, setEquipment] = React.useState<"workspace" | "tools" | null>(null);
+  // ONE predicate for "is the side panel on screen". The nav element is shared
+  // between the two modes precisely so the phone overlay stylesheet, the close
+  // control and aria-controls keep describing the thing the trader sees.
+  const panelOpen = equipmentMode ? equipment !== null : railOpen;
   // Compiled ONCE. The rail and the provenance bar both read this array; two
   // independently-typed copies of one reading is how a screen ends up
   // disagreeing with itself.
@@ -717,7 +811,47 @@ export function WMOperatingSystem({
         {/* THE RAIL'S OWN CONTROL, DRAWN BY THE RAIL'S OWNER.
             It sits immediately after identity — leading edge, above the rail
             it opens — so the relationship between the button and the column is
-            spatial rather than something a trader has to learn. */}
+            spatial rather than something a trader has to learn.
+
+            ── AND ON A MARKET SCENE IT IS NOT DRAWN AT ALL ──────────────────
+            A control labelled "Rooms" in the masthead of the instrument view
+            is the competing house advertising itself above price. In
+            `destinations="equipment"` the same slot carries the two things
+            that belong to the SCENE — Workspace and Tools — and no list of
+            places to go. See the prop's doc. */}
+        {equipmentMode ? (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}>
+            {(["workspace", "tools"] as const).map((kind) => {
+              const open = equipment === kind;
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  data-testid={`os-equipment-${kind}`}
+                  onClick={() => setEquipment((current) => (current === kind ? null : kind))}
+                  aria-expanded={open}
+                  aria-controls="wm-os-rail"
+                  aria-label={kind === "workspace" ? "Workspace" : "Tools"}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    minHeight: 32,
+                    padding: "6px 10px",
+                    borderRadius: 3,
+                    border: `1px solid ${open ? GOLD : RULE}`,
+                    background: open ? "rgba(196,165,116,0.10)" : "transparent",
+                    color: open ? GOLD : MUTED,
+                    cursor: "pointer",
+                    ...EYEBROW,
+                  }}
+                >
+                  {kind === "workspace" ? "Workspace" : "Tools"}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
         <button
           type="button"
           data-testid="os-rail-toggle"
@@ -748,6 +882,7 @@ export function WMOperatingSystem({
           <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>{railOpen ? "◧" : "▤"}</span>
           Rooms
         </button>
+        )}
 
         {/* An unpublished surface omits the slot ENTIRELY. "—" in a title
             position still occupies the shape of a title. */}
@@ -815,11 +950,14 @@ export function WMOperatingSystem({
             the breakpoint and the phone strip owns navigation. In a `"door"`
             room this same element IS the phone's navigation, pinned. One
             state, one aria-expanded, two presentations. */}
-        {!railOpen ? null : (
+        {!panelOpen ? null : (
         <nav
           className="wm-os-rail"
           id="wm-os-rail"
-          aria-label="Rooms"
+          // The accessible name is the TRUTH about what the panel contains. In
+          // equipment mode it contains no rooms, so calling it "Rooms" would
+          // be a label that lies to exactly the users who cannot see it.
+          aria-label={equipmentMode ? (equipment === "tools" ? "Tools" : "Workspace") : "Rooms"}
           data-testid="os-rail"
           style={{
             position: "sticky",
@@ -875,8 +1013,8 @@ export function WMOperatingSystem({
               type="button"
               className="wm-os-rail-close"
               data-testid="os-rail-close"
-              onClick={() => setRailOpen(false)}
-              aria-label="Close rooms"
+              onClick={() => (equipmentMode ? setEquipment(null) : setRailOpen(false))}
+              aria-label={equipmentMode ? "Put the equipment down" : "Close rooms"}
               style={{
                 display: "none",
                 alignItems: "center",
@@ -902,15 +1040,37 @@ export function WMOperatingSystem({
             </button>
           )}
 
-          <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
+          {/* ── THE ROOM LIST, AND WHERE IT IS NOT DRAWN ────────────────────
+              This block IS the destination mall. In `destinations="equipment"`
+              it is not rendered — not collapsed, not hidden by CSS, not moved
+              behind a second click. A frame that still ships the list and only
+              declines to show it is a frame that will show it again the first
+              time someone flips a default. */}
+          {equipmentMode ? null : (
+            <>
+              <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
 
-          {OS_ROOMS.map((room) => (
-            <RailLink key={room.href} href={room.href} label={room.label} activeHref={activeHref} />
-          ))}
+              {OS_ROOMS.map((room) => (
+                <RailLink
+                  key={room.href}
+                  href={room.href}
+                  label={room.label}
+                  activeHref={activeHref}
+                  legacy={room.legacy}
+                />
+              ))}
+            </>
+          )}
 
           {/* WORKSPACE — the equipment THIS room has.
-              Renders nothing at all in a room with none. */}
-          <RoomWorkspaceRail activeHref={activeHref} />
+              Renders nothing at all in a room with none.
+
+              In equipment mode the trader asked for one of two things by name,
+              so the panel answers the question that was asked rather than
+              stacking both. */}
+          {equipmentMode && equipment !== "workspace" ? null : (
+            <RoomWorkspaceRail activeHref={activeHref} />
+          )}
 
           {/* TOOLS and COMMUNITY. Quieter than the loop above — smaller
               type, dimmer resting colour — because they are where the trader
@@ -924,15 +1084,26 @@ export function WMOperatingSystem({
               how "equipment I can pick up here" and "somewhere else I can go"
               became indistinguishable, which is the confusion the Workspace
               restore exists to end. They are TOOLS: other destinations. */}
-          <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Tools</div>
-          {OS_WORKBENCH.map((d) => (
-            <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
-          ))}
+          {equipmentMode && equipment !== "tools" ? null : (
+            <>
+              <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Tools</div>
+              {OS_WORKBENCH.map((d) => (
+                <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
+              ))}
+            </>
+          )}
 
-          <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Community</div>
-          {OS_COMMUNITY.map((d) => (
-            <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
-          ))}
+          {/* COMMUNITY is neither equipment nor a tool — it is somewhere else
+              to be. It has doors in every other room; it does not get one over
+              a live market. */}
+          {equipmentMode ? null : (
+            <>
+              <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Community</div>
+              {OS_COMMUNITY.map((d) => (
+                <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
+              ))}
+            </>
+          )}
 
           {/* STATE — the standing conditions live under the room list, where
               they are visible without a scroll. A "persistent" condition you
