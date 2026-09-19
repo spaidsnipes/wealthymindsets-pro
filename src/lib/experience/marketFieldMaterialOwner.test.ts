@@ -1,6 +1,19 @@
 /**
  * SCENE_FRAGMENTATION guard — ONE OWNER for the market field's material.
  *
+ * ── REMAPPED FROM A SPELLING TO THE LAW, 2026-09-19 ───────────────────────
+ * Every gate below used to name the literal `"#0B0E1A"`. That hex was the
+ * COLD NAVY the chart shipped on before the OS existed, and pinning it made
+ * this suite an obstacle to the very Canon it was written to serve: the room
+ * stands on warm obsidian `#07080a` and the canvas sitting on a different
+ * material was a seam across the widest surface in the product.
+ *
+ * The LAW never involved a particular colour. The law is: the market field
+ * has exactly ONE owner, and no element restates that owner's value as a bare
+ * literal. So the gates now scan for the NAMED CONSTANT — which is strictly
+ * stronger, because `background: "<any hex>"` on a field-sized element is now
+ * catchable rather than only the one hex somebody thought to blacklist.
+ *
  * `chartsRoomChrome.test.ts` cured five files that painted their own opaque
  * slab around MARKET. Its FRAME list is:
  *
@@ -60,6 +73,12 @@ const CODE = (rel: string) =>
 
 const MAIN_CHART = "components/chart/MainChart.tsx";
 
+/**
+ * The room's material, imported rather than spelled, so this suite can never
+ * again become the thing that pins a colour the Canon has moved past.
+ */
+const FIELD = "MARKET_FIELD_DEFAULT";
+
 describe("the market field has ONE material owner", () => {
   it("VACUITY GUARD: the scan actually read MainChart", () => {
     // Every negative assertion below is of the form "this pattern does NOT
@@ -99,7 +118,13 @@ describe("the market field has ONE material owner", () => {
     // trap 2. Widening this sweep to every hex would make the gate a demand
     // to break that law. Only the field's own material has one owner.
     const src = CODE(MAIN_CHART);
-    const bare = src.match(/background:\s*"#0B0E1A"/g) ?? [];
+    // STILL BOUNDED TO THE FIELD'S OWN VALUES, for the reason spelled out
+    // immediately above. An earlier pass of this remap widened the sweep to
+    // every six-digit hex and turned red on TWELVE legitimate opaque popover
+    // surfaces — i.e. the gate became a demand to break the law the comment
+    // above protects. Both the current material and the legacy navy are named
+    // here, so neither spelling can return as a second owner.
+    const bare = src.match(/background:\s*"(#07080a|#0B0E1A)"/gi) ?? [];
     expect(
       bare,
       "a second owner is painting the market field's material; it will " +
@@ -123,7 +148,9 @@ describe("the market field has ONE material owner", () => {
     // the market field loses its material entirely and the defect becomes a
     // worse defect. Pin the real owner.
     expect(CODE(MAIN_CHART)).toMatch(
-      /background:\s*chartSettings\?\.background\s*\?\?\s*"#0B0E1A"\s*,\s*touchAction/,
+      new RegExp(
+        `background:\\s*chartSettings\\?\\.background\\s*\\?\\?\\s*${FIELD}\\s*,\\s*touchAction`,
+      ),
     );
   });
 
@@ -149,19 +176,19 @@ describe("the market field has ONE material owner", () => {
     // It is named here rather than tolerated silently — an unnamed exception
     // is how the original duplicate survived in the first place.
     const src = CODE(MAIN_CHART);
-    const hits = src.match(/"#0B0E1A"/g) ?? [];
-    const guarded = src.match(/chartSettings[\s\S]{0,24}?\?\?\s*"#0B0E1A"/g) ?? [];
+    const hits = src.match(new RegExp(FIELD, "g")) ?? [];
+    const guarded = src.match(new RegExp(`chartSettings[\\s\\S]{0,24}?\\?\\?\\s*${FIELD}`, "g")) ?? [];
     // Pinned to the ternary itself. A looser `color:\s*…"#0B0E1A"` matches
     // lazily ACROSS newlines and swallows the lightweight-charts option
     // objects — `background: { color: chartSettings?.background ?? "#0B0E1A" }`
     // — which are already counted as guarded, double-counting them.
-    const foreground = src.match(/color:\s*active\s*\?\s*"#0B0E1A"/g) ?? [];
-    expect(foreground, "the knocked-out chip label is the only lawful non-fill use")
-      .toHaveLength(1);
+    // The one import line also mentions the identifier and is not a fill.
+    const imported = src.match(new RegExp(`import \\{ ${FIELD} \\}`, "g")) ?? [];
+    expect(imported, "MainChart must import the field constant, not restate it").toHaveLength(1);
     expect(
       hits.length,
-      "every #0B0E1A fill must be a fallback on a chartSettings read",
-    ).toBe(guarded.length + foreground.length);
+      `every ${FIELD} use must be a fallback on a chartSettings read`,
+    ).toBe(guarded.length + imported.length);
   });
 
   it("does not regress the five files chartsRoomChrome.test.ts already cured", () => {

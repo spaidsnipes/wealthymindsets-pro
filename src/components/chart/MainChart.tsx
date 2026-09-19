@@ -205,6 +205,7 @@ import { NectarVaultChip } from "./NectarVaultChip";
  * fidelity and no provenance.
  */
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { MARKET_FIELD_DEFAULT } from "@/lib/chart/marketFieldMaterial";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -1918,7 +1919,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         autoSize: true,
         localization: { timeFormatter: fmtAxisTime },
         layout: {
-          background:       { color: chartSettings?.background ?? "#0B0E1A" },
+          background:       { color: chartSettings?.background ?? MARKET_FIELD_DEFAULT },
           textColor:        "#8896BE",
           fontFamily:       "'JetBrains Mono', monospace",
           // Smaller axis font → Lightweight Charts fits MORE price/time labels
@@ -2208,7 +2209,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } else if (isColumns) {
         // Columns = full-height colored bars (no wicks, wide body)
         // Use background color for wicks to hide them — "transparent" breaks LWC's internal parser
-        const bgCol = chartSettings?.background ?? "#0B0E1A";
+        const bgCol = chartSettings?.background ?? MARKET_FIELD_DEFAULT;
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          chartSettings?.candleUp   ?? "#00E5CC",
           downColor:        chartSettings?.candleDown ?? "#7B6CF7",
@@ -2233,7 +2234,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Hollow candles: body filled with chart background so it appears empty;
         // colored border provides the outline. Using background color (not "transparent")
         // avoids LWC's broken alpha-stripping in its internal #0000 hex parser.
-        const bgColor = chartSettings?.background ?? "#0B0E1A";
+        const bgColor = chartSettings?.background ?? MARKET_FIELD_DEFAULT;
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          bgColor,
           downColor:        bgColor,
@@ -2290,7 +2291,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } else if (isOrderflow) {
         // Order Flow Candles — hollow body (footprint cells show through) but a CRISP
         // green/red border so the candle stays sharp, not blurry.
-        const bgOF = chartSettings?.background ?? "#0B0E1A";
+        const bgOF = chartSettings?.background ?? MARKET_FIELD_DEFAULT;
         const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          bgOF,
@@ -4490,7 +4491,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const chart = chartRef.current;
       chart.applyOptions({
         layout: {
-          background: { color: chartSettings.background ?? "#0B0E1A" },
+          background: { color: chartSettings.background ?? MARKET_FIELD_DEFAULT },
         },
         grid: chartSettings.gridColor ? {
           vertLines: { color: chartSettings.gridColor, style: 4 },
@@ -4517,7 +4518,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         } catch {}
       } else if (candleRef.current && chartSettings.candleUp && candleType === "hollow") {
         // For hollow candles: only update wicks and border, keep body as background color
-        const bgColor = chartSettings.background ?? "#0B0E1A";
+        const bgColor = chartSettings.background ?? MARKET_FIELD_DEFAULT;
         try {
           candleRef.current.applyOptions({
             upColor:          bgColor,
@@ -8525,7 +8526,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     <div
       ref={wrapRef}
       style={{ display:"flex", flexDirection:"column", flex:1, overflow:"hidden", minWidth:0,
-               background: chartSettings?.background ?? "#0B0E1A", touchAction:"none" }}
+               background: chartSettings?.background ?? MARKET_FIELD_DEFAULT, touchAction:"none" }}
     >
 
       {/* ── OHLCV strip ─────────────────────────────────── */}

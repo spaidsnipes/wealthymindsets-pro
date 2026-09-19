@@ -979,6 +979,10 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-neon [style*="#0A0B10"],
 .wm-neon [style*="#141824"],
 .wm-neon [style*="#0B0E1A"],
+/* The room’s field material (see lib/chart/marketFieldMaterial.ts). Listed
+   alongside the legacy navy because traders who deliberately kept the old
+   value still need the theme override to reach them. */
+.wm-neon [style*="#07080a"],
 .wm-neon [style*="#13151F"],
 .wm-neon [style*="#161616"],
 .wm-neon [style*="#111111"],
@@ -1057,6 +1061,7 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-light [style*="#0A0B10"],
 .wm-light [style*="#141824"],
 .wm-light [style*="#0B0E1A"],
+.wm-light [style*="#07080a"],
 .wm-light [style*="#13151F"],
 .wm-light [style*="#161616"],
 .wm-light [style*="#111111"],

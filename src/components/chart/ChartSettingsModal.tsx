@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2, TrendingUp, Sliders } from "lucide-react";
 
+import { MARKET_FIELD_DEFAULT } from "@/lib/chart/marketFieldMaterial";
+
 export interface ChartSettings {
   background: string;
   gridVisible: boolean;
@@ -33,7 +35,11 @@ export interface ChartSettings {
 }
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
-  background: "#0B0E1A",
+  // THE ROOM'S MATERIAL, not a charting-package navy. See
+  // `lib/chart/marketFieldMaterial.ts` for why this is a named constant and
+  // why an existing trader's storage needs a migration to ever see a change
+  // to it.
+  background: MARKET_FIELD_DEFAULT,
   gridVisible: true,
   gridColor: "#1A2035",
   crosshairVisible: true,

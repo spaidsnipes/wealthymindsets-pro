@@ -35,6 +35,7 @@ import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
+import { migrateMarketField } from "@/lib/chart/marketFieldMaterial";
 import { SymbolInfoHeader } from "./SymbolInfoHeader";
 // PRICE_UNAVAILABLE_TITLE is deliberately NOT imported here any more. The price
 // slot's disclosure now comes from chartHeaderPriceFact, which says strictly
@@ -552,7 +553,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // ── NEW: Chart settings ─────────────────────────────────────
   const [settingsOpen,   setSettingsOpen]   = useState(false);
   const [chartSettings,  setChartSettings]  = useState<ChartSettings>(
-    () => ({ ...DEFAULT_CHART_SETTINGS, ...lsGet<Partial<ChartSettings>>("wm_chartSettings", {}) }),
+    // MIGRATED ON READ. The persist effect below writes the WHOLE settings
+    // object, so every untouched default got frozen into storage as an
+    // explicit value the first time a trader changed anything at all. Without
+    // `migrateMarketField` the spread puts that frozen navy on the right of
+    // the defaults and the room's material could never reach an existing
+    // trader's canvas. See `lib/chart/marketFieldMaterial.ts`.
+    () => ({
+      ...DEFAULT_CHART_SETTINGS,
+      ...(migrateMarketField(
+        lsGet<Partial<ChartSettings>>("wm_chartSettings", {}),
+      ) as Partial<ChartSettings>),
+    }),
   );
   // Persist chart settings (candle colors, grid, etc.) so a refresh keeps them.
   useEffect(() => { lsSet("wm_chartSettings", chartSettings); }, [chartSettings]);
