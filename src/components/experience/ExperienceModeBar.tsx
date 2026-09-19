@@ -85,6 +85,7 @@ function modeHint(mode: ExperienceMode): string {
 export function ExperienceModeBar({ bus, className, collapsed = false }: ExperienceModeBarProps) {
   const { context, setMode } = useDecisionContext(bus);
   const [open, setOpen] = React.useState(false);
+  const chipRef = React.useRef<HTMLButtonElement | null>(null);
 
   // Re-seed when the route changes what the bar is FOR. Without this, expanding
   // the chip on the chart and then walking to a room that renders the full bar
@@ -95,6 +96,43 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
     setOpen(false);
   }
 
+  /**
+   * ESCAPE IS THE THIRD WAY OUT, AND IT WAS THE ONE THAT WAS MISSING.
+   *
+   * MEASURED 2026-09-19 on live /charts at 1920 wide. Opening the chip gave
+   * `aria-expanded="true"` and a seven-button panel hung over the candles;
+   * pressing Escape left it reading `"true"` with the panel still up.
+   *
+   * The choose-handler below already states the law — "Leaving it open would
+   * put a 7-button panel back over the candles" — and enforces it for exactly
+   * one of the three ways a human leaves a disclosure. The other two were
+   * unhandled, so the law held only for the person who picked something. A
+   * trader who opened the panel to LOOK, decided against switching, and pressed
+   * the key every disclosure on earth answers to, kept the panel.
+   *
+   * That is the same shape as the defect this file already records at the
+   * minHeight note: a comment asserting a care the code never delivered.
+   *
+   * Focus goes back to the chip deliberately. Escape that closes the panel and
+   * drops focus wherever the panel used to be strands a keyboard user in the
+   * document with no announced position — dismissing the trap by opening a
+   * quieter one. The chip is where they were standing before they opened it.
+   *
+   * Listener only exists while the panel is actually up: a document-level
+   * keydown bound for the life of the masthead would run on every keystroke the
+   * trader types into the symbol search.
+   */
+  React.useEffect(() => {
+    if (!collapsed || !open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      chipRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [collapsed, open]);
+
   const expanded = !collapsed || open;
 
   return (
@@ -104,6 +142,7 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
       {!collapsed ? null : (
         <button
           type="button"
+          ref={chipRef}
           data-testid="experience-mode-chip"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
