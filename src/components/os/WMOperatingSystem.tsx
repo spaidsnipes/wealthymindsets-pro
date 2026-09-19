@@ -373,7 +373,20 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWork
           // is exactly the orientation a non-sighted trader has least of.
           aria-pressed={open}
           title={item.hint}
-          onClick={() => requestEquipment(item.id)}
+          // A TOGGLE, BECAUSE `aria-pressed` ALREADY PROMISED ONE.
+          //
+          // MEASURED 2026-09-19 on live /charts, immediately after the announce
+          // above started telling the truth: press Replay → `pressed="true"`;
+          // press it again → still `"true"`, panel still up. The button
+          // described itself as pressed and could not be un-pressed.
+          //
+          // `aria-pressed` is a contract rather than a lamp — it is the whole
+          // meaning of the role that pressing again reverses it — so the honest
+          // badge had turned this control into a liar. Fixing it by dropping
+          // `aria-pressed` would have been the cheap direction: it would trade
+          // a screen reader's only source of "what am I holding" for the
+          // silence that made the first defect invisible.
+          onClick={() => requestEquipment(item.id, open ? "put-down" : "pick-up")}
           style={{
             display: "block",
             width: "100%",

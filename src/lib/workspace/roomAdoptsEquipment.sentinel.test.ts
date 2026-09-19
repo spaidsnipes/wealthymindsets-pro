@@ -1627,4 +1627,53 @@ describe("SENTINEL — the rail can report equipment the JOURNEY does not carry"
       `${RAIL} → a null equipmentId no longer clears the set; the journey's CLOSE would leave its equipment marked held`,
     ).toMatch(/equipmentId === null/);
   });
+
+  // ── THE SECOND DEFECT THE FIRST FIX MADE VISIBLE ──────────────────────────
+  // MEASURED 2026-09-19 on live /charts, one deploy after the announce above
+  // started working. Press Replay → `aria-pressed="true"`. Press again →
+  // still `"true"`, disclosure panel still up. Three presses, one outcome.
+  //
+  // `aria-pressed` is a CONTRACT, not a lamp — the whole meaning of the role
+  // is that pressing again reverses it. So the honest badge shipped in the
+  // block above had turned this control into a liar, and the cheap repair
+  // (drop `aria-pressed`) would have paid for it by restoring exactly the
+  // silence that made the first defect invisible. The rail keeps the claim and
+  // earns it instead.
+
+  it("a rail entry that reports itself pressed can actually be un-pressed", () => {
+    expect(
+      rail,
+      `${RAIL} → the rail's onClick no longer branches on \`open\`, so it can only ever re-request. ` +
+        `A control rendering \`aria-pressed={open}\` promises a reversal; re-requesting is not one. ` +
+        `Either send "put-down" when it is open, or stop claiming aria-pressed`,
+    ).toMatch(/requestEquipment\(\s*item\.id\s*,\s*open \? "put-down" : "pick-up"\s*\)/);
+  });
+
+  it("the room answers a put-down with the SAME closes its own controls use", () => {
+    // A second close path would be a second implementation. `stopReplay` and
+    // `setDrawSheetOpen(false)` are the exact handles the in-chart controls
+    // call, so the rail adds a door rather than a copy.
+    const at = chart.indexOf("subscribeEquipment((req)");
+    expect(at, "ChartsDashboard.tsx → the room stopped subscribing to equipment requests").toBeGreaterThan(-1);
+    const handler = chart.slice(at, at + 900);
+    expect(
+      handler,
+      "ChartsDashboard.tsx → the request handler ignores intent, so the rail's put-down would re-open the instrument it was closing",
+    ).toMatch(/req\.intent === "put-down"/);
+    expect(handler, "ChartsDashboard.tsx → put-down no longer stops the replay engine").toMatch(/stopReplay\(\)/);
+    expect(handler, "ChartsDashboard.tsx → put-down no longer closes the drawing drawer").toMatch(/setDrawSheetOpen\(false\)/);
+  });
+
+  it("the journey only puts down the equipment it is actually holding", () => {
+    // The rail sends put-down for what it BELIEVES is open; the journey is the
+    // authority on what IS open. Without the guard, a put-down for B would
+    // close whatever A the journey happened to be holding.
+    const hook = read(HOOK);
+    const at = hook.indexOf('req.intent === "put-down"');
+    expect(at, `${HOOK} → the journey ignores put-down; its equipment could be picked up but never set down from the rail`).toBeGreaterThan(-1);
+    expect(
+      hook.slice(at, at + 300),
+      `${HOOK} → put-down dispatches CLOSE unconditionally; a request for one piece of equipment would put down a different one`,
+    ).toMatch(/heldRef\.current === req\.equipmentId/);
+  });
 });

@@ -84,6 +84,50 @@ describe("equipmentChannel — the rail announces, the Room answers", () => {
     expect(() => requestEquipment("market-reality")).not.toThrow();
     expect(() => subscribeEquipment(() => {})()).not.toThrow();
   });
+
+  // ── A HAND CAN PUT THINGS DOWN ────────────────────────────────────────────
+  // MEASURED 2026-09-19 on live /charts, one deploy after the rail started
+  // reporting `aria-pressed` honestly for direct instruments. Press Replay →
+  // `pressed="true"`. Press it again → still `"true"`, panel still up. The
+  // channel had one verb, so the rail could not offer a reversal — and
+  // `aria-pressed` is a contract that promises exactly that reversal. The
+  // accurate badge had made the button a liar.
+
+  it("carries a put-down, so a pressed control can be un-pressed", () => {
+    const seen: string[] = [];
+    const off = subscribeEquipment((r) => seen.push(`${r.equipmentId}:${r.intent}`));
+    requestEquipment("market-reality", "put-down");
+    off();
+    expect(seen).toEqual(["market-reality:put-down"]);
+  });
+
+  it("defaults to pick-up, so every existing call site keeps its present meaning", () => {
+    // The fix must not silently re-interpret the dozens of one-argument calls
+    // that already exist. Omission means what it has always meant.
+    const seen: string[] = [];
+    const off = subscribeEquipment((r) => seen.push(r.intent));
+    requestEquipment("market-reality");
+    off();
+    expect(seen).toEqual(["pick-up"]);
+  });
+
+  it("normalises a foreign or stale event to pick-up at the door", () => {
+    // This is a DOM CustomEvent: anything on the page can dispatch one, and an
+    // older bundle mid-deploy will dispatch one with no intent at all. If the
+    // subscriber passed that through, a consumer reading `intent !== "pick-up"`
+    // would treat a PICK-UP as a PUT-DOWN and close the thing being opened.
+    const seen: string[] = [];
+    const off = subscribeEquipment((r) => seen.push(r.intent));
+    (g.document as EventTarget).dispatchEvent(
+      new CustomEvent("wm:equipment", { detail: { equipmentId: "market-reality" } }),
+    );
+    (g.document as EventTarget).dispatchEvent(
+      new CustomEvent("wm:equipment", { detail: { equipmentId: "market-reality", intent: "nonsense" } }),
+    );
+    off();
+    expect(seen, "an absent or unrecognised intent must fall back to pick-up, never put-down")
+      .toEqual(["pick-up", "pick-up"]);
+  });
 });
 
 describe("announceEquipmentStage — the Room answers BACK, so the rail can show what is held", () => {

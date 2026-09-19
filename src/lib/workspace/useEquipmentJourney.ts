@@ -107,6 +107,13 @@ export function useEquipmentJourney(
 ): EquipmentJourneyHandles {
   const [journey, dispatch] = React.useReducer(equipmentJourneyReducer, EQUIPMENT_CLOSED);
 
+  // What the journey is actually holding, readable from inside the subscriber
+  // without making the subscriber depend on it. Re-subscribing on every stage
+  // change would tear down and rebuild a document listener each time the trader
+  // widened a drawer; a ref keeps exactly one listener for the life of the room.
+  const heldRef = React.useRef(journey.equipmentId);
+  heldRef.current = journey.equipmentId;
+
   // The rail's Workspace entry is an EVENT, not a link. A link would remount the
   // chart and blank a frame — the exact "another app loaded" sensation the
   // grammar exists to disprove.
@@ -116,6 +123,18 @@ export function useEquipmentJourney(
       // Replay) belongs to the room's own controls and must never arrive at a
       // threshold. See the `direct` field's note in roomEquipment.ts.
       if (!isJourneyEquipment(roomHref, req.equipmentId)) return;
+      // The rail can now say "put this down" as well as "pick this up", because
+      // its entries report `aria-pressed` and that role promises a reversal.
+      // CLOSE is the reducer's existing word for it — this adds no state.
+      //
+      // The guard matters: without it, a put-down for equipment B would close
+      // whatever A the journey happened to be holding. The rail only ever sends
+      // put-down for something it believes is open, but the journey is the
+      // authority on what IS open, and a request is a request, not a fact.
+      if (req.intent === "put-down") {
+        if (heldRef.current === req.equipmentId) dispatch({ type: "CLOSE" });
+        return;
+      }
       dispatch({ type: "OPEN", equipmentId: req.equipmentId, decisionId });
     });
   }, [roomHref, decisionId]);

@@ -1347,10 +1347,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         // Trigger is null on purpose: the press came from the OS frame, and
         // restoring focus to a stale chart button would send the trader
         // somewhere they never were.
-        if (req.equipmentId === "draw-tools") openDrawingTools(null);
-        else if (req.equipmentId === "bar-replay") startReplay();
+        //
+        // PUT-DOWN IS THE SAME DOOR, WALKED THE OTHER WAY.
+        //
+        // The rail is a toggle because `aria-pressed` says it is (see the note
+        // at the onClick in WMOperatingSystem.tsx). It does not decide what
+        // closing MEANS — it reports an intent, and the room answers with the
+        // handles it already owns. `stopReplay` and `setDrawSheetOpen(false)`
+        // are the exact closes the in-chart controls call, so there is still
+        // one drawer and one replay engine; this adds a second door, not a
+        // second implementation.
+        const down = req.intent === "put-down";
+        if (req.equipmentId === "draw-tools") {
+          if (down) setDrawSheetOpen(false);
+          else openDrawingTools(null);
+        } else if (req.equipmentId === "bar-replay") {
+          if (down) stopReplay();
+          else startReplay();
+        }
       }),
-    [openDrawingTools, startReplay],
+    [openDrawingTools, startReplay, stopReplay],
   );
 
   /*

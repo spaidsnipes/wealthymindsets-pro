@@ -31,15 +31,40 @@ import type { EquipmentStage } from "./equipmentJourney";
 
 export const EQUIPMENT_EVENT = "wm:equipment";
 
+/**
+ * A HAND CAN PUT THINGS DOWN.
+ *
+ * MEASURED 2026-09-19 on live /charts. The rail had just been taught to report
+ * `aria-pressed` truthfully for direct instruments, and that immediately made a
+ * second defect visible: pressing Replay gave `pressed="true"`, and pressing it
+ * AGAIN left it `"true"` with the panel still up. Three presses, one outcome.
+ *
+ * That is not a cosmetic wrinkle. `aria-pressed` is a CONTRACT, not a lamp: a
+ * button that reports itself pressed promises that pressing it again un-presses
+ * it. That is the entire meaning of the role. So the honest badge we shipped an
+ * hour ago had made the button into a liar — the more accurately the rail
+ * described the state, the more plainly it promised a toggle it did not have.
+ *
+ * The channel had exactly one verb, "pick up", so the rail could not have
+ * offered anything else. It now has two. `pick-up` is the default so every
+ * existing call site keeps its exact present meaning; the journey and the room
+ * each decide what putting a thing down means for the equipment they own.
+ */
+export type EquipmentIntent = "pick-up" | "put-down";
+
 export interface EquipmentRequest {
   readonly equipmentId: string;
+  readonly intent: EquipmentIntent;
 }
 
-/** Rail side: "the trader picked this up." */
-export function requestEquipment(equipmentId: string): void {
+/** Rail side: "the trader picked this up" — or, with `put-down`, set it back. */
+export function requestEquipment(
+  equipmentId: string,
+  intent: EquipmentIntent = "pick-up",
+): void {
   if (typeof document === "undefined") return;
   document.dispatchEvent(
-    new CustomEvent<EquipmentRequest>(EQUIPMENT_EVENT, { detail: { equipmentId } }),
+    new CustomEvent<EquipmentRequest>(EQUIPMENT_EVENT, { detail: { equipmentId, intent } }),
   );
 }
 
@@ -48,7 +73,16 @@ export function subscribeEquipment(handler: (req: EquipmentRequest) => void): ()
   if (typeof document === "undefined") return () => {};
   const listener = (event: Event) => {
     const detail = (event as CustomEvent<EquipmentRequest>).detail;
-    if (detail && typeof detail.equipmentId === "string") handler(detail);
+    if (!detail || typeof detail.equipmentId !== "string") return;
+    // NORMALISE AT THE DOOR. This is a DOM CustomEvent, so anything on the page
+    // can dispatch it and an older bundle mid-deploy can dispatch one without
+    // an intent at all. Every subscriber would otherwise have to re-derive the
+    // default, and a subscriber that forgot would read `undefined` as "not
+    // pick-up" and silently treat a pick-up as a put-down.
+    handler({
+      equipmentId: detail.equipmentId,
+      intent: detail.intent === "put-down" ? "put-down" : "pick-up",
+    });
   };
   document.addEventListener(EQUIPMENT_EVENT, listener);
   return () => document.removeEventListener(EQUIPMENT_EVENT, listener);
