@@ -1319,3 +1319,67 @@ describe("SENTINEL — equipment overlays the room; the market does not move to 
     ).toMatch(/position:\s*"relative"/);
   });
 });
+
+/**
+ * SENTINEL — ONE ESCAPE, ONE STEP OUT.
+ *
+ * THE DEFECT THIS ENDS, which shipped green and was found by reading rather
+ * than by a test: the room owns a journey — threshold → drawer → full — and
+ * `RoomEquipmentLayer` closes it on Escape, one level per press. The frame
+ * then grew its own Escape for the equipment wall. Both listened, neither
+ * knew about the other, so ONE press did TWO things: the drawer stepped back
+ * AND the wall behind it vanished. A trader backing out one level lost two,
+ * and the level they lost was the one they would have to re-open to continue.
+ *
+ * That is the same class as the sentinel above it — one control meaning two
+ * things depending on invisible state — and it is worth its own rules because
+ * the two owners are in different files and neither reads the other.
+ */
+describe("SENTINEL — Escape is a staircase, not a trapdoor", () => {
+  const rail = read(RAIL);
+  const layer = read(LAYER);
+
+  it("the ROOM still owns Escape inside the journey", () => {
+    // If this stops being true the frame's deference below becomes deference
+    // to nobody, and Escape silently stops working at depth.
+    expect(layer, `${LAYER} → nothing steps the journey back on Escape`).toMatch(
+      /e(vent)?\.key !== "Escape"/,
+    );
+  });
+
+  it("the FRAME defers while the trader is inside something they picked up", () => {
+    const at = rail.indexOf('e.key !== "Escape"');
+    const effect = rail.slice(Math.max(0, at - 900), at + 500);
+    expect(
+      effect,
+      `${RAIL} → the frame closes the wall on the same press the room uses to step back`,
+    ).toMatch(/journeyOpen\)\s*return/);
+  });
+
+  it("the frame LEARNS the stage from the room — it never infers one", () => {
+    // A frame that guessed could hold the wall shut after the room had
+    // already closed, leaving Escape dead with nothing on screen to explain
+    // why. The room is the only writer of its own stage.
+    expect(rail, `${RAIL} → the frame does not hear the room's stage at all`).toMatch(
+      /subscribeEquipmentStage\(\(\{ stage \}\) => setJourneyOpen\(stage !== "closed"\)\)/,
+    );
+  });
+
+  it("the deference is re-evaluated — a stale closure would freeze the wall open", () => {
+    const at = rail.indexOf('e.key !== "Escape"');
+    const deps = rail.slice(at, at + 500);
+    expect(
+      deps,
+      `${RAIL} → journeyOpen is missing from the effect's dependencies, so the handler keeps the first value it ever saw`,
+    ).toMatch(/\[equipmentMode, equipment, journeyOpen\]/);
+  });
+
+  it("the market press defers too — one gesture, one meaning", () => {
+    const room = rail.indexOf('data-testid="os-room"');
+    const main = rail.slice(room, room + 1400);
+    expect(
+      main,
+      `${RAIL} → pressing inside an open drawer closes the wall behind it`,
+    ).toMatch(/!journeyOpen/);
+  });
+});

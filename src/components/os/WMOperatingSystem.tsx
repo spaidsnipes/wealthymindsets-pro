@@ -727,8 +727,27 @@ export function WMOperatingSystem({
     Record<"workspace" | "tools", HTMLButtonElement | null>
   >({ workspace: null, tools: null });
 
+  /**
+   * IS THE TRADER ALREADY INSIDE SOMETHING THEY PICKED UP?
+   *
+   * The room owns a journey of its own — threshold → drawer → full — and it
+   * ALSO closes on Escape, one step at a time. Two listeners on one key is one
+   * press doing two things: the drawer would step back AND the wall behind it
+   * would vanish, so a trader trying to back out one level would lose two.
+   *
+   * The room is the only writer of its stage; the frame never infers one. With
+   * this guard Escape is a staircase — each press leaves exactly one level,
+   * and the wall is the last thing to go because it was the first thing
+   * opened.
+   */
+  const [journeyOpen, setJourneyOpen] = React.useState(false);
   React.useEffect(() => {
-    if (!equipmentMode || equipment === null) return;
+    if (!equipmentMode) return;
+    return subscribeEquipmentStage(({ stage }) => setJourneyOpen(stage !== "closed"));
+  }, [equipmentMode]);
+
+  React.useEffect(() => {
+    if (!equipmentMode || equipment === null || journeyOpen) return;
     const held = equipment;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -737,7 +756,7 @@ export function WMOperatingSystem({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [equipmentMode, equipment]);
+  }, [equipmentMode, equipment, journeyOpen]);
   // Compiled ONCE. The rail and the provenance bar both read this array; two
   // independently-typed copies of one reading is how a screen ends up
   // disagreeing with itself.
@@ -1268,7 +1287,9 @@ export function WMOperatingSystem({
              whose panel dismisses differently depending on an invisible mode
              is a frame that has two answers to one gesture. */
           onPointerDown={
-            equipmentMode && equipment !== null ? () => setEquipment(null) : undefined
+            equipmentMode && equipment !== null && !journeyOpen
+              ? () => setEquipment(null)
+              : undefined
           }
           style={{
             flex: "1 1 auto",
