@@ -91,9 +91,6 @@ const UNGUARDED_SCANNERS_DEBT: readonly string[] = [
   // costs coverage nobody can see they lost. Keeping this entry is the cheaper
   // error, taken with eyes open.
   "components/chart/LeftSidebar.lifecycle.test.ts",
-  "components/marketData/CanonicalFidelityBadge.enforcement.test.ts",
-  "components/systemHealth/FailureStateChip.enforcement.test.ts",
-  "components/truthStatus/TruthStatusChip.enforcement.test.ts",
   "lib/authority/alpacaOrderGate.enforcement.test.ts",
   "lib/authority/executionReceiptRenderer.enforcement.test.ts",
   "lib/broker/providerReadiness.envExample.test.ts",
