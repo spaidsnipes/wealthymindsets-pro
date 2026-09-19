@@ -1,3 +1,25 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is a **POINT-IN-TIME RECORD**, stamped `2026-09-02` in its own
+> filename. Every status, count, verdict and next-step below was true on that day
+> and has been `STALE` by construction ever since — a build status is a snapshot,
+> never a standing claim. Do not take a current action, diagnosis, priority or
+> task claim from it.
+>
+> **Current runtime proof is a chain, not a noun:** repo HEAD → deploy target →
+> running release fingerprint → public route → human scene → receipt. Current
+> production is `https://wealthymindsetspro.com` (Cloudflare Workers / OpenNext).
+>
+> Demoted 2026-09-19 under gate M6 (source poison). A document that names its own
+> day in its filename but speaks in the present tense is read as current by anyone
+> who arrives via search or link and never sees `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # WM Pro — Founder-Visible Visual Debt Register — 2026-09-02
 
 Per **Transformation UI Visual Implementation Contract** (Drive ID `11xOCJYbc8-B-B1A_1R0AaBh2Xm7GY5OVL5hKQbE6KHI`, rev 2026-09-01) §**FOUNDER-VISIBLE VISUAL DEBT**:

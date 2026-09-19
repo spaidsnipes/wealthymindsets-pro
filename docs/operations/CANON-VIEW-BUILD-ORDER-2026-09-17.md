@@ -1,3 +1,23 @@
+<!-- ath-standing-authority: 2026-09-19 -->
+<!--
+  THE ONE DECLARED EXEMPTION from `datedDocsAreDemoted.sentinel.test.ts`.
+
+  That Sentinel demotes every operations doc whose FILENAME names a day, because
+  a point-in-time record wearing the present tense coaches a worker into whatever
+  month it was written. Forty-five docs were demoted under it on 2026-09-19.
+
+  This file has a dated filename and is NOT one of them: it is the current
+  first-read authority for this lane, and `viewBuildOrder.sentinel.test.ts`
+  independently requires it to still claim that. Demoting it would set two gates
+  against each other, so it opts out HERE, in its own body, where its next author
+  actually looks — rather than in an allowlist inside a test file they will never
+  open.
+
+  The date above is the day this was last RE-MEASURED, not the day the file was
+  written. An exemption that cannot go stale is not an exemption, it is a
+  permanent escape — so the Sentinel refuses a bare, undated claim.
+-->
+
 # CANON VIEW BUILD ORDER — supersedes the §13 gate list for this lane
 
 **Founder directive, 2026-09-17:** *"why arent the rest of the mockups in the

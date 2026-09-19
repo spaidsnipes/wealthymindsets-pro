@@ -1,3 +1,25 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is a **POINT-IN-TIME RECORD**, stamped `2026-08-12` in its own
+> filename. Every status, count, verdict and next-step below was true on that day
+> and has been `STALE` by construction ever since — a build status is a snapshot,
+> never a standing claim. Do not take a current action, diagnosis, priority or
+> task claim from it.
+>
+> **Current runtime proof is a chain, not a noun:** repo HEAD → deploy target →
+> running release fingerprint → public route → human scene → receipt. Current
+> production is `https://wealthymindsetspro.com` (Cloudflare Workers / OpenNext).
+>
+> Demoted 2026-09-19 under gate M6 (source poison). A document that names its own
+> day in its filename but speaks in the present tense is read as current by anyone
+> who arrives via search or link and never sees `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # Cycle 7 Precomputation — Employee-Decision Packets Ready for Zero-Latency Implementation
 
 **Purpose**: per §Precomputation Mode + §Employee vs Founder Gate Taxonomy, all remaining WM Pro P0 work is either founder-gated (2 items) or employee-gated (5 items). This doc formalizes the 5 employee-gated packets so implementation is mechanical the moment execution unblocks.

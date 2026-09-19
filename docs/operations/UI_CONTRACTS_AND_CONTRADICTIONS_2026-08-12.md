@@ -1,3 +1,25 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is a **POINT-IN-TIME RECORD**, stamped `2026-08-12` in its own
+> filename. Every status, count, verdict and next-step below was true on that day
+> and has been `STALE` by construction ever since — a build status is a snapshot,
+> never a standing claim. Do not take a current action, diagnosis, priority or
+> task claim from it.
+>
+> **Current runtime proof is a chain, not a noun:** repo HEAD → deploy target →
+> running release fingerprint → public route → human scene → receipt. Current
+> production is `https://wealthymindsetspro.com` (Cloudflare Workers / OpenNext).
+>
+> Demoted 2026-09-19 under gate M6 (source poison). A document that names its own
+> day in its filename but speaks in the present tense is read as current by anyone
+> who arrives via search or link and never sees `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # WM Pro UI Contracts + Contradiction Audit + Selector Spec — 2026-08-12
 
 Cycle 4 deliverable. Executes §27 (UI Contradiction Audit) + §40 (Module Contracts) + §41 (Design-token/primitive spec deferred) + §12 (Functional lenses) of the Ultimate Reconstruction directive. Read-only spec — no source, test, schema, DB, or deploy mutation. WM Pro remains NO-GO under STOP_REQUIRED.

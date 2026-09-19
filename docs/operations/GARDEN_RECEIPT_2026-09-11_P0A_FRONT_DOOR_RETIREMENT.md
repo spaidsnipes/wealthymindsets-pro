@@ -1,3 +1,29 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is a **POINT-IN-TIME RECORD**, stamped `2026-09-11` in its own
+> filename. Every status, count, verdict and next-step below was true on that day
+> and has been `STALE` by construction ever since — a build status is a snapshot,
+> never a standing claim. Do not take a current action, diagnosis, priority or
+> task claim from it.
+>
+> **Current runtime proof is a chain, not a noun:** repo HEAD → deploy target →
+> running release fingerprint → public route → human scene → receipt. Current
+> production is `https://wealthymindsetspro.com` (Cloudflare Workers / OpenNext).
+>
+> Demoted 2026-09-19 under gate M6 (source poison). This file is the receipt for
+> the 2026-09-11 repair that INVENTED the lineage marker, and it was the last doc
+> in the tree not wearing one. It demoted itself in PROSE on the lines below
+> ("It may teach. It may not command.") and names the marker further down while
+> explaining it — so a scan for the marker's NAME reports this file demoted,
+> while a scan for the marker in POSITION finds nothing. The second scan is the
+> honest one, and that difference is exactly why the rule is machine-readable.
+<!-- END:ath-historical-lineage -->
+
+---
+
 <!-- ath-retirement-evidence -->
 # GARDEN RECEIPT — P0-A REPO FRONT-DOOR RETIREMENT + SEARCH
 

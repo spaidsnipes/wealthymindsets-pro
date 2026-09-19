@@ -1,3 +1,25 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is a **POINT-IN-TIME RECORD**, stamped `2026-08-23` in its own
+> filename. Every status, count, verdict and next-step below was true on that day
+> and has been `STALE` by construction ever since — a build status is a snapshot,
+> never a standing claim. Do not take a current action, diagnosis, priority or
+> task claim from it.
+>
+> **Current runtime proof is a chain, not a noun:** repo HEAD → deploy target →
+> running release fingerprint → public route → human scene → receipt. Current
+> production is `https://wealthymindsetspro.com` (Cloudflare Workers / OpenNext).
+>
+> Demoted 2026-09-19 under gate M6 (source poison). A document that names its own
+> day in its filename but speaks in the present tense is read as current by anyone
+> who arrives via search or link and never sees `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # SHIFT-K TEAM_MUSTER — honest roster + role assignment · 2026-08-23
 
 **Canon: §24 Full ATHOS/ATH/WOW Team Mobilization Law (Master Contract, added 2026-08-23). §24.1 requires TEAM_MUSTER before substantive execution; §24.12 forbids silent role omission; §24.6 forbids invisible teammate credit.**
