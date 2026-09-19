@@ -969,17 +969,33 @@ export function WMOperatingSystem({
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 6,
-                    minHeight: 32,
-                    padding: "6px 10px",
+                    gap: 7,
+                    // THE ONLY TWO DOORS IN THE ROOM ARE DRAWN LIKE DOORS.
+                    // The Canon frame gives Workspace and Tools a brass plate
+                    // each — adjacent, large, unmistakably the persistent
+                    // equipment chrome. They shipped at the same 32px ghost
+                    // weight as every incidental control on the page, which is
+                    // why the approved frame reads as a sanctuary and the
+                    // runtime read as a toolbar. Fitts' argument in §3 of the
+                    // Last Mile support doc is explicit: "the two targets sit
+                    // adjacent, LARGE".
+                    minHeight: 34,
+                    padding: "7px 13px",
                     borderRadius: 3,
-                    border: `1px solid ${open ? GOLD : RULE}`,
-                    background: open ? "rgba(196,165,116,0.10)" : "transparent",
-                    color: open ? GOLD : MUTED,
+                    border: `1px solid ${open ? GOLD : "rgba(196,165,116,0.42)"}`,
+                    background: open
+                      ? "rgba(196,165,116,0.14)"
+                      : "linear-gradient(180deg, rgba(196,165,116,0.07), rgba(196,165,116,0.02))",
+                    color: open ? GOLD : PEARL,
                     cursor: "pointer",
                     ...EYEBROW,
+                    fontSize: 10,
+                    letterSpacing: 1.8,
                   }}
                 >
+                  <span aria-hidden style={{ fontSize: 11, lineHeight: 1, color: GOLD }}>
+                    {kind === "workspace" ? "▤" : "⌕"}
+                  </span>
                   {kind === "workspace" ? "Workspace" : "Tools"}
                 </button>
               );

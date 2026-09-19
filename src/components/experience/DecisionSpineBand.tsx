@@ -192,23 +192,45 @@ const CELL: React.CSSProperties = {
   gap: 2,
 };
 
+/**
+ * ── THE SPINE WAS PAINTED IN THE WRONG ROOM ─────────────────────────────────
+ * `#8b8fa8` and `#E2E8F0` are Tailwind-slate: BLUE-grey. Every other surface
+ * of the sanctuary is warm obsidian and brass, and the Visual Canon's frame
+ * (WM_NewMockup_64_F24_Surface_One_Canvas) sets these same six cells in brass
+ * labels over warm pearl values.
+ *
+ * Two cool greys against a warm field is not a small mismatch: the rail is the
+ * single largest block of text in the room, so its temperature IS the room's
+ * temperature. The runtime read as a dark-blue terminal for exactly this
+ * reason while the approved frame read as a lit sanctuary.
+ *
+ * Nothing about WHAT the cells say changes — colour here is chrome, not claim.
+ * Every informational colour (the ladder tones, the severity tones, the NOW
+ * token tones) is still looked up from its own TOTAL record below and is
+ * untouched, because those ARE claims and the canonical state owns them.
+ */
 const LABEL: React.CSSProperties = {
   fontSize: 9,
-  letterSpacing: 0.8,
+  letterSpacing: 1.1,
   textTransform: "uppercase",
-  color: "#8b8fa8",
+  // #c4a574 / #ede6d3 / #8a8271 are the OS frame's own GOLD / PEARL / MUTED.
+  // Reusing those exact three keeps the rail inside the palette the
+  // legibility suite has already composited against the grain and vignette —
+  // a new brass would be a fourth unmeasured value on the field.
+  color: "#c4a574",
   fontWeight: 700,
+  fontFamily: "Georgia, 'Times New Roman', serif",
 };
 
 const VALUE: React.CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
-  color: "#E2E8F0",
+  color: "#ede6d3",
   overflow: "hidden",
   textOverflow: "ellipsis",
 };
 
-const MUTED: React.CSSProperties = { ...VALUE, color: "#8b8fa8" };
+const MUTED: React.CSSProperties = { ...VALUE, color: "#8a8271" };
 
 /**
  * THE LEDGER BAR — the NEXT cell's first drawn form.
@@ -343,12 +365,28 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         flex: "0 0 auto",
         minWidth: 0,
         width: "100%",
-        borderLeft: "none",
-        // The desktop rail is one attached decision context, not a stack of
-        // cards. Vertical rhythm separates NOW / RISK / WHY / NEXT without
-        // drawing a new panel boundary between every truth surface.
-        borderTop: "none",
-        padding: "10px 12px",
+        // ── THE CANON DRAWS THESE AS PLATES ──────────────────────────────
+        // This used to read: "the desktop rail is one attached decision
+        // context, not a stack of cards", and every border was removed. The
+        // approved frame disagrees on the evidence: in
+        // WM_NewMockup_64_F24_Surface_One_Canvas every rail cell — DECISION_ID,
+        // STATE, MARKET, RISK, WHY, the honesty chip — sits inside its OWN
+        // brass-hairline plate on a slightly raised ground.
+        //
+        // The old reasoning was sound about what it feared (a dashboard of
+        // floating cards competing with price) and wrong about the remedy.
+        // What stops the rail competing is the GROUND, not the absence of
+        // edges: the plate ground here is two points of warmth over the
+        // sanctuary field, and the hairline is the same 0.22-alpha brass
+        // already used for the seam between MARKET and the rail. Edgeless,
+        // the six cells ran together into one undifferentiated column of
+        // small type — the single thing the Founder named when he said the
+        // runtime looks nothing like the frame.
+        border: "1px solid rgba(196,165,116,0.20)",
+        borderRadius: 3,
+        background: "rgba(24,20,14,0.42)",
+        padding: "9px 11px",
+        marginBottom: 6,
       }
     : CELL;
   const decisionValue = decisionId ? (
@@ -421,6 +459,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         // desktop. The responsive owner still swaps this rail for the proven
         // horizontal band at <=1023px.
         width: rail ? "clamp(260px, 22vw, 320px)" : undefined,
+        // The plates need a gutter, or their hairlines fuse with the seam
+        // border on the left and the room edge on the right.
+        padding: rail ? "8px 9px 2px" : undefined,
         overflowY: rail ? "auto" : undefined,
         flexShrink: 0,
       }}

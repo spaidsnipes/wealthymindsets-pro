@@ -27,10 +27,24 @@ export interface WmWordmarkProps {
   className?: string;
 }
 
+/**
+ * ── THE TRACKING WAS DEAD ────────────────────────────────────────────────────
+ * `tracking` used to be a bare number divided at the call site — `0.32 / 32`
+ * for the wordmark, `0.32 / 20` for PRO. React serialises a bare number on
+ * `letterSpacing` as PIXELS, so the delivered lockup shipped at 0.01px and
+ * 0.016px of tracking: arithmetically present, optically nothing. The serif
+ * wordmark rendered as tight body text, which is why the masthead never read
+ * as the Visual Canon's engraved plate no matter how gold it was.
+ *
+ * The Canon lockup (WM_NewMockup_64_F24_Surface_One_Canvas) is WIDE — the
+ * wordmark is spaced open enough that the eye reads it as a mark rather than
+ * as a word. Tracking is now stated in `em` so it scales with the size it
+ * belongs to instead of being re-derived by a divisor at each use.
+ */
 const SIZE = {
-  compact: { mark: 14, word: 12, sub: 8, spacing: 6, tracking: 0.32 },
-  regular: { mark: 22, word: 20, sub: 10, spacing: 10, tracking: 0.38 },
-  hero:    { mark: 34, word: 32, sub: 11, spacing: 12, tracking: 0.42 },
+  compact: { mark: 14, word: 13, sub: 8,  spacing: 8,  wordTrack: "0.19em", subTrack: "0.34em" },
+  regular: { mark: 22, word: 20, sub: 10, spacing: 10, wordTrack: "0.21em", subTrack: "0.36em" },
+  hero:    { mark: 34, word: 32, sub: 11, spacing: 12, wordTrack: "0.23em", subTrack: "0.38em" },
 } as const;
 
 export function WmWordmark({ size = "regular", subtitle, className }: WmWordmarkProps) {
@@ -61,7 +75,7 @@ export function WmWordmark({ size = "regular", subtitle, className }: WmWordmark
             fontFamily: "Georgia, 'Times New Roman', serif",
             fontSize: s.word,
             fontWeight: 400,
-            letterSpacing: s.tracking / 32,
+            letterSpacing: s.wordTrack,
             color: "#d4af37",
             lineHeight: 1,
           }}
@@ -74,7 +88,7 @@ export function WmWordmark({ size = "regular", subtitle, className }: WmWordmark
             fontFamily: "Georgia, 'Times New Roman', serif",
             fontWeight: 400,
             color: "#c9a55c",
-            letterSpacing: s.tracking / 20,
+            letterSpacing: s.wordTrack,
             marginLeft: 2,
             lineHeight: 1,
           }}
@@ -87,9 +101,15 @@ export function WmWordmark({ size = "regular", subtitle, className }: WmWordmark
           style={{
             fontSize: s.sub,
             fontFamily: "Georgia, 'Times New Roman', serif",
-            letterSpacing: s.tracking / 20,
-            color: "#8a8271",
-            marginTop: 2,
+            // The sub-line is the engraved plate under the mark. It carries the
+            // WIDEST tracking in the lockup because it is read as a legend, not
+            // as a sentence — the Canon frame sets it noticeably looser than
+            // the wordmark above it.
+            letterSpacing: s.subTrack,
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+            color: "#9c8558",
+            marginTop: 3,
             paddingLeft: s.mark + s.spacing,
           }}
         >

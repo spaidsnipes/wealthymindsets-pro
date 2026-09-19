@@ -286,7 +286,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
    */
   if (isFounderOperatingRoom) {
     return (
-      <WMExperienceShell brand={<WmWordmark size="compact" />}>{children}</WMExperienceShell>
+      /* THE ROOM SAYS WHAT ROOM IT IS.
+         The Visual Canon's one-canvas frame carries a two-line masthead plate:
+         the serif wordmark, and under it the engraved legend
+         "— A TRADING SANCTUARY —". The product shipped only the first line, so
+         the masthead named the COMPANY and never named the PLACE — the single
+         most-quoted difference between the approved frame and the runtime.
+         The legend is a property of the operating room itself, so it is set
+         here, where the room is composed, not inside the brand primitive
+         (every other surface that borrows WmWordmark names its own sub-line). */
+      <WMExperienceShell brand={<WmWordmark size="compact" subtitle="— A Trading Sanctuary —" />}>
+        {children}
+      </WMExperienceShell>
     );
   }
 
