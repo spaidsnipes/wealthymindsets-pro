@@ -93,7 +93,7 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
-import type { OHLCVBar } from "@/lib/pine/types";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
@@ -409,7 +409,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [initialTimeframe]);
   const [pineOutput,      setPineOutput]      = useState<PineOutput | null>(null);
   const [pineCode,        setPineCode]        = useState<string>("");
-  const [chartBars,       setChartBars]       = useState<OHLCVBar[]>([]);
+  const [chartBars,       setChartBars]       = useState<LegacyOhlcvTuple[]>([]);
   const [communityOpen,   setCommunityOpen]   = useState(false);
   const [requestedTab,    setActiveTab]       = useState("Chart");
   const assetClass = canonicalAssetClass(symbol);
@@ -774,7 +774,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // screen would be a second owner of "what happened in this window", which is
   // the drift class this room has already been repaired for twice.
   //
-  // askVol / bidVol are deliberately absent here. `OHLCVBar` carries no
+  // askVol / bidVol are deliberately absent here. `LegacyOhlcvTuple` carries no
   // aggressor split, so the selector resolves the window's basis to VOLUME and
   // the view says so in its own header. Synthesizing a split from candle
   // direction would make the picture match the mockup and the reading a lie.
@@ -786,7 +786,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // person edits one of them. Now the guarantee is structural: there is only
   // one array, so there is nothing for the two surfaces to disagree about.
   //
-  // askVol / bidVol are deliberately null. `OHLCVBar` carries no aggressor
+  // askVol / bidVol are deliberately null. `LegacyOhlcvTuple` carries no aggressor
   // split, so the selector resolves the window's basis to VOLUME and each view
   // says so in its own header. Synthesizing a split from candle direction would
   // make the picture match the mockup and the reading a lie.
@@ -1379,7 +1379,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    */
   const [barsSettled, setBarsSettled] = useState(false);
 
-  const handleBarsReady = useCallback((bars: OHLCVBar[]) => {
+  const handleBarsReady = useCallback((bars: LegacyOhlcvTuple[]) => {
     setBarsSettled(true);
     setChartBars(bars);
     if (bars.length > 0) {

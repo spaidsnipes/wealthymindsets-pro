@@ -11,9 +11,9 @@
  */
 import { describe, it, expect } from "vitest";
 import { deriveLastBarClose } from "./deriveLastBarClose";
-import type { OHLCVBar } from "../pine/types";
+import type { LegacyOhlcvTuple } from "./canonicalBar";
 
-const bar = (time: number, close: number): OHLCVBar => ({
+const bar = (time: number, close: number): LegacyOhlcvTuple => ({
   time, open: close, high: close, low: close, close, volume: 1,
 });
 
@@ -36,7 +36,7 @@ describe("deriveLastBarClose", () => {
   });
 
   it("converts the seconds bar stamp to milliseconds exactly once", () => {
-    // OHLCVBar.time is SECONDS (the lightweight-charts convention that
+    // LegacyOhlcvTuple.time is SECONDS (the lightweight-charts convention that
     // liveBarPolicy also emits). Every other field in canonical market state
     // is milliseconds; leaking seconds through would render as 1970.
     const out = deriveLastBarClose(
@@ -64,11 +64,11 @@ describe("deriveLastBarClose", () => {
   });
 
   it.each([
-    ["no bars at all", [] as OHLCVBar[]],
+    ["no bars at all", [] as LegacyOhlcvTuple[]],
     ["a null array", null],
     ["an undefined array", undefined],
   ])("refuses %s", (_label, bars) => {
-    expect(deriveLastBarClose(bars as OHLCVBar[] | null, "1h")).toBeNull();
+    expect(deriveLastBarClose(bars as LegacyOhlcvTuple[] | null, "1h")).toBeNull();
   });
 
   it.each([
@@ -146,7 +146,7 @@ describe("deriveLastBarClose", () => {
 
     it("is not fooled by a zero-volume forming bar that looks like a real one", () => {
       // The live signature: zero range, zero volume, seeded close.
-      const seeded: OHLCVBar = {
+      const seeded: LegacyOhlcvTuple = {
         time: FORMING_OPEN, open: 29355.75, high: 29355.75,
         low: 29355.75, close: 29355.75, volume: 0,
       };

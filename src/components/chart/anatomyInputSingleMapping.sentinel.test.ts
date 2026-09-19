@@ -31,7 +31,7 @@
  * MAINCHART IS DELIBERATELY NOT IN SCOPE. It builds its own `AnatomyBarInput[]`
  * and that mapping is NOT a duplicate of this one — it reads a real per-bar
  * sub-profile and carries genuine `askVol` / `bidVol` off the tape, where the
- * dashboard's is honestly null because `OHLCVBar` has no aggressor split.
+ * dashboard's is honestly null because `LegacyOhlcvTuple` has no aggressor split.
  * Collapsing those two would be the flattering kind of DRY: it would make the
  * count go down by pretending a measured split and an absent one are the same
  * ingress. A different room measuring a different thing is allowed to map it.

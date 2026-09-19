@@ -16,7 +16,8 @@
  *  - Comments (//, /* *\/)
  */
 
-import { OHLCVBar, PineOutput, PlotOutput, PlotShapeOutput, HLineOutput, BgColorOutput } from "./types";
+import { PineOutput, PlotOutput, PlotShapeOutput, HLineOutput, BgColorOutput } from "./types";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ta, mathFns, colorFromPine, nz } from "./builtins";
 
 const DEFAULT_COLORS = ["#4FA3E0","#00D4AA","#FF4D6A","#F0B429","#8B5CF6","#F97316","#E8EDF3"];
@@ -961,7 +962,7 @@ function parseNamedArgs(argsStr: string): Record<string | number, string> {
 }
 
 /* ── Main interpreter entry point ──────────────────────────── */
-export function interpretPine(script: string, bars: OHLCVBar[]): PineOutput {
+export function interpretPine(script: string, bars: LegacyOhlcvTuple[]): PineOutput {
   const errors: { line: number; msg: string }[] = [];
   const report = (line: number, error: unknown) => {
     const msg = error instanceof Error ? error.message : String(error);

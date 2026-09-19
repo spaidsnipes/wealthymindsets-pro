@@ -58,14 +58,27 @@ export interface PineOutput {
   errors:     { line: number; msg: string }[];
 }
 
-export interface OHLCVBar {
-  time:   number;
-  open:   number;
-  high:   number;
-  low:    number;
-  close:  number;
-  volume: number;
-}
+/*
+ * THE PINE ENGINE NO LONGER DECLARES ITS OWN `OHLCVBar` (2026-09-18).
+ *
+ * What stood here was byte-for-byte `LegacyOhlcvTuple`: six numbers, the same
+ * six, under a sixth name. It is gone and NO ALIAS WAS LEFT BEHIND — this
+ * module stopped EXPORTING a bar type rather than re-exporting one, so every
+ * importer was enumerated by `tsc` and repointed at the artery directly.
+ *
+ * WHAT THIS BUYS, STATED HONESTLY: one fewer duplicate DECISION about what a
+ * bar is, and ZERO canonical identity. `interpretPine` below still receives
+ * six anonymous numbers. A user-authored Pine script is, by construction, a
+ * claim a trader will act on, and this engine cannot tell the script WHICH
+ * symbol, WHICH session, at WHAT fidelity, or from WHAT source those bars came
+ * — nor whether a later correction has superseded them. A script that reads
+ * `close` has no way to know it is reading a RECONSTRUCTED bar folded from a
+ * finer interval (see `yahooTimeframes`) rather than one that actually traded.
+ *
+ * THAT GAP IS NOT CLOSED HERE and is named at this site so it is not mistaken
+ * for closed. It closes only when the ingress feeding `interpretPine` carries
+ * a CanonicalBar.
+ */
 
 // Pine Script token types
 export type TokenType =

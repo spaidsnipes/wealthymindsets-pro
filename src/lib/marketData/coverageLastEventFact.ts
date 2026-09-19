@@ -38,7 +38,7 @@ import { relTime } from "../nectarFormat";
  * lower one, so every number it is handed becomes a confident sentence:
  *
  *   - a SECONDS-valued timestamp — and this codebase genuinely carries both
- *     units; `OHLCVBar.time` and `liveBarPolicy`'s `tick.time` are in
+ *     units; `LegacyOhlcvTuple.time` and `liveBarPolicy`'s `tick.time` are in
  *     seconds while `coverageMap` writes `observation.receivedAt` in
  *     milliseconds — renders as `"20443d ago"`. Plausible-looking. Wrong by
  *     fifty-five years.

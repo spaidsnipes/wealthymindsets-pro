@@ -57,7 +57,7 @@ const CLOSED: ChartCloseLabel = {
 };
 
 /**
- * Pure. `barOpenedAtSeconds` is in SECONDS, matching `OHLCVBar.time` and the
+ * Pure. `barOpenedAtSeconds` is in SECONDS, matching `LegacyOhlcvTuple.time` and the
  * lightweight-charts convention. `nowMs` is MILLISECONDS and is supplied by the
  * caller — a selector that reaches for `Date.now()` itself stops being testable.
  */

@@ -91,7 +91,7 @@ export interface DataWindowBarScope {
 }
 
 /**
- * Bar timestamps are SECONDS (the `OHLCVBar.time` / lightweight-charts
+ * Bar timestamps are SECONDS (the `LegacyOhlcvTuple.time` / lightweight-charts
  * convention). `timeZone` is threaded through so tests are deterministic;
  * production passes nothing and gets the trader's own clock.
  */

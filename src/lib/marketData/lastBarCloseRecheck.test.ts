@@ -43,10 +43,10 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { deriveLastBarClose, lastBarCloseRecheckAtMs } from "./deriveLastBarClose";
-import type { OHLCVBar } from "../pine/types";
+import type { LegacyOhlcvTuple } from "./canonicalBar";
 
-/** `OHLCVBar.time` is SECONDS — the lightweight-charts convention. */
-const bar = (timeSec: number, close: number): OHLCVBar => ({
+/** `LegacyOhlcvTuple.time` is SECONDS — the lightweight-charts convention. */
+const bar = (timeSec: number, close: number): LegacyOhlcvTuple => ({
   time: timeSec,
   open: close,
   high: close,

@@ -72,7 +72,7 @@ export const MARKET_FIELD_HEIGHT = "clamp(320px, 56vh, 620px)";
  * There is deliberately NO `volume`: /api/yahoo's volume is not trusted here,
  * so `parseCandles` drops it rather than forward a number this file cannot
  * stand behind. That absence is why `deriveLastBarClose` takes the minimal
- * `BarCloseCandidate` shape instead of a full `OHLCVBar` — so these candles
+ * `BarCloseCandidate` shape instead of a full `LegacyOhlcvTuple` — so these candles
  * can be published honestly without anyone inventing `volume: 0`.
  */
 export interface Candle {

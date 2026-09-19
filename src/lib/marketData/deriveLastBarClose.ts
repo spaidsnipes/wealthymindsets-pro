@@ -3,20 +3,20 @@ import { parseTimeframeMs } from "../experience/marketFieldFreshness";
 /**
  * THE MINIMUM EVIDENCE A BAR CLOSE NEEDS — and not one field more.
  *
- * This file used to take `OHLCVBar`, which additionally requires `open`,
+ * This file used to take `LegacyOhlcvTuple`, which additionally requires `open`,
  * `high`, `low` and `volume`. None of them are read here: the whole module
  * ranks bars by `time` and reports `close`.
  *
  * That over-wide parameter had a real cost. `/command-deck`'s chart parses
  * `/api/yahoo` into candles that deliberately carry NO volume — the endpoint's
  * volume is not trusted, so `parseCandles` drops it rather than pass a number
- * it cannot stand behind. Handing those candles to an `OHLCVBar[]` parameter
+ * it cannot stand behind. Handing those candles to an `LegacyOhlcvTuple[]` parameter
  * therefore required inventing `volume: 0`, and a fabricated zero is exactly
  * the provenance lie the rest of this file exists to refuse. Widening the
  * parameter to what is actually read lets honest partial evidence through
  * WITHOUT anyone having to make a number up.
  *
- * `OHLCVBar[]` remains assignable to this, so /charts is unaffected.
+ * `LegacyOhlcvTuple[]` remains assignable to this, so /charts is unaffected.
  */
 export interface BarCloseCandidate {
   /** Bar-open epoch in SECONDS (the lightweight-charts convention). */
@@ -104,7 +104,7 @@ export interface LastBarCloseEvidence {
  * Pure. Returns null — never a guess — whenever the evidence is not good
  * enough to name a bar close.
  *
- * `OHLCVBar.time` is in SECONDS (the lightweight-charts convention that
+ * `LegacyOhlcvTuple.time` is in SECONDS (the lightweight-charts convention that
  * `liveBarPolicy.applyTickToLiveBar` also emits), so it is converted here
  * exactly once. Every other field in canonical market state is milliseconds;
  * leaking a seconds value into it would read as 1970.

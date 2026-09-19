@@ -7,7 +7,7 @@ const NOW = 1_786_000_000_000; // a real millisecond instant, 2026-08-06T...Z
 
 describe("coverageLastEventFact — a dash, a hidden clock, and an unbounded sentence", () => {
   it("× THE SECONDS-VALUED CONFIDENT SENTENCE: a unit error is named, not rendered", () => {
-    // The very same instant, expressed in SECONDS — the unit `OHLCVBar.time`
+    // The very same instant, expressed in SECONDS — the unit `LegacyOhlcvTuple.time`
     // and `liveBarPolicy` use while `coverageMap` writes milliseconds.
     const f = coverageLastEventFact(NOW / 1000, "COLLECTING", NOW, "trades");
     expect(f.tone).toBe("IMPLAUSIBLE");

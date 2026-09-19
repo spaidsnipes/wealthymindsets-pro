@@ -3,10 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { chartHeaderPriceFact } from "./chartHeaderPriceFact";
 import { deriveLastBarClose } from "./deriveLastBarClose";
-import type { OHLCVBar } from "../pine/types";
+import type { LegacyOhlcvTuple } from "./canonicalBar";
 
-function bar(time: number, close: number): OHLCVBar {
-  return { time, open: close, high: close, low: close, close, volume: 0 } as OHLCVBar;
+function bar(time: number, close: number): LegacyOhlcvTuple {
+  return { time, open: close, high: close, low: close, close, volume: 0 } as LegacyOhlcvTuple;
 }
 
 const CLOSE = { close: 357.47, barOpenedAtMs: 1_757_959_240_000, timeframe: "15m" };

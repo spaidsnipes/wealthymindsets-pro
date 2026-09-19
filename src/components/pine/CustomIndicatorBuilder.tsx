@@ -19,7 +19,8 @@ import {
 import { clsx } from "clsx";
 import { PineEditor } from "./PineEditor";
 import { interpretPine, validatePine } from "@/lib/pine/interpreter";
-import type { OHLCVBar, PineOutput } from "@/lib/pine/types";
+import type { PineOutput } from "@/lib/pine/types";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 /* ── Starter templates ─────────────────────────────────────── */
 const TEMPLATES: { name: string; desc: string; category: string; code: string }[] = [
@@ -236,7 +237,7 @@ function saveSaved(scripts: SavedScript[]) {
 /* ── Main component ─────────────────────────────────────────── */
 interface Props {
   onClose:    () => void;
-  bars:       OHLCVBar[];
+  bars:       LegacyOhlcvTuple[];
   onAddToChart: (output: PineOutput, code: string) => void;
   activeCode?: string;
 }

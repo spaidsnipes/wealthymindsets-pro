@@ -1,29 +1,29 @@
 /**
  * M8 — THE CANONICALBAR ARTERY, AND THE PRIVATE PASTS BESIDE IT.
  *
- * The count below started at twenty-two on 2026-09-18 and is SIX as of the
+ * The count below started at twenty-two on 2026-09-18 and is FIVE as of the
  * same day. The prose that follows is the original measurement and is left
  * standing, because the shape of the problem did not change when some of the
  * shapes were deleted — only its size.
  *
- * TWENTY-TWO TO SIX IS NOT SIXTEEN MIGRATIONS. It is fifteen renames-or-
+ * TWENTY-TWO TO FIVE IS NOT SEVENTEEN MIGRATIONS. It is sixteen renames-or-
  * deletes plus one measurement correction, and ZERO INGRESSES MIGRATED. The
  * array's docblock separates the kinds line by line so nobody reads this header
- * as sixteen ingresses routed through the artery. None were. Not one.
+ * as seventeen ingresses routed through the artery. None were. Not one.
  *
  * ── THE FINDING THAT REFRAMES THE WHOLE BREAKER (measured 2026-09-18) ───────
  *
- * The remaining shapes are not six competing ideas of what a bar is.
- * TWO OF THEM ARE BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
+ * The remaining shapes are not five competing ideas of what a bar is.
+ * ONE OF THEM IS STILL BYTE-FOR-BYTE THE SAME SIX FIELDS — `time, open, high,
  * low, close, volume`, every one of them `number` — which is also, exactly,
- * `LegacyOhlcvTuple` in the artery. A ninth, `DeckMarketChart::Candle`,
+ * `LegacyOhlcvTuple` in the artery. Another, `DeckMarketChart::Candle`,
  * differs only by `volume?`. The sprawl is one anonymous six-field tuple
  * wearing a handful of module-local labels, and a sanctioned name for precisely
  * it already exists with a docblock saying so.
  *
  * That makes most of the remaining list a RENAME rather than a migration, and
- * it is important not to let the ease flatter the result: renaming two
- * declarations to one name removes two duplicate DECISIONS and delivers
+ * it is important not to let the ease flatter the result: renaming a
+ * declaration to one name removes one duplicate DECISION and delivers
  * zero canonical identity. `LegacyOhlcvTuple` is the legacy shape on purpose.
  * The adoption half of M8 — symbolId, sessionId, fidelity, provenance,
  * truthEpoch on the live path — is untouched by every rename and stays owed.
@@ -392,6 +392,37 @@ const THE_ARTERY: readonly string[] = [
  * because there is nothing on the bar to gate it with. That is the adoption
  * half of M8 stated as a concrete product consequence rather than as a list of
  * missing fields, and the rename does not touch it.
+ *
+ * ── SIX TO FIVE: THE ENGINE THAT RUNS CODE A TRADER WROTE ──────────────────
+ *
+ * RETIRED: `lib/pine/types.ts::OHLCVBar`, byte-for-byte, eight namers of which
+ * three are production — `ChartsDashboard.tsx`, `CustomIndicatorBuilder.tsx`
+ * and `lib/pine/interpreter.ts`. NO ALIAS WAS LEFT BEHIND; `pine/types.ts`
+ * stopped exporting a bar type entirely and all eight now import
+ * `LegacyOhlcvTuple` from the artery.
+ *
+ * WHY THIS ONE IS NOT JUST ANOTHER RENAME TO NOTE: every other shape in this
+ * census is consumed by code WE wrote. This one is consumed by code a TRADER
+ * wrote. `interpretPine` hands six anonymous numbers to a user-authored script
+ * whose output the trader will act on, and the engine cannot tell that script
+ * which symbol, which session, at what fidelity, from what source, or whether a
+ * correction has superseded the values. A script reading `close` has no way to
+ * know it is reading a RECONSTRUCTED bar folded from a finer interval — the
+ * exact case `yahooTimeframes` manufactures under `sourceMode: "reconstructed"`.
+ * A wrong number the PRODUCT computed is a bug; a wrong number a trader
+ * computed from bars that could not describe themselves is a bug they will
+ * attribute to their own logic. The rename does not close that. It is named
+ * here and at `pine/types.ts` so it is not mistaken for closed.
+ *
+ * THE PROSE WAS REMODELLED WITH THE CODE (M4/M6). Fourteen files carried
+ * comments teaching `OHLCVBar` as a live noun — `OHLCVBar.time is in SECONDS`,
+ * `OHLCVBar carries no aggressor split` — none of which any type-checker reads.
+ * Left alone they would have stayed green while teaching a retired name. The
+ * THREE files that name `OHLCVBar` as HISTORY — this census, `canonicalBar.ts`
+ * and `useWebSocket.ts`, each recording an EARLIER, different `OHLCVBar` that
+ * was retired days before — were deliberately NOT rewritten, because those
+ * sentences are still true and blanket-renaming them would have falsified the
+ * record.
  */
 const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "components/chart/indicators.ts::Bar",
@@ -399,7 +430,6 @@ const FROZEN_PRIVATE_BAR_SHAPES: readonly string[] = [
   "lib/marketData/marketEvent.ts::CanonicalMarketEvent",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBar",
   "lib/marketData/selectAbsorptionAnatomy.ts::AnatomyBarInput",
-  "lib/pine/types.ts::OHLCVBar",
 ];
 
 describe("M8 · the private-bar census is a ratchet", () => {
@@ -468,7 +498,7 @@ describe("M8 · the private-bar census is a ratchet", () => {
     ).toEqual([]);
   });
 
-  it("holds at six private pasts and may only SHRINK", () => {
+  it("holds at five private pasts and may only SHRINK", () => {
     const found = census().filter((entry) => !THE_ARTERY.includes(entry));
     const added = found.filter((f) => !FROZEN_PRIVATE_BAR_SHAPES.includes(f));
     const removed = FROZEN_PRIVATE_BAR_SHAPES.filter((f) => !found.includes(f));

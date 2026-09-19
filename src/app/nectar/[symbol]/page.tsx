@@ -588,7 +588,7 @@ function CoverageReceipts({
                   channel unavailable, channel not yet speaking, and a missing
                   field in WM's own receipt — collapsed into one glyph. Worse,
                   relTime() has no bounds, so a SECONDS-valued timestamp (the
-                  unit liveBarPolicy and OHLCVBar use, against coverageMap's
+                  unit liveBarPolicy and LegacyOhlcvTuple use, against coverageMap's
                   milliseconds) rendered as a fluent "20443d ago". The clock is
                   now an explicit argument rather than a default parameter. */}
               {(() => {

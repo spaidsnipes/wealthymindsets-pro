@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { interpretPine } from "./interpreter";
-import type { OHLCVBar } from "./types";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
-const bars: OHLCVBar[] = Array.from({ length: 6 }, (_, index) => ({
+const bars: LegacyOhlcvTuple[] = Array.from({ length: 6 }, (_, index) => ({
   time: index * 60,
   open: index + 0.5,
   high: index + 1.25,
