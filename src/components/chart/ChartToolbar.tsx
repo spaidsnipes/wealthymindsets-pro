@@ -5,7 +5,7 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera, Pencil,
+  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera, Pencil, Layers,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
@@ -566,6 +566,24 @@ interface ChartToolbarProps {
   compareActive?:      boolean;
   onToggleStudyTools?: () => void;
   studyToolsOpen?:     boolean;
+  /**
+   * THE EIGHT VIEWS ARE A TOOL, NOT A DESTINATION.
+   *
+   * Absorption / Aggression / Big Trades / Value Profile / Continuation /
+   * Worksheet / Profile used to be reachable only through a permanently
+   * visible `VIEW [CHART ▾]` select in the dashboard masthead — a control
+   * whose whole shape said "pick where to go". It swapped the canvas while
+   * leaving the URL untouched, so it was a destination selector that could
+   * not even be linked to or backed out of.
+   *
+   * They belong here, behind Tools, with every other lens: one door, opened
+   * deliberately, chart still mounted underneath. `viewsOpen` only lights the
+   * trigger; `activeViewLabel` names the lens currently applied so the menu
+   * can say which one without the masthead having to.
+   */
+  onViews?:            () => void;
+  viewsOpen?:          boolean;
+  activeViewLabel?:    string;
   chartLayout?:        ChartLayout;
   onLayoutChange?:     (l: ChartLayout) => void;
   /**
@@ -643,7 +661,7 @@ export function ChartToolbar({
   onAlerts, alertsActive, onSettings, onAppearanceToggle, appearanceLabel, toolsTriggerRef,
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
-  onToggleStudyTools, studyToolsOpen, profilesSlot,
+  onToggleStudyTools, studyToolsOpen, onViews, viewsOpen, activeViewLabel, profilesSlot,
   chartLayout = "1", onLayoutChange,
 }: ChartToolbarProps) {
   const [symbolSearch,   setSymbolSearch]  = useState("");
@@ -1368,7 +1386,7 @@ export function ChartToolbar({
             aria-haspopup="menu"
             className={clsx(
               "flex min-h-11 items-center gap-1 rounded border px-2 text-[11px] font-semibold transition-colors",
-              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen || instrumentProfileActive || captureOpen || watchlistOpen || drawOpen
+              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen || instrumentProfileActive || captureOpen || watchlistOpen || drawOpen || viewsOpen
                 ? "border-wm-gold/35 bg-wm-gold/10 text-wm-gold"
                 : "border-wm-border text-wm-text-muted hover:text-wm-text",
             )}
@@ -1396,6 +1414,17 @@ export function ChartToolbar({
                   padding: 6,
                 }}
               >
+                {onViews && (
+                  <button
+                    role="menuitem"
+                    aria-haspopup="dialog"
+                    aria-controls="chart-views-sheet"
+                    className={itemClass}
+                    onClick={() => { setAdvancedOpen(false); onViews(); }}
+                  >
+                    <Layers size={12} aria-hidden="true" /> Views{viewsOpen ? " · open" : activeViewLabel && activeViewLabel !== "Chart" ? ` · ${activeViewLabel}` : ""}
+                  </button>
+                )}
                 {onToggleStudyTools && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onToggleStudyTools(); }}><BarChart2 size={13} /> Flow &amp; studies{studyToolsOpen ? " · open" : ""}</button>}
                 <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onDOM(); }}><LayoutGrid size={13} /> Depth ladder</button>
                 <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onPineScript(); }}><span className="text-sm">ƒ</span> Pine workspace{pineActive ? " · active" : ""}</button>

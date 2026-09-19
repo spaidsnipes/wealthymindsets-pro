@@ -575,10 +575,24 @@ describe("responsive P0 command surfaces", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     expect(dashboard).toContain("wm-chart-tabs");
-    expect(dashboard).toContain("wm-chart-category-select");
     expect(dashboard).toContain("wm-chart-tools");
     expect(toolbar).toContain("wm-chart-toolbar");
-    expect(dashboard).toContain('aria-label="Symbol view category"');
+    /**
+     * REMAPPED 2026-09-19. This asserted `wm-chart-category-select` and
+     * `aria-label="Symbol view category"` — the masthead VIEW destination
+     * picker, now removed (Last Mile canon §1 automatic-reject list).
+     *
+     * What this test is FOR is phone landscape: navigation must still be
+     * reachable without stacking desktop chrome. A native <select> satisfied
+     * that by being small. A drawer satisfies it better — it occupies zero
+     * landscape height until asked, and its rows are 44px, which the 32px
+     * select never was. So the law is pinned at the property that actually
+     * matters in a 390x844 viewport turned sideways: the views have a door,
+     * and the door costs no permanent vertical band.
+     */
+    expect(dashboard).toContain('id="chart-views-sheet"');
+    expect(dashboard).toMatch(/id="chart-views-sheet"[\s\S]*?minHeight: 44/);
+    expect(dashboard).not.toContain("wm-chart-category-select");
     expect(css).toContain('.wm-chart-dashboard [role="status"][aria-live="polite"]');
   });
 

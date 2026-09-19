@@ -1409,6 +1409,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     captureFallbackTriggerRef.current = trigger;
     setToolsSheetOpen(true);
   }, []);
+  // The eight views, rehomed out of the masthead. See the removal note at the
+  // old `wm-chart-category-doorway` site for why a permanent VIEW select was
+  // the wrong shape. The drawer keeps the chart mounted underneath and leaves
+  // the URL alone, so this is a lens, not a trip.
+  const [viewShelfOpen, setViewShelfOpen] = useState(false);
+  const viewShelfTriggerRef = useRef<HTMLButtonElement>(null);
+  const openViewShelf = useCallback((trigger: HTMLButtonElement | null) => {
+    viewShelfTriggerRef.current = trigger;
+    setViewShelfOpen(true);
+  }, []);
   const [orientationToolsOpen, setOrientationToolsOpen] = useState(false);
   const orientationToolsRef = useRef<HTMLDivElement>(null);
   const orientationToolsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1866,8 +1876,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 fontSize: 10,
                 letterSpacing: 0.3,
                 textTransform: "uppercase",
-                color: orientationToolsOpen || watchlistOpen || toolsSheetOpen ? "#e8b923" : "#c9a55c",
-                background: orientationToolsOpen || watchlistOpen || toolsSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+                color: orientationToolsOpen || watchlistOpen || toolsSheetOpen || viewShelfOpen ? "#e8b923" : "#c9a55c",
+                background: orientationToolsOpen || watchlistOpen || toolsSheetOpen || viewShelfOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
                 border: "1px solid rgba(139,106,41,0.35)",
                 minHeight: 44,
                 padding: "3px 10px",
@@ -1895,6 +1905,25 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   boxShadow: "0 12px 36px rgba(0,0,0,0.72)",
                 }}
               >
+                {/* THE WAY BACK. On every non-Chart view the chart toolbar —
+                    and with it the Tools → Views door — is deliberately not
+                    rendered. Without this row, picking Worksheet would strand
+                    the trader on Worksheet, because the masthead select that
+                    used to be the escape hatch is gone. Same drawer, second
+                    door, reachable exactly where the first one is not. */}
+                <button
+                  role="menuitem"
+                  aria-haspopup="dialog"
+                  aria-controls="chart-views-sheet"
+                  className="wm-chart-orientation-action"
+                  style={{ display: "block", width: "100%", minHeight: 44, textAlign: "left", padding: "8px 10px" }}
+                  onClick={() => {
+                    setOrientationToolsOpen(false);
+                    openViewShelf(orientationToolsTriggerRef.current);
+                  }}
+                >
+                  Views
+                </button>
                 <button
                   role="menuitem"
                   aria-haspopup="dialog"
@@ -2155,40 +2184,33 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}
         </div>
-        {/* Tab bar promoted to its own top-level category strip above
-            in the prior shell. Scene-fusion keeps the canonical list but
-            rehomes it here as one doorway instead of eight peer cards. */}
-        <label
-          className="wm-chart-category-doorway"
-          style={{ display: "flex", alignItems: "center", marginLeft: "auto", marginRight: 10, flexShrink: 0 }}
-        >
-          <span style={{ color: "#716b5d", fontSize: 9, letterSpacing: 0.8, marginRight: 6, textTransform: "uppercase" }}>
-            View
-          </span>
-          <select
-            className="wm-chart-category-select"
-            aria-label="Symbol view category"
-            value={activeTab}
-            onChange={(event) => setActiveTab(event.target.value)}
-            style={{
-              minHeight: 32,
-              maxWidth: 172,
-              color: "#c9a55c",
-              background: "rgba(5,5,6,0.72)",
-              border: "1px solid rgba(139,106,41,0.35)",
-              borderRadius: 4,
-              padding: "0 28px 0 9px",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-            }}
-          >
-            {categoryTabsFor(assetClass).map((tab) => (
-              <option key={tab} value={tab}>{tab}</option>
-            ))}
-          </select>
-        </label>
+        {/* ── VIEW-AS-DESTINATION, REMOVED ────────────────────────────────
+            A permanently visible `VIEW [CHART ▾]` select sat here, offering
+            eight canvas-swapping options. Two things were wrong with it, and
+            only the second is about pixels.
+
+            First: it was a DESTINATION SELECTOR that changed no URL. Picking
+            "Worksheet" set `display:none` on the chart panel — the trader had
+            left the chart — yet the address bar still read /charts, so the
+            move could not be linked, bookmarked, or undone with Back. A door
+            that swallows the way home is worse than no door.
+
+            Second: it was default chrome. The Last Mile canon §1 names
+            "VIEW-as-destination" on the automatic-reject list precisely
+            because a destination picker in the masthead tells the trader that
+            the chart in front of them is one option among eight, rather than
+            the room they are standing in.
+
+            THE EIGHT VIEWS ARE NOT DELETED. `categoryTabsFor(assetClass)` is
+            still their single writer, every panel below still mounts off
+            `activeTab`, and they are now reached through Tools → Views (the
+            `chart-views-sheet` drawer further down this file) — the same door
+            that already holds drawing tools, watchlist, and capture. Opened
+            deliberately, D≈0, URL unchanged, chart still mounted underneath.
+
+            On the non-Chart views the chart toolbar is intentionally absent,
+            so the same drawer also hangs off the orientation tools menu
+            above — otherwise picking Worksheet would be a one-way trip. */}
 
       </div>
       </div>
@@ -2249,6 +2271,60 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
           {/* The SAME LeftSidebar, spreading the SAME props — so the phone
               screenshots and publishes the same node the desktop does. */}
+          {/* THE EIGHT VIEWS, REHOMED. Same canonical writer
+              (`categoryTabsFor`), same `activeTab` state, same panels below —
+              only the door moved, out of permanent masthead chrome and behind
+              Tools. `aria-current` marks the applied lens; it does not promise
+              a reversal, because picking the same row again is a no-op. */}
+          {viewShelfOpen && (
+            <ShellModalDrawer
+              id="chart-views-sheet"
+              titleId="chart-views-sheet-title"
+              descriptionId="chart-views-sheet-description"
+              title="Views"
+              description={`Apply a lens to ${symbol}. The chart stays loaded underneath and the address does not change.`}
+              closeLabel="Close views"
+              width={300}
+              onClose={() => setViewShelfOpen(false)}
+              fallbackTriggerRef={viewShelfTriggerRef}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {categoryTabsFor(assetClass).map((tab) => {
+                  const applied = tab === activeTab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      aria-current={applied ? "true" : undefined}
+                      onClick={() => { setActiveTab(tab); setViewShelfOpen(false); }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        minHeight: 44,
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        textTransform: "uppercase",
+                        color: applied ? "#e8b923" : "#c9a55c",
+                        background: applied ? "rgba(232,185,35,0.12)" : "transparent",
+                        border: `1px solid ${applied ? "rgba(232,185,35,0.35)" : "rgba(139,106,41,0.22)"}`,
+                        borderRadius: 6,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>{tab}</span>
+                      {applied && <span style={{ fontSize: 9, letterSpacing: 0.6 }}>Applied</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </ShellModalDrawer>
+          )}
+
           {toolsSheetOpen && (
             <ShellModalDrawer
               id="chart-tools-sheet"
@@ -2357,6 +2433,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             watchlistOpen={watchlistOpen}
             onDraw={() => openDrawingTools(toolsTriggerRef.current)}
             drawOpen={drawSheetOpen}
+            onViews={() => openViewShelf(toolsTriggerRef.current)}
+            viewsOpen={viewShelfOpen}
+            activeViewLabel={activeTab}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             smartMoneyActive={smartMoneyOpen}
             onDOM={() => setVpDomOpen(o => !o)}

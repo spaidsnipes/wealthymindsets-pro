@@ -93,8 +93,20 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).not.toContain("wm-chart-capture-fallback");
   });
 
-  it("uses the canonical view selector instead of a duplicate back-to-chart control", () => {
-    expect(dashboard).toContain('aria-label="Symbol view category"');
+  /**
+   * REMAPPED 2026-09-19. The pinned string was
+   * `aria-label="Symbol view category"` — the masthead VIEW select, removed
+   * this shift as a destination picker that swapped the canvas without
+   * touching the URL.
+   *
+   * The LAW is unchanged and is the reason this test exists: there is ONE
+   * way back to Chart, not a bespoke "← Back to Chart" button bolted onto
+   * each secondary view. The negatives below are the actual teeth and they
+   * are untouched. The positive now names where the single way back lives.
+   */
+  it("uses one canonical view door instead of a duplicate back-to-chart control", () => {
+    expect(dashboard).toContain('aria-controls="chart-views-sheet"');
+    expect(dashboard).not.toContain('aria-label="Symbol view category"');
     expect(dashboard).not.toContain("← Back to Chart");
     expect(dashboard).not.toContain("onBack={() => setActiveTab");
   });

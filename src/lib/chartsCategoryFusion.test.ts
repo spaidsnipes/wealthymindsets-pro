@@ -25,11 +25,51 @@ describe("charts category scene fusion", () => {
     expect(css).toMatch(/\.wm-chart-room-header > \.wm-chart-tabs\s*\{[\s\S]*?flex:\s*0 1 auto[\s\S]*?min-width:\s*0[\s\S]*?border-left:/);
   });
 
-  it("keeps one keyboard-native doorway wired to the canonical tab owner", () => {
-    expect(dashboard).toContain('className="wm-chart-category-select"');
-    expect(dashboard).toContain('aria-label="Symbol view category"');
+  /**
+   * REMAPPED 2026-09-19 — this test pinned `wm-chart-category-select` and
+   * `aria-label="Symbol view category"`, i.e. the SPELLING of a permanently
+   * visible `VIEW [CHART ▾]` destination picker in the masthead. That control
+   * swapped the canvas (`display:none` on the chart panel for Worksheet /
+   * Profile / fundamentals) while changing no URL — a destination selector
+   * that could not be linked to, bookmarked, or undone with Back — and it is
+   * named on the Last Mile canon §1 automatic-reject list.
+   *
+   * The LAW it was reaching for survives untouched and is what is pinned now:
+   * the eight views have ONE canonical writer, they are ALL reachable, and
+   * reaching them is keyboard-native. The door moved behind Tools; the organs
+   * did not move at all. Per §5 the chrome is not restored to satisfy a test.
+   *
+   * Pinned from both sides so a tidy-up cannot quietly re-open the masthead.
+   */
+  it("keeps every view reachable from one canonical owner, with no masthead destination picker", () => {
+    // The single writer is unchanged — still the only source of the list.
     expect(dashboard).toContain("categoryTabsFor(assetClass).map");
-    expect(dashboard).toContain("setActiveTab(event.target.value)");
+    // Reached deliberately, from Tools, through a real dialog.
+    expect(dashboard).toContain('id="chart-views-sheet"');
+    expect(dashboard).toContain("openViewShelf(toolsTriggerRef.current)");
+    // Keyboard-native: real <button> rows, not a div listening for clicks.
+    expect(dashboard).toContain("onClick={() => { setActiveTab(tab); setViewShelfOpen(false); }}");
+    // And the corpse stays dead. Either half alone could be satisfied by
+    // half a repair; together they can only be satisfied by the whole one.
+    expect(dashboard).not.toContain('className="wm-chart-category-select"');
+    expect(dashboard).not.toContain('aria-label="Symbol view category"');
+    expect(dashboard).not.toContain("setActiveTab(event.target.value)");
+  });
+
+  /**
+   * THE WAY BACK IS THE WHOLE POINT.
+   *
+   * On every non-Chart view the chart toolbar is deliberately not rendered
+   * (`{(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar`),
+   * and with it the Tools → Views door. The masthead select used to be the
+   * escape hatch. Removing it without a second door would have turned
+   * "Worksheet" into a one-way trip — a strictly worse defect than the one
+   * being repaired. This pins the second door to the one place the first
+   * one cannot reach.
+   */
+  it("offers the view shelf a second door on exactly the views where the toolbar is absent", () => {
+    expect(dashboard).toContain("openViewShelf(orientationToolsTriggerRef.current)");
+    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options" &&[\s\S]*?openViewShelf\(orientationToolsTriggerRef\.current\)/);
   });
 
   it("keeps secondary views inside the shared room instead of resetting their scene", () => {
