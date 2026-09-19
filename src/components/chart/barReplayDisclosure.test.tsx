@@ -92,6 +92,43 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
     expect(render(false), "no Close control on the disclosure panel").toContain("Close replay");
   });
 
+  it("names the way out to a screen reader, not only to a hovering mouse", () => {
+    // MEASURED 2026-09-19 on live /charts: this button carried `title="Close
+    // replay"` and nothing else. `title` is the weakest naming source there
+    // is — a tooltip, absent entirely on touch — and the button is icon-only,
+    // so there was no text to fall back to. The sole exit from a panel whose
+    // whole purpose is to confess a defect was itself unnamed.
+    expect(
+      render(false),
+      "the way out lost its aria-label; an icon-only button named only by `title` " +
+        "is unnamed on touch and weakly named everywhere else",
+    ).toContain('aria-label="Close replay"');
+  });
+
+  it("does not let the disclosure text squeeze the way out", () => {
+    // MEASURED 2026-09-19 on live /charts: the exit rendered 14x26, not 26x26.
+    // The panel is a flex row with `maxWidth: min(460px, ...)`, `width` is only
+    // a basis, and the long honest sentence won the contest for the pixels. The
+    // more truth the panel told, the smaller the escape hatch got.
+    //
+    // TEETH-CHECKED 2026-09-19, and the first version FAILED the check: it
+    // sliced from `function CtrlBtn` and matched /flexShrink:\s*0/, which the
+    // long comment ABOVE the button satisfies by quoting the property it is
+    // explaining. Deleting the real declaration left the test green — the
+    // sentinel was guarding its own prose. A static-source test must anchor
+    // past its own commentary, so this one starts at the `<button` tag.
+    const src = read("BarReplayControls.tsx");
+    const fn = src.indexOf("function CtrlBtn");
+    expect(fn, "CtrlBtn vanished; re-pin this to whatever renders the way out").toBeGreaterThan(-1);
+    const at = src.indexOf("<button", fn);
+    expect(at, "CtrlBtn no longer renders a <button>; the way out must stay a real button").toBeGreaterThan(-1);
+    expect(
+      src.slice(at),
+      "CtrlBtn lost `flexShrink: 0` — in a flex row `width` is a basis, not a floor, " +
+        "so the only exit from the disclosure panel can be squeezed below its target size",
+    ).toMatch(/flexShrink:\s*0/);
+  });
+
   it("renders the full instrument — clock, progress and counter — ONLY when it is driving", () => {
     const html = render(true);
     expect(html, "the driving branch lost its position counter").toContain("137/390");

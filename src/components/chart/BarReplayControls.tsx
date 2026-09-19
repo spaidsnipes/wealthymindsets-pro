@@ -160,8 +160,31 @@ export function BarReplayControls({
 function CtrlBtn({ onClick, icon, title, accent, danger }: { onClick: () => void; icon: React.ReactNode; title?: string; accent?: boolean; danger?: boolean }) {
   const color = danger ? "#FF4D67" : accent ? "#2F80ED" : "#8896BE";
   return (
-    <button onClick={onClick} title={title} style={{
+    /*
+      THE ONLY WAY OUT HAS TO BE REACHABLE AND HITTABLE.
+
+      MEASURED 2026-09-19 on live /charts. On the disclosure branch this button
+      is the ONE control in the panel — the "way out" the branch above is
+      written to preserve — and it measured 14x26, not 26x26. The row is
+      `display:flex` with `maxWidth: min(460px, ...)` and the disclosure
+      sentence is long, so the icon button was the thing that gave: `width` is
+      a basis, not a floor, and a flex item shrinks below it. `flexShrink: 0`
+      makes the declared width mean what it says. The longer the honest
+      disclosure text gets, the more the exit was being squeezed — the sentence
+      and the escape hatch were competing for the same pixels.
+
+      `aria-label` as well as `title`, because these buttons are icon-only.
+      `title` is the weakest naming source there is: it does not appear on
+      touch at all, and it is a tooltip rather than a name. Leaving it as the
+      sole name meant the only exit from a panel whose entire purpose is to
+      confess a defect was itself unnamed to a screen reader.
+
+      `type="button"` so a future move into a form cannot turn Stop into a
+      submit.
+    */
+    <button onClick={onClick} title={title} aria-label={title} type="button" style={{
       display: "flex", alignItems: "center", justifyContent: "center",
+      flexShrink: 0,
       width: 26, height: 26, borderRadius: 5, cursor: "pointer",
       background: accent ? "rgba(47,128,237,0.15)" : "transparent",
       border: `1px solid ${accent ? "rgba(47,128,237,0.3)" : "transparent"}`,
