@@ -76,8 +76,39 @@ function readReadme(): string {
   return readFileSync(README, "utf8");
 }
 
+/**
+ * WALKS SUBDIRECTORIES — AND THIS IS THE SECOND TIME THE SAME DEFECT WAS FOUND
+ * IN THIS DIRECTORY, ONE FILE OVER FROM THE FIRST.
+ *
+ * This function read `readdirSync(OPS_DIR)` — the top level only — from the day
+ * it was written. `docs/operations` is not flat. It holds five subdirectories
+ * (`batons/`, `dispatches/`, `scoreboards/`, `handoffs/`, `huddles/`) carrying
+ * 312 further markdown files, so every assertion in this file has been an
+ * assertion about roughly a fifth of the tree it claims to police.
+ *
+ * `datedDocsAreDemoted.sentinel.test.ts` carried the identical bug and it was
+ * fixed on 2026-09-19 (see the M6 row in CANON-SHIFT-GATE-STATUS.md, and this
+ * function's twin docblock there). That fix did NOT come here, because a scope
+ * defect is not a file-local bug — it is a belief about the shape of the world,
+ * and the belief was held by both files independently.
+ *
+ * THE LESSON IS NOT "USE A RECURSIVE WALK". It is that a scan's SCOPE is an
+ * assertion, and neither author measured `docs/operations` before asserting it
+ * was flat. The carry-forward question, which now has two confirmed instances
+ * behind it: for every Sentinel in this directory — what is this scan's scope,
+ * and who measured it?
+ */
 function opsDocs(): string[] {
-  return readdirSync(OPS_DIR).filter(f => f.endsWith(".md"));
+  const out: string[] = [];
+  const walk = (rel: string) => {
+    for (const entry of readdirSync(join(OPS_DIR, rel), { withFileTypes: true })) {
+      const next = rel ? join(rel, entry.name) : entry.name;
+      if (entry.isDirectory()) walk(next);
+      else if (entry.name.endsWith(".md")) out.push(next);
+    }
+  };
+  walk("");
+  return out;
 }
 
 function readOpsDoc(file: string): string {
@@ -137,6 +168,31 @@ const COMMANDING_PHRASES: readonly { readonly id: string; readonly re: RegExp }[
   { id: "read-before-doing-anything", re: /\bread it before doing anything\b/i },
   { id: "this-doc-wins-conflicts", re: /\bthis brief wins\b/i },
   { id: "claim-a-ticket-now", re: /^#+\s*Claim protocol\s*$/im },
+  /**
+   * READ OFF `handoffs/micah/MICAH_STATUS.md`, AND IT IS HERE BECAUSE THE SCOPE
+   * FIX ABOVE IS WHAT MADE IT VISIBLE.
+   *
+   * Widening `opsDocs()` to walk subdirectories did NOT, by itself, produce a
+   * single new offender — all five phrases above stayed green over 312 further
+   * files. That result is easy to mistake for "the subdirectories were clean".
+   * They were not. The five phrases above were every one of them read off a
+   * TOP-LEVEL document, so the phrase list had the same unmeasured scope as the
+   * walk did: it could only ever recognise the ways the top level had learned to
+   * command. Fixing the walk without re-deriving the vocabulary would have
+   * produced a wider scan that still saw only what it already knew.
+   *
+   * So the three unstamped subdirectory docs were READ, not grepped. This phrase
+   * is the one commanding claim found in them: a role status board asserting in
+   * present tense that it is "the one place to check before dispatching Micah
+   * work". MEASURED: it matches exactly 1 document in the whole tree.
+   *
+   * The other two (`dispatches/README.md`, `handoffs/README.md`) were read and
+   * deliberately NOT charged. They are format specifications — they say how to
+   * shape a file you are writing, not what is currently true or what work to do.
+   * Present tense is not the test; claiming present AUTHORITY is. Charging a
+   * layout spec would make this rule noisy, and a noisy rule gets disabled.
+   */
+  { id: "the-one-place-to-check", re: /\bthe one place to check\b/i },
 ];
 
 describe("the repository front door may teach, but may not command", () => {

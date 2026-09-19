@@ -1,3 +1,39 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **role status board** — a standing index one employee kept of their
+> own shipped work. Unlike its neighbours it does NOT name a day in its filename,
+> which is exactly why it outlived them: every dated-document gate in this
+> repository was blind to it. Its body dates itself to **2026-08-03**. It was
+> true on that day and is preserved as evidence of what was shipped and decided
+> then. Do not take a current action, diagnosis, release decision or task claim
+> from it — and in particular, do not treat it as an index of what is shipped
+> TODAY.
+>
+> **The role it belongs to no longer exists as a separate thread.** The Founder's
+> one-thread directive of 2026-08-08 collapsed the WM Pro bus into a single
+> worker. A board that says to check here before dispatching Micah work is
+> describing a dispatch relationship that was dissolved five days after this was
+> last updated.
+>
+> **The current front door is in Drive, not in this repository.** A worker who
+> arrived here from a search result or a shared link has not passed through
+> `README.md` and has not met its demotion notice — this block is that notice,
+> delivered at the door of the document itself.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal: the
+> Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-19 by `src/lib/ops/repoFrontDoorAuthority.test.ts`, which until
+> that day scanned only the top level of `docs/operations` AND recognised only
+> the commanding phrases the top level had taught it. Widening the walk alone
+> would not have caught this file; the phrase it trips was read off this very
+> document. See `docs/operations/CANON-SHIFT-GATE-STATUS.md`.
+<!-- END:ath-historical-lineage -->
+
 # MICAH — STATUS BOARD (single source of what Micah has shipped)
 
 **Maintained by:** Micah (Experience / Accessibility / WOW Polish) · **Last update:** 2026-08-03 CDT · **HEAD:** `b6fdb2a`
