@@ -235,6 +235,36 @@ describe("canonicalInstrumentId", () => {
     expect(() => canonicalInstrumentId("")).toThrow();
     expect(() => canonicalInstrumentId("   ")).toThrow();
   });
+  it("IS IDEMPOTENT — f(f(x)) === f(x) for every asset class", () => {
+    // The return value is a STORE KEY. A non-idempotent canonicaliser mints a
+    // second identity for one instrument the moment any caller feeds back an
+    // already-canonical id, and the reader then looks up a key nothing ever
+    // writes — an empty surface with no error, which is the worst shape a
+    // defect can take here.
+    //
+    // Measured 2026-09-19: crypto was the one class that failed. `f("BTC")`
+    // gave "BTC-USD" and `f("BTC-USD")` gave "BTC-USD-USD". The other classes
+    // pass through unchanged and were idempotent by accident, not by design,
+    // so they are pinned here too — this test is about the PROPERTY, and a
+    // future rule added for futures or forex must not quietly break it.
+    for (const sym of ["BTC", "eth", "BTC-USD", "BTCUSD", "BTC-USDT", "TSLA", "tsla", "NQ1!", "EUR/USD"]) {
+      const once = canonicalInstrumentId(sym);
+      expect(canonicalInstrumentId(once), `canonicalInstrumentId is not idempotent for ${JSON.stringify(sym)}: ` +
+        `one application gave ${JSON.stringify(once)}, a second gave ` +
+        `${JSON.stringify(canonicalInstrumentId(once))}. Two identities for one ` +
+        `instrument means one of them is a store key nothing ever writes.`).toBe(once);
+    }
+  });
+  it("collapses every spelling of one crypto instrument onto ONE identity", () => {
+    // The identity layer answers "which instrument", and these are all Bitcoin.
+    // Pinned separately from idempotency because the two can diverge: a rule
+    // could be idempotent and still leave BTCUSD and BTC-USD as rivals.
+    const spellings = ["BTC", "btc", "BTC-USD", "BTCUSD", "BTC-USDT", "BTC/USD"];
+    const ids = new Set(spellings.map((s) => canonicalInstrumentId(s)));
+    expect([...ids], `these spellings of Bitcoin produced ${ids.size} different ` +
+      `canonical identities: ${[...ids].join(", ")}. Each extra one is a store ` +
+      `key that some writer fills and no reader finds.`).toEqual(["BTC-USD"]);
+  });
   it("NEVER attaches an exchange suffix — the source of the b46fa64 P0", () => {
     // Regression: prior code emitted 'TSLA:NASDAQ' at one call site and
     // 'TSLA' at another. Canonical id is exchange-agnostic.

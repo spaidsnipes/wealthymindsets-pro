@@ -702,7 +702,34 @@ export function canonicalInstrumentId(symbol: string, assetClass?: CanonicalAsse
   const upper = symbol.trim().toUpperCase();
   if (!upper) throw new Error("canonicalInstrumentId: symbol is required");
   const cls = assetClass ?? canonicalAssetClass(upper);
-  if (cls === "crypto") return `${upper}-USD`;
+  if (cls === "crypto") {
+    // IDEMPOTENCY (measured 2026-09-19). This used to be `${upper}-USD`
+    // unconditionally, which made the function non-idempotent for the one
+    // asset class it actually rewrites: `f("BTC")` = "BTC-USD", but
+    // `f("BTC-USD")` = "BTC-USD-USD" and `f(f("BTC"))` !== `f("BTC")`.
+    //
+    // The docblock above promises `crypto → "<TICKER>-USD"`, and that promise
+    // was only kept when the caller happened to pass the BARE base. Every
+    // production picker in this tree does pass the bare base ("BTC" in
+    // ChartToolbar, WatchlistPanel, AssetClassSwitcher, shellPanels,
+    // /ai-bot, /backtesting), so no live surface was producing the doubled
+    // form — this was LATENT, not a live defect, and it is written up that
+    // way in the gate row rather than as a fire.
+    //
+    // It mattered because the return value is a STORE KEY. Any caller that
+    // fed back an already-canonical id — a journal entry whose symbol was
+    // typed as "BTC-USD", a round-trip through persisted state, a second
+    // application anywhere in a chain — minted a SECOND identity for one
+    // instrument. The reader then looks up a key nothing ever writes and the
+    // surface renders empty, silently, forever. That exact failure mode is
+    // already named in `canonicalSession`'s KNOWN GAP note below.
+    //
+    // Stripping the quote currency also unifies "BTCUSD" and "BTC-USDT" onto
+    // "BTC-USD". That is a deliberate widening: the identity layer is supposed
+    // to answer "which instrument", and those three strings are one instrument.
+    const base = upper.replace(/[-/]?(USDT|USDC|USD)$/, "");
+    return base ? `${base}-USD` : upper;
+  }
   return upper;
 }
 

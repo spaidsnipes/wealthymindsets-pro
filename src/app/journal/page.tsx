@@ -979,7 +979,20 @@ function JournalPageInner() {
     try {
       return canonicalMarketStateIdentity({ symbol: selected.symbol, timeframe: "15m" });
     } catch {
-      // Unknown symbol shape (option OCC / futures) — treat as no-op.
+      // MEASURED 2026-09-19: this catch is currently unreachable, and the
+      // reason is worth writing down because the comment that used to sit
+      // here was wrong in a way that would have stopped the next reader
+      // looking. It claimed the throw cases were "option OCC / futures".
+      // They are not — `canonicalMarketStateIdentity` accepts
+      // "AAPL  251219C00150000", "/ES", "MNQZ5" and "ES=F" without
+      // complaint. The ONLY input that throws is an empty/whitespace
+      // symbol, and the `if (!selected?.symbol)` guard above already
+      // excludes that.
+      //
+      // The catch stays as a genuine belt-and-braces: the canonicaliser is
+      // shared with /command-deck and /charts and may grow new rejections.
+      // If it ever does, a journal entry on that symbol should show no
+      // canvas rather than white-screen the review surface.
       return null;
     }
   }, [selected?.symbol]);
