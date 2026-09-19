@@ -321,11 +321,38 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWork
   // room inherits a reading of this one's drawer. The room is the only writer;
   // the rail never infers a stage, because a rail that guessed could mark
   // equipment open that the room had already closed.
-  const [openId, setOpenId] = React.useState<string | null>(null);
+  //
+  // A SET, NOT ONE SLOT — MEASURED 2026-09-19 ON LIVE /charts.
+  // With the drawing tools open (19 tools, 319x385, chart still ticking) this
+  // rail reported `aria-pressed="false"` on Draw. The single slot was only ever
+  // written by the JOURNEY (`useEquipmentJourney`), and /charts' two items —
+  // Draw and Replay — are DIRECT instruments that `isJourneyEquipment` filters
+  // out, so they never announced. The rail was structurally blind to exactly
+  // the equipment this room has, and the heading above claims to show what is
+  // held. A wrong `aria-pressed` is worse than none: it is the screen reader
+  // being told the tool is down when it is in the trader's hand.
+  //
+  // Direct instruments are also not mutually exclusive — Draw and Replay are
+  // both legitimately in hand at once — so one slot could not have told the
+  // truth here even once the announce existed.
+  //
+  // The protocol is unchanged and the journey's behaviour is bit-identical:
+  // CLOSE still announces `(null, "closed")`, which still clears everything.
+  // What is newly expressible is `(id, "closed")` — "put THIS one down".
+  const [openIds, setOpenIds] = React.useState<ReadonlySet<string>>(() => new Set());
   React.useEffect(() => {
-    setOpenId(null);
+    setOpenIds(new Set());
     return subscribeEquipmentStage(({ equipmentId, stage }) =>
-      setOpenId(stage === "closed" ? null : equipmentId),
+      setOpenIds((current) => {
+        // The honest empty announce — "I am holding nothing."
+        if (equipmentId === null) return current.size === 0 ? current : new Set();
+        const held = stage !== "closed";
+        if (held === current.has(equipmentId)) return current;
+        const next = new Set(current);
+        if (held) next.add(equipmentId);
+        else next.delete(equipmentId);
+        return next;
+      }),
     );
   }, [activeHref]);
 
@@ -334,7 +361,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWork
     <div data-testid="os-rail-workspace">
       <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: GOLD }}>{heading}</div>
       {equipment.map((item) => {
-        const open = item.id === openId;
+        const open = openIds.has(item.id);
         return (
         <button
           key={item.id}

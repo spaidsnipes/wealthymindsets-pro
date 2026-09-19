@@ -121,7 +121,7 @@ import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
-import { subscribeEquipment } from "@/lib/workspace/equipmentChannel";
+import { subscribeEquipment, announceEquipmentStage } from "@/lib/workspace/equipmentChannel";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -1352,6 +1352,37 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       }),
     [openDrawingTools, startReplay],
   );
+
+  /*
+    THE ROOM ANSWERS BACK FOR ITS DIRECT INSTRUMENTS TOO.
+
+    MEASURED 2026-09-19 on live /charts: Draw was open — 19 tools, a 319x385
+    panel, the chart still ticking at 1490x401 — and the Workspace rail that
+    opened it still read `aria-pressed="false"`. `announceEquipmentStage` had
+    exactly ONE caller, `useEquipmentJourney`, and the journey deliberately
+    filters Draw and Replay out (`isJourneyEquipment`, see the note above).
+    So the only two pieces of equipment this room has were the only two the
+    rail could never report. The heading says WORKSPACE and the entry claims to
+    show what is in your hand; for /charts it always said "nothing".
+
+    THIS IS NOT A SECOND BRAIN. The room stays the only writer — that is the
+    equipmentChannel's law, and the reason the rail never infers a stage. These
+    two booleans ARE the state the drawer and the replay engine already render
+    from; this effect publishes that fact rather than computing a new one, so
+    there is no reading here that can drift from what is on the screen.
+
+    "drawer" rather than "preview": both instruments come up at full working
+    size with the market still visible beside them, which is what `drawer`
+    means in the stage algebra, and `marketStaysVisible("drawer")` is true.
+    Neither is ever announced `full` — this room IS the chart, and nothing it
+    hands the trader is allowed to take the camera away.
+  */
+  useEffect(() => {
+    announceEquipmentStage("draw-tools", drawSheetOpen ? "drawer" : "closed");
+  }, [drawSheetOpen]);
+  useEffect(() => {
+    announceEquipmentStage("bar-replay", replayActive ? "drawer" : "closed");
+  }, [replayActive]);
 
   // And the same for the seven-control primary rail: measured at 375px it was
   // display:none at 0x0, so publish idea, screenshot, voice note and video

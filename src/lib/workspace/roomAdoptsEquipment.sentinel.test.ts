@@ -1539,3 +1539,92 @@ describe("SENTINEL — the market canvas may not offer a door that closes the ca
     ).toMatch(/onEnter=/);
   });
 });
+
+/**
+ * SENTINEL — the Workspace rail must be able to report a DIRECT instrument.
+ *
+ * MEASURED 2026-09-19 on live production https://wealthymindsetspro.com/charts:
+ * the drawing tools were open — 19 `.wm-draw-btn` controls in a 319x385 panel,
+ * the chart still ticking at 1490x401, the URL still exactly `/charts` — and
+ * the Workspace rail entry that opened them still reported
+ * `aria-pressed="false"` with no `data-equipment-open`.
+ *
+ * ROOT CAUSE, and the reason a weaker test would not have caught it:
+ * `announceEquipmentStage` had exactly ONE caller, `useEquipmentJourney`. The
+ * journey deliberately filters Draw and Replay out (`isJourneyEquipment`),
+ * because a direct instrument must not open a threshold, write `?equip=`, or
+ * unmount the chart. So the only two pieces of equipment `/charts` has were
+ * precisely the two the rail could never hear about. Every existing test
+ * passed: the reducer was correct, the channel was correct, the rail was
+ * correct about journey equipment. The gap was that nobody spoke.
+ *
+ * A wrong `aria-pressed` is worse than a missing one — it tells a screen
+ * reader the tool is down while it is in the trader's hand.
+ *
+ * NEVER DELETE THIS SENTINEL — re-pin it to the meaning.
+ */
+describe("SENTINEL — the rail can report equipment the JOURNEY does not carry", () => {
+  const rail = read(RAIL);
+  const chart = read("src/components/chart/ChartsDashboard.tsx");
+
+  it("the room announces a stage for BOTH of its direct instruments", () => {
+    for (const id of ["draw-tools", "bar-replay"]) {
+      expect(
+        chart,
+        `ChartsDashboard.tsx → nothing announces a stage for "${id}", so the Workspace rail cannot show it as held. This is the 2026-09-19 live defect exactly`,
+      ).toMatch(new RegExp(`announceEquipmentStage\\("${id}"`));
+    }
+  });
+
+  it("the announce is driven by the state the screen renders from, not a new copy", () => {
+    // A second boolean tracking "did the trader press Draw" would drift from
+    // the drawer the moment anything else closed it.
+    expect(
+      chart,
+      "ChartsDashboard.tsx → draw-tools announce is no longer derived from drawSheetOpen; a parallel flag is a second brain and will disagree with the panel",
+    ).toMatch(/announceEquipmentStage\("draw-tools", drawSheetOpen \?/);
+    expect(
+      chart,
+      "ChartsDashboard.tsx → bar-replay announce is no longer derived from replayActive",
+    ).toMatch(/announceEquipmentStage\("bar-replay", replayActive \?/);
+  });
+
+  it("neither direct instrument is ever announced at the stage that kills the camera", () => {
+    // This room IS the chart. `full` is fixed/inset-0 over the field.
+    const announces = chart.match(/announceEquipmentStage\([^)]*\)/g) ?? [];
+    expect(announces.length, "ChartsDashboard.tsx → the announces vanished; re-pin this").toBeGreaterThanOrEqual(2);
+    for (const call of announces) {
+      expect(
+        call,
+        `ChartsDashboard.tsx → ${call} announces "full" from the market canvas, which would mark the camera as surrendered`,
+      ).not.toMatch(/"full"/);
+    }
+  });
+
+  it("the rail holds a SET, because direct instruments are not mutually exclusive", () => {
+    // Draw and Replay are both legitimately in hand at once. A single
+    // `openId` slot cannot represent that, so it would have had to lie about
+    // one of them even once the announce existed.
+    expect(
+      rail,
+      `${RAIL} → the rail went back to a single open slot; with both Draw and Replay in hand it can only report one, so the other silently reads as "not held"`,
+    ).toMatch(/openIds/);
+    expect(rail).not.toMatch(/const \[openId, setOpenId\]/);
+  });
+
+  it("the rail still clears EVERYTHING on the journey's honest empty announce", () => {
+    // `CLOSE` returns EQUIPMENT_CLOSED, whose equipmentId is null. If the set
+    // only ever removed the named id, a null announce would leave the previous
+    // equipment marked open forever — the exact bug the single slot avoided.
+    // Anchor on the RAIL's subscriber specifically. A bare
+    // "subscribeEquipmentStage" search hits the import line first, and the last
+    // hit is a DIFFERENT subscriber (the journeyOpen one, which reads stage
+    // only). Only the destructure that takes `equipmentId` is the rail's.
+    const at = rail.indexOf("subscribeEquipmentStage(({ equipmentId, stage })");
+    expect(at, `${RAIL} → the rail stopped subscribing to stage announces`).toBeGreaterThan(-1);
+    expect(
+      rail.slice(at, at + 700),
+      `${RAIL} → a null equipmentId no longer clears the set; the journey's CLOSE would leave its equipment marked held`,
+    ).toMatch(/equipmentId === null/);
+  });
+});

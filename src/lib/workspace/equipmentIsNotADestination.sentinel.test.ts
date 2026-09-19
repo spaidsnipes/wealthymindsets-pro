@@ -341,12 +341,32 @@ describe("SENTINEL — equipment is not a destination", () => {
     // The four genuinely-owned symbols stay banned, and the next test pins
     // every direct id to a real branch in the room, so a room that "hears" the
     // channel and answers nothing still fails.
-    const CHANNEL = [
-      "reflectJourneyInUrl",
-      "announceEquipmentStage",
-      "pendingScrollRestore",
-      "equipmentJourneyReducer",
-    ];
+    // ── REMAPPED AGAIN 2026-09-19 · THE SPEAKING HALF OF THE SAME RULE ─────
+    // The remap above freed a room to HEAR the channel for its direct
+    // instruments, and stopped there. That left the loop open at the other
+    // end, and the gap was measured on live /charts: Draw was open — 19 tools,
+    // a 319x385 panel, the chart still ticking — and the Workspace rail that
+    // opened it read `aria-pressed="false"`. `announceEquipmentStage` had one
+    // caller, `useEquipmentJourney`, and the journey filters direct
+    // instruments out by definition. So /charts' only two pieces of equipment
+    // were the only two the rail could never report, under a heading that
+    // claims to show what is in the trader's hand. A wrong `aria-pressed` is
+    // worse than a missing one: it tells a screen reader the tool is down
+    // while it is up.
+    //
+    // The ban is still the JOURNEY. A room announcing for JOURNEY equipment
+    // really would be the second semantic brain this test was born to stop —
+    // two writers for one set of stages. A room announcing for its OWN DIRECT
+    // instrument is the opposite: it is the only writer there has ever been,
+    // because no journey exists to be that writer.
+    //
+    // So the symbol moves out of the blanket list and into a scoped rule
+    // below, which is STRICTLY STRONGER than the ban it replaces: the blanket
+    // version only asked whether the string appeared, while the scoped version
+    // reads every call site and checks the id against `roomEquipment`'s own
+    // `direct` flag. Announcing for a journey id now fails, and so does
+    // announcing for an id this room does not declare at all.
+    const CHANNEL = ["reflectJourneyInUrl", "pendingScrollRestore", "equipmentJourneyReducer"];
 
     for (const room of ROOMS_WITH_EQUIPMENT) {
       const rel = ROOM_SOURCES[room];
@@ -366,6 +386,25 @@ describe("SENTINEL — equipment is not a destination", () => {
           `${rel} → ${room} reaches for "${symbol}" directly. That wiring has one ` +
             `owner (useEquipmentJourney); a per-room copy is a second semantic brain`,
         ).toBe(false);
+      }
+
+      // THE SCOPED RULE. A room may announce a stage only for equipment it
+      // declares `direct` — the equipment the journey refuses to carry, and so
+      // the equipment that has no other possible writer.
+      const directIds = new Set(
+        roomEquipment(room)
+          .filter((e) => e.direct)
+          .map((e) => e.id),
+      );
+      for (const [, announced] of src.matchAll(/announceEquipmentStage\(\s*"([^"]+)"/g)) {
+        expect(
+          directIds.has(announced),
+          `${rel} → ${room} announces a stage for "${announced}", which it does not ` +
+            `declare as DIRECT equipment. Journey stages have one owner ` +
+            `(useEquipmentJourney); a room writing them is a second semantic brain. ` +
+            `Only a direct instrument — which the journey refuses by definition — ` +
+            `may be announced by the room that owns it`,
+        ).toBe(true);
       }
     }
   });
