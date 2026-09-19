@@ -277,6 +277,92 @@ export function migrateMarketField(stored: StoredChartSettings): StoredChartSett
  * the trader picked, a value from a build whose default differed — is left
  * exactly as found.
  */
+/* ── THE MOVING AVERAGES — THE FIFTH COPY OF THE RAINBOW ────────────────────
+ *
+ * GOVERNING VISUAL: the same `WM_NewMockup_136_Fidelity_Five_Not_A_Rainbow.jpg`
+ * that governs the candles. Its filename is still the law.
+ *
+ * MEASURED LIVE, 2026-09-19, on the serving build AFTER the candles, the
+ * volume histogram and the VP palette had all gone brass: the 1490×389 price
+ * pane still carried `79,163,224` (blue, 406 px), `100,70,131` (violet,
+ * 534 px) and `255,165,0` (orange, 394 px). The Founder's active indicator
+ * set was `["Anchored VWAP","EMA 8","EMA 21","EMA 89"]`, and `MA_CFG` in
+ * `MainChart` assigned those exactly `#C084FC`, `#4FA3E0` and `#FFA500`. Three
+ * hues, three different materials, sitting on a brass chart. The rainbow had
+ * moved a fourth time — out of the series and into the overlays.
+ *
+ * `MA_CFG` held NINETEEN hand-picked hues: violet, lilac, purple, two blues,
+ * gold, two oranges, casino red, mint, three teals, lavender, jade, pink,
+ * rose, lime. No two of them agreed on anything, and none of them was a token
+ * of this room.
+ *
+ * ── WHY A RAMP AND NOT NINETEEN BETTER COLOURS ────────────────────────────
+ * Hue encodes KIND. Every moving average is the same kind of thing: the same
+ * price, remembered over a different depth. Encoding "EMA" vs "SMA" vs "HMA"
+ * in hue spends the loudest channel on the least important distinction — the
+ * legend already carries the name, exactly as VAH/VAL do above — while leaving
+ * the distinction that actually matters at a glance, HOW FAR BACK this line
+ * remembers, encoded in nothing at all.
+ *
+ * So depth takes luminance. A fast average sits near the price and reads
+ * bright; a slow one sits deep in the room and recedes. Two lines of similar
+ * period therefore read as similar, which is true — an EMA 8 and an SMA 9 ARE
+ * nearly the same claim, and nineteen hues spent real ink insisting otherwise.
+ *
+ * ── WHY IT IS A FUNCTION AND NOT A TABLE ──────────────────────────────────
+ * `MA_CFG` is not the only source of periods. Every entry can be overridden
+ * per-trader via `indSettings` (`cp.length ?? p`), so a table keyed by the
+ * nineteen shipped periods would hand an EMA-8 colour to a line the trader had
+ * re-pointed at 150 bars. The ramp is defined over the period itself, so an
+ * override lands at the depth it actually represents.
+ *
+ * LOG SCALE, because the periods do not run linearly — 8, 9, 13, 21, 34, 50,
+ * 89, 144, 200. Half of them live below 40. On a linear ramp those nine would
+ * collapse into one value and the top of the range would be empty.
+ *
+ * A trader's explicit `cp.color` still wins at the call site. This only
+ * replaces what the PRODUCT chose on their behalf.
+ */
+
+/** The nearest, fastest average — the room's `PEARL`. */
+export const MA_INK_NEAR = "#ede6d3";
+/** The deepest, slowest average — the recessed brass the down candle uses. */
+export const MA_INK_DEEP = "#6e5a3c";
+/** Periods at or below this take `MA_INK_NEAR` exactly. */
+export const MA_PERIOD_NEAR = 8;
+/** Periods at or above this take `MA_INK_DEEP` exactly. */
+export const MA_PERIOD_DEEP = 200;
+
+const hexToRgb = (hex: string): [number, number, number] => [
+  parseInt(hex.slice(1, 3), 16),
+  parseInt(hex.slice(3, 5), 16),
+  parseInt(hex.slice(5, 7), 16),
+];
+
+const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+
+/**
+ * The ink a moving average of `period` bars is drawn in.
+ *
+ * Returns HEX, never `rgba()`. These values reach `addLine` today, but the
+ * per-indicator colour override in `indSettings` is edited through an
+ * `<input type="color">` in the indicator settings UI, and seeding that
+ * control with a non-hex value blanks it — the same trap documented for the
+ * candle palette above.
+ *
+ * A non-finite or non-positive period cannot be placed on the ramp, so it
+ * takes the near end rather than producing `NaN` and painting nothing.
+ */
+export function movingAverageInk(period: number): string {
+  if (!Number.isFinite(period) || period <= 0) return MA_INK_NEAR;
+  const lo = Math.log(MA_PERIOD_NEAR);
+  const hi = Math.log(MA_PERIOD_DEEP);
+  const t = Math.min(1, Math.max(0, (Math.log(period) - lo) / (hi - lo)));
+  const a = hexToRgb(MA_INK_NEAR);
+  const b = hexToRgb(MA_INK_DEEP);
+  return `#${toHex(a[0] + (b[0] - a[0]) * t)}${toHex(a[1] + (b[1] - a[1]) * t)}${toHex(a[2] + (b[2] - a[2]) * t)}`;
+}
+
 export const VP_PALETTE_SCHEMA_VERSION = 1;
 
 /** The stamp key. Flat, like the palette it guards. */

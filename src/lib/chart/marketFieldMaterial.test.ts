@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
+  MA_INK_DEEP,
+  MA_INK_NEAR,
+  MA_PERIOD_DEEP,
+  MA_PERIOD_NEAR,
+  movingAverageInk,
   CANDLE_DOWN_DEFAULT,
   CANDLE_UP_DEFAULT,
   CHART_SETTINGS_SCHEMA_VERSION,
@@ -304,5 +311,90 @@ describe("the Volume Profile palette", () => {
       removeItem: () => { throw new Error("quota"); },
     };
     expect(() => migrateVolumeProfilePalette(hostile)).not.toThrow();
+  });
+});
+
+/* ── THE MOVING AVERAGES — THE FIFTH COPY OF THE RAINBOW ────────────────────
+ *
+ * MEASURED LIVE 2026-09-19 on the serving build, AFTER candles + volume + VP
+ * had all gone brass: the 1490x389 price pane still carried 79,163,224 (blue),
+ * 100,70,131 (violet) and 255,165,0 (orange) from EMA 21 / EMA 8 / EMA 89.
+ * `MA_CFG` held nineteen hand-picked hues; the ramp replaced all of them.
+ *
+ * These guards are written to fail if someone reintroduces a hue — either by
+ * reverting the ramp to a table, or by pushing a ramp endpoint out of brass.
+ */
+describe("THE MOVING AVERAGES: one material, depth by luminance", () => {
+  it("never returns a hue — every rung of the ramp is brass (r > g > b)", () => {
+    // Every shipped period in MA_CFG, plus the fixed windows of the four
+    // period-less averages (alma 9 / t3 5 / kama 10 / mcginley 14 / vwma 20,
+    // each read from indicators.ts), plus both ends and far past both ends.
+    const periods = [
+      1, 2, 5, 8, 9, 10, 13, 14, 20, 21, 34, 50, 89, 100, 144, 200, 400, 5000,
+    ];
+    for (const p of periods) {
+      const ink = movingAverageInk(p);
+      expect(ink, `MA ${p} is not a 6-digit hex`).toMatch(/^#[0-9a-fA-F]{6}$/);
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(ink.slice(i, i + 2), 16));
+      expect(r, `MA ${p} -> ${ink} is not warm`).toBeGreaterThan(g);
+      expect(g, `MA ${p} -> ${ink} is not brass`).toBeGreaterThan(b);
+    }
+  });
+
+  it("is monotonic — a slower average is never brighter than a faster one", () => {
+    // This is the whole point of the ramp: depth is the thing being encoded.
+    // A non-monotonic ramp would read as noise and be no better than hues.
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const periods = [8, 9, 13, 20, 21, 34, 50, 89, 100, 144, 200];
+    for (let i = 1; i < periods.length; i++) {
+      const prev = lum(movingAverageInk(periods[i - 1]));
+      const here = lum(movingAverageInk(periods[i]));
+      expect(
+        here,
+        `MA ${periods[i]} is brighter than MA ${periods[i - 1]}`,
+      ).toBeLessThan(prev);
+    }
+  });
+
+  it("pins both ends to room tokens and clamps beyond them", () => {
+    expect(movingAverageInk(MA_PERIOD_NEAR)).toBe(MA_INK_NEAR);
+    expect(movingAverageInk(MA_PERIOD_DEEP)).toBe(MA_INK_DEEP);
+    // Clamped, not extrapolated — an override at 5000 must not run off the
+    // end of the ramp into a colour nobody chose.
+    expect(movingAverageInk(1)).toBe(MA_INK_NEAR);
+    expect(movingAverageInk(100000)).toBe(MA_INK_DEEP);
+    // The deep end IS the down candle, not a sixth brass minted here.
+    expect(MA_INK_DEEP).toBe(CANDLE_DOWN_DEFAULT);
+  });
+
+  it("survives a nonsense period instead of painting NaN", () => {
+    // `cp.length` comes from trader-editable storage and is not validated
+    // upstream. `#NaNNaNNaN` is not a colour; the line would vanish.
+    for (const bad of [0, -20, NaN, Infinity, -Infinity]) {
+      expect(movingAverageInk(bad as number)).toMatch(/^#[0-9a-fA-F]{6}$/);
+    }
+  });
+
+  it("no MA in MainChart carries a hue literal any more", () => {
+    // The revive-attempt this is built to catch: someone re-adds `c: "#4FA3E0"`
+    // to MA_CFG, or hands one of the period-less averages a hue back.
+    const src = readFileSync(
+      resolve(__dirname, "../../components/chart/MainChart.tsx"),
+      "utf8",
+    );
+    const block = src.slice(
+      src.indexOf("const MA_CFG"),
+      src.indexOf('if (inds.has("VWMA"))') + 200,
+    );
+    expect(block.length, "MA block not found — did the anchors move?")
+      .toBeGreaterThan(500);
+    const hues = block.match(/#[0-9a-fA-F]{6}/g) ?? [];
+    expect(hues, `MA block regained hue literals: ${hues.join(", ")}`)
+      .toEqual([]);
+    // And it must still be asking the owner.
+    expect(block).toContain("movingAverageInk");
   });
 });

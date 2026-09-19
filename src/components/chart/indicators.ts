@@ -163,7 +163,15 @@ export function vwma(bars: LegacyOhlcvTuple[], p: number): number[] {
   });
 }
 
-export function maRibbon(src: number[], periods = [8,13,21,34,55,89]): number[][] {
+/**
+ * The ribbon's depths. EXPORTED because the colour of each strand is derived
+ * from its period (see `movingAverageInk`), and a caller keeping its own
+ * parallel list would drift the moment these changed — which is exactly how
+ * the ribbon came to carry six hand-picked hues that matched nothing.
+ */
+export const MA_RIBBON_PERIODS = [8, 13, 21, 34, 55, 89];
+
+export function maRibbon(src: number[], periods: number[] = MA_RIBBON_PERIODS): number[][] {
   return periods.map(p => ema(src, p));
 }
 

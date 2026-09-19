@@ -208,6 +208,7 @@ import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import {
   CANDLE_DOWN_DEFAULT,
   CANDLE_UP_DEFAULT,
+  movingAverageInk,
   CROSSHAIR_COLOR_DEFAULT,
   GRID_COLOR_DEFAULT,
   MARKET_FIELD_DEFAULT,
@@ -3142,41 +3143,54 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
 
     // ── Moving Averages ───────────────────────────────────────
-    const MA_CFG: { name: string; p: number; c: string; fn: (s: number[], p: number) => number[] }[] = [
-      { name: "EMA 8",   p: 8,   c: "#C084FC", fn: IND.ema },
-      { name: "EMA 9",   p: 9,   c: "#B070EC", fn: IND.ema },
-      { name: "EMA 13",  p: 13,  c: "#8B5CF6", fn: IND.ema },
-      { name: "EMA 21",  p: 21,  c: "#4FA3E0", fn: IND.ema },
-      { name: "EMA 34",  p: 34,  c: "#60BFFF", fn: IND.ema },
-      { name: "EMA 50",  p: 50,  c: "#F0B429", fn: IND.ema },
-      { name: "EMA 89",  p: 89,  c: "#FFA500", fn: IND.ema },
-      { name: "EMA 144", p: 144, c: "#FF8C00", fn: IND.ema },
-      { name: "EMA 200", p: 200, c: "#FF4D6A", fn: IND.ema },
-      { name: "SMA 9",   p: 9,   c: "#70EEC0", fn: IND.sma },
-      { name: "SMA 20",  p: 20,  c: "#00D4AA", fn: IND.sma },
-      { name: "SMA 50",  p: 50,  c: "#30B0A0", fn: IND.sma },
-      { name: "SMA 100", p: 100, c: "#20A090", fn: IND.sma },
-      { name: "SMA 200", p: 200, c: "#00C0D4", fn: IND.sma },
-      { name: "WMA",     p: 20,  c: "#A78BFA", fn: IND.wma },
-      { name: "HMA",     p: 20,  c: "#34D399", fn: IND.hma },
-      { name: "DEMA",    p: 20,  c: "#F472B6", fn: IND.dema },
-      { name: "TEMA",    p: 20,  c: "#FB7185", fn: IND.tema },
-      { name: "ZLEMA",   p: 20,  c: "#A3E635", fn: IND.zlema },
+    // ONE material, depth by luminance — see `movingAverageInk` in
+    // lib/chart/marketFieldMaterial.ts for why these carry no hue of their own.
+    const MA_CFG: { name: string; p: number; fn: (s: number[], p: number) => number[] }[] = [
+      { name: "EMA 8",   p: 8,   fn: IND.ema },
+      { name: "EMA 9",   p: 9,   fn: IND.ema },
+      { name: "EMA 13",  p: 13,  fn: IND.ema },
+      { name: "EMA 21",  p: 21,  fn: IND.ema },
+      { name: "EMA 34",  p: 34,  fn: IND.ema },
+      { name: "EMA 50",  p: 50,  fn: IND.ema },
+      { name: "EMA 89",  p: 89,  fn: IND.ema },
+      { name: "EMA 144", p: 144, fn: IND.ema },
+      { name: "EMA 200", p: 200, fn: IND.ema },
+      { name: "SMA 9",   p: 9,   fn: IND.sma },
+      { name: "SMA 20",  p: 20,  fn: IND.sma },
+      { name: "SMA 50",  p: 50,  fn: IND.sma },
+      { name: "SMA 100", p: 100, fn: IND.sma },
+      { name: "SMA 200", p: 200, fn: IND.sma },
+      { name: "WMA",     p: 20,  fn: IND.wma },
+      { name: "HMA",     p: 20,  fn: IND.hma },
+      { name: "DEMA",    p: 20,  fn: IND.dema },
+      { name: "TEMA",    p: 20,  fn: IND.tema },
+      { name: "ZLEMA",   p: 20,  fn: IND.zlema },
     ];
-    MA_CFG.forEach(({ name, p, c, fn }) => {
+    MA_CFG.forEach(({ name, p, fn }) => {
       if (!inds.has(name)) return;
       const cp = ip(name);                       // custom length/color override
       if (!visibleAtTf(cp, timeframe)) return;    // per-timeframe visibility
-      addLine(fn(closes, cp.length ?? p), cp.color ?? c, (cp.lineWidth ?? 1), (cp.lineStyle ?? 0));
+      // The ramp reads the EFFECTIVE length, so a re-pointed line lands at the
+      // depth it actually represents rather than the depth it shipped with.
+      const len = cp.length ?? p;
+      addLine(fn(closes, len), cp.color ?? movingAverageInk(len), (cp.lineWidth ?? 1), (cp.lineStyle ?? 0));
     });
-    if (inds.has("ALMA"))            addLine(IND.alma(closes),      "#E879F9", 1);
-    if (inds.has("T3 Moving Average"))addLine(IND.t3(closes),       "#FCD34D", 1);
-    if (inds.has("KAMA"))            addLine(IND.kama(closes),      "#67E8F9", 1);
-    if (inds.has("McGinley Dynamic")) addLine(IND.mcginley(closes),  "#86EFAC", 1);
-    if (inds.has("VWMA"))            addLine(IND.vwma(bars, 20),    "#FCA5A5", 1);
+    // The same family, minus a configurable length. Each of these smooths over
+    // a fixed window baked into IND, so each takes the ramp at THAT window
+    // rather than a hue of its own — a magenta ALMA beside a brass EMA 21 is
+    // the same rainbow the table above just lost.
+    if (inds.has("ALMA"))            addLine(IND.alma(closes),      movingAverageInk(9), 1);
+    if (inds.has("T3 Moving Average"))addLine(IND.t3(closes),       movingAverageInk(5), 1);
+    if (inds.has("KAMA"))            addLine(IND.kama(closes),      movingAverageInk(10), 1);
+    if (inds.has("McGinley Dynamic")) addLine(IND.mcginley(closes),  movingAverageInk(14), 1);
+    if (inds.has("VWMA"))            addLine(IND.vwma(bars, 20),    movingAverageInk(20), 1);
     if (inds.has("Moving Average Ribbon")) {
-      const cols = ["#C084FC","#8B5CF6","#4FA3E0","#60BFFF","#F0B429","#FFA500"];
-      IND.maRibbon(closes).forEach((v, i) => addLine(v, cols[i] ?? "#888", 1));
+      // A ribbon IS the depth ramp made visible — six EMAs at six depths. Each
+      // strand takes its ink from ITS OWN period, read from the same exported
+      // array `maRibbon` defaults to, so the colours cannot drift out of step
+      // with the periods the way a parallel `cols` list did.
+      IND.maRibbon(closes).forEach((v, i) =>
+        addLine(v, movingAverageInk(IND.MA_RIBBON_PERIODS[i]), 1));
     }
 
     // ── Channels / Bands ─────────────────────────────────────
