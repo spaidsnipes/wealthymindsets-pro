@@ -135,7 +135,16 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
   it("actually USES every imported geometry value inside the delta-vp block", () => {
     // An unused import is the halfway house: the delegation looks intact at the
     // top of the file while the block quietly computes its own answer.
-    const unused = IMPORTED.filter((n) => !new RegExp(`\\b${n}\\b`).test(BLOCK));
+    // The grouped refusal is deliberately flushed once after every drawing has
+    // contributed its count, so its call belongs to the surrounding render
+    // scope rather than the per-drawing dispatch arm.
+    const outsideArm = new Set(["dvpGroupedRefusalMessage"]);
+    const unused = IMPORTED.filter(
+      (n) => !outsideArm.has(n) && !new RegExp(`\\b${n}\\b`).test(BLOCK),
+    );
+    for (const name of outsideArm) {
+      expect(chartSrc).toMatch(new RegExp(`\\b${name}\\s*\\(`));
+    }
     expect(
       unused,
       `imported from the geometry owner but never referenced in the delta-vp ` +
@@ -173,7 +182,9 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
         `here cannot tell "no per-level data" from "too narrow" and will send ` +
         `the trader to resize a box that is already large enough.`,
     ).toBeNull();
-    expect(BLOCK).toContain("dvpRefusalMessage(dvpProfileRefusal(");
+    expect(BLOCK).toContain("const refusal = dvpProfileRefusal(");
+    expect(BLOCK).toContain("dvpRefusalMessage(refusal)");
+    expect(chartSrc).toContain('dvpGroupedRefusalMessage("no-levels", groupedNoLevels.count)');
   });
 
   it("keeps the two bar-length laws under DIFFERENT names", () => {

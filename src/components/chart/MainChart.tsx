@@ -134,6 +134,7 @@ import {
   dvpBoxAdmitsProfile,
   dvpProfileRefusal,
   dvpRefusalMessage,
+  dvpGroupedRefusalMessage,
   dvpColumns,
   dvpRowBox,
   dvpRowCulled,
@@ -8055,6 +8056,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       ctx.fillStyle = colr; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, x + 4, y - 5);
     };
 
+    // `no-levels` is one global live-tape absence, even when several saved
+    // Delta+VP boxes ask the same question. Keep one price-canvas instrument
+    // per frame and disclose how many drawings it governs. Box-size refusals
+    // remain local because each one has a different repair.
+    const groupedNoLevels = { x: 0, y: 0, color: "", count: 0, selected: false };
+
     const drawOne = (d: Drawing, selected: boolean) => {
       const s = d.style, t = d.tool, col = s.color, fillCol = col + "22";
       const P = d.pts.map(toPx);
@@ -8180,7 +8187,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // 2026-09-15 (TSLA 15m) a ~548x142px box — an order of magnitude past
             // both minimums — telling the trader to "draw a wider box". The cause
             // was no per-level data. Naming the real obstacle is the fix.
-            chip(dvpRefusalMessage(dvpProfileRefusal(rw, rh, dvp.rows.length)), rx + 2, ry - 3, col);
+            const refusal = dvpProfileRefusal(rw, rh, dvp.rows.length);
+            if (refusal === "no-levels") {
+              groupedNoLevels.count += 1;
+              if (groupedNoLevels.count === 1 || selected) {
+                groupedNoLevels.x = rx + 2;
+                groupedNoLevels.y = ry - 3;
+                groupedNoLevels.color = col;
+                groupedNoLevels.selected = selected;
+              }
+            } else {
+              chip(dvpRefusalMessage(refusal), rx + 2, ry - 3, col);
+            }
           }
           ctx.restore();
         }
@@ -8258,6 +8276,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           opacity: drawingStyle.opacity / 100, fill: FILL_TOOLS.has(tool),
         } }, false);
       }
+    }
+    if (groupedNoLevels.count > 0) {
+      chip(
+        dvpGroupedRefusalMessage("no-levels", groupedNoLevels.count),
+        groupedNoLevels.x,
+        groupedNoLevels.y,
+        groupedNoLevels.color,
+      );
     }
   }, [base, logicalToPixel, drawingStyle, getBarFootprint]);
 

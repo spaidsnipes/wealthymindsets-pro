@@ -46,6 +46,7 @@ import {
   dvpBoxAdmitsProfile,
   dvpProfileRefusal,
   dvpRefusalMessage,
+  dvpGroupedRefusalMessage,
   dvpColumns,
   dvpRowBox,
   dvpRowCulled,
@@ -203,6 +204,30 @@ describe("dvpRefusalMessage — one sentence per obstacle, and no false promises
     for (const r of ["no-levels", "too-narrow", "too-short"] as const) {
       expect(dvpRefusalMessage(r)).toContain("Delta+VP");
     }
+  });
+});
+
+describe("dvpGroupedRefusalMessage — shared tape absence speaks once", () => {
+  it("adds the governed drawing count only to the global no-levels refusal", () => {
+    expect(dvpGroupedRefusalMessage("no-levels", 3)).toBe(
+      "Delta+VP ×3 · no per-level tape · captured live only",
+    );
+    expect(dvpGroupedRefusalMessage("too-narrow", 3)).toBe(
+      dvpRefusalMessage("too-narrow"),
+    );
+    expect(dvpGroupedRefusalMessage("too-short", 3)).toBe(
+      dvpRefusalMessage("too-short"),
+    );
+  });
+
+  it("keeps one drawing identical to the canonical refusal and sanitizes counts", () => {
+    expect(dvpGroupedRefusalMessage("no-levels", 1)).toBe(
+      dvpRefusalMessage("no-levels"),
+    );
+    expect(dvpGroupedRefusalMessage("no-levels", 0)).toBe(
+      dvpRefusalMessage("no-levels"),
+    );
+    expect(dvpGroupedRefusalMessage("no-levels", 2.9)).toContain("×2");
   });
 });
 

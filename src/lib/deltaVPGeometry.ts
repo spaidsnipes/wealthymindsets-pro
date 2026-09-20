@@ -155,6 +155,19 @@ export function dvpRefusalMessage(refusal: DVPRefusal): string {
   }
 }
 
+/**
+ * One global tape absence may affect several Delta+VP drawings at once. The
+ * canvas must name that shared absence once rather than stamping the same prose
+ * over price for every empty drawing. Size refusals stay local to their box and
+ * therefore never receive a multiplier.
+ */
+export function dvpGroupedRefusalMessage(refusal: DVPRefusal, count: number): string {
+  const message = dvpRefusalMessage(refusal);
+  const safeCount = Math.max(1, Math.floor(count));
+  if (refusal !== "no-levels" || safeCount === 1) return message;
+  return message.replace("Delta+VP", `Delta+VP ×${safeCount}`);
+}
+
 export interface DVPColumns {
   /** X of the centre gutter — delta grows left of it, volume right of it. */
   readonly midX: number;
