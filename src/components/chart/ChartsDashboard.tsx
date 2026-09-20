@@ -1745,9 +1745,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   return (
     <div
       className={`wm-chart-dashboard${theme === "neon" ? " wm-neon" : ""}`}
-      // B-701 receipt. See useCanvasBand above.
+      // B-701 receipt. See useCanvasBand above. The count is what the band
+      // PERMITS, not what this room renders — measured, /charts renders one
+      // zoom (the decision spine) at every width above the rail cliff, so a
+      // bare `data-b701-zooms="2"` would contradict the DOM beside it.
       data-b701-band={canvasBand}
-      data-b701-zooms={zoomsForBand(canvasBand)}
+      data-b701-zooms-permitted={zoomsForBand(canvasBand)}
       // SCENE_FRAGMENTATION cure (Founder 2026-09-13): default theme
       // used to paint #0D0E14 across the entire /charts route, blocking
       // the sanctuary shell's vignette + grain + WATER-BREATH from
