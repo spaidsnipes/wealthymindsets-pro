@@ -58,6 +58,27 @@ export const DIVISION_WORKSHEET_VERSION = 1;
 
 export type RungState = "READ" | "UNREAD";
 
+/**
+ * WHAT KIND OF ANSWER THIS RUNG PRODUCES — declared by the step's own owner.
+ *
+ * Asset 12 asks for an ADVANCED reading that is "geometry & efficiency only".
+ * Something has to decide which rungs those are, and the only defensible place
+ * is HERE, beside the code that knows what each step actually computes. A
+ * separate module ranking the rungs by their step number would be a second
+ * owner of a fact this one already holds, and it would silently mis-rank the
+ * day a rung is inserted.
+ *
+ * `QUANTITY` — the answer is a measured number (a count, a displacement, a
+ *   ratio). These are the rungs an experienced reader can still audit at a
+ *   glance with the prose removed.
+ * `CATEGORY` — the answer is a verdict in an owner's vocabulary (a regime, a
+ *   continuation health). A bare verdict with its reasoning compressed away is
+ *   a conclusion handed down, which is the exact thing this worksheet exists to
+ *   refuse — so these never survive into the geometry-only reading.
+ * `NONE` — nothing is produced here at all, on any input.
+ */
+export type RungMeasure = "QUANTITY" | "CATEGORY" | "NONE";
+
 export interface WorksheetRung {
   /** 1-based position in the division, and the number the arrow carries. */
   readonly step: number;
@@ -76,6 +97,12 @@ export interface WorksheetRung {
    * and on any rung that reads the raw window rather than a prior answer.
    */
   readonly carriedFrom: number | null;
+  /**
+   * The SHAPE of this step's answer, stated whether or not it was reached.
+   * An UNREAD rung still declares what it would have measured — otherwise the
+   * scaffolding levels would silently re-rank themselves as the market moved.
+   */
+  readonly measures: RungMeasure;
   readonly state: RungState;
   /** The answer, in the owner's own terms. Null on an UNREAD rung. */
   readonly value: string | null;
@@ -165,6 +192,7 @@ export function selectDivisionWorksheet(
     dividend: "the symbol and timeframe you selected",
     carriedFrom: null,
     owner: "ChartsDashboard loaded series",
+    measures: "QUANTITY" as const,
   };
   // COUNTS ARE FORMATTED HERE, NOT BY `measuredNumber`. That module owns
   // quantities whose SCALE the surface cannot know, and says so in its own
@@ -194,6 +222,7 @@ export function selectDivisionWorksheet(
     dividend: "the bars from step 1, split by which side initiated each trade",
     carriedFrom: 1,
     owner: "selectAbsorptionAnatomyView",
+    measures: "QUANTITY" as const,
   };
   const buy = anatomy?.aggression.buyInitiated ?? null;
   const sell = anatomy?.aggression.sellInitiated ?? null;
@@ -228,6 +257,7 @@ export function selectDivisionWorksheet(
     dividend: "the same bars, measured for signed displacement",
     carriedFrom: 2,
     owner: "selectAggressionResponse",
+    measures: "QUANTITY" as const,
   };
   if (response?.measured && response.meanResponse != null) {
     const dir =
@@ -258,6 +288,7 @@ export function selectDivisionWorksheet(
     dividend: "step 3 divided by step 2, both normalised to this window",
     carriedFrom: 3,
     owner: "selectAggressionResponse",
+    measures: "QUANTITY" as const,
   };
   if (response?.efficiency != null) {
     rungs.push(
@@ -280,6 +311,7 @@ export function selectDivisionWorksheet(
     dividend: "the same window, read against the regime it printed in",
     carriedFrom: null,
     owner: "selectRegime",
+    measures: "CATEGORY" as const,
   };
   if (regime && regime.verdict !== "UNKNOWN") {
     rungs.push(read(ctxBase, regime.verdict, regime.narrative));
@@ -300,6 +332,7 @@ export function selectDivisionWorksheet(
     dividend: "step 5 read against the swing sequence the candles printed",
     carriedFrom: 5,
     owner: "selectContinuationHealth",
+    measures: "CATEGORY" as const,
   };
   if (continuation && continuation.health !== "UNREADABLE") {
     rungs.push(read(interpBase, continuation.health, continuation.reason));
@@ -324,6 +357,7 @@ export function selectDivisionWorksheet(
         dividend: "the decision nodes a permission is compiled from",
         carriedFrom: null,
         owner: ABSENT_OWNER,
+        measures: "NONE" as const,
       },
       ABSENT_OWNER_HOME,
     ),

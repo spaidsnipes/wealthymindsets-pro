@@ -37,11 +37,37 @@
  * never had. The `CAUTION + RIGHT OF WAY: WAIT` footer the mockup ends on is
  * refused for the same reason and says so where the mockup put it.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ASSET 12 RIDES ON TOP OF IT — THE SCAFFOLDING REMOVAL PATH
+ *
+ * `WM_Transformation_UI_12_Progressive_Scaffolding_Foundation_Intermediate_Pro`
+ * draws this same reading three times at three densities, under the banner
+ * `FROM DEPENDENCE TO DISCRETION`. A trader who has internalised the worksheet
+ * should not have to keep re-reading the beginner's version of it forever.
+ *
+ * The level control below is the only new state on this surface. Everything
+ * else is the SAME compiled worksheet passed through `scaffoldWorksheet`, which
+ * can only remove voices — it never receives a market input, so the reading at
+ * ADVANCED is structurally incapable of differing from the reading at
+ * FOUNDATION.
+ *
+ * The counts and the disclosure sit OUTSIDE the level control, above the rungs,
+ * and are drawn identically at all three levels. That placement is the honesty:
+ * a reader at the most compressed level can still see how much of the division
+ * was actually worked, without stepping back down.
+ *
  * Pure display. Consumes an already-compiled worksheet. Derives no market fact.
  */
 
 import React from "react";
 
+import {
+  DEFAULT_SCAFFOLD_LEVEL,
+  SCAFFOLD_LEVELS,
+  scaffoldWorksheet,
+  type RungVoices,
+  type ScaffoldLevel,
+} from "@/lib/marketData/viewModels/scaffoldWorksheet";
 import type {
   DivisionWorksheetVM,
   WorksheetRung,
@@ -60,7 +86,20 @@ export interface DivisionWorksheetViewProps {
   readonly timeframe?: string;
 }
 
-function Rung({ rung }: { readonly rung: WorksheetRung }): React.ReactElement {
+/** The levels, in the words a trader reads on the control itself. */
+const LEVEL_LABELS: Record<ScaffoldLevel, string> = {
+  FOUNDATION: "Foundation",
+  INTERMEDIATE: "Intermediate",
+  ADVANCED: "Advanced",
+};
+
+function Rung({
+  rung,
+  voices,
+}: {
+  readonly rung: WorksheetRung;
+  readonly voices: RungVoices;
+}): React.ReactElement {
   const isRead = rung.state === "READ";
   return (
     <li
@@ -99,11 +138,16 @@ function Rung({ rung }: { readonly rung: WorksheetRung }): React.ReactElement {
         </span>
 
         {/* The question the step answers. Kept above the answer so a blank rung
-            still reads as a question that went unanswered. */}
-        <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>{rung.question}</span>
+            still reads as a question that went unanswered. A teaching scaffold,
+            so it is the first voice Asset 12 takes away. */}
+        {voices.question ? (
+          <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>{rung.question}</span>
+        ) : null}
 
         {isRead ? (
           <>
+            {/* THE ANSWER IS NEVER COMPRESSED AWAY, at any level. A rung with no
+                value is a rung the reader cannot check. */}
             <span
               data-testid="worksheet-value"
               style={{ fontSize: 15, letterSpacing: 0.6, color: GOLD_DIM }}
@@ -111,7 +155,9 @@ function Rung({ rung }: { readonly rung: WorksheetRung }): React.ReactElement {
               {rung.value}
             </span>
             {/* The owner's OWN sentence, verbatim — never a rephrasing. */}
-            <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>{rung.basis}</span>
+            {voices.basis ? (
+              <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>{rung.basis}</span>
+            ) : null}
           </>
         ) : (
           <>
@@ -121,21 +167,30 @@ function Rung({ rung }: { readonly rung: WorksheetRung }): React.ReactElement {
             >
               Not read here
             </span>
-            <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>{rung.absence}</span>
+            {/* WHY it is blank. Not a teaching scaffold — a blank rung with no
+                reason is indistinguishable from a zero, so this voice survives
+                compression wherever the rung itself does. */}
+            {voices.absence ? (
+              <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>{rung.absence}</span>
+            ) : null}
           </>
         )}
 
         {/* THE DIVIDEND — what this step consumed. This is the line that makes
             the page long division rather than a list of conclusions, so it is
             printed on blank rungs too: "what would have gone in here". */}
-        <span style={{ fontSize: 11, lineHeight: 1.5, color: MUTED }}>
-          {rung.carriedFrom != null ? `carried from step ${rung.carriedFrom} · ` : ""}
-          divided: {rung.dividend}
-        </span>
+        {voices.dividend ? (
+          <span style={{ fontSize: 11, lineHeight: 1.5, color: MUTED }}>
+            {rung.carriedFrom != null ? `carried from step ${rung.carriedFrom} · ` : ""}
+            divided: {rung.dividend}
+          </span>
+        ) : null}
 
-        <span style={{ fontSize: 10, color: MUTED, fontFamily: "ui-monospace, monospace" }}>
-          {rung.owner}
-        </span>
+        {voices.owner ? (
+          <span style={{ fontSize: 10, color: MUTED, fontFamily: "ui-monospace, monospace" }}>
+            {rung.owner}
+          </span>
+        ) : null}
       </div>
     </li>
   );
@@ -146,11 +201,20 @@ export function DivisionWorksheetView({
   symbol,
   timeframe,
 }: DivisionWorksheetViewProps): React.ReactElement {
+  const [level, setLevel] = React.useState<ScaffoldLevel>(DEFAULT_SCAFFOLD_LEVEL);
+  const scaffolded = React.useMemo(() => scaffoldWorksheet(vm, level), [vm, level]);
+
   return (
     <div
       data-testid="division-worksheet-view"
+      data-scaffold={scaffolded.level}
+      // Read straight off the SOURCE worksheet, not off the scaffolded view.
+      // These two attributes are what an auditor reads to prove the level
+      // control changed the prose and nothing else.
       data-read={vm.readCount}
       data-unread={vm.unreadCount}
+      data-shown={scaffolded.shown.length}
+      data-withheld={scaffolded.withheldSteps.length}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -170,16 +234,77 @@ export function DivisionWorksheetView({
         </span>
       </header>
 
+      {/* ASSET 12 — THE SCAFFOLDING REMOVAL PATH, drawn as a path rather than a
+          dropdown so the direction of travel is visible: left is the most help,
+          right is the least. */}
+      <section
+        aria-label="Scaffolding level"
+        data-testid="worksheet-scaffold-path"
+        style={{ display: "flex", flexDirection: "column", gap: 7 }}
+      >
+        <span style={{ fontSize: 9, letterSpacing: 1.6, textTransform: "uppercase", color: MUTED }}>
+          Scaffolding removal path · from dependence to discretion
+        </span>
+
+        <div role="group" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {SCAFFOLD_LEVELS.map((lv) => {
+            const active = lv === level;
+            return (
+              <button
+                key={lv}
+                type="button"
+                data-testid="scaffold-level-button"
+                data-level={lv}
+                aria-pressed={active}
+                onClick={() => setLevel(lv)}
+                style={{
+                  // 44px stays the house floor for a tap target.
+                  minHeight: 44,
+                  padding: "0 14px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: 11,
+                  letterSpacing: 1.3,
+                  textTransform: "uppercase",
+                  borderRadius: 6,
+                  background: active ? "rgba(139,106,41,0.18)" : "transparent",
+                  border: `1px solid ${active ? GOLD : HAIR}`,
+                  color: active ? GOLD : MUTED,
+                }}
+              >
+                {LEVEL_LABELS[lv]}
+              </button>
+            );
+          })}
+        </div>
+
+        <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>
+          {scaffolded.title} — {scaffolded.promise}
+        </span>
+      </section>
+
       {/* `reason` is the sole owner of the how-much-was-worked claim. The rungs
-          below never restate it. */}
+          below never restate it. It is drawn OUTSIDE the level control and is
+          identical at all three levels, so a reader at ADVANCED can still see
+          how much of the division was actually worked. */}
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: TEXT }}>{vm.reason}</p>
+
+      {/* WHAT THIS LEVEL STOPPED PRINTING. The sentence that makes this
+          compression rather than concealment — never empty, including at
+          FOUNDATION, where it says every step is drawn in full. */}
+      <p
+        data-testid="worksheet-scaffold-disclosure"
+        style={{ margin: 0, fontSize: 11, lineHeight: 1.55, color: MUTED }}
+      >
+        {scaffolded.disclosure}
+      </p>
 
       <ol
         aria-label="Division steps"
         style={{ margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}
       >
-        {vm.rungs.map((r) => (
-          <Rung key={r.step} rung={r} />
+        {scaffolded.shown.map(({ rung, voices }) => (
+          <Rung key={rung.step} rung={rung} voices={voices} />
         ))}
       </ol>
 

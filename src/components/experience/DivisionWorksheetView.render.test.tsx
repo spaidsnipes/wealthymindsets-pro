@@ -12,10 +12,14 @@
  * disagree about the shape they share.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import DivisionWorksheetView from "./DivisionWorksheetView";
+import { SCAFFOLD_LEVELS } from "@/lib/marketData/viewModels/scaffoldWorksheet";
 import {
   selectDivisionWorksheet,
   type DivisionWorksheetInput,
@@ -235,5 +239,55 @@ describe("DivisionWorksheetView", () => {
     expect(out).toContain('data-read="0"');
     expect(out).toContain('data-unread="7"');
     expect(visibleText(out)).toContain("None of the 7 steps");
+  });
+});
+
+describe("Asset 12 · the scaffolding removal path, as rendered", () => {
+  it("offers all three levels and lands on the fullest one", () => {
+    // A reader who has never seen the worksheet must not arrive at a
+    // compressed view of it. `SCAFFOLD_LEVELS[0]` owns that decision; this
+    // asserts the renderer honours it rather than defaulting on its own.
+    const out = render(FULL);
+    expect(out).toContain('data-scaffold="FOUNDATION"');
+    for (const level of SCAFFOLD_LEVELS) {
+      expect(out, `${level} has no door`).toContain(`data-level="${level}"`);
+    }
+    expect(visibleText(out)).toContain("FROM DEPENDENCE TO DISCRETION".toLowerCase());
+  });
+
+  it("draws every step at the default level and withholds none", () => {
+    const out = render(FULL);
+    expect(out).toContain('data-shown="7"');
+    expect(out).toContain('data-withheld="0"');
+  });
+
+  it("publishes the evidence counts off the SOURCE worksheet, not the level", () => {
+    // THE AUDIT ATTRIBUTE. `data-read` / `data-unread` must be the worksheet's
+    // own counts at every level — if a future edit sources them from the
+    // scaffolded view instead, a compressed level would start reporting a
+    // smaller evidence debt than the reading actually carries.
+    const src = readFileSync(
+      join(process.cwd(), "src/components/experience/DivisionWorksheetView.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("data-read={vm.readCount}");
+    expect(src).toContain("data-unread={vm.unreadCount}");
+    expect(src, "the counts must not be recomputed from the compressed view").not.toContain(
+      "data-read={scaffolded.readCount}",
+    );
+  });
+
+  it("states what the level stopped printing, on the surface", () => {
+    const text = visibleText(render(FULL));
+    expect(text).toContain("All 7 steps are drawn in full");
+  });
+
+  it("prints no percentage and no hue-graded verdict from the Asset 12 mockup", () => {
+    // The mockup's ADVANCED panel carries `EFFICIENCY RATIO 62%` over a
+    // red/green pressure diagram and the verdict `MODERATE DEFENSIVE SETUP`.
+    // None has an owner in this repo.
+    const text = visibleText(render(FULL));
+    expect(text).not.toContain("62%");
+    expect(text.toLowerCase()).not.toContain("defensive setup");
   });
 });

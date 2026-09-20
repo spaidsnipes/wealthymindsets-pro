@@ -221,6 +221,56 @@ applies to the build order too.
 
 ---
 
+## ASSET 12 — SHIPPED AS A CONTROL, NOT A TAB (2026-09-19)
+
+`WM_Transformation_UI_12_Progressive_Scaffolding_Foundation_Intermediate_Pro`
+draws ONE reading at three densities — FOUNDATION / INTERMEDIATE / ADVANCED —
+under the banner `SCAFFOLDING REMOVAL PATH · FROM DEPENDENCE TO DISCRETION`.
+
+**It is not a view, so it did not get a tab.** The three panels in the mockup
+are the same worksheet three times. Shipping them as three dropdown entries
+would have put one reading behind three doors and invited them to drift apart.
+It ships as a level control ON the Worksheet view, backed by `scaffoldWorksheet`
+— a pure module that takes the COMPILED worksheet and can only remove voices
+from it. It never receives a market input, so the reading at ADVANCED is
+structurally incapable of differing from the reading at FOUNDATION.
+
+### THE MOCKUP'S MIDDLE PANEL ASKS FOR A DEFECT
+
+It promises **"SAME READ. LESS STEPS. HIGHER OWNERSHIP."** Taken at its word
+that is the most dangerous sentence in Asset 12. The worksheet's entire claim is
+that you can audit it — seven rungs, four typically blank, each blank naming the
+owner that would have to answer it. A "pro" view that drops the blanks does not
+hand the reader discretion; it hands them a shorter page with a hidden evidence
+debt, and teaches them the missing steps were never asked for.
+
+So the law this module holds is:
+
+> **COMPRESSION REMOVES WORDS. IT NEVER REMOVES FACTS.**
+
+`readCount`, `unreadCount` and the step total are carried through untouched at
+every level and asserted by test. The promise is printed as *"Same read. Same
+steps. Fewer words."* — the one mockup line rewritten, recorded in
+`INTERMEDIATE_PROMISE_REFUSAL` rather than silently applied.
+
+ADVANCED is the only level that withholds whole rungs. It keeps the rungs whose
+OWNER declared them `QUANTITY` (a new `measures` field on `WorksheetRung`, set
+beside the code that knows what each step computes rather than in a second
+module ranking them by step number). `CATEGORY` rungs — `selectRegime`,
+`selectContinuationHealth` — are withheld, because a verdict stripped of its
+reasoning is a conclusion handed down, and showing those two bare would mean the
+reader who earned the most independence sees the least evidence. Every withheld
+step is named BY NUMBER in the on-surface disclosure, and the evidence counts
+sit OUTSIDE the level control so a reader at ADVANCED never has to step back
+down to learn how much was actually worked.
+
+**Refused from the picture:** `EFFICIENCY RATIO 62%` (no owner), the red/green
+pressure diagram (a verdict graded in hue — §9), and `MODERATE DEFENSIVE SETUP`
+(a right-of-way claim owned by `decisionPermissionCompiler`, not in this room).
+All three are banned from the rendered text by test.
+
+---
+
 ## THE THREE FOUNDER ACCEPTANCE QUESTIONS
 
 Every asset ships only when all three are answerable with a screenshot of the
