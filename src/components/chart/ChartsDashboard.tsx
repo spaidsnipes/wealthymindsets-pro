@@ -1851,6 +1851,37 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [chartSurfaceBadge, chartCanvasState?.capturedAt, lastObservedAtMs],
   );
 
+  /* V01 ONE CANVAS: day bias and canonical regime are supporting market
+     standing, not a floating card. Compile them once from their existing
+     owners and hand the single reader to MainChart's OHLC horizon.
+     A DAY-CHANGE PERCENT IS NOT A MARKET REGIME: the first verdict remains a
+     day-change band and the second remains the canonical tape-owned regime. */
+  const badge = selectRegimeBadge({
+    change: ticker.change,
+    changePct: ticker.changePct,
+    symbol,
+    at: sessionClockDate,
+    canonRegime: chartCanvasState?.regime ?? null,
+  });
+  const marketStanding = badge.displayable ? (
+    <span
+      role="group"
+      aria-label={badge.spoken}
+      data-regime-badge-canon={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
+      style={{ display: "contents", pointerEvents:"none" }}
+    >
+      <span className="wm-chart-market-standing-label">{badge.verdictLabel}</span>
+      <span data-standing-direction={badge.regime}>{badge.regime}</span>
+      <span aria-hidden="true">·</span>
+      <span data-standing-change={badge.changePct >= 0 ? "UP" : "DOWN"}>{badge.changePct >= 0 ? "+" : ""}{badge.changePct.toFixed(2)}%{badge.periodLabel ? ` ${badge.periodLabel}` : ""}</span>
+      <span aria-hidden="true">·</span>
+      <span className="wm-chart-market-standing-label">REGIME</span>
+      <span data-standing-regime={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}>
+        {badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
+      </span>
+    </span>
+  ) : null;
+
   // HYDRATION GATE — permanent fix for React #418.
   // This dashboard seeds many states from localStorage (theme, timeframe,
   // candleType, footprint, active indicators, VP toggles, chart settings…), so
@@ -3373,104 +3404,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
-                    {/* ── Regime + daily % HUD (top-center overlay) ──────────────────
-                         Every claim here is delegated to selectRegimeBadge, because
-                         this call site shipped two untruths at once (seen live on the
-                         Founder's screen, 2026-09-05):
-                           - `Number.isFinite(x) ? x : 0` turned "no quote" into a
-                             printed "+0.00%" AND a market state of "SIDE" — a regime
-                             fabricated out of the absence of data.
-                           - "today" was hardcoded, so a Saturday chip called the last
-                             completed session's move today's (Canon §8, stale-as-live).
-                         The chip now renders nothing without a verified change, and the
-                         period word is earned from proven session closure. */}
-                    {(() => {
-                      const badge = selectRegimeBadge({
-                        // BOTH numbers, deliberately. useWebSocket leaves change
-                        // and changePct at their initial 0 until a real prior
-                        // close arrives, so the zero-PAIR is this ticker's
-                        // "no reference close" sentinel — invisible to anything
-                        // that only sees the percentage. Forwarding changePct
-                        // alone is how "+0.00% last session / SIDE" survived
-                        // beside the header's own "— (change unavailable)".
-                        change: ticker.change,
-                        changePct: ticker.changePct,
-                        symbol,
-                        at: sessionClockDate,
-                        // The canonical regime dimension this chip may not
-                        // contradict. Photographed 2026-09-15: this chip said
-                        // "REGIME BEAR" while the rail below it listed regime
-                        // among 8 UNRESOLVED dimensions and told the trader to
-                        // go resolve it. Same screen, same instant, same
-                        // symbol. Forwarding the dimension is what makes the
-                        // two statements come out of one owner.
-                        canonRegime: chartCanvasState?.regime ?? null,
-                      });
-                      if (!badge.displayable) return null;
-                      const p = badge.changePct;
-                      const reg = badge.regime;
-                      const rc = reg === "BULL" ? "#00D4AA" : reg === "BEAR" ? "#FF4D6A" : "#F0B429";
-                      const pc = p >= 0 ? "#00D4AA" : "#FF4D6A";
-                      return (
-                        <div
-                        /* MEASURED LIVE 2026-09-17: every span on this chip
-                           read back as [text, "", ""] — no title, no aria.
-                           The chip showed `DAY BIAS BULL +2.52% today REGIME
-                           UNRESOLVED` and said nowhere why a confident word
-                           and a refusal are allowed to sit side by side.
-
-                           A `title` cannot fix it: `pointerEvents:"none"`
-                           below is deliberate (the crosshair must keep working
-                           underneath), and a hover tooltip on a
-                           pointer-events-none element is unreachable by any
-                           pointer. It would look like a fix in the diff and be
-                           nothing in the product. So the reading is carried as
-                           an ACCESSIBLE NAME, compiled by the same owner that
-                           decides the words. */
-                        role="group"
-                        aria-label={badge.spoken}
-                        data-regime-badge-canon={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
-                        style={{
-                          // top:36 clears the 28px OHLCV strip above the chart — at top:8
-                          // this centered chip overlapped and covered the "C" close value
-                          // in the OHLC readout when the chart is narrow (DOM + side panels
-                          // open). Sitting just below the strip keeps it TradingView-style
-                          // top-center without colliding with the numbers.
-                          position:"absolute", top:36, left:"50%", transform:"translateX(-50%)",
-                          zIndex:40, pointerEvents:"none",
-                          display:"flex", alignItems:"center", gap:6,
-                          background:"rgba(11,13,20,0.82)", backdropFilter:"blur(4px)",
-                          border:`1px solid ${rc}55`, borderRadius:6, padding:"3px 9px",
-                        }}>
-                          {/* The label comes from the owner, not from a literal
-                              typed here. This chip classifies a DAY CHANGE
-                              PERCENT into a band; it has never looked at the
-                              tape. The canonical regime dimension reads
-                              classified per-trade tape and speaks TREND /
-                              BALANCE. A DAY-CHANGE PERCENT IS NOT A MARKET
-                              REGIME — so this half says what it measured. */}
-                          <span style={{ fontSize:9, fontWeight:800, color:"#5A6486", letterSpacing:"0.08em" }}>{badge.verdictLabel}</span>
-                          <span style={{ fontSize:11, fontWeight:900, color:rc, letterSpacing:"0.04em" }}>{reg}</span>
-                          <span style={{ width:1, height:10, background:"#2A3048" }} />
-                          <span style={{ fontSize:10.5, fontWeight:800, color:pc, fontFamily:"monospace" }}>
-                            {p >= 0 ? "+" : ""}{p.toFixed(2)}%{badge.periodLabel ? ` ${badge.periodLabel}` : ""}
-                          </span>
-                          {/* The canon half. The reserved word appears exactly
-                              once on this chip and it is always attached to the
-                              canonical dimension's own answer — including when
-                              that answer is "not yet". That is what stops the
-                              screen disagreeing with itself. */}
-                          <span style={{ width:1, height:10, background:"#2A3048" }} />
-                          <span style={{ fontSize:9, fontWeight:800, color:"#5A6486", letterSpacing:"0.08em" }}>REGIME</span>
-                          <span style={{
-                            fontSize:10, fontWeight:900, letterSpacing:"0.04em",
-                            color: badge.canon.resolved ? "#E6E9F2" : "#5A6486",
-                          }}>
-                            {badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
-                          </span>
-                        </div>
-                      );
-                    })()}
                     <ErrorBoundary>
                     <MainChart
                       symbol={symbol}
@@ -3485,6 +3418,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       selectedMarketObjectId={selectedMarketObjectId}
                       onSelectMarketObject={setSelectedMarketObjectId}
                       selectedMarketObjectWait={selectedMarketObjectWait}
+                      marketStanding={marketStanding}
                       drawingTool={drawingTool}
                       onDrawingComplete={() => setDrawingTool("cursor")}
                       onCreatePriceAlert={createAlertAtPrice}

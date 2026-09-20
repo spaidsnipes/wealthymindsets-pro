@@ -759,6 +759,12 @@ interface Props {
   // visible writer; standalone charts keep the badge by default.
   showFidelityChrome?: boolean;
   /**
+   * One canonical market-standing sentence supplied by the room. On desktop
+   * it joins the existing OHLC horizon; at narrower widths CSS returns it to
+   * the former chart overlay position without mounting a second reader.
+   */
+  marketStanding?: React.ReactNode;
+  /**
    * H-101 targets are real MarketObjects whose birth bar survived the
    * canonical identity wire. `birthTime` is projection geometry only; the
    * object still points to the bar by id and never reprints its OHLC.
@@ -1017,6 +1023,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   paperTradesVisible = true,
   onRequestFullscreen,
   showFidelityChrome = true,
+  marketStanding = null,
   marketObjectTargets = [],
   selectedMarketObjectId = null,
   onSelectMarketObject,
@@ -8757,7 +8764,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   return (
     <div
       ref={wrapRef}
-      style={{ display:"flex", flexDirection:"column", flex:1, overflow:"hidden", minWidth:0,
+      style={{ display:"flex", flexDirection:"column", flex:1, overflow:"hidden", minWidth:0, position:"relative",
                background: chartSettings?.background ?? MARKET_FIELD_DEFAULT, touchAction:"none" }}
     >
 
@@ -9000,6 +9007,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             </div>
           );
         })()}
+
+        {marketStanding ? (
+          <div className="wm-chart-market-standing">{marketStanding}</div>
+        ) : null}
 
         {/* Pine Script badge */}
         {pineOutput && (

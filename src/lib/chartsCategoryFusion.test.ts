@@ -8,6 +8,10 @@ const dashboard = readFileSync(
   "utf8",
 );
 const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+const mainChart = readFileSync(
+  resolve(__dirname, "../components/chart/MainChart.tsx"),
+  "utf8",
+);
 
 describe("charts category scene fusion", () => {
   it("returns the permanent category band to MARKET", () => {
@@ -25,6 +29,15 @@ describe("charts category scene fusion", () => {
     expect(css).toMatch(/\.wm-chart-room-header > \.wm-chart-tabs\s*\{[\s\S]*?flex:\s*0 1 auto[\s\S]*?min-width:\s*0[\s\S]*?border-left:/);
     expect(css).toMatch(/@media \(min-width: 1280px\)[\s\S]*?\.wm-chart-room-header--market-home\s*\{[\s\S]*?display:\s*none/);
     expect(dashboard).toMatch(/leadingSlot=\{[\s\S]*?wm-chart-toolbar-asset-class[\s\S]*?<AssetClassSwitcher/);
+  });
+
+  it("folds market standing into the desktop OHLC horizon without mounting a second reader", () => {
+    expect(dashboard).toContain("const marketStanding = badge.displayable");
+    expect(dashboard).toContain("marketStanding={marketStanding}");
+    expect(dashboard.match(/selectRegimeBadge\(/g)).toHaveLength(1);
+    expect(mainChart).toContain('className="wm-chart-market-standing"');
+    expect(css).toMatch(/\.wm-chart-market-standing\s*\{[\s\S]*?position:\s*absolute/);
+    expect(css).toMatch(/@media \(min-width: 1280px\)[\s\S]*?\.wm-chart-market-standing\s*\{[\s\S]*?position:\s*static/);
   });
 
   /**

@@ -176,8 +176,50 @@
 
 .wm-chart-toolbar-asset-class { display: none; }
 
+/* One canonical reader, two responsive placements. On phone/tablet the
+   market-standing sentence keeps its prior on-glass position. V01 desktop
+   folds it into the OHLC horizon, so it no longer reads as a gold card floating
+   over price. */
+.wm-chart-market-standing {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid rgba(183, 138, 52, .34);
+  border-radius: 6px;
+  background: rgba(11, 13, 20, .82);
+  backdrop-filter: blur(4px);
+  color: var(--wm-text, #e6e9f2);
+  font: 800 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.wm-chart-market-standing-label { color: #5a6486; font-size: 9px; letter-spacing: .08em; }
+.wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
+.wm-chart-market-standing [data-standing-direction="BEAR"] { color: #ff4d6a; }
+.wm-chart-market-standing [data-standing-direction="SIDE"] { color: #f0b429; }
+.wm-chart-market-standing [data-standing-change="UP"] { color: #00d4aa; }
+.wm-chart-market-standing [data-standing-change="DOWN"] { color: #ff4d6a; }
+.wm-chart-market-standing [data-standing-regime="UNRESOLVED"] { color: #5a6486; }
+
 @media (min-width: 1280px) {
   .wm-chart-toolbar-asset-class { display: flex; }
+  .wm-chart-market-standing {
+    position: static;
+    transform: none;
+    z-index: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
 }
 
 .wm-chart-orientation-context { flex: 0 1 auto; }
