@@ -454,7 +454,24 @@ export function ChartCompanion(): React.ReactElement | null {
       style={{
         width: 232,
         borderLeft: "1px solid rgba(139,106,41,0.18)",
-        background: "linear-gradient(180deg, rgba(11,11,13,0.92) 0%, rgba(11,11,13,0.72) 100%)",
+        /*
+          OPAQUE ON PURPOSE. This panel used a 0.92 → 0.72 alpha gradient,
+          and on the serving /news page the video rail sitting behind its
+          lower half showed THROUGH the evidence text — "CNBC" and "Fox
+          Business" legible across the sentence explaining why there is no
+          price. Measured, not guessed: the companion wins the hit test at
+          that point, so it was never a z-order bug; the surface was simply
+          see-through.
+
+          A panel whose whole job is to state what is and is not known may
+          not have another surface's words reading through its own. The
+          warm top-light the plate shows is kept as a gold wash LAYERED
+          OVER a solid base, rather than as transparency.
+        */
+        backgroundColor: "#0b0b0d",
+        backgroundImage:
+          "linear-gradient(180deg, rgba(201,165,92,0.05) 0%, rgba(201,165,92,0) 100%)",
+        position: "relative",
       }}
     >
       {/* Masthead — plate: the companion is the SAME camera, not another app */}
@@ -624,6 +641,23 @@ export function ChartCompanion(): React.ReactElement | null {
             timeframe={vm.book.timeframe}
             symbol={vm.symbol}
           />
+        ) : vm.price.kind === "MISSING" && vm.price.reason === vm.book.reason ? (
+          /*
+            ONE CAUSE, SAID ONCE.
+
+            When there is no compiled state at all, the price and the book
+            are missing for the SAME reason, and both slots were printing
+            the identical sentence — the serving /news page showed that
+            paragraph twice, stacked. Repetition reads as two separate
+            problems and makes a short panel feel like an error log.
+
+            The absence is NOT hidden: the price slot above has already
+            stated it in full. This renders nothing rather than restating
+            it, and the moment the two reasons differ — a state that exists
+            but has too few closed bars, say — the book's own sentence
+            prints below, because that is genuinely new information.
+          */
+          null
         ) : (
           <p style={{ fontSize: 9, lineHeight: 1.5, color: "#655f52", margin: 0 }}>
             {vm.book.reason}
