@@ -1,3 +1,29 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **shift baton** — a hand-off written at the end of one shift. Its filename names its own day. It was true
+> on that day and is preserved as evidence of what was observed and decided
+> then. Do not take a current action, diagnosis, release decision or task claim
+> from it.
+>
+> **The current front door is in Drive, not in this repository.** A worker who
+> arrived here from a search result or a shared link has not passed through
+> `README.md` and has not met its demotion notice — this block is that notice,
+> delivered at the door of the document itself.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal: the
+> Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-20 by `src/lib/ops/datedDocsAreDemoted.sentinel.test.ts`. This
+> baton was committed in `2af82b5c` without the block and turned the gate red on
+> the very next run — which is the gate working, not the gate misfiring. In
+> particular its "Unfinished NEXT" section is a snapshot of one shift's intent
+> and has already been overtaken; read current authority, not this.
+<!-- END:ath-historical-lineage -->
+
 # WM Pro shift checkpoint — 2026-09-20 14:14 CDT
 
 - Requested stop: 12:34 CDT; requested final checkpoint: 12:41 CDT.
