@@ -594,9 +594,11 @@ export function SettingsPanel({
                 <select aria-label="Chart Theme" value={chartTheme} onChange={e => setChartTheme(e.target.value)}
                   className="min-h-11 max-w-[55%] rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold">
                   <option value="green-red">Green/Red (Default)</option>
+                  <option value="gold-current">Gold Current</option>
                   <option value="blue-purple">Royal Blue/Purple</option>
                   <option value="blue-orange">Blue/Yellow</option>
                   <option value="mono">Monochrome</option>
+                  <option value="custom">Custom candle colors</option>
                 </select>
               </Row>
               <Row label="Font Size" sub="Chart label and UI text size">
@@ -731,4 +733,3 @@ export function SettingsPanel({
     </ShellModalDrawer>
   );
 }
-

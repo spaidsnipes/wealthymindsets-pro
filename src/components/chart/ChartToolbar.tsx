@@ -5,7 +5,7 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera, Pencil, Layers,
+  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera, Pencil, Layers, Palette,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
@@ -1326,6 +1326,19 @@ export function ChartToolbar({
             the reason given on `profilesSlot`: a catalogue behind a closed lid
             catalogues nothing. */}
         {profilesSlot}
+        {onSettings && (
+          <button
+            type="button"
+            onClick={onSettings}
+            aria-haspopup="dialog"
+            aria-controls="chart-settings-modal"
+            className="flex min-h-11 items-center gap-1.5 rounded border border-wm-border px-2 text-[11px] font-semibold text-wm-text transition-colors hover:border-wm-gold/40 hover:text-wm-gold"
+            title="Candle colors and chart appearance"
+          >
+            <Palette size={14} aria-hidden="true" />
+            <span>Appearance</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onSmartMoney}
@@ -1512,8 +1525,7 @@ export function ChartToolbar({
                 >
                   <Plug2 size={12} aria-hidden="true" /> Connect brokers
                 </button>
-                {onAppearanceToggle && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAppearanceToggle(); }}><span aria-hidden="true">◐</span> Appearance · {appearanceLabel ?? "Original"}</button>}
-                {onSettings && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onSettings(); }}><Settings size={12} /> Chart settings</button>}
+                {onAppearanceToggle && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAppearanceToggle(); }}><span aria-hidden="true">◐</span> Display mode · {appearanceLabel ?? "Original"}</button>}
               </div>
             );
           })()}

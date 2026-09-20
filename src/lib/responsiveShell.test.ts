@@ -419,7 +419,9 @@ describe("responsive P0 command surfaces", () => {
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     expect(dashboard).toContain("onAppearanceToggle={() => setTheme");
     expect(dashboard).toContain('appearanceLabel={theme === "neon" ? "WM Neon" : "Original"}');
-    expect(toolbar).toContain("Appearance · {appearanceLabel");
+    expect(toolbar).toContain('aria-controls="chart-settings-modal"');
+    expect(toolbar).toContain("<span>Appearance</span>");
+    expect(toolbar).toContain("Display mode · {appearanceLabel");
     expect(dashboard).not.toContain("wm-theme-toggle");
   });
 

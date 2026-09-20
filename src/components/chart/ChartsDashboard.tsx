@@ -36,6 +36,10 @@ import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
 import {
+  CANDLE_DOWN_DEFAULT,
+  CANDLE_UP_DEFAULT,
+  LEGACY_CANDLE_DOWN,
+  LEGACY_CANDLE_UP,
   migrateMarketField,
   migrateVolumeProfilePalette,
   VP_UP_DEFAULT,
@@ -653,7 +657,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => { if (themeHydrated) lsSet("wm_theme", theme); }, [theme, themeHydrated]);
   // Chart Theme (from Settings panel) → candle color scheme override
   const chartThemeColors = (() => {
-    switch (appSettings.chartTheme as string) {
+    switch ((appSettings.chartTheme as string | undefined) ?? "green-red") {
+      case "gold-current":
+        return {
+          candleUp: CANDLE_UP_DEFAULT, candleDown: CANDLE_DOWN_DEFAULT,
+          borderUp: CANDLE_UP_DEFAULT, borderDown: CANDLE_DOWN_DEFAULT,
+          wickUp: CANDLE_UP_DEFAULT, wickDown: CANDLE_DOWN_DEFAULT,
+        };
       case "blue-orange":
         return {
           candleUp: "#2563EB", candleDown: "#F59E0B",
@@ -672,26 +682,49 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           borderUp: "#F3F4F6", borderDown: "#9CA3AF",
           wickUp:   "#D1D5DB", wickDown:   "#9CA3AF",
         };
-      default: return null; // green-red = use chartSettings defaults
+      case "custom": return null;
+      case "green-red":
+      default:
+        return {
+          candleUp: LEGACY_CANDLE_UP, candleDown: LEGACY_CANDLE_DOWN,
+          borderUp: LEGACY_CANDLE_UP, borderDown: LEGACY_CANDLE_DOWN,
+          wickUp: LEGACY_CANDLE_UP, wickDown: LEGACY_CANDLE_DOWN,
+        };
     }
   })();
 
-  // When Neon is active, override the canvas chart colors (candles stay red/green)
+  const paletteChartSettings: ChartSettings = chartThemeColors
+    ? { ...chartSettings, ...chartThemeColors }
+    : chartSettings;
+
+  // Display mode owns the room material, never the market-direction channels.
+  // A trader's palette remains visible in both Original and WM Neon.
   const effChartSettings: ChartSettings = theme === "neon"
     ? {
-        ...chartSettings,
+        ...paletteChartSettings,
         background: "#02060A",
         gridColor: "rgba(47,243,255,0.07)",
         crosshairColor: "#2ff3ff",
         neon: true,
-        // Neon green/red candles (keeps the green/red scheme, electric tone)
-        candleUp:  "#00FFA3", candleDown: "#FF2E63",
-        borderUp:  "#39FFB0", borderDown: "#FF4D7A",
-        wickUp:    "#00FFC6", wickDown:   "#FF6B8A",
       }
-    : chartThemeColors
-      ? { ...chartSettings, ...chartThemeColors }
-      : chartSettings;
+    : paletteChartSettings;
+
+  const applyChartSettings = useCallback((next: ChartSettings) => {
+    const candleKeys: Array<keyof ChartSettings> = [
+      "candleUp", "candleDown", "wickUp", "wickDown", "borderUp", "borderDown",
+    ];
+    const candlePaintChanged = candleKeys.some(key => next[key] !== effChartSettings[key]);
+    setChartSettings(next);
+    if (!candlePaintChanged) return;
+
+    // A deliberate swatch choice becomes the active palette immediately.
+    // Without this handoff, the app-wide preset silently overpainted the
+    // trader's six candle channels and the picker appeared to do nothing.
+    const settings = { ...readAppSettings(), chartTheme: "custom" };
+    try { localStorage.setItem("wm_settings", JSON.stringify(settings)); } catch {}
+    setAppSettings(settings);
+    window.dispatchEvent(new CustomEvent("wm-settings-changed"));
+  }, [effChartSettings]);
 
   // ── NEW: Layout ─────────────────────────────────────────────
   const [chartLayout, setChartLayout] = useState<ChartLayout>(() => lsGet("wm_chartLayout", "1") as ChartLayout);
@@ -3661,8 +3694,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         symbol={symbol}
-        settings={chartSettings}
-        onSettingsChange={setChartSettings}
+        settings={effChartSettings}
+        onSettingsChange={applyChartSettings}
       />
 
       {/* ── WORKSPACE EQUIPMENT — the grammar's second ROOM ──────────────────

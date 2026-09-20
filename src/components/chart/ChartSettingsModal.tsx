@@ -197,6 +197,10 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
           />
 
           <motion.div
+            id="chart-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chart appearance"
             drag
             dragControls={dragControls}
             dragListener={false}

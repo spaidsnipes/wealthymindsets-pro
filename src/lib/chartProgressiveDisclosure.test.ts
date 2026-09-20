@@ -25,7 +25,9 @@ describe("chart progressive disclosure", () => {
     expect(toolbar).toContain("Drawing tools");
     expect(toolbar).toContain('aria-controls="wm-broker-connect"');
     expect(toolbar).toContain("onConnectBrokers();");
-    expect(toolbar).toContain("Chart settings");
+    expect(toolbar).toContain('aria-controls="chart-settings-modal"');
+    expect(toolbar).toContain("<span>Appearance</span>");
+    expect(toolbar).toContain("Display mode · {appearanceLabel");
   });
 
   it("keeps provider setup behind the persistent Tools doorway", () => {

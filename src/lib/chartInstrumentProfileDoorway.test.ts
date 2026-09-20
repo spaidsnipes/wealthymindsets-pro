@@ -34,7 +34,9 @@ describe("/charts appearance is a disclosed room control", () => {
     expect(dashboard).not.toContain("wm-chart-theme-controls");
     expect(dashboard).not.toContain("wm-theme-toggle");
     expect(dashboard).toContain("onAppearanceToggle={() => setTheme");
-    expect(toolbar).toContain("Appearance · {appearanceLabel");
+    expect(toolbar).toContain('aria-controls="chart-settings-modal"');
+    expect(toolbar).toContain("<span>Appearance</span>");
+    expect(toolbar).toContain("Display mode · {appearanceLabel");
     expect(toolbar).toContain("onAppearanceToggle();");
   });
 });
