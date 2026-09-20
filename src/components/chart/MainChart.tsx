@@ -52,6 +52,13 @@ import {
   observesUsEquitySession,
 } from "@/lib/marketData/symbolAssetClass";
 import { overlayFrameBudgetMs, overlayFrameVerdict } from "@/lib/chartOverlayGovernor";
+import {
+  emptyPaintLedger,
+  paintLedgerReceipt,
+  recordPaint,
+  recordSkip,
+  withPaintBudget,
+} from "@/lib/chart/paintBudgetLedger";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
@@ -4775,6 +4782,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // the candles to "stick." Now the buffer is stable; we just clear + redraw.
     let lastCW = -1, lastCH = -1, lastDpr = -1;
     let lastOverlayDrawAt = 0;
+    /**
+     * B-801 · the running cost of this room's paint.
+     *
+     * Scoped to the effect, exactly as `lastOverlayDrawAt` is, so a re-run
+     * (symbol, timeframe, overlay config) starts a fresh measurement rather
+     * than averaging the new chart's paint with the old one's.
+     */
+    let paintLedger = emptyPaintLedger(overlayFrameBudgetMs(fixedVPActive || sessionVPActive));
     let sessionBarsCache: { source: LegacyOhlcvTuple[]; key: string; bars: LegacyOhlcvTuple[] } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
@@ -7666,12 +7681,39 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // performs no background paint while the tab is hidden.
       const frameBudget = overlayFrameBudgetMs(fixedVPActive || sessionVPActive);
       const verdict = overlayFrameVerdict({ hidden: document.hidden, now, lastDrawAt: lastOverlayDrawAt, frameBudgetMs: frameBudget });
+
+      /* ── B-801 PAINT BUDGET: THE ALLOCATION IS NOW MEASURED, NOT DECLARED ──
+         The governor above has always DECLARED the allocation and decided who
+         paints. Nothing measured what a paint actually COST, so the running
+         app could not be asked whether the budget was being met — and a single
+         overlay paint costing 60ms cannot hold a 50ms cadence no matter how
+         correct the pacing arithmetic is. The governor cannot catch that: it
+         decides BEFORE the paint, and the cost is only knowable after.
+
+         The ledger re-bases itself whenever the allocation moves (toggling a
+         profile takes 33ms → 50ms), so the figures on the glass are always
+         measured against the contract currently in force. */
+      paintLedger = withPaintBudget(paintLedger, frameBudget);
+
       if (verdict.draw) {
         lastOverlayDrawAt = now;
+        const startedAt = performance.now();
         draw();
+        paintLedger = recordPaint(paintLedger, performance.now() - startedAt);
         // draw() has just republished the receipt, so nothing is being withheld.
         if (canvasRef.current) delete canvasRef.current.dataset.vpSuspended;
-      } else if (verdict.skipped !== "BUDGET") {
+        // Published on paint only — at most ~30 writes/sec, and a frame that
+        // did not paint has nothing new to say about what painting costs.
+        const ds = canvasRef.current?.dataset;
+        if (ds) for (const [k, v] of Object.entries(paintLedgerReceipt(paintLedger))) ds[k] = v;
+      } else if (verdict.skipped) {
+        // Every non-painting frame is counted, INCLUDING an ordinary BUDGET
+        // skip — that count is the denominator. "4 paints" means nothing
+        // without "and 96 frames deliberately declined".
+        paintLedger = recordSkip(paintLedger, verdict.skipped);
+      }
+
+      if (!verdict.draw && verdict.skipped !== "BUDGET") {
         /*
           THE OVERLAY IS SUSPENDED, AND SAYS SO.
 
