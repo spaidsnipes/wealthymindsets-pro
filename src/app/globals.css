@@ -1211,6 +1211,8 @@ input[type=range]::-webkit-slider-runnable-track {
 
   .wm-nectar-vault-chip {
     top: 42px !important;
+    right: auto !important;
+    left: calc(50% + 156px) !important;
   }
 
   .wm-nectar-vault-chip__summary {

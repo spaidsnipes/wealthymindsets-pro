@@ -23,6 +23,9 @@ describe("desktop chart evidence horizon", () => {
     expect(css).toMatch(
       /@media \(min-width: 1024px\)[\s\S]*?\.wm-nectar-vault-chip\s*\{[\s\S]*?top: 42px !important;/,
     );
+    expect(css).toMatch(
+      /@media \(min-width: 1024px\)[\s\S]*?\.wm-nectar-vault-chip\s*\{[\s\S]*?right: auto !important;[\s\S]*?left: calc\(50% \+ 156px\) !important;/,
+    );
   });
 
   it("retires both persistent desktop card shells without removing either owner", () => {
