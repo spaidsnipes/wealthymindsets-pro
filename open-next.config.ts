@@ -14,9 +14,21 @@
 
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
 
-export default defineCloudflareConfig({
+const cloudflareConfig = defineCloudflareConfig({
   // Intentionally empty. Defaults route SSR/route-handler traffic
   // through the Workers runtime with in-memory cache. Suitable for
   // the initial Cloudflare cutover; upgrade to R2/KV incremental
   // cache when observability shows a need.
 });
+
+/*
+ * The default OpenNext command is `npm run build`, which lets Next choose
+ * Turbopack. On the managed production host Turbopack's CSS worker attempts to
+ * bind an internal port and the OS rejects it with EPERM before OpenNext can
+ * create an artifact. The repo's verified release gate already uses webpack;
+ * make that same deterministic build path explicit for Cloudflare instead of
+ * depending on the host's process/port policy.
+ */
+cloudflareConfig.buildCommand = "npm run build -- --webpack";
+
+export default cloudflareConfig;
