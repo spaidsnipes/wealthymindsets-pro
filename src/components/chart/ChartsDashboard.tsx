@@ -2042,7 +2042,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       {/* Desktop fuses orientation and symbol truth into one threshold so the
           market gains a full row of height. Tablet/phone stack the two proven
           touch-safe rows through `.wm-chart-room-header` media rules. */}
-      <div className="wm-chart-room-header">
+      <div className={`wm-chart-room-header${activeTab === "Chart" ? " wm-chart-room-header--market-home" : ""}`}>
       {/* ── Chart orientation and decision strip. The global shell owns
              product identity; this row begins with the trader's location and
              keeps the 44px touch target that prevents disclosure controls from
@@ -2747,6 +2747,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               when the actual chart is showing so a trader on Financials never
               clicks 1M and gets nothing. */}
           {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar
+            leadingSlot={
+              <div className="wm-chart-toolbar-asset-class">
+                <AssetClassSwitcher symbol={symbol} onSelect={setSymbol} />
+              </div>
+            }
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}

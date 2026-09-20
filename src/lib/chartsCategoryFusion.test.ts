@@ -15,14 +15,16 @@ describe("charts category scene fusion", () => {
     expect(dashboard.match(/className="wm-chart-tabs"/g)).toHaveLength(1);
   });
 
-  it("shares one desktop room header without collapsing phone touch rows", () => {
-    expect(dashboard.match(/className="wm-chart-room-header"/g)).toHaveLength(1);
-    expect(dashboard).toMatch(/className="wm-chart-room-header"[\s\S]*?className="wm-chart-orientation-strip"[\s\S]*?className="wm-chart-tabs"/);
+  it("retires the duplicate desktop Chart header without collapsing phone or secondary-view rows", () => {
+    expect(dashboard.match(/wm-chart-room-header/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(dashboard).toContain('wm-chart-room-header--market-home');
     expect(dashboard).toMatch(/className="wm-chart-orientation-strip"[\s\S]*?flexShrink: 1,[\s\S]*?minWidth: 0/);
     expect(dashboard).toMatch(/className="wm-chart-tabs"[\s\S]*?height: 44,[\s\S]*?flexShrink: 1, minWidth: 0/);
     expect(css).toMatch(/\.wm-chart-room-header\s*\{[\s\S]*?display:\s*block/);
     expect(css).toMatch(/@media \(min-width: 1280px\)[\s\S]*?\.wm-chart-room-header\s*\{[\s\S]*?display:\s*flex[\s\S]*?min-height:\s*44px/);
     expect(css).toMatch(/\.wm-chart-room-header > \.wm-chart-tabs\s*\{[\s\S]*?flex:\s*0 1 auto[\s\S]*?min-width:\s*0[\s\S]*?border-left:/);
+    expect(css).toMatch(/@media \(min-width: 1280px\)[\s\S]*?\.wm-chart-room-header--market-home\s*\{[\s\S]*?display:\s*none/);
+    expect(dashboard).toMatch(/leadingSlot=\{[\s\S]*?wm-chart-toolbar-asset-class[\s\S]*?<AssetClassSwitcher/);
   });
 
   /**

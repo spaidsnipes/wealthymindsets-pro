@@ -156,6 +156,28 @@
     min-width: 0;
     border-left: 1px solid rgba(139,106,41,.18);
   }
+
+  /* V01 ONE CANVAS: on the normal Chart home the orientation half is empty
+     and the market-summary half repeats symbol, price, change and fidelity
+     already owned by the live glass immediately below. Keep the whole header
+     for phone/tablet and every secondary view; on desktop Chart only, retire
+     the duplicate row and rehome its sole unique capability (asset class) into
+     the existing toolbar. */
+  .wm-chart-room-header--market-home {
+    display: none;
+  }
+
+  .wm-chart-toolbar-asset-class {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+}
+
+.wm-chart-toolbar-asset-class { display: none; }
+
+@media (min-width: 1280px) {
+  .wm-chart-toolbar-asset-class { display: flex; }
 }
 
 .wm-chart-orientation-context { flex: 0 1 auto; }

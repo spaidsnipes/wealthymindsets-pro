@@ -523,6 +523,9 @@ const TIMEFRAMES = CHART_TF_SHIPPED.map(id => ({
    COMPONENT
 ══════════════════════════════════════════════════════════════ */
 interface ChartToolbarProps {
+  /** Desktop V01 fusion: contextual class switching belongs in the existing
+   * MARKET control horizon, not in a second permanent summary row. */
+  leadingSlot?:         React.ReactNode;
   symbol:              string;
   setSymbol:           (s: string) => void;
   timeframe:           string;
@@ -653,6 +656,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 }
 
 export function ChartToolbar({
+  leadingSlot,
   symbol, setSymbol, timeframe, setTimeframe,
   onConnectBrokers, onCapture, captureOpen, onWatchlist, watchlistOpen, onDraw, drawOpen, onSmartMoney, smartMoneyActive, onJournalStats, journalStatsOpen,
   onDOM, onPineScript, onCommunity,
@@ -819,6 +823,8 @@ export function ChartToolbar({
       className="wm-room-chrome wm-chart-toolbar flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
       style={{ scrollbarWidth:"none", height: 36, borderColor: "rgba(139,106,41,0.24)" }}
     >
+
+      {leadingSlot}
 
       {/* ══ Symbol Search — inline autocomplete ════════════ */}
       <div className="wm-chart-symbol-search relative shrink-0" ref={symRef}>
