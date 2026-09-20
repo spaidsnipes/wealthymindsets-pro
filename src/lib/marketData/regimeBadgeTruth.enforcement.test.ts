@@ -27,13 +27,118 @@
  * pre-fix source — that is the only reason it is here.
  */
 
+/**
+ * ── ANTI-VACUITY ────────────────────────────────────────────────────────────
+ *
+ * Every ban in this file has the shape `expect(src().match(RE) ?? []).toEqual([])`
+ * against ONE declared path. That is green in three different ways, and only
+ * one of them means the product is correct:
+ *
+ *   (a) THE FILE WENT AWAY / MOVED. A missing path throws, but a path that
+ *       still exists while the REGIME chip moved to another component does
+ *       not: every ban would police a file that no longer renders the chip.
+ *       Guarded by a size floor plus the presence of the chip's own markup.
+ *
+ *   (b) THE PATTERN WENT STALE. This is the likely failure and no count can
+ *       see it. Each ban's vocabulary is pinned to the OWNER that produces it:
+ *         · PERIOD_WORDS — `selectRegimePeriodLabel` is the only module
+ *           allowed to say "today" / "last session". Rename either word there
+ *           and the hardcoded-period ban is banning a string nobody writes.
+ *           The control composes the banned line shape FROM the owner's real
+ *           return value, so the two cannot disagree.
+ *         · BAND_BOUNDARY — the ±1.5 ban is a NUMBER. If the Markov band
+ *           moves to ±2.0 the regex keeps passing while a re-inlined 2.0
+ *           sails through. The control reads the boundary off the owner's
+ *           behaviour, not off its source text.
+ *         · `changePct` / `>REGIME</span>` — the literal anchors of the other
+ *           two bans. Asserted to still exist in the scanned source.
+ *
+ *   (c) THE COMMENT STRIPPER ATE EVERYTHING. `codeOnly()` already carries its
+ *       own non-vacuity check below (a comment is not a consumer); it is left
+ *       as-is and extended with the anchor assertion.
+ *
+ * Every pattern is declared ONCE at module level and used by both the guard
+ * and the rule, so a guard cannot certify a regex the rule no longer uses.
+ */
+
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { selectRegimeBadge } from "./selectRegimeBadge";
 
 const CHARTS_DASHBOARD = resolve(__dirname, "../../components/chart/ChartsDashboard.tsx");
 const src = () => readFileSync(CHARTS_DASHBOARD, "utf8");
+
+/** The band boundary the chip and the Markov state model must share. */
+const BAND_BOUNDARY = 1.5;
+/** The only period words the owner may return. */
+const PERIOD_WORDS = ["today", "last session"] as const;
+
+const ZERO_FALLBACK_PATTERN = /changePct[^\n]*\?[^\n]*:\s*0\b/g;
+const HARDCODED_PERIOD_PATTERN = new RegExp(`%\\s+(${PERIOD_WORDS.join("|")})\\s*$`, "gm");
+const THRESHOLD_PATTERN = new RegExp(`[<>]\\s*-?${String(BAND_BOUNDARY).replace(".", "\\.")}\\b`, "g");
+const IMPERSONATION_PATTERN = />REGIME<\/span>\s*<span[^>]*>\{reg\}<\/span>/;
+/** The live half of the impersonation anchor: the chip's canon-side label. */
+const REGIME_LABEL_ANCHOR = />REGIME<\/span>/;
+
+describe("these bans are not vacuous", () => {
+  it("the declared path still exists and still holds the chip — measured 213,529 bytes", () => {
+    expect(existsSync(CHARTS_DASHBOARD), `${CHARTS_DASHBOARD} is gone — every ban below reads nothing`).toBe(true);
+    // Floor far below the measured size: catches a stub/moved component, not growth.
+    expect(src().length, "ChartsDashboard collapsed to a stub — the bans are scanning a shell").toBeGreaterThan(50_000);
+  });
+
+  it("the literal anchors the bans hang on are still present in that file", () => {
+    // `changePct` anchors the zero-fallback ban; `>REGIME</span>` anchors the
+    // impersonation ban. If either token leaves the file, the corresponding
+    // ban matches nothing forever while claiming the chip is honest.
+    expect(src(), "the zero-fallback ban's anchor token is gone from the scanned file").toContain("changePct");
+    expect(REGIME_LABEL_ANCHOR.test(src()),
+      "no `>REGIME</span>` remains — the impersonation ban has lost its subject").toBe(true);
+    expect(src(), "the scanned file no longer composes the owner").toContain("selectRegimeBadge({");
+  });
+
+  it("POSITIVE CONTROL: the period ban's vocabulary is the owner's live vocabulary", () => {
+    // Compose the banned line shape out of what the OWNER actually returns on
+    // the proven-closed Saturday that was observed. If selectRegimePeriodLabel
+    // renames its words, this fails instead of the ban silently going inert.
+    const view = selectRegimeBadge({
+      canonRegime: null, change: -15.2, changePct: -0.34, symbol: "GC1!", at: new Date("2026-09-05T19:59:00Z"),
+    });
+    expect(view.displayable).toBe(true);
+    const period = view.displayable ? view.periodLabel : null;
+    expect(PERIOD_WORDS, "the owner returned a period word the ban does not know about").toContain(period);
+    const rendered = `{p.toFixed(2)}% ${period}`;
+    expect(
+      rendered.match(HARDCODED_PERIOD_PATTERN),
+      "HARDCODED_PERIOD_PATTERN no longer matches the owner's own period word — the ban is stale",
+    ).not.toBeNull();
+  });
+
+  it("POSITIVE CONTROL: ±1.5 is still where the owner actually classifies", () => {
+    // The ban is a number. Read the boundary off behaviour, so a canon band
+    // move breaks this rather than leaving a stale digit policing nothing.
+    const at = new Date("2026-09-05T19:59:00Z");
+    const classify = (changePct: number) => {
+      const v = selectRegimeBadge({ canonRegime: null, change: 1, changePct, symbol: "GC1!", at });
+      return v.displayable ? v.regime : null;
+    };
+    expect(classify(BAND_BOUNDARY + 0.01), "the BULL band no longer starts just above +1.5").toBe("BULL");
+    expect(classify(BAND_BOUNDARY - 0.01), "the SIDE band no longer reaches +1.5").toBe("SIDE");
+    expect(classify(-BAND_BOUNDARY - 0.01), "the BEAR band no longer starts just below -1.5").toBe("BEAR");
+    // And the regex built from that boundary really recognises a re-inlining.
+    expect('const reg = p > 1.5 ? "BULL" : p < -1.5 ? "BEAR" : "SIDE";'.match(THRESHOLD_PATTERN))
+      .toHaveLength(2);
+  });
+
+  it("POSITIVE CONTROL: the other two bans still recognise the shipped defects", () => {
+    // Verbatim pre-fix source, quoted in the docblocks above. These are the
+    // lines that actually shipped, not invented specimens.
+    expect("const p = Number.isFinite(ticker.changePct) ? ticker.changePct : 0;".match(ZERO_FALLBACK_PATTERN))
+      .toHaveLength(1);
+    expect(IMPERSONATION_PATTERN.test('<span x>REGIME</span> <span style={{a:1}}>{reg}</span>')).toBe(true);
+  });
+});
 
 describe("the chip's claims are delegated, not hand-rolled", () => {
   it("ChartsDashboard composes the canonical owner", () => {
@@ -45,21 +150,21 @@ describe("the chip's claims are delegated, not hand-rolled", () => {
     // THE DEFECT, verbatim in shape. Zero-filling an unverified change is how
     // silence became "SIDE". Any ternary that ends `changePct ... : 0` is the
     // same fabrication wearing different whitespace.
-    const offenders = src().match(/changePct[^\n]*\?[^\n]*:\s*0\b/g) ?? [];
+    const offenders = src().match(ZERO_FALLBACK_PATTERN) ?? [];
     expect(offenders).toEqual([]);
   });
 
   it("no period word is hardcoded next to the percentage", () => {
     // `{p.toFixed(2)}% today` is the exact string that lied on a Saturday.
     // The word must come from selectRegimePeriodLabel, which can return null.
-    const offenders = src().match(/%\s+(today|last session)\s*$/gm) ?? [];
+    const offenders = src().match(HARDCODED_PERIOD_PATTERN) ?? [];
     expect(offenders).toEqual([]);
   });
 
   it("the ±1.5 thresholds are not re-inlined in the component", () => {
     // Two copies of a band boundary drift. The chip and the Markov state model
     // must reclassify together or not at all.
-    const offenders = src().match(/[<>]\s*-?1\.5\b/g) ?? [];
+    const offenders = src().match(THRESHOLD_PATTERN) ?? [];
     expect(offenders).toEqual([]);
   });
 });
@@ -168,8 +273,7 @@ describe("× THE BORROWED WORD — the chart chip does not impersonate canon", (
   it("the component never hard-codes REGIME as the label over its own verdict", () => {
     // THE DEFECT, verbatim in shape: a span whose text is REGIME immediately
     // followed by the span rendering {reg}. That adjacency IS the impersonation.
-    const impersonation = />REGIME<\/span>\s*<span[^>]*>\{reg\}<\/span>/;
-    expect(impersonation.test(codeOnly()),
+    expect(IMPERSONATION_PATTERN.test(codeOnly()),
       "the chart chip is labelling its day-change band 'REGIME' again").toBe(false);
   });
 

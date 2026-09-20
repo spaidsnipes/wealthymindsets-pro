@@ -23,11 +23,63 @@
  *   2. NOTHING reads process.env.SUPABASE_SERVICE_ROLE_KEY directly again.
  *      Eleven call sites did. A twelfth would be invisible until a user hit
  *      exactly that route, so the ban is enforced structurally, not by review.
+ *
+ * ── ANTI-VACUITY: a silently blind SECURITY gate is the worst case ───────────
+ *
+ * Half of this file is a source scan that collects offenders and asserts the
+ * list is empty. That assertion is identically green when the scan LOOKED AND
+ * FOUND NOTHING and when it DID NOT LOOK. For a naming gate over the PRIVILEGED
+ * Supabase key — the credential that bypasses RLS — those two states are not
+ * comparable: one means "no bypass of the resolver exists", the other means "a
+ * twelfth direct reader could be sitting in the tree, honouring exactly one of
+ * the two accepted names, and this gate will keep reporting clean until a user
+ * hits that route and gets a 503 — or until a host that IS configured is told
+ * it is not, and someone 'fixes' it by pasting the secret somewhere else".
+ *
+ * Two independent ways it goes blind, both guarded below:
+ *
+ *   (a) THE WALK DRIFTS. `SRC_ROOT` is `resolve(__dirname, "..")` — a relative
+ *       hop that is correct only while THIS FILE sits directly in `src/lib`.
+ *       Move it one directory deeper or up a level and the root becomes
+ *       `src/lib/x` or the repo root: one scans a fraction of the tree, the
+ *       other scans `node_modules` for minutes. Both produce a verdict nobody
+ *       would question. Guarded by pinning the root's own name and landmarks
+ *       and by a floor on the file count, measured rather than guessed.
+ *
+ *   (b) THE PATTERN GOES STALE. Detection is the literal text
+ *       `process.env.<NAME>`. Two realistic drifts: the banned NAMES change
+ *       (Supabase renames again, `SERVICE_KEY_VARS` grows a third entry) and
+ *       the ban keeps policing the old two; or the codebase stops writing
+ *       `process.env.X` at all — a typed `env()` accessor, `getEnv("…")`,
+ *       destructuring `const { SUPABASE_SECRET_KEY } = process.env` — and every
+ *       direct read becomes invisible to a gate that still reports clean.
+ *       Guarded by DERIVING the banned patterns from the owner's own
+ *       `SERVICE_KEY_VARS` table, and by requiring that `process.env.X` is
+ *       still a live idiom in the scanned set.
+ *
+ * ── WHAT COULD NOT BE PROVEN, STATED PLAINLY ─────────────────────────────────
+ *
+ * There is NO repository specimen for the positive control, and none was
+ * manufactured. This rule is a BAN: the forbidden text is, by construction,
+ * supposed to appear in zero files. The obvious candidate specimen — the owner
+ * `supabaseConfigStatus.ts` — does not contain it either, because the owner
+ * reads the key INDIRECTLY (`env[name]` over `SERVICE_KEY_VARS`), which is
+ * precisely why it is the owner. Planting a decoy file containing
+ * `process.env.SUPABASE_SERVICE_ROLE_KEY` to give the detector something to
+ * find would prove only that a file this test itself wrote can be found.
+ *
+ * So the control here is honest about its scope: the banned patterns are
+ * matched against the forbidden FORM they describe (a matcher self-check, not a
+ * repo finding), the NAMES are derived from the owner rather than retyped, and
+ * the `process.env.` idiom is confirmed still live in the scanned set. What
+ * remains unguarded, and is a real limit of this Sentinel: a direct read
+ * expressed in a form nobody has thought of yet is invisible to a literal-text
+ * scan. That is a property of source scanning, not a hole this file can close.
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import {
   SERVICE_KEY_VARS,
   resolveSupabaseServiceKey,
@@ -45,6 +97,125 @@ function walk(dir: string, out: string[] = []): string[] {
   }
   return out;
 }
+
+/** The owner of the key names — the one module allowed to read them. */
+const OWNER = "supabaseConfigStatus.ts";
+
+/**
+ * The scanned set, resolved ONCE at module scope and read ONCE, so the
+ * anti-vacuity guards and both ban rules provably judge the same bytes. Walking
+ * twice would let a guard certify one set while a rule ran over another.
+ */
+const SCANNED: ReadonlyArray<{ rel: string; text: string }> = walk(SRC_ROOT).map((p) => ({
+  rel: p.slice(SRC_ROOT.length + 1),
+  text: readFileSync(p, "utf8"),
+}));
+
+/**
+ * The banned patterns, DERIVED from the owner's own table rather than retyped.
+ * If Supabase renames the secret a third time and `SERVICE_KEY_VARS` grows an
+ * entry, the ban covers it the same day — instead of policing two dead names.
+ */
+const BANNED_DIRECT_READS = SERVICE_KEY_VARS.map((name) => ({
+  name,
+  pattern: new RegExp(`process\\.env\\.${name}`),
+}));
+
+/** The idiom the ban is expressed in. If code stops using it, the ban is blind. */
+const ENV_READ_IDIOM = /process\.env\.[A-Z0-9_]+/;
+
+/**
+ * MEASURED (2026-09-19, this tree): the walk yields 704 non-test `.ts`/`.tsx`
+ * files under `src`, of which 36 contain a `process.env.<NAME>` read. Floors
+ * sit well below both measurements.
+ */
+const MIN_SCANNED_FILES = 400;
+const MIN_ENV_READERS = 10;
+
+describe("ANTI-VACUITY: this security gate actually scanned, and can still see a violation", () => {
+  it("SRC_ROOT still resolves to the application source root", () => {
+    // `resolve(__dirname, "..")` is only correct while this file lives in
+    // src/lib. Moving it silently re-points the entire scan.
+    expect(
+      SRC_ROOT.split(sep).pop(),
+      `SRC_ROOT resolved to ${SRC_ROOT}, which is not the app source root — this file moved and ` +
+        "the privileged-key ban is now scanning the wrong tree",
+    ).toBe("src");
+    for (const landmark of ["lib", "app", `lib${sep}${OWNER}`]) {
+      expect(
+        existsSync(join(SRC_ROOT, landmark)),
+        `${landmark} is missing under ${SRC_ROOT} — the scan root is wrong or the source layout ` +
+          "changed, and the ban below is policing a tree that is not the app",
+      ).toBe(true);
+    }
+  });
+
+  it("the scan opened a substantial number of files", () => {
+    expect(
+      SCANNED.length,
+      "the privileged-key scan walked almost nothing. Zero files scanned yields zero offenders " +
+        "and an indistinguishable green — for a credential that bypasses RLS",
+    ).toBeGreaterThan(MIN_SCANNED_FILES);
+  });
+
+  it("the owner module is inside the scanned set", () => {
+    // The two rules below EXEMPT the owner by filename suffix. If the owner is
+    // not in the walk at all, that exemption is skipping a path the scan never
+    // produces — a sign the root or the layout moved under the gate.
+    expect(
+      SCANNED.some((f) => f.rel.endsWith(OWNER)),
+      `${OWNER} is not in the scanned set, so the exemption below excludes nothing and the scan ` +
+        "is looking somewhere other than the app source",
+    ).toBe(true);
+  });
+
+  it("the ban is expressed in an idiom this codebase still uses", () => {
+    // If `process.env.X` stops being how env is read — a typed accessor,
+    // destructuring, a config module — a literal-text ban keeps reporting clean
+    // while every direct read moves out of its sight.
+    const readers = SCANNED.filter((f) => ENV_READ_IDIOM.test(f.text));
+    expect(
+      readers.length,
+      "almost nothing in src reads env as `process.env.NAME` any more. The privileged-key ban " +
+        "below matches that exact text, so it can no longer see a direct read at all — it would " +
+        "report clean over a codebase that had moved every secret read behind a new accessor",
+    ).toBeGreaterThan(MIN_ENV_READERS);
+  });
+
+  it("the ban polices the names the owner actually accepts", () => {
+    // Derived, not retyped: the guard and the rules read one table.
+    expect(BANNED_DIRECT_READS.length).toBe(SERVICE_KEY_VARS.length);
+    expect(BANNED_DIRECT_READS.length).toBeGreaterThan(1);
+    expect(SERVICE_KEY_VARS).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(SERVICE_KEY_VARS).toContain("SUPABASE_SECRET_KEY");
+    const owner = SCANNED.find((f) => f.rel.endsWith(OWNER));
+    expect(
+      owner!.text,
+      `${OWNER} no longer declares SERVICE_KEY_VARS — the ban's names are now derived from ` +
+        "something other than the resolver's own table, and the two can drift apart",
+    ).toContain("SERVICE_KEY_VARS = [");
+  });
+
+  it("MATCHER SELF-CHECK (no repo specimen exists, and none was faked)", () => {
+    // Read the docblock: this is a BAN, so the forbidden text is supposed to
+    // appear in zero files, and the owner reads the key indirectly. There is no
+    // honest repository specimen to control against. What can be proven is that
+    // each derived pattern still matches the forbidden FORM it describes — so a
+    // rename that breaks the regex construction cannot pass unnoticed.
+    for (const { name, pattern } of BANNED_DIRECT_READS) {
+      expect(
+        pattern.test(`const k = process.env.${name};`),
+        `the ban for ${name} no longer matches a direct read of it — the pattern construction ` +
+          "broke and this gate is now unable to flag the exact violation it exists to flag",
+      ).toBe(true);
+      expect(
+        pattern.test(`const k = env["${name}"];`),
+        `the ban for ${name} matches an INDIRECT read, which the owner itself uses — it would ` +
+          "flag the resolver and force someone to weaken the rule",
+      ).toBe(false);
+    }
+  });
+});
 
 const CONFIGURED = {
   NEXT_PUBLIC_SUPABASE_URL: "https://zrzaifaxecwgpfrqctkp.supabase.co",
@@ -106,24 +277,21 @@ describe("the capability gap clears via either name", () => {
 });
 
 describe("single owner: nothing bypasses the resolver", () => {
-  it("no non-test source file reads process.env.SUPABASE_SERVICE_ROLE_KEY directly", () => {
-    const offenders = walk(SRC_ROOT)
-      .filter((p) => !p.endsWith("supabaseConfigStatus.ts"))
-      .filter((p) => /process\.env\.SUPABASE_SERVICE_ROLE_KEY/.test(readFileSync(p, "utf8")))
-      .map((p) => p.slice(SRC_ROOT.length + 1));
+  // One loop over the owner's own table, so the ban covers EVERY accepted name
+  // — including one added tomorrow. The second direction ("a reader that
+  // honours only the NEW name is the identical bug pointed the opposite way")
+  // is no longer a copied block that can be forgotten; it is an element.
+  //
+  // Both rules read the SAME module-level `SCANNED` set the anti-vacuity guards
+  // above measured, through the SAME patterns they self-checked.
+  for (const { name, pattern } of BANNED_DIRECT_READS) {
+    it(`no non-test source file reads process.env.${name} directly`, () => {
+      const offenders = SCANNED.filter((f) => !f.rel.endsWith(OWNER))
+        .filter((f) => pattern.test(f.text))
+        .map((f) => f.rel);
 
-    // Named, not counted — the failure message must say which file to fix.
-    expect(offenders).toEqual([]);
-  });
-
-  it("no non-test source file reads process.env.SUPABASE_SECRET_KEY directly either", () => {
-    // Same ban in the other direction: a reader that honours only the NEW name
-    // is the identical bug pointed the opposite way.
-    const offenders = walk(SRC_ROOT)
-      .filter((p) => !p.endsWith("supabaseConfigStatus.ts"))
-      .filter((p) => /process\.env\.SUPABASE_SECRET_KEY/.test(readFileSync(p, "utf8")))
-      .map((p) => p.slice(SRC_ROOT.length + 1));
-
-    expect(offenders).toEqual([]);
-  });
+      // Named, not counted — the failure message must say which file to fix.
+      expect(offenders).toEqual([]);
+    });
+  }
 });

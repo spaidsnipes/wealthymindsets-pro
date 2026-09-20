@@ -142,6 +142,163 @@ function read(rel: string): string {
   return fs.readFileSync(path.resolve(process.cwd(), rel), "utf8");
 }
 
+/**
+ * ── ANTI-VACUITY for the ADOPTION half ───────────────────────────────────────
+ *
+ * The "no other module retypes the contract" test is a walk-and-collect: it
+ * pushes offenders and asserts the list is empty. That shape is green whether it
+ * LOOKED AND FOUND NOTHING or DID NOT LOOK. Two independent ways it goes blind:
+ *
+ *   (a) THE WALK DRIFTS. The roots are three hardcoded strings behind
+ *       `if (!fs.existsSync(dir)) continue;`. Move `scripts/` under `tools/`,
+ *       adopt a `src/app` route group at a new top level, or run the suite from
+ *       a different cwd, and that root contributes ZERO files — silently, by
+ *       design of the `continue`. The remaining roots still yield thousands of
+ *       files, so a total-count floor alone would not notice. Hence a PER-ROOT
+ *       floor below.
+ *
+ *   (b) THE MARKERS GO STALE. Detection is four bare `code.includes(...)`
+ *       string literals. Rename `OBSERVED_VISIBLE_BEHAVIOR`, or let the ladder
+ *       rungs become an enum/i18n key rather than literal strings, and the
+ *       detector matches nothing anywhere — including in a genuine second copy
+ *       of the contract. Zero offenders, forever, for the wrong reason.
+ *
+ * (b) is the nastier one and a file count cannot see it, so the markers are
+ * named ONCE (below, used by both guard and rule) and positively controlled
+ * against the OWNER module — the one file that is SUPPOSED to state the
+ * contract, and the one file the rule excludes from its own scan. If the rule's
+ * markers no longer match the owner's own source, the rule can no longer
+ * recognise a copy of it either.
+ */
+
+/** The roots scanned for retyped copies of the contract. */
+const SCAN_ROOTS = ["src/lib", "src/app", "scripts"] as const;
+
+interface Scanned {
+  readonly root: string;
+  readonly rel: string;
+  /** Comment-stripped: judge what a file RUNS, not what it says about itself. */
+  readonly code: string;
+}
+
+/**
+ * The scanned set, resolved ONCE at module scope so the guard and the rule
+ * provably judge the same files. Calling the walk twice would let a guard pass
+ * on one set while the rule ran over another.
+ */
+const SCANNED: Scanned[] = (() => {
+  const out: Scanned[] = [];
+  for (const root of SCAN_ROOTS) {
+    const dir = path.resolve(process.cwd(), root);
+    if (!fs.existsSync(dir)) continue;
+    const stack = [dir];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      for (const entry of fs.readdirSync(cur, { withFileTypes: true })) {
+        const full = path.join(cur, entry.name);
+        if (entry.isDirectory()) {
+          stack.push(full);
+          continue;
+        }
+        if (!/\.(ts|tsx|mjs)$/.test(entry.name)) continue;
+        out.push({
+          root,
+          rel: path.relative(process.cwd(), full),
+          code: stripComments(fs.readFileSync(full, "utf8")),
+        });
+      }
+    }
+  }
+  return out;
+})();
+
+/**
+ * The detection markers, named ONCE. The rule uses them to find offenders; the
+ * positive control uses the SAME constants against the owner, so the two can
+ * never drift apart.
+ */
+const LADDER_MARKERS = ["COMPUTER_USE_SCREEN_VIEW", "BROWSER_INTEGRATION"] as const;
+const FIELD_MARKERS = ["VISUAL_PROOF_METHOD", "OBSERVED_VISIBLE_BEHAVIOR"] as const;
+
+/** True when a file's CODE restates the contract rather than importing it. */
+function restatesContract(code: string): boolean {
+  return (
+    LADDER_MARKERS.every((m) => code.includes(m)) || FIELD_MARKERS.every((m) => code.includes(m))
+  );
+}
+
+/**
+ * MEASURED (2026-09-19, this tree): 1272 files across the three roots, of which
+ * src/lib 704-odd, src/app and scripts the remainder — every root well into the
+ * dozens. Floors chosen comfortably below the measured counts.
+ */
+const MIN_SCANNED_TOTAL = 600;
+const MIN_SCANNED_PER_ROOT = 10;
+
+describe("ANTI-VACUITY: the adoption scan actually looked, and can still recognise a copy", () => {
+  it("the scan reached a substantial number of files", () => {
+    expect(
+      SCANNED.length,
+      "the contract-duplication scan walked almost nothing. An empty walk produces zero " +
+        "offenders and reports GREEN over a repo it never opened",
+    ).toBeGreaterThan(MIN_SCANNED_TOTAL);
+  });
+
+  it("every declared root contributed files — a moved root fails loudly instead of silently", () => {
+    // `if (!fs.existsSync(dir)) continue;` is the silent half. Without this,
+    // renaming a root shrinks coverage by a third with nothing to show for it.
+    const starved = SCAN_ROOTS.filter(
+      (root) => SCANNED.filter((f) => f.root === root).length < MIN_SCANNED_PER_ROOT,
+    );
+    expect(
+      starved,
+      "these declared scan roots contributed (almost) no files — they were renamed, moved, or " +
+        "the suite is running from a different cwd, and the scan is silently skipping them",
+    ).toEqual([]);
+  });
+
+  it("POSITIVE CONTROL: the rule's markers still match the owner's own source", () => {
+    // The owner is the canonical WRITER of this contract and is excluded from
+    // the offender scan. If the detector cannot see the contract in the file
+    // that DEFINES it, it cannot see a retyped copy of it anywhere.
+    const ownerCode = stripComments(read(OWNER));
+    for (const marker of [...LADDER_MARKERS, ...FIELD_MARKERS]) {
+      expect(
+        ownerCode,
+        `${OWNER} no longer contains ${marker}, so the duplication scan below is matching on a ` +
+          "string the contract no longer uses — it would report zero offenders even against a " +
+          "verbatim second copy of the contract",
+      ).toContain(marker);
+    }
+    expect(
+      restatesContract(ownerCode),
+      "the detector does not fire on the owner module itself — it is now blind to every copy",
+    ).toBe(true);
+  });
+
+  it("the owner exemption names the file the scan actually skips", () => {
+    // HONEST SCOPE NOTE, not a guard that can be strengthened: the second
+    // exemption, `!code.includes(OWNER_IMPORT)`, is matched by NO file in this
+    // repository today — nothing imports the module except this test, and this
+    // test is itself excluded. That branch is therefore unexercised, and no
+    // positive control for it can be earned without manufacturing a fake
+    // consumer, which would prove nothing. What CAN be pinned is that the
+    // import specifier and the excluded path still describe the same module: if
+    // they diverge, the exemption starts waiving a file that is not the owner.
+    const aliasOfOwner = OWNER.replace(/^src\//, "@/").replace(/\.ts$/, "");
+    expect(
+      OWNER_IMPORT,
+      "OWNER_IMPORT and OWNER no longer name the same module, so the duplication scan is " +
+        "exempting the wrong file",
+    ).toContain(aliasOfOwner);
+    expect(
+      SCANNED.some((f) => f.rel === OWNER),
+      `${OWNER} is not in the scanned set — the exclusion below is skipping a path the walk ` +
+        "never produces, which means the owner's real path has changed",
+    ).toBe(true);
+  });
+});
+
 describe("visualReceipt — the law has exactly one executable owner", () => {
   it("THE MEASURED GAP: the owner module exists", () => {
     expect(
@@ -156,36 +313,19 @@ describe("visualReceipt — the law has exactly one executable owner", () => {
     // copy of an evidence standard is a standard that silently weakens — the
     // day the canon adds a field, every hand-typed checker keeps passing
     // documents that are now incomplete.
-    const roots = ["src/lib", "src/app", "scripts"];
-    const offenders: string[] = [];
-    for (const root of roots) {
-      const dir = path.resolve(process.cwd(), root);
-      if (!fs.existsSync(dir)) continue;
-      const stack = [dir];
-      while (stack.length) {
-        const cur = stack.pop()!;
-        for (const entry of fs.readdirSync(cur, { withFileTypes: true })) {
-          const full = path.join(cur, entry.name);
-          if (entry.isDirectory()) {
-            stack.push(full);
-            continue;
-          }
-          if (!/\.(ts|tsx|mjs)$/.test(entry.name)) continue;
-          const rel = path.relative(process.cwd(), full);
-          if (rel === OWNER || rel === "src/lib/ops/visualReceipt.test.ts") continue;
-          // Judge what a file RUNS, not what it says about itself. Prose is
-          // allowed to quote the contract; code is not allowed to restate it.
-          const code = stripComments(fs.readFileSync(full, "utf8"));
-          const restatesLadder =
-            code.includes("COMPUTER_USE_SCREEN_VIEW") && code.includes("BROWSER_INTEGRATION");
-          const restatesFields =
-            code.includes("VISUAL_PROOF_METHOD") && code.includes("OBSERVED_VISIBLE_BEHAVIOR");
-          if ((restatesLadder || restatesFields) && !code.includes(OWNER_IMPORT)) {
-            offenders.push(rel);
-          }
-        }
-      }
-    }
+    //
+    // Runs over the SAME module-level `SCANNED` set the anti-vacuity guards
+    // above judged, through the SAME `restatesContract` markers they positively
+    // controlled against the owner. Neither the walk nor the pattern can drift
+    // away from its guard, because there is only one of each.
+    //
+    // Judge what a file RUNS, not what it says about itself. Prose is allowed
+    // to quote the contract; code is not allowed to restate it.
+    const offenders = SCANNED.filter(
+      ({ rel }) => rel !== OWNER && rel !== "src/lib/ops/visualReceipt.test.ts",
+    )
+      .filter(({ code }) => restatesContract(code) && !code.includes(OWNER_IMPORT))
+      .map(({ rel }) => rel);
     expect(
       offenders,
       `these files restate the visual-receipt contract instead of importing it from ${OWNER}: ` +

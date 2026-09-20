@@ -15,7 +15,7 @@
  * route, and a guard that accepts prose as evidence is the defect one level in.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -46,6 +46,115 @@ const ARRIVAL_SITES = [
 
 const read = (rel: string): string => stripComments(readFileSync(join(SRC_ROOT, rel), "utf8"));
 
+/** The owner module, relative to `src` — the one file allowed to say the route. */
+const OWNER = "lib/routing/founderLanding.ts";
+
+/**
+ * The retyped-literal pattern, named ONCE. Both the arrival-site rule and the
+ * positive control below match through this constant, so the guard cannot
+ * certify a pattern the rule no longer uses.
+ */
+const HARDCODED_ROUTE_PATTERN = /["'`]\/(charts|command-deck|paper|readiness)["'`]/;
+
+/**
+ * The whole-repo source set, resolved ONCE so the floor, the positive control
+ * and the shadow-owner rule all judge the SAME files. Calling `sourceFiles()`
+ * twice would let a guard pass over one set while the rule ran over another.
+ */
+const SOURCE_FILES = sourceFiles();
+
+/**
+ * MEASURED (2026-09-19, this tree): ARRIVAL_SITES = 4; sourceFiles() = 704
+ * non-test `.ts`/`.tsx` files under `src`. Floors sit well below both.
+ */
+const MIN_ARRIVAL_SITES = 3;
+const MIN_SOURCE_FILES = 400;
+
+/**
+ * ── ANTI-VACUITY ─────────────────────────────────────────────────────────────
+ *
+ * Every rule in this file is a loop or a filter that asserts an empty result,
+ * and each is green in two entirely different situations:
+ *
+ *   (a) NOTHING TO CHECK. `ARRIVAL_SITES` is a HAND-DECLARED list of four
+ *       paths. Trim it — during a refactor, or because a site "moved" — and the
+ *       first two tests iterate zero files and pass. The same for the
+ *       shadow-owner rule: if `sourceFiles()` ever walks the wrong root (it
+ *       resolves `src` from `process.cwd()`, so a different runner cwd is
+ *       enough), the offender filter runs over an empty array.
+ *
+ *   (b) THE PATTERN WENT STALE. The retype detector is a literal-string match:
+ *       `"/charts"` with double quotes, and `HARDCODED_ROUTE_PATTERN`'s fixed
+ *       alternation of four route names. Re-point the landing at a route that
+ *       is not in that alternation, or let consumers build routes via a
+ *       template (`` `/${section}` ``) or a route-map lookup, and the detector
+ *       matches nothing — including in files that DO retype the decision. This
+ *       is the failure a file count cannot see, so it is controlled against the
+ *       OWNER module: the one file that is supposed to contain the literal.
+ */
+describe("ANTI-VACUITY: these guards are still reading files and still able to match", () => {
+  it("the arrival-site list has not been trimmed to nothing", () => {
+    expect(
+      ARRIVAL_SITES.length,
+      "ARRIVAL_SITES has shrunk — the two loops below then iterate (almost) nothing and report " +
+        "that every no-destination arrival derives the owner while checking none of them",
+    ).toBeGreaterThan(MIN_ARRIVAL_SITES - 1);
+  });
+
+  it("every declared arrival site still exists on disk", () => {
+    // A declared path that was renamed is a site nobody guards any more. The
+    // read below would throw, but stating it here names the actual fault
+    // instead of an ENOENT stack, and makes deletion-by-rename impossible to
+    // mistake for compliance.
+    const missing = ARRIVAL_SITES.filter((site) => !existsSync(join(SRC_ROOT, site)));
+    expect(
+      missing,
+      "these arrival sites are declared but no longer exist — they were renamed or deleted, and " +
+        "whatever replaced them is arriving unguarded",
+    ).toEqual([]);
+  });
+
+  it("the whole-repo scan actually walked the repo", () => {
+    expect(
+      SOURCE_FILES.length,
+      `sourceFiles() returned almost nothing from ${SRC_ROOT}. The shadow-owner rule below then ` +
+        "finds zero retypers because it opened zero files",
+    ).toBeGreaterThan(MIN_SOURCE_FILES);
+  });
+
+  it("POSITIVE CONTROL: the retype detectors still match the owner's own source", () => {
+    // The owner is the canonical WRITER of both routes and is the one file the
+    // shadow-owner rule excludes. If the detector cannot find the literal in
+    // the file that DECLARES it, it cannot find a retyped copy anywhere — and
+    // every "no offenders" verdict below would be an artefact of the pattern,
+    // not a fact about the repo.
+    const owner = SOURCE_FILES.find((f) => f.file === OWNER);
+    expect(
+      owner,
+      `${OWNER} is not in the scanned set — the owner moved, so the rule below is excluding a ` +
+        "path that no longer exists while the real owner is judged as an offender",
+    ).toBeDefined();
+    // Pinned to the DECLARATION, not merely to the literal appearing somewhere
+    // in the file: the two constants currently hold the same string, so a
+    // file-wide `toContain` would be satisfied by FOUNDER_LANDING_ROUTE's copy
+    // and would miss a quote-style change to the instrument view alone. That
+    // exact miss was observed while proving this guard bites.
+    expect(
+      owner!.text,
+      `${OWNER} no longer declares INSTRUMENT_VIEW_ROUTE as "${INSTRUMENT_VIEW_ROUTE}" in the ` +
+        "exact double-quoted form the shadow-owner rule searches for (a switch to single " +
+        "quotes or a template literal is enough). That rule is now matching a string nothing " +
+        "writes, so it would report zero retypers over a repo full of them",
+    ).toContain(`INSTRUMENT_VIEW_ROUTE = "${INSTRUMENT_VIEW_ROUTE}"`);
+    expect(
+      owner!.text,
+      "HARDCODED_ROUTE_PATTERN no longer matches the owner's own route declarations — the " +
+        "alternation of route names has gone stale, so the arrival-site literal check can no " +
+        "longer recognise a hardcoded landing route",
+    ).toMatch(HARDCODED_ROUTE_PATTERN);
+  });
+});
+
 describe("the Founder landing route has one owner", () => {
   it("every no-destination arrival derives the route instead of retyping it", () => {
     for (const site of ARRIVAL_SITES) {
@@ -59,9 +168,8 @@ describe("the Founder landing route has one owner", () => {
     // half-done cutover survives a green suite.
     for (const site of ARRIVAL_SITES) {
       const text = read(site);
-      expect(text, `${site} still hardcodes a landing route`).not.toMatch(
-        /["'`]\/(charts|command-deck|paper|readiness)["'`]/,
-      );
+      // Same constant the positive control proved still matches the owner.
+      expect(text, `${site} still hardcodes a landing route`).not.toMatch(HARDCODED_ROUTE_PATTERN);
     }
   });
 
@@ -181,7 +289,9 @@ describe("the Founder landing route has one owner", () => {
      */
     // sourceFiles() already strips comments and excludes tests, so the only
     // exemption needed is the owner itself — the one file allowed to say it.
-    const offenders = sourceFiles(["lib/routing/founderLanding.ts"])
+    // Filtered out of the SAME module-level set the anti-vacuity guards above
+    // measured and positively controlled, rather than a second walk.
+    const offenders = SOURCE_FILES.filter((f) => f.file !== OWNER)
       .filter((f) => f.text.includes(`"${INSTRUMENT_VIEW_ROUTE}"`))
       .map((f) => f.file);
     expect(offenders, "these files retype the route instead of importing it").toEqual([]);

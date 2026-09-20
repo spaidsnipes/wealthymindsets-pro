@@ -28,10 +28,35 @@
  *   1. The rule is executable — labelMisnamesInstrument catches the pairing.
  *   2. The component cannot re-inline a label. It must render from the
  *      canonical pairs, so symbol and name cannot drift apart in a later edit.
+ *
+ * ── ANTI-VACUITY ────────────────────────────────────────────────────────────
+ *
+ * Three of the assertions here are `expect(emptyArray).toEqual([])` over a set
+ * derived from a DECLARED LIST (US_INDEX_BAR_INSTRUMENTS) or from one DECLARED
+ * PATH (BottomIndexBar.tsx). There is no directory walk, so the emptiness
+ * modes are different from a scanner's, but they are just as silent:
+ *
+ *   (a) THE INPUT WENT EMPTY. Empty US_INDEX_BAR_INSTRUMENTS → both pair
+ *       checks pass over nothing. Empty CASH_INDEX_DISPLAY_NAMES →
+ *       labelMisnamesInstrument can never return true and the whole file is
+ *       theatre. A declared path that no longer exists would throw, but a path
+ *       that still exists while the COMPONENT moved elsewhere would not.
+ *
+ *   (b) THE PATTERN WENT STALE. `/<IndexTicker\s+label="[^"]*"/` is the ban on
+ *       re-inlining. Rename the element, or move the label onto a wrapper, and
+ *       the regex matches nothing — forever, green. The positive control is
+ *       the SAME ANCHOR one character apart: the shipped component must still
+ *       render `<IndexTicker ... label={...}` from canon. If that stops
+ *       matching, the ban has lost its subject and this file says so.
+ *
+ *   (c) THE RULE'S PRECONDITION EVAPORATED. labelMisnamesInstrument returns
+ *       false for every non-futures symbol, so if no bar instrument classifies
+ *       as "futures" any more, "every futures pair says so in the label"
+ *       filters to [] and passes while policing nothing.
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   CASH_INDEX_DISPLAY_NAMES,
@@ -41,6 +66,51 @@ import {
 } from "./canonicalIdentity";
 
 const BOTTOM_INDEX_BAR = resolve(__dirname, "../../components/chart/BottomIndexBar.tsx");
+
+/** The ban and its positive control share this element name — they cannot drift. */
+const TICKER_ELEMENT = "IndexTicker";
+const INLINED_LABEL_PATTERN = new RegExp(`<${TICKER_ELEMENT}\\s+label="[^"]*"`, "g");
+/** Same anchor, bound form: the shape the corrected component must still have. */
+const BOUND_LABEL_PATTERN = new RegExp(`<${TICKER_ELEMENT}\\b[^>]*label=\\{`);
+
+describe("these checks are not vacuous", () => {
+  it("the declared path still exists and still holds the bar", () => {
+    expect(existsSync(BOTTOM_INDEX_BAR), `${BOTTOM_INDEX_BAR} is gone — every file-read assertion below is aimed at nothing`).toBe(true);
+    expect(readFileSync(BOTTOM_INDEX_BAR, "utf8")).toContain(TICKER_ELEMENT);
+  });
+
+  it("the declared lists are non-empty — measured 3 bar pairs, 10 cash-index names", () => {
+    // Floors, not freezes: either list emptying turns every check below green.
+    expect(US_INDEX_BAR_INSTRUMENTS.length, "no bar instruments — the pair checks iterate over nothing").toBeGreaterThan(2);
+    expect(CASH_INDEX_DISPLAY_NAMES.length, "no cash-index names — labelMisnamesInstrument can never fire").toBeGreaterThan(5);
+  });
+
+  it("POSITIVE CONTROL: the ban's own element is still what the bar renders", () => {
+    // The re-inlining ban is keyed to `<IndexTicker label="..."`. Prove the
+    // element and the prop still exist in the shipped component, bound from
+    // canon rather than typed — otherwise the ban has no subject and would
+    // pass forever after a rename.
+    const src = readFileSync(BOTTOM_INDEX_BAR, "utf8");
+    expect(
+      BOUND_LABEL_PATTERN.test(src),
+      `BottomIndexBar no longer renders <${TICKER_ELEMENT} ... label={...}> — the ` +
+        "re-inlining ban below is keyed to an element that is no longer there",
+    ).toBe(true);
+  });
+
+  it("POSITIVE CONTROL: the rule still fires on the pairing it was written for", () => {
+    // If CASH_INDEX_DISPLAY_NAMES or canonicalAssetClass drifts, the offender
+    // lists go empty for the wrong reason. One known-bad pairing keeps the
+    // detector honest at the same moment the lists are filtered.
+    expect(labelMisnamesInstrument("S&P 500", "ES1!"), "the detector no longer recognises the shipped defect").toBe(true);
+  });
+
+  it("at least one bar instrument still classifies as futures", () => {
+    // Precondition (c): the futures-label check filters on this class first.
+    const futures = US_INDEX_BAR_INSTRUMENTS.filter((i) => canonicalAssetClass(i.symbol) === "futures");
+    expect(futures.length, "no bar instrument is classified futures — the futures-label check filters to []").toBeGreaterThan(0);
+  });
+});
 
 describe("a cash-index name may never label a futures quote", () => {
   it("catches the exact pairings observed live on 2026-09-05", () => {
@@ -113,7 +183,7 @@ describe("single owner: the component cannot re-inline a label", () => {
     // durable: re-inlining any name reopens the drift between the symbol and
     // what it is called, and the next wrong name would be invisible again.
     const src = readFileSync(BOTTOM_INDEX_BAR, "utf8");
-    const inlined = src.match(/<IndexTicker\s+label="[^"]*"/g) ?? [];
+    const inlined = src.match(INLINED_LABEL_PATTERN) ?? [];
 
     expect(inlined).toEqual([]);
   });

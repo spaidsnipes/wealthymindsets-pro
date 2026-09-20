@@ -77,15 +77,18 @@ const UNGUARDED_SCANNERS_DEBT: readonly string[] = [
   // alternative.
   //
   // IT IS NOT REMOVED, AND THE REASON MATTERS. The obvious "fix" is to narrow
-  // the scope test to `readdirSync` — files that actually WALK. MEASURED: that
-  // would drop NINE of this ledger's entries at a stroke, and eight of them are
-  // real gates that read a DECLARED LIST of paths instead of walking one
-  // (phoneAuditCoversPublicSurface, instrumentLabelTruth, regimeBadgeTruth,
-  // founderLanding, …). A fixed-list gate goes vacuous exactly like a walking
-  // one — the list empties, or its pattern goes stale — so narrowing the
-  // heuristic would buy one cosmetic removal by silently exempting eight live
-  // gates. That is the ledger lying in the DANGEROUS direction, which is worse
-  // than the harmless over-inclusion of one lifecycle test.
+  // the scope test to `readdirSync` — files that actually WALK. MEASURED
+  // 2026-09-19 (first pass): that would have dropped NINE entries at a stroke,
+  // eight of them real gates that read a DECLARED LIST of paths instead of
+  // walking one. RE-MEASURED after this block paid the ledger down to four:
+  // NONE of the four survivors contains `readdirSync`. The narrowing would now
+  // empty this ledger COMPLETELY — reporting zero debt by exempting the three
+  // remaining live gates rather than by guarding them.
+  //
+  // A fixed-list gate goes vacuous exactly like a walking one: the list
+  // empties, or its pattern goes stale. That is the ledger lying in the
+  // DANGEROUS direction, which is worse than the harmless over-inclusion of one
+  // lifecycle test.
   //
   // A conservative detector costs one wrong name on a list. A permissive one
   // costs coverage nobody can see they lost. Keeping this entry is the cheaper
@@ -94,15 +97,6 @@ const UNGUARDED_SCANNERS_DEBT: readonly string[] = [
   "lib/broker/providerReadiness.envExample.test.ts",
   "lib/experience/chartsRoomChrome.test.ts",
   "lib/journalDecisionFilter.test.ts",
-  "lib/marketData/heroTruthChronology.enforcement.test.ts",
-  "lib/marketData/instrumentLabelTruth.enforcement.test.ts",
-  "lib/marketData/regimeBadgeTruth.enforcement.test.ts",
-  "lib/marketData/wireProofScope.test.ts",
-  "lib/marketData/yahooQuoteRounds.test.ts",
-  "lib/ops/phoneAuditCoversPublicSurface.test.ts",
-  "lib/ops/visualReceipt.test.ts",
-  "lib/routing/founderLanding.test.ts",
-  "lib/supabaseServiceKeyName.enforcement.test.ts",
 ];
 
 function walk(dir: string, acc: string[] = []): string[] {
