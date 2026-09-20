@@ -106,91 +106,97 @@ export function ProfilesMenu({
         {vm.summary}
       </button>
 
-      <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={296}>
+      <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={456}>
         <div
           role="menu"
-          className="rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-1.5"
+          className="rounded-lg border border-wm-border bg-wm-surface/95 shadow-2xl p-2 backdrop-blur-md"
           data-testid="profiles-menu-panel"
+          data-profile-layout="instrument-grid"
         >
-          <div className="px-2 pt-1 pb-2 text-[9px] uppercase tracking-[0.14em] text-wm-text-dim">
-            Profiles · {vm.readyCount} of {vm.entries.length} can draw now
+          <div className="flex items-center justify-between gap-3 px-1 pb-2">
+            <div className="text-[9px] uppercase tracking-[0.16em] text-wm-text-dim">
+              Price instruments
+            </div>
+            <div className="text-[9px] uppercase tracking-[0.12em] text-wm-text-dim">
+              {vm.readyCount}/{vm.entries.length} ready
+            </div>
           </div>
 
-          {vm.entries.map(entry => {
-            const ready = entry.availability === "READY";
-            return (
-              <button
-                key={entry.id}
-                role="menuitemcheckbox"
-                aria-checked={entry.active}
-                // NOT `disabled` — see the header. The reason rides along instead.
-                onClick={() => onToggle(entry.id)}
-                title={`${entry.what}\n\n${entry.gestureNote}\n\n${entry.availabilityNote}`}
-                aria-label={`${entry.label}. ${entry.what}. ${entry.availabilityNote}.`}
-                data-profile-id={entry.id}
-                data-profile-availability={entry.availability}
-                data-profile-active={entry.active ? "1" : "0"}
-                className="w-full text-left px-2 py-2 rounded hover:bg-wm-card transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: AVAILABILITY_DOT[entry.availability] }}
-                  />
-                  <span
-                    className="text-[12px] font-bold"
-                    style={{ color: entry.active ? "#d4af37" : "#C9CCDA" }}
-                  >
-                    {entry.label}
-                  </span>
-                  {entry.gesture === "DRAW" && (
-                    <span className="text-[8px] uppercase tracking-wider text-wm-text-dim border border-wm-border rounded px-1">
-                      Box
-                    </span>
-                  )}
-                  {entry.active && <Check size={12} className="ml-auto" color="#d4af37" />}
-                </div>
+          <div className="grid grid-cols-2 gap-1" data-testid="profiles-instrument-grid">
+            {vm.entries.map(entry => {
+              const ready = entry.availability === "READY";
+              const stateLabel = ready
+                ? entry.active ? "DRAWING" : "READY"
+                : entry.availability === "WAITING_FOR_BARS"
+                  ? "WAITING FOR BARS"
+                  : entry.active ? "SILENT · TAPE REQUIRED" : "TAPE REQUIRED";
 
-                <div className="mt-0.5 pl-3.5 text-[10px] leading-snug text-wm-text-dim">
-                  {entry.what}
-                </div>
-
-                {/* The levels it publishes — so the row never implies more than it has. */}
-                <div className="mt-1 pl-3.5 flex flex-wrap gap-1">
-                  {entry.levels.map(l => (
+              return (
+                <button
+                  key={entry.id}
+                  role="menuitemcheckbox"
+                  aria-checked={entry.active}
+                  // NOT `disabled` — see the header. The reason rides along instead.
+                  onClick={() => onToggle(entry.id)}
+                  title={`${entry.what}\n\n${entry.gestureNote}\n\n${entry.availabilityNote}`}
+                  aria-label={`${entry.label}. ${entry.what}. ${entry.availabilityNote}.`}
+                  data-profile-id={entry.id}
+                  data-profile-availability={entry.availability}
+                  data-profile-active={entry.active ? "1" : "0"}
+                  className="min-w-0 rounded border px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
+                  style={{
+                    borderColor: entry.active ? "rgba(212,175,55,0.32)" : "rgba(139,143,168,0.18)",
+                    background: entry.active ? "rgba(212,175,55,0.055)" : "rgba(19,21,32,0.54)",
+                  }}
+                >
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <span
-                      key={l}
-                      className="text-[8px] uppercase tracking-wider text-wm-text-dim border border-wm-border/60 rounded px-1 py-[1px]"
+                      aria-hidden
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: AVAILABILITY_DOT[entry.availability] }}
+                    />
+                    <span
+                      className="min-w-0 truncate text-[11px] font-bold"
+                      style={{ color: entry.active ? "#d4af37" : "#C9CCDA" }}
                     >
-                      {l}
+                      {entry.label}
                     </span>
-                  ))}
-                </div>
-
-                {/*
-                  Why it is in that state. Printed for every row that is NOT
-                  ready, because the difference between "wait" and "do not wait"
-                  is the whole reason this field exists.
-                */}
-                {!ready && (
-                  <div
-                    className="mt-1 pl-3.5 text-[10px] leading-snug"
-                    style={{ color: AVAILABILITY_DOT[entry.availability] }}
-                    data-testid={`profile-note-${entry.id}`}
-                  >
-                    {entry.availabilityNote}
+                    {entry.gesture === "DRAW" && (
+                      <span className="shrink-0 rounded border border-wm-border px-1 text-[7px] uppercase tracking-wider text-wm-text-dim">
+                        Box
+                      </span>
+                    )}
+                    {entry.active && <Check size={11} className="ml-auto shrink-0" color="#d4af37" />}
                   </div>
-                )}
 
-                {ready && entry.gesture === "DRAW" && (
-                  <div className="mt-1 pl-3.5 text-[10px] leading-snug text-wm-text-dim">
-                    {entry.gestureNote}
+                  <div className="mt-1 flex min-w-0 items-center justify-between gap-2 pl-3">
+                    <span
+                      className="truncate text-[8px] font-semibold uppercase tracking-[0.08em]"
+                      style={{ color: AVAILABILITY_DOT[entry.availability] }}
+                      data-testid={`profile-note-${entry.id}`}
+                    >
+                      {stateLabel}
+                    </span>
+                    <span className="truncate text-right text-[8px] uppercase tracking-[0.08em] text-wm-text-dim">
+                      {entry.levels.join(" · ")}
+                    </span>
                   </div>
-                )}
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
+
+          {vm.silentCount > 0 && (
+            <div
+              className="mt-2 flex items-center justify-between gap-3 border-t border-wm-border/70 px-1 pt-2 text-[9px] uppercase tracking-[0.1em]"
+              data-testid="profiles-silence-summary"
+            >
+              <span style={{ color: AVAILABILITY_DOT.NEEDS_SIDED_TAPE }}>
+                {vm.silentCount} silent · aggressor tape required
+              </span>
+              <span className="text-wm-text-dim">Hover a reading for full provenance</span>
+            </div>
+          )}
         </div>
       </PortalPopover>
     </div>
