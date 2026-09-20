@@ -81,6 +81,19 @@ const render = (stage: EquipmentJourney["stage"]) =>
     />,
   );
 
+const renderMarketDock = (stage: "preview" | "drawer") =>
+  renderToStaticMarkup(
+    <RoomEquipmentLayer
+      journey={journey(stage)}
+      content={content}
+      subject={{ symbol: "NQ1!", timeframe: "15m" }}
+      placement="market-dock"
+      onExpand={noop}
+      onReturn={noop}
+      onClose={noop}
+    />,
+  );
+
 describe("RoomEquipmentLayer — the subject survives the depth", () => {
   it("names WHICH market at every stage that renders at all", () => {
     for (const stage of ["preview", "drawer", "full"] as const) {
@@ -172,6 +185,36 @@ describe("RoomEquipmentLayer — depth is depth, not size", () => {
         "+9 more blocking, not named here",
       );
     }
+  });
+});
+
+describe("RoomEquipmentLayer — market equipment stays on the live camera", () => {
+  it("docks shallow chart equipment on the left instead of floating over the rail", () => {
+    for (const stage of ["preview", "drawer"] as const) {
+      const html = renderMarketDock(stage);
+      expect(html).toContain('data-equipment-placement="market-dock"');
+      expect(html).toContain('class="wm-room-equipment--market-dock"');
+      expect(html).toContain("left:18px");
+      expect(html).toContain("top:92px");
+      expect(html).toContain("bottom:18px");
+      expect(html).toContain("width:clamp(280px, 22vw, 340px)");
+      expect(html).not.toContain("right:18px;bottom:18px");
+    }
+  });
+
+  it("keeps the narrow-screen projection as a bottom sheet", () => {
+    const html = renderMarketDock("drawer");
+    expect(html).toContain("@media (max-width: 1023px)");
+    expect(html).toContain("top: auto !important");
+    expect(html).toContain("width: auto !important");
+    expect(html).toContain("max-height: min(58vh, 560px) !important");
+  });
+
+  it("does not move the default room equipment out of its established corner", () => {
+    const html = render("drawer");
+    expect(html).toContain('data-equipment-placement="corner"');
+    expect(html).toContain("right:18px");
+    expect(html).not.toContain('class="wm-room-equipment--market-dock"');
   });
 });
 

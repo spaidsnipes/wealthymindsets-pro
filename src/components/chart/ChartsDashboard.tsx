@@ -3738,6 +3738,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       <RoomEquipmentLayer
         journey={chartEquipment}
         content={chartEquipmentContent}
+        placement="market-dock"
         // The room's own bindings. Resolving a symbol inside the equipment
         // would let the full experience name a different market than the chart
         // the trader entered from — and full is the stage that takes the chart

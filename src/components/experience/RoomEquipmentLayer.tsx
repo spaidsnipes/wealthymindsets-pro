@@ -132,6 +132,13 @@ export interface RoomEquipmentLayerProps {
   readonly onEnter?: () => void;
   readonly onReturn: () => void;
   readonly onClose: () => void;
+  /**
+   * The market camera uses the blueprint's left equipment wall. Other rooms
+   * retain the corner instrument until they deliberately adopt that scene.
+   * This is placement only: journey, content, identity, and depth stay owned
+   * by the same upstream grammar.
+   */
+  readonly placement?: "corner" | "market-dock";
 }
 
 /**
@@ -202,6 +209,7 @@ export function RoomEquipmentLayer({
   onEnter,
   onReturn,
   onClose,
+  placement = "corner",
 }: RoomEquipmentLayerProps): React.ReactElement | null {
   const { stage, decisionId, equipmentId } = journey;
 
@@ -226,6 +234,7 @@ export function RoomEquipmentLayer({
   // exactly the disagreement the grammar exists to prevent.
   if (stage === "closed" || equipmentId !== content.equipmentId) return null;
 
+  const marketDock = placement === "market-dock" && stage !== "full";
   const shell: React.CSSProperties =
     stage === "full"
       ? {
@@ -238,7 +247,23 @@ export function RoomEquipmentLayer({
           padding: "20px 24px",
           overflowY: "auto",
         }
-      : {
+      : marketDock
+        ? {
+            position: "fixed",
+            left: 18,
+            top: 92,
+            bottom: 18,
+            zIndex: 60,
+            width: "clamp(280px, 22vw, 340px)",
+            display: "flex",
+            flexDirection: "column",
+            background: "rgba(11,12,15,0.96)",
+            border: `1px solid ${HAIR}`,
+            borderLeftColor: "rgba(196,165,116,0.42)",
+            boxShadow: "18px 0 46px rgba(0,0,0,0.42)",
+            overflow: "hidden",
+          }
+        : {
           position: "fixed",
           right: 18,
           bottom: 18,
@@ -253,17 +278,35 @@ export function RoomEquipmentLayer({
           border: `1px solid ${HAIR}`,
           boxShadow: "0 18px 46px rgba(0,0,0,0.55)",
           overflow: "hidden",
-        };
+          };
 
   return (
-    <aside
-      aria-label={`${content.title} — room equipment`}
-      data-testid="room-equipment"
-      data-equipment={equipmentId}
-      data-equipment-stage={stage}
-      data-decision-id={decisionId ?? undefined}
-      style={shell}
-    >
+    <>
+      {marketDock ? (
+        <style>{`
+          @media (max-width: 1023px) {
+            .wm-room-equipment--market-dock {
+              left: 18px !important;
+              right: 18px !important;
+              top: auto !important;
+              bottom: 18px !important;
+              width: auto !important;
+              max-height: min(58vh, 560px) !important;
+              box-shadow: 0 18px 46px rgba(0,0,0,0.55) !important;
+            }
+          }
+        `}</style>
+      ) : null}
+      <aside
+        aria-label={`${content.title} — room equipment`}
+        className={marketDock ? "wm-room-equipment--market-dock" : undefined}
+        data-testid="room-equipment"
+        data-equipment={equipmentId}
+        data-equipment-stage={stage}
+        data-equipment-placement={placement}
+        data-decision-id={decisionId ?? undefined}
+        style={shell}
+      >
       <header
         data-testid="room-equipment-header"
         style={{
@@ -361,7 +404,8 @@ export function RoomEquipmentLayer({
           content.renderDepth(stage === "full")
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
