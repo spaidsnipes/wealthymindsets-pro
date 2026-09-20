@@ -8060,7 +8060,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Delta+VP boxes ask the same question. Keep one price-canvas instrument
     // per frame and disclose how many drawings it governs. Box-size refusals
     // remain local because each one has a different repair.
-    const groupedNoLevels = { x: 0, y: 0, color: "", count: 0, selected: false };
+    const groupedNoLevels = { count: 0 };
+    // This is capability status for the whole current tape, not a market event
+    // at any saved box's price. Keep it on the chart edge where FL-06 places
+    // global instrument truth; spatial callouts remain reserved for real bars
+    // and selected objects.
+    const groupedNoLevelsAnchor = { x: 16, y: 62, color: "#8B92AC" } as const;
 
     const drawOne = (d: Drawing, selected: boolean) => {
       const s = d.style, t = d.tool, col = s.color, fillCol = col + "22";
@@ -8190,12 +8195,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const refusal = dvpProfileRefusal(rw, rh, dvp.rows.length);
             if (refusal === "no-levels") {
               groupedNoLevels.count += 1;
-              if (groupedNoLevels.count === 1 || selected) {
-                groupedNoLevels.x = rx + 2;
-                groupedNoLevels.y = ry - 3;
-                groupedNoLevels.color = col;
-                groupedNoLevels.selected = selected;
-              }
             } else {
               chip(dvpRefusalMessage(refusal), rx + 2, ry - 3, col);
             }
@@ -8280,9 +8279,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (groupedNoLevels.count > 0) {
       chip(
         dvpGroupedRefusalMessage("no-levels", groupedNoLevels.count),
-        groupedNoLevels.x,
-        groupedNoLevels.y,
-        groupedNoLevels.color,
+        groupedNoLevelsAnchor.x,
+        groupedNoLevelsAnchor.y,
+        groupedNoLevelsAnchor.color,
       );
     }
   }, [base, logicalToPixel, drawingStyle, getBarFootprint]);

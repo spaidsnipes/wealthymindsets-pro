@@ -187,6 +187,13 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
     expect(chartSrc).toContain('dvpGroupedRefusalMessage("no-levels", groupedNoLevels.count)');
   });
 
+  it("keeps the shared tape absence on chart chrome, never at a saved box price", () => {
+    expect(chartSrc).toContain("const groupedNoLevelsAnchor = { x: 16, y: 62");
+    expect(chartSrc).toContain("groupedNoLevelsAnchor.x");
+    expect(chartSrc).toContain("groupedNoLevelsAnchor.y");
+    expect(BLOCK).not.toMatch(/groupedNoLevels\.(?:x|y)\s*=\s*r[xy]/);
+  });
+
   it("keeps the two bar-length laws under DIFFERENT names", () => {
     // deltaVPGeometry.ts's header records that the first draft exported a second
     // `vpBarWidth` and tsc refused it as a duplicate identifier against
