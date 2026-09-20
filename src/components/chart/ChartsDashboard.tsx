@@ -217,6 +217,8 @@ import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivis
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
 import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
+import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
+import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -1375,6 +1377,40 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       })),
     }),
     [inspectBar, chartBarSpanMs, recentTicks],
+  );
+
+  /**
+   * FL-06 object ④ — Effort vs Result, weighed against the bars BEFORE it.
+   *
+   * THE SLICE IS THE WHOLE CORRECTNESS ARGUMENT. `selectEffortVsResult` divides
+   * the subject bar by the MEDIAN of its cohort, and if the subject is inside
+   * its own cohort a genuinely enormous bar inflates the baseline it is being
+   * judged against and grades itself back toward ordinary. So `priorBars` is a
+   * slice that STOPS AT the subject's index — never `chartBars` entire.
+   *
+   * It reads `inspectBar`, the same bar the Inspect Ticket reads, rather than
+   * opening a second cursor path. Two panels over one candle disagreeing about
+   * which candle is selected is the failure the ticket's own header warns about.
+   */
+  const [effortOpen, setEffortOpen] = useState(true);
+
+  const effortPriorBars = React.useMemo(() => {
+    if (!inspectBar) return [];
+    // Identified by bar-open time, not by object identity: `inspectBar` is
+    // rebuilt as a fresh object on every cursor move, so `indexOf` would miss.
+    const at = chartBars.findIndex(b => b.time === inspectBar.time);
+    const end = at >= 0 ? at : chartBars.length;
+    return chartBars.slice(0, end).map(b => ({
+      volume: b.volume, open: b.open, close: b.close,
+    }));
+  }, [chartBars, inspectBar]);
+
+  const effortVsResultVM = React.useMemo(
+    () => selectEffortVsResult({
+      bar: inspectBar ? { volume: inspectBar.v, open: inspectBar.o, close: inspectBar.c } : null,
+      priorBars: effortPriorBars,
+    }),
+    [inspectBar, effortPriorBars],
   );
 
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
@@ -3936,6 +3972,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         open={inspectOpen}
                         onOpenChange={setInspectOpen}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
+                      />
+                    )}
+                    {/*
+                      FL-06 object ④, on the opposite edge from the ticket.
+                      Same bar, different question: the ticket says what the
+                      bar is MADE OF, this says how the bar COMPARES. Gated on
+                      the same two-bar floor so both panels appear together
+                      rather than one implying the other is broken.
+                    */}
+                    {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
+                      <ChartEffortVsResult
+                        vm={effortVsResultVM}
+                        followingLiveBar={inspectFollowingLiveBar}
+                        open={effortOpen}
+                        onOpenChange={setEffortOpen}
                       />
                     )}
                   </div>
