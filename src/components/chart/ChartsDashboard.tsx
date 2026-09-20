@@ -215,6 +215,8 @@ import DivisionWorksheetView from "@/components/experience/DivisionWorksheetView
 import FootprintWorksheetView from "@/components/experience/FootprintWorksheetView";
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
+import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
+import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -1313,6 +1315,66 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const footprintWorksheetVM = React.useMemo(
     () => selectFootprintWorksheet({ prints: recentTicks }),
     [recentTicks],
+  );
+
+  /* FL-06 — THE INSPECT TICKET, on the candles.
+   *
+   * `onOHLCAtCursor` has been published by MainChart's crosshair handler since
+   * long before this line and had ZERO consumers repo-wide. Adopting the
+   * orphan is deliberate: a click handler would have been a SECOND
+   * bar-selection path inside a ten-thousand-line chart, and two selection
+   * paths is how one candle ends up with two tickets disagreeing about which
+   * bar is selected.
+   *
+   * THE UNIT CONVERSION IS THE WHOLE RISK HERE. `LegacyOhlcvTuple.time` and
+   * the cursor's `time` are epoch SECONDS; `Tick.time` is epoch MILLISECONDS;
+   * all three are bare `number`. `selectInspectTicket` names its inputs
+   * `barOpenMs` / `barSpanMs` / `timeMs` so the conversion cannot be forgotten
+   * silently, and it refuses (never reads) if a seconds-shaped value arrives.
+   */
+  const [cursorBar, setCursorBar] = useState<
+    { o: number; h: number; l: number; c: number; v: number; time: number } | null
+  >(null);
+  const [inspectOpen, setInspectOpen] = useState(true);
+
+  /* The span comes from the bars the chart DREW, not from a second
+   * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
+   * table is a second owner of bar duration, and the two would eventually
+   * disagree about what a "15m" bar is on a venue that closes early. */
+  const chartBarSpanMs = React.useMemo(() => {
+    if (chartBars.length < 2) return null;
+    const a = chartBars[chartBars.length - 2].time;
+    const b = chartBars[chartBars.length - 1].time;
+    const span = (b - a) * 1000;
+    return Number.isFinite(span) && span > 0 ? span : null;
+  }, [chartBars]);
+
+  /* When the cursor is nowhere — which is ALWAYS, for a touch user — the
+   * ticket falls back to the bar still forming rather than blanking, and the
+   * glass states that it did. A hover-only reading is one a touch user never
+   * receives, which is the drawer-filed-receipt failure this product has
+   * already repaired twice. */
+  const inspectBar = React.useMemo(() => {
+    if (cursorBar) return cursorBar;
+    if (chartBars.length === 0) return null;
+    const last = chartBars[chartBars.length - 1];
+    return { o: last.open, h: last.high, l: last.low, c: last.close, v: last.volume, time: last.time };
+  }, [cursorBar, chartBars]);
+  const inspectFollowingLiveBar = cursorBar === null && inspectBar !== null;
+
+  const inspectTicketVM = React.useMemo(
+    () => selectInspectTicket({
+      barOpenMs: inspectBar ? inspectBar.time * 1000 : null,
+      barSpanMs: chartBarSpanMs,
+      price: inspectBar ? inspectBar.c : null,
+      barVolume: inspectBar ? inspectBar.v : null,
+      // `Tick.time` is already epoch ms; the field name carries the unit so
+      // this mapping is checkable at the call site rather than in a comment.
+      prints: recentTicks.map(t => ({
+        price: t.price, size: t.size, side: t.side, timeMs: t.time, trade: t.trade === true,
+      })),
+    }),
+    [inspectBar, chartBarSpanMs, recentTicks],
   );
 
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
@@ -3769,6 +3831,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       pineOutput={pineOutput}
                       pineCode={pineCode}
                       onBarsReady={handleBarsReady}
+                      /* Adopting a callback this chart has published all
+                         along with nobody listening. See the Inspect Ticket
+                         compiler above for why this, and not a second click
+                         path, is the bar-selection route. */
+                      onOHLCAtCursor={setCursorBar}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       onSelectMarketObject={setSelectedMarketObjectId}
@@ -3851,6 +3918,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       showFidelityChrome={false}
                     />
                     </ErrorBoundary>
+                    {/*
+                      FL-06's panel, ON THE CANDLES — the plate stamps "NO
+                      ESSAY DRAWER AS PRIMARY TRUTH" across its corner, so the
+                      bar's composition is read beside the bar and not in a
+                      drawer the trader has to go and open.
+
+                      Gated on having bars because a span cannot be derived
+                      from fewer than two of them, and a ticket with no span
+                      could not tell which prints belong to the bar — the exact
+                      condition under which it would have to invent one.
+                    */}
+                    {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
+                      <ChartInspectTicket
+                        vm={inspectTicketVM}
+                        followingLiveBar={inspectFollowingLiveBar}
+                        open={inspectOpen}
+                        onOpenChange={setInspectOpen}
+                        onOpenFootprint={() => setActiveTab("Worksheet")}
+                      />
+                    )}
                   </div>
 
                   {(chartLayout === "2h" || chartLayout === "2v" || chartLayout === "4") && (
