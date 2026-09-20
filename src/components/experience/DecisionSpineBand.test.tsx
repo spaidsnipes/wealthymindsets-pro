@@ -822,7 +822,20 @@ describe("DecisionSpineBand — the GO interlock (canon 123, H-101 leg 3)", () =
     expect(html).toContain('data-named="5"');
   });
 
-  it("opens the plaque only on ACTION", () => {
+  it("will not print GRANTED on a paid chain, because this rail has no broker owner", () => {
+    // ── E-301 FALSE RIPENESS, and why this test asserts the OPPOSITE of what
+    //    an earlier version of it asserted ────────────────────────────────────
+    //
+    // GO is two contactors in series: gates-not-in-debt AND intent (bars
+    // EXECUTABLE and a broker that has answered). ACTION closes the first one
+    // and says nothing about the second. This rail is handed `honesty` but is
+    // handed no broker honesty by anybody, so the intent contactor has never
+    // been MEASURED here — and an unmeasured contactor is not a closed one.
+    //
+    // So the honest plaque on a fully paid chain is NOT EVALUATED, not GRANTED.
+    // If a future change wires a real broker owner into this band, this test
+    // SHOULD be rewritten to expect CLEAR — but only alongside that owner. It
+    // must never be "fixed" by handing the selector a broker it did not measure.
     const html = render({
       presentation: "rail",
       oneStory: oneStory({
@@ -830,8 +843,9 @@ describe("DecisionSpineBand — the GO interlock (canon 123, H-101 leg 3)", () =
         debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [], missingPayableLabels: [], missingPayable: 0 },
       }),
     });
-    expect(html).toContain('data-interlock="CLEAR"');
-    expect(html).toContain("PERMISSION GRANTED");
+    expect(html).toContain('data-interlock="NOT_EVALUATED"');
+    expect(html).not.toContain("PERMISSION GRANTED");
+    expect(html).toContain("paid is not the same as ripe");
   });
 
   it("distinguishes an unevaluated chain from an open one", () => {

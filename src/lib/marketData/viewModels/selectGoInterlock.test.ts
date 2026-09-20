@@ -9,7 +9,8 @@
 
 import { describe, it, expect } from "vitest";
 
-import { selectGoInterlock } from "./selectGoInterlock";
+import { selectGoInterlock, type GoCircuits } from "./selectGoInterlock";
+import { MARKET_FIDELITIES, readMarketFidelity } from "../marketFidelityAlgebra";
 import { computeEvidenceDebt, computeRightOfWay } from "./decisionPermissionCompiler";
 import type { EvidenceDebt, RightOfWayReading } from "./decisionPermissionCompiler";
 import type { DecisionChainNode } from "./selectDecisionChain";
@@ -48,6 +49,17 @@ const LIVE_CHAIN: DecisionChainNode[] = [
   node("Absorption", "UNKNOWN"),
   node("Regime", "UNKNOWN"),
 ];
+
+/** A paid chain, and the ACTION verdict the compiler emits over it. */
+const paidDebt = () => computeEvidenceDebt([node("Direction", "OK"), node("Location", "OK")])!;
+const actionDecision = () => computeRightOfWay(perm("ALLOWED"), paidDebt());
+
+/** The one fully-closed intent circuit: executable bars, a broker, a known R. */
+const RIPE: GoCircuits = {
+  reading: readMarketFidelity(MARKET_FIDELITIES.EXECUTABLE, 1_700_000_000_000)!,
+  broker: "CAPABLE",
+  availableR: 2.4,
+};
 
 describe("selectGoInterlock", () => {
   it("names EVERY owed condition holding the lock, not the capped sample", () => {
@@ -112,17 +124,79 @@ describe("selectGoInterlock", () => {
     expect(vm.heldBy).toEqual([]);
   });
 
-  it("opens only on ACTION, and echoes the compiler's own reason", () => {
-    const clean = [node("Direction", "OK"), node("Location", "OK")];
-    const debt = computeEvidenceDebt(clean)!;
-    const decision = computeRightOfWay(perm("ALLOWED"), debt);
-    expect(decision.value).toBe("ACTION");
-
-    const vm = selectGoInterlock(decision, debt);
+  it("opens only on ACTION with a measured, closed intent circuit", () => {
+    const vm = selectGoInterlock(actionDecision(), paidDebt(), RIPE);
     expect(vm.state).toBe("CLEAR");
     expect(vm.plaque).toBe("PERMISSION GRANTED");
     expect(vm.heldBy).toEqual([]);
-    expect(vm.release).toContain(decision.detail);
+    expect(vm.release).toContain(actionDecision().detail);
+  });
+
+  /**
+   * E-301: "FALSE RIPENESS if STALE plus pretty Clarity."
+   *
+   * Every case below has a PERFECTLY PAID roster and an ACTION verdict. The
+   * evidence lock is genuinely open. What is being proven is that the second
+   * lock — the intent circuit — is a real device and not decoration, because a
+   * paid ledger is precisely the situation in which the product is most tempted
+   * to grant permission it has not established.
+   */
+  describe("FALSE RIPENESS — a paid ledger is not an executable market", () => {
+    it("does not grant over STALE bars, however clean the roster is", () => {
+      const vm = selectGoInterlock(actionDecision(), paidDebt(), {
+        ...RIPE,
+        reading: readMarketFidelity(MARKET_FIDELITIES.STALE, 1_700_000_000_000)!,
+      });
+      expect(vm.state).toBe("HELD");
+      expect(vm.plaque).not.toBe("PERMISSION GRANTED");
+      expect(vm.release).toContain("not executable");
+    });
+
+    it("does not grant beside an UNVERIFIED broker", () => {
+      const vm = selectGoInterlock(actionDecision(), paidDebt(), { ...RIPE, broker: "UNVERIFIED" });
+      expect(vm.state).toBe("HELD");
+      expect(vm.release).toContain("no broker has answered");
+    });
+
+    it("does not grant when no broker was reached at all", () => {
+      const vm = selectGoInterlock(actionDecision(), paidDebt(), { ...RIPE, broker: null });
+      expect(vm.state).toBe("HELD");
+      expect(vm.release).toContain("no broker has answered");
+    });
+
+    it("does not grant when the market panel established no fidelity", () => {
+      const vm = selectGoInterlock(actionDecision(), paidDebt(), { ...RIPE, reading: null });
+      expect(vm.state).toBe("HELD");
+      expect(vm.release).toContain("has not established a fidelity");
+    });
+
+    it("does not grant on unknown R — unknown R is not zero R", () => {
+      const vm = selectGoInterlock(actionDecision(), paidDebt(), { ...RIPE, availableR: null });
+      expect(vm.state).toBe("HELD");
+      expect(vm.release).toContain("unknown R is not zero R");
+    });
+
+    it("NEVER SENDS THE TRADER TO PAY A LEDGER THAT IS ALREADY EMPTY", () => {
+      // The cruellest possible plaque: "conditions are owed" over a roster of
+      // ticks. Whatever holds an intent circuit, chips do not pay it off.
+      const vm = selectGoInterlock(actionDecision(), paidDebt(), { ...RIPE, broker: "UNVERIFIED" });
+      expect(vm.heldBy).toEqual([]);
+      expect(vm.release).toContain("Every evidence condition is paid");
+      expect(vm.release).toContain("two separate locks");
+    });
+
+    it("an UNMEASURED intent circuit reads NOT EVALUATED, and never GRANTED", () => {
+      // The absence of a measurement is not a passing one. This is the exact
+      // defect the third parameter was added to close: the first draft of this
+      // selector granted permission from the verdict alone.
+      const vm = selectGoInterlock(actionDecision(), paidDebt());
+      expect(vm.state).toBe("NOT_EVALUATED");
+      expect(vm.plaque).toBe("PERMISSION NOT EVALUATED");
+      expect(vm.verdict).toBe("ACTION");
+      expect(vm.release).toContain("paid is not the same as ripe");
+      // Not HELD either — WM is not entitled to name a lock it never inspected.
+      expect(vm.state).not.toBe("HELD");
+    });
   });
 
   it("uses singular English for a lock of one", () => {

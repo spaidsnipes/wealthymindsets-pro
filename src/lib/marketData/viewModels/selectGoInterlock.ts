@@ -36,6 +36,41 @@
  * If this file ever computes a permission of its own, it has become the second
  * answer and the interlock is fiction.
  *
+ * ── THE SECOND CIRCUIT, AND THE DEFECT THAT PUT IT HERE ──────────────────────
+ *
+ * The first draft of this file read CLEAR off `RightOfWayReading.value === ACTION`
+ * and nothing else. That verdict is compiled from the steward's permission and
+ * the evidence ledger — it knows the chain is paid and the rules allow. It does
+ * not know, and cannot know, whether the BARS ARE LIVE or whether a BROKER has
+ * ever answered. So a STALE chart beside an UNVERIFIED broker could carry a
+ * plaque reading PERMISSION GRANTED, over a perfectly paid roster.
+ *
+ * E-301 names that failure in its own hazard annotation:
+ *
+ *     FALSE RIPENESS if STALE plus pretty Clarity.
+ *
+ * and draws GO as two contactors in series, not one:
+ *
+ *     INTENT CIRCUIT — requires EXECUTABLE AND broker not UNVERIFIED
+ *     GO CIRCUIT     — requires intent AND gates not in debt
+ *
+ * This file now reads BOTH contactors, and reads the intent one by CALLING
+ * `canCompileIntent` — never by spelling the conjunction itself, which is the
+ * move `marketFidelityAlgebra.sentinel.test.ts` exists to forbid and which the
+ * algebra's own doc calls out: "Surfaces that check only one half are how the
+ * forbidden badge gets drawn."
+ *
+ * ── AND WHAT HAPPENS WHEN A CIRCUIT WAS NEVER SHOWN ──────────────────────────
+ *
+ * A caller that passes no `circuits` has not told this file the bars are live —
+ * it has told it nothing. THE ABSENCE OF A MEASUREMENT IS NOT A PASSING ONE.
+ * An unmeasured intent circuit therefore yields NOT_EVALUATED, never CLEAR:
+ * the plaque may say "WM has not established this", and may not say "granted".
+ *
+ * `GoCircuits` keeps all three keys REQUIRED for exactly this reason. A caller
+ * that knows the fidelity but not the broker must say `broker: null` out loud
+ * and get a refusal, rather than omit the key and get a grant.
+ *
  * ── THE THREE STATES, AND WHY THERE ARE THREE ────────────────────────────────
  *
  *   HELD          — a verdict exists and it is not ACTION. GO is unreachable
@@ -50,10 +85,11 @@
  *                   exist. Folding it into CLEAR would be far worse: an
  *                   unevaluated chain would read as a paid one.
  *
- *   CLEAR         — ACTION. Every prerequisite the compiler knows about is
- *                   paid and the steward's rules allow. This is the ONLY state
- *                   in which this product says the door is open, and it is the
- *                   compiler's word for it, not this file's.
+ *   CLEAR         — ACTION **and** a measured, closed intent circuit. Every
+ *                   prerequisite is paid, the steward's rules allow, the bars
+ *                   are executable and a broker has answered. This is the ONLY
+ *                   state in which this product says the door is open, and
+ *                   every term in it is someone else's word, not this file's.
  *
  * TOTAL over `RightOfWay` on purpose: a sixth verdict added upstream fails the
  * build here rather than silently defaulting to one side of a lock.
@@ -83,8 +119,28 @@ import type {
   RightOfWay,
   RightOfWayReading,
 } from "./decisionPermissionCompiler";
+import {
+  canCompileIntent,
+  type BrokerHonesty,
+  type MarketFidelityReading,
+} from "../marketFidelityAlgebra";
 
 export type GoInterlockState = "HELD" | "NOT_EVALUATED" | "CLEAR";
+
+/**
+ * The E-301 intent circuit, as presented by the surface. ALL THREE KEYS ARE
+ * REQUIRED — see the header. A `null` is a measurement that came back empty
+ * (honest, and refuses); an omitted key is a measurement that was never taken,
+ * and this type does not allow one.
+ */
+export interface GoCircuits {
+  /** The market panel's own reading. Null = attached and not established. */
+  readonly reading: MarketFidelityReading | null;
+  /** The broker domain, which is NOT tied to the market panel (E-301). */
+  readonly broker: BrokerHonesty | null;
+  /** Planned 1R. Unknown R is not zero R. */
+  readonly availableR: number | null;
+}
 
 export interface GoInterlockVM {
   readonly state: GoInterlockState;
@@ -124,9 +180,29 @@ function owedNames(debt: EvidenceDebt | null | undefined): readonly string[] {
   return owed.map((e) => e.label);
 }
 
+/**
+ * Why the intent contactor is open, in the trader's words — or null if it is
+ * closed. Ordered most-actionable first, and it names ONE reason, because a
+ * plaque that lists every open contactor at once is a diagnostic panel.
+ */
+function intentBlocker(circuits: GoCircuits): string | null {
+  if (canCompileIntent(circuits.reading, circuits.broker)) {
+    if (typeof circuits.availableR !== "number" || !Number.isFinite(circuits.availableR)) {
+      return "Available R is not known, and unknown R is not zero R";
+    }
+    return null;
+  }
+  if (!circuits.reading) return "the market panel has not established a fidelity";
+  if (circuits.broker == null || circuits.broker === "UNVERIFIED") {
+    return "no broker has answered, so nothing here could be sent";
+  }
+  return "these bars are not executable";
+}
+
 export function selectGoInterlock(
   decision: RightOfWayReading | null | undefined,
   debt: EvidenceDebt | null | undefined,
+  circuits?: GoCircuits | null,
 ): GoInterlockVM {
   if (!decision) {
     return {
@@ -191,14 +267,44 @@ export function selectGoInterlock(
         release: `${decision.detail}. Nothing here is open — WM simply has not evaluated what would hold it.`,
       };
 
-    case "ACTION":
+    case "ACTION": {
+      // The evidence contactor is CLOSED — that is what ACTION means, and the
+      // Sentinel beside this file proves it over the whole input space. The
+      // intent contactor is a separate device on the same line (E-301), and
+      // this is the one place in the product where both must be read.
+      if (!circuits) {
+        // Never shown the second circuit. Not a grant, and not a lock either —
+        // WM does not know whether the bars are live or a broker has answered.
+        return {
+          state: "NOT_EVALUATED",
+          verdict: "ACTION",
+          plaque: PLAQUE.NOT_EVALUATED,
+          heldBy: [],
+          release: `${decision.detail} — every evidence condition is paid and no rule is engaged. WM has not been shown the market fidelity or the broker, so it cannot say this is executable; paid is not the same as ripe.`,
+        };
+      }
+
+      const blocker = intentBlocker(circuits);
+      if (blocker) {
+        return {
+          state: "HELD",
+          verdict: "ACTION",
+          plaque: PLAQUE.HELD,
+          // Not a roster item. Sending the trader to pay chips would be a lie:
+          // the ledger is already empty and paying more of it changes nothing.
+          heldBy: [],
+          release: `Every evidence condition is paid — and ${blocker}. Evidence and execution are two separate locks; this one does not open by paying the ledger.`,
+        };
+      }
+
       return {
         state: "CLEAR",
         verdict: "ACTION",
         plaque: PLAQUE.CLEAR,
         heldBy: [],
-        release: `${decision.detail}. No evidence condition is outstanding and no rule is engaged.`,
+        release: `${decision.detail}. No evidence condition is outstanding, no rule is engaged, these bars are executable and a broker has answered.`,
       };
+    }
   }
 }
 

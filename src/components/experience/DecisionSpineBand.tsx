@@ -569,7 +569,19 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
      CONDITION · PERMISSION WITHHELD". The rail drew the verdict and the chips
      as two neighbouring facts and left the trader to infer the connection
      between them; this plaque states it. Derived from the SAME verdict and the
-     SAME roll — a second caller, never a second answer (§24). */
+     SAME roll — a second caller, never a second answer (§24).
+
+     NO THIRD ARGUMENT, AND THAT IS THE HONEST CALL, NOT AN OVERSIGHT. E-301
+     draws GO as two contactors in series: the evidence gates AND the intent
+     circuit (bars EXECUTABLE, broker answered). This band is handed `honesty`
+     but NOBODY hands it a broker reading — the broker domain is explicitly
+     "not tied to the market panel" — so the intent circuit has never been
+     measured here. Passing `{ broker: null }` would be worse than passing
+     nothing: it would report a measurement this surface never took. So the
+     plaque reads PERMISSION NOT EVALUATED over a paid chain, which is true.
+
+     To make this rail able to say GRANTED, give it a real broker-honesty
+     owner and pass all three keys. Do not reach that state by inventing one. */
   const interlock = selectGoInterlock(nowDecision, oneStory ? oneStory.debt : null);
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   /* The ledger first, then the observations outside it — the same two groups

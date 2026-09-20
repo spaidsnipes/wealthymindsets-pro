@@ -41,7 +41,14 @@ import { resolve } from "node:path";
 
 import { computeEvidenceDebt, computeRightOfWay } from "./decisionPermissionCompiler";
 import type { RightOfWay } from "./decisionPermissionCompiler";
-import { selectGoInterlock } from "./selectGoInterlock";
+import { selectGoInterlock, type GoCircuits } from "./selectGoInterlock";
+import {
+  ALL_MARKET_FIDELITIES,
+  MARKET_FIDELITIES,
+  canGo,
+  readMarketFidelity,
+  type BrokerHonesty,
+} from "../marketFidelityAlgebra";
 import type { DecisionChainNode } from "./selectDecisionChain";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
 
@@ -88,6 +95,17 @@ const OWED_VARIANTS: readonly (Partial<DecisionChainNode> & { readonly note: str
   { note: "venue-blocked", payableBy: "EVIDENCE", venueBlocked: true },
 ];
 
+/**
+ * A fully closed intent circuit. Supplied to the exhaustive walk so the proof
+ * below cannot pass merely because the second lock was never opened — the
+ * ONLY thing allowed to hold the door in that walk is the evidence debt.
+ */
+const RIPE: GoCircuits = {
+  reading: readMarketFidelity(MARKET_FIDELITIES.EXECUTABLE, 1_700_000_000_000)!,
+  broker: "CAPABLE",
+  availableR: 2.4,
+};
+
 /** Settled and flagged filler, so the owed node is never alone on the chain. */
 const SETTLED = node("Direction", "OK");
 const FLAGGED = node("Location", "WARN");
@@ -125,7 +143,11 @@ describe("SENTINEL — GO is unreachable while any condition is owed", () => {
             `steward=${verdict} owed=${owed.note} chain=[${chain.map((n) => n.label).join(",")}]`,
           ).not.toBe("ACTION");
 
-          const lock = selectGoInterlock(decision, debt);
+          // RIPE deliberately: bars executable, broker answering, R known. The
+          // second lock is WIDE OPEN in every one of these pairs, so the only
+          // thing that can hold the door is the evidence debt — which is
+          // exactly the claim being proven.
+          const lock = selectGoInterlock(decision, debt, RIPE);
           expect(
             lock.state,
             `steward=${verdict} owed=${owed.note} chain=[${chain.map((n) => n.label).join(",")}]`,
@@ -150,7 +172,70 @@ describe("SENTINEL — GO is unreachable while any condition is owed", () => {
 
     const decision = computeRightOfWay(perm("ALLOWED"), debt);
     expect(decision.value).toBe("ACTION");
-    expect(selectGoInterlock(decision, debt).state).toBe("CLEAR");
+    expect(selectGoInterlock(decision, debt, RIPE).state).toBe("CLEAR");
+  });
+
+  /**
+   * THE ANTI-SECOND-ANSWER PROOF (§24).
+   *
+   * `canGo` in `marketFidelityAlgebra.ts` is the house's one answer to "may
+   * this trader GO". This plaque is a CALLER of that answer, so the only
+   * honest test is not "does the plaque behave sensibly" but "does the plaque
+   * agree with the owner on every input" — because the day it disagrees, the
+   * product has two answers to GO and one of them is drawn in gold at the top
+   * of the rail.
+   *
+   * Walked exhaustively: five fidelities × five broker honesties × R known and
+   * unknown × a paid chain and an owed one.
+   */
+  it("says CLEAR if and only if the ALGEBRA'S OWN canGo says go", () => {
+    const paidDebt = computeEvidenceDebt([SETTLED, node("Location", "OK")])!;
+    const owedDebt = computeEvidenceDebt([SETTLED, node("Aggression", "UNKNOWN")])!;
+    const brokers: readonly BrokerHonesty[] = [
+      "CAPABLE",
+      "ACK",
+      "REJECT",
+      "FILL",
+      "UNVERIFIED",
+    ];
+    let walked = 0;
+    let everClear = false;
+
+    for (const fidelity of ALL_MARKET_FIDELITIES) {
+      for (const broker of brokers) {
+        for (const availableR of [2.4, null] as const) {
+          for (const debt of [paidDebt, owedDebt]) {
+            const circuits = {
+              reading: readMarketFidelity(fidelity, 1_700_000_000_000),
+              broker,
+              availableR,
+            };
+            const decision = computeRightOfWay(perm("ALLOWED", "a rule"), debt);
+            const lock = selectGoInterlock(decision, debt, circuits);
+
+            // The owner's verdict over the identical inputs. `unpaid` is the
+            // ledger's own definition — warn + missing — not a re-derivation.
+            const owner = canGo({
+              ...circuits,
+              debt: { unpaid: debt.missing + debt.warn },
+              availableR,
+            });
+
+            expect(
+              lock.state === "CLEAR",
+              `fidelity=${fidelity} broker=${broker} R=${availableR} missing=${debt.missing}`,
+            ).toBe(owner);
+
+            if (owner) everClear = true;
+            walked += 1;
+          }
+        }
+      }
+    }
+
+    expect(walked).toBe(ALL_MARKET_FIDELITIES.length * brokers.length * 2 * 2);
+    // Non-vacuity again: an `iff` between two always-false things is a tautology.
+    expect(everClear).toBe(true);
   });
 
   it("a paid ledger still does not open the door when the STEWARD holds it", () => {
@@ -162,7 +247,8 @@ describe("SENTINEL — GO is unreachable while any condition is owed", () => {
     for (const verdict of ["ADVISORY", "RESTRICTED", "UNKNOWN"] as const) {
       const decision = computeRightOfWay(perm(verdict, "a rule"), debt);
       expect(decision.value).not.toBe("ACTION");
-      expect(selectGoInterlock(decision, debt).state).not.toBe("CLEAR");
+      // RIPE again, so the steward is provably the ONLY thing holding it.
+      expect(selectGoInterlock(decision, debt, RIPE).state).not.toBe("CLEAR");
     }
   });
 
