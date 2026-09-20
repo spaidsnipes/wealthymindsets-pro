@@ -398,3 +398,75 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     });
   });
 });
+
+/**
+ * THE ROLL IS THE SAME MEASUREMENT AS THE COUNTS, OR IT IS A SECOND ANSWER.
+ *
+ * Every test here re-derives a count FROM the roll and asserts it against the
+ * count the compiler published. None of them assert a hard-coded shape: a test
+ * that wrote the expected names down by hand would pass even if the roll
+ * stopped reading the chain, which is the one failure that matters.
+ */
+describe("computeEvidenceDebt — the roll (named identity)", () => {
+  const chain: DecisionChainNode[] = [
+    node("Direction", "OK"),
+    node("Location", "OK"),
+    node("Aggression", "UNKNOWN"),
+    node("Regime", "WARN"),
+    node("CLC", "WATCH"),
+  ];
+
+  it("names every observed node, including the WATCH node outside the ledger", () => {
+    const debt = computeEvidenceDebt(chain)!;
+    expect(debt.roll).toHaveLength(chain.length);
+    // Re-derived from the input, never written down: the roll must be the
+    // chain, in the chain's own words.
+    expect(debt.roll!.map((e) => e.label)).toEqual(chain.map((n) => n.label));
+    expect(debt.roll!.map((e) => e.key)).toEqual(chain.map((n) => n.key));
+  });
+
+  it("agrees with every count it sits beside", () => {
+    const debt = computeEvidenceDebt(chain)!;
+    const tally = (s: string) => debt.roll!.filter((e) => e.standing === s).length;
+    expect(tally("RESOLVED")).toBe(debt.resolved);
+    expect(tally("WARN")).toBe(debt.warn);
+    expect(tally("MISSING")).toBe(debt.missing);
+    expect(tally("WATCH")).toBe(debt.watch);
+    // The ledger is still the ledger: WATCH is named, and still not payable.
+    expect(tally("RESOLVED") + tally("WARN") + tally("MISSING")).toBe(debt.payable);
+  });
+
+  it("is uncapped where the label samples are capped — the whole point", () => {
+    const many: DecisionChainNode[] = Array.from({ length: EVIDENCE_LABEL_SAMPLE_LIMIT + 4 }, (_, i) =>
+      node(`Node ${i}`, "UNKNOWN"),
+    );
+    const debt = computeEvidenceDebt(many)!;
+    expect(debt.missingLabels.length).toBe(EVIDENCE_LABEL_SAMPLE_LIMIT);
+    // The measured defect: the capped array is why four owed nodes had no name
+    // on the screen. The roll must reach all of them.
+    expect(debt.roll).toHaveLength(many.length);
+    expect(debt.missing).toBe(many.length);
+  });
+
+  it("marks payableNow by exactly the rule missingPayable counts by", () => {
+    const debt = computeEvidenceDebt([
+      { ...node("Entry", "UNKNOWN"), payableBy: "DECLARATION" },
+      { ...node("Tape", "UNKNOWN"), payableBy: "EVIDENCE" },
+      { ...node("Depth", "UNKNOWN"), payableBy: "EVIDENCE", venueBlocked: true },
+      // Unasserted — assuming payability is the fabrication the rule exists to
+      // stop, so the roll must not assume it either.
+      node("Regime", "UNKNOWN"),
+    ])!;
+    expect(debt.roll!.filter((e) => e.payableNow).length).toBe(debt.missingPayable);
+    expect(debt.roll!.filter((e) => e.venueBlocked).length).toBe(debt.venueBlocked);
+    expect(debt.roll!.find((e) => e.label === "Regime")!.payableNow).toBe(false);
+    expect(debt.roll!.find((e) => e.label === "Depth")!.payableNow).toBe(false);
+  });
+
+  it("never marks a settled or flagged node as payable", () => {
+    const debt = computeEvidenceDebt(chain)!;
+    for (const e of debt.roll!) {
+      if (e.standing !== "MISSING") expect(e.payableNow).toBe(false);
+    }
+  });
+});

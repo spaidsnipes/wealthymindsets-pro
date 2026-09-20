@@ -362,6 +362,96 @@ function LadderSegment({ segment }: { segment: EvidenceLadderSegment }) {
 }
 
 /**
+ * THE LEDGER, NAMED — canon WM_NewMockup_123_F16_Evidence_Debt_WAIT_Finished.
+ *
+ * The mockup draws the debt as five NAMED first-class conditions:
+ *
+ *     [DIRECTION ✓] [LOCATION ✓] [AVAILABLE R ✓] [AGGRESSION ?] [CLC ?]
+ *
+ * The shipped bar above draws the same ledger as anonymous dots. MEASURED LIVE
+ * 2026-09-20 on /charts, BTC · 1h, the rail read `WAIT ●●●■■■■` — a trader
+ * could see that four conditions were owed and could not see WHICH FOUR. One
+ * of them was then named in the sentence below ("Resolve available R"),
+ * sampled from a capped array; the other three appeared nowhere on the screen.
+ *
+ * ── WHY THE GLYPH AND NOT THE COLOUR CARRIES THE STATE ───────────────────────
+ *
+ * Each chip states its standing in a MARK — ✓ settled, ! flagged, ? owed,
+ * · observed-only — and only then tints. A chip that distinguished paid from
+ * owed by tint alone would be unreadable to a colour-blind trader and invisible
+ * in a screenshot printed in grey, which is how most of this product gets
+ * reviewed.
+ *
+ * ── WHY THESE CHIPS ARE NOT aria-hidden AND THE BAR IS ───────────────────────
+ *
+ * The bar is `aria-hidden` because it re-draws facts the sentence beneath it
+ * already states. These chips do NOT: they carry the names of every outstanding
+ * node, including the ones the capped sample never reaches. Hiding them from a
+ * screen reader would make the debt legible to sighted traders only.
+ */
+const LADDER_MARK: Record<EvidenceLadderState, string> = {
+  RESOLVED: "✓",
+  WARN: "!",
+  MISSING: "?",
+  WATCH: "·",
+};
+
+/**
+ * Said aloud, for the mark. A screen reader must not be handed "✓" and left to
+ * guess — nor "check", which says nothing about a ledger.
+ */
+const LADDER_SPOKEN: Record<EvidenceLadderState, string> = {
+  RESOLVED: "settled",
+  WARN: "flagged, still owed",
+  MISSING: "owed",
+  WATCH: "observed, outside the ledger",
+};
+
+const LADDER_CHIP_TONE: Record<EvidenceLadderState, React.CSSProperties> = {
+  RESOLVED: { color: "#c9c2a7", borderColor: "rgba(201,194,167,0.42)" },
+  WARN: { color: "#d4af37", borderColor: "rgba(212,175,55,0.55)" },
+  MISSING: { color: "rgba(201,162,89,0.82)", borderColor: "rgba(201,162,89,0.30)" },
+  WATCH: { color: "rgba(139,143,168,0.78)", borderColor: "rgba(139,143,168,0.26)" },
+};
+
+function LadderChip({ segment }: { segment: EvidenceLadderSegment }) {
+  const label = segment.label;
+  if (!label) return null;
+  return (
+    <span
+      data-testid="evidence-ladder-chip"
+      data-state={segment.state}
+      data-next={segment.isNext ? "true" : undefined}
+      /* The whole chip is one phrase to a screen reader. Splitting the name
+         from its mark would read as two unrelated tokens in a list. */
+      aria-label={`${label}: ${LADDER_SPOKEN[segment.state]}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "1px 5px",
+        borderRadius: 2,
+        border: "1px solid",
+        fontSize: 8.5,
+        lineHeight: "12px",
+        letterSpacing: "0.09em",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+        ...LADDER_CHIP_TONE[segment.state],
+        /* Same rule as the bar: the next thing is the only chip that is lit
+           from behind, because it is the subject of the sentence beneath. */
+        ...(segment.isNext ? { background: "rgba(212,175,55,0.12)", borderColor: "#d4af37" } : null),
+      }}
+    >
+      <span aria-hidden="true">{label}</span>
+      <span aria-hidden="true" style={{ opacity: 0.85 }}>
+        {LADDER_MARK[segment.state]}
+      </span>
+    </span>
+  );
+}
+
+/**
  * COLOUR IS A CLAIM, so the session token's colour is looked up from a TOTAL
  * record keyed on the caller's `established` flag — never derived from the
  * token's spelling, its length, or "is a string present". A token that rests
@@ -418,6 +508,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   // the identical `oneStory.debt` object and emits one segment per node it
   // already counted.
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
+  /* The ledger first, then the observations outside it — the same two groups
+     the bar draws, in the same order, so the chips and the bar can never tell
+     two different stories about one chain. */
+  const ladderAll = ladder ? [...ladder.segments, ...ladder.watch] : [];
+  const ladderChips =
+    ladderAll.length > 0 && ladderAll.every((s) => s.label && s.key) ? ladderAll : null;
   // The WHY cell's own census, re-presented. Same VM the headline reads.
   const severity = selectWhySeverityBar(decisionWhy);
   // R is a ratio; this is the only cell whose meaning IS a proportion. Same VM
@@ -973,6 +1069,22 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
                 ))}
               </>
             ) : null}
+          </span>
+        ) : null}
+        {/* NAMED ONLY IF EVERY NODE IS NAMED.
+            A partial roster is worse than none: four chips over a seven-segment
+            bar reads as "these four are the debt", and the three it could not
+            name would vanish behind a number that no longer has a name for its
+            own parts. All or nothing is the only honest gate. */}
+        {ladderChips ? (
+          <span
+            data-testid="evidence-ladder-roster"
+            data-named={ladderChips.length}
+            style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "3px 0 1px" }}
+          >
+            {ladderChips.map((segment) => (
+              <LadderChip key={`chip-${segment.key}`} segment={segment} />
+            ))}
           </span>
         ) : null}
         <span style={MUTED} className={rail ? "wm-spine-sr-only" : undefined}>

@@ -93,3 +93,79 @@ describe("selectEvidenceLadder", () => {
     ]);
   });
 });
+
+/**
+ * NAMES ARE CARRIED, NEVER INVENTED.
+ *
+ * The bar spent its whole life refusing identity because its input had none.
+ * Now that the input has names, two failures become possible that were not
+ * possible before: a name attached to the wrong standing, and a name conjured
+ * for a node the roll never described. Both are tested here.
+ */
+describe("selectEvidenceLadder — named ledger (canon 123 first-class conditions)", () => {
+  const roll = [
+    { key: "direction", label: "Direction", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+    { key: "location", label: "Location", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+    { key: "regime", label: "Regime", standing: "WARN" as const, payableNow: false, venueBlocked: false },
+    { key: "aggression", label: "Aggression", standing: "MISSING" as const, payableNow: true, venueBlocked: false },
+    { key: "clc", label: "CLC", standing: "MISSING" as const, payableNow: false, venueBlocked: false },
+    { key: "depth", label: "Depth", standing: "WATCH" as const, payableNow: false, venueBlocked: false },
+  ];
+  const named = debt({ payable: 5, resolved: 2, warn: 1, missing: 2, watch: 1, roll });
+
+  it("names every segment, so no owed condition is anonymous", () => {
+    const ladder = selectEvidenceLadder(named)!;
+    expect(ladder.segments.map((s) => s.label)).toEqual([
+      "Direction",
+      "Location",
+      "Regime",
+      "Aggression",
+      "CLC",
+    ]);
+    expect(ladder.watch.map((s) => s.label)).toEqual(["Depth"]);
+  });
+
+  it("keeps each name with its own standing", () => {
+    const ladder = selectEvidenceLadder(named)!;
+    const byLabel = new Map(ladder.segments.map((s) => [s.label, s.state]));
+    expect(byLabel.get("Direction")).toBe("RESOLVED");
+    expect(byLabel.get("Regime")).toBe("WARN");
+    expect(byLabel.get("CLC")).toBe("MISSING");
+  });
+
+  it("carries payableNow only on outstanding nodes, and only where the roll says so", () => {
+    const ladder = selectEvidenceLadder(named)!;
+    const byLabel = new Map(ladder.segments.map((s) => [s.label, s.payableNow]));
+    expect(byLabel.get("Aggression")).toBe(true);
+    expect(byLabel.get("CLC")).toBe(false);
+    // Not an outstanding node — the field must not appear at all rather than
+    // appear as `false`, which would read as "settled but unpayable".
+    expect(byLabel.get("Direction")).toBeUndefined();
+  });
+
+  it("still marks exactly one next, and it is the first outstanding node", () => {
+    const ladder = selectEvidenceLadder(named)!;
+    const marked = ladder.segments.filter((s) => s.isNext);
+    expect(marked).toHaveLength(1);
+    expect(marked[0].label).toBe("Aggression");
+  });
+
+  it("invents no name when the debt carries no roll", () => {
+    // The pre-existing anonymous behaviour is the correct answer to an input
+    // with no identity in it — not a bug to paper over with a placeholder.
+    const ladder = selectEvidenceLadder(debt({ payable: 3, missing: 3 }))!;
+    expect(ladder.segments.every((s) => s.label === undefined)).toBe(true);
+  });
+
+  it("falls back to anonymous rather than draw a roll that disagrees with the counts", () => {
+    // A roll short of the count would otherwise name three of four owed nodes
+    // and leave the fourth as a silent blank — the same invisible gap the
+    // `payable` rename exists to end. The bar and the sentence must be one
+    // ledger or the bar says nothing.
+    const ladder = selectEvidenceLadder(
+      debt({ payable: 4, missing: 4, roll: roll.filter((e) => e.standing === "MISSING") }),
+    )!;
+    expect(ladder.segments).toHaveLength(4);
+    expect(ladder.segments.every((s) => s.label === undefined)).toBe(true);
+  });
+});

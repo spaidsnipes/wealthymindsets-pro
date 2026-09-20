@@ -636,3 +636,73 @@ describe("DecisionSpineBand — the honesty plaque is fed, not drawn", () => {
     expect(ownerCode).not.toContain("Date.now()");
   });
 });
+
+/**
+ * THE LEDGER MUST SAY WHICH CONDITIONS ARE OWED.
+ *
+ * MEASURED LIVE 2026-09-20, /charts, BTC · 1h: the rail drew `WAIT ●●●■■■■`.
+ * Four conditions owed, zero of them named — one was named in the sentence
+ * beneath, sampled from a capped array, and the remaining three appeared
+ * nowhere on the screen at all. Canon mockup 123 draws the same ledger as
+ * NAMED first-class conditions: [DIRECTION ✓] … [AGGRESSION ?] [CLC ?].
+ *
+ * These are wrong-answer laws, not rename laws: a chip that lost its mark, or
+ * a roster that quietly named only the nodes it could reach, typechecks
+ * perfectly and reads as a finished feature.
+ */
+describe("DecisionSpineBand — evidence chips are NAMED conditions (canon 123)", () => {
+  const rollDebt = {
+    payable: 5,
+    watch: 0,
+    resolved: 3,
+    missing: 2,
+    warn: 0,
+    missingLabels: ["Aggression", "CLC"],
+    missingPayableLabels: ["Aggression"],
+    missingPayable: 1,
+    warnLabels: [],
+    roll: [
+      { key: "direction", label: "Direction", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "location", label: "Location", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "available-r", label: "Available R", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "aggression", label: "Aggression", standing: "MISSING" as const, payableNow: true, venueBlocked: false },
+      { key: "clc", label: "CLC", standing: "MISSING" as const, payableNow: false, venueBlocked: false },
+    ],
+  };
+
+  it("prints every owed condition by name, not only the sampled one", () => {
+    const html = render({ presentation: "rail", oneStory: oneStory({ debt: rollDebt }) });
+    for (const label of ["Direction", "Location", "Available R", "Aggression", "CLC"]) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain('data-testid="evidence-ladder-roster"');
+    expect(html).toContain('data-named="5"');
+  });
+
+  it("states each standing in a MARK, so the ledger survives greyscale", () => {
+    // Colour-only encoding is unreadable to a colour-blind trader and invisible
+    // in the grey screenshots this product is reviewed in.
+    const html = render({ presentation: "rail", oneStory: oneStory({ debt: rollDebt }) });
+    expect(html).toContain("✓");
+    expect(html).toContain("?");
+  });
+
+  it("speaks each chip as one phrase, never a bare glyph", () => {
+    const html = render({ presentation: "rail", oneStory: oneStory({ debt: rollDebt }) });
+    expect(html).toContain("Aggression: owed");
+    expect(html).toContain("Direction: settled");
+  });
+
+  it("draws NO roster at all when the chain carried no names", () => {
+    // A placeholder chip would be a fabricated condition. The anonymous bar is
+    // the truthful rendering of an input with no identity in it.
+    const html = render({
+      presentation: "rail",
+      oneStory: oneStory({
+        debt: { payable: 4, watch: 0, resolved: 0, missing: 4, warn: 0, missingLabels: ["Regime"], missingPayableLabels: [], missingPayable: 0, warnLabels: [] },
+      }),
+    });
+    expect(html).not.toContain('data-testid="evidence-ladder-roster"');
+    expect(html).toContain('data-testid="evidence-ladder"');
+  });
+});

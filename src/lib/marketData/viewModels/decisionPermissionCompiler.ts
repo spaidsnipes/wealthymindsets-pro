@@ -136,6 +136,85 @@ export interface EvidenceDebt {
   readonly venueBlockedLabels?: readonly string[];
   /** Authoritative count for `venueBlockedLabels` — never capped. */
   readonly venueBlocked?: number;
+
+  /**
+   * THE ROLL — one entry per observed node, in chain order, NEVER capped.
+   *
+   * ── The measured defect this field exists to end ──────────────────────────
+   *
+   * MEASURED LIVE 2026-09-20 on https://wealthymindsetspro.com/charts, right
+   * rail, BTC · 1h. The evidence ledger rendered as seven anonymous dots:
+   *
+   *     WAIT  ●●●■■■■
+   *
+   * Three settled, four outstanding — and not one of the seven says WHICH
+   * condition it is. A trader who can see that four things are owed still
+   * cannot see what they owe, so the shape is unactionable by construction.
+   * The rail then prints ONE name beside it ("Resolve available R") sampled
+   * from `missingLabels`, and the other three outstanding nodes go unnamed on
+   * the screen at all.
+   *
+   * The cause is structural, not cosmetic, and it is upstream of every
+   * surface: this compiler reduced `DecisionChainNode[]` to counts plus two
+   * DELIBERATELY TRUNCATED label arrays, so per-node identity was destroyed
+   * here, before any renderer could ask for it. `selectEvidenceLadder`'s own
+   * doc block records the consequence honestly — "EvidenceDebt carries counts,
+   * not a sequence, so this bar cannot and does not claim node-by-node
+   * identity." That refusal was correct given its input. This field fixes the
+   * input instead of overruling the refusal.
+   *
+   * ── WHY NOT JUST RAISE EVIDENCE_LABEL_SAMPLE_LIMIT ────────────────────────
+   *
+   * Because the sample arrays are a DIFFERENT instrument with a different job:
+   * they feed sentences ("need direction + regime +2"), where a cap plus
+   * `hiddenRemainder` is the honest construction. Uncapping them would change
+   * the meaning of every existing reader of those arrays. The roll is a second
+   * CALLER of the same measurement, not a second ANSWER — §24. The counts stay
+   * authoritative; the roll never contradicts them, and a Sentinel test in
+   * decisionPermissionCompiler.test.ts re-derives every count from the roll.
+   *
+   * ── WHY WATCH NODES ARE IN IT ─────────────────────────────────────────────
+   *
+   * The roll is the CHAIN, not the ledger. `payable` still excludes WATCH, and
+   * `selectEvidenceLadder` still keeps WATCH out of the bar. A roll that
+   * dropped them would recreate the unexplained gap between the chain's length
+   * and the ledger's length that the `payable` rename exists to end: with the
+   * roll, that difference has one name per node.
+   *
+   * OPTIONAL for the same measured reason `venueBlocked` is optional: no
+   * production site builds an `EvidenceDebt` by hand — every one routes
+   * through `computeEvidenceDebt`, which ALWAYS emits the roll. Requiring it
+   * would buy a large fixture edit and no drift protection. `undefined` reads
+   * as "this debt came from a fixture that carries no identity", and every
+   * consumer must then fall back to the anonymous shape, which is the truthful
+   * response to an input that genuinely has no names in it.
+   */
+  readonly roll?: readonly EvidenceRollEntry[];
+}
+
+/**
+ * One observed node, named.
+ *
+ * `standing` is the node's indicator re-expressed in the ledger's vocabulary,
+ * so a consumer never has to re-decide that UNKNOWN means MISSING — that
+ * mapping is made once, here, beside the counts it must agree with.
+ */
+export interface EvidenceRollEntry {
+  /** The node's stable key. Identity for React, never shown to a human. */
+  readonly key: string;
+  /** The node's own label, verbatim. This compiler renames nothing. */
+  readonly label: string;
+  readonly standing: "RESOLVED" | "WARN" | "MISSING" | "WATCH";
+  /**
+   * TRUE only when something can actually pay this node — MISSING, not venue
+   * blocked, and its producer declared `payableBy`. Carried per-node so a
+   * surface can name what is owed WITHOUT implying the trader can go and work
+   * on a composition. Mirrors the `missingPayable` rule exactly; an unasserted
+   * node is not payable.
+   */
+  readonly payableNow: boolean;
+  /** Measured directly, but not on this venue. Excluded from `payableNow`. */
+  readonly venueBlocked: boolean;
 }
 
 /** Max labels retained for surface detail. Counts are never capped. */
@@ -293,9 +372,20 @@ export function computeEvidenceDebt(
   const missingPayableLabels: string[] = [];
   const venueBlockedLabels: string[] = [];
   const warnLabels: string[] = [];
+  // THE ROLL — built in the SAME pass as the counts, from the SAME node, so a
+  // future edit cannot move one and leave the other behind. A second loop
+  // would be a second place to decide what a node is.
+  const roll: EvidenceRollEntry[] = [];
   for (const n of nodes) {
     if (n.indicator === "OK") {
       resolved += 1;
+      roll.push({
+        key: n.key,
+        label: n.label,
+        standing: "RESOLVED",
+        payableNow: false,
+        venueBlocked: false,
+      });
     } else if (n.indicator === "UNKNOWN") {
       missing += 1;
       if (missingLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) missingLabels.push(n.label);
@@ -307,6 +397,7 @@ export function computeEvidenceDebt(
       // composition bucket: a venue-blocked node IS measured directly, so
       // calling it "composed from other readings" would be a fresh false
       // statement replacing the one being removed.
+      let payableNow = false;
       if (n.venueBlocked === true) {
         venueBlocked += 1;
         if (venueBlockedLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) {
@@ -317,16 +408,41 @@ export function computeEvidenceDebt(
         // way would re-create the exact defect: a node nobody classified would
         // silently become a legal instruction to the trader.
         missingPayable += 1;
+        payableNow = true;
         if (missingPayableLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) {
           missingPayableLabels.push(n.label);
         }
       }
+      roll.push({
+        key: n.key,
+        label: n.label,
+        standing: "MISSING",
+        payableNow,
+        venueBlocked: n.venueBlocked === true,
+      });
     } else if (n.indicator === "WARN") {
       warn += 1;
       if (warnLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) warnLabels.push(n.label);
+      roll.push({
+        key: n.key,
+        label: n.label,
+        standing: "WARN",
+        payableNow: false,
+        venueBlocked: false,
+      });
+    } else {
+      // WATCH is neither paid nor blocking — not counted; render as
+      // observed-but-not-blocking downstream if surface wants to show it.
+      // It IS rolled, because the roll is the chain and not the ledger: the
+      // gap between `nodes.length` and `payable` must keep a name per node.
+      roll.push({
+        key: n.key,
+        label: n.label,
+        standing: "WATCH",
+        payableNow: false,
+        venueBlocked: false,
+      });
     }
-    // WATCH is neither paid nor blocking — not counted; render as
-    // observed-but-not-blocking downstream if surface wants to show it.
   }
   // The LEDGER is exactly the nodes that carry a gradeable indicator. WATCH
   // nodes are observed but ungradeable, so they are named separately rather
@@ -344,6 +460,7 @@ export function computeEvidenceDebt(
     missingPayable,
     venueBlockedLabels,
     venueBlocked,
+    roll,
   };
 }
 
