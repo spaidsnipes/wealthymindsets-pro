@@ -1,0 +1,41 @@
+/**
+ * FL-06 ABSORPTION SHELF — presentation may change; geometry may not.
+ *
+ * The desktop shelf is allowed to lose its floating gold-card shell and gain
+ * the reference's restrained hatch. It is not allowed to gain a decorative
+ * minimum height, extend across the chart, or acquire a second placement
+ * compiler. MainChart paints only inside the real time/price rectangle emitted
+ * by selectAbsorptionAnatomy; narrow charts retain the backed label.
+ */
+
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const chart = readFileSync(
+  join(process.cwd(), "src/components/chart/MainChart.tsx"),
+  "utf8",
+);
+
+describe("the FL-06 absorption shelf stays attached to measured price geometry", () => {
+  it("clips the desktop hatch to the real zone rectangle", () => {
+    expect(chart).toContain("const desktopShelfInstrument = W >= 960");
+    expect(chart).toContain("ctx.rect(x0, yHi, bw, bh)");
+    expect(chart).toContain("ctx.clip()");
+    expect(chart).toContain("for (let hx = x0 - bh; hx < x1 + bh; hx += hatchStep)");
+  });
+
+  it("uses a direct desktop annotation while preserving the narrow backed label", () => {
+    expect(chart).toContain("if (desktopShelfInstrument)");
+    expect(chart).toContain("ctx.fillText(chip, chipX, chipY + chipH / 2 + 0.5)");
+    expect(chart).toContain("ctx.fillRect(chipX, chipY, chipW, chipH)");
+    expect(chart).toContain("ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5)");
+  });
+
+  it("still has exactly one absorption placement compiler call", () => {
+    const executable = chart
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^[ \t]*\/\/.*$/gm, "");
+    expect(executable.match(/\bselectAbsorptionAnatomy\s*\(/g) ?? []).toHaveLength(1);
+  });
+});

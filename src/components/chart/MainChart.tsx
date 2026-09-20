@@ -7074,11 +7074,42 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const bw = Math.max(2, x1 - x0);
               const bh = Math.max(2, yLo - yHi);
 
-              ctx.fillStyle = "rgba(212,175,55,0.10)";
+              // FL-06 does not present the absorption shelf as a floating
+              // card. The measured time/price rectangle IS the instrument:
+              // a quiet hatched shelf with the reading attached directly to
+              // it. Keep that treatment desktop-only; narrow charts retain
+              // the compact backed chip because text over candles there is
+              // not reliably legible. The hatch is clipped to the compiler's
+              // real bounds — no minimum price thickness and no invented
+              // extension beyond the bars that produced the zone.
+              const desktopShelfInstrument = W >= 960;
+
+              ctx.fillStyle = desktopShelfInstrument
+                ? "rgba(210,214,219,0.10)"
+                : "rgba(212,175,55,0.10)";
               ctx.fillRect(x0, yHi, bw, bh);
 
+              if (desktopShelfInstrument) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x0, yHi, bw, bh);
+                ctx.clip();
+                ctx.strokeStyle = "rgba(210,214,219,0.24)";
+                ctx.lineWidth = 1;
+                const hatchStep = 7;
+                for (let hx = x0 - bh; hx < x1 + bh; hx += hatchStep) {
+                  ctx.beginPath();
+                  ctx.moveTo(hx, yLo);
+                  ctx.lineTo(hx + bh, yHi);
+                  ctx.stroke();
+                }
+                ctx.restore();
+              }
+
               ctx.setLineDash([4, 3]);
-              ctx.strokeStyle = "rgba(212,175,55,0.75)";
+              ctx.strokeStyle = desktopShelfInstrument
+                ? "rgba(210,214,219,0.48)"
+                : "rgba(212,175,55,0.75)";
               ctx.lineWidth = 1;
               ctx.beginPath();
               ctx.moveTo(x0, yHi + 0.5); ctx.lineTo(x1, yHi + 0.5);
@@ -7131,15 +7162,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const plotRight = Math.max(4, W - axisW);
               const chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
               const chipY = Math.max(2, yHi - chipH - 2);
-              ctx.fillStyle = "rgba(14,12,8,0.92)";
-              ctx.fillRect(chipX, chipY, chipW, chipH);
-              ctx.strokeStyle = "rgba(212,175,55,0.65)";
-              ctx.lineWidth = 1;
-              ctx.strokeRect(chipX + 0.5, chipY + 0.5, cw2 + 11, chipH - 1);
-              ctx.fillStyle = "#d4af37";
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5);
+              if (desktopShelfInstrument) {
+                // Direct annotation, not another gold card. A restrained
+                // shadow protects legibility while the shelf remains the
+                // dominant shape and the candles remain visible.
+                ctx.save();
+                ctx.fillStyle = "rgba(224,190,92,0.96)";
+                ctx.shadowColor = "rgba(0,0,0,0.95)";
+                ctx.shadowBlur = 3;
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(chip, chipX, chipY + chipH / 2 + 0.5);
+                ctx.restore();
+              } else {
+                ctx.fillStyle = "rgba(14,12,8,0.92)";
+                ctx.fillRect(chipX, chipY, chipW, chipH);
+                ctx.strokeStyle = "rgba(212,175,55,0.65)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(chipX + 0.5, chipY + 0.5, cw2 + 11, chipH - 1);
+                ctx.fillStyle = "#d4af37";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5);
+              }
             }
 
             // ── BASIS. Compact, always visible, never a vendor name.
