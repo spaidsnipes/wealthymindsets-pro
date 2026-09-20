@@ -84,6 +84,22 @@ export interface DivisionWorksheetViewProps {
   readonly vm: DivisionWorksheetVM;
   readonly symbol: string;
   readonly timeframe?: string;
+  /**
+   * ONE RENDERER, TWO DIVISIONS — and the reader must never have to guess which
+   * one is on screen.
+   *
+   * Asset 01 divides the whole loaded window; Asset 18 divides ONE PRICE LEVEL.
+   * Same seven steps, same arithmetic, different dividend. That is exactly why
+   * they share this component — and exactly why they must not share a heading.
+   * Two panels both titled "Long-Division Worksheet", both reading step 1 with
+   * different numbers, is a surface that looks like a contradiction and is
+   * actually two honest answers to two different questions.
+   */
+  readonly title?: string;
+  /** One line naming WHAT was divided. Sits under the title. */
+  readonly dividendNote?: string;
+  /** Distinguishes the instances in the DOM when both are mounted. */
+  readonly instanceId?: string;
 }
 
 /** The levels, in the words a trader reads on the control itself. */
@@ -200,6 +216,9 @@ export function DivisionWorksheetView({
   vm,
   symbol,
   timeframe,
+  title = "Long-Division Worksheet",
+  dividendNote,
+  instanceId = "window",
 }: DivisionWorksheetViewProps): React.ReactElement {
   const [level, setLevel] = React.useState<ScaffoldLevel>(DEFAULT_SCAFFOLD_LEVEL);
   const scaffolded = React.useMemo(() => scaffoldWorksheet(vm, level), [vm, level]);
@@ -207,6 +226,7 @@ export function DivisionWorksheetView({
   return (
     <div
       data-testid="division-worksheet-view"
+      data-worksheet={instanceId}
       data-scaffold={scaffolded.level}
       // Read straight off the SOURCE worksheet, not off the scaffolded view.
       // These two attributes are what an auditor reads to prove the level
@@ -224,14 +244,21 @@ export function DivisionWorksheetView({
         fontFamily: "Georgia, 'Times New Roman', serif",
       }}
     >
-      <header style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, letterSpacing: 1.4, color: GOLD, textTransform: "uppercase" }}>
-          Long-Division Worksheet
-        </span>
-        <span style={{ fontSize: 11, color: MUTED }}>
-          {symbol}
-          {timeframe ? ` · ${timeframe}` : ""}
-        </span>
+      <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, letterSpacing: 1.4, color: GOLD, textTransform: "uppercase" }}>
+            {title}
+          </span>
+          <span style={{ fontSize: 11, color: MUTED }}>
+            {symbol}
+            {timeframe ? ` · ${timeframe}` : ""}
+          </span>
+        </div>
+        {dividendNote ? (
+          <span data-testid="worksheet-dividend-note" style={{ fontSize: 11, color: MUTED, lineHeight: 1.5 }}>
+            {dividendNote}
+          </span>
+        ) : null}
       </header>
 
       {/* ASSET 12 — THE SCAFFOLDING REMOVAL PATH, drawn as a path rather than a

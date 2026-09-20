@@ -186,7 +186,9 @@ import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView
 import ContinuationHealthView from "@/components/experience/ContinuationHealthView";
 import { selectContinuationHealth } from "@/lib/marketData/viewModels/selectContinuationHealth";
 import DivisionWorksheetView from "@/components/experience/DivisionWorksheetView";
+import FootprintWorksheetView from "@/components/experience/FootprintWorksheetView";
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
+import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
 import { useCanonicalMarketStateHistory } from "@/lib/marketData/useCanonicalMarketState";
@@ -1100,6 +1102,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       continuationHealthVM,
     ],
   );
+
+  /* Asset 18 — the same seven steps over ONE PRICE LEVEL.
+   *
+   * Fed from `recentTicks` directly, NOT from MainChart's `getBarFootprint`.
+   * That function is a `useCallback` declared inside MainChart and is not
+   * reachable from this component; plumbing it out would mean reshaping the
+   * chart renderer to serve a worksheet, which is a large change aimed at the
+   * wrong target. `recentTicks` is the same signed tape `getBarFootprint`
+   * accumulates from, and this room already reads it for Asset 05 — so the
+   * ladder and the Big Trades view can never disagree about what traded.
+   *
+   * The compiler is bounded by that tape's 50-print retention and says so on
+   * its own constants. It reads UNREAD rather than estimating a side when the
+   * feed does not state one, which on most equity feeds is the honest answer.
+   */
+  const footprintWorksheetVM = React.useMemo(
+    () => selectFootprintWorksheet({ prints: recentTicks }),
+    [recentTicks],
+  );
+
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -3158,9 +3180,27 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 view names the bars it divided, so hiding them would strand the
                 one surface whose whole claim is that you can check its
                 arithmetic. */}
+            {/* Asset 18 — ORDER FLOW LONG DIVISION — shares this panel with
+                Asset 01 rather than taking a tab of its own, because it IS
+                Asset 01's seven steps pointed at a smaller dividend. Asset 01
+                divides the whole loaded window; Asset 18 divides ONE PRICE
+                LEVEL of the live ladder. Giving each its own room would hide
+                the relationship that makes the pair worth having — the reader
+                would have to hold one division in their head to compare it with
+                the other, and a number carried in the head is a number that
+                drifts. Stacked, the same step 1 is legible at two scales at
+                once. Each is titled by its own dividend so the pair can never
+                read as one surface disagreeing with itself. */}
             {activeTab === "Worksheet" && (
               <div role="tabpanel" id="wm-chart-category-panel-worksheet" aria-label={`Long-division worksheet for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
-                <DivisionWorksheetView vm={divisionWorksheetVM} symbol={symbol} timeframe={timeframe} />
+                <DivisionWorksheetView
+                  vm={divisionWorksheetVM}
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  instanceId="window"
+                  dividendNote="Divided over the whole loaded window — every bar and every print this room is holding."
+                />
+                <FootprintWorksheetView vm={footprintWorksheetVM} symbol={symbol} timeframe={timeframe} />
               </div>
             )}
 
