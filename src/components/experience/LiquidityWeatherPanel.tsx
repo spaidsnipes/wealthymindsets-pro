@@ -29,6 +29,8 @@
  */
 
 import * as React from "react";
+import { HeatLensGauge } from "@/components/experience/HeatLensOverlay";
+import { selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import {
   formatCost,
   formatRatio,
@@ -263,6 +265,15 @@ export default function LiquidityWeatherPanel({
           note="segments off their half"
         />
       </div>
+
+      {/* ── P-601 GAUGE (PERSISTENCE / RESPONSE) ───────────────────────────
+          The heat lens is ATTACHED TO THE ZONE OBJECT, NOT A SEPARATE ROOM.
+          Its two needles are read from THIS weather — persistence is 1 minus
+          the dispersion printed above, response is the latest-vs-peers ratio
+          printed above — so the gauge is a second reading of numbers already
+          on this panel, not a new claim. It lives here rather than behind a
+          /heat route because L-801 marks the rooms mall FORBIDDEN. */}
+      <HeatLensGauge vm={selectHeatLens(vm)} />
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
         <span
