@@ -131,7 +131,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     });
     expect(html).toContain('data-presentation="rail"');
     expect(html).toContain("flex-direction:column");
-    expect(html).toContain("width:clamp(260px, 22vw, 320px)");
+    expect(html).toContain("width:clamp(232px, 17vw, 288px)");
     expect(html).not.toContain("width:320px");
     expect(html).toContain("border-left:1px solid rgba(139,106,41,0.22)");
     expect(html).toContain('data-material-plane="sanctuary-seam"');

@@ -257,6 +257,42 @@ const VALUE: React.CSSProperties = {
 const MUTED: React.CSSProperties = { ...VALUE, color: "#8a8271" };
 
 /**
+ * THE S-501 FOLD — the plate the fifth-through-eighth chunks collapse behind.
+ *
+ * Drawn as a plate, not as a link. The blueprint's rail is a column of
+ * brass-hairlined plates; a bare underlined "show more" would be the one
+ * element on the rail that is not made of the same material. So the closed
+ * disclosure reads as an empty plate bearing its own label, and opening it
+ * fills that plate — the rail's geometry does not change shape, only height.
+ *
+ * `listStyle: "none"` plus the WebKit pseudo-element rule below removes the
+ * native triangle, which is drawn in the UA's own grey and cannot be recoloured
+ * into the palette. The chevron is supplied in the palette's own gold instead.
+ */
+const DETAIL_DRAWER: React.CSSProperties = {
+  border: "1px solid rgba(196,165,116,0.20)",
+  borderRadius: 3,
+  background: "rgba(24,20,14,0.42)",
+  padding: "0 0 2px",
+  marginBottom: 6,
+};
+
+const DETAIL_SUMMARY: React.CSSProperties = {
+  ...LABEL,
+  listStyle: "none",
+  cursor: "pointer",
+  // 44px is the touch floor this repo already enforces elsewhere; the rail is
+  // desktop-only but the same hand-size arithmetic is what makes a 9px label
+  // clickable with confidence by a mouse as well.
+  minHeight: 44,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "0 11px",
+  userSelect: "none",
+};
+
+/**
  * THE LEDGER BAR — the NEXT cell's first drawn form.
  *
  * COLOUR IS A CLAIM here too, so it is looked up from a TOTAL record keyed on
@@ -449,6 +485,195 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     </>
   );
 
+  // ── S-501 FOUR CHUNK ATTENTION BUDGET (IFC 19 SEP 2026) ────────────────
+  // The blueprint budgets the 1440 desktop frame at FOUR chunks — 1° MARKET
+  // CANVAS, 2° WAIT/DECISION, 3° LIVING PROFILE, 4° ONE optional overlay —
+  // and states the failure condition literally: "FIFTH CHUNK MUST COLLAPSE OR
+  // THE FRAME FAILS."
+  //
+  // MEASURED on a live 1440x900 /charts render 2026-09-19: this rail carried
+  // EIGHT chunks — DECISION, MARKET, NOW, the honesty plaque (itself three
+  // stacked readings), RISK, WHY, FULL EVIDENCE, NEXT — as a single scrolling
+  // column of small prose beside the candles. The rail alone is supposed to be
+  // chunk 2. It was spending the whole budget by itself, which is also the
+  // S-501 note "PROSE SHALL NOT OUTWEIGH PRICE" failing in the plainest way.
+  //
+  // COLLAPSE, NOT DELETE. D-701's salvage note is explicit — "MIGRATE
+  // LEGITIMATE ORGANS INTO WORKSPACE/TOOLS DRAWERS" — and RISK, WHY and the
+  // fidelity plaque are all legitimate organs. They move behind ONE native
+  // <details> disclosure that ships closed. Native, not React state, for three
+  // reasons: it survives SSR with the content really present in the markup (so
+  // the spine's own label assertions still read it), it needs no hydration to
+  // open, and a screen reader is handed the whole rail regardless of the
+  // visual collapse. Nothing is computed here that was not computed before.
+  //
+  // The horizontal BAND keeps all six cells inline. It is the phone/narrow
+  // projection, it is not the 1440 frame S-501 governs, and its cells already
+  // scroll rather than stack.
+  const honestyCell = props.honesty !== undefined && (
+    <div style={{ padding: rail ? "8px 10px" : "6px 8px", display: "flex" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <MarketHonestyPlaque reading={props.honesty} />
+      </div>
+    </div>
+  );
+
+  const riskCell = (
+    <div style={cellStyle}>
+      <span style={LABEL}>Risk</span>
+      <span style={availableR ? VALUE : MUTED}>
+        {availableR
+          ? `Available R ${rText(availableR.conservativeR)} · risk/unit ${rText(availableR.riskPerUnit)}`
+          : "Available R UNKNOWN"}
+      </span>
+      {/* ONE AXIS: risk is one unit by definition, reward is drawn against it.
+          Absent entirely when the conservative figure is UNKNOWN, because a
+          flat reward block is a confident picture of a bad trade and the
+          truth in that case is that we cannot tell. */}
+      {reach ? (
+        <span
+          data-testid="risk-reach-bar"
+          data-adverse={reach.adverse ? "true" : undefined}
+          aria-hidden="true"
+          style={{ display: "flex", alignItems: "stretch", height: 8, margin: "3px 0 1px", gap: 1 }}
+        >
+          <span
+            data-testid="risk-reach-risk"
+            style={{
+              width: `${reach.riskPct}%`,
+              background: "rgba(224,138,138,0.55)",
+              borderRadius: "1px 0 0 1px",
+            }}
+          />
+          {/* The entry line. Everything left of it is what this trade can
+              lose; everything right is what it can reach. */}
+          <span style={{ width: 1, background: "#f3efe6", flex: "0 0 auto" }} />
+          {reach.adverse ? (
+            <span
+              data-testid="risk-reach-adverse"
+              style={{
+                flex: "1 1 auto",
+                background:
+                  "repeating-linear-gradient(135deg, rgba(224,138,138,0.30) 0 3px, transparent 3px 6px)",
+              }}
+            />
+          ) : (
+            <>
+              <span
+                data-testid="risk-reach-conservative"
+                style={{
+                  width: `${reach.conservativePct}%`,
+                  background: "#c9c2a7",
+                  position: "relative",
+                }}
+              >
+                {reach.costDragPct !== null ? (
+                  /* Cost drag is bitten out of the far end of the reach, not
+                     drawn beside it — costs do not extend the target, they
+                     shorten it. */
+                  <span
+                    data-testid="risk-reach-cost-drag"
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: `${(reach.costDragPct / Math.max(reach.conservativePct, 0.0001)) * 100}%`,
+                      background:
+                        "repeating-linear-gradient(135deg, rgba(7,8,10,0.55) 0 2px, transparent 2px 4px)",
+                    }}
+                  />
+                ) : null}
+              </span>
+              {reach.optimisticPct !== null ? (
+                <span
+                  data-testid="risk-reach-optimistic"
+                  style={{
+                    width: `${reach.optimisticPct}%`,
+                    background: "rgba(201,194,167,0.30)",
+                    borderRadius: "0 1px 1px 0",
+                  }}
+                />
+              ) : null}
+            </>
+          )}
+        </span>
+      ) : null}
+      <span style={MUTED} data-testid="spine-available-r-detail">
+        {availableRDetail}
+      </span>
+      <span style={MUTED}>
+        {decisionWhy && decisionWhy.invalidators.length > 0
+          ? `Invalidated by: ${decisionWhy.invalidators[0]}`
+          : "No invalidator published."}
+      </span>
+    </div>
+  );
+
+  const whyCell = (
+    <div style={cellStyle}>
+      <span style={LABEL}>Why</span>
+      <span style={decisionWhy ? VALUE : MUTED}>
+        {decisionWhy ? decisionWhy.headline : "No verdict compiled yet."}
+      </span>
+      {/* HOW MANY THINGS ARE IN THE WAY, AND HOW HARD — before a word is read.
+          Each tick is one blocker from the CENSUS (`blockerCount`), not from
+          the capped sample, so nine blockers cannot draw as six. Ticks the
+          sample can name carry their severity colour and their label on
+          `title`; the rest are drawn present and honestly unlabelled. */}
+      {severity && severity.segments.length > 0 ? (
+        <span
+          data-testid="why-severity-bar"
+          data-blocker-count={severity.blockerCount}
+          aria-hidden="true"
+          style={{ display: "flex", gap: 2, alignItems: "flex-end", margin: "3px 0 1px" }}
+        >
+          {severity.segments.map((segment, i) => (
+            <span
+              key={`sev-${i}`}
+              data-testid="why-severity-segment"
+              data-state={segment.state}
+              title={segment.label ?? undefined}
+              style={{
+                flex: "1 1 0",
+                minWidth: 2,
+                /* Height IS severity: a hard rule stands taller than a soft
+                   one. The unattributed ticks take the shortest height, which
+                   under-claims rather than over-claims. */
+                height: SEVERITY_HEIGHT[segment.state],
+                borderRadius: 1,
+                ...SEVERITY_TONE[segment.state],
+              }}
+            />
+          ))}
+        </span>
+      ) : null}
+      {props.onOpenWhy && (
+        <button
+          type="button"
+          onClick={(event) => props.onOpenWhy?.(event.currentTarget)}
+          style={{
+            alignSelf: "flex-start",
+            minHeight: 44,
+            marginTop: -8,
+            marginBottom: -8,
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            color: "#c9a55c",
+            fontSize: 11,
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Full evidence
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <section
       className={`wm-decision-spine${rail ? " wm-decision-spine--rail" : ""}`}
@@ -482,7 +707,25 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         // wide screens, while yielding width back to MARKET on compact
         // desktop. The responsive owner still swaps this rail for the proven
         // horizontal band at <=1023px.
-        width: rail ? "clamp(260px, 22vw, 320px)" : undefined,
+        //
+        // ── C-101 CAMERA FLOOR AREA (IFC 19 SEP 2026) ────────────────────
+        // Sheet C-101 note 2: "V01+V02+V12 MARKET CANVAS GOVERN FIRST PAINT.
+        // charts 70% FLOOR AREA". MEASURED on a live 1440x900 render
+        // 2026-09-19: the market camera occupied 1087x483 of a 1440x723
+        // viewport = 50.4%. Nineteen and a half points under the drawing.
+        //
+        // The old clamp resolved to 316.8px at 1440 (22vw), and the rail no
+        // longer needs that width: the S-501 fold below moved RISK, WHY and
+        // the fidelity plaque behind one disclosure, so what stays open is
+        // identity, NOW and NEXT — short lines, not paragraphs. 17vw resolves
+        // to 244.8px at 1440 and hands ~72px straight back to the candles.
+        //
+        // THE FLOOR IS RAISED, NOT REMOVED. 232px is below the old 260px
+        // minimum because the open content shrank with it; it is not a licence
+        // to keep shaving. Narrower than this and `Available R -1.20R ·
+        // risk/unit 0.35R` wraps to three lines inside the fold, which trades
+        // reclaimed width for reclaimed height and gains nothing.
+        width: rail ? "clamp(232px, 17vw, 288px)" : undefined,
         // The plates need a gutter, or their hairlines fuse with the seam
         // border on the left and the room edge on the right.
         padding: rail ? "8px 9px 2px" : undefined,
@@ -505,6 +748,15 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             min-width: 180px !important;
             max-width: 180px !important;
           }
+        }
+        .wm-decision-spine details > summary::-webkit-details-marker { display: none; }
+        .wm-spine-fold-chevron {
+          transition: transform 120ms ease;
+          color: #c4a574;
+          font-size: 11px;
+        }
+        .wm-decision-spine details[open] .wm-spine-fold-chevron {
+          transform: rotate(90deg);
         }
       `}</style>
       {/* DECISION_ID — the thing every other cell is about. On the desktop
@@ -588,166 +840,28 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
 
           Rendered only on an explicit prop. `undefined` means the caller
           attached no fidelity, and inventing an UNMEASURED plaque for a surface
-          that never claimed to measure would be its own small overclaim. */}
-      {props.honesty !== undefined && (
-        <div style={{ padding: rail ? "8px 10px" : "6px 8px", display: "flex" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <MarketHonestyPlaque reading={props.honesty} />
+          that never claimed to measure would be its own small overclaim.
+
+          IN THE RAIL it now rides inside the S-501 disclosure below, with RISK
+          and WHY. It is still beside MARKET — one fold down. */}
+      {!rail && honestyCell}
+      {!rail && riskCell}
+      {!rail && whyCell}
+      {rail && (
+        <details data-testid="spine-detail-drawer" style={DETAIL_DRAWER}>
+          <summary style={DETAIL_SUMMARY} data-testid="spine-detail-summary">
+            <span>Risk · Why · Fidelity</span>
+            <span aria-hidden="true" className="wm-spine-fold-chevron">
+              ▸
+            </span>
+          </summary>
+          <div style={{ paddingTop: 6 }}>
+            {honestyCell}
+            {riskCell}
+            {whyCell}
           </div>
-        </div>
+        </details>
       )}
-
-      <div style={cellStyle}>
-        <span style={LABEL}>Risk</span>
-        <span style={availableR ? VALUE : MUTED}>
-          {availableR
-            ? `Available R ${rText(availableR.conservativeR)} · risk/unit ${rText(availableR.riskPerUnit)}`
-            : "Available R UNKNOWN"}
-        </span>
-        {/* ONE AXIS: risk is one unit by definition, reward is drawn against it.
-            Absent entirely when the conservative figure is UNKNOWN, because a
-            flat reward block is a confident picture of a bad trade and the
-            truth in that case is that we cannot tell. */}
-        {reach ? (
-          <span
-            data-testid="risk-reach-bar"
-            data-adverse={reach.adverse ? "true" : undefined}
-            aria-hidden="true"
-            style={{ display: "flex", alignItems: "stretch", height: 8, margin: "3px 0 1px", gap: 1 }}
-          >
-            <span
-              data-testid="risk-reach-risk"
-              style={{
-                width: `${reach.riskPct}%`,
-                background: "rgba(224,138,138,0.55)",
-                borderRadius: "1px 0 0 1px",
-              }}
-            />
-            {/* The entry line. Everything left of it is what this trade can
-                lose; everything right is what it can reach. */}
-            <span style={{ width: 1, background: "#f3efe6", flex: "0 0 auto" }} />
-            {reach.adverse ? (
-              <span
-                data-testid="risk-reach-adverse"
-                style={{
-                  flex: "1 1 auto",
-                  background:
-                    "repeating-linear-gradient(135deg, rgba(224,138,138,0.30) 0 3px, transparent 3px 6px)",
-                }}
-              />
-            ) : (
-              <>
-                <span
-                  data-testid="risk-reach-conservative"
-                  style={{
-                    width: `${reach.conservativePct}%`,
-                    background: "#c9c2a7",
-                    position: "relative",
-                  }}
-                >
-                  {reach.costDragPct !== null ? (
-                    /* Cost drag is bitten out of the far end of the reach, not
-                       drawn beside it — costs do not extend the target, they
-                       shorten it. */
-                    <span
-                      data-testid="risk-reach-cost-drag"
-                      style={{
-                        position: "absolute",
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: `${(reach.costDragPct / Math.max(reach.conservativePct, 0.0001)) * 100}%`,
-                        background:
-                          "repeating-linear-gradient(135deg, rgba(7,8,10,0.55) 0 2px, transparent 2px 4px)",
-                      }}
-                    />
-                  ) : null}
-                </span>
-                {reach.optimisticPct !== null ? (
-                  <span
-                    data-testid="risk-reach-optimistic"
-                    style={{
-                      width: `${reach.optimisticPct}%`,
-                      background: "rgba(201,194,167,0.30)",
-                      borderRadius: "0 1px 1px 0",
-                    }}
-                  />
-                ) : null}
-              </>
-            )}
-          </span>
-        ) : null}
-        <span style={MUTED} data-testid="spine-available-r-detail">
-          {availableRDetail}
-        </span>
-        <span style={MUTED}>
-          {decisionWhy && decisionWhy.invalidators.length > 0
-            ? `Invalidated by: ${decisionWhy.invalidators[0]}`
-            : "No invalidator published."}
-        </span>
-      </div>
-
-      <div style={cellStyle}>
-        <span style={LABEL}>Why</span>
-        <span style={decisionWhy ? VALUE : MUTED}>
-          {decisionWhy ? decisionWhy.headline : "No verdict compiled yet."}
-        </span>
-        {/* HOW MANY THINGS ARE IN THE WAY, AND HOW HARD — before a word is read.
-            Each tick is one blocker from the CENSUS (`blockerCount`), not from
-            the capped sample, so nine blockers cannot draw as six. Ticks the
-            sample can name carry their severity colour and their label on
-            `title`; the rest are drawn present and honestly unlabelled. */}
-        {severity && severity.segments.length > 0 ? (
-          <span
-            data-testid="why-severity-bar"
-            data-blocker-count={severity.blockerCount}
-            aria-hidden="true"
-            style={{ display: "flex", gap: 2, alignItems: "flex-end", margin: "3px 0 1px" }}
-          >
-            {severity.segments.map((segment, i) => (
-              <span
-                key={`sev-${i}`}
-                data-testid="why-severity-segment"
-                data-state={segment.state}
-                title={segment.label ?? undefined}
-                style={{
-                  flex: "1 1 0",
-                  minWidth: 2,
-                  /* Height IS severity: a hard rule stands taller than a soft
-                     one. The unattributed ticks take the shortest height, which
-                     under-claims rather than over-claims. */
-                  height: SEVERITY_HEIGHT[segment.state],
-                  borderRadius: 1,
-                  ...SEVERITY_TONE[segment.state],
-                }}
-              />
-            ))}
-          </span>
-        ) : null}
-        {props.onOpenWhy && (
-          <button
-            type="button"
-            onClick={(event) => props.onOpenWhy?.(event.currentTarget)}
-            style={{
-              alignSelf: "flex-start",
-              minHeight: 44,
-              marginTop: -8,
-              marginBottom: -8,
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              color: "#c9a55c",
-              fontSize: 11,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Full evidence
-          </button>
-        )}
-      </div>
 
       {/* A NEXT THAT REPEATS NOW IS NOT A NEXT.
           This cell used to print the Right-of-Way verdict itself, so the rail

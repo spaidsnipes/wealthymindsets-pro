@@ -181,7 +181,7 @@ let SAMPLE_WRITE_ERROR = "";
 try {
   const rails = STATES.map(
     (state) => `
-    <section style="display:flex;flex-direction:column;gap:8px;max-width:320px">
+    <section style="display:flex;flex-direction:column;gap:8px;max-width:290px">
       <div style="font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:#8a8271">${state.caption}</div>
       <div style="border:1px solid rgba(139,106,41,.22);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.015)">
 ${renderToStaticMarkup(
@@ -199,6 +199,15 @@ ${renderToStaticMarkup(
   <title>WM Pro · Decision rail sample</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    /* THE FIXTURE MUST NOT LIE ABOUT THE PRODUCT.
+       The app loads Tailwind Preflight ("@tailwind base" in src/app/globals.css),
+       whose first rule is this one. Without it the rail's cells — width:100% plus
+       11px of side padding — measured 310px inside a 306px column and grew a
+       horizontal scrollbar that exists nowhere in the running app. MEASURED
+       2026-09-19: scrollWidth 330 vs clientWidth 306. A fixture that draws
+       overflow the product does not have sends someone hunting a bug that is not
+       there, which is the same harm as hiding one that is. */
+    *, *::before, *::after { box-sizing: border-box; }
     html, body { margin:0; padding:0; background:#07080a; color:#f3efe6;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
     main { padding:24px; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start; }
@@ -210,6 +219,11 @@ ${renderToStaticMarkup(
     The component is the real <code>DecisionSpineBand</code>; the states below are
     constructed to exercise the geometry's edges. No number on this page is evidence
     about any instrument. It exists so the drawn forms can be LOOKED AT without a session.
+    <br><br>
+    <strong style="color:#d4af37;letter-spacing:.8px">S-501 FOUR CHUNK BUDGET.</strong>
+    Each rail below opens with identity, NOW and NEXT. RISK, WHY and the fidelity
+    plaque sit behind the <em>Risk · Why · Fidelity</em> fold — click one to confirm
+    the organs were collapsed, not deleted.
   </div>
   <main>${rails}</main>
 </body>
