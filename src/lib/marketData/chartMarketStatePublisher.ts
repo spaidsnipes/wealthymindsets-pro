@@ -40,6 +40,7 @@ import {
   lastBarCloseRecheckAtMs,
   type BarCloseCandidate,
 } from "./deriveLastBarClose";
+import { derivePriceTail } from "./derivePriceTail";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -586,6 +587,11 @@ export function createChartMarketStatePublication(
   // finished forming. Without it the selector still refuses to overclaim — it
   // just falls back to the bar before, costing one bar of freshness.
   const lastBar = deriveLastBarClose(input.bars ?? null, input.timeframe, input.capturedAt);
+  // THE PRICE BOOK'S EVIDENCE. The same candles, the same closed-bar proof —
+  // this only adds the ones BEFORE the close `lastBar` already names, so a
+  // room that must draw a price line is not left to invent one. The chart is
+  // the compiler; every other room is a reader of what it published.
+  const priceTail = derivePriceTail(input.bars ?? null, input.timeframe, input.capturedAt);
 
   const contradictions: string[] = [];
   if (input.ticker.price > 0 && !priceTick) {
@@ -619,6 +625,7 @@ export function createChartMarketStatePublication(
       // the trader is not asked to reconcile two owners in their head.
       // A bar close never promotes qualityState; see produceCanonicalMarketState.
       lastBar,
+      priceTail,
       coverage,
       contradictions,
       unknowns,

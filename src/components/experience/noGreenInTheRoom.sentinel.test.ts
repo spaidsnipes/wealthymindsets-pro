@@ -104,6 +104,21 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       + "the universal chart convention every trader already reads as direction. "
       + "Paired with a DOWN colour, so it encodes a sign, not a verdict.",
   },
+  "ChartCompanion.tsx": {
+    "#3fb950":
+      "PRICE_UP — the FL-04 mini price book's above-reference colour, and the "
+      + "sign of the bar-over-bar change beside it. It is measured against the "
+      + "dashed reference line the plate draws, so it states WHERE PRICE IS "
+      + "RELATIVE TO A PRINTED BASELINE — a §11 price fact, in the classic "
+      + "red/green candle semantics §11 makes the Appearance default. It is "
+      + "paired with PRICE_DOWN, so it encodes a sign, never a verdict. The "
+      + "§9 line is drawn on MEANING, not on hue: nothing in this panel that "
+      + "grants or withholds permission may enter this ramp. The verdict chip, "
+      + "the WAIT state, the regime chip, the freshness dot and the footer "
+      + "status lamp all deliberately stay in the gold/ivory/muted palette, "
+      + "because a green lamp beside a verdict reads as A CONDITION HAS BEEN "
+      + "MET and a rising price is not a safe trade.",
+  },
   "AbsorptionAnatomyPanel.tsx": {
     "#00d4aa": "WM brand teal, used as a section accent. Names no condition and grades nothing.",
   },

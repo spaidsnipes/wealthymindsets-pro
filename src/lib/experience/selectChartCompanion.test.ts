@@ -35,7 +35,13 @@ import {
   type ChartCompanionInput,
 } from "./selectChartCompanion";
 
-const CAPTURED = 10_000;
+/**
+ * A REAL epoch, not a small integer. The price tail's points must be
+ * spaced by the tail's own timeframe, and a 1h bar spacing under a
+ * capturedAt of 10_000ms would put bar opens before 1970 — which the
+ * canonical validator rightly rejects.
+ */
+const CAPTURED = 1_700_000_000_000;
 const NOW = 1_000_000;
 
 const unknown = (reason: string): MarketStateDimension => ({
@@ -93,6 +99,166 @@ function input(overrides: Partial<ChartCompanionInput> = {}): ChartCompanionInpu
     ...overrides,
   };
 }
+
+/**
+ * A tail of provably-closed closes, as derivePriceTail would publish it.
+ *
+ * The points are spaced by the TAIL'S OWN timeframe, not by an arbitrary
+ * step. deriveBarOverBarChange re-checks the closed-bar proofs on whatever
+ * it is handed, so a tail labelled "1h" whose bars sit one second apart is
+ * not a valid fixture — it is a fixture that could never exist, and a test
+ * built on one proves nothing about the real path.
+ */
+const TF_MS: Record<string, number> = { "1m": 60_000, "5m": 300_000, "1h": 3_600_000 };
+
+function tail(closes: readonly number[], timeframe = "1h") {
+  const step = TF_MS[timeframe]!;
+  return {
+    timeframe,
+    points: closes.map((c, i) => ({ t: CAPTURED - (closes.length - i) * step, c })),
+  };
+}
+
+describe("selectChartCompanion — the mini price book (FL-04)", () => {
+  it("refuses to draw a book when no tail was published", () => {
+    const vm = selectChartCompanion(input({ state: state() }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.book.kind).toBe("MISSING");
+    if (vm.book.kind !== "MISSING") return;
+    // The absence is NAMED, and it does not blame the instrument.
+    expect(vm.book.reason).toMatch(/not a book|no line to draw/i);
+    expect(vm.book.reason).toMatch(/no path is invented/i);
+  });
+
+  it("takes the bounds from the real extremes and never pads them", () => {
+    const vm = selectChartCompanion(
+      input({ state: state({ priceTail: tail([528.4, 530.1, 529.2, 531.0]) }) }),
+    );
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.book.kind).toBe("SERIES");
+    if (vm.book.kind !== "SERIES") return;
+    expect(vm.book.min).toBe(528.4);
+    expect(vm.book.max).toBe(531.0);
+    expect(vm.book.points).toHaveLength(4);
+  });
+
+  it("uses the FIRST close in view as the reference baseline", () => {
+    const vm = selectChartCompanion(
+      input({ state: state({ priceTail: tail([528.4, 530.1, 529.2, 531.0]) }) }),
+    );
+    if (!vm.visible) throw new Error("expected visible");
+    if (vm.book.kind !== "SERIES") throw new Error("expected series");
+    expect(vm.book.reference).toBe(528.4);
+  });
+
+  it("carries the tail's own timeframe, never the camera's, into the book", () => {
+    const vm = selectChartCompanion(
+      input({ timeframe: "1h", state: state({ priceTail: tail([1, 2], "5m") }) }),
+    );
+    if (!vm.visible) throw new Error("expected visible");
+    if (vm.book.kind !== "SERIES") throw new Error("expected series");
+    // The points were closed on 5m bars. Labelling them 1h because the
+    // camera says 1h would put real numbers under a false axis.
+    expect(vm.book.timeframe).toBe("5m");
+  });
+
+  it("speaks the book so it is not a decoration to a screen reader", () => {
+    const vm = selectChartCompanion(
+      input({ state: state({ priceTail: tail([528.4, 531.0]) }) }),
+    );
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.spoken).toMatch(/Price book: 2 closed 1h bars, ranging 528\.40 to 531\.00/);
+  });
+});
+
+describe("selectChartCompanion — change is bar-over-bar AND says so", () => {
+  it("measures against the previous closed bar and keeps the timeframe", () => {
+    const vm = selectChartCompanion(
+      input({ state: state({ priceTail: tail([100, 101], "5m") }) }),
+    );
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.change.kind).toBe("READING");
+    if (vm.change.kind !== "READING") return;
+    expect(vm.change.chg).toBeCloseTo(1, 10);
+    expect(vm.change.pct).toBeCloseTo(1, 10);
+    expect(vm.change.direction).toBe("UP");
+    // deriveBarOverBarChange's header: this IS NOT a session change. The
+    // timeframe is the label that stops it being read as one.
+    expect(vm.change.timeframe).toBe("5m");
+  });
+
+  it("signs a fall as DOWN and an unchanged close as FLAT", () => {
+    const down = selectChartCompanion(input({ state: state({ priceTail: tail([101, 100]) }) }));
+    if (!down.visible || down.change.kind !== "READING") throw new Error("expected reading");
+    expect(down.change.direction).toBe("DOWN");
+
+    const flat = selectChartCompanion(input({ state: state({ priceTail: tail([100, 100]) }) }));
+    if (!flat.visible || flat.change.kind !== "READING") throw new Error("expected reading");
+    expect(flat.change.direction).toBe("FLAT");
+    expect(flat.change.chg).toBe(0);
+  });
+
+  it("has no change to report when there is no book", () => {
+    const vm = selectChartCompanion(input({ state: state() }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.change.kind).toBe("MISSING");
+  });
+
+  it("never prints a change number when the book is missing", () => {
+    const vm = selectChartCompanion(input({ state: null }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.spoken).not.toMatch(/[+-]\d+\.\d{2}/);
+  });
+});
+
+describe("selectChartCompanion — the REGIME chip quotes canon", () => {
+  it("stays unresolved and carries canon's OWN reason", () => {
+    const vm = selectChartCompanion(input({ state: state() }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.regime.resolved).toBe(false);
+    if (vm.regime.resolved) return;
+    expect(vm.regime.reason).toBe("Regime unresolved.");
+  });
+
+  it("quotes a RESOLVED regime verbatim, without re-wording it", () => {
+    const vm = selectChartCompanion(
+      input({
+        state: state({
+          regime: {
+            resolution: "RESOLVED",
+            value: "BALANCE",
+            confidence: 0.8,
+            evidence: [
+              {
+                eventId: "regime-evt-1",
+                observedAt: CAPTURED - 1_000,
+                availableAt: CAPTURED - 500,
+                source: "chart-compiler",
+                fidelity: "DERIVED",
+                basis: "Value area held for 3 consecutive 1h bars.",
+              },
+            ],
+            contradictions: [],
+            unknowns: [],
+          },
+        }),
+      }),
+    );
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.regime.resolved).toBe(true);
+    if (!vm.regime.resolved) return;
+    expect(vm.regime.value).toBe("BALANCE");
+  });
+
+  it("reports no regime at all when there is no snapshot to read", () => {
+    const vm = selectChartCompanion(input({ state: null }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.regime.resolved).toBe(false);
+    if (vm.regime.resolved) return;
+    // null, not a sentence we made up about a state we never read.
+    expect(vm.regime.reason).toBeNull();
+  });
+});
 
 describe("selectChartCompanion (FL-04)", () => {
   it("names the absence, and its cause, instead of inventing a price", () => {
@@ -177,8 +343,28 @@ describe("selectChartCompanion (FL-04)", () => {
     if (!vm.visible) throw new Error("expected visible");
     expect(vm.symbol).toBe("TSLA");
     expect(vm.chartHref).toBe("/charts?symbol=TSLA&tf=15m");
-    // No decision identifier may appear anywhere in the view model.
-    expect(JSON.stringify(vm)).not.toMatch(/decision_id/i);
+  });
+
+  /**
+   * These two replace an earlier assertion that no decision identifier
+   * could appear ANYWHERE in the view model. That assertion read §7 as
+   * "the Companion must not know about decisions", but the binding FL-04
+   * law is "the mini book stays pinned with the same Decision_ID" — the
+   * ban is on MINTING, not on CARRYING. The old test would have failed
+   * the product the plate specifies, so it is deleted, not relaxed.
+   */
+  it("carries the SAME Decision_ID it was handed (FL-04)", () => {
+    const vm = selectChartCompanion(input({ decisionId: "dec_abc123" }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.decisionId).toBe("dec_abc123");
+  });
+
+  it("never invents a Decision_ID when none is open (§7)", () => {
+    for (const handed of [undefined, null, "", "   "]) {
+      const vm = selectChartCompanion(input({ decisionId: handed }));
+      if (!vm.visible) throw new Error("expected visible");
+      expect(vm.decisionId).toBeNull();
+    }
   });
 
   it("delegates the session token instead of deciding it", () => {
@@ -187,5 +373,41 @@ describe("selectChartCompanion (FL-04)", () => {
     expect(vm.sessionToken.length).toBeGreaterThan(0);
     expect(vm.sessionDetail.length).toBeGreaterThan(0);
     expect(vm.spoken).toContain(`session ${vm.sessionToken}`);
+  });
+});
+
+/**
+ * asOf — the status bar's timestamp.
+ *
+ * The plate's bottom bar reads "LIVE DATA • 10:24:35 ET • Apr 29, 2025".
+ * The only honest source for that instant is WHEN THE EVIDENCE WAS
+ * CAPTURED. A render clock would tick forward over a frozen price and
+ * restamp stale evidence as fresh once a second — §20's STALE ≠ FRESH,
+ * committed at 1Hz.
+ */
+describe("selectChartCompanion — asOf is the evidence's clock, not the render clock", () => {
+  it("reports the state's capturedAt", () => {
+    const vm = selectChartCompanion(input({ state: state() }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.asOf).toBe(CAPTURED);
+  });
+
+  it("does NOT drift with nowMs while the state stands still", () => {
+    // ONE state, read at two wall-clock moments ten minutes apart.
+    const frozen = state();
+    const early = selectChartCompanion(input({ state: frozen, nowMs: CAPTURED }));
+    const later = selectChartCompanion(
+      input({ state: frozen, nowMs: CAPTURED + 10 * 60_000 }),
+    );
+    if (!early.visible || !later.visible) throw new Error("expected visible");
+    // Ten minutes of clock, zero minutes of new evidence.
+    expect(early.asOf).toBe(CAPTURED);
+    expect(later.asOf).toBe(CAPTURED);
+  });
+
+  it("is null with no state — nothing to print beats something to guess", () => {
+    const vm = selectChartCompanion(input({ state: null }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.asOf).toBeNull();
   });
 });

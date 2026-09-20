@@ -102,6 +102,35 @@ export interface CanonicalMarketStateInput {
     barOpenedAtMs: number;
     timeframe: string;
   } | null;
+  /**
+   * THE PRICE BOOK'S EVIDENCE — a tail of PROVABLY CLOSED bar closes.
+   *
+   * `lastBar` above answers "what is the price". This answers "what has the
+   * price been doing", and it exists because a room that must show a chart
+   * cannot be handed a single number and told to draw one. The binding FL-04
+   * plate puts a real price line with a labelled price axis and a labelled
+   * session axis in the News room's companion; before this field, the only
+   * shapes a non-chart surface could draw were the ones it already had data
+   * for, and the companion shipped a CVD sparkline in the book's slot.
+   *
+   * Produced ONLY by `derivePriceTail`, whose endpoint delegates to
+   * `deriveLastBarClose` — so the newest point in this tail and the value in
+   * `lastBar` are the same bar by construction, not by coincidence. Two
+   * owners of "which bar closed" is precisely what that delegation avoids.
+   *
+   * Like `lastBar`, it is deliberately OUTSIDE `hasPrice`: a loaded chart
+   * history must never be able to promote a snapshot to LIVE or stand in for
+   * a trade print.
+   *
+   * `null` is the honest answer whenever fewer than two bars have provably
+   * closed. A one-point "line" is a claim of stillness the evidence never
+   * made, and the renderer is given nothing rather than something to
+   * interpolate.
+   */
+  priceTail?: {
+    timeframe: string;
+    points: readonly { t: number; c: number }[];
+  } | null;
   coverage: readonly MarketChannelCoverage[];
   direction: MarketStateDimension;
   location: MarketStateDimension;
@@ -186,6 +215,25 @@ export function validateCanonicalMarketState(input: CanonicalMarketStateInput): 
         input.lastBar.barOpenedAtMs > input.capturedAt ||
         !input.lastBar.timeframe.trim()) {
       errors.push("Market State last-bar evidence is invalid.");
+    }
+  }
+
+  // The price tail is validated as a SEQUENCE, not as a bag of numbers. Each
+  // rule below is a way a price line can lie while every individual point
+  // looks fine: an unordered array draws a scribble, a duplicated stamp draws
+  // a vertical wall, a point past the capture instant draws the future, and a
+  // lone point draws a flat line across a session that never was still.
+  if (input.priceTail != null) {
+    const tail = input.priceTail;
+    const badPoint = tail.points.some(
+      (p) =>
+        !p ||
+        !Number.isFinite(p.c) || p.c <= 0 ||
+        !validEpoch(p.t) || p.t > input.capturedAt,
+    );
+    const unordered = tail.points.some((p, i) => i > 0 && p.t <= tail.points[i - 1]!.t);
+    if (!tail.timeframe.trim() || tail.points.length < 2 || badPoint || unordered) {
+      errors.push("Market State price-tail evidence is invalid.");
     }
   }
 
@@ -519,6 +567,11 @@ export function sealCanonicalMarketState(input: CanonicalMarketStateInput): Cano
     // no existing producer or fixture had to be rewritten to adopt it — but a
     // consumer must never have to distinguish "absent" from "no bar close".
     lastBar: input.lastBar ?? null,
+    // Same normalization, same reason: a consumer must never have to tell
+    // "this producer has not been taught about price tails" apart from
+    // "this instrument has no provably-closed history". Both render the
+    // same honest absence; only one of them would tempt a reader to guess.
+    priceTail: input.priceTail ?? null,
     schemaVersion: CANONICAL_MARKET_STATE_SCHEMA_VERSION,
     sealed: true,
   });

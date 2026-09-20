@@ -43,6 +43,18 @@ export interface ProduceMarketStateInput {
     barOpenedAtMs: number;
     timeframe: string;
   } | null;
+  /**
+   * Optional tail of provably-closed closes — the price book's evidence.
+   * Same additive contract as `lastBar` above: omit it and canonical state
+   * publishes `priceTail: null`, which is exactly what every pre-existing
+   * caller already got. Produced only by `derivePriceTail`, whose endpoint
+   * delegates to the same `deriveLastBarClose` that fills `lastBar` — so the
+   * two fields cannot name different bars.
+   */
+  priceTail?: {
+    timeframe: string;
+    points: readonly { t: number; c: number }[];
+  } | null;
   coverage: readonly MarketChannelCoverage[];
   /** Optional resolved dimensions — omit when we do not have evidence. */
   dimensions?: Partial<{
@@ -155,6 +167,8 @@ export function produceCanonicalMarketStateInput(
     },
     // NOT folded into `hasPrice`. A bar close must never make a snapshot LIVE.
     lastBar: input.lastBar ?? null,
+    // Same exclusion, same reason: loaded history is not a trade print.
+    priceTail: input.priceTail ?? null,
     coverage: input.coverage,
     direction:  input.dimensions?.direction  ?? UNKNOWN_DIMENSION,
     location:   input.dimensions?.location   ?? UNKNOWN_DIMENSION,
