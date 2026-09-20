@@ -66,6 +66,49 @@ export interface Tick {
   marketEvent?: CanonicalMarketEvent;
 }
 
+/**
+ * HOW MUCH TAPE THE ROOM IS ALLOWED TO REMEMBER.
+ *
+ * This was `50`, written inline at the flush site, and 50 is why most of the
+ * order-flow surfaces in this product refuse on nearly every bar. Fifty prints
+ * is not a tape — on an active NQ 5m bar it is roughly the last two seconds.
+ * Every reading that has to bucket prints BY PRICE WITHIN A BAR — absorption,
+ * imbalance, big-trade clustering, the session profile — was being handed two
+ * seconds of evidence and asked about five minutes, so it correctly answered
+ * "UNREAD" forever. The refusals were honest; the ceiling that forced them was
+ * arbitrary.
+ *
+ * The number is bounded and stays bounded. This array lives for the lifetime of
+ * a symbol subscription, so an unbounded tape is a session-long memory leak on
+ * the hottest path in the app. The bound is the contract:
+ *
+ *   - LARGE ENOUGH that a per-bar, per-price reading has something to read.
+ *   - SMALL ENOUGH that the retained tape is a few hundred KB, not a few
+ *     hundred MB, and that a linear pass by a consumer is still cheap.
+ *
+ * Raising this does NOT make any reading more certain — it only stops a reading
+ * from being starved before it begins. A selector that lacked evidence at 50
+ * must still say so at this ceiling if the evidence is still missing.
+ */
+export const RECENT_TICK_RETENTION = 2000;
+
+/**
+ * PURE. The retention rule itself, lifted out of the flush so it can be tested.
+ *
+ * Newest-first is not cosmetic — `DOMPanel` reads `slice(0, 3)` for the newest
+ * prints and `WMSessionVP` takes the first matching trade. Reversing this
+ * ordering would silently hand those surfaces the OLDEST prints while every
+ * type stayed satisfied, so the order is part of the contract and is locked by
+ * test.
+ */
+export function retainRecentTicks(
+  incoming: readonly Tick[],
+  previous: readonly Tick[],
+  limit: number = RECENT_TICK_RETENTION,
+): Tick[] {
+  return [...incoming, ...previous].slice(0, limit);
+}
+
 /* M8 ADOPTION — one private past retired, 2026-09-18.
  *
  * This file used to declare its own `OHLCVBar`: six fields, the same six
@@ -1161,7 +1204,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             }
           : { ...prev.ticker, price, volume: newVol },
         liveBar:     barRef.current ? { ...barRef.current } : null,
-        recentTicks: [...ticks, ...prev.recentTicks].slice(0, 50),
+        recentTicks: retainRecentTicks(ticks, prev.recentTicks),
         orderBook:   bookRef.current,
         connected:   true,
         // Carried forward, not zeroed: 0 is this field's "never measured"
