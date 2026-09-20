@@ -85,6 +85,33 @@ describe("FootprintWorksheetView", () => {
     expect(html).toContain("ONE price level");
   });
 
+  /**
+   * ASSET 11 reaches the DOM through the SHARED renderer, which means it lands
+   * on Asset 01 and Asset 18 at once. That is the point of not having forked
+   * the renderer, and it is worth a test that would fail if someone later
+   * duplicated the block into one view only.
+   */
+  it("carries the Asset 11 teaching block, and the refusal travels with it", () => {
+    const html = render(signedTape(400));
+    expect(html).toContain('data-testid="worksheet-teaching-emphasis"');
+    expect(html).toContain("Teaching emphasis");
+    // The withheld instruction is present on every input, never the instruction.
+    expect(html).toContain('data-testid="emphasis-withheld"');
+    expect(html).toContain("decisionPermissionCompiler");
+    const text = html.replace(/<[^>]+>/g, " ");
+    // The mockup's closing order to the reader appears ONLY inside the sentence
+    // that declines to issue it — never as advice in its own right.
+    expect(text).not.toMatch(/Look for confirmation before committing capital\.\s*$/);
+  });
+
+  it("shows the teaching block even when there is no tape at all", () => {
+    const html = render(null);
+    expect(html).toContain('data-testid="worksheet-teaching-emphasis"');
+    // With nothing read, it must say why rather than going blank.
+    expect(html).toContain('data-has-paragraph="false"');
+    expect(html).toContain('data-testid="emphasis-absent"');
+  });
+
   it("states the reason instead of drawing an empty grid when there is no tape", () => {
     const html = render(null);
     expect(html).toContain('data-testid="footprint-ladder-absent"');

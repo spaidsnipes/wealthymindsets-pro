@@ -72,6 +72,7 @@ import type {
   DivisionWorksheetVM,
   WorksheetRung,
 } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
+import { selectTeachingEmphasis } from "@/lib/marketData/viewModels/selectTeachingEmphasis";
 
 const GOLD = "#d4af37";
 const GOLD_DIM = "#c9a55c";
@@ -222,6 +223,11 @@ export function DivisionWorksheetView({
 }: DivisionWorksheetViewProps): React.ReactElement {
   const [level, setLevel] = React.useState<ScaffoldLevel>(DEFAULT_SCAFFOLD_LEVEL);
   const scaffolded = React.useMemo(() => scaffoldWorksheet(vm, level), [vm, level]);
+  /* Composed from the SOURCE worksheet, never from the scaffolded view. The
+     scaffold level changes how much explanation is shown; it must not change
+     what the market was observed to do, and a summary computed off the trimmed
+     view would quietly say something different at FOUNDATION than at ADVANCED. */
+  const emphasis = React.useMemo(() => selectTeachingEmphasis(vm), [vm]);
 
   return (
     <div
@@ -334,6 +340,43 @@ export function DivisionWorksheetView({
           <Rung key={rung.step} rung={rung} voices={voices} />
         ))}
       </ol>
+
+      {/* ASSET 11 — TEACHING EMPHASIS. The worksheet said out loud.
+          It sits ABOVE right-of-way deliberately: the mockup's version of this
+          block ends by telling the reader what to do with their capital, and
+          placing the refusal of that instruction directly beneath it is the
+          only arrangement where a reader meets the summary and its limit in the
+          same glance. */}
+      <section
+        aria-label="Teaching emphasis"
+        data-testid="worksheet-teaching-emphasis"
+        data-has-paragraph={emphasis.paragraph ? "true" : "false"}
+        data-spoke-for={emphasis.spokeFor.length}
+        data-silent-on={emphasis.silentOn.length}
+        style={{
+          borderTop: `1px solid ${HAIR}`,
+          paddingTop: 10,
+          display: "flex",
+          flexDirection: "column",
+          gap: 5,
+        }}
+      >
+        <span style={{ fontSize: 9, letterSpacing: 1.6, textTransform: "uppercase", color: MUTED }}>
+          Teaching emphasis
+        </span>
+        <span
+          data-testid={emphasis.paragraph ? "emphasis-paragraph" : "emphasis-absent"}
+          style={{ fontSize: 12, lineHeight: 1.6, color: emphasis.paragraph ? TEXT : MUTED }}
+        >
+          {emphasis.paragraph ?? emphasis.absence}
+        </span>
+        <span
+          data-testid="emphasis-withheld"
+          style={{ fontSize: 10.5, lineHeight: 1.55, color: MUTED }}
+        >
+          {emphasis.withheldInstruction}
+        </span>
+      </section>
 
       {/* THE FOOTER, WHERE THE MOCKUP PUT IT — refused in the same place it was
           asked for, rather than quietly omitted. */}
