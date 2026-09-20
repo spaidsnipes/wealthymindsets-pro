@@ -1130,6 +1130,16 @@ input[type=range]::-webkit-slider-runnable-track {
    evidence it explains. The full wording stays in the accessible name/title. */
 .wm-footprint-live-status__compact { display: none; }
 
+/* Desktop evidence belongs to one chart horizon, not two unrelated floating
+   rows.  The live-tape summary owns the center of that horizon while the
+   retained-evidence disclosure stays at its right edge.  Phones keep the
+   existing two-row arrangement so neither control can cover the other. */
+@media (min-width: 1024px) {
+  .wm-nectar-vault-chip {
+    top: 42px !important;
+  }
+}
+
 @media (max-width: 480px) {
   /* The live chart is a critical decision surface. The global assistant stays
      reachable from every other primary route but cannot cover chart evidence,
