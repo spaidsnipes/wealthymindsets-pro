@@ -554,10 +554,48 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
-   * Contextual by design: it is a reading you switch on, not a permanent
-   * fixture, exactly as the mockup's interaction intends.
+   *
+   * ── WHY THIS DEFAULT FLIPPED TO ON, 2026-09-20 ────────────────────────────
+   *
+   * It used to default OFF, and the reason written here was that the reading is
+   * "contextual by design: a reading you switch on, not a permanent fixture".
+   * That sentence was reasonable in isolation and indefensible next to its
+   * siblings. Read the four order-flow switches immediately below: all four
+   * default ON. So the product shipped with this arrangement —
+   *
+   *   ON   stacked imbalance   ┐
+   *   ON   value candle        │ all four require a PROVIDER-ASSERTED
+   *   ON   delta divergence    │ aggressor side. `useOrderFlowReadings` gates
+   *   ON   liquidity weather   ┘ every one behind `hasVerifiedAggressorTape`.
+   *   OFF  absorption anatomy    ← the ONLY one that draws from bars alone.
+   *
+   * — which is exactly backwards. The four that cannot speak without sided tape
+   * are on; the one that can always speak is off. On a futures chart reading
+   * "NO LIVE PRINT", the four switched-on layers draw nothing and the one layer
+   * that had something to say was switched off. The trader saw an empty chart
+   * and four lit toggles, which is the worst of both: no picture AND no honest
+   * absence pointing at the real cause.
+   *
+   * Absorption is safe to default ON precisely because it never has to guess.
+   * `selectAbsorptionAnatomy` publishes a TIERED basis — SIGNED_DELTA when the
+   * venue asserts sides, INFERRED_DELTA when it was reconstructed, VOLUME when
+   * there is no split at all, and UNMEASURED when there is not even volume. The
+   * VOLUME tier is not a fallback dressed as delta; it is the classic
+   * effort-vs-result read on its own honest footing, and the basis chip on the
+   * glass prints which tier produced the picture every single frame. When
+   * nothing is measurable the overlay draws no field and no band and states
+   * "EFFORT UNMEASURED" in the slot the basis would have occupied.
+   *
+   * So defaulting this ON cannot produce a beautiful lie and cannot produce a
+   * quiet blank. Those are the two failures a default-on layer has to be able
+   * to rule out, and this one rules out both — which is more than the four
+   * layers that were already defaulting ON could claim.
+   *
+   * It remains a switch. `ProfilesMenu` turns it off in one click and the
+   * choice persists, because a layer that paints owes the trader a way to stop
+   * it painting. What changed is only which way it points before anyone asks.
    */
-  const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", false) as boolean);
+  const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", true) as boolean);
 
   /*
     ── THE FOUR ORDER-FLOW LAYERS THE TRADER MAY QUIET ───────────────────────
