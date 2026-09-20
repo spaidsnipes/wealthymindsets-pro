@@ -449,6 +449,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "The canon §Truth Resolution Matrix claim gate. Shipped as an enforceable gate; nothing on screen is currently gated by it.",
   },
+  "src/lib/marketData/viewModels/composeOrderFlowOverlay.ts": {
+    reason: "AWAITING_SURFACE",
+    note: "The FL-06 compiler that places order-flow readings ON the price canvas rather than in a side drawer. Real debt, and named as such: the five inventions already reach a trader as panels, so nothing is currently hidden from him — but the plate's whole claim is that a reading about price belongs ON price, and until MainChart draws these marks that claim is unkept. It lands one commit ahead of its renderer on purpose, because the honest half of this work is the refusal: the compiler proves, in tests, that it will NOT place an ordinal equal-count tape segment at a clock position. Shipping the refusal before the drawing is what stops the drawing from being written the easy, lying way.",
+  },
   // selectMateriality.ts was removed from this ledger on 2026-09-15: the
   // /command-deck ACTIVE QUESTION banner now renders its verdict in the
   // SECONDARY NOISE slot via selectSecondaryNoise. The gate is asked.
