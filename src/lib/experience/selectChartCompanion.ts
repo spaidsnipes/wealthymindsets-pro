@@ -428,9 +428,29 @@ function speak(p: {
     : fresh
       ? `${trades} trades observed in this browser's memory, most recent within the last 30 seconds.`
       : `${trades} trades observed in this browser's memory, none in the last 30 seconds.`;
+  /*
+    ONE CAUSE, SAID ONCE — the spoken half of the same law the panel
+    obeys on screen.
+
+    When there is no compiled state, price, change and book are ALL
+    missing for the identical reason and all three fall back to the same
+    sentence. The serving /news page proved it: the aria-label read that
+    paragraph three times in a row. A sighted guest sees one absence; a
+    screen-reader guest heard three, which sounds like three separate
+    failures and buries the clauses that ARE distinct.
+
+    Nothing is hidden. The first occurrence survives in full, in the
+    order the panel reads top to bottom, and the moment two clauses
+    genuinely differ both are spoken — because that is real information.
+  */
+  const clauses: string[] = [];
+  for (const clause of [priceClause, changeClause, bookClause, regimeClause, tapeClause]) {
+    const said = clause.trim();
+    if (said && !clauses.includes(said)) clauses.push(said);
+  }
   return (
     `Chart companion for ${symbol} on the ${timeframe} camera, session ${sessionToken}. ` +
-    `${priceClause} ${changeClause} ${bookClause} ${regimeClause} ${tapeClause} ` +
+    `${clauses.join(" ")} ` +
     `This panel reads the state the chart compiled; it decides nothing.`
   );
 }

@@ -411,3 +411,50 @@ describe("selectChartCompanion — asOf is the evidence's clock, not the render 
     expect(vm.asOf).toBeNull();
   });
 });
+
+/**
+ * The spoken panel — one cause, said once.
+ *
+ * With no compiled state the price, change and book clauses all fall back
+ * to the SAME sentence, and the serving /news aria-label read that
+ * paragraph three times. Three identical sentences sound like three
+ * separate failures. The label must state the absence once, and must
+ * still speak every clause that genuinely differs.
+ */
+describe("selectChartCompanion — the label does not repeat itself", () => {
+  const count = (haystack: string, needle: string) => {
+    let n = 0;
+    let i = 0;
+    for (;;) {
+      const at = haystack.indexOf(needle, i);
+      if (at < 0) return n;
+      n += 1;
+      i = at + 1;
+    }
+  };
+
+  it("says the missing-state cause exactly once", () => {
+    const vm = selectChartCompanion(input({ state: null }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(count(vm.spoken, "No compiled market state")).toBe(1);
+  });
+
+  it("still speaks the clauses that are genuinely different", () => {
+    const vm = selectChartCompanion(input({ state: null }));
+    if (!vm.visible) throw new Error("expected visible");
+    // The tape clause is its own evidence, unrelated to the compiler's
+    // absence, so suppressing duplicates must not swallow it.
+    expect(vm.spoken).toContain("Regime unresolved");
+    expect(vm.spoken).toContain("trades observed");
+    expect(vm.spoken).toContain("it decides nothing");
+  });
+
+  it("does not collapse two distinct sentences into one", () => {
+    // A real state: price reads, regime speaks its own reason, tape speaks
+    // its own count. Nothing is a duplicate, so nothing may be dropped.
+    const vm = selectChartCompanion(input({ state: state() }));
+    if (!vm.visible) throw new Error("expected visible");
+    expect(vm.spoken).toContain("Regime");
+    expect(vm.spoken).toContain("trades observed");
+  });
+});
