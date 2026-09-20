@@ -327,4 +327,43 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
       expect(vm.silentCount).toBe(SIDED.includes(id) ? 1 : 0);
     }
   });
+
+  /*
+    ── THE SUITE WAS GREEN WHILE THE PRODUCT SPOKE BADLY ────────────────────
+
+    Every assertion above is `toContain`. `toContain` is satisfied by a
+    sentence that begins in the middle of a word, so the note shipped to the
+    serving chart reading:
+
+        "…Delta Divergence. this tape has not stated an aggressor side…"
+
+    A full stop followed by a lowercase letter. Found by reading the live chip
+    in the Founder's browser, which no unit test in this file could have done
+    for me — `toContain` tests what is PRESENT and this was a defect of how the
+    present things were JOINED.
+
+    So the shape of the whole sentence is asserted now, across every state that
+    produces one, rather than one more substring.
+  */
+  it("every note it can produce is a well-formed sentence", () => {
+    const states = [
+      { barsPresent: true,  observedAggressorFlow: false },
+      { barsPresent: false, observedAggressorFlow: false },
+      { barsPresent: false, observedAggressorFlow: true },
+    ];
+    const everythingOn = Object.fromEntries(ALL_IDS.map(id => [id, true]));
+
+    for (const state of states) {
+      const note = selectProfileMenu(input({ ...state, active: everythingOn })).silentNote;
+      if (note === "") continue;
+
+      expect(note, `no sentence ends this note: ${note}`).toMatch(/\.$/);
+      expect(
+        note,
+        `a full stop is followed by a lowercase letter, so two sentences were ` +
+          `joined as if one were a fragment: ${note}`,
+      ).not.toMatch(/\.\s+[a-z]/);
+      expect(note[0], `the note opens lowercase: ${note}`).not.toMatch(/[a-z]/);
+    }
+  });
 });

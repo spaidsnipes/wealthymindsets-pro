@@ -329,11 +329,24 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     const names = silent.map(e => e.label).join(", ");
     const waiting = silent.some(e => e.availability === "WAITING_FOR_BARS");
     const untaped = silent.some(e => e.availability === "NEEDS_SIDED_TAPE");
+    /*
+      CAUGHT ON THE SERVING CHART, NOT BY A TEST.
+
+      These three read as fragments because they were written to be joined —
+      and then they were joined after a FULL STOP, so the live chip said
+      "…Delta Divergence. this tape has not stated…". Every test here asserted
+      `toContain`, which is true of a sentence that begins mid-word, so the
+      suite was green while the product spoke badly.
+
+      They are capitalised at the source rather than being run through a
+      capitalise() helper at the joint, because each one IS a sentence and the
+      only reason it did not look like one was the joint.
+    */
     const why = waiting && untaped
-      ? "some are waiting for bars; the rest need a tape that states an aggressor side"
+      ? "Some are waiting for bars; the rest need a tape that states an aggressor side"
       : waiting
-        ? "no bars have loaded for this symbol yet — these will draw when they do"
-        : "this tape has not stated an aggressor side, so these cannot be drawn from volume alone";
+        ? "No bars have loaded for this symbol yet — these will draw when they do"
+        : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
     silentNote =
       `${silentCount} of ${activeCount} switched on but drawing nothing: ${names}. ${why}.`;
   }
