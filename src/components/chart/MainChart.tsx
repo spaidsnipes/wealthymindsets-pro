@@ -7192,15 +7192,30 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const bwTxt = ctx.measureText(basisTxt).width;
             const bx = 8, by = 8;
-            ctx.fillStyle = "rgba(14,12,8,0.86)";
-            ctx.fillRect(bx, by, bwTxt + 12, 14);
-            ctx.strokeStyle = "rgba(139,106,41,0.45)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(bx + 0.5, by + 0.5, bwTxt + 11, 13);
-            ctx.fillStyle = "rgba(201,165,92,0.95)";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
-            ctx.fillText(basisTxt, bx + 6, by + 7.5);
+            const desktopBasisChrome = W >= 960;
+            if (desktopBasisChrome) {
+              // FL-06 carries basis as quiet chart provenance, not a second
+              // card hovering over price. Keep the statement visible while
+              // letting the canvas remain the dominant object.
+              ctx.save();
+              ctx.fillStyle = "rgba(178,170,151,0.86)";
+              ctx.shadowColor = "rgba(0,0,0,0.95)";
+              ctx.shadowBlur = 3;
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(basisTxt, bx, by + 7.5);
+              ctx.restore();
+            } else {
+              ctx.fillStyle = "rgba(14,12,8,0.86)";
+              ctx.fillRect(bx, by, bwTxt + 12, 14);
+              ctx.strokeStyle = "rgba(139,106,41,0.45)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(bx + 0.5, by + 0.5, bwTxt + 11, 13);
+              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(basisTxt, bx + 6, by + 7.5);
+            }
 
             ctx.restore();
           } else {
@@ -7211,15 +7226,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const txt = BASIS_LABEL.UNMEASURED;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const tw2 = ctx.measureText(txt).width;
-            ctx.fillStyle = "rgba(14,12,8,0.86)";
-            ctx.fillRect(8, 8, tw2 + 12, 14);
-            ctx.strokeStyle = "rgba(139,106,41,0.35)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(8.5, 8.5, tw2 + 11, 13);
+            const desktopBasisChrome = W >= 960;
+            if (!desktopBasisChrome) {
+              ctx.fillStyle = "rgba(14,12,8,0.86)";
+              ctx.fillRect(8, 8, tw2 + 12, 14);
+              ctx.strokeStyle = "rgba(139,106,41,0.35)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(8.5, 8.5, tw2 + 11, 13);
+            }
             ctx.fillStyle = "rgba(138,130,113,0.95)";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
-            ctx.fillText(txt, 14, 15.5);
+            ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5);
             ctx.restore();
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }

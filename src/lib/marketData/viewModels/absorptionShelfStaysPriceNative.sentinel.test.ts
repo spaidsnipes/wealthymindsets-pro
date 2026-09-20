@@ -32,6 +32,13 @@ describe("the FL-06 absorption shelf stays attached to measured price geometry",
     expect(chart).toContain("ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5)");
   });
 
+  it("keeps effort basis visible but removes its desktop card shell", () => {
+    expect(chart).toContain("const desktopBasisChrome = W >= 960");
+    expect(chart).toContain("ctx.fillText(basisTxt, bx, by + 7.5)");
+    expect(chart).toContain("ctx.fillText(basisTxt, bx + 6, by + 7.5)");
+    expect(chart).toContain("ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5)");
+  });
+
   it("still has exactly one absorption placement compiler call", () => {
     const executable = chart
       .replace(/\/\*[\s\S]*?\*\//g, "")
