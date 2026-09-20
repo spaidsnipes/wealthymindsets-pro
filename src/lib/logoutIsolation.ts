@@ -43,8 +43,22 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_creator_waitlist",  // creator waitlist email, handle and tier
 ] as const;
 
-/** Dynamic per-lesson Academy notes share this exact owner-scoped prefix. */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-"] as const;
+/**
+ * Dynamic owner-scoped prefixes.
+ *
+ * · `wm-notes-`              per-lesson Academy notes.
+ * · `wm:decision-identity:`  B-501 cross-tab decision continuity. The key
+ *   already encodes the owner, so a purge here is broader than strictly
+ *   required — it drops every owner's continuity on this device. That is the
+ *   deliberate direction: a decision is the most consequential thing this
+ *   browser remembers, and leaving one behind for the next person to sign in
+ *   and inherit would be a worse bug than the tab-splitting one continuity was
+ *   built to fix.
+ */
+const OWNER_SCOPED_PREFIXES: readonly string[] = [
+  "wm-notes-",
+  "wm:decision-identity:",
+] as const;
 
 /**
  * clearOwnerScopedLocalStorage — removes every owner-scoped

@@ -172,7 +172,23 @@ describe("the deck mounts the shortlist in the desktop operating room", () => {
     expect(charts).toContain("bornDecision={currentSceneDecision}");
     expect(charts).toContain("adoptSceneDecision(current");
     expect(charts).toContain("currentDecisionIdentity(sceneDecision, decisionScope)");
-    expect(charts).toContain("}, [symbol, canvasUser?.id]);");
+
+    // The scene must RE-SCOPE whenever the owner or the instrument changes.
+    //
+    // This assertion used to read `}, [symbol, canvasUser?.id]);` — the literal
+    // dependency array. That was always a PROXY for the property, and on
+    // 2026-09-20 the proxy and the property came apart: B-501 continuity moved
+    // the effect onto `decisionScope`, which line 1099 defines as exactly
+    // `{ underlying: symbol, owner: canvasUser?.id ?? "signed-out" }`.
+    //
+    // Same two values, one improvement: a signed-out visitor now re-scopes on a
+    // stable "signed-out" rather than on `undefined`. Asserting the scope
+    // SOURCE instead of one spelling of it keeps the guarantee and stops the
+    // test failing the next time the same two values are named a third way.
+    expect(charts).toContain("}, [decisionScope.owner, decisionScope.underlying]);");
+    expect(charts).toContain(
+      'const decisionScope = { underlying: symbol, owner: canvasUser?.id ?? "signed-out" };',
+    );
   });
 });
 

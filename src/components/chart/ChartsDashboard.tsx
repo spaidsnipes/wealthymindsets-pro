@@ -177,6 +177,11 @@ import {
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 import { useCanvasBand, zoomsForBand } from "@/lib/responsive/resizeBreakpoints";
+import {
+  isDecisionContinuityStorageEvent,
+  readSceneDecision,
+  writeSceneDecision,
+} from "@/lib/traderMemory/decisionContinuity";
 import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
 import ContinuationHealthView from "@/components/experience/ContinuationHealthView";
 import { selectContinuationHealth } from "@/lib/marketData/viewModels/selectContinuationHealth";
@@ -1315,11 +1320,53 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // A decision belongs to the instrument it was born about. Carrying
   // a TSLA identity onto BTC would be the aliasing failure the owner
   // wrote its header against, one surface out.
+  //
+  // B-501 does not soften that rule — it completes it. Leaving TSLA must drop
+  // the TSLA identity from view; RETURNING to TSLA must find the SAME one,
+  // because the contractor index forbids minting a new id for a symbol change.
+  // So the scene is not blanked, it is re-read for the scope now on screen:
+  // absent for a scene that never decided, and the original identity for one
+  // that did. `readSceneDecision` is scoped by owner AND underlying, so there
+  // is no path by which BTC can be handed TSLA's decision.
   useEffect(() => {
-    setSceneDecision(null);
+    const restored = readSceneDecision(decisionScope.owner, decisionScope.underlying);
+    setSceneDecision(restored);
     priorPermission.current = null;
-    setSceneDecisionAbsence("No decision born yet — permission has not crossed.");
-  }, [symbol, canvasUser?.id]);
+    setSceneDecisionAbsence(
+      restored
+        ? "Decision carried from an earlier view of this instrument."
+        : "No decision born yet — permission has not crossed.",
+    );
+  }, [decisionScope.owner, decisionScope.underlying]);
+
+  // B-501 · the write half. A decision that is not recorded cannot be found by
+  // the next tab, and `writeSceneDecision` reads its own write back — so a
+  // storage refusal is known here rather than discovered as a missing decision
+  // somewhere downstream. The room does not currently claim durability on the
+  // glass; if it ever does, this boolean is the only honest source for it.
+  useEffect(() => {
+    if (!sceneDecision) return;
+    writeSceneDecision(sceneDecision);
+  }, [sceneDecision]);
+
+  // B-501 · the read half, live. Six tabs, one decision: a birth in ANOTHER
+  // tab must arrive here without a reload, or "same DECISION_ID across tabs"
+  // is only true of tabs opened in the right order. `storage` fires in every
+  // tab except the one that wrote, which is exactly the set that needs telling.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorage = (event: StorageEvent) => {
+      if (!isDecisionContinuityStorageEvent(event)) return;
+      const restored = readSceneDecision(decisionScope.owner, decisionScope.underlying);
+      if (!restored) return;
+      // adoptSceneDecision, not a bare set: a decision already standing on this
+      // scene is not replaced by another witness to it.
+      setSceneDecision((current) => adoptSceneDecision(current, restored));
+      setSceneDecisionAbsence("Decision carried from another tab on this device.");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [decisionScope.owner, decisionScope.underlying]);
 
   // ── Watchlist doorway ───────────────────────────────────────
   // The watchlist is contextual evidence, not a second room. Keep one
@@ -1751,6 +1798,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // bare `data-b701-zooms="2"` would contradict the DOM beside it.
       data-b701-band={canvasBand}
       data-b701-zooms-permitted={zoomsForBand(canvasBand)}
+      // B-501 receipt. MEASURED 2026-09-20 on the serving Worker: two tabs on
+      // this origin published ZERO decision identity into the DOM, so "the
+      // same DECISION_ID across tabs" could be neither proven nor disproven on
+      // the running app — only read out of the source. A law that cannot be
+      // observed on the glass is not a law the ORGANISM PASS can accept.
+      //
+      // Absent by design when no decision has been born: the attribute is
+      // omitted rather than set to "" or "none", so a reader cannot mistake a
+      // named absence for an identity. Absence is disclosed in prose beside it.
+      data-b501-decision-id={sceneDecision?.identity.decisionId ?? undefined}
+      data-b501-born-from={sceneDecision?.identity.bornFrom ?? undefined}
+      data-b501-born-on-device={sceneDecision?.identity.bornOnDeviceId ?? undefined}
       // SCENE_FRAGMENTATION cure (Founder 2026-09-13): default theme
       // used to paint #0D0E14 across the entire /charts route, blocking
       // the sanctuary shell's vignette + grain + WATER-BREATH from
