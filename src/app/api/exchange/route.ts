@@ -25,7 +25,10 @@ import { strictProviderNumber } from "@/lib/marketData/strictProviderNumber";
 // still type-only — erased by the compiler, present in no bundle — which is
 // exactly the vacuous kind of "adoption" the M8 ratchet was rewritten to stop
 // counting. The RUNTIME edge is the one below.
-import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import {
+  canonicalBarIdentity,
+  type LegacyOhlcvTuple,
+} from "@/lib/marketData/canonicalBar";
 import {
   ingestExchangeCandles,
   toLegacySecondsTuple,
@@ -232,11 +235,13 @@ export async function GET(req: Request) {
         receivedAt: Date.now(),
       });
       const candles = ingress.bars.map(toLegacySecondsTuple);
+      const barIdentities = ingress.bars.map(canonicalBarIdentity);
 
       return NextResponse.json({
         ex,
         coin,
         candles,
+        barIdentities,
         qualityState: "LIVE",
         timeframe: resolution.timeframe,
         // `qualityState: "LIVE"` above is about the route being up. It is NOT a

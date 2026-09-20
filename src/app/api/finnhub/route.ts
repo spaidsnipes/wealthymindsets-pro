@@ -20,6 +20,7 @@ import {
   ingestFinnhubCandles,
   toLegacySecondsTuple,
 } from "@/lib/marketData/finnhubCandleIngress";
+import { canonicalBarIdentity } from "@/lib/marketData/canonicalBar";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -256,6 +257,7 @@ export async function GET(request: Request) {
         receivedAt: Date.now(),
       });
       const candles = ingress.bars.map(toLegacySecondsTuple);
+      const barIdentities = ingress.bars.map(canonicalBarIdentity);
 
       return NextResponse.json({
         sym: rawSym,
@@ -264,6 +266,7 @@ export async function GET(request: Request) {
         requestedTf: tf,
         returnedTf: ingress.timeframe,
         candles,
+        barIdentities,
         source: "finnhub",
         barSource: "finnhub",
         barProvenance: "REST_BACKFILL",

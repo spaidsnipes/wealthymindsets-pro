@@ -8,7 +8,10 @@
 
 import { NextResponse } from "next/server";
 import { aggregateYahooBars, resolveYahooTimeframe } from "@/lib/yahooTimeframes";
-import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import {
+  canonicalBarIdentity,
+  type LegacyOhlcvTuple,
+} from "@/lib/marketData/canonicalBar";
 import {
   YAHOO_BAR_SOURCE,
   ingestYahooCandles,
@@ -294,6 +297,7 @@ export async function GET(request: Request) {
         receivedAt: Date.now(),
       });
       const candles = ingress.bars.map(toLegacySecondsTuple);
+      const barIdentities = ingress.bars.map(canonicalBarIdentity);
 
       return NextResponse.json({
         sym: rawSym,
@@ -303,6 +307,7 @@ export async function GET(request: Request) {
         sourceMode: plan.sourceMode,
         baseInterval: plan.interval,
         candles,
+        barIdentities,
         // The canonical identity these bars carry, published so a consumer can
         // read it instead of assuming it. `sessionKnown: false` is the honest
         // half — see `yahooCandleIngress.ts`.

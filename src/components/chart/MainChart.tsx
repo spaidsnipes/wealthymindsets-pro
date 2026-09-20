@@ -16,6 +16,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
+import { canonicalAssetClass, canonicalInstrumentId } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
@@ -212,7 +213,13 @@ import { NectarVaultChip } from "./NectarVaultChip";
  * a precondition. The bars drawn here still carry no symbolId, no sessionId, no
  * fidelity and no provenance.
  */
-import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import type {
+  CanonicalBarIdentity,
+  LegacyOhlcvTuple,
+} from "@/lib/marketData/canonicalBar";
+import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
+import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
+import type { WaitStandingVM } from "@/lib/marketData/viewModels/selectWaitStanding";
 import {
   CANDLE_DOWN_DEFAULT,
   CANDLE_UP_DEFAULT,
@@ -452,14 +459,34 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?
  * disagreed with) the server's FH_RES on `2m` is deleted; the server is
  * the single source of truth for interval mapping — see WM-CHART-P0-03
  * for the still-open fail-closed correctness work on the server map. */
-async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
+interface CanonicalCandleBatch {
+  readonly candles: LegacyOhlcvTuple[];
+  readonly identities: readonly CanonicalBarIdentity[];
+}
+
+function candleBatch(json: {
+  readonly candles?: LegacyOhlcvTuple[];
+  readonly barIdentities?: CanonicalBarIdentity[];
+}, count: number): CanonicalCandleBatch | null {
+  const candles = Array.isArray(json.candles) ? json.candles.slice(-count) : [];
+  if (candles.length === 0) return null;
+  return {
+    candles,
+    identities: Array.isArray(json.barIdentities) ? json.barIdentities : [],
+  };
+}
+
+async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
   const upper = sym.toUpperCase();
   if (isUnsupportedByEquityVendors(upper)) return null; // futures/forex unsupported by the proxy
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(upper)}&type=candles&tf=${encodeURIComponent(tf)}&bars=${count}`;
     const res = await fetch(url, { cache: "no-store", signal });
     if (!res.ok) return null;
-    const json = await res.json() as { candles?: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> };
+    const json = await res.json() as {
+      candles?: LegacyOhlcvTuple[];
+      barIdentities?: CanonicalBarIdentity[];
+    };
     // THE SILENT DROP IS RETIRED HERE, 2026-09-18. This read
     //   .filter(b => b.open > 0 && b.high > 0)
     // and it was wrong three separate ways.
@@ -484,8 +511,7 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number, signa
     // protection did not disappear; it moved upstream, got stricter, and
     // started telling the truth about itself. Re-deciding it here would be a
     // second owner of what a bar is, which is the whole of M8.
-    const bars = (json.candles ?? []) as LegacyOhlcvTuple[];
-    return bars.length ? bars.slice(-count) : null;
+    return candleBatch(json, count);
   } catch {
     return null;
   }
@@ -557,7 +583,7 @@ function filterSession(bars: LegacyOhlcvTuple[], sym: string, intervalSec: numbe
 
 /* ── Yahoo Finance OHLCV — covers futures + crypto + stocks ── */
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
-async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
+async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
   const up = sym.toUpperCase();
   if (classifySymbol(up) === "FUTURES") return null; // Alpaca doesn't support futures
   try {
@@ -565,14 +591,13 @@ async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal
     const res = await fetch(url, { cache: "no-store", signal });
     if (res.status === 503 || res.status === 404) return null; // key not set or not supported
     const json = await res.json();
-    if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
-    return json.candles as LegacyOhlcvTuple[];
+    return candleBatch(json, count);
   } catch {
     return null;
   }
 }
 
-async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
+async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
   // Only for stocks/ETFs — futures/crypto fall back to Yahoo
   // The crypto list here named eleven coins and none of the `-USD` forms the
   // app's own pickers emit, so BTC-USD was being asked of an equity vendor.
@@ -581,19 +606,17 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number,
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
     const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
-    if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
-    return json.candles as LegacyOhlcvTuple[];
+    return candleBatch(json, count);
   } catch {
     return null;
   }
 }
 
-async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
+async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
   try {
     const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}${ext ? "&ext=1" : ""}`;
     const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
-    if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
-    return json.candles as LegacyOhlcvTuple[];
+    return candleBatch(json, count);
   } catch {
     return null;
   }
@@ -622,7 +645,10 @@ interface Props {
   candleType?:     CandleType;
   pineOutput?:     PineOutput | null;
   pineCode?:       string;
-  onBarsReady?:    (bars: LegacyOhlcvTuple[]) => void;
+  onBarsReady?:    (
+    bars: LegacyOhlcvTuple[],
+    identities: readonly CanonicalBarIdentity[],
+  ) => void;
   // Drawing tools
   drawingTool?:    string;
   drawingStyle?:   DrawingStyle;
@@ -732,6 +758,18 @@ interface Props {
   // this chart-local copy when embedded there so one market state has one
   // visible writer; standalone charts keep the badge by default.
   showFidelityChrome?: boolean;
+  /**
+   * H-101 targets are real MarketObjects whose birth bar survived the
+   * canonical identity wire. `birthTime` is projection geometry only; the
+   * object still points to the bar by id and never reprints its OHLC.
+   */
+  marketObjectTargets?: readonly {
+    readonly object: MarketObject;
+    readonly birthTime: number;
+  }[];
+  selectedMarketObjectId?: string | null;
+  onSelectMarketObject?: (objectId: string) => void;
+  selectedMarketObjectWait?: WaitStandingVM | null;
 }
 
 /* ── Heikin Ashi transform ───────────────────────────────── */
@@ -979,6 +1017,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   paperTradesVisible = true,
   onRequestFullscreen,
   showFidelityChrome = true,
+  marketObjectTargets = [],
+  selectedMarketObjectId = null,
+  onSelectMarketObject,
+  selectedMarketObjectWait = null,
 }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
@@ -1021,6 +1063,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // without tearing down & rebuilding the whole pane on each tick.
   const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null }>>([]);
   const barsRef       = useRef<LegacyOhlcvTuple[]>([]);
+  // Canonical lineage is a sidecar, not extra fields smuggled into the renderer
+  // tuple. Live bars without admitted identity are intentionally absent here.
+  const barIdentitiesRef = useRef<readonly CanonicalBarIdentity[]>([]);
   /*
     THE STACK READING LIVES IN A REF, NOT IN THE OVERLAY'S DEPENDENCY ARRAY.
 
@@ -2050,9 +2095,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles
       const exParsed = parseExchangeSymbol(symbol);
-      const exchangeData = exParsed
+      const exchangeData: CanonicalCandleBatch | null = exParsed
         ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store", signal: myAbortSignal })
-            .then(r => r.json()).then(j => Array.isArray(j?.candles) && j.candles.length ? j.candles as LegacyOhlcvTuple[] : null).catch(() => null)
+            .then(r => r.json()).then(j => candleBatch(j, barCount)).catch(() => null)
         : null;
 
       // Priority: exchange-specific, Alpaca, Finnhub, Yahoo, Finnhub REST, Polygon.
@@ -2062,7 +2107,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal);
       const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal);
       const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount, myAbortSignal);
-      const realData     = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
+      const canonicalBatch = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData;
+      const realData = canonicalBatch?.candles ?? polyData;
+      const fetchedBarIdentities = canonicalBatch?.identities ?? [];
       // Provenance: record which provider ACTUALLY supplied these candles.
       const srcName =
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
@@ -2163,6 +2210,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const isComingSoon  = false; // removed: line-break, kagi, point-figure not in dropdown
 
       const displayData = isHA ? toHeikinAshi(data) : data;
+      const admittedBarIdentities = alignCanonicalBarIdentities({
+        bars: data,
+        identities: fetchedBarIdentities,
+        acceptedSymbolIds: (() => {
+          const canonical = canonicalInstrumentId(symbol, canonicalAssetClass(symbol));
+          const ids = [symbol, canonical, `ALPACA:${symbol}`];
+          if (canonical.endsWith("-USD")) ids.push(`ALPACA:${canonical.replace(/-USD$/, "/USD")}`);
+          if (exParsed) ids.push(`${exParsed.exchange}:${exParsed.coin}`);
+          return ids;
+        })(),
+        timeframe,
+      });
 
       // Superseded-build guard: if the user changed symbol/timeframe again while
       // our candle fetch was in flight, a newer effect run now owns the chart —
@@ -2527,6 +2586,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
       volRef.current    = vs;
       barsRef.current   = data;
+      barIdentitiesRef.current = admittedBarIdentities;
 
       // Feed the manual vertical-drag range through the main series' autoscale.
       // When manualPriceRangeRef is null the chart auto-fits as normal; when the
@@ -2547,7 +2607,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // is INTERNAL bookkeeping only.
       setCandleSource(data.length ? srcName : "__unresolved__");
       setReady(true);
-      onBarsReady?.(data);
+      onBarsReady?.(data, admittedBarIdentities);
 
       // Subscriptions attach ONCE per chart (the chart is now persistent across
       // symbol/timeframe changes). They use chartRef.current as the alive-check
@@ -2837,7 +2897,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     // Emit updated bars to parent for Pine Script execution
     if (barsRef.current.length) {
-      onBarsReady?.(barsRef.current);
+      onBarsReady?.(barsRef.current, barIdentitiesRef.current);
     }
     // NOTE: Big-Trade bubbles spawn in the canvas loop (Pass A) from tickAccRef
     // ONLY — real aggressor tape, never synthetic footprint. No bubble without
@@ -8664,6 +8724,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
      one of them. */
   const feedRecency = chartFeedRecency(lastBarT, intervalSec, nowMs);
 
+  /*
+   * H-101 lives in price/time space. The target is projected from the
+   * MarketObject's actual birth bar and its own level price. `rangeVer` makes
+   * pan/zoom/resize a geometry update; no latest-bar or fixed-corner fallback
+   * exists, so an object that cannot be projected simply does not paint.
+   */
+  const projectedMarketObjects = React.useMemo(() => {
+    void rangeVer;
+    return marketObjectTargets.flatMap(target => {
+      const point = logicalToPixel({
+        time: target.birthTime,
+        price: target.object.priceHigh,
+      });
+      const width = containerRef.current?.clientWidth ?? 0;
+      const height = containerRef.current?.clientHeight ?? 0;
+      return point && Number.isFinite(point.x) && Number.isFinite(point.y)
+        && point.x >= 0 && point.y >= 0 && point.x <= width && point.y <= height
+        ? [{ ...target, point }]
+        : [];
+    });
+  }, [logicalToPixel, marketObjectTargets, rangeVer]);
+  const selectedMarketObjectTarget = projectedMarketObjects.find(
+    target => target.object.objectId === selectedMarketObjectId,
+  ) ?? null;
+
   // The RAF canvas pill draws the same glyph and the same flash verdict, so
   // the on-chart pill can never disagree with the header strip.
   countdownRef.current = barCountdown.glyph;
@@ -9051,6 +9136,89 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         onPointerUp={handleCursorSelectUp}
         onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
+
+        {/* H-101 — WAIT belongs to a selected object, at that object's real
+            price/time coordinate. Unselected objects remain restrained brass
+            pins; the evidence plaque exists only after explicit selection and
+            only when the canonical WAIT selector returned a standing. */}
+        {projectedMarketObjects.map(target => {
+          const selected = target.object.objectId === selectedMarketObjectId;
+          return (
+            <button
+              key={target.object.objectId}
+              type="button"
+              data-market-object-target={target.object.objectId}
+              aria-pressed={selected}
+              aria-label={`Select ${target.object.kind.toLowerCase()} market object at ${target.object.priceHigh}`}
+              onClick={() => onSelectMarketObject?.(target.object.objectId)}
+              style={{
+                position: "absolute",
+                left: target.point.x,
+                top: target.point.y,
+                zIndex: 72,
+                width: 28,
+                height: 28,
+                transform: "translate(-50%, -50%)",
+                border: 0,
+                padding: 0,
+                background: "transparent",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: selected ? 13 : 9,
+                  height: selected ? 13 : 9,
+                  transform: "translate(-50%, -50%) rotate(45deg)",
+                  borderRadius: 2,
+                  border: `1px solid ${selected ? "#F8E7B0" : "rgba(240,180,41,0.72)"}`,
+                  background: selected ? "#F0B429" : "rgba(13,17,23,0.92)",
+                  boxShadow: selected ? "0 0 0 3px rgba(240,180,41,0.16)" : "none",
+                }}
+              />
+            </button>
+          );
+        })}
+        {selectedMarketObjectTarget && selectedMarketObjectWait && (
+          <div
+            data-h101-wait-plaque
+            role="status"
+            aria-label={`Wait on selected ${selectedMarketObjectTarget.object.kind.toLowerCase()} object. ${selectedMarketObjectWait.headline}. ${selectedMarketObjectWait.detail}`}
+            style={{
+              position: "absolute",
+              left: Math.min(
+                selectedMarketObjectTarget.point.x + 16,
+                Math.max(12, (containerRef.current?.clientWidth ?? 900) - 224),
+              ),
+              top: Math.max(10, selectedMarketObjectTarget.point.y - 28),
+              zIndex: 73,
+              width: 208,
+              padding: "7px 9px",
+              borderLeft: "2px solid #F0B429",
+              borderTop: "1px solid rgba(240,180,41,0.28)",
+              borderBottom: "1px solid rgba(240,180,41,0.18)",
+              background: "linear-gradient(90deg, rgba(13,17,23,0.96), rgba(13,17,23,0.78))",
+              color: "#EDE7D5",
+              pointerEvents: "none",
+              boxShadow: "0 7px 20px rgba(0,0,0,0.28)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ color: "#F0B429", fontSize: 10, fontWeight: 900, letterSpacing: "0.12em" }}>WAIT</span>
+              <span style={{ color: "#8E856E", fontSize: 8, fontWeight: 750 }}>{selectedMarketObjectTarget.object.fidelityAtBirth}</span>
+            </div>
+            <div style={{ marginTop: 3, color: "#F7F1DF", fontSize: 11, fontWeight: 820 }}>
+              {selectedMarketObjectWait.headline}
+            </div>
+            <div style={{ marginTop: 2, color: "#9D9788", fontSize: 9, lineHeight: 1.35 }}>
+              {selectedMarketObjectTarget.object.kind} · {selectedMarketObjectTarget.object.priceHigh.toLocaleString()} · AS OF {new Date(selectedMarketObjectTarget.object.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+        )}
 
         {/* WM-OF-P0-06 (2026-08-09, Founder emergency): order flow "still dont
             function properly" — root cause is that footprint tools need per-

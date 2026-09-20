@@ -42,10 +42,15 @@ describe("GET /api/alpaca — crypto is keyless", () => {
 
     const { GET } = await loadRoute();
     const res = await GET(new Request("http://localhost/api/alpaca?sym=BTC&type=candles&tf=1m"));
+    const body = await res.json();
     expect(res.status).toBe(200);
     // The keyless endpoint must never receive the equity secret.
     expect(sentHeaders["APCA-API-KEY-ID"]).toBeUndefined();
     expect(sentHeaders["APCA-API-SECRET-KEY"]).toBeUndefined();
+    expect(body.barIdentities).toHaveLength(1);
+    expect(body.barIdentities[0].barId).toBeTruthy();
+    expect(body.barIdentities[0]).not.toHaveProperty("open");
+    expect(body.barIdentities[0]).not.toHaveProperty("close");
   });
 });
 

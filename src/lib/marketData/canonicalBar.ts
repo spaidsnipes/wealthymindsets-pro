@@ -200,6 +200,42 @@ export interface CanonicalBar {
   readonly truthEpoch: number;
 }
 
+/**
+ * The identity/lineage half of a CanonicalBar, published beside renderer
+ * tuples without copying OHLC into a second market record.
+ *
+ * A chart is allowed to discard this when it only paints candles. A
+ * MarketObject is not: `birthBarId` must resolve back to the exact admitted
+ * bar, so object selection needs this sidecar to survive the HTTP boundary.
+ */
+export type CanonicalBarIdentity = Readonly<Pick<CanonicalBar,
+  | "barId"
+  | "symbolId"
+  | "sessionId"
+  | "timeframe"
+  | "asOf"
+  | "receivedAt"
+  | "fidelity"
+  | "source"
+  | "provenance"
+  | "truthEpoch"
+>>;
+
+export function canonicalBarIdentity(bar: CanonicalBar): CanonicalBarIdentity {
+  return {
+    barId: bar.barId,
+    symbolId: bar.symbolId,
+    sessionId: bar.sessionId,
+    timeframe: bar.timeframe,
+    asOf: bar.asOf,
+    receivedAt: bar.receivedAt,
+    fidelity: bar.fidelity,
+    source: bar.source,
+    provenance: bar.provenance,
+    truthEpoch: bar.truthEpoch,
+  };
+}
+
 /* ── IDENTITY ──────────────────────────────────────────────────────────────── */
 
 /**

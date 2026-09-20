@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import * as barModule from "./canonicalBar";
 import {
   admitBar,
+  canonicalBarIdentity,
   checkBarGeometry,
   isSessionKnown,
   mintBarId,
@@ -32,6 +33,16 @@ const bar = (over: Partial<CanonicalBar> = {}): CanonicalBar => ({
 });
 
 describe("identity — the same bar redelivered is the same bar", () => {
+  it("publishes an identity sidecar without copying a second OHLC record", () => {
+    const identity = canonicalBarIdentity(bar());
+    expect(identity.barId).toBe("TSLA|1m|1000|e0");
+    expect(identity.asOf).toBe(1000);
+    expect(identity.fidelity).toBe("EXECUTABLE");
+    expect(Object.keys(identity)).not.toEqual(expect.arrayContaining([
+      "open", "high", "low", "close", "volume", "time",
+    ]));
+  });
+
   it("IS DETERMINISTIC — an id minted per arrival is a double count", () => {
     // Across a reconnect the provider resends 09:31. If the id were minted from
     // a counter or a clock, the chart would hold two 09:31 bars and the volume

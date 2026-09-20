@@ -23,6 +23,7 @@ import {
   ingestAlpacaCandles,
   toLegacySecondsTuple,
 } from "@/lib/marketData/alpacaCandleIngress";
+import { canonicalBarIdentity } from "@/lib/marketData/canonicalBar";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -380,6 +381,7 @@ export async function GET(request: Request) {
         receivedAt: Date.now(),
       });
       const candles = ingress.bars.map(toLegacySecondsTuple);
+      const barIdentities = ingress.bars.map(canonicalBarIdentity);
 
       return NextResponse.json({
         sym: rawSym,
@@ -392,6 +394,7 @@ export async function GET(request: Request) {
         requestedTf: tf,
         returnedTf: ingress.timeframe,
         candles,
+        barIdentities,
         source: "alpaca",
         barSource: "alpaca",
         // Alpaca publishes every bucket natively; this route never folds a

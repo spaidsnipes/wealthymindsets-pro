@@ -110,7 +110,12 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
-import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import type {
+  CanonicalBarIdentity,
+  LegacyOhlcvTuple,
+} from "@/lib/marketData/canonicalBar";
+import { buildInspectChain } from "@/lib/marketData/inspectChain";
+import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
@@ -194,6 +199,7 @@ import FootprintWorksheetView from "@/components/experience/FootprintWorksheetVi
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
+import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
 import { useCanonicalMarketStateHistory } from "@/lib/marketData/useCanonicalMarketState";
 import { selectAbsorptionAnatomyView } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
@@ -481,6 +487,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [pineOutput,      setPineOutput]      = useState<PineOutput | null>(null);
   const [pineCode,        setPineCode]        = useState<string>("");
   const [chartBars,       setChartBars]       = useState<LegacyOhlcvTuple[]>([]);
+  const [chartBarIdentities, setChartBarIdentities] = useState<readonly CanonicalBarIdentity[]>([]);
   const [communityOpen,   setCommunityOpen]   = useState(false);
   const [requestedTab,    setActiveTab]       = useState("Chart");
   const assetClass = canonicalAssetClass(symbol);
@@ -1105,8 +1112,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         : null,
     [chartCanvasState, continuationHistory],
   );
-  const continuationHealthVM = React.useMemo(() => {
-    const structure = selectMarketStructure(
+  const chartStructureVM = React.useMemo(() =>
+    selectMarketStructure(
       chartBars.map(b => ({
         time: typeof b.time === "number" ? b.time : Number(b.time),
         open: b.open,
@@ -1114,9 +1121,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         low: b.low,
         close: b.close,
       })),
+    ),
+  [chartBars]);
+  const chartMarketObjects = React.useMemo(() => selectStructureMarketObjects({
+    structure: chartStructureVM,
+    bars: chartBars,
+    identities: chartBarIdentities,
+  }), [chartStructureVM, chartBars, chartBarIdentities]);
+  const chartMarketObjectTargets = React.useMemo(() => chartMarketObjects.flatMap(object => {
+    const birth = chartBarIdentities.find(identity => identity.barId === object.birthBarId);
+    return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
+  }), [chartMarketObjects, chartBarIdentities]);
+  const [selectedMarketObjectId, setSelectedMarketObjectId] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedMarketObjectId(current =>
+      current && chartMarketObjects.some(object => object.objectId === current)
+        ? current
+        : null,
     );
-    return selectContinuationHealth({ structure, regime: chartRegimeVM });
-  }, [chartBars, chartRegimeVM]);
+  }, [chartMarketObjects]);
+  const continuationHealthVM = React.useMemo(() =>
+    selectContinuationHealth({ structure: chartStructureVM, regime: chartRegimeVM }),
+  [chartStructureVM, chartRegimeVM]);
 
   // ── Asset 01 · LONG-DIVISION WORKSHEET ───────────────────────────────
   //
@@ -1201,6 +1227,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Scope synchronously during render. The cleanup effect below releases stale
   // state, but it cannot prevent one React paint after a symbol/owner switch.
   const currentSceneDecision = currentDecisionIdentity(sceneDecision, decisionScope);
+  const selectedMarketObject = chartMarketObjects.find(
+    object => object.objectId === selectedMarketObjectId,
+  ) ?? null;
+  const selectedObjectChain = selectedMarketObject
+    ? buildInspectChain({
+        barId: selectedMarketObject.birthBarId,
+        objectId: selectedMarketObject.objectId,
+        decisionId: currentSceneDecision?.decisionId ?? null,
+      })
+    : null;
+  const selectedMarketObjectWait =
+    selectedObjectChain?.ok && chartCanvasVM.oneStory
+      ? selectWaitStanding(chartCanvasVM.oneStory.decision, chartCanvasVM.oneStory.debt)
+      : null;
 
   /*
     WORKSPACE — the equipment journey for THIS room.
@@ -1661,9 +1701,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    */
   const [barsSettled, setBarsSettled] = useState(false);
 
-  const handleBarsReady = useCallback((bars: LegacyOhlcvTuple[]) => {
+  const handleBarsReady = useCallback((
+    bars: LegacyOhlcvTuple[],
+    identities: readonly CanonicalBarIdentity[],
+  ) => {
     setBarsSettled(true);
     setChartBars(bars);
+    setChartBarIdentities(identities);
     if (bars.length > 0) {
       const highs = bars.map(b => b.high);
       const lows  = bars.map(b => b.low);
@@ -1680,6 +1724,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => {
     setDataVersion(v => v + 1);
     setChartBars([]);
+    setChartBarIdentities([]);
     // A new instrument is a NEW QUESTION. Clearing the bars without clearing
     // this flag would leave the previous instrument's "we finished asking"
     // standing over the next instrument's empty chart — the same false
@@ -3431,6 +3476,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       pineOutput={pineOutput}
                       pineCode={pineCode}
                       onBarsReady={handleBarsReady}
+                      marketObjectTargets={chartMarketObjectTargets}
+                      selectedMarketObjectId={selectedMarketObjectId}
+                      onSelectMarketObject={setSelectedMarketObjectId}
+                      selectedMarketObjectWait={selectedMarketObjectWait}
                       drawingTool={drawingTool}
                       onDrawingComplete={() => setDrawingTool("cursor")}
                       onCreatePriceAlert={createAlertAtPrice}
