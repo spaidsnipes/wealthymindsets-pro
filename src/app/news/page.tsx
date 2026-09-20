@@ -16,6 +16,7 @@ import { clsx } from "clsx";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 import { selectHeadlineLean, type HeadlineLean } from "@/lib/experience/selectHeadlineLean";
 import { HeadlineLeanBand } from "@/components/experience/HeadlineLeanBand";
+import { ChartCompanion } from "@/components/experience/ChartCompanion";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface NewsItem {
@@ -899,7 +900,13 @@ export default function NewsPage() {
       {/* ── Live News Video Player ──────────────────────────── */}
       <LiveNewsPlayer />
 
-      {/* ── News feed ───────────────────────────────────────── */}
+      {/* ── News feed + FL-04 Chart Companion ─────────────────
+           The Companion is the plate-mandated right column that holds
+           the SAME decision camera as /charts (symbol, price owner,
+           canvas verdict, session truth) so leaving the chart for the
+           news room never drops the market. It renders nothing below
+           lg — MobileSessionPill already owns the camera on phones. */}
+      <div className="flex flex-1 min-h-0">
       <div className="flex-1 overflow-auto p-4 space-y-3">
         <FabioInsights variant="inline" surface="news" title="WM Playbook — Reading the Tape Today" limit={2} />
         {loading && (
@@ -1085,6 +1092,9 @@ export default function NewsPage() {
             </button>
           </div>
         )}
+      </div>
+
+      <ChartCompanion />
       </div>
     </div>
   );
