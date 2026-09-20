@@ -25,6 +25,16 @@ describe("desktop chart evidence horizon", () => {
     );
   });
 
+  it("retires both persistent desktop card shells without removing either owner", () => {
+    expect(vault).toContain('className="wm-nectar-vault-chip__summary"');
+    const desktop = css.match(/@media \(min-width: 1024px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(desktop).toMatch(/\.wm-live-session-chip\s*\{[\s\S]*?border: 0 !important;/);
+    expect(desktop).toMatch(/\.wm-live-session-chip\s*\{[\s\S]*?box-shadow: none !important;/);
+    expect(desktop).toMatch(/\.wm-nectar-vault-chip__summary\s*\{[\s\S]*?border: 0 !important;/);
+    expect(desktop).toMatch(/\.wm-nectar-vault-chip__summary\s*\{[\s\S]*?box-shadow: none !important;/);
+    expect(desktop).toContain("border-bottom: 1px solid");
+  });
+
   it("does not move the retained-evidence disclosure into the phone override", () => {
     const phone = css.match(/@media \(max-width: 480px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(phone).not.toContain("wm-nectar-vault-chip");

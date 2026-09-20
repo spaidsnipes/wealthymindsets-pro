@@ -77,6 +77,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
       }}
     >
       <summary
+        className="wm-nectar-vault-chip__summary"
         aria-label={`Market Evidence. ${symbols.length} symbol ${symbols.length === 1 ? "summary" : "summaries"} retained in this browser. Open details.`}
         title="Open retained browser summaries"
         style={{

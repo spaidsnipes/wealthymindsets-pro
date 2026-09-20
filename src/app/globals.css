@@ -1194,13 +1194,32 @@ input[type=range]::-webkit-slider-runnable-track {
    evidence it explains. The full wording stays in the accessible name/title. */
 .wm-footprint-live-status__compact { display: none; }
 
-/* Desktop evidence belongs to one chart horizon, not two unrelated floating
-   rows.  The live-tape summary owns the center of that horizon while the
-   retained-evidence disclosure stays at its right edge.  Phones keep the
-   existing two-row arrangement so neither control can cover the other. */
+/* Desktop evidence belongs directly to the price glass, not inside two
+   unrelated floating cards. The live-tape summary owns the center of one
+   restrained horizon while the retained-evidence disclosure stays at its
+   right edge. Their full receipts and disclosure behavior remain unchanged;
+   only the persistent card chrome is retired. Phones keep the existing
+   two-row arrangement so neither control can cover the other. */
 @media (min-width: 1024px) {
+  .wm-live-session-chip {
+    border: 0 !important;
+    border-bottom: 1px solid rgba(240, 180, 41, 0.24) !important;
+    border-radius: 0 !important;
+    background: rgba(7, 9, 15, 0.44) !important;
+    box-shadow: none !important;
+  }
+
   .wm-nectar-vault-chip {
     top: 42px !important;
+  }
+
+  .wm-nectar-vault-chip__summary {
+    min-height: 28px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(139, 146, 172, 0.20) !important;
+    border-radius: 0 !important;
+    background: rgba(7, 9, 15, 0.44) !important;
+    box-shadow: none !important;
   }
 }
 
