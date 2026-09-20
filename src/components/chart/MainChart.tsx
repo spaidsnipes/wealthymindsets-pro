@@ -9076,36 +9076,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             {" "}Footprints populate from this point forward; historical rows remain blank.
           </div>
         )}
-        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && recentTicks?.some(t => t.trade) && (
-          <div
-            className="wm-footprint-live-status"
-            role="status"
-            aria-live="polite"
-            aria-label="Live footprint recording. Historical bars before this tab opened stay blank because the feed does not provide historical executed-trade tape."
-            title="Free-tier providers do not deliver per-trade tape for historical bars. Only bars that open while this tab is live will accumulate footprint data."
-            style={{
-              position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
-              zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
-              background: "rgba(11,14,26,0.85)", border: "1px solid rgba(0,192,118,0.30)",
-              color: "#8B92AC", fontSize: 10, fontWeight: 600,
-            }}
-          >
-            <span className="wm-footprint-live-status__full">
-              <span style={{ color: "#00C076", fontWeight: 800 }}>● Live footprint recording</span>
-              {" "}— historical bars pre-tab-open stay blank (hover for details).
-            </span>
-            <span className="wm-footprint-live-status__compact" aria-hidden="true">
-              <span style={{ color: "#00C076", fontWeight: 850 }}>● LIVE TAPE</span>
-              {" "}· new bars only
-            </span>
-          </div>
-        )}
-
+        {/* After tape arrives, its disclosure and the Nectar reading become
+            ONE compact evidence instrument below. They used to render as two
+            persistent stacked banners over price — a fifth and sixth chunk in
+            the four-chunk desktop frame. Nothing is hidden from assistive
+            technology or the hover receipt; only the duplicate visual strip
+            is removed. Before the first trade, the collecting banner above
+            remains because it explains an otherwise blank footprint. */}
         {/* WM Live Session tape chip — running counters from real observed
-            executions. Renders BELOW the honest banner and only when at least
-            one trade has arrived. Aligns with Founder Mockup 1 "Order Flow
-            Command Deck" intelligence strip (mini-form). Values are honest:
-            they're WM's observation, labeled as such. */}
+            executions. One compact on-glass reading; the complete retention,
+            coverage and historical-tape limitations remain in aria/title. */}
         {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") &&
           (sessionTapeTick > 0 || sessionNectarUiVersion > 0) && (() => {
           const s = sessionTapeStatsRef.current;
@@ -9179,16 +9159,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               data-nectar-quarantined={nectar.receipts.quarantined}
               data-nectar-unsupported={nectar.unsupportedCapabilities}
               role="group"
-              aria-label={`Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Current-tab delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageAriaClause}. ${s.bigTradeCount} current-tab large trades. ${gapCount} gaps. Retention: ${retentionShort}. Raw tape is not retained.`}
-              title={`WM Nectar memory for ${normalizeSym(symbol)}.\nCurrent tab since: ${horizonTime}\nBuys this tab: ${fmt(s.buyVol)}\nSells this tab: ${fmt(s.sellVol)}\nDelta this tab = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
+              aria-label={`Live footprint recording; historical bars before this tab opened stay blank. Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Current-tab delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageAriaClause}. ${s.bigTradeCount} current-tab large trades. ${gapCount} gaps. Retention: ${retentionShort}. Raw tape is not retained.`}
+              title={`LIVE TAPE — new bars only; historical bars before this tab opened stay blank.\nWM Nectar memory for ${normalizeSym(symbol)}.\nCurrent tab since: ${horizonTime}\nBuys this tab: ${fmt(s.buyVol)}\nSells this tab: ${fmt(s.sellVol)}\nDelta this tab = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
+              data-visual-density="compact"
               style={{
-                position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
+                position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
                 background: "rgba(11,14,26,0.90)", border: "1px solid rgba(240,180,41,0.35)",
                 color: "#D8DCEA", fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums",
-                display: "flex", gap: 14, alignItems: "center",
+                display: "flex", gap: 8, alignItems: "center",
               }}
             >
+              <span style={{ color: "#00C076", fontWeight: 850 }}>● LIVE TAPE</span>
               <span>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM NECTAR</span>
                 <span style={{ color: fidelityColor, fontWeight: 850, marginLeft: 6, letterSpacing: "0.02em" }}>· {fidelityLabel}</span>
@@ -9228,26 +9210,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   );
                 })()}
               </span>
-              <span>
-                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Live </span>
-                <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{s.tradeCount}</span>
-              </span>
-              {coverageEvents > 0 && (
-                <span>
-                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>{coverageLabel} </span>
-                  <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{coverageEvents}</span>
-                </span>
-              )}
-              <span>
-                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Big </span>
-                <span style={{ color: "#F0B429", fontWeight: 850 }}>{s.bigTradeCount}</span>
-              </span>
-              {gapCount > 0 && (
-                <span>
-                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>Gaps </span>
-                  <span style={{ color: "#FF4D6A", fontWeight: 850 }}>{gapCount}</span>
-                </span>
-              )}
             </div>
           );
         })()}
