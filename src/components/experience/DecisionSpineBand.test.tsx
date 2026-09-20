@@ -766,3 +766,88 @@ describe("DecisionSpineBand — WAIT declares whether it is finished (canon 064/
     expect(html).not.toContain('data-testid="spine-wait-standing"');
   });
 });
+
+/**
+ * THE DEBT MUST READ AS THE LOCK, NOT AS A NOTE BESIDE ONE.
+ *
+ * Canon WM_NewMockup_123 heads the roster with "FIRST-CLASS CONDITION ·
+ * PERMISSION WITHHELD". The rail drew the verdict and the chips as two
+ * neighbouring facts and left the trader to infer that one caused the other.
+ *
+ * The wrong answer this guards is narrow and expensive: PERMISSION GRANTED
+ * rendered above chips that still carry `?`. Both halves are drawn by
+ * different lines of one component, so no selector test can catch it — only a
+ * render with a contradictory fixture can.
+ */
+describe("DecisionSpineBand — the GO interlock (canon 123, H-101 leg 3)", () => {
+  const held = {
+    payable: 5,
+    watch: 0,
+    resolved: 3,
+    missing: 2,
+    warn: 0,
+    missingLabels: ["Aggression", "CLC"],
+    missingPayableLabels: ["Aggression"],
+    missingPayable: 1,
+    warnLabels: [],
+    roll: [
+      { key: "direction", label: "Direction", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "location", label: "Location", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "available-r", label: "Available R", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "aggression", label: "Aggression", standing: "MISSING" as const, payableNow: true, venueBlocked: false },
+      { key: "clc", label: "CLC", standing: "MISSING" as const, payableNow: false, venueBlocked: false },
+    ],
+  };
+
+  const waiting = () =>
+    oneStory({ decision: { value: "WAIT", detail: "evidence debt", tone: "pending" }, debt: held });
+
+  it("says PERMISSION WITHHELD over an owed roster", () => {
+    const html = render({ presentation: "rail", oneStory: waiting() });
+    expect(html).toContain('data-testid="go-interlock"');
+    expect(html).toContain('data-interlock="HELD"');
+    expect(html).toContain("PERMISSION WITHHELD");
+  });
+
+  it("never says PERMISSION GRANTED while a condition is owed", () => {
+    // The one rendering this whole leg exists to make impossible.
+    const html = render({ presentation: "rail", oneStory: waiting() });
+    expect(html).not.toContain("PERMISSION GRANTED");
+    expect(html).toContain("?");
+  });
+
+  it("counts the lock from the same roll the chips are drawn from", () => {
+    const html = render({ presentation: "rail", oneStory: waiting() });
+    expect(html).toContain('data-held-by="2"');
+    expect(html).toContain('data-named="5"');
+  });
+
+  it("opens the plaque only on ACTION", () => {
+    const html = render({
+      presentation: "rail",
+      oneStory: oneStory({
+        decision: { value: "ACTION", detail: "required evidence paid", tone: "resolved" },
+        debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [], missingPayableLabels: [], missingPayable: 0 },
+      }),
+    });
+    expect(html).toContain('data-interlock="CLEAR"');
+    expect(html).toContain("PERMISSION GRANTED");
+  });
+
+  it("distinguishes an unevaluated chain from an open one", () => {
+    const html = render({
+      presentation: "rail",
+      oneStory: oneStory({
+        decision: { value: "UNKNOWN", detail: "required evidence not evaluated", tone: "unknown" },
+        debt: null,
+      }),
+    });
+    expect(html).toContain('data-interlock="NOT_EVALUATED"');
+    expect(html).not.toContain("PERMISSION GRANTED");
+  });
+
+  it("does not hide the plaque from a screen reader — it is the only place this fact is said", () => {
+    const html = render({ presentation: "rail", oneStory: waiting() });
+    expect(html).toContain("PERMISSION WITHHELD. Evidence debt is a first-class condition");
+  });
+});

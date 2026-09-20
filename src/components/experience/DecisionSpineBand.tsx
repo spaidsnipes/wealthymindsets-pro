@@ -58,6 +58,10 @@ import {
   type WaitStanding,
 } from "@/lib/marketData/viewModels/selectWaitStanding";
 import {
+  selectGoInterlock,
+  type GoInterlockState,
+} from "@/lib/marketData/viewModels/selectGoInterlock";
+import {
   selectEvidenceLadder,
   type EvidenceLadderSegment,
   type EvidenceLadderState,
@@ -440,6 +444,30 @@ const LADDER_CHIP_TONE: Record<EvidenceLadderState, React.CSSProperties> = {
   WATCH: { color: "rgba(139,143,168,0.78)", borderColor: "rgba(139,143,168,0.26)" },
 };
 
+/**
+ * THE PLAQUE IS THE SENTENCE THAT TURNS A NAG INTO A LOCK.
+ *
+ * Canon WM_NewMockup_123 heads the roster with "EVIDENCE DEBT — FIRST-CLASS
+ * CONDITION · PERMISSION WITHHELD". Without it the chips are a list of things
+ * the product happens to be missing, sitting beside a decision the trader may
+ * take anyway. With it they are the reason the door is shut.
+ *
+ * HELD is the rail's gold, because it is the state that owns the reader's
+ * attention. NOT_EVALUATED is dimmed — nothing here is asking to be answered,
+ * and a loud chip over an unevaluated chain would read as an alarm.
+ *
+ * CLEAR is ivory and NEVER green, for the same reason FINISHED is not: green
+ * would read as approval of a trade, and this product grades no outcome. The
+ * door being open is not a recommendation to walk through it.
+ *
+ * Colour is the second channel throughout. The plaque word says it first.
+ */
+const INTERLOCK_TONE: Record<GoInterlockState, React.CSSProperties> = {
+  HELD: { color: "#d4af37", borderColor: "rgba(212,175,55,0.45)" },
+  NOT_EVALUATED: { color: "rgba(139,143,168,0.82)", borderColor: "rgba(139,143,168,0.26)" },
+  CLEAR: { color: "#c9c2a7", borderColor: "rgba(201,194,167,0.42)" },
+};
+
 function LadderChip({ segment }: { segment: EvidenceLadderSegment }) {
   const label = segment.label;
   if (!label) return null;
@@ -537,6 +565,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
      printed the verdict alone, so "stand down" and "you have work" rendered
      identically. See selectWaitStanding for where the answer is derived from. */
   const waitStanding = selectWaitStanding(nowDecision, oneStory ? oneStory.debt : null);
+  /* THE DEBT IS THE LOCK, NOT A NOTE BESIDE ONE — canon 123's "FIRST-CLASS
+     CONDITION · PERMISSION WITHHELD". The rail drew the verdict and the chips
+     as two neighbouring facts and left the trader to infer the connection
+     between them; this plaque states it. Derived from the SAME verdict and the
+     SAME roll — a second caller, never a second answer (§24). */
+  const interlock = selectGoInterlock(nowDecision, oneStory ? oneStory.debt : null);
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   /* The ledger first, then the observations outside it — the same two groups
      the bar draws, in the same order, so the chips and the bar can never tell
@@ -1126,6 +1160,41 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             bar reads as "these four are the debt", and the three it could not
             name would vanish behind a number that no longer has a name for its
             own parts. All or nothing is the only honest gate. */}
+        {/* THE PLAQUE GOES ABOVE THE ROSTER, BECAUSE IT IS WHAT THE ROSTER IS.
+            Read downward: the lock, then the conditions holding it, then the
+            sentence naming the first one to pay. Below the chips it would read
+            as a footnote to a list; above them it is the list's subject.
+
+            NOT aria-hidden. Unlike the bar, this states a fact that appears
+            nowhere else on the rail — that the debt is what withholds
+            permission — and the `title` carries the full release sentence for
+            a pointer without stealing a line from a 17vw column. */}
+        {rail ? (
+          <span
+            data-testid="go-interlock"
+            data-interlock={interlock.state}
+            data-held-by={interlock.heldBy.length}
+            title={interlock.release}
+            aria-label={`${interlock.plaque}. ${interlock.release}`}
+            style={{
+              display: "inline-flex",
+              alignSelf: "flex-start",
+              alignItems: "center",
+              padding: "1px 5px",
+              margin: "4px 0 0",
+              borderRadius: 2,
+              border: "1px solid",
+              fontSize: 8,
+              lineHeight: "12px",
+              letterSpacing: "0.13em",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              ...INTERLOCK_TONE[interlock.state],
+            }}
+          >
+            {interlock.plaque}
+          </span>
+        ) : null}
         {ladderChips ? (
           <span
             data-testid="evidence-ladder-roster"
