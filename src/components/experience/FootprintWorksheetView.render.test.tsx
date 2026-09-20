@@ -112,6 +112,23 @@ describe("FootprintWorksheetView", () => {
     expect(html).toContain('data-testid="emphasis-absent"');
   });
 
+  /**
+   * ASSET 13 travels the same shared path, for the same reason. The order-flow
+   * division is a SMALLER dividend than the window division, so its dependence
+   * ceiling is its own — but the reader must be told what they are carrying on
+   * both surfaces, not only on the one the block was written for.
+   */
+  it("carries the Asset 13 dependence line on this view too", () => {
+    for (const input of [signedTape(400), null]) {
+      const html = render(input);
+      expect(html).toContain('data-testid="worksheet-dependence"');
+      expect(html).toContain('data-dependence-tier="HIGH"');
+      // Never a badge: the count must be present, and present as a number.
+      expect(html).toMatch(/data-available="\d+"/);
+      expect(html).toContain("The reading is the same at every level");
+    }
+  });
+
   it("states the reason instead of drawing an empty grid when there is no tape", () => {
     const html = render(null);
     expect(html).toContain('data-testid="footprint-ladder-absent"');

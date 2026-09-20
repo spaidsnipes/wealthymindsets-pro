@@ -72,6 +72,7 @@ import type {
   DivisionWorksheetVM,
   WorksheetRung,
 } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
+import { selectScaffoldDependence } from "@/lib/marketData/viewModels/selectScaffoldDependence";
 import { selectTeachingEmphasis } from "@/lib/marketData/viewModels/selectTeachingEmphasis";
 
 const GOLD = "#d4af37";
@@ -228,6 +229,10 @@ export function DivisionWorksheetView({
      what the market was observed to do, and a summary computed off the trimmed
      view would quietly say something different at FOUNDATION than at ADVANCED. */
   const emphasis = React.useMemo(() => selectTeachingEmphasis(vm), [vm]);
+  /* ASSET 13. Also computed from the SOURCE worksheet — the dependence figure
+     measures how much of the worksheet's own explaining this level prints, and
+     its ceiling must be the whole worksheet rather than the trimmed view. */
+  const dependence = React.useMemo(() => selectScaffoldDependence(vm, level), [vm, level]);
 
   return (
     <div
@@ -313,6 +318,83 @@ export function DivisionWorksheetView({
 
         <span style={{ fontSize: 12, lineHeight: 1.5, color: TEXT }}>
           {scaffolded.title} — {scaffolded.promise}
+        </span>
+      </section>
+
+      {/* ASSET 13 — THE DEPENDENCE LINE. Asset 12's caption describes THE VIEW;
+          this one describes THE READER: what the level is doing on their behalf,
+          and by subtraction what they are now carrying themselves.
+
+          The tier word is NOT styled by tier. A HIGH drawn in one hue and a LOW
+          in another would grade the reader's progress in colour, which is the
+          §9 violation this room keeps paying for. All three read in one ink; the
+          only thing that moves is the count, and the count is measured off the
+          rungs actually drawn. */}
+      <section
+        aria-label="Dependence"
+        data-testid="worksheet-dependence"
+        data-dependence-tier={dependence.tier}
+        data-supplied={dependence.supplied}
+        data-available={dependence.available}
+        data-carried={dependence.carried}
+        style={{
+          border: `1px solid ${HAIR}`,
+          borderRadius: 6,
+          background: PANEL,
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 9, letterSpacing: 1.6, textTransform: "uppercase", color: MUTED }}>
+            Dependence
+          </span>
+          <span
+            data-testid="dependence-tier"
+            style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: GOLD_DIM }}
+          >
+            {dependence.tier}
+          </span>
+          <span style={{ fontSize: 11, color: MUTED }}>
+            Guidance: {dependence.guidance}
+          </span>
+          <span
+            data-testid="dependence-count"
+            style={{ fontSize: 11, color: MUTED, fontFamily: "ui-monospace, monospace" }}
+          >
+            {dependence.supplied}/{dependence.available} explained · {dependence.carried} carried
+          </span>
+        </div>
+
+        <span
+          data-testid="dependence-statement"
+          style={{ fontSize: 12, lineHeight: 1.6, color: TEXT }}
+        >
+          {dependence.statement}
+        </span>
+
+        {/* THE READING DOES NOT MOVE. Printed beside the dependence figure and
+            not below the rungs, because a reader told they now have discretion
+            must see in the SAME glance that the evidence did not shrink to
+            grant it. */}
+        <span
+          data-testid="dependence-reading-unchanged"
+          style={{ fontSize: 10.5, lineHeight: 1.55, color: MUTED }}
+        >
+          {dependence.readingUnchanged}
+        </span>
+
+        {/* Named on every level, not only the one that asked for it. The most
+            advanced panel is exactly where a reader has been told to trust
+            their own judgment, and is therefore least likely to notice an
+            instruction arriving inside it. */}
+        <span
+          data-testid="dependence-bias-refusal"
+          style={{ fontSize: 10.5, lineHeight: 1.55, color: MUTED }}
+        >
+          {dependence.biasRefusal}
         </span>
       </section>
 

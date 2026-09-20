@@ -291,3 +291,72 @@ describe("Asset 12 · the scaffolding removal path, as rendered", () => {
     expect(text.toLowerCase()).not.toContain("defensive setup");
   });
 });
+
+/**
+ * Asset 13 · THE DEPENDENCE LINE, as rendered.
+ *
+ * `selectScaffoldDependence` has its own suite proving the figure is counted
+ * rather than asserted. This block proves the count REACHES A HUMAN. A compiler
+ * with no consumer renders nothing, and a dependence figure nobody can see is
+ * the same badge it was written to avoid.
+ *
+ * `renderToStaticMarkup` cannot click, so only the default level is on screen
+ * here. The level-to-level movement is pinned in the selector's suite; what is
+ * pinned here is that the number on the page is the selector's number.
+ */
+describe("Asset 13 · the dependence line, as rendered", () => {
+  it("draws the block, its tier and its guidance mode", () => {
+    const out = render(FULL);
+    expect(out).toContain('data-testid="worksheet-dependence"');
+    expect(out).toContain('data-dependence-tier="HIGH"');
+    const text = visibleText(out);
+    expect(text).toContain("Dependence");
+    expect(text).toContain("Guidance: Full process");
+  });
+
+  it("publishes a real count, and at FOUNDATION carries nothing", () => {
+    const out = render(FULL);
+    const supplied = out.match(/data-supplied="(\d+)"/);
+    const available = out.match(/data-available="(\d+)"/);
+    expect(supplied).not.toBeNull();
+    // The ceiling must be a worksheet that actually explains itself — a zero
+    // here would make every tier trivially "complete" and the figure meaningless.
+    expect(Number(available?.[1])).toBeGreaterThan(0);
+    expect(supplied?.[1]).toBe(available?.[1]);
+    expect(out).toContain('data-carried="0"');
+  });
+
+  it("re-states the reading beside the figure, off the SOURCE worksheet", () => {
+    const text = visibleText(render(FULL));
+    expect(text).toContain("The reading is the same at every level");
+    expect(text).toContain("of 7 steps worked");
+  });
+
+  it("names the withheld bias instruction where the mockup issued it", () => {
+    const text = visibleText(render(FULL));
+    expect(text).toContain("decisionPermissionCompiler");
+    expect(text).toContain("Neither is drawn here");
+  });
+
+  it("does not grade the tier in hue — §9", () => {
+    // A HIGH in one colour and a LOW in another would paint a verdict onto the
+    // reader's own progress. The tier is read from ONE ink at every level, so
+    // the renderer must not branch its colour on `dependence.tier` at all.
+    const src = readFileSync(
+      join(process.cwd(), "src/components/experience/DivisionWorksheetView.tsx"),
+      "utf8",
+    );
+    const stripped = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    expect(stripped).not.toMatch(/dependence\.tier\s*===/);
+    expect(stripped).not.toMatch(/color:[^,;}]*dependence\.tier/);
+  });
+
+  it("is computed from the SOURCE worksheet and the level, never the trimmed view", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/components/experience/DivisionWorksheetView.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("selectScaffoldDependence(vm, level)");
+    expect(src).not.toContain("selectScaffoldDependence(scaffolded");
+  });
+});
