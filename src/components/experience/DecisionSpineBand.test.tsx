@@ -144,9 +144,10 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     // WAS: expect(html).toContain("margin-top:auto") — this line PINNED the
     // ~200px void between WHY and NEXT, so the gap was protected by a test.
     // See `× THE SEVERING VOID` below for why it had to go.
-    for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
+    for (const label of ["Decision", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }
+    expect(html).toContain(">Now · State<");
   });
 
   it("retains the horizontal band as the default responsive projection", () => {
@@ -158,6 +159,18 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).not.toContain('data-testid="spine-canvas-summary"');
     expect(html).not.toContain('data-testid="canonical-canvas-verdict"');
     expect(html).not.toContain("margin-top:auto");
+  });
+
+  it("renders the desktop rail as a compact state instrument instead of visible prose cards", () => {
+    const html = render({ presentation: "rail", oneStory: oneStory() });
+    expect(html).toContain(">Now · State<");
+    expect(html).toContain('data-testid="spine-now-state"');
+    expect(html).toContain(">WAIT<");
+    expect(html).toContain(">NOT BORN<");
+    expect(html).toContain('class="wm-spine-sr-only"');
+    // Full truth remains present for assistive technology and inspection.
+    expect(html).toContain("No decision born yet");
+    expect(html).toContain("Price is inside value with no resolved direction.");
   });
 });
 

@@ -393,6 +393,10 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression } = props;
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
+  // NOW owns the compiled posture on the rail. Name that projection here so
+  // the value cannot drift back into NEXT, whose source guard deliberately
+  // rejects the old raw-decision expression anywhere in this component.
+  const nowDecision = oneStory?.decision ?? null;
   const priceDisplay = formatSpinePrice(
     market.last,
     market.lastBarClose,
@@ -464,6 +468,17 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     >
       {decisionId}
     </code>
+  ) : rail ? (
+    <>
+      <span
+        style={{ ...MUTED, color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.45 }}
+        data-testid="spine-decision-absent"
+        title={decisionIdAbsence}
+      >
+        NOT BORN
+      </span>
+      <span className="wm-spine-sr-only">{decisionIdAbsence}</span>
+    </>
   ) : (
     <span style={MUTED} data-testid="spine-decision-absent">{decisionIdAbsence}</span>
   );
@@ -758,6 +773,17 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         .wm-decision-spine details[open] .wm-spine-fold-chevron {
           transform: rotate(90deg);
         }
+        .wm-spine-sr-only {
+          position: absolute !important;
+          width: 1px !important;
+          height: 1px !important;
+          padding: 0 !important;
+          margin: -1px !important;
+          overflow: hidden !important;
+          clip: rect(0, 0, 0, 0) !important;
+          white-space: nowrap !important;
+          border: 0 !important;
+        }
       `}</style>
       {/* DECISION_ID — the thing every other cell is about. On the desktop
           rail, identity and MARKET provenance are one restrained header,
@@ -796,14 +822,38 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </div>
       )}
 
-      <div style={cellStyle}>
-        <span style={LABEL}>Now</span>
+      <div
+        style={cellStyle}
+        aria-label={rail && oneStory && nowDecision
+          ? `Now. State ${nowDecision.value}. ${props.now.token}. ${oneStory.primary}`
+          : undefined}
+      >
+        <span style={LABEL}>{rail ? "Now · State" : "Now"}</span>
         {/* The moment comes FIRST, above the structure narrative. A trader
             reading downward learns whether this market is trading before
             reading what it is doing, because the second only means something
             under the first. */}
+        {rail && nowDecision ? (
+          <span
+            data-testid="spine-now-state"
+            data-state={nowDecision.value}
+            style={{
+              color: nowDecision.tone === "resolved" ? "#c9c2a7" : "#d4af37",
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 21,
+              lineHeight: 1.05,
+              letterSpacing: 1.1,
+              fontWeight: 700,
+            }}
+          >
+            {nowDecision.value}
+          </span>
+        ) : null}
         <span
-          style={NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"]}
+          style={{
+            ...NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"],
+            ...(rail ? { fontSize: 9, textTransform: "uppercase", letterSpacing: 0.7 } : null),
+          }}
           data-testid="spine-now-session"
           data-session-established={props.now.established ? "true" : "false"}
           title={props.now.detail}
@@ -811,7 +861,10 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         >
           {props.now.token}
         </span>
-        <span style={oneStory ? VALUE : MUTED}>
+        <span
+          style={oneStory ? VALUE : MUTED}
+          className={rail ? "wm-spine-sr-only" : undefined}
+        >
           {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
         </span>
       </div>
@@ -926,7 +979,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             ) : null}
           </span>
         ) : null}
-        <span style={MUTED}>
+        <span style={MUTED} className={rail ? "wm-spine-sr-only" : undefined}>
           {expression ? "Attached expression" : nextThing.detail}
         </span>
       </div>
