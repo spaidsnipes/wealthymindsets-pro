@@ -75,28 +75,39 @@ describe("B-701 · the three bands the blueprint draws", () => {
 describe("B-701 · one number, one owner", () => {
   // The failure `narrowViewport.ts` writes out at length: when CSS and TS each
   // hold a copy of a breakpoint, BOTH directions of disagreement are silent.
-  it("hands globals.css the same MEDIUM band it computes", () => {
+  it("computes the MEDIUM band from both owners so neither drifts alone", () => {
     expect(B701_ONE_ZOOM_QUERY).toBe(
       "(min-width: 1024px) and (max-width: 1199px)",
     );
-    expect(css()).toContain(`@media ${B701_ONE_ZOOM_QUERY}`);
   });
 
-  it("collapses exactly the second zoom in that band, and nothing else", () => {
-    const block = css().match(
+  it("does NOT ship an inert collapse rule for a zoom /charts never renders", () => {
+    // MEASURED on production /charts at innerWidth 1920: the market room had
+    // exactly two children — the camera column (1596px) and the decision spine
+    // rail (288px). `.wm-chart-watchlist` was not mounted, because the
+    // watchlist relocated to the shared drawer at EVERY width (see
+    // responsiveShell.test.ts). A media rule hiding it collapses nothing.
+    //
+    // This assertion exists so the rule cannot be re-added on blueprint
+    // reasoning alone. It may return the day a real second zoom is mounted in
+    // the room — and then this test should be updated by someone who has
+    // measured that zoom, not by someone quoting the sheet.
+    // Comments are stripped first, for the reason roomViewportFloor.ts already
+    // writes out: a repair's own comment QUOTES the value it replaced, and a
+    // naive scan then reports the explanation as the offence. This exact
+    // assertion failed that way once before the strip was added.
+    const code = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const block = code.match(
       /@media \(min-width: 1024px\) and \(max-width: 1199px\) \{[\s\S]*?\n\}/,
     );
-    expect(block, "the B-701 MEDIUM block must exist in globals.css").not.toBeNull();
+    expect(
+      block,
+      "no B-701 MEDIUM collapse rule should exist until a second zoom is mounted",
+    ).toBeNull();
 
-    // The WATCHLIST is zoom 2. It is the one that gives way first, because the
-    // DECISION rail (zoom 1) is about the SELECTED object — the thing the
-    // trader is looking at — and the watchlist is about the alternates.
-    expect(block![0]).toContain(".wm-chart-watchlist");
-
-    // The camera must not be touched by a band rule. C-101's 70% floor is the
-    // reason the zooms collapse at all; collapsing the camera would invert it.
-    expect(block![0]).not.toContain("wm-market-room");
-    expect(block![0]).not.toContain("wm-chart-dashboard");
+    // The band is still documented where the rule would go, so the next reader
+    // finds the measurement instead of an unexplained absence.
+    expect(css()).toContain("B-701 RESIZE BREAKPOINTS & TWO ZOOMS");
   });
 
   it("keeps the 1023 rail law and the 1200 zoom law distinct", () => {

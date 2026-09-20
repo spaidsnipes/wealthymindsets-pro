@@ -165,34 +165,42 @@
 }
 
 /*
- * B-701 RESIZE BREAKPOINTS & TWO ZOOMS — the MEDIUM band.
+ * B-701 RESIZE BREAKPOINTS & TWO ZOOMS — why there is NO MEDIUM rule here.
  *
- * The blueprint: LARGE (>=1200px) shows the full floor plan plus BOTH enlarged
- * zooms; MEDIUM (768-1199px) shows ONE; SMALL (<768px) shows the base plan
- * alone. On /charts the base plan is the CAMERA, zoom 1 is the DECISION rail
- * (the selected object) and zoom 2 is the WATCHLIST (the alternates).
+ * The blueprint states three bands: LARGE (>=1200px) shows the full floor plan
+ * plus BOTH enlarged zooms, MEDIUM (768-1199px) shows ONE, SMALL (<768px)
+ * shows the base plan alone.
  *
- * Before this rule, 1024-1199px rendered the full LARGE arrangement — both
- * zooms — in a band the sheet permits exactly one, and the only transition in
- * the file was the seven-surface cliff at 1023 below. This is the missing
- * middle step: the watchlist rail gives way so the camera keeps its share of a
- * floor that has narrowed (C-101, 70%).
+ * A `@media (min-width: 1024px) and (max-width: 1199px) { .wm-chart-watchlist
+ * { display: none } }` rule was written here and then REMOVED before it
+ * shipped, because measuring the live room proved it would collapse nothing.
  *
- * The capability is NOT removed — it relocates to the shared drawer, the same
- * single canonical WatchlistPanel mount the <=1023px rule already relies on
- * (`variant="sheet"`, `.wm-chart-watchlist-sheet`, which deliberately does not
- * wear the hidden class). Master Index parity law: a limitation must be
- * explicit and owned, not accidental drift.
+ * MEASURED on production /charts at innerWidth 1920:
  *
- * The number is Sentinel-locked to B701_ONE_ZOOM_QUERY in
- * src/lib/responsive/resizeBreakpoints.ts — see resizeBreakpoints.test.ts.
+ *   [data-wm-market-room]  1884px, and exactly TWO children:
+ *     [data-wm-market-column]                  1596px   <- the CAMERA
+ *     section.wm-decision-spine--rail           288px   <- ONE zoom
+ *
+ * `.wm-chart-watchlist` was not mounted at all. The watchlist relocated to the
+ * shared drawer at EVERY width (see responsiveShell.test.ts, "one canonical
+ * watchlist in the shared drawer at every width"), so that class is no longer
+ * rendered by this room and a rule hiding it is inert — a rule that reads like
+ * compliance and does nothing.
+ *
+ * So the real finding is the OPPOSITE of the one first suspected: /charts does
+ * not over-populate LARGE, it renders the MEDIUM arrangement — base plan plus
+ * ONE zoom — at every width above the 1023px rail cliff. It never reaches
+ * LARGE's two zooms at all.
+ *
+ * And 288px of fixed spine keeps the camera above C-101's 70% floor all the
+ * way down to ~996px, so the spine does NOT need a width collapse in MEDIUM.
+ * The camera's real pressure on /charts is VERTICAL — 192px of fixed chrome —
+ * which is a C-101 problem, not a B-701 one.
+ *
+ * The band itself is owned and published as a live receipt regardless: see
+ * src/lib/responsive/resizeBreakpoints.ts and `data-b701-band` on the /charts
+ * root. When a second zoom is built, this is where its collapse rule lands.
  */
-@media (min-width: 1024px) and (max-width: 1199px) {
-  .wm-chart-watchlist {
-    display: none !important;
-  }
-}
-
 @media (max-width: 1023px) {
   .wm-primary-sidebar,
   .wm-chart-primary-rail,

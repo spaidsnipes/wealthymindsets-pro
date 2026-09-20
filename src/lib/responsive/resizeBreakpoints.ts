@@ -109,8 +109,14 @@ export function zoomsForBand(band: CanvasBand): 0 | 1 | 2 {
  * present — i.e. above the 1023px rail cliff, below the 1200px both-zooms
  * threshold. Composed from both owners so neither can drift alone.
  *
- * Below 1024 the rails are already gone by the older law, and the watchlist
- * with them; this query is the part of MEDIUM that CSS still has to act on.
+ * NOTE: no CSS rule currently uses this query, and that is a MEASURED
+ * decision, not an oversight. On production /charts the market room has
+ * exactly two children — the camera column and the 288px decision spine — so
+ * the room already renders the MEDIUM arrangement (base plan + ONE zoom) at
+ * every width above the 1023px rail cliff. It never reaches LARGE's two zooms.
+ * A collapse rule would have nothing to collapse. See the B-701 comment block
+ * in globals.css and `resizeBreakpoints.test.ts`, which asserts the rule stays
+ * absent until a real second zoom is mounted.
  */
 export const B701_ONE_ZOOM_QUERY =
   `(min-width: ${NARROW_VIEWPORT_MAX_PX + 1}px) and (max-width: ${B701_LARGE_MIN_PX - 1}px)`;
