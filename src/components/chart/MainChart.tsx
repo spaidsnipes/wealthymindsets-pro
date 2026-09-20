@@ -7050,12 +7050,28 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const winTxt = `${pts.length} BARS IN VIEW`;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const winW = ctx.measureText(winTxt).width;
-            ctx.fillStyle = "rgba(14,12,8,0.86)";
-            ctx.fillRect(firstX + 3, plotBottom - 18, winW + 10, 13);
-            ctx.fillStyle = "rgba(201,165,92,0.9)";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
-            ctx.fillText(winTxt, firstX + 8, plotBottom - 11.5);
+            const desktopWindowChrome = W >= 960;
+            if (desktopWindowChrome) {
+              // The count is provenance for the field, not a price event and
+              // not another card. FL-06 keeps such chart facts quiet at the
+              // glass edge. Retain the backed treatment on narrow canvases,
+              // where the time axis competes more aggressively for contrast.
+              ctx.save();
+              ctx.fillStyle = "rgba(178,170,151,0.84)";
+              ctx.shadowColor = "rgba(0,0,0,0.95)";
+              ctx.shadowBlur = 3;
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(winTxt, firstX + 3, plotBottom - 11.5);
+              ctx.restore();
+            } else {
+              ctx.fillStyle = "rgba(14,12,8,0.86)";
+              ctx.fillRect(firstX + 3, plotBottom - 18, winW + 10, 13);
+              ctx.fillStyle = "rgba(201,165,92,0.9)";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(winTxt, firstX + 8, plotBottom - 11.5);
+            }
 
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             for (const zone of anatomy.zones) {
