@@ -75,7 +75,7 @@ describe("chart Market Object Passport transformation", () => {
     // still keyed so switching instruments cannot show the previous object's
     // lineage for a frame.
     expect(why).toContain('id="chart-market-object-passport"');
-    expect(why).toContain("<MarketObjectPassportPanel vm={chartPassportVM} />");
+    expect(why).toContain("<MarketObjectPassportPanel vm={chartPassportVM} embedded />");
     expect(why).toContain('key={`${symbol}:${timeframe}`}');
 
     // ...and it is NOT behind a second press. This is the assertion the old

@@ -79,6 +79,18 @@ const render = (objects: readonly MarketObjectPassport[]): string =>
   renderToStaticMarkup(<MarketObjectPassportPanel vm={vm(objects)} />);
 
 describe("MarketObjectPassportPanel — reversible claims must LOOK reversible", () => {
+  it("drops its duplicate card furniture when a room host already owns the frame", () => {
+    const html = renderToStaticMarkup(
+      <MarketObjectPassportPanel vm={vm([obj()])} embedded />,
+    );
+    expect(html).toContain('aria-label="Market object passports"');
+    expect(html).toContain("padding:0");
+    expect(html).toContain("background:transparent");
+    expect(html).not.toContain("Market Object Passports · Object DNA");
+    expect(html).toContain("1/1 resolved");
+    expect(html).toContain("Balanced inside value");
+  });
+
   it("marks a row that has evidence behind it", () => {
     const html = render([obj()]);
     expect(html).toContain('data-testid="passport-dna-affordance"');

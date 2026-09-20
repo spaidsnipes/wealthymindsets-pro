@@ -892,7 +892,7 @@ function CommandDeckInner() {
               has real answers to hand it. */}
           <GateRailColumn />
           <ObjectPassportSlots object={null} />
-          <MarketObjectPassportPanel vm={passport} unabridged={unabridged} />
+          <MarketObjectPassportPanel vm={passport} unabridged={unabridged} embedded />
         </>
       ),
     }),

@@ -29,6 +29,14 @@ import type {
 export interface MarketObjectPassportPanelProps {
   readonly vm: MarketObjectPassportVM;
   /**
+   * The shared equipment layer already owns the drawer frame, title, subject,
+   * verdict and close controls. Repeating this panel's own card and title
+   * inside that host creates a card inside a card and makes one instrument read
+   * like two apps. Embedded mode removes only that duplicate furniture; the
+   * same rows, resolution band, lifecycle truth and DNA disclosures remain.
+   */
+  readonly embedded?: boolean;
+  /**
    * TRUE only when this panel has the whole screen (the equipment journey's
    * FULL stage). It does not mean "bigger" — it means NOTHING IS BEHIND A
    * DISCLOSURE. Each object's lineage, contradictions and unknowns render
@@ -304,6 +312,7 @@ function PassportRow({
 export function MarketObjectPassportPanel({
   vm,
   unabridged = false,
+  embedded = false,
 }: MarketObjectPassportPanelProps): React.ReactElement {
   // Resolved / forming objects lead; unresolved are quieted below (Auto-Quiet).
   const ordered = [...vm.objects].sort((a, b) => {
@@ -315,16 +324,18 @@ export function MarketObjectPassportPanel({
     <section
       aria-label="Market object passports"
       style={{
-        border: `1px solid ${HAIR}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        background: "rgba(255,255,255,0.015)",
+        border: embedded ? "none" : `1px solid ${HAIR}`,
+        borderRadius: embedded ? 0 : 10,
+        padding: embedded ? 0 : "12px 14px",
+        background: embedded ? "transparent" : "rgba(255,255,255,0.015)",
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
-          Market Object Passports · Object DNA
-        </span>
+        {!embedded && (
+          <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
+            Market Object Passports · Object DNA
+          </span>
+        )}
         <span style={{ fontSize: 11, color: MUTED, marginLeft: "auto" }}>
           {vm.resolvedCount}/{vm.totalCount} resolved · {vm.qualityState}
         </span>

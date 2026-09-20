@@ -1310,7 +1310,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         { testId: "equipment-count-passport-objects", label: `${chartPassportVM.totalCount} objects` },
       ],
       renderDepth: (unabridged: boolean) => (
-        <MarketObjectPassportPanel vm={chartPassportVM} unabridged={unabridged} />
+        <MarketObjectPassportPanel vm={chartPassportVM} unabridged={unabridged} embedded />
       ),
     }),
     [chartPassportVM],
@@ -2651,7 +2651,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   id="chart-market-object-passport"
                   key={`${symbol}:${timeframe}`}
                 >
-                  <MarketObjectPassportPanel vm={chartPassportVM} />
+                  <MarketObjectPassportPanel vm={chartPassportVM} embedded />
                 </div>
               </div>
             </ShellModalDrawer>
