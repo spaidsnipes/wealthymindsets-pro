@@ -152,8 +152,51 @@ const RIGHT_OF_WAY_NOTE =
   `${ABSENT_OWNER} from decision nodes this room has never held, so they are ` +
   "drawn here as a named absence rather than printed as a verdict.";
 
-const fmt = (n: number): string =>
-  Number.isInteger(n) ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+/**
+ * FORMAT A QUANTITY WITHOUT EVER ROUNDING A REAL ONE AWAY.
+ *
+ * ── THE DEFECT THIS EXISTS TO FIX, AND HOW IT WAS FOUND ─────────────────────
+ *
+ * This was `maximumFractionDigits: 2`, which is correct for share counts and
+ * silently wrong for every instrument whose size is fractional. On BTC it
+ * rendered a level holding 0.0007 as `0`, so the LIVE worksheet read:
+ *
+ *     step 1  RAW EVIDENCE   bid 0 × ask 0
+ *     step 2  PARTICIPATION  bid larger · 1,422.21×
+ *
+ * Both rungs were computed from the same two numbers, and they contradicted
+ * each other on screen: step 1 said nothing traded, step 2 measured a
+ * thousand-fold imbalance in the nothing. Step 2 was right. Step 1 was a
+ * formatter.
+ *
+ * **It was found by Asset 11 reading the worksheet out loud.** The rungs sat
+ * in separate boxes where the contradiction was easy to scroll past; the
+ * teaching paragraph put them in one sentence, and one sentence cannot hold
+ * both. That is the argument for the block, made by the block, on its first
+ * live frame.
+ *
+ * ── THE RULE ────────────────────────────────────────────────────────────────
+ *
+ * A quantity that is not zero must never PRINT as zero. Rounding is a display
+ * convenience; turning evidence into its own absence is not a convenience, it
+ * is a false reading, and every downstream rung inherits it. So below one unit
+ * the precision follows the magnitude instead of a fixed cap.
+ */
+export const formatQuantity = (n: number): string => {
+  if (!Number.isFinite(n)) return "—";
+  if (n === 0) return "0";
+  if (Number.isInteger(n)) return n.toLocaleString("en-US");
+
+  const magnitude = Math.abs(n);
+  if (magnitude >= 1) {
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+
+  // Below one unit, keep four significant digits. `0.0007` stays `0.0007`
+  // rather than collapsing to `0`, and `0.00000031` still survives as a
+  // number a reader can see is small but present.
+  return n.toLocaleString("en-US", { maximumSignificantDigits: 4 });
+};
 
 const price = (n: number): string =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -382,9 +425,9 @@ export function selectFootprintWorksheet(
     tradeCount === 0
       ? "No per-trade tape has reached this room yet, so there is nothing to divide. This view reads the live tape; bars loaded before the tape opened carry no prints."
       : signedCount === 0
-        ? `${fmt(tradeCount)} prints arrived, but none states which side crossed the spread. A footprint cannot be built from an unsigned tape, and estimating the side would make every number below a guess wearing the clothes of a measurement.`
+        ? `${formatQuantity(tradeCount)} prints arrived, but none states which side crossed the spread. A footprint cannot be built from an unsigned tape, and estimating the side would make every number below a guess wearing the clothes of a measurement.`
         : signedCount < MIN_PRINTS_FOR_LADDER
-          ? `${fmt(signedCount)} signed prints is below the ${MIN_PRINTS_FOR_LADDER} this room requires before dividing a single price level. Under that, one trade in a bin reads as a wholly one-sided level.`
+          ? `${formatQuantity(signedCount)} signed prints is below the ${MIN_PRINTS_FOR_LADDER} this room requires before dividing a single price level. Under that, one trade in a bin reads as a wholly one-sided level.`
           : "The captured tape traded at a single price, so there is a tape but no ladder — every print landed in one level and the range steps have nothing to divide.";
 
   if (selectedIndex === null) {
@@ -428,8 +471,8 @@ export function selectFootprintWorksheet(
     rung(
       SPECS[0],
       "READ",
-      `bid ${fmt(lv.bid)} × ask ${fmt(lv.ask)}`,
-      `at ${price(lv.priceLevel)} — ${fmt(lv.total)} traded here out of ${fmt(signedCount)} signed prints across ${ladder.length} levels`,
+      `bid ${formatQuantity(lv.bid)} × ask ${formatQuantity(lv.ask)}`,
+      `at ${price(lv.priceLevel)} — ${formatQuantity(lv.total)} traded here out of ${formatQuantity(signedCount)} signed prints across ${ladder.length} levels`,
       null,
     ),
     larger === null
@@ -437,7 +480,7 @@ export function selectFootprintWorksheet(
           SPECS[1],
           "READ",
           "neither side larger",
-          `bid and ask both took ${fmt(lv.bid)} at this level — the auction balanced exactly`,
+          `bid and ask both took ${formatQuantity(lv.bid)} at this level — the auction balanced exactly`,
           null,
         )
       : rung(
@@ -448,7 +491,7 @@ export function selectFootprintWorksheet(
             : `${larger} larger · ${ratio.toLocaleString("en-US", { maximumFractionDigits: 2 })}×`,
           ratio === null
             ? `every unit at this level crossed on the ${larger}; the other side is absent, not small. The tape states the side it crossed on and nothing about intent.`
-            : `the ${larger} side took ${fmt(largerVol)} against ${fmt(smallerVol)}. The tape states which side crossed the spread; it does not state what that participant was trying to do.`,
+            : `the ${larger} side took ${formatQuantity(largerVol)} against ${formatQuantity(smallerVol)}. The tape states which side crossed the spread; it does not state what that participant was trying to do.`,
           null,
         ),
     displacement === null
@@ -478,7 +521,7 @@ export function selectFootprintWorksheet(
           SPECS[3],
           "READ",
           `${((Math.abs(displacement) / lv.total) * 1000).toLocaleString("en-US", { maximumFractionDigits: 3 })} per 1,000`,
-          `${price(Math.abs(displacement))} of displacement for ${fmt(lv.total)} traded at this level. The unit is price per thousand units of volume, this tape only — there is no cross-symbol scale here, so the number ranks against nothing and is not graded.`,
+          `${price(Math.abs(displacement))} of displacement for ${formatQuantity(lv.total)} traded at this level. The unit is price per thousand units of volume, this tape only — there is no cross-symbol scale here, so the number ranks against nothing and is not graded.`,
           null,
         ),
     !(span > 0)
@@ -507,7 +550,7 @@ export function selectFootprintWorksheet(
     selectedIndex,
     selectionBasis:
       `Of ${ladder.length} levels on the captured ladder, this is the one whose two sides are furthest apart — ` +
-      `${fmt(largerVol)} against ${fmt(smallerVol)}. Nothing clicked it; the rule is arithmetic on observed volume and is stated here because a surface that divides an arbitrary level while calling it "selected" is lying by omission.`,
+      `${formatQuantity(largerVol)} against ${formatQuantity(smallerVol)}. Nothing clicked it; the rule is arithmetic on observed volume and is stated here because a surface that divides an arbitrary level while calling it "selected" is lying by omission.`,
   };
 }
 

@@ -30,9 +30,10 @@
 import React from "react";
 
 import DivisionWorksheetView from "@/components/experience/DivisionWorksheetView";
-import type {
-  FootprintLadderLevel,
-  FootprintWorksheetVM,
+import {
+  formatQuantity,
+  type FootprintLadderLevel,
+  type FootprintWorksheetVM,
 } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 
 const GOLD = "#c9a227";
@@ -52,8 +53,17 @@ export interface FootprintWorksheetViewProps {
 const money = (n: number): string =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const qty = (n: number): string =>
-  Number.isInteger(n) ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+/**
+ * THE LADDER LABEL AND THE WORKSHEET RUNG READ FROM ONE FORMATTER.
+ *
+ * This file used to carry its own copy of the quantity formatter, capped at two
+ * decimal places. On a fractional-size instrument that printed a level holding
+ * 0.0007 as `0` — the bar was drawn at its true length while the number beside
+ * it said nothing was there. A local copy of a formatter is a second opinion
+ * about the same evidence, and two opinions is one too many. The compiler owns
+ * it; the view reads it.
+ */
+const qty = formatQuantity;
 
 function LadderRow({
   level,
