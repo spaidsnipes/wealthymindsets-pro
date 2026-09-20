@@ -67,10 +67,24 @@ export function ProfilesMenu({
         onClick={() => setOpen(o => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
+        /*
+          THE ACCESSIBLE NAME MAY NOT CLAIM MORE THAN THE GLASS SHOWS.
+
+          This used to read "6 of 8 drawing" straight off `activeCount` — but
+          active is not drawing. On a tape that states no aggressor side, four
+          of those six paint nothing, so the name was announcing a chart that
+          did not exist to the one reader who cannot look up and check.
+
+          `silentNote` is the compiler's sentence, printed verbatim. It is not
+          re-worded here: the module that measured the gap is the module that
+          gets to describe it.
+        */
         aria-label={
-          vm.activeCount > 0
-            ? `Profiles menu. ${vm.activeCount} of ${vm.entries.length} drawing.`
-            : `Profiles menu. Nothing drawing.`
+          vm.activeCount === 0
+            ? "Profiles menu. Nothing switched on."
+            : vm.silentCount > 0
+              ? `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on, ${vm.activeCount - vm.silentCount} drawing. ${vm.silentNote}`
+              : `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on and drawing.`
         }
         className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border shrink-0 whitespace-nowrap"
         style={{
@@ -78,8 +92,15 @@ export function ProfilesMenu({
           borderColor: vm.activeCount > 0 ? "rgba(212,175,55,0.5)" : "#1E2030",
           color: vm.activeCount > 0 ? "#d4af37" : "#8B8FA8",
         }}
-        title="Every volume profile and microstructure profile this product owns"
+        title={
+          vm.silentNote ||
+          "Every volume profile and microstructure profile this product owns"
+        }
         data-testid="profiles-menu-chip"
+        // Published so a probe can read the withheld count without parsing the
+        // label, and so the glass and the chrome can be checked against each
+        // other from outside the app.
+        data-profiles-silent={String(vm.silentCount)}
       >
         <Layers size={11} />
         {vm.summary}

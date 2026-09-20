@@ -110,11 +110,43 @@ export interface ProfileMenuVM {
   readonly activeCount: number;
   readonly readyCount: number;
   /**
+   * SWITCHED ON AND UNABLE TO DRAW — the lit switch over the empty chart.
+   *
+   * This is the one fact the menu needed and did not have. `activeCount` and
+   * `readyCount` are each true and each incomplete: a chart can report six
+   * active and eight ready-capable while four of those six are silent, because
+   * the two counts are measured over different sets and never intersected.
+   *
+   * The intersection is what the trader actually experiences. Four of the five
+   * order-flow readings default ON and are gated, together, behind one call to
+   * `hasVerifiedAggressorTape` — so on any feed that never states an aggressor
+   * side (every futures chart outside a live tape session) the ordinary state
+   * of this product is four lit switches painting nothing.
+   *
+   * Each of those four publishes its refusal into a `data-` attribute and
+   * nowhere else. Absorption is the only reading that puts its refusal on the
+   * glass ("EFFORT UNMEASURED"). A refusal legible only to someone inspecting
+   * the DOM is not a refusal the trader was given, so this count exists to put
+   * the same fact where the switch is.
+   */
+  readonly silentCount: number;
+  /**
    * The closed-chip label. Carries the ACTIVE count, never the available one —
    * a badge reading "4" over a chart with nothing drawn on it is a claim the
    * chart contradicts the moment the trader looks up.
+   *
+   * When some of those active readings cannot draw, the badge says so in the
+   * same breath. It does NOT quietly shrink to the drawing count: the trader
+   * switched six things on and six things are on, and a badge that answered "2"
+   * would be hiding their own choice from them to make itself look right.
    */
   readonly summary: string;
+  /**
+   * One sentence naming which readings are lit and silent, and why — printed
+   * verbatim by the chip's tooltip and accessible name. Empty when nothing is
+   * being withheld, so a caller can use emptiness as the test.
+   */
+  readonly silentNote: string;
 }
 
 /**
@@ -274,11 +306,50 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
   const activeCount = entries.reduce((n, e) => (e.active ? n + 1 : n), 0);
   const readyCount = entries.reduce((n, e) => (e.availability === "READY" ? n + 1 : n), 0);
 
+  // Switched on AND unable to draw. Neither count above can express this: one
+  // is measured over what the trader chose, the other over what the tape
+  // allows, and the gap between them is the empty chart.
+  const silent = entries.filter(e => e.active && e.availability !== "READY");
+  const silentCount = silent.length;
+
+  /*
+    THE NOTE NAMES NAMES.
+
+    "4 silent" alone would be a new riddle rather than an answer — the trader
+    would have to open the menu and compare eight rows to find out which four.
+    So the note lists them, and states the reason ONCE rather than four times,
+    because it is one fact about one tape (see NEEDS_SIDED_TAPE above), and
+    repeating it per row would make one gap read as four unrelated failures.
+
+    Both reasons are carried, because they ask opposite things of the trader:
+    WAITING_FOR_BARS says wait, NEEDS_SIDED_TAPE says do not.
+  */
+  let silentNote = "";
+  if (silentCount > 0) {
+    const names = silent.map(e => e.label).join(", ");
+    const waiting = silent.some(e => e.availability === "WAITING_FOR_BARS");
+    const untaped = silent.some(e => e.availability === "NEEDS_SIDED_TAPE");
+    const why = waiting && untaped
+      ? "some are waiting for bars; the rest need a tape that states an aggressor side"
+      : waiting
+        ? "no bars have loaded for this symbol yet — these will draw when they do"
+        : "this tape has not stated an aggressor side, so these cannot be drawn from volume alone";
+    silentNote =
+      `${silentCount} of ${activeCount} switched on but drawing nothing: ${names}. ${why}.`;
+  }
+
   return {
     version: PROFILE_MENU_VERSION,
     entries,
     activeCount,
     readyCount,
-    summary: activeCount > 0 ? `PROFILES · ${activeCount}` : "PROFILES",
+    silentCount,
+    silentNote,
+    summary:
+      activeCount === 0
+        ? "PROFILES"
+        : silentCount > 0
+          ? `PROFILES · ${activeCount} · ${silentCount} SILENT`
+          : `PROFILES · ${activeCount}`,
   };
 }

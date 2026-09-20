@@ -202,3 +202,129 @@ describe("selectProfileMenu — the chip counts what is DRAWN, not what is possi
     expect(vm.entries.every(e => e.active === false)).toBe(true);
   });
 });
+
+/*
+  THE GAP BETWEEN "SWITCHED ON" AND "DRAWING".
+
+  `activeCount` and `readyCount` are each true and each incomplete, and the
+  product shipped for weeks in the state these tests describe: four order-flow
+  readings defaulting ON, all four gated behind one tape check, none of them
+  drawing, and a gold chip reporting a number that looked like success.
+
+  Wording is still not asserted — only that the fact is carried, that it names
+  the readings, and that it cannot be reported when nothing is being withheld.
+*/
+describe("selectProfileMenu — a lit switch that draws nothing says so", () => {
+  it("THE SHIPPED STATE: four order-flow readings on, tape states no side", () => {
+    const vm = selectProfileMenu(
+      input({
+        observedAggressorFlow: false,
+        active: {
+          ABSORPTION: true,
+          IMBALANCE_STACK: true,
+          VALUE_CANDLE: true,
+          DELTA_DIVERGENCE: true,
+          LIQUIDITY_WEATHER: true,
+        },
+      }),
+    );
+
+    expect(vm.activeCount).toBe(5);
+    // Absorption draws from bars alone; the other four cannot.
+    expect(vm.silentCount).toBe(4);
+    expect(
+      vm.summary,
+      "the chip is the only thing a trader sees without opening the menu, so " +
+        "it must carry the withheld count rather than a number that reads as " +
+        "five layers of working chart",
+    ).toContain("4");
+  });
+
+  it("counts the switch the trader threw, not the drawing it produced", () => {
+    // A chip that answered "1" here would be hiding the trader's own five
+    // choices from them to make itself look correct.
+    const vm = selectProfileMenu(
+      input({
+        observedAggressorFlow: false,
+        active: { ABSORPTION: true, IMBALANCE_STACK: true, VALUE_CANDLE: true, DELTA_DIVERGENCE: true, LIQUIDITY_WEATHER: true },
+      }),
+    );
+    expect(vm.activeCount).toBe(5);
+  });
+
+  it("names the silent readings, so the count is an answer and not a riddle", () => {
+    const vm = selectProfileMenu(
+      input({ observedAggressorFlow: false, active: { VALUE_CANDLE: true, LIQUIDITY_WEATHER: true } }),
+    );
+    expect(vm.silentNote).toContain("WM Value Candle");
+    expect(vm.silentNote).toContain("Liquidity Weather");
+  });
+
+  it("does not name a reading that is silent but switched OFF", () => {
+    // An off switch is not a withheld layer. Listing it would turn the note
+    // into a catalogue of everything this tape cannot do, which is the menu's
+    // job, not the chip's.
+    const vm = selectProfileMenu(
+      input({ observedAggressorFlow: false, active: { VALUE_CANDLE: true } }),
+    );
+    expect(vm.silentCount).toBe(1);
+    expect(vm.silentNote).not.toContain("Liquidity Weather");
+  });
+
+  it("says nothing at all when every active reading can draw", () => {
+    const vm = selectProfileMenu(
+      input({ observedAggressorFlow: true, active: { ABSORPTION: true, VALUE_CANDLE: true } }),
+    );
+    expect(vm.silentCount).toBe(0);
+    expect(vm.silentNote).toBe("");
+    expect(
+      vm.summary,
+      "a chart with nothing withheld must not carry a withholding notice — a " +
+        "warning that is always present is a warning nobody reads",
+    ).not.toMatch(/silent/i);
+  });
+
+  it("says nothing when the trader has switched everything off", () => {
+    const vm = selectProfileMenu(input({ observedAggressorFlow: false, active: {} }));
+    expect(vm.silentCount).toBe(0);
+    expect(vm.silentNote).toBe("");
+    expect(vm.summary).toBe("PROFILES");
+  });
+
+  it("distinguishes WAIT from DO NOT WAIT, because they ask opposite things", () => {
+    const noBars = selectProfileMenu(
+      input({ barsPresent: false, active: { ABSORPTION: true } }),
+    );
+    const noTape = selectProfileMenu(
+      input({ observedAggressorFlow: false, active: { VALUE_CANDLE: true } }),
+    );
+    expect(noBars.silentCount).toBe(1);
+    expect(noTape.silentCount).toBe(1);
+    expect(
+      noBars.silentNote,
+      "a trader told 'waiting for bars' waits; a trader told 'this tape " +
+        "states no side' stops waiting and changes symbol. One sentence for " +
+        "both states would cost them the difference.",
+    ).not.toBe(noTape.silentNote);
+  });
+
+  it("carries both reasons when the two absences overlap", () => {
+    // No bars makes EVERYTHING waiting, so this is the precedence case: the
+    // note must not report only the narrower tape gap.
+    const vm = selectProfileMenu(
+      input({ barsPresent: false, observedAggressorFlow: false, active: { ABSORPTION: true, VALUE_CANDLE: true } }),
+    );
+    expect(vm.silentCount).toBe(2);
+    expect(vm.silentNote).toContain("Absorption");
+    expect(vm.silentNote).toContain("WM Value Candle");
+  });
+
+  it("silent readings are exactly active-minus-drawing, with no third bucket", () => {
+    for (const id of ALL_IDS) {
+      const vm = selectProfileMenu(input({ observedAggressorFlow: false, active: { [id]: true } }));
+      const drawing = vm.entries.filter(e => e.active && e.availability === "READY").length;
+      expect(vm.activeCount - drawing).toBe(vm.silentCount);
+      expect(vm.silentCount).toBe(SIDED.includes(id) ? 1 : 0);
+    }
+  });
+});
