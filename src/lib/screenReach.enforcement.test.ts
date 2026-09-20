@@ -449,10 +449,23 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "The canon §Truth Resolution Matrix claim gate. Shipped as an enforceable gate; nothing on screen is currently gated by it.",
   },
-  "src/lib/marketData/viewModels/composeOrderFlowOverlay.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "The FL-06 compiler that places order-flow readings ON the price canvas rather than in a side drawer. Real debt, and named as such: these readings already reach a trader as panels, so nothing is currently hidden from him — but the plate's whole claim is that a reading about price belongs ON price, and until MainChart draws these marks that claim is unkept. It lands one commit ahead of its renderer on purpose, because the honest half of this work is what it REFUSES: it proves in tests that it will not place an ordinal equal-count tape segment at a clock position, and that it will not place big prints at all, because MainChart's bubble engine already owns that pixel. Shipping the refusals before the drawing is what stops the drawing from being written the easy, lying way, and what stops a fifth reading being copied onto a canvas that already draws it.",
-  },
+  // The FL-06 overlay compiler was removed from this ledger — and from the
+  // tree — on 2026-09-20. It was entered here as AWAITING_SURFACE on the
+  // premise that order-flow readings reach a trader only as panels and not yet
+  // on price. That premise was already false: the four *Glass compilers
+  // shipped on 2026-09-18 and MainChart draws every one of them, absorption
+  // reaches price/time space through selectAbsorptionAnatomy, and big prints
+  // have always belonged to the bubble engine. So it was not a compiler
+  // awaiting a renderer; it was a SECOND renderer waiting to disagree with the
+  // first. Its own note ended by warning against "a fifth reading being copied
+  // onto a canvas that already draws it" — which is what it was.
+  //
+  // THE LESSON THIS LEDGER SHOULD CARRY: AWAITING_SURFACE is for work whose
+  // surface has not been built yet. It is never for work whose surface was
+  // built by somebody else. An entry here is a promise to finish something; if
+  // the thing is already finished elsewhere, the honest entry is no entry and
+  // no module. The ownership table now lives in
+  // src/lib/marketData/viewModels/orderFlowOnGlassHasOneOwner.sentinel.test.ts.
   // selectMateriality.ts was removed from this ledger on 2026-09-15: the
   // /command-deck ACTIVE QUESTION banner now renders its verdict in the
   // SECONDARY NOISE slot via selectSecondaryNoise. The gate is asked.
