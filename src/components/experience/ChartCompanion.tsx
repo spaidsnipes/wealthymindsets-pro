@@ -211,7 +211,14 @@ export function ChartCompanion(): React.ReactElement | null {
   if (!vm.visible) return null;
 
   const { fresh } = vm;
-  const dotColor = !vm.tapeObserved ? "#8a8271" : fresh ? "#00E88A" : "#F5A623";
+  // §9 — NO GREEN MEANS SAFE, IN THE ROOM. This dot began life as the phone
+  // pill's #00E88A / #F5A623 pair, and the §9 Sentinel was right to stop it:
+  // a green lamp beside a verdict reads as A CONDITION HAS BEEN MET, and a
+  // fresh tape is not a safe trade. Freshness is carried by the SENTENCE
+  // ("fresh <30s" / "not fresh", and vm.spoken for screen readers); the dot
+  // only ramps PRESENCE in the house palette — ivory for a timestamped
+  // reading, muted for observed-but-old, dimmest for nothing observed.
+  const dotColor = !vm.tapeObserved ? "#4a463d" : fresh ? "#ede6d3" : "#8a8271";
 
   return (
     <aside
@@ -243,7 +250,7 @@ export function ChartCompanion(): React.ReactElement | null {
             style={{
               width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
               background: dotColor,
-              boxShadow: fresh ? "0 0 3px #00E88A" : "none",
+              boxShadow: fresh ? "0 0 3px rgba(237,230,211,0.5)" : "none",
             }}
           />
           <span
