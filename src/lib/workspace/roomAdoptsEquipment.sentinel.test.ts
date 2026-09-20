@@ -330,6 +330,27 @@ const ROOMS = [
         deps: "[chartCanvasVM.chain]",
         depth: "DecisionChainPanel",
       },
+      /**
+       * THE TRADER'S RECORD, IN THE ROOM WHERE IT IS STILL ACTIONABLE.
+       *
+       * Personal Edge is the one trader-record tenant with NO phase gate, by
+       * design — PREPARATION is exactly when "you have historically performed
+       * badly in this context" can still change a decision. That is what makes
+       * it the tenant that belongs at a live chart, and the Mirror / Genome /
+       * Practice Honesty (all REVIEW-gated) the ones that do not.
+       *
+       * `deps` IS `[chartPersonalEdgeVm]` AND NOTHING ELSE, for the same reason
+       * the deck's is. Adding a phase or mode dep here would be the first step
+       * to gating it, and a Personal Edge that disappears on a live chart
+       * disappears exactly when it was worth reading.
+       */
+      {
+        id: "personal-edge",
+        memo: "chartPersonalEdgeEquipment",
+        reads: /vm=\{chartPersonalEdgeVm\}/,
+        deps: "[chartPersonalEdgeVm]",
+        depth: "PersonalEdgeChip",
+      },
     ],
   },
 ] as const;
@@ -974,10 +995,9 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
    * this is about.
    *
    * SCOPED TO ROOMS THAT ACTUALLY ADOPT THE CHAIN, off the room's own
-   * descriptor list rather than off a hardcoded path. `/charts` has no
-   * decision-chain equipment and must not fail for not having it — and if a
-   * third room adopts the chain tomorrow, this rule arrives with it instead of
-   * having to be remembered.
+   * descriptor list rather than off a hardcoded path — which is WHY it simply
+   * arrived when /charts adopted the chain, instead of having to be remembered.
+   * A room with no decision-chain equipment must not fail for not having it.
    */
   const chainDescriptor = room.descriptors.find((d) => d.id === "decision-chain");
   it.runIf(chainDescriptor)(

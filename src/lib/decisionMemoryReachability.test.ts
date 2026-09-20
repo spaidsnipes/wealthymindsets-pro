@@ -172,20 +172,32 @@ describe("decision memory reachability", () => {
     // The other half of the truth, and what makes this a blocker worth naming
     // rather than dead code worth deleting: real surfaces already subscribe.
     // Path-qualified so wiring a fourth consumer, or dropping one, trips here.
+    //
+    // BOTH IMPORT SPELLINGS. This matched only the `@/lib/...` alias, so a file
+    // importing the hook by RELATIVE path was invisible to the ledger — and the
+    // ledger's whole value is that it is exhaustive. `useSessionDecisions.ts`
+    // sits beside the hook and imports it as `./useDecisionMemory`, which is
+    // how the hole was found. Widened, not worked around.
     const consumers = walkProduction(SRC)
       .map((abs) => relative(REPO_ROOT, abs))
       .filter((rel) => rel !== HOOK_MODULE)
       .filter((rel) =>
-        /from "@\/lib\/traderMemory\/useDecisionMemory"/.test(
+        /from "(@\/lib\/traderMemory|\.)\/useDecisionMemory"/.test(
           readFileSync(join(REPO_ROOT, rel), "utf8"),
         ),
       )
       .sort();
 
+    // `useMarketCanvasVM.ts` LEFT this list without losing the subscription:
+    // it now reads `useSessionDecisions`, the shared hook that merges store
+    // decisions with the journal book. That merge had been hand-written in the
+    // canvas AND in /command-deck; when the chart room became a third reader it
+    // was extracted rather than copied. The store is reached through one more
+    // door than before, and through exactly one fewer copy of the merge.
     expect(consumers).toEqual([
       "src/app/command-deck/page.tsx",
       "src/app/profile/page.tsx",
-      "src/lib/marketData/viewModels/useMarketCanvasVM.ts",
+      "src/lib/traderMemory/useSessionDecisions.ts",
     ]);
   });
 

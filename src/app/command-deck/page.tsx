@@ -45,8 +45,8 @@ import { describeContradictionCoverage } from "@/lib/marketData/canonicalMarketS
 // The single writer for every gap claim WM makes. See coverageMap.ts —
 // a bare `gapCount` is not evidence unless gaps were detectable at all.
 import { describeGapCoverageTotal } from "@/lib/marketData/coverageMap";
-import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
-import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
+import { useSessionDecisions } from "@/lib/traderMemory/useSessionDecisions";
 import { selectUnreviewedCloses } from "@/lib/journal/selectUnreviewedCloses";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -394,15 +394,16 @@ function CommandDeckInner() {
   // before mount it falls back to a render-time clock (first paint
   // unchanged), then ticks on a 5s cadence.
   const nowMs = useCanvasClock() ?? Date.now();
-  const storeDecisions = useDecisionMemory(user?.id ?? null);
   const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
-  // One subscription, two readers: the decisions the deck merges, and how
-  // much of the stored book they were built from.
+  // ONE subscription, three readers: the merged decisions the deck compiles
+  // from, how much of the stored book they were built from, and the raw
+  // entries the review question is asked of. The merge itself now lives in
+  // useSessionDecisions — it was written identically here and in
+  // useMarketCanvasVM, and the chart room needed a third reader.
   const {
-    snapshots: journalDecisions,
-    coverage: journalCoverage,
-    entries: journalEntries,
-  } = useJournalBook(user?.id ?? null);
+    decisions: sessionDecisions,
+    journal: { coverage: journalCoverage, entries: journalEntries },
+  } = useSessionDecisions(user?.id ?? null);
   // THE REVIEW QUESTION, ASKED OF A BOOK THAT CAN ANSWER IT.
   //
   // `decisionRecords` below comes from decisionMemoryStore, whose only ingress
@@ -418,13 +419,6 @@ function CommandDeckInner() {
   const unreviewedCloses = React.useMemo(
     () => selectUnreviewedCloses(journalEntries, new Date(nowMs).toISOString().slice(0, 10)),
     [journalEntries, nowMs],
-  );
-  const sessionDecisions = React.useMemo(
-    () => {
-      const ids = new Set(storeDecisions.map((d) => d.decisionId));
-      return [...storeDecisions, ...journalDecisions.filter((d) => !ids.has(d.decisionId))];
-    },
-    [storeDecisions, journalDecisions],
   );
   const personalEdgeVm = React.useMemo(
     () =>

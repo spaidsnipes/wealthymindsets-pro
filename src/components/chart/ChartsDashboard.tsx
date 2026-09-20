@@ -146,6 +146,14 @@ import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrder
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
 import StructureContextNote from "@/components/chart/StructureContextNote";
 import DLARStrip from "@/components/command-deck/DLARStrip";
+// The trader's own record, and the chip that renders it — same selector, same
+// component the deck mounts. A chart-room variant would be a second answer to
+// "where have I actually performed", and two answers to that question is the
+// second semantic brain the workspace grammar bans.
+import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
+import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import { useSessionDecisions } from "@/lib/traderMemory/useSessionDecisions";
+import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -1016,6 +1024,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     ownerId: canvasUser?.id ?? null,
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
+  // THE TRADER'S OWN RECORD, on the same subscription the deck uses. The merge
+  // of live decision memory with the journal book lives in useSessionDecisions
+  // and nowhere else, so this room and /command-deck cannot answer "where have
+  // I performed" from two different lists.
+  const { decisions: chartSessionDecisions } = useSessionDecisions(canvasUser?.id ?? null);
+  // Live cadence clock, for the same reason the canvas keeps one: evidence age
+  // must keep advancing when the feed is silent instead of freezing at the last
+  // market-state change. SSR-safe — null before mount, so first paint matches.
+  const chartEdgeNowMs = useCanvasClock() ?? Date.now();
 
 
   /*
@@ -1525,6 +1542,95 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [chartCanvasVM.chain]);
 
   /*
+    THE ROOM'S FIFTH TENANT — THE TRADER, READ AT THE MOMENT IT CAN CHANGE
+    SOMETHING.
+
+    The four above are readings of the tape. This one reads the trader's own
+    record, and it is here because of the property the deck's entry states
+    outright: Personal Edge carries NO PHASE GATE, deliberately, because
+    PREPARATION is exactly when "you have historically performed badly in this
+    context" is still actionable. A trader standing at a chart sizing a setup IS
+    in preparation. A record only readable from /command-deck is a record read
+    after it could have changed the decision.
+
+    ONE RECORD, TWO ROOMS. `useSessionDecisions` is the same hook the deck
+    reads and the same one `useMarketCanvasVM` reads — the merge of live
+    decision memory with the journal book lives in exactly one file. Before
+    this, that merge was hand-written in two places; a third copy here is what
+    turns "the same record" from a guarantee into a coincidence.
+
+    THE VERDICT IS THE SELECTOR'S. `resolution` is `selectPersonalEdge`'s own
+    word and it refuses RESOLVED below its sample threshold. This room prints
+    it and does not soften it. `NO RECORD` is the single string added here, for
+    the case where the chip would render nothing — honest emptiness on a canvas
+    is silence, but a trader who pressed this on purpose is owed a sentence.
+  */
+  const chartPersonalEdgeVm = React.useMemo(
+    () =>
+      selectPersonalEdge({
+        ownerId: canvasUser?.id ?? "",
+        decisions: chartSessionDecisions,
+        nowMs: chartEdgeNowMs,
+      }),
+    [canvasUser?.id, chartSessionDecisions, chartEdgeNowMs],
+  );
+
+  const chartPersonalEdgeEquipment = React.useMemo(() => {
+    const noRecord = chartPersonalEdgeVm.totalDecisions === 0;
+    const strengths = chartPersonalEdgeVm.topStrengths.length;
+    const watches = chartPersonalEdgeVm.topWatch.length;
+    return {
+      equipmentId: "personal-edge",
+      // The rail's own words, not a chart-room paraphrase.
+      title: "Your personal edge",
+      verdict: noRecord ? "NO RECORD" : chartPersonalEdgeVm.resolution,
+      headline: noRecord
+        ? "No decisions on record yet — your edge cannot be measured from nothing."
+        : chartPersonalEdgeVm.headline,
+      counts: [
+        { testId: "equipment-count-edge-strength", label: `${strengths} strength` },
+        { testId: "equipment-count-edge-watch", label: `${watches} to watch` },
+        {
+          testId: "equipment-count-edge-decisions",
+          label: `${chartPersonalEdgeVm.totalDecisions} decisions`,
+        },
+      ],
+      renderDepth: (unabridged: boolean) =>
+        noRecord ? (
+          <p
+            data-testid="equipment-edge-no-record"
+            style={{ fontSize: 12, color: "#8a8271", lineHeight: 1.6, margin: 0 }}
+          >
+            {chartPersonalEdgeVm.reason ?? "No decisions on record yet."}
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <PersonalEdgeChip vm={chartPersonalEdgeVm} unabridged={unabridged} />
+            {/* THE SAMPLE RULE, SAID OUT LOUD AT DEPTH. The chip prints the
+                verdict; a trader who entered the full experience is owed the
+                reason a context is not called RESOLVED. It is the selector's
+                sentence, carried — not a second explanation written here. */}
+            {chartPersonalEdgeVm.reason != null && (
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "#8a8271",
+                  lineHeight: 1.6,
+                  margin: 0,
+                  fontStyle: "italic",
+                }}
+              >
+                {chartPersonalEdgeVm.reason}
+              </p>
+            )}
+          </div>
+        ),
+    };
+    /* NO drill. A drill from inside a drawer would open a drawer within a
+       drawer, which the directive bans by name. ENTER is how this gets deeper. */
+  }, [chartPersonalEdgeVm]);
+
+  /*
     The chooser. The room hands the layer ONE descriptor — the one the rail
     asked for — so the layer never learns that this room has more than one piece
     of equipment, and never has to choose. Choosing is the room's job because
@@ -1536,6 +1642,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       "market-object-passport": chartPassportEquipment,
       "order-flow": chartOrderFlowEquipment,
       "decision-chain": chartDecisionChainEquipment,
+      "personal-edge": chartPersonalEdgeEquipment,
     }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
 
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(

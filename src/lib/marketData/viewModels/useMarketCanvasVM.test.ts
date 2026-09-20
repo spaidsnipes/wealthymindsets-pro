@@ -11,7 +11,15 @@ vi.mock("../useCanonicalMarketState", () => ({
   useCanonicalMarketStateHistory: () => [],
 }));
 vi.mock("@/lib/traderMemory/useDecisionMemory", () => ({ useDecisionMemory: () => [] }));
-vi.mock("@/lib/traderMemory/adapters/useJournalSnapshots", () => ({ useJournalSnapshots: () => [] }));
+// `useJournalBook` is the SINGLE journal subscription; `useJournalSnapshots`
+// delegates to it, and the shared `useSessionDecisions` hook this file's
+// subject now reads goes through the book so it can hand `coverage`/`entries`
+// to surfaces that need them. Both are stubbed — this test exercises the
+// compiler, not browser storage.
+vi.mock("@/lib/traderMemory/adapters/useJournalSnapshots", () => ({
+  useJournalSnapshots: () => [],
+  useJournalBook: () => ({ snapshots: [], coverage: { read: 0, total: 0 }, entries: [] }),
+}));
 vi.mock("./canvasClock", () => ({ useCanvasClock: () => 2_000 }));
 
 const unresolved = (): MarketStateDimension => ({

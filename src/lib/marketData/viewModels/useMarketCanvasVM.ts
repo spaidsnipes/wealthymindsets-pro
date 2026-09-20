@@ -26,8 +26,7 @@ import {
   useCanonicalMarketStateHistory,
 } from "../useCanonicalMarketState";
 import type { CanonicalMarketState } from "../canonicalMarketState";
-import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
-import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useSessionDecisions } from "@/lib/traderMemory/useSessionDecisions";
 import {
   composeMarketCanvasVM,
   type ComposeMarketCanvasOutput,
@@ -64,16 +63,10 @@ export function useMarketCanvasVM(
     input.identity,
     input.historyCapacity ?? 6,
   );
-  const storeDecisions = useDecisionMemory(input.ownerId);
-  const journalDecisions = useJournalSnapshots(input.ownerId);
-
-  const sessionDecisions = React.useMemo(() => {
-    const ids = new Set(storeDecisions.map((d) => d.decisionId));
-    return [
-      ...storeDecisions,
-      ...journalDecisions.filter((d) => !ids.has(d.decisionId)),
-    ];
-  }, [storeDecisions, journalDecisions]);
+  // The trader's own record, merged in ONE place. This merge used to be
+  // written out here and again in /command-deck; when the chart room needed
+  // a third reader it became a shared hook rather than a third copy.
+  const { decisions: sessionDecisions } = useSessionDecisions(input.ownerId);
 
   // Live cadence clock. `useCanvasClock` re-renders on a fixed cadence
   // (even when the market feed is silent) so permission-rule freshness

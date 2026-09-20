@@ -523,6 +523,34 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "lens",
     },
     /**
+     * THE CHART ROOM'S FIFTH TENANT — THE FIRST THAT IS NOT ABOUT THIS MARKET.
+     *
+     * Everything above is a reading of the tape in front of the trader. This is
+     * a reading of the TRADER, and it belongs here for the reason the deck's own
+     * entry states out loud: Personal Edge carries NO PHASE GATE, deliberately,
+     * because PREPARATION is exactly when "you have historically performed
+     * badly in this context" is still actionable. Standing at a chart, about to
+     * size a setup, IS preparation. A record readable only from another route is
+     * a record consulted after it could have changed anything.
+     *
+     * NOT EVERY DECK TENANT FOLLOWS IT HERE, AND THAT IS THE POINT. The Mirror
+     * is gated REVIEW / POST_EXIT; the Learning Genome and Practice Honesty are
+     * gated REVIEW / LEARN. On a live chart each would read WITHHELD nearly
+     * always — a rail entry that is permanently closed is worse than an absent
+     * one, because the trader learns to stop pressing. Equipment travels when
+     * the room can honestly hand it over, not because another room had it.
+     *
+     * SAME ID, SAME LABEL, SAME HINT AS THE DECK. There is one record of how
+     * this trader has performed. `charts-personal-edge` would be a second name
+     * for it, and two names is how a trader learns to believe there are two.
+     */
+    {
+      id: "personal-edge",
+      label: "Your personal edge",
+      hint: "Where you have actually performed, measured across your whole record",
+      kind: "lens",
+    },
+    /**
      * ── THE TWO INSTRUMENTS THE CHART ROOM ALWAYS HAD AND NEVER DECLARED ────
      *
      * Everything above this line is a READING. That is why "Tools" over a live

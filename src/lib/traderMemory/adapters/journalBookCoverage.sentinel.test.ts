@@ -23,6 +23,15 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 
 const HOOK = read("src/lib/traderMemory/adapters/useJournalSnapshots.ts");
 const DECK = read("src/app/command-deck/page.tsx");
+/**
+ * The shared merge of the trader's record. The deck used to call
+ * `useJournalBook` directly; when the chart room needed the same merge, the
+ * store+journal combination moved HERE rather than being hand-written a third
+ * time. The one-subscription rule did not change — it acquired one level of
+ * indirection, so the sentinel follows the indirection instead of being
+ * relaxed to accept whatever the deck happens to call now.
+ */
+const SESSION = read("src/lib/traderMemory/useSessionDecisions.ts");
 
 /**
  * Source with comments and import paths removed.
@@ -84,10 +93,20 @@ describe("one subscription, not two", () => {
 
 describe("the deck SAYS it, and says it when it matters most", () => {
   it("the deck consumes the book, not the bare snapshots", () => {
-    expect(DECK).toMatch(/useJournalBook\(/);
-    // The bare-snapshot hook is not CALLED here. (Its name still appears in
-    // the import path, which is the module's filename, not a usage.)
+    // THE RULE IS ONE SUBSCRIPTION, NOT ONE SPELLING. The deck now reaches the
+    // book through `useSessionDecisions` — the shared hook that merges store
+    // decisions with journal snapshots, extracted when the chart room became a
+    // third reader of a merge that had been hand-written twice. So the chain
+    // is asserted end to end: the deck reads the shared hook, and the shared
+    // hook is the thing that subscribes. Accepting "the deck calls whatever it
+    // calls" would have made this sentinel decoration.
+    expect(DECK).toMatch(/useSessionDecisions\(/);
+    expect(SESSION).toMatch(/useJournalBook\(/);
+    // The bare-snapshot hook is not CALLED in either. (Its name still appears
+    // in import paths, which is the module's filename, not a usage.)
     expect(DECK_CODE).not.toMatch(/useJournalSnapshots\s*\(/);
+    expect(codeOf(SESSION)).not.toMatch(/useJournalSnapshots\s*\(/);
+    // …and the deck still names the coverage it renders below.
     expect(DECK).toMatch(/coverage:\s*journalCoverage/);
   });
 
