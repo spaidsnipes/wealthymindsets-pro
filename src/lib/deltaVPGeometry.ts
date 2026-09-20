@@ -142,7 +142,10 @@ export function dvpRefusalMessage(refusal: DVPRefusal): string {
       // arrived while this chart was open on this timeframe. That is the tool's
       // real domain, and it is the one thing the trader needs to know. Saying
       // only "no data" would leave them guessing whether it is broken.
-      return "Delta+VP — no per-level tape for these bars (captured live only)";
+      // The chart is the instrument, not the explanation drawer. Keep the
+      // refusal short enough to stay attached to the selected box; the full
+      // provenance sentence remains on the canonical Profiles control.
+      return "Delta+VP · no per-level tape · captured live only";
     case "too-narrow":
       return "Delta+VP — box too narrow for two columns";
     case "too-short":

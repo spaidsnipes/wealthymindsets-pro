@@ -188,6 +188,12 @@ describe("dvpRefusalMessage — one sentence per obstacle, and no false promises
     expect(dvpRefusalMessage("no-levels")).toMatch(/captured live only/i);
   });
 
+  it("keeps the chart refusal instrument-sized instead of turning it into prose", () => {
+    const message = dvpRefusalMessage("no-levels");
+    expect(message.length).toBeLessThanOrEqual(52);
+    expect(message).not.toMatch(/[()]/);
+  });
+
   it("DOES ask for a resize on the two causes a resize can fix", () => {
     expect(dvpRefusalMessage("too-narrow")).toMatch(/narrow/i);
     expect(dvpRefusalMessage("too-short")).toMatch(/short/i);
