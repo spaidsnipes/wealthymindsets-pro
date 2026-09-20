@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
@@ -393,8 +394,54 @@ export type CandleType =
   | "volume-candles" | "vp-candles" | "orderflow-candles"
   | "renko" | "range-bars";
 
+/**
+ * Persist a preference WHEN IT CHANGES — never on mount.
+ *
+ * The plain `useEffect(() => lsSet(k, v), [v])` this replaces fired on mount,
+ * which wrote a fallback into storage before the trader had touched anything.
+ * After that first write the product could no longer distinguish "switched off"
+ * from "never seen", and every future change of default became a no-op for
+ * everyone who had already visited. See `src/lib/chartPreferenceRepair.ts` for
+ * the full account and the one-time cleanup of the damage.
+ *
+ * Skipping the first run is safe precisely because the state was SEEDED from
+ * storage by its `useState` initializer: on mount the value in memory and the
+ * value on disk already agree, so the write it skips is a write that would
+ * change nothing — except to manufacture a preference nobody expressed.
+ *
+ * `dep` is what decides whether a change happened; `value` is what gets stored.
+ * They differ only where the state is a live object (a Set) that must be
+ * serialised to an array without making the dependency a fresh reference on
+ * every render.
+ */
+function usePersistOnChange(key: string, dep: unknown, value: unknown = dep) {
+  const seeded = useRef(false);
+  const latest = useRef(value);
+  latest.current = value;
+  useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      return;
+    }
+    try {
+      localStorage.setItem(key, JSON.stringify(latest.current));
+    } catch {}
+  }, [key, dep]);
+}
+
 export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?: string | null } = {}) {
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
+
+  /**
+   * MUST RUN BEFORE EVERY `lsGet` BELOW, which is why it is a `useState`
+   * initializer and not an effect: initializers run during this render, in
+   * source order, while effects run after the whole render is done — far too
+   * late to influence the values this component is reading right now.
+   *
+   * One-time, self-stamping, no-op on the server. Its return value is
+   * deliberately unused; it is called for what it removes, not what it returns.
+   */
+  useState(repairChartPreferences);
 
   // ── Persist helpers ─────────────────────────────────────────
   function lsGet<T>(key: string, fallback: T): T {
@@ -697,7 +744,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }),
   );
   // Persist chart settings (candle colors, grid, etc.) so a refresh keeps them.
-  useEffect(() => { lsSet("wm_chartSettings", chartSettings); }, [chartSettings]);
+  //
+  // ON CHANGE, NOT ON MOUNT — and here that is more than tidiness. The
+  // initializer above MERGES `DEFAULT_CHART_SETTINGS` under whatever partial is
+  // stored, so the mount write used to flatten the full merged object back to
+  // disk. From then on every default in this table was frozen at the value it
+  // had on the trader's first visit, and changing one in source could never
+  // reach them. Skipping the mount write leaves the stored object PARTIAL, so
+  // the defaults are re-merged live on every load and stay editable.
+  usePersistOnChange("wm_chartSettings", chartSettings);
 
   // ── WM Neon vs Original layout theme ────────────────────────
   // HYDRATION-SAFE: must start as the SSR default ("original") so the first
@@ -803,10 +858,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [chartLayout, setChartLayout] = useState<ChartLayout>(() => lsGet("wm_chartLayout", "1") as ChartLayout);
 
   // ── Persist key state to localStorage ───────────────────────
-  useEffect(() => { lsSet("wm_activeInds",   [...activeInds]); },  [activeInds]);
-  useEffect(() => { lsSet("wm_indSettings",  indSettings); },      [indSettings]);
-  useEffect(() => { lsSet("wm_footprint",    footprintType); },    [footprintType]);
-  useEffect(() => { lsSet("wm_fp_enabled", footprintEnabled); }, [footprintEnabled]);
+  // ON CHANGE, NOT ON MOUNT. See `usePersistOnChange` above: the previous
+  // `useEffect(… , [x])` form wrote every fallback to disk on first paint,
+  // which is how a stored preference stopped meaning "the trader chose this".
+  usePersistOnChange("wm_activeInds", activeInds, [...activeInds]);
+  usePersistOnChange("wm_indSettings",  indSettings);
+  usePersistOnChange("wm_footprint",    footprintType);
+  usePersistOnChange("wm_fp_enabled",   footprintEnabled);
   // Sync Big Trades Simultaneous Mode when toggled from the gear popover.
   useEffect(() => {
     const onSimul = (e: Event) => {
@@ -818,17 +876,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     window.addEventListener("wm-bigtrades-simul", onSimul);
     return () => window.removeEventListener("wm-bigtrades-simul", onSimul);
   }, []);
-  useEffect(() => { lsSet("wm_candleType",   candleType); },       [candleType]);
-  useEffect(() => { lsSet("wm_timeframe",    timeframe); },        [timeframe]);
-  useEffect(() => { lsSet("wm_chartLayout",  chartLayout); },      [chartLayout]);
-  useEffect(() => { lsSet("wm_extHours",     extHours); },         [extHours]);
-  useEffect(() => { lsSet("wm_fixedVP",      fixedVPActive); },    [fixedVPActive]);
-  useEffect(() => { lsSet("wm_sessionVP",    sessionVPChart); },   [sessionVPChart]);
-  useEffect(() => { lsSet("wm_absorptionAnatomy", absorptionAnatomy); }, [absorptionAnatomy]);
-  useEffect(() => { lsSet("wm_ofImbalanceStack", imbalanceStackOn); }, [imbalanceStackOn]);
-  useEffect(() => { lsSet("wm_ofValueCandle", valueCandleOn); }, [valueCandleOn]);
-  useEffect(() => { lsSet("wm_ofDeltaDivergence", deltaDivergenceOn); }, [deltaDivergenceOn]);
-  useEffect(() => { lsSet("wm_ofLiquidityWeather", liquidityWeatherOn); }, [liquidityWeatherOn]);
+  usePersistOnChange("wm_candleType",   candleType);
+  usePersistOnChange("wm_timeframe",    timeframe);
+  usePersistOnChange("wm_chartLayout",  chartLayout);
+  usePersistOnChange("wm_extHours",     extHours);
+  usePersistOnChange("wm_fixedVP",      fixedVPActive);
+  usePersistOnChange("wm_sessionVP",    sessionVPChart);
+  usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
+  usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
+  usePersistOnChange("wm_ofValueCandle",       valueCandleOn);
+  usePersistOnChange("wm_ofDeltaDivergence",   deltaDivergenceOn);
+  usePersistOnChange("wm_ofLiquidityWeather",  liquidityWeatherOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
