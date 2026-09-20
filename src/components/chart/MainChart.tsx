@@ -102,6 +102,7 @@ const CHART_SWING_LOOKBACK = STRUCTURE_DEFAULT_LOOKBACK;
 const LIQUIDITY_SWEEP_LOOKBACK = 4;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
+import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
@@ -6788,11 +6789,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const cy    = Math.max(boxH / 2 + 1, Math.min(H - boxH / 2 - 1, y));
           const boxY  = Math.round(cy - boxH / 2);
           const border = flash ? "#FF2E63" : (neon ? "#00FFA3" : "#2F80ED");
-          // pill background
-          ctx.fillStyle = flash ? "rgba(255,46,99,0.95)" : "rgba(14,18,30,0.94)";
-          ctx.fillRect(x, boxY, boxW, boxH);
-          ctx.strokeStyle = border; ctx.lineWidth = 1;
-          ctx.strokeRect(x + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+          // FL-06: desktop is one continuous price instrument. The countdown
+          // keeps its real price coordinate, ring/progress, live-close flash,
+          // text and connector, but loses the floating card material. Narrow
+          // charts keep the shell because it protects legibility over a
+          // compressed market. Only these two paint operations are gated.
+          if (candleCountdownUsesPillShell(W)) {
+            ctx.fillStyle = flash ? "rgba(255,46,99,0.95)" : "rgba(14,18,30,0.94)";
+            ctx.fillRect(x, boxY, boxW, boxH);
+            ctx.strokeStyle = border; ctx.lineWidth = 1;
+            ctx.strokeRect(x + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+          }
           // elapsed-fraction ring (clock)
           const ringX = x + 10, ringR = 5;
           ctx.beginPath(); ctx.arc(ringX, cy, ringR, 0, Math.PI * 2);

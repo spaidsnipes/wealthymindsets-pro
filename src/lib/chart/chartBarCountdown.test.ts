@@ -139,4 +139,13 @@ describe("MainChart adoption", () => {
     expect(CODE, "closeFlash is painting urgency straight from the remainder again")
       .not.toMatch(/closeFlash \? "text-wm-red"/);
   });
+
+  it("FL-06 removes only the desktop pill shell and keeps the price instrument", () => {
+    expect(CODE).toContain("candleCountdownUsesPillShell(W)");
+    expect(CODE).toContain("progressRef.current * Math.PI * 2");
+    expect(CODE).toContain("countdownRef.current");
+    expect(CODE).toContain("closeFlashRef.current");
+    expect(CODE).toContain("srs?.priceToCoordinate(lastBar.close)");
+    expect(CODE).toContain("ctx.lineTo(x + boxW + 34, cy + 0.5)");
+  });
 });
