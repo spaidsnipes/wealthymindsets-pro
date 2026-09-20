@@ -31,6 +31,11 @@ describe("chart appearance has one truthful doorway", () => {
     expect(settings).toContain('<option value="custom">Custom candle colors</option>');
   });
 
+  it("makes Reset defaults return to Classic instead of exposing old gold storage defaults", () => {
+    expect(dashboard).toContain("if (next === DEFAULT_CHART_SETTINGS)");
+    expect(dashboard).toContain('chartTheme: "green-red"');
+  });
+
   it("keeps the selected candle palette when the room enters WM Neon", () => {
     expect(dashboard).toContain("...paletteChartSettings");
     expect(dashboard).not.toContain('candleUp:  "#00FFA3"');

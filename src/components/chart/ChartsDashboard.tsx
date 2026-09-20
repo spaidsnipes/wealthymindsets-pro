@@ -710,6 +710,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     : paletteChartSettings;
 
   const applyChartSettings = useCallback((next: ChartSettings) => {
+    if (next === DEFAULT_CHART_SETTINGS) {
+      setChartSettings(next);
+      // "Reset defaults" resets the product choice as well as the six stored
+      // color channels. The current product default is Classic red/green;
+      // leaving the app preset on `custom` would immediately reveal the old
+      // gold storage defaults and make Reset contradict the settings label.
+      const settings = { ...readAppSettings(), chartTheme: "green-red" };
+      try { localStorage.setItem("wm_settings", JSON.stringify(settings)); } catch {}
+      setAppSettings(settings);
+      window.dispatchEvent(new CustomEvent("wm-settings-changed"));
+      return;
+    }
+
     const candleKeys: Array<keyof ChartSettings> = [
       "candleUp", "candleDown", "wickUp", "wickDown", "borderUp", "borderDown",
     ];
