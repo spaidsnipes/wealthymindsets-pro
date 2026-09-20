@@ -110,7 +110,7 @@ import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
-import { normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
+import { marketSurfaceUrlWriteback, normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity, selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
 import { categoryTabsFor, effectiveCategoryTab, isMicrostructureTab } from "@/lib/charts/categoryTabsFor";
@@ -440,6 +440,38 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     seededUrlTimeframe.current = requested;
     setTimeframe(requested);
   }, [initialTimeframe]);
+
+  /**
+   * B-201 · URL WRITEBACK — the riser records what was actually built on it.
+   *
+   * Until this effect, continuity was one-way: the URL could seed the room and
+   * the room never answered. A trader who arrived on `?symbol=NVDA`, tapped
+   * TSLA and switched to 1H was looking at a view the address bar still
+   * described as NVDA — so Copy Link sent a colleague the wrong instrument,
+   * and a reload restored the link instead of the work.
+   *
+   * `replaceState`, deliberately, per the reasoning in
+   * `marketSurfaceUrlWriteback`: pushing would turn every watchlist tap into a
+   * history entry and make Back walk the trader backwards through their own
+   * browsing one symbol at a time. One entry per arrival, kept accurate.
+   *
+   * This cannot become a second owner. The stamp is computed FROM the room's
+   * own state and re-validated through the same normalizers the seed path
+   * uses, and the seeding latches above are keyed on VALUE — so a writeback
+   * that hands `?symbol=TSLA` back to a room already showing TSLA is an early
+   * return, not a loop.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next = marketSurfaceUrlWriteback(window.location.search, symbol, timeframe);
+    if (next === null) return;
+    try {
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next}`);
+    } catch {
+      // A history quota or sandboxed frame must never take the chart down.
+      // The URL simply stays stale, which is exactly the prior behaviour.
+    }
+  }, [symbol, timeframe]);
   const [pineOutput,      setPineOutput]      = useState<PineOutput | null>(null);
   const [pineCode,        setPineCode]        = useState<string>("");
   const [chartBars,       setChartBars]       = useState<LegacyOhlcvTuple[]>([]);

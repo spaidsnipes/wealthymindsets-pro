@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  marketSurfaceUrlWriteback,
   normalizeMarketSurfaceSymbol,
   normalizeMarketSurfaceTimeframe,
   resolveMarketSymbolSeed,
@@ -159,6 +160,74 @@ describe("chart deep-link continuity", () => {
     const sameLinkAgain = resolveMarketSymbolSeed("NQ1!", "TSLA", cleared.nextSeededSymbol);
     expect(sameLinkAgain.displaySymbol).toBe("NQ1!");
     expect(sameLinkAgain.shouldSeedContext).toBe(true);
+  });
+
+  /**
+   * B-201 · the riser records what was built on it.
+   *
+   * Continuity was one-way until 2026-09-20: the URL seeded the room and the
+   * room never answered. MEASURED consequence — arrive on `?symbol=NVDA`, tap
+   * TSLA, switch to 1H, and the address bar still says NVDA. Copy Link then
+   * sends a colleague an instrument nobody was looking at, and a reload
+   * restores the link instead of the work.
+   */
+  describe("the URL is stamped AS-BUILT", () => {
+    it("writes the room's own symbol and timeframe back into the query", () => {
+      expect(marketSurfaceUrlWriteback("?symbol=NVDA", "TSLA", "1h"))
+        .toBe("?symbol=TSLA&tf=1h");
+    });
+
+    it("is case-forgiving for symbols and case-exact for timeframes", () => {
+      // Not a quirk worth hiding. `normalizeMarketSurfaceSymbol` upper-cases
+      // (a ticker has one spelling), while `normalizeTFId` matches the canon
+      // exactly — "1H" is NOT an alias of "1h" and is refused on both the way
+      // in and the way out. Asserted so the writeback can never be the place
+      // that quietly invents a second vocabulary.
+      expect(marketSurfaceUrlWriteback("", "tsla", "1h")).toBe("?symbol=TSLA&tf=1h");
+      expect(normalizeMarketSurfaceTimeframe("1H")).toBeNull();
+      expect(marketSurfaceUrlWriteback("", "TSLA", "1H")).toBe("?symbol=TSLA");
+    });
+
+    it("stamps a bare URL that was never deep-linked", () => {
+      expect(marketSurfaceUrlWriteback("", "TSLA", "5m")).toBe("?symbol=TSLA&tf=5m");
+    });
+
+    it("returns null when the URL already tells the truth — no history churn", () => {
+      // An effect that rewrote history on every render would fight the
+      // seeding latches and could loop. Absence of work must be expressible.
+      expect(marketSurfaceUrlWriteback("?symbol=TSLA&tf=5m", "TSLA", "5m")).toBeNull();
+      expect(marketSurfaceUrlWriteback("?symbol=TSLA&tf=5m", "tsla", "5m")).toBeNull();
+    });
+
+    it("refuses to stamp a value the seed path would reject", () => {
+      // Writing back something the READER would refuse is how a round trip
+      // silently loses state. Both directions use the same normalizers.
+      expect(marketSurfaceUrlWriteback("?symbol=NVDA", "<script>", "banana")).toBeNull();
+      expect(marketSurfaceUrlWriteback("?symbol=NVDA", null, undefined)).toBeNull();
+      expect(marketSurfaceUrlWriteback("?symbol=NVDA", "AMD", "30s")).toBe("?symbol=AMD");
+    });
+
+    it("preserves params this surface does not own", () => {
+      const next = marketSurfaceUrlWriteback("?ref=scanner&symbol=NVDA", "TSLA", "1D");
+      expect(next).toContain("ref=scanner");
+      expect(next).toContain("symbol=TSLA");
+      expect(next).toContain("tf=1D");
+    });
+
+    it("normalizes on the way out, so the stamp uses one vocabulary", () => {
+      // `1d` is a legal alias on the way in; the stamp must spell the canon.
+      expect(marketSurfaceUrlWriteback("", "tsla", "1d")).toBe("?symbol=TSLA&tf=1D");
+    });
+
+    it("the room writes back with replaceState, never pushState", () => {
+      // pushState would make every watchlist tap a history entry, so Back
+      // would walk the trader through their own browsing one symbol at a
+      // time. One entry per arrival, kept accurate.
+      expect(dashboard).toContain("marketSurfaceUrlWriteback(window.location.search, symbol, timeframe)");
+      expect(dashboard).toContain("window.history.replaceState(");
+      expect(dashboard, "pushState turns the stamp into a stack")
+        .not.toContain("window.history.pushState(");
+    });
   });
 
   it("clears route seed latches so remove then re-add of the same value reseeds", () => {
