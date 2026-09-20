@@ -17,6 +17,7 @@ import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
+import { ChartArrangementBar } from "./ChartArrangementBar";
 import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
 import { OptionExpressionIntent } from "./OptionExpressionIntent";
@@ -3145,6 +3146,52 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               catalogues nothing.
             */
             profilesSlot={
+              <>
+              {/*
+                THE ARRANGEMENT CHIP — canon FL-02: "WORKSPACE IS A CHART STATE
+                NOT AN APP"; canon FL-08: "WORKSPACE = HOW THE BOOK IS
+                ARRANGED."
+
+                It sits immediately beside the profiles chip on purpose. An
+                arrangement IS a set of profile switch positions, so putting the
+                two anywhere but side by side would separate the named desk from
+                the switches that constitute it — which is how the product ended
+                up with a WORKSPACE that listed equipment instead of describing
+                the chart.
+
+                Both chips read the same two facts (`chartBars`, `chartFlowSnap`)
+                and the same switch state, so they cannot disagree about what
+                this tape can draw.
+              */}
+              <ChartArrangementBar
+                barsPresent={chartBars.length > 0}
+                observedAggressorFlow={chartFlowSnap.hasFlow}
+                active={{
+                  FIXED_RANGE: fixedVPActive,
+                  SESSION: sessionVPChart,
+                  ABSORPTION: absorptionAnatomy,
+                  DELTA_VP: drawingTool === "delta-vp",
+                  IMBALANCE_STACK: imbalanceStackOn,
+                  VALUE_CANDLE: valueCandleOn,
+                  DELTA_DIVERGENCE: deltaDivergenceOn,
+                  LIQUIDITY_WEATHER: liquidityWeatherOn,
+                }}
+                /*
+                  A desk applies EVERY toggle it names, on or off, in one press.
+                  `arrangementSwitches` omits DELTA_VP entirely because a dragged
+                  box is not a switch — so the trader's own range selection is
+                  never silently cleared by choosing a desk.
+                */
+                onApply={(s) => {
+                  if (s.FIXED_RANGE !== undefined) setFixedVPActive(s.FIXED_RANGE);
+                  if (s.SESSION !== undefined) setSessionVPChart(s.SESSION);
+                  if (s.ABSORPTION !== undefined) setAbsorptionAnatomy(s.ABSORPTION);
+                  if (s.IMBALANCE_STACK !== undefined) setImbalanceStackOn(s.IMBALANCE_STACK);
+                  if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
+                  if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
+                  if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
+                }}
+              />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3176,6 +3223,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   }
                 }}
               />
+              </>
             }
           />}
 
