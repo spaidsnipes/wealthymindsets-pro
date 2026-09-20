@@ -106,6 +106,10 @@ describe("SENTINEL — evidence debt keeps its names end to end", () => {
     );
     expect(src).toContain("evidence-ladder-roster");
     expect(src).toContain("LadderChip");
-    expect(src).toContain("ladderChips.map");
+    expect(src).toContain("visibleLadderChips?.map");
+    // H-101 caps the always-visible rail without making the collapsed names
+    // disappear. The +N disclosure must still speak the remainder.
+    expect(src).toContain("collapsedLadderDetail");
+    expect(src).toContain("more conditions");
   });
 });

@@ -590,6 +590,20 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const ladderAll = ladder ? [...ladder.segments, ...ladder.watch] : [];
   const ladderChips =
     ladderAll.length > 0 && ladderAll.every((s) => s.label && s.key) ? ladderAll : null;
+  /* H-101 / V12 ATTENTION GOVERNOR — the rail is an instrument, not a card
+     catalog. The current mockup permits three named conditions plus one +N
+     disclosure on the always-visible surface. Nothing is discarded: the
+     summary chip's title and spoken label carry every collapsed condition,
+     while Full Evidence continues to render the unabridged owner. Non-rail
+     presentations remain unabridged because this is a desktop silhouette law,
+     not a mutation of the evidence ledger. */
+  const visibleLadderChips =
+    ladderChips && rail ? ladderChips.slice(0, 3) : ladderChips;
+  const collapsedLadderChips =
+    ladderChips && rail ? ladderChips.slice(visibleLadderChips?.length ?? 0) : [];
+  const collapsedLadderDetail = collapsedLadderChips
+    .map((segment) => `${segment.label}: ${LADDER_SPOKEN[segment.state]}`)
+    .join("; ");
   // The WHY cell's own census, re-presented. Same VM the headline reads.
   const severity = selectWhySeverityBar(decisionWhy);
   // R is a ratio; this is the only cell whose meaning IS a proportion. Same VM
@@ -1211,11 +1225,34 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           <span
             data-testid="evidence-ladder-roster"
             data-named={ladderChips.length}
+            data-visible={visibleLadderChips?.length ?? 0}
+            data-collapsed={collapsedLadderChips.length}
             style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "3px 0 1px" }}
           >
-            {ladderChips.map((segment) => (
+            {visibleLadderChips?.map((segment) => (
               <LadderChip key={`chip-${segment.key}`} segment={segment} />
             ))}
+            {collapsedLadderChips.length > 0 ? (
+              <span
+                data-testid="evidence-ladder-more"
+                title={collapsedLadderDetail}
+                aria-label={`${collapsedLadderChips.length} more conditions. ${collapsedLadderDetail}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "1px 5px",
+                  borderRadius: 2,
+                  border: "1px solid rgba(139,143,168,0.26)",
+                  color: "rgba(139,143,168,0.82)",
+                  fontSize: 8.5,
+                  lineHeight: "12px",
+                  letterSpacing: "0.09em",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                +{collapsedLadderChips.length}
+              </span>
+            ) : null}
           </span>
         ) : null}
         <span style={MUTED} className={rail ? "wm-spine-sr-only" : undefined}>

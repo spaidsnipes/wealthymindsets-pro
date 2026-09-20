@@ -693,6 +693,19 @@ describe("DecisionSpineBand — evidence chips are NAMED conditions (canon 123)"
     expect(html).toContain("Direction: settled");
   });
 
+  it("keeps the rail inside H-101's three-condition attention budget", () => {
+    const html = render({ presentation: "rail", oneStory: oneStory({ debt: rollDebt }) });
+    expect(html.match(/data-testid="evidence-ladder-chip"/g)).toHaveLength(3);
+    expect(html).toContain('data-visible="3"');
+    expect(html).toContain('data-collapsed="2"');
+    expect(html).toContain('data-testid="evidence-ladder-more"');
+    expect(html).toContain("+2");
+    // The two collapsed facts remain inspectable and spoken; visual restraint
+    // must never become evidence deletion.
+    expect(html).toContain("Aggression: owed");
+    expect(html).toContain("CLC: owed");
+  });
+
   it("draws NO roster at all when the chain carried no names", () => {
     // A placeholder chip would be a fabricated condition. The anonymous bar is
     // the truthful rendering of an input with no identity in it.
