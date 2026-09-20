@@ -218,12 +218,21 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
 
     it("REFUSES a door this room does not have", () => {
       // The whole point of handing down the ROOM as well as the id. /charts
-      // lists no "decision-chain" equipment, so offering to open one would be
+      // lists no "behaviour-mirror" equipment, so offering to open one would be
       // exactly the defect `edde7236` cured, reintroduced by a typo.
+      //
+      // THE EXAMPLE MOVED; THE RULE DID NOT. This read "decision-chain" until
+      // the chart room adopted the chain — at which point the fixture named a
+      // door that now genuinely exists, and the test was demanding the pill
+      // refuse a real one. That is the correct way for this to fail: the guard
+      // is about looking the id up in the ROOM'S OWN registry, so when a room
+      // gains equipment the counter-example must be re-chosen from what that
+      // room still lacks. `behaviour-mirror` is deck-only today; if /charts
+      // adopts it too, this moves again rather than being relaxed.
       const html = renderToStaticMarkup(
         <CanvasSummaryPill
           vm={anyVM()}
-          openEquipment={{ roomHref: "/charts", id: "decision-chain" }}
+          openEquipment={{ roomHref: "/charts", id: "behaviour-mirror" }}
         />,
       );
       expect(html).toContain('role="status"');

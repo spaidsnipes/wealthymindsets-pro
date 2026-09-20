@@ -139,6 +139,13 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 // equipment id is deliberately identical to the deck's rather than forked.
 import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
 import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
+// The chain's three surfaces, imported HERE rather than re-implemented, because
+// the deck mounts these exact three for this exact equipment. A chart-room
+// variant of the chain panel would be the same reading with two renderers, and
+// two renderers of one reading drift the moment one of them is edited.
+import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
+import StructureContextNote from "@/components/chart/StructureContextNote";
+import DLARStrip from "@/components/command-deck/DLARStrip";
 import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -1422,6 +1429,102 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   );
 
   /*
+    THE ROOM'S FOURTH TENANT — AND THE END OF A SPLIT ROOM.
+
+    The chain answers the only question this room exists to serve: may this
+    setup be traded yet, and what is still unsatisfied if not. Until now it
+    could only be picked up on /command-deck — so a trader standing in front of
+    the market had to LEAVE the market to find out whether they were permitted
+    to act on it. That is not a room with less equipment; that is a room that
+    sends the trader away at the exact moment of decision.
+
+    NOTHING IS COMPILED HERE. `chartCanvasVM.chain` is the object this room has
+    held all along — it is already read for `availableR` and it already drives
+    the permission verdict this room mints decisions from. A second
+    `selectDecisionChain` call would be the "second semantic brain" the grammar
+    bans: the rail could then say PERMITTED over a room that had just refused to
+    mint a decision. One compilation, two readers.
+
+    ── WHY THERE IS NO `SceneAdmits` GATE HERE, AND WHY THAT IS NOT A LOOPHOLE ──
+    The deck wraps this equipment in a SceneAdmits gate on THESIS_GEOMETRY
+    because the DECK compiles a scene — `compileScene(deckSceneSignals(...))` —
+    and its rail may not offer a door the room itself has closed. This room
+    compiles no scene. Importing the deck's gate would mean compiling a SECOND
+    scene here, off this room's signals, and two scene compilations for one
+    trader is precisely the disagreement the gate was invented to prevent.
+
+    So the honest gate is the one this room actually owns: WHETHER THE CHAIN
+    COMPILED. When it has not, the verdict says UNRESOLVED and the headline says
+    why, before the trader presses anything — a stated refusal rather than a
+    painted door. That is the same discipline as the deck's, stated in the terms
+    this room can actually back up.
+
+    ── WHAT IS READ, AND WHAT IS NOT JUDGED ──
+    The verdict is the chain's OWN permission node. A descriptor that decided
+    for itself whether the setup were permitted would be able to disagree with
+    the panel it is a preview of.
+  */
+  const chartDecisionChainEquipment = React.useMemo(() => {
+    const chainVm = chartCanvasVM.chain;
+    const tally = chainVm?.summary ?? null;
+    return {
+      equipmentId: "decision-chain",
+      // The SAME words the rail entry uses. A widget that opened under a
+      // different title reads as a different thing having loaded.
+      title: "Decision chain",
+      verdict: chainVm
+        ? (chainVm.nodes.find((n) => n.key === "permission")?.verdict ?? "UNKNOWN")
+        : "UNRESOLVED",
+      headline:
+        chainVm?.headline ??
+        "The chain has not compiled for this market yet — nothing is being claimed about permission.",
+      counts: [
+        { testId: "equipment-count-chain-ok", label: `${tally?.ok ?? 0} clear` },
+        {
+          testId: "equipment-count-chain-attention",
+          label: `${(tally?.watch ?? 0) + (tally?.warn ?? 0)} need attention`,
+        },
+        { testId: "equipment-count-chain-unknown", label: `${tally?.unknown ?? 0} unresolved` },
+      ],
+      renderDepth: (unabridged: boolean) =>
+        chainVm ? (
+          <>
+            {/* THE AUCTION LENS TRAVELS WITH THE CHAIN — the deck's §10 PAIRING,
+                carried here rather than dropped. The lens is what the chain
+                COMPACTS to; opening the nine nodes without the four-dimension
+                summary they resolve to would put the workings on screen with
+                the conclusion missing. Not `unabridged`-gated, for that reason. */}
+            <DLARStrip dlar={chainVm.dlar} />
+            <div style={{ height: 12 }} />
+            <DecisionChainPanel vm={chainVm} showNarratives unabridged={unabridged} />
+            {/* THE CONTRADICTION NOTE TRAVELS WITH THE DOOR. It returns null
+                unless direction is resolved AND the auction is FAILING, so it
+                cannot become furniture — but when it does render it is the note
+                that says the thesis and the tape disagree, and a full screen
+                that discloses less than the dock is the ENTER promise run
+                backwards. */}
+            <StructureContextNote vm={chainVm} />
+          </>
+        ) : (
+          /* NOT `null`. A depth that renders nothing is a door that opens onto
+             a blank, and a trader cannot tell a blank apart from a break. The
+             room says out loud that it has no chain to show and why — the same
+             sentence the preview carried, so pressing ENTER never contradicts
+             what the rail just said. */
+          <div
+            data-testid="equipment-chain-unresolved"
+            style={{ fontSize: 12, lineHeight: 1.5, color: "rgba(255,255,255,0.62)" }}
+          >
+            The decision chain has not compiled for this market yet, so nothing
+            is being claimed about permission. Nothing is estimated in its place.
+          </div>
+        ),
+    };
+    /* NO `onNodeClick` OR `onDrillClick`, for the deck's reason: drilling from
+       inside the equipment would open a drawer from inside a drawer. */
+  }, [chartCanvasVM.chain]);
+
+  /*
     The chooser. The room hands the layer ONE descriptor — the one the rail
     asked for — so the layer never learns that this room has more than one piece
     of equipment, and never has to choose. Choosing is the room's job because
@@ -1432,6 +1535,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       "market-reality": chartMarketRealityEquipment,
       "market-object-passport": chartPassportEquipment,
       "order-flow": chartOrderFlowEquipment,
+      "decision-chain": chartDecisionChainEquipment,
     }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
 
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(

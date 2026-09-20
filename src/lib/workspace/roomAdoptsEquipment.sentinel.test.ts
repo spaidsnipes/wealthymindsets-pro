@@ -312,6 +312,24 @@ const ROOMS = [
         deps: "[chartOrderFlowReadings, chartOrderFlowStanding, symbol]",
         depth: "OrderFlowDepthPanel",
       },
+      /**
+       * THE CHAIN — brought into the room where the decision is actually made.
+       *
+       * It was deck-only, which meant a trader had to LEAVE the market to find
+       * out whether they were permitted to act on it. The `reads` pin names
+       * `chartCanvasVM.chain` deliberately: that is the compilation this room
+       * ALREADY holds (it drives `availableR` and the permission verdict this
+       * room mints decisions from). A `selectDecisionChain` call inside the
+       * descriptor would be a second permission opinion able to disagree with
+       * the one this room just refused to mint a decision on.
+       */
+      {
+        id: "decision-chain",
+        memo: "chartDecisionChainEquipment",
+        reads: /const chainVm = chartCanvasVM\.chain;/,
+        deps: "[chartCanvasVM.chain]",
+        depth: "DecisionChainPanel",
+      },
     ],
   },
 ] as const;
@@ -965,9 +983,18 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
   it.runIf(chainDescriptor)(
     "§10: the chain's door opens the auction lens WITH the chain, never the chain alone",
     () => {
-    const at = deck.indexOf("const decisionChainEquipment");
-    expect(at, `${DECK} → the room no longer builds decisionChainEquipment`).toBeGreaterThan(-1);
-    const body = deck.slice(at, deck.indexOf("[chainVm, sceneCompilation]", at));
+    // SLICED OFF THE ROOM'S OWN DESCRIPTOR, not off the deck's identifiers.
+    // This rule already declared itself scoped to "rooms that actually adopt
+    // the chain … instead of having to be remembered" — and then sliced
+    // `const decisionChainEquipment` and `[chainVm, sceneCompilation]`, both of
+    // which are the DECK's names. So the moment /charts adopted the chain, a
+    // rule written to travel with the equipment failed on the second room for
+    // spelling. The descriptor already carries `memo` and `deps`; using them is
+    // what makes the scope real rather than stated.
+    const memo = chainDescriptor!.memo;
+    const at = deck.indexOf(`const ${memo}`);
+    expect(at, `${DECK} → the room no longer builds ${memo}`).toBeGreaterThan(-1);
+    const body = deck.slice(at, deck.indexOf(chainDescriptor!.deps, at));
     const rendered = body.slice(body.indexOf("renderDepth:"));
     expect(
       rendered,
@@ -1016,8 +1043,10 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
   it.runIf(chainDescriptor)(
     "§9: the chain's door carries the contradiction note, outside the gate",
     () => {
-      const at = deck.indexOf("const decisionChainEquipment");
-      const body = deck.slice(at, deck.indexOf("[chainVm, sceneCompilation]", at));
+      // Off the room's own descriptor — see the note in the rule above.
+      const memo = chainDescriptor!.memo;
+      const at = deck.indexOf(`const ${memo}`);
+      const body = deck.slice(at, deck.indexOf(chainDescriptor!.deps, at));
       const rendered = body.slice(body.indexOf("renderDepth:"));
       expect(
         rendered,
@@ -1029,14 +1058,27 @@ describe.each(ROOMS)("SENTINEL — $href ADOPTS the journey", (room) => {
       ).toContain("<StructureContextNote");
       // OUTSIDE the gate, matching the room. `</SceneAdmits>` must close BEFORE
       // the note, or the note inherits a gate that was never meant to hold it.
+      //
+      // ── THE ORDERING RULE APPLIES ONLY WHERE THERE IS A GATE TO BE OUTSIDE ──
+      // `SceneAdmits` is fed by a SCENE COMPILATION, and a room that does not
+      // compile one has nothing to put the note outside of. /charts is such a
+      // room: it has no `compileScene` call, and importing the deck's gate would
+      // mean compiling a SECOND scene off this room's signals — two scene
+      // verdicts for one trader, which is the disagreement `SceneAdmits` was
+      // invented to prevent. Demanding the tag here would therefore force the
+      // exact second brain the rest of this file bans, to satisfy a scan.
+      //
+      // What is NOT relaxed is the rule above: the note must be PRESENT in
+      // every adopting room's depth. Absence is the defect this was written
+      // for; only the ordering assertion depends on a gate existing.
       const gateClose = rendered.indexOf("</SceneAdmits>");
       const noteAt = rendered.indexOf("<StructureContextNote");
       expect(
-        gateClose,
-        `${DECK} → the chain's depth no longer closes a <SceneAdmits> gate.`,
+        noteAt,
+        `${DECK} → <StructureContextNote> is missing from the chain's depth.`,
       ).toBeGreaterThan(-1);
       expect(
-        noteAt > gateClose,
+        gateClose === -1 || noteAt > gateClose,
         `${DECK} → <StructureContextNote> sits INSIDE the THESIS_GEOMETRY gate ` +
           `in the chain's depth. The room puts it outside on purpose: a ` +
           `contradiction warning gated on the thesis goes silent in exactly the ` +

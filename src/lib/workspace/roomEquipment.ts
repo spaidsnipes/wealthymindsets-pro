@@ -485,6 +485,44 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "lens",
     },
     /**
+     * THE CHART ROOM'S FOURTH TENANT — AND THE CORRECTION OF A SPLIT ROOM.
+     *
+     * This entry exists because of a structural complaint, not a feature
+     * request: the Command Deck's WORKSPACE had NINE tenants and the chart
+     * room had THREE readings, so six pieces of equipment could only be picked
+     * up by LEAVING the market. The chain — the one that answers whether the
+     * setup may be traded at all — was the worst of the six, because the room
+     * where a trader decides to take a trade is this one.
+     *
+     * That is the split the canon's grammar was written against. WORKSPACE is
+     * "the equipment the room you are standing in can hand you". A chart room
+     * that cannot hand the trader the permission verdict is not a room with
+     * less equipment; it is a room that makes the trader travel to find out
+     * whether they are allowed to act on what is in front of them.
+     *
+     * THE ID IS THE DECK'S ID, AND THAT IS THE WHOLE POINT. There is one
+     * decision chain per decision, not one per room. `charts-decision-chain`
+     * would tell the trader the chart's permission is a different object from
+     * the deck's — and the moment the two could disagree, one of them is lying.
+     * See the note above `market-reality` for the rule in full.
+     *
+     * THIS IS A SECOND DOOR, NOT A SECOND COMPILATION. `ChartsDashboard`
+     * ALREADY holds the chain: `chartCanvasVM.chain` is read there for
+     * `availableR` and drives the permission verdict this room mints decisions
+     * from. Nothing new is fetched, computed or judged — the room simply stops
+     * hiding a compilation it has had all along.
+     *
+     * THE HINT IS THE DECK'S HINT, WORD FOR WORD. Two rooms describing one
+     * piece of equipment differently is how a trader learns to believe they are
+     * two pieces of equipment.
+     */
+    {
+      id: "decision-chain",
+      label: "Decision chain",
+      hint: "What the setup still has to satisfy before it is permitted",
+      kind: "lens",
+    },
+    /**
      * ── THE TWO INSTRUMENTS THE CHART ROOM ALWAYS HAD AND NEVER DECLARED ────
      *
      * Everything above this line is a READING. That is why "Tools" over a live
