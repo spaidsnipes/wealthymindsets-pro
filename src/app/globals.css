@@ -164,6 +164,35 @@
   margin-left: auto;
 }
 
+/*
+ * B-701 RESIZE BREAKPOINTS & TWO ZOOMS — the MEDIUM band.
+ *
+ * The blueprint: LARGE (>=1200px) shows the full floor plan plus BOTH enlarged
+ * zooms; MEDIUM (768-1199px) shows ONE; SMALL (<768px) shows the base plan
+ * alone. On /charts the base plan is the CAMERA, zoom 1 is the DECISION rail
+ * (the selected object) and zoom 2 is the WATCHLIST (the alternates).
+ *
+ * Before this rule, 1024-1199px rendered the full LARGE arrangement — both
+ * zooms — in a band the sheet permits exactly one, and the only transition in
+ * the file was the seven-surface cliff at 1023 below. This is the missing
+ * middle step: the watchlist rail gives way so the camera keeps its share of a
+ * floor that has narrowed (C-101, 70%).
+ *
+ * The capability is NOT removed — it relocates to the shared drawer, the same
+ * single canonical WatchlistPanel mount the <=1023px rule already relies on
+ * (`variant="sheet"`, `.wm-chart-watchlist-sheet`, which deliberately does not
+ * wear the hidden class). Master Index parity law: a limitation must be
+ * explicit and owned, not accidental drift.
+ *
+ * The number is Sentinel-locked to B701_ONE_ZOOM_QUERY in
+ * src/lib/responsive/resizeBreakpoints.ts — see resizeBreakpoints.test.ts.
+ */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .wm-chart-watchlist {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1023px) {
   .wm-primary-sidebar,
   .wm-chart-primary-rail,

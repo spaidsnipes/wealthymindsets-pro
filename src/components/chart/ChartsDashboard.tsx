@@ -176,6 +176,7 @@ import {
 } from "@/lib/expressionShortlist";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
+import { useCanvasBand, zoomsForBand } from "@/lib/responsive/resizeBreakpoints";
 import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
 import ContinuationHealthView from "@/components/experience/ContinuationHealthView";
 import { selectContinuationHealth } from "@/lib/marketData/viewModels/selectContinuationHealth";
@@ -1327,6 +1328,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // dashboard column. One mount also means one quote poll and one stored-list
   // identity across desktop, tablet and phone.
   const narrowViewport = useNarrowViewport();
+
+  // B-701 band. The CSS above owns the COLLAPSE; this owns the RECEIPT — the
+  // band and its permitted zoom count are published on the room's root element
+  // so a live measurement on the running app can name which band it observed
+  // instead of inferring it from what happens to be visible.
+  const canvasBand = useCanvasBand();
   const watchlistSheetTriggerRef = useRef<HTMLButtonElement>(null);
   const openWatchlist = useCallback((trigger: HTMLButtonElement | null) => {
     watchlistSheetTriggerRef.current = trigger;
@@ -1738,6 +1745,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   return (
     <div
       className={`wm-chart-dashboard${theme === "neon" ? " wm-neon" : ""}`}
+      // B-701 receipt. See useCanvasBand above.
+      data-b701-band={canvasBand}
+      data-b701-zooms={zoomsForBand(canvasBand)}
       // SCENE_FRAGMENTATION cure (Founder 2026-09-13): default theme
       // used to paint #0D0E14 across the entire /charts route, blocking
       // the sanctuary shell's vignette + grain + WATER-BREATH from
