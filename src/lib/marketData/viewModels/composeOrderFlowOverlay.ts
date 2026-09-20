@@ -81,19 +81,13 @@ export interface OverlayLevel {
   readonly detail: string;
 }
 
-/** A print placed exactly, because the tape stated both its price and its time. */
-export interface OverlayPoint {
-  readonly kind: "POINT";
-  readonly id: string;
-  readonly price: number;
-  readonly timeMs: number;
-  readonly size: number;
-  readonly side: "buy" | "sell" | null;
-  readonly label: string;
-  readonly detail: string;
-}
-
-export type OverlayMark = OverlayBand | OverlayLevel | OverlayPoint;
+/**
+ * There is deliberately NO point/print mark on this union. The one reading
+ * that could produce one — big prints — is already drawn by MainChart's bubble
+ * engine. See the BIG_TRADES branch below for why this compiler refuses it
+ * rather than becoming a second writer for a pixel that has an owner.
+ */
+export type OverlayMark = OverlayBand | OverlayLevel;
 
 /**
  * A reading this compiler declined to place, and the reason. Refusals are
@@ -313,42 +307,30 @@ export function composeOrderFlowOverlay(
   }
 
   // ---- Big Trades ---------------------------------------------------------
-  // The one reading that carries real time AND real price. It needs no window
-  // and is placed exactly. Prints without a stated time are refused one by one.
-  const bigTrades = input.bigTrades ?? null;
-  if (bigTrades) {
-    if (!bigTrades.measured) {
-      refusals.push({
-        source: "BIG_TRADES",
-        reason:
-          bigTrades.missingInputNote ??
-          "This window could not compute a size cut, so no print is entitled to be called large.",
-      });
-    } else {
-      for (const print of bigTrades.largePrints) {
-        if (!isFiniteNumber(print.price)) continue;
-        if (!isFiniteNumber(print.time)) {
-          refusals.push({
-            source: "BIG_TRADES",
-            reason: `A ${print.size} print at ${print.price} stated no time, so it cannot be placed on a time axis.`,
-          });
-          continue;
-        }
-        marks.push({
-          kind: "POINT",
-          id: `big-trade-${print.time}-${print.price}-${print.size}`,
-          price: print.price,
-          timeMs: print.time,
-          size: print.size,
-          side: print.side,
-          label: print.side ? print.side.toUpperCase() : "UNSIDED",
-          detail:
-            print.side === null
-              ? `${print.size} at ${print.price}. This tape stated no aggressor side for this print.`
-              : `${print.size} ${print.side} at ${print.price}.`,
-        });
-      }
-    }
+  // THIS COMPILER DOES NOT PLACE BIG TRADES, AND THAT IS DELIBERATE.
+  //
+  // Big prints are the one order-flow reading that carries real time AND real
+  // price, so they are the easiest thing here to draw — which is exactly the
+  // trap. MainChart ALREADY draws them: the bubble engine spawns one disc per
+  // real large print, anchored by `anchorTime` and `anchorPrice`, with its own
+  // rescale and cull passes. That pixel has an owner.
+  //
+  // A second writer for an owned pixel is not a richer chart, it is two
+  // authorities that will eventually disagree about the same print — a
+  // different size cut, a different survivor cap, two discs at one price. The
+  // FL-06 brief was to stop the OS accumulating "broken builds and new builds",
+  // so the correct output here is a refusal that NAMES the owner, loudly
+  // enough that the next person to reach for this does not have to rediscover
+  // the bubble engine to know why it is missing.
+  //
+  // If big prints ever need to leave the bubble engine, they move — they are
+  // not copied.
+  if (input.bigTrades) {
+    refusals.push({
+      source: "BIG_TRADES",
+      reason:
+        "Big prints are not placed here. MainChart's bubble engine already draws each large print at its own time and price; a second writer for that pixel would eventually disagree with the first.",
+    });
   }
 
   const placed = marks.length > 0;

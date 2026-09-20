@@ -4,7 +4,6 @@ import {
   ORDER_FLOW_OVERLAY_VERSION,
   type ComposeOrderFlowOverlayInput,
   type OverlayBand,
-  type OverlayPoint,
   type TapeWindow,
 } from "./composeOrderFlowOverlay";
 import type { LiquidityWeatherVM } from "./selectLiquidityWeather";
@@ -370,80 +369,38 @@ describe("composeOrderFlowOverlay — imbalance stack", () => {
   });
 });
 
-describe("composeOrderFlowOverlay — big trades are the only exact placement", () => {
-  it("places a large print at its own real time and price", () => {
+describe("composeOrderFlowOverlay — big trades already have an owner", () => {
+  /**
+   * These are the single-writer tests. Big prints carry real time AND real
+   * price, so they are the easiest thing this compiler could draw — and
+   * MainChart's bubble engine already draws them. Two writers for one pixel
+   * is how a chart ends up showing two discs for one print.
+   */
+  it("places nothing for big trades, however well-formed they are", () => {
     const vm = compose({ bigTrades: bigTrades() });
-    const point = vm.marks.find((m): m is OverlayPoint => m.kind === "POINT");
-    expect(point?.timeMs).toBe(2_500);
-    expect(point?.price).toBe(100.75);
-    expect(point?.size).toBe(400);
-    expect(point?.side).toBe("buy");
+    expect(vm.marks).toEqual([]);
+    expect(vm.placed).toBe(false);
   });
 
-  it("places big trades even with no window, because they carry their own time", () => {
-    const vm = composeOrderFlowOverlay({
-      window: null,
-      bigTrades: bigTrades(),
-    });
-    expect(vm.marks.filter((m) => m.kind === "POINT")).toHaveLength(1);
+  it("refuses them out loud, naming the owner that already draws them", () => {
+    const vm = compose({ bigTrades: bigTrades() });
+    const refusal = vm.refusals.find((r) => r.source === "BIG_TRADES");
+    expect(refusal).toBeDefined();
+    expect(refusal?.reason).toContain("bubble engine");
   });
 
-  it("refuses a print that stated no time rather than placing it at the edge", () => {
-    const vm = compose({
-      bigTrades: bigTrades({
-        largePrints: [
-          {
-            time: null,
-            price: 100.75,
-            size: 400,
-            side: "buy",
-            sizePercentile: 0.995,
-            clearsLotFloor: true,
-          },
-        ],
-      }),
-    });
+  it("refuses them with no window too — the reason is ownership, not time", () => {
+    const vm = composeOrderFlowOverlay({ window: null, bigTrades: bigTrades() });
     expect(vm.marks).toEqual([]);
     expect(vm.refusals.some((r) => r.source === "BIG_TRADES")).toBe(true);
   });
 
-  it("never defaults an unsided print to a side", () => {
-    const vm = compose({
-      bigTrades: bigTrades({
-        largePrints: [
-          {
-            time: 2_500,
-            price: 100.75,
-            size: 400,
-            side: null,
-            sizePercentile: 0.995,
-            clearsLotFloor: true,
-          },
-        ],
-        largeNet: null,
-        largeUnsidedCount: 1,
-      }),
-    });
-    const point = vm.marks.find((m): m is OverlayPoint => m.kind === "POINT");
-    expect(point?.side).toBeNull();
-    expect(point?.label).toBe("UNSIDED");
-    expect(point?.detail).toContain("no aggressor side");
-  });
-
-  it("refuses the whole reading when the window could not compute a size cut", () => {
-    const vm = compose({
-      bigTrades: bigTrades({
-        measured: false,
-        missingInput: "TOO_FEW_PRINTS",
-        missingInputNote: "only 4 prints",
-        largePrints: [],
-      }),
-    });
-    expect(vm.marks).toEqual([]);
-    expect(vm.refusals).toContainEqual({
-      source: "BIG_TRADES",
-      reason: "only 4 prints",
-    });
+  it("does not quietly place big trades alongside the readings it does own", () => {
+    const vm = compose({ imbalance: imbalance(), bigTrades: bigTrades() });
+    // Every mark present must trace to the imbalance stack, never to a print.
+    for (const mark of vm.marks) {
+      expect(mark.id.startsWith("imbalance")).toBe(true);
+    }
   });
 });
 
@@ -462,7 +419,7 @@ describe("composeOrderFlowOverlay — determinism and composition", () => {
     );
   });
 
-  it("composes all five readings onto one canvas", () => {
+  it("composes the readings it owns onto one canvas, and declines the one it does not", () => {
     const vm = compose({
       liquidity: liquidity(),
       absorption: absorption(),
@@ -472,9 +429,9 @@ describe("composeOrderFlowOverlay — determinism and composition", () => {
     });
     expect(vm.placed).toBe(true);
     expect(vm.marks.filter((m) => m.kind === "BAND").length).toBeGreaterThan(2);
-    expect(vm.marks.some((m) => m.kind === "POINT")).toBe(true);
     expect(vm.marks.some((m) => m.kind === "LEVEL")).toBe(true);
     expect(vm.requiresOrdinalDisclosure).toBe(true);
+    expect(vm.refusals.some((r) => r.source === "BIG_TRADES")).toBe(true);
   });
 
   it("gives every mark a unique id", () => {
