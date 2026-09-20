@@ -706,3 +706,63 @@ describe("DecisionSpineBand — evidence chips are NAMED conditions (canon 123)"
     expect(html).toContain('data-testid="evidence-ladder"');
   });
 });
+
+/**
+ * WAIT MUST SAY WHETHER IT IS FINISHED.
+ *
+ * MEASURED LIVE 2026-09-20, /charts: the NOW cell read `WAIT` and nothing else.
+ * "Stand down, there is nothing to do" and "you have unpaid evidence in front
+ * of you" rendered as the same six pixels. Canon 064 / 094 / 123 all draw the
+ * finished case explicitly ("No action required. Stand by.").
+ *
+ * This is a wrong-answer law: printing the finished chip over a workable chain
+ * typechecks, renders, and tells a human to sit still in front of their own job.
+ */
+describe("DecisionSpineBand — WAIT declares whether it is finished (canon 064/094/123)", () => {
+  const waiting = (over: Record<string, unknown>) =>
+    oneStory({
+      decision: { value: "WAIT", detail: "evidence debt", tone: "pending" },
+      debt: {
+        payable: 4,
+        watch: 0,
+        resolved: 0,
+        missing: 4,
+        warn: 0,
+        missingLabels: [],
+        warnLabels: [],
+        missingPayableLabels: [],
+        missingPayable: 0,
+        ...over,
+      },
+    });
+
+  it("declares a finished wait, so the trader knows to stand down", () => {
+    const html = render({ presentation: "rail", oneStory: waiting({}) });
+    expect(html).toContain('data-standing="FINISHED"');
+    expect(html).toContain("No action required");
+  });
+
+  it("never says no-action-required while evidence is payable", () => {
+    const html = render({ presentation: "rail", oneStory: waiting({ missingPayable: 2 }) });
+    expect(html).toContain('data-standing="WORKABLE"');
+    expect(html).toContain("2 TO RESOLVE");
+    expect(html).not.toContain("No action required");
+  });
+
+  it("does not dress a venue blockage as a finished wait", () => {
+    const html = render({ presentation: "rail", oneStory: waiting({ venueBlocked: 3 }) });
+    expect(html).toContain('data-standing="VENUE_BLOCKED"');
+    expect(html).not.toContain("No action required");
+  });
+
+  it("says nothing about standing when the verdict is not WAIT", () => {
+    const html = render({
+      presentation: "rail",
+      oneStory: oneStory({
+        decision: { value: "NO TRADE", detail: "hard rule engaged", tone: "warn" },
+        debt: null,
+      }),
+    });
+    expect(html).not.toContain('data-testid="spine-wait-standing"');
+  });
+});

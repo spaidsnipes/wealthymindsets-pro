@@ -54,6 +54,10 @@ import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
 import { formatSpinePrice, qualifyMarketQuality } from "@/lib/marketData/formatSpinePrice";
 import { selectOneNextThing } from "@/lib/marketData/viewModels/selectOneNextThing";
 import {
+  selectWaitStanding,
+  type WaitStanding,
+} from "@/lib/marketData/viewModels/selectWaitStanding";
+import {
   selectEvidenceLadder,
   type EvidenceLadderSegment,
   type EvidenceLadderState,
@@ -389,6 +393,28 @@ function LadderSegment({ segment }: { segment: EvidenceLadderSegment }) {
  * node, including the ones the capped sample never reaches. Hiding them from a
  * screen reader would make the debt legible to sighted traders only.
  */
+/**
+ * A FINISHED WAIT IS THE CALMEST THING ON THE RAIL, AND IT IS NOT GREEN.
+ *
+ * FINISHED is ivory — the same settled ink the RESOLVED ledger segments use,
+ * because it IS a settled reading. It is deliberately NOT green: green is the
+ * colour this product reserves for nothing, since a wait that turned out badly
+ * was still a correctly finished wait, and colouring it as a win would grade an
+ * outcome WM never measured (§ selectWaitStanding refusal 3).
+ *
+ * WORKABLE is gold — the rail's one colour for "your move".
+ *
+ * VENUE_BLOCKED is dimmed, because the reader can do nothing about it HERE and
+ * a loud chip would read as an alarm they are expected to answer.
+ *
+ * Colour is a second channel in every case: the headline word already says it.
+ */
+const WAIT_STANDING_TONE: Record<WaitStanding, React.CSSProperties> = {
+  FINISHED: { color: "#c9c2a7" },
+  WORKABLE: { color: "#d4af37" },
+  VENUE_BLOCKED: { color: "rgba(139,143,168,0.82)" },
+};
+
 const LADDER_MARK: Record<EvidenceLadderState, string> = {
   RESOLVED: "✓",
   WARN: "!",
@@ -507,6 +533,10 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   // No second producer, no second denominator — `selectEvidenceLadder` reads
   // the identical `oneStory.debt` object and emits one segment per node it
   // already counted.
+  /* WAIT IS A FINISHED STATE, OR IT ISN'T — canon 064 / 094 / 123. The rail
+     printed the verdict alone, so "stand down" and "you have work" rendered
+     identically. See selectWaitStanding for where the answer is derived from. */
+  const waitStanding = selectWaitStanding(nowDecision, oneStory ? oneStory.debt : null);
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   /* The ledger first, then the observations outside it — the same two groups
      the bar draws, in the same order, so the chips and the bar can never tell
@@ -939,6 +969,26 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             }}
           >
             {nowDecision.value}
+          </span>
+        ) : null}
+        {/* THE WORD ALONE WAS AMBIGUOUS. "Stand down" and "you have work to do"
+            both rendered as the single word WAIT. This line is the difference,
+            and it is derived — never asserted. See selectWaitStanding. */}
+        {rail && waitStanding ? (
+          <span
+            data-testid="spine-wait-standing"
+            data-standing={waitStanding.standing}
+            title={waitStanding.detail}
+            aria-label={`Wait standing. ${waitStanding.detail}`}
+            style={{
+              fontSize: 8.5,
+              lineHeight: "12px",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              ...WAIT_STANDING_TONE[waitStanding.standing],
+            }}
+          >
+            {waitStanding.headline}
           </span>
         ) : null}
         <span
