@@ -135,12 +135,15 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).not.toContain("width:320px");
     expect(html).toContain("border-left:1px solid rgba(139,106,41,0.22)");
     expect(html).toContain('data-material-plane="sanctuary-seam"');
+    expect(html).toContain('data-rail-composition="continuous-instrument"');
     expect(html).toContain("linear-gradient(90deg, rgba(232,185,35,0.045) 0%");
     expect(html).toContain('data-testid="spine-provenance-header"');
     expect(html.match(/data-testid="spine-provenance-header"/g)).toHaveLength(1);
     expect(html).toContain('data-testid="spine-canvas-summary"');
     expect(html).toContain('data-testid="canonical-canvas-verdict"');
     expect(html).not.toContain("border-top:1px solid rgba(139,106,41,0.16)");
+    expect(html).not.toContain("background:rgba(24,20,14,0.42)");
+    expect(html).toContain("border-bottom:1px solid rgba(196,165,116,0.18)");
     // WAS: expect(html).toContain("margin-top:auto") — this line PINNED the
     // ~200px void between WHY and NEXT, so the gap was protected by a test.
     // See `× THE SEVERING VOID` below for why it had to go.

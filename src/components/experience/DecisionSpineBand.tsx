@@ -259,22 +259,22 @@ const MUTED: React.CSSProperties = { ...VALUE, color: "#8a8271" };
 /**
  * THE S-501 FOLD — the plate the fifth-through-eighth chunks collapse behind.
  *
- * Drawn as a plate, not as a link. The blueprint's rail is a column of
- * brass-hairlined plates; a bare underlined "show more" would be the one
- * element on the rail that is not made of the same material. So the closed
- * disclosure reads as an empty plate bearing its own label, and opening it
- * fills that plate — the rail's geometry does not change shape, only height.
+ * Drawn as one seam in the attached instrument, not as another card. V12's
+ * finished-WAIT frame gives the whole right edge one boundary and lets the
+ * internal readings share it. A bare underlined "show more" would still be
+ * the wrong material, so the summary keeps the same brass divider language.
  *
  * `listStyle: "none"` plus the WebKit pseudo-element rule below removes the
  * native triangle, which is drawn in the UA's own grey and cannot be recoloured
  * into the palette. The chevron is supplied in the palette's own gold instead.
  */
 const DETAIL_DRAWER: React.CSSProperties = {
-  border: "1px solid rgba(196,165,116,0.20)",
-  borderRadius: 3,
-  background: "rgba(24,20,14,0.42)",
+  border: "none",
+  borderBottom: "1px solid rgba(196,165,116,0.18)",
+  borderRadius: 0,
+  background: "transparent",
   padding: "0 0 2px",
-  marginBottom: 6,
+  marginBottom: 0,
 };
 
 const DETAIL_SUMMARY: React.CSSProperties = {
@@ -429,28 +429,23 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         flex: "0 0 auto",
         minWidth: 0,
         width: "100%",
-        // ── THE CANON DRAWS THESE AS PLATES ──────────────────────────────
-        // This used to read: "the desktop rail is one attached decision
-        // context, not a stack of cards", and every border was removed. The
-        // approved frame disagrees on the evidence: in
-        // WM_NewMockup_64_F24_Surface_One_Canvas every rail cell — DECISION_ID,
-        // STATE, MARKET, RISK, WHY, the honesty chip — sits inside its OWN
-        // brass-hairline plate on a slightly raised ground.
+        // ── V12 FINISHED WAIT: ONE INSTRUMENT, NOT GOLD CARDS ────────────
+        // F24 established the rail's brass material. V12 resolves the later,
+        // more specific WAIT silhouette: one continuous right-side field with
+        // internal rules, not four separately raised rectangles. The Founder
+        // called the shipped stack "paragraphs and gold cards"; preserving a
+        // border, warm ground and gutter on every cell would preserve exactly
+        // that hierarchy even after the prose itself was collapsed.
         //
-        // The old reasoning was sound about what it feared (a dashboard of
-        // floating cards competing with price) and wrong about the remedy.
-        // What stops the rail competing is the GROUND, not the absence of
-        // edges: the plate ground here is two points of warmth over the
-        // sanctuary field, and the hairline is the same 0.22-alpha brass
-        // already used for the seam between MARKET and the rail. Edgeless,
-        // the six cells ran together into one undifferentiated column of
-        // small type — the single thing the Founder named when he said the
-        // runtime looks nothing like the frame.
-        border: "1px solid rgba(196,165,116,0.20)",
-        borderRadius: 3,
-        background: "rgba(24,20,14,0.42)",
-        padding: "9px 11px",
-        marginBottom: 6,
+        // The section owns the material plane. Cells now own only a quiet
+        // bottom divider, so DECISION → NOW → WHY → NEXT reads as one state
+        // instrument while every semantic region and truth owner survives.
+        border: "none",
+        borderBottom: "1px solid rgba(196,165,116,0.18)",
+        borderRadius: 0,
+        background: "transparent",
+        padding: "10px 11px",
+        marginBottom: 0,
       }
     : CELL;
   const decisionValue = decisionId ? (
@@ -748,6 +743,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         flexShrink: 0,
       }}
       data-material-plane={rail ? "sanctuary-seam" : undefined}
+      data-rail-composition={rail ? "continuous-instrument" : undefined}
     >
       <style>{`
         @media (max-width: 767px) {
