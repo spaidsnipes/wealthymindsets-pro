@@ -85,6 +85,25 @@ export const HEAT_MAX_OPACITY = 0.3;
  */
 export const HEAT_PAINT_FLOOR = 0.125;
 
+/**
+ * THE RAMP, OWNED ONCE. Cool cells sit toward the frame's own gold; hot cells
+ * move to an ember red. Both ends are hues already in the product — heat is a
+ * NEW reading, not an excuse for a new palette.
+ *
+ * It lives in the selector rather than in a renderer because the lens has TWO
+ * renderers — the DOM overlay and the chart's canvas layer — and a palette
+ * copied into each would be a second source of truth about what "hot" looks
+ * like. The first time they drifted, the same cost would read as two different
+ * temperatures on two surfaces of one product.
+ */
+export function heatRampColor(intensity: number): string {
+  const clamped = Math.max(0, Math.min(1, intensity));
+  const r = Math.round(196 + (214 - 196) * clamped);
+  const g = Math.round(165 - (165 - 74) * clamped);
+  const b = Math.round(116 - (116 - 52) * clamped);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 export interface HeatCell {
   /** The weather segment this cell is piped from. Tape order. */
   readonly index: number;

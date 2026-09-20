@@ -112,6 +112,7 @@ import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandl
 import { selectDeltaDivergenceGlass } from "@/lib/marketData/viewModels/selectDeltaDivergenceGlass";
 import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
+import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
@@ -7604,6 +7605,49 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // A stale stage keeps describing weather that is no longer measured.
           delete ds.liquidityWeatherStage;
           delete ds.liquidityWeatherShelves;
+        }
+
+        /* ── P-601 HEAT LENS: THE SECOND EXCEPTION, AND WHY IT IS ONE ──────
+           The note above is right that a COST HAS NO LEVEL, and this does not
+           overturn it. It draws no band for the STAGE — "THINNING" is still a
+           property of the window and is still painted as words in the chrome.
+
+           What it draws is a band per SEGMENT, at the prices that segment
+           actually traded through. That is not a location invented for a
+           placeless finding; it is the location where the cost was incurred.
+           The shelves above are already this same exception in its narrowest
+           form — a stalled segment is a segment whose band collapsed to one
+           price. A segment that moved has a band instead of a line, and the
+           reason to show it is identical.
+
+           P-601 governs the alpha rather than this file: every band paints at
+           `cell.opacity`, which `selectHeatLens` has already capped at the
+           OPACITY REGULATOR. That is what lets heat sit ON price instead of
+           beside it, and it is the mechanical form of S-501's "ZONES SHALL
+           NOT BURY CANDLES." Hard-coding an alpha here would put the regulator
+           somewhere it could be quietly raised. */
+        const heat = selectHeatLens(liquidityWeatherRef.current);
+        ds.heatLens = !on ? "OFF" : heat.drawable ? "DRAWN" : "REFUSED";
+        if (on && heat.drawable) {
+          ctx.save();
+          let painted = 0;
+          for (const cell of heat.cells) {
+            if (!cell.paintable) continue;
+            const yh = srs.priceToCoordinate(cell.high);
+            const yl = srs.priceToCoordinate(cell.low);
+            if (yh == null || yl == null) continue;
+            const top = Math.min(+yh, +yl);
+            const band = Math.max(1, Math.abs(+yl - +yh));
+            ctx.globalAlpha = Math.min(cell.opacity, heat.maxOpacity);
+            ctx.fillStyle = heatRampColor(cell.intensity);
+            ctx.fillRect(0, top, W, band);
+            painted++;
+          }
+          ctx.restore();
+          if (painted > 0) ds.heatLensCells = String(painted);
+          else delete ds.heatLensCells;
+        } else {
+          delete ds.heatLensCells;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 

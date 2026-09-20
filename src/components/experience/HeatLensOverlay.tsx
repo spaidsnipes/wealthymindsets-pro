@@ -34,23 +34,13 @@
 
 import * as React from "react";
 
-import type { HeatLensVM } from "@/lib/marketData/viewModels/selectHeatLens";
+import {
+  heatRampColor,
+  type HeatLensVM,
+} from "@/lib/marketData/viewModels/selectHeatLens";
 
 const GOLD = "#c4a574";
 const MUTED = "#8a8271";
-
-/**
- * The heat ramp. Cool cells sit toward the frame's own gold; hot cells move to
- * an ember red. Both ends are hues already in the product — heat is a NEW
- * reading, not an excuse for a new palette.
- */
-function heatColor(intensity: number): string {
-  const clamped = Math.max(0, Math.min(1, intensity));
-  const r = Math.round(196 + (214 - 196) * clamped);
-  const g = Math.round(165 - (165 - 74) * clamped);
-  const b = Math.round(116 - (116 - 52) * clamped);
-  return `rgb(${r}, ${g}, ${b})`;
-}
 
 export interface HeatLensOverlayProps {
   readonly vm: HeatLensVM;
@@ -237,7 +227,7 @@ export default function HeatLensOverlay({
               right: 0,
               top,
               height: bandHeight,
-              background: heatColor(cell.intensity),
+              background: heatRampColor(cell.intensity),
               opacity: cell.opacity,
               pointerEvents: onPanTo ? "auto" : "none",
               cursor: onPanTo ? "pointer" : undefined,
