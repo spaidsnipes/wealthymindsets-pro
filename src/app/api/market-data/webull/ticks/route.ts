@@ -64,18 +64,33 @@ export async function GET(request: NextRequest) {
   // a generic auth failure is how a one-tap fix becomes another week of
   // guessing, so it is surfaced as itself.
   if (session.awaiting2fa) {
+    /**
+     * CLASSIFIED LIKE EVERY OTHER ANSWER THIS ROUTE GIVES.
+     *
+     * This arm used to hand-build its body and return it without the receipt
+     * fields, so `ProviderWireStrip` — which keys on `label` — fell through to
+     * its "no classified receipt" default. MEASURED on /command-deck
+     * 2026-09-21, with this exact arm answering: the chip read
+     * "webull: Unknown. The Webull tick route returned no classified receipt."
+     *
+     * The route held the most actionable fact the wire can produce (a prompt
+     * is waiting in the Webull app) and published it as UNKNOWN. That is the
+     * absent-looks-undecided defect `webullTicksWireStatus` exists to prevent,
+     * reintroduced by the one arm that skipped the classifier.
+     */
+    const blocked = {
+      source: "webull" as const,
+      state: "BLOCKED_AUTH" as const,
+      fidelity: "NONE" as const,
+      symbol,
+      requestedAt: new Date().toISOString(),
+      signingProfile,
+      ticks: [],
+      awaiting2fa: true,
+      note: session.note,
+    };
     return NextResponse.json(
-      {
-        source: "webull",
-        state: "BLOCKED_AUTH",
-        fidelity: "NONE",
-        symbol,
-        requestedAt: new Date().toISOString(),
-        signingProfile,
-        ticks: [],
-        awaiting2fa: true,
-        note: session.note,
-      },
+      { ...blocked, ...classifyWebullTickSnapshot(blocked) },
       { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }

@@ -77,3 +77,37 @@ describe("classifyWebullTickSnapshot", () => {
     expect(status.detail).toBe("Signature rejected by Webull.");
   });
 });
+
+describe("classifyWebullTickSnapshot · awaiting 2FA", () => {
+  /**
+   * MEASURED 2026-09-21 on /command-deck: the strip read
+   * "webull: Unknown. The Webull tick route returned no classified receipt."
+   * while /api/market-data/webull/ticks?symbol=SPY answered
+   * BLOCKED_AUTH · awaiting2fa: true with a note naming the exact step.
+   */
+  it("names the pending approval instead of reporting a generic auth block", () => {
+    const status = classifyWebullTickSnapshot({
+      ...snapshot("BLOCKED_AUTH", 0, "Session minted and PENDING your 2FA approval in the Webull app."),
+      awaiting2fa: true,
+    });
+    expect(status.label).toBe("AWAITING 2FA");
+    // The distinction is the whole point: "auth blocked" sends a human to
+    // debug a credential; this state is a prompt already waiting on a phone.
+    expect(status.label).not.toBe("AUTH BLOCKED");
+    expect(status.detail).toBe("Session minted and PENDING your 2FA approval in the Webull app.");
+    expect(status.receiving).toBe(false);
+    expect(status.eventCount).toBe(0);
+  });
+
+  it("never reads as receiving, even if the provider returned prints alongside it", () => {
+    const status = classifyWebullTickSnapshot({ ...snapshot("BLOCKED_AUTH", 5), awaiting2fa: true });
+    expect(status.receiving).toBe(false);
+    expect(status.eventCount).toBe(0);
+  });
+
+  it("leaves every other snapshot untouched when the flag is absent or false", () => {
+    expect(classifyWebullTickSnapshot(snapshot("BLOCKED_AUTH")).label).toBe("AUTH BLOCKED");
+    expect(classifyWebullTickSnapshot({ ...snapshot("BLOCKED_AUTH"), awaiting2fa: false }).label).toBe("AUTH BLOCKED");
+    expect(classifyWebullTickSnapshot({ ...snapshot("OBSERVED", 2), awaiting2fa: false }).label).toBe("RECEIVING");
+  });
+});

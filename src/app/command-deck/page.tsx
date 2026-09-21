@@ -159,6 +159,7 @@ import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
  */
 import useOrderFlowReadings from "@/lib/marketData/useOrderFlowReadings";
 import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
+import { provenTapeWireBlock } from "@/lib/marketData/provenTapeWireBlock";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 
 /**
@@ -1469,9 +1470,19 @@ function CommandDeckInner() {
      the NO TAPE sentence names THIS instrument's rule rather than reciting both
      halves of a general one. The deck holds `symbol` and `sessionOpen` already;
      the selector derives neither. */
+  /* AND WHETHER THE WIRE IS THE REASON — see ChartsDashboard for the measured
+     Webull case. One-sided: null leaves the previous sentence untouched. */
   const orderFlowStanding = React.useMemo(
-    () => selectOrderFlowStanding(orderFlowReadings, { symbol, sessionClosed: sessionOpen }),
-    [orderFlowReadings, symbol, sessionOpen],
+    () =>
+      selectOrderFlowStanding(orderFlowReadings, {
+        symbol,
+        sessionClosed: sessionOpen,
+        tapeWireBlocked: provenTapeWireBlock(
+          { tapeSource: wsFeed.tapeSource, lastObservedAtMs: wsFeed.lastObservedAtMs },
+          Date.now(),
+        ),
+      }),
+    [orderFlowReadings, symbol, sessionOpen, wsFeed.tapeSource, wsFeed.lastObservedAtMs],
   );
   const orderFlowEquipment = React.useMemo(
     () => ({

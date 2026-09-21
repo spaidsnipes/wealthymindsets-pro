@@ -10,6 +10,7 @@ import {
   providerConfigReadinessWireView,
   tastytradeWireView,
   longbridgeTickWireView,
+  webullTickWireView,
   witnessedProviderWireView,
   selectProviderWires,
 } from "./ProviderWireStrip";
@@ -680,5 +681,38 @@ describe("EVERY ProviderWireStrip CONSUMER IS ACCOUNTED FOR", () => {
       }
     }
     expect(naked).toEqual([]);
+  });
+});
+
+describe("webullTickWireView · awaiting 2FA", () => {
+  /**
+   * MEASURED 2026-09-21 on /command-deck: this chip read
+   * "webull: Unknown. The Webull tick route returned no classified receipt."
+   * while the route was reporting a pending approval by name. Unknown is the
+   * one answer that tells a reader nothing and suggests everything.
+   */
+  it("names the one human step instead of falling through to Unknown", () => {
+    const view = webullTickWireView({
+      label: "AWAITING 2FA",
+      detail: "Session minted and PENDING your 2FA approval in the Webull app.",
+      receiving: false,
+      eventCount: 0,
+    });
+    expect(view).toEqual({
+      source: "webull",
+      tone: "BLOCKED",
+      label: "Awaiting 2FA approval",
+      detail: "Session minted and PENDING your 2FA approval in the Webull app.",
+    });
+  });
+
+  it("never dresses a pending approval as a receiving wire", () => {
+    // A receipt that claims both is self-contradictory; the blocked lane wins,
+    // because nothing arrived either way.
+    const view = webullTickWireView({
+      label: "AWAITING 2FA", detail: "Waiting on approval.", receiving: true, eventCount: 9,
+    });
+    expect(view.tone).toBe("BLOCKED");
+    expect(view.label).toBe("Awaiting 2FA approval");
   });
 });

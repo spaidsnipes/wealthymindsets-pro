@@ -147,6 +147,7 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 // equipment id is deliberately identical to the deck's rather than forked.
 import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
 import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
+import { provenTapeWireBlock } from "@/lib/marketData/provenTapeWireBlock";
 import { selectOverlayDrawingLedger } from "@/lib/marketData/viewModels/selectOverlayDrawingLedger";
 // The chain's three surfaces, imported HERE rather than re-implemented, because
 // the deck mounts these exact three for this exact equipment. A chart-room
@@ -1726,9 +1727,22 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
      Without them the NO TAPE sentence could only recite the general rule, and
      on a TSLA chart half of that rule was about crypto. Both facts already sit
      in this component; the selector derives neither. */
+  /* AND WHETHER THE WIRE ITSELF IS THE REASON. MEASURED 2026-09-21: the Webull
+     entitlement probe answered APP_KEY_ENTITLEMENT_ISOLATED — accounts and
+     profiles 200, every market-data rung 403 MARKET_DATA_NOT_SUBSCRIBED — on a
+     weekday, where closure is not proven. So this preview told the Founder
+     "Stock tape streams during market hours" about a lane no bell will open.
+     `provenTapeWireBlock` is one-sided and returns null unless the feed is
+     demonstrably alive while sending no prints; on null the sentence is
+     exactly what it was before. */
   const chartOrderFlowStanding = React.useMemo(
-    () => selectOrderFlowStanding(chartOrderFlowReadings, { symbol, sessionClosed: sessionOpen }),
-    [chartOrderFlowReadings, symbol, sessionOpen],
+    () =>
+      selectOrderFlowStanding(chartOrderFlowReadings, {
+        symbol,
+        sessionClosed: sessionOpen,
+        tapeWireBlocked: provenTapeWireBlock({ tapeSource, lastObservedAtMs }, Date.now()),
+      }),
+    [chartOrderFlowReadings, symbol, sessionOpen, tapeSource, lastObservedAtMs],
   );
   const chartOrderFlowEquipment = React.useMemo(
     () => ({

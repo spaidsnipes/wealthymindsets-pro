@@ -195,6 +195,18 @@ export function webullTickWireView(receipt: MoomooTickReceipt): ProviderWireView
   if (label === "ENTITLEMENT BLOCKED") {
     return { source: "webull", tone: "BLOCKED", label: "Entitlement blocked", detail };
   }
+  /**
+   * AWAITING 2FA gets its own arm for the same reason ENTITLEMENT BLOCKED
+   * does, and with more urgency: it is the only state on this strip whose fix
+   * is a single tap by the person reading it. Falling through to
+   * `moomooTickWireView` would render it "Unknown" — which is what this chip
+   * actually showed on /command-deck on 2026-09-21 while the Webull route was
+   * reporting a pending approval by name. The label is BLOCKED-toned because
+   * nothing is flowing, and worded as the step rather than the fault.
+   */
+  if (label === "AWAITING 2FA") {
+    return { source: "webull", tone: "BLOCKED", label: "Awaiting 2FA approval", detail };
+  }
   const view = moomooTickWireView(receipt);
   return {
     ...view,

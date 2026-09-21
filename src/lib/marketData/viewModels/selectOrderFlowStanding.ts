@@ -142,6 +142,30 @@ export interface OrderFlowStanding {
 export interface OrderFlowSubject {
   readonly symbol?: string | null;
   readonly sessionClosed?: false | null;
+  /**
+   * PROVEN: the tape wire itself is refusing, for a reason the clock cannot
+   * fix. `true` only where a wire receipt actually said so; `null`/absent
+   * means not established.
+   *
+   * MEASURED 2026-09-21, dev host, authenticated session:
+   *
+   *   GET /api/market-data/webull/entitlement
+   *   verdict APP_KEY_ENTITLEMENT_ISOLATED — ACCOUNTS 200, PROFILES 200,
+   *   SNAPSHOT/TICKS 403 MARKET_DATA_NOT_SUBSCRIBED under BOTH signing
+   *   profiles (legacy-sha1, sdk-sha256).
+   *
+   * On that host, on a weekday, `provenSessionClosure` is `null` — closure is
+   * not proven — so the sentence below fell through to its general middle and
+   * told the Founder "Stock tape streams during market hours." The tape was
+   * absent because our app key is not entitled to market data. He could have
+   * waited for every bell for a year and seen the identical empty widget.
+   *
+   * Same defect family as the crypto branch: the clock offered as an
+   * explanation for an absence the clock does not control. One-sided on
+   * purpose — there is no `false`, because no wire receipt in this codebase is
+   * allowed to PROVE a lane healthy from the absence of a complaint.
+   */
+  readonly tapeWireBlocked?: true | null;
 }
 
 const TOTAL_READINGS = 5;
@@ -156,6 +180,17 @@ const TOTAL_READINGS = 5;
 function noTapeHeadline(subject: OrderFlowSubject | undefined): string {
   const symbol = subject?.symbol?.trim() || null;
   const named = symbol ? `for ${symbol}` : "on this feed";
+
+  /**
+   * FIRST, above the clock and above the asset class, because it outlives
+   * both. A wire that is refusing will still be refusing at the opening bell,
+   * so any sentence mentioning market hours would be sending the trader to
+   * wait for a condition that changes nothing. Whatever else is also true, the
+   * blocked wire is the fact that decides "wait or stop looking".
+   */
+  if (subject?.tapeWireBlocked === true) {
+    return `No per-trade buy/sell tape ${named} — the tape feed itself is not delivering prints to WM. This is a wire problem, not a clock one, so waiting for the session will not change it.`;
+  }
 
   // The room could not tell us which instrument this is. Fall back to the rule
   // — stated as a rule, which is honest when nothing particular is known.

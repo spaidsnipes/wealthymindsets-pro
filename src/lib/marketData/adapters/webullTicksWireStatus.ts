@@ -55,6 +55,7 @@ import type { WebullTickSnapshotResult } from "./webullMarketData";
  */
 export type WebullTicksWireLabel =
   | "NOT CONFIGURED"
+  | "AWAITING 2FA"
   | "AUTH BLOCKED"
   | "ENTITLEMENT BLOCKED"
   | "ACCESS UNPROVEN"
@@ -97,10 +98,51 @@ const STATE_LABELS: Record<WebullTickSnapshotResult["state"], WebullTicksWireLab
   UNAVAILABLE: "UNKNOWN",
 };
 
+/**
+ * What the classifier reads: the adapter's snapshot, plus the ONE fact the
+ * snapshot cannot carry because it is decided before the adapter is called.
+ *
+ * `resolveWebullSessionToken` can answer that the session was minted and is
+ * PENDING the Founder's approval in the Webull app. The tick route already
+ * returns that as `BLOCKED_AUTH` + `awaiting2fa: true`, and it is the single
+ * most actionable state this wire has — one tap, by one human, and the lane
+ * opens. It is passed in rather than inferred, because this module translates
+ * judgements and never manufactures one.
+ */
+export interface WebullTickSnapshotReceiptInput extends WebullTickSnapshotResult {
+  /** True ONLY when the session store proved a pending 2FA approval. */
+  readonly awaiting2fa?: boolean;
+}
+
 export function classifyWebullTickSnapshot(
-  snapshot: WebullTickSnapshotResult,
+  snapshot: WebullTickSnapshotReceiptInput,
 ): WebullTicksWireStatus {
   const eventCount = snapshot.ticks.length;
+
+  /**
+   * MEASURED 2026-09-21, /command-deck, dev host: the strip rendered
+   *
+   *   "webull: Unknown. The Webull tick route returned no classified receipt."
+   *
+   * while `/api/market-data/webull/ticks?symbol=SPY` was answering
+   * `BLOCKED_AUTH · awaiting2fa: true` with a note naming the exact step. The
+   * route knew; the chip said Unknown; the Founder read the whole product as
+   * broken and concluded the tape was being withheld from him.
+   *
+   * AWAITING 2FA is therefore its own label and NOT folded into AUTH BLOCKED.
+   * "Auth blocked" reads as a credential defect someone must go debug; this
+   * state is a prompt already waiting on a phone. Collapsing them would keep
+   * the sentence true and throw away the only part that was useful.
+   */
+  if (snapshot.awaiting2fa === true) {
+    return {
+      label: "AWAITING 2FA",
+      detail: snapshot.note?.trim()
+        || "Webull minted the session and is waiting on 2FA approval in the Webull app.",
+      receiving: false,
+      eventCount: 0,
+    };
+  }
   const detail = snapshot.note?.trim() || `Webull reported ${snapshot.state}.`;
   const label = STATE_LABELS[snapshot.state] ?? "UNKNOWN";
 

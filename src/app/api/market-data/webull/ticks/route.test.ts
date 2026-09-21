@@ -98,6 +98,30 @@ describe("GET /api/market-data/webull/ticks", () => {
     expect(mocks.fetchWebullTickSnapshot).not.toHaveBeenCalled();
   });
 
+  /**
+   * MEASURED 2026-09-21, /command-deck on the dev host, with THIS arm
+   * answering: the provider strip rendered "webull: Unknown. The Webull tick
+   * route returned no classified receipt." The strip keys on `label`, and this
+   * arm was the only one in the route returning a body without one — so the
+   * most actionable state the wire can report (a prompt already waiting on the
+   * Founder's phone) reached his screen as UNKNOWN.
+   */
+  it("classifies the 2FA wait so the provider strip cannot render it as Unknown", async () => {
+    mocks.resolveWebullSessionToken.mockResolvedValue({
+      accessToken: undefined, awaiting2fa: true, note: "Approve the Webull session in the Webull app.",
+    });
+    const response = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA"));
+    const body = await response.json();
+    expect(body.label).toBe("AWAITING 2FA");
+    expect(body.detail).toBe("Approve the Webull session in the Webull app.");
+    // A blocked lane may never read as a proven wire, whatever the label says.
+    expect(body.receiving).toBe(false);
+    expect(body.eventCount).toBe(0);
+    // The pre-existing contract is untouched — the receipt is ADDITIVE.
+    expect(body).toMatchObject({ state: "BLOCKED_AUTH", fidelity: "NONE", awaiting2fa: true });
+    expect(body.note).toBe("Approve the Webull session in the Webull app.");
+  });
+
   it("rejects malformed symbols without calling Webull", async () => {
     const response = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA%26account%3D1"));
     expect(response.status).toBe(400);

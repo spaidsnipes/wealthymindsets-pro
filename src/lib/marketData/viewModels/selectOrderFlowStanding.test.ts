@@ -204,3 +204,68 @@ describe("selectOrderFlowStanding", () => {
     );
   });
 });
+
+describe("NO TAPE · a blocked wire outranks the clock", () => {
+  /**
+   * MEASURED 2026-09-21, dev host, authenticated session:
+   *
+   *   GET /api/market-data/webull/entitlement
+   *   verdict APP_KEY_ENTITLEMENT_ISOLATED — ACCOUNTS 200, PROFILES 200,
+   *   SNAPSHOT + TICKS 403 MARKET_DATA_NOT_SUBSCRIBED under BOTH signing
+   *   profiles.
+   *
+   * A weekday, so closure is NOT proven and the sentence fell through to
+   * "Stock tape streams during market hours." The trader is told to wait for a
+   * bell that will change nothing — the app key is not entitled to market
+   * data, at any hour.
+   */
+  it("never offers market hours as the explanation when the wire is proven blocked", () => {
+    const { verdict, headline } = selectOrderFlowStanding(
+      {},
+      { symbol: "SPY", sessionClosed: null, tapeWireBlocked: true },
+    );
+    expect(verdict).toBe("NO TAPE");
+    expect(headline).not.toMatch(/market hours/i);
+    expect(headline).toMatch(/SPY/);
+    // It must say the one thing the trader needs: waiting is not the answer.
+    expect(headline).toMatch(/waiting/i);
+  });
+
+  it("outranks a PROVEN closed session, because the wire survives the bell", () => {
+    // Both facts are true at once. The clock one would expire at the open; the
+    // wire one would not, so the wire one is the sentence.
+    const { headline } = selectOrderFlowStanding(
+      {},
+      { symbol: "SPY", sessionClosed: false, tapeWireBlocked: true },
+    );
+    expect(headline).not.toMatch(/resume when the session opens/i);
+    expect(headline).toMatch(/wire problem, not a clock one/i);
+  });
+
+  it("outranks the crypto branch and the unnamed-symbol fallback", () => {
+    for (const symbol of ["BTC", null]) {
+      const { headline } = selectOrderFlowStanding({}, { symbol, tapeWireBlocked: true });
+      expect(headline).toMatch(/wire problem, not a clock one/i);
+      expect(headline).not.toMatch(/around the clock|market hours/i);
+    }
+  });
+
+  it("changes NOTHING when the block is not established", () => {
+    // The one-sided contract: null/absent must reproduce the shipped sentence
+    // byte for byte, so this fact can only ever sharpen and never introduce.
+    for (const sessionClosed of [false, null] as const) {
+      const base = selectOrderFlowStanding({}, { symbol: "SPY", sessionClosed });
+      expect(selectOrderFlowStanding({}, { symbol: "SPY", sessionClosed, tapeWireBlocked: null })).toEqual(base);
+    }
+  });
+
+  it("stays silent about the wire once a reading actually measured something", () => {
+    // A blocked wire cannot manufacture a NO TAPE verdict over real readings.
+    const standing = selectOrderFlowStanding(
+      { absorption: absorb("ABSORBED", "SELLERS") },
+      { symbol: "SPY", tapeWireBlocked: true },
+    );
+    expect(standing.verdict).not.toBe("NO TAPE");
+    expect(standing.headline).not.toMatch(/wire problem/i);
+  });
+});
