@@ -1,0 +1,161 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/morningPrepTruth.test.ts (9 tests | 1 failed) 6ms
+     × the banner actually discloses that the content is a placeholder 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/morningPrepTruth.test.ts > fabio label truth > the banner actually discloses that the content is a placeholder
+AssertionError: expected 'function placeholderbanner() {\n  if …' to contain 'framework placeholder'
+
+- Expected
++ Received
+
+- framework placeholder
++ function placeholderbanner() {
++   if (!fabio_content_is_placeholder) return null;
++   return (
++     <div
++       style={{
++         display: "flex", gap: 6, alignitems: "flex-start",
++         margin: "0 0 10px", padding: "7px 9px", borderradius: 7,
++         background: "rgba(240,180,41,0.08)", border: "1px solid rgba(240,180,41,0.28)",
++       }}
++     >
++       <info size={12} style={{ color: "#f0b429", flexshrink: 0, margintop: 1 }} />
++       {/* this banner's only job is to disclose that the notes are placeholders
++           (see fabio.ts: "so nothing here is ever mistaken for verified
++           proprietary content"). it previously read "proven order-flow &
++           smart-money principles" — never saying "placeholder" at all, and
++           calling the content proven, which is both the strongest claim the
++           canon has and the exact opposite of what a placeholder notice is
++           for. it also contradicted the card directly beneath it, which says
++           the reads are "not proof of who is trading". */}
++       <span style={{ fontsize: 9.5, color: "#c9a94a", lineheight: 1.4 }}>
++         playbook notes — proven order-flow &amp; smart-money principles to frame your reads.
++         educational context, not financial advice.
++       </span>
++     </div>
++   );
++ }
++
++ export interface fabioinsightsprops {
++   symbol?: string;
++   activeindicators?: string[];
++   regime?: fabiocontext["regime"];
++   surface?: string;
++   variant?: "panel" | "inline";
++   limit?: number;
++   title?: string;
++   onclose?: () => void;
++ }
++
++ export function fabioinsights({
++   symbol,
++   activeindicators,
++   regime,
++   surface,
++   variant = "panel",
++   limit,
++   title = "wm playbook",
++   onclose,
++ }: fabioinsightsprops) {
++   const insights = usememo(
++     () =>
++       getfabioinsights(
++         { symbol, assetclass: inferassetclass(symbol), regime, activeindicators, surface },
++         limit ?? (variant === "inline" ? 3 : 6),
++       ),
++     [symbol, activeindicators, regime, surface, variant, limit],
++   );
++
++   const header = (
++     <div style={{ display: "flex", alignitems: "center", gap: 6 }}>
++       <lightbulb size={13} style={{ color: "#f0b429" }} />
++       <span style={{ fontsize: 11.5, fontweight: 900, color: "#e2e8f0", letterspacing: 0.3 }}>{title}</span>
++       {symbol && (
++         <span style={{ fontsize: 9, color: "#4a5070", fontweight: 700 }}>· {symbol.touppercase()}</span>
++       )}
++     </div>
++   );
++
++   /* ── inline / embedded card (journal, news, morning-prep) ─────────────── */
++   if (variant === "inline") {
++     return (
++       <div
++         style={{
++           border: "1px solid #1e2030", borderradius: 10, background: "#0b0d14",
++           padding: 12, width: "100%",
++         }}
++       >
++         <div style={{ display: "flex", alignitems: "center", justifycontent: "space-between", marginbottom: 10 }}>
++           {header}
++           {/* while the library is placeholder content, "context-aware" overclaims:
++               ranking varies by surface/symbol, but the notes themselves are a
++               static curated set, identical every day. say which one it is. */}
++           <span style={{ fontsize: 9, color: "#4a5070" }}>
++             {fabio_content_is_placeholder ? "curated notes" : "context-aware"}
++           </span>
++         </div>
++         <placeholderbanner />
++         {insights.map(ins => (
++           <insightcard key={ins.id} ins={ins} compact />
++         ))}
++       </div>
++     );
++   }
++
++   /* ── sidebar panel (chart) ────────────────────────────────────────────── */
++   return (
++     <motion.div
++       initial={{ width: 0, opacity: 0 }}
++       animate={{ width: 280, opacity: 1 }}
++       exit={{ width: 0, opacity: 0 }}
++       transition={{ type: "spring", stiffness: 300, damping: 30 }}
++       classname="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden"
++       style={{ minwidth: 0 }}
++     >
++       <div
++         classname="flex items-center justify-between px-2.5 shrink-0 border-b border-wm-border"
++         style={{ height: 34 }}
++       >
++         {header}
++         {onclose && (
++           <button onclick={onclose} classname="text-wm-text-dim hover:text-wm-text transition-colors p-0.5" title="close">
++             <x size={12} />
++           </button>
++         )}
++       </div>
++       <div classname="flex-1 overflow-y-auto" style={{ scrollbarwidth: "thin", padding: 10 }}>
++         <placeholderbanner />
++         {insights.map(ins => (
++           <insightcard key={ins.id} ins={ins} />
++         ))}
++         <div style={{ fontsize: 9, color: "#3a3f58", textalign: "center", margintop: 4 }}>
++           insights adapt to symbol, regime &amp; active indicators.
++         </div>
++       </div>
++     </motion.div>
++   );
++ }
++
++ export default fabioinsights;
++
+
+ ❯ src/lib/morningPrepTruth.test.ts:102:34
+    100|   it("the banner actually discloses that the content is a placeholder"…
+    101|     const banner = fabio.slice(fabio.indexOf("function PlaceholderBann…
+    102|     expect(banner.toLowerCase()).toContain("framework placeholder");
+       |                                  ^
+    103|   });
+    104|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  16:18:34
+   Duration  90ms (transform 12ms, setup 0ms, import 17ms, tests 6ms, environment 0ms)
+

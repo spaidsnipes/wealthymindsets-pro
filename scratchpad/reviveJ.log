@@ -1,0 +1,84 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts (18 tests | 3 failed) 16ms
+     × refuses a BUY the account cannot fund, and says why 2ms
+     × does not write a rejected order into the ledger 1ms
+     × applies the contract multiplier to the funding test 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > refuses a BUY the account cannot fund, and says why
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:194:18
+    192|     seed(1_000);
+    193|     const r = placeChartMarketOrder("TSLA", "buy", 100, 400);   // $40…
+    194|     expect(r.ok).toBe(false);
+       |                  ^
+    195|     expect(r.error).toContain("Insufficient cash");
+    196|     expect(r.error).toContain("$40,000");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > does not write a rejected order into the ledger
+AssertionError: expected [ { id: 'k72yrhy', …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "fillPx": 400,
++     "id": "k72yrhy",
++     "qty": 100,
++     "side": "buy",
++     "status": "filled",
++     "symbol": "TSLA",
++     "ts": 1788658912169,
++     "type": "market",
++   },
++ ]
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:202:29
+    200|     seed(1_000);
+    201|     placeChartMarketOrder("TSLA", "buy", 100, 400);
+    202|     expect(stored().orders).toEqual([]);
+       |                             ^
+    203|     expect(stored().cash).toBe(1_000);                           // un…
+    204|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > applies the contract multiplier to the funding test
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:210:64
+    208|     // the multiplier a $100,000 account is told it can afford four of…
+    209|     seed(STARTING_CASH);
+    210|     expect(placeChartMarketOrder("NQ1!", "buy", 1, 21_750).ok).toBe(fa…
+       |                                                                ^
+    211|     expect(placeChartMarketOrder("TSLA", "buy", 1, 21_750).ok).toBe(tr…
+    212|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 15 passed (18)
+   Start at  20:41:52
+   Duration  105ms (transform 19ms, setup 0ms, import 25ms, tests 16ms, environment 0ms)
+

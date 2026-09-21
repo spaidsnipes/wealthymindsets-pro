@@ -1,0 +1,89 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (23 tests | 4 failed) 18ms
+     × BANS the shared one-sided sentence in the handler 2ms
+     × BANS the hard-coded AGGRESSIVE chip in the renderer 1ms
+     × the renderer no longer formats the headline number itself 1ms
+     × PROOF the comment-stripper does not neuter the bans 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > BANS the shared one-sided sentence in the handler
+AssertionError: expected '' to contain 'describeBubbleClaim'
+
+- Expected
++ Received
+
+- describeBubbleClaim
+
+ ❯ src/lib/bubbleClaim.test.ts:281:15
+    279|     const h = stripComments(tooltipHandler());
+    280|     // Positive control: stripping must not have emptied the region.
+    281|     expect(h).toContain("describeBubbleClaim");
+       |               ^
+    282|     expect(h).not.toMatch(/base > 100 \? "shares" : "vol"/);
+    283|     expect(h).not.toMatch(/aggressive \$\{hit\.side/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > BANS the hard-coded AGGRESSIVE chip in the renderer
+AssertionError: expected '' to contain 'bubbleTip.heading'
+
+- Expected
++ Received
+
+- bubbleTip.heading
+
+ ❯ src/lib/bubbleClaim.test.ts:288:15
+    286|   it("BANS the hard-coded AGGRESSIVE chip in the renderer", () => {
+    287|     const r = stripComments(tooltipRender());
+    288|     expect(r).toContain("bubbleTip.heading");
+       |               ^
+    289|     expect(r).toContain("bubbleTip.headline");
+    290|     // This chip sat above a number that meant two different things.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > the renderer no longer formats the headline number itself
+AssertionError: expected '' to contain 'bubbleTip.headline'
+
+- Expected
++ Received
+
+- bubbleTip.headline
+
+ ❯ src/lib/bubbleClaim.test.ts:297:15
+    295|     // Re-deriving the number in the view is how it drifted from its l…
+    296|     const r = stripComments(tooltipRender());
+    297|     expect(r).toContain("bubbleTip.headline");
+       |               ^
+    298|     expect(r).not.toMatch(/bubbleTip\.value/);
+    299|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > PROOF the comment-stripper does not neuter the bans
+AssertionError: expected '' to contain 'const a = 1;'
+
+- Expected
++ Received
+
+- const a = 1;
+
+ ❯ src/lib/bubbleClaim.test.ts:307:17
+    305|     const sample = `const a = 1; // base > 100 ? "shares" : "vol"\n/* …
+    306|     const out = stripComments(sample);
+    307|     expect(out).toContain("const a = 1;");
+       |                 ^
+    308|     expect(out).toContain("const b = bubbleTip.value;");
+    309|     expect(out).not.toMatch(/"shares"/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 19 passed (23)
+   Start at  20:54:11
+   Duration  131ms (transform 17ms, setup 0ms, import 23ms, tests 18ms, environment 0ms)
+

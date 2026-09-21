@@ -1,0 +1,30 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/sessionToken.test.ts (17 tests | 1 failed) 6ms
+     × continuous markets are 24X7 every day — they have no session to close 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > selectCanonicalSessionToken — closure that is proven is not withheld > continuous markets are 24X7 every day — they have no session to close
+AssertionError: BTC @ Sat Sep 05 2026 00:00:00 GMT-0500 (Central Daylight Time): expected 'SESSION ?' to be '24X7' // Object.is equality
+
+Expected: "24X7"
+Received: "SESSION ?"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:102:43
+    100|       for (const sym of ["BTC", "ETH"]) {
+    101|         const r = selectCanonicalSessionToken({ symbol: sym, at });
+    102|         expect(r.token, `${sym} @ ${at}`).toBe(SESSION_TOKEN_CONTINUOU…
+       |                                           ^
+    103|         expect(r.established).toBe(true);
+    104|       }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  21:12:06
+   Duration  104ms (transform 23ms, setup 0ms, import 31ms, tests 6ms, environment 0ms)
+

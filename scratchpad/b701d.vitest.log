@@ -1,0 +1,34 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+
+  Heat lens sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/heat-lens-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/heat-lens-sample.html
+
+
+  Expression shortlist sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/expression-shortlist-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/expression-shortlist-sample.html
+
+
+  Founder room sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/founder-room-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/founder-room-sample.html
+  Served copy refreshed: /Users/dspaidnoosleep/wealthymindsets-pro/public/founder-room-sample.html
+
+
+  Protection line sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/protection-line-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/protection-line-sample.html
+
+
+  Decision rail sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/decision-rail-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/decision-rail-sample.html
+
+
+  Liquidity weather sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/liquidity-weather-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/liquidity-weather-sample.html
+
+
+ Test Files  828 passed (828)
+      Tests  10571 passed | 2 skipped (10573)
+   Start at  22:38:26
+   Duration  16.43s (transform 16.42s, setup 0ms, import 36.24s, tests 24.32s, environment 65ms)
+

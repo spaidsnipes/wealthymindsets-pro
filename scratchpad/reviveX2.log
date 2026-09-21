@@ -1,0 +1,30 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/components/command/sessionDetailText.test.ts (16 tests | 1 failed) 7ms
+     × Saturday futures say CLOSED rather than shrugging SESSION UNKNOWN 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/command/sessionDetailText.test.ts > SESSION tile value — the headline may not contradict its own caption > Saturday futures say CLOSED rather than shrugging SESSION UNKNOWN
+AssertionError: GC1!: expected 'SESSION UNKNOWN' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "SESSION UNKNOWN"
+
+ ❯ src/components/command/sessionDetailText.test.ts:145:62
+    143|     // Same false humility the mobile pill had. Closure IS proven on a…
+    144|     for (const sym of ["GC1!", "NQ1!", "ES1!"]) {
+    145|       expect(present("RTH", false, 6, sym, null).value, sym).toBe("CLO…
+       |                                                              ^
+    146|     }
+    147|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  21:19:57
+   Duration  92ms (transform 20ms, setup 0ms, import 26ms, tests 7ms, environment 0ms)
+

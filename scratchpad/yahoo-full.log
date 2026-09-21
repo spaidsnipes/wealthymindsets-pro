@@ -1,0 +1,26 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ scratchpad/orkin_backup/pickerCryptoClassification.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scratchpad/orkin_backup/pickerCryptoClassification.test.ts [ scratchpad/orkin_backup/pickerCryptoClassification.test.ts ]
+Error: Cannot find module '../timeframes' imported from /Users/dspaidnoosleep/wealthymindsets-pro/scratchpad/orkin_backup/canonicalIdentity.ts
+ ❯ scratchpad/orkin_backup/canonicalIdentity.ts:21:1
+     19|  */
+     20|
+     21| import { normalizeTFId } from "../timeframes";
+       | ^
+     22|
+     23| export type CanonicalAssetClass = "crypto" | "equity" | "etf" | "futur…
+ ❯ scratchpad/orkin_backup/pickerCryptoClassification.test.ts:5:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 418 passed (419)
+      Tests  4259 passed (4259)
+   Start at  02:02:54
+   Duration  9.26s (transform 8.85s, setup 0ms, import 17.00s, tests 16.48s, environment 45ms)
+

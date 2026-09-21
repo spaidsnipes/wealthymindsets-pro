@@ -1,0 +1,46 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts (10 tests | 1 failed) 5ms
+     × the change keys are conditional on displayability 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts > the publisher stops emitting an unbacked change > the change keys are conditional on displayability
+AssertionError: expected 'id="wm-chart-context"\n        data-c…' to match /displayable\s*\n?\s*\?/
+
+- Expected:
+/displayable\s*\n?\s*\?/
+
++ Received:
+"id=\"wm-chart-context\"
+        data-ctx={JSON.stringify(
+          (() => {
+            const chg = selectTickerChangeDisplay(ticker);
+            return {
+              symbol,
+              price: ticker.price,
+              change: chg.change,
+              changePct: chg.changePct,
+            };
+          })(),
+        )}
+        style={{ display: \"none\" }}
+      "
+
+ ❯ src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts:120:27
+    118|     // Emitting `changePct: 0` unconditionally would satisfy the bans …
+    119|     // while reopening the defect. The keys must be absent, not zeroed.
+    120|     expect(contextSpan()).toMatch(/displayable\s*\n?\s*\?/);
+       |                           ^
+    121|   });
+    122| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  16:36:43
+   Duration  157ms (transform 10ms, setup 0ms, import 15ms, tests 5ms, environment 0ms)
+

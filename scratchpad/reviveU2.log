@@ -1,0 +1,43 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/sessionToken.test.ts (17 tests | 2 failed) 6ms
+     × continuous markets are 24X7 every day — they have no session to close 2ms
+     × crypto is never labelled CLOSED, on any day 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > selectCanonicalSessionToken — closure that is proven is not withheld > continuous markets are 24X7 every day — they have no session to close
+AssertionError: BTC @ Sat Sep 05 2026 00:00:00 GMT-0500 (Central Daylight Time): expected 'CLOSED' to be '24X7' // Object.is equality
+
+Expected: "24X7"
+Received: "CLOSED"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:102:43
+    100|       for (const sym of ["BTC", "ETH"]) {
+    101|         const r = selectCanonicalSessionToken({ symbol: sym, at });
+    102|         expect(r.token, `${sym} @ ${at}`).toBe(SESSION_TOKEN_CONTINUOU…
+       |                                           ^
+    103|         expect(r.established).toBe(true);
+    104|       }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > selectCanonicalSessionToken — closure that is proven is not withheld > crypto is never labelled CLOSED, on any day
+AssertionError: expected 'CLOSED' not to be 'CLOSED' // Object.is equality
+ ❯ src/lib/marketData/sessionToken.test.ts:110:76
+    108|   it("crypto is never labelled CLOSED, on any day", () => {
+    109|     for (const at of [SATURDAY, SUNDAY, WEDNESDAY, null]) {
+    110|       expect(selectCanonicalSessionToken({ symbol: "BTC", at }).token)…
+       |                                                                            ^
+    111|     }
+    112|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 passed (17)
+   Start at  21:12:13
+   Duration  172ms (transform 21ms, setup 0ms, import 28ms, tests 6ms, environment 0ms)
+

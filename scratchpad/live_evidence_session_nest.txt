@@ -1,0 +1,153 @@
+LIVE OBSERVATION — https://wealthymindsetspro.com/command-deck
+Read at: Sat Sep 05 2026 (browser getDay()=6, Saturday), visibilityState=hidden
+(text-content + DOM-attribute reads only; no geometry/visibility claim made)
+
+Active symbol: GC1!  (futures)
+
+ONE PAGE. ONE INSTRUMENT. ONE INSTANT. TWO NODES. TWO CLAIMS:
+
+  [A] .wm-mobile-session-pill  -- shipped in 3c305bb, LIVE
+      text : "GC1!CLOSED"
+      aria : "GC1! - session CLOSED, closure is established for this market
+              today; no futures activity observed, browser-local memory empty.
+              Open chart."
+
+  [B] CommandContextRibbon SESSION tile -- fix 90f76ca NOT YET DEPLOYED
+      value  : "SESSION UNKNOWN"
+      detail : "session classification unavailable - no authoritative calendar"
+      value colour : rgb(224, 123, 92)
+      tile border  : rgba(224, 123, 92, 0.45)
+
+WHAT THIS PROVES
+1. 3c305bb IS live and IS working. Before it, the pill's futures branch was
+   `futuresTruth ? "SESSION ?" : session` -- a dead predicate that printed a
+   shrug. It now prints CLOSED, and its accessible name carries the same
+   claim as its pixel.
+2. 90f76ca is NOT yet live. The desktop tile still shrugs "SESSION UNKNOWN"
+   on a day whose closure is PROVEN -- exactly the false humility Orkin
+   revive X2 was written to catch.
+3. Canon Weakness #1 (multi-truth disagreement on one page) is OBSERVED in
+   production, not inferred from source reading. The disagreement predicted
+   from the code is literally on the screen.
+
+Full ribbon row as read:
+  SESSION        SESSION UNKNOWN   session classification unavailable...
+  DATA           UNKNOWN           market evidence unavailable
+  OBSERVED       NONE YET          GC1! - nothing observed
+  AVAILABLE R    UNKNOWN           no chain evidence
+  EVIDENCE       9 MISSING         0/9 paid - need regime + direction +1
+  RIGHT OF WAY   WAIT              evidence debt: need regime + direction +7
+
+
+================================================================
+ATOM 3 - THE SCENE. Same page, same instant, same instrument.
+================================================================
+Read live at https://wealthymindsetspro.com/command-deck
+Sat Sep 05 2026 (getDay()=6). Active symbol GC1!.
+
+FOUR OWNERS. ONE MARKET. FOUR DIFFERENT CLAIMS:
+
+  1. SCENE (compileScene via deckSceneSignals)
+       "WAIT - Right-of-way is withheld - holding is the action."
+  2. SESSION tile (CommandContextRibbon)
+       "SESSION UNKNOWN / session classification unavailable
+        - no authoritative calendar"
+  3. Mobile pill (.wm-mobile-session-pill, shipped 3c305bb)
+       "CLOSED / closure is established for this market today"
+  4. DATA capability strip - EIGHT OR MORE separate <span> nodes:
+       "SESSION CLOSED - LAST VERIFIED"
+       (rendered inline as "DATA - 2 / 7 capabilities -
+        SESSION CLOSED - LAST VERIFIED")
+
+Provenance disclosure on the same screen: "2 / 5" signal groups
+reported OBSERVED.
+
+WHY THE SCENE IS WRONG
+  compileScene.ts:322  `if (signals.sessionOpen === false)` -> CLOSED,
+  headline "SESSION CLOSED - LAST VERIFIED. Nothing is streaming."
+  deckSceneSignals.ts:69 sessionOpenFrom("RTH") -> true.
+  page.tsx:299 passes `identity.session`, the STORE KEY, which is
+  "RTH" for every non-crypto instrument on every day of the week.
+  => the CLOSED branch is UNREACHABLE on this route, on any Saturday,
+     for any instrument. The deck falls through to WAIT.
+
+WHY THIS IS WORSE THAN THE TILE
+  deckSceneSignals also emits a PROVENANCE record whose entire stated
+  purpose (its own file header) is: "A scene compiled from three real
+  signals and seven guesses must never look like a scene compiled from
+  ten real ones."  With the store key as input,
+      provenance.SESSION = "OBSERVED"
+  because sessionOpen is non-null. The guess is counted as one of the
+  real ones. The mechanism built to expose fabrication is itself fed
+  the fabrication. That is the disclosure lying about the lie.
+
+NOT INFERRED. OBSERVED. All four strings read out of the live DOM in
+a single evaluation, visibilityState=hidden (text-content only; no
+geometry or visibility claim made).
+
+
+================================================================
+LIVE VERIFICATION - 90f76ca DEPLOYED AND PROVEN
+================================================================
+Same URL, same tab, same Saturday, same symbol GC1!.
+Re-read after the Cloudflare Workers deploy landed.
+
+  SESSION tile value  : "CLOSED"          (was "SESSION UNKNOWN")
+  SESSION tile detail : "closure is established for this market today"
+                        (was "session classification unavailable
+                         - no authoritative calendar")
+  mobile pill         : "GC1! CLOSED"     (unchanged, 3c305bb)
+  SCENE               : "WAIT"            (be39cb1 not yet deployed)
+  disclosure          : "2 / 5"           (be39cb1 not yet deployed)
+
+STATUS OF THE THREE COMMITS
+  3c305bb  mobile session chip          LIVE, PROVEN by observation
+  90f76ca  SESSION tile value/tone/clock LIVE, PROVEN by observation
+  be39cb1  scene compiler wiring         pushed, NOT yet deployed;
+                                         SCENE still reads WAIT and the
+                                         disclosure still reads 2 / 5,
+                                         which is exactly the pre-fix
+                                         behaviour the commit targets.
+
+Two of the four contradicting voices now agree. The remaining two
+(SCENE, and the provenance count) are the pending deploy - stated as
+pending, not as done.
+
+════════════════════════════════════════════════════════════════════════
+ATOM 4 — LIVE OBSERVATION, https://wealthymindsetspro.com/command-deck
+Saturday 2026-09-05 (browser getDay() === 6), symbol GC1!
+Probe after cbf3b70 deploy. visibilityState: "hidden" (no geometry claim made).
+════════════════════════════════════════════════════════════════════════
+
+be39cb1 PROVEN LIVE — the scene compiler now reaches CLOSED:
+  Scene  CLOSED
+         "SESSION CLOSED — LAST VERIFIED. Nothing is streaming."
+  provenance: Session · OBSERVED   Decision · OBSERVED
+              Position · UNOBSERVED   Orders · UNOBSERVED
+  (24 leaf nodes now read SESSION CLOSED; scene words CLOSED/WAIT mixed)
+
+NEW DEFECT CAUGHT IN THE SAME DOM STRING — hero truth strip:
+
+  "Command Deck·hero truth UNKNOWN GC1! 15m — Unavailable? session RTH
+   coverage 0 channels unknowns 8 Layout ... Scene CLOSED
+   SESSION CLOSED — LAST VERIFIED. Nothing is streaming."
+
+  `session RTH` and `SESSION CLOSED` — one page, one instant, one instrument.
+
+ROOT CAUSE: HeroTruth.tsx:241 renders `state?.session ?? "unknown"`.
+  CanonicalMarketState.session is the STORE KEY (canonicalMarketStateStore.ts:25
+  builds the key from it), produced by canonicalSession(extHours, assetClass)
+  which answers "RTH" for every non-crypto instrument on every day of the week.
+  The producers are CORRECT — the key must not vary by day or the store
+  fragments. The RENDER is the defect: a keyspace label printed to a human
+  under the bare word "session".
+
+  canonicalIdentity.ts:231 already carries this exact bug's obituary:
+    "Echoing the requested RTH/EXTENDED filter here produced 'session RTH'
+     for BTCUSD" — fixed inside the owner, but HeroTruth never calls the owner.
+
+NINTH LESSON (new shape): src/lib/heroTruthNullState.test.ts:31 asserts
+    expect(src).toContain('state?.session ?? "unknown"');
+  A Sentinel written about NULL-STATE HONESTY froze the SOURCE of the value it
+  happened to sit next to. The guard protecting one property became a lock on
+  the defect in another. It also has NO proof-test for its comment-stripper.

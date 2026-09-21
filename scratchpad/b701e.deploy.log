@@ -1,0 +1,226 @@
+
+> wealthymindsets-pro@1.0.0 deploy:cf
+> npm run build:cloudflare && opennextjs-cloudflare deploy
+
+
+> wealthymindsets-pro@1.0.0 build:cloudflare
+> WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) opennextjs-cloudflare build
+
+
+┌─────────────────────────────┐
+│ OpenNext — Cloudflare build │
+└─────────────────────────────┘
+
+App directory: /Users/dspaidnoosleep/wealthymindsets-pro
+Next.js version : 16.3.0
+@opennextjs/cloudflare version: 1.20.2
+@opennextjs/aws version: 4.1.0
+WARN workerd compatibility_date: 2025-05-01, consider updating your wrangler config to a more recent date to benefit from the latest features and fixes.
+
+┌─────────────────────────────────┐
+│ OpenNext — Building Next.js app │
+└─────────────────────────────────┘
+
+
+> wealthymindsets-pro@1.0.0 build
+> WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) next build
+
+▲ Next.js 16.3.0 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 107ms
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.7s
+  Running TypeScript ...
+  Finished TypeScript in 3.6s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/82) ...
+  Generating static pages using 9 workers (20/82) 
+  Generating static pages using 9 workers (40/82) 
+  Generating static pages using 9 workers (61/82) 
+✓ Generating static pages using 9 workers (82/82) in 252ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /ai-bot
+├ ƒ /api/alpaca
+├ ƒ /api/alpaca-stream
+├ ƒ /api/alpaca-trading
+├ ƒ /api/alpaca/trade
+├ ƒ /api/athos/market-data/capabilities
+├ ƒ /api/audio
+├ ƒ /api/auth/confirm
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/logout-all
+├ ƒ /api/auth/me
+├ ƒ /api/auth/resend-confirmation
+├ ƒ /api/auth/signup
+├ ƒ /api/auth/update-profile
+├ ƒ /api/broker/alpaca
+├ ƒ /api/broker/binance
+├ ƒ /api/broker/certification
+├ ƒ /api/broker/coinbase
+├ ƒ /api/broker/kraken
+├ ƒ /api/broker/oanda
+├ ƒ /api/broker/readiness
+├ ƒ /api/broker/status
+├ ƒ /api/broker/tastytrade/accounts
+├ ƒ /api/broker/tastytrade/market-metrics
+├ ƒ /api/broker/tastytrade/status
+├ ƒ /api/broker/webull/status
+├ ƒ /api/build-identity
+├ ƒ /api/decision-position
+├ ƒ /api/dev/coverage-inspect
+├ ƒ /api/diagnostics/email
+├ ƒ /api/diagnostics/supabase
+├ ƒ /api/emails/welcome
+├ ƒ /api/exchange
+├ ƒ /api/finnhub
+├ ƒ /api/fmp
+├ ƒ /api/heatmap
+├ ƒ /api/livekit
+├ ƒ /api/livekit/approve
+├ ƒ /api/market
+├ ƒ /api/market-data/alpaca/options
+├ ƒ /api/market-data/certification
+├ ƒ /api/market-data/longbridge/ticks
+├ ƒ /api/market-data/moomoo/ticks
+├ ƒ /api/market-data/webull/ticks
+├ ƒ /api/market-memory/coverage
+├ ƒ /api/market-memory/observations
+├ ƒ /api/memecoin
+├ ƒ /api/morning-prep/growth-rings
+├ ƒ /api/news-rss
+├ ƒ /api/passport/handoff
+├ ƒ /api/polymarket
+├ ƒ /api/sentiment
+├ ƒ /api/spaidbot
+├ ƒ /api/symbol-search
+├ ƒ /api/tradovate
+├ ƒ /api/upload-track
+├ ƒ /api/yahoo
+├ ƒ /api/youtube-live
+├ ƒ /api/youtube-recent
+├ ƒ /auth/confirm
+├ ○ /backtesting
+├ ○ /charts
+├ ○ /command-deck
+├ ○ /copy-trading
+├ ○ /creator
+├ ○ /education
+├ ○ /heatmaps
+├ ○ /journal
+├ ○ /login
+├ ○ /lounge
+├ ○ /manifest.webmanifest
+├ ○ /morning-prep
+├ ○ /nectar
+├ ƒ /nectar/[symbol]
+├ ○ /news
+├ ○ /paper
+├ ○ /partnerships
+├ ○ /profile
+├ ○ /proof-lane
+├ ○ /radio
+├ ○ /readiness
+├ ○ /reset-password
+├ ○ /scanner
+├ ○ /shop
+├ ○ /signup
+├ ○ /tv
+├ ○ /vailbuild
+└ ○ /veddbuild
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+┌──────────────────────────────┐
+│ OpenNext — Generating bundle │
+└──────────────────────────────┘
+
+Bundling middleware function...
+Bundling static assets...
+Bundling cache assets...
+Building server function: default...
+Applying code patches: 1.281s
+# copyPackageTemplateFiles
+[35m⚙️ Bundling the OpenNext server...
+[0m
+▲ [WARNING] This case clause will never be evaluated because it duplicates an earlier case clause [duplicate-case]
+
+    .open-next/server-functions/default/.next/server/chunks/ssr/node_modules_html2canvas_dist_html2canvas_esm_1n-0xws.js:1:147304:
+      1 │ ...2:return eu(a,2662,2671,!0,d);case 22:return es(a,1,10999,eq,3,d...
+        ╵                                  ~~~~
+
+  The earlier case clause is here:
+
+    .open-next/server-functions/default/.next/server/chunks/ssr/node_modules_html2canvas_dist_html2canvas_esm_1n-0xws.js:1:147268:
+      1 │ ...1:return eu(a,2790,2799,!0,d);case 22:return eu(a,2662,2671,!0,d...
+        ╵                                  ~~~~
+
+[35mWorker saved in `.open-next/worker.js` 🚀
+[0m
+OpenNext build complete.
+
+┌──────────────────────────────┐
+│ OpenNext — Cloudflare deploy │
+└──────────────────────────────┘
+
+Using secrets defined in process.env
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mMissing required secrets: JWT_SECRET. Add them to .dev.vars, .env, or set as environment variables.[0m
+
+
+Incremental cache does not need populating
+Tag cache does not need populating
+
+ ⛅️ wrangler 4.125.0 (update available 4.135.0)
+───────────────────────────────────────────────
+🌀 Building list of assets...
+✨ Read 116 files from the assets directory /Users/dspaidnoosleep/wealthymindsets-pro/.open-next/assets
+🌀 Starting asset upload...
+🌀 Found 2 new or modified static assets to upload. Proceeding with upload...
++ /BUILD_ID
++ /_next/static/chunks/12l0d1sk35j1y.js
+Uploaded 1 of 2 assets
+Uploaded 2 of 2 assets
+✨ Success! Uploaded 2 files (105 already uploaded) (2.10 sec)
+
+Total Upload: 12447.45 KiB / gzip: 2654.03 KiB
+Worker Startup Time: 15 ms
+Your Worker has access to the following bindings:
+Binding            Resource      
+env.ASSETS         Assets        
+
+Uploaded wealthymindsets-pro (19.04 sec)
+Deployed wealthymindsets-pro triggers (0.65 sec)
+  https://wealthymindsets-pro.dhill5711.workers.dev
+Current Version ID: 6eef258d-0375-4bd4-94f3-c3742f237a0d
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThis case clause will never be evaluated because it duplicates an earlier case clause[0m [duplicate-case]
+
+    .open-next/server-functions/default/handler.mjs:1751:160259:
+[37m      1751 │ ...urn eu(a10,2662,2671,!0,d10);[32mcase[37m 22:return es(a10,1,10999,eq...
+           ╵                                 [32m~~~~[0m
+
+  The earlier case clause is here:
+
+    .open-next/server-functions/default/handler.mjs:1751:160219:
+[37m      1751 │ ...urn eu(a10,2790,2799,!0,d10);[32mcase[37m 22:return eu(a10,2662,2671,...
+           ╵                                 [32m~~~~[0m
+
+
+(node:41677) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)

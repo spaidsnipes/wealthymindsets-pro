@@ -1,0 +1,46 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (23 tests | 2 failed) 17ms
+     × THE CORE REGRESSION: identical flow yields DIFFERENT claims per kind 2ms
+     × only a big trade says 'at <price>' — a delta zone says 'in this zone' 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > THE CORE REGRESSION: identical flow yields DIFFERENT claims per kind
+AssertionError: expected '7.0k bought · 5.4k sold at 150.01' not to be '7.0k bought · 5.4k sold at 150.01' // Object.is equality
+ ❯ src/lib/bubbleClaim.test.ts:123:28
+    121|     expect(big.headline).not.toBe(dlt.headline);
+    122|     expect(big.heading).not.toBe(dlt.heading);
+    123|     expect(big.detail).not.toBe(dlt.detail);
+       |                            ^
+    124|   });
+    125|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > only a big trade says 'at <price>' — a delta zone says 'in this zone'
+AssertionError: expected '7.0k bought · 5.4k sold at 150.01' to match /in this zone/i
+
+- Expected:
+/in this zone/i
+
++ Received:
+"7.0k bought · 5.4k sold at 150.01"
+
+ ❯ src/lib/bubbleClaim.test.ts:154:24
+    152|     // A delta bubble's price is a bucket's heaviest tick — an anchor …
+    153|     // drawing, not the place all that volume happened.
+    154|     expect(dlt.detail).toMatch(/in this zone/i);
+       |                        ^
+    155|     expect(dlt.detail).toMatch(/heaviest tick 150\.01/);
+    156|     expect(dlt.detail).not.toMatch(/sold at 150/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 21 passed (23)
+   Start at  20:54:11
+   Duration  128ms (transform 17ms, setup 0ms, import 22ms, tests 17ms, environment 0ms)
+

@@ -1,0 +1,50 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/sessionToken.test.ts (17 tests | 2 failed) 7ms
+     × at: null yields the unknown token for every non-continuous symbol 2ms
+     × a null clock never produces a MORE confident token than a real one 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > the settle can only ever sharpen — never introduce a claim > at: null yields the unknown token for every non-continuous symbol
+AssertionError: TSLA: expected 'CLOSED' to be 'SESSION ?' // Object.is equality
+
+Expected: "SESSION ?"
+Received: "CLOSED"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:121:28
+    119|     for (const sym of ["TSLA", "GC1!", "SPY", "EUR/USD"]) {
+    120|       const r = selectCanonicalSessionToken({ symbol: sym, at: null });
+    121|       expect(r.token, sym).toBe(SESSION_TOKEN_UNKNOWN);
+       |                            ^
+    122|       expect(r.established, sym).toBe(false);
+    123|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > the settle can only ever sharpen — never introduce a claim > a null clock never produces a MORE confident token than a real one
+AssertionError: TSLA @ Wed Sep 02 2026 00:00:00 GMT-0500 (Central Daylight Time): expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lib/marketData/sessionToken.test.ts:134:60
+    132|         const resolved = selectCanonicalSessionToken({ symbol: sym, at…
+    133|         if (!resolved.established) {
+    134|           expect(unresolved.established, `${sym} @ ${at}`).toBe(false);
+       |                                                            ^
+    135|         }
+    136|       }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 passed (17)
+   Start at  21:12:29
+   Duration  171ms (transform 21ms, setup 0ms, import 28ms, tests 7ms, environment 0ms)
+

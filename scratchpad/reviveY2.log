@@ -1,0 +1,417 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/sessionToken.test.ts (22 tests | 1 failed) 6ms
+     × BANS a dead 'RTH' branch in the tone function — the presenter cannot return it 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > CommandContextRibbon derives the SESSION tile from the owner, not the store key > BANS a dead 'RTH' branch in the tone function — the presenter cannot return it
+AssertionError: expected '"use client";\n\n \n\nimport * as Rea…' not to match /s === "RTH"/
+
+- Expected:
+/s === "RTH"/
+
++ Received:
+"\"use client\";
+
+ 
+
+import * as React from \"react\";
+import {
+  getKnownSessionSymbols,
+  subscribeSessionSymbolStore,
+} from \"@/lib/marketData/sessionSymbolStore\";
+import type { CanonicalMarketState } from \"@/lib/marketData/canonicalMarketState\";
+import type { PermissionVM } from \"@/lib/traderMemory/viewModels/selectPermission\";
+import type { AvailableRVM } from \"@/lib/traderMemory/viewModels/selectAvailableR\";
+import type { DecisionChainNode } from \"@/lib/marketData/viewModels/selectDecisionChain\";
+import {
+  computeEvidenceDebt as computeEvidenceDebtCanonical,
+  computeRightOfWay as computeRightOfWayCanonical,
+  type EvidenceDebt as CanonicalEvidenceDebt,
+} from \"@/lib/marketData/viewModels/decisionPermissionCompiler\";
+import {
+  selectContextDataReading,
+  type ContextDataState,
+} from \"@/lib/marketData/contextDataTruth\";
+import {
+  selectCanonicalSessionPresentation,
+  SESSION_TOKEN_CLOSED,
+  SESSION_TOKEN_CONTINUOUS,
+} from \"@/lib/marketData/canonicalIdentity\";
+
+export interface CommandContextRibbonProps {
+  readonly symbol: string;
+  readonly session: string;                 
+  readonly state: CanonicalMarketState | null;
+  readonly wsConnected: boolean;
+  readonly wsSource: string | null;         
+  readonly availableR: AvailableRVM | null;
+  readonly permission: PermissionVM | null;
+   
+  readonly chainNodes?: readonly DecisionChainNode[];
+}
+
+type Tone = \"resolved\" | \"pending\" | \"unknown\" | \"warn\";
+
+interface Tile {
+  readonly key: string;
+  readonly label: string;
+  readonly value: string;
+  readonly detail?: string;
+  readonly tone: Tone;
+}
+
+export type ContextRibbonTone = Tone;
+
+export const RIBBON_TONE_COLOR: Record<Tone, string> = {
+  resolved: \"#d4af37\",  
+  pending:  \"#c9a55c\",  
+  unknown:  \"#8a8271\",  
+  warn:     \"#e07b5c\",  
+};
+
+export const RIBBON_TONE_BG: Record<Tone, string> = {
+  resolved: \"rgba(212,175,55,0.10)\",
+  pending:  \"rgba(201,165,92,0.06)\",
+  unknown:  \"rgba(255,255,255,0.02)\",
+  warn:     \"rgba(224,123,92,0.08)\",
+};
+
+export const RIBBON_TONE_BORDER: Record<Tone, string> = {
+  resolved: \"rgba(212,175,55,0.55)\",
+  pending:  \"rgba(201,165,92,0.32)\",
+  unknown:  \"rgba(139,106,41,0.35)\",
+  warn:     \"rgba(224,123,92,0.45)\",
+};
+
+
+const TONE_COLOR = RIBBON_TONE_COLOR;
+const TONE_BG = RIBBON_TONE_BG;
+const TONE_BORDER = RIBBON_TONE_BORDER;
+
+ 
+export interface ContextRibbonTileProps {
+  readonly label: string;
+  readonly value: string;
+  readonly detail?: string;
+  readonly tone: ContextRibbonTone;
+}
+
+export function ContextRibbonTile({ label, value, detail, tone }: ContextRibbonTileProps): React.ReactElement {
+  return (
+    <div
+      role=\"group\"
+      aria-label={`${label}: ${value}${detail ? \" — \" + detail : \"\"}`}
+      style={{
+        padding: \"10px 12px\",
+        minHeight: 68,
+        borderRadius: 8,
+        border: `1px solid ${RIBBON_TONE_BORDER[tone]}`,
+        background: RIBBON_TONE_BG[tone],
+        display: \"flex\",
+        flexDirection: \"column\",
+        justifyContent: \"space-between\",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: 0.4,
+          textTransform: \"uppercase\",
+          fontFamily: \"Georgia, 'Times New Roman', serif\",
+          color: \"#8a8271\",
+          fontWeight: 400,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: RIBBON_TONE_COLOR[tone],
+          lineHeight: 1.15,
+          fontVariantNumeric: \"tabular-nums\",
+          overflow: \"hidden\",
+          textOverflow: \"ellipsis\",
+          whiteSpace: \"nowrap\",
+        }}
+      >
+        {value}
+      </div>
+      {detail && (
+        <div
+          style={{
+            fontSize: 9,
+            letterSpacing: 0.2,
+            color: \"#6f6a5a\",
+            lineHeight: 1.2,
+            marginTop: 2,
+            overflow: \"hidden\",
+            textOverflow: \"ellipsis\",
+            whiteSpace: \"nowrap\",
+          }}
+        >
+          {detail}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface ContextRibbonContainerProps {
+  readonly ariaLabel: string;
+  readonly children: React.ReactNode;
+}
+
+export function ContextRibbonContainer({ ariaLabel, children }: ContextRibbonContainerProps): React.ReactElement {
+  return (
+    <div
+      role=\"region\"
+      aria-label={ariaLabel}
+      className=\"wm-cd-context-ribbon\"
+      style={{
+        display: \"grid\",
+        gridTemplateColumns: \"repeat(auto-fit, minmax(min(160px, 100%), 1fr))\",
+        gap: 8,
+        padding: 0,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+ 
+function sessionTone(presentedValue: string, connected: boolean): Tone {
+  const s = presentedValue.toUpperCase();
+  
+  
+  
+  if (s === SESSION_TOKEN_CLOSED) return \"unknown\";
+  if (s === SESSION_TOKEN_CONTINUOUS) return connected ? \"resolved\" : \"warn\";
+  if (s === \"RTH\") return \"resolved\";
+  if (!connected) return \"warn\";
+  return \"unknown\";
+}
+
+ 
+function dataTone(ds: ContextDataState): Tone {
+  switch (ds) {
+    case \"LIVE\":        return \"resolved\";
+    case \"NEAR-LIVE\":   return \"pending\";
+    case \"DELAYED\":     return \"pending\";
+    case \"HISTORICAL\":  return \"unknown\";
+    case \"DEGRADED\":    return \"warn\";
+    case \"UNKNOWN\":     return \"unknown\";
+  }
+}
+
+function availableRTone(vm: AvailableRVM | null): Tone {
+  if (!vm) return \"unknown\";
+  if (vm.resolution === \"UNKNOWN\" || vm.conservativeR === \"UNKNOWN\") return \"unknown\";
+  const r = vm.conservativeR;
+  if (typeof r === \"number\") {
+    if (r < 0) return \"warn\";
+    if (r < 1) return \"pending\";
+    return \"resolved\";
+  }
+  return \"unknown\";
+}
+
+function availableRText(vm: AvailableRVM | null): { value: string; detail?: string } {
+  if (!vm) return { value: \"UNKNOWN\", detail: \"no chain evidence\" };
+  if (vm.conservativeR === \"UNKNOWN\") {
+    const missing = vm.missingInputs.length;
+    return {
+      value: \"UNKNOWN\",
+      detail: missing > 0 ? `${missing} missing input${missing === 1 ? \"\" : \"s\"}` : (vm.reason ?? \"unresolved\"),
+    };
+  }
+  const r = vm.conservativeR;
+  return {
+    value: `${r.toFixed(2)} R`,
+    detail: typeof vm.optimisticR === \"number\" ? `opt ${vm.optimisticR.toFixed(2)}R` : undefined,
+  };
+}
+
+
+const computeRightOfWay = computeRightOfWayCanonical;
+
+
+
+
+function useNectarForSymbol(symbol: string): { channels: number; trades: number; lastTradeAtMs: number | null; hydrated: boolean } {
+  const [tick, force] = React.useReducer((n: number) => n + 1, 0);
+  const [hydrated, setHydrated] = React.useState(false);
+  React.useEffect(() => { setHydrated(true); }, []);
+  React.useEffect(() => subscribeSessionSymbolStore(() => force()), []);
+  return React.useMemo(() => {
+    if (!hydrated) return { channels: 0, trades: 0, lastTradeAtMs: null, hydrated: false };
+    const upper = symbol.toUpperCase();
+    const rows = getKnownSessionSymbols().filter(s => s.symbol.toUpperCase() === upper && s.slot.stats.tradeCount > 0);
+    const trades = rows.reduce((sum, r) => sum + r.slot.stats.tradeCount, 0);
+    const lastTradeAtMs = rows.reduce<number | null>((latest, row) => {
+      const observedAt = row.slot.lastTradeAtMs ?? null;
+      if (observedAt == null) return latest;
+      return latest == null ? observedAt : Math.max(latest, observedAt);
+    }, null);
+    return { channels: rows.length, trades, lastTradeAtMs, hydrated: true };
+  }, [symbol, tick, hydrated]);
+}
+
+
+
+type EvidenceDebt = CanonicalEvidenceDebt;
+const computeEvidenceDebt = computeEvidenceDebtCanonical;
+
+export function CommandContextRibbon(props: CommandContextRibbonProps): React.ReactElement {
+  const { symbol, session, state, wsConnected, wsSource, availableR, permission, chainNodes } = props;
+  const nectar = useNectarForSymbol(symbol);
+  const [nowMs, setNowMs] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const updateNow = () => setNowMs(Date.now());
+    updateNow();
+    const timer = window.setInterval(updateNow, 5_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const arText = availableRText(availableR);
+  const debt = React.useMemo(() => computeEvidenceDebt(chainNodes), [chainNodes]);
+  const rightOfWay = React.useMemo(() => computeRightOfWay(permission, debt), [permission, debt]);
+  const sessionPresentation = selectCanonicalSessionPresentation({
+    symbol,
+    requestedSession: session,
+    connected: wsConnected,
+    
+    
+    
+    
+    
+    at: nowMs == null ? null : new Date(nowMs),
+    observedActivityAt: nectar.lastTradeAtMs,
+    evaluatedAt: nowMs ?? 0,
+  });
+
+  const tiles: readonly Tile[] = [
+    {
+      key: \"session\",
+      label: \"SESSION\",
+      value: sessionPresentation.value,
+      detail: sessionPresentation.detail,
+      
+      
+      
+      
+      tone: sessionPresentation.activity === \"OBSERVED\"
+        ? \"pending\"
+        : sessionTone(sessionPresentation.value, wsConnected),
+    },
+    (() => {
+      
+      
+      
+      const reading = selectContextDataReading(
+        state,
+        wsConnected,
+        wsSource,
+        nowMs ?? state?.capturedAt ?? 0,
+      );
+      return {
+        key: \"data\",
+        label: \"DATA\",
+        value: reading.value,
+        detail: reading.detail,
+        tone: dataTone(reading.value),
+      };
+    })(),
+    {
+      key: \"nectar\",
+      label: \"OBSERVED\",
+      value: !nectar.hydrated ? \"…\" : nectar.channels === 0 ? \"NONE YET\" : `${nectar.trades.toLocaleString(\"en-US\")}`,
+      detail: !nectar.hydrated
+        ? undefined
+        : nectar.channels === 0
+          ? `${symbol} — nothing observed`
+          : `${symbol} · ${nectar.channels} channel${nectar.channels === 1 ? \"\" : \"s\"}`,
+      tone: !nectar.hydrated ? \"unknown\" : nectar.channels === 0 ? \"unknown\" : \"resolved\",
+    },
+    {
+      key: \"availableR\",
+      label: \"AVAILABLE R\",
+      value: arText.value,
+      detail: arText.detail,
+      tone: availableRTone(availableR),
+    },
+    
+    
+    
+    
+    ...(debt ? [{
+      key: \"evidenceDebt\",
+      label: \"EVIDENCE\",
+      value: debt.missing === 0 && debt.warn === 0
+        ? \"COMPLETE\"
+        : debt.missing > 0
+          ? `${debt.missing} MISSING`
+          : `${debt.warn} WARN`,
+      detail: debt.missing > 0
+        ? `${debt.resolved}/${debt.total} paid · need ${debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(\" + \")}${debt.missingLabels.length > 2 ? \" +\" + (debt.missingLabels.length - 2) : \"\"}`
+        : debt.warn > 0
+          ? `${debt.resolved}/${debt.total} paid · watch ${debt.warnLabels.slice(0, 2).map(l => l.toLowerCase()).join(\" + \")}`
+          : `${debt.total}/${debt.total} paid · authorization complete`,
+      tone: (debt.missing === 0 && debt.warn === 0
+        ? \"resolved\"
+        : debt.warn > 0
+          ? \"warn\"
+          : \"unknown\") as Tone,
+    } as Tile] : []),
+    
+    
+    
+    
+    {
+      key: \"rightOfWay\",
+      label: \"RIGHT OF WAY\",
+      value: rightOfWay.value,
+      detail: rightOfWay.detail,
+      tone: rightOfWay.tone,
+    },
+  ];
+
+  return (
+    <ContextRibbonContainer ariaLabel=\"Command Deck context ribbon\">
+      {tiles.map(tile => (
+        <ContextRibbonTile
+          key={tile.key}
+          label={tile.label}
+          value={tile.value}
+          detail={tile.detail}
+          tone={tile.tone}
+        />
+      ))}
+    </ContextRibbonContainer>
+  );
+}
+
+export default CommandContextRibbon;
+"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:296:21
+    294|     // Leaving the branch in place would be a second dead predicate, a…
+    295|     // predicate is what started this entire thread of defects.
+    296|     expect(src).not.toMatch(/s === "RTH"/);
+       |                     ^
+    297|   });
+    298| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 21 passed (22)
+   Start at  21:20:11
+   Duration  92ms (transform 21ms, setup 0ms, import 28ms, tests 6ms, environment 0ms)
+

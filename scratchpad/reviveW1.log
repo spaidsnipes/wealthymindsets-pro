@@ -1,0 +1,90 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/sessionToken.test.ts (17 tests | 4 failed) 7ms
+     × PROOF the comment-stripper does not neuter the bans 2ms
+     × calls selectCanonicalSessionToken and renders ITS token 1ms
+     × uses the mount-safe day clock, not a clock read during render 0ms
+     × the accessible name and the visible chip come from the SAME owner 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > MobileSessionPill delegates the session chip to the canonical owner > PROOF the comment-stripper does not neuter the bans
+AssertionError: expected '' to contain 'const sessionToken = sessionTruth.tok…'
+
+- Expected
++ Received
+
+- const sessionToken = sessionTruth.token;
+
+ ❯ src/lib/marketData/sessionToken.test.ts:194:17
+    192|     expect(out).not.toContain("identity.session.toUpperCase()");
+    193|     // …and it keeps the real code, including the "//" inside a URL li…
+    194|     expect(out).toContain("const sessionToken = sessionTruth.token;");
+       |                 ^
+    195|     expect(out).toContain("https://example.com/x");
+    196|     expect(out.match(/sessionTruth\.token/g)).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > MobileSessionPill delegates the session chip to the canonical owner > calls selectCanonicalSessionToken and renders ITS token
+AssertionError: expected '' to contain 'selectCanonicalSessionToken'
+
+- Expected
++ Received
+
+- selectCanonicalSessionToken
+
+ ❯ src/lib/marketData/sessionToken.test.ts:201:17
+    199|   it("calls selectCanonicalSessionToken and renders ITS token", () => {
+    200|     const src = stripComments(pillSrc());
+    201|     expect(src).toContain("selectCanonicalSessionToken");
+       |                 ^
+    202|     expect(src).toContain("const sessionToken = sessionTruth.token;");
+    203|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > MobileSessionPill delegates the session chip to the canonical owner > uses the mount-safe day clock, not a clock read during render
+AssertionError: expected '' to contain 'useSessionClockDate'
+
+- Expected
++ Received
+
+- useSessionClockDate
+
+ ❯ src/lib/marketData/sessionToken.test.ts:223:17
+    221|   it("uses the mount-safe day clock, not a clock read during render", …
+    222|     const src = stripComments(pillSrc());
+    223|     expect(src).toContain("useSessionClockDate");
+       |                 ^
+    224|     // The tape-freshness clock is a DIFFERENT cadence and must not be
+    225|     // repurposed as the day-boundary clock.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > MobileSessionPill delegates the session chip to the canonical owner > the accessible name and the visible chip come from the SAME owner
+AssertionError: expected '' to match /accessibleStatus\s*=\s*`session \$\{s…/
+
+- Expected:
+/accessibleStatus\s*=\s*`session \$\{sessionToken\}/
+
++ Received:
+""
+
+ ❯ src/lib/marketData/sessionToken.test.ts:234:17
+    232|     // while the chip showed one glyph for every state — the accessibl…
+    233|     // carried more truth than the pixel.
+    234|     expect(src).toMatch(/accessibleStatus\s*=\s*`session \$\{sessionTo…
+       |                 ^
+    235|     expect(src).toContain("sessionTruth.detail");
+    236|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 13 passed (17)
+   Start at  21:12:49
+   Duration  113ms (transform 21ms, setup 0ms, import 28ms, tests 7ms, environment 0ms)
+

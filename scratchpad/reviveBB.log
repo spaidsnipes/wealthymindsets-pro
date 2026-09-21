@@ -1,0 +1,50 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts (36 tests | 2 failed) 7ms
+     × maps 24X7 to true — a continuous market IS open, and that IS established 2ms
+     × crypto is open every day — 24X7 compiles away from CLOSED and reads OBSERVED 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > sessionOpenFrom > maps 24X7 to true — a continuous market IS open, and that IS established
+AssertionError: expected null to be true // Object.is equality
+
+- Expected:
+true
+
++ Received:
+null
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:52:55
+     50|     // session UNOBSERVED while reporting a Saturday equity's OBSERVED…
+     51|     // mapper wrong in both directions at once.
+     52|     expect(sessionOpenFrom(SESSION_TOKEN_CONTINUOUS)).toBe(true);
+       |                                                       ^
+     53|     expect(sessionOpenFrom("24x7")).toBe(true);
+     54|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > crypto is open every day — 24X7 compiles away from CLOSED and reads OBSERVED
+AssertionError: expected 'UNOBSERVED' to be 'OBSERVED' // Object.is equality
+
+Expected: "OBSERVED"
+Received: "UNOBSERVED"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:283:38
+    281|       expect(token.token).toBe(SESSION_TOKEN_CONTINUOUS);
+    282|       expect(scene).not.toBe("CLOSED");
+    283|       expect(out.provenance.SESSION).toBe("OBSERVED");
+       |                                      ^
+    284|     }
+    285|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 34 passed (36)
+   Start at  21:30:38
+   Duration  126ms (transform 30ms, setup 0ms, import 40ms, tests 7ms, environment 0ms)
+

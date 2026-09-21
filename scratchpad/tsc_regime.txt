@@ -1,0 +1,66 @@
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(7,30): error TS2307: Cannot find module './ChartToolbar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(8,27): error TS2307: Cannot find module './MainChart' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(9,31): error TS2307: Cannot find module './WatchlistGrid' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(10,40): error TS2307: Cannot find module './IndicatorSettingsModal' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(11,36): error TS2307: Cannot find module './AssetClassSwitcher' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(12,78): error TS2307: Cannot find module './indicatorConfig' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(13,26): error TS2307: Cannot find module './DOMPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(14,31): error TS2307: Cannot find module './PnLStatsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(17,35): error TS2307: Cannot find module './FootprintControls' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(18,31): error TS2307: Cannot find module './SchemePresets' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(19,30): error TS2307: Cannot find module './OptionsChain' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(20,33): error TS2307: Cannot find module './FearGreedWidget' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(23,77): error TS2307: Cannot find module './DrawingToolsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(24,36): error TS2307: Cannot find module './LeftDrawingSidebar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(25,32): error TS2307: Cannot find module './WatchlistPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(26,46): error TS2307: Cannot find module './AlertsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(27,80): error TS2307: Cannot find module './ChartSettingsModal' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(28,34): error TS2307: Cannot find module './SymbolInfoHeader' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(29,53): error TS2307: Cannot find module './BarReplayControls' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(31,32): error TS2307: Cannot find module './StockInfoPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(32,32): error TS2307: Cannot find module './BottomIndexBar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(33,25): error TS2307: Cannot find module './LeftSidebar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(43,34): error TS2307: Cannot find module './DrawingToolsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(44,34): error TS2307: Cannot find module './ChartLayoutManager' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(60,39): error TS2307: Cannot find module './OrderFlowCockpitStrip' or its corresponding type declarations.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(163,38): error TS7006: Parameter 'up' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(163,42): error TS7006: Parameter 'dn' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(303,21): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(1090,30): error TS7006: Parameter 'v' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(1143,35): error TS7006: Parameter 'name' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(1210,28): error TS7006: Parameter 't' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(1765,24): error TS7006: Parameter 'name' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.CONTENDED_BASE.tsx(1765,73): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(7,30): error TS2307: Cannot find module './ChartToolbar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(8,27): error TS2307: Cannot find module './MainChart' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(9,31): error TS2307: Cannot find module './WatchlistGrid' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(10,40): error TS2307: Cannot find module './IndicatorSettingsModal' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(11,36): error TS2307: Cannot find module './AssetClassSwitcher' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(12,78): error TS2307: Cannot find module './indicatorConfig' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(13,26): error TS2307: Cannot find module './DOMPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(14,31): error TS2307: Cannot find module './PnLStatsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(17,35): error TS2307: Cannot find module './FootprintControls' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(18,31): error TS2307: Cannot find module './SchemePresets' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(19,30): error TS2307: Cannot find module './OptionsChain' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(20,33): error TS2307: Cannot find module './FearGreedWidget' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(23,77): error TS2307: Cannot find module './DrawingToolsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(24,36): error TS2307: Cannot find module './LeftDrawingSidebar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(25,32): error TS2307: Cannot find module './WatchlistPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(26,46): error TS2307: Cannot find module './AlertsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(27,80): error TS2307: Cannot find module './ChartSettingsModal' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(28,34): error TS2307: Cannot find module './SymbolInfoHeader' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(29,53): error TS2307: Cannot find module './BarReplayControls' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(31,32): error TS2307: Cannot find module './StockInfoPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(32,32): error TS2307: Cannot find module './BottomIndexBar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(33,25): error TS2307: Cannot find module './LeftSidebar' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(43,34): error TS2307: Cannot find module './DrawingToolsPanel' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(44,34): error TS2307: Cannot find module './ChartLayoutManager' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(60,39): error TS2307: Cannot find module './OrderFlowCockpitStrip' or its corresponding type declarations.
+scratchpad/ChartsDashboard.FIXED.tsx(168,38): error TS7006: Parameter 'up' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(168,42): error TS7006: Parameter 'dn' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(308,21): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(1099,30): error TS7006: Parameter 'v' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(1152,35): error TS7006: Parameter 'name' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(1219,28): error TS7006: Parameter 't' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(1787,24): error TS7006: Parameter 'name' implicitly has an 'any' type.
+scratchpad/ChartsDashboard.FIXED.tsx(1787,73): error TS7006: Parameter 'prev' implicitly has an 'any' type.

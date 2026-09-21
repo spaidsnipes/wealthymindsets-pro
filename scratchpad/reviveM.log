@@ -1,0 +1,147 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (23 tests | 2 failed) 21ms
+     × the hover handler calls the owner and passes the bubble KIND 4ms
+     × BANS the shared one-sided sentence in the handler 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > the hover handler calls the owner and passes the bubble KIND
+AssertionError: expected 'const bubbles = [...bubblesRef.curren…' to contain 'describeBubbleClaim({'
+
+- Expected
++ Received
+
+- describeBubbleClaim({
++ const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];
++     if (!bubbles.length) {
++       if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
++       return;
++     }
++     const rect = e.currentTarget.getBoundingClientRect();
++     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
++     // topmost first (last drawn = end of array)
++     let hit: typeof bubbles[number] | null = null;
++     for (let i = bubbles.length - 1; i >= 0; i--) {
++       const b = bubbles[i];
++       if (Math.hypot(mx - b.x, my - b.y) <= b.r + 2) { hit = b; break; }
++     }
++     if (hit) {
++       if (bubbleHoverRef.current !== hit.id) {
++         // The words are owned by bubbleClaim.ts, because `hit.value` means a
++         // DIFFERENT quantity per bubble kind and this one call site serves
++         // both. It used to print one sentence for the two of them:
++         //
++         //   `${vstr} ${base > 100 ? "shares" : "vol"} aggressive ${side} at ${pstr}`
++         //
++         // which labelled a big trade's two-sided TOTAL and a delta zone's NET
++         // with the same one-sided words, and called both of them "shares" —
++         // on NQ, ES and BTC alike — because `base > 100` is a price test
++         // standing in for an instrument-class question. See that module's
++         // header for the full account.
++         const av = Math.abs(hit.value);
++         const vstr = av >= 1_000_000 ? `${(av / 1_000_000).toFixed(1)}M` : `${Math.round(av)}`;
++         const pstr = String(hit.anchorPrice);
++         const claim = { side: hit.side, heading: hit.side === "buy" ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL",
++           headline: vstr,
++           detail: `${vstr} ${base > 100 ? "shares" : "vol"} aggressive ${hit.side === "buy" ? "buy" : "sell"} at ${pstr}` };
++         // No aggressor volume behind the bubble means nothing honest to say,
++         // so no tooltip — rather than a confident "0".
++         if (!claim) {
++           if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
++           return;
++         }
++         bubbleHoverRef.current = hit.id;
++         setBubbleTip({
++           x: hit.x, y: hit.y - hit.r,
++           side: claim.side,
++           heading: claim.heading,
++           headline: claim.headline,
++           text: claim.detail,
++         });
++       }
++     
+
+ ❯ src/lib/bubbleClaim.test.ts:272:15
+    270|   it("the hover handler calls the owner and passes the bubble KIND", (…
+    271|     const h = tooltipHandler();
+    272|     expect(h).toContain("describeBubbleClaim({");
+       |               ^
+    273|     // Without `kind` the owner cannot tell the two apart, which is th…
+    274|     // defect. Pinned explicitly.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > BANS the shared one-sided sentence in the handler
+AssertionError: expected 'const bubbles = [...bubblesRef.curren…' to contain 'describeBubbleClaim'
+
+- Expected
++ Received
+
+- describeBubbleClaim
++ const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];
++     if (!bubbles.length) {
++       if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
++       return;
++     }
++     const rect = e.currentTarget.getBoundingClientRect();
++     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
++     
++     let hit: typeof bubbles[number] | null = null;
++     for (let i = bubbles.length - 1; i >= 0; i--) {
++       const b = bubbles[i];
++       if (Math.hypot(mx - b.x, my - b.y) <= b.r + 2) { hit = b; break; }
++     }
++     if (hit) {
++       if (bubbleHoverRef.current !== hit.id) {
++         
++         
++         
++         
++         
++         
++         
++         
++         
++         
++         
++         const av = Math.abs(hit.value);
++         const vstr = av >= 1_000_000 ? `${(av / 1_000_000).toFixed(1)}M` : `${Math.round(av)}`;
++         const pstr = String(hit.anchorPrice);
++         const claim = { side: hit.side, heading: hit.side === "buy" ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL",
++           headline: vstr,
++           detail: `${vstr} ${base > 100 ? "shares" : "vol"} aggressive ${hit.side === "buy" ? "buy" : "sell"} at ${pstr}` };
++         
++         
++         if (!claim) {
++           if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
++           return;
++         }
++         bubbleHoverRef.current = hit.id;
++         setBubbleTip({
++           x: hit.x, y: hit.y - hit.r,
++           side: claim.side,
++           heading: claim.heading,
++           headline: claim.headline,
++           text: claim.detail,
++         });
++       }
++     
+
+ ❯ src/lib/bubbleClaim.test.ts:283:15
+    281|     const h = stripComments(tooltipHandler());
+    282|     // Positive control: stripping must not have emptied the region.
+    283|     expect(h).toContain("describeBubbleClaim");
+       |               ^
+    284|     expect(h).not.toMatch(/base > 100 \? "shares" : "vol"/);
+    285|     expect(h).not.toMatch(/aggressive \$\{hit\.side/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 21 passed (23)
+   Start at  20:53:48
+   Duration  123ms (transform 16ms, setup 0ms, import 23ms, tests 21ms, environment 0ms)
+

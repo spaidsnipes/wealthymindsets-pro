@@ -1,0 +1,44 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (23 tests | 1 failed) 18ms
+     × both spawn sites carry BOTH aggressor sides onto the bubble 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > both spawn sites carry BOTH aggressor sides onto the bubble
+AssertionError: expected 'deltaBubblesRef.current.push({\n     …' to match /bid:\s*lv\.bid/
+
+- Expected:
+/bid:\s*lv\.bid/
+
++ Received:
+"deltaBubblesRef.current.push({
+                id: ++bubbleIdRef.current,
+                x: cx, y: Math.round(rawLevY), vx: 0, vy: 0,
+                baseR, r: baseR * 0.35, phase, big: false,
+                side,
+                value: (side === \"buy\" ? 1 : -1) * absDelta,
+                born: (c.time as number) * 1000 + rankIdx + 500,
+                anchorTime: c.time as number,
+                anchorPrice: lv.priceLevel,
+                levelIdx: rankIdx,
+                siblingN: ranked.length,
+                "
+
+ ❯ src/lib/bubbleClaim.test.ts:321:21
+    319|     // later. Same shape as the /paper reject-reason defect.
+    320|     for (const spawn of [bigTradeSpawn(), deltaSpawn()]) {
+    321|       expect(spawn).toMatch(/bid:\s*lv\.bid/);
+       |                     ^
+    322|       expect(spawn).toMatch(/ask:\s*lv\.ask/);
+    323|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 passed (23)
+   Start at  20:54:10
+   Duration  120ms (transform 22ms, setup 0ms, import 29ms, tests 18ms, environment 0ms)
+

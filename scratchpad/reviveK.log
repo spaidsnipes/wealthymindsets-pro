@@ -1,0 +1,46 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts (18 tests | 2 failed) 14ms
+     × stamps the reason onto the rejected order 3ms
+     × carries the real sentence selectOrderRejection produces, end to end 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > applyOrderRejections — the reason travels with the status > stamps the reason onto the rejected order
+AssertionError: expected undefined to be 'Insufficient cash — costs $435,000.' // Object.is equality
+
+- Expected:
+"Insufficient cash — costs $435,000."
+
++ Received:
+undefined
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:75:28
+     73|     expect(o.status).toBe("rejected");
+     74|     // THE DEFECT. Before this, status flipped and the sentence vanish…
+     75|     expect(o.rejectReason).toBe("Insufficient cash — costs $435,000.");
+       |                            ^
+     76|   });
+     77|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > applyOrderRejections — the reason travels with the status > carries the real sentence selectOrderRejection produces, end to end
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:123:28
+    121|     const [o] = applyOrderRejections([order("a")], [{ id: "a", reason:…
+    122|     // The two numbers a trader needs in order to size the next one co…
+    123|     expect(o.rejectReason).toContain("$435,000");
+       |                            ^
+    124|     expect(o.rejectReason).toContain("$100,000");
+    125|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 16 passed (18)
+   Start at  20:42:00
+   Duration  173ms (transform 19ms, setup 0ms, import 25ms, tests 14ms, environment 0ms)
+

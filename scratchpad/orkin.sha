@@ -1,0 +1,6 @@
+b10dfd8c013653a062147c29e4d54d37645b867e  src/components/command-deck/HeroTruth.tsx
+302f710cdf56fc7f7992ea335adb4e0ebccf5ac6  src/app/command-deck/page.tsx
+d7c9900197a805c0784a1e7615f4468c3ddc65c0  src/lib/marketData/canonicalIdentity.ts
+a9a864efb31b6a03a3bd423617df47dcb0d15ce9  src/lib/heroTruthNullState.test.ts
+da812ba2463ee41db0e33c1a87606a9af8eadc24  src/lib/marketData/pickerCryptoClassification.test.ts
+503d7231d153bf793b92192b24b805a113ccee4c  src/components/ui/SymbolSearch.tsx

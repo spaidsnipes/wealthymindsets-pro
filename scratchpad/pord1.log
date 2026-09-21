@@ -1,0 +1,83 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts (18 tests | 5 failed) 39ms
+     × refuses a BUY the account cannot fund, and says why 2ms
+     × does not write a rejected order into the ledger 0ms
+     × applies the contract multiplier to the funding test 0ms
+     × still lets an affordable BUY through 0ms
+     × does not block a SELL — short margin is not modelled and is not invented 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > refuses a BUY the account cannot fund, and says why
+ReferenceError: localStorage is not defined
+ ❯ seed src/lib/paperOrderRejectionDisclosure.test.ts:169:5
+    167|   // the guard instead of rediscovering it.
+    168|   const seed = (cash: number) => {
+    169|     localStorage.setItem("wm_paper_state", JSON.stringify({
+       |     ^
+    170|       revision: 0, cash, positions: [], orders: [], trades: [],
+    171|       equity: [{ ts: 0, equity: cash }], optionPositions: [],
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:176:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > does not write a rejected order into the ledger
+ReferenceError: localStorage is not defined
+ ❯ seed src/lib/paperOrderRejectionDisclosure.test.ts:169:5
+    167|   // the guard instead of rediscovering it.
+    168|   const seed = (cash: number) => {
+    169|     localStorage.setItem("wm_paper_state", JSON.stringify({
+       |     ^
+    170|       revision: 0, cash, positions: [], orders: [], trades: [],
+    171|       equity: [{ ts: 0, equity: cash }], optionPositions: [],
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:184:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > applies the contract multiplier to the funding test
+ReferenceError: localStorage is not defined
+ ❯ seed src/lib/paperOrderRejectionDisclosure.test.ts:169:5
+    167|   // the guard instead of rediscovering it.
+    168|   const seed = (cash: number) => {
+    169|     localStorage.setItem("wm_paper_state", JSON.stringify({
+       |     ^
+    170|       revision: 0, cash, positions: [], orders: [], trades: [],
+    171|       equity: [{ ts: 0, equity: cash }], optionPositions: [],
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:194:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > still lets an affordable BUY through
+ReferenceError: localStorage is not defined
+ ❯ seed src/lib/paperOrderRejectionDisclosure.test.ts:169:5
+    167|   // the guard instead of rediscovering it.
+    168|   const seed = (cash: number) => {
+    169|     localStorage.setItem("wm_paper_state", JSON.stringify({
+       |     ^
+    170|       revision: 0, cash, positions: [], orders: [], trades: [],
+    171|       equity: [{ ts: 0, equity: cash }], optionPositions: [],
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:200:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > placeChartMarketOrder consults the funding owner > does not block a SELL — short margin is not modelled and is not invented
+ReferenceError: localStorage is not defined
+ ❯ seed src/lib/paperOrderRejectionDisclosure.test.ts:169:5
+    167|   // the guard instead of rediscovering it.
+    168|   const seed = (cash: number) => {
+    169|     localStorage.setItem("wm_paper_state", JSON.stringify({
+       |     ^
+    170|       revision: 0, cash, positions: [], orders: [], trades: [],
+    171|       equity: [{ ts: 0, equity: cash }], optionPositions: [],
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:209:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  5 failed | 55 passed (60)
+   Start at  16:50:46
+   Duration  364ms (transform 97ms, setup 0ms, import 124ms, tests 287ms, environment 0ms)
+

@@ -1,0 +1,30 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/components/command-deck/heroTruthSession.test.tsx (13 tests | 1 failed) 12ms
+     × crypto reads 24X7 — a continuous market has no session to miss 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/command-deck/heroTruthSession.test.tsx > HeroTruth session — the strip reads the owner, not the store key > crypto reads 24X7 — a continuous market has no session to miss
+AssertionError: expected '<section role="banner" aria-label="BT…' to contain '24X7'
+
+Expected: "24X7"
+Received: "<section role="banner" aria-label="BTCUSD 15m — market state Unavailable" class="wm-hero-truth " style="border:1px solid #55503f55;border-radius:14px;padding:22px 24px;background:linear-gradient(180deg, rgba(85,80,63,0.15), rgba(11,11,13,0.9));box-shadow:0 0 60px -30px #55503f"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:10px;letter-spacing:0.4px;text-transform:uppercase;color:#c9a55c;font-weight:800">Command Deck</span><span style="font-size:10px;color:#55503f">·</span><span style="font-size:10px;letter-spacing:0.3px;text-transform:uppercase;color:#8a8271">hero truth</span></div><div style="display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;min-width:0"><span style="font-size:clamp(24px, 6vw, 32px);font-weight:800;letter-spacing:0.4px;color:#ede6d3;font-family:system-ui, -apple-system, sans-serif">BTCUSD</span><span style="font-size:12px;letter-spacing:0.28px;text-transform:uppercase;color:#8a8271;font-weight:700">15m</span><span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="color:#55503f;font-size:18px;font-weight:700">—</span><span style="font-size:11px;letter-spacing:0.4px;text-transform:uppercase;color:#55503f;font-weight:800">Unavailable</span></span></div><div style="margin-top:14px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><span style="font-size:clamp(40px, 12vw, 60px);font-weight:400;color:#55503f;line-height:1.02;font-family:Georgia, &#x27;Times New Roman&#x27;, serif" aria-label="Price not yet observed">?</span></div><div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(139,106,41,0.2);display:flex;gap:20px;flex-wrap:wrap;font-size:10px;color:#8a8271;letter-spacing:0.24px"><span><span style="color:#55503f">session</span> <span style="color:#ede6d3" title="closure is established for this market today">CLOSED</span></span><span><span style="color:#55503f">coverage</span> <span style="color:#ede6d3">0 channels</span></span><span><span style="color:#55503f">unknowns</span> <span style="color:#c9a55c">0</span></span></div></section>"
+
+ ❯ src/components/command-deck/heroTruthSession.test.tsx:117:18
+    115|   it("crypto reads 24X7 — a continuous market has no session to miss",…
+    116|     const html = stripFor("BTCUSD", SATURDAY);
+    117|     expect(html).toContain("24X7");
+       |                  ^
+    118|   });
+    119|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:41:05
+   Duration  139ms (transform 49ms, setup 0ms, import 75ms, tests 13ms, environment 0ms)
+

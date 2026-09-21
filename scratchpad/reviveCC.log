@@ -1,0 +1,50 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts (36 tests | 2 failed) 8ms
+     × a weekday equity is honestly UNOBSERVED — there is still no intraday calendar 2ms
+     × at: null makes no day claim at all — the first paint may not assert a session 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > a weekday equity is honestly UNOBSERVED — there is still no intraday calendar
+AssertionError: expected 'OBSERVED' to be 'UNOBSERVED' // Object.is equality
+
+Expected: "UNOBSERVED"
+Received: "OBSERVED"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:292:36
+    290|     const { token, out, scene } = sceneFor("TSLA", WEDNESDAY);
+    291|     expect(token.token).toBe(SESSION_TOKEN_UNKNOWN);
+    292|     expect(out.provenance.SESSION).toBe("UNOBSERVED");
+       |                                    ^
+    293|     expect(out.observedCount).toBe(0);
+    294|     expect(scene).not.toBe("CLOSED");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > at: null makes no day claim at all — the first paint may not assert a session
+AssertionError: TSLA: expected true to be null // Object.is equality
+
+- Expected:
+null
+
++ Received:
+true
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:308:47
+    306|     for (const symbol of ["TSLA", "GC1!", "SPY"]) {
+    307|       const { out, scene } = sceneFor(symbol, null);
+    308|       expect(out.signals.sessionOpen, symbol).toBe(null);
+       |                                               ^
+    309|       expect(out.provenance.SESSION, symbol).toBe("UNOBSERVED");
+    310|       expect(scene, symbol).not.toBe("CLOSED");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 34 passed (36)
+   Start at  21:30:38
+   Duration  139ms (transform 27ms, setup 0ms, import 37ms, tests 8ms, environment 0ms)
+

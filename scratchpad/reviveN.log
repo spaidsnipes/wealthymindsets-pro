@@ -1,0 +1,76 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (23 tests | 1 failed) 19ms
+     × BANS the hard-coded AGGRESSIVE chip in the renderer 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > BANS the hard-coded AGGRESSIVE chip in the renderer
+AssertionError: expected '{bubbleTip && (() => {\n          con…' to contain 'bubbleTip.heading'
+
+- Expected
++ Received
+
+- bubbleTip.heading
++ {bubbleTip && (() => {
++           const buy   = bubbleTip.side === "buy";
++           const accent = buy ? "#00E696" : "#FF465A";
++           
++           const left = Math.max(70, Math.min((wrapRef.current?.clientWidth ?? 800) - 70, bubbleTip.x));
++           const top  = Math.max(54, bubbleTip.y - 14);
++           return (
++             <div style={{
++               position: "absolute", left, top, transform: "translate(-50%, -100%)",
++               zIndex: 60, pointerEvents: "none",
++             }}>
++               <div style={{
++                 position: "relative",
++                 background: "#0E1322",
++                 border: `2.5px solid ${accent}`,
++                 borderRadius: 14,
++                 padding: "8px 12px 9px",
++                 minWidth: 132,
++                 boxShadow: `0 6px 22px rgba(0,0,0,0.55), 0 0 16px ${accent}55`,
++                 fontFamily: "Inter, system-ui, sans-serif",
++               }}>
++                 { }
++                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
++                   <span style={{
++                     display: "inline-flex", alignItems: "center", justifyContent: "center",
++                     width: 20, height: 20, borderRadius: 6,
++                     background: `linear-gradient(135deg, ${accent}, ${accent}99)`,
++                     color: "#06080F", fontWeight: 900, fontSize: 13, lineHeight: 1,
++                     boxShadow: `0 0 8px ${accent}88`,
++                   }}>W</span>
++                 { }
++                   <span style={{ color: accent, fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
++                     {buy ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL"}
++                   </span>
++                 </div>
++                 { }
++                 <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
++                   {bubbleTip.headline}
++                 </div>
++                 { }
++                 <div style={{ color: "#9AA3BF", fontWeight: 600, fontSize: 9.5, marginTop: 3, maxWidth: 172 }}>
++                   {bubbleTip.text}
++                 </div>
++                 {/* 
+
+ ❯ src/lib/bubbleClaim.test.ts:290:15
+    288|   it("BANS the hard-coded AGGRESSIVE chip in the renderer", () => {
+    289|     const r = stripComments(tooltipRender());
+    290|     expect(r).toContain("bubbleTip.heading");
+       |               ^
+    291|     expect(r).toContain("bubbleTip.headline");
+    292|     // This chip sat above a number that meant two different things.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 passed (23)
+   Start at  20:53:54
+   Duration  190ms (transform 17ms, setup 0ms, import 23ms, tests 19ms, environment 0ms)
+

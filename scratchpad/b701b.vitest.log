@@ -1,0 +1,163 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/responsive/resizeBreakpoints.test.ts (20 tests | 1 failed) 22ms
+     × does NOT ship an inert collapse rule for a zoom /charts never renders 2ms
+
+  Expression shortlist sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/expression-shortlist-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/expression-shortlist-sample.html
+
+
+  Protection line sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/protection-line-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/protection-line-sample.html
+
+
+  Decision rail sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/decision-rail-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/decision-rail-sample.html
+
+
+  Heat lens sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/heat-lens-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/heat-lens-sample.html
+
+
+  Founder room sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/founder-room-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/founder-room-sample.html
+  Served copy refreshed: /Users/dspaidnoosleep/wealthymindsets-pro/public/founder-room-sample.html
+
+
+  Liquidity weather sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/liquidity-weather-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/liquidity-weather-sample.html
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/responsive/resizeBreakpoints.test.ts > B-701 · one number, one owner > does NOT ship an inert collapse rule for a zoom /charts never renders
+AssertionError: no B-701 MEDIUM collapse rule should exist until a second zoom is mounted: expected [ Array(1) ] to be null
+
+- Expected:
+null
+
++ Received:
+[
+  "@media (min-width: 1024px) and (max-width: 1199px) { .wm-chart-watchlist
+ * { display: none } }` rule was written here and then REMOVED before it
+ * shipped, because measuring the live room proved it would collapse nothing.
+ *
+ * MEASURED on production /charts at innerWidth 1920:
+ *
+ *   [data-wm-market-room]  1884px, and exactly TWO children:
+ *     [data-wm-market-column]                  1596px   <- the CAMERA
+ *     section.wm-decision-spine--rail           288px   <- ONE zoom
+ *
+ * `.wm-chart-watchlist` was not mounted at all. The watchlist relocated to the
+ * shared drawer at EVERY width (see responsiveShell.test.ts, \"one canonical
+ * watchlist in the shared drawer at every width\"), so that class is no longer
+ * rendered by this room and a rule hiding it is inert — a rule that reads like
+ * compliance and does nothing.
+ *
+ * So the real finding is the OPPOSITE of the one first suspected: /charts does
+ * not over-populate LARGE, it renders the MEDIUM arrangement — base plan plus
+ * ONE zoom — at every width above the 1023px rail cliff. It never reaches
+ * LARGE's two zooms at all.
+ *
+ * And 288px of fixed spine keeps the camera above C-101's 70% floor all the
+ * way down to ~996px, so the spine does NOT need a width collapse in MEDIUM.
+ * The camera's real pressure on /charts is VERTICAL — 192px of fixed chrome —
+ * which is a C-101 problem, not a B-701 one.
+ *
+ * The band itself is owned and published as a live receipt regardless: see
+ * src/lib/responsive/resizeBreakpoints.ts and `data-b701-band` on the /charts
+ * root. When a second zoom is built, this is where its collapse rule lands.
+ */
+@media (max-width: 1023px) {
+  .wm-primary-sidebar,
+  .wm-chart-primary-rail,
+  .wm-chart-watchlist,
+  .wm-chart-dom,
+  .wm-chart-dom-toggle,
+  .wm-music-player,
+  .wm-draw-rail {
+    display: none !important;
+  }
+
+  .wm-mobile-nav {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 58px;
+    padding: 4px 4px max(4px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(232,185,35,.18);
+    background: rgba(9,10,15,.98);
+    z-index: 80;
+  }
+
+  .wm-mobile-nav-link {
+    min-width: 0;
+    min-height: 48px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 8px;
+    color: #8B8FA8;
+    font-size: 10px;
+    text-decoration: none;
+  }
+
+  /* Landscape-only auxiliary trio; hidden in portrait so the five
+     primary destinations remain unambiguous. Reveal below in the
+     landscape-short media query where the shell header is hidden. */
+  .wm-mobile-nav-landscape-actions {
+    display: none;
+  }
+
+  .wm-mobile-nav-action {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+  }
+
+  .wm-mobile-nav-link.is-active {
+    color: #E8B923;
+    background: rgba(232,185,35,.12);
+  }
+
+  .wm-chart-tabs,
+  .wm-chart-toolbar,
+  .wm-chart-tools,
+  .wm-journal-header {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  .wm-spaidbot-launcher {
+    bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .wm-spaidbot-panel {
+    bottom: calc(126px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 150px) !important;
+  }
+}",
+]
+
+ ❯ src/lib/responsive/resizeBreakpoints.test.ts:101:7
+     99|       block,
+    100|       "no B-701 MEDIUM collapse rule should exist until a second zoom …
+    101|     ).toBeNull();
+       |       ^
+    102|
+    103|     // The band is still documented where the rule would go, so the ne…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 827 passed (828)
+      Tests  1 failed | 10570 passed | 2 skipped (10573)
+   Start at  22:35:09
+   Duration  16.23s (transform 16.35s, setup 0ms, import 36.07s, tests 24.38s, environment 63ms)
+

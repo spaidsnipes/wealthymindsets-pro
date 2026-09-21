@@ -1,0 +1,55 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+
+  Founder room sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/founder-room-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/founder-room-sample.html
+  Served copy refreshed: /Users/dspaidnoosleep/wealthymindsets-pro/public/founder-room-sample.html
+
+
+  Heat lens sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/heat-lens-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/heat-lens-sample.html
+
+
+  Protection line sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/protection-line-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/protection-line-sample.html
+
+ ❯ src/lib/responsive/resizeBreakpoints.test.ts (20 tests | 1 failed) 22ms
+     × falls to SMALL on a width it cannot read 4ms
+
+  Decision rail sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/decision-rail-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/decision-rail-sample.html
+
+
+  Expression shortlist sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/expression-shortlist-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/expression-shortlist-sample.html
+
+
+  Liquidity weather sample written to: /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/liquidity-weather-sample.html
+  Open it: file:///var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/liquidity-weather-sample.html
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/responsive/resizeBreakpoints.test.ts > B-701 · the three bands the blueprint draws > falls to SMALL on a width it cannot read
+AssertionError: expected 'SMALL' to be 'LARGE' // Object.is equality
+
+Expected: "LARGE"
+Received: "SMALL"
+
+ ❯ src/lib/responsive/resizeBreakpoints.test.ts:50:52
+     48|     expect(bandForWidth(Number.NaN)).toBe("SMALL");
+     49|     expect(bandForWidth(-1)).toBe("SMALL");
+     50|     expect(bandForWidth(Number.POSITIVE_INFINITY)).toBe("LARGE");
+       |                                                    ^
+     51|   });
+     52|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 827 passed (828)
+      Tests  1 failed | 10570 passed | 2 skipped (10573)
+   Start at  22:32:06
+   Duration  15.07s (transform 13.65s, setup 0ms, import 31.83s, tests 22.49s, environment 59ms)
+

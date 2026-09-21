@@ -1,0 +1,2 @@
+src/app/api/finnhub/route.test.ts(73,58): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+src/app/api/finnhub/route.test.ts(104,47): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.

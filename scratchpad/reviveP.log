@@ -1,0 +1,81 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (23 tests | 4 failed) 18ms
+     × a big trade headlines the DOMINANT side, not the two-sided total 3ms
+     × a delta zone headlines the NET, and says the word 'net' 0ms
+     × sell-dominant flow reverses side, heading and sign for both kinds 0ms
+     × the HEADLINE keeps full precision — the detail line is the compact one 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > a big trade headlines the DOMINANT side, not the two-sided total
+AssertionError: expected '+7.0k' to be '+7,000' // Object.is equality
+
+Expected: "+7,000"
+Received: "+7.0k"
+
+ ❯ src/lib/bubbleClaim.test.ts:105:24
+    103|     // The bug: 12,400 under the word BUY, with 5,400 sells folded in.
+    104|     expect(c.headline).not.toContain("12,400");
+    105|     expect(c.headline).toBe("+7,000");
+       |                        ^
+    106|   });
+    107|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > a delta zone headlines the NET, and says the word 'net'
+AssertionError: expected '+1.6k' to be '+1,600' // Object.is equality
+
+Expected: "+1,600"
+Received: "+1.6k"
+
+ ❯ src/lib/bubbleClaim.test.ts:111:24
+    109|     const c = describeBubbleClaim({ kind: "delta", ...twoSided })!;
+    110|     expect(c.value).toBe(1_600);
+    111|     expect(c.headline).toBe("+1,600");
+       |                        ^
+    112|     expect(c.heading).toBe("NET BUY PRESSURE");
+    113|     // A net may never wear the bare one-sided word.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > sell-dominant flow reverses side, heading and sign for both kinds
+AssertionError: expected '−9.0k' to be '−9,000' // Object.is equality
+
+Expected: "−9,000"
+Received: "−9.0k"
+
+ ❯ src/lib/bubbleClaim.test.ts:164:26
+    162|     expect(big.side).toBe("sell");
+    163|     expect(big.heading).toBe("AGGRESSIVE SELL");
+    164|     expect(big.headline).toBe("−9,000");
+       |                          ^
+    165|     expect(big.value).toBe(-9_000);
+    166|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > the HEADLINE keeps full precision — the detail line is the compact one
+AssertionError: expected '+12.4k' to be '+12,400' // Object.is equality
+
+Expected: "+12,400"
+Received: "+12.4k"
+
+ ❯ src/lib/bubbleClaim.test.ts:190:24
+    188|     // overclaim, so the two formatters are pinned as distinct here.
+    189|     const c = describeBubbleClaim({ kind: "big-trade", bid: 1, ask: 12…
+    190|     expect(c.headline).toBe("+12,400");
+       |                        ^
+    191|     expect(c.headline).not.toContain("12.4k");
+    192|     expect(c.detail).toContain("12.4k bought");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 19 passed (23)
+   Start at  20:54:11
+   Duration  131ms (transform 17ms, setup 0ms, import 22ms, tests 18ms, environment 0ms)
+

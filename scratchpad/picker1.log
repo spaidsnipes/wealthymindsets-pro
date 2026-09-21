@@ -1,0 +1,30 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/pickerCryptoClassification.test.ts (14 tests | 1 failed) 7ms
+     × no forex pair the pickers offer became crypto 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/pickerCryptoClassification.test.ts > the claim stayed narrow — negative controls > no forex pair the pickers offer became crypto
+AssertionError: expected 'equity' to be 'forex' // Object.is equality
+
+Expected: "forex"
+Received: "equity"
+
+ ❯ src/lib/marketData/pickerCryptoClassification.test.ts:171:43
+    169|     const wrong = FOREX_SYMBOLS.filter((s) => canonicalAssetClass(s) =…
+    170|     expect(wrong).toEqual([]);
+    171|     expect(canonicalAssetClass("EURUSD")).toBe("forex");
+       |                                           ^
+    172|     expect(cryptoBaseTicker("EURUSD")).toBeNull();
+    173|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  01:49:01
+   Duration  130ms (transform 30ms, setup 0ms, import 44ms, tests 7ms, environment 0ms)
+

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  21:07:52
+   Duration  118ms (transform 27ms, setup 0ms, import 34ms, tests 5ms, environment 0ms)
+

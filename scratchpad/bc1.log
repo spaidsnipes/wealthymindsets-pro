@@ -1,0 +1,145 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/bubbleClaim.test.ts (20 tests | 5 failed) 18ms
+     × a big trade headlines the DOMINANT side, not the two-sided total 3ms
+     × a delta zone headlines the NET, and says the word 'net' 0ms
+     × both kinds disclose BOTH aggressor sides 0ms
+     × sell-dominant flow reverses side, heading and sign for both kinds 0ms
+     × BANS the shared one-sided sentence in the handler 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > a big trade headlines the DOMINANT side, not the two-sided total
+AssertionError: expected '+7.0k' to be '+7,000' // Object.is equality
+
+Expected: "+7,000"
+Received: "+7.0k"
+
+ ❯ src/lib/bubbleClaim.test.ts:84:24
+     82|     // The bug: 12,400 under the word BUY, with 5,400 sells folded in.
+     83|     expect(c.headline).not.toContain("12,400");
+     84|     expect(c.headline).toBe("+7,000");
+       |                        ^
+     85|   });
+     86|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > a delta zone headlines the NET, and says the word 'net'
+AssertionError: expected '+1.6k' to be '+1,600' // Object.is equality
+
+Expected: "+1,600"
+Received: "+1.6k"
+
+ ❯ src/lib/bubbleClaim.test.ts:90:24
+     88|     const c = describeBubbleClaim({ kind: "delta", ...twoSided })!;
+     89|     expect(c.value).toBe(1_600);
+     90|     expect(c.headline).toBe("+1,600");
+       |                        ^
+     91|     expect(c.heading).toBe("NET BUY PRESSURE");
+     92|     // A net may never wear the bare one-sided word.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > both kinds disclose BOTH aggressor sides
+AssertionError: expected '7.0k bought · 5.4k sold at 150.01' to contain '7,000 bought'
+
+Expected: "7,000 bought"
+Received: "7.0k bought · 5.4k sold at 150.01"
+
+ ❯ src/lib/bubbleClaim.test.ts:108:24
+    106|     for (const kind of ["big-trade", "delta"] as const) {
+    107|       const c = describeBubbleClaim({ kind, ...twoSided })!;
+    108|       expect(c.detail).toContain("7,000 bought");
+       |                        ^
+    109|       expect(c.detail).toContain("5,400 sold");
+    110|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > the two bubble kinds no longer share one sentence > sell-dominant flow reverses side, heading and sign for both kinds
+AssertionError: expected '−9.0k' to be '−9,000' // Object.is equality
+
+Expected: "−9,000"
+Received: "−9.0k"
+
+ ❯ src/lib/bubbleClaim.test.ts:143:26
+    141|     expect(big.side).toBe("sell");
+    142|     expect(big.heading).toBe("AGGRESSIVE SELL");
+    143|     expect(big.headline).toBe("−9,000");
+       |                          ^
+    144|     expect(big.value).toBe(-9_000);
+    145|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/lib/bubbleClaim.test.ts > MainChart delegates the claim rather than writing its own > BANS the shared one-sided sentence in the handler
+AssertionError: expected 'const bubbles = [...bubblesRef.curren…' not to match /base > 100 \? "shares" : "vol"/
+
+- Expected:
+/base > 100 \? "shares" : "vol"/
+
++ Received:
+"const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];
+    if (!bubbles.length) {
+      if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    // topmost first (last drawn = end of array)
+    let hit: typeof bubbles[number] | null = null;
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      if (Math.hypot(mx - b.x, my - b.y) <= b.r + 2) { hit = b; break; }
+    }
+    if (hit) {
+      if (bubbleHoverRef.current !== hit.id) {
+        // The words are owned by bubbleClaim.ts, because `hit.value` means a
+        // DIFFERENT quantity per bubble kind and this one call site serves
+        // both. It used to print one sentence for the two of them:
+        //
+        //   `${vstr} ${base > 100 ? \"shares\" : \"vol\"} aggressive ${side} at ${pstr}`
+        //
+        // which labelled a big trade's two-sided TOTAL and a delta zone's NET
+        // with the same one-sided words, and called both of them \"shares\" —
+        // on NQ, ES and BTC alike — because `base > 100` is a price test
+        // standing in for an instrument-class question. See that module's
+        // header for the full account.
+        const claim = describeBubbleClaim({
+          kind: hit.kind, bid: hit.bid, ask: hit.ask, price: hit.anchorPrice,
+        });
+        // No aggressor volume behind the bubble means nothing honest to say,
+        // so no tooltip — rather than a confident \"0\".
+        if (!claim) {
+          if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
+          return;
+        }
+        bubbleHoverRef.current = hit.id;
+        setBubbleTip({
+          x: hit.x, y: hit.y - hit.r,
+          side: claim.side,
+          heading: claim.heading,
+          headline: claim.headline,
+          text: claim.detail,
+        });
+      }
+    "
+
+ ❯ src/lib/bubbleClaim.test.ts:243:19
+    241|   it("BANS the shared one-sided sentence in the handler", () => {
+    242|     const h = tooltipHandler();
+    243|     expect(h).not.toMatch(/base > 100 \? "shares" : "vol"/);
+       |                   ^
+    244|     expect(h).not.toMatch(/aggressive \$\{hit\.side/);
+    245|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 15 passed (20)
+   Start at  20:52:23
+   Duration  108ms (transform 17ms, setup 0ms, import 23ms, tests 18ms, environment 0ms)
+

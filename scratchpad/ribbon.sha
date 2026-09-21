@@ -1,0 +1,5 @@
+cfada60d63f26377efc7229d800f081df37e6429  src/lib/marketData/canonicalIdentity.ts
+e378683f54789b6b62cc4c4660e28adfc67abc6a  src/components/command/CommandContextRibbon.tsx
+a49464db094362222377c2322181ada45f9dc479  src/components/command/sessionDetailText.test.ts
+683b706df140d6a96914764aa80e34b514deb9c6  src/lib/marketData/sessionToken.test.ts
+ca415932d4bb43ddd3d3458157214ce182f971f9  src/lib/marketData/canonicalIdentity.test.ts

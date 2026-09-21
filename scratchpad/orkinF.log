@@ -1,0 +1,35 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/tickerChangeGuardCoverage.test.ts (8 tests | 1 failed) 71ms
+     × no file in src renders a tainted alias 24ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/tickerChangeGuardCoverage.test.ts > no aliased day-change is rendered without an owner > no file in src renders a tainted alias
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/components/chart/ChartsDashboard.tsx: p",
++ ]
+
+ ❯ src/lib/tickerChangeGuardCoverage.test.ts:230:23
+    228|       }
+    229|     }
+    230|     expect(offenders).toEqual([]);
+       |                       ^
+    231|   });
+    232| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  16:40:54
+   Duration  221ms (transform 11ms, setup 0ms, import 20ms, tests 71ms, environment 0ms)
+

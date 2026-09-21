@@ -589,6 +589,59 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "workspace",
       direct: true,
     },
+    /**
+     * THE CHART ROOM'S EIGHTH TENANT — AND A CONTROL THAT WAS OFF THE SCREEN.
+     *
+     * MEASURED 2026-09-21 on local /charts at a 390x844 phone viewport, with
+     * the auth RESPONSE stubbed for layout only. The toolbar's pinned cluster
+     * (`.wm-chart-toolbar-pinned`) laid out 822px wide inside a 354px room, so
+     * three of its controls reported these x-origins:
+     *
+     *     Appearance   x=526      Smart Money  x=633      Chart tools  x=752
+     *
+     * The viewport is 390 wide. Those controls were RENDERED, they consumed
+     * 44px of the room's vertical floor, and they could not be reached without
+     * a horizontal scroll nobody is told about. That is worse than absent: a
+     * missing control teaches you to look elsewhere, an unreachable one teaches
+     * you the product is broken.
+     *
+     * D-701's SALVAGE clause is the instruction for exactly this shape —
+     * "MIGRATE LEGITIMATE ORGANS INTO WORKSPACE/TOOLS DRAWERS" — and §3 of the
+     * Last Mile support doc says what Tools is FOR: "lenses + overlays +
+     * graduation toggles". Smart Money is an overlay reading. It belongs in
+     * the hand, not in a rail that runs off the edge of the glass.
+     *
+     * WHY `lens` AND NOT `workspace`. The two hands are not a size split. A
+     * workspace instrument CHANGES THE CHART (Draw, Replay); a lens READS it.
+     * Smart Money reads. Filing it under Workspace would have put a reading in
+     * the hand a trader reaches into to alter the tape.
+     *
+     * WHY `direct` AND NOT A JOURNEY. The field's own note draws the line at
+     * whether there is "a reading with depth worth previewing". Smart Money
+     * already exists as ONE BOOLEAN the room owns (`smartMoneyOpen`), with no
+     * threshold VM and no preview copy anywhere in the product. Inventing a
+     * preview here would mean compiling a second opinion about the panel in
+     * order to describe it — and a threshold that paraphrases a panel is how a
+     * rail and a room start to disagree. Direct keeps ONE writer.
+     *
+     * THIS IS A SECOND DOOR, NOT A SECOND PANEL. The branch in
+     * `ChartsDashboard` flips the exact `smartMoneyOpen` the toolbar button
+     * flips. There is one `SmartMoneyPanel`; this gives it a door the thumb
+     * can actually land on.
+     *
+     * NOT THE SAME EQUIPMENT AS `order-flow`, AND THE DISTINCTION IS OLD. The
+     * room's own comment has said so since before this entry existed:
+     * "detailed order-flow inspection belongs to the Smart Money doorway."
+     * `order-flow` is the four readings that DRAW ON THE AXIS; Smart Money is
+     * the read-out panel beside it. Two doors, two things.
+     */
+    {
+      id: "smart-money",
+      label: "Smart money",
+      hint: "Who is actually pressing, and whether the tape can prove it",
+      kind: "lens",
+      direct: true,
+    },
   ],
 };
 

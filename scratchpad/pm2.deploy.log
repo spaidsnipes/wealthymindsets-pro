@@ -1,0 +1,49 @@
+
+┌──────────────────────────────┐
+│ OpenNext — Cloudflare deploy │
+└──────────────────────────────┘
+
+Using secrets defined in process.env
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mMissing required secrets: JWT_SECRET. Add them to .dev.vars, .env, or set as environment variables.[0m
+
+
+Incremental cache does not need populating
+Tag cache does not need populating
+
+ ⛅️ wrangler 4.125.0 (update available 4.135.0)
+───────────────────────────────────────────────
+🌀 Building list of assets...
+✨ Read 327 files from the assets directory /Users/dspaidnoosleep/wealthymindsets-pro/.open-next/assets
+🌀 Starting asset upload...
+🌀 Found 2 new or modified static assets to upload. Proceeding with upload...
++ /BUILD_ID
++ /_next/static/chunks/app/charts/page-c98b4920100d93da.js
+Uploaded 1 of 2 assets
+Uploaded 2 of 2 assets
+✨ Success! Uploaded 2 files (198 already uploaded) (1.91 sec)
+
+Total Upload: 11294.08 KiB / gzip: 2329.33 KiB
+Worker Startup Time: 12 ms
+Your Worker has access to the following bindings:
+Binding            Resource      
+env.ASSETS         Assets        
+
+Uploaded wealthymindsets-pro (7.85 sec)
+Deployed wealthymindsets-pro triggers (0.57 sec)
+  https://wealthymindsets-pro.dhill5711.workers.dev
+Current Version ID: 92808ebc-0565-442c-92a6-4bc5beb5fc19
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThis case clause will never be evaluated because it duplicates an earlier case clause[0m [duplicate-case]
+
+    .open-next/server-functions/default/handler.mjs:1404:158646:
+[37m      1404 │ ...urn ex(a10,2662,2671,!0,d10);[32mcase[37m 22:return ev(a10,1,10999,et...
+           ╵                                 [32m~~~~[0m
+
+  The earlier case clause is here:
+
+    .open-next/server-functions/default/handler.mjs:1404:158606:
+[37m      1404 │ ...urn ex(a10,2790,2799,!0,d10);[32mcase[37m 22:return ex(a10,2662,2671,...
+           ╵                                 [32m~~~~[0m
+
+
+(node:74185) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)

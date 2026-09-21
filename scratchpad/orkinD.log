@@ -1,0 +1,82 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts (10 tests | 3 failed) 7ms
+     × data-ctx does not publish raw ticker.changePct 2ms
+     × data-ctx routes the change through the canonical selector 2ms
+     × the change keys are conditional on displayability 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts > the publisher stops emitting an unbacked change > data-ctx does not publish raw ticker.changePct
+AssertionError: expected 'id="wm-chart-context"\n        data-c…' not to match /ticker\.changePct/
+
+- Expected:
+/ticker\.changePct/
+
++ Received:
+"id=\"wm-chart-context\"
+        data-ctx={JSON.stringify({ symbol, price: ticker.price, change: ticker.change, changePct: ticker.changePct })}
+        style={{ display: \"none\" }}
+      "
+
+ ❯ src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts:109:31
+    107|     // The pre-fix attribute was `changePct: ticker.changePct` — raw, …
+    108|     // straight off the socket shape whose absence sentinel is a liter…
+    109|     expect(contextSpan()).not.toMatch(/ticker\.changePct/);
+       |                               ^
+    110|     expect(contextSpan()).not.toMatch(/ticker\.change\b/);
+    111|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts > the publisher stops emitting an unbacked change > data-ctx routes the change through the canonical selector
+AssertionError: expected 'id="wm-chart-context"\n        data-c…' to contain 'selectTickerChangeDisplay'
+
+- Expected
++ Received
+
+- selectTickerChangeDisplay
++ id="wm-chart-context"
++         data-ctx={JSON.stringify({ symbol, price: ticker.price, change: ticker.change, changePct: ticker.changePct })}
++         style={{ display: "none" }}
++       
+
+ ❯ src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts:114:27
+    112|
+    113|   it("data-ctx routes the change through the canonical selector", () =…
+    114|     expect(contextSpan()).toContain("selectTickerChangeDisplay");
+       |                           ^
+    115|   });
+    116|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts > the publisher stops emitting an unbacked change > the change keys are conditional on displayability
+AssertionError: expected 'id="wm-chart-context"\n        data-c…' to match /displayable\s*\n?\s*\?/
+
+- Expected:
+/displayable\s*\n?\s*\?/
+
++ Received:
+"id=\"wm-chart-context\"
+        data-ctx={JSON.stringify({ symbol, price: ticker.price, change: ticker.change, changePct: ticker.changePct })}
+        style={{ display: \"none\" }}
+      "
+
+ ❯ src/lib/marketData/spaidbotChartContextTruth.enforcement.test.ts:120:27
+    118|     // Emitting `changePct: 0` unconditionally would satisfy the bans …
+    119|     // while reopening the defect. The keys must be absent, not zeroed.
+    120|     expect(contextSpan()).toMatch(/displayable\s*\n?\s*\?/);
+       |                           ^
+    121|   });
+    122| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 7 passed (10)
+   Start at  16:36:35
+   Duration  95ms (transform 10ms, setup 0ms, import 15ms, tests 7ms, environment 0ms)
+

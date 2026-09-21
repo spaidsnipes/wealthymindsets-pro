@@ -1,0 +1,148 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts (36 tests | 8 failed) 9ms
+     × maps a closed session to false 3ms
+     × a closed session with nothing pending compiles to CLOSED 1ms
+     × the scene genuinely varies with the inputs (positive control — no constant output) 0ms
+     × THE CORE REGRESSION: a Saturday equity compiles to CLOSED, not WAIT 0ms
+     × Saturday futures compile to CLOSED too — the deck's shrug was not humility 0ms
+     × Sunday equities compile to CLOSED 0ms
+     × PROOF OF THE DEFECT: the store key can never reach CLOSED (positive control) 0ms
+     × a proven closure IS an observation — Saturday reads OBSERVED, not UNOBSERVED 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > sessionOpenFrom > maps a closed session to false
+AssertionError: expected null to be false // Object.is equality
+
+- Expected:
+false
+
++ Received:
+null
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:30:39
+     28| describe("sessionOpenFrom", () => {
+     29|   it("maps a closed session to false", () => {
+     30|     expect(sessionOpenFrom("CLOSED")).toBe(false);
+       |                                       ^
+     31|     expect(sessionOpenFrom("closed")).toBe(false);
+     32|     expect(sessionOpenFrom("  Closed  ")).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — the scenes the deck can actually reach > a closed session with nothing pending compiles to CLOSED
+AssertionError: expected 'PREGAME' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "PREGAME"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:171:41
+    169|   it("a closed session with nothing pending compiles to CLOSED", () =>…
+    170|     const { signals } = deckSceneSignals({ session: "CLOSED", rightOfW…
+    171|     expect(compileScene(signals).scene).toBe("CLOSED");
+       |                                         ^
+    172|   });
+    173|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — the scenes the deck can actually reach > the scene genuinely varies with the inputs (positive control — no constant output)
+AssertionError: expected 3 to be greater than or equal to 4
+ ❯ src/lib/experience/deckSceneSignals.test.ts:188:25
+    186|       ].map((i) => compileScene(deckSceneSignals(i).signals).scene),
+    187|     );
+    188|     expect(scenes.size).toBeGreaterThanOrEqual(4);
+       |                         ^
+    189|   });
+    190|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > THE CORE REGRESSION: a Saturday equity compiles to CLOSED, not WAIT
+AssertionError: TSLA: expected 'PREGAME' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "PREGAME"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:251:56
+    249|   it("THE CORE REGRESSION: a Saturday equity compiles to CLOSED, not W…
+    250|     for (const symbol of ["TSLA", "SPY", "AAPL"]) {
+    251|       expect(sceneFor(symbol, SATURDAY).scene, symbol).toBe("CLOSED");
+       |                                                        ^
+    252|       expect(sceneFor(symbol, SATURDAY, "WAIT").scene, `${symbol} +WAI…
+    253|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > Saturday futures compile to CLOSED too — the deck's shrug was not humility
+AssertionError: GC1!: expected 'PREGAME' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "PREGAME"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:258:56
+    256|   it("Saturday futures compile to CLOSED too — the deck's shrug was no…
+    257|     for (const symbol of ["GC1!", "NQ1!", "ES1!"]) {
+    258|       expect(sceneFor(symbol, SATURDAY).scene, symbol).toBe("CLOSED");
+       |                                                        ^
+    259|     }
+    260|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > Sunday equities compile to CLOSED
+AssertionError: expected 'PREGAME' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "PREGAME"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:263:44
+    261|
+    262|   it("Sunday equities compile to CLOSED", () => {
+    263|     expect(sceneFor("TSLA", SUNDAY).scene).toBe("CLOSED");
+       |                                            ^
+    264|   });
+    265|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > PROOF OF THE DEFECT: the store key can never reach CLOSED (positive control)
+AssertionError: expected 'PREGAME' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "PREGAME"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:275:46
+    273|     expect(storeKeyScene).not.toBe("CLOSED");
+    274|     // …while the owner, for the same instrument on the same day, does…
+    275|     expect(sceneFor("TSLA", SATURDAY).scene).toBe("CLOSED");
+       |                                              ^
+    276|   });
+    277|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > deckSceneSignals — fed by the real owner, not a hand-written string > a proven closure IS an observation — Saturday reads OBSERVED, not UNOBSERVED
+AssertionError: expected 'UNOBSERVED' to be 'OBSERVED' // Object.is equality
+
+Expected: "OBSERVED"
+Received: "UNOBSERVED"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:302:36
+    300|     const { token, out } = sceneFor("TSLA", SATURDAY);
+    301|     expect(token.token).toBe(SESSION_TOKEN_CLOSED);
+    302|     expect(out.provenance.SESSION).toBe("OBSERVED");
+       |                                    ^
+    303|   });
+    304|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 28 passed (36)
+   Start at  21:30:51
+   Duration  133ms (transform 37ms, setup 0ms, import 46ms, tests 9ms, environment 0ms)
+

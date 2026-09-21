@@ -1,0 +1,4552 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts (36 tests | 3 failed) 8ms
+     × BANS passing the store key into the scene adapter 2ms
+     × calls selectCanonicalSessionToken and feeds ITS token to the adapter 1ms
+     × uses the mount-safe day clock, not the 5s cadence clock, for closure 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > /command-deck wires the scene from the owner, not the store key > BANS passing the store key into the scene adapter
+AssertionError: expected '"use client";\nimport * as React from…' not to match /session:\s*identity\.session\s*,\s*ri…/
+
+- Expected:
+/session:\s*identity\.session\s*,\s*rightOfWay/
+
++ Received:
+"\"use client\";
+import * as React from \"react\";
+import { useRouter, useSearchParams } from \"next/navigation\";
+import { ArrowLeft } from \"lucide-react\";
+import { useActiveSymbol } from \"@/contexts/SymbolContext\";
+import { useAuth } from \"@/contexts/AuthContext\";
+import {
+  useCanonicalMarketState,
+  useCanonicalMarketStateHistory,
+} from \"@/lib/marketData/useCanonicalMarketState\";
+import { useCanvasClock } from \"@/lib/marketData/viewModels/canvasClock\";
+import { usePublishChartMarketState } from \"@/lib/marketData/chartMarketStatePublisher\";
+import {
+  canonicalMarketStateIdentity,
+  selectCanonicalSessionToken,
+} from \"@/lib/marketData/canonicalIdentity\";
+import { useWebSocket } from \"@/hooks/useWebSocket\";
+import {
+  useProvenSessionClosure,
+  useSessionClockDate,
+} from \"@/lib/marketData/useProvenSessionClosure\";
+import { selectDecisionChain, type TradePhase } from \"@/lib/marketData/viewModels/selectDecisionChain\";
+import { selectMarketStory } from \"@/lib/marketData/viewModels/selectMarketStory\";
+import DecisionChainPanel from \"@/components/chart/DecisionChainPanel\";
+import StructureContextNote from \"@/components/chart/StructureContextNote\";
+import StoryRibbon from \"@/components/chart/StoryRibbon\";
+import ATHOSInterventionPanel from \"@/components/athos/ATHOSInterventionPanel\";
+import { selectATHOSIntervention, type ATHOSIntervention } from \"@/lib/traderMemory/viewModels/selectATHOSIntervention\";
+import MirrorPanel from \"@/components/mirror/MirrorPanel\";
+import OpeningBellPanel from \"@/components/opening-bell/OpeningBellPanel\";
+import { selectMirror } from \"@/lib/traderMemory/viewModels/selectMirror\";
+import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from \"@/lib/traderMemory/viewModels/selectOpeningBell\";
+import { useDecisionMemory, useDecisionMemoryRecords } from \"@/lib/traderMemory/useDecisionMemory\";
+import { useJournalSnapshots } from \"@/lib/traderMemory/adapters/useJournalSnapshots\";
+import PersonalEdgeChip from \"@/components/journal/PersonalEdgeChip\";
+import { selectPersonalEdge } from \"@/lib/traderMemory/viewModels/selectPersonalEdge\";
+import HeroTruth from \"@/components/command-deck/HeroTruth\";
+import DLARStrip, { type DLARDimensionKey } from \"@/components/command-deck/DLARStrip\";
+import WhyInspector, { type WhyTarget } from \"@/components/command-deck/WhyInspector\";
+import SectionBanner from \"@/components/brand/SectionBanner\";
+import RealmGateway from \"@/components/brand/RealmGateway\";
+import { useTodayPrep } from \"@/lib/traderMemory/adapters/useTodayPrep\";
+import CommandContextRibbon from \"@/components/command/CommandContextRibbon\";
+import OneStoryStrip from \"@/components/command/OneStoryStrip\";
+import SceneAdmissionPanel from \"@/components/experience/SceneAdmissionPanel\";
+import SceneAdmits, { SceneAdmitsAmbient } from \"@/components/experience/SceneAdmits\";
+import { compileScene, type SurfaceElement } from \"@/lib/experience/compileScene\";
+import { deckSceneSignals } from \"@/lib/experience/deckSceneSignals\";
+import {
+  computeEvidenceDebt as computeSceneEvidenceDebt,
+  computeRightOfWay as computeSceneRightOfWay,
+} from \"@/lib/marketData/viewModels/decisionPermissionCompiler\";
+import { PerCapabilityFidelityGrid } from \"@/components/marketData/PerCapabilityFidelityGrid\";
+import { selectPerCapabilityFidelity } from \"@/lib/marketData/selectPerCapabilityFidelity\";
+import { selectAggressorFlow } from \"@/lib/marketData/selectAggressorFlow\";
+import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from \"@/lib/marketData/perCapabilityFidelity\";
+import { SemanticZoom } from \"@/components/experience/SemanticZoom\";
+import MarketObjectPassportPanel from \"@/components/experience/MarketObjectPassportPanel\";
+import { selectMarketObjectPassport } from \"@/lib/marketData/viewModels/selectMarketObjectPassport\";
+import DecisionWhyPanel from \"@/components/experience/DecisionWhyPanel\";
+import MarketCanvasPanel from \"@/components/experience/MarketCanvasPanel\";
+import CanvasSummaryPill from \"@/components/experience/CanvasSummaryPill\";
+import { composeMarketCanvasVM } from \"@/lib/marketData/viewModels/composeMarketCanvasVM\";
+import DecisionReceiptPanel from \"@/components/experience/DecisionReceiptPanel\";
+import { selectDecisionReceipt } from \"@/lib/traderMemory/viewModels/selectDecisionReceipt\";
+import ExperienceModeBar from \"@/components/experience/ExperienceModeBar\";
+import { useDecisionContext } from \"@/lib/experience/useDecisionContext\";
+import { shellEmphasis } from \"@/lib/experience/shellLayout\";
+import { routeQuestion } from \"@/lib/experience/questionRouter\";
+import { selectDeckEmphasis, surfaceOrder } from \"@/lib/experience/selectDeckEmphasis\";
+import { inferJobMode } from \"@/lib/experience/inferJobMode\";
+import { selectJobSuggestion } from \"@/lib/experience/selectJobSuggestion\";
+import { selectCompletionState } from \"@/lib/experience/selectCompletionState\";
+import { deriveCompletionSignals } from \"@/lib/experience/deriveCompletionSignals\";
+import { composeExitRamp } from \"@/lib/experience/composeExitRamp\";
+import ExitRampCard from \"@/components/experience/ExitRampCard\";
+import { useLearningGenomeBundle } from \"@/lib/learningGenome/useLearningGenomeBundle\";
+import { LearningGenomeInspector } from \"@/components/learningGenome/LearningGenomeInspector\";
+import ProviderWireStrip from \"@/components/marketData/ProviderWireStrip\";
+
+ 
+
+type CommandPhase = TradePhase;
+
+const PHASES: readonly { id: CommandPhase; label: string }[] = [
+  { id: \"PREPARATION\", label: \"Prep\" },
+  { id: \"APPROACH\", label: \"Approach\" },
+  { id: \"DECISION\", label: \"Decide\" },
+  { id: \"POSITION\", label: \"In Trade\" },
+  { id: \"POST_EXIT\", label: \"Post-Exit\" },
+  { id: \"REVIEW\", label: \"Review\" },
+];
+
+ 
+const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [\"ONE_STORY\"];
+
+export default function CommandDeckPage() {
+  
+  
+  
+  return (
+    <React.Suspense fallback={<div style={{ minHeight: \"100vh\", background: \"linear-gradient(180deg, #050506 0%, #0b0b0d 100%)\" }} />}>
+      <CommandDeckInner />
+    </React.Suspense>
+  );
+}
+
+function CommandDeckInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { activeSymbol, setActiveSymbol } = useActiveSymbol();
+  
+  
+  
+  const urlSymbol = searchParams?.get(\"symbol\");
+  const urlTf = searchParams?.get(\"tf\");
+  const symbol = (urlSymbol || activeSymbol || \"TSLA\").toUpperCase();
+  const timeframe = (urlTf || \"15m\").toLowerCase();
+  React.useEffect(() => {
+    
+    
+    
+    if (urlSymbol && urlSymbol.toUpperCase() !== activeSymbol) {
+      setActiveSymbol(urlSymbol.toUpperCase());
+    }
+  }, [urlSymbol, activeSymbol, setActiveSymbol]);
+  const [phase, setPhase] = React.useState<CommandPhase>(\"PREPARATION\");
+  const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
+  const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
+  const [proofChainOpen, setProofChainOpen] = React.useState(false);
+
+  
+  
+  
+  
+  const { context: experienceContext, setMode: setExperienceMode } = useDecisionContext();
+  const experienceEmphasis = shellEmphasis(experienceContext.mode);
+
+  
+  
+  
+  
+  
+  const identity = React.useMemo(
+    () => canonicalMarketStateIdentity({ symbol, timeframe, extHours: false }),
+    [symbol, timeframe],
+  );
+
+  
+  
+  
+  
+  const wsFeed = useWebSocket({ symbol, timeframe });
+  
+  
+  
+  
+  const sessionOpen = useProvenSessionClosure(symbol);
+  usePublishChartMarketState({
+    symbol,
+    timeframe,
+    session: identity.session,
+    ticker: wsFeed.ticker,
+    recentTicks: wsFeed.recentTicks,
+    source: wsFeed.source,
+    connected: wsFeed.connected,
+  });
+
+  const state = useCanonicalMarketState(identity);
+  const history = useCanonicalMarketStateHistory(identity, 6);
+  
+  
+  
+  
+  
+  
+  const nowMs = useCanvasClock() ?? Date.now();
+  const storeDecisions = useDecisionMemory(user?.id ?? null);
+  const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
+  const journalDecisions = useJournalSnapshots(user?.id ?? null);
+  const sessionDecisions = React.useMemo(
+    () => {
+      const ids = new Set(storeDecisions.map((d) => d.decisionId));
+      return [...storeDecisions, ...journalDecisions.filter((d) => !ids.has(d.decisionId))];
+    },
+    [storeDecisions, journalDecisions],
+  );
+  const personalEdgeVm = React.useMemo(
+    () =>
+      selectPersonalEdge({
+        ownerId: user?.id ?? \"\",
+        decisions: sessionDecisions,
+        nowMs,
+      }),
+    [user?.id, sessionDecisions, nowMs],
+  );
+
+  const chainVm = React.useMemo(() => {
+    if (!state) return null;
+    return selectDecisionChain({
+      state,
+      history,
+      nowMs,
+      phase,
+    });
+  }, [state, history, phase, nowMs]);
+
+  const athos = React.useMemo(() => {
+    const momentMap: Record<CommandPhase, ATHOSIntervention[\"moment\"]> = {
+      PREPARATION: \"IDLE\",
+      APPROACH: \"PRE_ENTRY\",
+      DECISION: \"AT_ENTRY_TRIGGER\",
+      POSITION: \"IN_POSITION\",
+      POST_EXIT: \"POST_EXIT\",
+      REVIEW: \"SESSION_REVIEW\",
+    };
+    return selectATHOSIntervention({
+      ownerId: user?.id ?? \"\",
+      sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+      nowMs,
+      moment: momentMap[phase],
+      sessionDecisions,
+      marketState: state ?? undefined,
+      dlar: chainVm?.dlar ?? null,
+      clc: chainVm?.clc ?? null,
+    });
+  }, [phase, user?.id, state, chainVm, sessionDecisions, nowMs]);
+
+  
+  
+  
+  
+  
+  
+  
+  const canvasCompilation = React.useMemo(
+    () =>
+      composeMarketCanvasVM({
+        state: state ?? null,
+        history,
+        sessionDecisions,
+        ownerId: user?.id ?? \"\",
+        nowMs,
+        chain: chainVm ?? null,
+      }),
+    [state, history, sessionDecisions, user?.id, chainVm, nowMs],
+  );
+  const permission = canvasCompilation.permission;
+  const oneStory = canvasCompilation.oneStory;
+  const decisionWhy = canvasCompilation.decisionWhy;
+  const marketCanvas = canvasCompilation.canvas;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  const sessionClockDate = useSessionClockDate();
+  const sceneInput = React.useMemo(() => {
+    const debt = computeSceneEvidenceDebt(chainVm?.nodes);
+    const row = computeSceneRightOfWay(permission, debt);
+        return deckSceneSignals({ session: identity.session, rightOfWay: row.value });
+  }, [chainVm?.nodes, permission, symbol, sessionClockDate]);
+  const sceneCompilation = React.useMemo(
+    () => compileScene(sceneInput.signals),
+    [sceneInput],
+  );
+
+  
+  
+  
+  const experienceQuestion = routeQuestion(experienceContext.mode, oneStory);
+
+  
+  
+  
+  
+  const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
+
+  
+  
+  
+
+  
+  
+  
+  
+  
+  const latestDecisionRecord = React.useMemo(() => {
+    if (decisionRecords.length === 0) return null;
+    return decisionRecords.reduce((latest, r) =>
+      r.frozen.capturedAt > latest.frozen.capturedAt ? r : latest,
+    );
+  }, [decisionRecords]);
+  const decisionReceipt = React.useMemo(
+    () => selectDecisionReceipt(latestDecisionRecord),
+    [latestDecisionRecord],
+  );
+
+  
+  
+  
+  
+  const learningGenome = useLearningGenomeBundle();
+
+  
+  
+  
+  const jobInference = React.useMemo(() => {
+    const hasOpenPosition = decisionRecords.some(
+      (r) => (r.plan.action === \"ENTER_LONG\" || r.plan.action === \"ENTER_SHORT\") && !r.outcome,
+    );
+    const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
+    return inferJobMode({
+      hasOpenPosition,
+      hasUnreviewedClose,
+      decision: oneStory.decision.value,
+      hasResolvedMarketState: passport.resolvedCount > 0,
+    });
+  }, [decisionRecords, oneStory, passport]);
+  
+  
+  
+  
+  const jobSuggestion = selectJobSuggestion(jobInference, experienceContext.mode);
+
+  
+  
+  
+  
+  
+  
+  const deckEmphasis = React.useMemo(
+    () =>
+      selectDeckEmphasis(experienceContext.mode, {
+        hasUnresolvedContradiction: oneStory.contradiction != null,
+        hasSealedReceipt: !decisionReceipt.empty,
+      }),
+    [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
+  );
+  React.useEffect(() => {
+    
+    
+    
+    
+    
+    setProofChainOpen(deckEmphasis.emphasizeWhy);
+  }, [deckEmphasis.emphasizeWhy, experienceContext.mode]);
+
+  
+  
+  
+  
+  
+  const exitRamp = React.useMemo(() => {
+    const signals = deriveCompletionSignals({
+      mode: experienceContext.mode,
+      decisionRecords,
+      resolvedObjectCount: passport.resolvedCount,
+      receiptEmpty: decisionReceipt.empty,
+      decision: oneStory.decision.value,
+    });
+    const assessment = selectCompletionState(signals);
+    const done: string[] = [];
+    if (!decisionReceipt.empty) done.push(\"Decision receipt sealed\");
+    if (passport.resolvedCount > 0) done.push(`${passport.resolvedCount} market object(s) resolved`);
+    const saved: string[] = [];
+    if (decisionRecords.length > 0) saved.push(`${decisionRecords.length} decision record(s) preserved`);
+    return composeExitRamp({ assessment, done, saved, returnCondition: signals.returnCondition });
+  }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value]);
+
+  const openWhy = (t: WhyTarget) => {
+    setWhyTarget(t);
+    setShowEvidence(true);
+  };
+
+  return (
+    <div style={{ minHeight: \"100vh\", background: \"linear-gradient(180deg, #050506 0%, #0b0b0d 100%)\", color: \"#ede6d3\" }}>
+      { }
+      <header
+        className=\"wm-cd-header\"
+        style={{
+          borderBottom: \"1px solid rgba(139,106,41,0.35)\",
+          padding: \"12px 24px\",
+          display: \"flex\",
+          alignItems: \"center\",
+          gap: 16,
+          background: \"rgba(11,11,13,0.85)\",
+          backdropFilter: \"blur(8px)\",
+          position: \"sticky\",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        <button
+          className=\"wm-cd-header-back\"
+          onClick={() => router.push(\"/charts\")}
+          aria-label=\"Back to charts\"
+          style={{
+            display: \"flex\",
+            alignItems: \"center\",
+            gap: 6,
+            fontSize: 11,
+            letterSpacing: 0.3,
+            textTransform: \"uppercase\",
+            color: \"#8a8271\",
+            background: \"transparent\",
+            border: \"none\",
+            cursor: \"pointer\",
+            minHeight: 44,
+            padding: \"0 10px\",
+          }}
+        >
+          <ArrowLeft size={12} />
+          Charts
+        </button>
+        <h1
+          className=\"wm-cd-header-identity\"
+          style={{
+            margin: 0,
+            minWidth: 0,
+            fontSize: 11,
+            letterSpacing: 0.6,
+            textTransform: \"uppercase\",
+            color: \"#c9a55c\",
+            fontWeight: 800,
+            whiteSpace: \"nowrap\",
+          }}
+        >
+          Command Deck
+        </h1>
+        { }
+        <CanvasSummaryPill
+          vm={marketCanvas}
+          ariaLabel=\"Deck canvas summary — jump to Market Canvas\"
+          scrollToSelector='[data-testid=\"market-canvas-panel\"]'
+        />
+        <div className=\"wm-cd-header-actions\" style={{ marginLeft: \"auto\", display: \"flex\", alignItems: \"center\", gap: 6 }}>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: \"hero\" }))}
+            aria-label={showEvidence ? \"Hide evidence inspector\" : \"Show evidence inspector\"}
+            aria-pressed={showEvidence}
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: showEvidence ? \"#d4af37\" : \"#8a8271\",
+              background: showEvidence ? \"rgba(212,175,55,0.1)\" : \"transparent\",
+              border: showEvidence ? \"1px solid #d4af3760\" : \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+              fontWeight: 700,
+            }}
+          >
+            Why?
+          </button>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => router.push(\"/profile?tab=growth\")}
+            aria-label=\"Open Growth on your Profile\"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#8a8271\",
+              background: \"transparent\",
+              border: \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+            }}
+          >
+            Growth →
+          </button>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => router.push(\"/journal\")}
+            aria-label=\"Open Journal\"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#8a8271\",
+              background: \"transparent\",
+              border: \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+            }}
+          >
+            Journal →
+          </button>
+        </div>
+      </header>
+
+      { }
+      <div
+        className=\"wm-cd-mode-band\"
+        style={{
+          maxWidth: 1280,
+          margin: \"0 auto\",
+          padding: \"10px 16px 0\",
+          display: \"flex\",
+          flexDirection: \"column\",
+          gap: 6,
+        }}
+      >
+        { }
+        <div style={{ display: \"flex\", alignItems: \"center\", gap: 14, flexWrap: \"wrap\" }}>
+          <div style={{ flex: \"1 1 260px\", minWidth: 240 }}>
+            <ExperienceModeBar />
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              letterSpacing: 0.3,
+              color: \"#8a7a52\",
+              whiteSpace: \"nowrap\",
+              textTransform: \"uppercase\",
+            }}
+          >
+            {experienceEmphasis.job}
+          </div>
+        </div>
+        { }
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: 1.35,
+            color: \"#c9a55c\",
+            fontStyle: \"italic\",
+          }}
+        >
+          {experienceQuestion}
+        </div>
+        { }
+        {jobSuggestion.strength !== \"NONE\" && jobSuggestion.inference && (() => {
+          const sug = jobSuggestion.inference;
+          const hint = jobSuggestion.strength === \"HINT\";
+          return (
+            <button
+              type=\"button\"
+              onClick={() => setExperienceMode(sug.suggested)}
+              title={sug.reason}
+              style={{
+                marginTop: 6,
+                alignSelf: \"flex-start\",
+                display: \"inline-flex\",
+                alignItems: \"baseline\",
+                gap: 6,
+                background: \"transparent\",
+                border: hint
+                  ? \"1px dashed rgba(138,130,113,0.35)\"
+                  : \"1px solid rgba(212,175,55,0.35)\",
+                borderRadius: 999,
+                padding: \"3px 10px\",
+                cursor: \"pointer\",
+                fontSize: 10,
+                letterSpacing: 0.4,
+                color: \"#c9a55c\",
+                textTransform: \"uppercase\",
+                opacity: hint ? 0.72 : 1,
+              }}
+            >
+              <span style={{ color: \"#8a8271\" }}>{hint ? \"Possibly →\" : \"Suggested job →\"}</span>
+              <span style={{ color: hint ? \"#c9a55c\" : \"#d4af37\", fontWeight: 600 }}>
+                {sug.suggested}
+              </span>
+              <span style={{ color: \"#8a8271\", textTransform: \"none\", letterSpacing: 0.2 }}>
+                {sug.reason}
+              </span>
+            </button>
+          );
+        })()}
+      </div>
+
+      <main style={{ maxWidth: 1280, margin: \"0 auto\", padding: \"24px 16px\", position: \"relative\" }}>
+        <div style={{ position: \"relative\", zIndex: 1 }}>
+          { }
+          <style>{`
+            .wm-cd-header-action { min-height: 44px !important; }
+            .wm-cd-header-action:focus-visible,
+            .wm-cd-header-back:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history { min-width: 0; }
+            .wm-cd-chapter-history > summary {
+              min-height: 44px;
+              min-width: 0;
+              display: flex;
+              align-items: center;
+              padding: 10px 12px;
+              border: 1px solid rgba(212, 175, 55, 0.2);
+              border-radius: 10px;
+              color: #c9a55c;
+              cursor: pointer;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+              overflow-wrap: anywhere;
+            }
+            .wm-cd-chapter-history > summary:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history-content {
+              min-width: 0;
+              overflow-x: auto;
+              overscroll-behavior-x: contain;
+              padding-top: 12px;
+            }
+            .wm-cd-chapter-history:not([open]) > .wm-cd-chapter-history-content {
+              display: none;
+            }
+            @media (max-width: 640px) {
+              .wm-cd-header {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 8px 12px !important;
+              }
+              .wm-cd-header-back { padding-inline: 6px !important; }
+              .wm-cd-header-identity { flex: 1 1 auto; gap: 6px !important; }
+              .wm-cd-header-actions {
+                flex: 0 0 100%;
+                margin-left: 0 !important;
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px !important;
+              }
+              .wm-cd-header-action {
+                width: 100%;
+                padding-inline: 8px !important;
+              }
+            }
+            @media (max-width: 900px) {
+              .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
+              .wm-cd-why-column { position: static !important; }
+            }
+          `}</style>
+        { }
+        <div
+          className=\"wm-cd-layout\"
+          style={{
+            display: \"grid\",
+            gridTemplateColumns: showEvidence && whyTarget ? \"minmax(0, 1fr) 380px\" : \"minmax(0, 1fr)\",
+            gap: 20,
+            alignItems: \"start\",
+          }}
+        >
+          { }
+          <div style={{ display: \"flex\", flexDirection: \"column\", gap: 20, minWidth: 0 }}>
+            { }
+            {(() => {
+              const story = state ? selectMarketStory(state, history) : null;
+              return (
+                <button
+                  type=\"button\"
+                  onClick={() => openWhy({ kind: \"hero\" })}
+                  aria-label=\"Explain hero truth\"
+                  style={{ padding: 0, background: \"transparent\", border: \"none\", cursor: \"pointer\", textAlign: \"left\", display: \"block\", width: \"100%\" }}
+                >
+                  <HeroTruth
+                    symbol={symbol}
+                    timeframe={timeframe}
+                    state={state}
+                    marketState={story?.current?.chapter ?? (story ? \"UNKNOWN\" : null)}
+                    marketStateResolution={story?.resolution ?? undefined}
+                  />
+                </button>
+              );
+            })()}
+
+            { }
+            <TodayPrepBridge userId={user?.id ?? null} />
+
+            { }
+            <div
+              aria-live=\"polite\"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                textTransform: \"uppercase\",
+                color: \"#8a8271\",
+                display: \"flex\",
+                gap: 6,
+                alignItems: \"baseline\",
+                marginBottom: -8,
+              }}
+            >
+              <span style={{ color: \"#c9a55c\" }}>Layout</span>
+              <span style={{ textTransform: \"none\", letterSpacing: 0 }}>
+                {deckEmphasis.rationale}
+                {deckEmphasis.refinementNote && (
+                  
+                  
+                  
+                  <span style={{ color: \"#c9a55c\" }}> · {deckEmphasis.refinementNote}</span>
+                )}
+              </span>
+            </div>
+
+            { }
+            <div style={{ display: \"flex\", flexDirection: \"column\", gap: 20 }}>
+              { }
+              <SceneAdmits compilation={sceneCompilation} element=\"ONE_STORY\">
+                <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                  <OneStoryStrip vm={oneStory} />
+                </div>
+              </SceneAdmits>
+
+              { }
+              <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                <SceneAdmissionPanel
+                  compilation={sceneCompilation}
+                  provenance={sceneInput.provenance}
+                  observedCount={sceneInput.observedCount}
+                  totalCount={sceneInput.totalCount}
+                  governed={DECK_GOVERNED_ELEMENTS}
+                />
+              </div>
+
+              { }
+              <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                <ExitRampCard ramp={exitRamp} />
+              </div>
+
+              { }
+              <details
+                key={`evidence-${experienceContext.mode}`}
+                className=\"wm-cd-evidence-drawer\"
+                open={proofChainOpen}
+                onToggle={event => setProofChainOpen(event.currentTarget.open)}
+                style={{
+                  order: surfaceOrder(deckEmphasis, \"WHY\"),
+                  border: \"1px solid rgba(139,106,41,0.28)\",
+                  borderRadius: 12,
+                  background: \"rgba(10,12,18,0.72)\",
+                  overflow: \"hidden\",
+                }}
+              >
+                <summary
+                  style={{
+                    minHeight: 54,
+                    padding: \"0 16px\",
+                    cursor: \"pointer\",
+                    display: \"flex\",
+                    alignItems: \"center\",
+                    justifyContent: \"space-between\",
+                    gap: 12,
+                    color: \"#d7d9e2\",
+                    fontSize: 12,
+                    fontWeight: 750,
+                    listStyle: \"none\",
+                  }}
+                >
+                  <span>Evidence &amp; reasoning</span>
+                  <span style={{ color: \"#8a8271\", fontSize: 10, fontWeight: 500 }}>
+                    Open the proof chain
+                  </span>
+                </summary>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 16, padding: \"0 16px 16px\" }}>
+                  { }
+                  <div style={{ order: surfaceOrder(deckEmphasis, \"WHY\") }}>
+                    <DecisionWhyPanel vm={decisionWhy} />
+                  </div>
+
+              { }
+                  <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                    <MarketCanvasPanel vm={marketCanvas} />
+                  </div>
+
+              { }
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, \"PASSPORT\") }}
+                    open={deckEmphasis.passportOpen}
+                  >
+                <summary
+                  style={{
+                    cursor: \"pointer\",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: \"#c9a55c\",
+                    textTransform: \"uppercase\",
+                    padding: \"4px 0\",
+                  }}
+                >
+                  Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <MarketObjectPassportPanel vm={passport} />
+                </div>
+                  </details>
+
+              { }
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, \"RECEIPT\") }}
+                    open={deckEmphasis.receiptOpen}
+                  >
+                <summary
+                  style={{
+                    cursor: \"pointer\",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: \"#c9a55c\",
+                    textTransform: \"uppercase\",
+                    padding: \"4px 0\",
+                  }}
+                >
+                  Decision Receipt ·{\" \"}
+                  {decisionReceipt.empty
+                    ? \"none sealed\"
+                    : `${decisionReceipt.stage.toLowerCase()}`}
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <DecisionReceiptPanel vm={decisionReceipt} />
+                </div>
+                  </details>
+                </div>
+              </details>
+              { }
+              { }
+              <SceneAdmitsAmbient compilation={sceneCompilation}>
+                {(experienceContext.mode === \"REVIEW\" || experienceContext.mode === \"LEARN\") &&
+                learningGenome &&
+                learningGenome.genome.headlineWeakness ? (
+                  <details style={{ marginTop: 8 }}>
+                    <summary
+                      style={{
+                        cursor: \"pointer\",
+                        fontSize: 10,
+                        letterSpacing: 0.6,
+                        color: \"#c9a55c\",
+                        textTransform: \"uppercase\",
+                        padding: \"4px 0\",
+                      }}
+                    >
+                      Learning Genome ·{\" \"}
+                      {learningGenome.drill ? learningGenome.drill.stage.toLowerCase() : \"diagnostic\"}
+                    </summary>
+                    <div style={{ marginTop: 6 }}>
+                      <LearningGenomeInspector
+                        genome={learningGenome.genome}
+                        drill={learningGenome.drill}
+                        misread={learningGenome.misread}
+                        trend={learningGenome.trend}
+                        focusStreak={learningGenome.focus_streak}
+                        ruleAdherenceStreak={learningGenome.rule_adherence_streak}
+                        dayModelCoverage={learningGenome.day_model_coverage}
+                        dualSideGuard={learningGenome.dual_side_guard}
+                        weekMaturity={learningGenome.week_maturity}
+                      />
+                    </div>
+                  </details>
+                ) : null}
+              </SceneAdmitsAmbient>
+            </div>
+
+            { }
+            <details className=\"wm-cd-connection-diagnostics\">
+              <summary
+                style={{
+                  minHeight: 44,
+                  cursor: \"pointer\",
+                  display: \"flex\",
+                  alignItems: \"center\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#8a8271\",
+                  textTransform: \"uppercase\",
+                  padding: \"4px 0\",
+                }}
+              >
+                Connections · provider readiness
+              </summary>
+              <ProviderWireStrip compact />
+            </details>
+
+            { }
+            <details>
+              <summary
+                style={{
+                  cursor: \"pointer\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#8a8271\",
+                  textTransform: \"uppercase\",
+                  padding: \"4px 0\",
+                }}
+              >
+                System state · session · data · evidence · right-of-way
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                <CommandContextRibbon
+                  symbol={symbol}
+                  session={identity.session}
+                  state={state}
+                  wsConnected={wsFeed.connected}
+                  wsSource={wsFeed.source ?? null}
+                  availableR={chainVm?.availableR ?? null}
+                  permission={permission}
+                  chainNodes={chainVm?.nodes}
+                />
+              </div>
+            </details>
+
+            { }
+            {(() => {
+              const bookLevels =
+                (wsFeed.orderBook?.bids?.length ?? 0) +
+                (wsFeed.orderBook?.asks?.length ?? 0);
+              
+              
+              
+              
+              
+              const aggressorFlow = wsFeed.connected
+                ? selectAggressorFlow(wsFeed.recentTicks)
+                : null;
+              const orderFlowDerived =
+                aggressorFlow != null && aggressorFlow.hasFlow ? true : undefined;
+              const capabilityReport = selectPerCapabilityFidelity({
+                source: wsFeed.source ?? \"unavailable\",
+                connected: wsFeed.connected,
+                hasCandles: !!state,
+                
+                
+                
+                sessionOpen,
+                
+                tapeConnected: !wsFeed.connected
+                  ? undefined
+                  : (wsFeed.recentTicks?.length ?? 0) > 0,
+                orderFlowDerived,
+                
+                
+                
+                
+                
+                
+                depthSubscribed: bookLevels > 0 ? true : undefined,
+              });
+              const evaluated = evaluatedCapabilityCount(capabilityReport);
+              const weakest = weakestCapability(capabilityReport);
+              const strongest = strongestCapability(capabilityReport);
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <SemanticZoom
+                    ariaLabel=\"Data fidelity per capability\"
+                    levels={{
+                      1: (
+                        <div className=\"text-[10px]\" style={{ color: \"#8B92AC\", padding: \"4px 2px\" }}>
+                          {evaluated === 0 ? (
+                            <span className=\"italic\">Fidelity not yet evaluated</span>
+                          ) : weakest && strongest && weakest.capability === strongest.capability ? (
+                            <span>
+                              <span style={{ color: \"#F0B429\", fontWeight: 700, letterSpacing: \"0.05em\", textTransform: \"uppercase\" }}>
+                                Data
+                              </span>{\" · \"}
+                              <span>{evaluated} / 7 capabilities · {strongest.label}</span>
+                            </span>
+                          ) : weakest && strongest ? (
+                            <span>
+                              <span style={{ color: \"#F0B429\", fontWeight: 700, letterSpacing: \"0.05em\", textTransform: \"uppercase\" }}>
+                                Data
+                              </span>{\" · \"}
+                              <span>{evaluated} / 7 capabilities · strongest {strongest.capability} = {strongest.label}</span>
+                              {weakest.label !== strongest.label && (
+                                <span> · weakest {weakest.capability} = {weakest.label}</span>
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
+                      ),
+                      2: (
+                        <div style={{ padding: \"6px 2px\", display: \"flex\", flexDirection: \"column\", gap: 4 }}>
+                          {evaluated === 0 ? (
+                            <span className=\"text-[11px] italic\" style={{ color: \"#8B92AC\" }}>
+                              No capabilities evaluated yet — nothing to summarise (canon §Silence Is A Feature).
+                            </span>
+                          ) : (
+                            <>
+                              <div className=\"text-[11px]\" style={{ color: \"#E4E7EF\", fontWeight: 600 }}>
+                                {weakest && strongest && weakest.capability !== strongest.capability
+                                  ? `Weakest: ${weakest.capability} — ${weakest.label}`
+                                  : `All evaluated capabilities: ${strongest?.label ?? \"—\"}`}
+                              </div>
+                              <div className=\"text-[10px]\" style={{ color: \"#8B92AC\" }}>
+                                {evaluated} of 7 capabilities evaluated
+                                {strongest && weakest && weakest.capability !== strongest.capability
+                                  ? ` · strongest: ${strongest.capability} — ${strongest.label}`
+                                  : \"\"}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ),
+                      3: (
+                        <PerCapabilityFidelityGrid
+                          symbol={symbol}
+                          showUnevaluated
+                          report={capabilityReport}
+                        />
+                      ),
+                    }}
+                  />
+                </div>
+              );
+            })()}
+
+            { }
+            <div
+              role=\"tablist\"
+              aria-label=\"Trade phase\"
+              style={{ display: \"flex\", gap: 6, flexWrap: \"wrap\" }}
+            >
+              {PHASES.map((p) => (
+                <button
+                  key={p.id}
+                  type=\"button\"
+                  role=\"tab\"
+                  aria-selected={phase === p.id}
+                  aria-pressed={phase === p.id}
+                  aria-label={`Phase: ${p.label}${phase === p.id ? \" (selected)\" : \"\"}`}
+                  onClick={() => setPhase(p.id)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: \"10px 14px\",
+                    minHeight: 44,
+                    minWidth: 44,
+                    borderRadius: 6,
+                    cursor: \"pointer\",
+                    border: phase === p.id ? \"1px solid #d4af37\" : \"1px solid rgba(139,106,41,0.35)\",
+                    background: phase === p.id ? \"rgba(212,175,55,0.12)\" : \"transparent\",
+                    color: phase === p.id ? \"#ede6d3\" : \"#8a8271\",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            { }
+            {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
+
+            { }
+            {!state && (
+              <div
+                role=\"status\"
+                aria-label=\"Command Deck sections waiting for canonical market state\"
+                style={{
+                  border: \"1px dashed rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  padding: 20,
+                  background: \"rgba(11,11,13,0.5)\",
+                }}
+              >
+                <div style={{ display: \"flex\", alignItems: \"baseline\", gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontFamily: \"Georgia, 'Times New Roman', serif\", fontSize: 13, letterSpacing: 0.32, color: \"#c9a55c\", textTransform: \"uppercase\" }}>
+                    Awaiting first observation
+                  </span>
+                  <span style={{ fontSize: 11, color: \"#8a8271\", fontStyle: \"italic\", marginLeft: \"auto\" }}>
+                    {symbol} · deck is subscribed — chapters populate as evidence arrives
+                  </span>
+                </div>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 8 }}>
+                  {[
+                    { n: 1, label: \"Story Ribbon · Market Narrative\" },
+                    { n: 2, label: \"Direction · Location · Aggression · Response\" },
+                    { n: 3, label: \"Decision Chain (Regime → Management)\" },
+                    { n: 4, label: \"Steward Rules Verdict\" },
+                    { n: 5, label: \"Data Fidelity · Market Evidence\" },
+                  ].map((row) => (
+                    <div
+                      key={row.n}
+                      style={{
+                        display: \"flex\",
+                        alignItems: \"baseline\",
+                        gap: 12,
+                        padding: \"8px 12px\",
+                        borderLeft: \"2px solid rgba(139,106,41,0.25)\",
+                        fontSize: 11,
+                        color: \"#8a8271\",
+                      }}
+                    >
+                      <span style={{ fontFamily: \"Georgia, serif\", fontSize: 14, color: \"#c9a55c\", minWidth: 18 }}>{row.n}</span>
+                      <span style={{ fontFamily: \"Georgia, 'Times New Roman', serif\", fontSize: 12, color: \"#c0b8a0\", letterSpacing: 0.2 }}>{row.label}</span>
+                      <span style={{ marginLeft: \"auto\", fontSize: 9, color: \"#55503f\", letterSpacing: 0.4, textTransform: \"uppercase\" }}>waiting</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, textAlign: \"center\" }}>
+                  <a
+                    href=\"/charts\"
+                    style={{
+                      display: \"inline-block\",
+                      padding: \"10px 18px\",
+                      borderRadius: 6,
+                      background: \"rgba(212,175,55,0.12)\",
+                      border: \"1px solid #d4af37\",
+                      color: \"#d4af37\",
+                      fontFamily: \"Georgia, 'Times New Roman', serif\",
+                      fontSize: 12,
+                      letterSpacing: 0.32,
+                      textTransform: \"uppercase\",
+                      textDecoration: \"none\",
+                    }}
+                  >
+                    Open Charts →
+                  </a>
+                </div>
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+            <details open={deckEmphasis.deepSectionsOpen}>
+              <summary
+                style={{
+                  cursor: \"pointer\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#c9a55c\",
+                  textTransform: \"uppercase\",
+                  padding: \"6px 0\",
+                }}
+              >
+                Deep read · story · auction lens · decision chain · steward · fidelity
+              </summary>
+            { }
+            <details className=\"wm-cd-chapter-history\">
+              <summary>Market chapter history</summary>
+              <div className=\"wm-cd-chapter-history-content\">
+                <StoryRibbon state={state} history={history} />
+              </div>
+            </details>
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={2} label=\"Direction · Location · Aggression · Response\" tagline=\"the auction lens\" />
+                <div style={{ height: 12 }} />
+                <DLARStrip
+                  dlar={chainVm.dlar}
+                  onDrillClick={(dim: DLARDimensionKey) => openWhy({ kind: \"dlar\", dim })}
+                />
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={3} label=\"Decision Chain\" tagline=\"regime → management\" />
+                <div style={{ height: 12 }} />
+              <DecisionChainPanel
+                vm={chainVm}
+                showNarratives
+                onNodeClick={(node) => {
+                  if (node.key === \"regime\" || node.key === \"direction\" || node.key === \"location\" || node.key === \"aggression\") {
+                    
+                    openWhy({ kind: \"dlar\", dim: (node.key === \"regime\" ? \"direction\" : node.key) as \"direction\" | \"location\" | \"aggression\" });
+                  } else if (node.key === \"clc\") {
+                    openWhy({ kind: \"clc\", leg: \"confirmation\" });
+                  } else {
+                    openWhy({ kind: \"hero\" });
+                  }
+                }}
+              />
+              </div>
+            )}
+
+            { }
+            {chainVm && <StructureContextNote vm={chainVm} />}
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={4} label=\"Steward · Rules Verdict\" tagline=\"informs, never gates\" />
+                <div style={{ height: 12 }} />
+              <div
+                style={{
+                  border: \"1px solid rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  background: \"rgba(11,11,13,0.9)\",
+                  padding: 16,
+                }}
+              >
+                <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 800, marginBottom: 8 }}>
+                  Steward Rules · {permission.verdict}
+                </div>
+                <div style={{ fontSize: 13, color: \"#ede6d3\", lineHeight: 1.5 }}>
+                  {permission.headline}
+                </div>
+                <div style={{ fontSize: 11, color: \"#8a8271\", lineHeight: 1.5, marginTop: 6 }}>
+                  {permission.reason}
+                </div>
+                <div style={{ fontSize: 10, color: \"#55503f\", marginTop: 8, letterSpacing: 0.3 }}>
+                  {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
+                </div>
+                { }
+                {permission.engagedRules.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: \"1px solid rgba(139,106,41,0.15)\", display: \"flex\", flexDirection: \"column\", gap: 6 }}>
+                    {permission.engagedRules.map((r, i) => (
+                      <div
+                        key={`${r.rule.label}-${i}`}
+                        style={{
+                          display: \"flex\",
+                          gap: 8,
+                          alignItems: \"baseline\",
+                          padding: \"4px 8px\",
+                          borderLeft: `2px solid ${r.rule.kind === \"HARD\" ? \"#c05a4a\" : \"#c9a55c\"}`,
+                          background: \"rgba(19,19,23,0.5)\",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 9,
+                            letterSpacing: 0.3,
+                            textTransform: \"uppercase\",
+                            color: r.rule.kind === \"HARD\" ? \"#c05a4a\" : \"#c9a55c\",
+                            fontWeight: 700,
+                            minWidth: 32,
+                          }}
+                        >
+                          {r.rule.kind}
+                        </span>
+                        <span style={{ fontSize: 11, color: \"#ede6d3\", fontWeight: 600 }}>
+                          {r.rule.label}
+                        </span>
+                        <span style={{ fontSize: 11, color: \"#8a8271\", flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+                          {r.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              </div>
+            )}
+
+            { }
+            {state && (
+              <div>
+                <SectionBanner number={5} label=\"Data Fidelity · Market Evidence\" tagline=\"what did WM actually witness\" />
+                <div style={{ height: 12 }} />
+              <div
+                style={{
+                  border: \"1px solid rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  background: \"rgba(11,11,13,0.9)\",
+                  padding: 16,
+                }}
+              >
+                <div style={{ display: \"flex\", alignItems: \"center\", gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 800 }}>
+                    Data Fidelity
+                  </span>
+                  <span style={{ fontSize: 10, color: \"#8a8271\", marginLeft: \"auto\" }}>
+                    {state.qualityState}
+                  </span>
+                </div>
+                <div style={{ display: \"grid\", gridTemplateColumns: \"repeat(auto-fit, minmax(100px, 1fr))\", gap: 10 }}>
+                  <Stat label=\"Coverage\" value={`${state.coverage.length} ch`} />
+                  <Stat label=\"Unknowns\" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? \"watch\" : \"ok\"} />
+                  <Stat label=\"Contradictions\" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? \"warn\" : \"ok\"} />
+                </div>
+
+                { }
+                {state.coverage.length > 0 && (() => {
+                  const observedFroms = state.coverage.map((c) => c.observedFrom).filter((n): n is number => typeof n === \"number\");
+                  const lastEvents = state.coverage.map((c) => c.lastEventAt).filter((n): n is number => typeof n === \"number\");
+                  const totalEvents = state.coverage.reduce((s, c) => s + (c.observedEventCount ?? 0), 0);
+                  const gapTotal = state.coverage.reduce((s, c) => s + (c.gapCount ?? 0), 0);
+                  const memoryStart = observedFroms.length ? Math.min(...observedFroms) : null;
+                  const lastEvent = lastEvents.length ? Math.max(...lastEvents) : null;
+                  const now = state.capturedAt;
+                  const memoryAgeMs = memoryStart ? Math.max(0, now - memoryStart) : null;
+                  const staleAgeMs = lastEvent ? Math.max(0, now - lastEvent) : null;
+                  const fmtAge = (ms: number | null): string => {
+                    if (ms == null) return \"—\";
+                    if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+                    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+                    if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h`;
+                    return `${(ms / 86_400_000).toFixed(1)}d`;
+                  };
+                  return (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: \"1px solid rgba(139,106,41,0.2)\", display: \"grid\", gridTemplateColumns: \"repeat(auto-fit, minmax(130px, 1fr))\", gap: 10 }}>
+                      <Stat label=\"Memory age\" value={fmtAge(memoryAgeMs)} />
+                      <Stat label=\"Last event\" value={fmtAge(staleAgeMs)} tone={staleAgeMs != null && staleAgeMs > 60_000 ? (staleAgeMs > 300_000 ? \"warn\" : \"watch\") : \"ok\"} />
+                      <Stat label=\"Observed\" value={String(totalEvents)} />
+                      <Stat label=\"Gaps\" value={String(gapTotal)} tone={gapTotal > 0 ? \"watch\" : \"ok\"} />
+                    </div>
+                  );
+                })()}
+              </div>
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+              <ATHOSInterventionPanel
+                interventions={athos.interventions as readonly ATHOSIntervention[]}
+                onDismiss={(id) => console.debug(\"dismissed\", id)}
+              />
+            )}
+            </details>
+            )}
+
+            { }
+            {chainVm && phase === \"PREPARATION\" && (
+              <OpeningBellPanel
+                vm={selectOpeningBell({
+                  ownerId: user?.id ?? \"\",
+                  sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+                  items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false })),
+                  minutesUntilOpen: null,
+                  dataQuality: state?.qualityState,
+                  nowMs,
+                })}
+              />
+            )}
+
+            { }
+            {chainVm && (phase === \"REVIEW\" || phase === \"POST_EXIT\") && (
+              <MirrorPanel
+                vm={selectMirror({
+                  ownerId: user?.id ?? \"\",
+                  decisions: sessionDecisions,
+                  nowMs,
+                })}
+              />
+            )}
+          </div>
+
+          { }
+          {showEvidence && whyTarget && (
+            <aside className=\"wm-cd-why-column\" style={{ position: \"sticky\", top: 80, alignSelf: \"start\" }}>
+              <WhyInspector
+                target={whyTarget}
+                state={state}
+                dlar={chainVm?.dlar ?? null}
+                clc={chainVm?.clc ?? null}
+                onClose={() => setShowEvidence(false)}
+              />
+            </aside>
+          )}
+        </div>
+
+        { }
+        <div
+          style={{
+            paddingTop: 20,
+            marginTop: 32,
+            borderTop: \"1px solid rgba(139,106,41,0.25)\",
+            textAlign: \"center\",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: \"Georgia, 'Times New Roman', serif\",
+              fontSize: 12,
+              letterSpacing: 0.4,
+              color: \"#c9a55c\",
+              marginBottom: 6,
+            }}
+          >
+            OBSERVE TRUTH · PROTECT PROCESS · COMPOUND WISDOM
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#55503f\",
+            }}
+          >
+            Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
+          </div>
+        </div>
+
+        { }
+        <RealmGateway currentKey=\"wm-pro\" />
+        </div>{ }
+      </main>
+    </div>
+  );
+}
+
+ 
+function TodayPrepBridge({ userId }: { userId: string | null }) {
+  const prep = useTodayPrep(userId);
+  if (!prep.hasEntry) return null;
+  return (
+    <div
+      role=\"region\"
+      aria-label=\"Today's morning prep intention\"
+      style={{
+        display: \"flex\",
+        alignItems: \"center\",
+        gap: 12,
+        padding: \"10px 14px\",
+        border: \"1px solid rgba(212,175,55,0.35)\",
+        borderLeft: \"3px solid #d4af37\",
+        borderRadius: 8,
+        background: \"rgba(212,175,55,0.05)\",
+      }}
+    >
+      {prep.mood && (
+        <span style={{ fontSize: 18, lineHeight: 1 }} aria-label={`Mood ${prep.mood}`}>
+          {prep.mood}
+        </span>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 700, marginBottom: 4 }}>
+          Today's intention
+        </div>
+        {prep.routine ? (
+          <div style={{ fontSize: 12, color: \"#ede6d3\", lineHeight: 1.5, overflow: \"hidden\", textOverflow: \"ellipsis\", display: \"-webkit-box\", WebkitLineClamp: 2, WebkitBoxOrient: \"vertical\" }}>
+            {prep.routine}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: \"#8a8271\", fontStyle: \"italic\" }}>
+            Prep saved with no written routine today.
+          </div>
+        )}
+      </div>
+      <div style={{ display: \"flex\", flexDirection: \"column\", alignItems: \"flex-end\", gap: 2 }}>
+        {prep.checklistTotal > 0 && (
+          <div style={{ fontSize: 10, color: \"#c9a55c\", letterSpacing: 0.3 }}>
+            {prep.checklistDone}/{prep.checklistTotal} checked
+          </div>
+        )}
+        <a
+          href=\"/morning-prep\"
+          style={{ fontSize: 9, letterSpacing: 0.3, textTransform: \"uppercase\", color: \"#8a8271\", textDecoration: \"none\" }}
+          aria-label=\"Open Morning Prep\"
+        >
+          Prep →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: \"ok\" | \"watch\" | \"warn\" }) {
+  const color =
+    tone === \"warn\"  ? \"#c05a4a\" :
+    tone === \"watch\" ? \"#c9a55c\" :
+                       \"#ede6d3\";
+  return (
+    <div style={{ padding: \"8px 10px\", borderRadius: 6, background: \"rgba(19,19,23,0.5)\" }}>
+      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#8a8271\", fontWeight: 700 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color, marginTop: 4, fontVariantNumeric: \"tabular-nums\" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:337:21
+    335|   it("BANS passing the store key into the scene adapter", () => {
+    336|     const src = stripComments(DECK_PAGE());
+    337|     expect(src).not.toMatch(/session:\s*identity\.session\s*,\s*rightO…
+       |                     ^
+    338|   });
+    339|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > /command-deck wires the scene from the owner, not the store key > calls selectCanonicalSessionToken and feeds ITS token to the adapter
+AssertionError: expected '"use client";\nimport * as React from…' to match /session:\s*sessionTruth\.token/
+
+- Expected:
+/session:\s*sessionTruth\.token/
+
++ Received:
+"\"use client\";
+import * as React from \"react\";
+import { useRouter, useSearchParams } from \"next/navigation\";
+import { ArrowLeft } from \"lucide-react\";
+import { useActiveSymbol } from \"@/contexts/SymbolContext\";
+import { useAuth } from \"@/contexts/AuthContext\";
+import {
+  useCanonicalMarketState,
+  useCanonicalMarketStateHistory,
+} from \"@/lib/marketData/useCanonicalMarketState\";
+import { useCanvasClock } from \"@/lib/marketData/viewModels/canvasClock\";
+import { usePublishChartMarketState } from \"@/lib/marketData/chartMarketStatePublisher\";
+import {
+  canonicalMarketStateIdentity,
+  selectCanonicalSessionToken,
+} from \"@/lib/marketData/canonicalIdentity\";
+import { useWebSocket } from \"@/hooks/useWebSocket\";
+import {
+  useProvenSessionClosure,
+  useSessionClockDate,
+} from \"@/lib/marketData/useProvenSessionClosure\";
+import { selectDecisionChain, type TradePhase } from \"@/lib/marketData/viewModels/selectDecisionChain\";
+import { selectMarketStory } from \"@/lib/marketData/viewModels/selectMarketStory\";
+import DecisionChainPanel from \"@/components/chart/DecisionChainPanel\";
+import StructureContextNote from \"@/components/chart/StructureContextNote\";
+import StoryRibbon from \"@/components/chart/StoryRibbon\";
+import ATHOSInterventionPanel from \"@/components/athos/ATHOSInterventionPanel\";
+import { selectATHOSIntervention, type ATHOSIntervention } from \"@/lib/traderMemory/viewModels/selectATHOSIntervention\";
+import MirrorPanel from \"@/components/mirror/MirrorPanel\";
+import OpeningBellPanel from \"@/components/opening-bell/OpeningBellPanel\";
+import { selectMirror } from \"@/lib/traderMemory/viewModels/selectMirror\";
+import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from \"@/lib/traderMemory/viewModels/selectOpeningBell\";
+import { useDecisionMemory, useDecisionMemoryRecords } from \"@/lib/traderMemory/useDecisionMemory\";
+import { useJournalSnapshots } from \"@/lib/traderMemory/adapters/useJournalSnapshots\";
+import PersonalEdgeChip from \"@/components/journal/PersonalEdgeChip\";
+import { selectPersonalEdge } from \"@/lib/traderMemory/viewModels/selectPersonalEdge\";
+import HeroTruth from \"@/components/command-deck/HeroTruth\";
+import DLARStrip, { type DLARDimensionKey } from \"@/components/command-deck/DLARStrip\";
+import WhyInspector, { type WhyTarget } from \"@/components/command-deck/WhyInspector\";
+import SectionBanner from \"@/components/brand/SectionBanner\";
+import RealmGateway from \"@/components/brand/RealmGateway\";
+import { useTodayPrep } from \"@/lib/traderMemory/adapters/useTodayPrep\";
+import CommandContextRibbon from \"@/components/command/CommandContextRibbon\";
+import OneStoryStrip from \"@/components/command/OneStoryStrip\";
+import SceneAdmissionPanel from \"@/components/experience/SceneAdmissionPanel\";
+import SceneAdmits, { SceneAdmitsAmbient } from \"@/components/experience/SceneAdmits\";
+import { compileScene, type SurfaceElement } from \"@/lib/experience/compileScene\";
+import { deckSceneSignals } from \"@/lib/experience/deckSceneSignals\";
+import {
+  computeEvidenceDebt as computeSceneEvidenceDebt,
+  computeRightOfWay as computeSceneRightOfWay,
+} from \"@/lib/marketData/viewModels/decisionPermissionCompiler\";
+import { PerCapabilityFidelityGrid } from \"@/components/marketData/PerCapabilityFidelityGrid\";
+import { selectPerCapabilityFidelity } from \"@/lib/marketData/selectPerCapabilityFidelity\";
+import { selectAggressorFlow } from \"@/lib/marketData/selectAggressorFlow\";
+import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from \"@/lib/marketData/perCapabilityFidelity\";
+import { SemanticZoom } from \"@/components/experience/SemanticZoom\";
+import MarketObjectPassportPanel from \"@/components/experience/MarketObjectPassportPanel\";
+import { selectMarketObjectPassport } from \"@/lib/marketData/viewModels/selectMarketObjectPassport\";
+import DecisionWhyPanel from \"@/components/experience/DecisionWhyPanel\";
+import MarketCanvasPanel from \"@/components/experience/MarketCanvasPanel\";
+import CanvasSummaryPill from \"@/components/experience/CanvasSummaryPill\";
+import { composeMarketCanvasVM } from \"@/lib/marketData/viewModels/composeMarketCanvasVM\";
+import DecisionReceiptPanel from \"@/components/experience/DecisionReceiptPanel\";
+import { selectDecisionReceipt } from \"@/lib/traderMemory/viewModels/selectDecisionReceipt\";
+import ExperienceModeBar from \"@/components/experience/ExperienceModeBar\";
+import { useDecisionContext } from \"@/lib/experience/useDecisionContext\";
+import { shellEmphasis } from \"@/lib/experience/shellLayout\";
+import { routeQuestion } from \"@/lib/experience/questionRouter\";
+import { selectDeckEmphasis, surfaceOrder } from \"@/lib/experience/selectDeckEmphasis\";
+import { inferJobMode } from \"@/lib/experience/inferJobMode\";
+import { selectJobSuggestion } from \"@/lib/experience/selectJobSuggestion\";
+import { selectCompletionState } from \"@/lib/experience/selectCompletionState\";
+import { deriveCompletionSignals } from \"@/lib/experience/deriveCompletionSignals\";
+import { composeExitRamp } from \"@/lib/experience/composeExitRamp\";
+import ExitRampCard from \"@/components/experience/ExitRampCard\";
+import { useLearningGenomeBundle } from \"@/lib/learningGenome/useLearningGenomeBundle\";
+import { LearningGenomeInspector } from \"@/components/learningGenome/LearningGenomeInspector\";
+import ProviderWireStrip from \"@/components/marketData/ProviderWireStrip\";
+
+ 
+
+type CommandPhase = TradePhase;
+
+const PHASES: readonly { id: CommandPhase; label: string }[] = [
+  { id: \"PREPARATION\", label: \"Prep\" },
+  { id: \"APPROACH\", label: \"Approach\" },
+  { id: \"DECISION\", label: \"Decide\" },
+  { id: \"POSITION\", label: \"In Trade\" },
+  { id: \"POST_EXIT\", label: \"Post-Exit\" },
+  { id: \"REVIEW\", label: \"Review\" },
+];
+
+ 
+const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [\"ONE_STORY\"];
+
+export default function CommandDeckPage() {
+  
+  
+  
+  return (
+    <React.Suspense fallback={<div style={{ minHeight: \"100vh\", background: \"linear-gradient(180deg, #050506 0%, #0b0b0d 100%)\" }} />}>
+      <CommandDeckInner />
+    </React.Suspense>
+  );
+}
+
+function CommandDeckInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { activeSymbol, setActiveSymbol } = useActiveSymbol();
+  
+  
+  
+  const urlSymbol = searchParams?.get(\"symbol\");
+  const urlTf = searchParams?.get(\"tf\");
+  const symbol = (urlSymbol || activeSymbol || \"TSLA\").toUpperCase();
+  const timeframe = (urlTf || \"15m\").toLowerCase();
+  React.useEffect(() => {
+    
+    
+    
+    if (urlSymbol && urlSymbol.toUpperCase() !== activeSymbol) {
+      setActiveSymbol(urlSymbol.toUpperCase());
+    }
+  }, [urlSymbol, activeSymbol, setActiveSymbol]);
+  const [phase, setPhase] = React.useState<CommandPhase>(\"PREPARATION\");
+  const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
+  const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
+  const [proofChainOpen, setProofChainOpen] = React.useState(false);
+
+  
+  
+  
+  
+  const { context: experienceContext, setMode: setExperienceMode } = useDecisionContext();
+  const experienceEmphasis = shellEmphasis(experienceContext.mode);
+
+  
+  
+  
+  
+  
+  const identity = React.useMemo(
+    () => canonicalMarketStateIdentity({ symbol, timeframe, extHours: false }),
+    [symbol, timeframe],
+  );
+
+  
+  
+  
+  
+  const wsFeed = useWebSocket({ symbol, timeframe });
+  
+  
+  
+  
+  const sessionOpen = useProvenSessionClosure(symbol);
+  usePublishChartMarketState({
+    symbol,
+    timeframe,
+    session: identity.session,
+    ticker: wsFeed.ticker,
+    recentTicks: wsFeed.recentTicks,
+    source: wsFeed.source,
+    connected: wsFeed.connected,
+  });
+
+  const state = useCanonicalMarketState(identity);
+  const history = useCanonicalMarketStateHistory(identity, 6);
+  
+  
+  
+  
+  
+  
+  const nowMs = useCanvasClock() ?? Date.now();
+  const storeDecisions = useDecisionMemory(user?.id ?? null);
+  const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
+  const journalDecisions = useJournalSnapshots(user?.id ?? null);
+  const sessionDecisions = React.useMemo(
+    () => {
+      const ids = new Set(storeDecisions.map((d) => d.decisionId));
+      return [...storeDecisions, ...journalDecisions.filter((d) => !ids.has(d.decisionId))];
+    },
+    [storeDecisions, journalDecisions],
+  );
+  const personalEdgeVm = React.useMemo(
+    () =>
+      selectPersonalEdge({
+        ownerId: user?.id ?? \"\",
+        decisions: sessionDecisions,
+        nowMs,
+      }),
+    [user?.id, sessionDecisions, nowMs],
+  );
+
+  const chainVm = React.useMemo(() => {
+    if (!state) return null;
+    return selectDecisionChain({
+      state,
+      history,
+      nowMs,
+      phase,
+    });
+  }, [state, history, phase, nowMs]);
+
+  const athos = React.useMemo(() => {
+    const momentMap: Record<CommandPhase, ATHOSIntervention[\"moment\"]> = {
+      PREPARATION: \"IDLE\",
+      APPROACH: \"PRE_ENTRY\",
+      DECISION: \"AT_ENTRY_TRIGGER\",
+      POSITION: \"IN_POSITION\",
+      POST_EXIT: \"POST_EXIT\",
+      REVIEW: \"SESSION_REVIEW\",
+    };
+    return selectATHOSIntervention({
+      ownerId: user?.id ?? \"\",
+      sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+      nowMs,
+      moment: momentMap[phase],
+      sessionDecisions,
+      marketState: state ?? undefined,
+      dlar: chainVm?.dlar ?? null,
+      clc: chainVm?.clc ?? null,
+    });
+  }, [phase, user?.id, state, chainVm, sessionDecisions, nowMs]);
+
+  
+  
+  
+  
+  
+  
+  
+  const canvasCompilation = React.useMemo(
+    () =>
+      composeMarketCanvasVM({
+        state: state ?? null,
+        history,
+        sessionDecisions,
+        ownerId: user?.id ?? \"\",
+        nowMs,
+        chain: chainVm ?? null,
+      }),
+    [state, history, sessionDecisions, user?.id, chainVm, nowMs],
+  );
+  const permission = canvasCompilation.permission;
+  const oneStory = canvasCompilation.oneStory;
+  const decisionWhy = canvasCompilation.decisionWhy;
+  const marketCanvas = canvasCompilation.canvas;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  const sessionClockDate = useSessionClockDate();
+  const sceneInput = React.useMemo(() => {
+    const debt = computeSceneEvidenceDebt(chainVm?.nodes);
+    const row = computeSceneRightOfWay(permission, debt);
+        return deckSceneSignals({ session: identity.session, rightOfWay: row.value });
+  }, [chainVm?.nodes, permission, symbol, sessionClockDate]);
+  const sceneCompilation = React.useMemo(
+    () => compileScene(sceneInput.signals),
+    [sceneInput],
+  );
+
+  
+  
+  
+  const experienceQuestion = routeQuestion(experienceContext.mode, oneStory);
+
+  
+  
+  
+  
+  const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
+
+  
+  
+  
+
+  
+  
+  
+  
+  
+  const latestDecisionRecord = React.useMemo(() => {
+    if (decisionRecords.length === 0) return null;
+    return decisionRecords.reduce((latest, r) =>
+      r.frozen.capturedAt > latest.frozen.capturedAt ? r : latest,
+    );
+  }, [decisionRecords]);
+  const decisionReceipt = React.useMemo(
+    () => selectDecisionReceipt(latestDecisionRecord),
+    [latestDecisionRecord],
+  );
+
+  
+  
+  
+  
+  const learningGenome = useLearningGenomeBundle();
+
+  
+  
+  
+  const jobInference = React.useMemo(() => {
+    const hasOpenPosition = decisionRecords.some(
+      (r) => (r.plan.action === \"ENTER_LONG\" || r.plan.action === \"ENTER_SHORT\") && !r.outcome,
+    );
+    const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
+    return inferJobMode({
+      hasOpenPosition,
+      hasUnreviewedClose,
+      decision: oneStory.decision.value,
+      hasResolvedMarketState: passport.resolvedCount > 0,
+    });
+  }, [decisionRecords, oneStory, passport]);
+  
+  
+  
+  
+  const jobSuggestion = selectJobSuggestion(jobInference, experienceContext.mode);
+
+  
+  
+  
+  
+  
+  
+  const deckEmphasis = React.useMemo(
+    () =>
+      selectDeckEmphasis(experienceContext.mode, {
+        hasUnresolvedContradiction: oneStory.contradiction != null,
+        hasSealedReceipt: !decisionReceipt.empty,
+      }),
+    [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
+  );
+  React.useEffect(() => {
+    
+    
+    
+    
+    
+    setProofChainOpen(deckEmphasis.emphasizeWhy);
+  }, [deckEmphasis.emphasizeWhy, experienceContext.mode]);
+
+  
+  
+  
+  
+  
+  const exitRamp = React.useMemo(() => {
+    const signals = deriveCompletionSignals({
+      mode: experienceContext.mode,
+      decisionRecords,
+      resolvedObjectCount: passport.resolvedCount,
+      receiptEmpty: decisionReceipt.empty,
+      decision: oneStory.decision.value,
+    });
+    const assessment = selectCompletionState(signals);
+    const done: string[] = [];
+    if (!decisionReceipt.empty) done.push(\"Decision receipt sealed\");
+    if (passport.resolvedCount > 0) done.push(`${passport.resolvedCount} market object(s) resolved`);
+    const saved: string[] = [];
+    if (decisionRecords.length > 0) saved.push(`${decisionRecords.length} decision record(s) preserved`);
+    return composeExitRamp({ assessment, done, saved, returnCondition: signals.returnCondition });
+  }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value]);
+
+  const openWhy = (t: WhyTarget) => {
+    setWhyTarget(t);
+    setShowEvidence(true);
+  };
+
+  return (
+    <div style={{ minHeight: \"100vh\", background: \"linear-gradient(180deg, #050506 0%, #0b0b0d 100%)\", color: \"#ede6d3\" }}>
+      { }
+      <header
+        className=\"wm-cd-header\"
+        style={{
+          borderBottom: \"1px solid rgba(139,106,41,0.35)\",
+          padding: \"12px 24px\",
+          display: \"flex\",
+          alignItems: \"center\",
+          gap: 16,
+          background: \"rgba(11,11,13,0.85)\",
+          backdropFilter: \"blur(8px)\",
+          position: \"sticky\",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        <button
+          className=\"wm-cd-header-back\"
+          onClick={() => router.push(\"/charts\")}
+          aria-label=\"Back to charts\"
+          style={{
+            display: \"flex\",
+            alignItems: \"center\",
+            gap: 6,
+            fontSize: 11,
+            letterSpacing: 0.3,
+            textTransform: \"uppercase\",
+            color: \"#8a8271\",
+            background: \"transparent\",
+            border: \"none\",
+            cursor: \"pointer\",
+            minHeight: 44,
+            padding: \"0 10px\",
+          }}
+        >
+          <ArrowLeft size={12} />
+          Charts
+        </button>
+        <h1
+          className=\"wm-cd-header-identity\"
+          style={{
+            margin: 0,
+            minWidth: 0,
+            fontSize: 11,
+            letterSpacing: 0.6,
+            textTransform: \"uppercase\",
+            color: \"#c9a55c\",
+            fontWeight: 800,
+            whiteSpace: \"nowrap\",
+          }}
+        >
+          Command Deck
+        </h1>
+        { }
+        <CanvasSummaryPill
+          vm={marketCanvas}
+          ariaLabel=\"Deck canvas summary — jump to Market Canvas\"
+          scrollToSelector='[data-testid=\"market-canvas-panel\"]'
+        />
+        <div className=\"wm-cd-header-actions\" style={{ marginLeft: \"auto\", display: \"flex\", alignItems: \"center\", gap: 6 }}>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: \"hero\" }))}
+            aria-label={showEvidence ? \"Hide evidence inspector\" : \"Show evidence inspector\"}
+            aria-pressed={showEvidence}
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: showEvidence ? \"#d4af37\" : \"#8a8271\",
+              background: showEvidence ? \"rgba(212,175,55,0.1)\" : \"transparent\",
+              border: showEvidence ? \"1px solid #d4af3760\" : \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+              fontWeight: 700,
+            }}
+          >
+            Why?
+          </button>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => router.push(\"/profile?tab=growth\")}
+            aria-label=\"Open Growth on your Profile\"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#8a8271\",
+              background: \"transparent\",
+              border: \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+            }}
+          >
+            Growth →
+          </button>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => router.push(\"/journal\")}
+            aria-label=\"Open Journal\"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#8a8271\",
+              background: \"transparent\",
+              border: \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+            }}
+          >
+            Journal →
+          </button>
+        </div>
+      </header>
+
+      { }
+      <div
+        className=\"wm-cd-mode-band\"
+        style={{
+          maxWidth: 1280,
+          margin: \"0 auto\",
+          padding: \"10px 16px 0\",
+          display: \"flex\",
+          flexDirection: \"column\",
+          gap: 6,
+        }}
+      >
+        { }
+        <div style={{ display: \"flex\", alignItems: \"center\", gap: 14, flexWrap: \"wrap\" }}>
+          <div style={{ flex: \"1 1 260px\", minWidth: 240 }}>
+            <ExperienceModeBar />
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              letterSpacing: 0.3,
+              color: \"#8a7a52\",
+              whiteSpace: \"nowrap\",
+              textTransform: \"uppercase\",
+            }}
+          >
+            {experienceEmphasis.job}
+          </div>
+        </div>
+        { }
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: 1.35,
+            color: \"#c9a55c\",
+            fontStyle: \"italic\",
+          }}
+        >
+          {experienceQuestion}
+        </div>
+        { }
+        {jobSuggestion.strength !== \"NONE\" && jobSuggestion.inference && (() => {
+          const sug = jobSuggestion.inference;
+          const hint = jobSuggestion.strength === \"HINT\";
+          return (
+            <button
+              type=\"button\"
+              onClick={() => setExperienceMode(sug.suggested)}
+              title={sug.reason}
+              style={{
+                marginTop: 6,
+                alignSelf: \"flex-start\",
+                display: \"inline-flex\",
+                alignItems: \"baseline\",
+                gap: 6,
+                background: \"transparent\",
+                border: hint
+                  ? \"1px dashed rgba(138,130,113,0.35)\"
+                  : \"1px solid rgba(212,175,55,0.35)\",
+                borderRadius: 999,
+                padding: \"3px 10px\",
+                cursor: \"pointer\",
+                fontSize: 10,
+                letterSpacing: 0.4,
+                color: \"#c9a55c\",
+                textTransform: \"uppercase\",
+                opacity: hint ? 0.72 : 1,
+              }}
+            >
+              <span style={{ color: \"#8a8271\" }}>{hint ? \"Possibly →\" : \"Suggested job →\"}</span>
+              <span style={{ color: hint ? \"#c9a55c\" : \"#d4af37\", fontWeight: 600 }}>
+                {sug.suggested}
+              </span>
+              <span style={{ color: \"#8a8271\", textTransform: \"none\", letterSpacing: 0.2 }}>
+                {sug.reason}
+              </span>
+            </button>
+          );
+        })()}
+      </div>
+
+      <main style={{ maxWidth: 1280, margin: \"0 auto\", padding: \"24px 16px\", position: \"relative\" }}>
+        <div style={{ position: \"relative\", zIndex: 1 }}>
+          { }
+          <style>{`
+            .wm-cd-header-action { min-height: 44px !important; }
+            .wm-cd-header-action:focus-visible,
+            .wm-cd-header-back:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history { min-width: 0; }
+            .wm-cd-chapter-history > summary {
+              min-height: 44px;
+              min-width: 0;
+              display: flex;
+              align-items: center;
+              padding: 10px 12px;
+              border: 1px solid rgba(212, 175, 55, 0.2);
+              border-radius: 10px;
+              color: #c9a55c;
+              cursor: pointer;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+              overflow-wrap: anywhere;
+            }
+            .wm-cd-chapter-history > summary:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history-content {
+              min-width: 0;
+              overflow-x: auto;
+              overscroll-behavior-x: contain;
+              padding-top: 12px;
+            }
+            .wm-cd-chapter-history:not([open]) > .wm-cd-chapter-history-content {
+              display: none;
+            }
+            @media (max-width: 640px) {
+              .wm-cd-header {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 8px 12px !important;
+              }
+              .wm-cd-header-back { padding-inline: 6px !important; }
+              .wm-cd-header-identity { flex: 1 1 auto; gap: 6px !important; }
+              .wm-cd-header-actions {
+                flex: 0 0 100%;
+                margin-left: 0 !important;
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px !important;
+              }
+              .wm-cd-header-action {
+                width: 100%;
+                padding-inline: 8px !important;
+              }
+            }
+            @media (max-width: 900px) {
+              .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
+              .wm-cd-why-column { position: static !important; }
+            }
+          `}</style>
+        { }
+        <div
+          className=\"wm-cd-layout\"
+          style={{
+            display: \"grid\",
+            gridTemplateColumns: showEvidence && whyTarget ? \"minmax(0, 1fr) 380px\" : \"minmax(0, 1fr)\",
+            gap: 20,
+            alignItems: \"start\",
+          }}
+        >
+          { }
+          <div style={{ display: \"flex\", flexDirection: \"column\", gap: 20, minWidth: 0 }}>
+            { }
+            {(() => {
+              const story = state ? selectMarketStory(state, history) : null;
+              return (
+                <button
+                  type=\"button\"
+                  onClick={() => openWhy({ kind: \"hero\" })}
+                  aria-label=\"Explain hero truth\"
+                  style={{ padding: 0, background: \"transparent\", border: \"none\", cursor: \"pointer\", textAlign: \"left\", display: \"block\", width: \"100%\" }}
+                >
+                  <HeroTruth
+                    symbol={symbol}
+                    timeframe={timeframe}
+                    state={state}
+                    marketState={story?.current?.chapter ?? (story ? \"UNKNOWN\" : null)}
+                    marketStateResolution={story?.resolution ?? undefined}
+                  />
+                </button>
+              );
+            })()}
+
+            { }
+            <TodayPrepBridge userId={user?.id ?? null} />
+
+            { }
+            <div
+              aria-live=\"polite\"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                textTransform: \"uppercase\",
+                color: \"#8a8271\",
+                display: \"flex\",
+                gap: 6,
+                alignItems: \"baseline\",
+                marginBottom: -8,
+              }}
+            >
+              <span style={{ color: \"#c9a55c\" }}>Layout</span>
+              <span style={{ textTransform: \"none\", letterSpacing: 0 }}>
+                {deckEmphasis.rationale}
+                {deckEmphasis.refinementNote && (
+                  
+                  
+                  
+                  <span style={{ color: \"#c9a55c\" }}> · {deckEmphasis.refinementNote}</span>
+                )}
+              </span>
+            </div>
+
+            { }
+            <div style={{ display: \"flex\", flexDirection: \"column\", gap: 20 }}>
+              { }
+              <SceneAdmits compilation={sceneCompilation} element=\"ONE_STORY\">
+                <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                  <OneStoryStrip vm={oneStory} />
+                </div>
+              </SceneAdmits>
+
+              { }
+              <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                <SceneAdmissionPanel
+                  compilation={sceneCompilation}
+                  provenance={sceneInput.provenance}
+                  observedCount={sceneInput.observedCount}
+                  totalCount={sceneInput.totalCount}
+                  governed={DECK_GOVERNED_ELEMENTS}
+                />
+              </div>
+
+              { }
+              <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                <ExitRampCard ramp={exitRamp} />
+              </div>
+
+              { }
+              <details
+                key={`evidence-${experienceContext.mode}`}
+                className=\"wm-cd-evidence-drawer\"
+                open={proofChainOpen}
+                onToggle={event => setProofChainOpen(event.currentTarget.open)}
+                style={{
+                  order: surfaceOrder(deckEmphasis, \"WHY\"),
+                  border: \"1px solid rgba(139,106,41,0.28)\",
+                  borderRadius: 12,
+                  background: \"rgba(10,12,18,0.72)\",
+                  overflow: \"hidden\",
+                }}
+              >
+                <summary
+                  style={{
+                    minHeight: 54,
+                    padding: \"0 16px\",
+                    cursor: \"pointer\",
+                    display: \"flex\",
+                    alignItems: \"center\",
+                    justifyContent: \"space-between\",
+                    gap: 12,
+                    color: \"#d7d9e2\",
+                    fontSize: 12,
+                    fontWeight: 750,
+                    listStyle: \"none\",
+                  }}
+                >
+                  <span>Evidence &amp; reasoning</span>
+                  <span style={{ color: \"#8a8271\", fontSize: 10, fontWeight: 500 }}>
+                    Open the proof chain
+                  </span>
+                </summary>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 16, padding: \"0 16px 16px\" }}>
+                  { }
+                  <div style={{ order: surfaceOrder(deckEmphasis, \"WHY\") }}>
+                    <DecisionWhyPanel vm={decisionWhy} />
+                  </div>
+
+              { }
+                  <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                    <MarketCanvasPanel vm={marketCanvas} />
+                  </div>
+
+              { }
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, \"PASSPORT\") }}
+                    open={deckEmphasis.passportOpen}
+                  >
+                <summary
+                  style={{
+                    cursor: \"pointer\",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: \"#c9a55c\",
+                    textTransform: \"uppercase\",
+                    padding: \"4px 0\",
+                  }}
+                >
+                  Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <MarketObjectPassportPanel vm={passport} />
+                </div>
+                  </details>
+
+              { }
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, \"RECEIPT\") }}
+                    open={deckEmphasis.receiptOpen}
+                  >
+                <summary
+                  style={{
+                    cursor: \"pointer\",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: \"#c9a55c\",
+                    textTransform: \"uppercase\",
+                    padding: \"4px 0\",
+                  }}
+                >
+                  Decision Receipt ·{\" \"}
+                  {decisionReceipt.empty
+                    ? \"none sealed\"
+                    : `${decisionReceipt.stage.toLowerCase()}`}
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <DecisionReceiptPanel vm={decisionReceipt} />
+                </div>
+                  </details>
+                </div>
+              </details>
+              { }
+              { }
+              <SceneAdmitsAmbient compilation={sceneCompilation}>
+                {(experienceContext.mode === \"REVIEW\" || experienceContext.mode === \"LEARN\") &&
+                learningGenome &&
+                learningGenome.genome.headlineWeakness ? (
+                  <details style={{ marginTop: 8 }}>
+                    <summary
+                      style={{
+                        cursor: \"pointer\",
+                        fontSize: 10,
+                        letterSpacing: 0.6,
+                        color: \"#c9a55c\",
+                        textTransform: \"uppercase\",
+                        padding: \"4px 0\",
+                      }}
+                    >
+                      Learning Genome ·{\" \"}
+                      {learningGenome.drill ? learningGenome.drill.stage.toLowerCase() : \"diagnostic\"}
+                    </summary>
+                    <div style={{ marginTop: 6 }}>
+                      <LearningGenomeInspector
+                        genome={learningGenome.genome}
+                        drill={learningGenome.drill}
+                        misread={learningGenome.misread}
+                        trend={learningGenome.trend}
+                        focusStreak={learningGenome.focus_streak}
+                        ruleAdherenceStreak={learningGenome.rule_adherence_streak}
+                        dayModelCoverage={learningGenome.day_model_coverage}
+                        dualSideGuard={learningGenome.dual_side_guard}
+                        weekMaturity={learningGenome.week_maturity}
+                      />
+                    </div>
+                  </details>
+                ) : null}
+              </SceneAdmitsAmbient>
+            </div>
+
+            { }
+            <details className=\"wm-cd-connection-diagnostics\">
+              <summary
+                style={{
+                  minHeight: 44,
+                  cursor: \"pointer\",
+                  display: \"flex\",
+                  alignItems: \"center\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#8a8271\",
+                  textTransform: \"uppercase\",
+                  padding: \"4px 0\",
+                }}
+              >
+                Connections · provider readiness
+              </summary>
+              <ProviderWireStrip compact />
+            </details>
+
+            { }
+            <details>
+              <summary
+                style={{
+                  cursor: \"pointer\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#8a8271\",
+                  textTransform: \"uppercase\",
+                  padding: \"4px 0\",
+                }}
+              >
+                System state · session · data · evidence · right-of-way
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                <CommandContextRibbon
+                  symbol={symbol}
+                  session={identity.session}
+                  state={state}
+                  wsConnected={wsFeed.connected}
+                  wsSource={wsFeed.source ?? null}
+                  availableR={chainVm?.availableR ?? null}
+                  permission={permission}
+                  chainNodes={chainVm?.nodes}
+                />
+              </div>
+            </details>
+
+            { }
+            {(() => {
+              const bookLevels =
+                (wsFeed.orderBook?.bids?.length ?? 0) +
+                (wsFeed.orderBook?.asks?.length ?? 0);
+              
+              
+              
+              
+              
+              const aggressorFlow = wsFeed.connected
+                ? selectAggressorFlow(wsFeed.recentTicks)
+                : null;
+              const orderFlowDerived =
+                aggressorFlow != null && aggressorFlow.hasFlow ? true : undefined;
+              const capabilityReport = selectPerCapabilityFidelity({
+                source: wsFeed.source ?? \"unavailable\",
+                connected: wsFeed.connected,
+                hasCandles: !!state,
+                
+                
+                
+                sessionOpen,
+                
+                tapeConnected: !wsFeed.connected
+                  ? undefined
+                  : (wsFeed.recentTicks?.length ?? 0) > 0,
+                orderFlowDerived,
+                
+                
+                
+                
+                
+                
+                depthSubscribed: bookLevels > 0 ? true : undefined,
+              });
+              const evaluated = evaluatedCapabilityCount(capabilityReport);
+              const weakest = weakestCapability(capabilityReport);
+              const strongest = strongestCapability(capabilityReport);
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <SemanticZoom
+                    ariaLabel=\"Data fidelity per capability\"
+                    levels={{
+                      1: (
+                        <div className=\"text-[10px]\" style={{ color: \"#8B92AC\", padding: \"4px 2px\" }}>
+                          {evaluated === 0 ? (
+                            <span className=\"italic\">Fidelity not yet evaluated</span>
+                          ) : weakest && strongest && weakest.capability === strongest.capability ? (
+                            <span>
+                              <span style={{ color: \"#F0B429\", fontWeight: 700, letterSpacing: \"0.05em\", textTransform: \"uppercase\" }}>
+                                Data
+                              </span>{\" · \"}
+                              <span>{evaluated} / 7 capabilities · {strongest.label}</span>
+                            </span>
+                          ) : weakest && strongest ? (
+                            <span>
+                              <span style={{ color: \"#F0B429\", fontWeight: 700, letterSpacing: \"0.05em\", textTransform: \"uppercase\" }}>
+                                Data
+                              </span>{\" · \"}
+                              <span>{evaluated} / 7 capabilities · strongest {strongest.capability} = {strongest.label}</span>
+                              {weakest.label !== strongest.label && (
+                                <span> · weakest {weakest.capability} = {weakest.label}</span>
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
+                      ),
+                      2: (
+                        <div style={{ padding: \"6px 2px\", display: \"flex\", flexDirection: \"column\", gap: 4 }}>
+                          {evaluated === 0 ? (
+                            <span className=\"text-[11px] italic\" style={{ color: \"#8B92AC\" }}>
+                              No capabilities evaluated yet — nothing to summarise (canon §Silence Is A Feature).
+                            </span>
+                          ) : (
+                            <>
+                              <div className=\"text-[11px]\" style={{ color: \"#E4E7EF\", fontWeight: 600 }}>
+                                {weakest && strongest && weakest.capability !== strongest.capability
+                                  ? `Weakest: ${weakest.capability} — ${weakest.label}`
+                                  : `All evaluated capabilities: ${strongest?.label ?? \"—\"}`}
+                              </div>
+                              <div className=\"text-[10px]\" style={{ color: \"#8B92AC\" }}>
+                                {evaluated} of 7 capabilities evaluated
+                                {strongest && weakest && weakest.capability !== strongest.capability
+                                  ? ` · strongest: ${strongest.capability} — ${strongest.label}`
+                                  : \"\"}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ),
+                      3: (
+                        <PerCapabilityFidelityGrid
+                          symbol={symbol}
+                          showUnevaluated
+                          report={capabilityReport}
+                        />
+                      ),
+                    }}
+                  />
+                </div>
+              );
+            })()}
+
+            { }
+            <div
+              role=\"tablist\"
+              aria-label=\"Trade phase\"
+              style={{ display: \"flex\", gap: 6, flexWrap: \"wrap\" }}
+            >
+              {PHASES.map((p) => (
+                <button
+                  key={p.id}
+                  type=\"button\"
+                  role=\"tab\"
+                  aria-selected={phase === p.id}
+                  aria-pressed={phase === p.id}
+                  aria-label={`Phase: ${p.label}${phase === p.id ? \" (selected)\" : \"\"}`}
+                  onClick={() => setPhase(p.id)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: \"10px 14px\",
+                    minHeight: 44,
+                    minWidth: 44,
+                    borderRadius: 6,
+                    cursor: \"pointer\",
+                    border: phase === p.id ? \"1px solid #d4af37\" : \"1px solid rgba(139,106,41,0.35)\",
+                    background: phase === p.id ? \"rgba(212,175,55,0.12)\" : \"transparent\",
+                    color: phase === p.id ? \"#ede6d3\" : \"#8a8271\",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            { }
+            {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
+
+            { }
+            {!state && (
+              <div
+                role=\"status\"
+                aria-label=\"Command Deck sections waiting for canonical market state\"
+                style={{
+                  border: \"1px dashed rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  padding: 20,
+                  background: \"rgba(11,11,13,0.5)\",
+                }}
+              >
+                <div style={{ display: \"flex\", alignItems: \"baseline\", gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontFamily: \"Georgia, 'Times New Roman', serif\", fontSize: 13, letterSpacing: 0.32, color: \"#c9a55c\", textTransform: \"uppercase\" }}>
+                    Awaiting first observation
+                  </span>
+                  <span style={{ fontSize: 11, color: \"#8a8271\", fontStyle: \"italic\", marginLeft: \"auto\" }}>
+                    {symbol} · deck is subscribed — chapters populate as evidence arrives
+                  </span>
+                </div>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 8 }}>
+                  {[
+                    { n: 1, label: \"Story Ribbon · Market Narrative\" },
+                    { n: 2, label: \"Direction · Location · Aggression · Response\" },
+                    { n: 3, label: \"Decision Chain (Regime → Management)\" },
+                    { n: 4, label: \"Steward Rules Verdict\" },
+                    { n: 5, label: \"Data Fidelity · Market Evidence\" },
+                  ].map((row) => (
+                    <div
+                      key={row.n}
+                      style={{
+                        display: \"flex\",
+                        alignItems: \"baseline\",
+                        gap: 12,
+                        padding: \"8px 12px\",
+                        borderLeft: \"2px solid rgba(139,106,41,0.25)\",
+                        fontSize: 11,
+                        color: \"#8a8271\",
+                      }}
+                    >
+                      <span style={{ fontFamily: \"Georgia, serif\", fontSize: 14, color: \"#c9a55c\", minWidth: 18 }}>{row.n}</span>
+                      <span style={{ fontFamily: \"Georgia, 'Times New Roman', serif\", fontSize: 12, color: \"#c0b8a0\", letterSpacing: 0.2 }}>{row.label}</span>
+                      <span style={{ marginLeft: \"auto\", fontSize: 9, color: \"#55503f\", letterSpacing: 0.4, textTransform: \"uppercase\" }}>waiting</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, textAlign: \"center\" }}>
+                  <a
+                    href=\"/charts\"
+                    style={{
+                      display: \"inline-block\",
+                      padding: \"10px 18px\",
+                      borderRadius: 6,
+                      background: \"rgba(212,175,55,0.12)\",
+                      border: \"1px solid #d4af37\",
+                      color: \"#d4af37\",
+                      fontFamily: \"Georgia, 'Times New Roman', serif\",
+                      fontSize: 12,
+                      letterSpacing: 0.32,
+                      textTransform: \"uppercase\",
+                      textDecoration: \"none\",
+                    }}
+                  >
+                    Open Charts →
+                  </a>
+                </div>
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+            <details open={deckEmphasis.deepSectionsOpen}>
+              <summary
+                style={{
+                  cursor: \"pointer\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#c9a55c\",
+                  textTransform: \"uppercase\",
+                  padding: \"6px 0\",
+                }}
+              >
+                Deep read · story · auction lens · decision chain · steward · fidelity
+              </summary>
+            { }
+            <details className=\"wm-cd-chapter-history\">
+              <summary>Market chapter history</summary>
+              <div className=\"wm-cd-chapter-history-content\">
+                <StoryRibbon state={state} history={history} />
+              </div>
+            </details>
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={2} label=\"Direction · Location · Aggression · Response\" tagline=\"the auction lens\" />
+                <div style={{ height: 12 }} />
+                <DLARStrip
+                  dlar={chainVm.dlar}
+                  onDrillClick={(dim: DLARDimensionKey) => openWhy({ kind: \"dlar\", dim })}
+                />
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={3} label=\"Decision Chain\" tagline=\"regime → management\" />
+                <div style={{ height: 12 }} />
+              <DecisionChainPanel
+                vm={chainVm}
+                showNarratives
+                onNodeClick={(node) => {
+                  if (node.key === \"regime\" || node.key === \"direction\" || node.key === \"location\" || node.key === \"aggression\") {
+                    
+                    openWhy({ kind: \"dlar\", dim: (node.key === \"regime\" ? \"direction\" : node.key) as \"direction\" | \"location\" | \"aggression\" });
+                  } else if (node.key === \"clc\") {
+                    openWhy({ kind: \"clc\", leg: \"confirmation\" });
+                  } else {
+                    openWhy({ kind: \"hero\" });
+                  }
+                }}
+              />
+              </div>
+            )}
+
+            { }
+            {chainVm && <StructureContextNote vm={chainVm} />}
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={4} label=\"Steward · Rules Verdict\" tagline=\"informs, never gates\" />
+                <div style={{ height: 12 }} />
+              <div
+                style={{
+                  border: \"1px solid rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  background: \"rgba(11,11,13,0.9)\",
+                  padding: 16,
+                }}
+              >
+                <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 800, marginBottom: 8 }}>
+                  Steward Rules · {permission.verdict}
+                </div>
+                <div style={{ fontSize: 13, color: \"#ede6d3\", lineHeight: 1.5 }}>
+                  {permission.headline}
+                </div>
+                <div style={{ fontSize: 11, color: \"#8a8271\", lineHeight: 1.5, marginTop: 6 }}>
+                  {permission.reason}
+                </div>
+                <div style={{ fontSize: 10, color: \"#55503f\", marginTop: 8, letterSpacing: 0.3 }}>
+                  {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
+                </div>
+                { }
+                {permission.engagedRules.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: \"1px solid rgba(139,106,41,0.15)\", display: \"flex\", flexDirection: \"column\", gap: 6 }}>
+                    {permission.engagedRules.map((r, i) => (
+                      <div
+                        key={`${r.rule.label}-${i}`}
+                        style={{
+                          display: \"flex\",
+                          gap: 8,
+                          alignItems: \"baseline\",
+                          padding: \"4px 8px\",
+                          borderLeft: `2px solid ${r.rule.kind === \"HARD\" ? \"#c05a4a\" : \"#c9a55c\"}`,
+                          background: \"rgba(19,19,23,0.5)\",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 9,
+                            letterSpacing: 0.3,
+                            textTransform: \"uppercase\",
+                            color: r.rule.kind === \"HARD\" ? \"#c05a4a\" : \"#c9a55c\",
+                            fontWeight: 700,
+                            minWidth: 32,
+                          }}
+                        >
+                          {r.rule.kind}
+                        </span>
+                        <span style={{ fontSize: 11, color: \"#ede6d3\", fontWeight: 600 }}>
+                          {r.rule.label}
+                        </span>
+                        <span style={{ fontSize: 11, color: \"#8a8271\", flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+                          {r.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              </div>
+            )}
+
+            { }
+            {state && (
+              <div>
+                <SectionBanner number={5} label=\"Data Fidelity · Market Evidence\" tagline=\"what did WM actually witness\" />
+                <div style={{ height: 12 }} />
+              <div
+                style={{
+                  border: \"1px solid rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  background: \"rgba(11,11,13,0.9)\",
+                  padding: 16,
+                }}
+              >
+                <div style={{ display: \"flex\", alignItems: \"center\", gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 800 }}>
+                    Data Fidelity
+                  </span>
+                  <span style={{ fontSize: 10, color: \"#8a8271\", marginLeft: \"auto\" }}>
+                    {state.qualityState}
+                  </span>
+                </div>
+                <div style={{ display: \"grid\", gridTemplateColumns: \"repeat(auto-fit, minmax(100px, 1fr))\", gap: 10 }}>
+                  <Stat label=\"Coverage\" value={`${state.coverage.length} ch`} />
+                  <Stat label=\"Unknowns\" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? \"watch\" : \"ok\"} />
+                  <Stat label=\"Contradictions\" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? \"warn\" : \"ok\"} />
+                </div>
+
+                { }
+                {state.coverage.length > 0 && (() => {
+                  const observedFroms = state.coverage.map((c) => c.observedFrom).filter((n): n is number => typeof n === \"number\");
+                  const lastEvents = state.coverage.map((c) => c.lastEventAt).filter((n): n is number => typeof n === \"number\");
+                  const totalEvents = state.coverage.reduce((s, c) => s + (c.observedEventCount ?? 0), 0);
+                  const gapTotal = state.coverage.reduce((s, c) => s + (c.gapCount ?? 0), 0);
+                  const memoryStart = observedFroms.length ? Math.min(...observedFroms) : null;
+                  const lastEvent = lastEvents.length ? Math.max(...lastEvents) : null;
+                  const now = state.capturedAt;
+                  const memoryAgeMs = memoryStart ? Math.max(0, now - memoryStart) : null;
+                  const staleAgeMs = lastEvent ? Math.max(0, now - lastEvent) : null;
+                  const fmtAge = (ms: number | null): string => {
+                    if (ms == null) return \"—\";
+                    if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+                    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+                    if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h`;
+                    return `${(ms / 86_400_000).toFixed(1)}d`;
+                  };
+                  return (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: \"1px solid rgba(139,106,41,0.2)\", display: \"grid\", gridTemplateColumns: \"repeat(auto-fit, minmax(130px, 1fr))\", gap: 10 }}>
+                      <Stat label=\"Memory age\" value={fmtAge(memoryAgeMs)} />
+                      <Stat label=\"Last event\" value={fmtAge(staleAgeMs)} tone={staleAgeMs != null && staleAgeMs > 60_000 ? (staleAgeMs > 300_000 ? \"warn\" : \"watch\") : \"ok\"} />
+                      <Stat label=\"Observed\" value={String(totalEvents)} />
+                      <Stat label=\"Gaps\" value={String(gapTotal)} tone={gapTotal > 0 ? \"watch\" : \"ok\"} />
+                    </div>
+                  );
+                })()}
+              </div>
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+              <ATHOSInterventionPanel
+                interventions={athos.interventions as readonly ATHOSIntervention[]}
+                onDismiss={(id) => console.debug(\"dismissed\", id)}
+              />
+            )}
+            </details>
+            )}
+
+            { }
+            {chainVm && phase === \"PREPARATION\" && (
+              <OpeningBellPanel
+                vm={selectOpeningBell({
+                  ownerId: user?.id ?? \"\",
+                  sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+                  items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false })),
+                  minutesUntilOpen: null,
+                  dataQuality: state?.qualityState,
+                  nowMs,
+                })}
+              />
+            )}
+
+            { }
+            {chainVm && (phase === \"REVIEW\" || phase === \"POST_EXIT\") && (
+              <MirrorPanel
+                vm={selectMirror({
+                  ownerId: user?.id ?? \"\",
+                  decisions: sessionDecisions,
+                  nowMs,
+                })}
+              />
+            )}
+          </div>
+
+          { }
+          {showEvidence && whyTarget && (
+            <aside className=\"wm-cd-why-column\" style={{ position: \"sticky\", top: 80, alignSelf: \"start\" }}>
+              <WhyInspector
+                target={whyTarget}
+                state={state}
+                dlar={chainVm?.dlar ?? null}
+                clc={chainVm?.clc ?? null}
+                onClose={() => setShowEvidence(false)}
+              />
+            </aside>
+          )}
+        </div>
+
+        { }
+        <div
+          style={{
+            paddingTop: 20,
+            marginTop: 32,
+            borderTop: \"1px solid rgba(139,106,41,0.25)\",
+            textAlign: \"center\",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: \"Georgia, 'Times New Roman', serif\",
+              fontSize: 12,
+              letterSpacing: 0.4,
+              color: \"#c9a55c\",
+              marginBottom: 6,
+            }}
+          >
+            OBSERVE TRUTH · PROTECT PROCESS · COMPOUND WISDOM
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#55503f\",
+            }}
+          >
+            Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
+          </div>
+        </div>
+
+        { }
+        <RealmGateway currentKey=\"wm-pro\" />
+        </div>{ }
+      </main>
+    </div>
+  );
+}
+
+ 
+function TodayPrepBridge({ userId }: { userId: string | null }) {
+  const prep = useTodayPrep(userId);
+  if (!prep.hasEntry) return null;
+  return (
+    <div
+      role=\"region\"
+      aria-label=\"Today's morning prep intention\"
+      style={{
+        display: \"flex\",
+        alignItems: \"center\",
+        gap: 12,
+        padding: \"10px 14px\",
+        border: \"1px solid rgba(212,175,55,0.35)\",
+        borderLeft: \"3px solid #d4af37\",
+        borderRadius: 8,
+        background: \"rgba(212,175,55,0.05)\",
+      }}
+    >
+      {prep.mood && (
+        <span style={{ fontSize: 18, lineHeight: 1 }} aria-label={`Mood ${prep.mood}`}>
+          {prep.mood}
+        </span>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 700, marginBottom: 4 }}>
+          Today's intention
+        </div>
+        {prep.routine ? (
+          <div style={{ fontSize: 12, color: \"#ede6d3\", lineHeight: 1.5, overflow: \"hidden\", textOverflow: \"ellipsis\", display: \"-webkit-box\", WebkitLineClamp: 2, WebkitBoxOrient: \"vertical\" }}>
+            {prep.routine}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: \"#8a8271\", fontStyle: \"italic\" }}>
+            Prep saved with no written routine today.
+          </div>
+        )}
+      </div>
+      <div style={{ display: \"flex\", flexDirection: \"column\", alignItems: \"flex-end\", gap: 2 }}>
+        {prep.checklistTotal > 0 && (
+          <div style={{ fontSize: 10, color: \"#c9a55c\", letterSpacing: 0.3 }}>
+            {prep.checklistDone}/{prep.checklistTotal} checked
+          </div>
+        )}
+        <a
+          href=\"/morning-prep\"
+          style={{ fontSize: 9, letterSpacing: 0.3, textTransform: \"uppercase\", color: \"#8a8271\", textDecoration: \"none\" }}
+          aria-label=\"Open Morning Prep\"
+        >
+          Prep →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: \"ok\" | \"watch\" | \"warn\" }) {
+  const color =
+    tone === \"warn\"  ? \"#c05a4a\" :
+    tone === \"watch\" ? \"#c9a55c\" :
+                       \"#ede6d3\";
+  return (
+    <div style={{ padding: \"8px 10px\", borderRadius: 6, background: \"rgba(19,19,23,0.5)\" }}>
+      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#8a8271\", fontWeight: 700 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color, marginTop: 4, fontVariantNumeric: \"tabular-nums\" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:343:17
+    341|     const src = stripComments(DECK_PAGE());
+    342|     expect(src).toContain("selectCanonicalSessionToken");
+    343|     expect(src).toMatch(/session:\s*sessionTruth\.token/);
+       |                 ^
+    344|   });
+    345|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/lib/experience/deckSceneSignals.test.ts > /command-deck wires the scene from the owner, not the store key > uses the mount-safe day clock, not the 5s cadence clock, for closure
+AssertionError: expected '"use client";\nimport * as React from…' to match /at:\s*sessionClockDate/
+
+- Expected:
+/at:\s*sessionClockDate/
+
++ Received:
+"\"use client\";
+import * as React from \"react\";
+import { useRouter, useSearchParams } from \"next/navigation\";
+import { ArrowLeft } from \"lucide-react\";
+import { useActiveSymbol } from \"@/contexts/SymbolContext\";
+import { useAuth } from \"@/contexts/AuthContext\";
+import {
+  useCanonicalMarketState,
+  useCanonicalMarketStateHistory,
+} from \"@/lib/marketData/useCanonicalMarketState\";
+import { useCanvasClock } from \"@/lib/marketData/viewModels/canvasClock\";
+import { usePublishChartMarketState } from \"@/lib/marketData/chartMarketStatePublisher\";
+import {
+  canonicalMarketStateIdentity,
+  selectCanonicalSessionToken,
+} from \"@/lib/marketData/canonicalIdentity\";
+import { useWebSocket } from \"@/hooks/useWebSocket\";
+import {
+  useProvenSessionClosure,
+  useSessionClockDate,
+} from \"@/lib/marketData/useProvenSessionClosure\";
+import { selectDecisionChain, type TradePhase } from \"@/lib/marketData/viewModels/selectDecisionChain\";
+import { selectMarketStory } from \"@/lib/marketData/viewModels/selectMarketStory\";
+import DecisionChainPanel from \"@/components/chart/DecisionChainPanel\";
+import StructureContextNote from \"@/components/chart/StructureContextNote\";
+import StoryRibbon from \"@/components/chart/StoryRibbon\";
+import ATHOSInterventionPanel from \"@/components/athos/ATHOSInterventionPanel\";
+import { selectATHOSIntervention, type ATHOSIntervention } from \"@/lib/traderMemory/viewModels/selectATHOSIntervention\";
+import MirrorPanel from \"@/components/mirror/MirrorPanel\";
+import OpeningBellPanel from \"@/components/opening-bell/OpeningBellPanel\";
+import { selectMirror } from \"@/lib/traderMemory/viewModels/selectMirror\";
+import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from \"@/lib/traderMemory/viewModels/selectOpeningBell\";
+import { useDecisionMemory, useDecisionMemoryRecords } from \"@/lib/traderMemory/useDecisionMemory\";
+import { useJournalSnapshots } from \"@/lib/traderMemory/adapters/useJournalSnapshots\";
+import PersonalEdgeChip from \"@/components/journal/PersonalEdgeChip\";
+import { selectPersonalEdge } from \"@/lib/traderMemory/viewModels/selectPersonalEdge\";
+import HeroTruth from \"@/components/command-deck/HeroTruth\";
+import DLARStrip, { type DLARDimensionKey } from \"@/components/command-deck/DLARStrip\";
+import WhyInspector, { type WhyTarget } from \"@/components/command-deck/WhyInspector\";
+import SectionBanner from \"@/components/brand/SectionBanner\";
+import RealmGateway from \"@/components/brand/RealmGateway\";
+import { useTodayPrep } from \"@/lib/traderMemory/adapters/useTodayPrep\";
+import CommandContextRibbon from \"@/components/command/CommandContextRibbon\";
+import OneStoryStrip from \"@/components/command/OneStoryStrip\";
+import SceneAdmissionPanel from \"@/components/experience/SceneAdmissionPanel\";
+import SceneAdmits, { SceneAdmitsAmbient } from \"@/components/experience/SceneAdmits\";
+import { compileScene, type SurfaceElement } from \"@/lib/experience/compileScene\";
+import { deckSceneSignals } from \"@/lib/experience/deckSceneSignals\";
+import {
+  computeEvidenceDebt as computeSceneEvidenceDebt,
+  computeRightOfWay as computeSceneRightOfWay,
+} from \"@/lib/marketData/viewModels/decisionPermissionCompiler\";
+import { PerCapabilityFidelityGrid } from \"@/components/marketData/PerCapabilityFidelityGrid\";
+import { selectPerCapabilityFidelity } from \"@/lib/marketData/selectPerCapabilityFidelity\";
+import { selectAggressorFlow } from \"@/lib/marketData/selectAggressorFlow\";
+import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from \"@/lib/marketData/perCapabilityFidelity\";
+import { SemanticZoom } from \"@/components/experience/SemanticZoom\";
+import MarketObjectPassportPanel from \"@/components/experience/MarketObjectPassportPanel\";
+import { selectMarketObjectPassport } from \"@/lib/marketData/viewModels/selectMarketObjectPassport\";
+import DecisionWhyPanel from \"@/components/experience/DecisionWhyPanel\";
+import MarketCanvasPanel from \"@/components/experience/MarketCanvasPanel\";
+import CanvasSummaryPill from \"@/components/experience/CanvasSummaryPill\";
+import { composeMarketCanvasVM } from \"@/lib/marketData/viewModels/composeMarketCanvasVM\";
+import DecisionReceiptPanel from \"@/components/experience/DecisionReceiptPanel\";
+import { selectDecisionReceipt } from \"@/lib/traderMemory/viewModels/selectDecisionReceipt\";
+import ExperienceModeBar from \"@/components/experience/ExperienceModeBar\";
+import { useDecisionContext } from \"@/lib/experience/useDecisionContext\";
+import { shellEmphasis } from \"@/lib/experience/shellLayout\";
+import { routeQuestion } from \"@/lib/experience/questionRouter\";
+import { selectDeckEmphasis, surfaceOrder } from \"@/lib/experience/selectDeckEmphasis\";
+import { inferJobMode } from \"@/lib/experience/inferJobMode\";
+import { selectJobSuggestion } from \"@/lib/experience/selectJobSuggestion\";
+import { selectCompletionState } from \"@/lib/experience/selectCompletionState\";
+import { deriveCompletionSignals } from \"@/lib/experience/deriveCompletionSignals\";
+import { composeExitRamp } from \"@/lib/experience/composeExitRamp\";
+import ExitRampCard from \"@/components/experience/ExitRampCard\";
+import { useLearningGenomeBundle } from \"@/lib/learningGenome/useLearningGenomeBundle\";
+import { LearningGenomeInspector } from \"@/components/learningGenome/LearningGenomeInspector\";
+import ProviderWireStrip from \"@/components/marketData/ProviderWireStrip\";
+
+ 
+
+type CommandPhase = TradePhase;
+
+const PHASES: readonly { id: CommandPhase; label: string }[] = [
+  { id: \"PREPARATION\", label: \"Prep\" },
+  { id: \"APPROACH\", label: \"Approach\" },
+  { id: \"DECISION\", label: \"Decide\" },
+  { id: \"POSITION\", label: \"In Trade\" },
+  { id: \"POST_EXIT\", label: \"Post-Exit\" },
+  { id: \"REVIEW\", label: \"Review\" },
+];
+
+ 
+const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [\"ONE_STORY\"];
+
+export default function CommandDeckPage() {
+  
+  
+  
+  return (
+    <React.Suspense fallback={<div style={{ minHeight: \"100vh\", background: \"linear-gradient(180deg, #050506 0%, #0b0b0d 100%)\" }} />}>
+      <CommandDeckInner />
+    </React.Suspense>
+  );
+}
+
+function CommandDeckInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { activeSymbol, setActiveSymbol } = useActiveSymbol();
+  
+  
+  
+  const urlSymbol = searchParams?.get(\"symbol\");
+  const urlTf = searchParams?.get(\"tf\");
+  const symbol = (urlSymbol || activeSymbol || \"TSLA\").toUpperCase();
+  const timeframe = (urlTf || \"15m\").toLowerCase();
+  React.useEffect(() => {
+    
+    
+    
+    if (urlSymbol && urlSymbol.toUpperCase() !== activeSymbol) {
+      setActiveSymbol(urlSymbol.toUpperCase());
+    }
+  }, [urlSymbol, activeSymbol, setActiveSymbol]);
+  const [phase, setPhase] = React.useState<CommandPhase>(\"PREPARATION\");
+  const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
+  const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
+  const [proofChainOpen, setProofChainOpen] = React.useState(false);
+
+  
+  
+  
+  
+  const { context: experienceContext, setMode: setExperienceMode } = useDecisionContext();
+  const experienceEmphasis = shellEmphasis(experienceContext.mode);
+
+  
+  
+  
+  
+  
+  const identity = React.useMemo(
+    () => canonicalMarketStateIdentity({ symbol, timeframe, extHours: false }),
+    [symbol, timeframe],
+  );
+
+  
+  
+  
+  
+  const wsFeed = useWebSocket({ symbol, timeframe });
+  
+  
+  
+  
+  const sessionOpen = useProvenSessionClosure(symbol);
+  usePublishChartMarketState({
+    symbol,
+    timeframe,
+    session: identity.session,
+    ticker: wsFeed.ticker,
+    recentTicks: wsFeed.recentTicks,
+    source: wsFeed.source,
+    connected: wsFeed.connected,
+  });
+
+  const state = useCanonicalMarketState(identity);
+  const history = useCanonicalMarketStateHistory(identity, 6);
+  
+  
+  
+  
+  
+  
+  const nowMs = useCanvasClock() ?? Date.now();
+  const storeDecisions = useDecisionMemory(user?.id ?? null);
+  const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
+  const journalDecisions = useJournalSnapshots(user?.id ?? null);
+  const sessionDecisions = React.useMemo(
+    () => {
+      const ids = new Set(storeDecisions.map((d) => d.decisionId));
+      return [...storeDecisions, ...journalDecisions.filter((d) => !ids.has(d.decisionId))];
+    },
+    [storeDecisions, journalDecisions],
+  );
+  const personalEdgeVm = React.useMemo(
+    () =>
+      selectPersonalEdge({
+        ownerId: user?.id ?? \"\",
+        decisions: sessionDecisions,
+        nowMs,
+      }),
+    [user?.id, sessionDecisions, nowMs],
+  );
+
+  const chainVm = React.useMemo(() => {
+    if (!state) return null;
+    return selectDecisionChain({
+      state,
+      history,
+      nowMs,
+      phase,
+    });
+  }, [state, history, phase, nowMs]);
+
+  const athos = React.useMemo(() => {
+    const momentMap: Record<CommandPhase, ATHOSIntervention[\"moment\"]> = {
+      PREPARATION: \"IDLE\",
+      APPROACH: \"PRE_ENTRY\",
+      DECISION: \"AT_ENTRY_TRIGGER\",
+      POSITION: \"IN_POSITION\",
+      POST_EXIT: \"POST_EXIT\",
+      REVIEW: \"SESSION_REVIEW\",
+    };
+    return selectATHOSIntervention({
+      ownerId: user?.id ?? \"\",
+      sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+      nowMs,
+      moment: momentMap[phase],
+      sessionDecisions,
+      marketState: state ?? undefined,
+      dlar: chainVm?.dlar ?? null,
+      clc: chainVm?.clc ?? null,
+    });
+  }, [phase, user?.id, state, chainVm, sessionDecisions, nowMs]);
+
+  
+  
+  
+  
+  
+  
+  
+  const canvasCompilation = React.useMemo(
+    () =>
+      composeMarketCanvasVM({
+        state: state ?? null,
+        history,
+        sessionDecisions,
+        ownerId: user?.id ?? \"\",
+        nowMs,
+        chain: chainVm ?? null,
+      }),
+    [state, history, sessionDecisions, user?.id, chainVm, nowMs],
+  );
+  const permission = canvasCompilation.permission;
+  const oneStory = canvasCompilation.oneStory;
+  const decisionWhy = canvasCompilation.decisionWhy;
+  const marketCanvas = canvasCompilation.canvas;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  const sessionClockDate = useSessionClockDate();
+  const sceneInput = React.useMemo(() => {
+    const debt = computeSceneEvidenceDebt(chainVm?.nodes);
+    const row = computeSceneRightOfWay(permission, debt);
+        return deckSceneSignals({ session: identity.session, rightOfWay: row.value });
+  }, [chainVm?.nodes, permission, symbol, sessionClockDate]);
+  const sceneCompilation = React.useMemo(
+    () => compileScene(sceneInput.signals),
+    [sceneInput],
+  );
+
+  
+  
+  
+  const experienceQuestion = routeQuestion(experienceContext.mode, oneStory);
+
+  
+  
+  
+  
+  const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
+
+  
+  
+  
+
+  
+  
+  
+  
+  
+  const latestDecisionRecord = React.useMemo(() => {
+    if (decisionRecords.length === 0) return null;
+    return decisionRecords.reduce((latest, r) =>
+      r.frozen.capturedAt > latest.frozen.capturedAt ? r : latest,
+    );
+  }, [decisionRecords]);
+  const decisionReceipt = React.useMemo(
+    () => selectDecisionReceipt(latestDecisionRecord),
+    [latestDecisionRecord],
+  );
+
+  
+  
+  
+  
+  const learningGenome = useLearningGenomeBundle();
+
+  
+  
+  
+  const jobInference = React.useMemo(() => {
+    const hasOpenPosition = decisionRecords.some(
+      (r) => (r.plan.action === \"ENTER_LONG\" || r.plan.action === \"ENTER_SHORT\") && !r.outcome,
+    );
+    const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
+    return inferJobMode({
+      hasOpenPosition,
+      hasUnreviewedClose,
+      decision: oneStory.decision.value,
+      hasResolvedMarketState: passport.resolvedCount > 0,
+    });
+  }, [decisionRecords, oneStory, passport]);
+  
+  
+  
+  
+  const jobSuggestion = selectJobSuggestion(jobInference, experienceContext.mode);
+
+  
+  
+  
+  
+  
+  
+  const deckEmphasis = React.useMemo(
+    () =>
+      selectDeckEmphasis(experienceContext.mode, {
+        hasUnresolvedContradiction: oneStory.contradiction != null,
+        hasSealedReceipt: !decisionReceipt.empty,
+      }),
+    [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
+  );
+  React.useEffect(() => {
+    
+    
+    
+    
+    
+    setProofChainOpen(deckEmphasis.emphasizeWhy);
+  }, [deckEmphasis.emphasizeWhy, experienceContext.mode]);
+
+  
+  
+  
+  
+  
+  const exitRamp = React.useMemo(() => {
+    const signals = deriveCompletionSignals({
+      mode: experienceContext.mode,
+      decisionRecords,
+      resolvedObjectCount: passport.resolvedCount,
+      receiptEmpty: decisionReceipt.empty,
+      decision: oneStory.decision.value,
+    });
+    const assessment = selectCompletionState(signals);
+    const done: string[] = [];
+    if (!decisionReceipt.empty) done.push(\"Decision receipt sealed\");
+    if (passport.resolvedCount > 0) done.push(`${passport.resolvedCount} market object(s) resolved`);
+    const saved: string[] = [];
+    if (decisionRecords.length > 0) saved.push(`${decisionRecords.length} decision record(s) preserved`);
+    return composeExitRamp({ assessment, done, saved, returnCondition: signals.returnCondition });
+  }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value]);
+
+  const openWhy = (t: WhyTarget) => {
+    setWhyTarget(t);
+    setShowEvidence(true);
+  };
+
+  return (
+    <div style={{ minHeight: \"100vh\", background: \"linear-gradient(180deg, #050506 0%, #0b0b0d 100%)\", color: \"#ede6d3\" }}>
+      { }
+      <header
+        className=\"wm-cd-header\"
+        style={{
+          borderBottom: \"1px solid rgba(139,106,41,0.35)\",
+          padding: \"12px 24px\",
+          display: \"flex\",
+          alignItems: \"center\",
+          gap: 16,
+          background: \"rgba(11,11,13,0.85)\",
+          backdropFilter: \"blur(8px)\",
+          position: \"sticky\",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        <button
+          className=\"wm-cd-header-back\"
+          onClick={() => router.push(\"/charts\")}
+          aria-label=\"Back to charts\"
+          style={{
+            display: \"flex\",
+            alignItems: \"center\",
+            gap: 6,
+            fontSize: 11,
+            letterSpacing: 0.3,
+            textTransform: \"uppercase\",
+            color: \"#8a8271\",
+            background: \"transparent\",
+            border: \"none\",
+            cursor: \"pointer\",
+            minHeight: 44,
+            padding: \"0 10px\",
+          }}
+        >
+          <ArrowLeft size={12} />
+          Charts
+        </button>
+        <h1
+          className=\"wm-cd-header-identity\"
+          style={{
+            margin: 0,
+            minWidth: 0,
+            fontSize: 11,
+            letterSpacing: 0.6,
+            textTransform: \"uppercase\",
+            color: \"#c9a55c\",
+            fontWeight: 800,
+            whiteSpace: \"nowrap\",
+          }}
+        >
+          Command Deck
+        </h1>
+        { }
+        <CanvasSummaryPill
+          vm={marketCanvas}
+          ariaLabel=\"Deck canvas summary — jump to Market Canvas\"
+          scrollToSelector='[data-testid=\"market-canvas-panel\"]'
+        />
+        <div className=\"wm-cd-header-actions\" style={{ marginLeft: \"auto\", display: \"flex\", alignItems: \"center\", gap: 6 }}>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: \"hero\" }))}
+            aria-label={showEvidence ? \"Hide evidence inspector\" : \"Show evidence inspector\"}
+            aria-pressed={showEvidence}
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: showEvidence ? \"#d4af37\" : \"#8a8271\",
+              background: showEvidence ? \"rgba(212,175,55,0.1)\" : \"transparent\",
+              border: showEvidence ? \"1px solid #d4af3760\" : \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+              fontWeight: 700,
+            }}
+          >
+            Why?
+          </button>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => router.push(\"/profile?tab=growth\")}
+            aria-label=\"Open Growth on your Profile\"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#8a8271\",
+              background: \"transparent\",
+              border: \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+            }}
+          >
+            Growth →
+          </button>
+          <button
+            className=\"wm-cd-header-action\"
+            type=\"button\"
+            onClick={() => router.push(\"/journal\")}
+            aria-label=\"Open Journal\"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#8a8271\",
+              background: \"transparent\",
+              border: \"1px solid rgba(139,106,41,0.35)\",
+              minHeight: 32,
+              padding: \"0 10px\",
+              borderRadius: 4,
+              cursor: \"pointer\",
+            }}
+          >
+            Journal →
+          </button>
+        </div>
+      </header>
+
+      { }
+      <div
+        className=\"wm-cd-mode-band\"
+        style={{
+          maxWidth: 1280,
+          margin: \"0 auto\",
+          padding: \"10px 16px 0\",
+          display: \"flex\",
+          flexDirection: \"column\",
+          gap: 6,
+        }}
+      >
+        { }
+        <div style={{ display: \"flex\", alignItems: \"center\", gap: 14, flexWrap: \"wrap\" }}>
+          <div style={{ flex: \"1 1 260px\", minWidth: 240 }}>
+            <ExperienceModeBar />
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              letterSpacing: 0.3,
+              color: \"#8a7a52\",
+              whiteSpace: \"nowrap\",
+              textTransform: \"uppercase\",
+            }}
+          >
+            {experienceEmphasis.job}
+          </div>
+        </div>
+        { }
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: 1.35,
+            color: \"#c9a55c\",
+            fontStyle: \"italic\",
+          }}
+        >
+          {experienceQuestion}
+        </div>
+        { }
+        {jobSuggestion.strength !== \"NONE\" && jobSuggestion.inference && (() => {
+          const sug = jobSuggestion.inference;
+          const hint = jobSuggestion.strength === \"HINT\";
+          return (
+            <button
+              type=\"button\"
+              onClick={() => setExperienceMode(sug.suggested)}
+              title={sug.reason}
+              style={{
+                marginTop: 6,
+                alignSelf: \"flex-start\",
+                display: \"inline-flex\",
+                alignItems: \"baseline\",
+                gap: 6,
+                background: \"transparent\",
+                border: hint
+                  ? \"1px dashed rgba(138,130,113,0.35)\"
+                  : \"1px solid rgba(212,175,55,0.35)\",
+                borderRadius: 999,
+                padding: \"3px 10px\",
+                cursor: \"pointer\",
+                fontSize: 10,
+                letterSpacing: 0.4,
+                color: \"#c9a55c\",
+                textTransform: \"uppercase\",
+                opacity: hint ? 0.72 : 1,
+              }}
+            >
+              <span style={{ color: \"#8a8271\" }}>{hint ? \"Possibly →\" : \"Suggested job →\"}</span>
+              <span style={{ color: hint ? \"#c9a55c\" : \"#d4af37\", fontWeight: 600 }}>
+                {sug.suggested}
+              </span>
+              <span style={{ color: \"#8a8271\", textTransform: \"none\", letterSpacing: 0.2 }}>
+                {sug.reason}
+              </span>
+            </button>
+          );
+        })()}
+      </div>
+
+      <main style={{ maxWidth: 1280, margin: \"0 auto\", padding: \"24px 16px\", position: \"relative\" }}>
+        <div style={{ position: \"relative\", zIndex: 1 }}>
+          { }
+          <style>{`
+            .wm-cd-header-action { min-height: 44px !important; }
+            .wm-cd-header-action:focus-visible,
+            .wm-cd-header-back:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history { min-width: 0; }
+            .wm-cd-chapter-history > summary {
+              min-height: 44px;
+              min-width: 0;
+              display: flex;
+              align-items: center;
+              padding: 10px 12px;
+              border: 1px solid rgba(212, 175, 55, 0.2);
+              border-radius: 10px;
+              color: #c9a55c;
+              cursor: pointer;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+              overflow-wrap: anywhere;
+            }
+            .wm-cd-chapter-history > summary:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history-content {
+              min-width: 0;
+              overflow-x: auto;
+              overscroll-behavior-x: contain;
+              padding-top: 12px;
+            }
+            .wm-cd-chapter-history:not([open]) > .wm-cd-chapter-history-content {
+              display: none;
+            }
+            @media (max-width: 640px) {
+              .wm-cd-header {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 8px 12px !important;
+              }
+              .wm-cd-header-back { padding-inline: 6px !important; }
+              .wm-cd-header-identity { flex: 1 1 auto; gap: 6px !important; }
+              .wm-cd-header-actions {
+                flex: 0 0 100%;
+                margin-left: 0 !important;
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px !important;
+              }
+              .wm-cd-header-action {
+                width: 100%;
+                padding-inline: 8px !important;
+              }
+            }
+            @media (max-width: 900px) {
+              .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
+              .wm-cd-why-column { position: static !important; }
+            }
+          `}</style>
+        { }
+        <div
+          className=\"wm-cd-layout\"
+          style={{
+            display: \"grid\",
+            gridTemplateColumns: showEvidence && whyTarget ? \"minmax(0, 1fr) 380px\" : \"minmax(0, 1fr)\",
+            gap: 20,
+            alignItems: \"start\",
+          }}
+        >
+          { }
+          <div style={{ display: \"flex\", flexDirection: \"column\", gap: 20, minWidth: 0 }}>
+            { }
+            {(() => {
+              const story = state ? selectMarketStory(state, history) : null;
+              return (
+                <button
+                  type=\"button\"
+                  onClick={() => openWhy({ kind: \"hero\" })}
+                  aria-label=\"Explain hero truth\"
+                  style={{ padding: 0, background: \"transparent\", border: \"none\", cursor: \"pointer\", textAlign: \"left\", display: \"block\", width: \"100%\" }}
+                >
+                  <HeroTruth
+                    symbol={symbol}
+                    timeframe={timeframe}
+                    state={state}
+                    marketState={story?.current?.chapter ?? (story ? \"UNKNOWN\" : null)}
+                    marketStateResolution={story?.resolution ?? undefined}
+                  />
+                </button>
+              );
+            })()}
+
+            { }
+            <TodayPrepBridge userId={user?.id ?? null} />
+
+            { }
+            <div
+              aria-live=\"polite\"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                textTransform: \"uppercase\",
+                color: \"#8a8271\",
+                display: \"flex\",
+                gap: 6,
+                alignItems: \"baseline\",
+                marginBottom: -8,
+              }}
+            >
+              <span style={{ color: \"#c9a55c\" }}>Layout</span>
+              <span style={{ textTransform: \"none\", letterSpacing: 0 }}>
+                {deckEmphasis.rationale}
+                {deckEmphasis.refinementNote && (
+                  
+                  
+                  
+                  <span style={{ color: \"#c9a55c\" }}> · {deckEmphasis.refinementNote}</span>
+                )}
+              </span>
+            </div>
+
+            { }
+            <div style={{ display: \"flex\", flexDirection: \"column\", gap: 20 }}>
+              { }
+              <SceneAdmits compilation={sceneCompilation} element=\"ONE_STORY\">
+                <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                  <OneStoryStrip vm={oneStory} />
+                </div>
+              </SceneAdmits>
+
+              { }
+              <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                <SceneAdmissionPanel
+                  compilation={sceneCompilation}
+                  provenance={sceneInput.provenance}
+                  observedCount={sceneInput.observedCount}
+                  totalCount={sceneInput.totalCount}
+                  governed={DECK_GOVERNED_ELEMENTS}
+                />
+              </div>
+
+              { }
+              <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                <ExitRampCard ramp={exitRamp} />
+              </div>
+
+              { }
+              <details
+                key={`evidence-${experienceContext.mode}`}
+                className=\"wm-cd-evidence-drawer\"
+                open={proofChainOpen}
+                onToggle={event => setProofChainOpen(event.currentTarget.open)}
+                style={{
+                  order: surfaceOrder(deckEmphasis, \"WHY\"),
+                  border: \"1px solid rgba(139,106,41,0.28)\",
+                  borderRadius: 12,
+                  background: \"rgba(10,12,18,0.72)\",
+                  overflow: \"hidden\",
+                }}
+              >
+                <summary
+                  style={{
+                    minHeight: 54,
+                    padding: \"0 16px\",
+                    cursor: \"pointer\",
+                    display: \"flex\",
+                    alignItems: \"center\",
+                    justifyContent: \"space-between\",
+                    gap: 12,
+                    color: \"#d7d9e2\",
+                    fontSize: 12,
+                    fontWeight: 750,
+                    listStyle: \"none\",
+                  }}
+                >
+                  <span>Evidence &amp; reasoning</span>
+                  <span style={{ color: \"#8a8271\", fontSize: 10, fontWeight: 500 }}>
+                    Open the proof chain
+                  </span>
+                </summary>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 16, padding: \"0 16px 16px\" }}>
+                  { }
+                  <div style={{ order: surfaceOrder(deckEmphasis, \"WHY\") }}>
+                    <DecisionWhyPanel vm={decisionWhy} />
+                  </div>
+
+              { }
+                  <div style={{ order: surfaceOrder(deckEmphasis, \"STORY\") }}>
+                    <MarketCanvasPanel vm={marketCanvas} />
+                  </div>
+
+              { }
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, \"PASSPORT\") }}
+                    open={deckEmphasis.passportOpen}
+                  >
+                <summary
+                  style={{
+                    cursor: \"pointer\",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: \"#c9a55c\",
+                    textTransform: \"uppercase\",
+                    padding: \"4px 0\",
+                  }}
+                >
+                  Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <MarketObjectPassportPanel vm={passport} />
+                </div>
+                  </details>
+
+              { }
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, \"RECEIPT\") }}
+                    open={deckEmphasis.receiptOpen}
+                  >
+                <summary
+                  style={{
+                    cursor: \"pointer\",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: \"#c9a55c\",
+                    textTransform: \"uppercase\",
+                    padding: \"4px 0\",
+                  }}
+                >
+                  Decision Receipt ·{\" \"}
+                  {decisionReceipt.empty
+                    ? \"none sealed\"
+                    : `${decisionReceipt.stage.toLowerCase()}`}
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <DecisionReceiptPanel vm={decisionReceipt} />
+                </div>
+                  </details>
+                </div>
+              </details>
+              { }
+              { }
+              <SceneAdmitsAmbient compilation={sceneCompilation}>
+                {(experienceContext.mode === \"REVIEW\" || experienceContext.mode === \"LEARN\") &&
+                learningGenome &&
+                learningGenome.genome.headlineWeakness ? (
+                  <details style={{ marginTop: 8 }}>
+                    <summary
+                      style={{
+                        cursor: \"pointer\",
+                        fontSize: 10,
+                        letterSpacing: 0.6,
+                        color: \"#c9a55c\",
+                        textTransform: \"uppercase\",
+                        padding: \"4px 0\",
+                      }}
+                    >
+                      Learning Genome ·{\" \"}
+                      {learningGenome.drill ? learningGenome.drill.stage.toLowerCase() : \"diagnostic\"}
+                    </summary>
+                    <div style={{ marginTop: 6 }}>
+                      <LearningGenomeInspector
+                        genome={learningGenome.genome}
+                        drill={learningGenome.drill}
+                        misread={learningGenome.misread}
+                        trend={learningGenome.trend}
+                        focusStreak={learningGenome.focus_streak}
+                        ruleAdherenceStreak={learningGenome.rule_adherence_streak}
+                        dayModelCoverage={learningGenome.day_model_coverage}
+                        dualSideGuard={learningGenome.dual_side_guard}
+                        weekMaturity={learningGenome.week_maturity}
+                      />
+                    </div>
+                  </details>
+                ) : null}
+              </SceneAdmitsAmbient>
+            </div>
+
+            { }
+            <details className=\"wm-cd-connection-diagnostics\">
+              <summary
+                style={{
+                  minHeight: 44,
+                  cursor: \"pointer\",
+                  display: \"flex\",
+                  alignItems: \"center\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#8a8271\",
+                  textTransform: \"uppercase\",
+                  padding: \"4px 0\",
+                }}
+              >
+                Connections · provider readiness
+              </summary>
+              <ProviderWireStrip compact />
+            </details>
+
+            { }
+            <details>
+              <summary
+                style={{
+                  cursor: \"pointer\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#8a8271\",
+                  textTransform: \"uppercase\",
+                  padding: \"4px 0\",
+                }}
+              >
+                System state · session · data · evidence · right-of-way
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                <CommandContextRibbon
+                  symbol={symbol}
+                  session={identity.session}
+                  state={state}
+                  wsConnected={wsFeed.connected}
+                  wsSource={wsFeed.source ?? null}
+                  availableR={chainVm?.availableR ?? null}
+                  permission={permission}
+                  chainNodes={chainVm?.nodes}
+                />
+              </div>
+            </details>
+
+            { }
+            {(() => {
+              const bookLevels =
+                (wsFeed.orderBook?.bids?.length ?? 0) +
+                (wsFeed.orderBook?.asks?.length ?? 0);
+              
+              
+              
+              
+              
+              const aggressorFlow = wsFeed.connected
+                ? selectAggressorFlow(wsFeed.recentTicks)
+                : null;
+              const orderFlowDerived =
+                aggressorFlow != null && aggressorFlow.hasFlow ? true : undefined;
+              const capabilityReport = selectPerCapabilityFidelity({
+                source: wsFeed.source ?? \"unavailable\",
+                connected: wsFeed.connected,
+                hasCandles: !!state,
+                
+                
+                
+                sessionOpen,
+                
+                tapeConnected: !wsFeed.connected
+                  ? undefined
+                  : (wsFeed.recentTicks?.length ?? 0) > 0,
+                orderFlowDerived,
+                
+                
+                
+                
+                
+                
+                depthSubscribed: bookLevels > 0 ? true : undefined,
+              });
+              const evaluated = evaluatedCapabilityCount(capabilityReport);
+              const weakest = weakestCapability(capabilityReport);
+              const strongest = strongestCapability(capabilityReport);
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <SemanticZoom
+                    ariaLabel=\"Data fidelity per capability\"
+                    levels={{
+                      1: (
+                        <div className=\"text-[10px]\" style={{ color: \"#8B92AC\", padding: \"4px 2px\" }}>
+                          {evaluated === 0 ? (
+                            <span className=\"italic\">Fidelity not yet evaluated</span>
+                          ) : weakest && strongest && weakest.capability === strongest.capability ? (
+                            <span>
+                              <span style={{ color: \"#F0B429\", fontWeight: 700, letterSpacing: \"0.05em\", textTransform: \"uppercase\" }}>
+                                Data
+                              </span>{\" · \"}
+                              <span>{evaluated} / 7 capabilities · {strongest.label}</span>
+                            </span>
+                          ) : weakest && strongest ? (
+                            <span>
+                              <span style={{ color: \"#F0B429\", fontWeight: 700, letterSpacing: \"0.05em\", textTransform: \"uppercase\" }}>
+                                Data
+                              </span>{\" · \"}
+                              <span>{evaluated} / 7 capabilities · strongest {strongest.capability} = {strongest.label}</span>
+                              {weakest.label !== strongest.label && (
+                                <span> · weakest {weakest.capability} = {weakest.label}</span>
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
+                      ),
+                      2: (
+                        <div style={{ padding: \"6px 2px\", display: \"flex\", flexDirection: \"column\", gap: 4 }}>
+                          {evaluated === 0 ? (
+                            <span className=\"text-[11px] italic\" style={{ color: \"#8B92AC\" }}>
+                              No capabilities evaluated yet — nothing to summarise (canon §Silence Is A Feature).
+                            </span>
+                          ) : (
+                            <>
+                              <div className=\"text-[11px]\" style={{ color: \"#E4E7EF\", fontWeight: 600 }}>
+                                {weakest && strongest && weakest.capability !== strongest.capability
+                                  ? `Weakest: ${weakest.capability} — ${weakest.label}`
+                                  : `All evaluated capabilities: ${strongest?.label ?? \"—\"}`}
+                              </div>
+                              <div className=\"text-[10px]\" style={{ color: \"#8B92AC\" }}>
+                                {evaluated} of 7 capabilities evaluated
+                                {strongest && weakest && weakest.capability !== strongest.capability
+                                  ? ` · strongest: ${strongest.capability} — ${strongest.label}`
+                                  : \"\"}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ),
+                      3: (
+                        <PerCapabilityFidelityGrid
+                          symbol={symbol}
+                          showUnevaluated
+                          report={capabilityReport}
+                        />
+                      ),
+                    }}
+                  />
+                </div>
+              );
+            })()}
+
+            { }
+            <div
+              role=\"tablist\"
+              aria-label=\"Trade phase\"
+              style={{ display: \"flex\", gap: 6, flexWrap: \"wrap\" }}
+            >
+              {PHASES.map((p) => (
+                <button
+                  key={p.id}
+                  type=\"button\"
+                  role=\"tab\"
+                  aria-selected={phase === p.id}
+                  aria-pressed={phase === p.id}
+                  aria-label={`Phase: ${p.label}${phase === p.id ? \" (selected)\" : \"\"}`}
+                  onClick={() => setPhase(p.id)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: \"10px 14px\",
+                    minHeight: 44,
+                    minWidth: 44,
+                    borderRadius: 6,
+                    cursor: \"pointer\",
+                    border: phase === p.id ? \"1px solid #d4af37\" : \"1px solid rgba(139,106,41,0.35)\",
+                    background: phase === p.id ? \"rgba(212,175,55,0.12)\" : \"transparent\",
+                    color: phase === p.id ? \"#ede6d3\" : \"#8a8271\",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            { }
+            {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
+
+            { }
+            {!state && (
+              <div
+                role=\"status\"
+                aria-label=\"Command Deck sections waiting for canonical market state\"
+                style={{
+                  border: \"1px dashed rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  padding: 20,
+                  background: \"rgba(11,11,13,0.5)\",
+                }}
+              >
+                <div style={{ display: \"flex\", alignItems: \"baseline\", gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontFamily: \"Georgia, 'Times New Roman', serif\", fontSize: 13, letterSpacing: 0.32, color: \"#c9a55c\", textTransform: \"uppercase\" }}>
+                    Awaiting first observation
+                  </span>
+                  <span style={{ fontSize: 11, color: \"#8a8271\", fontStyle: \"italic\", marginLeft: \"auto\" }}>
+                    {symbol} · deck is subscribed — chapters populate as evidence arrives
+                  </span>
+                </div>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 8 }}>
+                  {[
+                    { n: 1, label: \"Story Ribbon · Market Narrative\" },
+                    { n: 2, label: \"Direction · Location · Aggression · Response\" },
+                    { n: 3, label: \"Decision Chain (Regime → Management)\" },
+                    { n: 4, label: \"Steward Rules Verdict\" },
+                    { n: 5, label: \"Data Fidelity · Market Evidence\" },
+                  ].map((row) => (
+                    <div
+                      key={row.n}
+                      style={{
+                        display: \"flex\",
+                        alignItems: \"baseline\",
+                        gap: 12,
+                        padding: \"8px 12px\",
+                        borderLeft: \"2px solid rgba(139,106,41,0.25)\",
+                        fontSize: 11,
+                        color: \"#8a8271\",
+                      }}
+                    >
+                      <span style={{ fontFamily: \"Georgia, serif\", fontSize: 14, color: \"#c9a55c\", minWidth: 18 }}>{row.n}</span>
+                      <span style={{ fontFamily: \"Georgia, 'Times New Roman', serif\", fontSize: 12, color: \"#c0b8a0\", letterSpacing: 0.2 }}>{row.label}</span>
+                      <span style={{ marginLeft: \"auto\", fontSize: 9, color: \"#55503f\", letterSpacing: 0.4, textTransform: \"uppercase\" }}>waiting</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, textAlign: \"center\" }}>
+                  <a
+                    href=\"/charts\"
+                    style={{
+                      display: \"inline-block\",
+                      padding: \"10px 18px\",
+                      borderRadius: 6,
+                      background: \"rgba(212,175,55,0.12)\",
+                      border: \"1px solid #d4af37\",
+                      color: \"#d4af37\",
+                      fontFamily: \"Georgia, 'Times New Roman', serif\",
+                      fontSize: 12,
+                      letterSpacing: 0.32,
+                      textTransform: \"uppercase\",
+                      textDecoration: \"none\",
+                    }}
+                  >
+                    Open Charts →
+                  </a>
+                </div>
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+            <details open={deckEmphasis.deepSectionsOpen}>
+              <summary
+                style={{
+                  cursor: \"pointer\",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: \"#c9a55c\",
+                  textTransform: \"uppercase\",
+                  padding: \"6px 0\",
+                }}
+              >
+                Deep read · story · auction lens · decision chain · steward · fidelity
+              </summary>
+            { }
+            <details className=\"wm-cd-chapter-history\">
+              <summary>Market chapter history</summary>
+              <div className=\"wm-cd-chapter-history-content\">
+                <StoryRibbon state={state} history={history} />
+              </div>
+            </details>
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={2} label=\"Direction · Location · Aggression · Response\" tagline=\"the auction lens\" />
+                <div style={{ height: 12 }} />
+                <DLARStrip
+                  dlar={chainVm.dlar}
+                  onDrillClick={(dim: DLARDimensionKey) => openWhy({ kind: \"dlar\", dim })}
+                />
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={3} label=\"Decision Chain\" tagline=\"regime → management\" />
+                <div style={{ height: 12 }} />
+              <DecisionChainPanel
+                vm={chainVm}
+                showNarratives
+                onNodeClick={(node) => {
+                  if (node.key === \"regime\" || node.key === \"direction\" || node.key === \"location\" || node.key === \"aggression\") {
+                    
+                    openWhy({ kind: \"dlar\", dim: (node.key === \"regime\" ? \"direction\" : node.key) as \"direction\" | \"location\" | \"aggression\" });
+                  } else if (node.key === \"clc\") {
+                    openWhy({ kind: \"clc\", leg: \"confirmation\" });
+                  } else {
+                    openWhy({ kind: \"hero\" });
+                  }
+                }}
+              />
+              </div>
+            )}
+
+            { }
+            {chainVm && <StructureContextNote vm={chainVm} />}
+
+            { }
+            {chainVm && (
+              <div>
+                <SectionBanner number={4} label=\"Steward · Rules Verdict\" tagline=\"informs, never gates\" />
+                <div style={{ height: 12 }} />
+              <div
+                style={{
+                  border: \"1px solid rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  background: \"rgba(11,11,13,0.9)\",
+                  padding: 16,
+                }}
+              >
+                <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 800, marginBottom: 8 }}>
+                  Steward Rules · {permission.verdict}
+                </div>
+                <div style={{ fontSize: 13, color: \"#ede6d3\", lineHeight: 1.5 }}>
+                  {permission.headline}
+                </div>
+                <div style={{ fontSize: 11, color: \"#8a8271\", lineHeight: 1.5, marginTop: 6 }}>
+                  {permission.reason}
+                </div>
+                <div style={{ fontSize: 10, color: \"#55503f\", marginTop: 8, letterSpacing: 0.3 }}>
+                  {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
+                </div>
+                { }
+                {permission.engagedRules.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: \"1px solid rgba(139,106,41,0.15)\", display: \"flex\", flexDirection: \"column\", gap: 6 }}>
+                    {permission.engagedRules.map((r, i) => (
+                      <div
+                        key={`${r.rule.label}-${i}`}
+                        style={{
+                          display: \"flex\",
+                          gap: 8,
+                          alignItems: \"baseline\",
+                          padding: \"4px 8px\",
+                          borderLeft: `2px solid ${r.rule.kind === \"HARD\" ? \"#c05a4a\" : \"#c9a55c\"}`,
+                          background: \"rgba(19,19,23,0.5)\",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 9,
+                            letterSpacing: 0.3,
+                            textTransform: \"uppercase\",
+                            color: r.rule.kind === \"HARD\" ? \"#c05a4a\" : \"#c9a55c\",
+                            fontWeight: 700,
+                            minWidth: 32,
+                          }}
+                        >
+                          {r.rule.kind}
+                        </span>
+                        <span style={{ fontSize: 11, color: \"#ede6d3\", fontWeight: 600 }}>
+                          {r.rule.label}
+                        </span>
+                        <span style={{ fontSize: 11, color: \"#8a8271\", flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+                          {r.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              </div>
+            )}
+
+            { }
+            {state && (
+              <div>
+                <SectionBanner number={5} label=\"Data Fidelity · Market Evidence\" tagline=\"what did WM actually witness\" />
+                <div style={{ height: 12 }} />
+              <div
+                style={{
+                  border: \"1px solid rgba(139,106,41,0.35)\",
+                  borderRadius: 10,
+                  background: \"rgba(11,11,13,0.9)\",
+                  padding: 16,
+                }}
+              >
+                <div style={{ display: \"flex\", alignItems: \"center\", gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 800 }}>
+                    Data Fidelity
+                  </span>
+                  <span style={{ fontSize: 10, color: \"#8a8271\", marginLeft: \"auto\" }}>
+                    {state.qualityState}
+                  </span>
+                </div>
+                <div style={{ display: \"grid\", gridTemplateColumns: \"repeat(auto-fit, minmax(100px, 1fr))\", gap: 10 }}>
+                  <Stat label=\"Coverage\" value={`${state.coverage.length} ch`} />
+                  <Stat label=\"Unknowns\" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? \"watch\" : \"ok\"} />
+                  <Stat label=\"Contradictions\" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? \"warn\" : \"ok\"} />
+                </div>
+
+                { }
+                {state.coverage.length > 0 && (() => {
+                  const observedFroms = state.coverage.map((c) => c.observedFrom).filter((n): n is number => typeof n === \"number\");
+                  const lastEvents = state.coverage.map((c) => c.lastEventAt).filter((n): n is number => typeof n === \"number\");
+                  const totalEvents = state.coverage.reduce((s, c) => s + (c.observedEventCount ?? 0), 0);
+                  const gapTotal = state.coverage.reduce((s, c) => s + (c.gapCount ?? 0), 0);
+                  const memoryStart = observedFroms.length ? Math.min(...observedFroms) : null;
+                  const lastEvent = lastEvents.length ? Math.max(...lastEvents) : null;
+                  const now = state.capturedAt;
+                  const memoryAgeMs = memoryStart ? Math.max(0, now - memoryStart) : null;
+                  const staleAgeMs = lastEvent ? Math.max(0, now - lastEvent) : null;
+                  const fmtAge = (ms: number | null): string => {
+                    if (ms == null) return \"—\";
+                    if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+                    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+                    if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h`;
+                    return `${(ms / 86_400_000).toFixed(1)}d`;
+                  };
+                  return (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: \"1px solid rgba(139,106,41,0.2)\", display: \"grid\", gridTemplateColumns: \"repeat(auto-fit, minmax(130px, 1fr))\", gap: 10 }}>
+                      <Stat label=\"Memory age\" value={fmtAge(memoryAgeMs)} />
+                      <Stat label=\"Last event\" value={fmtAge(staleAgeMs)} tone={staleAgeMs != null && staleAgeMs > 60_000 ? (staleAgeMs > 300_000 ? \"warn\" : \"watch\") : \"ok\"} />
+                      <Stat label=\"Observed\" value={String(totalEvents)} />
+                      <Stat label=\"Gaps\" value={String(gapTotal)} tone={gapTotal > 0 ? \"watch\" : \"ok\"} />
+                    </div>
+                  );
+                })()}
+              </div>
+              </div>
+            )}
+
+            { }
+            {chainVm && (
+              <ATHOSInterventionPanel
+                interventions={athos.interventions as readonly ATHOSIntervention[]}
+                onDismiss={(id) => console.debug(\"dismissed\", id)}
+              />
+            )}
+            </details>
+            )}
+
+            { }
+            {chainVm && phase === \"PREPARATION\" && (
+              <OpeningBellPanel
+                vm={selectOpeningBell({
+                  ownerId: user?.id ?? \"\",
+                  sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+                  items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false })),
+                  minutesUntilOpen: null,
+                  dataQuality: state?.qualityState,
+                  nowMs,
+                })}
+              />
+            )}
+
+            { }
+            {chainVm && (phase === \"REVIEW\" || phase === \"POST_EXIT\") && (
+              <MirrorPanel
+                vm={selectMirror({
+                  ownerId: user?.id ?? \"\",
+                  decisions: sessionDecisions,
+                  nowMs,
+                })}
+              />
+            )}
+          </div>
+
+          { }
+          {showEvidence && whyTarget && (
+            <aside className=\"wm-cd-why-column\" style={{ position: \"sticky\", top: 80, alignSelf: \"start\" }}>
+              <WhyInspector
+                target={whyTarget}
+                state={state}
+                dlar={chainVm?.dlar ?? null}
+                clc={chainVm?.clc ?? null}
+                onClose={() => setShowEvidence(false)}
+              />
+            </aside>
+          )}
+        </div>
+
+        { }
+        <div
+          style={{
+            paddingTop: 20,
+            marginTop: 32,
+            borderTop: \"1px solid rgba(139,106,41,0.25)\",
+            textAlign: \"center\",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: \"Georgia, 'Times New Roman', serif\",
+              fontSize: 12,
+              letterSpacing: 0.4,
+              color: \"#c9a55c\",
+              marginBottom: 6,
+            }}
+          >
+            OBSERVE TRUTH · PROTECT PROCESS · COMPOUND WISDOM
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: \"uppercase\",
+              color: \"#55503f\",
+            }}
+          >
+            Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
+          </div>
+        </div>
+
+        { }
+        <RealmGateway currentKey=\"wm-pro\" />
+        </div>{ }
+      </main>
+    </div>
+  );
+}
+
+ 
+function TodayPrepBridge({ userId }: { userId: string | null }) {
+  const prep = useTodayPrep(userId);
+  if (!prep.hasEntry) return null;
+  return (
+    <div
+      role=\"region\"
+      aria-label=\"Today's morning prep intention\"
+      style={{
+        display: \"flex\",
+        alignItems: \"center\",
+        gap: 12,
+        padding: \"10px 14px\",
+        border: \"1px solid rgba(212,175,55,0.35)\",
+        borderLeft: \"3px solid #d4af37\",
+        borderRadius: 8,
+        background: \"rgba(212,175,55,0.05)\",
+      }}
+    >
+      {prep.mood && (
+        <span style={{ fontSize: 18, lineHeight: 1 }} aria-label={`Mood ${prep.mood}`}>
+          {prep.mood}
+        </span>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#c9a55c\", fontWeight: 700, marginBottom: 4 }}>
+          Today's intention
+        </div>
+        {prep.routine ? (
+          <div style={{ fontSize: 12, color: \"#ede6d3\", lineHeight: 1.5, overflow: \"hidden\", textOverflow: \"ellipsis\", display: \"-webkit-box\", WebkitLineClamp: 2, WebkitBoxOrient: \"vertical\" }}>
+            {prep.routine}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: \"#8a8271\", fontStyle: \"italic\" }}>
+            Prep saved with no written routine today.
+          </div>
+        )}
+      </div>
+      <div style={{ display: \"flex\", flexDirection: \"column\", alignItems: \"flex-end\", gap: 2 }}>
+        {prep.checklistTotal > 0 && (
+          <div style={{ fontSize: 10, color: \"#c9a55c\", letterSpacing: 0.3 }}>
+            {prep.checklistDone}/{prep.checklistTotal} checked
+          </div>
+        )}
+        <a
+          href=\"/morning-prep\"
+          style={{ fontSize: 9, letterSpacing: 0.3, textTransform: \"uppercase\", color: \"#8a8271\", textDecoration: \"none\" }}
+          aria-label=\"Open Morning Prep\"
+        >
+          Prep →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: \"ok\" | \"watch\" | \"warn\" }) {
+  const color =
+    tone === \"warn\"  ? \"#c05a4a\" :
+    tone === \"watch\" ? \"#c9a55c\" :
+                       \"#ede6d3\";
+  return (
+    <div style={{ padding: \"8px 10px\", borderRadius: 6, background: \"rgba(19,19,23,0.5)\" }}>
+      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: \"uppercase\", color: \"#8a8271\", fontWeight: 700 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color, marginTop: 4, fontVariantNumeric: \"tabular-nums\" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+"
+
+ ❯ src/lib/experience/deckSceneSignals.test.ts:349:17
+    347|     const src = stripComments(DECK_PAGE());
+    348|     expect(src).toContain("useSessionClockDate");
+    349|     expect(src).toMatch(/at:\s*sessionClockDate/);
+       |                 ^
+    350|   });
+    351| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 33 passed (36)
+   Start at  21:30:28
+   Duration  148ms (transform 36ms, setup 0ms, import 47ms, tests 8ms, environment 0ms)
+

@@ -1,0 +1,82 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts (18 tests | 1 failed) 15ms
+     × discloses a missing reason instead of rendering silence 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > the /paper blotter renders the reason it was given > discloses a missing reason instead of rendering silence
+AssertionError: expected '{orders.map(ord=>(\n                 …' to match /rejectReason\s*\?\?/
+
+- Expected:
+/rejectReason\s*\?\?/
+
++ Received:
+"{orders.map(ord=>(
+                    <div key={ord.id} className=\"border-b border-wm-border/30\">
+                    <div className=\"grid items-center px-3 py-2\"
+                      style={{ gridTemplateColumns:\"70px 50px 50px 60px 80px 80px 90px 48px\" }}>
+                      <span className=\"text-xs font-bold text-wm-text\">{ord.symbol}</span>
+                      <span className={clsx(\"text-xs font-bold\", ord.side===\"buy\"?\"text-wm-green\":\"text-wm-red\")}>
+                        {ord.side.toUpperCase()}
+                      </span>
+                      <span className=\"text-[10px] text-wm-text-muted capitalize\">{ord.type}</span>
+                      <span className=\"text-xs font-mono text-wm-text\">{ord.qty}</span>
+                      <span className=\"text-[10px] font-mono text-wm-text-muted\">
+                        {ord.limitPx ? \"$\"+fmt2(ord.limitPx) : \"—\"}
+                      </span>
+                      <span className=\"text-[10px] font-mono text-wm-text-muted\">
+                        {ord.fillPx ? \"$\"+fmt2(ord.fillPx) : \"—\"}
+                      </span>
+                      <span className={clsx(\"text-[10px] font-bold px-1.5 py-0.5 rounded\",
+                        ord.status===\"filled\"    ? \"bg-wm-green/15 text-wm-green\"
+                        :ord.status===\"pending\"  ? \"bg-wm-gold/15 text-wm-gold\"
+                        :ord.status===\"cancelled\"? \"bg-wm-text-dim/10 text-wm-text-dim\"
+                        :                          \"bg-wm-red/15 text-wm-red\"
+                      )}>
+                        {ord.status}
+                      </span>
+                      {ord.status===\"pending\" && (
+                        <button onClick={()=>cancelOrder(ord.id)}
+                          aria-label={`Cancel pending ${ord.symbol} ${ord.side} order`}
+                          title={`Cancel pending ${ord.symbol} ${ord.side} order`}
+                          className=\"w-7 h-7 flex items-center justify-center rounded text-wm-text-dim hover:text-wm-red transition-colors\">
+                          <X size={12}/>
+                        </button>
+                      )}
+                    </div>
+                    {/* The reason, not just the verdict. A red \"rejected\" chip
+                        on its own tells the trader something was refused and
+                        never what to do differently — and position sizing is
+                        the habit /paper exists to build. Orders persisted
+                        before this field existed carry no reason, and that
+                        absence is DISCLOSED rather than rendered as silence:
+                        an empty space under \"rejected\" reads as \"there was no
+                        reason\", which is a claim this page cannot back. */}
+                    {ord.status===\"rejected\" && (
+                      <p role=\"note\"
+                        className=\"px-3 pb-2 text-[10px] leading-relaxed text-wm-red/90\">
+                        {ord.rejectReason}
+                      </p>
+                    )}
+                    </div>
+                  ))}
+                "
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:162:30
+    160|     // reason". Orders persisted before the field existed have none, a…
+    161|     // gap must be named — the same rule formatChartContextNote follow…
+    162|     expect(orderRowSource()).toMatch(/rejectReason\s*\?\?/);
+       |                              ^
+    163|     expect(orderRowSource()).toMatch(/Reason not recorded/i);
+    164|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  16:51:36
+   Duration  179ms (transform 21ms, setup 0ms, import 27ms, tests 15ms, environment 0ms)
+

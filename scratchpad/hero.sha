@@ -1,0 +1,3 @@
+35dca873899bf30070193a42bc308ac457fae936  src/components/command-deck/HeroTruth.tsx
+185206fdde63db7477a1da9f80f4196cae933141  src/app/command-deck/page.tsx
+003624bf1aaca9c4b538ed3d024ecea27ff38208  src/lib/heroTruthNullState.test.ts

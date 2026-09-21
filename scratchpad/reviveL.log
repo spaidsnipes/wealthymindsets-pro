@@ -1,0 +1,67 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts (18 tests | 3 failed) 15ms
+     × refuses to re-settle a filled order 2ms
+     × refuses to re-settle a cancelled order 0ms
+     × refuses to re-settle a rejected order 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > applyOrderRejections — the reason travels with the status > refuses to re-settle a filled order
+AssertionError: expected 'rejected' to be 'filled' // Object.is equality
+
+Expected: "filled"
+Received: "rejected"
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:109:24
+    107|       // the account — the same principle canCancelOrder enforces.
+    108|       const [o] = applyOrderRejections([order("a", status)], [{ id: "a…
+    109|       expect(o.status).toBe(status);
+       |                        ^
+    110|       expect(o.rejectReason).toBeUndefined();
+    111|     },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > applyOrderRejections — the reason travels with the status > refuses to re-settle a cancelled order
+AssertionError: expected 'rejected' to be 'cancelled' // Object.is equality
+
+Expected: "cancelled"
+Received: "rejected"
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:109:24
+    107|       // the account — the same principle canCancelOrder enforces.
+    108|       const [o] = applyOrderRejections([order("a", status)], [{ id: "a…
+    109|       expect(o.status).toBe(status);
+       |                        ^
+    110|       expect(o.rejectReason).toBeUndefined();
+    111|     },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/lib/paperOrderRejectionDisclosure.test.ts > applyOrderRejections — the reason travels with the status > refuses to re-settle a rejected order
+AssertionError: expected 'too late' to be undefined
+
+- Expected:
+undefined
+
++ Received:
+"too late"
+
+ ❯ src/lib/paperOrderRejectionDisclosure.test.ts:110:30
+    108|       const [o] = applyOrderRejections([order("a", status)], [{ id: "a…
+    109|       expect(o.status).toBe(status);
+    110|       expect(o.rejectReason).toBeUndefined();
+       |                              ^
+    111|     },
+    112|   );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 15 passed (18)
+   Start at  20:42:08
+   Duration  174ms (transform 19ms, setup 0ms, import 25ms, tests 15ms, environment 0ms)
+

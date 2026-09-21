@@ -1,0 +1,81 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/lib/marketData/sessionToken.test.ts (17 tests | 4 failed) 7ms
+     × THE CORE REGRESSION: futures on a Saturday say CLOSED, not 'SESSION ?' 3ms
+     × THE OTHER HALF: equities on a Saturday say CLOSED, never 'RTH' 0ms
+     × proves Sunday closed for US cash but NOT for futures or FX — they reopen Sunday evening 0ms
+     × reads closure with === false, so null is never mistaken for open 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > selectCanonicalSessionToken — closure that is proven is not withheld > THE CORE REGRESSION: futures on a Saturday say CLOSED, not 'SESSION ?'
+AssertionError: expected 'SESSION ?' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "SESSION ?"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:55:21
+     53|     // The exact instrument and the exact day from the live read.
+     54|     const r = selectCanonicalSessionToken({ symbol: "GC1!", at: SATURD…
+     55|     expect(r.token).toBe(SESSION_TOKEN_CLOSED);
+       |                     ^
+     56|     expect(r.established).toBe(true);
+     57|     // and the fact it rests on is real
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > selectCanonicalSessionToken — closure that is proven is not withheld > THE OTHER HALF: equities on a Saturday say CLOSED, never 'RTH'
+AssertionError: TSLA on a Saturday: expected 'SESSION ?' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "SESSION ?"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:64:47
+     62|     for (const sym of ["TSLA", "AAPL", "SPY"]) {
+     63|       const r = selectCanonicalSessionToken({ symbol: sym, at: SATURDA…
+     64|       expect(r.token, `${sym} on a Saturday`).toBe(SESSION_TOKEN_CLOSE…
+       |                                               ^
+     65|       expect(r.token).not.toBe("RTH");
+     66|       expect(r.token).not.toBe("EXTENDED");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > selectCanonicalSessionToken — closure that is proven is not withheld > proves Sunday closed for US cash but NOT for futures or FX — they reopen Sunday evening
+AssertionError: expected 'SESSION ?' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "SESSION ?"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:83:79
+     81|
+     82|   it("proves Sunday closed for US cash but NOT for futures or FX — the…
+     83|     expect(selectCanonicalSessionToken({ symbol: "TSLA", at: SUNDAY })…
+       |                                                                               ^
+     84|     expect(selectCanonicalSessionToken({ symbol: "SPY", at: SUNDAY }).…
+     85|     // Claiming Sunday closure for these would be the same overreach i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lib/marketData/sessionToken.test.ts > the settle can only ever sharpen — never introduce a claim > reads closure with === false, so null is never mistaken for open
+AssertionError: expected 'SESSION ?' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "SESSION ?"
+
+ ❯ src/lib/marketData/sessionToken.test.ts:157:81
+    155|     expect(provenSessionClosure("TSLA", SATURDAY)).toBe(false);
+    156|     expect(selectCanonicalSessionToken({ symbol: "TSLA", at: WEDNESDAY…
+    157|     expect(selectCanonicalSessionToken({ symbol: "TSLA", at: SATURDAY …
+       |                                                                                 ^
+    158|   });
+    159| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 13 passed (17)
+   Start at  21:08:21
+   Duration  167ms (transform 21ms, setup 0ms, import 28ms, tests 7ms, environment 0ms)
+

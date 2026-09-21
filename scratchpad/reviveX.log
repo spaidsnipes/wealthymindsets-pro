@@ -1,0 +1,86 @@
+
+ RUN  v4.1.10 /Users/dspaidnoosleep/wealthymindsets-pro
+
+ ❯ src/components/command/sessionDetailText.test.ts (16 tests | 5 failed) 6ms
+     × THE CORE REGRESSION: Saturday equities render CLOSED, never the store key RTH 2ms
+     × value and detail never state opposite things about closure, on any day 1ms
+     × never renders a store-key session token as the value, for any symbol or day 0ms
+     × weekday equities are honestly unknown — there is still no intraday calendar 0ms
+     × at: null yields no session claim at all — the first paint may not assert a day 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/command/sessionDetailText.test.ts > SESSION tile value — the headline may not contradict its own caption > THE CORE REGRESSION: Saturday equities render CLOSED, never the store key RTH
+AssertionError: expected 'RTH' to be 'CLOSED' // Object.is equality
+
+Expected: "CLOSED"
+Received: "RTH"
+
+ ❯ src/components/command/sessionDetailText.test.ts:111:21
+    109|   it("THE CORE REGRESSION: Saturday equities render CLOSED, never the …
+    110|     const p = present("RTH", true, 6);
+    111|     expect(p.value).toBe("CLOSED");
+       |                     ^
+    112|     expect(p.value).not.toBe("RTH");
+    113|     expect(p.detail).toBe("market closed");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/components/command/sessionDetailText.test.ts > SESSION tile value — the headline may not contradict its own caption > value and detail never state opposite things about closure, on any day
+AssertionError: TSLA day 0 connected=true: expected [ 'RTH', 'EXTENDED', 'ETH', …(1) ] to not include 'RTH'
+ ❯ src/components/command/sessionDetailText.test.ts:126:20
+    124|           if (p.detail === "market closed") {
+    125|             expect(RUNNING_SESSION_TOKENS, `${symbol} day ${d} connect…
+    126|               .not.toContain(p.value);
+       |                    ^
+    127|           }
+    128|         }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/components/command/sessionDetailText.test.ts > SESSION tile value — the headline may not contradict its own caption > never renders a store-key session token as the value, for any symbol or day
+AssertionError: TSLA day 0: expected [ 'RTH', 'EXTENDED', 'OVERNIGHT' ] to not include 'RTH'
+ ❯ src/components/command/sessionDetailText.test.ts:137:76
+    135|       for (let d = 0; d <= 6; d++) {
+    136|         const { value } = present("RTH", true, d, symbol);
+    137|         expect(["RTH", "EXTENDED", "OVERNIGHT"], `${symbol} day ${d}`)…
+       |                                                                            ^
+    138|       }
+    139|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/components/command/sessionDetailText.test.ts > SESSION tile value — the headline may not contradict its own caption > weekday equities are honestly unknown — there is still no intraday calendar
+AssertionError: day 1: expected 'RTH' to be 'SESSION ?' // Object.is equality
+
+Expected: "SESSION ?"
+Received: "RTH"
+
+ ❯ src/components/command/sessionDetailText.test.ts:157:57
+    155|   it("weekday equities are honestly unknown — there is still no intrad…
+    156|     for (let d = 1; d <= 5; d++) {
+    157|       expect(present("RTH", true, d).value, `day ${d}`).toBe("SESSION …
+       |                                                         ^
+    158|     }
+    159|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/components/command/sessionDetailText.test.ts > SESSION tile value — the headline may not contradict its own caption > at: null yields no session claim at all — the first paint may not assert a day
+AssertionError: TSLA: expected [ 'RTH', 'EXTENDED', 'OVERNIGHT' ] to not include 'RTH'
+ ❯ src/components/command/sessionDetailText.test.ts:183:60
+    181|       expect(p.value, symbol).not.toBe("CLOSED");
+    182|       expect(p.detail, symbol).not.toBe("market closed");
+    183|       expect(["RTH", "EXTENDED", "OVERNIGHT"], symbol).not.toContain(p…
+       |                                                            ^
+    184|     }
+    185|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  5 failed | 60 passed (65)
+   Start at  21:19:44
+   Duration  127ms (transform 50ms, setup 0ms, import 69ms, tests 11ms, environment 0ms)
+
