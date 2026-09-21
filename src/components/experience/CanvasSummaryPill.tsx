@@ -21,6 +21,7 @@ import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCan
 import { DimensionStandingBand, standingInWords } from "./DimensionStandingBand";
 import { requestEquipment } from "@/lib/workspace/equipmentChannel";
 import { roomEquipment } from "@/lib/workspace/roomEquipment";
+import { marketCanvasVerdictColor } from "@/lib/design/marketCanvasVerdictTone";
 
 export interface CanvasSummaryPillProps {
   readonly vm: MarketCanvasVM;
@@ -69,13 +70,12 @@ export interface CanvasSummaryPillProps {
 
 const HAIR = "rgba(139,106,41,0.22)";
 
-const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
-  ACTION: "#d4af37",
-  CAUTION: "#c9a55c",
-  WAIT: "#c9a55c",
-  "NO TRADE": "#e07b5c",
-  UNKNOWN: "#8a8271",
-};
+/**
+ * The verdict's colour comes from `marketCanvasVerdictTone` — the one owner the
+ * panel and the mini badge also read. The pill and the panel are already
+ * documented as "one instrument at two sizes"; keeping a private colour table
+ * here made that true of the drawing and false of the palette.
+ */
 
 export function CanvasSummaryPill({
   vm,
@@ -232,7 +232,7 @@ export function CanvasSummaryPill({
         style={{
           textTransform: "uppercase",
           fontWeight: 700,
-          color: VERDICT_TONE[vm.verdict],
+          color: marketCanvasVerdictColor(vm.verdict),
         }}
       >
         {vm.verdict}

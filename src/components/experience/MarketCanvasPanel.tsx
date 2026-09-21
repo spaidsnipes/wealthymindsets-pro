@@ -25,6 +25,7 @@
 import * as React from "react";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
 import { DimensionStandingBand } from "./DimensionStandingBand";
+import { marketCanvasVerdictColor } from "@/lib/design/marketCanvasVerdictTone";
 
 export interface MarketCanvasPanelProps {
   readonly vm: MarketCanvasVM;
@@ -85,13 +86,12 @@ const RESOLVED_LABEL = "#ede6d3";
  * and DimensionStandingBand.test.tsx renders it rather than reading its source.
  */
 
-const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
-  ACTION: "#d4af37",
-  CAUTION: "#c9a55c",
-  WAIT: "#c9a55c",
-  "NO TRADE": "#e07b5c",
-  UNKNOWN: "#8a8271",
-};
+/**
+ * The verdict's colour now comes from `marketCanvasVerdictTone` — the one owner
+ * shared with CanvasSummaryPill and CanvasBadgeMini. This file used to keep its
+ * own copy of that table; all three agreed by luck, not by construction. Same
+ * pixels, one place to change them.
+ */
 
 export function MarketCanvasPanel({
   vm,
@@ -151,7 +151,7 @@ export function MarketCanvasPanel({
         <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
           Market canvas
         </span>
-        <span style={{ fontSize: 10, letterSpacing: 0.5, color: VERDICT_TONE[vm.verdict], marginLeft: "auto", textTransform: "uppercase" }}>
+        <span style={{ fontSize: 10, letterSpacing: 0.5, color: marketCanvasVerdictColor(vm.verdict), marginLeft: "auto", textTransform: "uppercase" }}>
           {vm.verdict}
         </span>
       </header>

@@ -17,6 +17,7 @@
 
 import * as React from "react";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
+import { marketCanvasVerdictTone } from "@/lib/design/marketCanvasVerdictTone";
 
 export interface CanvasBadgeMiniProps {
   readonly vm: MarketCanvasVM;
@@ -25,16 +26,16 @@ export interface CanvasBadgeMiniProps {
   readonly ariaLabel?: string;
 }
 
-const VERDICT_TONE: Record<
-  MarketCanvasVM["verdict"],
-  { fg: string; border: string; bg: string }
-> = {
-  ACTION:      { fg: "#d4af37", border: "rgba(212,175,55,0.55)",  bg: "rgba(212,175,55,0.10)" },
-  CAUTION:     { fg: "#c9a55c", border: "rgba(201,165,92,0.45)",  bg: "rgba(201,165,92,0.08)" },
-  WAIT:        { fg: "#c9a55c", border: "rgba(201,165,92,0.40)",  bg: "rgba(201,165,92,0.06)" },
-  "NO TRADE":  { fg: "#e07b5c", border: "rgba(224,123,92,0.45)",  bg: "rgba(224,123,92,0.10)" },
-  UNKNOWN:     { fg: "#8a8271", border: "rgba(138,130,113,0.30)", bg: "rgba(138,130,113,0.04)" },
-};
+/**
+ * The tone table MOVED to `@/lib/design/marketCanvasVerdictTone`.
+ *
+ * It was born here because this badge is the only one of the three canvas
+ * surfaces that needs a frame as well as a foreground — so the richest version
+ * of the fact lived in the smallest component, while the panel and the pill
+ * each kept their own foreground-only copy. Three tables, one fact. The owner
+ * now holds all three fields and the word-only surfaces read `.fg` from it.
+ * Every value below is unchanged.
+ */
 
 export function CanvasBadgeMini({
   vm,
@@ -45,7 +46,7 @@ export function CanvasBadgeMini({
   // there is nothing to badge. Skip rendering.
   if (!vm.hasSnapshot && vm.verdict === "UNKNOWN") return null;
 
-  const tone = VERDICT_TONE[vm.verdict];
+  const tone = marketCanvasVerdictTone(vm.verdict);
 
   return (
     <span
