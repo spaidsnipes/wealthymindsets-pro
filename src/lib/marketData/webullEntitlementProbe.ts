@@ -80,7 +80,15 @@ const DEFAULT_HOST = "api.webull.com";
  * only so the out-of-band subscription read can reuse the signed-request path
  * without a second, drifting copy of it.
  */
-export type WebullRungName = "ACCOUNTS" | "PROFILES" | "SNAPSHOT" | "TICKS" | "SUBSCRIPTIONS";
+export type WebullRungName =
+  | "ACCOUNTS"
+  | "PROFILES"
+  | "SNAPSHOT"
+  | "TICKS"
+  | "SUBSCRIPTIONS"
+  /** The streaming lane. Out-of-band like SUBSCRIPTIONS — see `WebullStreamingProbe`. */
+  | "STREAMING_SUBSCRIBE"
+  | "STREAMING_UNSUBSCRIBE";
 
 /** Whether a rung is gated on a market-data entitlement. Drives the verdict. */
 export type WebullRungGate = "NON_MARKET_DATA" | "MARKET_DATA";
@@ -136,6 +144,12 @@ export interface WebullEntitlementReport {
    * see `WebullSubscriptionInventory`.
    */
   readonly subscriptions?: WebullSubscriptionInventory;
+  /**
+   * Webull's answer on its REAL-TIME product, as opposed to the REST pull
+   * product every rung measures. Like `subscriptions`, it NEVER participates in
+   * `verdict` — see `WebullStreamingProbe` for why that restraint is deliberate.
+   */
+  readonly streaming?: WebullStreamingProbe;
 }
 
 interface RungSpec {
@@ -145,6 +159,17 @@ interface RungSpec {
   readonly path: string;
   readonly apiVersion: string;
   readonly query: Readonly<Record<string, string>>;
+  readonly method: "GET" | "POST";
+  /**
+   * The EXACT bytes sent, when there are any.
+   *
+   * One string, not an object, because Webull signs the body: the signature
+   * covers a digest of this text, so the thing hashed and the thing sent must be
+   * the same serialization. Keeping an object here and stringifying twice is how
+   * a key-order or whitespace difference becomes a 403 that reads like a billing
+   * problem — the exact misreading this file exists to abolish.
+   */
+  readonly body?: string;
 }
 
 /**
@@ -159,6 +184,7 @@ function rungSpec(
   contract: WebullEndpointContract,
   query: Readonly<Record<string, string>>,
   signingProfile: WebullSigningProfile,
+  body?: unknown,
 ): RungSpec {
   return {
     rung,
@@ -167,6 +193,11 @@ function rungSpec(
     path: contract.path,
     apiVersion: contract.apiVersion,
     query,
+    method: contract.method ?? "GET",
+    // Serialized ONCE, here, so the signed digest and the sent bytes are the
+    // same characters. `JSON.stringify` with no spacing matches the SDK's
+    // `common.json_dumps_compact`.
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
 }
 
@@ -345,8 +376,13 @@ async function climbRungWithBody(
     nonce,
     apiVersion: spec.apiVersion,
     profile: spec.signingProfile,
+    body: spec.body,
   });
   if (creds.accessToken) headers["x-access-token"] = creds.accessToken;
+  // Only when there IS one. Declaring a JSON content type on a GET changes the
+  // request shape for every rung that currently answers, and this probe's whole
+  // value is that the rungs differ in one variable at a time.
+  if (spec.body !== undefined) headers["Content-Type"] = "application/json";
 
   const url = new URL(`https://${creds.host}${spec.path}`);
   Object.entries(spec.query).forEach(([key, value]) => url.searchParams.set(key, value));
@@ -364,7 +400,14 @@ async function climbRungWithBody(
     let response: Response;
     try {
       response = await Promise.race([
-        fetchImpl(url, { method: "GET", redirect: "manual", cache: "no-store", headers, signal: controller.signal }),
+        fetchImpl(url, {
+          method: spec.method,
+          redirect: "manual",
+          cache: "no-store",
+          headers,
+          signal: controller.signal,
+          ...(spec.body === undefined ? {} : { body: spec.body }),
+        }),
         deadline,
       ]);
     } catch {
@@ -500,6 +543,86 @@ export function summarizeWebullSubscriptionBody(body: unknown): readonly Readonl
     .filter((row): row is Record<string, string> => row !== null);
 }
 
+/**
+ * ── ASK THE REAL-TIME DOOR, NOT THE PULL DOOR ───────────────────────────────
+ *
+ * The ladder measures `/market-data/stocks/*` — Webull's REST PULL product. Its
+ * real-time product is a different thing entirely: `data_streaming_client.py`
+ * opens an MQTT socket to `data-api.webull.com` and receives QUOTE / SNAPSHOT /
+ * TICK pushes there. WM Pro has never sent a single request to that lane.
+ *
+ * So for three months the evidence said "the market-data door is locked" when
+ * what it actually measured was ONE market-data door, and not the one that
+ * carries real time. The Founder's own research says his account has real-time
+ * data. Both can be true at once, and this receipt is how we find out.
+ *
+ * `/market-data/streaming/subscribe` is the HTTP half of that lane, which makes
+ * it the cheapest possible test: one signed POST, no socket, no MQTT client in a
+ * Worker. If it answers, real time is entitled and our pull-lane denial was
+ * never the question. If it is denied under every signing profile too, then the
+ * denial finally spans both products and means something it never meant before.
+ *
+ * ── WHY IT IS OUT-OF-BAND, LIKE SUBSCRIPTIONS ───────────────────────────────
+ *
+ * It is NOT a ladder rung. The ladder's verdict vocabulary describes one product
+ * and would mangle this: a streaming OK next to pull denials would compile to
+ * `INCOHERENT` — "the gap is our signing contract, send the profile that
+ * answered" — which is a confidently wrong sentence about a different endpoint.
+ * A receipt that travels alongside the verdict can report the split honestly
+ * without the verdict pretending to have understood it. If this measures OK in
+ * production, the verdict vocabulary gets redesigned WITH the evidence in hand.
+ */
+export interface WebullStreamingAttempt {
+  readonly signingProfile: WebullSigningProfile;
+  readonly outcome: WebullRungOutcome;
+  readonly httpStatus: number | null;
+  readonly providerCode: string | null;
+}
+
+export interface WebullStreamingProbe {
+  readonly attempts: readonly WebullStreamingAttempt[];
+  /** True when at least one signing profile got a 2xx from the streaming lane. */
+  readonly reachable: boolean;
+  /** How many of the subscriptions this probe opened it also released. */
+  readonly released: number;
+  readonly note: string;
+}
+
+/**
+ * Reads the attempts. Pure, so the sentence the Founder eventually sees is
+ * testable and cannot drift from the receipts it claims to summarise.
+ */
+export function readWebullStreamingLane(
+  attempts: readonly WebullStreamingAttempt[],
+  pullDenied: boolean,
+): { readonly reachable: boolean; readonly note: string } {
+  const opened = attempts.filter((attempt) => attempt.outcome === "OK");
+  if (attempts.length === 0) {
+    return { reachable: false, note: "The streaming lane was not asked." };
+  }
+  if (opened.length > 0) {
+    const profiles = [...new Set(opened.map((a) => a.signingProfile))].sort().join(", ");
+    return {
+      reachable: true,
+      note: pullDenied
+        ? `Webull ACCEPTED a real-time streaming subscription under signing profile(s) ${profiles}, on the same credentials whose REST pull reads were denied. Those are two different products. The real-time entitlement is present and the denial above concerns the pull product only — nobody may be told to buy market data on this evidence.`
+        : `Webull accepted a real-time streaming subscription under signing profile(s) ${profiles}.`,
+    };
+  }
+  const denied = attempts.filter((a) => DENIED.has(a.outcome));
+  if (denied.length !== attempts.length) {
+    return {
+      reachable: false,
+      note: "At least one streaming attempt neither succeeded nor was denied, so this receipt proves nothing about the real-time lane. Re-run it.",
+    };
+  }
+  const codes = [...new Set(denied.map((a) => a.providerCode).filter(Boolean))].join(", ") || "no code";
+  return {
+    reachable: false,
+    note: `The real-time streaming lane was denied under every signing profile tried (${codes}). This is the FIRST evidence that covers Webull's real-time product rather than only its REST pull product.`,
+  };
+}
+
 export interface WebullEntitlementProbeConfig {
   readonly appKey?: string;
   readonly appSecret?: string;
@@ -626,6 +749,76 @@ export async function probeWebullEntitlement(
   }
 
   const { verdict, note } = readWebullLadder(rungs);
+
+  /**
+   * The real-time door, asked once per signing profile, and never allowed to
+   * fail the climb above. Same restraint as the subscription read: this is a
+   * receipt, not a rung.
+   */
+  let streaming: WebullStreamingProbe | undefined;
+  try {
+    const symbols = [config.symbol?.trim().toUpperCase() || "TSLA"];
+    const attempts: WebullStreamingAttempt[] = [];
+    let released = 0;
+    for (const profile of WEBULL_SIGNING_PROFILES) {
+      // A fresh id per attempt. Reusing one would let a subscription opened
+      // under the first profile make the second look accepted when it was not.
+      const sessionId = makeNonce();
+      const { receipt } = await climbRungWithBody(
+        fetchImpl,
+        rungSpec(
+          "STREAMING_SUBSCRIBE",
+          WEBULL_SDK_CONTRACT.STREAMING_SUBSCRIBE,
+          {},
+          profile,
+          { session_id: sessionId, symbols, category: "US_STOCK", sub_types: ["QUOTE", "SNAPSHOT", "TICK"] },
+        ),
+        creds,
+        checkedAt,
+        makeNonce(),
+        timeoutMs,
+      );
+      attempts.push({
+        signingProfile: profile,
+        outcome: receipt.outcome,
+        httpStatus: receipt.httpStatus,
+        providerCode: receipt.providerCode,
+      });
+
+      /**
+       * PUT BACK WHAT WE TOOK. An accepted subscribe binds symbols to a session
+       * id that no MQTT socket will ever attach to, and a diagnostic that leaks
+       * one dangling subscription per run will eventually be the reason the
+       * real lane hits a limit — at which point the limit gets read as an
+       * entitlement problem. That is this file's whole failure mode, rehearsed.
+       */
+      if (receipt.outcome === "OK") {
+        const release = await climbRungWithBody(
+          fetchImpl,
+          rungSpec(
+            "STREAMING_UNSUBSCRIBE",
+            WEBULL_SDK_CONTRACT.STREAMING_UNSUBSCRIBE,
+            {},
+            profile,
+            { session_id: sessionId, unsubscribe_all: true },
+          ),
+          creds,
+          checkedAt,
+          makeNonce(),
+          timeoutMs,
+        ).catch(() => null);
+        if (release?.receipt.outcome === "OK") released += 1;
+      }
+    }
+    const marketDataDenied = rungs
+      .filter((rung) => rung.gate === "MARKET_DATA")
+      .every((rung) => DENIED.has(rung.outcome));
+    const read = readWebullStreamingLane(attempts, marketDataDenied);
+    streaming = { attempts, reachable: read.reachable, released, note: read.note };
+  } catch {
+    streaming = undefined;
+  }
+
   // A ladder climbed without a session is still worth reporting, but the
   // reason it had none must travel with the verdict — otherwise a failed mint
   // is read back as a fact about the Founder's entitlements.
@@ -636,5 +829,6 @@ export async function probeWebullEntitlement(
     checkedAt,
     note: sessionNote ? `${note} No session accompanied this climb: ${sessionNote}` : note,
     ...(subscriptions ? { subscriptions } : {}),
+    ...(streaming ? { streaming } : {}),
   };
 }

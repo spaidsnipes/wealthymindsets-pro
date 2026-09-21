@@ -54,6 +54,16 @@ export interface WebullEndpointContract {
   readonly needsMarketData: boolean;
   /** The SDK file this row was READ from. A row without one is a guess. */
   readonly sdkSource: string;
+  /**
+   * The HTTP method the SDK declares. Absent means GET, which every row carried
+   * implicitly until the streaming lane arrived. It is written down rather than
+   * inferred because Webull SIGNS THE BODY: `default_signature_composer.py`
+   * appends the SHA-256 hex digest of the compact JSON body to the string being
+   * signed. Sending a POST as a GET does not merely miss a body — it produces a
+   * signature for a different request, and the 403 that comes back looks exactly
+   * like the entitlement 403 this whole file exists to stop misreading.
+   */
+  readonly method?: "GET" | "POST";
 }
 
 /**
@@ -153,6 +163,47 @@ export const WEBULL_SDK_CONTRACT = {
     apiVersion: "v3",
     needsMarketData: true,
     sdkSource: "webull/data/request/get_tick_request.py",
+  },
+  /**
+   * ── THE DOOR WM PRO HAD NEVER KNOCKED ON ────────────────────────────────────
+   *
+   * Every market-data row above is REST pull. Webull's real-time product is not
+   * REST at all. `webull/data/data_streaming_client.py` builds a paho-MQTT
+   * client; `quotes_client.py:_quotes_connect` resolves its host through
+   * `api_type.QUOTES`, which `webull/core/data/endpoints.json` maps to
+   * `data-api.webull.com` — a different host from the `api.webull.com` every
+   * request WM Pro has ever sent. Live QUOTE / SNAPSHOT / TICK arrive as MQTT
+   * pushes on that socket.
+   *
+   * This row is the HTTP half of that lane: you authorise a symbol set by POSTing
+   * a signed subscribe, then the MQTT socket delivers. It is therefore the
+   * cheapest possible test of a question we have been answering by inference for
+   * three months — whether the real-time entitlement exists — because it is one
+   * signed HTTP request against the streaming product rather than the pull
+   * product, and it can be asked without opening a socket at all.
+   *
+   * WHY THIS MATTERS TO THE READING. `/market-data/stocks/*` answering
+   * MARKET_DATA_NOT_SUBSCRIBED says nothing about the streaming product; they are
+   * separate doors and nothing in our evidence ever established they share a
+   * lock. The Founder's own research says Webull gives him real-time data, and
+   * the ladder has been measuring only the door that does not carry it.
+   */
+  STREAMING_SUBSCRIBE: {
+    path: "/market-data/streaming/subscribe",
+    apiVersion: "v3",
+    method: "POST",
+    needsMarketData: true,
+    sdkSource: "webull/data/request/subscribe_request.py",
+  },
+  /** The release half. Probing subscribe leaves a server-side subscription bound
+   *  to a session id no socket will ever attach to; this row exists so the probe
+   *  can put back what it took rather than leaking one per run. */
+  STREAMING_UNSUBSCRIBE: {
+    path: "/market-data/streaming/unsubscribe",
+    apiVersion: "v3",
+    method: "POST",
+    needsMarketData: true,
+    sdkSource: "webull/data/request/unsubscribe_request.py",
   },
 } as const satisfies Readonly<Record<string, WebullEndpointContract>>;
 

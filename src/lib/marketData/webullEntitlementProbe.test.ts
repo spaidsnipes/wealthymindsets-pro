@@ -9,6 +9,7 @@ import {
   extractProviderCode,
   probeWebullEntitlement,
   readWebullLadder,
+  readWebullStreamingLane,
   summarizeWebullSubscriptionBody,
   webullRungSpecs,
   type WebullRungReceipt,
@@ -306,9 +307,12 @@ describe("probeWebullEntitlement", () => {
     });
 
     // Derived from the ladder, not restated: a hard-coded rung count is how a
-    // new rung silently stops being climbed. The +1 is the subscription
-    // inventory read, which is asked out of band and is NOT a ladder rung.
-    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1);
+    // new rung silently stops being climbed. The additions are the two
+    // OUT-OF-BAND reads, neither of which is a ladder rung — the subscription
+    // inventory (once) and the real-time streaming lane (once per signing
+    // profile). This fixture denies every market-data path, so no streaming
+    // subscription is ever accepted and none has to be released.
+    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length);
     expect(seen.filter((url) => url.includes("/app/subscriptions/list"))).toHaveLength(1);
     // The whole reason it is out of band: it must never reach the verdict.
     expect(report.rungs.some((rung) => rung.rung === "SUBSCRIPTIONS")).toBe(false);
@@ -400,9 +404,13 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
     await probeWebullEntitlement(fetchImpl, {
       ...base, accessToken: "stale-pasted-token", tokenStore: inMemoryTokenStore(live()),
     });
-    // Ladder rungs + the out-of-band subscription read; the minted session has
-    // to travel on ALL of them, including the one that is not a rung.
-    expect(tokens).toHaveLength(webullRungSpecs("TSLA").length + 1);
+    // Ladder rungs + every out-of-band read; the minted session has to travel
+    // on ALL of them, including the ones that are not rungs. This fixture
+    // answers 200 to everything, so each signing profile opens a streaming
+    // subscription AND releases it — two calls per profile.
+    expect(tokens).toHaveLength(
+      webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length * 2,
+    );
     expect(new Set(tokens)).toEqual(new Set(["minted-session-value"]));
   });
 
@@ -464,5 +472,156 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
       { ...base, tokenStore: inMemoryTokenStore(live()) },
     );
     expect(JSON.stringify(report)).not.toContain("minted-session-value");
+  });
+});
+
+/**
+ * ── THE DOOR THE LADDER NEVER KNOCKED ON ────────────────────────────────────
+ *
+ * Every rung above measures Webull's REST pull product. Its real-time product
+ * is a separate lane — an MQTT socket at `data-api.webull.com`, authorised by a
+ * signed POST to `/market-data/streaming/subscribe`. For three months the pull
+ * lane's 403 was read as "no market data", a sentence that sent the Founder to
+ * buy something he already owned, when nothing in evidence had ever asked the
+ * door that actually carries real time.
+ *
+ * These tests pin the two properties that make asking it trustworthy: the
+ * request must be shaped as the SDK shapes it (POST, body signed, subscription
+ * released), and the reading must refuse to launder a streaming OK into a
+ * verdict about the pull lane.
+ */
+describe("the Webull real-time streaming lane is asked, and asked correctly", () => {
+  const base = {
+    appKey: "public-test-key",
+    appSecret: "public-test-secret",
+    accessToken: "session",
+    now: () => new Date("2026-09-21T05:00:00.000Z"),
+    nonce: () => "n".repeat(32),
+    mintSession: false as const,
+  };
+
+  interface Sent {
+    readonly path: string;
+    readonly method: string;
+    readonly body: string | null;
+    readonly signature: string;
+    readonly version: string;
+  }
+
+  function recordingFetch(streamingStatus: number, sent: Sent[]): typeof fetch {
+    return (async (url: URL, init?: RequestInit) => {
+      const target = new URL(String(url));
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      sent.push({
+        path: target.pathname,
+        method: init?.method ?? "GET",
+        body: typeof init?.body === "string" ? init.body : null,
+        signature: headers["x-signature"] ?? "",
+        version: headers["x-version"] ?? "",
+      });
+      if (target.pathname.includes("/streaming/")) {
+        return new Response(
+          JSON.stringify(streamingStatus === 200 ? {} : { code: "MARKET_DATA_NOT_SUBSCRIBED" }),
+          { status: streamingStatus },
+        );
+      }
+      if (target.pathname.startsWith("/market-data/")) {
+        return new Response(JSON.stringify({ code: "MARKET_DATA_NOT_SUBSCRIBED" }), { status: 403 });
+      }
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+  }
+
+  it("POSTs a signed body to the streaming lane rather than GETting it", async () => {
+    const sent: Sent[] = [];
+    await probeWebullEntitlement(recordingFetch(200, sent), { ...base, symbol: "TSLA" });
+
+    const subscribes = sent.filter((s) => s.path === "/market-data/streaming/subscribe");
+    expect(subscribes).toHaveLength(WEBULL_SIGNING_PROFILES.length);
+    for (const call of subscribes) {
+      expect(call.method).toBe("POST");
+      expect(call.version).toBe("v3");
+      // Webull signs a digest of the body. A POST sent without one is signed for
+      // a DIFFERENT request, and the 403 it earns is indistinguishable from the
+      // entitlement 403 this whole probe exists to stop misreading.
+      expect(call.body).toBeTruthy();
+      expect(JSON.parse(call.body!)).toMatchObject({
+        symbols: ["TSLA"],
+        category: "US_STOCK",
+        sub_types: ["QUOTE", "SNAPSHOT", "TICK"],
+      });
+      expect(call.signature).toBeTruthy();
+    }
+    // The two profiles must not produce the same signature, or "tried under
+    // every profile" would be one attempt wearing two labels.
+    expect(new Set(subscribes.map((s) => s.signature)).size).toBe(subscribes.length);
+  });
+
+  it("releases every subscription it opens", async () => {
+    const sent: Sent[] = [];
+    const report = await probeWebullEntitlement(recordingFetch(200, sent), base);
+
+    const opened = sent.filter((s) => s.path === "/market-data/streaming/subscribe").length;
+    const released = sent.filter((s) => s.path === "/market-data/streaming/unsubscribe");
+    expect(released).toHaveLength(opened);
+    expect(report.streaming?.released).toBe(opened);
+    for (const call of released) {
+      expect(call.method).toBe("POST");
+      expect(JSON.parse(call.body!)).toMatchObject({ unsubscribe_all: true });
+    }
+  });
+
+  it("opens no subscription to release when the lane refuses", async () => {
+    const sent: Sent[] = [];
+    const report = await probeWebullEntitlement(recordingFetch(403, sent), base);
+
+    expect(sent.filter((s) => s.path === "/market-data/streaming/unsubscribe")).toHaveLength(0);
+    expect(report.streaming?.reachable).toBe(false);
+    expect(report.streaming?.released).toBe(0);
+  });
+
+  it("never lets a streaming answer move the pull-lane verdict", async () => {
+    const sent: Sent[] = [];
+    const report = await probeWebullEntitlement(recordingFetch(200, sent), base);
+
+    // The ladder measured the pull product and must keep saying so. If a
+    // streaming OK could rewrite this, the receipt would be laundering evidence
+    // about one product into a claim about another.
+    expect(report.verdict).toBe("ENTITLEMENT_ISOLATED");
+    expect(report.streaming?.reachable).toBe(true);
+  });
+
+  it("says out loud that a streaming OK forbids telling anyone to buy market data", () => {
+    const read = readWebullStreamingLane(
+      [{ signingProfile: "sdk-sha256", outcome: "OK", httpStatus: 200, providerCode: null }],
+      true,
+    );
+    expect(read.reachable).toBe(true);
+    expect(read.note).toMatch(/two different products/i);
+    expect(read.note).toMatch(/nobody may be told to buy market data/i);
+  });
+
+  it("calls a denial across both products what it is — new evidence, not the old evidence", () => {
+    const read = readWebullStreamingLane(
+      WEBULL_SIGNING_PROFILES.map((signingProfile) => ({
+        signingProfile,
+        outcome: "DENIED_ENTITLEMENT" as const,
+        httpStatus: 403,
+        providerCode: "MARKET_DATA_NOT_SUBSCRIBED",
+      })),
+      true,
+    );
+    expect(read.reachable).toBe(false);
+    expect(read.note).toMatch(/FIRST evidence/);
+    expect(read.note).toMatch(/real-time/i);
+  });
+
+  it("refuses to grade a streaming attempt that timed out", () => {
+    const read = readWebullStreamingLane(
+      [{ signingProfile: "legacy-sha1", outcome: "TIMEOUT", httpStatus: null, providerCode: null }],
+      true,
+    );
+    expect(read.reachable).toBe(false);
+    expect(read.note).toMatch(/proves nothing/i);
   });
 });
