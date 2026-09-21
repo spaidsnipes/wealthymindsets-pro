@@ -172,6 +172,34 @@ describe("the declaration reaches the wire, not only the receipt", () => {
     expect(src, "the host must come from the token response").toContain("serverUrl");
   });
 
+  it("THE HALF-FIX GUARD: email.ts does not re-derive the Resend key name", () => {
+    // Measured on the production Worker 2026-09-21: the key is present as
+    // RESEND_API_KEY_. email.ts read process.env.RESEND_API_KEY, found nothing,
+    // and refused to send every transactional email beside a live paid key.
+    // Unlike finnhub there was no red receipt at all — Resend is a PLATFORM
+    // secret, and the near-miss detector only ever scanned provider rows. The
+    // only symptom was mail that never arrived.
+    const src = stripComments(fs.readFileSync(path.join(REPO_ROOT, "src/lib/email.ts"), "utf8"));
+    expect(
+      src,
+      "email.ts reads process.env.RESEND_API_KEY directly. A hand-written name " +
+        "cannot see the RESEND_API_KEY_ alias declared in PLATFORM_SECRETS. " +
+        "Resolve through resolveProviderEnv instead.",
+    ).not.toMatch(/process\.env\.RESEND_API_KEY/);
+    expect(src, "email.ts must resolve its key through the canonical table")
+      .toMatch(/resolveProviderEnv\(\s*"RESEND_API_KEY"\s*\)/);
+  });
+
+  it("a PLATFORM secret's declared alias is reachable through the resolver", () => {
+    // acceptedEnvNames scanned PROVIDER_REQUIREMENTS only until 2026-09-21, so
+    // PLATFORM_SECRETS could declare an alias that no consumer could ever
+    // resolve — "declared for the receipt only", one table over.
+    expect(acceptedEnvNames("RESEND_API_KEY")).toContain("RESEND_API_KEY_");
+    expect(acceptedEnvNames("SUPABASE_SERVICE_ROLE_KEY")).toContain("SUPABASE_SECRET_KEY");
+    expect(resolveProviderEnv("RESEND_API_KEY", { RESEND_API_KEY_: "re_live" }))
+      .toMatchObject({ name: "RESEND_API_KEY_", value: "re_live", viaAlias: true });
+  });
+
   it("the scan is not vacuous — it can see the defect when it exists", () => {
     const defect = 'const k = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;';
     expect(/process\.env\.(NEXT_PUBLIC_)?FINNHUB_KEY/.test(stripComments(defect))).toBe(true);

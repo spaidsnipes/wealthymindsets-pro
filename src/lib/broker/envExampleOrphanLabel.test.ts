@@ -37,7 +37,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { stripComments } from "@/lib/sourceScan";
-import { allProviderEnvNames } from "./providerReadiness";
+import { PLATFORM_SECRETS, allProviderEnvNames } from "./providerReadiness";
 import { SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 
 const REPO_ROOT = resolve(__dirname, "..", "..", "..");
@@ -87,7 +87,22 @@ describe("a documented credential label must have a reader", () => {
     // imported. When a third resolver appears, this test fails by name and
     // forces its declaration to be imported here too, which is the point: the
     // alternative is a hand-kept allowlist, i.e. the drift being guarded.
-    const legitimate = new Set([...allProviderEnvNames(), ...SERVICE_KEY_VARS, ...readByCode()]);
+    //
+    // THAT PREDICTION CAME TRUE 2026-09-21. `email.ts` stopped saying
+    // `process.env.RESEND_API_KEY` and started resolving through the canonical
+    // table, so the regex scan below could no longer see a reader and this test
+    // failed naming RESEND_API_KEY / RESEND_API_KEY_ — while the wire was in
+    // fact MORE connected than before. The fix is the one the docblock
+    // specifies: import the third declaring owner, PLATFORM_SECRETS. It is
+    // flattened here rather than re-typed, so a name added there is legitimate
+    // the moment it is declared and never a moment before.
+    const platformNames = PLATFORM_SECRETS.flatMap((s) => [s.name, ...(s.aliases ?? [])]);
+    const legitimate = new Set([
+      ...allProviderEnvNames(),
+      ...SERVICE_KEY_VARS,
+      ...platformNames,
+      ...readByCode(),
+    ]);
     const orphans = documentedLabels().filter((name) => !legitimate.has(name));
     expect(
       orphans,

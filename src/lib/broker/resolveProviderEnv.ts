@@ -58,7 +58,7 @@
  * to a client.
  */
 
-import { PROVIDER_REQUIREMENTS, type EnvPresence } from "./providerReadiness";
+import { PLATFORM_SECRETS, PROVIDER_REQUIREMENTS, type EnvPresence } from "./providerReadiness";
 
 export interface ResolvedEnv {
   /** The env name the value was actually found under — safe to surface. */
@@ -81,13 +81,28 @@ function clean(value: string | undefined): string {
  * purpose: `FINNHUB_KEY` is referenced by the finnhub lane today, but nothing
  * stops a second lane from declaring the same credential tomorrow, and a
  * caller should not have to know which row to ask about.
+ *
+ * PLATFORM_SECRETS is unioned in for the same reason, and because leaving it
+ * out had a measured cost. That table ALREADY declared
+ * `SUPABASE_SERVICE_ROLE_KEY -> SUPABASE_SECRET_KEY`, and on 2026-09-21 it
+ * gained `RESEND_API_KEY -> RESEND_API_KEY_` (read off the production Worker's
+ * own secret list). If this function only ever scanned provider rows, those
+ * declarations could never reach a consumer through the canonical resolver —
+ * the exact "declared for the receipt only" half-fix this module exists to
+ * abolish. A credential is a credential; which table declares it is an
+ * implementation detail the caller must not have to know.
  */
 export function acceptedEnvNames(canonical: string): readonly string[] {
   const names = [canonical];
+  const add = (alias: string) => {
+    if (!names.includes(alias)) names.push(alias);
+  };
   for (const req of PROVIDER_REQUIREMENTS) {
-    for (const alias of req.aliases?.[canonical] ?? []) {
-      if (!names.includes(alias)) names.push(alias);
-    }
+    for (const alias of req.aliases?.[canonical] ?? []) add(alias);
+  }
+  for (const secret of PLATFORM_SECRETS) {
+    if (secret.name !== canonical) continue;
+    for (const alias of secret.aliases ?? []) add(alias);
   }
   return names;
 }

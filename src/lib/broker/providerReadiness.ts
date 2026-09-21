@@ -575,7 +575,20 @@ export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
     note: "auth.ts signs and verifies the session token. Absent means nobody can hold a session.",
   },
   {
+    // MEASURED ON THE HOST 2026-09-21, by reading the production Worker's own
+    // Settings → Variables and secrets list rather than inferring from a
+    // receipt: the secret is present and named `RESEND_API_KEY_`. One trailing
+    // underscore — the SAME bulk-load artifact as FINNHUB_KEY_,
+    // ALPACA_BROKERAGE_KEY_SECRET_, ATH_LIVEKIT_KEY_ and TWELVE_DATA_KEY_.
+    //
+    // Until this line existed, `email.ts` read process.env.RESEND_API_KEY,
+    // found nothing, and returned { ok: false, error: "RESEND_API_KEY missing" }
+    // for EVERY transactional email on production — signup, reset, receipts —
+    // beside a paid Resend key that was sitting right there. Nothing reported
+    // it, because the near-miss detector only ever scanned provider rows, and
+    // Resend is a platform secret.
     name: "RESEND_API_KEY",
+    aliases: ["RESEND_API_KEY_"],
     gatesBoot: false,
     note: "email.ts only. Absent means transactional email is dark; every other route still answers.",
   },

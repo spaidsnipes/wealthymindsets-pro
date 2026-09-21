@@ -6,12 +6,30 @@
 
 import { Resend } from "resend";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
+import { acceptedEnvNames, resolveProviderEnv } from "@/lib/broker/resolveProviderEnv";
+
+// THE NAME IS NOT HARD-CODED HERE, and that is the whole point.
+//
+// Measured on the production Worker 2026-09-21 by reading its Settings →
+// Variables and secrets list directly: the Resend key is present, named
+// `RESEND_API_KEY_`. One trailing underscore. `process.env.RESEND_API_KEY`
+// therefore resolved to undefined, `deliver()` short-circuited, and EVERY
+// transactional email — signup, password reset, receipts — returned
+// { ok: false, error: "RESEND_API_KEY missing" } beside a live paid key.
+//
+// Resolve through the canonical table so the accepted names live in ONE place
+// (PLATFORM_SECRETS) and declaring one there is what actually connects the
+// wire. A hand-written `?? process.env.RESEND_API_KEY_` here would fix today's
+// host and re-open the same hole for the next name.
+function resendKey(): string | null {
+  return resolveProviderEnv("RESEND_API_KEY")?.value ?? null;
+}
 
 // Lazy singleton — Resend constructor throws if key is missing, so we defer
 // instantiation to first use (runtime, not build time).
 let _resend: Resend | null = null;
 function getResend(): Resend {
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY ?? "");
+  if (!_resend) _resend = new Resend(resendKey() ?? "");
   return _resend;
 }
 
@@ -31,7 +49,11 @@ const USING_TEST_SENDER = /onboarding@resend\.dev/i.test(FROM);
 /** Diagnostic snapshot of email config — safe to log (contains no secrets). */
 export function emailConfigStatus() {
   return {
-    hasApiKey:       !!process.env.RESEND_API_KEY,
+    hasApiKey:       !!resendKey(),
+    // The NAME the key was actually found under — safe to surface, and the one
+    // fact that would have exposed the trailing-underscore drift in a receipt
+    // instead of in six days of undelivered signup mail. Never the value.
+    apiKeyName:      resolveProviderEnv("RESEND_API_KEY")?.name ?? null,
     from:            FROM,
     usingTestSender: USING_TEST_SENDER,
     appUrl:          APP_URL,
@@ -495,8 +517,11 @@ async function deliver(
   kind: string,
   payload: { from: string; to: string[]; subject: string; html: string; text: string },
 ): Promise<EmailSendResult> {
-  if (!process.env.RESEND_API_KEY) {
-    console.error(`[email:${kind}] NOT SENT — RESEND_API_KEY is not set in this environment`);
+  if (!resendKey()) {
+    console.error(
+      `[email:${kind}] NOT SENT — no Resend key under any accepted name ` +
+      `(${acceptedEnvNames("RESEND_API_KEY").join(", ")}) in this environment`,
+    );
     return { ok: false, id: null, error: "RESEND_API_KEY missing" };
   }
   if (USING_TEST_SENDER) {
