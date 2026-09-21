@@ -30,7 +30,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
+import ChartEffortVsResult, { sharedAbsence } from "@/components/chart/ChartEffortVsResult";
 import {
   selectEffortVsResult,
   MIN_BARS_FOR_COHORT,
@@ -304,6 +304,73 @@ describe("the callout is rendered by the charts room, not merely imported", () =
     // the failure the ticket's own header warns about. One selection path.
     expect(DASHBOARD).toMatch(/effortVsResultVM/);
     expect(DASHBOARD).toMatch(/inspectBar/);
+  });
+
+  it("says ONE reason ONCE, and still says it", () => {
+    /*
+      FOUND ON THE SERVING CHART. A bar that has not finished counting refuses
+      both rows for the same reason, and the panel printed that six-line
+      sentence twice, verbatim, in a 236px column.
+
+      The danger in fixing this is obvious and is what most of these assertions
+      are for: "print it once" and "drop it" produce nearly the same diff, and
+      dropping a refusal's reason is the worst defect this panel can have. So
+      the count is pinned at exactly one — not "at most one".
+    */
+    const forming = selectEffortVsResult({
+      bar: { volume: 2, open: 100, close: 100.5 },
+      priorBars: plainCohort(),
+      subjectIsForming: true,
+    });
+    const unread = forming.rows.filter(r => r.state !== "READ");
+    expect(unread.length, "this fixture must refuse both rows or it proves nothing")
+      .toBeGreaterThanOrEqual(2);
+
+    const reason = sharedAbsence(forming.rows);
+    expect(reason, "the two rows refuse for the same reason in this fixture").not.toBeNull();
+
+    const text = visible(
+      renderToStaticMarkup(
+        <ChartEffortVsResult
+          vm={forming}
+          followingLiveBar={false}
+          open
+          onOpenChange={() => {}}
+        />,
+      ),
+    );
+    const occurrences = text.split(reason as string).length - 1;
+    expect(
+      occurrences,
+      "the shared refusal reason must appear EXACTLY once — twice is the " +
+        "repetition being fixed, zero is a silently dropped refusal",
+    ).toBe(1);
+
+    // And both words must still be present, so "once" did not become "on one row".
+    expect(text, "both rows must still read UNREAD").toMatch(/UNREAD[\s\S]*UNREAD/);
+  });
+
+  it("leaves a row's own reason alone when the rows disagree about why", () => {
+    /*
+      The dedupe must be keyed on the SENTENCES BEING EQUAL, not on "there is
+      more than one refusal". Two rows refusing for different reasons that got
+      collapsed to one would be a fabricated explanation for the other row.
+    */
+    expect(
+      sharedAbsence([
+        { id: "a", label: "A", value: "", state: "UNREAD", absence: "reason one" },
+        { id: "b", label: "B", value: "", state: "UNREAD", absence: "reason two" },
+      ] as never),
+      "two different reasons must never be merged into one",
+    ).toBeNull();
+
+    expect(
+      sharedAbsence([
+        { id: "a", label: "A", value: "", state: "UNREAD", absence: "only reason" },
+        { id: "b", label: "B", value: "ok", state: "READ", basis: "b" },
+      ] as never),
+      "a lone refusal is not a repetition; it keeps its sentence on its row",
+    ).toBeNull();
   });
 
   it("TELLS the compiler when the bar has not finished counting", () => {
