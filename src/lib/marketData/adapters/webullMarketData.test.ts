@@ -250,7 +250,11 @@ describe("Webull Data API market-data certification", () => {
     const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
     expect(ticks.status).toBe("BLOCKED_ENTITLEMENT");
     expect(ticks.note).toMatch(/MARKET_DATA_NOT_SUBSCRIBED/);
-    expect(ticks.note).toMatch(/subscription is active/i);
+    // The note must report Webull's verdict on OUR REQUEST and must NOT assert
+    // the account lacks a subscription. Stating that as fact is what sent the
+    // Founder to buy data he already owned, for three months.
+    expect(ticks.note).toMatch(/verdict on this request/i);
+    expect(ticks.note).not.toMatch(/until the required .* subscription is active/i);
     expect(ticks.note).not.toMatch(/delayed/i);
     expect(JSON.stringify(cert)).not.toContain("active-token");
     expect(JSON.stringify(cert)).not.toContain("private provider detail");

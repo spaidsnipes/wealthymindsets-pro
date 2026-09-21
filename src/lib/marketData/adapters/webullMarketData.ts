@@ -352,7 +352,23 @@ export async function fetchWebullTickSnapshot(
       if (providerCode === "MARKET_DATA_NOT_SUBSCRIBED") {
         return unavailable(
           "BLOCKED_ENTITLEMENT",
-          "Webull proved MARKET_DATA_NOT_SUBSCRIBED for this account. Real tick data is unavailable until the required Webull market-data subscription is active; no tick observation was returned.",
+          // ── READ THIS BEFORE EDITING THIS SENTENCE ──────────────────────
+          //
+          // It used to say the subscription was missing "for this account",
+          // flatly, as a fact. That sentence sent the Founder to Webull to buy
+          // market data he had ALREADY bought, repeatedly, for three months.
+          // MARKET_DATA_NOT_SUBSCRIBED is Webull's verdict on OUR REQUEST; it
+          // only becomes evidence about an account once the request is proven
+          // correct, and this string is rendered long before anyone checks.
+          //
+          // So it now says what was measured and points at the one place that
+          // can actually answer, instead of naming a purchase. If a future
+          // reader wants to restore a confident claim here, they must first
+          // make this code able to tell the two cases apart — which is what
+          // /api/market-data/webull/entitlement exists to do.
+          "Webull answered MARKET_DATA_NOT_SUBSCRIBED to this signed request, so no tick observation was returned. " +
+          "That code is Webull's verdict on this request, not a confirmed statement about the account — " +
+          "open the entitlement report to see which rungs passed before concluding anything about a subscription.",
         );
       }
       return unavailable(
