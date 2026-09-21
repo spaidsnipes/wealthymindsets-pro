@@ -107,6 +107,20 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "nobody is asking while the wire is healthy. The thing that SHOULD be on the glass is the " +
       "tick wire itself (/api/market-data/webull/ticks), which has callers.",
   },
+  "/api/market-data/webull/streaming": {
+    cls: "OPERATOR_DIAGNOSTIC",
+    evidence:
+      "Added 2026-09-21 and classified at birth. It opens ONE MQTT CONNECT to " +
+      "data-api.webull.com — Webull's real-time host, which this codebase had never contacted " +
+      "in its history — and reads one CONNACK. It exists because the streaming lane, asked over " +
+      "HTTP for the first time that day, answered 417 INVALID_SESSION rather than the " +
+      "MARKET_DATA_NOT_SUBSCRIBED we had been collecting for three months: Webull's session_id " +
+      "is the MQTT client_id of an ALREADY-OPEN socket, so we had been naming a socket that " +
+      "never existed. A raw TCP handshake per page load is not a product surface, and the answer " +
+      "does not change between loads. What SHOULD reach the glass is the tick stream this " +
+      "handshake unlocks; when that lands, this line must be re-examined rather than left " +
+      "standing as pre-forgiveness for a route that quietly gained a consumer.",
+  },
   "/api/dev/coverage-inspect": {
     cls: "OPERATOR_DIAGNOSTIC",
     evidence:
@@ -307,7 +321,11 @@ describe("every API endpoint has something that actually calls it", () => {
     // day it was classified. A diagnostic registered at birth is the honest
     // case this class is for; the dishonest case is a DARK route relabelled
     // later, which is why the counts are split rather than summed.
-    expect(every.filter((e) => e.cls === "OPERATOR_DIAGNOSTIC").length).toBe(4);
+    // 4 -> 5 on 2026-09-21: /api/market-data/webull/streaming, also registered
+    // at birth. Same lane, one door further in — the entitlement ladder reads
+    // Webull's REST pull product, this one opens an MQTT socket to the
+    // real-time host it turned out we had never contacted.
+    expect(every.filter((e) => e.cls === "OPERATOR_DIAGNOSTIC").length).toBe(5);
     expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(1);
     expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(1);
 
