@@ -90,6 +90,20 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
       <path d="M12 8.5V12l2.5 1.5" />
     </Glyph>
   ),
+  /**
+   * The chart's own bench of controls — a tool tray with three implements
+   * standing in it. Not a magnifier: `tools` above already owns that mark for
+   * the masthead door, and two identical glyphs one press apart would undo in
+   * pictures the separation `oneNamePerDoor` enforces in words.
+   */
+  "chart-tools": (
+    <Glyph>
+      <path d="M3.5 14.5h17v5h-17z" />
+      <path d="M7 14.5V6a1.5 1.5 0 0 1 3 0v8.5" />
+      <path d="M12 14.5V4" />
+      <path d="M17 14.5V8l-2.5 2.5" />
+    </Glyph>
+  ),
   /** What you actually did this session — a face turned back on itself. */
   "behaviour-mirror": (
     <Glyph>

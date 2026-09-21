@@ -642,6 +642,66 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "lens",
       direct: true,
     },
+    /**
+     * THE NINTH TENANT — AND THE REST OF THE STRIP THAT COULD NOT BE REACHED.
+     *
+     * `smart-money` above was ONE organ salvaged from `.wm-chart-toolbar-pinned`
+     * and its own note closes by naming what was left behind: "NOT FIXED HERE:
+     * Appearance and Chart tools are still off the glass at 390." This entry is
+     * the rest of that salvage, and the measurement that forced it is not a
+     * phone measurement at all.
+     *
+     * MEASURED 2026-09-21 at 1440x900 on local /charts, auth RESPONSE stubbed
+     * for layout only — no password, no token, no account
+     * (scratchpad/probe-toolbar-reach.mjs). The pinned cluster laid out 823px
+     * wide, `position: sticky; right: 0`, over a band that is `overflow-x:
+     * auto` with `scrollbarWidth: "none"`. Then `document.elementFromPoint` was
+     * asked, for each of that band's nine controls, whether the point at its
+     * own centre actually hits it:
+     *
+     *     UNREACHABLE: 2 of 9
+     *       x  trading hours select   (x=290)
+     *       x  Indicators             (x=463)
+     *
+     * This is the defect the repo already knows by name — "7 of 9 controls in
+     * the DOM and unreachable" — sitting on the DESK, not the phone, where
+     * nobody had thought to look for it. A strip that covers its neighbours is
+     * not a strip that needs a wider breakpoint. It needs to not be a strip.
+     *
+     * D-701 demolishes it; SALVAGE says "MIGRATE LEGITIMATE ORGANS INTO
+     * WORKSPACE/TOOLS DRAWERS". So the organs become one door.
+     *
+     * WHY `lens` AND NOT `workspace`. §3: Tools is "lenses + overlays +
+     * graduation toggles". The drawer's own first organ is the profiles
+     * catalogue — eight overlays that READ the tape — and Appearance is a
+     * graduation toggle in the literal sense. Nothing behind this door changes
+     * what the market did; it changes what is drawn about it.
+     *
+     * WHY `direct`. Same test the field's note sets: is there "a reading with
+     * depth worth previewing"? No. This door opens a container of controls, not
+     * a reading. A threshold VM here would have to paraphrase fourteen
+     * unrelated behaviours, which is how a rail and a room start to disagree.
+     *
+     * WHY ONE DOOR AND NOT FOUR. Profiles, Arrangement, Appearance and the
+     * chart menu were ONE cluster on the glass and are one cluster in the hand.
+     * Declaring four entries would have been four rail rows for what the trader
+     * has always reached for as a unit, and would have split state that lives
+     * in one component across four booleans.
+     *
+     * HONEST EDGE: `ChartToolbar` — and therefore this drawer — is mounted only
+     * while `activeTab` is "Chart" or "Options". On Financials or Valuation the
+     * rail entry is painted and opens nothing. That is the same gate
+     * `chart-draw-sheet` already carries and is recorded here rather than
+     * smoothed over; curing it means mounting the toolbar on every tab, which
+     * is a bigger change than this one and would be made for its own reasons.
+     */
+    {
+      id: "chart-tools",
+      label: "Chart tools",
+      hint: "Profiles, arrangement, appearance and the chart's own menu",
+      kind: "lens",
+      direct: true,
+    },
   ],
 };
 

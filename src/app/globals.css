@@ -515,12 +515,15 @@
     font-style: italic;
   }
 
-  .wm-chart-toolbar-pinned {
-    position: static !important;
-    height: auto !important;
-    margin-left: auto;
-    border-left: 0 !important;
-  }
+  /* `.wm-chart-toolbar-pinned` USED TO BE UNSTUCK HERE, AND IS NOW GONE.
+     D-701 demolished the cluster on 2026-09-21 and its controls moved behind
+     the `chart-tools` equipment door. This rule was the phone WORKAROUND for a
+     sticky 823px strip that covered its own neighbours; a strip that no longer
+     exists needs no unsticking, and a rule kept for a dead selector is an
+     invitation to re-add the element it describes.
+     `chartPhoneControlReachability.test.ts` now asserts the ABSENCE of both the
+     selector and the class — strictly stronger than asserting the workaround
+     was present. */
 
   /* C-101 — THE MARKET IS NOT THE SLACK.
      Measured 2026-09-19 with `npm run prove:charts-floor` at 390x844: the

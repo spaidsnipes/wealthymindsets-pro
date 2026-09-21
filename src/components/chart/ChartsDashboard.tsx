@@ -607,6 +607,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [paperTradesOn, setPaperTradesOn] = useState(true);
   // Smart Money read-out panel (real order-flow signals; honest N/A for feeds we lack).
   const [smartMoneyOpen, setSmartMoneyOpen] = useState(false);
+  /**
+   * THE ONE BOOLEAN BEHIND THE `chart-tools` DOOR.
+   *
+   * Defaults CLOSED, and that is a real cost worth naming: the profiles
+   * catalogue and the arrangement declaration used to be readable at a glance
+   * above the candles, and now they are one press away. The exchange is that
+   * the strip they were printed on was covering two of its own neighbours at
+   * 1440 and three at 390 — it was not "a glance" for anyone whose window was
+   * narrower than 823px of cluster plus the row beneath it.
+   *
+   * Owned here rather than in `ChartToolbar` because the rail speaks to the
+   * ROOM: `subscribeEquipment` is a room-level subscription, and a boolean the
+   * toolbar owned privately could not be reached by it.
+   */
+  const [chartEquipmentOpen, setChartEquipmentOpen] = useState(false);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
@@ -2140,6 +2155,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // toolbar. Not a mirror of it, not a copy — the same one boolean.
           // A door added to a room that already had one panel.
           setSmartMoneyOpen(!down);
+        } else if (req.equipmentId === "chart-tools") {
+          // THE FOURTH DIRECT INSTRUMENT — THE REST OF THE DEMOLISHED STRIP.
+          //
+          // `smart-money` above rescued ONE organ from `.wm-chart-toolbar-pinned`
+          // and its own note names what it left behind. This is the remainder:
+          // the profiles catalogue, the arrangement declaration, Appearance,
+          // and the chart's own fourteen-item menu.
+          //
+          // MEASURED 2026-09-21 at 1440x900, which is the part that had never
+          // been looked at: `elementFromPoint` at the centre of each of the
+          // toolbar's nine controls found TWO that the sticky 823px cluster was
+          // covering — the trading-hours select and Indicators. Not a phone
+          // problem. See roomEquipment.ts for the full reading.
+          //
+          // The drawer is mounted by `ChartToolbar`, not here, because those
+          // controls read state that component owns. This branch flips the one
+          // boolean that opens it; there is no second copy of any control.
+          setChartEquipmentOpen(!down);
         }
       }),
     [openDrawingTools, startReplay, stopReplay],
@@ -2198,6 +2231,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => {
     announceEquipmentStage("smart-money", smartMoneyOpen ? "drawer" : "closed");
   }, [smartMoneyOpen]);
+  /* And the fourth, on the same terms and for the same reason: the drawer
+     carries its own X and its own Escape, so a rail that only ever heard the
+     open would report `aria-pressed="true"` after the trader had closed it —
+     the exact Replay defect equipmentChannel.ts records.
+
+     "drawer", not "full": `ShellModalDrawer` is a 420px right-hand panel over
+     a chart that stays mounted and stays subscribed. The same honest edge
+     recorded for smart-money applies unchanged — at phone widths a 420px panel
+     covers the glass rather than sitting beside it, and `marketStaysVisible`
+     will have to read WIDTH before it has a runtime consumer. This shift is
+     desktop-only and does not pretend to have fixed that. */
+  useEffect(() => {
+    announceEquipmentStage("chart-tools", chartEquipmentOpen ? "drawer" : "closed");
+  }, [chartEquipmentOpen]);
 
   // And the same for the seven-control primary rail: measured at 375px it was
   // display:none at 0x0, so publish idea, screenshot, voice note and video
@@ -3423,6 +3470,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             studyToolsOpen={studyToolsOpen}
             chartLayout={chartLayout}
             onLayoutChange={setChartLayout}
+            /*
+              THE EQUIPMENT DOOR. The rail writes `chartEquipmentOpen` through
+              the `chart-tools` branch above; the toolbar mounts the drawer and
+              closes it with its own X or Escape, which is why the close comes
+              back through here rather than being the toolbar's private affair —
+              `announceEquipmentStage` has to see it, or the rail's aria-pressed
+              becomes a lie the moment the trader uses the panel's own control.
+            */
+            equipmentOpen={chartEquipmentOpen}
+            onEquipmentClose={() => setChartEquipmentOpen(false)}
             /*
               THE PROFILES MENU — one door in front of every profile this repo
               owns (Founder: "there should also have a profiles drop down for

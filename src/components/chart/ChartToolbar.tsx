@@ -19,6 +19,12 @@ import { getIndicatorInfo } from "./indicatorDescriptions";
 // canonical timeframe module inside a file that no longer renders a timeframe
 // is a standing invitation to render one again.
 import { WMLogo } from "@/components/ui/WMLogo";
+// The drawer the pinned cluster now lives in. Mounted from THIS file rather
+// than from `ChartsDashboard` so the fourteen controls keep the handlers and
+// the local state (`advancedOpen`, `activeInds`) they already had — a move
+// that re-plumbed them through the room would have been a rewrite wearing a
+// migration's name.
+import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 // Type-only in spirit but a runtime string: the panel owns its own DOM id so
 // the trigger's `aria-controls` cannot drift away from the element it names.
 import { SMART_MONEY_PANEL_ID } from "@/components/smart-money/SmartMoneyPanel";
@@ -616,6 +622,31 @@ interface ChartToolbarProps {
    * only owes it a place where it can be seen.
    */
   profilesSlot?:       React.ReactNode;
+
+  /**
+   * THE EQUIPMENT DOOR — where the pinned cluster went on 2026-09-21.
+   *
+   * D-701 demolishes `.wm-chart-toolbar-pinned`, the sticky 35px strip that
+   * used to float over this band, and its SALVAGE clause says where its
+   * contents go: "MIGRATE LEGITIMATE ORGANS INTO WORKSPACE/TOOLS DRAWERS".
+   *
+   * MEASURED at 1440 on 2026-09-21 before the cut (scratchpad/probe-toolbar-reach.mjs):
+   * that cluster laid out 823px wide, `position: sticky; right: 0`, over a band
+   * that is `overflow-x: auto` with `scrollbarWidth: "none"`. Two of this row's
+   * OWN nine controls failed `elementFromPoint` at their own centres — the
+   * trading-hours select (x=290) and Indicators (x=463). They were in the DOM
+   * and no hand could land on them. That is the same class of defect the phone
+   * gate was written for, discovered on the desk.
+   *
+   * The organs did not move to a NEW panel; they moved behind a door the room
+   * already has. `roomEquipment` declares `chart-tools` as DIRECT equipment,
+   * `ChartsDashboard` hears the rail and flips this boolean, and the drawer is
+   * mounted HERE — beside the handlers and the local state those controls have
+   * always used — so not one of the fourteen behaviours had to be re-plumbed
+   * through the dashboard to reach its new home.
+   */
+  equipmentOpen?:      boolean;
+  onEquipmentClose?:   () => void;
 }
 
 // Pin high-priority categories first so they're always visible without scrolling
@@ -674,6 +705,7 @@ export function ChartToolbar({
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
   onToggleStudyTools, studyToolsOpen, onViews, viewsOpen, activeViewLabel, profilesSlot,
+  equipmentOpen, onEquipmentClose,
   chartLayout = "1", onLayoutChange,
 }: ChartToolbarProps) {
   const [symbolSearch,   setSymbolSearch]  = useState("");
@@ -702,6 +734,19 @@ export function ChartToolbar({
   const indRef  = useRef<HTMLDivElement>(null);
   const advancedRef = useRef<HTMLDivElement>(null);
   const symInputRef = useRef<HTMLInputElement>(null);
+  /**
+   * THE DRAWER'S LAST-RESORT FOCUS TARGET, AND WHY IT IS DELIBERATELY EMPTY.
+   *
+   * `ShellModalDrawer` restores focus on close to whatever had it when the
+   * drawer opened, and falls back to this ref only if that element has left
+   * the document. The element that opens this drawer is the `chart-tools` rail
+   * button inside `WMOperatingSystem` — a different component, in a different
+   * subtree, which this file has no honest way to hold a ref to. Passing a
+   * ref to some OTHER button in here so the prop "looks wired" would send the
+   * trader's focus to a control they never pressed, which is worse than the
+   * browser's own default of falling back to the body.
+   */
+  const equipmentFallbackRef = useRef<HTMLButtonElement>(null);
 
   /**
    * The WORLDWIDE half of this dropdown.
@@ -822,14 +867,21 @@ export function ChartToolbar({
   };
 
   return (
+    <>
     <div
-      // SCENE_FRAGMENTATION cure (Founder 2026-09-13): this 36px band sits
-      // directly above MARKET. Opaque #0D0E14 + a hard #1E2030 rule made it
-      // the lid of a box the chart lived in. `wm-room-chrome` carries the
-      // same glass the pinned bands use, so the sanctuary reads through and
-      // the tool row delimits itself with a brass hairline instead.
+      // SCENE_FRAGMENTATION cure (Founder 2026-09-13): this band sits directly
+      // above MARKET. Opaque #0D0E14 + a hard #1E2030 rule made it the lid of
+      // a box the chart lived in. `wm-room-chrome` carries the same glass the
+      // pinned bands use, so the sanctuary reads through and the tool row
+      // delimits itself with a brass hairline instead.
+      //
+      // 36 → 32 on 2026-09-21. Not a guess: with the pinned cluster gone the
+      // tallest thing left in this row is the 28px (`h-7`) symbol search, so
+      // 32 is 28 plus two pixels of air each side. Four pixels is a small
+      // number and is reported as one — C-101's 70% floor is not bought by
+      // shrinking chrome, it is bought by the bands that are no longer here.
       className="wm-room-chrome wm-chart-toolbar flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
-      style={{ scrollbarWidth:"none", height: 36, borderColor: "rgba(139,106,41,0.24)" }}
+      style={{ scrollbarWidth:"none", height: 32, borderColor: "rgba(139,106,41,0.24)" }}
     >
 
       {leadingSlot}
@@ -1268,20 +1320,51 @@ export function ChartToolbar({
 
       <div className="ml-auto" />
 
-      {/* ══ Pinned right cluster — always visible, never clipped ══════
-          (sticky so it stays put even when the middle toolbar overflows) */}
-      <div
-        // `wm-chart-toolbar-pinned` stays FIRST: chartPhoneControlReachability
-        // asserts the quote-prefixed substring `className="wm-chart-toolbar-pinned`,
-        // so prepending a class here silently breaks a phone-reachability gate.
-        // Class order carries no CSS meaning, so ordering is the free repair.
-        className="wm-chart-toolbar-pinned wm-room-chrome flex items-center gap-1 shrink-0 pl-1.5 h-full"
-        style={{ position: "sticky", right: 0, borderLeft: "1px solid rgba(139,106,41,0.24)", zIndex: 5 }}
+    </div>
+
+    {/* ══ THE EQUIPMENT DRAWER — WHERE THE PINNED CLUSTER WENT ═══════════
+        Everything below this line used to be `.wm-chart-toolbar-pinned`: a
+        sticky, 823px-wide, 35px-tall cluster floating over a band that is
+        `overflow-x: auto` with `scrollbarWidth: "none"`. It covered two of
+        that band's own controls at 1440 and three of them at 390.
+
+        It is NOT `disabled`, hidden, or collapsed — it is REHOMED. Every one
+        of the fourteen controls below is byte-for-byte the control that was
+        there yesterday, with the same handler and the same accessible name;
+        only the container changed, from a strip nobody could scroll to a
+        drawer the room's own Tools door opens.
+
+        WHY THE DRAWER IS MOUNTED HERE AND NOT IN `ChartsDashboard`. These
+        controls read local state this component owns (`advancedOpen`, and the
+        indicator set beside it) and call props this component already holds.
+        Moving the JSX to the room would have meant lifting that state and
+        re-threading fourteen callbacks — a rewrite, with a migration's name
+        on it, and fourteen chances to drop a behaviour silently.
+
+        WHY A DRAWER AND NOT A `PortalPopover`. The profiles and arrangement
+        organs used to be chips that opened `PortalPopover`s into
+        `document.body`. `ShellModalDrawer` traps Tab inside its own panel, so
+        a chip in here would open a surface a mouse could reach and a keyboard
+        could not — the same defect, re-shaped. Both are inline panels now. */}
+    {equipmentOpen && onEquipmentClose && (
+      <ShellModalDrawer
+        id="chart-equipment-sheet"
+        titleId="chart-equipment-sheet-title"
+        descriptionId="chart-equipment-sheet-description"
+        title="Chart tools"
+        description="Profiles, how the book is arranged, appearance, Smart Money, and the chart's own menu. The chart stays loaded underneath."
+        closeLabel="Close chart tools"
+        width={420}
+        onClose={onEquipmentClose}
+        fallbackTriggerRef={equipmentFallbackRef}
       >
-        {/* The one door in front of every profile this product owns. Pinned for
-            the reason given on `profilesSlot`: a catalogue behind a closed lid
-            catalogues nothing. */}
+      <div className="flex flex-col gap-3 p-3">
+        {/* The one door in front of every profile this product owns. FIRST in
+            the drawer for the reason given on `profilesSlot`: a catalogue
+            behind a closed lid catalogues nothing, and a catalogue below the
+            fold of a scrolling drawer is the same lid with extra steps. */}
         {profilesSlot}
+        <div className="flex flex-wrap items-center gap-2">
         {onSettings && (
           <button
             type="button"
@@ -1486,8 +1569,10 @@ export function ChartToolbar({
             );
           })()}
         </div>
+        </div>
       </div>
-
-    </div>
+      </ShellModalDrawer>
+    )}
+    </>
   );
 }

@@ -148,15 +148,65 @@ describe("phone chart control reachability", () => {
     expect(toolbarCode).not.toContain('from "@/lib/timeframes"');
   });
 
-  it("prevents the pinned tools cluster from covering the tools beside it", () => {
-    // Narrowed in scope on 2026-09-21 because its original object — "late
-    // timeframes" — no longer shares a band with the pinned cluster. The
-    // cluster still overlaps everything else in that row (symbol search, hours,
-    // indicators), so the wrap is still required; it is simply no longer the
-    // thing standing between a trader and a 1D chart.
-    expect(toolbar).toContain('className="wm-chart-toolbar-pinned');
-    expect(css).toMatch(/\.wm-chart-toolbar-pinned\s*\{[\s\S]*?position:\s*static\s*!important/);
+  // ── RE-AIMED 2026-09-21 · THE CLUSTER IS GONE, NOT UNSTUCK ───────────────
+  //
+  // This asserted that the pinned cluster EXISTED and that a phone media query
+  // unstuck it (`position: static !important`). Both halves were guarding a
+  // WORKAROUND. The requirement underneath them was never "the cluster is
+  // unstuck on phones" — it was "the cluster does not cover the controls beside
+  // it", and the workaround only ever bought that below 768px.
+  //
+  // MEASURED 2026-09-21 at 1440x900, where no media query applies
+  // (scratchpad/probe-toolbar-reach.mjs): `document.elementFromPoint` at the
+  // centre of each of the band's nine controls found TWO that the sticky 823px
+  // cluster was sitting on top of — the trading-hours select and Indicators.
+  // The old assertions were green the entire time. A guard that is satisfied by
+  // the presence of a workaround cannot see the case the workaround does not
+  // cover, and this was that case.
+  //
+  // STRICTLY STRONGER, and here is the argument rather than the claim. The old
+  // pair admitted every arrangement in which a sticky cluster exists and one
+  // media query unsticks it — which includes the arrangement that shipped the
+  // defect. The new pair admits only arrangements in which the cluster does not
+  // exist at all, in the markup OR in the stylesheet. A cluster that is not
+  // rendered cannot overlap anything at any width, on any device, under any
+  // media query. That is a strict subset of what passed before, and it is
+  // checked at BOTH ends — a class deleted from the CSS but left on a div, or
+  // vice versa, fails.
+  //
+  // WHAT REPLACED IT is asserted too, because "the controls are gone" and "the
+  // controls moved behind a door" are the same diff to a `not.toContain`.
+  it("does not ship a pinned cluster that can cover the tools beside it", () => {
+    // Judged on CODE: ChartToolbar.tsx legitimately keeps several paragraphs
+    // explaining what `.wm-chart-toolbar-pinned` was and why it was demolished,
+    // and a raw-source negative here would fail on the record of the repair and
+    // go green only if the reasoning were deleted.
+    expect(toolbarCode.length, "the toolbar read as empty code").toBeGreaterThan(500);
+    expect(
+      toolbarCode,
+      "the pinned cluster is back in ChartToolbar. It is `position: sticky; right: 0` over a " +
+        "band that is `overflow-x: auto` with no scrollbar, which is how two of that band's " +
+        "own controls became unreachable at 1440.",
+    ).not.toContain("wm-chart-toolbar-pinned");
+    expect(
+      css,
+      "globals.css carries a `.wm-chart-toolbar-pinned` rule again — a live rule for the " +
+        "selector is how the element comes back",
+    ).not.toMatch(/\.wm-chart-toolbar-pinned\s*\{/);
+
+    // The band itself still wraps on a phone. Unchanged requirement: it is the
+    // row the migrated controls left behind, and it still holds the symbol
+    // search, the trading-hours select and Indicators.
     expect(css).toMatch(/\.wm-chart-toolbar\s*\{[\s\S]*?flex-wrap:\s*wrap/);
+
+    // AND THE CAPABILITY LANDED SOMEWHERE. Without this, deleting the three
+    // controls outright would pass every assertion above.
+    expect(toolbarCode).toContain("<ShellModalDrawer");
+    expect(toolbarCode).toContain('id="chart-equipment-sheet"');
+    expect(toolbarCode).toContain("{profilesSlot}");
+    expect(toolbarCode).toContain("onClick={onSmartMoney}");
+    expect(toolbarCode).toContain("<span>Appearance</span>");
+    expect(toolbarCode).toContain("<MoreHorizontal size={13} /> Chart tools");
   });
 
   it("mounts the glass chip on the candle pane, and only where the setter is real", () => {

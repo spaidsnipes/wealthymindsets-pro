@@ -72,16 +72,53 @@ describe("Profiles menu wiring", () => {
     ).toBeLessThan(lid);
   });
 
-  it("the toolbar renders the slot INSIDE the always-visible pinned cluster", () => {
-    // A slot prop that is accepted and never rendered is the same silence with
-    // extra ceremony, so the render site is pinned too — and pinned to the one
-    // cluster documented as "always visible, never clipped".
+  it("the toolbar renders the slot FIRST inside the equipment drawer", () => {
+    /*
+     * RE-AIMED 2026-09-21 — THE CLUSTER IT POINTED AT WAS DEMOLISHED.
+     *
+     * This asserted `{profilesSlot}` appeared after `wm-chart-toolbar-pinned`
+     * in the source, on the strength of that cluster's own comment calling
+     * itself "always visible, never clipped". MEASURED at 1440 on 2026-09-21
+     * (scratchpad/probe-toolbar-reach.mjs), that comment was false: the cluster
+     * laid out 823px wide, `position: sticky; right: 0`, over a row that is
+     * `overflow-x: auto` with `scrollbarWidth: "none"`, and `elementFromPoint`
+     * could not reach two of the row's own controls through it. D-701
+     * demolished it; the menu now opens behind the `chart-tools` equipment door.
+     *
+     * THE LAW IS UNCHANGED AND IS WHAT IS CHECKED: the slot is rendered, and it
+     * is rendered where a trader arrives FIRST rather than below a fold or
+     * behind a second lid. A catalogue behind a closed lid catalogues nothing —
+     * and a catalogue at the bottom of a scrolling drawer is the same lid.
+     *
+     * STRICTLY STRONGER in two ways. The old check compared the slot's offset
+     * against a DECORATIVE class name, which a refactor could keep on any
+     * element anywhere; this compares it against the drawer's own id, which is
+     * the container it is actually mounted in, plus the ORDER against the two
+     * controls it must precede. And it adds the axis the old one lacked
+     * entirely: that a door exists which opens this container at all.
+     */
     const src = read("src/components/chart/ChartToolbar.tsx");
-    const cluster = src.indexOf("wm-chart-toolbar-pinned");
+    const drawer = src.indexOf('id="chart-equipment-sheet"');
     const slot = src.indexOf("{profilesSlot}");
-    expect(cluster, "the pinned cluster class moved — re-derive this check").toBeGreaterThan(-1);
+    const appearance = src.indexOf("<span>Appearance</span>");
+    const smartMoney = src.indexOf("onClick={onSmartMoney}");
+
+    expect(drawer, "the equipment drawer moved — re-derive this check").toBeGreaterThan(-1);
     expect(slot, "ChartToolbar accepts `profilesSlot` but never renders it").toBeGreaterThan(-1);
-    expect(slot, "`profilesSlot` renders outside the pinned cluster").toBeGreaterThan(cluster);
+    expect(slot, "`profilesSlot` renders outside the equipment drawer").toBeGreaterThan(drawer);
+
+    // FIRST, not merely present. The catalogue is the reason a trader opens
+    // this drawer; it may not be pushed under Appearance or Smart Money.
+    expect(appearance, "the Appearance control left the toolbar").toBeGreaterThan(-1);
+    expect(smartMoney, "the Smart Money trigger left the toolbar").toBeGreaterThan(-1);
+    expect(slot, "the profiles catalogue is no longer the drawer's first organ")
+      .toBeLessThan(appearance);
+    expect(slot).toBeLessThan(smartMoney);
+
+    // A drawer with no door is the same silence as a slot with no render.
+    const equipment = read("src/lib/workspace/roomEquipment.ts");
+    expect(equipment, "nothing declares the door that opens this drawer")
+      .toContain('id: "chart-tools"');
   });
 
   it("EVERY compiled profile is routed — a catalogue entry with no handler is a dead row", () => {

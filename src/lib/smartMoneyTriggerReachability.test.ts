@@ -46,6 +46,12 @@ const toolbar = readFileSync(
   resolve(REPO_ROOT, "src/components/chart/ChartToolbar.tsx"),
   "utf8",
 );
+/** The room's equipment DECLARATION — read since 2026-09-21, when the trigger's
+ *  reachability stopped being a CSS fact and became a door the room declares. */
+const roomEquipmentSrc = readFileSync(
+  resolve(REPO_ROOT, "src/lib/workspace/roomEquipment.ts"),
+  "utf8",
+);
 
 /** The `studyToolsOpen`-gated dense strip, matched from its opening brace. */
 const STUDY_ROW_GATE =
@@ -127,7 +133,16 @@ describe("smart money trigger reachability", () => {
     // Axis 4: the branded trigger belongs to the toolbar, while the dense
     // study row remains in the dashboard. Separate files make accidental
     // containment impossible and remove the extra full-width identity row.
-    expect(toolbar).toContain('className="wm-chart-toolbar-pinned');
+    //
+    // RE-AIMED 2026-09-21. This read `toContain('className="wm-chart-toolbar-pinned')`
+    // — it asserted the trigger lived in a CSS class. D-701 demolished that
+    // cluster (it covered two of its own neighbours at 1440; see
+    // chartPhoneControlReachability), and the trigger moved behind the
+    // `chart-tools` equipment door. Anchoring on the DRAWER instead is stronger
+    // than anchoring on the class was: a class name is decoration that a
+    // refactor can keep while moving the button out, whereas this pins the
+    // actual container the trigger is rendered into.
+    expect(toolbar).toContain('id="chart-equipment-sheet"');
   });
 
   it("renders exactly one Smart Money trigger — no duplicate, single writer", () => {
@@ -167,12 +182,38 @@ describe("smart money trigger reachability", () => {
     expect(studyRow).not.toContain("setSmartMoneyOpen");
   });
 
-  it("FOUNDER GATE: the trigger is pinned without consuming its own row", () => {
+  it("FOUNDER GATE: the trigger has a door of its own and consumes no permanent row", () => {
     expect(toolbar).toContain(TRIGGER_LOGO);
     expect(toolbar).toContain("onClick={onSmartMoney}");
-    expect(toolbar).toContain('className="wm-chart-toolbar-pinned');
     expect(dashboard).toContain("onSmartMoney={() => setSmartMoneyOpen(o => !o)}");
     expect(dashboard).not.toContain("wm-chart-identity-strip");
+
+    // ── RE-AIMED 2026-09-21, AND STRICTLY STRONGER ────────────────────────
+    //
+    // This case used to be satisfied by one fact: the trigger sits inside a div
+    // whose className begins `wm-chart-toolbar-pinned`. That fact was true on
+    // the day the cluster laid out 822px wide inside a 354px phone — the
+    // trigger was "pinned" and also entirely off the glass. "Pinned" was never
+    // the requirement; ONE-PRESS REACHABILITY was.
+    //
+    // So the requirement is now asserted as reachability, and it takes THREE
+    // facts where the old one took one. The trigger is inside the drawer; the
+    // room DECLARES a door that opens that drawer; and the room LISTENS for
+    // that door. Any one of those missing ships a control the trader cannot
+    // get to — which is exactly the defect this whole file was born from, and
+    // the class-name assertion could not have caught any of the three.
+    expect(toolbar).toContain('id="chart-equipment-sheet"');
+    expect(dashboard).toContain("equipmentOpen={chartEquipmentOpen}");
+    expect(
+      roomEquipmentSrc,
+      "/charts no longer declares the `chart-tools` door, so the drawer holding the Smart " +
+        "Money trigger has nothing that opens it",
+    ).toContain('id: "chart-tools"');
+    expect(
+      dashboard,
+      "ChartsDashboard declares the door but never hears it pressed — a painted control that " +
+        "does nothing, which is worse than an absent one",
+    ).toMatch(/req\.equipmentId === "chart-tools"/);
   });
 
   it("records WHY the menu path alone was not enough", () => {

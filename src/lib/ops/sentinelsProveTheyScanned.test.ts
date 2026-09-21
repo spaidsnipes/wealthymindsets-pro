@@ -95,7 +95,12 @@ const UNGUARDED_SCANNERS_DEBT: readonly string[] = [
   // error, taken with eyes open.
   "components/chart/LeftSidebar.lifecycle.test.ts",
   "lib/broker/providerReadiness.envExample.test.ts",
-  "lib/experience/chartsRoomChrome.test.ts",
+  // `lib/experience/chartsRoomChrome.test.ts` LEFT THIS LIST on 2026-09-21.
+  // Its D-701 re-aim added a not-vacuous anchor (`expect(src).not.toHaveLength(0)`)
+  // ahead of the negative assertions it gained, so it now proves it scanned
+  // live source rather than air. The ratchet demanded the removal; it is
+  // recorded here so the deletion reads as a debt paid rather than a list
+  // quietly trimmed.
   "lib/journalDecisionFilter.test.ts",
 ];
 

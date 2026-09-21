@@ -121,7 +121,7 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
   });
 
   const FRAME: Array<[string, string]> = [
-    ["ChartToolbar.tsx", "the 36px tool band above MARKET"],
+    ["ChartToolbar.tsx", "the 32px tool band above MARKET"],
     ["LeftDrawingSidebar.tsx", "the 40px drawing rail left of MARKET"],
     ["StockInfoPanel.tsx", "the info panel right of MARKET"],
     ["ChartsDashboard.tsx", "the study row and the 14px collapse strip"],
@@ -166,11 +166,37 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
       .toContain("wm-room-chrome");
   });
 
-  it("keeps the pinned-cluster class FIRST so the phone gate still matches", () => {
-    // chartPhoneControlReachability.test.ts asserts the quote-prefixed
-    // substring `className="wm-chart-toolbar-pinned`. Class order carries no
-    // CSS meaning, so ordering is free — but only if it is pinned.
-    expect(CODE("components/chart/ChartToolbar.tsx"))
-      .toContain('className="wm-chart-toolbar-pinned wm-room-chrome');
+  // ── RE-AIMED 2026-09-21 · THE CLASS THIS PINNED NO LONGER EXISTS ─────────
+  //
+  // This asserted `className="wm-chart-toolbar-pinned wm-room-chrome` — a
+  // class ORDER, kept so a sibling guard's substring match would not silently
+  // stop matching. It was never a claim about the room; it was two guards
+  // holding each other's coats.
+  //
+  // D-701 demolished that cluster (it covered two of its own neighbours at
+  // 1440), and the coat-holding is obsolete because the sibling guard now
+  // asserts the class is ABSENT. What is NOT obsolete is the thing this file
+  // is actually for: the glass. The cluster carried `wm-room-chrome`, and its
+  // replacement is a `ShellModalDrawer` — so the question becomes whether the
+  // sanctuary is still respected by whatever the toolbar now puts on screen.
+  //
+  // STRICTLY STRONGER: a class-order assertion could be satisfied while the
+  // surface was repainted opaque, moved, or emptied. These three cannot — the
+  // band must still be glass, the demolished cluster must not return, and the
+  // drawer that replaced it must exist rather than the controls having been
+  // deleted. The `wm-room-chrome` adoption for this file is separately held by
+  // the FRAME table above, which is where it belongs.
+  it("does not repaint the demolished pinned cluster back over the sanctuary", () => {
+    const src = CODE("components/chart/ChartToolbar.tsx");
+    expect(src, "the toolbar read as empty code").not.toHaveLength(0);
+    expect(
+      src,
+      "`.wm-chart-toolbar-pinned` is back. It was a sticky 823px strip over an unscrollable " +
+        "row and it covered that row's own controls; D-701 demolished it on 2026-09-21.",
+    ).not.toContain("wm-chart-toolbar-pinned");
+    // The band it used to float over is still the room's glass, not a lid.
+    expect(src).toContain('className="wm-room-chrome wm-chart-toolbar');
+    // And the organs were rehomed rather than deleted.
+    expect(src).toContain('id="chart-equipment-sheet"');
   });
 });

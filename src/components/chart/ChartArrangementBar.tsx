@@ -36,11 +36,26 @@
  *
  * Nothing here decides anything. `selectChartArrangement` compiles the desks,
  * their readiness and their sentences; this renders them and reports presses.
+ *
+ * ── THE CHIP IS GONE; THE DECLARATION IS NOT (2026-09-21) ──────────────────
+ *
+ * The chip lived in `.wm-chart-toolbar-pinned`, the sticky strip above the
+ * candles that D-701 demolishes. MEASURED at 1440 on 2026-09-21 before the
+ * cut: that strip laid out 823px wide over an `overflow-x: auto` row and
+ * covered TWO of the row's own controls — the trading-hours select and
+ * Indicators both failed `elementFromPoint` at their own centres.
+ *
+ * So the organ moves into the Tools drawer, and it moves as a PANEL rather
+ * than a chip-with-popover: `ShellModalDrawer` traps Tab inside its own panel
+ * and `PortalPopover` renders into `document.body`, so a chip in there would
+ * have opened a surface a mouse could reach and a keyboard could not. The
+ * declaration — the compiler's `WORKSPACE: ORDER FLOW · 1 OF 5` sentence,
+ * shortfall count and all — is now the panel's own heading, still printed
+ * verbatim and still carried into the accessible name.
  */
 
-import React, { useRef, useState } from "react";
+import React from "react";
 import { LayoutGrid, Check } from "lucide-react";
-import { PortalPopover } from "./FootprintControls";
 import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
 import {
   selectChartArrangement,
@@ -71,26 +86,17 @@ export function ChartArrangementBar({
   /** Apply a whole desk at once. Receives every TOGGLE profile's new position. */
   onApply: (switches: Readonly<Partial<Record<ProfileId, boolean>>>) => void;
 }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-
   const menu = selectProfileMenu({ barsPresent, observedAggressorFlow, active });
   const vm = selectChartArrangement({ menu });
 
   const press = (id: ArrangementId) => {
     onApply(arrangementSwitches(id, menu));
-    setOpen(false);
   };
 
   const atADesk = vm.activeId !== null;
 
   return (
-    <div className="relative shrink-0">
-      <button
-        ref={btnRef}
-        onClick={() => setOpen(o => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
+    <section
         /*
           The declaration is printed VERBATIM into the accessible name rather
           than re-worded, for the same reason the profiles chip prints
@@ -105,33 +111,36 @@ export function ChartArrangementBar({
               }`
             : "Chart arrangement. The switches match none of the named desks. Choose one to arrange the chart."
         }
-        className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border shrink-0 whitespace-nowrap"
-        style={{
-          background: atADesk ? "rgba(212,175,55,0.15)" : "#131520",
-          borderColor: atADesk ? "rgba(212,175,55,0.5)" : "#1E2030",
-          color: atADesk ? "#d4af37" : "#8B8FA8",
-        }}
         title={
           vm.entries.find(e => e.active)?.note ??
           "How the chart is arranged — which readings are switched on together. Currently a custom set."
         }
-        data-testid="chart-arrangement-chip"
         // Published so an outside probe can compare the declared desk against
         // the switches actually set, without parsing a human sentence.
         data-arrangement-active={vm.activeId ?? "CUSTOM"}
+        data-testid="chart-arrangement-panel"
+        className="min-w-0"
       >
-        <LayoutGrid size={11} />
-        {vm.declaration}
-      </button>
-
-      <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={392}>
         <div
           role="menu"
-          className="rounded-lg border border-wm-border bg-wm-surface/95 shadow-2xl p-2 backdrop-blur-md"
-          data-testid="chart-arrangement-panel"
+          aria-label="Chart arrangement"
+          className="rounded-lg border border-wm-border bg-wm-surface/95 p-2"
         >
           <div className="px-2 pt-1 pb-2 text-[10px] font-bold tracking-widest text-wm-muted">
             WORKSPACE — HOW THE BOOK IS ARRANGED
+          </div>
+
+          {/* THE DECLARATION, WHERE THE CHIP USED TO PUT IT. This is the only
+              place the shortfall count appears at a glance — "1 OF 5" is the
+              whole reason the compiler exists — so it leads the panel rather
+              than being something a second press reveals. */}
+          <div
+            className="flex items-center gap-1 px-2 pb-2 text-[12px] font-bold"
+            style={{ color: atADesk ? "#d4af37" : "#8B8FA8" }}
+            data-testid="chart-arrangement-declaration"
+          >
+            <LayoutGrid size={11} aria-hidden />
+            {vm.declaration}
           </div>
 
           {vm.entries.map(entry => (
@@ -199,7 +208,6 @@ export function ChartArrangementBar({
             </div>
           )}
         </div>
-      </PortalPopover>
-    </div>
+    </section>
   );
 }

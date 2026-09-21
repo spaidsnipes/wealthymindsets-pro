@@ -23,11 +23,26 @@
  *
  * Nothing here decides anything. `selectProfileMenu` compiles the list; this
  * renders it and reports clicks back up.
+ *
+ * ── IT IS A PANEL NOW, NOT A CHIP-WITH-POPOVER (2026-09-21) ────────────────
+ *
+ * This used to be a gold chip in `.wm-chart-toolbar-pinned`, the sticky strip
+ * above the candles, and the popover it opened was a `PortalPopover` anchored
+ * to that chip. D-701 demolished the strip and its SALVAGE clause says where
+ * the organ goes: "MIGRATE LEGITIMATE ORGANS INTO WORKSPACE/TOOLS DRAWERS".
+ *
+ * The popover could NOT come along. `ShellModalDrawer` is `aria-modal` with a
+ * Tab trap scoped to its own panel, and `PortalPopover` renders into
+ * `document.body` — OUTSIDE that panel. A chip inside the drawer would open a
+ * surface a mouse could reach and a keyboard could not, which is the same
+ * class of defect as the covered controls the demolition was for. So the body
+ * renders INLINE and the chip's two jobs move onto the panel itself: the
+ * summary line still prints `vm.summary`, and the computed accessible name
+ * still prints `silentNote` verbatim.
  */
 
-import React, { useRef, useState } from "react";
+import React from "react";
 import { Layers, Check } from "lucide-react";
-import { PortalPopover } from "./FootprintControls";
 import {
   selectProfileMenu,
   type ProfileId,
@@ -55,64 +70,64 @@ export function ProfilesMenu({
   active: ProfileMenuInput["active"];
   onToggle: (id: ProfileId) => void;
 }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-
   const vm = selectProfileMenu({ barsPresent, observedAggressorFlow, active });
 
   return (
-    <div className="relative shrink-0">
-      <button
-        ref={btnRef}
-        onClick={() => setOpen(o => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        /*
-          THE ACCESSIBLE NAME MAY NOT CLAIM MORE THAN THE GLASS SHOWS.
+    <section
+      /*
+        THE ACCESSIBLE NAME MAY NOT CLAIM MORE THAN THE GLASS SHOWS.
 
-          This used to read "6 of 8 drawing" straight off `activeCount` — but
-          active is not drawing. On a tape that states no aggressor side, four
-          of those six paint nothing, so the name was announcing a chart that
-          did not exist to the one reader who cannot look up and check.
+        This used to read "6 of 8 drawing" straight off `activeCount` — but
+        active is not drawing. On a tape that states no aggressor side, four
+        of those six paint nothing, so the name was announcing a chart that
+        did not exist to the one reader who cannot look up and check.
 
-          `silentNote` is the compiler's sentence, printed verbatim. It is not
-          re-worded here: the module that measured the gap is the module that
-          gets to describe it.
-        */
-        aria-label={
-          vm.activeCount === 0
-            ? "Profiles menu. Nothing switched on."
-            : vm.silentCount > 0
-              ? `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on, ${vm.activeCount - vm.silentCount} drawing. ${vm.silentNote}`
-              : `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on and drawing.`
-        }
-        className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border shrink-0 whitespace-nowrap"
-        style={{
-          background: vm.activeCount > 0 ? "rgba(212,175,55,0.15)" : "#131520",
-          borderColor: vm.activeCount > 0 ? "rgba(212,175,55,0.5)" : "#1E2030",
-          color: vm.activeCount > 0 ? "#d4af37" : "#8B8FA8",
-        }}
-        title={
-          vm.silentNote ||
-          "Every volume profile and microstructure profile this product owns"
-        }
-        data-testid="profiles-menu-chip"
-        // Published so a probe can read the withheld count without parsing the
-        // label, and so the glass and the chrome can be checked against each
-        // other from outside the app.
-        data-profiles-silent={String(vm.silentCount)}
-      >
-        <Layers size={11} />
-        {vm.summary}
-      </button>
+        `silentNote` is the compiler's sentence, printed verbatim. It is not
+        re-worded here: the module that measured the gap is the module that
+        gets to describe it.
 
-      <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={456}>
+        It rides the PANEL now rather than a chip, because the chip is gone —
+        but it is the same sentence, computed the same way, so a screen reader
+        entering the drawer is told what a sighted trader can see at the top
+        of it.
+      */
+      aria-label={
+        vm.activeCount === 0
+          ? "Profiles menu. Nothing switched on."
+          : vm.silentCount > 0
+            ? `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on, ${vm.activeCount - vm.silentCount} drawing. ${vm.silentNote}`
+            : `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on and drawing.`
+      }
+      title={
+        vm.silentNote ||
+        "Every volume profile and microstructure profile this product owns"
+      }
+      // Published so a probe can read the withheld count without parsing the
+      // label, and so the glass and the chrome can be checked against each
+      // other from outside the app.
+      data-profiles-silent={String(vm.silentCount)}
+      data-testid="profiles-menu-panel"
+      data-profile-layout="instrument-grid"
+      className="min-w-0"
+    >
         <div
           role="menu"
-          className="rounded-lg border border-wm-border bg-wm-surface/95 shadow-2xl p-2 backdrop-blur-md"
-          data-testid="profiles-menu-panel"
-          data-profile-layout="instrument-grid"
+          aria-label="Profiles"
+          className="rounded-lg border border-wm-border bg-wm-surface/95 p-2"
         >
+          {/* THE SUMMARY LINE — what the chip used to say, said in place.
+              `vm.summary` carries the switched-on count AND the SILENT suffix;
+              it is the only profile truth that used to be readable without
+              opening the popover, so it opens the panel instead. */}
+          <div
+            className="flex items-center gap-1 px-1 pb-2 text-[12px] font-bold"
+            style={{ color: vm.activeCount > 0 ? "#d4af37" : "#8B8FA8" }}
+            data-testid="profiles-menu-summary"
+          >
+            <Layers size={11} aria-hidden />
+            {vm.summary}
+          </div>
+
           <div className="flex items-center justify-between gap-3 px-1 pb-2">
             <div className="text-[9px] uppercase tracking-[0.16em] text-wm-text-dim">
               Price instruments
@@ -198,7 +213,6 @@ export function ProfilesMenu({
             </div>
           )}
         </div>
-      </PortalPopover>
-    </div>
+    </section>
   );
 }

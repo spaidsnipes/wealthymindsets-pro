@@ -387,7 +387,30 @@ describe("responsive P0 command surfaces", () => {
   it("keeps multi-broker setup reachable without permanent provider chrome", () => {
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
-    expect(toolbar).toContain('style={{ position: "sticky", right: 0');
+    // ── RE-AIMED 2026-09-21 · "WITHOUT PERMANENT PROVIDER CHROME" ─────────
+    //
+    // This read `style={{ position: "sticky", right: 0` — it pinned the STICKY
+    // CLUSTER as the proof that broker setup cost no permanent chrome. That was
+    // backwards: the sticky cluster WAS permanent chrome, 35px of it, and
+    // MEASURED at 1440 on 2026-09-21 it covered two of its own row's controls
+    // (scratchpad/probe-toolbar-reach.mjs). D-701 demolished it.
+    //
+    // STRICTLY STRONGER. The old assertion was satisfied by a permanent strip
+    // existing; this one is satisfied only if Connect brokers costs NO
+    // always-on chrome at all — it lives behind the `chart-tools` equipment
+    // door, and the demolished strip may not come back to hold it. "No
+    // permanent chrome" is now asserted as absence rather than as a particular
+    // shape of chrome, which is what the case name claimed all along.
+    // The sticky STYLE is asserted absent here — it is a code literal that no
+    // comment in this file spells. The CLASS NAME is deliberately NOT asserted
+    // here: `source()` does not strip comments, ChartToolbar.tsx legitimately
+    // spends several paragraphs explaining what `.wm-chart-toolbar-pinned` was
+    // and why it was demolished, and a raw-text negative would fail on the
+    // record of the repair. That axis is held on comment-stripped source by
+    // chartPhoneControlReachability.test.ts, which reads both the markup and
+    // the stylesheet.
+    expect(toolbar).not.toContain('style={{ position: "sticky", right: 0');
+    expect(toolbar).toContain('id="chart-equipment-sheet"');
     expect(toolbar).toContain("Connect brokers");
     expect(toolbar).toContain('aria-controls="wm-broker-connect"');
     expect(toolbar).not.toContain('aria-label="Connect one or more brokers"');
