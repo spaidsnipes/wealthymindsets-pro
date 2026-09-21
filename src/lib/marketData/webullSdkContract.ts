@@ -187,6 +187,32 @@ export const WEBULL_SDK_CONTRACT = {
    * separate doors and nothing in our evidence ever established they share a
    * lock. The Founder's own research says Webull gives him real-time data, and
    * the ladder has been measuring only the door that does not carry it.
+   *
+   * ── WHAT THIS DOOR ACTUALLY ANSWERED, AND WHAT THAT MAY NOT MEAN ───────────
+   *
+   * MEASURED IN PRODUCTION 2026-09-21, after the minted `x-access-token` was
+   * threaded through this lane (the fix that turned `401 INVALID_TOKEN` into the
+   * answer below). All four (subType × category) cells were tried — QUOTE,
+   * SNAPSHOT and TICK on US_STOCK, plus QUOTE on US_ETF. Every one:
+   *
+   *     CONNACK 0  →  403 MARKET_DATA_NOT_SUBSCRIBED
+   *
+   * Uniform. Not per-subtype, not per-category. And that string is the exact one
+   * this project misread for three months, so it gets NO interpretation on
+   * reputation. The counter-evidence, same account, same day, through an
+   * authorized Webull client: a real-time AAPL snapshot with live bid/ask
+   * (334.76×2 / 334.94×25), and a depth>1 quote request refused with
+   * `depth not more than 1` — Webull's signature for an account that holds L1.
+   *
+   * THE ACCOUNT HOLDS REAL-TIME DATA. So a 403 here is NOT a bill, and must
+   * never again be reported to the Founder as one.
+   *
+   * What remains genuinely unknown is what THIS APP KEY carries, which is a
+   * different question from what the ACCOUNT carries. `/app/subscriptions/list`
+   * was the obvious place to ask — and it has now been asked twice against
+   * production and answers with bare ids and nothing else, a measurement pinned
+   * by `webullEntitlementProbe.test.ts`. That door does not name it either.
+   * Anyone tempted to re-derive it: it has been tried. Measure something new.
    */
   STREAMING_SUBSCRIBE: {
     path: "/market-data/streaming/subscribe",
