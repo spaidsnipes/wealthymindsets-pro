@@ -368,3 +368,99 @@ describe("the plate's illustrative figures never appear as output", () => {
     );
   });
 });
+
+/**
+ * FOUND FROM USE, ON THE SERVING CHART — not from reading this file.
+ *
+ * The live NQ bar was 37 seconds old and the panel said:
+ *
+ *   Effort: LOW — this bar traded 0, the median of the 1051 bars before it
+ *   is 793.
+ *
+ * Every number there was correct and the conclusion was false. The bar had
+ * not traded 0 because effort was low; it had traded 0 because it had barely
+ * begun. A partial count weighed against 1051 completed counts is not a
+ * comparison, it is a category error wearing a verdict's clothes — and it is
+ * the product's own truth law, word for word: PARTIAL != COMPLETE.
+ *
+ * The bug was not in the arithmetic, so no arithmetic test would have caught
+ * it. These are the tests that would have.
+ */
+describe("a bar that has not closed yet is not graded", () => {
+  const formingSubject = {
+    bar: { volume: 0, open: 30_049.75, close: 30_049.75 },
+    priorBars: plainCohort(40),
+  };
+
+  it("refuses rather than grading a forming bar LOW for being young", () => {
+    const vm = selectEffortVsResult({ ...formingSubject, subjectIsForming: true });
+
+    expect(vm.state).toBe("UNREAD");
+    expect(
+      vm.rows.every(r => r.state === "UNREAD"),
+      "no row may carry a grade for a bar that has not finished happening",
+    ).toBe(true);
+    expect(
+      JSON.stringify(vm),
+      "LOW/WEAK on an unfinished bar is the exact defect this refusal exists " +
+        "to prevent — it must not appear anywhere in the view model",
+    ).not.toMatch(/"(LOW|WEAK|HIGH|STRONG|AVERAGE)"/);
+  });
+
+  it("says the wait RESOLVES ON ITS OWN, unlike the thin-cohort refusal", () => {
+    const forming = selectEffortVsResult({ ...formingSubject, subjectIsForming: true });
+    const thinCohort = selectEffortVsResult({
+      bar: { volume: 100, open: 100, close: 110 },
+      priorBars: plainCohort(3),
+    });
+
+    const formingWhy = forming.rows.map(r => r.absence).join(" ");
+    const thinWhy = thinCohort.rows.map(r => r.absence).join(" ");
+
+    expect(
+      formingWhy,
+      "'wait' and 'this will never resolve' are opposite instructions; a " +
+        "trader who is told neither is being handed a spinner in prose",
+    ).toMatch(/resolves on its own/i);
+    expect(
+      thinWhy,
+      "the thin-cohort case must keep saying the opposite — it does NOT fix " +
+        "itself, the trader has to load more history",
+    ).toMatch(/will not\s+resolve on its own/i);
+  });
+
+  it("still names the cohort it WOULD have compared against", () => {
+    const vm = selectEffortVsResult({ ...formingSubject, subjectIsForming: true });
+
+    expect(
+      vm.cohortSize,
+      "the comparison is ready and only the subject is not; hiding that would " +
+        "make a ready chart look broken",
+    ).toBe(40);
+    expect(vm.lookbackNote).toContain("40");
+  });
+
+  it("grades the SAME bar once it has closed", () => {
+    // The refusal must be about the bar being unfinished and nothing else.
+    const closed = selectEffortVsResult({
+      bar: { volume: 300, open: 100, close: 140 },
+      priorBars: plainCohort(40),
+      subjectIsForming: false,
+    });
+
+    expect(
+      closed.state,
+      "a finished bar with a real cohort must still read — the forming guard " +
+        "must not become a blanket refusal",
+    ).toBe("READ");
+  });
+
+  it("treats an absent flag as 'not forming' so existing callers are unchanged", () => {
+    const omitted = selectEffortVsResult({
+      bar: { volume: 300, open: 100, close: 140 },
+      priorBars: plainCohort(40),
+    });
+
+    expect(omitted.state).toBe("READ");
+  });
+});

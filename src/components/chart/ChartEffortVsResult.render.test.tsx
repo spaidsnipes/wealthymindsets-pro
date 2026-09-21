@@ -305,4 +305,39 @@ describe("the callout is rendered by the charts room, not merely imported", () =
     expect(DASHBOARD).toMatch(/effortVsResultVM/);
     expect(DASHBOARD).toMatch(/inspectBar/);
   });
+
+  it("TELLS the compiler when the bar has not closed yet", () => {
+    /*
+      The compiler may not read a clock, so this fact can only arrive from the
+      call site. If it stops arriving, the panel silently returns to grading
+      37-second-old bars LOW for being young — the defect found on the serving
+      chart, which no arithmetic test caught because the arithmetic was right.
+
+      Asserted as a MECHANISM, not a name. A previous guard in this file matched
+      on a variable name and stayed green while the behaviour behind it was
+      deleted: a name is not a behaviour.
+    */
+    expect(
+      DASHBOARD,
+      "the compiler is no longer told whether the subject bar is finished",
+    ).toMatch(/subjectIsForming:/);
+
+    expect(
+      DASHBOARD,
+      "'forming' must mean the NEWEST bar — nothing behind the last candle is " +
+        "still moving, so grading those must stay unaffected",
+    ).toMatch(/chartBars\[chartBars\.length\s*-\s*1\]/);
+
+    expect(
+      DASHBOARD,
+      "'forming' must also require that the bar's span has not elapsed, or a " +
+        "closed market's last bar would be refused forever",
+    ).toMatch(/Date\.now\(\)\s*<\s*inspectBar\.time\s*\*\s*1000\s*\+\s*span/);
+
+    expect(
+      DASHBOARD,
+      "an unknown bar span must refuse, not guess — a wrong guess is least " +
+        "detectable exactly when the span is missing",
+    ).toMatch(/span === null \|\| !\(span > 0\)\)\s*return true/);
+  });
 });

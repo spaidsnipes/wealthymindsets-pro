@@ -1405,12 +1405,41 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }));
   }, [chartBars, inspectBar]);
 
+  /**
+   * IS THE SUBJECT STILL BEING BUILT?
+   *
+   * Two conditions, both required. It must be the NEWEST bar on the chart —
+   * nothing behind the last candle is still moving — and its span must not
+   * have elapsed yet, because on a closed market the newest bar is finished
+   * and grading it is perfectly honest.
+   *
+   * `chartBars[].time` is epoch SECONDS and `Date.now()` is milliseconds; the
+   * ×1000 is the unit conversion this file has been bitten by before.
+   *
+   * The clock is read here rather than in the compiler, which stays pure. A
+   * memo can go stale between the bar closing and the next `chartBars` change,
+   * and that is the acceptable direction: a stale `true` costs one refusal on
+   * a bar that just closed, while a stale `false` would print a verdict about
+   * a bar that never finished.
+   */
+  const effortSubjectIsForming = React.useMemo(() => {
+    if (!inspectBar || chartBars.length === 0) return false;
+    const newest = chartBars[chartBars.length - 1];
+    if (newest.time !== inspectBar.time) return false;
+    // Span unknown — refuse rather than guess. A missing span is exactly when
+    // a wrong guess would be least detectable.
+    const span = chartBarSpanMs;
+    if (span === null || !(span > 0)) return true;
+    return Date.now() < inspectBar.time * 1000 + span;
+  }, [inspectBar, chartBars, chartBarSpanMs]);
+
   const effortVsResultVM = React.useMemo(
     () => selectEffortVsResult({
       bar: inspectBar ? { volume: inspectBar.v, open: inspectBar.o, close: inspectBar.c } : null,
       priorBars: effortPriorBars,
+      subjectIsForming: effortSubjectIsForming,
     }),
-    [inspectBar, effortPriorBars],
+    [inspectBar, effortPriorBars, effortSubjectIsForming],
   );
 
   // Asset 07 canon — Evidence Debt / Question Mode toggle.

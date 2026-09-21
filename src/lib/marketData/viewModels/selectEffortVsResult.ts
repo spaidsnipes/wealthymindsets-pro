@@ -147,6 +147,26 @@ export interface EffortVsResultInput {
    * here; see the header on self-inflated baselines.
    */
   readonly priorBars?: readonly EffortResultBar[] | null;
+  /**
+   * TRUE WHEN THE SUBJECT BAR HAS NOT CLOSED YET.
+   *
+   * Found from use, on the serving chart: the live bar was 37 seconds old and
+   * the panel read "Effort: LOW — this bar traded 0, the median of the 1051
+   * bars before it is 793." Every word of that arithmetic was correct and the
+   * conclusion was false. The bar had not traded 0 because effort was low; it
+   * had traded 0 because it had barely begun.
+   *
+   * A forming bar's volume is a PARTIAL count being compared against 1051
+   * COMPLETED counts, and a partial compared against completed is not a
+   * comparison — it is a category error with a confident face on it. The
+   * product's own truth law names this one: PARTIAL != COMPLETE.
+   *
+   * It is the caller's job to know this, because the compiler may not read a
+   * clock. Callers that cannot tell should pass `true`: the cost of being
+   * wrong in that direction is a refusal, and the cost of being wrong in the
+   * other direction is a fabricated verdict.
+   */
+  readonly subjectIsForming?: boolean | null;
 }
 
 /**
@@ -275,6 +295,34 @@ export function selectEffortVsResult(input: EffortVsResultInput): EffortVsResult
     cohortSize > 0
       ? `Compared against the median of the ${cohortSize} bars before it on this chart.`
       : "Nothing was compared, because no earlier bars on this chart carried a volume and a close.";
+
+  /*
+    THE BAR THAT HAS NOT FINISHED HAPPENING YET.
+
+    This refusal is placed AFTER the cohort is counted so the note can still
+    name what WOULD have been compared — a trader waiting on a bar deserves to
+    know the comparison is ready and only the subject is not.
+
+    Unlike the thin-cohort refusal below, this one RESOLVES ON ITS OWN, and the
+    sentence says so. The distinction is the whole reason this product writes
+    absences as sentences instead of spinners: "wait" and "this will never
+    resolve" are opposite instructions and a spinner means both.
+  */
+  if (input.subjectIsForming === true) {
+    const why =
+      "This bar has not closed yet. Its volume and its move so far are a " +
+      `partial count, and weighing a partial bar against ${cohortSize} finished ` +
+      "ones would grade it low for being young rather than for being weak. " +
+      "This resolves on its own when the bar closes — or hover a finished " +
+      "candle to weigh that one now.";
+    return unread(
+      "This bar is still forming, so there is nothing settled to weigh yet.",
+      why,
+      why,
+      cohortSize,
+      lookbackNote,
+    );
+  }
 
   if (cohortSize < MIN_BARS_FOR_COHORT) {
     /*
