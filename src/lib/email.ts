@@ -39,7 +39,16 @@ function getResend(): Resend {
 // onboarding@resend.dev — which Resend TEST MODE only delivers to the Resend
 // account owner's own inbox. That is the root cause of "sign-up emails never
 // reach new users": the code is fine, the sender is unconfigured.
-const FROM = process.env.RESEND_FROM_EMAIL ?? "WealthyMindsets Pro <onboarding@resend.dev>";
+//
+// Resolved through the canonical table for the SAME reason the API key is. A
+// hand-written `process.env.RESEND_FROM_EMAIL` cannot see an alias declared in
+// PLATFORM_SECRETS, and the last credential on this host that was read that way
+// was six days of undelivered mail sitting beside a present, paid key. The
+// sender has no alias TODAY; the point is that declaring one tomorrow is now
+// SUFFICIENT, instead of sufficient-plus-remembering-to-edit-this-line.
+const FROM =
+  resolveProviderEnv("RESEND_FROM_EMAIL")?.value ??
+  "WealthyMindsets Pro <onboarding@resend.dev>";
 const APP_URL = CANONICAL_URL;
 
 // True while still on the Resend test sender — surfaced loudly in logs so a

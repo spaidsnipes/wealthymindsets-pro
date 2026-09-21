@@ -607,6 +607,32 @@ export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
     note: "email.ts only. Absent means transactional email is dark; every other route still answers.",
   },
   {
+    // THE SENDER IS A CREDENTIAL TOO, and leaving it undeclared cost exactly
+    // what leaving RESEND_API_KEY undeclared cost — six days of mail nobody
+    // received and no receipt that could say so.
+    //
+    // `RESEND_API_KEY` being present makes `deliver()` stop short-circuiting.
+    // It does NOT make mail arrive. Resend will only deliver to arbitrary
+    // recipients from a VERIFIED DOMAIN; with the sender unset, email.ts falls
+    // back to `onboarding@resend.dev`, which Resend TEST MODE delivers to the
+    // Resend account owner's own inbox and nobody else's. So the Founder gets
+    // his own signup mail, concludes email works, and every real new user is
+    // silently dropped. That is the worst possible shape for this defect: it
+    // LOOKS fixed from the only inbox anyone checks.
+    //
+    // Declaring it here is what lets the readiness receipt say the sender is
+    // unconfigured. A value this table does not know about is a value the
+    // receipt can never report, and an unreportable half-configured wire is
+    // indistinguishable from a working one until a customer complains.
+    //
+    // gatesBoot is FALSE on purpose. Mail being stuck in test mode is a dark
+    // feature, not a Worker that cannot serve — and a boot gate on it would
+    // block deploying the very build that fixes it.
+    name: "RESEND_FROM_EMAIL",
+    gatesBoot: false,
+    note: "email.ts sender identity. Absent means Resend TEST MODE: mail delivers ONLY to the Resend account owner, so signup/reset mail to real users is silently dropped while the Founder's own copy arrives.",
+  },
+  {
     name: "GEMINI_API_KEY",
     gatesBoot: false,
     note: "/api/spaidbot only. Absent means the assistant is unavailable and says so.",

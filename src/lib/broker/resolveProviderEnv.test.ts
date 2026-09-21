@@ -33,7 +33,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
-import { PROVIDER_REQUIREMENTS } from "./providerReadiness";
+import { PLATFORM_SECRETS, PROVIDER_REQUIREMENTS } from "./providerReadiness";
 import { acceptedEnvNames, resolveProviderEnv } from "./resolveProviderEnv";
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
@@ -222,6 +222,44 @@ describe("the declaration reaches the wire, not only the receipt", () => {
     ).not.toMatch(/process\.env\.RESEND_API_KEY/);
     expect(src, "email.ts must resolve its key through the canonical table")
       .toMatch(/resolveProviderEnv\(\s*"RESEND_API_KEY"\s*\)/);
+  });
+
+  it("THE SECOND HALF OF THE SAME WIRE: the Resend SENDER is declared and resolved", () => {
+    // A present RESEND_API_KEY makes deliver() stop short-circuiting. It does
+    // NOT make mail arrive. Resend delivers to arbitrary recipients only from a
+    // VERIFIED DOMAIN; with RESEND_FROM_EMAIL unset, email.ts falls back to
+    // onboarding@resend.dev and Resend TEST MODE routes every message to the
+    // Resend account owner's own inbox.
+    //
+    // That is the worst shape a defect can take: the Founder tests signup,
+    // receives his own mail, concludes email works — and every real new user is
+    // silently dropped. Until 2026-09-21 the name was undeclared in
+    // PLATFORM_SECRETS, so the readiness receipt could not report it either. A
+    // value the contract does not know about is a value no receipt can name.
+    const src = stripComments(fs.readFileSync(path.join(REPO_ROOT, "src/lib/email.ts"), "utf8"));
+    expect(
+      src,
+      "email.ts reads process.env.RESEND_FROM_EMAIL directly, so an alias " +
+        "declared in PLATFORM_SECRETS could never reach it. Resolve through " +
+        "resolveProviderEnv, the same way the key does.",
+    ).not.toMatch(/process\.env\.RESEND_FROM_EMAIL/);
+    expect(src, "the sender must resolve through the canonical table")
+      .toMatch(/resolveProviderEnv\(\s*"RESEND_FROM_EMAIL"\s*\)/);
+
+    // Declared, so the receipt can SAY the sender is unconfigured…
+    expect(
+      PLATFORM_SECRETS.map((s) => s.name),
+      "RESEND_FROM_EMAIL must be declared, or mail stuck in test mode is " +
+        "indistinguishable from mail that works.",
+    ).toContain("RESEND_FROM_EMAIL");
+
+    // …and NOT a boot gate, which would block deploying the build that fixes it.
+    expect(PLATFORM_SECRETS.find((s) => s.name === "RESEND_FROM_EMAIL")?.gatesBoot).toBe(false);
+
+    // The resolver reaches it end to end.
+    expect(
+      resolveProviderEnv("RESEND_FROM_EMAIL", { RESEND_FROM_EMAIL: "WM <no-reply@wm.info>" }),
+    ).toMatchObject({ name: "RESEND_FROM_EMAIL", value: "WM <no-reply@wm.info>", viaAlias: false });
   });
 
   it("a PLATFORM secret's declared alias is reachable through the resolver", () => {
