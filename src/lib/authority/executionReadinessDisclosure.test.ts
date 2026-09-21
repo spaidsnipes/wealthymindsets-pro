@@ -113,7 +113,7 @@ describe("execution readiness disclosure", () => {
     );
     expect(src).toContain("Presence allows an attempt. It is not a live receipt.");
     expect(src).toContain(
-      "Setup present — verification required. Charts and trading are not certified by this receipt.",
+      "Setup present — NOT MEASURED. No live probe exists for this provider yet, so this row proves credentials are installed and nothing more.",
     );
     expect(src).toContain("Presence of a key never");
     expect(src).toContain('readJsonReceipt<ReadinessPayload>(');
@@ -154,8 +154,18 @@ describe("execution readiness disclosure", () => {
     // strictly stronger than the substring list — it also catches overclaims
     // nobody thought to enumerate ("Order routing available", "Wire open") —
     // and it fails closed rather than guessing at meaning.
+    //
+    // REWORDED 2026-09-20, and the pin worked exactly as intended: it went red
+    // and forced this re-read. "Verification required" describes a duty someone
+    // owes; it does not tell the reader whether anyone discharged it, so a row
+    // nobody had ever probed and a row that had just passed looked identical.
+    // "NOT MEASURED" names the absence of evidence as a fact about THIS row.
+    // Rows that DO carry a probe no longer reach this branch at all — they are
+    // coloured and captioned by the measurement (see selectReadinessWireboard's
+    // WireboardLiveMeasurement), which is why this sentence is now allowed to
+    // stop hedging and simply say that no measurement exists.
     expect(prose).toEqual([
-      "Setup present — verification required. Charts and trading are not certified by this receipt.",
+      "Setup present — NOT MEASURED. No live probe exists for this provider yet, so this row proves credentials are installed and nothing more.",
     ]);
   });
 });

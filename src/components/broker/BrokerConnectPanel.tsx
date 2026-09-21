@@ -940,13 +940,36 @@ function ManagedConnectionStatus({
                 Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · access token {receipt.credentialPresence.accessToken ? "present" : "not set"}
               </p>
             )}
-            {receipt.state === "BLOCKED_AUTH" && receipt.credentialPresence && !receipt.credentialPresence.accessToken && (
+            {/*
+              CORRECTED 2026-09-20. This block used to say: "create the
+              reusable token, approve it in the Webull app, store it
+              server-side, then check this wire again." That sentence was the
+              three-month loop, printed on the glass. It asked the Founder to
+              hand-carry a value that EXPIRES — so it worked, went stale, and
+              asked again, while every rung's 401 read as a broken credential.
+
+              WM Pro now mints the session itself from the App Key and Secret.
+              The only thing a human can still contribute is the one thing a
+              human MUST contribute: the 2FA approval. So there are exactly two
+              states worth drawing here, and neither asks for a credential.
+            */}
+            {receipt.state === "AWAITING_2FA" && (
               <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
                 <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
-                  2FA checkpoint · token not set
+                  Waiting on your approval in the Webull app
                 </div>
                 <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-                  Webull requires <code>WEBULL_ACCESS_TOKEN</code> only when OpenAPI 2FA is enabled. If it is enabled for this App Key, create the reusable token, approve it in the Webull app, store it server-side, then check this wire again. This HTTP 401 does not prove 2FA is the rejected edge.
+                  WM Pro created this session itself and Webull sent it to your phone for 2FA. Open the Webull app, approve the OpenAPI request, then check this wire again. Nothing is missing from this deployment and there is no value for you to copy anywhere.
+                </p>
+              </div>
+            )}
+            {receipt.state === "BLOCKED_AUTH" && (
+              <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
+                <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
+                  Identity rejected · not an entitlement verdict
+                </div>
+                <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+                  Webull answered HTTP 401 to a signed request that needs no market data, so this says nothing about your data package or subscription. WM Pro mints the session from the App Key and Secret, so the edge to examine is that pair or the signature — not a token anyone has to paste.
                 </p>
               </div>
             )}

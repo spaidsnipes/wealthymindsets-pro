@@ -28,12 +28,33 @@ describe("Webull managed connection UI", () => {
     expect(panel).toContain("receipt.connectOAuth.missing.map");
   });
 
-  it("turns a tokenless 401 into an honest OpenAPI 2FA checkpoint", () => {
+  /**
+   * This test previously PINNED the defect. It required the panel to contain
+   * "create the reusable token, approve it in the Webull app, store it
+   * server-side" — the exact instruction that ran the Founder in a circle for
+   * three months, because the value it asks for expires on its own. A test
+   * that requires the wrong advice makes the wrong advice un-removable, so the
+   * guard is inverted: the panel must distinguish the two states, and must
+   * never send anyone to fetch a credential.
+   */
+  it("separates 'tap approve' from 'identity rejected' — they have opposite next actions", () => {
+    expect(panel).toContain('receipt.state === "AWAITING_2FA"');
+    expect(panel).toContain("Waiting on your approval in the Webull app");
+    expect(panel).toContain("there is no value for you to copy anywhere");
+
     expect(panel).toContain('receipt.state === "BLOCKED_AUTH"');
-    expect(panel).toContain('!receipt.credentialPresence.accessToken');
-    expect(panel).toContain("2FA checkpoint · token not set");
-    expect(panel).toContain("Webull requires <code>WEBULL_ACCESS_TOKEN</code> only when OpenAPI 2FA is enabled");
-    expect(panel).toContain("This HTTP 401 does not prove 2FA is the rejected edge.");
+    // A 401 on the ACCOUNT lane must never be narrated as an entitlement fact.
+    expect(panel).toContain("says nothing about your data package or subscription");
+  });
+
+  it("never sends the Founder to obtain, paste, or store a Webull session by hand", () => {
+    // Targets the INSTRUCTION, not the vocabulary: the panel is still allowed
+    // to NAME a variable (the missing-secret chips do, legitimately, for the
+    // App Key pair). What it may not do is tell a human to carry a session.
+    expect(panel).not.toMatch(/store it server-side/i);
+    expect(panel).not.toMatch(/create the reusable token/i);
+    expect(panel).not.toMatch(/(paste|copy|enter|supply)[^.<>{}]{0,40}\baccess token\b/i);
+    expect(panel).not.toContain("WEBULL_ACCESS_TOKEN");
   });
 
   it("names the exact runtime so local and hosted receipts cannot impersonate each other", () => {

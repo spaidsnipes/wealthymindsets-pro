@@ -36,8 +36,93 @@ export interface ReadinessPayload {
   readonly note?: string;
 }
 
-/** A blocker-class label from the Monday Test 2 acceptable set. */
-export type WireboardBlockerClass = "SETUP PRESENT" | "NOT CONFIGURED";
+/**
+ * A blocker-class label.
+ *
+ * The first two are all PRESENCE can prove. The rest are only ever reachable
+ * when a LIVE measurement for that provider is handed in — see `live` below.
+ * Presence never guesses them.
+ */
+export type WireboardBlockerClass =
+  | "SETUP PRESENT"
+  | "NOT CONFIGURED"
+  | "CONNECTED"
+  | "AWAITING 2FA"
+  | "AUTH BLOCKED"
+  | "NOT CONNECTED";
+
+/**
+ * One live probe result, for a provider that has one.
+ *
+ * WHY THIS EXISTS. Presence-only readiness is honest in isolation and
+ * MISLEADING in company. On 2026-09-20 this page showed Webull as
+ * "SETUP PRESENT" while `/api/broker/webull/status` was live-reporting
+ * BLOCKED_AUTH on the same runtime. Both statements were true. Read together
+ * by a human, they produce exactly the complaint the Founder has filed for
+ * three months: "it says it's connected but I can't see my data."
+ *
+ * A page that owns the stronger evidence and renders the weaker one is not
+ * being careful; it is withholding. So when a measurement exists, it WINS, and
+ * the row says which of the two it is showing.
+ *
+ * This is still not a second authority source — the measurement is made by the
+ * provider's own status route and merely passed through here.
+ */
+export interface WireboardLiveMeasurement {
+  /** Must match `ProviderReadiness.provider` for the row it corrects. */
+  readonly provider: string;
+  readonly connected: boolean;
+  /** The provider's own connection-state token, e.g. "AWAITING_2FA". */
+  readonly state: string;
+  readonly note: string;
+  readonly checkedAt: string;
+}
+
+/** What a measured row shows in place of its presence-only class. */
+export interface WireboardLiveView {
+  readonly blockerClass: WireboardBlockerClass;
+  readonly state: string;
+  readonly note: string;
+  readonly checkedAt: string;
+  /**
+   * The one sentence that tells the reader what to DO. Kept separate from
+   * `note` (the provider's own words) so a surface can render the action
+   * prominently without paraphrasing a provider receipt.
+   */
+  readonly nextAction: string;
+}
+
+/**
+ * Live state → visible class. Unknown states deliberately fall to
+ * NOT CONNECTED rather than to SETUP PRESENT: an unrecognised token is a thing
+ * we do not understand, and "setup present" is the reassuring reading of it.
+ */
+function liveClassFor(m: WireboardLiveMeasurement): WireboardBlockerClass {
+  if (m.connected) return "CONNECTED";
+  switch (m.state) {
+    case "AWAITING_2FA": return "AWAITING 2FA";
+    case "BLOCKED_AUTH": return "AUTH BLOCKED";
+    case "UNCONFIGURED": return "NOT CONFIGURED";
+    default: return "NOT CONNECTED";
+  }
+}
+
+function nextActionFor(blockerClass: WireboardBlockerClass): string {
+  switch (blockerClass) {
+    case "CONNECTED":
+      return "Nothing to do. This lane answered a signed request on this runtime.";
+    case "AWAITING 2FA":
+      // The whole point of separating this state. No credential is named,
+      // because none is missing.
+      return "Open the provider's app and approve the pending request. One tap. Nothing is missing from this deployment.";
+    case "AUTH BLOCKED":
+      return "The identity WM Pro presented was rejected. Examine the key pair or the signature — this says nothing about a data package or subscription.";
+    case "NOT CONFIGURED":
+      return "This runtime does not carry the credential names this provider reads.";
+    default:
+      return "Measured and not connected. The provider receipt below names the edge; it has not been reduced to a one-word cause.";
+  }
+}
 
 export interface WireboardRow {
   readonly provider: string;
@@ -72,6 +157,12 @@ export interface WireboardRow {
    * counter-evidence, not rely on the reader scrolling to find it.
    */
   readonly nameMismatches: readonly WireboardNearMiss[];
+  /**
+   * Present only when this provider was actually probed. `null` means
+   * UNMEASURED — which a surface must say out loud, because "not measured" and
+   * "measured fine" are the two readings of a quiet row and only one is true.
+   */
+  readonly live: WireboardLiveView | null;
 }
 
 /**
@@ -143,23 +234,46 @@ function nearMissRow(h: EnvNameNearMiss): WireboardNearMiss {
   };
 }
 
-/** Build the wireboard view-model from a readiness API payload. */
-export function selectReadinessWireboard(payload: ReadinessPayload | null | undefined): ReadinessWireboard {
+/**
+ * Build the wireboard view-model from a readiness API payload, optionally
+ * corrected by live measurements for the providers that have a probe.
+ */
+export function selectReadinessWireboard(
+  payload: ReadinessPayload | null | undefined,
+  measurements: readonly WireboardLiveMeasurement[] = [],
+): ReadinessWireboard {
   const providers = payload?.providers ?? [];
   const nearMisses = (payload?.nearMisses ?? []).map(nearMissRow);
   const rows: WireboardRow[] = providers.map((r) => {
     const nameMismatches = nearMisses.filter((h) => r.missing.includes(h.expected));
+    const presenceClass: WireboardBlockerClass = r.status === "CONFIGURED" ? "SETUP PRESENT" : "NOT CONFIGURED";
+    const measured = measurements.find((m) => m.provider === r.provider) ?? null;
+    const live: WireboardLiveView | null = measured
+      ? (() => {
+          const blockerClass = liveClassFor(measured);
+          return {
+            blockerClass,
+            state: measured.state,
+            note: measured.note,
+            checkedAt: measured.checkedAt,
+            nextAction: nextActionFor(blockerClass),
+          };
+        })()
+      : null;
     return {
       provider: r.provider,
       label: r.label,
       lane: r.lane,
       status: r.status,
-      blockerClass: r.status === "CONFIGURED" ? "SETUP PRESENT" : "NOT CONFIGURED",
+      // Measurement outranks presence. See WireboardLiveMeasurement for the
+      // six days this page spent showing the weaker of two facts it held.
+      blockerClass: live ? live.blockerClass : presenceClass,
       blockerDetail: blockerDetailFor(r, nameMismatches),
       missing: r.missing,
       missingRecommended: r.missingRecommended,
       note: r.note,
       nameMismatches,
+      live,
     };
   });
   const readyCount = rows.filter((r) => r.status === "CONFIGURED").length;

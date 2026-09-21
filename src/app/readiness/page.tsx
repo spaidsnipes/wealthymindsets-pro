@@ -32,7 +32,9 @@ import {
   selectReadinessWireboard,
   type ReadinessPayload,
   type ReadinessWireboard,
+  type WireboardLiveMeasurement,
 } from "@/lib/broker/selectReadinessWireboard";
+import type { WebullStatus } from "@/lib/broker/webullStatus";
 import {
   selectCertificationJoint,
   type CertificationPayload,
@@ -98,12 +100,34 @@ export default function ReadinessPage() {
     setState({ phase: "loading" });
     (async () => {
       try {
-        const payload = await readJsonReceipt<ReadinessPayload>(
-          fetch,
-          "/api/broker/readiness",
-          controller.signal,
-        );
-        if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload) });
+        /*
+          MEASUREMENT IS FETCHED ALONGSIDE PRESENCE, NOT INSTEAD OF IT.
+
+          The presence receipt is required; a live probe is a bonus. So the
+          Webull probe is awaited with `catch → null` and its failure downgrades
+          exactly one row to UNMEASURED rather than blanking the page. An
+          unreachable probe must never be able to erase the presence truth —
+          nor to masquerade as a clean result.
+        */
+        const [payload, webull] = await Promise.all([
+          readJsonReceipt<ReadinessPayload>(fetch, "/api/broker/readiness", controller.signal),
+          readJsonReceipt<WebullStatus>(fetch, "/api/broker/webull/status", controller.signal)
+            .catch(() => null),
+        ]);
+        const measurements: WireboardLiveMeasurement[] = webull
+          ? [{
+              // The BROKER row, not the market-data row. /api/broker/webull/status
+              // climbs /trading/accounts/list, which proves account access and
+              // nothing about a data package — so it may only correct the lane
+              // it actually measured.
+              provider: "webull-broker",
+              connected: webull.connected === true,
+              state: webull.state,
+              note: webull.note,
+              checkedAt: webull.checkedAt,
+            }]
+          : [];
+        if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload, measurements) });
       } catch (e) {
         if (!cancelled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
       }
@@ -260,7 +284,17 @@ export default function ReadinessPage() {
             ) : (
               <ul className="grid gap-3 md:grid-cols-2">
                 {state.wireboard.rows.map((row) => {
-                  const isReady = row.status === "CONFIGURED";
+                  /*
+                    A MEASURED ROW IS COLOURED BY ITS MEASUREMENT.
+
+                    `row.status === "CONFIGURED"` answers "are the credentials
+                    present". It was driving the green border while the live
+                    probe on the same runtime said AUTH BLOCKED. A green card
+                    over a failing wire is the single most expensive pixel on
+                    this page — it is the pixel that ends the investigation.
+                  */
+                  const isReady = row.live ? row.live.blockerClass === "CONNECTED" : row.status === "CONFIGURED";
+                  const attention = row.live?.blockerClass === "AWAITING 2FA";
                   return (
                     <li
                       key={row.provider}
@@ -269,6 +303,9 @@ export default function ReadinessPage() {
                           ? "border-emerald-500/20 bg-emerald-500/[0.045] hover:border-emerald-500/35"
                           : "border-[#f0b429]/20 bg-[#f0b429]/[0.045] hover:border-[#f0b429]/35"
                       }`}
+                      data-provider={row.provider}
+                      data-blocker-class={row.blockerClass}
+                      data-measured={row.live ? "live" : "presence-only"}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -285,9 +322,39 @@ export default function ReadinessPage() {
                           {row.blockerClass}
                         </span>
                       </div>
+                      {/*
+                        THE MEASURED SENTENCE COMES FIRST AND IS NOT COLLAPSIBLE.
+
+                        This row previously read "Setup present — verification
+                        required" for a provider whose live probe, on this same
+                        runtime, was returning AUTH BLOCKED. The evidence to
+                        contradict the reassuring line already existed; it just
+                        wasn't on the page. Counter-evidence that requires a
+                        second fetch by the reader is not surfaced.
+                      */}
+                      {row.live && (
+                        <div
+                          className={`mt-3 rounded-lg border px-3 py-2 ${
+                            row.live.blockerClass === "CONNECTED"
+                              ? "border-emerald-500/25 bg-emerald-500/[0.07]"
+                              : attention
+                                ? "border-sky-400/30 bg-sky-400/[0.07]"
+                                : "border-rose-500/25 bg-rose-500/[0.06]"
+                          }`}
+                        >
+                          <div className="font-mono text-[9px] font-semibold uppercase tracking-widest text-neutral-400">
+                            Measured live · {row.live.state}
+                          </div>
+                          <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-200">{row.live.nextAction}</p>
+                          <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-400">{row.live.note}</p>
+                          <p className="mt-1 font-mono text-[9px] text-neutral-600">at {row.live.checkedAt}</p>
+                        </div>
+                      )}
                       <p className="mt-3 text-xs leading-relaxed text-neutral-300">
-                        {isReady
-                          ? "Setup present — verification required. Charts and trading are not certified by this receipt."
+                        {row.live
+                          ? "The measurement above outranks the presence check below. Presence says what this runtime carries; the probe says what the provider actually answered."
+                          : isReady
+                          ? "Setup present — NOT MEASURED. No live probe exists for this provider yet, so this row proves credentials are installed and nothing more."
                           : row.nameMismatches.length > 0
                             ? "This provider is missing a name the code reads — but this host carries a lookalike for it. Check the name mismatch below before obtaining any new secret."
                             : "This RUNNING host does not carry the credential name(s) this provider reads. That is a deployment binding, not proof the integration is absent — the adapter may already exist in this build."}
@@ -409,11 +476,11 @@ export default function ReadinessPage() {
 
             <p className="mt-7 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] leading-relaxed text-neutral-500">
               This wireboard is observability, not a second source of authority. Presence of a key never
-              certifies a live connection — that is what the certification board above measures, and it
-              currently measures nothing until a harness runner exists. Blocker classes
-              here are limited to what presence can prove: SETUP PRESENT or NOT CONFIGURED. AUTH BLOCKED, BRIDGE
-              UNREACHABLE, ENTITLEMENT, and the rest require a live probe and are never guessed from a missing
-              variable.
+              certifies a live connection. A row shows SETUP PRESENT or NOT CONFIGURED when presence is all
+              this page has — and says NOT MEASURED out loud so a quiet row is never mistaken for a passing
+              one. CONNECTED, AWAITING 2FA, AUTH BLOCKED and NOT CONNECTED appear only on rows that carry a
+              real probe result from that provider&apos;s own status route, and are never guessed from a
+              missing variable.
             </p>
           </>
         )}

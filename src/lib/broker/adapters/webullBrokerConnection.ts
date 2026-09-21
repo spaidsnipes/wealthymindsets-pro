@@ -47,6 +47,17 @@ const defaultTokenStore = inMemoryTokenStore();
 export type WebullBrokerConnectionState =
   | "CONNECTED"
   | "UNCONFIGURED"
+  /**
+   * A session was minted and Webull is waiting on one tap in the Founder's
+   * phone. Deliberately NOT folded into BLOCKED_AUTH.
+   *
+   * BLOCKED_AUTH means "the identity we presented was rejected", and the only
+   * honest next action for it is to inspect a credential. This means "nothing
+   * is wrong and nobody has to look at a credential" — the next action is one
+   * tap. Collapsing the two is how a 2FA prompt got read as a broken key pair,
+   * which is how the Founder ended up re-pasting a token for three months.
+   */
+  | "AWAITING_2FA"
   | "BLOCKED_AUTH"
   | "ACCESS_UNPROVEN"
   | "NO_ACCOUNTS"
@@ -162,7 +173,7 @@ export async function probeWebullBrokerConnection(
     if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
       // Sending this would earn a 401 and we would report a credential fault
       // for what is actually one tap in the Webull app. Say the true thing.
-      return receipt("BLOCKED_AUTH", session.note);
+      return receipt("AWAITING_2FA", session.note);
     }
     if (session.token?.token) sessionToken = session.token.token;
   }

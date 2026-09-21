@@ -207,7 +207,10 @@ describe("the account lane carries a LIVING session, not a pasted one", () => {
       ...minting,
       tokenStore: inMemoryTokenStore(storedToken({ status: WEBULL_TOKEN_STATUSES.PENDING })),
     });
-    expect(receipt.state).toBe("BLOCKED_AUTH");
+    // Its OWN state, not BLOCKED_AUTH. The two have opposite next actions —
+    // "tap approve" vs "inspect a credential" — and a surface that cannot tell
+    // them apart can only render the wrong one of those sentences.
+    expect(receipt.state).toBe("AWAITING_2FA");
     expect(receipt.connected).toBe(false);
     expect(receipt.note).toMatch(/webull app/i);
     expect(receipt.note).toMatch(/2fa/i);

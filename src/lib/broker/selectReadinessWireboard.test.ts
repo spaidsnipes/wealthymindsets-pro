@@ -266,3 +266,111 @@ describe("a blocked row names the lookalike sitting on its own missing name", ()
     ).toBeLessThan(details);
   });
 });
+
+/**
+ * THE TRUTH GAP THIS CLOSES.
+ *
+ * On 2026-09-20 /readiness rendered the Webull broker row as "SETUP PRESENT"
+ * — green border, reassuring sentence — while /api/broker/webull/status, on
+ * the same runtime, was returning a live BLOCKED_AUTH. Neither statement was
+ * a lie. Read together by a human they produce the Founder's three-month
+ * complaint verbatim: "it says it's connected but I can't see my data."
+ *
+ * Presence is the weaker evidence. When the stronger evidence is in hand, a
+ * page that still shows the weaker one is not being careful; it is withholding.
+ */
+describe("selectReadinessWireboard · live measurement overrides presence", () => {
+  const webullBroker: ProviderReadiness = {
+    provider: "webull-broker",
+    label: "Webull (broker)",
+    lane: "broker",
+    status: "CONFIGURED",
+    missing: [],
+    missingRecommended: [],
+    note: "Signed account reads.",
+  };
+  const measure = (state: string, connected = false) => ({
+    provider: "webull-broker",
+    connected,
+    state,
+    note: "provider said so",
+    checkedAt: "2026-09-20T00:00:00Z",
+  });
+  const rowFor = (state: string, connected = false) =>
+    selectReadinessWireboard(payload([webullBroker]), [measure(state, connected)]).rows[0];
+
+  it("a CONFIGURED provider measured BLOCKED_AUTH does NOT render as SETUP PRESENT", () => {
+    const row = rowFor("BLOCKED_AUTH");
+    expect(row.status).toBe("CONFIGURED");
+    expect(row.blockerClass).toBe("AUTH BLOCKED");
+    expect(row.blockerClass).not.toBe("SETUP PRESENT");
+  });
+
+  it("keeps 'tap approve' and 'identity rejected' as different classes with different actions", () => {
+    const waiting = rowFor("AWAITING_2FA");
+    const rejected = rowFor("BLOCKED_AUTH");
+    expect(waiting.blockerClass).toBe("AWAITING 2FA");
+    expect(rejected.blockerClass).toBe("AUTH BLOCKED");
+    expect(waiting.live?.nextAction).not.toBe(rejected.live?.nextAction);
+    // The 2FA action must not send anyone hunting for a credential.
+    expect(waiting.live!.nextAction).toMatch(/approve/i);
+    expect(waiting.live!.nextAction).not.toMatch(
+      /\b(add|set|paste|re-?enter|supply|obtain)\s+(a|the\s+)?\w*\s*(secret|credential|token|variable|key)/i,
+    );
+    // And an account-lane 401 must never be narrated as an entitlement fact —
+    // that sentence is what sent the Founder shopping for data he owned.
+    expect(rejected.live!.nextAction).toMatch(/subscription|data package/i);
+    expect(rejected.live!.nextAction).toMatch(/says nothing about/i);
+  });
+
+  it("promotes a measured-connected provider past SETUP PRESENT", () => {
+    expect(rowFor("CONNECTED", true).blockerClass).toBe("CONNECTED");
+  });
+
+  it("reads an UNRECOGNISED provider state as NOT CONNECTED, never as setup present", () => {
+    // A token we do not understand must not fall through to the reassuring
+    // reading. Unknown is closer to "not connected" than to "fine".
+    expect(rowFor("SOME_STATE_WE_HAVE_NOT_SEEN").blockerClass).toBe("NOT CONNECTED");
+  });
+
+  it("leaves an UNMEASURED provider on presence-only truth and marks it so", () => {
+    const wb = selectReadinessWireboard(payload([ready, webullBroker]), [measure("BLOCKED_AUTH")]);
+    const unmeasured = wb.rows.find((r) => r.provider === "alpaca-live")!;
+    expect(unmeasured.live).toBeNull();
+    expect(unmeasured.blockerClass).toBe("SETUP PRESENT");
+    // A probe for one provider may never silently re-grade another.
+    expect(wb.rows.find((r) => r.provider === "webull-broker")!.live).not.toBeNull();
+  });
+
+  it("carries the provider's own words and the time it said them", () => {
+    const row = rowFor("BLOCKED_AUTH");
+    expect(row.live!.note).toBe("provider said so");
+    expect(row.live!.checkedAt).toBe("2026-09-20T00:00:00Z");
+    expect(row.live!.state).toBe("BLOCKED_AUTH");
+  });
+
+  it("the /readiness page renders the measurement ABOVE the collapsed receipt, and colours by it", () => {
+    const page = stripComments(
+      readFileSync(resolve(__dirname, "..", "..", "app", "readiness", "page.tsx"), "utf8"),
+    );
+    // It must actually ASK for the measurement, not just be able to accept one.
+    expect(page).toContain("/api/broker/webull/status");
+    expect(page).toContain('provider: "webull-broker"');
+
+    const live = page.indexOf("row.live && (");
+    const details = page.indexOf("Technical receipt");
+    expect(live).toBeGreaterThan(-1);
+    expect(
+      live,
+      "The live measurement renders inside/after the collapsed Technical receipt. " +
+        "Evidence a reader must expand a disclosure to find is how 'SETUP PRESENT' " +
+        "beat a live AUTH BLOCKED on the same page.",
+    ).toBeLessThan(details);
+
+    // The green border decides whether anyone keeps investigating. It must be
+    // driven by the measurement when one exists, not by credential presence.
+    expect(page).toContain('row.live ? row.live.blockerClass === "CONNECTED" : row.status === "CONFIGURED"');
+    // An unprobed row must SAY it is unprobed rather than implying a pass.
+    expect(page).toContain("NOT MEASURED");
+  });
+});
