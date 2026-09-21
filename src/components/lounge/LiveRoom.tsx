@@ -480,6 +480,14 @@ interface LiveRoomProps {
 
 export default function LiveRoom({ roomName, roomLabel, color, userName, isHost, onClose }: LiveRoomProps) {
   const [token,      setToken]      = useState<string | null>(null);
+  // The wss host now arrives WITH the token from /api/livekit rather than being
+  // read here as process.env.NEXT_PUBLIC_LIVEKIT_URL. A NEXT_PUBLIC_ name is
+  // inlined at BUILD time; this app is built on a laptop and deployed to
+  // Cloudflare, so a host stored as a Cloudflare secret was inlined as
+  // undefined and `serverUrl=""` reached LiveKitRoom — a room that silently
+  // never connects while every dashboard says the variable is set. One owner
+  // (the server) now resolves all three LiveKit credentials.
+  const [serverUrl,  setServerUrl]  = useState<string | null>(null);
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [joined,     setJoined]     = useState(false);
@@ -493,9 +501,18 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
       const res  = await fetch(
         `/api/livekit?room=${encodeURIComponent(roomName)}&name=${encodeURIComponent(userName || "Guest")}&role=${role}`
       );
-      const json = await res.json() as { token?: string; error?: string };
+      const json = await res.json() as { token?: string; serverUrl?: string; error?: string };
       if (json.error) throw new Error(json.error);
-      setToken(json.token!);
+      // Refuse a partial success. A token without a host mints a valid identity
+      // for a room that cannot be dialled: the UI would flip to "joined" and
+      // then sit dark forever with nothing on screen saying why.
+      if (!json.token || !json.serverUrl) {
+        throw new Error(
+          "LiveKit did not return both a token and a server URL — the room host is not configured on this deployment.",
+        );
+      }
+      setToken(json.token);
+      setServerUrl(json.serverUrl);
       setJoined(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to join");
@@ -505,11 +522,10 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
 
   const leave = () => {
     setToken(null);
+    setServerUrl(null);
     setJoined(false);
     onClose();
   };
-
-  const wsUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 
   const roomContent = (
     <div className={fullscreen ? "flex flex-col h-full" : ""}>
@@ -555,9 +571,9 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
             {loading ? "Joining…" : isHost ? "Go Live" : "Watch"}
           </button>
         </div>
-      ) : token ? (
+      ) : token && serverUrl ? (
         <LiveKitRoom
-          serverUrl={wsUrl}
+          serverUrl={serverUrl}
           token={token}
           audio={true}
           video={isHost}

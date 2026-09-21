@@ -183,8 +183,31 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "LiveKit realtime (Lounge)",
     lane: "realtime",
     required: ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "NEXT_PUBLIC_LIVEKIT_URL"],
+    // Declared by hand, not guessed — the same bulk-load artifact that produced
+    // FINNHUB_KEY_ and ALPACA_BROKERAGE_KEY_SECRET_ put the LiveKit pair on this
+    // host as ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ (trailing underscores).
+    // The KEY/SECRET role split follows the Alpaca pair exactly: the name
+    // carrying `_SECRET_` is the secret.
+    //
+    // WHAT IS NOT KNOWN: the `ATH_` prefix is the sibling product's namespace,
+    // so these may be ANOTHER LiveKit project's credentials. Presence cannot
+    // settle that — only opening a room can. Accepting them here makes the
+    // wire ATTEMPTABLE and turns an invisible name mismatch into a visible
+    // upstream 401 if the guess is wrong; it never asserts the room connects.
+    //
+    // LIVEKIT_URL is accepted for the host because the browser no longer reads
+    // NEXT_PUBLIC_LIVEKIT_URL: /api/livekit returns the wss host in its token
+    // response. A NEXT_PUBLIC_ name is inlined AT BUILD TIME, and this app is
+    // built locally then deployed to Cloudflare — so a wss host set only as a
+    // Cloudflare secret could never have reached the browser under the old
+    // wiring, no matter how many redeploys. Either name now works at runtime.
+    aliases: {
+      LIVEKIT_API_KEY: ["ATH_LIVEKIT_KEY_"],
+      LIVEKIT_API_SECRET: ["ATH_LIVEKIT_KEY_SECRET_"],
+      NEXT_PUBLIC_LIVEKIT_URL: ["LIVEKIT_URL"],
+    },
     recommended: [],
-    note: "The API key/secret mint room tokens server-side; NEXT_PUBLIC_LIVEKIT_URL is the wss host the browser dials. All three are required — a minted token with no host, or a host with no token, cannot open a room.",
+    note: "The API key/secret mint room tokens server-side; the wss host is resolved server-side too and returned with the token, so LIVEKIT_URL works as well as NEXT_PUBLIC_LIVEKIT_URL. All three are required — a minted token with no host, or a host with no token, cannot open a room. The host's ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ pair is ACCEPTED (resolveProviderEnv) so the lane is attemptable; presence proves credentials exist, never that a room opens.",
   },
 ];
 

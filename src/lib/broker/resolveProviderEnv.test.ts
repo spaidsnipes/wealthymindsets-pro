@@ -38,6 +38,32 @@ import { acceptedEnvNames, resolveProviderEnv } from "./resolveProviderEnv";
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 const FINNHUB_CONSUMERS = ["src/app/api/finnhub/route.ts", "src/app/api/market/route.ts"];
 
+/**
+ * LiveKit joined the aliased set on 2026-09-21 — the host carries the pair as
+ * ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_, the same bulk-load artifact this
+ * module's docblock has named since 2026-09-11. The guard below is the same
+ * guard, applied to the new consumers, for the same reason: declaring the
+ * alias for the RECEIPT only would turn /readiness green beside two routes
+ * that still 503.
+ *
+ * LiveRoom.tsx is policed too, and for an additional reason. It read the wss
+ * host as `process.env.NEXT_PUBLIC_LIVEKIT_URL` — a BUILD-TIME inlined value.
+ * This app is built on a laptop and deployed to Cloudflare, so that name could
+ * never be satisfied by a Cloudflare secret no matter how many redeploys: it
+ * inlined as undefined and LiveKitRoom received serverUrl="". The host is now
+ * resolved server-side and returned with the token. If that read comes back,
+ * the whole Lounge silently stops connecting again.
+ */
+const LIVEKIT_SERVER_CONSUMERS = [
+  "src/app/api/livekit/route.ts",
+  "src/app/api/livekit/approve/route.ts",
+];
+const LIVEKIT_CREDENTIALS = [
+  "LIVEKIT_API_KEY",
+  "LIVEKIT_API_SECRET",
+  "NEXT_PUBLIC_LIVEKIT_URL",
+] as const;
+
 describe("resolveProviderEnv", () => {
   it("THE MEASURED FAILURE: the name the host actually carries is accepted", () => {
     const accepted = acceptedEnvNames("FINNHUB_KEY");
@@ -108,13 +134,51 @@ describe("the declaration reaches the wire, not only the receipt", () => {
     }
   });
 
+  it("THE HALF-FIX GUARD: no LiveKit server route re-derives its own env names", () => {
+    for (const rel of LIVEKIT_SERVER_CONSUMERS) {
+      const src = stripComments(fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"));
+      for (const name of LIVEKIT_CREDENTIALS) {
+        expect(
+          src,
+          `${rel} reads process.env.${name} directly. A hand-written name cannot ` +
+            "see the ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ aliases declared in " +
+            "PROVIDER_REQUIREMENTS, so /readiness would report livekit READY beside " +
+            "a route that 503s. Resolve through resolveProviderEnv instead.",
+        ).not.toContain(`process.env.${name}`);
+        expect(src, `${rel} must resolve ${name} through the canonical table`)
+          .toMatch(new RegExp(`resolveProviderEnv\\(\\s*"${name}"\\s*\\)`));
+      }
+    }
+  });
+
+  it("all three LiveKit credentials are resolved, not just the key pair", () => {
+    // The wss host was the one that silently broke: a token minted against a
+    // missing host is a 200 response in front of a room that cannot be dialled.
+    expect(acceptedEnvNames("LIVEKIT_API_KEY")).toContain("ATH_LIVEKIT_KEY_");
+    expect(acceptedEnvNames("LIVEKIT_API_SECRET")).toContain("ATH_LIVEKIT_KEY_SECRET_");
+    expect(acceptedEnvNames("NEXT_PUBLIC_LIVEKIT_URL")).toContain("LIVEKIT_URL");
+  });
+
+  it("THE BUILD-TIME TRAP: the browser must not read the wss host from process.env", () => {
+    // NEXT_PUBLIC_ values are inlined at BUILD time. WM Pro builds on a laptop
+    // and deploys to Cloudflare, so a host set as a Cloudflare secret inlines
+    // as `undefined` and LiveKitRoom silently receives serverUrl="". The host
+    // arrives from /api/livekit with the token instead. If this read returns,
+    // the Lounge stops connecting with no error naming a variable.
+    const src = stripComments(
+      fs.readFileSync(path.join(REPO_ROOT, "src/components/lounge/LiveRoom.tsx"), "utf8"),
+    );
+    expect(src).not.toContain("process.env.NEXT_PUBLIC_LIVEKIT_URL");
+    expect(src, "the host must come from the token response").toContain("serverUrl");
+  });
+
   it("the scan is not vacuous — it can see the defect when it exists", () => {
     const defect = 'const k = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;';
     expect(/process\.env\.(NEXT_PUBLIC_)?FINNHUB_KEY/.test(stripComments(defect))).toBe(true);
   });
 
   it("and the consumers it polices actually exist", () => {
-    for (const rel of FINNHUB_CONSUMERS) {
+    for (const rel of [...FINNHUB_CONSUMERS, ...LIVEKIT_SERVER_CONSUMERS]) {
       expect(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} moved — this Sentinel has rotted`).toBe(true);
     }
   });

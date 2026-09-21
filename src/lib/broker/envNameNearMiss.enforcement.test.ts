@@ -89,12 +89,23 @@ describe("env-name near-miss detector MUST stay reachable (breadcrumb chain)", (
 
 describe("secrets boundary is structural, not a promise", () => {
   it("a hit carries only names and a confidence label — no value field", () => {
-    // Fixture moved off FINNHUB_KEY_ on 2026-09-11: that name is now a
-    // DECLARED finnhub alias the consumers actually read, so it correctly
-    // produces no hit. ATH_LIVEKIT_KEY_ is a real, still-undeclared name on
-    // the production host — the secrets boundary is asserted against a live
-    // wound rather than a synthetic one.
-    const hits = detectUnaccountedEnvNameNearMisses({ ATH_LIVEKIT_KEY_: "super-secret-value" });
+    // This fixture has now migrated TWICE, and both migrations are the
+    // detector working as designed:
+    //
+    //   2026-09-11  FINNHUB_KEY_    -> declared finnhub alias, read by the code
+    //   2026-09-21  ATH_LIVEKIT_KEY_ -> declared livekit alias, read by the code
+    //
+    // A name graduating out of this fixture means a wound closed. The cost is
+    // that no CONFIRMED-live undeclared name is left to assert against, so the
+    // fixture below is SYNTHETIC — shaped exactly like the production defect
+    // (a canonical name plus one trailing underscore) but not observed on any
+    // host. That is stated rather than hidden: the claim this test makes is
+    // about the OUTPUT TYPE carrying no value field, which a synthetic input
+    // proves just as well. If a real undeclared near-miss is ever measured
+    // again, prefer it here.
+    const hits = detectUnaccountedEnvNameNearMisses({
+      TASTYTRADE_REFRESH_TOKEN_: "super-secret-value",
+    });
     expect(hits.length).toBeGreaterThan(0);
     for (const hit of hits) {
       expect(Object.keys(hit).sort()).toEqual(["confidence", "expected", "found"]);

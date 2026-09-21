@@ -182,10 +182,53 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
     expect(r.lane).toBe("realtime");
   });
 
-  it("livekit is NOT satisfied by the ATH_-prefixed host names", () => {
+  /**
+   * SUPERSEDED 2026-09-21 — same shape as the FINNHUB_KEY_ supersede above,
+   * for the same reason and under the same rule.
+   *
+   * This asserted that ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ must NOT
+   * satisfy livekit. That was correct while NO consumer read those names. It
+   * is no longer the fact: `/api/livekit` and `/api/livekit/approve` now
+   * resolve all three credentials through `resolveProviderEnv`, so the code
+   * genuinely reads them.
+   *
+   * THE RULE IS UNCHANGED — the receipt may declare a name satisfied only when
+   * the code actually reads it. `resolveProviderEnv.test.ts` holds the teeth.
+   */
+  it("livekit accepts the trailing-underscore host pair the routes now read", () => {
     const r = computeProviderReadiness("livekit", {
       ATH_LIVEKIT_KEY_: "redacted",
       ATH_LIVEKIT_KEY_SECRET_: "redacted",
+    });
+    // Still BLOCKED — and on ONE name, not three. That narrowing is the whole
+    // point: the operator is now told the single thing that is actually
+    // absent instead of three things, two of which are present under another
+    // spelling.
+    expect(r.status).toBe("BLOCKED");
+    expect(r.missing).toEqual(["NEXT_PUBLIC_LIVEKIT_URL"]);
+  });
+
+  it("livekit's wss host may be set WITHOUT the NEXT_PUBLIC_ prefix", () => {
+    // The browser no longer reads this name; /api/livekit returns the host
+    // with the token. A NEXT_PUBLIC_ name is inlined at build time, so on a
+    // build-here-deploy-to-Cloudflare pipeline it could never have been
+    // satisfied by a Cloudflare secret at all. LIVEKIT_URL resolves at runtime.
+    const r = computeProviderReadiness("livekit", {
+      ATH_LIVEKIT_KEY_: "redacted",
+      ATH_LIVEKIT_KEY_SECRET_: "redacted",
+      LIVEKIT_URL: "wss://example.livekit.cloud",
+    });
+    expect(r.status).toBe("CONFIGURED");
+    expect(r.missing).toEqual([]);
+  });
+
+  it("livekit stays BLOCKED for a lookalike no consumer resolves", () => {
+    // The supersede is narrow: it turns on the alias being DECLARED, and
+    // therefore read. An undeclared neighbour must still block.
+    const r = computeProviderReadiness("livekit", {
+      ATH_LIVEKIT_KEY: "redacted",
+      LIVEKIT_SECRET: "redacted",
+      LIVEKIT_WS_URL: "wss://example.livekit.cloud",
     });
     expect(r.status).toBe("BLOCKED");
     expect(r.missing).toEqual([
@@ -478,22 +521,39 @@ describe("detectUnaccountedEnvNameNearMisses (the one-call receipt entry point)"
    * that is this detector's documented contract — so Finnhub can no longer
    * demonstrate an unaccounted hit.
    *
-   * Rather than invent a synthetic name, this uses `ATH_LIVEKIT_KEY_` /
-   * `ATH_LIVEKIT_KEY_SECRET_`: names observed on the live production host on
-   * 2026-09-11, still undeclared, and still the reason the Lounge cannot open
-   * a room. The fixture keeps pointing at a real open wound.
+   * It then used `ATH_LIVEKIT_KEY_` — and on 2026-09-21 that name graduated
+   * the same way, for the same reason: declared as a livekit alias, read by
+   * `/api/livekit` and `/api/livekit/approve` through `resolveProviderEnv`.
+   *
+   * Two fixtures lost to the detector doing its job is the success case, not a
+   * maintenance burden. What is left has no CONFIRMED-live undeclared name to
+   * point at, so the fixture below is SYNTHETIC and says so. The contract it
+   * asserts — an unaccounted lookalike is NAMED rather than left as a silent
+   * ABSENT_BOTH — does not depend on the name having been seen in production.
    */
-  it("names the still-undeclared host lookalike as the explanation", () => {
+  it("names an unaccounted host lookalike as the explanation", () => {
     const hits = detectUnaccountedEnvNameNearMisses({
       ALPACA_BROKERAGE_KEY: "redacted",
       ALPACA_BROKERAGE_KEY_SECRET_: "redacted",
-      ATH_LIVEKIT_KEY_: "redacted",
+      MOOMOO_BRIDGE_TOKEN_: "redacted",
     });
     expect(hits).toContainEqual({
-      expected: "LIVEKIT_API_KEY",
-      found: "ATH_LIVEKIT_KEY_",
-      confidence: "SHARED_DISTINCTIVE_TOKENS",
+      expected: "MOOMOO_BRIDGE_TOKEN",
+      found: "MOOMOO_BRIDGE_TOKEN_",
+      confidence: "EXACT_MODULO_PUNCTUATION",
     });
+  });
+
+  it("the LiveKit pair has GRADUATED — a declared alias is no longer a suspect", () => {
+    // The 2026-09-21 fix. Reporting ATH_LIVEKIT_KEY_ now would be cry-wolf
+    // noise against a name the routes genuinely read, and would point the
+    // operator at the wrong gap: the wss host, not the key pair.
+    const hits = detectUnaccountedEnvNameNearMisses({
+      ATH_LIVEKIT_KEY_: "redacted",
+      ATH_LIVEKIT_KEY_SECRET_: "redacted",
+    });
+    expect(hits.map((h) => h.found)).not.toContain("ATH_LIVEKIT_KEY_");
+    expect(hits.map((h) => h.found)).not.toContain("ATH_LIVEKIT_KEY_SECRET_");
   });
 
   it("a name that has since been DECLARED stops being offered as a suspect", () => {
