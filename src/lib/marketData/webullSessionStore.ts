@@ -92,6 +92,74 @@ export async function webullWorkerEnv(): Promise<unknown> {
 }
 
 /**
+ * THE SESSION SEAM EVERY WEBULL LANE MUST GO THROUGH.
+ *
+ * ── The defect this closes ──────────────────────────────────────────────────
+ *
+ * The entitlement probe learned to mint a session. The DATA lane did not. It
+ * read `WEBULL_ACCESS_TOKEN` straight out of the environment and signed with
+ * it, which is the exact category error that cost this project three months:
+ * that variable holds a SESSION, not a secret, and a session pasted into a
+ * deployment platform is dead by the time it matters.
+ *
+ * The consequence was nastier than a plain outage. The probe would report the
+ * honest verdict on one lane while the chart's own tick read 401'd on another,
+ * so the two lanes could disagree about the same account — and a 401 on the
+ * data lane reads to every human as "market data is not subscribed". We would
+ * have shipped the entitlement fix and still shown an empty chart, and then
+ * gone looking at the Founder's subscription AGAIN.
+ *
+ * So the resolution lives here, once, and a lane that wants to sign a Webull
+ * request asks this function instead of reading the environment.
+ *
+ * ── Why it returns AWAITING_2FA instead of throwing ─────────────────────────
+ *
+ * A session that needs the Founder's tap in the Webull app is not a failure;
+ * it is a named, actionable state with exactly one human step. Collapsing it
+ * into a generic auth error is how a one-tap fix becomes another week of
+ * guessing. Callers must render it as itself.
+ */
+export interface WebullResolvedSession {
+  /** The minted session value. Absent means no request should be signed. */
+  readonly accessToken?: string;
+  /** True when Webull is waiting on the Founder's approval in the app. */
+  readonly awaiting2fa: boolean;
+  /** Human-readable state, safe to show. Never contains the token value. */
+  readonly note: string;
+}
+
+export async function resolveWebullSessionToken(
+  fetchImpl: typeof fetch,
+  config: {
+    readonly appKey?: string;
+    readonly appSecret?: string;
+    readonly apiHost?: string;
+    readonly timeoutMs?: number;
+  },
+  store: WebullTokenStore,
+): Promise<WebullResolvedSession> {
+  const appKey = config.appKey?.trim();
+  const appSecret = config.appSecret?.trim();
+  if (!appKey || !appSecret) {
+    return { awaiting2fa: false, note: "Webull App Key and App Secret are not both configured, so no session can be minted." };
+  }
+
+  const { ensureWebullAccessToken, TOKEN_DISPOSITIONS } = await import("./webullAccessToken");
+  const session = await ensureWebullAccessToken(
+    fetchImpl,
+    { appKey, appSecret, apiHost: config.apiHost, timeoutMs: config.timeoutMs },
+    store,
+  );
+
+  if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+    return { awaiting2fa: true, note: session.note };
+  }
+  return session.token?.token
+    ? { accessToken: session.token.token, awaiting2fa: false, note: session.note }
+    : { awaiting2fa: false, note: session.note };
+}
+
+/**
  * How durable the session actually is, in words a surface may print.
  *
  * This was a CONSTANT. A constant could only ever describe one of the two

@@ -13,6 +13,7 @@ import {
   webullSessionDurability,
   webullSessionIsDurable,
   webullSessionStore,
+  resolveWebullSessionToken,
   webullWorkerEnv,
 } from "./webullSessionStore";
 import { WEBULL_SESSION_KEY } from "./webullKvTokenStore";
@@ -106,5 +107,70 @@ describe("webullSessionStore", () => {
     // Under vitest `getCloudflareContext` throws. Letting that escape would
     // mean a route that works in production 500s on a laptop.
     await expect(webullWorkerEnv()).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * THE SEAM EVERY WEBULL LANE SIGNS THROUGH.
+ *
+ * The entitlement probe learned to mint a session months before the data lane
+ * did. For that whole gap the chart's tick read signed with whatever string
+ * sat in `WEBULL_ACCESS_TOKEN` — a value with an expiry — so the two lanes
+ * could report different things about one account, and the data lane's 401
+ * would read to any human as "market data is not subscribed".
+ *
+ * These pin the three behaviours that make that impossible to reintroduce
+ * quietly: it mints, it names the 2FA wait as itself, and it never invents a
+ * session out of half a credential pair.
+ */
+describe("resolveWebullSessionToken — one session seam for every lane", () => {
+  const creds = { appKey: "public-test-key", appSecret: "public-test-secret" };
+  const store = () => {
+    let held: unknown = null;
+    return { read: async () => held as never, write: async (t: unknown) => { held = t; } };
+  };
+
+  it("mints a session rather than trusting a pasted value", async () => {
+    const paths: string[] = [];
+    const fetchImpl = (async (url: URL | string) => {
+      paths.push(new URL(String(url)).pathname);
+      return new Response(JSON.stringify({
+        token: "minted-session-value", expires: 4102444800000, status: WEBULL_TOKEN_STATUSES.NORMAL,
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const session = await resolveWebullSessionToken(fetchImpl, creds, store());
+
+    expect(paths).toContain("/auth/tokens/create");
+    expect(session.accessToken).toBe("minted-session-value");
+    expect(session.awaiting2fa).toBe(false);
+  });
+
+  it("reports a 2FA wait as itself, with no token to sign with", async () => {
+    // A wait for the Founder's tap is ONE human step. Signing anyway would
+    // produce a 401 that reads as an entitlement problem, which is the exact
+    // misreading that cost this project three months.
+    const fetchImpl = (async () => new Response(JSON.stringify({
+      token: "pending-session", expires: 4102444800000, status: WEBULL_TOKEN_STATUSES.PENDING,
+    }), { status: 200 })) as unknown as typeof fetch;
+
+    const session = await resolveWebullSessionToken(fetchImpl, creds, store());
+
+    expect(session.awaiting2fa).toBe(true);
+    expect(session.accessToken).toBeUndefined();
+    expect(session.note).toBeTruthy();
+  });
+
+  it("never calls the provider when the key/secret pair is incomplete", async () => {
+    // Half a credential pair cannot mint anything. Calling out anyway earns a
+    // provider error that would then be read as a fact about the account.
+    const fetchImpl = (async () => { throw new Error("must not be called"); }) as unknown as typeof fetch;
+
+    for (const partial of [{ appKey: "k" }, { appSecret: "s" }, {}, { appKey: "  ", appSecret: "  " }]) {
+      const session = await resolveWebullSessionToken(fetchImpl, partial, store());
+      expect(session.accessToken).toBeUndefined();
+      expect(session.awaiting2fa).toBe(false);
+      expect(session.note).toMatch(/not both configured/i);
+    }
   });
 });

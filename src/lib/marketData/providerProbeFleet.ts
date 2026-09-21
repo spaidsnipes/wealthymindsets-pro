@@ -50,6 +50,7 @@ import type { SourceCertification } from "./sourceCapabilityCertification";
 import type { ProviderTier } from "./canonicalCapabilityResolver";
 import { probeMoomooMarketData } from "./adapters/moomooMarketData";
 import { probeWebullMarketData, webullDataConfigFromEnv } from "./adapters/webullMarketData";
+import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "./webullSessionStore";
 import { probeAlpacaMarketData } from "./adapters/alpacaMarketData";
 import { probeLongbridgeMarketData } from "./adapters/longbridgeTicks";
 import { certifyTastytradeMarketData } from "./adapters/tastytradeMarketData";
@@ -91,6 +92,26 @@ export async function probeMarketDataFleet(
   env: Env = process.env as Env,
 ): Promise<readonly ProbedProvider[]> {
   const alpacaCredentials = resolveAlpacaLiveCredentials();
+
+  /**
+   * Mint the Webull session BEFORE probing, for the same reason the tick route
+   * does: `WEBULL_ACCESS_TOKEN` is a session with an expiry, and a probe that
+   * signs with a dead one reports BLOCKED_AUTH — which this strip then shows
+   * the Founder as a fact about his Webull account rather than about our own
+   * stale token. A diagnostic that can lie about the thing it diagnoses is
+   * worse than no diagnostic.
+   *
+   * Resolution is awaited separately rather than folded into the Promise.all:
+   * the other four providers share no session with it, and making them wait on
+   * a mint would couple four honest probes to one provider's auth.
+   */
+  const webullEnv = webullDataConfigFromEnv(env);
+  const webullSession = await resolveWebullSessionToken(
+    fetchImpl,
+    { appKey: webullEnv.appKey, appSecret: webullEnv.appSecret, apiHost: webullEnv.apiHost },
+    webullSessionStore(await webullWorkerEnv()),
+  ).catch(() => ({ accessToken: undefined, awaiting2fa: false, note: "" }));
+
   const [moomoo, webull, alpaca, longbridge, tastytradeObservation] = await Promise.all([
     probeMoomooMarketData(fetchImpl, {
       bridgeUrl: (env.MOOMOO_BRIDGE_URL ?? "").replace(/\/+$/, ""),
@@ -98,7 +119,8 @@ export async function probeMarketDataFleet(
       canarySymbol: env.MOOMOO_CANARY_SYMBOL || undefined,
     }),
     probeWebullMarketData(fetchImpl, {
-      ...webullDataConfigFromEnv(env),
+      ...webullEnv,
+      accessToken: webullSession.accessToken,
       canarySymbol: env.WEBULL_CANARY_SYMBOL || undefined,
     }),
     probeAlpacaMarketData(fetchImpl, {

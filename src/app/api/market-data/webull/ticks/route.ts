@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { fetchWebullTickSnapshot, webullDataConfigFromEnv, type WebullSigningProfile } from "@/lib/marketData/adapters/webullMarketData";
 import { classifyWebullTickSnapshot } from "@/lib/marketData/adapters/webullTicksWireStatus";
+import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,48 @@ export async function GET(request: NextRequest) {
   }
   const signingProfile: WebullSigningProfile = requestedProfile ?? "legacy-sha1";
 
+  /**
+   * MINT the session — do not read WEBULL_ACCESS_TOKEN and sign with it.
+   *
+   * That variable holds a SESSION with an expiry, not a permanent secret, and
+   * this route used to pass it straight through. The failure mode is worse
+   * than an outage: a stale session 401s, a 401 on a market-data route reads
+   * to every human as "market data is not subscribed", and this project has
+   * already spent three months chasing that misreading to the Founder's wallet
+   * instead of to its own request. The entitlement probe mints; so must this.
+   */
+  const env = webullDataConfigFromEnv(process.env);
+  const session = await resolveWebullSessionToken(
+    fetch,
+    { appKey: env.appKey, appSecret: env.appSecret, apiHost: env.apiHost },
+    webullSessionStore(await webullWorkerEnv()),
+  );
+
+  // Not an error — a named state with exactly one human step. Reporting it as
+  // a generic auth failure is how a one-tap fix becomes another week of
+  // guessing, so it is surfaced as itself.
+  if (session.awaiting2fa) {
+    return NextResponse.json(
+      {
+        source: "webull",
+        state: "BLOCKED_AUTH",
+        fidelity: "NONE",
+        symbol,
+        requestedAt: new Date().toISOString(),
+        signingProfile,
+        ticks: [],
+        awaiting2fa: true,
+        note: session.note,
+      },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const body = await fetchWebullTickSnapshot(fetch, {
-    ...webullDataConfigFromEnv(process.env),
+    ...env,
+    // The minted session REPLACES the environment value. Falling back to the
+    // pasted one would quietly restore the defect this block exists to remove.
+    accessToken: session.accessToken,
     canarySymbol: symbol,
     signingProfile,
   });
