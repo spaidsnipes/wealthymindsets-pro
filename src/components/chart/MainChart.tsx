@@ -20,6 +20,12 @@ import { canonicalAssetClass, canonicalInstrumentId } from "@/lib/marketData/can
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
+import {
+  compileBarHistoryRefusal,
+  type BarHistoryRefusalVM,
+  type VendorAttempt,
+} from "@/lib/marketData/compileBarHistoryRefusal";
+import BarHistoryRefusalNote from "@/components/chart/BarHistoryRefusalNote";
 // The "change unavailable" sentence is NOT spelled here any more. It reaches
 // this row verbatim through `chartHeaderChangeFact`'s NONE arm, which reads it
 // from `@/lib/marketData/changeAbsence` — one owner, however many hops away.
@@ -478,13 +484,50 @@ function candleBatch(json: {
   };
 }
 
-async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
+/**
+ * THE RECEIPT SURVIVES THE TRIP UP — 2026-09-20.
+ *
+ * Every helper below used to end a refusal with `return null`. A CLASSIFIED
+ * refusal — `{"edge":"FORBIDDEN"}`, a 404, our own routing rule — was
+ * destroyed one stack frame beneath anything that could render it, and the
+ * room could then only print FEED UNKNOWN / PRICE UNKNOWN / SOURCE UNKNOWN
+ * over an empty canvas. Measured live on BTCUSDT · 5m: four doors, four
+ * DIFFERENT answers, one word on the glass.
+ *
+ * `log` is additive and optional on purpose. The return contract of these
+ * helpers is unchanged, so every existing caller and every sentinel that
+ * reads them still means what it meant; the reason simply stops being thrown
+ * away. Nothing here decides what the trader is told — `compileBarHistoryRefusal`
+ * owns that sentence, and a second author for it would be Canon Weakness #1.
+ */
+function note(log: VendorAttempt[] | undefined, attempt: VendorAttempt): void {
+  log?.push(attempt);
+}
+
+/** The vendor's own classified edge, if it sent one. Never a paraphrase. */
+async function edgeOf(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json() as { edge?: unknown; error?: unknown };
+    if (typeof body.edge === "string" && body.edge) return body.edge;
+    if (typeof body.error === "string" && body.error) return body.error;
+  } catch { /* a body we cannot read is not a reason we may invent */ }
+  return null;
+}
+
+async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
   const upper = sym.toUpperCase();
-  if (isUnsupportedByEquityVendors(upper)) return null; // futures/forex unsupported by the proxy
+  if (isUnsupportedByEquityVendors(upper)) {
+    note(log, { vendor: "Finnhub", outcome: "NOT_ASKED",
+      rule: "this product does not route futures or forex to its equity vendors." });
+    return null; // futures/forex unsupported by the proxy
+  }
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(upper)}&type=candles&tf=${encodeURIComponent(tf)}&bars=${count}`;
     const res = await fetch(url, { cache: "no-store", signal });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      note(log, { vendor: "Finnhub", outcome: "REFUSED", edge: await edgeOf(res) });
+      return null;
+    }
     const json = await res.json() as {
       candles?: LegacyOhlcvTuple[];
       barIdentities?: CanonicalBarIdentity[];
@@ -513,8 +556,13 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number, signa
     // protection did not disappear; it moved upstream, got stricter, and
     // started telling the truth about itself. Re-deciding it here would be a
     // second owner of what a bar is, which is the whole of M8.
-    return candleBatch(json, count);
+    const batch = candleBatch(json, count);
+    note(log, { vendor: "Finnhub", outcome: batch ? "SERVED" : "EMPTY" });
+    return batch;
   } catch {
+    // An aborted request is not a refusal and must never be reported as one —
+    // the symbol changed under us, which is the trader's own doing.
+    if (!signal?.aborted) note(log, { vendor: "Finnhub", outcome: "REFUSED", edge: null });
     return null;
   }
 }
@@ -585,41 +633,81 @@ function filterSession(bars: LegacyOhlcvTuple[], sym: string, intervalSec: numbe
 
 /* ── Yahoo Finance OHLCV — covers futures + crypto + stocks ── */
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
-async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
+async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
   const up = sym.toUpperCase();
-  if (classifySymbol(up) === "FUTURES") return null; // Alpaca doesn't support futures
+  if (classifySymbol(up) === "FUTURES") {
+    note(log, { vendor: "Alpaca", outcome: "NOT_ASKED", rule: "it does not carry futures." });
+    return null; // Alpaca doesn't support futures
+  }
   try {
     const url = `/api/alpaca?sym=${encodeURIComponent(up)}&type=candles&tf=${tf}&bars=${count}`;
     const res = await fetch(url, { cache: "no-store", signal });
-    if (res.status === 503 || res.status === 404) return null; // key not set or not supported
+    if (res.status === 503 || res.status === 404) {
+      // 503 = no key configured here, 404 = this vendor does not carry it.
+      // Both are real and DIFFERENT from "the market was quiet", which is why
+      // the edge travels rather than being flattened into one sentence.
+      note(log, { vendor: "Alpaca", outcome: "REFUSED", edge: await edgeOf(res) });
+      return null; // key not set or not supported
+    }
     const json = await res.json();
-    return candleBatch(json, count);
+    const batch = candleBatch(json, count);
+    note(log, { vendor: "Alpaca", outcome: batch ? "SERVED" : "EMPTY" });
+    return batch;
   } catch {
+    if (!signal?.aborted) note(log, { vendor: "Alpaca", outcome: "REFUSED", edge: null });
     return null;
   }
 }
 
-async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
+async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
   // Only for stocks/ETFs — futures/crypto fall back to Yahoo
   // The crypto list here named eleven coins and none of the `-USD` forms the
   // app's own pickers emit, so BTC-USD was being asked of an equity vendor.
   const klass = classifySymbol(sym);
-  if (klass === "FUTURES" || klass === "CRYPTO") return null;
+  if (klass === "FUTURES" || klass === "CRYPTO") {
+    note(log, { vendor: "Finnhub REST", outcome: "NOT_ASKED",
+      rule: `this product does not route ${klass.toLowerCase()} to its equity vendors.` });
+    return null;
+  }
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
-    const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
-    return candleBatch(json, count);
+    const res = await fetch(url, { cache: "no-store", signal });
+    if (!res.ok) {
+      note(log, { vendor: "Finnhub REST", outcome: "REFUSED", edge: await edgeOf(res) });
+      return null;
+    }
+    const json = await res.json();
+    const batch = candleBatch(json, count);
+    note(log, { vendor: "Finnhub REST", outcome: batch ? "SERVED" : "EMPTY" });
+    return batch;
   } catch {
+    if (!signal?.aborted) note(log, { vendor: "Finnhub REST", outcome: "REFUSED", edge: null });
     return null;
   }
 }
 
-async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal): Promise<CanonicalCandleBatch | null> {
+async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
   try {
     const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}${ext ? "&ext=1" : ""}`;
-    const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
-    return candleBatch(json, count);
+    const res = await fetch(url, { cache: "no-store", signal });
+    const json = await res.json() as {
+      error?: unknown;
+      candles?: LegacyOhlcvTuple[];
+      barIdentities?: CanonicalBarIdentity[];
+    };
+    // /api/yahoo answers 200 with an `error` field, so `res.ok` alone would
+    // read a refusal as an empty market. It is not one: measured live on
+    // BTCUSDT this lane returns "Error: Yahoo HTTP 404" — the vendor was
+    // asked and said no, which is a different fact from a quiet window.
+    if (typeof json.error === "string" && json.error) {
+      note(log, { vendor: "Yahoo", outcome: "REFUSED", edge: json.error });
+      return null;
+    }
+    const batch = candleBatch(json, count);
+    note(log, { vendor: "Yahoo", outcome: batch ? "SERVED" : "EMPTY" });
+    return batch;
   } catch {
+    if (!signal?.aborted) note(log, { vendor: "Yahoo", outcome: "REFUSED", edge: null });
     return null;
   }
 }
@@ -1588,6 +1676,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // arrived. The LIVE badge must reflect REAL feed activity — never a
   // hardcoded label (audit: "never label Live based only on an open socket").
   const [candleSource, setCandleSource] = useState<string>("");
+  /**
+   * WHY THE CANVAS IS EMPTY. Null until the first cascade settles — which is
+   * itself the honest state, because a room that has not finished asking must
+   * not render a list of refusals it has not received yet.
+   */
+  const [barRefusal, setBarRefusal] = useState<BarHistoryRefusalVM | null>(null);
   const lastTickAtRef = useRef<number>(0);
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
@@ -2111,10 +2205,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Priority: exchange-specific, Alpaca, Finnhub, Yahoo, Finnhub REST, Polygon.
       // Never manufacture market bars when every observed-data source is unavailable.
-      const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount, myAbortSignal);
-      const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount, myAbortSignal);
-      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal);
-      const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal);
+      // THE RECEIPT BOOK. Each helper writes what its door actually said; this
+      // function does not interpret any of it. See compileBarHistoryRefusal.
+      const vendorLog: VendorAttempt[] = [];
+      const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
+      const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount, myAbortSignal, vendorLog);
+      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal, vendorLog);
+      const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
       const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount, myAbortSignal);
       const canonicalBatch = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData;
       const realData = canonicalBatch?.candles ?? polyData;
@@ -2615,6 +2712,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // display strings live in canonicalFidelityLabels; this state
       // is INTERNAL bookkeeping only.
       setCandleSource(data.length ? srcName : "__unresolved__");
+      // Published in the SAME statement-block as the source sentinel, so the
+      // glass can never show "__unresolved__" beside a stale list of reasons
+      // from the previous symbol.
+      setBarRefusal(compileBarHistoryRefusal(vendorLog));
       setReady(true);
       onBarsReady?.(data, admittedBarIdentities);
 
@@ -8878,6 +8979,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       style={{ display:"flex", flexDirection:"column", flex:1, overflow:"hidden", minWidth:0, position:"relative",
                background: chartSettings?.background ?? MARKET_FIELD_DEFAULT, touchAction:"none" }}
     >
+      {/* THE RECEIPT, WHERE THE CANDLES ARE NOT. Gated on an empty canvas AND
+          a settled cascade: a chart still asking has nothing to report, and a
+          chart with bars explains itself. */}
+      {barRefusal && candles.length === 0 && (
+        <BarHistoryRefusalNote vm={barRefusal} />
+      )}
 
       {/* ── OHLCV strip ─────────────────────────────────── */}
       {/* NO FILL OF ITS OWN. The wrapper one element up already paints
