@@ -341,8 +341,12 @@ describe("a decision of ours never leaves the building dressed as the vendor's",
     if (r.kind !== "UNRESOLVED") throw new Error("unreachable");
     expect(r.reason).toContain("BTC");
     expect(r.reason).toContain("USDT");
-    // The point of the sentence: the trader learns nobody was blamed for it.
-    expect(r.reason).toContain("never asked");
+    // The point of the sentence: the trader learns these are two different
+    // markets, so they do not read the blank chart as a broken feed.
+    expect(r.reason).toContain("different market");
+    // And it does NOT re-state who was not asked — `compileBarHistoryRefusal`
+    // prefixes that, and the doubled clause read like distrust of the reader.
+    expect(r.reason).not.toMatch(/never asked|was not asked/);
   });
 
   it("refuses USDC the same way — the rule is the quote currency, not one coin", () => {

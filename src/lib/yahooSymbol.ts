@@ -191,9 +191,13 @@ export function resolveYahooSymbol(sym: string): YahooSymbolResolution {
     return {
       kind: "UNRESOLVED",
       reason:
+        // Phrased to stand alone in the API response AND to read cleanly after
+        // compileBarHistoryRefusal's own "Yahoo was not asked — " prefix, which
+        // already says who was not asked. Repeating it there was the first
+        // draft and it read like the sentence did not trust the reader.
         `Yahoo lists no ${base}/${unlistedQuote} market, and WM does not answer a ` +
         `${unlistedQuote} request with the ${base}/USD price — that is a different ` +
-        `market, not a rounding difference. Yahoo was never asked.`,
+        `market, not a rounding difference.`,
     };
   }
   return { kind: "RESOLVED", ticker: toYahooSymbol(up) };
