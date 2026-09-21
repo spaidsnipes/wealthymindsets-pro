@@ -1,38 +1,23 @@
 /** Webull read-only market-data certification via its signed Data API. */
 import { createHash, createHmac, randomUUID } from "crypto";
 import { certifySource, type SourceCapabilityReport, type SourceCertification } from "../sourceCapabilityCertification";
+import { WEBULL_SDK_CONTRACT } from "../webullSdkContract";
 
 const DEFAULT_HOST = "api.webull.com";
 /**
- * READ FROM THE SDK, NOT FROM A GUESS.
+ * READ FROM THE SDK, NOT FROM A GUESS — and not from here either.
  *
- * A previous comment here asserted that `/openapi/market-data/stock/tick` was
- * "Webull's current official SDK request contract" and that
- * `/market-data/stocks/ticks/list` "returns an access-looking failure". BOTH
- * CLAIMS ARE FALSE. They were disproven by reading the official Webull Python
- * SDK the Founder supplied, not by trusting the note:
+ * This was a hard-coded `/openapi/market-data/stock/tick` at v2, sitting under
+ * a comment asserting that path was "Webull's current official SDK request
+ * contract". It was not, and that uncited assertion is what hid the defect for
+ * three months while the Founder was told to buy a data package he already had.
  *
- *   webull/data/request/get_tick_request.py
- *     ApiRequest.__init__(self, "/market-data/stocks/ticks/list", version='v3', method="GET")
- *
- * and `webull/core/http/response.py` composes the URL as `https://{host}{path}`
- * verbatim — it adds no prefix of its own.
- *
- * Be precise about the prefix: it is NOT globally absent. Some SDK endpoints do
- * carry it (`/openapi/instrument/option/contracts`, `/openapi/fundamentals/...`),
- * so "Webull has no /openapi prefix" would be the wrong lesson. The prefix is
- * per-endpoint, and the stock-tick endpoint does not carry one. Our broker lane
- * independently agrees — `/trading/accounts/list`, no prefix — and that lane is
- * CONNECTED against these exact credentials.
- *
- * That matters because the wrong path produced MARKET_DATA_NOT_SUBSCRIBED,
- * which reads like an entitlement the Founder must go buy. It was not. A
- * provider error code names the provider's view of OUR request; it is not
- * evidence about the operator's account until our request is known-correct.
+ * Path and version now come from `webullSdkContract.ts`, where every row names
+ * the SDK file it was transcribed from, and `webullSdkContract.sentinel.test.ts`
+ * fails the build if a Webull path is hard-coded back into this file.
  */
-const STOCK_TICKS_PATH = "/market-data/stocks/ticks/list";
-/** The SDK pins tick reads to v3; the account list lane is a separate v2 contract. */
-const STOCK_TICKS_API_VERSION = "v3";
+const STOCK_TICKS_PATH = WEBULL_SDK_CONTRACT.STOCK_TICKS.path;
+const STOCK_TICKS_API_VERSION = WEBULL_SDK_CONTRACT.STOCK_TICKS.apiVersion;
 
 export interface WebullDataConfig {
   readonly dataUrl?: string;

@@ -95,6 +95,18 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "Route header: an authenticated post-deploy check that RESEND_FROM_EMAIL is set and " +
       "delivery has left Resend test mode. Hit by hand after a deploy, by design.",
   },
+  "/api/market-data/webull/entitlement": {
+    cls: "OPERATOR_DIAGNOSTIC",
+    evidence:
+      "Added 2026-09-20 and classified at birth, not retro-fitted. It climbs a four-rung ladder " +
+      "of Webull endpoints to separate 'our request is malformed' from 'the data package is " +
+      "missing' — the two look identical from any single endpoint, and guessing between them " +
+      "already cost this project months and sent the Founder to buy a subscription he did not " +
+      "need. It is hit by hand precisely WHEN the market-data wire is denied, so wiring it into " +
+      "a product surface would spend four signed requests per page load to answer a question " +
+      "nobody is asking while the wire is healthy. The thing that SHOULD be on the glass is the " +
+      "tick wire itself (/api/market-data/webull/ticks), which has callers.",
+  },
   "/api/dev/coverage-inspect": {
     cls: "OPERATOR_DIAGNOSTIC",
     evidence:
@@ -291,7 +303,11 @@ describe("every API endpoint has something that actually calls it", () => {
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
     expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(13);
-    expect(every.filter((e) => e.cls === "OPERATOR_DIAGNOSTIC").length).toBe(3);
+    // 3 -> 4 on 2026-09-20: /api/market-data/webull/entitlement, added the same
+    // day it was classified. A diagnostic registered at birth is the honest
+    // case this class is for; the dishonest case is a DARK route relabelled
+    // later, which is why the counts are split rather than summed.
+    expect(every.filter((e) => e.cls === "OPERATOR_DIAGNOSTIC").length).toBe(4);
     expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(1);
     expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(1);
 

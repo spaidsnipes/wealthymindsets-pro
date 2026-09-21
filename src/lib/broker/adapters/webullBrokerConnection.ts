@@ -1,9 +1,11 @@
 /** Bounded, read-only proof of the founder's Webull Trading API connection. */
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders } from "@/lib/marketData/adapters/webullMarketData";
+import { WEBULL_SDK_CONTRACT } from "@/lib/marketData/webullSdkContract";
 
 const DEFAULT_HOST = "api.webull.com";
-const ACCOUNT_LIST_PATH = "/trading/accounts/list";
+/** One owner for Webull paths — see webullSdkContract.ts for why that is a rule. */
+const ACCOUNT_LIST_PATH = WEBULL_SDK_CONTRACT.ACCOUNT_LIST.path;
 
 export interface WebullBrokerConfig {
   readonly appKey?: string;
