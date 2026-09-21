@@ -328,6 +328,39 @@ describe("probeWebullEntitlement", () => {
     }
   });
 
+  /**
+   * MEASURED against production: /app/subscriptions/list answers with bare ids.
+   * An id is a pointer, not an answer — so the probe must follow it, and must
+   * never let a failed expansion look like an empty entitlement.
+   */
+  it("follows id-only subscription rows to their detail", async () => {
+    const asked: string[] = [];
+    const fetchImpl = (async (url: URL) => {
+      const href = String(url);
+      if (!href.includes("/app/subscriptions/list")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      asked.push(href);
+      const id = new URL(href).searchParams.get("subscription_id");
+      if (!id) return new Response(JSON.stringify({ data: [{ subscription_id: "S1" }, { subscription_id: "S2" }] }), { status: 200 });
+      if (id === "S1") return new Response(JSON.stringify({ data: [{ subscription_id: "S1", name: "US Stocks LV1" }] }), { status: 200 });
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const report = await probeWebullEntitlement(fetchImpl, {
+      appKey: "k", appSecret: "s", accessToken: "t",
+      now: () => new Date("2026-09-21T05:00:00.000Z"), nonce: () => "n".repeat(32),
+    });
+
+    expect(asked).toHaveLength(3); // the list, then one detail read per id
+    expect(report.subscriptions?.rows).toEqual([
+      { subscription_id: "S1", name: "US Stocks LV1" },
+      // Expansion gave nothing back. That is reported as UNAVAILABLE rather
+      // than dropped — a vanished row would read as "no such subscription".
+      { subscription_id: "S2", detail: "UNAVAILABLE" },
+    ]);
+  });
+
   it("reads an all-denied ladder as our own suspect, not the Founder's wallet", async () => {
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ code: "INVALID_SIGNATURE" }), { status: 403 })) as unknown as typeof fetch;

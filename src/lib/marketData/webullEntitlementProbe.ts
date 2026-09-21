@@ -587,19 +587,47 @@ export async function probeWebullEntitlement(
    */
   let subscriptions: WebullSubscriptionInventory | undefined;
   try {
-    const { receipt, body } = await climbRungWithBody(
-      fetchImpl,
-      rungSpec("SUBSCRIPTIONS", WEBULL_SDK_CONTRACT.APP_SUBSCRIPTIONS, {}, "legacy-sha1"),
-      creds,
-      checkedAt,
-      makeNonce(),
-      timeoutMs,
-    );
+    const askSubscriptions = (query: Readonly<Record<string, string>>) =>
+      climbRungWithBody(
+        fetchImpl,
+        rungSpec("SUBSCRIPTIONS", WEBULL_SDK_CONTRACT.APP_SUBSCRIPTIONS, query, "legacy-sha1"),
+        creds,
+        checkedAt,
+        makeNonce(),
+        timeoutMs,
+      );
+
+    const { receipt, body } = await askSubscriptions({});
+    let rows = receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(body) : [];
+
+    /**
+     * MEASURED: the bare list answers with ids and nothing else. The SDK's
+     * `set_subscription_id` is how the detail is obtained
+     * (get_app_subscriptions.py), so an id-only row is a POINTER, not an answer
+     * — and stopping at the pointer is how this read would have looked healthy
+     * while telling us nothing about which packages are attached.
+     */
+    const pointers = rows
+      .filter((row) => row.subscription_id && Object.keys(row).length === 1)
+      .map((row) => row.subscription_id)
+      .slice(0, 8);
+    if (pointers.length > 0) {
+      const detailed: Record<string, string>[] = [];
+      for (const id of pointers) {
+        const detail = await askSubscriptions({ subscription_id: id });
+        const expanded = detail.receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(detail.body) : [];
+        // Keep the id visible even when the detail read gives nothing back, so
+        // a silent expansion failure cannot masquerade as an empty entitlement.
+        detailed.push(...(expanded.length > 0 ? expanded : [{ subscription_id: id, detail: "UNAVAILABLE" }]));
+      }
+      rows = detailed;
+    }
+
     subscriptions = {
       outcome: receipt.outcome,
       httpStatus: receipt.httpStatus,
       providerCode: receipt.providerCode,
-      rows: receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(body) : [],
+      rows,
     };
   } catch {
     subscriptions = undefined;
