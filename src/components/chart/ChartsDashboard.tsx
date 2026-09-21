@@ -72,6 +72,12 @@ import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/c
    claim — see chartHeaderPriceFact. */
 const HEADER_PRICE_STYLE: Record<HeaderPriceKind, { color: string; weight: number }> = {
   LIVE_QUOTE: { color: "#E2E8F0", weight: 700 },
+  /* An unattributed number is not a full-brightness claim. It sits with the
+     bar close in the muted pair — still clearly a reading, visibly not the
+     certified one. Build Order §9: a verdict may never be graded in hue, so
+     the DOUBT IS IN THE WORDS ("SOURCE UNCERTIFIED"), not in this colour;
+     the colour only declines to shout. */
+  UNCERTIFIED_QUOTE: { color: "#A8B0C8", weight: 600 },
   BAR_CLOSE: { color: "#A8B0C8", weight: 600 },
   NONE: { color: "#8B92AC", weight: 500 },
   /* AWAITING renders an empty string, so this entry styles nothing. It exists
@@ -2899,6 +2905,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // painting 400 candles underneath it. Measured live on
               // wealthymindsetspro.com/charts, NQ1!, 2026-09-17.
               barsSettled,
+              // Explicit, because `decimals` sits between and defaults — the
+              // same hazard the chartHeaderChangeFact call site already warns
+              // about for `minDecimals`. Passing the source without this would
+              // land a vendor string in the decimal slot.
+              2,
+              // SILENCE IS NOT CERTIFICATION. `source` is useWebSocket's own
+              // verdict on whether it could vouch for this quote's provenance;
+              // when it is still at the "unavailable" sentinel the product has
+              // DECLINED to certify, and the header may not print the number
+              // bare as though it had. Measured on the serving host
+              // 2026-09-20, BTCUSDT: header "81822.00", footer SOURCE UNKNOWN,
+              // rail PRICE UNKNOWN — three owners of one fact and the biggest
+              // number on the screen was the only one making no claim.
+              source,
             );
             const headerPriceStyle = HEADER_PRICE_STYLE[headerPriceFact.kind];
             // THE CHANGE SLOT, ON THE SAME EVIDENCE AS THE PRICE SLOT ABOVE.

@@ -129,3 +129,81 @@ describe("/charts chrome header adoption", () => {
     expect(code).toMatch(/headerPriceFact\.reason/);
   });
 });
+
+describe("× THE BARE UNATTRIBUTED NUMBER: a quote WM cannot name a provider for", () => {
+  // MEASURED on the serving host 2026-09-20, BTCUSDT, one viewport:
+  //   header : 81822.00 +632.00 (+0.78%)
+  //   footer : SOURCE UNKNOWN
+  //   rail   : BTCUSDT · 5m · PRICE UNKNOWN
+  // Three owners of one fact, and the biggest number on the screen was the only
+  // one making no claim about where it came from.
+  const SENTINELS = ["unavailable", "UNAVAILABLE", " unavailable ", "unknown", "none", "n/a", "-", "", "—"];
+
+  it("prints the number AND the doubt, never the number alone", () => {
+    for (const s of SENTINELS) {
+      const f = chartHeaderPriceFact(81822, null, undefined, 2, s);
+      expect(f.kind, `source ${JSON.stringify(s)}`).toBe("UNCERTIFIED_QUOTE");
+      // The number is not withheld — understating knowledge is a truth defect.
+      expect(f.text).toContain("81822.00");
+      // And it is not bare — that would read as a certified live price.
+      expect(f.text).not.toBe("81822.00");
+      expect(f.text).toBe("81822.00 SOURCE UNCERTIFIED");
+      // It IS a reading. WM received this number; it cannot attribute it.
+      expect(f.measured).toBe(true);
+      expect(f.reason).toMatch(/CANNOT NAME THE PROVIDER/);
+    }
+  });
+
+  it("a real vendor name is certified and keeps the live-quote slot untouched", () => {
+    for (const s of ["finnhub", "polygon", "binance", "Alpaca"]) {
+      const f = chartHeaderPriceFact(81822, null, undefined, 2, s);
+      expect(f.kind, `source ${JSON.stringify(s)}`).toBe("LIVE_QUOTE");
+      expect(f.text).toBe("81822.00");
+    }
+  });
+
+  it("SILENCE IS NOT CERTIFICATION: a caller that says nothing is unchanged", () => {
+    // A caller that has not been taught to ask is not thereby accused. Every
+    // pre-existing call site must be byte-identical.
+    const silent = chartHeaderPriceFact(81822, null);
+    const explicitUndefined = chartHeaderPriceFact(81822, null, undefined, 2, undefined);
+    expect(silent.kind).toBe("LIVE_QUOTE");
+    expect(silent.text).toBe("81822.00");
+    expect(explicitUndefined).toEqual(silent);
+  });
+
+  it("uncertainty about the SOURCE never overrides the absence of a PRICE", () => {
+    // No live number at all still falls to the bar close / NONE arms. An
+    // uncertified source is a claim about provenance, not a price.
+    expect(chartHeaderPriceFact(0, CLOSE, undefined, 2, "unavailable").kind).toBe("BAR_CLOSE");
+    expect(chartHeaderPriceFact(null, null, undefined, 2, "unavailable").kind).toBe("NONE");
+    expect(chartHeaderPriceFact(null, null, false, 2, "unavailable").kind).toBe("AWAITING");
+  });
+
+  it("carries the instrument's decimals into the uncertified text", () => {
+    const f = chartHeaderPriceFact(1.23456, null, undefined, 4, "unavailable");
+    expect(f.text).toBe("1.2346 SOURCE UNCERTIFIED");
+  });
+});
+
+describe("/charts chrome header adoption — the source actually reaches the owner", () => {
+  const code = readFileSync(
+    join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
+    "utf8",
+  );
+
+  it("× THE UNASKED QUESTION: the header hands its quote source to the compiler", () => {
+    const call = code.slice(
+      code.indexOf("const headerPriceFact = chartHeaderPriceFact("),
+      code.indexOf("const headerPriceStyle = HEADER_PRICE_STYLE["),
+    );
+    expect(call, "the header never calls chartHeaderPriceFact").not.toBe("");
+    expect(call, "barsSettled is no longer passed").toContain("barsSettled");
+    expect(call, "decimals must be explicit so source cannot land in its slot").toMatch(/\n\s*2,/);
+    expect(call, "the live quote's source is not handed over").toMatch(/\n\s*source,/);
+  });
+
+  it("× THE PROVENANCE-BLIND COLOUR: the new kind has a declared style", () => {
+    expect(code).toContain("UNCERTIFIED_QUOTE: {");
+  });
+});

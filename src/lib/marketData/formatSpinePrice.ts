@@ -41,6 +41,8 @@
  * It prints NOTHING, because "we have not finished asking" is not a reading
  * and the canon has no word for one (canon §silence-is-a-feature).
  */
+import { quoteSourceNamesProvider } from "./quoteSourceNamesProvider";
+
 export type SpinePriceProvenance =
   | "PRINT"
   | "BAR_CLOSE"
@@ -175,10 +177,11 @@ export function selectPriceEvidence(
   //
   // A sentinel is therefore treated as NO source at all, and the number is
   // dropped — the same outcome as an empty string, for the same reason.
-  const NON_PROVIDERS = new Set(["unavailable", "unknown", "none", "n/a", "-"]);
-  const namesAProvider =
-    quoteSource !== "" && !NON_PROVIDERS.has(quoteSource.toLowerCase());
-  if (usable(quote?.last) && namesAProvider) {
+  //
+  // The rule itself lives in `quoteSourceNamesProvider` rather than inline
+  // here, because the chart HEADER asks the same question about the same
+  // field. Two inline copies would be two owners of one rule.
+  if (usable(quote?.last) && quoteSourceNamesProvider(quoteSource)) {
     return {
       value: quote!.last!,
       provenance: "QUOTE",

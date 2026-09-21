@@ -1,3 +1,28 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **shift baton** — a hand-off written at the end of one shift. Its filename names its own day. It was true
+> on that day and is preserved as evidence of what was observed and decided
+> then. Do not take a current action, diagnosis, release decision or task claim
+> from it.
+>
+> **The current front door is in Drive, not in this repository.** A worker who
+> arrived here from a search result or a shared link has not passed through
+> `README.md` and has not met its demotion notice — this block is that notice,
+> delivered at the door of the document itself.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal: the
+> Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-20 AT BIRTH — this stamp was written in the same shift the
+> document records, not retrofitted later. A baton is point-in-time by
+> construction; there is no moment at which it was entitled to the present
+> tense. See `src/lib/ops/datedDocsAreDemoted.sentinel.test.ts`.
+<!-- END:ath-historical-lineage -->
+
 # SHIFT BATON — 2026-09-20 — The Price Provenance Nest
 
 **Scope of this shift:** one nest, chased to the end. Not a feature list.

@@ -1,4 +1,5 @@
 import type { LastBarCloseEvidence } from "./deriveLastBarClose";
+import { quoteSourceNamesProvider } from "./quoteSourceNamesProvider";
 
 /**
  * chartHeaderPriceFact — what the /charts chrome header is entitled to print
@@ -76,7 +77,12 @@ import type { LastBarCloseEvidence } from "./deriveLastBarClose";
  * `AWAITING` prints NOTHING. A blank slot for one second is not a claim; "No
  * price" is.
  */
-export type HeaderPriceKind = "LIVE_QUOTE" | "BAR_CLOSE" | "NONE" | "AWAITING";
+export type HeaderPriceKind =
+  | "LIVE_QUOTE"
+  | "UNCERTIFIED_QUOTE"
+  | "BAR_CLOSE"
+  | "NONE"
+  | "AWAITING";
 
 export interface HeaderPriceFact {
   readonly text: string;
@@ -116,8 +122,60 @@ export function chartHeaderPriceFact(
    * it is the only reason MainChart could adopt this owner at all.
    */
   decimals: number = 2,
+  /**
+   * The `source` this product attached to that live price, if it attached one.
+   *
+   * OPTIONAL and LAST, for the same reason as the two parameters above: every
+   * existing caller keeps its exact behaviour when it says nothing.
+   *
+   * ── THE DEFECT THIS CLOSES ──────────────────────────────────────────
+   * MEASURED on the serving host 2026-09-20, BTCUSDT, one viewport:
+   *
+   *     header : 81822.00 +632.00 (+0.78%)
+   *     footer : SOURCE UNKNOWN
+   *     rail   : BTCUSDT · 5m · PRICE UNKNOWN
+   *
+   * Three owners of one fact, and the biggest number on the screen was the
+   * only one making no claim about where it came from. `useWebSocket` had
+   * DECLINED to certify that quote's provenance (Finnhub returned no
+   * observation time, so `source` was left at its `"unavailable"` sentinel) —
+   * the product knew it could not vouch for the number, said so twice
+   * elsewhere, and printed it bare here in 20px.
+   *
+   * This file already holds the law that fixes it, written for the bar close:
+   * "a bare figure in this slot would be read as a live price, which is the
+   * one thing it is not." An uncertified quote is in exactly that position.
+   * So it is NOT downgraded to NONE — the number is real and withholding it
+   * would be the understatement defect this file was built to end — and it is
+   * NOT printed bare either. It becomes its own declared provenance, with its
+   * own words travelling beside the number.
+   *
+   * SILENCE IS NOT CERTIFICATION. A caller that passes nothing is a caller
+   * that has not been taught to ask, so its behaviour is unchanged; only a
+   * caller that hands over a source is judged on it.
+   */
+  quoteSource?: unknown,
 ): HeaderPriceFact {
   if (finite(livePrice) && livePrice > 0) {
+    // Only a caller that actually passed something gets judged. `undefined`
+    // means "nobody told me", which is the pre-existing world.
+    const sourceWasOffered = quoteSource !== undefined;
+    if (sourceWasOffered && !quoteSourceNamesProvider(quoteSource)) {
+      return {
+        // The provenance travels WITH the number, exactly as it does for the
+        // bar close two arms down. The trader sees the price AND sees that WM
+        // will not put a name to it.
+        text: `${livePrice.toFixed(decimals)} SOURCE UNCERTIFIED`,
+        // It IS a measurement. WM received this number; what it cannot do is
+        // attribute it.
+        measured: true,
+        kind: "UNCERTIFIED_QUOTE",
+        reason:
+          `A quote of ${livePrice.toFixed(decimals)} reached this header, but WM CANNOT NAME THE PROVIDER IT CAME FROM, so it will not put a vendor's name to it. ` +
+          "This happens when a quote arrives without the observation time WM uses to certify provenance — the number is real and is shown for that reason, but it is unattributed and you cannot check it against a source. " +
+          "WM prints the number rather than hiding it, and prints the doubt rather than hiding that.",
+      };
+    }
     return {
       text: livePrice.toFixed(decimals),
       measured: true,
