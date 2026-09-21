@@ -3,10 +3,32 @@ import { createHash, createHmac, randomUUID } from "crypto";
 import { certifySource, type SourceCapabilityReport, type SourceCertification } from "../sourceCapabilityCertification";
 
 const DEFAULT_HOST = "api.webull.com";
-// Webull's current official SDK request contract. The older
-// `/market-data/stocks/ticks/list` path returns an access-looking failure even
-// when the same provider account can read stock ticks through the SDK.
-const STOCK_TICKS_PATH = "/openapi/market-data/stock/tick";
+/**
+ * READ FROM THE SDK, NOT FROM A GUESS.
+ *
+ * A previous comment here asserted that `/openapi/market-data/stock/tick` was
+ * "Webull's current official SDK request contract" and that
+ * `/market-data/stocks/ticks/list` "returns an access-looking failure". BOTH
+ * CLAIMS ARE FALSE. They were disproven by reading the official Webull Python
+ * SDK the Founder supplied, not by trusting the note:
+ *
+ *   webull/data/request/get_tick_request.py
+ *     ApiRequest.__init__(self, "/market-data/stocks/ticks/list", version='v3', method="GET")
+ *
+ * and `webull/core/http/response.py` composes the URL as
+ * `https://{host}{path}` with NO `/openapi` prefix. The same is true of the
+ * broker lane in this repo — `/trading/accounts/list`, no prefix — and that
+ * lane is CONNECTED against these exact credentials. The prefix was the
+ * anomaly, and it was ours.
+ *
+ * That matters because the wrong path produced MARKET_DATA_NOT_SUBSCRIBED,
+ * which reads like an entitlement the Founder must go buy. It was not. A
+ * provider error code names the provider's view of OUR request; it is not
+ * evidence about the operator's account until our request is known-correct.
+ */
+const STOCK_TICKS_PATH = "/market-data/stocks/ticks/list";
+/** The SDK pins tick reads to v3; the account list lane is a separate v2 contract. */
+const STOCK_TICKS_API_VERSION = "v3";
 
 export interface WebullDataConfig {
   readonly dataUrl?: string;
@@ -218,7 +240,7 @@ export async function fetchWebullTickSnapshot(
   const host = cleanHost(config.apiHost);
   const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
   const query = { category: "US_STOCK", count: "5", symbol, trading_sessions: "PRE,RTH,ATH,OVN" };
-  const signedHeaders = buildWebullSignedHeaders({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce, apiVersion: "v2", profile: signingProfile });
+  const signedHeaders = buildWebullSignedHeaders({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce, apiVersion: STOCK_TICKS_API_VERSION, profile: signingProfile });
   const url = new URL(`https://${host}${STOCK_TICKS_PATH}`);
   Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
 

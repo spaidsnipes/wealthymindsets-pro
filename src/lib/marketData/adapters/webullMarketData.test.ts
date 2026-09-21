@@ -153,14 +153,20 @@ describe("Webull Data API market-data certification", () => {
     expect(cert.cvd).toBe("UNAVAILABLE");
 
     const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(String(url)).toContain("/openapi/market-data/stock/tick?");
-    expect(String(url)).not.toContain("/market-data/stocks/ticks/list");
+    // Pinned to the official Webull Python SDK, which is the only authority
+    // here: get_tick_request.py declares "/market-data/stocks/ticks/list" at
+    // version v3, and core/http/response.py builds `https://{host}{path}` with
+    // NO "/openapi" prefix. The prefixed path this repo used to send is what
+    // produced MARKET_DATA_NOT_SUBSCRIBED — a wrong request wearing an
+    // entitlement error's clothes. Do not "restore" it.
+    expect(String(url)).toContain("/market-data/stocks/ticks/list?");
+    expect(String(url)).not.toContain("/openapi/");
     expect(String(url)).toContain("symbol=TSLA");
     expect(init.headers["x-app-key"]).toBe("app-key");
     expect(init.headers).toMatchObject({
-      "x-signature": "30WsgVcvHJMC74RU6fwHMXybePk=",
+      "x-signature": "F/G+wdFmhq7+uJ1bo8v/de8cpww=",
       "x-signature-algorithm": "HMAC-SHA1", "x-signature-version": "1.0",
-      "x-signature-nonce": "fixed-nonce", "x-timestamp": "2026-08-31T11:57:05Z", "x-version": "v2",
+      "x-signature-nonce": "fixed-nonce", "x-timestamp": "2026-08-31T11:57:05Z", "x-version": "v3",
     });
     expect(init.headers["x-access-token"]).toBeUndefined();
   });
@@ -179,7 +185,7 @@ describe("Webull Data API market-data certification", () => {
     });
     const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(init.headers["x-access-token"]).toBe("active-2fa-token");
-    expect(init.headers["x-signature"]).toBe("30WsgVcvHJMC74RU6fwHMXybePk=");
+    expect(init.headers["x-signature"]).toBe("F/G+wdFmhq7+uJ1bo8v/de8cpww=");
   });
 
   it("maps HTTP 401 to auth uncertainty without leaking response bodies or secrets", async () => {
