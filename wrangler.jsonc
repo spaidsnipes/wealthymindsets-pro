@@ -35,6 +35,42 @@
   },
 
   /**
+   * WEBULL_SESSION — where the Webull session survives an isolate.
+   *
+   * This is a BINDING, not a secret, and the id below is a namespace handle
+   * rather than a credential: it names a container, it does not open one. The
+   * SECRETS rule above is intact.
+   *
+   * Why it exists, measured in production 2026-09-21:
+   *
+   *   05:02:09  accessToken:true   "minted and PENDING your 2FA approval"
+   *   -- Founder approves in the Webull app --
+   *   05:04:46  accessToken:FALSE  "minted and PENDING your 2FA approval"
+   *
+   * The isolate holding the session he approved was evicted before the next
+   * request arrived, so his tap landed on a session that no longer existed and
+   * he was asked to approve again. An isolate can die in well under the time it
+   * takes a human to reach for a phone — so without this binding there is no
+   * reliable sequence in which an approval is EVER observed.
+   *
+   * What is written here is a SESSION: it expires, it is refreshable, and it is
+   * revocable from Webull's side. The App Key and App Secret are NOT written
+   * here; they never expire and stay in the encrypted secret store. Nothing a
+   * human types goes in this namespace and nothing in it is ever rendered.
+   *
+   * The binding NAME is mirrored by WEBULL_SESSION_KV_BINDING in
+   * src/lib/marketData/webullSessionStore.ts. Absent the binding that module
+   * falls back to an isolate-local store on purpose: an unprovisioned namespace
+   * must cost durability, not availability.
+   */
+  "kv_namespaces": [
+    {
+      "binding": "WEBULL_SESSION",
+      "id": "60de2e8429b94598b30401bef09e2449"
+    }
+  ],
+
+  /**
    * SECRET NAMES — never values. See the SECRETS note above.
    *
    * This list is NOT hand-maintained. It is a MIRROR of
