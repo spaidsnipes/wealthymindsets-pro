@@ -19,7 +19,7 @@ import {
   yahooProvenance,
 } from "@/lib/marketData/yahooCandleIngress";
 import { buildYahooQuoteObservation } from "@/lib/marketData/yahooQuoteObservation";
-import { toYahooSymbol } from "@/lib/yahooSymbol";
+import { resolveYahooSymbol } from "@/lib/yahooSymbol";
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 
@@ -79,7 +79,38 @@ export async function GET(request: Request) {
   const parsedBars = parseInt(searchParams.get("bars") ?? "300", 10);
   const bars = Number.isFinite(parsedBars) ? Math.max(1, Math.min(3000, parsedBars)) : 300;
 
-  const yfSym  = toYahooSymbol(rawSym);
+  /**
+   * A RULE OF OURS IS NOT A REFUSAL OF YAHOO'S.
+   *
+   * When `resolveYahooSymbol` declines, this route answers WITHOUT going to
+   * the wire, and says so in a field no caller can mistake for a vendor edge.
+   * Before this, the unresolved symbol was passed through verbatim, Yahoo
+   * 404'd, and `{"error":"Error: Yahoo HTTP 404"}` reached the chart — which
+   * rendered "Yahoo was asked and refused". It was not asked. See
+   * `yahooSymbol.ts` for the full shape of that misattribution, and
+   * `compileBarHistoryRefusal.ts` for the NOT_ASKED / REFUSED distinction this
+   * field finally lets that compiler apply to the Yahoo lane.
+   *
+   * 422, not 404: the request was well-formed and the symbol is real. What is
+   * absent is a Yahoo market for it, and a rule of ours about that absence.
+   */
+  const resolution = resolveYahooSymbol(rawSym);
+  if (resolution.kind === "UNRESOLVED") {
+    return NextResponse.json(
+      {
+        sym: rawSym,
+        notAsked: true,
+        rule: resolution.reason,
+        // `error` is retained so the ten existing consumers that only read it
+        // still see an honest absence rather than an empty success. Readers
+        // that want the distinction read `notAsked`.
+        error: resolution.reason,
+        candles: [],
+      },
+      { status: 422, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const yfSym  = resolution.ticker;
 
   try {
     if (type === "quote") {

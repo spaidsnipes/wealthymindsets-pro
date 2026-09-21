@@ -1,3 +1,24 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **measurement receipt for one minute**, not a standing statement of
+> Webull's wire. Its rung table was true at the `checkedAt` stamp below and goes
+> `STALE` the moment Webull, the account, or the key changes — none of which
+> announce themselves to this file. Do not cite the verdict as today's state.
+>
+> **Re-measure instead of reading:** `GET /api/market-data/webull/entitlement?symbol=TSLA`
+> re-runs the identical ladder live. That endpoint, not this page, is the
+> current authority on entitlement.
+>
+> What this document *does* keep standing is the **lesson**, which is dateless:
+> a provider error code describes the provider's view of *our* request, and is
+> not evidence about the operator's account until our request is known-correct.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # Webull market data — the three-month "subscription" that was our own bad request, and what is actually left
 
 **Date:** 2026-09-20 · **Commits:** `b4520d0b`, `08e0d1e6`, `cc5e3690` · **Cloudflare Version ID:** `6345aa3b-b0fc-4883-91f9-98586a5a2800`

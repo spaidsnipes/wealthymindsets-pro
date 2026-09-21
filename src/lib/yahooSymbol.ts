@@ -139,6 +139,66 @@ export const YF_CRYPTO_PINS: Readonly<Record<string, YahooCryptoPin>> = {
   UNI:     { ticker: "UNI7083-USD",      yahooName: "Uniswap",                 displacedName: "UNICORN Token" },
 };
 
+/**
+ * A SYMBOL THIS MODULE WILL NOT SEND TO YAHOO, AND WHY.
+ *
+ * ── THE MISATTRIBUTION THIS TYPE EXISTS TO END ──────────────────────────────
+ *
+ * `toYahooSymbol` returns its input verbatim when nothing resolves. That is a
+ * safe default for a string function and a dishonest one for a request: the
+ * caller then ASKS Yahoo for `BTCUSDT`, Yahoo says 404, and the chart prints
+ *
+ *     Yahoo was asked and refused — Error: Yahoo HTTP 404.
+ *
+ * Measured on the serving host, BTCUSDT · 5m, 2026-09-20. Every word of that
+ * sentence is true and the sentence is wrong. Yahoo did not refuse a judgement
+ * call; WM declined, several frames earlier, to substitute a USD market for a
+ * USDT one — a deliberate rule with an owner — and then let the vendor take
+ * the blame for it by sending the request anyway.
+ *
+ * That is the SAME FAILURE SHAPE as the Webull three-month bug documented in
+ * `marketData/webullSdkContract.ts`: a provider's error code read as evidence
+ * about the provider, when it was only ever the provider's view of OUR
+ * request. There the cost was three months of telling the Founder to buy data
+ * he already owned. Here the cost is a trader distrusting a vendor that
+ * answered correctly.
+ *
+ * `compileBarHistoryRefusal.ts` already holds the right distinction —
+ * NOT_ASKED ("a rule in this product stopped the request before the wire...
+ * must be owned out loud, never dressed up as the vendor's silence") versus
+ * REFUSED. It could not be used on this path because the rule did not survive
+ * as a value. Now it does.
+ */
+export type YahooSymbolResolution =
+  | { readonly kind: "RESOLVED"; readonly ticker: string }
+  /** `reason` is written for a trader to read on the glass, not for a log. */
+  | { readonly kind: "UNRESOLVED"; readonly reason: string };
+
+/**
+ * Resolve a WM symbol to a Yahoo ticker, or say — in one sentence a trader can
+ * act on — why this product will not ask.
+ *
+ * WHAT THIS DOES NOT CLAIM: a RESOLVED verdict is not a promise Yahoo holds
+ * that ticker. It means no rule HERE stopped the request. Yahoo may still 404,
+ * and that 404 is then genuinely Yahoo's answer and belongs to Yahoo.
+ */
+export function resolveYahooSymbol(sym: string): YahooSymbolResolution {
+  const up = sym.trim().toUpperCase();
+  const compact = up.replace(/[-/]/g, "");
+  const unlistedQuote = UNLISTED_CRYPTO_QUOTES.exec(compact)?.[0];
+  if (unlistedQuote && !YF_MAP[up] && cryptoBaseTicker(up)) {
+    const base = cryptoBaseTicker(up);
+    return {
+      kind: "UNRESOLVED",
+      reason:
+        `Yahoo lists no ${base}/${unlistedQuote} market, and WM does not answer a ` +
+        `${unlistedQuote} request with the ${base}/USD price — that is a different ` +
+        `market, not a rounding difference. Yahoo was never asked.`,
+    };
+  }
+  return { kind: "RESOLVED", ticker: toYahooSymbol(up) };
+}
+
 export function toYahooSymbol(sym: string): string {
   const up = sym.trim().toUpperCase();
   if (YF_MAP[up]) return YF_MAP[up];

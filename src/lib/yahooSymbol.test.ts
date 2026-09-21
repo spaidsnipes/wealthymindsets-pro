@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { YF_CRYPTO_PINS, YF_MAP, toYahooSymbol } from "./yahooSymbol";
+import { YF_CRYPTO_PINS, YF_MAP, resolveYahooSymbol, toYahooSymbol } from "./yahooSymbol";
 import { canonicalAssetClass } from "./marketData/canonicalIdentity";
 
 /**
@@ -318,6 +318,56 @@ describe("the claim stayed narrow — negative controls", () => {
     // different quote currency would be answering a question nobody asked.
     expect(toYahooSymbol("BTCUSDT")).not.toBe("BTC-USD");
     expect(toYahooSymbol("ETHUSDC")).not.toBe("ETH-USD");
+  });
+});
+
+/**
+ * OUR RULE, REPORTED AS OURS.
+ *
+ * The rule above was real and silent. `toYahooSymbol("BTCUSDT")` returned
+ * "BTCUSDT", the caller sent it, Yahoo 404'd, and the chart printed "Yahoo was
+ * asked and refused — Error: Yahoo HTTP 404" (measured on the serving host,
+ * BTCUSDT · 5m, 2026-09-20). Yahoo answered a bad question correctly and wore
+ * the blame for a decision WM made three frames earlier.
+ *
+ * Same failure shape as the Webull three-month bug: a provider's error read as
+ * evidence about the provider, when it was only the provider's view of OUR
+ * request. These tests pin the distinction so it cannot go quiet again.
+ */
+describe("a decision of ours never leaves the building dressed as the vendor's", () => {
+  it("refuses a USDT pair BEFORE the wire, naming both currencies", () => {
+    const r = resolveYahooSymbol("BTCUSDT");
+    expect(r.kind).toBe("UNRESOLVED");
+    if (r.kind !== "UNRESOLVED") throw new Error("unreachable");
+    expect(r.reason).toContain("BTC");
+    expect(r.reason).toContain("USDT");
+    // The point of the sentence: the trader learns nobody was blamed for it.
+    expect(r.reason).toContain("never asked");
+  });
+
+  it("refuses USDC the same way — the rule is the quote currency, not one coin", () => {
+    const r = resolveYahooSymbol("ETHUSDC");
+    expect(r.kind).toBe("UNRESOLVED");
+  });
+
+  it("does NOT refuse the markets Yahoo actually lists", () => {
+    // Guards the guard. An over-broad rule would make this module 'honest' by
+    // refusing everything, and the suite above would still be green.
+    for (const sym of ["BTC-USD", "BTCUSD", "BTC", "TSLA", "AAPL", "NQ1!", "EUR/USD", "XAUUSD"]) {
+      const r = resolveYahooSymbol(sym);
+      expect(r.kind, `${sym} was refused before the wire`).toBe("RESOLVED");
+    }
+  });
+
+  it("a RESOLVED verdict returns exactly what toYahooSymbol would have", () => {
+    // The refusal is the ONLY behaviour change. If these two ever disagree,
+    // one call site silently resolves differently from another — Canon
+    // Weakness #1, two owners of one pixel.
+    for (const sym of ["BTC-USD", "TSLA", "NQ1!", "SUI", "PEPE", "EURUSD", "US30"]) {
+      const r = resolveYahooSymbol(sym);
+      if (r.kind !== "RESOLVED") throw new Error(`${sym} unexpectedly refused`);
+      expect(r.ticker).toBe(toYahooSymbol(sym));
+    }
   });
 
   it("no currency pair the pickers offer was turned into crypto", () => {

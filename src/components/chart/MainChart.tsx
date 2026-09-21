@@ -692,13 +692,31 @@ async function fetchYahooCandles(sym: string, tf: string, count: number, ext = f
     const res = await fetch(url, { cache: "no-store", signal });
     const json = await res.json() as {
       error?: unknown;
+      notAsked?: unknown;
+      rule?: unknown;
       candles?: LegacyOhlcvTuple[];
       barIdentities?: CanonicalBarIdentity[];
     };
+    /* A RULE OF OURS REPORTED AS OURS.
+       `/api/yahoo` sets `notAsked` when a WM rule stopped the request before
+       the wire — today, the refusal to answer a USDT pair with a USD price.
+       That used to arrive here as "Error: Yahoo HTTP 404", because the
+       unresolved ticker was sent anyway, and the glass read "Yahoo was asked
+       and refused". Yahoo answered a question correctly and wore the blame for
+       our decision. NOT_ASKED carries the rule instead, which is the outcome
+       `compileBarHistoryRefusal` was built for and could not previously be
+       given on this lane. */
+    if (json.notAsked === true) {
+      note(log, {
+        vendor: "Yahoo",
+        outcome: "NOT_ASKED",
+        rule: typeof json.rule === "string" && json.rule ? json.rule : null,
+      });
+      return null;
+    }
     // /api/yahoo answers 200 with an `error` field, so `res.ok` alone would
-    // read a refusal as an empty market. It is not one: measured live on
-    // BTCUSDT this lane returns "Error: Yahoo HTTP 404" — the vendor was
-    // asked and said no, which is a different fact from a quiet window.
+    // read a refusal as an empty market. It is not one: the vendor was asked
+    // and said no, which is a different fact from a quiet window.
     if (typeof json.error === "string" && json.error) {
       note(log, { vendor: "Yahoo", outcome: "REFUSED", edge: json.error });
       return null;
