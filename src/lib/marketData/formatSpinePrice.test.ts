@@ -177,6 +177,22 @@ describe("formatSpinePrice — the QUOTE channel", () => {
     }
   });
 
+  it("treats an UNCERTIFIED-provenance sentinel as no source at all", () => {
+    // MEASURED on the serving host 2026-09-20: this arm rendered
+    // "81781.82 LAST QUOTE · unavailable". `unavailable` is useWebSocket's
+    // sentinel for a quote whose source this product refused to certify —
+    // printing it as a citation states the opposite of what WM knows.
+    for (const src of ["unavailable", "UNAVAILABLE", " unavailable ", "unknown", "none", "n/a", "-"]) {
+      const d = formatSpinePrice(null, null, "5m", true, { last: 81781.82, source: src });
+      expect(d.provenance, `source ${JSON.stringify(src)}`).toBe("NONE");
+      expect(d.text).toBe("PRICE UNKNOWN");
+    }
+    // A real vendor name is still a real citation.
+    expect(
+      formatSpinePrice(null, null, "5m", true, { last: 81781.82, source: "finnhub" }).provenance,
+    ).toBe("QUOTE");
+  });
+
   it("does not fabricate a quote out of a missing or zero price", () => {
     for (const last of [null, undefined, 0, -1, Number.NaN]) {
       expect(

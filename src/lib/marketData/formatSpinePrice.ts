@@ -164,7 +164,21 @@ export function selectPriceEvidence(
   // THE THIRD CHANNEL, last. See `SpinePriceProvenance["QUOTE"]` for the
   // measurement and for why it is ranked below both of the above.
   const quoteSource = typeof quote?.source === "string" ? quote.source.trim() : "";
-  if (usable(quote?.last) && quoteSource) {
+  // MEASURED 2026-09-20 on the serving host: this arm printed the string
+  // "81781.82 LAST QUOTE · unavailable" for BTCUSDT. "unavailable" is not a
+  // provider — it is `useWebSocket`'s sentinel for a quote whose provenance
+  // this product DECLINED to certify (Finnhub returned no observation time, so
+  // `source` was never promoted off its initial value). Rendering the sentinel
+  // as if it were a vendor name turns a deliberate refusal to vouch into a
+  // citation, which is the drawer-filed receipt in reverse: the disclosure
+  // reaches the glass, but says the opposite of what the product knows.
+  //
+  // A sentinel is therefore treated as NO source at all, and the number is
+  // dropped — the same outcome as an empty string, for the same reason.
+  const NON_PROVIDERS = new Set(["unavailable", "unknown", "none", "n/a", "-"]);
+  const namesAProvider =
+    quoteSource !== "" && !NON_PROVIDERS.has(quoteSource.toLowerCase());
+  if (usable(quote?.last) && namesAProvider) {
     return {
       value: quote!.last!,
       provenance: "QUOTE",
