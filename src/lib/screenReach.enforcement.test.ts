@@ -460,6 +460,23 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
       + "observingSinceMs/observingUntilMs across the ~15-minute Cloudflare "
       + "eviction seam; delete this entry then.",
   },
+  "src/lib/marketData/tapeRelayGeneration.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "The relay's bookkeeping of its own connection: one generation per "
+      + "unbroken stretch of upstream watching, so bars are never aggregated "
+      + "across a reconnect seam and the generation number becomes the bar's "
+      + "truthEpoch. It shares ONE first consumer with dxlinkProtocol.ts — the "
+      + "Durable Object relay — and that is stated here rather than left to be "
+      + "discovered, because two ledger entries awaiting the same surface is "
+      + "the BACKEND_GREEN_FRONTEND_DARK shape starting, and a third would mean "
+      + "the pattern won. The relay is deliberately NOT built ahead of "
+      + "TASTYTRADE_REFRESH_TOKEN: it cannot be exercised against a live socket "
+      + "without it, and shipping an unverifiable socket into the Founder's "
+      + "production worker is the exact 'connected but I still cannot see the "
+      + "data' failure he asked us not to repeat. Delete both entries together "
+      + "when the relay lands measured.",
+  },
   "src/lib/marketData/isOptionSymbol.ts": {
     reason: "AWAITING_SURFACE",
     note: "Symbol classification helper, unused by any surface.",
