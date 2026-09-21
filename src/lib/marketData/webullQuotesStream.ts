@@ -109,6 +109,13 @@ export interface WebullStreamDeps {
 export interface WebullStreamInput {
   readonly appKey: string;
   readonly appSecret: string;
+  /**
+   * The minted Webull session, forwarded to the subscribe leg as
+   * `x-access-token`. Absent is a legal state: the request still goes, and
+   * Webull's own `401 INVALID_TOKEN` names the gap better than a local guard
+   * could — see the MEASURED note in `webullQuotesSubscribe.ts`.
+   */
+  readonly accessToken?: string;
   readonly symbols: readonly string[];
   readonly category: WebullCategory;
   readonly subTypes: readonly WebullSubType[];
@@ -274,6 +281,7 @@ export async function* streamWebullQuotes(
       subTypes: input.subTypes,
       appKey: input.appKey,
       appSecret: input.appSecret,
+      accessToken: input.accessToken,
       timestamp: new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z"),
       nonce: deps.mintId(),
       host: input.host,

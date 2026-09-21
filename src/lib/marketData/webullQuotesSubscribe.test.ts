@@ -119,6 +119,49 @@ describe("buildWebullSubscribeRequest", () => {
     expect(serialized).not.toContain(BASE.appSecret);
   });
 
+  /**
+   * THE HEADER THAT WAS MISSING IN PRODUCTION.
+   *
+   * MEASURED 2026-09-21, first live run of `/api/market-data/webull/stream`:
+   * CONNACK 0 on the socket, then `401 INVALID_TOKEN` on this request. The
+   * builder sent no `x-access-token`. `webull/core/client.py:259` sends it on
+   * every request — and sends it AFTER `signer.sign(request)`.
+   */
+  it("carries the session as x-access-token when one is supplied", () => {
+    const request = buildWebullSubscribeRequest({ ...BASE, accessToken: "  minted-session  " });
+    expect(request.headers["x-access-token"]).toBe("minted-session");
+  });
+
+  it("omits x-access-token entirely rather than sending an empty one", () => {
+    // An empty header is a claim to hold a session we do not hold. Letting
+    // Webull answer the real question — "who is this?" — keeps the refusal
+    // legible instead of turning it into a malformed-request puzzle.
+    expect(buildWebullSubscribeRequest(BASE).headers).not.toHaveProperty("x-access-token");
+    expect(
+      buildWebullSubscribeRequest({ ...BASE, accessToken: "   " }).headers,
+    ).not.toHaveProperty("x-access-token");
+  });
+
+  it("does NOT let the session change the signature", () => {
+    // The whole reason this header is safe to add late. If signing ever starts
+    // covering it, a session refresh would silently invalidate every request
+    // and the failure would look like a signing bug rather than a token one.
+    const without = buildWebullSubscribeRequest(BASE);
+    const with1 = buildWebullSubscribeRequest({ ...BASE, accessToken: "session-alpha" });
+    const with2 = buildWebullSubscribeRequest({ ...BASE, accessToken: "session-beta" });
+    expect(with1.headers["x-signature"]).toBe(without.headers["x-signature"]);
+    expect(with2.headers["x-signature"]).toBe(without.headers["x-signature"]);
+    expect(with1.body).toBe(without.body);
+  });
+
+  it("keeps the session out of the body and the URL", () => {
+    // Never in a query string, never in a signed payload — the same rule the
+    // rest of this repo obeys for credential material.
+    const request = buildWebullSubscribeRequest({ ...BASE, accessToken: "SECRET-SESSION" });
+    expect(request.body).not.toContain("SECRET-SESSION");
+    expect(request.url).not.toContain("SECRET-SESSION");
+  });
+
   it("honours an explicit host without scheme or trailing slash", () => {
     const request = buildWebullSubscribeRequest({ ...BASE, host: "https://uat-api.webull.com/" });
     expect(request.url).toBe("https://uat-api.webull.com/market-data/streaming/subscribe");
@@ -152,6 +195,38 @@ describe("readSubscribeOutcome", () => {
       expect(outcome.note).not.toMatch(/\bsubscription (is )?required\b/i);
       expect(outcome.note).not.toMatch(/\bpurchase\b|\bupgrade\b|\bpay\b/i);
     }
+  });
+
+  it("reads 401 / INVALID_TOKEN as a SESSION fact, never an entitlement one", () => {
+    // MEASURED 2026-09-21 in production. This is the answer Webull actually
+    // gave, on a connection it had already accepted with CONNACK 0. A 401 on a
+    // market-data path reads to every human as "market data is not
+    // subscribed" — which is precisely the misreading that sent this project
+    // to the Founder's wallet for three months. It is pinned here.
+    for (const outcome of [
+      readSubscribeOutcome(401, { code: "INVALID_TOKEN" }),
+      readSubscribeOutcome(401, {}),
+      readSubscribeOutcome(403, { errorCode: "INVALID_TOKEN" }),
+    ]) {
+      expect(outcome.subscribed).toBe(false);
+      expect(outcome.note).toMatch(/did not accept the session/i);
+      expect(outcome.note).toMatch(/not an entitlement fact/i);
+      expect(outcome.note).not.toMatch(/\bsubscription (is )?required\b/i);
+      expect(outcome.note).not.toMatch(/\b(go|must|need to|should)\s+(buy|purchase|upgrade|subscribe)\b/i);
+      // It must also name the one action that resolves it, or it is just a
+      // better-worded dead end.
+      expect(outcome.note).toMatch(/mint a fresh session/i);
+    }
+  });
+
+  it("keeps 401 and 417 as DIFFERENT answers", () => {
+    // They are two distinct questions — "who is this?" and "which socket?" —
+    // and collapsing them would lose the one distinction that made the live
+    // measurement legible at all.
+    const token = readSubscribeOutcome(401, { code: "INVALID_TOKEN" });
+    const socket = readSubscribeOutcome(417, { code: "INVALID_SESSION" });
+    expect(token.note).not.toBe(socket.note);
+    expect(socket.note).not.toMatch(/mint a fresh session/i);
   });
 
   it("records an unrecognised refusal without interpreting it", () => {

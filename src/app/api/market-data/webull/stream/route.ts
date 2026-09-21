@@ -10,6 +10,11 @@ import {
   type WebullSubType,
 } from "@/lib/marketData/webullQuotesSubscribe";
 import { streamWebullQuotes, type WebullStreamEvent } from "@/lib/marketData/webullQuotesStream";
+import {
+  resolveWebullSessionToken,
+  webullSessionStore,
+  webullWorkerEnv,
+} from "@/lib/marketData/webullSessionStore";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +107,40 @@ export async function GET(request: NextRequest) {
   const appKey = env.appKey;
   const appSecret = env.appSecret;
 
+  /**
+   * MINT the session — the same seam `/ticks` goes through, for the same reason.
+   *
+   * MEASURED IN PRODUCTION 2026-09-21, first run of this route: the socket
+   * handshake returned CONNACK 0 and the subscribe then answered
+   * `401 INVALID_TOKEN`, because this route sent no `x-access-token` at all.
+   * Webull accepted the connection and refused the caller — two different
+   * answers to two different questions, and both of them ours.
+   *
+   * `webull/core/client.py:259` attaches the token to every HTTP request, AFTER
+   * signing. So it is a transport credential, not a signed term, and it belongs
+   * here rather than inside the signer.
+   */
+  const session = await resolveWebullSessionToken(
+    fetch,
+    { appKey, appSecret, apiHost: env.apiHost },
+    webullSessionStore(await webullWorkerEnv()),
+  );
+
+  // Waiting on the Founder's tap in the Webull app is not a failure. It is a
+  // named state with exactly one human step, and flattening it into an auth
+  // error is how a one-tap fix becomes another week of guessing.
+  if (session.awaiting2fa) {
+    return NextResponse.json(
+      {
+        provider: "webull",
+        lane: "REAL_TIME",
+        awaiting2fa: true,
+        note: session.note,
+      },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const events = streamWebullQuotes(
     {
       openSocket: async (hostname, port): Promise<DuplexSocket> =>
@@ -130,7 +169,18 @@ export async function GET(request: NextRequest) {
           byte.toString(16).padStart(2, "0"),
         ).join(""),
     },
-    { appKey, appSecret, symbols, category, subTypes, host: env.apiHost, profile: "sdk-sha256" },
+    {
+      appKey,
+      appSecret,
+      // The MINTED session, never `env.accessToken`. Falling back to the pasted
+      // environment value is the defect the seam above exists to remove.
+      accessToken: session.accessToken,
+      symbols,
+      category,
+      subTypes,
+      host: env.apiHost,
+      profile: "sdk-sha256",
+    },
   );
 
   const encoder = new TextEncoder();

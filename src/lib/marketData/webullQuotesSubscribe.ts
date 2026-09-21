@@ -79,6 +79,24 @@ export interface WebullSubscribeInput {
   readonly subTypes: readonly WebullSubType[];
   readonly appKey: string;
   readonly appSecret: string;
+  /**
+   * The minted Webull SESSION, sent as `x-access-token`.
+   *
+   * MEASURED IN PRODUCTION 2026-09-21: with this header absent, the socket
+   * handshake returned CONNACK 0 — Webull accepted the connection — and this
+   * request then answered `401 INVALID_TOKEN`. Two different answers to two
+   * different questions, and the second one was ours to fix.
+   *
+   * `webull/core/client.py:259` attaches it to EVERY request, and attaches it
+   * AFTER `signer.sign(request)`. So it is deliberately not part of the signed
+   * canonical string, and adding it cannot invalidate the signature — a fact
+   * `webullQuotesSubscribe.test.ts` asserts rather than assumes.
+   *
+   * Optional because a caller with no session should still be able to build the
+   * request and watch Webull name the gap, rather than get a local error that
+   * hides which side the refusal came from.
+   */
+  readonly accessToken?: string;
   readonly timestamp: string;
   readonly nonce: string;
   readonly host?: string;
@@ -134,10 +152,18 @@ export function buildWebullSubscribeRequest(
     apiVersion: WEBULL_SUBSCRIBE_VERSION,
   });
 
+  // Added AFTER signing, exactly as `client.py` does it. The session is a
+  // credential the transport carries, not a term the signature covers.
+  const token = input.accessToken?.trim();
+
   return {
     url: `https://${host}${WEBULL_SUBSCRIBE_PATH}`,
     method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+      ...(token ? { "x-access-token": token } : {}),
+    },
     body,
   };
 }
@@ -190,6 +216,20 @@ export function readSubscribeOutcome(
         "statement about OUR connection lifecycle — the socket closed, or the id " +
         "sent here is not the one the broker connected with — and it is not a " +
         "statement about credentials or entitlement. Do not report it as one.",
+    };
+  }
+
+  if (providerCode === "INVALID_TOKEN" || status === 401) {
+    return {
+      subscribed: false,
+      status,
+      providerCode,
+      note:
+        "Webull did not accept the session this request carried. MEASURED " +
+        "2026-09-21: this is what a MISSING or EXPIRED `x-access-token` looks " +
+        "like, and it arrived on a connection Webull had already accepted with " +
+        "CONNACK 0 — so the account and the app key are not in question here. " +
+        "Mint a fresh session and send it again. It is not an entitlement fact.",
     };
   }
 
