@@ -597,37 +597,29 @@ export async function probeWebullEntitlement(
         timeoutMs,
       );
 
-    const { receipt, body } = await askSubscriptions({});
-    let rows = receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(body) : [];
-
     /**
-     * MEASURED: the bare list answers with ids and nothing else. The SDK's
-     * `set_subscription_id` is how the detail is obtained
-     * (get_app_subscriptions.py), so an id-only row is a POINTER, not an answer
-     * — and stopping at the pointer is how this read would have looked healthy
-     * while telling us nothing about which packages are attached.
+     * ── DO NOT RE-ADD THE `subscription_id` EXPANSION ───────────────────────
+     *
+     * MEASURED in production, twice, 2026-09-21. This endpoint returns rows
+     * carrying `subscription_id` AND NOTHING ELSE — no package name, no tier,
+     * no status, at any nesting depth. The obvious next move is the SDK's
+     * `set_subscription_id` (get_app_subscriptions.py), so it was built and
+     * shipped. Asking for a specific id returns THE SAME ID-ONLY LIST; the
+     * filter is ignored and no detail exists to fetch.
+     *
+     * So the count is the only signal here: this app key has N subscriptions.
+     * Which packages they are cannot be read from the API, and any claim about
+     * what they contain has to come from the developer portal instead. Writing
+     * that down because the expansion looks obviously correct on paper and will
+     * be reinvented by the next reader otherwise — it cost three extra signed
+     * requests per probe and returned duplicates of the same id.
      */
-    const pointers = rows
-      .filter((row) => row.subscription_id && Object.keys(row).length === 1)
-      .map((row) => row.subscription_id)
-      .slice(0, 8);
-    if (pointers.length > 0) {
-      const detailed: Record<string, string>[] = [];
-      for (const id of pointers) {
-        const detail = await askSubscriptions({ subscription_id: id });
-        const expanded = detail.receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(detail.body) : [];
-        // Keep the id visible even when the detail read gives nothing back, so
-        // a silent expansion failure cannot masquerade as an empty entitlement.
-        detailed.push(...(expanded.length > 0 ? expanded : [{ subscription_id: id, detail: "UNAVAILABLE" }]));
-      }
-      rows = detailed;
-    }
-
+    const { receipt, body } = await askSubscriptions({});
     subscriptions = {
       outcome: receipt.outcome,
       httpStatus: receipt.httpStatus,
       providerCode: receipt.providerCode,
-      rows,
+      rows: receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(body) : [],
     };
   } catch {
     subscriptions = undefined;

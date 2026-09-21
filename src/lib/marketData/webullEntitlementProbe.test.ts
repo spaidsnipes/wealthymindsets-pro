@@ -329,21 +329,23 @@ describe("probeWebullEntitlement", () => {
   });
 
   /**
-   * MEASURED against production: /app/subscriptions/list answers with bare ids.
-   * An id is a pointer, not an answer — so the probe must follow it, and must
-   * never let a failed expansion look like an empty entitlement.
+   * MEASURED against production, twice, 2026-09-21: /app/subscriptions/list
+   * answers with bare ids and NOTHING else. The obvious next move — the SDK's
+   * `set_subscription_id` — was built, shipped and measured: asking for one id
+   * returns THE SAME id-only list, so the filter is ignored and the "expansion"
+   * only manufactures duplicate rows.
+   *
+   * This test is the guard on that measurement. It fails the moment someone
+   * re-derives the obviously-correct-on-paper follow-the-id loop.
    */
-  it("follows id-only subscription rows to their detail", async () => {
+  it("asks for the subscription list exactly once and never filters by id", async () => {
     const asked: string[] = [];
     const fetchImpl = (async (url: URL) => {
       const href = String(url);
-      if (!href.includes("/app/subscriptions/list")) {
-        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      if (href.includes("/app/subscriptions/list")) {
+        asked.push(href);
+        return new Response(JSON.stringify({ data: [{ subscription_id: "S1" }, { subscription_id: "S2" }] }), { status: 200 });
       }
-      asked.push(href);
-      const id = new URL(href).searchParams.get("subscription_id");
-      if (!id) return new Response(JSON.stringify({ data: [{ subscription_id: "S1" }, { subscription_id: "S2" }] }), { status: 200 });
-      if (id === "S1") return new Response(JSON.stringify({ data: [{ subscription_id: "S1", name: "US Stocks LV1" }] }), { status: 200 });
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
     }) as unknown as typeof fetch;
 
@@ -352,12 +354,11 @@ describe("probeWebullEntitlement", () => {
       now: () => new Date("2026-09-21T05:00:00.000Z"), nonce: () => "n".repeat(32),
     });
 
-    expect(asked).toHaveLength(3); // the list, then one detail read per id
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).not.toContain("subscription_id=");
     expect(report.subscriptions?.rows).toEqual([
-      { subscription_id: "S1", name: "US Stocks LV1" },
-      // Expansion gave nothing back. That is reported as UNAVAILABLE rather
-      // than dropped — a vanished row would read as "no such subscription".
-      { subscription_id: "S2", detail: "UNAVAILABLE" },
+      { subscription_id: "S1" },
+      { subscription_id: "S2" },
     ]);
   });
 
