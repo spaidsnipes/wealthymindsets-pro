@@ -165,6 +165,14 @@ export interface EffortVsResultInput {
    * clock. Callers that cannot tell should pass `true`: the cost of being
    * wrong in that direction is a refusal, and the cost of being wrong in the
    * other direction is a fabricated verdict.
+   *
+   * A NOTE ON HOW CALLERS SHOULD DECIDE, because the obvious way is wrong.
+   * The first caller asked the wall clock — newest bar, span elapsed, therefore
+   * finished — and the serving chart broke it immediately: the feed was two
+   * bars behind, the span had long elapsed, and the "finished" bar held a count
+   * of 2. Elapsed time does not finish a bar; a LATER BAR finishes a bar. The
+   * reliable caller-side test is successor-existence, which needs no clock and
+   * is equally right whether the feed is live or stalled.
    */
   readonly subjectIsForming?: boolean | null;
 }
@@ -310,13 +318,13 @@ export function selectEffortVsResult(input: EffortVsResultInput): EffortVsResult
   */
   if (input.subjectIsForming === true) {
     const why =
-      "This bar has not closed yet. Its volume and its move so far are a " +
-      `partial count, and weighing a partial bar against ${cohortSize} finished ` +
-      "ones would grade it low for being young rather than for being weak. " +
-      "This resolves on its own when the bar closes — or hover a finished " +
-      "candle to weigh that one now.";
+      "This is the last bar on the chart and nothing after it has printed, so " +
+      "its volume and its move so far are a partial count. Weighing a partial " +
+      `bar against ${cohortSize} finished ones would grade it low for being ` +
+      "unfinished rather than for being weak. This resolves on its own when " +
+      "the next bar prints — or hover a finished candle to weigh that one now.";
     return unread(
-      "This bar is still forming, so there is nothing settled to weigh yet.",
+      "This bar has not finished counting, so there is nothing settled to weigh yet.",
       why,
       why,
       cohortSize,

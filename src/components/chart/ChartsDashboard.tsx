@@ -1408,30 +1408,34 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   /**
    * IS THE SUBJECT STILL BEING BUILT?
    *
-   * Two conditions, both required. It must be the NEWEST bar on the chart —
-   * nothing behind the last candle is still moving — and its span must not
-   * have elapsed yet, because on a closed market the newest bar is finished
-   * and grading it is perfectly honest.
+   * ONE condition: is it the last bar we hold? A bar is proven finished by the
+   * existence of a LATER bar, and by nothing else.
    *
-   * `chartBars[].time` is epoch SECONDS and `Date.now()` is milliseconds; the
-   * ×1000 is the unit conversion this file has been bitten by before.
+   * The first version asked the wall clock instead — newest bar AND its span
+   * already elapsed — and the serving chart disproved it within a minute. The
+   * header read "BAR OPENED 07:11 PM · 2 BARS BEHIND" while this panel graded
+   * that same bar "Effort: LOW — this bar traded 2, the median of the 1053
+   * bars before it is 793." The span HAD elapsed, so the clock called the bar
+   * finished; but the feed was two bars behind and the count of 2 was simply
+   * everything that had reached us. Elapsed does not mean counted. It means
+   * counted only IF the feed is keeping up — and a feed keeping up is exactly
+   * what we may not assume on the one surface that displays how far behind it
+   * is.
    *
-   * The clock is read here rather than in the compiler, which stays pure. A
-   * memo can go stale between the bar closing and the next `chartBars` change,
-   * and that is the acceptable direction: a stale `true` costs one refusal on
-   * a bar that just closed, while a stale `false` would print a verdict about
-   * a bar that never finished.
+   * So the clock is gone, with the unit conversion it needed and the guess it
+   * forced when a bar span was unknown. Successor-existence is an observable
+   * fact about the array in hand; it is correct in the live case and in the
+   * stalled-feed case alike, and there is no third case.
+   *
+   * The cost is one refusal on a genuinely-closed newest bar in the gap before
+   * its successor prints. That is the direction we chose: a refusal that
+   * resolves on its own, over a verdict about a partial count.
    */
   const effortSubjectIsForming = React.useMemo(() => {
     if (!inspectBar || chartBars.length === 0) return false;
     const newest = chartBars[chartBars.length - 1];
-    if (newest.time !== inspectBar.time) return false;
-    // Span unknown — refuse rather than guess. A missing span is exactly when
-    // a wrong guess would be least detectable.
-    const span = chartBarSpanMs;
-    if (span === null || !(span > 0)) return true;
-    return Date.now() < inspectBar.time * 1000 + span;
-  }, [inspectBar, chartBars, chartBarSpanMs]);
+    return newest.time === inspectBar.time;
+  }, [inspectBar, chartBars]);
 
   const effortVsResultVM = React.useMemo(
     () => selectEffortVsResult({

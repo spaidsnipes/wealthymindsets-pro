@@ -306,11 +306,11 @@ describe("the callout is rendered by the charts room, not merely imported", () =
     expect(DASHBOARD).toMatch(/inspectBar/);
   });
 
-  it("TELLS the compiler when the bar has not closed yet", () => {
+  it("TELLS the compiler when the bar has not finished counting", () => {
     /*
       The compiler may not read a clock, so this fact can only arrive from the
       call site. If it stops arriving, the panel silently returns to grading
-      37-second-old bars LOW for being young — the defect found on the serving
+      unfinished bars LOW for being unfinished — the defect found on the serving
       chart, which no arithmetic test caught because the arithmetic was right.
 
       Asserted as a MECHANISM, not a name. A previous guard in this file matched
@@ -324,20 +324,33 @@ describe("the callout is rendered by the charts room, not merely imported", () =
 
     expect(
       DASHBOARD,
-      "'forming' must mean the NEWEST bar — nothing behind the last candle is " +
-        "still moving, so grading those must stay unaffected",
-    ).toMatch(/chartBars\[chartBars\.length\s*-\s*1\]/);
+      "'unfinished' must mean the LAST bar held — a bar is proven finished by " +
+        "the existence of a later bar, so grading earlier bars stays unaffected",
+    ).toMatch(
+      /const newest = chartBars\[chartBars\.length\s*-\s*1\];\s*return newest\.time === inspectBar\.time;/,
+    );
 
-    expect(
-      DASHBOARD,
-      "'forming' must also require that the bar's span has not elapsed, or a " +
-        "closed market's last bar would be refused forever",
-    ).toMatch(/Date\.now\(\)\s*<\s*inspectBar\.time\s*\*\s*1000\s*\+\s*span/);
+    /*
+      THE SECOND VERSION OF THIS GUARD.
 
+      The first asked the wall clock — newest bar AND span elapsed — and the
+      serving chart disproved it inside a minute: the header read "2 BARS
+      BEHIND" while the panel graded that bar on a count of 2. A stalled feed
+      leaves a bar unfinished no matter how long ago its span ran out, so any
+      re-entry of a clock here re-enters the defect.
+    */
+    const FORMING = DASHBOARD.slice(
+      DASHBOARD.indexOf("const effortSubjectIsForming"),
+      DASHBOARD.indexOf("const effortVsResultVM"),
+    );
     expect(
-      DASHBOARD,
-      "an unknown bar span must refuse, not guess — a wrong guess is least " +
-        "detectable exactly when the span is missing",
-    ).toMatch(/span === null \|\| !\(span > 0\)\)\s*return true/);
+      FORMING.length,
+      "the forming decision must still be a single named memo in this file",
+    ).toBeGreaterThan(0);
+    expect(
+      FORMING,
+      "elapsed time does not finish a bar — a later bar does. A clock here " +
+        "calls a stalled feed's partial bar 'closed' and grades the partial.",
+    ).not.toMatch(/Date\.now\(\)/);
   });
 });
