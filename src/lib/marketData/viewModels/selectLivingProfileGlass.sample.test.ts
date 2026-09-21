@@ -186,9 +186,6 @@ ${svg}
 
     const out = path.join(tmpdir(), "living-profile-histogram-sample.html");
     writeFileSync(out, html);
-    // Also write to /public so a founder can open http://localhost:3000/living-profile-histogram-sample.html
-    const pub = path.join(process.cwd(), "public", "living-profile-histogram-sample.html");
-    writeFileSync(pub, html);
 
     // eslint-disable-next-line no-console
     console.log("\n  Living Profile histogram sample written to: " + out);

@@ -19,7 +19,7 @@
 import { describe, expect, it } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { PrepChecklistBand } from "./PrepChecklistBand";
@@ -104,16 +104,6 @@ const SAMPLE_HTML = `<!doctype html>
 
 const TMP = path.join("/tmp", "prep-checklist-band-sample.html");
 writeFileSync(TMP, SAMPLE_HTML, "utf8");
-try {
-  mkdirSync(path.join(process.cwd(), "public"), { recursive: true });
-  writeFileSync(
-    path.join(process.cwd(), "public", "prep-checklist-band-sample.html"),
-    SAMPLE_HTML,
-    "utf8",
-  );
-} catch {
-  // A reference page is a convenience. It may never fail a build.
-}
 
 describe("prep checklist band sample page", () => {
   it("DRAWS THE TWO ROOMS THE SAME WIDTH — the drift, photographed", () => {

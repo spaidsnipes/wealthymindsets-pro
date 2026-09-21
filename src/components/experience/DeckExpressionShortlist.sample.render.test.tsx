@@ -30,10 +30,6 @@ import { ShortlistTile } from "./DeckExpressionShortlist";
 import { selectExpressionShortlist, type ShortlistSlot } from "@/lib/expressionShortlist";
 import type { OptionContract } from "@/lib/optionContractResponse";
 
-const PUBLIC_SAMPLE = path.resolve(
-  __dirname, "..", "..", "..", "public", "expression-shortlist-sample.html",
-);
-
 /**
  * A clock is passed to the tile for the OBSERVATION AGE sentences, which are
  * not this atom's subject. Fixed, never `Date.now()`, so the page is
@@ -125,7 +121,6 @@ ${renderToStaticMarkup(<ShortlistTile slot={slot} nowMs={NOW_MS} />)}
   SAMPLE_HTML = sample;
   const dest = path.join(tmpdir(), "expression-shortlist-sample.html");
   writeFileSync(dest, sample);
-  writeFileSync(PUBLIC_SAMPLE, sample);
   process.stdout.write(`\n  Expression shortlist sample written to: ${dest}\n`);
   process.stdout.write(`  Open it: file://${dest}\n\n`);
 } catch (error) {

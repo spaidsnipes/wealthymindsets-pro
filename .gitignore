@@ -39,3 +39,21 @@ __pycache__/
 
 # Transient build artefact of scripts/measure-experience-geometry.mjs
 .geometry-measure.mjs
+
+# Sample pages rendered by *.sample.render.test.tsx are LOCAL INSPECTION
+# ARTEFACTS. public/ is a DEPLOYED directory, so anything landing here becomes a
+# reachable public route — and these pages carry art-direction literals, not
+# owned data, so shipping one is a LIVING-PIXEL LAW breach by accident. Those
+# tests now write to the OS temp dir only; this rule is the second lock, so a
+# stray copy can never be committed again.
+public/*-sample.html
+# EXCEPTION — load-bearing, not convenience:
+# public/founder-room-sample.html is the ROUTE-SCOPED AUTHORITY for the G12
+# production gate. scripts/verify-founder-f8.mjs:38 probes /founder-room-sample
+# precisely because it is the one page that needs no auth, is fully static, and
+# carries ONLY the shell; aPhoneMastheadOwnsOneRowPerJob.enforcement.test.ts:43
+# reads it too. MainLayout.founderRoute.render.test.tsx writes it and asserts it
+# has not drifted from the rendered shell. Untracking it would leave a green
+# gate measuring a file that is no longer deployed — the exact defect that
+# test's docblock was written to repair. It stays tracked deliberately.
+!public/founder-room-sample.html
