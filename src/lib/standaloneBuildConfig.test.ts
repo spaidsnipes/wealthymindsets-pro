@@ -15,7 +15,18 @@ describe("standalone build configuration", () => {
     // says so by anchoring to the END of the command.
     expect(pkg.scripts.build).toMatch(/(^|\s)next build$/);
     expect(pkg.scripts["build:cloudflare"]).toMatch(/(^|\s)opennextjs-cloudflare build$/);
-    expect(wrangler).toContain('"main": ".open-next/worker.js"');
+    // Until 2026-09-21 this read `"main": ".open-next/worker.js"`. Wrangler now
+    // enters through `cloudflare-worker-entry.js`, which imports
+    // `cloudflare:sockets` — the Webull real-time lane needs raw TCP, and
+    // wrangler's bundler is the ONLY one of this repo's four that resolves that
+    // specifier. The guard's intent is unchanged: wrangler must still reach the
+    // OpenNext worker. So both halves of the chain are asserted, because a main
+    // that points at an entry which has stopped re-exporting OpenNext is a
+    // deploy that boots and serves nothing.
+    expect(wrangler).toContain('"main": "cloudflare-worker-entry.js"');
+    const entry = readFileSync(resolve(process.cwd(), "cloudflare-worker-entry.js"), "utf8");
+    expect(entry).toContain('from "./.open-next/worker.js"');
+    expect(entry).toContain('import { connect } from "cloudflare:sockets"');
   });
 
   it("binds the package script selector to Next standalone output", () => {

@@ -50,7 +50,12 @@ describe("wrangler secret declaration ↔ provider registry", () => {
     // could pass vacuously. That failure mode has shipped in this repo before.
     expect(wranglerText.length).toBeGreaterThan(500);
     expect(manifest.name).toBe("wealthymindsets-pro");
-    expect(manifest.main).toBe(".open-next/worker.js");
+    // Changed 2026-09-21: wrangler enters through a repo-root module that
+    // imports `cloudflare:sockets` and re-exports the OpenNext worker. This
+    // assertion is a positive control on the PARSE, so any stable known value
+    // serves; `standaloneBuildConfig.test.ts` owns the chain-still-intact
+    // question.
+    expect(manifest.main).toBe("cloudflare-worker-entry.js");
   });
 
   it("declares a secrets.required block at all — wrangler must not infer it", () => {

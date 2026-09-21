@@ -7,6 +7,7 @@ import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
 import ProviderWireStrip, { type SourcedObservation } from "@/components/marketData/ProviderWireStrip";
+import WebullRealTimeStrip from "@/components/marketData/WebullRealTimeStrip";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { readClassifiedJsonReceipt, submitClassifiedJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 import {
@@ -1040,6 +1041,13 @@ function ManagedConnectionStatus({
         </a>
       </div>
       <WebullSigningCanary onObservation={onObservation} />
+      {/*
+        The signing canary above asks the REST pull product a yes/no question.
+        This asks the real-time product to actually push, which is a different
+        host and a different protocol — and the only one of the two that can
+        put a live print in front of the Founder.
+      */}
+      <WebullRealTimeStrip />
       <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
         This verifies WM Pro&apos;s server-side signed OpenAPI wire. Webull Connect OAuth—authorize, callback, token refresh,
         per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website is separate and does not connect this app.
