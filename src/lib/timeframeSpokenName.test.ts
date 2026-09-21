@@ -68,8 +68,19 @@ describe("timeframeSpokenName — the announced name is derived, never retyped",
   });
 });
 
-describe("chart toolbar adoption — the selected timeframe is said, not only coloured", () => {
-  const CODE = codeOf("components/chart/ChartToolbar.tsx");
+// ── RE-AIMED 2026-09-21 · FOLLOWED THE CONTROL, NOT THE FILE ──────────────
+// Every case below is unchanged in what it forbids. Only the address changed:
+// canon F24 and C-101 moved the nine timeframes out of `ChartToolbar.tsx` and
+// onto the candle glass as one bottom-centre chip, so these now read
+// `TimeframeGlassChip.tsx`.
+//
+// Left pointed at the toolbar these would NOT have failed loudly. `indexOf`
+// returns -1, `slice(-1, -1)` yields "", and an empty haystack satisfies every
+// `not.toContain` in this block vacuously — only the two positive assertions
+// would have caught it. That is how a guard dies quietly, so the first case
+// asserts the anchor was FOUND before any other case reads through it.
+describe("timeframe chip adoption — the selected timeframe is said, not only coloured", () => {
+  const CODE = codeOf("components/chart/TimeframeGlassChip.tsx");
   const at = CODE.indexOf("wm-chart-timeframes");
   const group = CODE.slice(at, CODE.indexOf("</div>", at));
 
@@ -110,6 +121,14 @@ describe("chart toolbar adoption — the selected timeframe is said, not only co
 
   it("× THE RETYPED LABEL: the spoken name comes from the canonical owner", () => {
     expect(group).toMatch(/aria-label=\{spoken\}/);
-    expect(CODE).toContain("timeframeSpokenName(tf.emit)");
+    // `tf.emit` was a field of the toolbar's local TIMEFRAMES projection, which
+    // was deleted with the strip. The chip maps CHART_TF_SHIPPED directly, so
+    // the derivation is now one hop shorter — and this asserts the SHORTER hop
+    // rather than accepting any call at all.
+    expect(CODE).toContain("timeframeSpokenName(id)");
+    expect(CODE).toContain("CHART_TF_SHIPPED.map");
+    // The resting chip must speak too. It is the only thing visible when the
+    // menu is closed, so if it is unlabelled the control is unlabelled.
+    expect(CODE).toMatch(/aria-label=\{`Timeframe: \$\{timeframeSpokenName\(/);
   });
 });

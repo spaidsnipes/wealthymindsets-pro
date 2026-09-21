@@ -3381,7 +3381,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             }
             symbol={symbol}         setSymbol={setSymbol}
-            timeframe={timeframe}   setTimeframe={setTimeframe}
+            // `timeframe` / `setTimeframe` no longer reach this toolbar. The
+            // nine-chip strip they fed moved onto the candle glass as one
+            // bottom-centre chip (canon F24 / C-101); the setter now travels
+            // straight to MainChart, which mounts the chip inside the pane.
             onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}
             onJournalStats={() => setPnlOpen(o => !o)}
             journalStatsOpen={pnlOpen}
@@ -4052,6 +4055,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     <MainChart
                       symbol={symbol}
                       timeframe={timeframe}
+                      /* Canon F24 / C-101: the timeframe is chosen ON THE GLASS,
+                         from one bordered chip at the bottom centre of the
+                         candle pane. The setter is handed to THIS pane only.
+                         The compare pane below mirrors this same `timeframe`
+                         and does not own it, and the 5m/15m panes are pinned to
+                         a literal by design — a chip in any of those three
+                         would be a control claiming authority it lacks. */
+                      setTimeframe={setTimeframe}
                       footprintType={footprintType}
                       footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
                       candleType={candleType}

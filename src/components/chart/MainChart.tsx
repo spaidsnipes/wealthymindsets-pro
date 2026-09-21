@@ -26,6 +26,7 @@ import {
   type VendorAttempt,
 } from "@/lib/marketData/compileBarHistoryRefusal";
 import BarHistoryRefusalNote from "@/components/chart/BarHistoryRefusalNote";
+import { TimeframeGlassChip, TIMEFRAME_FOOTER_H } from "@/components/chart/TimeframeGlassChip";
 // The "change unavailable" sentence is NOT spelled here any more. It reaches
 // this row verbatim through `chartHeaderChangeFact`'s NONE arm, which reads it
 // from `@/lib/marketData/changeAbsence` — one owner, however many hops away.
@@ -791,6 +792,16 @@ function snapTick(price: number, tick: number): number {
 interface Props {
   symbol:          string;
   timeframe:       string;
+  /**
+   * Canon F24 draws the timeframe as ONE bordered chip at the bottom centre of
+   * the candle pane, so the pane — not a band above it — is now where the
+   * timeframe is chosen. MainChart already received `timeframe` to fetch with;
+   * it receives the setter so the chip it mounts writes to the same single
+   * owner in ChartsDashboard that the retired toolbar row wrote to. Optional so
+   * that any surface embedding a read-only chart simply renders no chip rather
+   * than rendering a dead one.
+   */
+  setTimeframe?:   (t: string) => void;
   footprintType:   FootprintType;
   candleType?:     CandleType;
   pineOutput?:     PineOutput | null;
@@ -1150,7 +1161,7 @@ const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.618
 const FIB_COLORS = ["#8892b0", "#4FA3E0", "#00C076", "#F0B429", "#F0B429", "#00C076", "#4FA3E0", "#EC4899", "#FF4D67", "#8B5CF6"];
 
 /* ── Component ──────────────────────────────────────────── */
-export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
+export function MainChart({ symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
   onDrawingComplete,
@@ -9094,11 +9105,39 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           the largest surface kept the defect. Transparent here means the strip
           inherits the one canonical fill and can never drift from it again. */}
       {/* ── Chart + canvas overlay ───────────────────────── */}
-      <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}
+      <div style={{ flex:1, position:"relative", minHeight:0,
+        /* THE FOOTER BAND IS RESERVED, NOT REQUESTED. The chart mounts into a
+           `height:100%` child of this box, so padding here shrinks the chart —
+           and with it the time axis — instead of being drawn over. That is the
+           whole point: lightweight-charts renders to a canvas that cannot see
+           this DOM node, so an overlay merely asked to sit lower stays one font
+           or locale change away from covering the axis again. Floor space is
+           the only negotiation two owners of one rectangle actually have.
+
+           Paid ONLY when the chip is really there. The compare pane and the
+           5m/15m panes get no setter, so they get no band — a strip of empty
+           room reserved for furniture that was never delivered is the kind of
+           dead space this shift is spending its time removing. */
+        paddingBottom: setTimeframe ? TIMEFRAME_FOOTER_H : undefined }}
+        onContextMenu={handleContextMenu}
         onPointerMove={handleOverlayPointerMove}
         onPointerDown={handleCursorSelectDown}
         onPointerUp={handleCursorSelectUp}
         onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
+
+      {/* ── THE TIMEFRAME, WHERE CANON DRAWS IT ──────────────────────────
+          F24 puts one bordered timeframe chip at the bottom centre of this
+          pane and nothing above the candles; C-101 draws the canvas with a
+          price axis right and a time axis bottom and no band at all. The chip
+          is mounted HERE, inside the pane, because the pane is the thing canon
+          draws it on — not beside the chart in a parent row, which is how the
+          79px masthead and the 36px toolbar were each born.
+
+          Rendered only when a setter exists: a chip that cannot change the
+          timeframe is a label wearing a button's clothes. */}
+      {setTimeframe && (
+        <TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} />
+      )}
 
       {/* ── NOW RIDES OVER THE CANDLES, IT DOES NOT PUSH THEM DOWN ──────
           LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a 1440

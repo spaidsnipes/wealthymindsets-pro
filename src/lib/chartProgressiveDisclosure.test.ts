@@ -4,10 +4,46 @@ import { resolve } from "node:path";
 
 const toolbar = readFileSync(resolve(process.cwd(), "src/components/chart/ChartToolbar.tsx"), "utf8");
 const dashboard = readFileSync(resolve(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+const chip = readFileSync(resolve(process.cwd(), "src/components/chart/TimeframeGlassChip.tsx"), "utf8");
+const mainChart = readFileSync(resolve(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
 
 describe("chart progressive disclosure", () => {
+  /**
+   * ── RE-AIMED 2026-09-21 · THE TIMEFRAME IS STILL PRIMARY, JUST NOT HERE ───
+   *
+   * This case pinned `TIMEFRAMES.map` in `ChartToolbar.tsx`. That table and the
+   * nine-chip strip it fed were DELETED this shift and the timeframe now lives
+   * on the candle glass as one bottom-centre chip (canon F24 draws exactly one
+   * bordered `1D` chip there; canon C-101 draws the market canvas with a price
+   * axis right, a time axis bottom, and NOTHING above the candles).
+   *
+   * The LAW of this case is its own title — trading decision controls are
+   * PRIMARY, not buried behind a disclosure — and the law is why the pin is
+   * being moved rather than dropped. Dropping it would leave the product free
+   * to file the timeframe into the Tools menu alongside "Pine workspace",
+   * which is precisely the demotion this test exists to forbid.
+   *
+   * MEASURED at 1440 on 2026-09-21, and the reason the move is a REPAIR and
+   * not just a relocation: `.wm-chart-toolbar` is `overflow-x: auto` with
+   * `scrollbarWidth: "none"` and the pinned workspace strip overlaps it from
+   * the right. The band rendered `1m 2m` and then stopped — SEVEN OF THE NINE
+   * TIMEFRAMES WERE PAST THE END OF AN INVISIBLE SCROLLER. This assertion was
+   * green throughout that, because `TIMEFRAMES.map` was in the source the whole
+   * time. A control can be present, mapped, and mounted and still be primary
+   * to nobody. So the replacement pins the thing source could not see before:
+   * WHERE it is mounted.
+   */
   it("keeps trading decision controls primary", () => {
-    expect(toolbar).toContain("TIMEFRAMES.map");
+    // The timeframe is still primary — on the glass, in its own layer, which
+    // is the one place in this layout that cannot be clipped by a neighbour.
+    expect(chip).toContain("CHART_TF_SHIPPED.map");
+    expect(mainChart).toContain("<TimeframeGlassChip");
+    // NOT demoted into the Tools disclosure. This is the failure mode the
+    // title forbids, and it is now stated instead of implied.
+    const menuStart = toolbar.indexOf('role="menu"');
+    const menuEnd = toolbar.indexOf("</div>", menuStart);
+    expect(toolbar.slice(menuStart, menuEnd)).not.toContain("imeframe");
+
     expect(toolbar).toContain("RTH — Regular Hours");
     expect(toolbar).toContain("Indicators");
     expect(toolbar).toContain("Connect brokers");

@@ -441,23 +441,35 @@
     mask-image: none !important;
   }
 
+  /* THE TIMEFRAMES LEFT THE TOOLBAR (2026-09-21).
+     These rules used to give the nine chips their own full-width scrolling
+     rail inside the wrapped toolbar, because the pinned tools cluster covered
+     the late ones. Canon F24/C-101 moved the control onto the candle glass as
+     one bottom-centre chip, so `.wm-chart-timeframes` is now the POPOVER that
+     chip opens, not a row in a band. `flex: 0 0 100%` and a horizontal
+     scroller are actively wrong for a popover — they would stretch it across a
+     parent it no longer has and re-hide options behind a scroll edge, which is
+     the exact defect this block was written to cure. It wraps instead: nothing
+     can be scrolled out of reach if nothing scrolls. */
   .wm-chart-timeframes {
-    order: -2;
     display: flex;
-    flex: 0 0 100%;
-    min-width: 0;
-    min-height: 44px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: auto !important;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: min(92vw, 360px);
+    row-gap: 4px;
   }
 
+  /* Unchanged and still load-bearing: the options are touch targets. */
   .wm-chart-timeframe {
     min-width: 44px;
     min-height: 44px;
-    scroll-snap-align: start;
+  }
+
+  /* The chip itself is the only resting-state control, so it must be reachable
+     by a thumb even though it is the smallest thing on the glass. */
+  .wm-chart-timeframe-chip-trigger {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .wm-chart-toolbar-pinned {

@@ -11,7 +11,13 @@ import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
-import { CHART_TF_SHIPPED, getTimeframe, timeframeSpokenName } from "@/lib/timeframes";
+// `@/lib/timeframes` is NOT imported here any more. The three symbols this
+// file used to pull from it (CHART_TF_SHIPPED, getTimeframe,
+// timeframeSpokenName) left with the strip on 2026-09-21 and now live in
+// `TimeframeGlassChip.tsx`. Dropped rather than left dangling for the same
+// reason the local TIMEFRAMES table below was deleted: a live import of the
+// canonical timeframe module inside a file that no longer renders a timeframe
+// is a standing invitation to render one again.
 import { WMLogo } from "@/components/ui/WMLogo";
 // Type-only in spirit but a runtime string: the panel owns its own DOM id so
 // the trigger's `aria-controls` cannot drift away from the element it names.
@@ -506,17 +512,15 @@ const INDICATORS = [
 ];
 
 /* ══════════════════════════════════════════════════════════════
-   TIMEFRAMES
+   TIMEFRAMES — NOT HERE ANY MORE
 ══════════════════════════════════════════════════════════════ */
-// Sourced from the canonical timeframe module (WM-CHART-P0-01). CHART_TF_SHIPPED is
-// the subset whose chart data path is verified wired today. Every consumer now
-// receives the same canonical TFId; legacy D/W/M values are normalized only when
-// old persisted state is read.
-const TIMEFRAMES = CHART_TF_SHIPPED.map(id => ({
-  key:   id,
-  label: getTimeframe(id).label,
-  emit:  id,
-}));
+// The local `TIMEFRAMES` table that used to sit here (a key/label/emit
+// projection of CHART_TF_SHIPPED) went with the strip to
+// `TimeframeGlassChip.tsx` on 2026-09-21. It is deleted rather than left
+// unused: a table still standing next to a removed control is how the control
+// grows back. The chip maps CHART_TF_SHIPPED directly, so the canonical
+// timeframe module (WM-CHART-P0-01) now has one fewer projection between it
+// and the buttons a trader actually presses.
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -528,8 +532,12 @@ interface ChartToolbarProps {
   leadingSlot?:         React.ReactNode;
   symbol:              string;
   setSymbol:           (s: string) => void;
-  timeframe:           string;
-  setTimeframe:        (t: string) => void;
+  /* `timeframe` / `setTimeframe` were removed from this interface on
+     2026-09-21 with the strip they fed. MainChart mounts TimeframeGlassChip
+     inside the candle pane and receives the setter directly from
+     ChartsDashboard, so the toolbar is no longer on that wire at all. Props
+     kept "just in case" are indistinguishable from props in use at a call
+     site, and that is the seam a second timeframe owner grows back through. */
   onConnectBrokers:    () => void;
   onCapture?:          () => void;
   captureOpen?:        boolean;
@@ -657,7 +665,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   leadingSlot,
-  symbol, setSymbol, timeframe, setTimeframe,
+  symbol, setSymbol,
   onConnectBrokers, onCapture, captureOpen, onWatchlist, watchlistOpen, onDraw, drawOpen, onSmartMoney, smartMoneyActive, onJournalStats, journalStatsOpen,
   onDOM, onPineScript, onCommunity,
   pineActive,
@@ -979,77 +987,19 @@ export function ChartToolbar({
         })()}
       </div>
 
-      <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
+      {/* ══ Timeframes — MOVED TO THE GLASS (2026-09-21) ═════
+          Canon F24 draws one bordered timeframe chip at BOTTOM CENTER of the
+          candle pane and no row above it; canon C-101 draws no band above the
+          candles at all. The nine ids, the handler, the spoken names and the
+          `aria-current` semantics all moved verbatim to
+          `TimeframeGlassChip.tsx`, which MainChart mounts inside the pane.
 
-      {/* ══ Timeframes ══════════════════════════════════════ */}
-      {/* `role="group"` is not decoration. An `aria-label` on a bare <div> with
-          no role is NOT exposed to assistive tech, so this group has carried a
-          name nobody could hear since it was written. */}
-      <div
-        className="wm-chart-timeframes flex items-center gap-0.5 shrink-0"
-        role="group"
-        aria-label="Chart timeframe"
-      >
-        {TIMEFRAMES.map(tf => {
-          const active = tf.emit === timeframe;
-          const spoken = timeframeSpokenName(tf.emit);
-          return (
-          <button key={tf.key} onClick={() => setTimeframe(tf.emit)}
-            // MEASURED LIVE 2026-09-17: all nine of these buttons returned
-            // aria-pressed/aria-current/aria-selected/role/aria-label = null.
-            // Which timeframe the chart was on was expressed by exactly one
-            // thing, a background colour — and the timeframe is the provenance
-            // word on every number in the header above ("LAST 30m BAR CLOSE").
-            // …and the attribute that repair reached for promises something this
-            // control cannot do.
-            //
-            // MEASURED 2026-09-19 on live /charts at 1920: 5m reported
-            // `aria-pressed="true"`; pressing it again left it `"true"` with the
-            // chart unchanged. `aria-pressed` is a contract and not a lamp — the
-            // whole meaning of the role is that pressing again reverses it — and
-            // there is no such thing as a chart with no timeframe. Nine exist,
-            // exactly one is current, and un-pressing 5m is not a state this
-            // application has, so no handler could have rescued the attribute.
-            //
-            // Same law, same day, as the seven-mode `ExperienceModeBar`, and the
-            // same direction of repair: the claim is REPLACED, not dropped.
-            // Dropping it would undo the 2026-09-17 fix above and hand the state
-            // back to `bg-wm-blue/20` — colour carrying provenance again.
-            //
-            // Not promoted to `role="radiogroup"`/`role="radio"`/`aria-checked`,
-            // which is the textbook widget for a nine-item single select and is
-            // cheaper here than it was in the mode bar (the container is already
-            // a plain `role="group"`, so there is no landmark to lose). It is
-            // declined for a behavioural reason, not a cosmetic one: a radio
-            // group's arrow keys move the SELECTION, not merely the focus, so
-            // arrowing across this strip would fire a bar refetch per keypress on
-            // the primary trading surface. Claiming the role without the arrows
-            // would trade a control that lies about reversal for one that lies
-            // about navigation — the quieter and therefore more expensive kind.
-            //
-            // What that costs, recorded honestly rather than left implied: the
-            // nine buttons remain nine tab stops. That is unchanged by this
-            // commit, and it is the reason the radiogroup is worth revisiting
-            // once selection can be decoupled from a fetch.
-            aria-current={active ? "true" : undefined}
-            // `1m` and `1M` are spoken identically, and they are a minute and a
-            // month. The canonical owner derives this phrase from the same
-            // candleIntervalSec the fetch path sends to the provider, so the
-            // announced name cannot drift from the bars actually drawn.
-            aria-label={spoken}
-            title={spoken}
-            className={clsx(
-              "wm-chart-timeframe px-1.5 h-6 rounded text-[11px] font-mono transition-colors",
-              active
-                ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
-                : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface"
-            )}>
-            {tf.label}
-          </button>
-          );
-        })}
-      </div>
-
+          This was not only a canon move. MEASURED by LOOKING at the rendered
+          build at 1440 on 2026-09-21: this band is `overflow-x: auto` with
+          `scrollbarWidth: "none"` and the pinned workspace strip overlaps it
+          from the right, so the row rendered `1m 2m` and then stopped. Seven
+          of the nine timeframes were behind an invisible scroller. The chip
+          is centred on its own layer and cannot be clipped by either. */}
       <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
 
       {/* ══ Extended Hours dropdown ═════════════════════════ */}
