@@ -27,6 +27,7 @@ import type {
   CanonicalOrderAck,
   UniversalOrderIntent,
 } from "../BrokerAdapter";
+import { computeProviderReadiness } from "../providerReadiness";
 
 function hasNonEmptyEnv(name: string): boolean {
   const v = process.env[name];
@@ -44,17 +45,25 @@ export const tastytradeAdapter: BrokerAdapter = {
   id: "tastytrade",
 
   health(): BrokerHealth {
-    const clientId     = hasNonEmptyEnv("TASTYTRADE_CLIENT_ID");
-    const clientSecret = hasNonEmptyEnv("TASTYTRADE_CLIENT_SECRET");
-    const refreshTok   = hasNonEmptyEnv("TASTYTRADE_REFRESH_TOKEN");
-    const allPresent = clientId && clientSecret && refreshTok;
+    // Delegate to the canonical PROVIDER_REQUIREMENTS table rather than keeping
+    // a second hand-written list here — that duplication is exactly what
+    // providerReadiness.ts was built to end, and two lists drift.
+    //
+    // It also fixes a truth defect: the old note listed ALL THREE var names on
+    // every failure, so an operator with two of three set was told to go check
+    // credentials he had already provided. `missing` names only what was
+    // measured absent. Presence-only — no value is ever read or returned.
+    const readiness = computeProviderReadiness("tastytrade", process.env);
+    const allPresent = readiness.status === "CONFIGURED";
     return {
       implemented: true, // src/lib/tastytrade.ts + 3 API routes
       envConfigured: allPresent,
       connected: false, // handshake happens per-request via existing routes
       note: allPresent
         ? "Tastytrade adapter is wrapped for health only. All env credentials present. Full auth handshake via /api/broker/tastytrade/status."
-        : "Tastytrade adapter is wrapped for health only. Env credentials missing (needs CLIENT_ID + CLIENT_SECRET + REFRESH_TOKEN).",
+        : `Tastytrade adapter is wrapped for health only. Not configured on this host: ${readiness.missing.join(
+            " + ",
+          )} ${readiness.missing.length === 1 ? "is" : "are"} absent.`,
     };
   },
 

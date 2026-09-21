@@ -38,10 +38,19 @@ function creds() {
 /** Configuration state WITHOUT ever revealing secret values. */
 export function tastytradeConfigStatus() {
   const c = creds();
+  // The NAMES (never values) of the vars this lane actually needs and does not
+  // have. Deliberately scoped to the two the token-mint body sends: the refresh
+  // grant above carries client_secret + refresh_token and NO client_id, so
+  // naming CLIENT_ID here would send the operator to fix something this lane
+  // never reads. Presence-only; safe to render and serialize.
+  const missing: string[] = [];
+  if (!c.clientSecret) missing.push("TASTYTRADE_CLIENT_SECRET");
+  if (!c.refreshToken) missing.push("TASTYTRADE_REFRESH_TOKEN");
   return {
     hasClientId: !!c.clientId,
     hasClientSecret: !!c.clientSecret,
     hasRefreshToken: !!c.refreshToken,
+    missing: missing as readonly string[],
     env: IS_CERT ? "cert" : "production",
     base: BASE,
     // "configured" = we can actually mint an access token.
@@ -190,9 +199,19 @@ export async function getTastytradeCapabilities(): Promise<TastytradeCapabilitie
     realTime: null,
     supportedAssetClasses: [],
     sourceName: "tastytrade / dxFeed",
+    // Name the vars MEASURED absent, never a guessed one. `configured` is false
+    // when EITHER the client secret or the refresh token is missing, so the old
+    // fixed "Add TASTYTRADE_REFRESH_TOKEN" text asserted a cause this function
+    // had not checked — the same shape of error that cost three months on
+    // Webull (see docs/operations/EVIDENCE_2026-09-20_WEBULL_ENTITLEMENT_ISOLATED.md):
+    // a status line describing our view of the operator instead of our own
+    // measurement. Sending him to mint a refresh token he already supplied,
+    // when the secret was the gap, would waste his time and blame his setup.
     note: cfg.configured
       ? ""
-      : "Add TASTYTRADE_REFRESH_TOKEN (server env) — generate it once in the tastytrade dashboard.",
+      : `Not configured on this host: ${cfg.missing.join(" + ")} ${
+          cfg.missing.length === 1 ? "is" : "are"
+        } absent. A refresh token is generated once in the tastytrade dashboard (OAuth Applications → Manage → Create Grant) and set in the host runtime secrets.`,
   };
   if (!cfg.configured) return base;
   try {

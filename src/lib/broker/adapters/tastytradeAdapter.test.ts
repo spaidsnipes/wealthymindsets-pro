@@ -71,6 +71,44 @@ describe("tastytradeAdapter — canon §12 wrapper honesty", () => {
     expect(ack.clientOrderId).toBe("wm-tt-1");
   });
 
+  // A status line must describe what we MEASURED, not what we guessed. Naming
+  // all three vars on every failure sends an operator who supplied two of them
+  // back to re-check work he already did — the Webull three-month failure in
+  // miniature (docs/operations/EVIDENCE_2026-09-20_WEBULL_ENTITLEMENT_ISOLATED.md).
+  describe("health() note names only the vars actually absent", () => {
+    it("names the single missing var and NOT the two that are present", () => {
+      process.env.TASTYTRADE_CLIENT_ID = "x";
+      process.env.TASTYTRADE_CLIENT_SECRET = "y";
+      // refresh token deliberately absent — this is the real production state
+      // measured on 2026-09-21.
+      const note = tastytradeAdapter.health().note;
+      expect(note).toContain("TASTYTRADE_REFRESH_TOKEN");
+      expect(note).not.toContain("TASTYTRADE_CLIENT_ID");
+      expect(note).not.toContain("TASTYTRADE_CLIENT_SECRET");
+      expect(note).toContain("is absent");
+    });
+
+    it("names every missing var when more than one is absent", () => {
+      process.env.TASTYTRADE_CLIENT_ID = "x";
+      const note = tastytradeAdapter.health().note;
+      expect(note).toContain("TASTYTRADE_CLIENT_SECRET");
+      expect(note).toContain("TASTYTRADE_REFRESH_TOKEN");
+      expect(note).not.toContain("TASTYTRADE_CLIENT_ID");
+      expect(note).toContain("are absent");
+    });
+
+    it("names NO var when all are present", () => {
+      // Guards the guard. A note that always listed every name would satisfy
+      // the 'names every missing var' case above while being just as useless.
+      process.env.TASTYTRADE_CLIENT_ID = "x";
+      process.env.TASTYTRADE_CLIENT_SECRET = "y";
+      process.env.TASTYTRADE_REFRESH_TOKEN = "z";
+      const note = tastytradeAdapter.health().note;
+      for (const name of ENV_NAMES) expect(note).not.toContain(name);
+      expect(note).not.toContain("absent");
+    });
+  });
+
   it("never leaks env values in health notes", () => {
     process.env.TASTYTRADE_CLIENT_SECRET = "very-secret-value-abc";
     process.env.TASTYTRADE_REFRESH_TOKEN = "very-secret-refresh-xyz";
