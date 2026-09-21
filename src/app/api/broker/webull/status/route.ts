@@ -11,7 +11,7 @@ import {
   webullCredentialPresence,
   type WebullStatus,
 } from "@/lib/broker/webullStatus";
-import { webullSessionStore } from "@/lib/marketData/webullSessionStore";
+import { webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 
 /**
  * /api/broker/webull/status
@@ -35,7 +35,7 @@ export async function GET(request: Request): Promise<Response> {
     ...webullBrokerConfigFromEnv(process.env),
     // Same runtime session the data lane uses, so one 2FA approval serves
     // both lanes instead of one prompt per lane.
-    tokenStore: webullSessionStore(),
+    tokenStore: webullSessionStore(await webullWorkerEnv()),
   });
   const body: WebullStatus = {
     provider: "webull",

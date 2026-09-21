@@ -28,20 +28,80 @@
  * from a value someone had to keep re-entering by hand.
  */
 import { inMemoryTokenStore, type WebullTokenStore } from "./webullAccessToken";
+import { kvTokenStore, type WebullKvNamespace } from "./webullKvTokenStore";
 
 const isolateStore = inMemoryTokenStore();
 
-/** The store every Webull lane should pass to `ensureWebullAccessToken`. */
-export function webullSessionStore(): WebullTokenStore {
-  return isolateStore;
+/**
+ * Where the KV binding is looked for. Mirrors `wrangler.jsonc`'s binding name;
+ * a Sentinel keeps the two honest.
+ */
+export const WEBULL_SESSION_KV_BINDING = "WEBULL_SESSION";
+
+function bindingFrom(env: unknown): WebullKvNamespace | null {
+  if (!env || typeof env !== "object") return null;
+  const candidate = (env as Record<string, unknown>)[WEBULL_SESSION_KV_BINDING];
+  if (!candidate || typeof candidate !== "object") return null;
+  const kv = candidate as Partial<WebullKvNamespace>;
+  // Duck-typed on the two methods actually used. A binding of the wrong TYPE
+  // (an R2 bucket, a stray var) must read as absent rather than blow up on
+  // first use inside a request.
+  return typeof kv.get === "function" && typeof kv.put === "function"
+    ? (candidate as WebullKvNamespace)
+    : null;
+}
+
+/**
+ * The store every Webull lane should pass to `ensureWebullAccessToken`.
+ *
+ * Durable when the KV namespace is bound, isolate-local when it is not. The
+ * fallback is deliberate and must stay: an unprovisioned namespace should cost
+ * durability, not availability — the Webull lanes still answer honestly, they
+ * just cannot remember across an isolate. See webullKvTokenStore.ts for the
+ * measured loop that makes the durable path necessary.
+ */
+export function webullSessionStore(env?: unknown): WebullTokenStore {
+  const kv = bindingFrom(env);
+  return kv ? kvTokenStore(kv) : isolateStore;
+}
+
+/** True when this runtime can remember a session past isolate eviction. */
+export function webullSessionIsDurable(env?: unknown): boolean {
+  return bindingFrom(env) !== null;
+}
+
+/**
+ * The Worker env, or undefined when there isn't one.
+ *
+ * `getCloudflareContext` throws outside the Workers runtime — under vitest, and
+ * under `next dev` without the Cloudflare proxy. Letting that throw would mean
+ * a route that works in production 500s on a laptop, so absence is caught and
+ * returned as "no binding", which the store already handles by falling back to
+ * the isolate-local path.
+ *
+ * Imported lazily for the same reason: a top-level import of a Workers-only
+ * module pulls runtime assumptions into every test that touches these routes.
+ */
+export async function webullWorkerEnv(): Promise<unknown> {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    return getCloudflareContext().env;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
  * How durable the session actually is, in words a surface may print.
  *
- * Exported so no component has to guess, and so the sentence changes in ONE
- * place on the day a durable binding lands. A surface that hard-codes
- * "session persisted" today would be lying tomorrow in the other direction.
+ * This was a CONSTANT. A constant could only ever describe one of the two
+ * worlds, so the day the namespace is bound it would start telling the Founder
+ * he may be asked to tap again when he no longer can be — the same untruth as
+ * before, just pointing the other way. It now READS the binding, so the
+ * sentence cannot drift from the deployment that prints it.
  */
-export const WEBULL_SESSION_DURABILITY =
-  "The Webull session is held in this server instance only. If the instance is recycled, WM Pro mints a new one automatically — which may ask you to approve it once in the Webull app.";
+export function webullSessionDurability(env?: unknown): string {
+  return webullSessionIsDurable(env)
+    ? "The Webull session is stored durably, so it survives this server instance being recycled. Approving once in the Webull app is enough."
+    : "The Webull session is held in this server instance only. If the instance is recycled, WM Pro mints a new one automatically — which may ask you to approve it once in the Webull app.";
+}
