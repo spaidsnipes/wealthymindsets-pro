@@ -224,14 +224,37 @@ describe("summarizeWebullSubscriptionBody — reads an unknown shape safely", ()
     const rows = summarizeWebullSubscriptionBody([
       {
         name: "LV1", live: true,
-        access_token: "SECRET", app_key: "SECRET", nested: { deep: "SECRET" },
+        access_token: "SECRET", app_key: "SECRET",
+        // Depth is the trap: the summariser flattens, so a filter that only
+        // ran at the top level would walk these straight into the report.
+        detail: { access_token: "SECRET", account_id: "SECRET", tier: "LV1" },
         // Identity, not entitlement. It cannot answer the question this read
         // was sent to ask, so it does not travel in a report people paste.
         account_id: "SECRET", user_email: "SECRET",
       },
     ]);
-    expect(rows).toEqual([{ name: "LV1", live: "true" }]);
+    expect(rows).toEqual([{ name: "LV1", live: "true", "detail.tier": "LV1" }]);
     expect(JSON.stringify(rows)).not.toContain("SECRET");
+  });
+
+  /**
+   * The regression this pins is one we MEASURED in production: the first live
+   * read came back as three rows of nothing but `subscription_id`, because every
+   * field naming the package sat one level down. A read that returns opaque ids
+   * has not answered the question it was sent to ask.
+   */
+  it("keeps nested detail, because the top level is only an id", () => {
+    const rows = summarizeWebullSubscriptionBody({
+      data: [{ subscription_id: "973897810161594368", detail: { name: "US Stocks LV1", status: "ACTIVE" }, regions: ["us"] }],
+    });
+    expect(rows).toEqual([
+      {
+        subscription_id: "973897810161594368",
+        "detail.name": "US Stocks LV1",
+        "detail.status": "ACTIVE",
+        "regions.0": "us",
+      },
+    ]);
   });
 
   it("returns an empty list rather than throwing on shapes we did not anticipate", () => {

@@ -460,17 +460,41 @@ export function summarizeWebullSubscriptionBody(body: unknown): readonly Readonl
   };
   visit(body, 0);
 
+  /**
+   * Flattened with dotted keys rather than scalars-at-the-top-level-only.
+   *
+   * MEASURED, not guessed: the first live read of this endpoint returned three
+   * rows carrying nothing but `subscription_id`, because everything that says
+   * WHAT each subscription is lives one level down. A summariser that keeps only
+   * top-level scalars turns the one endpoint that could answer the question into
+   * three opaque numbers — which is how a read like this quietly becomes useless
+   * while still looking like it worked.
+   */
+  const flatten = (value: unknown, prefix: string, depth: number, into: Record<string, string>): void => {
+    if (depth > 2 || Object.keys(into).length > 40) return;
+    if (!value || typeof value !== "object") return;
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      if (SECRETISH_KEY.test(key)) continue;
+      const name = (prefix ? `${prefix}.${key}` : key).slice(0, 64);
+      if (typeof nested === "string" || typeof nested === "number" || typeof nested === "boolean") {
+        into[name] = String(nested).slice(0, 96);
+      } else if (Array.isArray(nested)) {
+        nested.slice(0, 8).forEach((item, index) => {
+          if (item && typeof item === "object") flatten(item, `${name}.${index}`, depth + 1, into);
+          else if (item !== null && item !== undefined) into[`${name}.${index}`] = String(item).slice(0, 96);
+        });
+      } else {
+        flatten(nested, name, depth + 1, into);
+      }
+    }
+  };
+
   return candidates
     .slice(0, 25)
     .map((entry) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
       const row: Record<string, string> = {};
-      for (const [key, value] of Object.entries(entry as Record<string, unknown>)) {
-        if (SECRETISH_KEY.test(key)) continue;
-        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-          row[key.slice(0, 48)] = String(value).slice(0, 96);
-        }
-      }
+      flatten(entry, "", 0, row);
       return Object.keys(row).length > 0 ? row : null;
     })
     .filter((row): row is Record<string, string> => row !== null);
