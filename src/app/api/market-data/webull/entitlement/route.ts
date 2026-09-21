@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { webullDataConfigFromEnv } from "@/lib/marketData/adapters/webullMarketData";
 import { probeWebullEntitlement } from "@/lib/marketData/webullEntitlementProbe";
+import { webullSessionStore } from "@/lib/marketData/webullSessionStore";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,10 @@ export async function GET(request: NextRequest) {
     accessToken: env.accessToken,
     apiHost: env.apiHost,
     symbol: requested,
+    // Climb with a minted session. Without one, four 401s from an expired
+    // token would be read back as a verdict about the Founder's entitlements
+    // — which is exactly the misreading this probe was built to prevent.
+    tokenStore: webullSessionStore(),
   });
 
   return NextResponse.json(report, { status: 200, headers: { "Cache-Control": "no-store" } });

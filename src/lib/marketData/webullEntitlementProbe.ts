@@ -32,6 +32,11 @@
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders } from "./adapters/webullMarketData";
 import { WEBULL_SDK_CONTRACT, type WebullEndpointContract } from "./webullSdkContract";
+import {
+  TOKEN_DISPOSITIONS,
+  ensureWebullAccessToken,
+  type WebullTokenStore,
+} from "./webullAccessToken";
 
 const DEFAULT_HOST = "api.webull.com";
 
@@ -60,6 +65,13 @@ export interface WebullRungReceipt {
 }
 
 export type WebullEntitlementVerdict =
+  /**
+   * A session was minted and is waiting on the Founder's 2FA tap in the Webull
+   * app. Deliberately NOT folded into UNCONFIGURED: that word says something
+   * is missing from the deployment, and nothing is. The distinction is the
+   * whole difference between "tap approve" and "go buy a data package".
+   */
+  | "AWAITING_2FA"
   | "ENTITLEMENT_ISOLATED"
   | "CREDENTIAL_OR_CONTRACT_SUSPECT"
   | "FULLY_OPEN"
@@ -271,12 +283,17 @@ async function climbRung(
 export interface WebullEntitlementProbeConfig {
   readonly appKey?: string;
   readonly appSecret?: string;
+  /** Fallback only. The intended source is a minted session — see below. */
   readonly accessToken?: string;
   readonly apiHost?: string;
   readonly symbol?: string;
   readonly timeoutMs?: number;
   readonly now?: () => Date;
   readonly nonce?: () => string;
+  /** Where the minted session lives. Omit and the ladder climbs unminted. */
+  readonly tokenStore?: WebullTokenStore;
+  /** Set false to climb with exactly the session handed in. */
+  readonly mintSession?: boolean;
 }
 
 export async function probeWebullEntitlement(
@@ -300,7 +317,41 @@ export async function probeWebullEntitlement(
   const host = (config.apiHost || DEFAULT_HOST).replace(/^https?:\/\//, "").replace(/\/+$/, "");
   const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
   const makeNonce = config.nonce || (() => randomUUID().replace(/-/g, ""));
-  const creds = { appKey, appSecret, accessToken: config.accessToken?.trim() || undefined, host };
+
+  /**
+   * Climb with a LIVING session or the ladder is unreadable.
+   *
+   * This probe exists to distinguish "your key cannot reach market data" from
+   * "your key cannot reach anything". A stale session makes every rung fail
+   * including the two that need no data package, which reads as
+   * CREDENTIAL_OR_CONTRACT_SUSPECT — and that reading is only admissible once
+   * the session we sent was known-live. Otherwise the ladder is measuring our
+   * own expired token and reporting it as a fact about the Founder's account.
+   */
+  let sessionToken = config.accessToken?.trim() || undefined;
+  let sessionNote: string | null = null;
+  if (config.mintSession !== false && config.tokenStore) {
+    const session = await ensureWebullAccessToken(
+      fetchImpl,
+      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce },
+      config.tokenStore,
+    );
+    if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+      return {
+        provider: "webull",
+        verdict: "AWAITING_2FA",
+        rungs: [],
+        checkedAt,
+        // Not a subscription question. Climbing now would produce four 401s
+        // and we would read them as a ladder verdict about his entitlements.
+        note: session.note,
+      };
+    }
+    if (session.token?.token) sessionToken = session.token.token;
+    else sessionNote = session.note;
+  }
+
+  const creds = { appKey, appSecret, accessToken: sessionToken, host };
 
   // Sequential on purpose: a burst of signed requests is the fastest way to
   // earn a rate limit, and a rate-limited rung makes the ladder unreadable.
@@ -310,5 +361,14 @@ export async function probeWebullEntitlement(
   }
 
   const { verdict, note } = readWebullLadder(rungs);
-  return { provider: "webull", verdict, rungs, checkedAt, note };
+  // A ladder climbed without a session is still worth reporting, but the
+  // reason it had none must travel with the verdict — otherwise a failed mint
+  // is read back as a fact about the Founder's entitlements.
+  return {
+    provider: "webull",
+    verdict,
+    rungs,
+    checkedAt,
+    note: sessionNote ? `${note} No session accompanied this climb: ${sessionNote}` : note,
+  };
 }

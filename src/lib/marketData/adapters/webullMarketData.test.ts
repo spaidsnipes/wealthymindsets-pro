@@ -467,12 +467,30 @@ describe("× a token-shaped 401 is joined to whether we actually sent a token", 
       }),
     ) as unknown as typeof fetch;
 
-  it("THE MEASURED STATE: no token configured + INVALID_TOKEN names the next atom", async () => {
+  it("THE MEASURED STATE: no session sent + INVALID_TOKEN names the next atom", async () => {
     const snap = await fetchWebullTickSnapshot(respond("INVALID_TOKEN"), base);
     expect(snap.state).toBe("BLOCKED_AUTH");
     expect(snap.note).toContain("INVALID_TOKEN");
-    expect(snap.note).toContain("WEBULL_ACCESS_TOKEN");
+    expect(snap.note).toMatch(/minted/i);
     expect(snap.note).toMatch(/next atom/i);
+  });
+
+  /**
+   * CORRECTED 2026-09-20. These assertions used to REQUIRE the note to say
+   * "set WEBULL_ACCESS_TOKEN and re-probe" — the test was pinning the defect
+   * in place. Webull's token expires and is 2FA-gated; it is minted from the
+   * App Key and Secret, never typed in. A diagnostic whose advice is "enter
+   * the credential again" produces exactly the loop the Founder lived in for
+   * three months, so the note may never give that instruction again.
+   */
+  it("NEVER tells anyone to go enter a credential", async () => {
+    for (const code of ["INVALID_TOKEN", "EXPIRED_TOKEN"]) {
+      for (const extra of [{}, { accessToken: "configured-token" }]) {
+        const snap = await fetchWebullTickSnapshot(respond(code), { ...base, ...extra });
+        expect(snap.note).not.toContain("WEBULL_ACCESS_TOKEN");
+        expect(snap.note).not.toMatch(/\b(set|add|paste|re-?enter|supply)\s+(a|the\s+)?\w*\s*(secret|credential|token|variable)/i);
+      }
+    }
   });
 
   it("THE HEDGE IS LOAD-BEARING: it names a candidate, never a proven cause", async () => {
@@ -483,14 +501,14 @@ describe("× a token-shaped 401 is joined to whether we actually sent a token", 
     expect(snap.note).not.toMatch(/is the cause|because WEBULL_ACCESS_TOKEN is missing/i);
   });
 
-  it("a CONFIGURED token flips the advice from 'set it' to 'rotate it'", async () => {
+  it("a SENT session flips the candidate from 'absent' to 'expired'", async () => {
     const snap = await fetchWebullTickSnapshot(respond("INVALID_TOKEN"), {
       ...base,
       accessToken: "configured-token",
     });
-    expect(snap.note).toMatch(/expired, revoked, or issued for a different environment/i);
-    // Telling the Founder to set a variable he already set is how a diagnostic
-    // surface teaches people to stop reading it.
+    expect(snap.note).toMatch(/most likely expired/i);
+    // And it must say the renewal is machine work, not the Founder's work.
+    expect(snap.note).toMatch(/without anyone re-entering anything/i);
     expect(snap.note).not.toMatch(/next atom/i);
     expect(JSON.stringify(snap)).not.toContain("configured-token");
   });
@@ -498,7 +516,8 @@ describe("× a token-shaped 401 is joined to whether we actually sent a token", 
   it("a NON-token code is left exactly as it was — no join, no advice", async () => {
     const snap = await fetchWebullTickSnapshot(respond("INVALID_SIGNATURE"), base);
     expect(snap.note).toContain("INVALID_SIGNATURE");
-    expect(snap.note).not.toContain("WEBULL_ACCESS_TOKEN");
+    // Not vacuous: the token branch DOES say this, the signature branch must not.
+    expect(snap.note).not.toMatch(/minted/i);
     expect(snap.note).not.toMatch(/leading candidate/i);
   });
 
@@ -512,6 +531,6 @@ describe("× a token-shaped 401 is joined to whether we actually sent a token", 
   it("the secret still never leaves through the widened note", async () => {
     const snap = await fetchWebullTickSnapshot(respond("EXPIRED_TOKEN"), base);
     expect(JSON.stringify(snap)).not.toContain("app-secret");
-    expect(snap.note).toContain("WEBULL_ACCESS_TOKEN");
+    expect(snap.note).toMatch(/leading candidate/i);
   });
 });

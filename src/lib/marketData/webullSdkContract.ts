@@ -85,6 +85,46 @@ export const WEBULL_SDK_CONTRACT = {
     needsMarketData: true,
     sdkSource: "webull/data/request/get_snapshot_request.py",
   },
+  /**
+   * THE SESSION LANE — how an access token is BORN, not where one is pasted.
+   *
+   * This row exists because WM Pro spent roughly three months treating
+   * `WEBULL_ACCESS_TOKEN` as a permanent secret. It is not. The SDK's
+   * `access_token.py` gives every token three fields — `token`, `expires`,
+   * `status` — and `token_manager.py` re-mints one on EVERY client init. A
+   * value with an expiry is a session, and a session hand-pasted into a
+   * deployment platform is a session that will be dead by the time it matters.
+   *
+   * That single category error produced the exact symptom the Founder reported
+   * for months: it works right after he adds it, then every rung returns 401
+   * INVALID_TOKEN — including rungs that need no market data — and re-pasting
+   * appears to "fix" it until the next expiry.
+   */
+  CREATE_TOKEN: {
+    path: "/auth/tokens/create",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/core/http/initializer/token/bean/create_token_request.py",
+  },
+  /** Extends a living token. Note the `/openapi` prefix HERE and not on create:
+   *  the prefix is per-endpoint, and guessing it symmetrical is a way to invent
+   *  a 404 and then read it as a permissions problem. */
+  REFRESH_TOKEN: {
+    path: "/openapi/auth/token/refresh",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/core/http/initializer/token/bean/refresh_token_request.py",
+  },
+  /** Asks whether a minted token has cleared 2FA yet. `token_manager.py` polls
+   *  this until status leaves PENDING — the one step that genuinely needs a
+   *  human, and therefore the one step WM Pro must name precisely instead of
+   *  reporting as a generic auth failure. */
+  CHECK_TOKEN: {
+    path: "/auth/tokens/check",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/core/http/initializer/token/bean/check_token_request.py",
+  },
   /** THE ONE THAT WAS WRONG. get_tick_request.py:
    *    ApiRequest.__init__(self, "/market-data/stocks/ticks/list", version='v3', method="GET") */
   STOCK_TICKS: {

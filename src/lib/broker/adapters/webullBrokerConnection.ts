@@ -2,6 +2,12 @@
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders } from "@/lib/marketData/adapters/webullMarketData";
 import { WEBULL_SDK_CONTRACT } from "@/lib/marketData/webullSdkContract";
+import {
+  TOKEN_DISPOSITIONS,
+  ensureWebullAccessToken,
+  inMemoryTokenStore,
+  type WebullTokenStore,
+} from "@/lib/marketData/webullAccessToken";
 
 const DEFAULT_HOST = "api.webull.com";
 /** One owner for Webull paths — see webullSdkContract.ts for why that is a rule. */
@@ -10,12 +16,33 @@ const ACCOUNT_LIST_PATH = WEBULL_SDK_CONTRACT.ACCOUNT_LIST.path;
 export interface WebullBrokerConfig {
   readonly appKey?: string;
   readonly appSecret?: string;
+  /**
+   * A hand-supplied session, if one is still configured. Kept only as a
+   * fallback for the case where minting is unavailable — it is NOT the
+   * intended source. See `webullAccessToken.ts`: this value expires, and
+   * treating it as a permanent secret is the defect that cost three months.
+   */
   readonly accessToken?: string;
   readonly apiHost?: string;
   readonly timeoutMs?: number;
   readonly now?: () => Date;
   readonly nonce?: () => string;
+  /**
+   * Where the minted session lives between requests. Defaults to an
+   * isolate-local store: correct within one Worker isolate, and the reason a
+   * durable store (KV / Durable Object) is the next wiring step rather than a
+   * nice-to-have.
+   */
+  readonly tokenStore?: WebullTokenStore;
+  /** Escape hatch for tests that want no minting attempted at all. */
+  readonly mintSession?: boolean;
 }
+
+/**
+ * One store per runtime, so repeated probes inside an isolate reuse a session
+ * instead of restarting the 2FA cycle on every request.
+ */
+const defaultTokenStore = inMemoryTokenStore();
 
 export type WebullBrokerConnectionState =
   | "CONNECTED"
@@ -113,6 +140,33 @@ export async function probeWebullBrokerConnection(
   }
 
   const host = cleanHost(config.apiHost);
+
+  /**
+   * Get a LIVING session before signing anything.
+   *
+   * The old code read `WEBULL_ACCESS_TOKEN` out of the environment and sent
+   * whatever was there. Webull's token carries an expiry and a 2FA status, so
+   * that value goes stale on its own, and every rung then answers 401 —
+   * including `/trading/accounts/list`, which needs no market data at all.
+   * Minting here is what stops the re-paste loop.
+   */
+  let sessionToken = accessToken;
+  let sessionNote = "";
+  if (config.mintSession !== false) {
+    const session = await ensureWebullAccessToken(
+      fetchImpl,
+      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce },
+      config.tokenStore ?? defaultTokenStore,
+    );
+    sessionNote = session.note;
+    if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+      // Sending this would earn a 401 and we would report a credential fault
+      // for what is actually one tap in the Webull app. Say the true thing.
+      return receipt("BLOCKED_AUTH", session.note);
+    }
+    if (session.token?.token) sessionToken = session.token.token;
+  }
+
   const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
   const headers = buildWebullSignedHeaders({
     path: ACCOUNT_LIST_PATH,
@@ -125,7 +179,7 @@ export async function probeWebullBrokerConnection(
     apiVersion: "v2",
     profile: "legacy-sha1",
   });
-  if (accessToken) headers["x-access-token"] = accessToken;
+  if (sessionToken) headers["x-access-token"] = sessionToken;
 
   const controller = new AbortController();
   const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
@@ -154,7 +208,16 @@ export async function probeWebullBrokerConnection(
   }
 
   if (response.status === 401) {
-    return receipt("BLOCKED_AUTH", "Webull rejected the signed account request with HTTP 401. Verify the OpenAPI key pair, environment, and 2FA token requirement.");
+    // A 401 on the ACCOUNT lane says nothing about a market-data package —
+    // this endpoint needs none. Report the session we actually sent, because
+    // "verify your key pair" is the sentence that sent the Founder shopping
+    // for a subscription he already owned.
+    return receipt(
+      "BLOCKED_AUTH",
+      sessionNote
+        ? `Webull rejected the signed account request with HTTP 401. ${sessionNote}`
+        : "Webull rejected the signed account request with HTTP 401, and WM Pro minted no session for it to reject.",
+    );
   }
   if (response.status === 403 || response.status === 417) {
     return receipt("ACCESS_UNPROVEN", `Webull rejected the signed account request with HTTP ${response.status}; the failed permission or business-rule edge was not proven.`);

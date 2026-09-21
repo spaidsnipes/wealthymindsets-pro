@@ -3,13 +3,27 @@ import {
   probeWebullBrokerConnection,
   webullBrokerConfigFromEnv,
 } from "./webullBrokerConnection";
+import {
+  EXPIRY_INTERPRETATIONS,
+  WEBULL_TOKEN_STATUSES,
+  inMemoryTokenStore,
+  type WebullAccessToken,
+} from "@/lib/marketData/webullAccessToken";
 
+/**
+ * `mintSession: false` is stated OUT LOUD in these fixtures rather than
+ * inherited silently. Every one of these cases is about the account-list
+ * request itself, and a test that also minted a session would be measuring two
+ * round trips while asserting on one. The minting behaviour has its own
+ * describe block below.
+ */
 const config = {
   appKey: "test-app-key",
   appSecret: "test-app-secret",
   apiHost: "api.webull.test",
   now: () => new Date("2026-09-02T08:00:00.000Z"),
   nonce: () => "fixednonce",
+  mintSession: false,
 };
 
 afterEach(() => {
@@ -127,5 +141,108 @@ describe("Webull signed broker connection proof", () => {
     expect(receipt.state).toBe(state);
     expect(receipt.connected).toBe(false);
     expect(receipt.note.toLowerCase()).not.toContain("entitlement");
+  });
+});
+
+/**
+ * The three-month defect, locked shut.
+ *
+ * WM Pro read `WEBULL_ACCESS_TOKEN` out of the environment and sent whatever
+ * was sitting there. Webull's token expires and is 2FA-gated, so that value
+ * went stale on its own and every rung answered 401 — including this one,
+ * which needs no market-data package at all. The Founder was then told to
+ * check his credentials and his subscription, and re-pasting appeared to fix
+ * it until the next expiry.
+ */
+describe("the account lane carries a LIVING session, not a pasted one", () => {
+  const minting = {
+    appKey: "test-app-key",
+    appSecret: "test-app-secret",
+    apiHost: "api.webull.test",
+    now: () => new Date("2026-09-02T08:00:00.000Z"),
+    nonce: () => "fixednonce",
+  };
+  const nowMs = new Date("2026-09-02T08:00:00.000Z").getTime();
+
+  const storedToken = (over: Partial<WebullAccessToken> = {}): WebullAccessToken => ({
+    token: "minted-session-value",
+    status: WEBULL_TOKEN_STATUSES.NORMAL,
+    expiresAtMs: nowMs + 60 * 60_000,
+    expiryInterpretation: EXPIRY_INTERPRETATIONS.EPOCH_MILLIS,
+    observedAtMs: nowMs,
+    ...over,
+  });
+
+  it("sends the stored session and does not go minting when one is still good", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify([
+      { account_id: "private-1", account_type: "MARGIN" },
+    ]), { status: 200 }));
+    const receipt = await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
+      ...minting, tokenStore: inMemoryTokenStore(storedToken()),
+    });
+    expect(receipt.state).toBe("CONNECTED");
+    // One round trip: the account read. No mint, because none was needed.
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const [, init] = (fetchImpl.mock.calls as unknown as Array<[string, RequestInit]>)[0];
+    expect((init.headers as Record<string, string>)["x-access-token"]).toBe("minted-session-value");
+  });
+
+  it("does NOT let a stale env token override a freshly minted session", async () => {
+    // This is the exact swap that kept the loop alive: a value the Founder
+    // pasted months ago outranking the one WM Pro can mint on demand.
+    const fetchImpl = vi.fn(async () => new Response("[]", { status: 200 }));
+    await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
+      ...minting, accessToken: "stale-pasted-token", tokenStore: inMemoryTokenStore(storedToken()),
+    });
+    const [, init] = (fetchImpl.mock.calls as unknown as Array<[string, RequestInit]>)[0];
+    expect((init.headers as Record<string, string>)["x-access-token"]).toBe("minted-session-value");
+  });
+
+  it("reports a 2FA tap as a 2FA tap — and never sends the request", async () => {
+    // A PENDING session would earn a 401, and the old code called that a
+    // credential fault. The Founder's actual next action is one tap in the
+    // Webull app; anything else sends him shopping for a subscription.
+    const fetchImpl = vi.fn();
+    const receipt = await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
+      ...minting,
+      tokenStore: inMemoryTokenStore(storedToken({ status: WEBULL_TOKEN_STATUSES.PENDING })),
+    });
+    expect(receipt.state).toBe("BLOCKED_AUTH");
+    expect(receipt.connected).toBe(false);
+    expect(receipt.note).toMatch(/webull app/i);
+    expect(receipt.note).toMatch(/2fa/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("never blames a subscription or a missing secret when a 401 comes back", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 401 }));
+    const receipt = await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
+      ...minting, tokenStore: inMemoryTokenStore(storedToken()),
+    });
+    expect(receipt.state).toBe("BLOCKED_AUTH");
+    expect(receipt.note).not.toMatch(/subscri|entitle|market data|paste|verify the openapi key pair/i);
+  });
+
+  it("never leaks the session value into anything a surface can render", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 401 }));
+    const receipt = await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
+      ...minting, tokenStore: inMemoryTokenStore(storedToken()),
+    });
+    expect(JSON.stringify(receipt)).not.toContain("minted-session-value");
+    expect(JSON.stringify(receipt)).not.toContain("test-app-secret");
+  });
+
+  it("mints when the store is empty rather than asking anyone for a value", async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) =>
+      String(url).includes("/auth/tokens/create")
+        ? new Response(JSON.stringify({ data: { access_token: "fresh", expires: nowMs + 3_600_000, status: 1 } }), { status: 200 })
+        : new Response(JSON.stringify([{ account_id: "private-1", account_type: "MARGIN" }]), { status: 200 }));
+    const receipt = await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
+      ...minting, tokenStore: inMemoryTokenStore(null),
+    });
+    const urls = (fetchImpl.mock.calls as unknown as Array<[string]>).map(([u]) => String(u));
+    expect(urls[0]).toContain("/auth/tokens/create");
+    expect(urls[1]).toContain("/trading/accounts/list");
+    expect(receipt.state).toBe("CONNECTED");
   });
 });

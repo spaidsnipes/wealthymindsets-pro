@@ -12,6 +12,12 @@ import {
   webullRungSpecs,
   type WebullRungReceipt,
 } from "./webullEntitlementProbe";
+import {
+  EXPIRY_INTERPRETATIONS,
+  WEBULL_TOKEN_STATUSES,
+  inMemoryTokenStore,
+  type WebullAccessToken,
+} from "./webullAccessToken";
 
 function receipt(
   rung: WebullRungReceipt["rung"],
@@ -197,5 +203,91 @@ describe("probeWebullEntitlement", () => {
       new Response(JSON.stringify({ code: "INVALID_SIGNATURE" }), { status: 403 })) as unknown as typeof fetch;
     const report = await probeWebullEntitlement(fetchImpl, { appKey: "k", appSecret: "s" });
     expect(report.verdict).toBe("CREDENTIAL_OR_CONTRACT_SUSPECT");
+  });
+});
+
+/**
+ * The ladder is only readable if the session we climbed it with was alive.
+ *
+ * An expired token fails all four rungs, including the two that need no data
+ * package — and that pattern reads as CREDENTIAL_OR_CONTRACT_SUSPECT. So a
+ * stale session doesn't just lose data, it manufactures a confident wrong
+ * verdict about the Founder's credentials. These lock that shut.
+ */
+describe("the entitlement ladder climbs on a LIVING session", () => {
+  const NOW = new Date("2026-09-20T18:00:00.000Z");
+  const live = (over: Partial<WebullAccessToken> = {}): WebullAccessToken => ({
+    token: "minted-session-value",
+    status: WEBULL_TOKEN_STATUSES.NORMAL,
+    expiresAtMs: NOW.getTime() + 60 * 60_000,
+    expiryInterpretation: EXPIRY_INTERPRETATIONS.EPOCH_MILLIS,
+    observedAtMs: NOW.getTime(),
+    ...over,
+  });
+  const base = { appKey: "k", appSecret: "s", now: () => NOW, nonce: () => "n".repeat(32) };
+
+  it("sends the minted session on every rung, not the pasted one", async () => {
+    const tokens: (string | undefined)[] = [];
+    const fetchImpl = (async (_url: URL, init: RequestInit) => {
+      tokens.push((init.headers as Record<string, string>)["x-access-token"]);
+      return new Response(JSON.stringify({ data: [{ account_id: "x" }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await probeWebullEntitlement(fetchImpl, {
+      ...base, accessToken: "stale-pasted-token", tokenStore: inMemoryTokenStore(live()),
+    });
+    expect(tokens).toHaveLength(4);
+    expect(new Set(tokens)).toEqual(new Set(["minted-session-value"]));
+  });
+
+  it("does not climb at all while a 2FA approval is outstanding", async () => {
+    // Climbing here would produce four 401s and we would publish a verdict
+    // about his entitlements built entirely out of our own pending session.
+    let called = 0;
+    const fetchImpl = (async () => { called += 1; return new Response("{}", { status: 401 }); }) as unknown as typeof fetch;
+    const report = await probeWebullEntitlement(fetchImpl, {
+      ...base, tokenStore: inMemoryTokenStore(live({ status: WEBULL_TOKEN_STATUSES.PENDING })),
+    });
+    expect(called).toBe(0);
+    expect(report.verdict).toBe("AWAITING_2FA");
+    expect(report.rungs).toEqual([]);
+    expect(report.note).toMatch(/webull app/i);
+  });
+
+  it("does not call a 2FA wait UNCONFIGURED", async () => {
+    // "Unconfigured" says something is missing from the deployment. Nothing
+    // is. Conflating the two is how the Founder gets sent to add a secret he
+    // already added — the loop this whole lane exists to end.
+    const report = await probeWebullEntitlement(
+      (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch,
+      { ...base, tokenStore: inMemoryTokenStore(live({ status: WEBULL_TOKEN_STATUSES.PENDING })) },
+    );
+    expect(report.verdict).not.toBe("UNCONFIGURED");
+    // The guard targets the INSTRUCTION, not the vocabulary. A bare /missing/
+    // would also fire on "no credential is missing", which is the sentence we
+    // actually want — a denial is not an accusation.
+    expect(report.note).not.toMatch(/not configured/i);
+    expect(report.note).not.toMatch(/\b(add|set|paste|re-?enter|supply)\s+(a|the\s+)?\w*\s*(secret|credential|token|variable|key)/i);
+    // And it must point at the one action that is actually his to take.
+    expect(report.note).toMatch(/approve/i);
+  });
+
+  it("says out loud when a climb carried no session at all", async () => {
+    // Otherwise a failed mint reads back as a fact about his entitlements.
+    const fetchImpl = (async (url: URL) => String(url).includes("/auth/tokens/")
+      ? new Response("{}", { status: 500 })
+      : new Response(JSON.stringify({ code: "INVALID_SIGNATURE" }), { status: 403 })) as unknown as typeof fetch;
+    const report = await probeWebullEntitlement(fetchImpl, {
+      ...base, tokenStore: inMemoryTokenStore(live({ status: WEBULL_TOKEN_STATUSES.EXPIRED })),
+    });
+    expect(report.note).toMatch(/no session accompanied this climb/i);
+  });
+
+  it("never leaks the minted session into the report", async () => {
+    const report = await probeWebullEntitlement(
+      (async () => new Response(JSON.stringify({ data: [{ account_id: "x" }] }), { status: 200 })) as unknown as typeof fetch,
+      { ...base, tokenStore: inMemoryTokenStore(live()) },
+    );
+    expect(JSON.stringify(report)).not.toContain("minted-session-value");
   });
 });

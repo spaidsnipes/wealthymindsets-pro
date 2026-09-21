@@ -298,14 +298,23 @@ export async function fetchWebullTickSnapshot(
         // a "token". So this names the next atom and labels its own confidence.
         // It must never harden into "the cause", which is the exact invention
         // the readiness note was written to prevent.
+        // CORRECTED 2026-09-20. The old copy here ended with "set
+        // WEBULL_ACCESS_TOKEN and re-probe", and that instruction WAS the
+        // three-month loop: the Founder set it, it worked, it expired, every
+        // rung 401'd, he set it again. Webull's token carries an expiry and a
+        // 2FA status — it is a SESSION, and a session is minted, not entered.
+        // See webullAccessToken.ts. The next atom is never a human retyping
+        // a credential; it is this lane minting one.
         const tokenShaped = /TOKEN/.test(providerCode);
         const tokenLead = tokenShaped && !accessToken
-          ? " The provider's code names a TOKEN and this runtime sent no x-access-token, because WEBULL_ACCESS_TOKEN is not set. " +
-            "That makes the absent token the leading candidate to try first — it is NOT proven to be the cause, since the provider " +
-            "may use this code for the App Key itself. Next atom: set WEBULL_ACCESS_TOKEN and re-probe."
+          ? " The provider's code names a TOKEN and this runtime sent no x-access-token. That makes the absent session the leading " +
+            "candidate — it is NOT proven to be the cause, since the provider may use this code for the App Key itself. The session " +
+            "is minted from the App Key and Secret rather than entered by hand, so the next atom is to route this lane through the " +
+            "minted session, not to supply a value."
           : tokenShaped && accessToken
-            ? " The provider's code names a TOKEN and this runtime DID send an x-access-token, so the configured token is the leading " +
-              "candidate to rotate — it may be expired, revoked, or issued for a different environment."
+            ? " The provider's code names a TOKEN and this runtime DID send an x-access-token, so the session it sent is the leading " +
+              "candidate — most likely expired, since Webull sessions do, or issued for a different environment. It is renewable " +
+              "without anyone re-entering anything."
             : "";
         return unavailable(
           "BLOCKED_AUTH",
