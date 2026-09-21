@@ -219,12 +219,83 @@ describe("the market field has ONE material owner", () => {
   });
 
   it("THE DEFECT: the OHLCV strip carries no fill of its own", () => {
-    // Targeted at the exact element, so a future refactor that reintroduces
-    // the slab under a different literal still turns this red.
+    // RE-AIMED 2026-09-21, NOT RELAXED. The law this test enforces is
+    // unchanged — the price legend must not paint a second material over the
+    // market field. What changed is the legend's SHAPE: it was a layout row
+    // (`height: 28, flexShrink: 0`) sitting above the field; canon frame F24
+    // prints the same words INSIDE the candle pane, so it is now an absolute
+    // overlay in the pane's top-left headroom. The old regex was keyed to
+    // `flexShrink: 0`, a property that only exists on a flex CHILD, so it
+    // could not survive the very move the canon asked for.
+    //
+    // The replacement is STRICTLY STRONGER. It still pins `background:
+    // "transparent"`, and it additionally pins the two properties that make
+    // the overlay legitimate rather than a regression:
+    //   • `position: "absolute"` — it must COVER field, never SHRINK it. A
+    //     refactor that drops this silently steals 28px of candles back.
+    //   • `pointerEvents: "none"` — the pane underneath owns the crosshair,
+    //     drawing and context menu. An opaque overlay would trade 28px of
+    //     chart for a 28px dead strip where the crosshair stops.
+    //
+    // ANCHORED BY THE ELEMENT'S OWN className, not by a loose property
+    // search. A mutation run while writing this test (2026-09-21) proved the
+    // unanchored form was worthless: reverting the overlay to a layout row
+    // still "passed", because the regex silently matched a DIFFERENT absolute
+    // block further down the file. `flex items-center gap-4 px-3` occurs
+    // exactly once in MainChart, so this reads the legend or nothing.
     const src = CODE(MAIN_CHART);
-    const strip = src.match(/\{\s*height:\s*28,\s*flexShrink:\s*0,\s*background:\s*([^}]*)\}/);
-    expect(strip, "the 28px OHLCV strip style object is missing").not.toBeNull();
-    expect(strip![1].trim().replace(/,$/, "")).toBe('"transparent"');
+    const strip = src.match(
+      /style=\{\{([\s\S]{0,400}?)\}\}\s*className="flex items-center gap-4 px-3"/,
+    );
+    expect(
+      strip,
+      "the 28px OHLCV legend overlay style object is missing — if it went " +
+        "back to being a layout row, the market field just lost 28px again",
+    ).not.toBeNull();
+    expect(
+      strip![1],
+      "the legend overlay is no longer absolutely positioned — an absolute " +
+        "box COVERS field, a layout box SHRINKS it",
+    ).toMatch(/position:\s*"absolute"/);
+    // THE NAME, NOT THE NUMBER — the same law this whole suite exists to
+    // enforce, applied to a height instead of a colour. Two other things in
+    // the pane's top-left corner (the data-window `D` toggle and the
+    // absorption BASIS caption, in two different rendering systems) have to
+    // clear this legend. While all three spelled `8`/`28` as literals they
+    // agreed only by luck. They now derive from PRICE_LEGEND_OVERLAY_H, so a
+    // future change to the legend's height moves all three together.
+    expect(
+      strip![1],
+      "the legend overlay restated its height as a literal; the `D` toggle " +
+        "and the canvas BASIS caption position themselves off " +
+        "PRICE_LEGEND_OVERLAY_H and will now collide with it",
+    ).toMatch(/height:\s*PRICE_LEGEND_OVERLAY_H\b/);
+    expect(
+      CODE(MAIN_CHART),
+      "PRICE_LEGEND_OVERLAY_H lost its definition",
+    ).toMatch(/const PRICE_LEGEND_OVERLAY_H = 28;/);
+    // Both dependants must still DERIVE their offset, never re-type it.
+    expect(
+      CODE(MAIN_CHART),
+      "the data-window `D` toggle no longer clears the price legend",
+    ).toMatch(/position:\s*"absolute",\s*top:\s*BELOW_PRICE_LEGEND/);
+    expect(
+      CODE(MAIN_CHART),
+      "the absorption BASIS caption no longer clears the price legend",
+    ).toMatch(/const bx = BASIS_CAPTION_X, by = BELOW_PRICE_LEGEND;/);
+    expect(strip![1], "the legend is painting its own material again").toMatch(
+      /background:\s*"transparent"/,
+    );
+    expect(
+      strip![1],
+      "the legend overlay must not be a layout child — `flexShrink` means it " +
+        "is consuming the field's height instead of floating on it",
+    ).not.toMatch(/flexShrink/);
+    expect(
+      strip![1],
+      "the legend overlay is eating pointer events; the crosshair, drawing " +
+        "and context menu all live on the pane underneath it",
+    ).toMatch(/pointerEvents:\s*"none"/);
   });
 
   it("the canonical owner still paints the field — we removed a duplicate, not the fill", () => {
@@ -239,12 +310,33 @@ describe("the market field has ONE material owner", () => {
     );
   });
 
-  it("the strip keeps its structural delimiter — a fill was removed, not the structure", () => {
-    // OVER-CORRECTION GUARD. Canon calls for brass structural hairlines, not
-    // for the removal of all structure. Transparency is the cure; erasing the
-    // boundary between controls and candles is not.
-    expect(CODE(MAIN_CHART)).toMatch(
-      /height:\s*28,\s*flexShrink:\s*0,\s*background:\s*"transparent"[\s\S]{0,160}?border-b border-wm-border\/50/,
+  it("the legend's one interactive control re-arms itself through the transparent overlay", () => {
+    // SUPERSEDES the old "structural delimiter" guard, and states WHY rather
+    // than quietly dropping it.
+    //
+    // The old guard demanded `border-b border-wm-border/50` under the strip.
+    // Its stated purpose was to keep "the boundary between controls and
+    // candles". That boundary was real while the strip was a chrome ROW with
+    // candles beneath it. Canon frame F24 has no such rule, because it has no
+    // such boundary: the legend is INSIDE the candle pane, floating on the
+    // field. A hairline across the field there would be drawing a border
+    // between the market and itself — the very seam the §COMPOSITION CONTRACT
+    // note in MainChart set out to remove. So the demand was retired on
+    // canon, deliberately, and is recorded here rather than deleted silently.
+    //
+    // What replaces it is the over-correction guard the NEW shape actually
+    // needs. Making the overlay `pointerEvents: "none"` is what keeps the
+    // crosshair alive underneath — but it also disarms every control inside
+    // it. There is exactly one (the fullscreen button, audited 2026-09-21),
+    // and it must opt back in. If someone adds a second control to this
+    // subtree and it silently does nothing, that is the bug this catches.
+    const src = CODE(MAIN_CHART);
+    expect(
+      src,
+      "the fullscreen button no longer re-arms pointer events; it is inside " +
+        'a `pointerEvents: "none"` overlay, so it is now unclickable',
+    ).toMatch(
+      /aria-label=\{isFullscreen \? "Exit fullscreen" : "Fullscreen"\}[\s\S]{0,900}?pointerEvents:\s*"auto"/,
     );
   });
 

@@ -106,6 +106,48 @@ import { STRUCTURE_DEFAULT_LOOKBACK } from "@/lib/marketData/viewModels/selectMa
  */
 const CHART_SWING_LOOKBACK = STRUCTURE_DEFAULT_LOOKBACK;
 const LIQUIDITY_SWEEP_LOOKBACK = 4;
+
+/**
+ * THE PRICE LEGEND'S RESERVED HEADROOM, WITH ONE OWNER.
+ *
+ * Canon frame F24 prints the symbol and the O/H/L/C line INSIDE the candle
+ * pane rather than in a chrome band above it. On 2026-09-21 this build
+ * followed, and the legend became a 28px absolute overlay pinned to the pane's
+ * top edge.
+ *
+ * That corner was NOT empty. Two things had held `top: 8` since the era when
+ * the legend lived in a row of its own and the pane's top-left was free real
+ * estate: the data-window `D` toggle (a DOM button) and the absorption-anatomy
+ * BASIS caption (drawn on canvas). LOOKED AT, NOT INFERRED —
+ * scratchpad/top-clip.png at 1440x900 showed both printing underneath the
+ * "30815.50" glyphs.
+ *
+ * They live in different rendering systems and cannot see each other, so left
+ * as two literal `8`s they would agree only by luck, and the next person to
+ * change the legend's height would silently re-create the collision in
+ * whichever one they didn't think of. One constant, two readers: the height
+ * the legend actually reserves, and the inset both had all along.
+ */
+const PRICE_LEGEND_OVERLAY_H = 28;
+const PANE_TOP_LEFT_INSET = 8;
+/** First free pixel below the price legend, for anything else in that corner. */
+const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
+
+/**
+ * …AND THE ROW BELOW THE LEGEND HAS AN ORDER, NOT A PILE-UP.
+ *
+ * Moving both displaced objects down by the same amount fixed their collision
+ * with the legend and created a new one with each other — LOOKED AT, 2026-09-21,
+ * second `top-clip.png`: the `D` glyph and the word "EFFORT" printed over one
+ * another. They are a DOM button and a canvas caption, so no layout engine will
+ * ever space them; the only way they can share a row is if the second one is
+ * told how wide the first one is.
+ *
+ * Left-to-right: the `D` toggle, then the BASIS caption.
+ */
+const DATA_WINDOW_TOGGLE_PX = 22;
+const BASIS_CAPTION_X =
+  PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + PANE_TOP_LEFT_INSET;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
@@ -7333,7 +7375,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const basisTxt = BASIS_LABEL[anatomy.basis];
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const bwTxt = ctx.measureText(basisTxt).width;
-            const bx = 8, by = 8;
+            // `by` CLEARS THE PRICE LEGEND. See PRICE_LEGEND_OVERLAY_H: this
+            // caption held `by = 8` from before the legend moved into the pane,
+            // and was printing under the headline price. Derived, not re-typed,
+            // so it tracks the legend if the legend's height ever changes.
+            const bx = BASIS_CAPTION_X, by = BELOW_PRICE_LEGEND;
             const desktopBasisChrome = W >= 960;
             if (desktopBasisChrome) {
               // FL-06 carries basis as quiet chart provenance, not a second
@@ -9047,9 +9093,51 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           of exactly this occlusion — MainChart was never in its FRAME list, so
           the largest surface kept the defect. Transparent here means the strip
           inherits the one canonical fill and can never drift from it again. */}
+      {/* ── Chart + canvas overlay ───────────────────────── */}
+      <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}
+        onPointerMove={handleOverlayPointerMove}
+        onPointerDown={handleCursorSelectDown}
+        onPointerUp={handleCursorSelectUp}
+        onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
+
+      {/* ── NOW RIDES OVER THE CANDLES, IT DOES NOT PUSH THEM DOWN ──────
+          LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a 1440
+          shot of this room: F24 prints "TSLA · Tesla, Inc. · 1D · NASDAQ" and
+          the O/H/L/C line INSIDE the candle pane, over the chart's own top-left
+          headroom. It is not a band. The market field starts at the top of the
+          frame and the price legend floats on it.
+
+          This build spent a full-width 28px LAYOUT row on the same words,
+          directly above the field. MEASURED at 1440x900 by
+          scratchpad/desktop-chrome-stack.mjs: 28px of the 157px of chrome
+          above the candles, on a row whose own text is the market's — the
+          one thing in the stack that was never chrome in the first place.
+
+          The canon note 40 lines up already argued half of this: §COMPOSITION
+          CONTRACT says "NOW belongs to MARKET ... embedded into the market
+          environment rather than another dashboard card", and that fix made
+          the strip's FILL transparent so it could not seam against the field.
+          A strip that inherits the field's colour but still consumes a row of
+          the field's height is only half-embedded. This finishes it — same
+          contract, same sentence, now applied to geometry instead of paint.
+
+          POINTER-TRANSPARENT BY DEFAULT. The pane underneath owns the
+          crosshair, drawing and context menu (onPointerMove / onPointerDown /
+          onContextMenu, right here on the parent). An overlay that ate those
+          events would trade 28px of chart for a 28px dead strip where the
+          crosshair stops — a worse defect than the one being fixed. So the
+          band is `pointerEvents: "none"` and the single interactive thing
+          inside it, the fullscreen button, re-arms itself. Audited: that
+          button is the ONLY control in this subtree.
+
+          The bottom rule is gone with the row. A 1px border drawn across live
+          candles reads as a chart annotation the trader did not place. */}
       <div
-        style={{ height: 28, flexShrink: 0, background: "transparent" }}
-        className="flex items-center gap-4 px-3 border-b border-wm-border/50"
+        style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: PRICE_LEGEND_OVERLAY_H,
+          zIndex: 20, pointerEvents: "none", background: "transparent",
+        }}
+        className="flex items-center gap-4 px-3"
       >
         {/* Price + change + source provenance (WM-CHART-P0-05) */}
         <div className="flex items-baseline gap-2">
@@ -9380,6 +9468,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            /* RE-ARMED. The legend band above it is `pointerEvents: "none"` so
+               the crosshair, drawing and context menu keep reaching the candle
+               pane underneath. This button is the ONLY control in that subtree
+               (audited, same session), so it opts itself back in rather than
+               the band opting everything in. */
+            style={{ pointerEvents: "auto" }}
             className="flex items-center justify-center min-w-11 min-h-11 p-3 -m-3 rounded hover:bg-wm-surface transition-colors text-wm-text-dim hover:text-wm-text"
           >
             {isFullscreen ? (
@@ -9395,12 +9489,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         </div>
       </div>
 
-      {/* ── Chart + canvas overlay ───────────────────────── */}
-      <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}
-        onPointerMove={handleOverlayPointerMove}
-        onPointerDown={handleCursorSelectDown}
-        onPointerUp={handleCursorSelectUp}
-        onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
 
         {/* H-101 — WAIT belongs to a selected object, at that object's real
@@ -10158,12 +10246,27 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           );
         })()}
 
-        {/* Toggle data window button */}
+        {/* Toggle data window button
+
+            MOVED DOWN 28px, NOT REMOVED. LOOKED AT, NOT INFERRED: 2026-09-21,
+            scratchpad/top-clip.png beside canon frame F24. This button held
+            `top: 8` from the era when the pane's top-left was empty because the
+            price legend lived in a chrome ROW above the field. The legend is
+            now an overlay in that exact corner — F24's arrangement — so the
+            two literally printed on top of each other, the 22px chip sitting
+            under the "30815.50" glyphs.
+
+            `BELOW_PRICE_LEGEND` is the legend's height plus the 8px inset this
+            button always had, so it keeps its original margin from the thing
+            above it instead of inventing a new number — and it is DERIVED, so
+            it cannot drift from the legend the way a literal `36` would.
+            Capability is untouched: same control, same handler, same title,
+            one corner down. */}
         <button
           onClick={() => setDataWindowOpen(v => !v)}
           title={dataWindowOpen ? "Hide data window" : "Show data window"}
           style={{
-            position: "absolute", top: 8, left: 8, zIndex: 70,
+            position: "absolute", top: BELOW_PRICE_LEGEND, left: PANE_TOP_LEFT_INSET, zIndex: 70,
             width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
             background: dataWindowOpen ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
             border: `1px solid ${dataWindowOpen ? "rgba(47,128,237,0.5)" : "#263050"}`,
