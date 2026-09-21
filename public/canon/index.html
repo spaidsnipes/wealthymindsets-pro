@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CANON vs OS — desktop 1440</title>
+<style>
+  :root { --gold:#C9A961; --bd:#1E2030; }
+  * { box-sizing:border-box }
+  body { margin:0; background:#07080C; color:#E8E6E1; font:12px/1.4 ui-sans-serif,system-ui,sans-serif }
+  header { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--bd); flex-wrap:wrap }
+  header b { color:var(--gold); letter-spacing:.14em; font-size:10px }
+  button { background:#131520; color:#8B8FA8; border:1px solid var(--bd); border-radius:4px;
+           padding:6px 10px; font:700 10px/1 ui-sans-serif; letter-spacing:.08em; cursor:pointer }
+  button[aria-pressed="true"] { color:#07080C; background:var(--gold); border-color:var(--gold) }
+  .wrap { display:grid; grid-template-columns:1fr 1fr; height:calc(100vh - 41px) }
+  .pane { position:relative; overflow:auto; border-right:1px solid var(--bd) }
+  .tag { position:absolute; top:6px; left:6px; z-index:5; background:#07080Cdd;
+         border:1px solid var(--bd); border-radius:3px; padding:3px 7px;
+         font:700 9px/1 ui-sans-serif; letter-spacing:.1em; color:var(--gold) }
+  img { width:100%; display:block; background:#07080C }
+  #stamp { color:#8B8FA8; font:700 9px/1 ui-sans-serif; letter-spacing:.08em }
+</style>
+<header>
+  <b>CANON</b>
+  <button data-f="F24-workspace-equipment-over-live-chart.jpg" aria-pressed="true">F24 EQUIPMENT OVER LIVE CHART</button>
+  <button data-f="G01-home-charts-owns-page.jpg" aria-pressed="false">G01 CHARTS OWNS PAGE</button>
+  <button data-f="G02-workspace-activator.jpg" aria-pressed="false">G02 WORKSPACE ACTIVATOR</button>
+  <span style="flex:1"></span>
+  <b>OS · 1440</b>
+  <button data-o="os-latest.png" aria-pressed="true">DEFAULT</button>
+  <button data-o="os-latest-tools.png" aria-pressed="false">TOOLS OPEN</button>
+  <button id="refresh">REFRESH</button>
+  <span id="stamp"></span>
+</header>
+<div class="wrap">
+  <div class="pane"><span class="tag">CANON</span><img id="canon" src="F24-workspace-equipment-over-live-chart.jpg"></div>
+  <div class="pane"><span class="tag">WM PRO OS · CURRENT BUILD</span><img id="os" src="os-latest.png"></div>
+</div>
+<script>
+  const canon = document.getElementById("canon"), os = document.getElementById("os");
+  const stamp = document.getElementById("stamp");
+  let osFile = "os-latest.png";
+  function group(sel, attr, apply) {
+    for (const b of document.querySelectorAll(sel)) {
+      b.onclick = () => {
+        for (const o of document.querySelectorAll(sel)) o.setAttribute("aria-pressed", String(o === b));
+        apply(b.dataset[attr]);
+      };
+    }
+  }
+  group("button[data-f]", "f", f => canon.src = f);
+  group("button[data-o]", "o", o => { osFile = o; bust(); });
+  function bust() {
+    os.src = osFile + "?t=" + Date.now();
+    stamp.textContent = "OS SHOT " + new Date().toLocaleTimeString();
+  }
+  document.getElementById("refresh").onclick = bust;
+  // The build loop overwrites os-latest*.png; poll so the right pane follows
+  // the build without the Founder having to press anything.
+  setInterval(bust, 15000);
+  bust();
+</script>

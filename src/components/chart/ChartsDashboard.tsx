@@ -1344,7 +1344,43 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [cursorBar, setCursorBar] = useState<
     { o: number; h: number; l: number; c: number; v: number; time: number } | null
   >(null);
-  const [inspectOpen, setInspectOpen] = useState(true);
+  /**
+   * CLOSED ON ARRIVAL — A-201 LAYER 5 SAYS "OPTIONAL", AND OPTIONAL IS A WORD
+   * ABOUT THE DEFAULT.
+   *
+   * LOOKED AT, NOT INFERRED. 2026-09-21 I put two canon frames beside two
+   * runtime screenshots of this room:
+   *
+   *   F24 "Workspace Equipment Over Live Chart" (desktop) — the candle field
+   *   carries NOTHING. No floating cards. Workspace/Tools top-left, an asOf
+   *   chip top-right, the decision rail right, candles everywhere else.
+   *
+   *   /tmp/os-1440.png — the same field carries an "Effort vs Result" card on
+   *   the left and an "Inspect Ticket" card on the right, both on first paint,
+   *   both unasked.
+   *
+   * At 390 it stops being a matter of taste. M-401/390 MOBILE ASSEMBLY builds
+   * the phone from four parts — MARKET CAMERA, WAIT FINISHED PLAQUE, WORKSPACE
+   * CORNER FASTENER, TOOLS CORNER FASTENER — and stamps the rest "DO NOT
+   * INSTALL — LEFTOVER MALL PARTS". In /tmp/os-390.png the market camera is the
+   * last thing to receive space and what it receives is covered by this card.
+   *
+   * A-201 layer 5 is explicit that the inspect sheet MUST NOT DEMOLISH LAYER 2.
+   * A sheet that is up before the trader asked has demolished layer 2 by
+   * default, and no press ever authorised it.
+   *
+   * NOTHING IS REMOVED. Both panels already ship a collapsed state — a labelled
+   * 24px chip ("INSPECT" / "EFFORT") pinned to the same corner the panel opens
+   * from. So this is a change of INITIAL STATE, not of capability: the reading
+   * is one press away instead of zero, and the candles are visible at zero
+   * presses instead of one. That trade is the whole point of the word
+   * "optional", and it is the direction A-201 picks.
+   *
+   * ONE DEFAULT, NOT A WIDTH BRANCH. A `width < 768 ? false : true` here would
+   * make the desktop disagree with F24 forever, and would plant a second rule
+   * about what the camera is owed. G-001: 1440 and 390 are the SAME ORGANISM.
+   */
+  const [inspectOpen, setInspectOpen] = useState(false);
 
   /* The span comes from the bars the chart DREW, not from a second
    * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
@@ -1399,7 +1435,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * opening a second cursor path. Two panels over one candle disagreeing about
    * which candle is selected is the failure the ticket's own header warns about.
    */
-  const [effortOpen, setEffortOpen] = useState(true);
+  /* Closed on arrival for the reason spelled out at `inspectOpen`, and it has
+     to be the SAME answer. These two are a matched pair over one candle — the
+     ticket's own header warns about two panels disagreeing about which bar is
+     selected. Two panels disagreeing about whether they were INVITED is the
+     same defect wearing different clothes, and it is the one that would leave
+     the camera half-covered at 390 instead of clear. Collapsed state here is
+     the "EFFORT" chip. */
+  const [effortOpen, setEffortOpen] = useState(false);
 
   const effortPriorBars = React.useMemo(() => {
     if (!inspectBar) return [];
