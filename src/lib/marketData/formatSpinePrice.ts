@@ -72,6 +72,37 @@ export type SpinePriceProvenance =
    * rather than settled by a change that would be invisible in review.
    */
   | "QUOTE"
+  /**
+   * A DISPLAY QUOTE WM CANNOT ATTRIBUTE.
+   *
+   * MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m, ONE viewport,
+   * screenshot-proved:
+   *
+   *     chart header    81226.01 SOURCE UNCERTIFIED  ↑ +136.90 (+0.17%)
+   *     MARKET cell     BTCUSDT · 5m · PRICE UNKNOWN
+   *
+   * Canon Weakness #1 — multi-price disagreement in one viewport — AND IT WAS
+   * REINTRODUCED BY THIS FILE, one commit earlier. The `QUOTE` arm above began
+   * refusing `useWebSocket`'s `unavailable` sentinel, correctly, because
+   * printing it after "LAST QUOTE ·" manufactures a citation. But refusing the
+   * SOURCE was taken as grounds to drop the NUMBER, so the cell fell all the
+   * way to `NONE` and printed PRICE UNKNOWN — a FINDING, the sentence that
+   * sends a trader to diagnose a pipeline — over a figure WM was at that exact
+   * moment rendering in 20px on the same screen.
+   *
+   * `chartHeaderPriceFact` had already settled this for the header slot, in
+   * words this module is bound by: the number is real and withholding it is the
+   * understatement defect; a bare figure states a print, which is the one thing
+   * it is not. The cure is neither NONE nor a bare number — it is a DECLARED
+   * PROVENANCE whose words travel beside the figure.
+   *
+   * RANKED BELOW `QUOTE`, and the ordering is the whole point: a quote WM can
+   * attribute beats a quote it cannot. This arm speaks only where every other
+   * channel is silent AND the source could not be named — which is exactly and
+   * only the set of cases that printed PRICE UNKNOWN before it existed. No
+   * caller that renders a price today renders a different one tomorrow.
+   */
+  | "UNCERTIFIED_QUOTE"
   | "NONE"
   | "AWAITING";
 
@@ -192,6 +223,22 @@ export function selectPriceEvidence(
     };
   }
 
+  // THE SAME QUOTE, UNATTRIBUTED. Reached only when a usable number arrived and
+  // the source could NOT be named — the case that fell to PRICE UNKNOWN until
+  // the header proved WM can say both things at once. See the docblock on
+  // `SpinePriceProvenance["UNCERTIFIED_QUOTE"]` for the measurement.
+  //
+  // The qualifier is not optional decoration and not a softer version of the
+  // certified one. It says the opposite of a citation: there is nobody to check
+  // this against. A reader who sees it knows precisely as much as WM does.
+  if (usable(quote?.last)) {
+    return {
+      value: quote!.last!,
+      provenance: "UNCERTIFIED_QUOTE",
+      qualifier: "LAST QUOTE · SOURCE UNCERTIFIED",
+    };
+  }
+
   // EVERY CHANNEL IS EMPTY BECAUSE NONE HAS ANSWERED YET.
   //
   // Placed AFTER both evidence arms on purpose, so EVIDENCE OUTRANKS THE FLAG:
@@ -253,7 +300,19 @@ export function qualifyMarketQuality(
   // QUOTE joins BAR_CLOSE for the identical reason: the grade is of the PRINT
   // channel, the number above it came from a different one, and an unscoped
   // UNAVAILABLE set beneath a present reading can only be read as erasing it.
-  if ((provenance === "BAR_CLOSE" || provenance === "QUOTE") && q === "UNAVAILABLE") {
+  //
+  // UNCERTIFIED_QUOTE joins them, and needs it MOST. Its own qualifier already
+  // admits WM cannot name a provider; stacking a bare UNAVAILABLE underneath
+  // would read as a second, larger claim that the number itself is not there —
+  // two different doubts collapsing into one erasure of a figure that IS
+  // present. The scope keeps them distinct: the print channel is empty, the
+  // quote is unattributed, and the number is real.
+  if (
+    (provenance === "BAR_CLOSE" ||
+      provenance === "QUOTE" ||
+      provenance === "UNCERTIFIED_QUOTE") &&
+    q === "UNAVAILABLE"
+  ) {
     return "NO LIVE PRINT";
   }
   return q;

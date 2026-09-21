@@ -166,28 +166,50 @@ describe("formatSpinePrice — the QUOTE channel", () => {
     expect(formatSpinePrice(null, null, "5m", true).text).toBe("PRICE UNKNOWN");
   });
 
-  it("DROPS an unattributable number rather than render it anonymously", () => {
-    // A price with no nameable provider is exactly the uncheckable reading
-    // this module exists to prevent. Falling back to PRICE UNKNOWN is the
-    // honest outcome — "we hold a number we cannot source" is not a reading.
+  it("NEVER renders an unattributable number anonymously", () => {
+    // CORRECTED 2026-09-20, SAME DAY, and the correction is left visible on
+    // purpose. This test originally asserted `NONE` / "PRICE UNKNOWN" and its
+    // comment read: "Falling back to PRICE UNKNOWN is the honest outcome —
+    // 'we hold a number we cannot source' is not a reading."
+    //
+    // That was WRONG, and the serving host proved it within the hour. The
+    // chart header, fixed the same evening, printed "81226.01 SOURCE
+    // UNCERTIFIED" while this cell printed PRICE UNKNOWN about the identical
+    // figure in the identical viewport. PRICE UNKNOWN is a FINDING — it sends
+    // a trader to diagnose a pipeline — and it was printed over a number WM
+    // was rendering in 20px a thousand pixels away.
+    //
+    // "We hold a number we cannot source" IS a reading. It is simply a
+    // different one than "we hold a number from finnhub", and the cure was
+    // never to discard it — it was to give it its own provenance and let its
+    // words travel beside it. What must never happen is the ANONYMOUS render,
+    // and that is what this test now guards.
     for (const src of [null, undefined, "", "   "]) {
       const d = formatSpinePrice(null, null, "5m", true, { last: 81738.08, source: src });
-      expect(d.provenance, `source ${JSON.stringify(src)}`).toBe("NONE");
-      expect(d.text).toBe("PRICE UNKNOWN");
+      expect(d.provenance, `source ${JSON.stringify(src)}`).toBe("UNCERTIFIED_QUOTE");
+      // Never bare — a bare figure in this cell states a print.
+      expect(d.text).not.toBe("81738.08");
+      // Never a manufactured citation out of an empty slot.
+      expect(d.text).not.toMatch(/LAST QUOTE · \s*$/);
+      expect(d.text).toBe("81738.08 LAST QUOTE · SOURCE UNCERTIFIED");
     }
   });
 
-  it("treats an UNCERTIFIED-provenance sentinel as no source at all", () => {
+  it("refuses to cite an UNCERTIFIED-provenance sentinel as a vendor", () => {
     // MEASURED on the serving host 2026-09-20: this arm rendered
     // "81781.82 LAST QUOTE · unavailable". `unavailable` is useWebSocket's
     // sentinel for a quote whose source this product refused to certify —
     // printing it as a citation states the opposite of what WM knows.
+    //
+    // The number survives (see the test above); what the sentinel may never do
+    // is appear where a checkable vendor name goes.
     for (const src of ["unavailable", "UNAVAILABLE", " unavailable ", "unknown", "none", "n/a", "-"]) {
       const d = formatSpinePrice(null, null, "5m", true, { last: 81781.82, source: src });
-      expect(d.provenance, `source ${JSON.stringify(src)}`).toBe("NONE");
-      expect(d.text).toBe("PRICE UNKNOWN");
+      expect(d.provenance, `source ${JSON.stringify(src)}`).toBe("UNCERTIFIED_QUOTE");
+      expect(d.text, `source ${JSON.stringify(src)}`).not.toMatch(/unavailable|unknown|n\/a/i);
+      expect(d.text).toBe("81781.82 LAST QUOTE · SOURCE UNCERTIFIED");
     }
-    // A real vendor name is still a real citation.
+    // A real vendor name is still a real citation, and still outranks it.
     expect(
       formatSpinePrice(null, null, "5m", true, { last: 81781.82, source: "finnhub" }).provenance,
     ).toBe("QUOTE");
@@ -252,5 +274,68 @@ describe("the QUOTE channel is actually reachable from the charts room", () => {
     const line = src.split("\n").find((l) => l.includes("quoteLast:")) ?? "";
     expect(line, "quoteLast is not guarded by the symbol-ownership check")
       .toMatch(/tickerOwner === symbol/);
+  });
+});
+
+describe("× THE FINDING PRINTED OVER A NUMBER: an unattributed quote", () => {
+  // MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m, ONE viewport,
+  // screenshot-proved:
+  //     chart header    81226.01 SOURCE UNCERTIFIED  ↑ +136.90 (+0.17%)
+  //     MARKET cell     BTCUSDT · 5m · PRICE UNKNOWN
+  // Canon Weakness #1, reintroduced by this module's own previous commit.
+  const SENTINELS = ["unavailable", "UNAVAILABLE", " unavailable ", "unknown", "none", "n/a", "-", "", null];
+
+  it("prints the number with its doubt instead of a PRICE UNKNOWN finding", () => {
+    for (const source of SENTINELS) {
+      const d = formatSpinePrice(null, null, "5m", true, { last: 81226.01, source });
+      expect(d.provenance, `source ${JSON.stringify(source)}`).toBe("UNCERTIFIED_QUOTE");
+      expect(d.text).toBe("81226.01 LAST QUOTE · SOURCE UNCERTIFIED");
+      // PRICE UNKNOWN is a FINDING. It may not sit on a number WM is holding.
+      expect(d.text).not.toBe("PRICE UNKNOWN");
+      // And the figure is never bare — a bare figure in this cell states a print.
+      expect(d.text).not.toBe("81226.01");
+    }
+  });
+
+  it("ranks BELOW a quote WM can attribute — naming a provider still wins", () => {
+    const named = formatSpinePrice(null, null, "5m", true, { last: 81226.01, source: "finnhub" });
+    expect(named.provenance).toBe("QUOTE");
+    expect(named.text).toBe("81226.01 LAST QUOTE · finnhub");
+  });
+
+  it("ranks BELOW both evidence channels — a print and a close still win", () => {
+    const q = { last: 81226.01, source: "unavailable" };
+    expect(formatSpinePrice(357.87, null, "5m", true, q).provenance).toBe("PRINT");
+    expect(formatSpinePrice(null, 357.47, "15m", true, q).provenance).toBe("BAR_CLOSE");
+  });
+
+  it("STRICTLY ADDITIVE: it only ever speaks where PRICE UNKNOWN spoke before", () => {
+    // No quote at all — every pre-existing absence is untouched.
+    expect(formatSpinePrice(null, null, "5m", true).text).toBe("PRICE UNKNOWN");
+    expect(formatSpinePrice(null, null, "5m", true, {}).text).toBe("PRICE UNKNOWN");
+    expect(formatSpinePrice(null, null, "5m", true, { last: 0, source: "x" }).text).toBe("PRICE UNKNOWN");
+    // And an unsettled request still says nothing rather than a finding.
+    expect(formatSpinePrice(null, null, "5m", false).provenance).toBe("AWAITING");
+  });
+
+  it("× THE STACKED ERASURE: UNAVAILABLE beneath it is scoped to the print channel", () => {
+    // Its qualifier already admits WM cannot name a provider. A bare
+    // UNAVAILABLE underneath would read as a larger claim that the number is
+    // not there at all — two distinct doubts collapsing into one erasure.
+    expect(qualifyMarketQuality("UNAVAILABLE", "UNCERTIFIED_QUOTE")).toBe("NO LIVE PRINT");
+    // Grades that describe a reading that exists still pass through untouched.
+    expect(qualifyMarketQuality("DELAYED", "UNCERTIFIED_QUOTE")).toBe("DELAYED");
+    expect(qualifyMarketQuality("STALE", "UNCERTIFIED_QUOTE")).toBe("STALE");
+    // Under NONE there is no number above the word, so UNAVAILABLE is exact.
+    expect(qualifyMarketQuality("UNAVAILABLE", "NONE")).toBe("UNAVAILABLE");
+  });
+
+  it("the header and the spine now agree in one viewport", () => {
+    // The two owners of the same fact, asked the same question at the same
+    // moment. They need not use the same WORDS — they render different slots —
+    // but neither may deny what the other is showing.
+    const spine = formatSpinePrice(null, null, "5m", true, { last: 81226.01, source: "unavailable" });
+    expect(spine.text).toContain("81226.01");
+    expect(spine.text).toContain("UNCERTIFIED");
   });
 });
