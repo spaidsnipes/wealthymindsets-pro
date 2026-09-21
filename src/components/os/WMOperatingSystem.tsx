@@ -76,6 +76,9 @@ import {
   type RoomEquipmentKind,
 } from "@/lib/workspace/roomEquipment";
 import { requestEquipment, subscribeEquipmentStage } from "@/lib/workspace/equipmentChannel";
+// The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
+// see `equipmentGlyphs.tsx` for why it is not a positional array.
+import { ACTIVATOR_GLYPHS, equipmentGlyph } from "./equipmentGlyphs";
 import {
   compileFeedStanding,
   compileProvenanceSegments,
@@ -181,6 +184,26 @@ export const OS_RAIL_BREAKPOINT_PX = 900;
 export const OS_RAIL_WIDTH_PX = 176;
 
 /**
+ * How wide the EQUIPMENT drawer is — a different number from the rooms rail,
+ * because it is a different object.
+ *
+ * The rooms rail is a column of one-line labels; 176px has always been enough
+ * for a word. The equipment drawer carries the canon's TILES — a drawn mark
+ * beside a label with the reading's hint under it — and measured at 1440x900
+ * with Tools open, 176px gave the hint a 140px measure: "What is resolved,
+ * what is missing, what blocks entry" wrapped to three lines per tile, six
+ * tiles deep. The approved frame (F24) gives the equipment column ~210px and
+ * spends it on the tile rather than on the prose.
+ *
+ * DESKTOP-EFFECTIVE ONLY, and not by an `if`. Below
+ * {@link OS_RAIL_BREAKPOINT_PX} this element is either `display: none` or —
+ * in a `phoneDestinations="door"` room — pinned at `width: auto !important`
+ * across the whole viewport. Neither reads this number, so widening it cannot
+ * reach a phone.
+ */
+export const OS_EQUIPMENT_RAIL_WIDTH_PX = 264;
+
+/**
  * How tall the pinned phone bar is.
  *
  * ONE OWNER, for the same reason as the breakpoint above. The bar is
@@ -199,6 +222,13 @@ const PEARL = "#ede6d3";
 const GOLD = "#c4a574";
 const MUTED = "#8a8271";
 const RULE = "rgba(196,165,116,0.20)";
+/**
+ * The ink a HINT is written in — one step quieter than MUTED, because a hint
+ * describes equipment the trader has not picked up and must never compete with
+ * the label of equipment they have. Named, rather than the loose literal it was
+ * inline, so the drawer's two presentations cannot drift to two quiets.
+ */
+const HINT_INK = "#6f6857";
 
 const EYEBROW: React.CSSProperties = {
   fontSize: 9,
@@ -311,9 +341,31 @@ interface RoomWorkspaceRailProps {
    */
   readonly kind?: RoomEquipmentKind;
   readonly heading?: string;
+  /**
+   * `"list"` — the quiet block under the ROOMS rail, where equipment is one of
+   * four things stacked in a 176px orientation column and must not shout over
+   * the doors.
+   *
+   * `"tile"` — the canon's EQUIPMENT DRAWER (F24): a bordered plate per entry
+   * with a drawn mark beside the label. Only reachable in equipment mode,
+   * where the drawer is the entire contents of the panel and the trader asked
+   * for it by name. Giving the rail-mode block the same weight would put six
+   * bordered plates under the room list and make the equipment louder than the
+   * twenty-one doors it sits beneath.
+   */
+  readonly presentation?: "list" | "tile";
 }
 
-function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWorkspaceRailProps): React.ReactElement | null {
+// ONE LINE, DELIBERATELY. `roomAdoptsEquipment.sentinel.test.ts` reads this
+// function's body by slicing from `function RoomWorkspaceRail` to the next
+// `\n}` — the closing brace in column zero. A destructure broken across lines
+// puts `}: RoomWorkspaceRailProps` in column zero first, which truncates the
+// slice to the signature and makes FOUR sentinels pass over an empty body:
+// they stop checking that equipment is a button, that it subscribes to the
+// room, that it announces `aria-pressed`, and that an equipment-less room
+// renders nothing. A formatting choice that silently disarms four guards is
+// the guards' failure to state this, and it is stated here.
+function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentation = "list" }: RoomWorkspaceRailProps): React.ReactElement | null {
   const equipment = kind ? roomEquipmentOfKind(activeHref, kind) : roomEquipment(activeHref);
 
   // WHAT IS CURRENTLY IN THE TRADER'S HAND.
@@ -358,11 +410,25 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWork
   }, [activeHref]);
 
   if (equipment.length === 0) return null;
+  const tiled = presentation === "tile";
   return (
     <div data-testid="os-rail-workspace">
-      <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: GOLD }}>{heading}</div>
+      <div
+        style={{
+          ...EYEBROW,
+          padding: tiled ? "14px 14px 10px" : "18px 14px 8px",
+          color: GOLD,
+          // The drawer's heading names the hand the trader just asked for by
+          // pressing a plate. At the eyebrow's 9px it read as a caption over
+          // somebody else's list.
+          ...(tiled ? { fontSize: 11, letterSpacing: 2.2 } : null),
+        }}
+      >
+        {heading}
+      </div>
       {equipment.map((item) => {
         const open = openIds.has(item.id);
+        const glyph = equipmentGlyph(item.id);
         return (
         <button
           key={item.id}
@@ -388,32 +454,108 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace" }: RoomWork
           // a screen reader's only source of "what am I holding" for the
           // silence that made the first defect invisible.
           onClick={() => requestEquipment(item.id, open ? "put-down" : "pick-up")}
-          style={{
-            display: "block",
-            width: "100%",
-            textAlign: "left",
-            // 44px: this is a control, and the rail is reachable on a tablet.
-            minHeight: 44,
-            padding: "7px 14px",
-            // A LEFT EDGE, NOT A FILLED PILL. The room entries above already
-            // use the filled-and-bordered treatment for "you are HERE"; giving
-            // open equipment the same paint would make the rail look like it
-            // had two current locations.
-            border: "none",
-            borderLeft: open ? `2px solid ${GOLD}` : "2px solid transparent",
-            background: open ? "rgba(196,165,116,0.07)" : "transparent",
-            cursor: "pointer",
-            color: MUTED,
-            fontSize: 11,
-            letterSpacing: 0.3,
-            fontFamily: "inherit",
-          }}
+          style={
+            tiled
+              ? {
+                  // ── THE CANON DRAWS EQUIPMENT AS A TILE ──────────────────
+                  // F24 gives each piece a bordered plate with a drawn mark
+                  // and generous air. This shipped as an unbordered text row
+                  // in a 176px column, which is a MENU: six labels, each hint
+                  // broken over three lines, nothing to aim at. A trader
+                  // cannot pick up a list item.
+                  //
+                  // The border is the tile, so it is drawn at REST as well as
+                  // when held — a plate that only appears once you are holding
+                  // the thing is not a plate, it is a highlight.
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  width: "calc(100% - 20px)",
+                  margin: "0 10px 8px",
+                  boxSizing: "border-box" as const,
+                  textAlign: "left" as const,
+                  minHeight: 64,
+                  padding: "12px 14px",
+                  borderRadius: 3,
+                  border: `1px solid ${open ? GOLD : RULE}`,
+                  background: open
+                    ? "rgba(196,165,116,0.12)"
+                    : "linear-gradient(180deg, rgba(196,165,116,0.05), rgba(196,165,116,0.015))",
+                  cursor: "pointer",
+                  color: MUTED,
+                  fontFamily: "inherit",
+                }
+              : {
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left" as const,
+                  // 44px: this is a control, and the rail is reachable on a tablet.
+                  minHeight: 44,
+                  padding: "7px 14px",
+                  // A LEFT EDGE, NOT A FILLED PILL. The room entries above already
+                  // use the filled-and-bordered treatment for "you are HERE"; giving
+                  // open equipment the same paint would make the rail look like it
+                  // had two current locations.
+                  border: "none",
+                  borderLeft: open ? `2px solid ${GOLD}` : "2px solid transparent",
+                  background: open ? "rgba(196,165,116,0.07)" : "transparent",
+                  cursor: "pointer",
+                  color: MUTED,
+                  fontSize: 11,
+                  letterSpacing: 0.3,
+                  fontFamily: "inherit",
+                }
+          }
         >
-          <span style={{ display: "block", color: open ? GOLD : PEARL }}>{item.label}</span>
-          <span style={{ display: "block", fontSize: 10, color: "#6f6857", lineHeight: 1.3 }}>
-            {/* The hint describes the equipment; when it is already open the
-                trader does not need describing to, they need locating. */}
-            {open ? "Open in this room" : item.hint}
+          {/* The mark is decoration in the accessibility tree and nowhere else
+              — the label below is the accessible name and always was, so a
+              tile that draws a picture reads identically to the row it
+              replaced. A glyph the map does not declare renders NOTHING
+              rather than a placeholder; see `equipmentGlyphs.tsx`. */}
+          {tiled && glyph ? (
+            <span
+              aria-hidden
+              style={{
+                flex: "0 0 auto",
+                width: 22,
+                height: 22,
+                marginTop: 1,
+                display: "block",
+                color: open ? GOLD : "rgba(196,165,116,0.78)",
+              }}
+            >
+              {glyph}
+            </span>
+          ) : null}
+          <span style={{ display: "block", minWidth: 0 }}>
+            <span
+              style={{
+                display: "block",
+                color: open ? GOLD : PEARL,
+                ...(tiled
+                  ? { fontSize: 12.5, letterSpacing: 0.4, marginBottom: 3, fontWeight: 500 }
+                  : null),
+              }}
+            >
+              {item.label}
+            </span>
+            <span
+              style={{
+                display: "block",
+                // The hint had a 140px measure and 1.3 leading in the old
+                // column. Widened by OS_EQUIPMENT_RAIL_WIDTH_PX and loosened
+                // here, because a hint nobody can read is the same cost as no
+                // hint plus the space it took.
+                fontSize: tiled ? 10.5 : 10,
+                color: HINT_INK,
+                lineHeight: tiled ? 1.45 : 1.3,
+                letterSpacing: tiled ? 0.1 : undefined,
+              }}
+            >
+              {/* The hint describes the equipment; when it is already open the
+                  trader does not need describing to, they need locating. */}
+              {open ? "Open in this room" : item.hint}
+            </span>
           </span>
         </button>
         );
@@ -935,7 +1077,10 @@ export function WMOperatingSystem({
             that belong to the SCENE — Workspace and Tools — and no list of
             places to go. See the prop's doc. */}
         {equipmentMode ? (
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}>
+          <div
+            className="wm-os-equipment-plates"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}
+          >
             {(["workspace", "tools"] as const).map((kind) => {
               const open = equipment === kind;
               return (
@@ -970,9 +1115,11 @@ export function WMOperatingSystem({
                   // Tools opened — a reference that resolves, and still lies.
                   aria-controls={open ? "wm-os-rail" : undefined}
                   aria-label={kind === "workspace" ? "Workspace" : "Tools"}
+                  className="wm-os-equipment-plate"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
+                    justifyContent: "flex-start",
                     gap: 7,
                     // THE ONLY TWO DOORS IN THE ROOM ARE DRAWN LIKE DOORS.
                     // The Canon frame gives Workspace and Tools a brass plate
@@ -983,6 +1130,19 @@ export function WMOperatingSystem({
                     // runtime read as a toolbar. Fitts' argument in §3 of the
                     // Last Mile support doc is explicit: "the two targets sit
                     // adjacent, LARGE".
+                    //
+                    // THIS IS THE COMPACT FLOOR, NOT THE CANON SIZE. The brass
+                    // plate F24 draws — ~180x60 — is applied by
+                    // `.wm-os-equipment-plate` in the DESKTOP half of the
+                    // stylesheet at the bottom of this file. It is a media
+                    // query rather than a `window.innerWidth` branch on
+                    // purpose: a measured width read at render time is wrong
+                    // on the server, wrong for one frame after hydration, and
+                    // wrong again after a rotate. Below the breakpoint the
+                    // masthead already wraps to two rows and these two plates
+                    // share a 390px line with the crest — 180px each does not
+                    // fit there, and the Founder's directive for this shift is
+                    // desktop only.
                     minHeight: 34,
                     padding: "7px 13px",
                     borderRadius: 3,
@@ -990,17 +1150,34 @@ export function WMOperatingSystem({
                     background: open
                       ? "rgba(196,165,116,0.14)"
                       : "linear-gradient(180deg, rgba(196,165,116,0.07), rgba(196,165,116,0.02))",
-                    color: open ? GOLD : PEARL,
                     cursor: "pointer",
                     ...EYEBROW,
+                    // AFTER the spread, not before. EYEBROW carries `color:
+                    // MUTED`, so the held/resting ink this control sets was
+                    // being overwritten by the typography preset one line
+                    // later — the plate could not go gold when its own panel
+                    // was open, and the open state lived entirely in a border.
+                    color: open ? GOLD : PEARL,
                     fontSize: 10,
                     letterSpacing: 1.8,
                   }}
                 >
-                  <span aria-hidden style={{ fontSize: 11, lineHeight: 1, color: GOLD }}>
-                    {kind === "workspace" ? "▤" : "⌕"}
+                  <span
+                    aria-hidden
+                    className="wm-os-equipment-plate-mark"
+                    style={{
+                      flex: "0 0 auto",
+                      display: "block",
+                      width: 12,
+                      height: 12,
+                      color: GOLD,
+                    }}
+                  >
+                    {ACTIVATOR_GLYPHS[kind]}
                   </span>
-                  {kind === "workspace" ? "Workspace" : "Tools"}
+                  <span className="wm-os-equipment-plate-word">
+                    {kind === "workspace" ? "Workspace" : "Tools"}
+                  </span>
                 </button>
               );
             })}
@@ -1151,7 +1328,9 @@ export function WMOperatingSystem({
                   top: 0,
                   bottom: 0,
                   zIndex: 40,
-                  width: OS_RAIL_WIDTH_PX,
+                  // The EQUIPMENT width, not the rooms width — see the
+                  // constant's doc for the measured three-line hint this ends.
+                  width: OS_EQUIPMENT_RAIL_WIDTH_PX,
                   flex: "none" as const,
                   background: FIELD,
                 }
@@ -1267,7 +1446,7 @@ export function WMOperatingSystem({
               stacking both. */}
           {equipmentMode ? (
             equipment === "workspace" ? (
-              <RoomWorkspaceRail activeHref={activeHref} kind="workspace" />
+              <RoomWorkspaceRail activeHref={activeHref} kind="workspace" presentation="tile" />
             ) : null
           ) : (
             <RoomWorkspaceRail activeHref={activeHref} />
@@ -1301,7 +1480,7 @@ export function WMOperatingSystem({
               second house, rebuilt inside the first. */}
           {equipmentMode ? (
             equipment === "tools" ? (
-              <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" />
+              <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" presentation="tile" />
             ) : null
           ) : (
             <>
@@ -1669,6 +1848,54 @@ export function WMOperatingSystem({
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) {
           .wm-os-standing-bar { display: none !important; }
           .wm-os-phone-nav { display: none !important; }
+          /* ── THE BRASS PLATE, AT THE SIZE THE CANON DRAWS IT ─────────────
+             F24 ("workspace equipment over live chart") makes these two the
+             ENTIRE persistent top chrome: roughly 180x60 each, a hairline of
+             warm gold, a drawn mark and the word, generous air. They shipped
+             at 34px tall with a 10px eyebrow and a text glyph — the same
+             weight as every incidental chip on the page — which is precisely
+             the reading the Founder called "the old July shell".
+
+             §3 of the Last Mile support doc states the Fitts argument the
+             runtime was failing: "the two targets sit adjacent, large,
+             top-left desktop". Adjacent and top-left were already true. LARGE
+             is what this block adds, and it is the whole complaint.
+
+             DESKTOP ONLY, by construction: the inline style above is the
+             compact floor and this query never fires below the breakpoint,
+             where the masthead wraps and 180px plates would not fit. */
+          .wm-os-equipment-plates { gap: 10px !important; }
+          .wm-os-equipment-plate {
+            /* A FIXED width, so the two plates are the same object twice.
+               F24 draws them as a matched pair; sizing each to its own word
+               makes Tools visibly the lesser control, which is not what the
+               canon says about the hand it opens.
+
+               A fixed width also keeps this block free of the
+               min-width-colon-pixels shape that
+               theStandingConditionsHaveOneOwner forbids anywhere in this
+               stylesheet — it reads any such declaration as a re-typed
+               breakpoint literal, and that guard is worth more to the product
+               than the one property it costs here. */
+            width: 176px !important;
+            min-height: 58px !important;
+            gap: 13px !important;
+            padding: 0 22px !important;
+            border-radius: 4px !important;
+          }
+          .wm-os-equipment-plate-mark {
+            width: 24px !important;
+            height: 24px !important;
+          }
+          /* The canon sets the word in sentence case at reading size, not in
+             the 10px tracked-out uppercase every eyebrow on the page wears.
+             An eyebrow is a CAPTION; these two are the controls the whole
+             scene is operated with. */
+          .wm-os-equipment-plate-word {
+            font-size: 15px !important;
+            letter-spacing: 0.6px !important;
+            text-transform: none !important;
+          }
         }
       `}</style>
     </div>

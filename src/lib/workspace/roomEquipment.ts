@@ -645,6 +645,29 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
   ],
 };
 
+/**
+ * Every equipment id this product declares, in any room, once each.
+ *
+ * WHY THIS IS EXPORTED AND NOT A PRIVATE DETAIL.
+ *
+ * The drawer now draws a GLYPH per entry, and a glyph is the one piece of an
+ * equipment tile that does not arrive with the entry. The honest way to hold
+ * that is a declared id→glyph map plus a sentinel that fails the build when the
+ * two disagree — and a sentinel cannot compare against a list it cannot see.
+ *
+ * The alternative shipped in most codebases is a positional array or a
+ * `?? fallbackIcon`, both of which fail SILENTLY: the eleventh reading quietly
+ * wears the tenth one's picture, or every new reading wears the same generic
+ * square, and nothing anywhere reports it.
+ */
+export function allRoomEquipmentIds(): readonly string[] {
+  const seen = new Set<string>();
+  for (const room of Object.values(EQUIPMENT_BY_ROOM)) {
+    for (const item of room) seen.add(item.id);
+  }
+  return [...seen].sort();
+}
+
 /** The equipment for a room. Unknown room → `[]`, never a throw. */
 export function roomEquipment(href: string | null | undefined): readonly RoomEquipment[] {
   if (!href) return [];
