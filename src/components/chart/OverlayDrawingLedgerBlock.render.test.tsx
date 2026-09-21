@@ -69,8 +69,12 @@ describe("OverlayDrawingLedgerBlock", () => {
     expect(text).toMatch(/OFF[\s\S]*NOTHING YET|NOTHING YET[\s\S]*OFF/);
   });
 
-  it("names what the list does not cover", () => {
-    expect(visible(markup(ALL_ON_NOTHING_MEASURED))).toMatch(/absorption/i);
+  it("names what the list does not cover — ALL of it, on the glass", () => {
+    const text = visible(markup(ALL_ON_NOTHING_MEASURED));
+    expect(text, "the absorption field is not named as out of scope").toMatch(/absorption/i);
+    expect(text, "the big-trade bubbles are switchable on this chart and the " +
+      "block no longer tells the trader they are outside this list")
+      .toMatch(/big[- ]trade/i);
   });
 
   it("does not grade drawing-ness in hue — Build Order §9", () => {

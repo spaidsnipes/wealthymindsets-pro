@@ -43,12 +43,29 @@
  *
  * ── WHAT IS DELIBERATELY NOT IN THIS LEDGER ────────────────────────────────
  *
+ * TWO layers, and the list says so. A list that looks complete and is not is
+ * worse than a shorter list that names where it stops.
+ *
  * The absorption field. It is not room-owned: `MainChart` computes it from the
  * VISIBLE bar range inside the draw loop, because the question it answers —
  * "was the effort in front of me paid for?" — is asked about whatever is on
  * screen. Nothing outside that loop can honestly speak for it, and it does not
  * need a proxy: it already captions itself on the chart ("EFFORT · VOLUME").
  * A ledger row about it here would be a guess wearing a reading's clothes.
+ *
+ * The big-trade bubbles. Same shape of limit, found the same way — by probing
+ * the serving canvas and noticing this layer publishes no state at all. The
+ * ROOM owns the switch (`bigTradesSimul && bigTradesOverlay`, and the
+ * `big-trades` footprint mode), so an OFF row would be honest. But the bubbles
+ * themselves come from `getRealBigTradeLevels`, which reads MainChart's own
+ * per-bar tick accumulator — so the room can say it is switched on and still
+ * not know whether a single bubble landed. Half a row is not a row. Reporting
+ * ON while the layer silently painted nothing would manufacture exactly the
+ * confusion this module was built to end.
+ *
+ * The first version of this file named only the absorption field here, which
+ * made the note a false claim of completeness the moment anyone read it beside
+ * the big-trade switch. Fixed by naming both.
  *
  * PURE. DETERMINISTIC. No React, no IO, no clock.
  */
@@ -112,7 +129,7 @@ export interface OverlayDrawingLedgerVM {
   readonly onCount: number;
   /** One line for a collapsed header. Counts only; never a verdict. */
   readonly headline: string;
-  /** Names the one on-chart layer this ledger does not speak for. */
+  /** Names EVERY on-chart layer this ledger does not speak for. Two, today. */
   readonly note: string;
 }
 
@@ -235,8 +252,10 @@ export function selectOverlayDrawingLedger(
     onCount,
     headline,
     note:
-      "The absorption field is not in this list. It is measured from the bars " +
-      "currently in view and captions itself on the chart.",
+      "Two on-chart layers are not in this list: the absorption field and the " +
+      "big-trade bubbles. Both are read inside the draw loop — one from the " +
+      "bars in view, one from each bar's own prints — so nothing out here can " +
+      "say what they painted. The absorption field captions itself on the chart.",
   };
 }
 

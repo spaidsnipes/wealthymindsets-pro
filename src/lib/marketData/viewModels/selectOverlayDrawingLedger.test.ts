@@ -143,11 +143,21 @@ describe("selectOverlayDrawingLedger", () => {
     expect(led.rows).toHaveLength(4);
   });
 
-  it("names the one on-chart layer it does not speak for", () => {
-    // The absorption field is computed from the VISIBLE range inside the draw
-    // loop. A ledger that quietly omitted it would read as a complete list.
-    expect(selectOverlayDrawingLedger(allOnNothingMeasured()).note)
+  it("names EVERY on-chart layer it does not speak for", () => {
+    // Both are read inside the draw loop — the absorption field from the
+    // VISIBLE range, the big-trade bubbles from each bar's own tick
+    // accumulator. A ledger that quietly omitted either would read as a
+    // complete list of what is on the glass, and it is not one.
+    //
+    // This test asserted only `absorption` when it was written, and so passed
+    // against a note that named one omission and hid the other. Naming both is
+    // the assertion; one is not half-right, it is a false claim of completeness.
+    const { note } = selectOverlayDrawingLedger(allOnNothingMeasured());
+    expect(note, "the absorption field is no longer named as out of scope")
       .toMatch(/absorption/i);
+    expect(note, "the big-trade bubbles are a switchable on-chart layer this " +
+      "ledger cannot speak for, and the note no longer says so")
+      .toMatch(/big[- ]trade/i);
   });
 
   it("is pure — the same input twice gives the same answer", () => {
