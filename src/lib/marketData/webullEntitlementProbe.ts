@@ -28,9 +28,37 @@
  * It computes the shape, never the purchase advice. And it deliberately cannot
  * report a payload: only HTTP status and the provider's own short code, so
  * credentials, signatures and upstream prose cannot leak into a browser scene.
+ *
+ * ── THE CONFOUND THIS FILE SHIPPED WITH, AND WHY IT IS FIXED HERE ───────────
+ *
+ * Every rung above was signed `legacy-sha1`, hard-coded, and the verdict then
+ * announced that "signing, host, path and credentials are therefore proven
+ * good". Read the ladder again with the paths in view:
+ *
+ *   ACCOUNTS  /trading/*      OK       sha1 proven here
+ *   PROFILES  /trading/*      OK       sha1 proven here
+ *   SNAPSHOT  /market-data/*  403      sha1 NEVER proven here
+ *   TICKS     /market-data/*  403      sha1 NEVER proven here
+ *
+ * The two rungs that pass and the two that fail are split by path prefix, and
+ * the signing profile was constant across the split. So "signing is good" was
+ * generalised from the only rungs where it could not be tested against the only
+ * rungs that matter. Webull's own SDK signs HMAC-SHA256 unconditionally
+ * (`default_signature_composer.py:62` force-overwrites the signer), which makes
+ * "market-data rejects sha1" a live, untested hypothesis — not a stretch.
+ *
+ * This matters more than a wording nit because of who pays for it. The output
+ * of this probe is the input to "tell the Founder to buy a data package", and
+ * that sentence has already cost three months once. A verdict may not name his
+ * subscription while a variable we control is still uncontrolled.
+ *
+ * So each market-data rung is now climbed under EVERY signing profile, each
+ * receipt CARRIES the profile it was signed with, and ENTITLEMENT_ISOLATED is
+ * unreachable until the denials hold across all of them.
  */
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders } from "./adapters/webullMarketData";
+import { WEBULL_SIGNING_PROFILES, type WebullSigningProfile } from "./webullSigningCanary";
 import { WEBULL_SDK_CONTRACT, type WebullEndpointContract } from "./webullSdkContract";
 import {
   TOKEN_DISPOSITIONS,
@@ -40,6 +68,12 @@ import {
 
 const DEFAULT_HOST = "api.webull.com";
 
+/**
+ * Rung names carry no signing profile. The profile is a FIELD on the receipt,
+ * not a suffix on the name, because a name is a label and a field is evidence:
+ * `SNAPSHOT` climbed twice yields two receipts that differ in exactly the
+ * variable under test, and the reader cannot mistake one for the other.
+ */
 export type WebullRungName = "ACCOUNTS" | "PROFILES" | "SNAPSHOT" | "TICKS";
 
 /** Whether a rung is gated on a market-data entitlement. Drives the verdict. */
@@ -58,6 +92,11 @@ export type WebullRungOutcome =
 export interface WebullRungReceipt {
   readonly rung: WebullRungName;
   readonly gate: WebullRungGate;
+  /**
+   * How THIS request was signed. Not optional: an unlabelled receipt is exactly
+   * how the sha1/market-data confound hid in plain sight for four rungs.
+   */
+  readonly signingProfile: WebullSigningProfile;
   readonly outcome: WebullRungOutcome;
   readonly httpStatus: number | null;
   /** The provider's own short code, uppercased. Never prose, never a payload. */
@@ -90,6 +129,7 @@ export interface WebullEntitlementReport {
 interface RungSpec {
   readonly rung: WebullRungName;
   readonly gate: WebullRungGate;
+  readonly signingProfile: WebullSigningProfile;
   readonly path: string;
   readonly apiVersion: string;
   readonly query: Readonly<Record<string, string>>;
@@ -106,24 +146,39 @@ function rungSpec(
   rung: WebullRungName,
   contract: WebullEndpointContract,
   query: Readonly<Record<string, string>>,
+  signingProfile: WebullSigningProfile,
 ): RungSpec {
   return {
     rung,
     gate: contract.needsMarketData ? "MARKET_DATA" : "NON_MARKET_DATA",
+    signingProfile,
     path: contract.path,
     apiVersion: contract.apiVersion,
     query,
   };
 }
 
+/**
+ * The non-market-data rungs keep `legacy-sha1` DELIBERATELY. That was a
+ * separate, measured decision — v2 ACCOUNT_LIST answers under sha1 and is the
+ * rung currently proving the broker lane is alive. Re-signing it here to tidy
+ * the table would risk the one thing on this ladder that already works.
+ *
+ * The market-data rungs are climbed once per profile, so the split that hid the
+ * confound (passing rungs on one profile, failing rungs on the same profile,
+ * never compared) can no longer form.
+ */
 export function webullRungSpecs(symbol: string): readonly RungSpec[] {
   const symbols = symbol.toUpperCase();
   const instrument = { category: "US_STOCK", symbols };
+  const ticks = { category: "US_STOCK", count: "5", symbol: symbols };
   return [
-    rungSpec("ACCOUNTS", WEBULL_SDK_CONTRACT.ACCOUNT_LIST, {}),
-    rungSpec("PROFILES", WEBULL_SDK_CONTRACT.STOCK_PROFILES, instrument),
-    rungSpec("SNAPSHOT", WEBULL_SDK_CONTRACT.STOCK_SNAPSHOTS, instrument),
-    rungSpec("TICKS", WEBULL_SDK_CONTRACT.STOCK_TICKS, { category: "US_STOCK", count: "5", symbol: symbols }),
+    rungSpec("ACCOUNTS", WEBULL_SDK_CONTRACT.ACCOUNT_LIST, {}, "legacy-sha1"),
+    rungSpec("PROFILES", WEBULL_SDK_CONTRACT.STOCK_PROFILES, instrument, "legacy-sha1"),
+    ...WEBULL_SIGNING_PROFILES.flatMap((profile) => [
+      rungSpec("SNAPSHOT", WEBULL_SDK_CONTRACT.STOCK_SNAPSHOTS, instrument, profile),
+      rungSpec("TICKS", WEBULL_SDK_CONTRACT.STOCK_TICKS, ticks, profile),
+    ]),
   ];
 }
 
@@ -194,10 +249,43 @@ export function readWebullLadder(rungs: readonly WebullRungReceipt[]): {
   if (allNonDataOpen && allDataOpen) {
     return { verdict: "FULLY_OPEN", note: "Every rung returned data. Market data is reachable with the configured credentials." };
   }
+  /**
+   * SIGNING MUST BE CONTROLLED FOR BEFORE ENTITLEMENT MAY BE NAMED.
+   *
+   * The passing rungs live on `/trading/*` and the failing ones on
+   * `/market-data/*`. If both were signed the same way, "signing is proven"
+   * never crossed the split it claims to have crossed. This gate makes the
+   * claim cost something: every signing profile we know how to send must have
+   * been tried and denied on the market-data gate.
+   */
+  const dataProfiles = new Set(data.map((rung) => rung.signingProfile));
+  const signingControlled = WEBULL_SIGNING_PROFILES.every((profile) => dataProfiles.has(profile));
+
   if (allNonDataOpen && allDataDenied) {
+    if (!signingControlled) {
+      const tried = [...dataProfiles].sort().join(", ") || "none";
+      return {
+        verdict: "INCONCLUSIVE",
+        note: `Market-data rungs were denied, but only under the signing profile(s): ${tried}. The rungs that succeeded are on a different path prefix, so signing has not been tested where it fails. Re-run across every signing profile before reading this as an entitlement gap — and do not ask anyone to buy a data package on this evidence.`,
+      };
+    }
     return {
       verdict: "ENTITLEMENT_ISOLATED",
-      note: "Non-market-data rungs returned data over the same host, credentials and signing contract, while every market-data rung was denied. Signing, host, path and credentials are therefore proven good, and the market-data entitlement is the isolated remaining gap.",
+      note: `Non-market-data rungs returned data over the same host and credentials, while every market-data rung was denied under every signing profile tried (${WEBULL_SIGNING_PROFILES.join(", ")}). Signing is therefore controlled for rather than assumed, and the market-data entitlement is the isolated remaining gap.`,
+    };
+  }
+
+  /**
+   * The outcome this whole change exists to be able to SEE: market data opens
+   * under one signing profile and is denied under another. That is not an
+   * entitlement gap at all, it is our own signature — and under the old
+   * hard-coded ladder it was invisible by construction.
+   */
+  const dataOpenProfiles = new Set(data.filter((rung) => rung.outcome === "OK").map((rung) => rung.signingProfile));
+  if (allNonDataOpen && dataOpenProfiles.size > 0 && !allDataOpen) {
+    return {
+      verdict: "INCOHERENT",
+      note: `Market data answered under signing profile(s) ${[...dataOpenProfiles].sort().join(", ")} and was denied under another. The gap is our signing contract, not a subscription: send the profile that answered.`,
     };
   }
   if (allNonDataDenied && allDataDenied) {
@@ -226,7 +314,7 @@ async function climbRung(
   nonce: string,
   timeoutMs: number,
 ): Promise<WebullRungReceipt> {
-  const base = { rung: spec.rung, gate: spec.gate } as const;
+  const base = { rung: spec.rung, gate: spec.gate, signingProfile: spec.signingProfile } as const;
   const headers = buildWebullSignedHeaders({
     path: spec.path,
     query: spec.query,
@@ -236,7 +324,7 @@ async function climbRung(
     timestamp,
     nonce,
     apiVersion: spec.apiVersion,
-    profile: "legacy-sha1",
+    profile: spec.signingProfile,
   });
   if (creds.accessToken) headers["x-access-token"] = creds.accessToken;
 

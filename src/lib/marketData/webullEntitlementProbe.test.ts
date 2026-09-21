@@ -12,6 +12,7 @@ import {
   webullRungSpecs,
   type WebullRungReceipt,
 } from "./webullEntitlementProbe";
+import { WEBULL_SIGNING_PROFILES } from "./webullSigningCanary";
 import {
   EXPIRY_INTERPRETATIONS,
   WEBULL_TOKEN_STATUSES,
@@ -23,23 +24,35 @@ function receipt(
   rung: WebullRungReceipt["rung"],
   gate: WebullRungReceipt["gate"],
   outcome: WebullRungReceipt["outcome"],
+  signingProfile: WebullRungReceipt["signingProfile"] = "legacy-sha1",
 ): WebullRungReceipt {
-  return { rung, gate, outcome, httpStatus: outcome === "OK" ? 200 : 403, providerCode: null };
+  return { rung, gate, outcome, signingProfile, httpStatus: outcome === "OK" ? 200 : 403, providerCode: null };
 }
 
 const OPEN_NON_DATA = [receipt("ACCOUNTS", "NON_MARKET_DATA", "OK"), receipt("PROFILES", "NON_MARKET_DATA", "OK")];
 
+/** Market-data denied under EVERY profile — the only shape that may isolate an entitlement. */
+function deniedDataAllProfiles(): WebullRungReceipt[] {
+  return WEBULL_SIGNING_PROFILES.flatMap((profile) => [
+    receipt("SNAPSHOT", "MARKET_DATA", "DENIED_ENTITLEMENT", profile),
+    receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT", profile),
+  ]);
+}
+
 describe("webullRungSpecs", () => {
   it("pins every path to the official SDK contract, with no /openapi prefix on the market-data rungs", () => {
     const specs = webullRungSpecs("tsla");
-    expect(specs.map((spec) => spec.path)).toEqual([
+    // DISTINCT paths, because market-data paths are now climbed once per
+    // signing profile. The set is what the SDK contract owns; the repetition
+    // is what controls for signing.
+    expect([...new Set(specs.map((spec) => spec.path))]).toEqual([
       "/trading/accounts/list",
       "/trading/instruments/stocks/profiles/list",
       "/market-data/stocks/snapshots/list",
       "/market-data/stocks/ticks/list",
     ]);
     expect(specs.some((spec) => spec.path.includes("/openapi/"))).toBe(false);
-    expect(specs.filter((spec) => spec.gate === "MARKET_DATA")).toHaveLength(2);
+    expect(specs.filter((spec) => spec.gate === "MARKET_DATA")).toHaveLength(2 * WEBULL_SIGNING_PROFILES.length);
     // The ladder is only readable if it contains ungated rungs to compare against.
     expect(specs.filter((spec) => spec.gate === "NON_MARKET_DATA").length).toBeGreaterThan(0);
   });
@@ -87,20 +100,65 @@ describe("classifyRung", () => {
 
 describe("readWebullLadder", () => {
   it("isolates the entitlement ONLY when ungated rungs opened over the same credentials", () => {
+    const reading = readWebullLadder([...OPEN_NON_DATA, ...deniedDataAllProfiles()]);
+    expect(reading.verdict).toBe("ENTITLEMENT_ISOLATED");
+  });
+
+  /**
+   * THE CONFOUND THIS LADDER SHIPPED WITH.
+   *
+   * The passing rungs are `/trading/*` and the failing ones `/market-data/*`.
+   * Signed one way only, the old verdict announced "signing proven good" from
+   * rungs where signing could not have been tested. This is the regression
+   * test for the sentence that would have told the Founder to buy data.
+   */
+  it("will NOT isolate an entitlement when only one signing profile was tried", () => {
     const reading = readWebullLadder([
       ...OPEN_NON_DATA,
-      receipt("SNAPSHOT", "MARKET_DATA", "DENIED_ENTITLEMENT"),
-      receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT"),
+      receipt("SNAPSHOT", "MARKET_DATA", "DENIED_ENTITLEMENT", "legacy-sha1"),
+      receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT", "legacy-sha1"),
     ]);
-    expect(reading.verdict).toBe("ENTITLEMENT_ISOLATED");
+
+    expect(reading.verdict).not.toBe("ENTITLEMENT_ISOLATED");
+    expect(reading.verdict).toBe("INCONCLUSIVE");
+    // Named, not merely withheld — a verdict that hides its reason is how the
+    // next reader re-derives the wrong one.
+    expect(reading.note).toMatch(/legacy-sha1/);
+    expect(reading.note).toMatch(/do not ask anyone to buy a data package/i);
+  });
+
+  it("names OUR SIGNATURE, not a subscription, when one profile is admitted and another is not", () => {
+    // The outcome the old ladder was structurally unable to observe.
+    const reading = readWebullLadder([
+      ...OPEN_NON_DATA,
+      receipt("SNAPSHOT", "MARKET_DATA", "OK", "sdk-sha256"),
+      receipt("TICKS", "MARKET_DATA", "OK", "sdk-sha256"),
+      receipt("SNAPSHOT", "MARKET_DATA", "DENIED_ENTITLEMENT", "legacy-sha1"),
+      receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT", "legacy-sha1"),
+    ]);
+
+    expect(reading.verdict).toBe("INCOHERENT");
+    expect(reading.note).toMatch(/sdk-sha256/);
+    expect(reading.note).toMatch(/not a subscription/i);
+  });
+
+  it("climbs every market-data rung under every signing profile", () => {
+    const specs = webullRungSpecs("TSLA");
+    for (const profile of WEBULL_SIGNING_PROFILES) {
+      const paths = specs.filter((s) => s.signingProfile === profile && s.gate === "MARKET_DATA").map((s) => s.path);
+      expect(paths).toEqual(["/market-data/stocks/snapshots/list", "/market-data/stocks/ticks/list"]);
+    }
+    // ACCOUNT_LIST v2 stays on legacy-sha1 deliberately — it is the rung
+    // currently proving the broker lane is alive, and re-signing it to tidy
+    // the table would risk the one thing on this ladder that already works.
+    expect(specs.find((s) => s.rung === "ACCOUNTS")?.signingProfile).toBe("legacy-sha1");
   });
 
   it("refuses to blame a subscription when every rung was denied", () => {
     const reading = readWebullLadder([
       receipt("ACCOUNTS", "NON_MARKET_DATA", "DENIED_AUTH"),
       receipt("PROFILES", "NON_MARKET_DATA", "DENIED_AUTH"),
-      receipt("SNAPSHOT", "MARKET_DATA", "DENIED_ENTITLEMENT"),
-      receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT"),
+      ...deniedDataAllProfiles(),
     ]);
     expect(reading.verdict).toBe("CREDENTIAL_OR_CONTRACT_SUSPECT");
     expect(reading.note).toContain("NOT evidence that a market-data subscription is missing");
@@ -143,8 +201,7 @@ describe("readWebullLadder", () => {
       readWebullLadder([
         receipt("ACCOUNTS", "NON_MARKET_DATA", "OK"),
         receipt("PROFILES", "NON_MARKET_DATA", "DENIED_OTHER"),
-        receipt("SNAPSHOT", "MARKET_DATA", "DENIED_ENTITLEMENT"),
-        receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT"),
+        ...deniedDataAllProfiles(),
       ]).verdict,
     ).toBe("INCONCLUSIVE");
   });
@@ -183,14 +240,18 @@ describe("probeWebullEntitlement", () => {
       nonce: () => "n".repeat(32),
     });
 
-    expect(seen).toHaveLength(4);
+    // Derived from the ladder, not restated: a hard-coded rung count is how a
+    // new rung silently stops being climbed.
+    expect(seen).toHaveLength(webullRungSpecs("TSLA").length);
     expect(report.verdict).toBe("ENTITLEMENT_ISOLATED");
-    expect(report.rungs.map((rung) => rung.outcome)).toEqual([
-      "OK",
-      "OK",
-      "DENIED_ENTITLEMENT",
-      "DENIED_ENTITLEMENT",
-    ]);
+    expect(report.rungs.filter((rung) => rung.gate === "NON_MARKET_DATA").map((rung) => rung.outcome))
+      .toEqual(["OK", "OK"]);
+    expect(report.rungs.filter((rung) => rung.gate === "MARKET_DATA").every((r) => r.outcome === "DENIED_ENTITLEMENT"))
+      .toBe(true);
+    // Every profile actually reached the wire — otherwise the verdict above
+    // would be resting on a gate that only looks controlled.
+    expect(new Set(report.rungs.filter((r) => r.gate === "MARKET_DATA").map((r) => r.signingProfile)))
+      .toEqual(new Set(WEBULL_SIGNING_PROFILES));
 
     const serialized = JSON.stringify(report);
     for (const secret of ["app-key-value", "app-secret-value", "access-token-value", "account_id", "x-signature"]) {
@@ -236,7 +297,7 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
     await probeWebullEntitlement(fetchImpl, {
       ...base, accessToken: "stale-pasted-token", tokenStore: inMemoryTokenStore(live()),
     });
-    expect(tokens).toHaveLength(4);
+    expect(tokens).toHaveLength(webullRungSpecs("TSLA").length);
     expect(new Set(tokens)).toEqual(new Set(["minted-session-value"]));
   });
 
