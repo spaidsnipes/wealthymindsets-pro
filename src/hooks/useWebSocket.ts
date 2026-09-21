@@ -40,6 +40,10 @@ import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import {
+  cryptoQuoteMayStandIn,
+  judgeCryptoQuoteSubstitution,
+} from "@/lib/marketData/cryptoQuoteSubstitution";
 import { quoteRoundIsCurrent } from "@/lib/marketData/quoteSymbolFence";
 
 /**
@@ -433,6 +437,37 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
       const q = mk(j, "coinbase");
       if (q?.kind === "quote") return q;
       if (q?.kind === "refused") heldRefusal ??= q.reason;
+    } catch {}
+    // FINNHUB, FOR CRYPTO — the leg this branch used to fall straight past.
+    //
+    // MEASURED on the serving host 2026-09-20: the right rail read
+    // "BTCUSDT · 5m · PRICE UNKNOWN" at the same minute that
+    // /api/finnhub?sym=BTCUSDT&type=quote answered `price: 81608` from
+    // `BINANCE:BTCUSDT`. The cause was structural, not transient: crypto asked
+    // Coinbase, skipped the whole `isEquityLane` block below (where the only
+    // Finnhub leg lives, behind a second `if (!isCrypto)`), and landed on the
+    // final Yahoo fallback, which 404s for USDT pairs. One half of the product
+    // printed UNKNOWN about a number the other half was serving.
+    //
+    // The door does not open unguarded. Finnhub's free crypto tier is Binance,
+    // which quotes in USDT, so a request naming USD would be answered in
+    // tether. `judgeCryptoQuoteSubstitution` is the owner of that comparison
+    // and its refusal is HELD as the reason, never swallowed — see that module
+    // for the measurement and for why a readable refusal beats an uncheckable
+    // number.
+    try {
+      const j = await fetchFinnhubQuoteBody(upper) as any;
+      const verdict = judgeCryptoQuoteSubstitution(upper, j?.providerSymbol);
+      if (cryptoQuoteMayStandIn(verdict)) {
+        const q = mk(j, "finnhub");
+        if (q?.kind === "quote") return q;
+        if (q?.kind === "refused") heldRefusal ??= q.reason;
+      } else if (verdict.kind === "SUBSTITUTED" || verdict.kind === "UNDISCLOSED") {
+        // A provider that ANSWERED and was declined is a refusal with words,
+        // not a silence. Collapsing it into "no answer" is what left the rail
+        // saying UNKNOWN in the first place.
+        heldRefusal ??= verdict.reason;
+      }
     } catch {}
   }
 
