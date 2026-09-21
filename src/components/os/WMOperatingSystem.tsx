@@ -88,6 +88,7 @@ import {
   type FeedStanding,
   type StandingCondition,
 } from "@/lib/os/osChrome";
+import { osFeedChipParts } from "@/lib/os/osFeedChipParts";
 import { useFeedEvaluationClock } from "@/lib/marketData/useProvenSessionClosure";
 import { WM } from "@/lib/design/wmTokens";
 
@@ -616,12 +617,32 @@ function StateReadout({
 }
 
 /**
- * The masthead's feed badge.
+ * The masthead's feed badge — canon F24's trailing chip.
  *
  * The dot is the mockups' single green pip — but it can only be green when
  * `compileFeedStanding` produced a LIVE tone from actual evidence. An
  * unestablished reading wears a HOLLOW dot, because a filled dot of any colour
  * still reads as "we know something" at a glance.
+ *
+ * ── THE CHIP HAS TWO HALVES, AND ONE OF THEM USED TO BE A TOOLTIP ──────────
+ *
+ * F24 draws this chip as `INDICATIVE · asOf` — a fidelity word, a separator,
+ * and a statement of WHEN. This badge rendered only the first half and put the
+ * second in `title={feed.detail}`, which does not exist on touch, does not
+ * exist at a glance, and is not shown until a pointer rests on it.
+ *
+ * That mattered because `detail` is not decoration. Three materially different
+ * states share the label `FEED UNKNOWN` — nothing attributed, a provider that
+ * answered without a price, and a price that cannot be aged — and the only
+ * thing separating them on the glass was the tooltip. The distinction that
+ * `osChrome.ts` went to real trouble to preserve in the data was being thrown
+ * away at the last inch.
+ *
+ * Both halves are now composed by ONE owner, `osFeedChipParts`, which also
+ * refuses the dangling separator (no detail ⇒ no `·`) and keeps `provenance`
+ * off the glass per WM-CHART-PROV-EMERG-01. Tone is deliberately NOT moved
+ * there: the ink and the dot already have an owner here, and a second opinion
+ * about tone is how two nodes come to disagree about one reading.
  */
 function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
   const toneInk: Record<FeedStanding["tone"], string> = {
@@ -631,12 +652,14 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
     UNKNOWN: MUTED,
   };
   const ink = toneInk[feed.tone];
+  const parts = osFeedChipParts(feed);
   return (
     <div
       data-testid="os-feed-standing"
       data-tone={feed.tone}
-      data-established={feed.established ? "true" : "false"}
-      title={feed.detail}
+      data-established={parts.unestablished ? "false" : "true"}
+      title={parts.spoken}
+      aria-label={parts.spoken}
       style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, flex: "0 1 auto" }}
     >
       <span
@@ -648,7 +671,7 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
           flex: "0 0 auto",
           // Established ⇒ filled. Unestablished ⇒ hollow ring, so the pip
           // cannot be mistaken for a reading from across the room.
-          background: feed.established ? ink : "transparent",
+          background: parts.unestablished ? "transparent" : ink,
           border: `1px solid ${ink}`,
         }}
       />
@@ -665,8 +688,38 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
           lineHeight: 1.25,
         }}
       >
-        {feed.label}
+        {parts.label}
       </span>
+      {/* THE SECOND HALF — canon's `· asOf`.
+          Separator and detail are rendered as ONE conditional pair, so a
+          separator without a reading behind it is unrepresentable rather than
+          merely unlikely. Both are aria-hidden because the whole chip is
+          already announced once through `aria-label={parts.spoken}` above;
+          without that, a screen reader would read the fidelity word, then the
+          middot, then the detail as three unrelated fragments. */}
+      {parts.separator !== null && (
+        <span
+          aria-hidden
+          data-testid="os-feed-standing-detail"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            minWidth: 0,
+            fontSize: 10,
+            letterSpacing: 0.4,
+            fontFamily: SERIF,
+            // MUTED, not `ink`. The detail explains the verdict; it is not a
+            // second verdict, and giving it the tone colour would make the
+            // masthead carry the alarm twice at two different weights.
+            color: MUTED,
+            lineHeight: 1.25,
+          }}
+        >
+          <span style={{ opacity: 0.55 }}>{parts.separator}</span>
+          <span>{parts.detail}</span>
+        </span>
+      )}
     </div>
   );
 }
