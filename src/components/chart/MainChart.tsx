@@ -8115,6 +8115,25 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     deriveLastBarClose(candles, timeframe, Date.now()),
     candleSource !== "",
     dp,
+    // SILENCE IS NOT CERTIFICATION — and TWO CALL SITES OF ONE COMPILER MAY
+    // NOT ANSWER ONE QUESTION TWO WAYS.
+    //
+    // MEASURED on the serving host 2026-09-20, BTCUSDT, ONE viewport: the
+    // ChartsDashboard call site (which passes `source`) resolved
+    // UNCERTIFIED_QUOTE, while THIS call site — which did not — resolved
+    // LIVE_QUOTE and printed a bare `81224.01` in the largest type on the
+    // page. Same compiler, same instrument, same instant, opposite verdicts,
+    // and the one the trader could actually see was the undisciplined one.
+    //
+    // `source` is useWebSocket's own verdict on whether it could vouch for
+    // this quote's provenance (destructured above with `ticker` itself); when
+    // it is still at the "unavailable" sentinel the product has DECLINED to
+    // certify, and this cell may not print the number bare as though it had.
+    //
+    // `dp` above is explicit and MUST stay that way: `decimals` sits between
+    // and defaults, so passing the source without it would land a vendor
+    // string in the decimal slot.
+    source,
   );
 
   const headerChangeFact = chartHeaderChangeFact(

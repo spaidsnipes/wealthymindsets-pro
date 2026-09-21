@@ -207,3 +207,63 @@ describe("/charts chrome header adoption — the source actually reaches the own
     expect(code).toContain("UNCERTIFIED_QUOTE: {");
   });
 });
+
+/**
+ * × TWO CALL SITES OF ONE COMPILER ANSWERING ONE QUESTION TWO WAYS.
+ *
+ * MEASURED on the serving host 2026-09-20, BTCUSDT, ONE viewport. The
+ * ChartsDashboard call site — taught to hand over `source` — resolved
+ * UNCERTIFIED_QUOTE. MainChart's call site, which did not, resolved
+ * LIVE_QUOTE and printed a bare `81224.01` in the largest type on the page.
+ * Same compiler, same instrument, same instant, opposite verdicts.
+ *
+ * And the disagreement was invisible: ChartsDashboard's chrome header row is
+ * `display: none` at >=1280px by a deliberate V01 ONE CANVAS decision (locked
+ * by src/lib/chartsCategoryFusion.test.ts), so the ONLY one of the two a
+ * desktop trader could read was the undisciplined one. Fixing the compiler
+ * and one caller looked like a glass proof and was not.
+ *
+ * ── THE SCOPE OF THIS SCAN IS ITSELF AN ASSERTION ─────────────────────
+ * This guard deliberately does NOT assert "every call site in src/ passes a
+ * source", because that would be false. A third caller exists —
+ * src/lib/experience/selectChartCompanion.ts — and it reads
+ * `CanonicalMarketState`, whose `price` record carries `last/bid/ask/eventAt/
+ * availableAt` and NO source field. It has nothing to hand over, and
+ * SILENCE IS NOT CERTIFICATION cuts in its favour: a caller that was never
+ * given a source must keep its pre-existing behaviour rather than be forced
+ * to invent one. Widening this scan would make it lie about the world.
+ *
+ * What IS asserted is the real rule: the two owners of the /charts HEADER
+ * PRICE SLOT, which render the same fact for the same instrument in the same
+ * viewport, must both ask the provenance question.
+ */
+describe("× THE INVISIBLE DISAGREEMENT: both /charts header owners ask for provenance", () => {
+  const mainChart = readFileSync(
+    join(process.cwd(), "src/components/chart/MainChart.tsx"),
+    "utf8",
+  );
+
+  it("MainChart hands its quote source to the compiler", () => {
+    const start = mainChart.indexOf("const headerPriceFact = chartHeaderPriceFact(");
+    expect(start, "MainChart no longer calls chartHeaderPriceFact").toBeGreaterThan(-1);
+    const call = mainChart.slice(
+      start,
+      mainChart.indexOf("const headerChangeFact = chartHeaderChangeFact(", start),
+    );
+    expect(call, "barsSettled is no longer passed").toContain("candleSource !== \"\"");
+    // `decimals` sits between `barsSettled` and `quoteSource` and DEFAULTS.
+    // Without it explicit, a vendor string lands in the decimal slot — and
+    // for this caller the default 2 would be wrong anyway, since MainChart
+    // knows instruments whose tick is finer than a hundredth.
+    expect(call, "decimals must be explicit so source cannot land in its slot").toMatch(/\n\s*dp,/);
+    expect(call, "the live quote's source is not handed over").toMatch(/\n\s*source,/);
+  });
+
+  it("MainChart's source is the one useWebSocket certified, not a local invention", () => {
+    // The binding must come from the hook that OWNS the certification verdict.
+    // A locally-derived string would pass the arity check above while
+    // manufacturing exactly the citation quoteSourceNamesProvider exists to
+    // refuse.
+    expect(mainChart).toMatch(/const \{[^}]*\bsource\b[^}]*\} = useWebSocket\(/);
+  });
+});
