@@ -9,6 +9,7 @@ import {
   extractProviderCode,
   probeWebullEntitlement,
   readWebullLadder,
+  summarizeWebullSubscriptionBody,
   webullRungSpecs,
   type WebullRungReceipt,
 } from "./webullEntitlementProbe";
@@ -207,6 +208,47 @@ describe("readWebullLadder", () => {
   });
 });
 
+/**
+ * We are reading `/app/subscriptions/list` against a live account for the first
+ * time, with no fixture of its response shape. So the summariser is pinned on
+ * the two things that must hold WHATEVER comes back: it never throws, and it
+ * never carries a credential-ish field out of the payload.
+ */
+describe("summarizeWebullSubscriptionBody — reads an unknown shape safely", () => {
+  it("finds rows however deeply the provider nests them", () => {
+    expect(summarizeWebullSubscriptionBody({ data: { items: [{ id: "1646795638648", name: "LV1", status: "ACTIVE" }] } }))
+      .toEqual([{ id: "1646795638648", name: "LV1", status: "ACTIVE" }]);
+  });
+
+  it("drops credential-ish and identity keys and non-scalars instead of forwarding them", () => {
+    const rows = summarizeWebullSubscriptionBody([
+      {
+        name: "LV1", live: true,
+        access_token: "SECRET", app_key: "SECRET", nested: { deep: "SECRET" },
+        // Identity, not entitlement. It cannot answer the question this read
+        // was sent to ask, so it does not travel in a report people paste.
+        account_id: "SECRET", user_email: "SECRET",
+      },
+    ]);
+    expect(rows).toEqual([{ name: "LV1", live: "true" }]);
+    expect(JSON.stringify(rows)).not.toContain("SECRET");
+  });
+
+  it("returns an empty list rather than throwing on shapes we did not anticipate", () => {
+    for (const body of [null, undefined, "a string", 42, [], {}, [1, 2, 3], { a: { b: { c: { d: [{ x: "deep" }] } } } }]) {
+      expect(() => summarizeWebullSubscriptionBody(body)).not.toThrow();
+      expect(Array.isArray(summarizeWebullSubscriptionBody(body))).toBe(true);
+    }
+  });
+
+  it("is bounded, so a huge list cannot become the response body", () => {
+    const huge = Array.from({ length: 500 }, (_, i) => ({ id: String(i), note: "x".repeat(400) }));
+    const rows = summarizeWebullSubscriptionBody(huge);
+    expect(rows).toHaveLength(25);
+    expect(rows.every((row) => row.note.length <= 96)).toBe(true);
+  });
+});
+
 describe("probeWebullEntitlement", () => {
   it("attempts nothing when the credential pair is incomplete", async () => {
     let called = 0;
@@ -241,8 +283,12 @@ describe("probeWebullEntitlement", () => {
     });
 
     // Derived from the ladder, not restated: a hard-coded rung count is how a
-    // new rung silently stops being climbed.
-    expect(seen).toHaveLength(webullRungSpecs("TSLA").length);
+    // new rung silently stops being climbed. The +1 is the subscription
+    // inventory read, which is asked out of band and is NOT a ladder rung.
+    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1);
+    expect(seen.filter((url) => url.includes("/app/subscriptions/list"))).toHaveLength(1);
+    // The whole reason it is out of band: it must never reach the verdict.
+    expect(report.rungs.some((rung) => rung.rung === "SUBSCRIPTIONS")).toBe(false);
     expect(report.verdict).toBe("ENTITLEMENT_ISOLATED");
     expect(report.rungs.filter((rung) => rung.gate === "NON_MARKET_DATA").map((rung) => rung.outcome))
       .toEqual(["OK", "OK"]);
@@ -297,7 +343,9 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
     await probeWebullEntitlement(fetchImpl, {
       ...base, accessToken: "stale-pasted-token", tokenStore: inMemoryTokenStore(live()),
     });
-    expect(tokens).toHaveLength(webullRungSpecs("TSLA").length);
+    // Ladder rungs + the out-of-band subscription read; the minted session has
+    // to travel on ALL of them, including the one that is not a rung.
+    expect(tokens).toHaveLength(webullRungSpecs("TSLA").length + 1);
     expect(new Set(tokens)).toEqual(new Set(["minted-session-value"]));
   });
 

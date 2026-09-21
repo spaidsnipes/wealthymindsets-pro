@@ -125,6 +125,27 @@ export const WEBULL_SDK_CONTRACT = {
     needsMarketData: false,
     sdkSource: "webull/core/http/initializer/token/bean/check_token_request.py",
   },
+  /**
+   * WHAT THE PROVIDER ITSELF SAYS THIS APP IS SUBSCRIBED TO.
+   *
+   * Every other row here asks Webull for market data and reads the refusal. This
+   * row asks Webull the question directly, and that difference is the point: the
+   * entitlement ladder can only ever isolate a gap by elimination, and
+   * "everything we control is eliminated, therefore it must be his account" is
+   * still an inference. It is the exact inference that cost three months.
+   *
+   * `/app/subscriptions/list` turns that inference into a reading. If it comes
+   * back naming the packages attached to this app key, then any sentence we send
+   * the Founder can quote his own subscription list instead of guessing at it —
+   * and if the list is complete and market data is still refused, the fault is
+   * demonstrably NOT his purchase.
+   */
+  APP_SUBSCRIPTIONS: {
+    path: "/app/subscriptions/list",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/get_app_subscriptions.py",
+  },
   /** THE ONE THAT WAS WRONG. get_tick_request.py:
    *    ApiRequest.__init__(self, "/market-data/stocks/ticks/list", version='v3', method="GET") */
   STOCK_TICKS: {

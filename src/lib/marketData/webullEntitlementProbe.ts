@@ -74,7 +74,13 @@ const DEFAULT_HOST = "api.webull.com";
  * `SNAPSHOT` climbed twice yields two receipts that differ in exactly the
  * variable under test, and the reader cannot mistake one for the other.
  */
-export type WebullRungName = "ACCOUNTS" | "PROFILES" | "SNAPSHOT" | "TICKS";
+/**
+ * SUBSCRIPTIONS is a name, not a ladder rung: `webullRungSpecs` never returns
+ * it, so it cannot reach `readWebullLadder` and cannot move a verdict. It exists
+ * only so the out-of-band subscription read can reuse the signed-request path
+ * without a second, drifting copy of it.
+ */
+export type WebullRungName = "ACCOUNTS" | "PROFILES" | "SNAPSHOT" | "TICKS" | "SUBSCRIPTIONS";
 
 /** Whether a rung is gated on a market-data entitlement. Drives the verdict. */
 export type WebullRungGate = "NON_MARKET_DATA" | "MARKET_DATA";
@@ -124,6 +130,12 @@ export interface WebullEntitlementReport {
   readonly rungs: readonly WebullRungReceipt[];
   readonly checkedAt: string;
   readonly note: string;
+  /**
+   * Webull's own answer to "what is this app subscribed to". Absent when no
+   * session was available to ask with. It NEVER participates in `verdict` —
+   * see `WebullSubscriptionInventory`.
+   */
+  readonly subscriptions?: WebullSubscriptionInventory;
 }
 
 interface RungSpec {
@@ -306,14 +318,22 @@ export function readWebullLadder(rungs: readonly WebullRungReceipt[]): {
   };
 }
 
-async function climbRung(
+/**
+ * The receipt, plus the parsed body.
+ *
+ * The body stays INSIDE this module. `WebullRungReceipt` is what ships to the
+ * client, and a provider payload that rides along in a field nobody reads is
+ * how payloads end up rendered. Only the subscription reader touches it, and
+ * only after `summarizeWebullSubscriptionBody` has reduced it to scalars.
+ */
+async function climbRungWithBody(
   fetchImpl: typeof fetch,
   spec: RungSpec,
   creds: { appKey: string; appSecret: string; accessToken?: string; host: string },
   timestamp: string,
   nonce: string,
   timeoutMs: number,
-): Promise<WebullRungReceipt> {
+): Promise<{ readonly receipt: WebullRungReceipt; readonly body: unknown }> {
   const base = { rung: spec.rung, gate: spec.gate, signingProfile: spec.signingProfile } as const;
   const headers = buildWebullSignedHeaders({
     path: spec.path,
@@ -349,23 +369,111 @@ async function climbRung(
       ]);
     } catch {
       return {
-        ...base,
-        outcome: controller.signal.aborted ? "TIMEOUT" : "UNAVAILABLE",
-        httpStatus: null,
-        providerCode: null,
+        receipt: {
+          ...base,
+          outcome: controller.signal.aborted ? "TIMEOUT" : "UNAVAILABLE",
+          httpStatus: null,
+          providerCode: null,
+        },
+        body: null,
       };
     }
 
+    let body: unknown = null;
     let providerCode: string | null = null;
     try {
-      providerCode = extractProviderCode(await Promise.race([response.json(), deadline]));
+      body = await Promise.race([response.json(), deadline]);
+      providerCode = extractProviderCode(body);
     } catch {
+      body = null;
       providerCode = null;
     }
-    return { ...base, outcome: classifyRung(response.status, providerCode), httpStatus: response.status, providerCode };
+    return {
+      receipt: { ...base, outcome: classifyRung(response.status, providerCode), httpStatus: response.status, providerCode },
+      body,
+    };
   } finally {
     clearTimeout(timeout!);
   }
+}
+
+async function climbRung(
+  fetchImpl: typeof fetch,
+  spec: RungSpec,
+  creds: { appKey: string; appSecret: string; accessToken?: string; host: string },
+  timestamp: string,
+  nonce: string,
+  timeoutMs: number,
+): Promise<WebullRungReceipt> {
+  return (await climbRungWithBody(fetchImpl, spec, creds, timestamp, nonce, timeoutMs)).receipt;
+}
+
+/**
+ * ── ASK, DON'T INFER ────────────────────────────────────────────────────────
+ *
+ * The ladder isolates an entitlement gap BY ELIMINATION. Even when every
+ * variable we control has been eliminated, "therefore it is his subscription"
+ * remains an inference — and that inference is precisely what cost three months
+ * the first time. `/app/subscriptions/list` asks Webull the question instead.
+ *
+ * It is deliberately NOT a ladder rung. A rung participates in the verdict, so
+ * an unknown response shape or an unrelated 404 on this endpoint would rewrite
+ * a market-data reading that has nothing to do with it. This is a receipt that
+ * travels ALONGSIDE the verdict and can never change it.
+ */
+export interface WebullSubscriptionInventory {
+  readonly outcome: WebullRungOutcome;
+  readonly httpStatus: number | null;
+  readonly providerCode: string | null;
+  /** Scalar-only, key-filtered rows. Never the raw payload. */
+  readonly rows: readonly Readonly<Record<string, string>>[];
+}
+
+/**
+ * Keys we refuse to carry out of a provider payload, whatever the shape.
+ *
+ * Two families, and the second one is the easy one to forget. Credentials are
+ * obvious. IDENTITY is not: an account number or an email in a subscription row
+ * is not a secret exactly, but it is also not an entitlement, and this report
+ * gets read, pasted and screenshotted while someone debugs. A field that cannot
+ * answer "is market data attached to this app" has no business travelling.
+ */
+const SECRETISH_KEY = /(token|secret|password|credential|signature|app_?key|account|user|email|phone|uuid)/i;
+
+/**
+ * Pulls subscription rows out of a body whose shape we have NOT seen.
+ *
+ * Written defensively on purpose: we are reading this endpoint for the first
+ * time against a live account, and the failure mode to avoid is a summariser
+ * that throws — or worse, that dumps an unknown payload into a report the
+ * Founder reads. Scalars only, key-filtered, bounded.
+ */
+export function summarizeWebullSubscriptionBody(body: unknown): readonly Readonly<Record<string, string>>[] {
+  const candidates: unknown[] = [];
+  const visit = (value: unknown, depth: number): void => {
+    if (depth > 3 || !value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      candidates.push(...value);
+      return;
+    }
+    for (const nested of Object.values(value as Record<string, unknown>)) visit(nested, depth + 1);
+  };
+  visit(body, 0);
+
+  return candidates
+    .slice(0, 25)
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      const row: Record<string, string> = {};
+      for (const [key, value] of Object.entries(entry as Record<string, unknown>)) {
+        if (SECRETISH_KEY.test(key)) continue;
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          row[key.slice(0, 48)] = String(value).slice(0, 96);
+        }
+      }
+      return Object.keys(row).length > 0 ? row : null;
+    })
+    .filter((row): row is Record<string, string> => row !== null);
 }
 
 export interface WebullEntitlementProbeConfig {
@@ -448,6 +556,31 @@ export async function probeWebullEntitlement(
     rungs.push(await climbRung(fetchImpl, spec, creds, checkedAt, makeNonce(), timeoutMs));
   }
 
+  /**
+   * Asked LAST, and never allowed to fail the climb. This read exists to make
+   * the message we eventually send the Founder quotable rather than inferred;
+   * if it errors, the ladder above is still a complete measurement on its own.
+   */
+  let subscriptions: WebullSubscriptionInventory | undefined;
+  try {
+    const { receipt, body } = await climbRungWithBody(
+      fetchImpl,
+      rungSpec("SUBSCRIPTIONS", WEBULL_SDK_CONTRACT.APP_SUBSCRIPTIONS, {}, "legacy-sha1"),
+      creds,
+      checkedAt,
+      makeNonce(),
+      timeoutMs,
+    );
+    subscriptions = {
+      outcome: receipt.outcome,
+      httpStatus: receipt.httpStatus,
+      providerCode: receipt.providerCode,
+      rows: receipt.outcome === "OK" ? summarizeWebullSubscriptionBody(body) : [],
+    };
+  } catch {
+    subscriptions = undefined;
+  }
+
   const { verdict, note } = readWebullLadder(rungs);
   // A ladder climbed without a session is still worth reporting, but the
   // reason it had none must travel with the verdict — otherwise a failed mint
@@ -458,5 +591,6 @@ export async function probeWebullEntitlement(
     rungs,
     checkedAt,
     note: sessionNote ? `${note} No session accompanied this climb: ${sessionNote}` : note,
+    ...(subscriptions ? { subscriptions } : {}),
   };
 }
