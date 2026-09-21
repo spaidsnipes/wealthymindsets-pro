@@ -29,7 +29,13 @@ describe("Webull explicit signing profiles — protocol proof only", () => {
       "x-signature": "b76mbhP24yF/AGdvL5Tp+VlcpLm019LY/x8GXLvGGvY=",
       "x-signature-algorithm": "HMAC-SHA256", "x-signature-version": "1.0",
       "x-signature-nonce": input.nonce, "x-version": "v3",
+      "x-webull-client-source": "sdk",
     });
+    // The signature vector above is UNCHANGED by the client-source header, and
+    // that is the property being pinned: the SDK sends it but does not sign it
+    // (default_signature_composer._refresh_sign_headers). If it ever joined the
+    // signed set, this vector would move and the lane that works would break.
+    expect(modern["x-signature"]).toBe(signWebullRequest({ ...input, profile: "sdk-sha256" }));
     expect(buildWebullSignedHeaders({ ...input, profile: "legacy-sha1", apiVersion: "v2" })).toMatchObject({
       "x-signature": "FcbBbFzf+6UfKdXWMbbgXzV/sXc=", "x-signature-algorithm": "HMAC-SHA1",
     });

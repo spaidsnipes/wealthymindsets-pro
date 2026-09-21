@@ -126,9 +126,26 @@ export function signWebullRequest(input: WebullSigningInput): string {
   return createHmac(modern ? "sha256" : "sha1", `${input.appSecret}&`).update(signingText).digest("base64");
 }
 
+/**
+ * What Webull's own SDK identifies itself as on every request.
+ *
+ * `webull/core/client.py:73` defaults this to "sdk" and `client.py:260` sets it
+ * unconditionally. We were omitting it, which made every request we sent
+ * distinguishable from every request the SDK sends — and a request that does
+ * not look like the SDK's is not yet a clean test of anything the provider says
+ * back to us.
+ *
+ * It is NOT part of the signature: `_refresh_sign_headers` in
+ * `default_signature_composer.py` signs only app key, timestamp, version,
+ * algorithm, nonce and host. Verified before adding, because a header that
+ * silently joined the signed set would have broken the one lane that works.
+ */
+const WEBULL_CLIENT_SOURCE = "sdk";
+
 /** One owner for advertised signing headers and the algorithm actually used. */
 export function buildWebullSignedHeaders(input: WebullSigningInput & { readonly apiVersion: string }): Record<string, string> {
   return {
+    "x-webull-client-source": WEBULL_CLIENT_SOURCE,
     "x-app-key": input.appKey,
     "x-timestamp": input.timestamp,
     "x-signature": signWebullRequest(input),
