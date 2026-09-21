@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { WM, wmPanelStyle, wmToneColor } from "./wmTokens";
+import { WM, objectionTint, wmPanelStyle, wmToneColor } from "./wmTokens";
 
 describe("WM tokens — surface hierarchy (deepest → highest)", () => {
   it("has all 5 depth layers named", () => {
@@ -37,9 +37,33 @@ describe("WM tokens — gold palette (importance / hierarchy)", () => {
   });
 });
 
-describe("WM tokens — state vocabulary (5 semantic states + non-colour cue required)", () => {
-  it("has the 5 canonical state names", () => {
-    expect(Object.keys(WM.state).sort()).toEqual(["neutral", "ok", "unknown", "warn", "watch"]);
+describe("WM tokens — state vocabulary (6 semantic states + non-colour cue required)", () => {
+  it("has the 6 canonical state names", () => {
+    expect(Object.keys(WM.state).sort()).toEqual([
+      "neutral", "objection", "ok", "unknown", "warn", "watch",
+    ]);
+  });
+
+  it("`warn` and `objection` are DIFFERENT COLOURS, and stay that way", () => {
+    // The whole reason `objection` exists is that a refusal must not be painted
+    // in the failure red. If a future palette pass collapses them, every correct
+    // NO TRADE / BLOCKED / HARD RULE starts reading as a malfunction. That is a
+    // product-meaning regression wearing a one-line diff, so it gets an
+    // assertion rather than a comment. See the docblock in wmTokens.ts.
+    expect(WM.state.objection).not.toBe(WM.state.warn);
+    expect(WM.state.warn).toBe("#c05a4a");
+    expect(WM.state.objection).toBe("#e07b5c");
+  });
+
+  it("objectionTint derives its rgba from the token, so the two cannot drift", () => {
+    // Channels are PARSED, never retyped — retyping is how #e07b5c came to be
+    // owned by nobody across fourteen files. These are the alphas actually in
+    // use on the objection surfaces today.
+    expect(objectionTint(0.1)).toBe("rgba(224,123,92,0.1)");
+    expect(objectionTint(0.45)).toBe("rgba(224,123,92,0.45)");
+    // …and it genuinely tracks the token rather than hard-coding 224,123,92.
+    const [r, g, b] = WM.state.objection.replace("#", "").match(/../g)!.map(h => parseInt(h, 16));
+    expect(objectionTint(0.5)).toBe(`rgba(${r},${g},${b},0.5)`);
   });
   it("every state is a 7-char hex", () => {
     for (const [name, hex] of Object.entries(WM.state)) {
@@ -103,10 +127,11 @@ describe("wmPanelStyle", () => {
 });
 
 describe("wmToneColor", () => {
-  it("maps each of the 5 tones to the WM.state palette", () => {
+  it("maps each of the 6 tones to the WM.state palette", () => {
     expect(wmToneColor("ok")).toBe(WM.state.ok);
     expect(wmToneColor("watch")).toBe(WM.state.watch);
     expect(wmToneColor("warn")).toBe(WM.state.warn);
+    expect(wmToneColor("objection")).toBe(WM.state.objection);
     expect(wmToneColor("unknown")).toBe(WM.state.unknown);
     expect(wmToneColor("neutral")).toBe(WM.state.neutral);
   });

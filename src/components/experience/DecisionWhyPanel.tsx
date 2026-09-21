@@ -16,6 +16,7 @@ import type {
   WhyBlockerKind,
 } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
 import type { EvidenceStanding } from "@/lib/experience/selectEvidenceDebtLedger";
+import { WM } from "@/lib/design/wmTokens";
 
 export interface DecisionWhyPanelProps {
   readonly vm: DecisionWhyVM;
@@ -29,9 +30,16 @@ const KIND_LABEL: Record<WhyBlockerKind, string> = {
   SOFT_RULE: "SOFT RULE",
 };
 
+/**
+ * A blocker is the system REFUSING, not the system failing — so the two hardest
+ * kinds take `WM.state.objection` and never `WM.state.warn` (#c05a4a, the red
+ * reserved for stale feeds and failed saves). Painting a hard rule in the
+ * failure red would tell the trader something is broken at the exact moment the
+ * product is doing its job. Same pixels as the literals these replaced.
+ */
 const KIND_TONE: Record<WhyBlockerKind, string> = {
-  HARD_RULE: "#e07b5c",
-  CONTRADICTION: "#e07b5c",
+  HARD_RULE: WM.state.objection,
+  CONTRADICTION: WM.state.objection,
   EVIDENCE_DEBT: "#c9a55c",
   EVIDENCE_WARN: "#b8925a",
   SOFT_RULE: "#9c8a63",
@@ -74,7 +82,7 @@ const EVIDENCE_MARK: Record<EvidenceStanding, React.CSSProperties> = {
 };
 
 export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElement {
-  const accent = vm.clear ? "#d4af37" : "#e07b5c";
+  const accent = vm.clear ? "#d4af37" : WM.state.objection;
   const ledger = vm.evidenceLedger;
 
   return (

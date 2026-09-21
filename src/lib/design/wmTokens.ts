@@ -42,13 +42,52 @@ export const WM = {
     halo:  "#ffd76a",   // brightest, only for focus / active pulse
   },
 
-  // ── STATE — semantic colours; each carries a non-colour cue elsewhere ──
+  /**
+   * ── STATE — semantic colours; each carries a non-colour cue elsewhere ──
+   *
+   * `warn` AND `objection` ARE TWO TOKENS ON PURPOSE. READ THIS BEFORE MERGING.
+   *
+   * On 2026-09-21, consolidating the Market Canvas verdict palette turned up a
+   * warm terracotta `#e07b5c` hard-coded across fourteen surfaces with no token
+   * at all, while `warn` (#c05a4a) named a red the product also renders widely.
+   * The obvious reading — "the token is stale, retarget it to the colour that
+   * actually ships" — was TESTED BY GREP AND IS FALSE. Both colours are live:
+   *
+   *   #c05a4a  DataHealth DEGRADED/STALE/DISCONNECTED, DecisionChainPanel WARN,
+   *            OpeningBellPanel NOT_READY, Pill danger, HeroTruth STALE,
+   *            nectarFormat INFERRED/STALE/UNAVAILABLE, ShellAccessChrome …
+   *
+   *   #e07b5c  FailureStateChip BLOCKED, DecisionWhyPanel HARD_RULE and
+   *            CONTRADICTION, OneStoryStrip OBJECTION and DEBT, the canvas
+   *            NO TRADE verdict, MarketObjectPassportPanel contradictions …
+   *
+   * Read the two lists and the split is not an accident of drift — it is a
+   * distinction the product has been making consistently without a name for it:
+   *
+   *   `warn`      THE SYSTEM FAILED. Data went stale, a feed dropped, a save
+   *               did not land. Something is wrong and the trader is worse off.
+   *   `objection` THE SYSTEM WORKED. A hard rule engaged, evidence contradicts
+   *               the setup, the verdict is NO TRADE. Nothing is broken; the
+   *               product is doing its job and the answer is no.
+   *
+   * That is why `objection` is the warmer, lighter hue: a refusal must read as
+   * a BOUNDARY, not as an ERROR. Collapsing them into one token would paint
+   * every correct refusal in the failure red and quietly teach the trader that
+   * the product is malfunctioning every time it protects him. One hex saved is
+   * not worth telling that lie.
+   *
+   * So: the fix for the fourteen literals was a SECOND token, not a retarget.
+   * Retargeting `warn` to #e07b5c would have repainted ~20 unrelated failure
+   * surfaces under cover of a refactor — the exact move DESIGN FIDELITY LAW
+   * forbids. Zero pixels moved. `objectionTint()` below owns the alpha forms.
+   */
   state: {
-    ok:      "#5cb85c",   // resolved, live, aligned
-    watch:   "#c9a55c",   // partial, degraded, advisory
-    warn:    "#c05a4a",   // stale, failed, restricted, contradiction
-    unknown: "#55503f",   // not yet observed, insufficient evidence
-    neutral: "#8a8271",   // idle / no verdict
+    ok:        "#5cb85c",   // resolved, live, aligned
+    watch:     "#c9a55c",   // partial, degraded, advisory
+    warn:      "#c05a4a",   // stale, failed, disconnected — SOMETHING BROKE
+    objection: "#e07b5c",   // blocked, hard rule, contradiction — THE SYSTEM REFUSED
+    unknown:   "#55503f",   // not yet observed, insufficient evidence
+    neutral:   "#8a8271",   // idle / no verdict
   },
 
   // ── BORDERS — always low-opacity gold; three intensities ──
@@ -117,8 +156,31 @@ export function wmPanelStyle(active = false): React.CSSProperties {
 }
 
 /** Standard tone→colour helper (never colour-only — always paired with a glyph). */
-export function wmToneColor(tone: "ok" | "watch" | "warn" | "unknown" | "neutral"): string {
+export function wmToneColor(
+  tone: "ok" | "watch" | "warn" | "objection" | "unknown" | "neutral",
+): string {
   return WM.state[tone];
+}
+
+/**
+ * A translucent wash of `WM.state.objection`, for the chip fills and left-rules
+ * that accompany a refusal.
+ *
+ * WHY A FUNCTION AND NOT MORE TOKENS. The objection surfaces do not share one
+ * alpha — a filled chip sits near 0.10, a border near 0.45, a 3px left-rule at
+ * 0.6, and `TruthStatusChip` deliberately whispers at 0.07. Minting a named
+ * token per alpha would be eight tokens for one colour, and the eighth surface
+ * would still invent a ninth literal. Deriving them from the hex means a future
+ * palette refresh moves the fills WITH the foreground instead of leaving a
+ * terracotta frame around a repainted word.
+ *
+ * The rgba channels are parsed from the token rather than retyped, so the two
+ * can never disagree — retyping them is precisely how #e07b5c ended up owned by
+ * nobody in the first place.
+ */
+export function objectionTint(alpha: number): string {
+  const [r, g, b] = WM.state.objection.replace("#", "").match(/../g)!.map(h => parseInt(h, 16));
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 /**

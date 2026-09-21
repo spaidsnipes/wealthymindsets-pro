@@ -26,6 +26,7 @@ import * as React from "react";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
 import { DimensionStandingBand } from "./DimensionStandingBand";
 import { marketCanvasVerdictColor } from "@/lib/design/marketCanvasVerdictTone";
+import { WM } from "@/lib/design/wmTokens";
 
 export interface MarketCanvasPanelProps {
   readonly vm: MarketCanvasVM;
@@ -238,7 +239,7 @@ export function MarketCanvasPanel({
           data-testid="market-canvas-blockers"
           style={{ marginBottom: (vm.clearances.length || vm.invalidators.length) ? 10 : 0 }}
         >
-          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4, textTransform: "uppercase" }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: WM.state.objection, marginBottom: 4, textTransform: "uppercase" }}>
             Why not ({vm.blockerCount})
           </div>
           {/* The header counts `blockerCount`, NOT the array. This used to read

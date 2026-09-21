@@ -25,6 +25,7 @@ import type {
   MarketObjectPassport,
   PassportLifecycle,
 } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 
 export interface MarketObjectPassportPanelProps {
   readonly vm: MarketObjectPassportVM;
@@ -158,8 +159,10 @@ function PassportRow({
       style={{
         fontSize: 11,
         letterSpacing: 0.4,
-        color: obj.contradictions.length > 0 ? "#e07b5c" : color,
-        border: `1px solid ${obj.contradictions.length > 0 ? "rgba(224,123,92,0.45)" : HAIR}`,
+        // A contradiction is an OBJECTION the passport is raising, not a fault
+        // in the passport. `WM.state.objection`, never `WM.state.warn`.
+        color: obj.contradictions.length > 0 ? WM.state.objection : color,
+        border: `1px solid ${obj.contradictions.length > 0 ? objectionTint(0.45) : HAIR}`,
         borderRadius: 4,
         padding: "1px 5px",
         textTransform: "uppercase",
@@ -270,7 +273,7 @@ function PassportRow({
         )}
         {obj.contradictions.length > 0 && (
           <div>
-            <div style={{ fontSize: 11, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4 }}>CONTRADICTION</div>
+            <div style={{ fontSize: 11, letterSpacing: 0.5, color: WM.state.objection, marginBottom: 4 }}>CONTRADICTION</div>
             {obj.contradictions.map((c, i) => (
               <div key={i} style={{ fontSize: 11, color: "#e0a58c", lineHeight: 1.4 }}>{c}</div>
             ))}

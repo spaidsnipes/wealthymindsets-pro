@@ -65,11 +65,17 @@ import {
 } from "@/lib/experience/selectSceneGovernance";
 
 import SignalProvenanceStrip from "./SignalProvenanceStrip";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 
 const GOLD = "#d4af37";
 const GOLD_DIM = "#c9a55c";
 const MUTED = "#8a8271";
-const WARN = "#e07b5c";
+// `WARN` here has always meant "admission REFUSED / compilation degraded" — the
+// system declining to let a scene through, not the system breaking. That is
+// `WM.state.objection`, NOT `WM.state.warn` (#c05a4a, which is for stale feeds
+// and failed saves). Identical pixels to the literal it replaced; wmTokens.ts
+// documents why those are deliberately two different colours.
+const WARN = WM.state.objection;
 
 /**
  * Human-readable names. The enum is for code; the trader reads English.
@@ -235,9 +241,10 @@ export function SceneAdmissionPanel({
         // full-box border + tint made scene admission read as an
         // "app alert card". The scene state IS a headline read; a
         // left-edge accent carries the same state signal (gold for
-        // normal, warn-red for degraded) without walling itself off
-        // from the room.
-        borderLeft: `3px solid ${compilation.degraded ? "rgba(224,123,92,0.65)" : "rgba(212,175,55,0.55)"}`,
+        // normal, objection-terracotta for degraded) without walling
+        // itself off from the room. Tinted from the token so a palette
+        // pass moves this rule WITH the word it frames.
+        borderLeft: `3px solid ${compilation.degraded ? objectionTint(0.65) : "rgba(212,175,55,0.55)"}`,
         background: "transparent",
         padding: "10px 14px 10px 18px",
       }}
@@ -279,7 +286,7 @@ export function SceneAdmissionPanel({
               letterSpacing: 0.6,
               textTransform: "uppercase",
               color: WARN,
-              border: `1px solid rgba(224,123,92,0.45)`,
+              border: `1px solid ${objectionTint(0.45)}`,
               borderRadius: 4,
               padding: "2px 6px",
             }}

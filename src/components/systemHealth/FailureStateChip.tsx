@@ -27,6 +27,7 @@ import {
   type CanonicalFailureState,
   type FailureStateReport,
 } from "@/lib/systemHealth/failureStateGrammar";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 
 export interface FailureStateChipProps {
   /** State-only shorthand OR full report; report populates tooltip. */
@@ -38,7 +39,12 @@ export interface FailureStateChipProps {
 const TONE: Record<CanonicalFailureState, { fg: string; bg: string; border: string }> = {
   NORMAL:      { fg: "#7ac57a", bg: "rgba(122,197,122,0.08)", border: "rgba(122,197,122,0.35)" },
   DEGRADED:    { fg: "#c9a55c", bg: "rgba(201,165,92,0.08)",  border: "rgba(201,165,92,0.40)" },
-  BLOCKED:     { fg: "#e07b5c", bg: "rgba(224,123,92,0.10)",  border: "rgba(224,123,92,0.45)" },
+  // BLOCKED is the one row in this table that is NOT a malfunction — the system
+  // is refusing on purpose — so it wears `WM.state.objection`. DEGRADED and
+  // UNAVAILABLE above/below it are genuine failures and keep their own tones.
+  // Same pixels as the literals; `objectionTint` derives the fill and frame
+  // from the token so a palette pass cannot move the word and leave the chip.
+  BLOCKED:     { fg: WM.state.objection, bg: objectionTint(0.1), border: objectionTint(0.45) },
   UNAVAILABLE: { fg: "#8a8271", bg: "rgba(138,130,113,0.06)", border: "rgba(138,130,113,0.30)" },
   RECOVERING:  { fg: "#c9a55c", bg: "rgba(201,165,92,0.06)",  border: "rgba(201,165,92,0.35)" },
   UNKNOWN:     { fg: "#8a8271", bg: "rgba(138,130,113,0.04)", border: "rgba(138,130,113,0.25)" },

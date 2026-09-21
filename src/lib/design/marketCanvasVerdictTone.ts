@@ -34,7 +34,7 @@
  */
 
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
-import { WM } from "@/lib/design/wmTokens";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 
 export type MarketCanvasVerdict = MarketCanvasVM["verdict"];
 
@@ -53,31 +53,34 @@ export interface VerdictTone {
 }
 
 /**
- * `NO TRADE` has no WM token — and neither, it turns out, does the colour.
+ * `NO TRADE` wears `WM.state.objection` — AND THAT TOKEN EXISTS BECAUSE OF THIS
+ * MODULE. This block records how, because the route matters more than the fact.
  *
- * The nearest token is `WM.state.warn` (#c05a4a), which is NOT the same colour.
- * The shipped value is a warmer, lighter terracotta chosen so a hard refusal
- * reads as a boundary rather than as an error: a `NO TRADE` verdict is the
- * system working, not the system failing, and painting it in the failure red
- * said the wrong thing.
+ * The first version of this module's Sentinel assumed the terracotta #e07b5c
+ * was unique to the canvas verdict and scanned the repo for it as a
+ * fingerprint. It failed immediately against ELEVEN other files. They were not
+ * copies of the verdict table — they were `SceneAdmissionPanel`'s WARN,
+ * `DecisionWhyPanel`'s HARD_RULE and CONTRADICTION, `FailureStateChip`'s
+ * BLOCKED, `OneStoryStrip`'s OBJECTION and DEBT, `CommandContextRibbon`'s warn,
+ * and more. So #e07b5c was a real, widely-rendered product colour that owned
+ * fourteen literals and no token, while `WM.state.warn` (#c05a4a) named a
+ * different red that the product also renders, widely, for a different thing.
  *
- * A LARGER FINDING, recorded here because this is where it was discovered.
- * The first version of this module's Sentinel assumed #e07b5c was unique to the
- * canvas verdict and scanned the repo for it as a fingerprint. It failed
- * immediately against ELEVEN other files. They are not copies of the verdict
- * table — they are `SceneAdmissionPanel`'s WARN, `DecisionWhyPanel`'s HARD_RULE
- * and CONTRADICTION, `FailureStateChip`'s BLOCKED, `OneStoryStrip`'s OBJECTION
- * and DEBT, `CommandContextRibbon`'s warn, and others. So #e07b5c is the
- * product's REAL warn colour, in wide use, with no token, while `WM.state.warn`
- * names a red that almost nothing renders.
+ * This was left open deliberately for one commit, then closed deliberately in
+ * the next — and NOT the way it first looked. The tempting fix was to retarget
+ * `WM.state.warn` to #e07b5c, and it was wrong: grep showed both colours live,
+ * so retargeting would have repainted ~20 unrelated failure surfaces under
+ * cover of a refactor. The real answer was a SECOND token naming a distinction
+ * the product had been making all along without a word for it — `warn` means
+ * the system FAILED, `objection` means the system REFUSED. A `NO TRADE` verdict
+ * is the second: it is the board doing its job, and it must never be painted in
+ * the failure red. `wmTokens.ts` carries the full argument.
  *
- * That is a genuine token gap and it is NOT fixed here. Absorbing eleven
- * unrelated surfaces into a Market-Canvas module would put the wrong owner on
- * the fact, and repainting them to `WM.state.warn` would change what the
- * Founder sees under cover of a refactor. It is named so the next person does
- * not rediscover it, and so nobody reads the literal below as an oversight.
+ * The moral, for whoever meets the next duplicated fact: a Sentinel keyed on an
+ * incidental literal will find strangers, and the strangers are usually the
+ * finding. This one was.
  */
-const NO_TRADE_TERRACOTTA = "#e07b5c";
+const NO_TRADE_TERRACOTTA = WM.state.objection;
 
 const TONE: Record<MarketCanvasVerdict, VerdictTone> = {
   // Primary gold — the board is offering something. WM.gold.hero.
@@ -102,8 +105,8 @@ const TONE: Record<MarketCanvasVerdict, VerdictTone> = {
   },
   "NO TRADE": {
     fg: NO_TRADE_TERRACOTTA,
-    border: "rgba(224,123,92,0.45)",
-    bg: "rgba(224,123,92,0.10)",
+    border: objectionTint(0.45),
+    bg: objectionTint(0.1),
   },
   // Not yet observed. WM.text.muted — the same grey every unobserved thing
   // wears, so "we don't know" looks identical everywhere it is admitted.

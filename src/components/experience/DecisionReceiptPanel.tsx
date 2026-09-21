@@ -18,6 +18,7 @@ import {
   receiptStageIndex,
 } from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
 import { DECISION_QUALITY_MAX } from "@/lib/traderMemory/decisionMemory";
+import { WM } from "@/lib/design/wmTokens";
 import type {
   DecisionReceiptVM,
   ReceiptTone,
@@ -45,7 +46,10 @@ export interface DecisionReceiptPanelProps {
 const TONE_COLOR: Record<ReceiptTone, string> = {
   affirm: "#ede6d3", // ivory — a finding: this is what the record shows
   neutral: "#c2b892", // parchment — informational
-  flag: "#e07b5c", // warm — needs attention
+  // `flag` is an OBJECTION, not a failure: the record shows something the
+  // trader should answer for, which is the product working. `WM.state.warn`
+  // (#c05a4a) would say the receipt itself broke. Same pixels as the literal.
+  flag: WM.state.objection,
 };
 
 /**

@@ -41,6 +41,7 @@
 import * as React from "react";
 import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import { selectRealityCells, type CellTone } from "@/lib/experience/selectRealityCells";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 
 export interface OneStoryStripProps {
   readonly vm: OneStoryVM;
@@ -54,15 +55,19 @@ export interface OneStoryStripProps {
  */
 const TONE_INK: Record<CellTone, string> = {
   RESOLVED: "#ede6d3", // pearl — a settled answer
-  OBJECTION: "#e07b5c", // independent amber — risk, never gold
-  DEBT: "#e07b5c", // a block and an objection cost the same attention
+  // This strip is where the colour finally got its NAME. `WM.state.objection`
+  // is the token; OBJECTION is the cell tone that motivated it. Deliberately
+  // NOT `WM.state.warn` (#c05a4a) — a blocked story is the engine answering,
+  // not the engine failing. Identical pixels to the literals replaced here.
+  OBJECTION: WM.state.objection, // independent amber — risk, never gold
+  DEBT: WM.state.objection, // a block and an objection cost the same attention
   UNRESOLVED: "#8a8271", // muted — the engine did not answer
 };
 
 const TONE_RULE: Record<CellTone, string> = {
   RESOLVED: "rgba(196,165,116,0.32)",
-  OBJECTION: "rgba(224,123,92,0.45)",
-  DEBT: "rgba(224,123,92,0.40)",
+  OBJECTION: objectionTint(0.45),
+  DEBT: objectionTint(0.4),
   UNRESOLVED: "rgba(138,130,113,0.22)",
 };
 

@@ -41,6 +41,7 @@ import {
   type EvidenceDebt as CanonicalEvidenceDebt,
 } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 import { selectClarityState } from "@/lib/experience/selectClarityState";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 import type { SecondaryNoiseVM } from "@/lib/experience/selectSecondaryNoise";
 import {
   selectContextDataReading,
@@ -103,21 +104,25 @@ export const RIBBON_TONE_COLOR: Record<Tone, string> = {
   resolved: "#d4af37",  // gold — resolved / active / verified
   pending:  "#c9a55c",  // dimmed gold — computing / partial
   unknown:  "#8a8271",  // muted — UNKNOWN / not evaluated
-  warn:     "#e07b5c",  // amber-warn — degraded / stale / blocked
+  // The ribbon's `warn` tone is the OBJECTION terracotta, not `WM.state.warn`
+  // (#c05a4a). The tone name predates the token and is kept for API stability;
+  // the colour it resolves to is unchanged. See wmTokens.ts for why the two
+  // reds are deliberately different.
+  warn:     WM.state.objection,
 };
 
 export const RIBBON_TONE_BG: Record<Tone, string> = {
   resolved: "rgba(212,175,55,0.10)",
   pending:  "rgba(201,165,92,0.06)",
   unknown:  "rgba(255,255,255,0.02)",
-  warn:     "rgba(224,123,92,0.08)",
+  warn:     objectionTint(0.08),
 };
 
 export const RIBBON_TONE_BORDER: Record<Tone, string> = {
   resolved: "rgba(212,175,55,0.55)",
   pending:  "rgba(201,165,92,0.32)",
   unknown:  "rgba(139,106,41,0.35)",
-  warn:     "rgba(224,123,92,0.45)",
+  warn:     objectionTint(0.45),
 };
 
 // Local aliases keep the existing render loop tidy.

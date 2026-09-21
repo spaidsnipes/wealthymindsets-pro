@@ -27,6 +27,7 @@ import {
   type TruthStatusKey,
   type TruthStatusReport,
 } from "@/lib/truthStatus/truthStatusLabels";
+import { WM, objectionTint } from "@/lib/design/wmTokens";
 
 export interface TruthStatusChipProps {
   /** Status key OR full report; report populates tooltip narrative. */
@@ -53,8 +54,13 @@ function toneForRank(rank: number): { fg: string; bg: string; border: string } {
     // UNVERIFIED / UNKNOWN — muted grey
     return { fg: "#8a8271", bg: "rgba(138,130,113,0.04)", border: "rgba(138,130,113,0.25)" };
   }
-  // FALSE_OR_CONTRADICTED / SUPERSEDED — dim orange
-  return { fg: "#e07b5c", bg: "rgba(224,123,92,0.07)", border: "rgba(224,123,92,0.35)" };
+  // FALSE_OR_CONTRADICTED / SUPERSEDED — the objection terracotta, whispered.
+  // A contradicted claim is the truth engine DOING ITS JOB, so it takes
+  // `WM.state.objection` and never `WM.state.warn` (#c05a4a, which means the
+  // feed broke). The 0.07 fill is the quietest objection wash in the product,
+  // per "the screen gets quieter when confidence is lower" — it must be
+  // legible without competing with a live gold verdict two chips away.
+  return { fg: WM.state.objection, bg: objectionTint(0.07), border: objectionTint(0.35) };
 }
 
 export function TruthStatusChip({

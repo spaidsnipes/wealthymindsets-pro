@@ -86,6 +86,7 @@ import {
   type StandingCondition,
 } from "@/lib/os/osChrome";
 import { useFeedEvaluationClock } from "@/lib/marketData/useProvenSessionClosure";
+import { WM } from "@/lib/design/wmTokens";
 
 export interface ShellRoom {
   readonly label: string;
@@ -438,7 +439,10 @@ function StateReadout({
   layout: "bar" | "stack";
 }): React.ReactElement {
   const { label, value, detail, unresolved, alert } = condition;
-  const ink = unresolved ? MUTED : alert ? "#e07b5c" : PEARL;
+  // `alert` on a standing condition means the condition OBJECTS — a rule is
+  // engaged, a threshold is breached. It is not a broken feed, so it takes
+  // `WM.state.objection` rather than `WM.state.warn`. Pixels unchanged.
+  const ink = unresolved ? MUTED : alert ? WM.state.objection : PEARL;
   const stacked = layout === "stack";
   return (
     <div
@@ -481,7 +485,7 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
   const toneInk: Record<FeedStanding["tone"], string> = {
     LIVE: "#5fd39a",
     DELAYED: "#d9a441",
-    IDLE: "#e07b5c",
+    IDLE: WM.state.objection,
     UNKNOWN: MUTED,
   };
   const ink = toneInk[feed.tone];
