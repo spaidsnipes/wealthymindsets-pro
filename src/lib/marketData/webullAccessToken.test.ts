@@ -235,15 +235,77 @@ describe("ensureWebullAccessToken — the call every Webull request makes first"
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("REFUSES to re-mint over a PENDING session", async () => {
-    // Re-minting here would restart the 2FA cycle on every single request, so
-    // the Founder would face an endless stream of approval prompts and never
-    // reach NORMAL. Declining to act IS the correct action.
-    const fetchImpl = vi.fn();
+  /**
+   * This test PINNED a dead end. It asserted `fetchImpl` was never called on a
+   * PENDING session — which made "never ask Webull whether the tap landed" a
+   * required behaviour.
+   *
+   * Refusing to RE-MINT is correct: re-minting restarts the 2FA cycle on every
+   * request and the Founder would never reach NORMAL. But refusing to re-mint
+   * AND refusing to check gives his approval no route into the runtime at all.
+   * Measured 2026-09-21: he approved in the Webull app, said so, and both live
+   * probes still answered AWAITING_2FA — because nothing could notice.
+   *
+   * So the guard now targets the thing that was actually right (no re-mint)
+   * instead of the silence that came with it.
+   */
+  it("asks whether the 2FA tap landed, and still does not re-mint", async () => {
+    const fetchImpl = minting({ token: "t", expires: 3600, status: "PENDING" });
     const store = inMemoryTokenStore(token({ status: WEBULL_TOKEN_STATUSES.PENDING }));
     const result = await ensureWebullAccessToken(fetchImpl as unknown as typeof fetch, config, store);
-    expect(fetchImpl).not.toHaveBeenCalled();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.webull.com/auth/tokens/check");
+    expect(init.body).toBe('{"token":"t"}');
+    // The create path would restart 2FA. It must not be reached.
+    expect(url).not.toContain("/auth/tokens/create");
+
     expect(result.disposition).toBe(TOKEN_DISPOSITIONS.AWAITING_2FA);
+    expect(result.minted).toBe(false);
+  });
+
+  it("goes USABLE in the SAME request the approval is observed in", async () => {
+    // The whole point. If the Founder taps and the next probe still says
+    // "waiting", the tap may as well not have happened.
+    const fetchImpl = minting({ token: "approved", expires: 3600, status: "NORMAL" });
+    const store = inMemoryTokenStore(token({ status: WEBULL_TOKEN_STATUSES.PENDING }));
+    const result = await ensureWebullAccessToken(fetchImpl as unknown as typeof fetch, config, store);
+
+    expect(result.disposition).toBe(TOKEN_DISPOSITIONS.USABLE);
+    expect(result.token?.token).toBe("approved");
+    expect((await store.read())?.token).toBe("approved");
+  });
+
+  it("an unreachable check holds the pending session rather than inventing a fault", async () => {
+    // "We could not ask" and "the answer was no" are different facts. Merging
+    // them is the same category error that sent the Founder to a billing page.
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 500 }));
+    const store = inMemoryTokenStore(token({ status: WEBULL_TOKEN_STATUSES.PENDING }));
+    const result = await ensureWebullAccessToken(fetchImpl as unknown as typeof fetch, config, store);
+
+    expect(result.disposition).toBe(TOKEN_DISPOSITIONS.AWAITING_2FA);
+    expect(result.token?.token).toBe("t");
+    // Assert what the note MUST say, not a banlist of scary words. A banlist
+    // went red here against the honest sentence "no credential is missing",
+    // because a substring scan cannot tell a claim from its negation.
+    expect(result.note).toMatch(/could not be reached|HTTP 500/i);
+    expect(result.note).toMatch(/session is unchanged/i);
+    expect(result.note).toMatch(/not about the App Key pair or any data package/i);
+  });
+
+  it("mints fresh when the check reveals the pending session had already died", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ token: "t", expires: 3600, status: "EXPIRED" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ token: "reborn", expires: 3600, status: "PENDING" }), { status: 200 }));
+    const store = inMemoryTokenStore(token({ status: WEBULL_TOKEN_STATUSES.PENDING }));
+    const result = await ensureWebullAccessToken(fetchImpl as unknown as typeof fetch, config, store);
+
+    expect(fetchImpl.mock.calls[0][0]).toBe("https://api.webull.com/auth/tokens/check");
+    expect(fetchImpl.mock.calls[1][0]).toBe("https://api.webull.com/auth/tokens/create");
+    expect(result.token?.token).toBe("reborn");
+    expect(result.minted).toBe(true);
   });
 
   it("mints when nothing was ever stored, and persists what it got", async () => {

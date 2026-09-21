@@ -243,12 +243,21 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
   it("does not climb at all while a 2FA approval is outstanding", async () => {
     // Climbing here would produce four 401s and we would publish a verdict
     // about his entitlements built entirely out of our own pending session.
-    let called = 0;
-    const fetchImpl = (async () => { called += 1; return new Response("{}", { status: 401 }); }) as unknown as typeof fetch;
+    //
+    // The session CHECK is not a rung and is not a climb: it asks whether the
+    // Founder's tap landed, which is the only way this state can ever clear.
+    // What must not happen is any request that could be mistaken for evidence
+    // about his data package.
+    const paths: string[] = [];
+    const fetchImpl = (async (url: RequestInfo | URL) => {
+      paths.push(String(url));
+      return new Response(JSON.stringify({ token: "t", expires: 3600, status: "PENDING" }), { status: 200 });
+    }) as unknown as typeof fetch;
     const report = await probeWebullEntitlement(fetchImpl, {
       ...base, tokenStore: inMemoryTokenStore(live({ status: WEBULL_TOKEN_STATUSES.PENDING })),
     });
-    expect(called).toBe(0);
+    expect(paths).toEqual(["https://api.webull.com/auth/tokens/check"]);
+    expect(paths.some((p) => p.includes("/market-data/"))).toBe(false);
     expect(report.verdict).toBe("AWAITING_2FA");
     expect(report.rungs).toEqual([]);
     expect(report.note).toMatch(/webull app/i);

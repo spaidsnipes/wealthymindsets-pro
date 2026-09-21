@@ -425,6 +425,125 @@ export async function mintWebullAccessToken(
   }
 }
 
+/**
+ * ASK WEBULL WHETHER THE 2FA TAP HAS LANDED.
+ *
+ * ── The defect this closes ──────────────────────────────────────────────────
+ *
+ * `ensureWebullAccessToken` correctly refused to re-mint over a PENDING
+ * session — re-minting would restart the 2FA cycle on every request and the
+ * Founder would drown in approval prompts. But refusing to re-mint while ALSO
+ * never asking `/auth/tokens/check` turned that caution into a dead end: the
+ * isolate held PENDING forever and had no mechanism by which the Founder's tap
+ * could ever become visible to it.
+ *
+ * Measured 2026-09-21. He approved the request in the Webull app and said so.
+ * Both probes still answered AWAITING_2FA, because nothing in WM Pro was
+ * capable of noticing. Not a stale cache — an absent question.
+ *
+ * `token_manager.py` polls `check_token` in a `while True` loop until status
+ * leaves PENDING. WM Pro does NOT copy the loop: this runs inside a request
+ * handler, and blocking one for a human to reach for their phone spends the
+ * request budget on waiting. One check per request is enough — the next probe
+ * asks again, and the state converges the moment he taps.
+ *
+ * ── What this refuses to do ─────────────────────────────────────────────────
+ *
+ * An unreachable Webull returns the token UNCHANGED, not a fault. "We could not
+ * ask" and "the answer was no" are different facts, and collapsing them is the
+ * same category error that cost three months.
+ */
+export async function checkWebullAccessToken(
+  fetchImpl: typeof fetch,
+  config: WebullTokenConfig,
+  pendingToken: string,
+): Promise<MintResult> {
+  const appKey = config.appKey?.trim();
+  const appSecret = config.appSecret?.trim();
+  if (!appKey || !appSecret || !pendingToken?.trim()) {
+    return {
+      outcome: MINT_OUTCOMES.REFUSED,
+      token: null,
+      note: "No pending Webull session to check, or the App Key pair is not configured.",
+    };
+  }
+
+  const contract = WEBULL_SDK_CONTRACT.CHECK_TOKEN;
+  const now = config.now || (() => new Date());
+  const host = cleanHost(config.apiHost);
+  const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
+  // check_token_request.py: POST, body_params={}, set_token() adds "token".
+  const body = compactJson({ token: pendingToken });
+
+  const headers = buildWebullSignedHeaders({
+    path: contract.path,
+    query: {},
+    appKey,
+    appSecret,
+    host,
+    timestamp: isoSeconds(now()),
+    nonce: (config.nonce || (() => crypto.randomUUID()))(),
+    body,
+    apiVersion: contract.apiVersion,
+    profile: config.signingProfile ?? "sdk-sha256",
+  });
+  headers["Content-Type"] = "application/json";
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(`https://${host}${contract.path}`, {
+      method: "POST",
+      redirect: "manual",
+      cache: "no-store",
+      headers,
+      body,
+      signal: controller.signal,
+    });
+
+    const observedAtMs = now().getTime();
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        outcome: MINT_OUTCOMES.REFUSED,
+        token: null,
+        httpStatus: response.status,
+        // Deliberately not called a credential fault. This endpoint needs no
+        // market data, so it says nothing about a subscription either.
+        note: `Webull answered HTTP ${response.status} when asked whether the pending session had been approved. The session is unchanged; this is a statement about that one question, not about the App Key pair or any data package.`,
+      };
+    }
+
+    const token = parseTokenEnvelope(payload, observedAtMs);
+    if (!token) {
+      return {
+        outcome: MINT_OUTCOMES.REFUSED,
+        token: null,
+        httpStatus: response.status,
+        note: "Webull answered HTTP 200 to the session check but the body was not a usable {token, expires, status} envelope, so the pending session was left as it was.",
+      };
+    }
+    return {
+      outcome: MINT_OUTCOMES.MINTED,
+      token,
+      httpStatus: response.status,
+      note:
+        token.status === WEBULL_TOKEN_STATUSES.PENDING
+          ? "Checked with Webull: the session is still waiting on your 2FA approval in the Webull app."
+          : `Checked with Webull: the session is now ${token.status}.`,
+    };
+  } catch {
+    return {
+      outcome: MINT_OUTCOMES.UNREACHABLE,
+      token: null,
+      note: "Webull could not be reached to check whether the pending session was approved. The session is unchanged and no conclusion is drawn.",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface EnsureTokenResult {
   readonly token: WebullAccessToken | null;
   readonly disposition: TokenDisposition;
@@ -457,8 +576,41 @@ export async function ensureWebullAccessToken(
     return { token: held, disposition, minted: false, note: describeTokenState(held, nowMs, refreshMarginMs) };
   }
   if (disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
-    // Deliberately does not re-mint. See the doc comment above.
-    return { token: held, disposition, minted: false, note: describeTokenState(held, nowMs, refreshMarginMs) };
+    // Still does not re-mint — that would restart the 2FA cycle every request.
+    // But it must ASK, or the Founder's tap has no route into this runtime.
+    // Refusing to re-mint and refusing to check is not caution, it is a dead
+    // end, and it is the one WM Pro sat in on 2026-09-21 while he waited.
+    const checked = await checkWebullAccessToken(fetchImpl, config, held!.token);
+
+    if (!checked.token) {
+      // Could not ask. That is NOT evidence the approval failed — hold the
+      // pending session and report it unchanged rather than inventing a fault.
+      return {
+        token: held,
+        disposition,
+        minted: false,
+        note: `${describeTokenState(held, nowMs, refreshMarginMs)} (${checked.note})`,
+      };
+    }
+
+    await store.write(checked.token);
+    const rechecked = tokenDisposition(checked.token, nowMs, refreshMarginMs);
+
+    // An approval that arrived on a session Webull has since retired leaves us
+    // INVALID/EXPIRED. Minting immediately is the remedy, and doing it here
+    // means the caller is not sent away holding a token nobody can use.
+    if (rechecked === TOKEN_DISPOSITIONS.NEEDS_MINT) {
+      const reminted = await mintWebullAccessToken(fetchImpl, config, undefined, "CREATE_TOKEN");
+      if (reminted.token) await store.write(reminted.token);
+      return {
+        token: reminted.token,
+        disposition: tokenDisposition(reminted.token, nowMs, refreshMarginMs),
+        minted: true,
+        note: reminted.note,
+      };
+    }
+
+    return { token: checked.token, disposition: rechecked, minted: false, note: checked.note };
   }
 
   const result = await mintWebullAccessToken(

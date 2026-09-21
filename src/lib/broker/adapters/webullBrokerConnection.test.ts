@@ -202,7 +202,10 @@ describe("the account lane carries a LIVING session, not a pasted one", () => {
     // A PENDING session would earn a 401, and the old code called that a
     // credential fault. The Founder's actual next action is one tap in the
     // Webull app; anything else sends him shopping for a subscription.
-    const fetchImpl = vi.fn();
+    // Answers the session check with "still PENDING", so the lane stays in the
+    // 2FA state and the account request below must still never be sent.
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ token: "t", expires: 3600, status: "PENDING" }), { status: 200 }));
     const receipt = await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, {
       ...minting,
       tokenStore: inMemoryTokenStore(storedToken({ status: WEBULL_TOKEN_STATUSES.PENDING })),
@@ -214,7 +217,13 @@ describe("the account lane carries a LIVING session, not a pasted one", () => {
     expect(receipt.connected).toBe(false);
     expect(receipt.note).toMatch(/webull app/i);
     expect(receipt.note).toMatch(/2fa/i);
-    expect(fetchImpl).not.toHaveBeenCalled();
+    // "Never sends THE request" means the ACCOUNT request — the one that would
+    // earn a 401 and get narrated as a credential fault. Asking Webull whether
+    // the tap landed is a different question and must still be asked, or the
+    // Founder's approval has no route into this runtime at all.
+    const paths = fetchImpl.mock.calls.map((c) => String((c as unknown[])[0]));
+    expect(paths).toEqual(["https://api.webull.test/auth/tokens/check"]);
+    expect(paths.some((p) => p.includes("/trading/accounts/list"))).toBe(false);
   });
 
   it("never blames a subscription or a missing secret when a 401 comes back", async () => {
