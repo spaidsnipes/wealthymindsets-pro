@@ -15,11 +15,15 @@ const DEFAULT_HOST = "api.webull.com";
  *   webull/data/request/get_tick_request.py
  *     ApiRequest.__init__(self, "/market-data/stocks/ticks/list", version='v3', method="GET")
  *
- * and `webull/core/http/response.py` composes the URL as
- * `https://{host}{path}` with NO `/openapi` prefix. The same is true of the
- * broker lane in this repo — `/trading/accounts/list`, no prefix — and that
- * lane is CONNECTED against these exact credentials. The prefix was the
- * anomaly, and it was ours.
+ * and `webull/core/http/response.py` composes the URL as `https://{host}{path}`
+ * verbatim — it adds no prefix of its own.
+ *
+ * Be precise about the prefix: it is NOT globally absent. Some SDK endpoints do
+ * carry it (`/openapi/instrument/option/contracts`, `/openapi/fundamentals/...`),
+ * so "Webull has no /openapi prefix" would be the wrong lesson. The prefix is
+ * per-endpoint, and the stock-tick endpoint does not carry one. Our broker lane
+ * independently agrees — `/trading/accounts/list`, no prefix — and that lane is
+ * CONNECTED against these exact credentials.
  *
  * That matters because the wrong path produced MARKET_DATA_NOT_SUBSCRIBED,
  * which reads like an entitlement the Founder must go buy. It was not. A
