@@ -174,3 +174,181 @@ Futures per-trade tape requires a **paid provider entitlement** (Alpaca
 futures WS, CBOE, Databento, or a ThinkorSwim/moomoo bridge). No amount of
 engineering produces this data without it. Until that call is made, the
 futures tape branch stays honestly absent rather than dishonestly simulated.
+
+---
+---
+
+# CONTINUATION — same shift, same nest, two more commits
+
+Appended after the section above was written. OPEN item **#1** ("the chart
+HEADER is a second owner of the same fact … the largest remaining one") is
+the subject of everything below. It is now **BUILT and PROVED ON THE GLASS**.
+Read this continuation as the correction and completion of the record above,
+not as a separate shift.
+
+---
+
+## CORRECTION — I REPORTED A GLASS PROOF I DID NOT HAVE
+
+**This is the most important paragraph in this document.** It corrects a
+claim made earlier in this same shift, by me, in writing.
+
+For commit **`21aca86f`** ("The header may not print a quote WM declined to
+vouch for") I reported the fix **verified on the glass**. That claim was
+false, and the method that produced it was the defect.
+
+I queried the live DOM, found the element, read its `data-price-kind` and its
+text, saw `UNCERTIFIED_QUOTE`, and called it proved. What I never did was
+**measure whether the element occupied any space**. It did not. Its
+`getBoundingClientRect()` was **0 × 0** — the ChartsDashboard chrome header
+row is `display: none` at `>= 1280px`, by a deliberate V01 ONE CANVAS
+decision, locked by two assertions in `src/lib/chartsCategoryFusion.test.ts`
+(lines 24 and 30). I read a node no desktop trader could see and reported it
+as a thing the trader would see.
+
+**A DOM QUERY IS NOT A GLASS PROOF.** `querySelector` returns nodes that are
+`display:none`, `visibility:hidden`, zero-height, clipped, or scrolled out of
+the document entirely. Every one of those returns text content happily. The
+minimum bar for the words "proved on the glass" is **non-zero
+`getBoundingClientRect()` width AND height, plus computed visibility**, and
+from now on this nest's evidence includes those numbers.
+
+The irony is exact and is recorded here deliberately: the compiler under
+repair exists to stop the product overstating what it knows. The report on
+that compiler overstated what it knew.
+
+Commit `21aca86f` is **BUILT, NOT PROVED on desktop**. It remains correct and
+valuable for phone, tablet, and the secondary views that do render that row —
+none of which were verified, because they are Phase-2-locked.
+
+---
+
+## Commit 4 — `7b5715ba` — the VISIBLE header owner was the undisciplined one
+
+**Measured on the serving host, BTCUSDT, ONE viewport** — two call sites of
+one compiler answering one question two ways:
+
+| Call site | Passes `source`? | Verdict | Rendered |
+|---|---|---|---|
+| `ChartsDashboard.tsx:2899` | yes | `UNCERTIFIED_QUOTE` | **nothing — `display:none` at >=1280px** |
+| `MainChart.tsx:8113` | **no** | `LIVE_QUOTE` | `81224.01`, bare, largest type on the page |
+
+Same compiler, same instrument, same instant, opposite verdicts — and the
+only one a desktop trader could read was the one making no provenance claim
+at all. Teaching the compiler and one caller **looked** like a fix and moved
+nothing on the glass.
+
+**Built:** `MainChart` now passes the `source` it *already destructures from
+`useWebSocket`* (line 1826) — the hook that owns the certification verdict.
+Nothing new was fetched, no second subscription was opened, no prop was
+threaded. The evidence was already in the component; it only had to be
+handed over. That is the same sentence the neighbouring `chartHeaderChangeFact`
+call site already carries, one defect earlier.
+
+`dp` stays **explicit** ahead of it. `decimals` sits between `barsSettled`
+and `quoteSource` and defaults to 2; passing the source without it would land
+a vendor string in the decimal slot. For this caller the default would be
+wrong regardless — MainChart knows instruments whose tick is finer than a
+hundredth, and a formatter hardcoded at 2 does not render an approximation,
+it renders a flat price it manufactured.
+
+### What was deliberately NOT done
+
+**The `display:none` rule was not deleted.** Resurrecting the retired header
+row would have made the disagreement visible instead of fixing it, produced
+two price rows where V01 decided there should be one, and broken two tests
+that encode that decision. The correct repair is to make the **surviving**
+owner carry the provenance.
+
+### The guard, and the honest limit of its scope
+
+`chartHeaderPriceFact.test.ts` gains `× THE INVISIBLE DISAGREEMENT`, which
+reads `MainChart.tsx` from disk and asserts the call site passes both an
+explicit `dp` and a `source`, and that the source binding comes from
+`useWebSocket` rather than being locally invented (a local string would pass
+an arity check while manufacturing exactly the citation
+`quoteSourceNamesProvider` exists to refuse).
+
+It deliberately does **NOT** assert that every call site in `src/` passes a
+source, **because that would be false.** A third caller exists —
+`src/lib/experience/selectChartCompanion.ts:232` — reading
+`CanonicalMarketState`, whose `price` record carries
+`last / bid / ask / eventAt / availableAt` and **no source field**. It has
+nothing to hand over, and SILENCE IS NOT CERTIFICATION cuts in its favour: a
+caller never given a source must keep its existing behaviour, not invent one.
+Widening the scan would have made it lie about the world — the exact hazard
+`datedDocsAreDemoted`'s own docblock names, that a scan's SCOPE is itself an
+assertion.
+
+**Revive-attempt:** stripping `source,` from the call site fails the new
+guard with "the live quote's source is not handed over". Restore verified
+**byte-identical** via `diff -q`.
+
+---
+
+## Gates — continuation
+
+| Gate | Result |
+|---|---|
+| Full suite | **871 files / 11,154 tests pass** |
+| `tsc --noEmit` | clean (exit 0) |
+| Revive-attempt | performed; restore byte-identical |
+| Deployed | Cloudflare Version ID `26f8f132-b8f8-4af1-836c-8f2973c7e91f` |
+| Commits | `1e47ca99` (spine), `7b5715ba` (header) |
+
+### GLASS PROOF — with the geometry this time
+
+Live DOM read on `wealthymindsetspro.com/charts?symbol=BTCUSDT&tf=5m`,
+signed in, viewport width **1920** (i.e. the desktop width at which the other
+header row is `display:none`):
+
+```json
+{ "kind": "UNCERTIFIED_QUOTE",
+  "text": "81334.01 SOURCE UNCERTIFIED",
+  "w": 259, "h": 16, "top": 124,
+  "display": "block", "fontSize": "16px",
+  "color": "rgb(138, 130, 113)",
+  "onGlass": true }
+```
+
+**259 x 16 pixels, non-zero, rendered.** Exactly one element on the page
+carries `data-price-kind`. The colour is the dim token, not `text-wm-text` —
+the weight is chosen from declared provenance, not from "is the number
+present". Screenshot confirms the header row reads
+`81325.92 SOURCE UNCERTIFIED +150.30 (+0.19%)`.
+
+The bare unattributed number in the largest type on the primary trading
+surface is **gone**.
+
+---
+
+## OPEN — carried forward, renumbered
+
+1. ~~The chart HEADER is a second owner of the same fact.~~ **CLOSED by
+   `7b5715ba`, proved with geometry.**
+
+2. **Why Finnhub returns no observation time for Binance crypto quotes** —
+   unchanged and now the highest-value item in this nest. Everything shipped
+   today makes WM *honest* about not being able to cite the quote. None of it
+   makes WM *able* to cite it. If the vendor does carry a trade time this
+   code fails to read, `source` should be promoted and all three surfaces
+   would read `LAST QUOTE - finnhub` instead of `SOURCE UNCERTIFIED`. That is
+   a one-field investigation in `finnhubQuoteTime.ts`. **Until it is done,
+   every WM surface showing a BTCUSDT quote says it cannot vouch for it.**
+
+3. **NOT VERIFIED: phone, tablet, and every secondary view.** Both header
+   commits affect rendering paths that are Phase-2-locked and were not
+   opened. Commit `21aca86f` in particular has **no visual proof anywhere**.
+
+4. **A `getBoundingClientRect` discipline for live-verification is not
+   encoded anywhere** — it lives only in this document, as prose, having been
+   learned from a false report. Any agent that live-verifies by DOM query
+   alone will make the same mistake. This is a real gap and it is not closed.
+
+5. The ~60 `not.toMatch(/` guard audit for the vacuous-stem defect class —
+   four confirmed instances, one self-authored. Still overdue, untouched
+   today.
+
+6. Carried, untouched: NQ1! at `tf=30m` renders no candles while claiming
+   "HISTORICAL BARS VERIFIED"; no in-app Chart -> News door; `/news` carries a
+   ROOMS mall left rail against §6.
