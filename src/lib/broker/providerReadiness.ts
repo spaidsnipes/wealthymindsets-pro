@@ -182,7 +182,7 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     provider: "livekit",
     label: "LiveKit realtime (Lounge)",
     lane: "realtime",
-    required: ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "NEXT_PUBLIC_LIVEKIT_URL"],
+    required: ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "LIVEKIT_URL"],
     // Declared by hand, not guessed — the same bulk-load artifact that produced
     // FINNHUB_KEY_ and ALPACA_BROKERAGE_KEY_SECRET_ put the LiveKit pair on this
     // host as ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ (trailing underscores).
@@ -195,19 +195,33 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     // wire ATTEMPTABLE and turns an invisible name mismatch into a visible
     // upstream 401 if the guess is wrong; it never asserts the room connects.
     //
-    // LIVEKIT_URL is accepted for the host because the browser no longer reads
-    // NEXT_PUBLIC_LIVEKIT_URL: /api/livekit returns the wss host in its token
-    // response. A NEXT_PUBLIC_ name is inlined AT BUILD TIME, and this app is
-    // built locally then deployed to Cloudflare — so a wss host set only as a
-    // Cloudflare secret could never have reached the browser under the old
-    // wiring, no matter how many redeploys. Either name now works at runtime.
+    // ── WHY THE HOST IS DECLARED AS `LIVEKIT_URL`, NOT `NEXT_PUBLIC_LIVEKIT_URL`
+    //
+    // Until 2026-09-21 this row REQUIRED `NEXT_PUBLIC_LIVEKIT_URL` and accepted
+    // `LIVEKIT_URL` as its alias. That is backwards, and the backwardness was
+    // not cosmetic: a receipt names the credential an operator is supposed to
+    // install, so the canonical name has to be the one that can actually work
+    // in the serving environment.
+    //
+    // A `NEXT_PUBLIC_` name is inlined AT BUILD TIME. WM Pro builds on a laptop
+    // and deploys to Cloudflare, so a wss host set as a Cloudflare secret under
+    // that name can never reach a browser bundle no matter how many redeploys —
+    // it inlines as `undefined`. That is the exact trap that left LiveKitRoom
+    // receiving serverUrl="" with no error naming a variable.
+    //
+    // The browser no longer reads it at all: `/api/livekit` resolves the host
+    // server-side and returns it with the token. So the artifact this lane
+    // needs is a RUNTIME server secret, and `LIVEKIT_URL` is its honest name.
+    // `NEXT_PUBLIC_LIVEKIT_URL` is retained ONLY as a migration alias, so a
+    // host that already carries the old name keeps working — per the alias law
+    // in resolveProviderEnv, an alias is a migration tool, not architecture.
     aliases: {
       LIVEKIT_API_KEY: ["ATH_LIVEKIT_KEY_"],
       LIVEKIT_API_SECRET: ["ATH_LIVEKIT_KEY_SECRET_"],
-      NEXT_PUBLIC_LIVEKIT_URL: ["LIVEKIT_URL"],
+      LIVEKIT_URL: ["NEXT_PUBLIC_LIVEKIT_URL"],
     },
     recommended: [],
-    note: "The API key/secret mint room tokens server-side; the wss host is resolved server-side too and returned with the token, so LIVEKIT_URL works as well as NEXT_PUBLIC_LIVEKIT_URL. All three are required — a minted token with no host, or a host with no token, cannot open a room. The host's ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ pair is ACCEPTED (resolveProviderEnv) so the lane is attemptable; presence proves credentials exist, never that a room opens.",
+    note: "The API key/secret mint room tokens server-side; the wss host is resolved server-side too and returned with the token, so the host belongs in LIVEKIT_URL — a runtime server secret. NEXT_PUBLIC_LIVEKIT_URL is accepted as a legacy alias only; it is inlined at build time and cannot be satisfied by a Cloudflare secret on a build-locally/deploy-remotely pipeline. All three are required — a minted token with no host, or a host with no token, cannot open a room. The host's ATH_LIVEKIT_KEY_ / ATH_LIVEKIT_KEY_SECRET_ pair is ACCEPTED (resolveProviderEnv) so the lane is attemptable; presence proves credentials exist, never that a room opens.",
   },
 ];
 

@@ -177,8 +177,11 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
       LIVEKIT_API_SECRET: "s",
     });
     expect(r.status).toBe("BLOCKED");
-    // A minted token with no wss host cannot open a room.
-    expect(r.missing).toEqual(["NEXT_PUBLIC_LIVEKIT_URL"]);
+    // A minted token with no wss host cannot open a room. The name reported is
+    // the RUNTIME one (LIVEKIT_URL) — see "the receipt names an installable
+    // artifact" below for why reporting the NEXT_PUBLIC_ spelling here would
+    // be an instruction the operator cannot successfully follow.
+    expect(r.missing).toEqual(["LIVEKIT_URL"]);
     expect(r.lane).toBe("realtime");
   });
 
@@ -205,18 +208,46 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
     // absent instead of three things, two of which are present under another
     // spelling.
     expect(r.status).toBe("BLOCKED");
-    expect(r.missing).toEqual(["NEXT_PUBLIC_LIVEKIT_URL"]);
+    expect(r.missing).toEqual(["LIVEKIT_URL"]);
   });
 
-  it("livekit's wss host may be set WITHOUT the NEXT_PUBLIC_ prefix", () => {
-    // The browser no longer reads this name; /api/livekit returns the host
-    // with the token. A NEXT_PUBLIC_ name is inlined at build time, so on a
-    // build-here-deploy-to-Cloudflare pipeline it could never have been
-    // satisfied by a Cloudflare secret at all. LIVEKIT_URL resolves at runtime.
+  it("THE RECEIPT NAMES AN INSTALLABLE ARTIFACT: the host is LIVEKIT_URL", () => {
+    // Until 2026-09-21 this row REQUIRED `NEXT_PUBLIC_LIVEKIT_URL`, so the
+    // receipt told the operator to create a Cloudflare secret under a name
+    // that is inlined AT BUILD TIME. WM Pro builds on a laptop and deploys to
+    // Cloudflare, so that secret can never be read: the operator follows the
+    // instruction exactly, correctly, and the Lounge stays dark with no error
+    // naming a variable.
+    //
+    // A receipt that names an unsatisfiable artifact is worse than silence —
+    // it spends the operator's trust to produce a guaranteed no-op. The
+    // canonical name must therefore be the RUNTIME name.
+    const r = computeProviderReadiness("livekit", {
+      ATH_LIVEKIT_KEY_: "redacted",
+      ATH_LIVEKIT_KEY_SECRET_: "redacted",
+    });
+    expect(r.missing).toEqual(["LIVEKIT_URL"]);
+    expect(r.missing).not.toContain("NEXT_PUBLIC_LIVEKIT_URL");
+  });
+
+  it("livekit's wss host resolves under the canonical runtime name", () => {
     const r = computeProviderReadiness("livekit", {
       ATH_LIVEKIT_KEY_: "redacted",
       ATH_LIVEKIT_KEY_SECRET_: "redacted",
       LIVEKIT_URL: "wss://example.livekit.cloud",
+    });
+    expect(r.status).toBe("CONFIGURED");
+    expect(r.missing).toEqual([]);
+  });
+
+  it("the LEGACY NEXT_PUBLIC_ host spelling still satisfies the lane", () => {
+    // Demoting a name to an alias must never strand a host that already
+    // carries it. An alias is a migration tool: it keeps the old spelling
+    // working while the canonical one becomes the thing we tell people to set.
+    const r = computeProviderReadiness("livekit", {
+      ATH_LIVEKIT_KEY_: "redacted",
+      ATH_LIVEKIT_KEY_SECRET_: "redacted",
+      NEXT_PUBLIC_LIVEKIT_URL: "wss://legacy.livekit.cloud",
     });
     expect(r.status).toBe("CONFIGURED");
     expect(r.missing).toEqual([]);
@@ -231,11 +262,7 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
       LIVEKIT_WS_URL: "wss://example.livekit.cloud",
     });
     expect(r.status).toBe("BLOCKED");
-    expect(r.missing).toEqual([
-      "LIVEKIT_API_KEY",
-      "LIVEKIT_API_SECRET",
-      "NEXT_PUBLIC_LIVEKIT_URL",
-    ]);
+    expect(r.missing).toEqual(["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "LIVEKIT_URL"]);
   });
 });
 

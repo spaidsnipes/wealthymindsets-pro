@@ -33,6 +33,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
+import { PROVIDER_REQUIREMENTS } from "./providerReadiness";
 import { acceptedEnvNames, resolveProviderEnv } from "./resolveProviderEnv";
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
@@ -58,9 +59,19 @@ const LIVEKIT_SERVER_CONSUMERS = [
   "src/app/api/livekit/route.ts",
   "src/app/api/livekit/approve/route.ts",
 ];
-const LIVEKIT_CREDENTIALS = [
-  "LIVEKIT_API_KEY",
-  "LIVEKIT_API_SECRET",
+const LIVEKIT_CREDENTIALS = ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "LIVEKIT_URL"] as const;
+
+/**
+ * Names that must NEVER be read straight off `process.env` in a LiveKit route,
+ * including the LEGACY spelling of the host. `LIVEKIT_URL` became the canonical
+ * name on 2026-09-21 (a runtime server secret, which is the only kind that can
+ * work on a build-locally/deploy-to-Cloudflare pipeline) and the build-time
+ * `NEXT_PUBLIC_` spelling was demoted to a migration alias. Demoting it must not
+ * quietly retire the guard that kept it off the wire — a route that re-derived
+ * the old name by hand would reintroduce exactly the trap the demotion fixes.
+ */
+const LIVEKIT_FORBIDDEN_DIRECT_READS = [
+  ...LIVEKIT_CREDENTIALS,
   "NEXT_PUBLIC_LIVEKIT_URL",
 ] as const;
 
@@ -137,7 +148,7 @@ describe("the declaration reaches the wire, not only the receipt", () => {
   it("THE HALF-FIX GUARD: no LiveKit server route re-derives its own env names", () => {
     for (const rel of LIVEKIT_SERVER_CONSUMERS) {
       const src = stripComments(fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"));
-      for (const name of LIVEKIT_CREDENTIALS) {
+      for (const name of LIVEKIT_FORBIDDEN_DIRECT_READS) {
         expect(
           src,
           `${rel} reads process.env.${name} directly. A hand-written name cannot ` +
@@ -145,6 +156,8 @@ describe("the declaration reaches the wire, not only the receipt", () => {
             "PROVIDER_REQUIREMENTS, so /readiness would report livekit READY beside " +
             "a route that 503s. Resolve through resolveProviderEnv instead.",
         ).not.toContain(`process.env.${name}`);
+      }
+      for (const name of LIVEKIT_CREDENTIALS) {
         expect(src, `${rel} must resolve ${name} through the canonical table`)
           .toMatch(new RegExp(`resolveProviderEnv\\(\\s*"${name}"\\s*\\)`));
       }
@@ -156,7 +169,28 @@ describe("the declaration reaches the wire, not only the receipt", () => {
     // missing host is a 200 response in front of a room that cannot be dialled.
     expect(acceptedEnvNames("LIVEKIT_API_KEY")).toContain("ATH_LIVEKIT_KEY_");
     expect(acceptedEnvNames("LIVEKIT_API_SECRET")).toContain("ATH_LIVEKIT_KEY_SECRET_");
-    expect(acceptedEnvNames("NEXT_PUBLIC_LIVEKIT_URL")).toContain("LIVEKIT_URL");
+    expect(acceptedEnvNames("LIVEKIT_URL")).toContain("NEXT_PUBLIC_LIVEKIT_URL");
+  });
+
+  it("THE ARTIFACT-TYPE LAW: the wss host's canonical name is a RUNTIME name", () => {
+    // A receipt names the credential an operator is told to install. If the
+    // canonical name for the host carries the NEXT_PUBLIC_ prefix, the receipt
+    // instructs the operator to create a Cloudflare secret that CANNOT reach
+    // the code — NEXT_PUBLIC_ is inlined at build time, and this app is built
+    // on a laptop and deployed to Cloudflare. The operator would do exactly as
+    // told, correctly, and the Lounge would stay dark.
+    //
+    // So: canonical FIRST is the runtime name; the build-time name survives
+    // only as a trailing migration alias.
+    const accepted = acceptedEnvNames("LIVEKIT_URL");
+    expect(accepted[0], "the canonical host name must be the runtime name").toBe("LIVEKIT_URL");
+    const livekit = PROVIDER_REQUIREMENTS.find((r) => r.provider === "livekit");
+    expect(
+      livekit?.required,
+      "livekit must REQUIRE the runtime name — requiring NEXT_PUBLIC_LIVEKIT_URL " +
+        "tells the operator to install a secret that can never be read.",
+    ).toContain("LIVEKIT_URL");
+    expect(livekit?.required).not.toContain("NEXT_PUBLIC_LIVEKIT_URL");
   });
 
   it("THE BUILD-TIME TRAP: the browser must not read the wss host from process.env", () => {

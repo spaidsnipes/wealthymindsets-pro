@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
   const apiKey    = resolveProviderEnv("LIVEKIT_API_KEY");
   const apiSecret = resolveProviderEnv("LIVEKIT_API_SECRET");
-  const serverUrl = resolveProviderEnv("NEXT_PUBLIC_LIVEKIT_URL");
+  const serverUrl = resolveProviderEnv("LIVEKIT_URL");
   if (!apiKey || !apiSecret || !serverUrl) {
     // Monday Test 2 truth: 503 (config gap), not 500 (server error). Name vars.
     //
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     const missing: string[] = [];
     if (!apiKey) missing.push("LIVEKIT_API_KEY");
     if (!apiSecret) missing.push("LIVEKIT_API_SECRET");
-    if (!serverUrl) missing.push("NEXT_PUBLIC_LIVEKIT_URL");
+    if (!serverUrl) missing.push("LIVEKIT_URL");
     // Every name that WOULD have satisfied each gap, so the operator is told
     // what to set instead of guessing which spelling this host honours.
     const accepted = missing.flatMap((name) => acceptedEnvNames(name));

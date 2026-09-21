@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const apiKey    = resolveProviderEnv("LIVEKIT_API_KEY");
   const apiSecret = resolveProviderEnv("LIVEKIT_API_SECRET");
-  const wsHost    = resolveProviderEnv("NEXT_PUBLIC_LIVEKIT_URL");
+  const wsHost    = resolveProviderEnv("LIVEKIT_URL");
   if (!apiKey || !apiSecret || !wsHost) {
     // These were `process.env.X!` — a non-null assertion on a value that is
     // genuinely absent on this host. An absent key reached the SDK as
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const missing: string[] = [];
     if (!apiKey) missing.push("LIVEKIT_API_KEY");
     if (!apiSecret) missing.push("LIVEKIT_API_SECRET");
-    if (!wsHost) missing.push("NEXT_PUBLIC_LIVEKIT_URL");
+    if (!wsHost) missing.push("LIVEKIT_URL");
     return NextResponse.json(
       {
         error: `LiveKit is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Approval cannot be granted until they are set in the host runtime secrets.`,
