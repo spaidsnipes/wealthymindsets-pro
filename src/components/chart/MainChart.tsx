@@ -26,7 +26,9 @@ import {
   type VendorAttempt,
 } from "@/lib/marketData/compileBarHistoryRefusal";
 import BarHistoryRefusalNote from "@/components/chart/BarHistoryRefusalNote";
-import { TimeframeGlassChip, TIMEFRAME_FOOTER_H } from "@/components/chart/TimeframeGlassChip";
+import { TimeframeGlassChip, TIMEFRAME_FOOTER_H, TIMEFRAME_CHIP_BOTTOM_PX } from "@/components/chart/TimeframeGlassChip";
+import { chartVolumeFooterFact } from "@/lib/chart/chartVolumeFooterFact";
+import clsx from "clsx";
 // The "change unavailable" sentence is NOT spelled here any more. It reaches
 // this row verbatim through `chartHeaderChangeFact`'s NONE arm, which reads it
 // from `@/lib/marketData/changeAbsence` — one owner, however many hops away.
@@ -8142,6 +8144,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // until someone edited one of them.
   const last      = candles[candles.length - 1];
   const dp        = base < 10 ? 4 : 2;
+  /**
+   * WHICH OF THE TWO PLACES RENDERS THE TRADED QUANTITY — decided once, here.
+   *
+   * F24 puts `Vol` in the footer band and keeps it OUT of the floating O/H/L/C
+   * legend. This build had it in the legend, because until the footer band was
+   * reserved there was nowhere else for it to go. Both is not an option: two
+   * DOM nodes rendering one number is the exact shape of the `NO FEED` defect
+   * that shipped twice on this chart in two different nodes and had to be
+   * fixed twice.
+   *
+   * Tied to `setTimeframe` rather than to a new prop because that is already
+   * the condition under which the band physically exists (see the
+   * `paddingBottom` note on the pane). The compare pane and the pinned 5m/15m
+   * panes get no setter and therefore no band, so for them this is false and
+   * the legend keeps the cell — the figure is on screen exactly once in every
+   * configuration, and there is no configuration where it is on screen zero
+   * times.
+   */
+  const volumeInFooter = Boolean(setTimeframe);
   // The change cell is COMPILED, not composed inline — the same compiler the
   // chrome header uses, so the two rows on this screen cannot answer one
   // question two ways. `dp` travels with it because this module knows the
@@ -9139,6 +9160,62 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         <TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} />
       )}
 
+      {/* ── THE OTHER HALF OF THE FOOTER BAND ────────────────────────────
+          LOOKED AT at 1440 on 2026-09-21, F24 beside this build. The canon
+          frame's footer strip carries TWO things and this band was shipping
+          one of them: `Vol 68.92M` sits at the strip's BOTTOM-LEFT, sharing
+          the row with the bordered timeframe chip in the centre. Reserving
+          `TIMEFRAME_FOOTER_H` bought a full-pane-width band and then used only
+          its middle; the left third was empty floor in a layout whose whole
+          argument is that floor is expensive.
+
+          A MOVE, NOT AN ADDITION — see the note in chartVolumeFooterFact.ts.
+          The same number is the `V` cell at the end of the floating O/H/L/C
+          legend above, and F24's legend carries no volume at all. `volumeInFooter`
+          is the ONE boolean deciding which of the two renders it, and it is the
+          same condition that decides the band exists, so the count is on screen
+          exactly once in every configuration — including the compare pane and
+          the 5m/15m panes, which have no band and therefore keep it upstairs.
+
+          `dataWindowBarScope` is CALLED again rather than threaded down: it is
+          pure and both calls pass the same four arguments, so the two cannot
+          disagree. Copying the call to the single owner is not the same thing
+          as copying its logic, which is what would actually let them drift. */}
+      {volumeInFooter && last && (() => {
+        const fact = chartVolumeFooterFact(
+          last.volume,
+          dataWindowBarScope(last.time as number, timeframe, true, nowMs).volume.title,
+        );
+        return (
+          <div
+            className={clsx(
+              "wm-chart-volume-footer font-mono",
+              // Real design tokens, as Tailwind classes — see the long note on
+              // this class in globals.css for why the colour is NOT a var().
+              fact.state === "OBSERVED" ? "text-wm-text-dim" : "text-wm-text-muted",
+            )}
+            data-volume-state={fact.state}
+            title={fact.title}
+            aria-label={fact.title}
+            style={{
+              position: "absolute",
+              bottom: TIMEFRAME_CHIP_BOTTOM_PX,
+              left: 10,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              zIndex: 60,
+              // The pane above owns the crosshair, drawing and context menu.
+              // This is a caption, not a control; it must never eat a gesture
+              // aimed at the market. Same rule the chip's wrapper carries.
+              pointerEvents: "none",
+            }}
+          >
+            {fact.text}
+          </div>
+        );
+      })()}
+
       {/* ── NOW RIDES OVER THE CANDLES, IT DOES NOT PUSH THEM DOWN ──────
           LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a 1440
           shot of this room: F24 prints "TSLA · Tesla, Inc. · 1D · NASDAQ" and
@@ -9385,7 +9462,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 {stripScope.close.label}{" "}
                 <span className="text-wm-text">{last.close.toFixed(dp)}</span>
               </span>
-              <span title={stripScope.volume.title}>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
+              {/* THE `V` CELL IS CONDITIONAL NOW, and the condition is not a
+                  taste setting. When this pane reserved a footer band, F24 puts
+                  the traded quantity down THERE and leaves this legend to price
+                  alone. `volumeInFooter` is the single boolean deciding it — see
+                  its definition beside `last`. Exactly one of the two nodes
+                  renders the number in every configuration, and the panes with
+                  no band (compare, pinned 5m/15m) keep it right here, so no
+                  configuration renders it zero times. */}
+              {volumeInFooter ? null : (
+                <span title={stripScope.volume.title}>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
+              )}
             </div>
           );
         })()}

@@ -472,6 +472,49 @@
     min-height: 44px;
   }
 
+  /* THE FOOTER BAND'S LEFT HALF — F24's `Vol 68.92M`, sharing the strip with
+     the timeframe chip in its centre.
+
+     Deliberately QUIETER than the chip: the chip is the only control on the
+     glass and has a border to say so, while this is a caption that reports a
+     number. Giving it the same weight would put two objects of equal loudness
+     in a 34px band and make the trader look twice to find the one that does
+     something.
+
+     COLOUR IS NOT SET HERE, and that is the point of this paragraph. The first
+     draft of this rule said `color: var(--wm-text-dim)`. That token DOES NOT
+     EXIST: `wm-text-dim` is a TAILWIND colour defined in `tailwind.config.ts`
+     and consumed as the class `text-wm-text-dim`, never as a CSS custom
+     property. `var()` with an undefined name and no fallback silently computes
+     to nothing, so the rule would have dropped through to an inherited colour
+     and still "worked" — a wrong colour that no typecheck, no test and no
+     stylesheet linter would have reported. tsc was clean over it. The colour
+     therefore lives on the element as the real token class, beside the O/H/L/C
+     legend's own, which is where this figure used to live: same reading, same
+     token, new address. Only the geometry is CSS. */
+  .wm-chart-volume-footer {
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* A bar that carried no usable quantity must not look like a measurement, so
+     the refusal is ITALIC and cannot be skimmed as if it were a figure.
+
+     It is NOT dimmed to say so, and the first draft's comment had this exactly
+     backwards. The two tokens involved are `wm.text-dim` #8a8271 and
+     `wm.text-muted` #8B95A5, and `text-muted` is the BRIGHTER of the pair —
+     tailwind.config.ts records that it was deliberately reconciled upward
+     because at its old slate value it failed WCAG AA on every surface in the
+     scale. So the refusal is carried on the more legible token, not the less.
+     That is the right way round on its own merits: "Vol not reported" is the
+     one state a trader must not miss, and hiding a data gap in a fainter grey
+     is how a gap gets mistaken for a quiet market. Shape carries the
+     distinction; contrast carries the importance. */
+  .wm-chart-volume-footer[data-volume-state="NOT_REPORTED"] {
+    font-style: italic;
+  }
+
   .wm-chart-toolbar-pinned {
     position: static !important;
     height: auto !important;

@@ -171,9 +171,29 @@ describe("MainChart adoption", () => {
      * Both panels must derive their scope from dataWindowBarScope, so that
      * no edit can make them disagree about what a bar is.
      */
+    /**
+     * RE-AIMED, NOT RELAXED (volume-footer atom). The count was 2 because two
+     * panels named a bar. A THIRD now does: the footer band's `Vol` caption,
+     * which moved off the floating legend to sit under the time axis per canon
+     * F24. It reads its provenance from this same owner, so the invariant the
+     * number stood for is intact — what changed is how many places hold it.
+     *
+     * A bare `toBe(3)` would be a worse guard than the one it replaces: it
+     * would go green for ANY third caller, including a fourth panel inventing
+     * its own scope while some unrelated call site disappeared. So the count
+     * is kept EXACT and each consumer is NAMED below. Adding a caller now
+     * costs one line of identification — which is the point. An unnamed bar
+     * scope is how the two panels disagreed in the first place.
+     */
     expect((CODE.match(/dataWindowBarScope\(/g) || []).length,
-      "one of the two disagreeing panels is no longer scoped by the owner",
-    ).toBe(2);
+      "a panel that names a bar is no longer scoped by the owner, or an " +
+      "unnamed consumer was added — name it here",
+    ).toBe(3);
+    // 1. the Data Window panel, 2. the OHLC strip, 3. the footer band's volume.
+    expect(CODE).toContain("lastBar.time === dataWindow.time"); // (1)
+    expect(CODE).toMatch(/stripScope\s*=\s*dataWindowBarScope\(/);        // (2)
+    expect(CODE).toMatch(
+      /chartVolumeFooterFact\([\s\S]{0,80}?dataWindowBarScope\(/);        // (3)
     expect(CODE).toContain("stripScope.open.title");
     expect(CODE).toContain("stripScope.high.title");
     expect(CODE).toContain("stripScope.low.title");
