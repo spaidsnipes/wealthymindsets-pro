@@ -119,7 +119,18 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "never existed. A raw TCP handshake per page load is not a product surface, and the answer " +
       "does not change between loads. What SHOULD reach the glass is the tick stream this " +
       "handshake unlocks; when that lands, this line must be re-examined rather than left " +
-      "standing as pre-forgiveness for a route that quietly gained a consumer.",
+      "standing as pre-forgiveness for a route that quietly gained a consumer. " +
+      "RE-EXAMINED 2026-09-21, as that sentence required, because a deferred review nobody " +
+      "performs is the same thing as pre-forgiveness. The tick stream DID land and DID gain a " +
+      "consumer — WebullRealTimeStrip.tsx calls /api/market-data/webull/stream — while this " +
+      "route still has zero, which is the shape the classification predicted rather than an " +
+      "exception to it. Measured the same day against production: transportOpen true, CONNACK " +
+      "returnCode 0 ('Connection successful'), credentialRejected false, on " +
+      "data-api.webull.com:1883. The handshake it was built to prove now passes, so its remaining " +
+      "job is narrower than at birth: it is the one place that can say 'the real-time door opens' " +
+      "WITHOUT a subscribe, which is what keeps a subscribe refusal readable as a statement about " +
+      "entitlement rather than about the socket. It stays OPERATOR_DIAGNOSTIC on that basis, not " +
+      "on inherited wording.",
   },
   "/api/dev/coverage-inspect": {
     cls: "OPERATOR_DIAGNOSTIC",
