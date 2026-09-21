@@ -1,5 +1,51 @@
 # /charts masthead → C-101 right-flank rooms — implementation plan
 
+> ## ⚠️ READ THIS FIRST — TWO PREMISES OF THIS PLAN ARE WRONG (adjudicated 2026-09-21 BY LOOKING)
+>
+> I opened the canon frames next to a production capture instead of arguing from the written
+> summaries, and two things this document tells you to do are **off-canon**. They are struck in
+> place below rather than deleted, because a deleted mistake gets re-derived.
+>
+> **WRONG PREMISE 1 — "move Workspace/Tools to the right flank" (Atom 1).**
+> `F24-workspace-equipment-over-live-chart.jpg` draws the Workspace and Tools plates **top-left,
+> large, adjacent, in a masthead band** — exactly where they are today, and exactly what the
+> `:1867-1898` media query was written to produce. That media query is **canon-correct**. Deleting
+> it, as Atom 1 instructs, would have moved a compliant control off-canon and re-opened the very
+> complaint ("the two targets sit adjacent, large, top-left desktop") that the block was shipped to
+> close. The masthead's 79px is NOT the plates being wrong; it is the plates being right.
+> What IS off-canon in that band is everything else: F24's masthead carries the two plates and
+> **one** `INDICATIVE · asOf` chip, nothing more. Production carries a full-width news/ticker strip
+> ABOVE the masthead plus a dense second toolbar row — neither appears in any canon frame. **That**
+> is the July shell, and it is where the height should come from.
+>
+> **WRONG PREMISE 2 — "the equipment panel should stay an overlay" (old Atom 4).**
+> `F24` and `G02-workspace-activator.jpg` BOTH draw the panel occupying **its own column** with the
+> chart beside it. In G02 the candles, both axes and every annotation begin to the right of the
+> Workspace panel; nothing is behind it. Canon does not cover the market with equipment.
+>
+> ### The genuine conflict, and why it is not resolved by picking a side
+>
+> `WMOperatingSystem.tsx:1300-1325` carries a documented decision AGAINST the column layout, with a
+> measurement behind it: as a flex column the panel "took 176px away from the room, so reaching for
+> a tool RESIZED the market: the chart canvas reflowed and redrew, and the exact camera the trader
+> was reading moved under their hand." It cites a canon §3 clause — "the equipment wall is an
+> OVERLAY at D≈0 and the chart stays."
+>
+> So both sides are holding a real fact:
+> - **Canon frames:** the market must never be hidden. (Measured cost today: 246px, **21% of the
+>   candles**, the oldest bars — `scratchpad/probe-tools-reflow.mjs`.)
+> - **The §3 comment:** picking up a tool must not move the camera.
+>
+> "The chart stays" is the shared intent of BOTH, and overlay only satisfies it by accident —
+> it keeps the camera by hiding the market. The reading that satisfies both literally: **the panel
+> gets its own floor AND the chart preserves its visible logical range across the resize.**
+> `lightweight-charts` exposes the visible range; capturing it before the width change and
+> restoring it after means the camera does not move even though the canvas does. That is the
+> enabling atom, and until it exists, reserving floor WOULD reintroduce the measured camera jump —
+> which is why the overlay is not simply a bug to be reverted.
+>
+> **Do not ship the column layout without the camera-preservation atom in front of it.**
+
 Desktop only (>= `OS_RAIL_BREAKPOINT_PX + 1`). RESEARCH/PLAN doc; no source edited.
 
 Measured baseline (1440, today): 129px above the candles =
