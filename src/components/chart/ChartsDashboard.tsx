@@ -141,6 +141,7 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 // equipment id is deliberately identical to the deck's rather than forked.
 import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
 import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
+import { selectOverlayDrawingLedger } from "@/lib/marketData/viewModels/selectOverlayDrawingLedger";
 // The chain's three surfaces, imported HERE rather than re-implemented, because
 // the deck mounts these exact three for this exact equipment. A chart-room
 // variant of the chain panel would be the same reading with two renderers, and
@@ -1640,6 +1641,36 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     effort, and these five are the ways that question gets answered.
   */
   const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource);
+  /*
+    WHAT THE CHART IS ACTUALLY DRAWING, IN WORDS.
+    Compiled HERE and nowhere else, because the room is the only place that
+    holds both halves of the question: the four readings above AND the four
+    switches the trader owns. `MainChart` already knows the answer — it writes
+    it to `data-value-candle`, `data-imbalance-stack` and friends on the canvas
+    so an outside probe can audit the paint — but a `data-` attribute is
+    nobody's disclosure. Observed on the serving BTCUSD chart: two layers
+    painting, two switched on and silent, and no way for the trader to tell the
+    silent ones from broken ones.
+  */
+  const overlayDrawingLedger = React.useMemo(
+    () => selectOverlayDrawingLedger({
+      valueCandleOn,
+      valueCandle: chartOrderFlowReadings.valueCandle,
+      imbalanceStackOn,
+      imbalanceStack: chartOrderFlowReadings.stackedImbalance,
+      deltaDivergenceOn,
+      deltaDivergence: chartOrderFlowReadings.deltaDivergence,
+      liquidityWeatherOn,
+      liquidityWeather: chartOrderFlowReadings.liquidityWeather,
+    }),
+    [
+      chartOrderFlowReadings,
+      valueCandleOn,
+      imbalanceStackOn,
+      deltaDivergenceOn,
+      liquidityWeatherOn,
+    ],
+  );
   /* Ranked and phrased OUTSIDE the descriptor: the memo may only ASSEMBLE what
      the room already compiled, never compile a second opinion inside itself. */
   /* The room hands down WHICH MARKET this is and WHAT THE CLOCK HAS PROVEN.
@@ -4155,7 +4186,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         <DecisionSpineBand {...decisionSpineProps} presentation="band" />
       )}
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
-      {smartMoneyOpen && <SmartMoneyPanel onClose={() => setSmartMoneyOpen(false)} symbol={symbol} />}
+      {smartMoneyOpen && (
+        <SmartMoneyPanel
+          onClose={() => setSmartMoneyOpen(false)}
+          symbol={symbol}
+          layerLedger={overlayDrawingLedger}
+        />
+      )}
       {brokerOpen && (
         <BrokerConnectPanel
           onClose={() => setBrokerOpen(false)}

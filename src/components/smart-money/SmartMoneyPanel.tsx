@@ -36,6 +36,8 @@ import {
   DELTA_LEVEL_CAP_STORAGE_KEY,
   normalizeDeltaLevelCap,
 } from "@/lib/marketData/deltaLevelCap";
+import OverlayDrawingLedgerBlock from "@/components/chart/OverlayDrawingLedgerBlock";
+import type { OverlayDrawingLedgerVM } from "@/lib/marketData/viewModels/selectOverlayDrawingLedger";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -225,7 +227,21 @@ const SECTIONS = [
  */
 export const SMART_MONEY_PANEL_ID = "wm-smart-money-panel";
 
-export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
+export function SmartMoneyPanel({
+  onClose,
+  symbol,
+  /**
+   * WHAT THE CHART IS ACTUALLY DRAWING. Compiled by the room, because the room
+   * is where the four order-flow readings and their on/off switches live. Null
+   * means the room did not hand one over; the block is simply absent rather
+   * than invented here — this panel is a door, not a second compiler.
+   */
+  layerLedger = null,
+}: {
+  onClose: () => void;
+  symbol: string;
+  layerLedger?: OverlayDrawingLedgerVM | null;
+}) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -1306,6 +1322,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             </div>
           );
         })}
+
+        {/* The four room-owned order-flow layers, and whether each is painting.
+            Rendered only when the room compiled one — see the prop's note. */}
+        {layerLedger && <OverlayDrawingLedgerBlock vm={layerLedger} />}
 
         {/* Wyckoff remains visible, but cannot imply analysis until a real model exists. */}
         <div className="mx-2 my-2 p-2 rounded-lg bg-wm-surface border border-wm-border opacity-70">

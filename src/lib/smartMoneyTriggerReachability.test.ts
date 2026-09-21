@@ -260,11 +260,17 @@ describe("smart money trigger — the disclosure contract", () => {
       "the trigger does not point at what it opened, so a screen-reader user is told a panel " +
         "exists with no way to reach it",
     ).toContain("aria-controls={smartMoneyActive ? SMART_MONEY_PANEL_ID : undefined}");
+    // MATCH THE CONDITION, NOT THE WHITESPACE. What must hold is that the mount
+    // is gated on `smartMoneyOpen` — the same boolean the trigger's
+    // aria-controls is gated on. Whether the JSX fits on one line is not a
+    // reachability fact, and a literal-string assertion here fails the moment
+    // the panel takes one more prop, which teaches the next engineer to edit
+    // the guard rather than to honour it.
     expect(
       dashboard,
       "the panel is no longer mounted behind `smartMoneyOpen`, so the trigger's aria-controls " +
         "guard no longer matches the condition that puts the target in the document",
-    ).toContain("{smartMoneyOpen && <SmartMoneyPanel");
+    ).toMatch(/\{smartMoneyOpen && \(?\s*<SmartMoneyPanel[\s/>]/);
   });
 
   it("the id it points at is OWNED by the panel, not retyped at both ends", () => {
