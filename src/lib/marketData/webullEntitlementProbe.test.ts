@@ -103,7 +103,41 @@ describe("classifyRung", () => {
 describe("readWebullLadder", () => {
   it("isolates the entitlement ONLY when ungated rungs opened over the same credentials", () => {
     const reading = readWebullLadder([...OPEN_NON_DATA, ...deniedDataAllProfiles()]);
-    expect(reading.verdict).toBe("ENTITLEMENT_ISOLATED");
+    expect(reading.verdict).toBe("APP_KEY_ENTITLEMENT_ISOLATED");
+  });
+
+  /**
+   * THE THREE-MONTH DEFECT, PINNED AT ITS LAST HIDING PLACE.
+   *
+   * This is the ONE verdict shape from which someone could still conclude "the
+   * Founder must buy a data package" — and for three months, someone did. It
+   * was measured false on 2026-09-21: `/market-data/stocks/ticks/list`, the
+   * exact rung denied here, returned live ticks for the same accounts through a
+   * grant-authorized Webull client. The account holds the data; the app key we
+   * sign with does not.
+   *
+   * So this verdict must name its SUBJECT, and must never point at a wallet.
+   * The assertions below are on the note a human actually reads, because the
+   * enum name alone was never what did the damage — the prose was.
+   */
+  it("names the APP KEY as the subject and never sends the operator shopping", () => {
+    const reading = readWebullLadder([...OPEN_NON_DATA, ...deniedDataAllProfiles()]);
+
+    // It must say whose gap it is. A gap without an owner gets one supplied by
+    // the reader, and the reader has historically supplied the wrong one.
+    expect(reading.note).toMatch(/APP KEY/);
+    expect(reading.note).toMatch(/not the account/i);
+
+    // And it must carry the counter-evidence, or "app key" is just a nicer
+    // guess rather than something that was measured.
+    expect(reading.note).toMatch(/MEASURED 2026-09-21/);
+
+    // The sentences that cost three months. None of them may come back.
+    expect(reading.note).not.toMatch(/\bsubscription (is )?required\b/i);
+    expect(reading.note).not.toMatch(
+      /\b(go|must|need to|should|please)\s+(buy|purchase|upgrade|subscribe)\b/i,
+    );
+    expect(reading.note).toMatch(/do not ask the operator to buy anything/i);
   });
 
   /**
@@ -121,7 +155,7 @@ describe("readWebullLadder", () => {
       receipt("TICKS", "MARKET_DATA", "DENIED_ENTITLEMENT", "legacy-sha1"),
     ]);
 
-    expect(reading.verdict).not.toBe("ENTITLEMENT_ISOLATED");
+    expect(reading.verdict).not.toBe("APP_KEY_ENTITLEMENT_ISOLATED");
     expect(reading.verdict).toBe("INCONCLUSIVE");
     // Named, not merely withheld — a verdict that hides its reason is how the
     // next reader re-derives the wrong one.
@@ -316,7 +350,7 @@ describe("probeWebullEntitlement", () => {
     expect(seen.filter((url) => url.includes("/app/subscriptions/list"))).toHaveLength(1);
     // The whole reason it is out of band: it must never reach the verdict.
     expect(report.rungs.some((rung) => rung.rung === "SUBSCRIPTIONS")).toBe(false);
-    expect(report.verdict).toBe("ENTITLEMENT_ISOLATED");
+    expect(report.verdict).toBe("APP_KEY_ENTITLEMENT_ISOLATED");
     expect(report.rungs.filter((rung) => rung.gate === "NON_MARKET_DATA").map((rung) => rung.outcome))
       .toEqual(["OK", "OK"]);
     expect(report.rungs.filter((rung) => rung.gate === "MARKET_DATA").every((r) => r.outcome === "DENIED_ENTITLEMENT"))
@@ -587,7 +621,7 @@ describe("the Webull real-time streaming lane is asked, and asked correctly", ()
     // The ladder measured the pull product and must keep saying so. If a
     // streaming OK could rewrite this, the receipt would be laundering evidence
     // about one product into a claim about another.
-    expect(report.verdict).toBe("ENTITLEMENT_ISOLATED");
+    expect(report.verdict).toBe("APP_KEY_ENTITLEMENT_ISOLATED");
     expect(report.streaming?.reachable).toBe(true);
   });
 

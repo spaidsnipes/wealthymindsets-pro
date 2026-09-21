@@ -18,8 +18,9 @@
  * The READING is the whole point, and it is mechanical:
  *
  *   - rungs 1-2 OK, rungs 3-4 denied  -> auth/signing/host/contract are proven
- *     good, and the market-data entitlement is the isolated gap. ONLY in this
- *     shape may anyone say the account needs a data package.
+ *     good, and the market-data entitlement is the isolated gap. THE GAP BELONGS
+ *     TO THE APP KEY, NOT THE ACCOUNT — see below. NO shape of this ladder
+ *     licenses telling the operator to buy a data package.
  *   - every rung denied               -> the credential or signing contract is
  *     the suspect. Do NOT blame the operator's subscription.
  *   - rungs 1-2 denied, 3-4 OK        -> incoherent; report it rather than
@@ -53,8 +54,32 @@
  * subscription while a variable we control is still uncontrolled.
  *
  * So each market-data rung is now climbed under EVERY signing profile, each
- * receipt CARRIES the profile it was signed with, and ENTITLEMENT_ISOLATED is
- * unreachable until the denials hold across all of them.
+ * receipt CARRIES the profile it was signed with, and
+ * APP_KEY_ENTITLEMENT_ISOLATED is unreachable until the denials hold across all
+ * of them.
+ *
+ * ── WHO THE GAP BELONGS TO. MEASURED 2026-09-21, AFTER ALL OF THE ABOVE ─────
+ *
+ * The ladder did its job: it got the shape down to "market data is the isolated
+ * gap". Then it stopped, because a ladder can only ever isolate BY ELIMINATION,
+ * and the last step — "therefore it is the operator's subscription" — was an
+ * inference, not a reading. It was also wrong, and it is the inference that cost
+ * three months.
+ *
+ * The measurement that settled it: `/market-data/stocks/ticks/list` — the exact
+ * rung 4 this ladder is denied on — returned live tick-by-tick trades, with
+ * aggressor side, for the SAME three accounts, at the same time, through a
+ * Webull client the Founder had authorized by GRANT rather than by app key.
+ *
+ * So all three of these are simultaneously true:
+ *   - the account holds real-time market data (proven, not assumed);
+ *   - our request is byte-for-byte the SDK's (path, v3, GET, all four params);
+ *   - our request is refused.
+ *
+ * The only variable left is WHICH CLIENT IS ASKING. Market data attaches to the
+ * calling identity, and WM Pro's OpenAPI app key is a different identity from
+ * the account. That is a developer-portal fact about OUR app registration, and
+ * it is fixable by us or by the Founder in one place — not at a checkout.
  */
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders } from "./adapters/webullMarketData";
@@ -125,7 +150,30 @@ export type WebullEntitlementVerdict =
    * whole difference between "tap approve" and "go buy a data package".
    */
   | "AWAITING_2FA"
-  | "ENTITLEMENT_ISOLATED"
+  /**
+   * THE SUBJECT IS IN THE NAME ON PURPOSE.
+   *
+   * This verdict used to be called `ENTITLEMENT_ISOLATED`, which is true and
+   * useless: it names a gap without naming WHOSE. Every human who read it —
+   * for three months — supplied the missing noun themselves, and every one of
+   * them supplied "the Founder's account". He was then sent to buy data he
+   * already owned.
+   *
+   * MEASURED 2026-09-21, and this is what forced the rename. The SAME endpoint
+   * this ladder is denied on (`/market-data/stocks/ticks/list`) returned live
+   * tick-by-tick trades — with aggressor side — for the SAME three accounts,
+   * through a Webull client the Founder had authorized by grant rather than by
+   * app key. The account carries real-time L1 data. The ladder's own request
+   * matches the SDK byte-for-byte, and the denial survives every signing
+   * profile, so neither the contract nor the signature is the gap.
+   *
+   * What is left is the CALLING IDENTITY: the OpenAPI app key WM Pro signs
+   * with is a different subject from the account, and market data attaches to
+   * the subject. So this verdict means "the app key we sign with is the
+   * isolated gap" — a developer-portal fact — and it may never again be
+   * rendered as a sentence about the operator's purchases.
+   */
+  | "APP_KEY_ENTITLEMENT_ISOLATED"
   | "CREDENTIAL_OR_CONTRACT_SUSPECT"
   | "FULLY_OPEN"
   | "INCOHERENT"
@@ -313,8 +361,8 @@ export function readWebullLadder(rungs: readonly WebullRungReceipt[]): {
       };
     }
     return {
-      verdict: "ENTITLEMENT_ISOLATED",
-      note: `Non-market-data rungs returned data over the same host and credentials, while every market-data rung was denied under every signing profile tried (${WEBULL_SIGNING_PROFILES.join(", ")}). Signing is therefore controlled for rather than assumed, and the market-data entitlement is the isolated remaining gap.`,
+      verdict: "APP_KEY_ENTITLEMENT_ISOLATED",
+      note: `Non-market-data rungs returned data over the same host and credentials, while every market-data rung was denied under every signing profile tried (${WEBULL_SIGNING_PROFILES.join(", ")}). Signing is therefore controlled for rather than assumed, and the request matches the SDK. The isolated gap is the APP KEY WM Pro signs with — not the account. MEASURED 2026-09-21: the same endpoint returned live ticks for the same accounts through a grant-authorized Webull client, so the account's market data is not in question. This is a developer-portal fact about our app registration. Do not ask the operator to buy anything on this evidence.`,
     };
   }
 
