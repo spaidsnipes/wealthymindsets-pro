@@ -41,7 +41,37 @@
  * It prints NOTHING, because "we have not finished asking" is not a reading
  * and the canon has no word for one (canon §silence-is-a-feature).
  */
-export type SpinePriceProvenance = "PRINT" | "BAR_CLOSE" | "NONE" | "AWAITING";
+export type SpinePriceProvenance =
+  | "PRINT"
+  | "BAR_CLOSE"
+  /**
+   * THE THIRD CHANNEL — a display quote from a named provider.
+   *
+   * MEASURED on the serving Worker, 2026-09-20, BTCUSDT · 5m, ONE viewport:
+   *
+   *     chart header    81738.08  +492.44 (+0.61%)
+   *     MARKET cell     BTCUSDT · 5m · PRICE UNKNOWN
+   *
+   * Same instrument, same second, two owners — the identical shape this
+   * module already closed once for the bar close, arriving through a door it
+   * did not have. There were no bars at all on that chart (see
+   * compileBarHistoryRefusal), so BAR_CLOSE could not speak, and nothing here
+   * observed a per-trade print, so PRINT could not either. A provider's
+   * answer was on the glass eleven hundred pixels to the left and this cell
+   * had no slot to put it in, so it printed a FINDING over a fact WM held.
+   *
+   * RANKED LAST, DELIBERATELY. A vendor's display quote is a real reading but
+   * a weaker one than a print we observed or a bar we sealed, and ranking it
+   * above either would silently change what every existing surface renders.
+   * It speaks only when the two stronger channels are both silent, which
+   * makes this arm strictly additive: no caller that renders today renders
+   * differently tomorrow. Whether a fresh quote should outrank a stale bar
+   * close is a real question and it is NOT answered here — it is left open
+   * rather than settled by a change that would be invisible in review.
+   */
+  | "QUOTE"
+  | "NONE"
+  | "AWAITING";
 
 export interface SpinePriceDisplay {
   readonly text: string;
@@ -107,6 +137,13 @@ export function selectPriceEvidence(
    * caller and test keeps its exact behaviour.
    */
   barsSettled?: boolean,
+  /**
+   * The display quote and the PROVIDER THAT SAID IT. Both, or neither — a
+   * number whose source cannot be named is exactly the uncheckable reading
+   * this module exists to prevent, so a quote without a provider is dropped
+   * rather than rendered anonymously.
+   */
+  quote?: { readonly last?: number | null; readonly source?: string | null },
 ): PriceEvidence {
   // A print outranks a close. It is the stronger claim and it is the one the
   // trader is actually asking for; the close only speaks when it is silent.
@@ -124,7 +161,21 @@ export function selectPriceEvidence(
     };
   }
 
-  // BOTH CHANNELS ARE EMPTY BECAUSE NEITHER HAS ANSWERED YET.
+  // THE THIRD CHANNEL, last. See `SpinePriceProvenance["QUOTE"]` for the
+  // measurement and for why it is ranked below both of the above.
+  const quoteSource = typeof quote?.source === "string" ? quote.source.trim() : "";
+  if (usable(quote?.last) && quoteSource) {
+    return {
+      value: quote!.last!,
+      provenance: "QUOTE",
+      // The provider is part of the fact. "81738.08" alone states a print;
+      // "81738.08 LAST QUOTE · finnhub" states exactly what WM has and names
+      // who to check it against.
+      qualifier: `LAST QUOTE · ${quoteSource}`,
+    };
+  }
+
+  // EVERY CHANNEL IS EMPTY BECAUSE NONE HAS ANSWERED YET.
   //
   // Placed AFTER both evidence arms on purpose, so EVIDENCE OUTRANKS THE FLAG:
   // a caller that reports the bars request unsettled still gets its print or
@@ -182,7 +233,12 @@ export function qualifyMarketQuality(
 ): string {
   const q = typeof quality === "string" ? quality.trim() : "";
   if (!q) return "QUALITY UNKNOWN";
-  if (provenance === "BAR_CLOSE" && q === "UNAVAILABLE") return "NO LIVE PRINT";
+  // QUOTE joins BAR_CLOSE for the identical reason: the grade is of the PRINT
+  // channel, the number above it came from a different one, and an unscoped
+  // UNAVAILABLE set beneath a present reading can only be read as erasing it.
+  if ((provenance === "BAR_CLOSE" || provenance === "QUOTE") && q === "UNAVAILABLE") {
+    return "NO LIVE PRINT";
+  }
   return q;
 }
 
@@ -192,8 +248,9 @@ export function formatSpinePrice(
   lastBarTimeframe?: string | null,
   /** See `selectPriceEvidence`. Optional, last, and only `false` speaks. */
   barsSettled?: boolean,
+  quote?: { readonly last?: number | null; readonly source?: string | null },
 ): SpinePriceDisplay {
-  const evidence = selectPriceEvidence(last, lastBarClose, lastBarTimeframe, barsSettled);
+  const evidence = selectPriceEvidence(last, lastBarClose, lastBarTimeframe, barsSettled, quote);
   // An open question has no sentence. PRICE UNKNOWN is an ANSWER — it asserts
   // WM looked and found nothing — so it may not be printed over a request that
   // is still in flight. The empty string is the honest render; the cell's own

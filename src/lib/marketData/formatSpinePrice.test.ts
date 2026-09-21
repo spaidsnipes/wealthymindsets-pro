@@ -8,7 +8,7 @@
  * and the ones that stop a bar close from being sold as a trade print.
  */
 import { describe, it, expect } from "vitest";
-import { formatSpinePrice } from "./formatSpinePrice";
+import { formatSpinePrice, qualifyMarketQuality } from "./formatSpinePrice";
 
 describe("formatSpinePrice", () => {
   it("prefers a live print and labels it as nothing else", () => {
@@ -126,5 +126,115 @@ describe("formatSpinePrice", () => {
       }
       expect(formatSpinePrice(null, null, "1h", false).provenance).toBe("AWAITING");
     });
+  });
+});
+
+/**
+ * THE THIRD CHANNEL.
+ *
+ * MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m, ONE viewport:
+ * the chart header read `81738.08 +492.44 (+0.61%)` and the MARKET cell read
+ * `BTCUSDT · 5m · PRICE UNKNOWN`. That chart had no bars at all, so the
+ * BAR_CLOSE arm added for the previous instance of this defect could not
+ * speak for it — a provider had answered and this module had no slot.
+ */
+describe("formatSpinePrice — the QUOTE channel", () => {
+  const QUOTE = { last: 81738.08, source: "finnhub" };
+
+  it("speaks when BOTH stronger channels are silent — the measured case", () => {
+    const d = formatSpinePrice(null, null, "5m", true, QUOTE);
+    expect(d.provenance).toBe("QUOTE");
+    expect(d.text).toBe("81738.08 LAST QUOTE · finnhub");
+    // The number alone would state a print. The provider is part of the fact.
+    expect(d.text).not.toBe("81738.08");
+  });
+
+  it("is RANKED LAST — it may not displace a print or a bar close", () => {
+    // If this ever inverts, every surface already rendering today silently
+    // starts rendering something else, which is the one thing this arm
+    // promised not to do.
+    expect(formatSpinePrice(7622.25, null, "5m", true, QUOTE).provenance)
+      .toBe("PRINT");
+    expect(formatSpinePrice(null, 7622.25, "5m", true, QUOTE).provenance)
+      .toBe("BAR_CLOSE");
+  });
+
+  it("changes NOTHING for a caller that passes no quote", () => {
+    expect(formatSpinePrice(null, null, "5m", true)).toEqual(
+      formatSpinePrice(null, null, "5m", true, undefined),
+    );
+    expect(formatSpinePrice(null, null, "5m", true).text).toBe("PRICE UNKNOWN");
+  });
+
+  it("DROPS an unattributable number rather than render it anonymously", () => {
+    // A price with no nameable provider is exactly the uncheckable reading
+    // this module exists to prevent. Falling back to PRICE UNKNOWN is the
+    // honest outcome — "we hold a number we cannot source" is not a reading.
+    for (const src of [null, undefined, "", "   "]) {
+      const d = formatSpinePrice(null, null, "5m", true, { last: 81738.08, source: src });
+      expect(d.provenance, `source ${JSON.stringify(src)}`).toBe("NONE");
+      expect(d.text).toBe("PRICE UNKNOWN");
+    }
+  });
+
+  it("does not fabricate a quote out of a missing or zero price", () => {
+    for (const last of [null, undefined, 0, -1, Number.NaN]) {
+      expect(
+        formatSpinePrice(null, null, "5m", true, { last, source: "finnhub" }).provenance,
+        `last ${String(last)}`,
+      ).toBe("NONE");
+    }
+  });
+
+  it("an unsettled bars request still outranks the quote's absence, not its presence", () => {
+    // AWAITING means "nobody has answered yet". A provider HAS answered, so
+    // printing a blank slot over its number would be the same understatement
+    // in a new costume.
+    expect(formatSpinePrice(null, null, "5m", false, QUOTE).provenance).toBe("QUOTE");
+    expect(formatSpinePrice(null, null, "5m", false).provenance).toBe("AWAITING");
+  });
+
+  it("scopes UNAVAILABLE so it cannot read as erasing the line above", () => {
+    // Identical reasoning to the BAR_CLOSE arm: the grade is of the PRINT
+    // channel and the number came from another one.
+    expect(qualifyMarketQuality("UNAVAILABLE", "QUOTE")).toBe("NO LIVE PRINT");
+    // A grade describing a reading that exists passes through untouched.
+    expect(qualifyMarketQuality("DELAYED", "QUOTE")).toBe("DELAYED");
+    // And under NONE there is no number to be mistaken for, so it stands.
+    expect(qualifyMarketQuality("UNAVAILABLE", "NONE")).toBe("UNAVAILABLE");
+  });
+});
+
+describe("the QUOTE channel is actually reachable from the charts room", () => {
+  it("is not structurally unreachable — ChartsDashboard hands the quote over", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(
+      resolve(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
+      "utf8",
+    );
+    // The MEASURED defect (2026-09-20): the chart header printed 81738.08 for
+    // BTCUSDT while the right rail printed PRICE UNKNOWN in the SAME viewport,
+    // because decisionSpineProps.market carried no slot for the live quote the
+    // page already held. An arm nobody calls does not fix a contradiction.
+    expect(src, "the spine is no longer handed the live quote price")
+      .toMatch(/quoteLast:/);
+    expect(src, "the quote is handed over without a nameable source")
+      .toMatch(/quoteSource:/);
+  });
+
+  it("does not hand over a quote belonging to the previously viewed symbol", () => {
+    // During a symbol switch the ticker still holds the OLD instrument's price
+    // for a frame. Printing it under the NEW symbol's label is a mislabelled
+    // reading, which is worse than PRICE UNKNOWN, not better.
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const { resolve } = require("node:path") as typeof import("node:path");
+    const src = readFileSync(
+      resolve(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
+      "utf8",
+    );
+    const line = src.split("\n").find((l) => l.includes("quoteLast:")) ?? "";
+    expect(line, "quoteLast is not guarded by the symbol-ownership check")
+      .toMatch(/tickerOwner === symbol/);
   });
 });

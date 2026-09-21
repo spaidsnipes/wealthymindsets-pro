@@ -2412,6 +2412,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // `29563.25 LAST 15m BAR CLOSE` at t=2163ms, off the same request.
       // Nothing new is computed — `barsSettled` was already in this scope.
       barsSettled,
+      // THE THIRD PRICE OWNER, handed over for the same reason the second one
+      // was. MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m, one
+      // viewport: the chart header read `81738.08 +492.44 (+0.61%)` and this
+      // cell read `PRICE UNKNOWN`. That chart had NO BARS at all, so the
+      // `lastBarClose` door added above could not speak for it — but a
+      // provider had answered, and the rail had nowhere to put the answer.
+      //
+      // `tickerOwner` is the same guard `optionSpot` uses eleven hundred lines
+      // up: during a symbol transition the hook still holds the PREVIOUS
+      // instrument's price, and printing that under this symbol's name would
+      // be a worse defect than the one being closed. Nothing new is computed.
+      quoteLast: tickerOwner === symbol && ticker.price > 0 ? ticker.price : null,
+      // `source` is the provider the quote chain actually returned. Without it
+      // formatSpinePrice drops the number rather than render it anonymously.
+      quoteSource: source ?? null,
     },
     oneStory: chartCanvasVM.oneStory,
     availableR: chartCanvasVM.chain?.availableR ?? null,

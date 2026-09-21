@@ -141,6 +141,21 @@ export interface SpineMarketEvidence {
    * `29563.25 LAST 15m BAR CLOSE` at t=2163ms. See `formatSpinePrice`.
    */
   readonly barsSettled?: boolean;
+  /**
+   * THIRD PRICE OWNER — the live display quote and the provider that said it.
+   *
+   * MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m: the chart header
+   * read `81738.08 +492.44 (+0.61%)` while this cell, in the same viewport,
+   * read `BTCUSDT · 5m · PRICE UNKNOWN`. Same shape as the bar-close defect
+   * two fields up, through a door this cell did not have — that chart had no
+   * bars at all, so `lastBarClose` could not speak for it.
+   *
+   * BOTH OR NEITHER. A price whose provider cannot be named is exactly the
+   * uncheckable reading `formatSpinePrice` refuses, so passing one without the
+   * other renders nothing rather than an anonymous number.
+   */
+  readonly quoteLast?: number | null;
+  readonly quoteSource?: string | null;
 }
 
 export interface DecisionSpineBandProps {
@@ -546,6 +561,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     market.lastBarClose,
     market.lastBarTimeframe,
     market.barsSettled,
+    { last: market.quoteLast, source: market.quoteSource },
   );
   const availableRDetail = selectAvailableRDetail(availableR);
   // NEXT is compiled, not echoed. Both the reading and the ledger it was
