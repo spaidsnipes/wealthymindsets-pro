@@ -499,7 +499,34 @@ function SanctuaryRoom({
            equipment that belong to this scene — Workspace and Tools — and no
            destination rail. Every other room keeps its rail unchanged. */
         destinations={onInstrumentView ? "equipment" : "rail"}
-        surface={standing.surface}
+        /* ── THE ROOM DOES NOT NEED A NAMEPLATE WHEN THE ROOM IS THE MARKET ──
+           F24's top band carries the two brass plates and the trailing chip.
+           It does not carry a room name, and the build's band did: measured
+           live at 1440, `wm-os-masthead` read
+
+             "Workspace Tools Instrument View OBSERVE▾ 0 WM pts ACTIVE DEGRADED"
+
+           `Instrument View` is a nameplate — it answers "which room is this?".
+           On every other OS room that question is worth answering, because the
+           rooms look alike and the rail is how you tell them apart. Here the
+           candles answer it before any text does, and the nameplate is sitting
+           between the equipment and the only reading in the band.
+
+           ROUTE-SCOPED, NOT DELETED — the same treatment `brand`,
+           `mastheadCaption`, `destinations` and `railDefaultOpen` already get
+           four lines up. Every other room still publishes and still shows its
+           surface, and `usePublishOsStanding` is untouched: /charts goes on
+           publishing "Instrument View" so the standing context, the phone
+           masthead and the provenance footer keep reading a real name. Only
+           this band stops PAINTING it.
+
+           `null`, NOT `undefined`, AND THE DIFFERENCE IS LOAD-BEARING. The
+           frame omits the slot ENTIRELY on `surface === null`
+           (WMOperatingSystem.tsx:1221-1233) — including the 1px divider that
+           precedes it. Anything else leaves a separator floating beside
+           nothing, which is the same dangling-furniture defect the feed chip's
+           separator rule exists to prevent. */
+        surface={onInstrumentView ? null : standing.surface}
         openEvidenceItems={standing.openEvidenceItems}
         rightOfWay={standing.rightOfWay}
         rightOfWayResolved={standing.rightOfWayResolved}
@@ -559,7 +586,20 @@ function SanctuaryRoom({
              a trader can sign out from /command-deck at all. */
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {railToggle}
-            <ShellAccessChrome />
+            {/* ── A GAMIFICATION COUNTER DOES NOT STAND OVER A LIVE MARKET ──
+                Same measured band, same canon frame as `surface` above: F24
+                draws the two plates and the trailing fidelity chip, and the
+                build's band read "… OBSERVE▾ 0 WM pts ACTIVE DEGRADED". `0 WM
+                pts` is a local app-points balance — WMSBar.tsx:2-4 says so in
+                its own words — and on /charts it sits BETWEEN the equipment and
+                the one node in the band that is a market reading.
+
+                ROUTE-SCOPED, the seventh decision on this predicate. Every
+                other room keeps the balance, because nowhere else is the band
+                standing over price. The P&L badge beside it STAYS everywhere:
+                realized paper P&L is a fact about the trader's positions, which
+                is the same subject as the candles, not a competing one. */}
+            <ShellAccessChrome showPoints={!onInstrumentView} />
           </div>
         }
         contextRail={showRail ? rail : undefined}

@@ -475,6 +475,84 @@ describe("one OS · both shells mount the SAME panels", () => {
     }
   });
 
+  /**
+   * ── THIS GUARD WENT VACUOUS, AND IS RE-AIMED RATHER THAN RELAXED ──────────
+   *
+   * The assertion above reads SOURCE. On 2026-09-21 the points balance was
+   * route-scoped off the instrument view per canon F24 — whose top band carries
+   * the two brass plates and one fidelity chip, and no gamification counter.
+   * `<WMSBar />` still appears in the access chrome's source, so the line above
+   * stayed green while quietly ceasing to mean "the points balance reaches the
+   * masthead". A guard that is still passing and no longer says what it claims
+   * is worse than a red one, because nobody looks at it.
+   *
+   * So it is made TWO-SIDED here rather than loosened. Parity above is kept
+   * untouched — one component, both shells, no second copy. This adds the other
+   * half: the suppression must be a ROUTE-SCOPED PROP with a permissive
+   * default, and it must be WIRED at the call site. Deleting the balance
+   * outright, or defaulting the prop to false, or adding the prop and never
+   * passing it — all three fail here, and the third is exactly the state this
+   * atom was in an hour before it shipped.
+   *
+   * SOURCE AND NOT RENDER, for the reason the block above already states: the
+   * chip is gated on `useWMSAvailable`, and these static gates mount no
+   * provider, so BOTH renders omit it and a render assertion could not tell the
+   * two routes apart. `HTML`/`INSTRUMENT_HTML` still carry the one render-level
+   * fact available — see "an OS room still renders when no points provider is
+   * mounted" below, which asserts no "WM pts" reaches any masthead at all.
+   */
+  it("× THE COUNTER OVER A LIVE MARKET: points are route-scoped, not deleted", () => {
+    const shell = source("../experience/WMExperienceShell.tsx");
+
+    // 1. The capability is gated on a named prop, not on a router read. The
+    //    chrome renders in provider-less trees — this very file builds its HTML
+    //    that way — so a `usePathname()` here would take the whole shell down.
+    expect(access).toMatch(/showPoints\s*&&\s*wmsAvailable/);
+    expect(access).not.toMatch(/usePathname/);
+
+    // 2. The default is PERMISSIVE. Every call site that says nothing keeps the
+    //    balance; it can only go missing where someone WROTE that it should.
+    expect(access).toMatch(/showPoints\s*=\s*true/);
+
+    // 3. And it is actually WIRED. A prop nobody passes changes no pixel.
+    expect(shell).toMatch(/<ShellAccessChrome\s+showPoints=\{!onInstrumentView\}\s*\/>/);
+
+    // 4. POSITIVE CONTROL on the predicate itself: `onInstrumentView` must be
+    //    the route test, not a free variable that could drift to anything.
+    expect(shell).toMatch(
+      /const\s+onInstrumentView\s*=[\s\S]{0,120}INSTRUMENT_VIEW_ROUTE/,
+    );
+  });
+
+  /**
+   * × THE NAMEPLATE OVER A LIVE MARKET — the same atom's other half.
+   *
+   * F24's band carries the two plates and the fidelity chip. The build's band
+   * also carried "Instrument View", a room name sitting between the equipment
+   * and the only market reading in the band. On every other room that name
+   * earns its place; here the candles answer "which room is this" before any
+   * text can.
+   *
+   * SOURCE, for a reason worth naming rather than assuming: these gates render
+   * the shell with no PAGE mounted, so nothing has called `usePublishOsStanding`
+   * and `surface` is absent in BOTH renders. A render assertion would pass
+   * today and would go on passing if the suppression were reverted — the
+   * vacuous-guard failure this whole block exists to correct.
+   *
+   * `null` IS PART OF THE ASSERTION, NOT INCIDENTAL SYNTAX. The frame drops the
+   * slot AND the 1px divider before it only on `null`; `undefined` leaves a
+   * separator floating beside nothing. So the matcher pins the literal.
+   */
+  it("× THE NAMEPLATE: the room name is route-scoped off the instrument view", () => {
+    const shell = source("../experience/WMExperienceShell.tsx");
+    expect(shell).toMatch(
+      /surface=\{\s*onInstrumentView\s*\?\s*null\s*:\s*standing\.surface\s*\}/,
+    );
+    // Route-scoped, NOT deleted: the publisher is untouched, so the standing
+    // context, the phone masthead and the provenance footer keep a real name.
+    expect(shell).toContain("standing.surface");
+  });
+
   it("the chrome asks whether the points provider exists instead of assuming", () => {
     /**
      * PROVEN, NOT PREDICTED. Mounting <WMSBar/> here without this guard

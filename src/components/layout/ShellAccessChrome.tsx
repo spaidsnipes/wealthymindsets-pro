@@ -85,7 +85,46 @@ const MENU_ITEM: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export function ShellAccessChrome() {
+export interface ShellAccessChromeProps {
+  /**
+   * Whether the points balance may paint in this masthead.
+   *
+   * WHY THIS IS A PROP AND NOT A `usePathname()` READ. This component is
+   * rendered into trees that have no router — `renderToStaticMarkup` with no
+   * providers at all, which is exactly how `ShellAccessParity.test.tsx` builds
+   * its HTML. A hook that needs a router here would take the whole shell down
+   * in those trees, which is the same failure `useWMSAvailable` already exists
+   * to prevent one field over. The shell knows the route; this component knows
+   * the chrome. Each says only what it knows.
+   *
+   * Defaults to `true`, so every existing call site is unchanged and the
+   * capability can only go missing where someone WROTE that it should.
+   */
+  readonly showPoints?: boolean;
+}
+
+/**
+ * ── THE POINTS BALANCE DOES NOT STAND OVER A LIVE MARKET ────────────────────
+ *
+ * Canon F24 draws the instrument view's top band with the two brass plates and
+ * one fidelity chip. Measured live at 1440, this build's band read
+ *
+ *     "Workspace Tools Instrument View OBSERVE▾ 0 WM pts ACTIVE DEGRADED"
+ *
+ * `0 WM pts` is a gamification counter — this file's own neighbour calls them
+ * "local app points, not cryptocurrency" (WMSBar.tsx:2-4). It is not a market
+ * reading, it does not change what a trader does with a position, and on
+ * /charts it sits between the equipment and the fidelity chip, which IS a
+ * market reading.
+ *
+ * NOT DELETED. Every other room keeps it, because everywhere else the band is
+ * not standing over price. `ShellAccessParity` guards that both shells mount
+ * the same points component rather than growing a second copy with its own
+ * drift schedule — that invariant is untouched and is now guarded on both
+ * sides: same component everywhere it appears, AND absent where canon says the
+ * band is reserved.
+ */
+export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps = {}) {
   const { user, signOut, signOutAllDevices } = useAuth();
 
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -154,7 +193,7 @@ export function ShellAccessChrome() {
           crowding a masthead that is already carrying the wordmark, the
           feed badge and four controls. */}
       <HeaderPnL />
-      {wmsAvailable && (
+      {showPoints && wmsAvailable && (
         <div className="wm-mobile-hide">
           <WMSBar />
         </div>
