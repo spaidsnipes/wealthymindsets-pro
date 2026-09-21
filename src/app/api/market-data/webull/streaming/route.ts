@@ -5,6 +5,7 @@ import {
   handshakeWebullQuotes,
   type DuplexSocket,
 } from "@/lib/marketData/webullQuotesHandshake";
+import { rawSocketSupport } from "@/lib/runtime/rawSockets";
 
 export const dynamic = "force-dynamic";
 
@@ -50,22 +51,16 @@ export async function GET(request: NextRequest) {
   }
 
   /**
-   * `cloudflare:sockets` does not exist under Node, so it is imported at call
-   * time rather than at module scope. A static import here would take the whole
-   * test suite down with it, and a Webull lane that cannot be tested offline is
-   * how this problem lasted three months in the first place.
+   * The raw-TCP capability is read from `rawSocketSupport()` rather than
+   * imported here. `cloudflare:sockets` is a runtime-provided module that three
+   * of this project's four bundlers refuse to resolve, and it does not exist
+   * under Node at all — a static import would take the whole test suite down
+   * with it, and a Webull lane that cannot be tested offline is how this
+   * problem lasted three months in the first place. See
+   * `src/lib/runtime/rawSockets.ts` and `cloudflare-worker-entry.js`.
    */
-  let openSocket:
-    | ((host: string, port: number) => Promise<DuplexSocket>)
-    | null = null;
-  try {
-    const sockets = await import("cloudflare:sockets");
-    openSocket = async (hostname, port) =>
-      // `secureTransport: "on"` is TLS from the first byte, which is what
-      // `tls_set()` means in `quotes_client.py`. Webull terminates TLS on the
-      // conventionally-plaintext port 1883 — see WEBULL_QUOTES_PORT.
-      sockets.connect({ hostname, port }, { secureTransport: "on", allowHalfOpen: false });
-  } catch (error) {
+  const sockets = rawSocketSupport();
+  if (!sockets.available) {
     return NextResponse.json(
       {
         provider: "webull",
@@ -73,12 +68,21 @@ export async function GET(request: NextRequest) {
         transportOpen: false,
         accepted: false,
         credentialRejected: false,
-        transportError: error instanceof Error ? error.message : String(error),
-        note: "This runtime cannot open raw TCP sockets, so Webull's real-time host was never contacted. Evidence about our runtime, not about entitlement.",
+        transportError: null,
+        note: `${sockets.reason} Webull's real-time host was never contacted, so this says nothing about entitlement.`,
       },
       { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }
+
+  const openSocket = async (
+    hostname: string,
+    port: number,
+  ): Promise<DuplexSocket> =>
+    // `secureTransport: "on"` is TLS from the first byte, which is what
+    // `tls_set()` means in `quotes_client.py`. Webull terminates TLS on the
+    // conventionally-plaintext port 1883 — see WEBULL_QUOTES_PORT.
+    sockets.connect({ hostname, port }, { secureTransport: "on", allowHalfOpen: false });
 
   const random = () =>
     Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>

@@ -35,33 +35,23 @@ const nextConfig: NextConfig = {
   },
   turbopack: {},
   /**
-   * `cloudflare:sockets` is a RUNTIME-PROVIDED module, not a package.
+   * NO `cloudflare:sockets` EXTERNAL HERE — deliberately, and this note exists
+   * so nobody re-adds one.
    *
-   * It is how a Worker opens raw TCP, and WM Pro needs it for exactly one
-   * thing: `src/app/api/market-data/webull/streaming/route.ts` opens an MQTT
-   * connection to `data-api.webull.com`, Webull's real-time host. Webull's
-   * real-time product is not REST — it pushes quotes over MQTT — so there is
-   * no fetch-shaped way to reach it.
+   * MEASURED 2026-09-21: an externals entry made `next build --webpack` pass,
+   * and the build still died one stage later inside OpenNext's own esbuild pass
+   * (`Could not resolve "cloudflare:sockets"`), which exposes no hook for user
+   * externals. Marking it external here only moved the error. The specifier is
+   * now named exactly once, in `cloudflare-worker-entry.js`, which wrangler
+   * bundles and whose runtime owns the module; no file webpack reads mentions
+   * it at all.
    *
-   * Webpack tries to READ the specifier and fails with UnhandledSchemeError,
-   * because `cloudflare:` is not a scheme it knows. Marking it external tells
-   * webpack to emit the import untouched and let the Workers runtime resolve
-   * it, which is the only correct outcome: there is nothing on this laptop for
-   * a bundler to inline.
-   *
-   * MEASURED 2026-09-21: `next build` (Turbopack, the default here) compiled
-   * this file fine and `opennextjs-cloudflare build` — which runs `next build
-   * --webpack` — did not. The two bundlers disagree, so a green local `next
-   * build` is NOT evidence that the deploy will compile. Verify on the path
+   * The general lesson, worth more than the fix: a green `next build` is NOT
+   * evidence that the deploy compiles. This repo runs four bundlers — Turbopack
+   * in dev, webpack for the OpenNext build command, esbuild inside OpenNext,
+   * and esbuild again inside wrangler — and they disagree. Verify on the path
    * that actually ships.
    */
-  webpack: (config) => {
-    const externals = config.externals;
-    config.externals = Array.isArray(externals)
-      ? [...externals, "cloudflare:sockets"]
-      : [externals, "cloudflare:sockets"].filter(Boolean);
-    return config;
-  },
 };
 
 export default nextConfig;

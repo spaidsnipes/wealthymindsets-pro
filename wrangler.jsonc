@@ -23,7 +23,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "wealthymindsets-pro",
-  "main": ".open-next/worker.js",
+  /**
+   * NOT `.open-next/worker.js` — see cloudflare-worker-entry.js for the
+   * measurement. That file imports `cloudflare:sockets` (which only wrangler's
+   * bundler resolves), publishes `connect` on globalThis, and re-exports
+   * OpenNext's default handler plus its Durable Object classes unchanged.
+   */
+  "main": "cloudflare-worker-entry.js",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
