@@ -421,3 +421,91 @@ describe("a Webull 401 reports the provider's own code when there is one", () =>
     expect(bad.note).not.toContain("two words");
   });
 });
+
+/**
+ * × THE TWO HALVES OF ONE ANSWER LIVED ON DIFFERENT SURFACES
+ *
+ * Re-measured on production 2026-09-20 (the Founder's own authenticated
+ * session), eight days after the 09-12 measurement above:
+ *
+ *   /api/market-data/webull/ticks?profile=legacy-sha1  → BLOCKED_AUTH INVALID_TOKEN
+ *   /api/market-data/webull/ticks?profile=sdk-sha256   → BLOCKED_AUTH INVALID_TOKEN
+ *   /api/broker/readiness → webull-data missingRecommended INCLUDES
+ *                           WEBULL_ACCESS_TOKEN  (and NO nearMiss for it,
+ *                           so it is absent, not merely misnamed)
+ *
+ * Both facts were already true on 09-12. Neither surface said the other's
+ * half, so two separate shifts each re-derived "Webull returns 401" and each
+ * left it as an unattributed shrug. The provider names a TOKEN; the runtime
+ * can see it sent no token. Joining those two is not interpretation — it is
+ * refusing to throw away a fact that is already in scope.
+ *
+ * WHAT THIS MAY NOT BECOME: "the missing token is the cause." Webull may use
+ * INVALID_TOKEN for the App Key itself. The join names a CANDIDATE and says
+ * out loud that it is not proven. These tests exist to keep that hedge welded
+ * on, because the hedge is the only thing separating this from the invented
+ * cause that the readiness note was written to forbid.
+ */
+describe("× a token-shaped 401 is joined to whether we actually sent a token", () => {
+  const base = {
+    appKey: "app-key",
+    appSecret: "app-secret",
+    now: () => new Date("2026-09-20T12:00:00Z"),
+    nonce: () => "fixed-nonce",
+  };
+  const respond = (code: string) =>
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+
+  it("THE MEASURED STATE: no token configured + INVALID_TOKEN names the next atom", async () => {
+    const snap = await fetchWebullTickSnapshot(respond("INVALID_TOKEN"), base);
+    expect(snap.state).toBe("BLOCKED_AUTH");
+    expect(snap.note).toContain("INVALID_TOKEN");
+    expect(snap.note).toContain("WEBULL_ACCESS_TOKEN");
+    expect(snap.note).toMatch(/next atom/i);
+  });
+
+  it("THE HEDGE IS LOAD-BEARING: it names a candidate, never a proven cause", async () => {
+    const snap = await fetchWebullTickSnapshot(respond("INVALID_TOKEN"), base);
+    expect(snap.note).toMatch(/NOT proven to be the cause/i);
+    expect(snap.note).toContain("not interpreted here");
+    // The exact overclaim this join could decay into.
+    expect(snap.note).not.toMatch(/is the cause|because WEBULL_ACCESS_TOKEN is missing/i);
+  });
+
+  it("a CONFIGURED token flips the advice from 'set it' to 'rotate it'", async () => {
+    const snap = await fetchWebullTickSnapshot(respond("INVALID_TOKEN"), {
+      ...base,
+      accessToken: "configured-token",
+    });
+    expect(snap.note).toMatch(/expired, revoked, or issued for a different environment/i);
+    // Telling the Founder to set a variable he already set is how a diagnostic
+    // surface teaches people to stop reading it.
+    expect(snap.note).not.toMatch(/next atom/i);
+    expect(JSON.stringify(snap)).not.toContain("configured-token");
+  });
+
+  it("a NON-token code is left exactly as it was — no join, no advice", async () => {
+    const snap = await fetchWebullTickSnapshot(respond("INVALID_SIGNATURE"), base);
+    expect(snap.note).toContain("INVALID_SIGNATURE");
+    expect(snap.note).not.toContain("WEBULL_ACCESS_TOKEN");
+    expect(snap.note).not.toMatch(/leading candidate/i);
+  });
+
+  it("the scan is not vacuous — the same assertion separates the two branches", async () => {
+    const tokenCode = await fetchWebullTickSnapshot(respond("INVALID_TOKEN"), base);
+    const otherCode = await fetchWebullTickSnapshot(respond("INVALID_APP_KEY"), base);
+    expect(tokenCode.note).toMatch(/leading candidate/i);
+    expect(otherCode.note).not.toMatch(/leading candidate/i);
+  });
+
+  it("the secret still never leaves through the widened note", async () => {
+    const snap = await fetchWebullTickSnapshot(respond("EXPIRED_TOKEN"), base);
+    expect(JSON.stringify(snap)).not.toContain("app-secret");
+    expect(snap.note).toContain("WEBULL_ACCESS_TOKEN");
+  });
+});

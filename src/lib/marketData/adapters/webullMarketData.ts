@@ -268,11 +268,39 @@ export async function fetchWebullTickSnapshot(
       // be made after asking.
       const providerCode = await Promise.race([readWebullErrorCode(response), deadline]);
       if (providerCode) {
+        // THE PROVIDER NAMED A TOKEN. WE KNOW WHETHER WE SENT ONE. SAY SO.
+        //
+        // Measured production 2026-09-12 AND re-measured 2026-09-20: this exact
+        // 401 was derived twice by two shifts and stayed opaque both times,
+        // because the two halves of the answer live on different surfaces.
+        // /api/broker/readiness knows WEBULL_ACCESS_TOKEN is absent; this probe
+        // knows Webull said INVALID_TOKEN. Neither one ever said the other's
+        // half, so "which edge to fix" stayed a shrug for eight days.
+        //
+        // That is the same defect shape as two call sites of one compiler
+        // answering one question two ways: the information existed, nobody
+        // joined it. The join belongs HERE, where both facts are in scope.
+        //
+        // The bar for what this may assert is deliberately narrow. A
+        // token-shaped provider code plus a provably absent token is a strong
+        // CANDIDATE, not a proof — Webull could equally be calling the App Key
+        // a "token". So this names the next atom and labels its own confidence.
+        // It must never harden into "the cause", which is the exact invention
+        // the readiness note was written to prevent.
+        const tokenShaped = /TOKEN/.test(providerCode);
+        const tokenLead = tokenShaped && !accessToken
+          ? " The provider's code names a TOKEN and this runtime sent no x-access-token, because WEBULL_ACCESS_TOKEN is not set. " +
+            "That makes the absent token the leading candidate to try first — it is NOT proven to be the cause, since the provider " +
+            "may use this code for the App Key itself. Next atom: set WEBULL_ACCESS_TOKEN and re-probe."
+          : tokenShaped && accessToken
+            ? " The provider's code names a TOKEN and this runtime DID send an x-access-token, so the configured token is the leading " +
+              "candidate to rotate — it may be expired, revoked, or issued for a different environment."
+            : "";
         return unavailable(
           "BLOCKED_AUTH",
           `Webull Data API returned HTTP 401 for the signed market-data request and identified the rejection as ${providerCode}. ` +
             "This is the provider's own code, reported verbatim and not interpreted here — it is the evidence for which edge to fix " +
-            "(App Key/Secret, request signature, API host, or environment). No tick observation was returned.",
+            `(App Key/Secret, request signature, API host, or environment).${tokenLead} No tick observation was returned.`,
         );
       }
       return unavailable(
