@@ -178,6 +178,30 @@ export function AlpacaTradingPanel({
     return () => { alive = false; };
   }, []);
 
+  // tastytrade REAL QUOTE for the symbol in the ticket, from the server route
+  // over GET /market-data/by-type. This exists because "Connected" is not the
+  // deliverable — SEEING THE DATA is. A green chip beside an empty quote line
+  // is the exact state the Founder called out: connected, and still no numbers.
+  //
+  // Every outcome renders, including refusals. Nothing is collapsed to null.
+  const [ttQuote, setTtQuote] = useState<
+    { outcome: string; note: string; items: Array<Record<string, unknown>> } | null
+  >(null);
+  useEffect(() => {
+    if (!ttStatus?.connected) { setTtQuote(null); return; }
+    const sym = symbol.trim().toUpperCase();
+    if (!sym) { setTtQuote(null); return; }
+    let alive = true;
+    fetch(`/api/broker/tastytrade/market-data?equity=${encodeURIComponent(sym)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (alive) setTtQuote(d); })
+      .catch(() => {
+        // Our own network failure is OURS to say, not tastytrade's silence.
+        if (alive) setTtQuote({ outcome: "NOT_ASKED", note: "WM Pro could not reach its own quote route.", items: [] });
+      });
+    return () => { alive = false; };
+  }, [ttStatus?.connected, symbol]);
+
   const loadAccount = useCallback(async () => {
     accountRead.current?.cancel();
     const controller = new AbortController();
@@ -489,6 +513,37 @@ export function AlpacaTradingPanel({
                 ? `· ${ttStatus.accounts} account${ttStatus.accounts === 1 ? "" : "s"} · futures${ttStatus.quotes ? " · quotes" : ""}`
                 : `· ${ttStatus.note || "finishing setup"}`}
             </span>
+          </div>
+        )}
+
+        {/* ── tastytrade quote for the ticket symbol — the numbers, or the
+             reason there are none. Both are facts; only one is a failure. ── */}
+        {ttQuote && (
+          <div className="mx-4 mt-2 px-3 py-2 rounded-lg text-[11px] border border-wm-border"
+            style={{ background: "rgba(255,255,255,0.02)" }}>
+            {ttQuote.outcome === "SERVED" && ttQuote.items[0] ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-bold text-wm-text">{symbol.trim().toUpperCase()}</span>
+                {(["bid", "ask", "last"] as const).map((field) => {
+                  const v = ttQuote.items[0]?.[field];
+                  return (
+                    <span key={field} className="text-wm-text-dim">
+                      {field}{" "}
+                      <span className="text-wm-text font-mono">
+                        {v === null || v === undefined || v === "" ? "—" : String(v)}
+                      </span>
+                    </span>
+                  );
+                })}
+                <span className="text-wm-text-dim">· tastytrade</span>
+              </div>
+            ) : (
+              // A classified refusal is worth more than a blank space. It tells
+              // the trader whether to wait, fix something, or ask the provider.
+              <div className="text-wm-text-dim">
+                <span className="font-bold text-wm-text">{ttQuote.outcome}</span> · {ttQuote.note}
+              </div>
+            )}
           </div>
         )}
 

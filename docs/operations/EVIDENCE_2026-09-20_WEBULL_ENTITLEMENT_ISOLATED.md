@@ -81,10 +81,10 @@ remaining gap is on the market-data entitlement axis.
 **NOT licensed:** naming which entitlement, or telling the Founder what to buy.
 The checkbox on his API key is a *permission scope on the key*; whether that is
 the same object as a *data package on the account* is not something this probe
-measured. One unproven-but-testable hypothesis worth putting to Webull directly:
-his portal reads "Using OpenAPI service in **Paper trading**," and a paper
-OpenAPI context may not carry real-time US equity data. **Unproven. Ask, do not
-assume — assuming is what cost three months.**
+measured. ~~One unproven-but-testable hypothesis worth putting to Webull
+directly: his portal reads "Using OpenAPI service in **Paper trading**," and a
+paper OpenAPI context may not carry real-time US equity data.~~ **RETRACTED
+2026-09-21 — see the Corrections section below.**
 
 ## What stops the recurrence
 
@@ -102,6 +102,61 @@ assume — assuming is what cost three months.**
   birth, not retro-fitted.
 
 Suite 873 files / 11,181 tests green; `tsc --noEmit` clean.
+
+## Corrections (2026-09-21)
+
+Two claims in the sections above have been re-opened at the Founder's
+instruction — *"lets not just bypass this webull issue."* Both are recorded
+here rather than quietly deleted, because a document about not guessing may not
+launder its own guesses.
+
+### 1. RETRACTED — the "paper trading" hypothesis
+
+Founder correction, verbatim: *"webull has a paper trading api i have you the
+real api."* Webull ships paper trading as a **separate API**, and the
+credentials on this host are the real-trading ones. The portal label that
+prompted the hypothesis was not evidence that our requests run in a paper
+context, and the hypothesis was never measured.
+
+It also failed the standard this very document sets. A denial describes the
+provider's view of OUR request; a *portal label* is even weaker — it is not
+about our request at all. Offering it as a lead pointed the Founder back at his
+own account setup for the second time. That is the three-month failure shape,
+committed inside the file written to prevent it.
+
+### 2. INVESTIGATED AND DISPROVED — the wrong-host theory (mine)
+
+`webull/core/data/endpoints.json` declares **two** hosts for region `us`:
+
+```json
+"us": {"api": "api.webull.com", "quotes-api": "data-api.webull.com", ...}
+```
+
+Our three Webull modules (`webullMarketData.ts`, `webullEntitlementProbe.ts`,
+`webullBrokerConnection.ts`) all hard-code `api.webull.com`. That looked like it
+explained the ladder perfectly: trading rungs 200, market-data rungs 403.
+
+It does not. Traced through the SDK rather than asserted:
+
+- `core/client.py:380` builds `ResolveEndpointRequest(self._region_id)` and
+  passes **no** `api_type`.
+- `resolver_endpoint_request.py` defaults `api_type` to `HTTP_API_TYPE`, which
+  `core/common/api_type.py` defines as `DEFAULT = "api"`.
+- The only caller that asks for `api_type.QUOTES` is
+  `data/internal/quotes_client.py:177`, inside `_quotes_connect(self, host,
+  port)` — a persistent socket, not a REST call.
+
+**So REST market data belongs on `api.webull.com`, and our host is correct.**
+The wrong-host explanation is dead for the REST lane, and the "host proven good
+by measurement" claim in the table above survives.
+
+### 3. NEWLY SURFACED — an unexplored lane, not a wall
+
+What (2) exposes is that Webull's real-time quote path is a **persistent socket
+to `data-api.webull.com`**, and **WM Pro does not implement it at all**. That is
+not an entitlement wall and not a defect; it is a lane nobody has measured. It
+is the first Webull thing to measure next, and until it is measured nothing may
+be said about what it would return.
 
 ## Still open
 
