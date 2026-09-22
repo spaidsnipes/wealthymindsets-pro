@@ -266,6 +266,53 @@ applies to the build order too.
 
 ---
 
+## ASSETS 19 + 20 — COLLISION REVIEW COMPLETE, NOTHING TO MERGE (2026-09-22)
+
+The ledger names these "Absorption Anatomy **Alternate**" and "Big Trade
+Intelligence **Alternate**": alternate compositions of the shipped 06 and 05,
+to be compared and only the stronger grammar kept. Both mockups were read from
+Drive on 2026-09-22 (`WM_Transformation_UI_19_...jpeg`,
+`WM_Transformation_UI_20_...jpeg`) and compared element-by-element against the
+shipped surfaces. **Verdict: neither carries a stronger grammar with an owner
+that is not already shipped, so nothing merges and no code changes.**
+
+**Asset 19 vs shipped 06.** Every owned element of the alternate is already
+compiled by `selectAbsorptionAnatomyView`: the left rail (buyer/seller
+initiated volume, shares of total, window delta — nullable on unsigned tapes),
+the centre (effort vs displacement, absorption zone, efficiency ratio on the
+STRONG/MODERATE/WEAK ladder), and the right rail (the five-item diagnostic
+checklist with MET/NOT_MET/UNMEASURED per criterion). The alternate's only
+additions are the refusal list that compiler's header already names: a minted
+`CONVICTION 82%` probability, `INSTITUTIONAL PARTICIPATION LIKELY` (attribution
+no print states), and `High probability of local reversal` (a verdict with no
+model). The alternate is the SAME composition with the refused elements drawn
+larger.
+
+**Asset 20 vs shipped 05.** The detection grammar (a large print, its size
+stated against the loaded window, side and venue disclosure) is shipped; the
+Big Trades row above records the live-observed `LARGE PRINTS · 6 cleared the
+cut` with the cut stated on the surface — which is the honest form of the
+mockup's `98.7th percentile`, a precision a 50-print retained tape cannot
+mint (see the Worksheet row's ladder-ceiling note: `useWebSocket.ts:1164`
+retains 50 prints). The alternate's five-step "contextual analysis" decomposes
+into: structure location (owners exist — `selectMarketStructure` pivots,
+Living Profile value area — but the step's `HIGH IMPACT LOCATION` grade is
+§9-refused prose); absorbed-or-displacement (that question IS Asset 06's
+efficiency measurement, already a sibling tab — answering it a second time
+inside Big Trades would be a second voice on one question); and `HISTORICAL
+BEHAVIOR` — `Win Rate 68.3%`, `Follow-Through Prob. 72.1%`, `312 historical
+matches` — which requires a historical-match database no module in this repo
+owns. A blocker that cannot name the module it waits on is a guess wearing a
+status, and an implementation that cannot name its owner is a fabrication
+wearing a feature.
+
+Filed here rather than in the VIEW-STATUS table because neither asset is a
+view: they were candidate compositions, and the comparison the ledger asked
+for is the deliverable. The 19/20 line in the Later list above is now fully
+discharged — nothing in this repo waits on either mockup.
+
+---
+
 ## ASSET 12 — SHIPPED AS A CONTROL, NOT A TAB (2026-09-19)
 
 `WM_Transformation_UI_12_Progressive_Scaffolding_Foundation_Intermediate_Pro`
