@@ -78,6 +78,7 @@ import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
 import { chartIdentityLabel } from "@/lib/chart/chartIdentityLabel";
+import { initialChartRange } from "@/lib/chart/initialChartRange";
 import {
   openChartCameraKeeper,
   type ChartCameraKeeper,
@@ -2809,14 +2810,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // bunch against the right edge leaving the left half blank (the "Renko shows
         // empty chart" bug). For these types fit ALL bricks into the pane instead.
         //
-        // Intraday clock timeframes: fitContent() shows the FULL loaded session
-        // (typically today's RTH) instead of the last ~100 bars around now. Before
-        // this, opening TSLA on 1m at market close showed only "01:20 PM → 02:57 PM"
-        // even though 389 bars covering the whole session were already loaded.
-        // Higher timeframes (daily+) span years, so we keep scrollToRealTime for
-        // those — fitContent would zoom them out to a nearly-flat line.
+        // Fit a session when it fits the pane, including a complete one-minute
+        // RTH session. Futures may load thousands of intraday bars; fitting all
+        // of those makes the price action and its attached readings unreadable.
+        // Reset View still lets the trader fit the complete history explicitly.
         const intradayClockTf = ["1m","2m","3m","5m","10m","15m","30m","1h","2h","4h"].includes(timeframe);
-        if (isRenko || isRangeBars || intradayClockTf) {
+        const range = initialChartRange({
+          synthetic: isRenko || isRangeBars,
+          intraday: intradayClockTf,
+          intervalSec: tfSec,
+          barCount: data.length,
+          barSpacing: bs,
+          viewportWidth: el.clientWidth,
+        });
+        if (range === "fit") {
           chart.timeScale().fitContent();
         } else {
           chart.timeScale().scrollToRealTime();
