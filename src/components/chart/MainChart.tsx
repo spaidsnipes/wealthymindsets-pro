@@ -20,6 +20,7 @@ import { canonicalAssetClass, canonicalInstrumentId } from "@/lib/marketData/can
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
+import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
   compileBarHistoryRefusal,
   type BarHistoryRefusalVM,
@@ -1452,11 +1453,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     ask:     number;   // buyer-initiated volume in this level / zone
     born:    number;   // performance.now() at spawn (newest-N cap ordering)
     anchorTime: number; // bar time (unix s) → home X re-anchor on scroll
+    anchorBarTime: number; // containing bar start; exact-time x is placed inside it
     anchorPrice: number; // price → home Y re-anchor on scroll/zoom
     levelIdx:  number;   // rank within the candle (for horizontal stagger)
     siblingN:  number;   // how many bubbles share this candle
     kind:      "big-trade" | "delta";
     spawnKey:  string;   // dedupe + cull key (bt: / dt: prefixes)
+    aggressorMethod?: AggressorMethod;
   };
   const bubblesRef    = useRef<Bubble[]>([]);           // Big Trades — individual large prints
   const bubbleSpawnRef = useRef<Set<string>>(new Set());
@@ -1943,6 +1946,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
+  // Big Trades is NOT a price-level reading. Keep the individual executions
+  // beside (not inside) the footprint accumulator so two prints at one price
+  // remain two bubbles with two timestamps and two canonical event ids.
+  const bigTradePrintAccRef = useRef<Map<number, BigTradeTick[]>>(new Map());
   const processedTicksRef = useRef<Set<string>>(new Set());
   // WM Session Tape Stats — running counters WM has observed for the current
   // symbol since tape collection began. Purely from real tick.trade events.
@@ -2010,6 +2017,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // owned intermediate caches — safe to rebuild on any of (symbol, source,
     // timeframe) change. The bounded recent-tick buffer folds back into them.
     tickAccRef.current = new Map();
+    bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
     deltaTickAccRef.current = new Map();
     deltaProcessedRef.current = new Set();
@@ -2049,6 +2057,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
       const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
+      if (!bigTradePrintAccRef.current.has(barTime)) bigTradePrintAccRef.current.set(barTime, []);
+      bigTradePrintAccRef.current.get(barTime)!.push({
+        price: tick.price,
+        bid: tick.side === "sell" ? tick.size : 0,
+        ask: tick.side === "buy" ? tick.size : 0,
+        printKey: dedupeKey,
+        timeMs: tick.time,
+        aggressorMethod: tick.marketEvent?.aggressorMethod,
+      });
       if (!tickAccRef.current.has(barTime)) tickAccRef.current.set(barTime, new Map());
       const lvlMap = tickAccRef.current.get(barTime)!;
       const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
@@ -2069,6 +2086,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
+      bigTradePrintAccRef.current.delete(oldest);
     }
     // Throttled render trigger for the Live Session chip. rAF-safe: only bumps
     // state up to ~4x per second so a busy tape does not thrash React.
@@ -5119,13 +5137,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * not merged, just gone. See that module's header.
    */
   const getRealBigTradeLevels = useCallback((bar: LegacyOhlcvTuple): BigTradeLevel[] => {
-    const realData = tickAccRef.current.get(bar.time as number);
-    if (!realData || realData.size === 0) return [];
-
-    const ticks: BigTradeTick[] = [];
-    for (const [px, rt] of realData) ticks.push({ price: Number(px), bid: rt.bid, ask: rt.ask });
-
-    return computeBigTradeLevels(ticks, base);
+    const prints = bigTradePrintAccRef.current.get(bar.time as number);
+    if (!prints || prints.length === 0) return [];
+    return computeBigTradeLevels(prints, base);
   }, [base]);
 
   /**
@@ -5737,6 +5751,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ask: lv.ask,
                 born: (c.time as number) * 1000 + rankIdx + 500,
                 anchorTime: c.time as number,
+                anchorBarTime: c.time as number,
                 anchorPrice: lv.priceLevel,
                 levelIdx: rankIdx,
                 siblingN: ranked.length,
@@ -6263,10 +6278,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const rawLevY = srs.priceToCoordinate(lv.priceLevel);
             if (rawLevY == null) return;
             const levY = Math.round(rawLevY);
+            const barTime = c.time as number;
+            const exactTime = lv.timeMs != null ? lv.timeMs / 1000 : barTime;
+            const withinBar = Math.max(0, Math.min(1, (exactTime - barTime) / (intervalSec ?? 60)));
+            const exactX = cx + (withinBar - 0.5) * bsp;
 
             bubblesRef.current.push({
               id:    ++bubbleIdRef.current,
-              x:     cx,  y: levY,  vx: 0, vy: 0,
+              x:     exactX,  y: levY,  vx: 0, vy: 0,
               baseR,
               r:     baseR * 0.35,
               phase,
@@ -6275,13 +6294,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               value,
               bid:   lv.bid,
               ask:   lv.ask,
-              born:  (c.time as number) * 1000 + rankIdx,
-              anchorTime:  c.time as number,
+              born:  lv.timeMs ?? barTime * 1000 + rankIdx,
+              anchorTime: exactTime,
+              anchorBarTime: barTime,
               anchorPrice: lv.priceLevel,
               levelIdx: rankIdx,
               siblingN: ranked.length,
               kind: "big-trade",
               spawnKey,
+              aggressorMethod: lv.aggressorMethod,
             });
             // Loudness is a question about the TRADE, not about the pixels.
             // This used to read `baseR > 24`, which worked only by accident of
@@ -6319,14 +6340,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // gently AT the level (buoyant bob). No lifespan, no expiry — a bubble
         // never fades or pops; it persists until its bar scrolls off screen.
         for (const b of bubbles) {
-          const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          const barX = chart.timeScale().timeToCoordinate(b.anchorBarTime as any);
+          const barFraction = Math.max(0, Math.min(1, (b.anchorTime - b.anchorBarTime) / (intervalSec ?? 60)));
+          const hx = barX == null ? null : barX + (barFraction - 0.5) * bsp;
           const hy = srs.priceToCoordinate(b.anchorPrice);
           if (hx == null || hy == null) continue; // off-screen → culled below
           const bob   = Math.sin(b.phase + nowMs / 1600) * 3;
           const sibN  = b.siblingN ?? 1;
           const lvlIx = b.levelIdx ?? 0;
           const spread = sibN > 1 ? Math.min(28, Math.max(14, b.baseR * 0.75)) : 0;
-          const offX  = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
+          // A Big Trade already owns an exact timestamp inside this bar.
+          // Staggering it horizontally would move the glyph off its evidence.
+          const offX  = b.kind === "big-trade" ? 0 : sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
           const homeX = hx + offX + Math.cos(b.phase + nowMs / 2400) * 2;
           const homeY = hy + bob - 3;
           b.vx += (homeX - b.x) * 0.012;
@@ -6341,7 +6366,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // max-visible cap by keeping the NEWEST N — never fade the rest out.
         const survivors: Bubble[] = [];
         for (const b of bubbles) {
-          const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          const barX = chart.timeScale().timeToCoordinate(b.anchorBarTime as any);
+          const barFraction = Math.max(0, Math.min(1, (b.anchorTime - b.anchorBarTime) / (intervalSec ?? 60)));
+          const hx = barX == null ? null : barX + (barFraction - 0.5) * bsp;
           if (hx == null || hx < -80 || hx > W + 80) {
             // free this level's dedupe key so it re-spawns on pan-back
             // The `?? \`bt:${b.anchorTime}:${b.anchorPrice}\`` fallback that used
@@ -6373,6 +6400,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // Draw bubbles — real water-bubble look: transparent glassy body,
         // bright iridescent rim, specular highlights, gentle wobble. Fully
         // opaque and always present (no fade, no pop).
+        canvas.dataset.bigTradeBubbleCount = String(bubblesRef.current.length);
+        canvas.dataset.bigTradeBubbleIdentity = "INDIVIDUAL_EXECUTION";
+        canvas.dataset.bigTradeBubbleStatus = bubblesRef.current.length ? "DRAWN" : "WAITING_FOR_PRINTS";
         const hoverId = bubbleHoverRef.current;
         for (const b of bubblesRef.current) {
           const buy = b.side === "buy";
@@ -6388,6 +6418,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const Ry = Math.max(0.1, b.r / wob);
 
           ctx.save();
+
+          // Visuals Canon: Big Trades are market objects in the same underwater
+          // world as Liquidity Weather. Keep the teal/red core as side truth,
+          // then add a brass caustic corona around the individual execution.
+          // The corona communicates object class, never participant or intent.
+          if (b.kind === "big-trade") {
+            ctx.save();
+            ctx.shadowColor = "rgba(232,184,92,0.72)";
+            ctx.shadowBlur = Math.max(7, b.r * 0.55);
+            ctx.beginPath();
+            ctx.ellipse(b.x, b.y, Rx + 3.5, Ry + 3.5, 0, 0, Math.PI * 2);
+            ctx.lineWidth = isHover ? 2.4 : 1.25;
+            ctx.strokeStyle = `rgba(232,184,92,${isHover ? 0.94 : 0.68})`;
+            ctx.stroke();
+            ctx.restore();
+          }
 
           // outer halo (soft tinted glow)
           ctx.beginPath();
@@ -6452,11 +6498,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           ctx.restore();
         }
-      } else if (bubblesRef.current.length) {
+      } else {
         // Left big-trades mode → clear bubbles + tooltip
         bubblesRef.current = [];
         bubbleSpawnRef.current = new Set();
         bubbleHoverRef.current = null;
+        canvas.dataset.bigTradeBubbleCount = "0";
+        canvas.dataset.bigTradeBubbleStatus = "OFF";
       }
 
       /* ══════════════════════════════════════════════════════
@@ -9088,7 +9136,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // standing in for an instrument-class question. See that module's
         // header for the full account.
         const claim = describeBubbleClaim({
-          kind: hit.kind, bid: hit.bid, ask: hit.ask, price: hit.anchorPrice,
+          kind: hit.kind,
+          bid: hit.bid,
+          ask: hit.ask,
+          price: hit.anchorPrice,
+          aggressorMethod: hit.aggressorMethod,
         });
         // No aggressor volume behind the bubble means nothing honest to say,
         // so no tooltip — rather than a confident "0".

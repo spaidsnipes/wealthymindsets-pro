@@ -65,6 +65,8 @@
  * bid = seller-initiated ("sell"), delta = ask - bid.
  */
 
+import type { AggressorMethod } from "@/lib/marketData/marketEvent";
+
 export type BubbleKind = "big-trade" | "delta";
 
 export interface BubbleClaimInput {
@@ -75,6 +77,8 @@ export interface BubbleClaimInput {
   ask: number;
   /** The real traded price this bubble owns. See deltaBubbleLevels.ts. */
   price: number;
+  /** How the provider established the side on an individual-print bubble. */
+  aggressorMethod?: AggressorMethod;
 }
 
 export interface BubbleClaim {
@@ -193,6 +197,17 @@ export function formatBubblePrice(p: number): string {
 
 const clean = (n: number): number => (Number.isFinite(n) && n > 0 ? n : 0);
 
+export function describeAggressorMethod(method: AggressorMethod | undefined): string {
+  if (method === "PROVIDER") return "aggressor provenance: provider-stamped";
+  if (method === "MAKER_SIDE_INVERTED") {
+    return "aggressor provenance: provider maker-side inversion";
+  }
+  if (method === "TICK_RULE" || method === "QUOTE_TEST") {
+    return `aggressor provenance: inferred by ${method === "TICK_RULE" ? "tick rule" : "quote test"}`;
+  }
+  return "aggressor provenance: undisclosed";
+}
+
 /**
  * Describe one bubble in words its own number can back.
  *
@@ -231,11 +246,15 @@ export function describeBubbleClaim(input: BubbleClaimInput): BubbleClaim | null
   // The headline is the DOMINANT side's own volume — not the level's
   // two-sided total, which is what used to sit under the word BUY.
   const dominant = side === "buy" ? ask : bid;
+  const provenance = describeAggressorMethod(input.aggressorMethod);
   return {
     side,
-    heading: side === "buy" ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL",
+    heading:
+      input.aggressorMethod === "TICK_RULE" || input.aggressorMethod === "QUOTE_TEST"
+        ? side === "buy" ? "INFERRED BUY PRINT" : "INFERRED SELL PRINT"
+        : side === "buy" ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL",
     headline: `${side === "buy" ? "+" : "−"}${formatBubbleExact(dominant)}`,
-    detail: `${bought} bought · ${sold} sold at ${price}`,
+    detail: `${bought} bought · ${sold} sold at ${price} · ${provenance}`,
     value: side === "buy" ? dominant : -dominant,
   };
 }

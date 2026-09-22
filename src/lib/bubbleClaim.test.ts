@@ -192,6 +192,31 @@ describe("the two bubble kinds no longer share one sentence", () => {
     expect(c.headline).not.toContain("12.4k");
     expect(c.detail).toContain("12.4k bought");
   });
+
+  it("discloses whether aggressor side came from a provider or inference", () => {
+    const provider = describeBubbleClaim({
+      kind: "big-trade", bid: 0, ask: 12, price: 150.01, aggressorMethod: "PROVIDER",
+    })!;
+    expect(provider.heading).toBe("AGGRESSIVE BUY");
+    expect(provider.detail).toContain("aggressor provenance: provider-stamped");
+
+    const maker = describeBubbleClaim({
+      kind: "big-trade", bid: 12, ask: 0, price: 150.01, aggressorMethod: "MAKER_SIDE_INVERTED",
+    })!;
+    expect(maker.heading).toBe("AGGRESSIVE SELL");
+    expect(maker.detail).toContain("aggressor provenance: provider maker-side inversion");
+
+    const inferred = describeBubbleClaim({
+      kind: "big-trade", bid: 0, ask: 12, price: 150.01, aggressorMethod: "TICK_RULE",
+    })!;
+    expect(inferred.heading).toBe("INFERRED BUY PRINT");
+    expect(inferred.detail).toContain("aggressor provenance: inferred by tick rule");
+
+    const undisclosed = describeBubbleClaim({
+      kind: "big-trade", bid: 0, ask: 12, price: 150.01, aggressorMethod: "NONE",
+    })!;
+    expect(undisclosed.detail).toContain("aggressor provenance: undisclosed");
+  });
 });
 
 // ───────────────────────────────────────────────────────────────────

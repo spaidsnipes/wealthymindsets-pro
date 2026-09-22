@@ -45,10 +45,18 @@
  * bid = seller-initiated ("sell").
  */
 
+import type { AggressorMethod } from "@/lib/marketData/marketEvent";
+
 export interface BigTradeTick {
   price: number;
   bid: number; // seller-initiated volume printed at this price
   ask: number; // buyer-initiated volume printed at this price
+  /** Canonical event identity when the provider published one. */
+  printKey?: string;
+  /** The execution timestamp, never the containing bar's timestamp. */
+  timeMs?: number;
+  /** How this individual print's aggressor side was established. */
+  aggressorMethod?: AggressorMethod;
 }
 
 export interface BigTradeLevel {
@@ -60,6 +68,11 @@ export interface BigTradeLevel {
   bid: number;
   ask: number;
   total: number;
+  /** One execution, one identity. Never a price-level key. */
+  printKey?: string;
+  /** Exact execution time when the tape supplied it. */
+  timeMs?: number | null;
+  readonly aggressorMethod?: AggressorMethod;
 }
 
 /**
@@ -76,7 +89,7 @@ export function minBigTradeLot(base: number): number {
 
 /** Stable spawn/dedupe identity for one big-trade level. */
 export function bigTradeLevelKey(barTime: number, level: BigTradeLevel): string {
-  return `bt:${barTime}:${level.priceLevel}`;
+  return level.printKey || `bt:${barTime}:${level.priceLevel}`;
 }
 
 /**
@@ -107,14 +120,31 @@ export function computeBigTradeLevels(
   const minLot = minBigTradeLot(base);
 
   const levels: BigTradeLevel[] = [];
-  for (const t of ticks) {
+  for (let sourceIndex = 0; sourceIndex < ticks.length; sourceIndex++) {
+    const t = ticks[sourceIndex];
     const price = Number(t?.price);
     if (!Number.isFinite(price)) continue;
     const bid = Math.max(0, Number(t.bid) || 0);
     const ask = Math.max(0, Number(t.ask) || 0);
     const total = bid + ask;
     if (total < minLot) continue;
-    levels.push({ priceLevel: price, bid, ask, total });
+    const timeMs = Number(t.timeMs);
+    const exactTime = Number.isFinite(timeMs) && timeMs > 0 ? timeMs : null;
+    // An event id is the preferred identity. The fallback includes the source
+    // position so two otherwise identical legacy executions remain two facts;
+    // migrated adapters never need it because marketTickDedupeKey publishes an
+    // event: key.
+    const printKey = t.printKey?.trim() ||
+      `legacy-print:${exactTime ?? "undated"}:${price}:${bid}:${ask}:${sourceIndex}`;
+    levels.push({
+      priceLevel: price,
+      bid,
+      ask,
+      total,
+      printKey,
+      timeMs: exactTime,
+      aggressorMethod: t.aggressorMethod,
+    });
   }
   if (levels.length === 0) return [];
 
@@ -124,11 +154,11 @@ export function computeBigTradeLevels(
   const heaviest = (a: BigTradeLevel, z: BigTradeLevel) =>
     z.total - a.total || a.priceLevel - z.priceLevel;
 
-  // Keyed by the EXACT printed price. Two distinct prints are two distinct
-  // keys; the same print is the same key. That is what the rounding broke.
-  const picked = new Map<number, BigTradeLevel>();
+  // Keyed by the EXECUTION, not by price. Two real prints may share a price,
+  // time bucket and side and still be two separate market events.
+  const picked = new Map<string, BigTradeLevel>();
   for (const l of levels.filter((x) => x.total >= threshold).sort(heaviest).slice(0, 5)) {
-    picked.set(l.priceLevel, l);
+    picked.set(l.printKey!, l);
   }
 
   // The leader must clear minLot ON ITS OWN SIDE, not merely in total. A level
@@ -138,8 +168,8 @@ export function computeBigTradeLevels(
     .sort((a, z) => z.ask - a.ask || a.priceLevel - z.priceLevel)[0];
   const topSell = levels.filter((l) => l.bid > l.ask && l.bid >= minLot)
     .sort((a, z) => z.bid - a.bid || a.priceLevel - z.priceLevel)[0];
-  if (topBuy) picked.set(topBuy.priceLevel, topBuy);
-  if (topSell) picked.set(topSell.priceLevel, topSell);
+  if (topBuy) picked.set(topBuy.printKey!, topBuy);
+  if (topSell) picked.set(topSell.printKey!, topSell);
 
   return [...picked.values()].sort(heaviest).slice(0, 8);
 }

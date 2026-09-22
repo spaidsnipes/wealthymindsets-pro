@@ -41,6 +41,41 @@ describe("minBigTradeLot — the lot floor by price magnitude", () => {
 });
 
 describe("THE DEFECT: two prints that round alike are two levels, not one", () => {
+  it("keeps two executions at the exact same price as two bubbles with their own identities", () => {
+    const levels = computeBigTradeLevels([
+      {
+        price: 60_123.45,
+        bid: 0,
+        ask: 3,
+        printKey: "event:btc-101",
+        timeMs: 1_700_000_001_100,
+        aggressorMethod: "PROVIDER",
+      },
+      {
+        price: 60_123.45,
+        bid: 4,
+        ask: 0,
+        printKey: "event:btc-102",
+        timeMs: 1_700_000_001_900,
+        aggressorMethod: "PROVIDER",
+      },
+    ], 60_000);
+
+    expect(
+      levels,
+      "two real executions do not become one price-level aggregate merely " +
+        "because they printed at the same price inside the same bar",
+    ).toHaveLength(2);
+    expect(levels.map((level) => level.printKey)).toEqual([
+      "event:btc-102",
+      "event:btc-101",
+    ]);
+    expect(levels.map((level) => level.timeMs)).toEqual([
+      1_700_000_001_900,
+      1_700_000_001_100,
+    ]);
+  });
+
   it("keeps both BTC prints that collapse to the same 2 decimals", () => {
     // base > 100, so the old code did toFixed(2): both became "60123.45".
     const levels = computeBigTradeLevels([
@@ -96,6 +131,18 @@ describe("the price a bubble claims is the price that printed", () => {
 });
 
 describe("bigTradeLevelKey — identity is exact by construction", () => {
+  it("prefers the canonical execution identity over bar and price", () => {
+    const level = {
+      priceLevel: 60_123.45,
+      bid: 0,
+      ask: 3,
+      total: 3,
+      printKey: "event:btc-101",
+    };
+    expect(bigTradeLevelKey(1_700_000_000, level)).toBe("event:btc-101");
+    expect(bigTradeLevelKey(1_700_000_060, level)).toBe("event:btc-101");
+  });
+
   it("gives distinct keys to distinct prints in the same bar", () => {
     const a = { priceLevel: 60_123.4512, bid: 0, ask: 3, total: 3 };
     const z = { priceLevel: 60_123.4587, bid: 4, ask: 0, total: 4 };
@@ -230,7 +277,16 @@ describe("MainChart delegates instead of re-typing the ranking", () => {
   ).replace(/\s+/g, " ");
 
   it("gets its big-trade levels from the shared owner", () => {
-    expect(chart).toMatch(/return computeBigTradeLevels\(ticks, base\)/);
+    expect(chart).toMatch(/const prints = bigTradePrintAccRef\.current\.get\(bar\.time as number\)/);
+    expect(chart).toMatch(/return computeBigTradeLevels\(prints, base\)/);
+  });
+
+  it("keeps the individual-print owner separate from footprint aggregation", () => {
+    expect(chart).toMatch(/const bigTradePrintAccRef = useRef<Map<number, BigTradeTick\[\]>>/);
+    expect(chart).toMatch(/printKey:\s*dedupeKey/);
+    expect(chart).toMatch(/timeMs:\s*tick\.time/);
+    expect(chart).toMatch(/aggressorMethod:\s*tick\.marketEvent\?\.aggressorMethod/);
+    expect(chart).toMatch(/const tickAccRef = useRef<Map<number, Map<number, \{ bid: number; ask: number \}>>>/);
   });
 
   it("builds the spawn identity through the owner, never from a rounded price", () => {
