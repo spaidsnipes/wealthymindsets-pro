@@ -140,6 +140,32 @@ describe("the layer publishes a receipt in every state, including the silent one
   });
 });
 
+describe("the heat lens reads as a tide without inventing another market fact", () => {
+  it("fades inside the observed price band rather than laying an opaque slab over candles", () => {
+    expect(CHART).toMatch(/createLinearGradient\(0, top, 0, top \+ band\)/);
+    expect(CHART).toMatch(/wash\.addColorStop\(0, "rgba\(0,0,0,0\)"\)/);
+    expect(CHART).toMatch(/wash\.addColorStop\(1, "rgba\(0,0,0,0\)"\)/);
+    expect(CHART).toMatch(/ctx\.globalAlpha = alpha \* 0\.72/);
+  });
+
+  it("clips every contour to the segment's measured high and low", () => {
+    expect(CHART).toMatch(/ctx\.rect\(0, top, W, band\)/);
+    expect(CHART).toMatch(/ctx\.clip\(\)/);
+    expect(CHART).toMatch(/const y = top \+ \(band \* ci\) \/ \(contourCount \+ 1\)/);
+  });
+
+  it("lets measured intensity control texture while the regulator still caps opacity", () => {
+    expect(CHART).toMatch(/1 \+ Math\.round\(cell\.intensity \* 2\)/);
+    expect(CHART).toMatch(/Math\.min\(alpha \* 0\.9, heat\.maxOpacity\)/);
+    expect(CHART).toMatch(/heatRampColor\(cell\.intensity\)/);
+  });
+
+  it("publishes and withdraws a contour receipt with the cells it describes", () => {
+    expect(CHART).toMatch(/ds\.heatLensContours = String\(contours\)/);
+    expect(CHART.match(/delete ds\.heatLensContours/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
   it("a switched-off layer paints NOTHING, not merely fewer shelves", () => {
     expect(block).toMatch(/if \(on && glass\.drawn\) \{/);

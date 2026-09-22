@@ -8140,6 +8140,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (on && heat.drawable) {
           ctx.save();
           let painted = 0;
+          let contours = 0;
           for (const cell of heat.cells) {
             if (!cell.paintable) continue;
             const yh = srs.priceToCoordinate(cell.high);
@@ -8147,16 +8148,65 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (yh == null || yl == null) continue;
             const top = Math.min(+yh, +yl);
             const band = Math.max(1, Math.abs(+yl - +yh));
-            ctx.globalAlpha = Math.min(cell.opacity, heat.maxOpacity);
-            ctx.fillStyle = heatRampColor(cell.intensity);
+            const alpha = Math.min(cell.opacity, heat.maxOpacity);
+            const tone = heatRampColor(cell.intensity);
+
+            /* THE TIDE IS A TEXTURE OF THE SAME CELL, NOT ANOTHER READING.
+               The old renderer filled the whole price band with a flat slab.
+               That was honest, but it made a living cost surface read like a
+               selected spreadsheet row. The atmosphere below spends no new
+               market fact: y remains the segment's observed high/low, colour
+               and opacity remain the cost lens's intensity, and the contours
+               are evenly spaced INSIDE that measured band. They encode no
+               direction, order-book depth, or future path.
+
+               A vertical fade keeps the candle bodies legible at both edges
+               of the zone. The selector still owns the hard 0.30 regulator;
+               this renderer can only spend less than it was handed. */
+            const wash = ctx.createLinearGradient(0, top, 0, top + band);
+            wash.addColorStop(0, "rgba(0,0,0,0)");
+            wash.addColorStop(0.28, tone);
+            wash.addColorStop(0.72, tone);
+            wash.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.globalAlpha = alpha * 0.72;
+            ctx.fillStyle = wash;
             ctx.fillRect(0, top, W, band);
+
+            // One to three contour lines: a quiet, deterministic expression
+            // of intensity. More expensive travel earns denser texture. The
+            // line never leaves the observed high/low band.
+            const contourCount = 1 + Math.round(cell.intensity * 2);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, top, W, band);
+            ctx.clip();
+            ctx.strokeStyle = tone;
+            ctx.lineWidth = 0.7;
+            ctx.globalAlpha = Math.min(alpha * 0.9, heat.maxOpacity);
+            for (let ci = 1; ci <= contourCount; ci++) {
+              const y = top + (band * ci) / (contourCount + 1);
+              const swell = Math.min(3.5, Math.max(0.7, band * 0.12)) * cell.intensity;
+              ctx.beginPath();
+              ctx.moveTo(0, y);
+              ctx.bezierCurveTo(W * 0.24, y - swell, W * 0.42, y + swell, W * 0.58, y);
+              ctx.bezierCurveTo(W * 0.74, y - swell, W * 0.88, y + swell, W, y);
+              ctx.stroke();
+              contours++;
+            }
+            ctx.restore();
             painted++;
           }
           ctx.restore();
-          if (painted > 0) ds.heatLensCells = String(painted);
-          else delete ds.heatLensCells;
+          if (painted > 0) {
+            ds.heatLensCells = String(painted);
+            ds.heatLensContours = String(contours);
+          } else {
+            delete ds.heatLensCells;
+            delete ds.heatLensContours;
+          }
         } else {
           delete ds.heatLensCells;
+          delete ds.heatLensContours;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 
