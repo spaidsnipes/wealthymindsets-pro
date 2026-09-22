@@ -42,6 +42,12 @@ const readout = await page.evaluate(() => ({
     // which tile was lit when the shutter fired.
     arranged: b.getAttribute("data-equipment-arranged"),
     current: b.getAttribute("aria-current"),
+    // And what that desk ADMITS it cannot draw. Without this the readout can
+    // say which tile was lit while the shot silently loses the one sentence
+    // that distinguishes a named desk from a promise.
+    shortfall: b.getAttribute("data-equipment-shortfall"),
+    confession:
+      b.querySelector('[data-testid="equipment-shortfall-note"]')?.textContent.trim() ?? null,
   })),
   marketStillVisible: document.querySelectorAll(".tv-lightweight-charts").length,
 }));
