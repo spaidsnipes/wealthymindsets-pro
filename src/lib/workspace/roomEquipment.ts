@@ -673,6 +673,59 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       direct: true,
       momentary: true,
     },
+    /**
+     * THE THREE NAMED ARRANGEMENTS — and they are NOT faked.
+     *
+     * The Clean note above deferred these as "a later, larger slice that must
+     * not be faked". They are no longer larger: the desks already exist, fully
+     * compiled and fully tested, in `selectChartArrangement.ts` —
+     * ARRANGEMENT_SPECS, `arrangementSwitches`, readiness counts and the
+     * verbatim `WORKSPACE: ORDER FLOW · 1 OF 5` declaration. What was missing
+     * was a DOOR. The desks could be reached only from inside the Tools drawer
+     * — the canon's "intelligence exists but requires hunting through
+     * implementation containers" clause applied to the very thing the mansion
+     * map names Workspace after.
+     *
+     * NO SECOND ENGINE. Pressing one of these calls the SAME
+     * `arrangementSwitches(id, menu)` the Tools panel calls, into the SAME
+     * `onApply` setters. Two doors, one owner — the identical arrangement the
+     * chart already knew how to enter.
+     *
+     * `momentary`, and the honest reason: an arrangement is a STATE, so these
+     * three would like to be holdable. The rail cannot truthfully report which
+     * desk is active, because the answer is owned by the compiler reading the
+     * chart's live switch positions, not by the channel. Rather than let a
+     * tile guess — a second, drifting copy of a truth that already renders —
+     * the press is a command, and the chart keeps the single declaration of
+     * which arrangement the room is in. THE KNOWN SHORTFALL, WRITTEN DOWN:
+     * the Workspace tile does not light for the active desk. The fix is to
+     * give the rail the compiler's `activeId`, not to invent a rail-side
+     * memory of it.
+     */
+    {
+      id: "arrange-order-flow",
+      label: "Order Flow",
+      hint: "Arm absorption, imbalances, value candles, delta and liquidity",
+      kind: "workspace",
+      direct: true,
+      momentary: true,
+    },
+    {
+      id: "arrange-regime",
+      label: "Regime",
+      hint: "Both volume profiles — where price has been accepted",
+      kind: "workspace",
+      direct: true,
+      momentary: true,
+    },
+    {
+      id: "arrange-review",
+      label: "Review",
+      hint: "Session profile and effort-against-result, after the fact",
+      kind: "workspace",
+      direct: true,
+      momentary: true,
+    },
     {
       id: "draw-tools",
       label: "Draw",

@@ -441,7 +441,30 @@ describe("SENTINEL — equipment is not a destination", () => {
         `${rel} → ${room} declares direct equipment but never hears the channel`,
       ).toBeGreaterThan(-1);
 
-      const handler = src.slice(at, at + 1200);
+      // REMODELLED, NOT WEAKENED (2026-09-22). This used to read a fixed
+      // `src.slice(at, at + 1200)` — a magic number standing in for "the
+      // handler". It held only while the handler stayed short: adding the three
+      // named arrangements pushed the last branch past character 1200, and the
+      // sentinel reported a painted door for a branch that was RIGHT THERE,
+      // twenty lines further down. A window that shrinks as the room grows is a
+      // sentinel that gets weaker exactly when there is more to guard.
+      //
+      // So match the real parentheses instead. This reads the whole callback
+      // and nothing after it, which is strictly narrower than 1200 characters
+      // for a small handler and strictly wider for a large one — i.e. correct
+      // at every size, rather than correct at one.
+      const handler = (() => {
+        const open = src.indexOf("(", at);
+        let depth = 0;
+        for (let i = open; i < src.length; i++) {
+          if (src[i] === "(") depth++;
+          else if (src[i] === ")") {
+            depth--;
+            if (depth === 0) return src.slice(at, i + 1);
+          }
+        }
+        return src.slice(at);
+      })();
       for (const e of direct) {
         expect(
           handler.includes(`"${e.id}"`),

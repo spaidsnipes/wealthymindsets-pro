@@ -102,6 +102,48 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
     </Glyph>
   ),
   /**
+   * THE THREE NAMED ARRANGEMENTS. Each mark is drawn as the SAME frame as
+   * `clean-room` with different furniture inside it, because that is literally
+   * what they are: one market room, arranged three ways. A glyph family that
+   * looked unrelated would imply three destinations, and there is only one.
+   *
+   * Order Flow — aggression against the tape: two opposed pressure bars inside
+   * the frame, the taller one winning.
+   */
+  "arrange-order-flow": (
+    <Glyph>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M7 16.5V9" />
+      <path d="M10.5 16.5v-4" />
+      <path d="M14 16.5V7.5" />
+      <path d="M17.5 16.5v-6" />
+    </Glyph>
+  ),
+  /**
+   * Regime — where price has been ACCEPTED: a horizontal profile leaning off
+   * the left edge of the frame, fattest at value.
+   */
+  "arrange-regime": (
+    <Glyph>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M6.5 7.5h4" />
+      <path d="M6.5 10.5h8" />
+      <path d="M6.5 13.5h6" />
+      <path d="M6.5 16.5h3" />
+    </Glyph>
+  ),
+  /**
+   * Review — after the fact: the frame with a backward arc over it, the same
+   * counter-clockwise gesture `bar-replay` uses, but closed rather than walking.
+   */
+  "arrange-review": (
+    <Glyph>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M8 15.5a4 4 0 1 0-1.2-2.9" />
+      <path d="M6.8 10.2v2.4h2.4" />
+    </Glyph>
+  ),
+  /**
    * The chart's own bench of controls — a tool tray with three implements
    * standing in it. Not a magnifier: `tools` above already owns that mark for
    * the masthead door, and two identical glyphs one press apart would undo in

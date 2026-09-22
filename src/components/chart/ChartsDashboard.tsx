@@ -18,6 +18,10 @@ import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { ChartArrangementBar } from "./ChartArrangementBar";
+// The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
+// imports the SAME two functions for the Tools door — one owner, two call sites.
+import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
+import { arrangementSwitches, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
 import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
 import { OptionExpressionIntent } from "./OptionExpressionIntent";
@@ -2143,6 +2147,71 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   };
 
   /*
+    THE DESK SETTER — ONE OWNER, NOW WITH TWO DOORS.
+
+    `selectChartArrangement.ts` has owned ORDER FLOW / REGIME / REVIEW since it
+    was written: which profiles each desk arms, whether this tape can deliver
+    them, and the sentence that declares the result. What it never had was a
+    door in the hand the mansion map says owns arrangement — WORKSPACE. It was
+    reachable only from inside the Tools drawer, so the trader had to open an
+    equipment container to change how the room is arranged.
+
+    This is the setter both doors call. It is deliberately a single function
+    rather than two copies of the seven `if`s: the JSX below passes it straight
+    through as `onApply`, and the Workspace branch feeds it
+    `arrangementSwitches(id, menu)` — the SAME compiler call `ChartArrangementBar`
+    makes. Two doors, one owner. A second list of setters here would be the
+    two-headed horse: the Tools desk and the Workspace desk could arm different
+    things under the same name.
+
+    DELTA_VP is absent on purpose and that absence belongs to the compiler:
+    `arrangementSwitches` omits DRAW-gesture profiles entirely, so choosing a
+    desk never silently erases a range the trader dragged themselves.
+  */
+  const applyArrangementSwitches = useCallback(
+    (s: Readonly<Partial<Record<ProfileId, boolean>>>) => {
+      if (s.FIXED_RANGE !== undefined) setFixedVPActive(s.FIXED_RANGE);
+      if (s.SESSION !== undefined) setSessionVPChart(s.SESSION);
+      if (s.ABSORPTION !== undefined) setAbsorptionAnatomy(s.ABSORPTION);
+      if (s.IMBALANCE_STACK !== undefined) setImbalanceStackOn(s.IMBALANCE_STACK);
+      if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
+      if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
+      if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
+    },
+    [],
+  );
+
+  /*
+    A LATEST-VALUE REF, NOT A CACHE.
+
+    The equipment subscription below is mounted once. A desk press must be
+    compiled against the bars and the flow the room holds AT THE MOMENT OF THE
+    PRESS, not the empty arrays it held on mount — readiness is measured, and a
+    stale menu would arm ORDER FLOW over a tape with no observed aggressor and
+    call it FULL. Re-subscribing on every bar would churn the channel, so the
+    room keeps the latest reading here instead. Same `latest.current = value`
+    shape this file already uses for live tick state.
+  */
+  const arrangementDeskRef = useRef<(id: ArrangementId) => void>(() => {});
+  arrangementDeskRef.current = (id: ArrangementId) => {
+    const menu = selectProfileMenu({
+      barsPresent: chartBars.length > 0,
+      observedAggressorFlow: chartFlowSnap.hasFlow,
+      active: {
+        FIXED_RANGE: fixedVPActive,
+        SESSION: sessionVPChart,
+        ABSORPTION: absorptionAnatomy,
+        DELTA_VP: drawingTool === "delta-vp",
+        IMBALANCE_STACK: imbalanceStackOn,
+        VALUE_CANDLE: valueCandleOn,
+        DELTA_DIVERGENCE: deltaDivergenceOn,
+        LIQUIDITY_WEATHER: liquidityWeatherOn,
+      },
+    });
+    applyArrangementSwitches(arrangementSwitches(id, menu));
+  };
+
+  /*
     DIRECT EQUIPMENT — the frame asks, this room acts, nothing else moves.
 
     `roomEquipment` declares Draw and Replay as this room's WORKSPACE hand
@@ -2242,6 +2311,36 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // controls read state that component owns. This branch flips the one
           // boolean that opens it; there is no second copy of any control.
           setChartEquipmentOpen(!down);
+        } else if (
+          req.equipmentId === "arrange-order-flow" ||
+          req.equipmentId === "arrange-regime" ||
+          req.equipmentId === "arrange-review"
+        ) {
+          // THE THREE NAMED ARRANGEMENTS — the second door, not a second desk.
+          //
+          // `clean-room` above is the subtraction; these are the compositions,
+          // and its note deferred them on the grounds that they "must not be
+          // faked by this one". They are not faked here: every switch comes out
+          // of `arrangementSwitches(id, menu)`, the same compiler call the Tools
+          // panel makes, applied through the same `applyArrangementSwitches`.
+          //
+          // `momentary` in the registry, exactly like `clean-room`: a desk is a
+          // COMMAND. There is no put-down half — un-arranging is what Clean is
+          // for — and the direct-equipment Sentinel FORBIDS announcing a stage
+          // for it, because a stage would claim the rail is holding something.
+          //
+          // THE KNOWN SHORTFALL, SAID OUT LOUD: the rail tile does not light
+          // for the desk currently in force. `selectChartArrangement` owns
+          // `activeId`, and the honest repair is to hand the rail that answer —
+          // not to give the rail a memory of its own presses, which would drift
+          // the moment a switch is flipped from any other door.
+          arrangementDeskRef.current(
+            req.equipmentId === "arrange-order-flow"
+              ? "ORDER_FLOW"
+              : req.equipmentId === "arrange-regime"
+                ? "REGIME"
+                : "REVIEW",
+          );
         }
       }),
     [openDrawingTools, startReplay, stopReplay, onChartEquipmentClose],
@@ -3633,16 +3732,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   `arrangementSwitches` omits DELTA_VP entirely because a dragged
                   box is not a switch — so the trader's own range selection is
                   never silently cleared by choosing a desk.
+
+                  The seven setters that used to be written out here now live in
+                  `applyArrangementSwitches` above, because the Workspace rail
+                  grew a door to the same three desks. One setter, two doors.
                 */
-                onApply={(s) => {
-                  if (s.FIXED_RANGE !== undefined) setFixedVPActive(s.FIXED_RANGE);
-                  if (s.SESSION !== undefined) setSessionVPChart(s.SESSION);
-                  if (s.ABSORPTION !== undefined) setAbsorptionAnatomy(s.ABSORPTION);
-                  if (s.IMBALANCE_STACK !== undefined) setImbalanceStackOn(s.IMBALANCE_STACK);
-                  if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
-                  if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
-                  if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
-                }}
+                onApply={applyArrangementSwitches}
               />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
