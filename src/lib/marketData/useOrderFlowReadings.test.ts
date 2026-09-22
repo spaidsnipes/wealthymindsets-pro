@@ -16,6 +16,7 @@ describe("compileOrderFlowReadings — raw prints are not erased with missing si
     const readings = compileOrderFlowReadings(prints, null);
 
     expect(readings.realTape).toBe(false);
+    expect(readings.printsPresent).toBe(true);
     expect(readings.liquidityWeather.stage).not.toBe("UNMEASURED");
     expect(readings.valueCandle.measured).toBe(false);
     expect(readings.deltaDivergence.verdict).toBe("UNMEASURED");
@@ -23,6 +24,15 @@ describe("compileOrderFlowReadings — raw prints are not erased with missing si
   });
 
   it("still reports Liquidity Weather unmeasured when no prints exist", () => {
-    expect(compileOrderFlowReadings([], null).liquidityWeather.stage).toBe("UNMEASURED");
+    const empty = compileOrderFlowReadings([], null);
+    expect(empty.printsPresent).toBe(false);
+    expect(empty.liquidityWeather.stage).toBe("UNMEASURED");
+  });
+
+  it("does not mistake quote transport events for prints", () => {
+    const quotes = prints.map(tick => ({ ...tick, trade: false }));
+    const readings = compileOrderFlowReadings(quotes, null);
+    expect(readings.printsPresent).toBe(false);
+    expect(readings.liquidityWeather.stage).toBe("UNMEASURED");
   });
 });

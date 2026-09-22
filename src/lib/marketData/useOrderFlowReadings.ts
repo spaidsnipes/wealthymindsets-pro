@@ -46,7 +46,10 @@ import React from "react";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { selectAbsorption } from "@/lib/marketData/viewModels/selectAbsorption";
 import { selectDeltaDivergence } from "@/lib/marketData/viewModels/selectDeltaDivergence";
-import { selectLiquidityWeather } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import {
+  hasLiquidityWeatherPrints,
+  selectLiquidityWeather,
+} from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
 
@@ -75,6 +78,8 @@ export interface OrderFlowReadingSet {
   readonly deltaDivergence: ReturnType<typeof selectDeltaDivergence>;
   readonly liquidityWeather: ReturnType<typeof selectLiquidityWeather>;
   readonly stackedImbalance: ReturnType<typeof selectStackedImbalance>;
+  /** True only for usable trade prints; quote events do not satisfy it. */
+  readonly printsPresent: boolean;
   /** True when this feed carries per-trade aggressor prints WM can attribute. */
   readonly realTape: boolean;
 }
@@ -97,6 +102,7 @@ export function compileOrderFlowReadings(
     deltaDivergence: selectDeltaDivergence(sidedTicks),
     liquidityWeather: selectLiquidityWeather(recentTicks),
     stackedImbalance: selectStackedImbalance(sidedTicks),
+    printsPresent: hasLiquidityWeatherPrints(recentTicks),
     realTape,
   };
 }

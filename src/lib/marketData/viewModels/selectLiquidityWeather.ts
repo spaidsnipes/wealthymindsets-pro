@@ -156,6 +156,16 @@ function tradePrints(ticks: readonly AggressorTick[]): Print[] {
 }
 
 /**
+ * The availability fact used by chart chrome. Exported from the selector owner
+ * so callers cannot mistake quote transport events for executable prints.
+ */
+export function hasLiquidityWeatherPrints(
+  ticks: readonly AggressorTick[] | null | undefined,
+): boolean {
+  return ticks != null && tradePrints(ticks).length > 0;
+}
+
+/**
  * The SHARE of segments sitting more than `OUTLIER_FACTOR` away from their own
  * half's median, in either direction.
  *

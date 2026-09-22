@@ -2224,7 +2224,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   */
   const arrangementMenu = selectProfileMenu({
     barsPresent: chartBars.length > 0,
-    printsPresent: recentTicks.length > 0,
+    printsPresent: chartOrderFlowReadings.printsPresent,
     observedAggressorFlow: chartFlowSnap.hasFlow,
     active: {
       FIXED_RANGE: fixedVPActive,
@@ -3829,7 +3829,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               */}
               <ChartArrangementBar
                 barsPresent={chartBars.length > 0}
-                printsPresent={recentTicks.length > 0}
+                printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 active={{
                   FIXED_RANGE: fixedVPActive,
@@ -3855,7 +3855,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
-                printsPresent={recentTicks.length > 0}
+                printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 active={{
                   FIXED_RANGE: fixedVPActive,
