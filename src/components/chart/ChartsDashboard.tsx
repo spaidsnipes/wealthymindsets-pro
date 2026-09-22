@@ -21,7 +21,11 @@ import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
 // imports the SAME two functions for the Tools door — one owner, two call sites.
 import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
-import { arrangementSwitches, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
+import {
+  arrangementSwitches,
+  selectChartArrangement,
+  type ArrangementId,
+} from "@/lib/marketData/viewModels/selectChartArrangement";
 import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
 import { OptionExpressionIntent } from "./OptionExpressionIntent";
@@ -172,10 +176,24 @@ import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
-import { subscribeEquipment, announceEquipmentStage } from "@/lib/workspace/equipmentChannel";
+import {
+  subscribeEquipment,
+  announceEquipmentStage,
+  announceEquipmentArrangement,
+} from "@/lib/workspace/equipmentChannel";
 // THE ONE OWNER of "is a companion camera actually driving the bars". Read
 // here, read by the equipment registry's own disclosure. See its note.
+//
+// DELIBERATELY ITS OWN IMPORT LINE, NOT MERGED WITH THE ONE BELOW. Two
+// ratchets — `barReplayDisclosure.test.tsx` and
+// `companionCameraCannotClaimLive.sentinel.test.ts` — pin this exact line as
+// the proof that the room reads the single owner rather than re-deriving "is
+// replay wired". Folding another symbol into the braces reads as tidier and
+// silently breaks both. The tidiness is not worth the guard.
 import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";
+// ARRANGEMENT_EQUIPMENT_ID is the single translation between the compiler's
+// desk names and the rail's door ids — see its note in the registry.
+import { ARRANGEMENT_EQUIPMENT_ID } from "@/lib/workspace/roomEquipment";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -2192,24 +2210,55 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     room keeps the latest reading here instead. Same `latest.current = value`
     shape this file already uses for live tick state.
   */
+  const arrangementMenu = selectProfileMenu({
+    barsPresent: chartBars.length > 0,
+    observedAggressorFlow: chartFlowSnap.hasFlow,
+    active: {
+      FIXED_RANGE: fixedVPActive,
+      SESSION: sessionVPChart,
+      ABSORPTION: absorptionAnatomy,
+      DELTA_VP: drawingTool === "delta-vp",
+      IMBALANCE_STACK: imbalanceStackOn,
+      VALUE_CANDLE: valueCandleOn,
+      DELTA_DIVERGENCE: deltaDivergenceOn,
+      LIQUIDITY_WEATHER: liquidityWeatherOn,
+    },
+  });
+
   const arrangementDeskRef = useRef<(id: ArrangementId) => void>(() => {});
-  arrangementDeskRef.current = (id: ArrangementId) => {
-    const menu = selectProfileMenu({
-      barsPresent: chartBars.length > 0,
-      observedAggressorFlow: chartFlowSnap.hasFlow,
-      active: {
-        FIXED_RANGE: fixedVPActive,
-        SESSION: sessionVPChart,
-        ABSORPTION: absorptionAnatomy,
-        DELTA_VP: drawingTool === "delta-vp",
-        IMBALANCE_STACK: imbalanceStackOn,
-        VALUE_CANDLE: valueCandleOn,
-        DELTA_DIVERGENCE: deltaDivergenceOn,
-        LIQUIDITY_WEATHER: liquidityWeatherOn,
-      },
-    });
-    applyArrangementSwitches(arrangementSwitches(id, menu));
-  };
+  arrangementDeskRef.current = (id: ArrangementId) =>
+    applyArrangementSwitches(arrangementSwitches(id, arrangementMenu));
+
+  /*
+    WHERE THE TRADER IS SITTING, PUBLISHED — NOT REMEMBERED.
+
+    The Workspace rail offered three desks and reported none of them: press
+    REGIME, watch both volume profiles arm, reopen the hand, and all three
+    tiles look identical. The registry wrote that shortfall down and named the
+    only honest fix — "give the rail the compiler's `activeId`, not a rail-side
+    memory of it" — which is exactly what this is.
+
+    `activeId` is COMPILED from the live switch positions above, not from the
+    last press this room handled. That difference is the whole point: flip one
+    switch by hand in the Tools drawer and the room is no longer at a named
+    desk, `activeId` goes null, and the light goes out. A memory of "the last
+    desk I sent" would keep REGIME lit over a chart that had stopped being
+    REGIME — a lamp describing a desk the trader had already left.
+
+    Announced in an effect rather than during render because a DOM dispatch is
+    a side effect, and the rail is a sibling component that must not be
+    re-rendered from inside this one's render pass.
+  */
+  const arrangementActiveId = selectChartArrangement({ menu: arrangementMenu }).activeId;
+  useEffect(() => {
+    announceEquipmentArrangement(
+      arrangementActiveId ? ARRANGEMENT_EQUIPMENT_ID[arrangementActiveId] : null,
+    );
+  }, [arrangementActiveId]);
+  // LEAVING THE ROOM ENDS THE ARRANGEMENT. Without this, the chart's desk would
+  // still be "in force" in the channel while the trader stood in Scanner — and
+  // no other room's rail has any business inheriting this one's seating.
+  useEffect(() => () => announceEquipmentArrangement(null), []);
 
   /*
     DIRECT EQUIPMENT — the frame asks, this room acts, nothing else moves.

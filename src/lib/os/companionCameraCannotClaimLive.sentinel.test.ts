@@ -290,8 +290,22 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     // at runtime and the panel's own text is the second line of defence. This
     // ordering rule is kept anyway: it costs nothing, and the day the drawer
     // stays open is the day it would otherwise silently start lying.
-    const hintSwap = os.indexOf('{open ? "Open in this room" : item.hint}');
-    expect(hintSwap, "the hint swap moved; re-pin this").toBeGreaterThan(-1);
+    // REMODELLED, NOT WEAKENED (2026-09-22). This pinned the hint ternary as a
+    // single exact LINE, which made it a formatting pin as much as a structural
+    // one: the day the rail grew a third hint state — "The chart is arranged
+    // this way now", for the desk currently in force — the expression wrapped
+    // across lines and this Sentinel failed while the property it guards was
+    // completely intact. A guard that fires on line breaks trains people to
+    // re-pin it without reading it.
+    //
+    // The property under test is an ORDERING: the unbuilt confession must be
+    // rendered AFTER, and outside of, whatever the hint resolves to. So the
+    // anchor is now the swapped string itself — the thing that would have to be
+    // deleted for the hint swap to stop existing — and the ordering assertion
+    // below is unchanged and just as strict. Moving the confession inside the
+    // ternary still fails; so does deleting the swap.
+    const hintSwap = os.indexOf('"Open in this room"');
+    expect(hintSwap, "the hint no longer swaps when equipment is held; re-pin this").toBeGreaterThan(-1);
     const unbuiltAt = os.indexOf("{item.unbuilt ? (", hintSwap);
     expect(
       unbuiltAt,

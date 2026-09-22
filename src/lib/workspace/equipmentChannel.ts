@@ -177,6 +177,68 @@ export function subscribeEquipmentStage(
   return () => document.removeEventListener(EQUIPMENT_STAGE_EVENT, listener);
 }
 
+export const EQUIPMENT_ARRANGEMENT_EVENT = "wm:equipment-arrangement";
+
+/**
+ * WHICH DESK THE ROOM IS CURRENTLY ARRANGED AS.
+ *
+ * MEASURED 2026-09-22 on live /charts, immediately after WORKSPACE grew its
+ * three named desks: press REGIME, watch both volume profiles arm on the
+ * chart, reopen the Workspace hand — and all three desk tiles look exactly as
+ * they did before the press. The rail offers three arrangements and reports
+ * none of them. That is the same class of defect the stage announce was built
+ * for ("what am I holding"), one question over: WHERE AM I SITTING.
+ *
+ * WHY THIS IS NOT `announceEquipmentStage`
+ * ----------------------------------------
+ * A desk is MOMENTARY: `roomEquipment` marks the three `momentary: true`, the
+ * rail OMITS `aria-pressed` for them, and a Sentinel FORBIDS the room from
+ * announcing a stage for a momentary entry. Those rules are correct and are
+ * not being relaxed here. `aria-pressed` promises a toggle — press again and
+ * it reverses — and pressing ORDER FLOW twice does not un-arrange the desk.
+ *
+ * "In force" is a different fact with a different grammar: exactly one of the
+ * three can hold it, it is never reversed by a second press, and it can stop
+ * being true without anybody pressing anything (the trader flips one switch by
+ * hand in the Tools drawer and the desk becomes CUSTOM). So it gets its own
+ * channel, its own attribute, and `aria-current` rather than `aria-pressed`.
+ *
+ * THE ROOM IS STILL THE ONLY WRITER, AND IT DOES NOT REMEMBER ITS OWN PRESSES.
+ * What the room publishes here is `selectChartArrangement(...).activeId`
+ * compiled from the LIVE switch positions — the same compiler the Tools door
+ * reads. A rail-side memory of "the last desk I sent" would light REGIME
+ * forever after one press, including after the trader hand-edited a switch and
+ * left the desk entirely. `null` means CUSTOM, and CUSTOM is a real answer.
+ */
+let arrangedId: string | null = null;
+
+/** Rail side, on MOUNT — see `heldEquipmentIds` for why a first reading exists. */
+export function arrangedEquipmentId(): string | null {
+  return arrangedId;
+}
+
+/** Room side: "this is the desk my switches currently add up to." */
+export function announceEquipmentArrangement(equipmentId: string | null): void {
+  arrangedId = equipmentId;
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(
+    new CustomEvent<string | null>(EQUIPMENT_ARRANGEMENT_EVENT, { detail: equipmentId }),
+  );
+}
+
+/** Rail side. Returns the unsubscribe — a listener per remount is a leak. */
+export function subscribeEquipmentArrangement(
+  handler: (equipmentId: string | null) => void,
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<string | null>).detail;
+    handler(typeof detail === "string" ? detail : null);
+  };
+  document.addEventListener(EQUIPMENT_ARRANGEMENT_EVENT, listener);
+  return () => document.removeEventListener(EQUIPMENT_ARRANGEMENT_EVENT, listener);
+}
+
 /**
  * Reflect the journey into the address bar WITHOUT a navigation.
  *

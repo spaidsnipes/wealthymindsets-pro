@@ -53,7 +53,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
-import { roomEquipment } from "./roomEquipment";
+import { roomEquipment, ARRANGEMENT_EQUIPMENT_ID } from "./roomEquipment";
+
+/**
+ * The three arrangement door ids, taken from the registry's own map rather
+ * than retyped. A private copy here would keep passing after a desk was
+ * renamed — the exact failure mode that map exists to prevent.
+ */
+const ARRANGEMENT_ID_SET: Readonly<Record<string, true>> = Object.fromEntries(
+  Object.values(ARRANGEMENT_EQUIPMENT_ID).map((id) => [id, true as const]),
+);
 
 /**
  * Room href → the component that answers for that room.
@@ -167,6 +176,122 @@ describe("SENTINEL — every direct instrument is wired in the room that declare
         `${ROOM_COMPONENT[href]} → the equipment subscription itself is gone from the stripped source, ` +
           `so the branch assertions above are not looking at live code`,
       ).toContain("subscribeEquipment");
+    }
+  });
+});
+
+/**
+ * SENTINEL — THE LIT DESK IS COMPILED, NOT REMEMBERED.
+ *
+ * The Workspace rail now lights the arrangement the chart is currently in.
+ * There are exactly two ways to build that light, and only one of them is
+ * true:
+ *
+ *   COMPILED  — the room publishes `selectChartArrangement(...).activeId`,
+ *               read off the live switch positions. Hand-flip one switch in
+ *               the Tools drawer and the desk becomes CUSTOM; the light goes
+ *               out, correctly, with nobody having pressed anything.
+ *
+ *   REMEMBERED — the room (or the rail) stores "the last desk I sent". This
+ *               is one line shorter, passes every click-through by hand, and
+ *               is a lamp describing a desk the trader has already left. It
+ *               is the PARROT: chrome repeating the last thing it heard.
+ *
+ * The two are indistinguishable from a screenshot, which is why they are
+ * separated here mechanically: an announce whose argument is a LITERAL desk id
+ * can only have come from a press site, because the compiler's answer is not
+ * knowable at authoring time.
+ */
+describe("SENTINEL — the arrangement the rail lights comes from the compiler", () => {
+  const RAIL = "src/components/os/WMOperatingSystem.tsx";
+  const railSource = () => stripComments(readFileSync(join(process.cwd(), RAIL), "utf8"));
+
+  it("the room publishes the COMPILER's answer", () => {
+    for (const href of ROOMS_WITH_DIRECT_EQUIPMENT) {
+      const src = roomSource(href);
+      if (!roomEquipment(href).some((e) => e.id in ARRANGEMENT_ID_SET)) continue;
+      expect(
+        src,
+        `${ROOM_COMPONENT[href]} → offers named arrangements but never announces which one is in force; ` +
+          `the rail then offers three desks and reports none of them`,
+      ).toContain("announceEquipmentArrangement(");
+      expect(
+        src,
+        `${ROOM_COMPONENT[href]} → announces an arrangement without reading selectChartArrangement; ` +
+          `the only honest source of "which desk is this" is the compiler over the live switches`,
+      ).toContain("selectChartArrangement(");
+    }
+  });
+
+  it("the room NEVER announces a literal desk id — that is the remembered-press shape", () => {
+    for (const href of ROOMS_WITH_DIRECT_EQUIPMENT) {
+      const src = roomSource(href);
+      for (const id of Object.keys(ARRANGEMENT_ID_SET)) {
+        expect(
+          src,
+          `${ROOM_COMPONENT[href]} → announces "${id}" as a literal. A desk id known at authoring time ` +
+            `can only have come from the press that sent it, so this light would survive the trader ` +
+            `leaving the desk by hand.`,
+        ).not.toMatch(
+          new RegExp(`announceEquipmentArrangement\\(\\s*["']${id}["']`),
+        );
+      }
+    }
+  });
+
+  it("the rail is TOLD — it subscribes, and keeps no memory of its own presses", () => {
+    const src = railSource();
+    expect(
+      src,
+      `${RAIL} → the rail does not subscribe to the arrangement channel, so nothing can light`,
+    ).toContain("subscribeEquipmentArrangement");
+    expect(
+      src,
+      `${RAIL} → the rail must read the channel's memory on mount; the frame closes this panel on the ` +
+        `announce that opens equipment, so a rail starting from null shows an un-lit desk after remount`,
+    ).toContain("arrangedEquipmentId()");
+  });
+
+  it("a lit desk takes aria-current, NEVER aria-pressed", () => {
+    // The whole reason this is a second channel. `aria-pressed` promises a
+    // reversal — press again and it un-presses — and pressing ORDER FLOW twice
+    // does not un-arrange the chart. If the light were folded into `open`,
+    // three commands would start promising a toggle that cannot exist.
+    const src = railSource();
+    expect(
+      src,
+      `${RAIL} → nothing renders aria-current, so the lit desk is claiming to be a held toggle`,
+    ).toMatch(/aria-current=\{inForce/);
+    expect(
+      src,
+      `${RAIL} → aria-pressed is no longer omitted for a momentary command`,
+    ).toMatch(/aria-pressed=\{momentary \? undefined/);
+    // And the inverse: the arranged flag must not be what feeds aria-pressed.
+    expect(
+      src,
+      `${RAIL} → aria-pressed is being fed the arrangement light; a command has become a fake toggle`,
+    ).not.toMatch(/aria-pressed=\{[^}]*inForce/);
+  });
+
+  it("NOT VACUOUS: there really are named arrangements to light", () => {
+    // Everything above iterates or greps for these three ids. If the desks
+    // were removed from the registry, this file would pass by finding nothing.
+    expect(
+      Object.keys(ARRANGEMENT_ID_SET).length,
+      "no named arrangements are declared any more; either the grammar went away (delete this block) or the map went stale",
+    ).toBe(3);
+    for (const href of ROOMS_WITH_DIRECT_EQUIPMENT) {
+      const offered = roomEquipment(href).filter((e) => e.id in ARRANGEMENT_ID_SET);
+      expect(
+        offered.length,
+        `${href} → the arrangement desks are no longer offered in this room's rail`,
+      ).toBe(3);
+      for (const e of offered) {
+        expect(
+          e.momentary,
+          `${href} → "${e.label}" stopped being momentary; a desk press is a command, not a holding`,
+        ).toBe(true);
+      }
     }
   });
 });

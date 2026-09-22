@@ -8,7 +8,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  announceEquipmentArrangement,
   announceEquipmentStage,
+  arrangedEquipmentId,
+  subscribeEquipmentArrangement,
   readJourneyFromUrl,
   reflectJourneyInUrl,
   requestEquipment,
@@ -229,6 +232,69 @@ describe("reflectJourneyInUrl — honest address bar, no navigation", () => {
     standAt("/command-deck?equip=market-reality&stage=preview");
     reflectJourneyInUrl("market-reality", "preview");
     expect(replaceState).not.toHaveBeenCalled();
+  });
+});
+
+describe("arrangement — WHERE THE TRADER IS SITTING, not what they are holding", () => {
+  // Every case here ends by clearing, because the module-level reading is
+  // deliberately a memory: a test that left a desk in force would hand the
+  // next one a rail that was already lit.
+  afterEach(() => announceEquipmentArrangement(null));
+
+  it("delivers the desk to a subscriber and remembers it for the next mount", () => {
+    const seen: (string | null)[] = [];
+    const off = subscribeEquipmentArrangement((id) => seen.push(id));
+    announceEquipmentArrangement("arrange-regime");
+    expect(arrangedEquipmentId()).toBe("arrange-regime");
+    off();
+    expect(seen).toEqual(["arrange-regime"]);
+  });
+
+  it("null is CUSTOM, and CUSTOM is a real answer", () => {
+    // The trader hand-flips one switch in the Tools drawer: the chart is no
+    // longer at a named desk. A lamp that stayed lit here would be describing
+    // a desk they had already left — the exact defect a rail-side memory of
+    // "the last desk I sent" would produce.
+    announceEquipmentArrangement("arrange-order-flow");
+    const seen: (string | null)[] = [];
+    const off = subscribeEquipmentArrangement((id) => seen.push(id));
+    announceEquipmentArrangement(null);
+    off();
+    expect(seen).toEqual([null]);
+    expect(arrangedEquipmentId()).toBeNull();
+  });
+
+  it("holds ONE desk, never two — a second announce replaces the first", () => {
+    announceEquipmentArrangement("arrange-order-flow");
+    announceEquipmentArrangement("arrange-review");
+    expect(arrangedEquipmentId()).toBe("arrange-review");
+  });
+
+  it("is a SEPARATE fact from what is held — a stage announce moves neither", () => {
+    // If these two ever shared a store, opening the Draw drawer would change
+    // which desk the chart claimed to be arranged as.
+    announceEquipmentArrangement("arrange-regime");
+    announceEquipmentStage("draw-tools", "drawer");
+    expect(arrangedEquipmentId()).toBe("arrange-regime");
+    announceEquipmentStage(null, "closed");
+    expect(arrangedEquipmentId()).toBe("arrange-regime");
+  });
+
+  it("unsubscribes — a listener per remount is a leak", () => {
+    const handler = vi.fn();
+    subscribeEquipmentArrangement(handler)();
+    announceEquipmentArrangement("arrange-regime");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("reads a malformed detail as CUSTOM rather than lighting an unknown tile", () => {
+    const seen: (string | null)[] = [];
+    const off = subscribeEquipmentArrangement((id) => seen.push(id));
+    (g.document as EventTarget).dispatchEvent(
+      new CustomEvent("wm:equipment-arrangement", { detail: 7 }),
+    );
+    off();
+    expect(seen).toEqual([null]);
   });
 });
 

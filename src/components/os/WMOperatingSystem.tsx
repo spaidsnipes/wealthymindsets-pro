@@ -83,6 +83,8 @@ import {
   heldEquipmentIds,
   requestEquipment,
   subscribeEquipmentStage,
+  arrangedEquipmentId,
+  subscribeEquipmentArrangement,
 } from "@/lib/workspace/equipmentChannel";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
@@ -429,6 +431,17 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
     );
   }, [activeHref]);
 
+  // WHICH DESK THE ROOM IS ARRANGED AS — a different question from what is
+  // held, with a different answer shape: at most one, never reversed by a
+  // second press, and revocable without any press at all. See the channel's
+  // note. The rail is told; it never infers, and it keeps no memory of which
+  // desk it last sent.
+  const [arrangedId, setArrangedId] = React.useState<string | null>(() => arrangedEquipmentId());
+  React.useEffect(() => {
+    setArrangedId(arrangedEquipmentId());
+    return subscribeEquipmentArrangement(setArrangedId);
+  }, [activeHref]);
+
   if (equipment.length === 0) return null;
   const tiled = presentation === "tile";
   return (
@@ -455,6 +468,15 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
         // still promises a toggle; a command makes no such promise.
         const momentary = Boolean(item.momentary);
         const open = !momentary && openIds.has(item.id);
+        // IN FORCE ≠ IN HAND. `inForce` takes the same gold the rail already
+        // uses for "this is the live one", because a trader should not have to
+        // learn a second colour to read their own desk — but it is NOT folded
+        // into `open`: `open` writes `aria-pressed`, and `aria-pressed` on a
+        // command promises a reversal that pressing ORDER FLOW twice does not
+        // perform. This gets `aria-current` instead, which claims exactly what
+        // is true: of the things offered here, this is the current one.
+        const inForce = arrangedId !== null && arrangedId === item.id;
+        const lit = open || inForce;
         const glyph = equipmentGlyph(item.id);
         return (
         <button
@@ -462,6 +484,11 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
           type="button"
           data-equipment={item.id}
           data-equipment-open={open ? "true" : undefined}
+          // Machine-checkable and deliberately a SEPARATE attribute from
+          // `-open`: a probe asking "what is the chart arranged as" must not
+          // be able to answer it with "what drawer is up".
+          data-equipment-arranged={inForce ? "true" : undefined}
+          aria-current={inForce ? "true" : undefined}
           // Machine-checkable, so a Sentinel can prove the disclosure reached
           // the glass rather than merely reaching the registry.
           data-equipment-unbuilt={item.unbuilt ? "true" : undefined}
@@ -507,8 +534,8 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
                   minHeight: 64,
                   padding: "12px 14px",
                   borderRadius: 3,
-                  border: `1px solid ${open ? GOLD : RULE}`,
-                  background: open
+                  border: `1px solid ${lit ? GOLD : RULE}`,
+                  background: lit
                     ? "rgba(196,165,116,0.12)"
                     : "linear-gradient(180deg, rgba(196,165,116,0.05), rgba(196,165,116,0.015))",
                   cursor: "pointer",
@@ -527,8 +554,8 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
                   // open equipment the same paint would make the rail look like it
                   // had two current locations.
                   border: "none",
-                  borderLeft: open ? `2px solid ${GOLD}` : "2px solid transparent",
-                  background: open ? "rgba(196,165,116,0.07)" : "transparent",
+                  borderLeft: lit ? `2px solid ${GOLD}` : "2px solid transparent",
+                  background: lit ? "rgba(196,165,116,0.07)" : "transparent",
                   cursor: "pointer",
                   color: MUTED,
                   fontSize: 11,
@@ -551,7 +578,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
                 height: 22,
                 marginTop: 1,
                 display: "block",
-                color: open ? GOLD : "rgba(196,165,116,0.78)",
+                color: lit ? GOLD : "rgba(196,165,116,0.78)",
               }}
             >
               {glyph}
@@ -561,7 +588,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
             <span
               style={{
                 display: "block",
-                color: open ? GOLD : PEARL,
+                color: lit ? GOLD : PEARL,
                 ...(tiled
                   ? { fontSize: 12.5, letterSpacing: 0.4, marginBottom: 3, fontWeight: 500 }
                   : null),
@@ -584,7 +611,11 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
             >
               {/* The hint describes the equipment; when it is already open the
                   trader does not need describing to, they need locating. */}
-              {open ? "Open in this room" : item.hint}
+              {open
+                ? "Open in this room"
+                : inForce
+                  ? "The chart is arranged this way now"
+                  : item.hint}
             </span>
             {/* THE CONFESSION ARRIVES BEFORE THE PRESS, NOT AFTER IT.
                 Rendered OUTSIDE the hint ternary on purpose: the hint is

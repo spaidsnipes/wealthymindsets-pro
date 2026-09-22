@@ -30,6 +30,9 @@
  * unregistering the room's entire Workspace.
  */
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+// TYPE-ONLY. The registry takes its desk vocabulary from the compiler that owns
+// the desks rather than restating it, so the two can never drift apart.
+import type { ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
 
 /**
  * WHICH OF THE TWO HANDS THIS BELONGS IN.
@@ -160,6 +163,22 @@ export interface RoomEquipment {
  * and not an excavation.
  */
 export const REPLAY_DRIVES_THE_CAMERA: boolean = false;
+
+/**
+ * THE ONE PLACE A DESK'S NAME MEETS ITS DOOR'S ID.
+ *
+ * `ArrangementId` is the compiler's vocabulary ("ORDER_FLOW"); `data-equipment`
+ * is the rail's ("arrange-order-flow"). Something has to translate, and if that
+ * translation were inlined at the press site AND again at the announce site,
+ * the two could disagree — the room would arm REGIME and light ORDER FLOW.
+ * Typed `Record<ArrangementId, string>`, so adding a fourth desk to
+ * ARRANGEMENT_SPECS fails to compile until it has a door here.
+ */
+export const ARRANGEMENT_EQUIPMENT_ID: Readonly<Record<ArrangementId, string>> = {
+  ORDER_FLOW: "arrange-order-flow",
+  REGIME: "arrange-regime",
+  REVIEW: "arrange-review",
+};
 
 /**
  * Keyed by room href. Deliberately a small, hand-held map rather than a scan:
@@ -691,16 +710,22 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      * `onApply` setters. Two doors, one owner — the identical arrangement the
      * chart already knew how to enter.
      *
-     * `momentary`, and the honest reason: an arrangement is a STATE, so these
-     * three would like to be holdable. The rail cannot truthfully report which
-     * desk is active, because the answer is owned by the compiler reading the
-     * chart's live switch positions, not by the channel. Rather than let a
-     * tile guess — a second, drifting copy of a truth that already renders —
-     * the press is a command, and the chart keeps the single declaration of
-     * which arrangement the room is in. THE KNOWN SHORTFALL, WRITTEN DOWN:
-     * the Workspace tile does not light for the active desk. The fix is to
-     * give the rail the compiler's `activeId`, not to invent a rail-side
-     * memory of it.
+     * `momentary`, AND STILL `momentary` NOW THAT THE TILE LIGHTS. These are
+     * commands, not toggles: pressing ORDER FLOW a second time does not
+     * un-arrange the desk, so `aria-pressed` — which promises exactly that
+     * reversal — stays omitted and the Sentinel forbidding a stage announce
+     * for a momentary entry stays exactly as strict as it was.
+     *
+     * THE SHORTFALL THIS NOTE USED TO RECORD IS CLOSED, THE WAY IT SAID TO
+     * CLOSE IT. It read: "the Workspace tile does not light for the active
+     * desk. The fix is to give the rail the compiler's `activeId`, not to
+     * invent a rail-side memory of it." The room now publishes
+     * `selectChartArrangement(...).activeId` — compiled from the live switch
+     * positions, the same reading the Tools door renders — over
+     * `announceEquipmentArrangement`, and the rail marks that tile
+     * `aria-current="true"`. No rail-side memory exists: hand-editing one
+     * switch in the Tools drawer drops the desk to CUSTOM and the light goes
+     * out with it, which a memory of "the last desk I sent" could never do.
      */
     {
       id: "arrange-order-flow",
