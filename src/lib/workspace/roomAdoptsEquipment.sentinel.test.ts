@@ -1291,13 +1291,54 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
     );
   });
 
+  /**
+   * ── THE 1400-CHARACTER WINDOW, AND WHY IT IS GONE ─────────────────────────
+   *
+   * Both tests below used to read `rail.slice(room, room + 1400)` — a fixed
+   * byte count forward from the `data-testid="os-room"` match. MEASURED on
+   * 2026-09-21 against the same comment-stripped text `read()` returns: the
+   * room element is 557 characters, so that window ran 843 characters PAST
+   * `</main>` — through the whole `wm-os-context` aside and into the
+   * `wm-os-provenance` footer.
+   *
+   * The window's defect was OVERREACH, not truncation. `read()` strips
+   * comments (see :30), so this file's heavily-commented house style never
+   * threatened the tail; what it did was let two assertions about THE ROOM be
+   * decided by code belonging to two SIBLING elements. The positive one could
+   * have gone green on an `onPointerDown` that was the aside's. The negative
+   * one — "the room press is not consumed" — would go RED the day anyone
+   * writes a perfectly correct `stopPropagation()` in the context rail, under
+   * a failure message naming a room that is innocent. A guard that answers a
+   * question about the wrong element is not a guard; it is a coin flip that
+   * occasionally reports on the room by coincidence.
+   *
+   * So the window is replaced by the ELEMENT. `</main>` is where the room
+   * ends, so the slice is exactly its subject — no sibling can vote, and no
+   * amount of growth inside `<main>` can push its own tail out of range. It
+   * cannot silently shrink either: both anchors below fail loudly if the
+   * testid or the closing tag ever moves.
+   */
+  const roomElement = (): string => {
+    const room = rail.indexOf('data-testid="os-room"');
+    expect(room, `${RAIL} → the room element is gone; re-pin this`).toBeGreaterThan(-1);
+    const end = rail.indexOf("</main>", room);
+    expect(end, `${RAIL} → the room's closing tag is gone; re-pin this`).toBeGreaterThan(room);
+    const slice = rail.slice(room, end);
+    // POSITIVE CONTROL. An empty or trivial slice satisfies every `not.toMatch`
+    // below vacuously, which is the exact failure this helper exists to end.
+    // MEASURED 2026-09-21: 557 characters comment-stripped. The floor is 400 —
+    // low enough that ordinary edits to the room never trip it, high enough
+    // that no plausible mangling leaves enough text to pass a negative scan by
+    // having nothing to scan. It is a smoke alarm, not a byte count.
+    expect(slice.length, `${RAIL} → the room sliced to nothing`).toBeGreaterThan(400);
+    return slice;
+  };
+
   it("touching the market also puts the equipment down — the thumb's way out", () => {
     // Escape is the keyboard's exit. On a phone it does not exist, and the
     // canon names both halves in one sentence for that reason. Shipping only
     // the key half leaves every touch trader inside the mode.
-    const room = rail.indexOf('data-testid="os-room"');
-    expect(room, `${RAIL} → the room element is gone; re-pin this`).toBeGreaterThan(-1);
-    const main = rail.slice(room, room + 1400);
+    const main = roomElement();
     expect(main, `${RAIL} → pressing the market does not dismiss the equipment`).toMatch(
       /onPointerDown=\{[\s\S]*?setEquipment\(null\)/,
     );
@@ -1310,8 +1351,7 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
   it("the market press is OBSERVED, not consumed — no first-tap-eaten defect", () => {
     // Swallowing the press would mean a trader with equipment open has to
     // press every chart control twice. The room's own click must still land.
-    const room = rail.indexOf('data-testid="os-room"');
-    const main = rail.slice(room, room + 1400);
+    const main = roomElement();
     expect(main, `${RAIL} → the room press is being consumed`).not.toMatch(
       /preventDefault\(\)|stopPropagation\(\)/,
     );

@@ -554,6 +554,150 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
   });
 });
 
+/**
+ * × THE INSTANT WAS CONSUMED AND DISCARDED ONE LAYER BELOW THE GLASS.
+ *
+ * `lastObservedAtMs` reached this compiler, was spent on the `detail` half
+ * ("last print 41s ago") and then thrown away. Canon F24 draws the chip as
+ * `INDICATIVE · asOf 09:24:17 ET`, and the build shipped no wall clock at all —
+ * so a trader could not tell a price seen four seconds ago from one seen forty
+ * minutes ago. These pin WHICH arms may state a moment, and which may not.
+ */
+describe("observedAtMs — WHEN a price was seen, or nothing", () => {
+  it("is the OBSERVATION's stamp, never the frame's clock", () => {
+    const feed = compileFeedStanding(LIVE_OBS, NOW);
+    expect(feed.observedAtMs).toBe(LIVE_OBS.lastObservedAtMs);
+    expect(feed.observedAtMs).not.toBe(NOW);
+  });
+
+  it("× THE RENDER CLOCK: the same observation yields the same instant forever", () => {
+    // `evaluatedAtMs` is a SAMPLE of the present taken every 15s — this file's
+    // own header. If the instant were derived from it, the masthead would
+    // report a new "moment of observation" every time the frame repainted,
+    // which is the freshness overclaim wearing a timestamp.
+    const stamps = [NOW, NOW + 1, NOW + 30_000, NOW + 86_400_000].map(
+      (at) => compileFeedStanding({ ...LIVE_OBS, lastObservedAtMs: NOW - 1_000 }, at).observedAtMs,
+    );
+    expect(new Set(stamps).size, "the instant moved when only the render clock moved").toBe(1);
+    expect(stamps[0]).toBe(NOW - 1_000);
+  });
+
+  it("survives the arms where the age is the story", () => {
+    const stale = NOW - LIVE_STALENESS_BUDGET_MS * 10;
+    const feed = compileFeedStanding({ ...LIVE_OBS, lastObservedAtMs: stale }, NOW);
+    // The detail states the age RELATIVE to a clock that resamples every 15s;
+    // the instant states it absolutely. Both, from one number.
+    expect(feed.detail).toMatch(/^last print \d+s ago$/);
+    expect(feed.observedAtMs).toBe(stale);
+  });
+
+  it("SESSION CLOSED — LAST VERIFIED finally says when that verification was", () => {
+    const feed = compileFeedStanding({ ...LIVE_OBS, sessionOpen: false }, NOW);
+    expect(feed.detail).toBe("session closed");
+    expect(feed.observedAtMs).toBe(LIVE_OBS.lastObservedAtMs);
+  });
+
+  it("a dead transport still states when the pipe last spoke", () => {
+    // The price on the glass is frozen at that moment; the transport dying
+    // does not retract the observation that preceded it.
+    const feed = compileFeedStanding({ ...LIVE_OBS, connected: false }, NOW);
+    expect(feed.detail).toBe("transport disconnected");
+    expect(feed.observedAtMs).toBe(LIVE_OBS.lastObservedAtMs);
+  });
+
+  it("a REST source states a PRINT time, and cannot reach a LIVE label beside it", () => {
+    // Canon law 3 — a minutes-cadence REST provider is a missing capability,
+    // not a stalled pipeline, and `fresh: undefined` is how this compiler says
+    // so. The instant there is when the print happened, NOT a freshness claim,
+    // so the guard that matters is that the WORD beside it never says live.
+    for (const source of REST_QUOTE_SOURCES) {
+      const feed = compileFeedStanding({ ...LIVE_OBS, source }, NOW);
+      expect(feed.observedAtMs, source).toBe(LIVE_OBS.lastObservedAtMs);
+      expect(feed.label, source).not.toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(feed.tone, source).not.toBe("LIVE");
+      expect(feed.detail, source).toBe("observed");
+    }
+  });
+
+  describe("and the states that have no moment to state", () => {
+    it("bars only — there is no QUOTE instant, and printing one is the old overclaim", () => {
+      const feed = compileFeedStanding(
+        { ...LIVE_OBS, quotePresent: false, barsPresent: true },
+        NOW,
+      );
+      expect(feed.label).toBe(L.HISTORICAL_BARS_VERIFIED);
+      expect(feed.established, "bars ARE an observation — this must stay true").toBe(true);
+      expect(feed.observedAtMs).toBeNull();
+    });
+
+    it("bars only, even when a stale quote stamp is lying around unused", () => {
+      // The quote did not arrive; the stamp beside it is not evidence that a
+      // PRICE was seen, which is the only thing the chip's clock may mean.
+      const feed = compileFeedStanding(
+        { ...LIVE_OBS, quotePresent: false, barsPresent: true, lastObservedAtMs: NOW - 5_000 },
+        NOW,
+      );
+      expect(feed.detail).toBe("historical bars");
+      expect(feed.observedAtMs).toBeNull();
+    });
+
+    it.each([
+      ["nothing attributed", { source: null, quotePresent: false, lastObservedAtMs: null }],
+      ["provider, no quote", { quotePresent: false, lastObservedAtMs: null }],
+      ["quote with no stamp", { lastObservedAtMs: null }],
+      ["clock ahead of ours", { lastObservedAtMs: NOW + FEED_CLOCK_SAMPLE_INTERVAL_MS * 10 }],
+      ["provider not recognised", { source: "acme-quotes" }],
+    ] as ReadonlyArray<readonly [string, Partial<FeedObservation>]>)(
+      "%s — FEED UNKNOWN states no moment",
+      (_why, patch) => {
+        const feed = compileFeedStanding({ ...LIVE_OBS, barsPresent: false, ...patch }, NOW);
+        expect(feed.label).toBe("FEED UNKNOWN");
+        expect(feed.observedAtMs).toBeNull();
+      },
+    );
+
+    it("THE INVARIANT: an unestablished reading never carries an instant", () => {
+      // The generalisation of every case above, and the one that catches a
+      // future arm nobody thought to list. A chip whose most concrete element
+      // is a wall clock, wearing a label that says it knows nothing, is the
+      // freshness overclaim this product has shipped twice before.
+      const arms: ReadonlyArray<Partial<FeedObservation>> = [
+        {}, { source: null }, { quotePresent: false }, { lastObservedAtMs: null },
+        { source: "acme-quotes" }, { connected: false }, { sessionOpen: false },
+        { barsPresent: true }, { barsPresent: true, quotePresent: false },
+        { lastObservedAtMs: NOW + FEED_CLOCK_SAMPLE_INTERVAL_MS * 10 },
+        { lastObservedAtMs: NOW - LIVE_STALENESS_BUDGET_MS * 10 },
+        { source: "yahoo" }, { source: "webull" }, { source: "coinbase", sessionOpen: false },
+      ];
+      let established = 0;
+      for (const patch of arms) {
+        const feed = compileFeedStanding({ ...LIVE_OBS, ...patch }, NOW);
+        if (feed.established) established += 1;
+        else expect(feed.observedAtMs, JSON.stringify(patch)).toBeNull();
+      }
+      // ANTI-VACUITY from both sides: the table must exercise both branches,
+      // or "unestablished ⇒ null" is certified over an empty set.
+      expect(established).toBeGreaterThan(3);
+      expect(established).toBeLessThan(arms.length);
+    });
+
+    it("× A NUMBER THAT CANNOT BE A TIME — the same rigor readMarketFidelity applies", () => {
+      // marketFidelityAlgebra.ts:158-162 refuses a non-finite asOf. A pre-2000
+      // or far-future epoch is not an instant either: both format into a
+      // perfectly plausible-looking wall clock.
+      for (const bad of [NaN, Infinity, -Infinity, 0, -1, 1, 946_684_799_999, Date.UTC(2100, 0, 1)]) {
+        const feed = compileFeedStanding({ ...LIVE_OBS, lastObservedAtMs: bad }, bad + 1_000);
+        expect(feed.observedAtMs, String(bad)).toBeNull();
+      }
+      // POSITIVE CONTROL — one millisecond inside the floor is still a time,
+      // so the refusal above is about bad epochs and not about all of them.
+      const ok = Date.UTC(2000, 0, 1);
+      expect(compileFeedStanding({ ...LIVE_OBS, lastObservedAtMs: ok }, ok + 1_000).observedAtMs)
+        .toBe(ok);
+    });
+  });
+});
+
 describe("compileStandingConditions — zero open items is not the same as no ledger", () => {
   const RESOLVED = { rightOfWay: "ACTION", rightOfWayResolved: true };
 

@@ -129,6 +129,50 @@ export interface FeedStanding {
   readonly tone: FeedTone;
   /** True only when the label rests on an observation, not on its absence. */
   readonly established: boolean;
+  /**
+   * WHEN A PRICE WAS OBSERVED — epoch ms — or `null` when no instant is known.
+   *
+   * ── WHY THE INSTANT IS A FIELD AND NOT A SENTENCE ──────────────────────────
+   *
+   * Canon F24 draws the masthead's trailing chip as `INDICATIVE · asOf
+   * 09:24:17 ET`. The build shipped a fidelity word and a detail sentence and
+   * NO WALL CLOCK, so a trader could not tell whether the price on the glass
+   * was observed four seconds ago or forty minutes ago. `lastObservedAtMs` was
+   * already handed to this compiler and already spent on the `detail` half
+   * ("last print 41s ago"); the instant itself was consumed and discarded one
+   * layer below the glass.
+   *
+   * It is an EPOCH NUMBER rather than a formatted string because formatting is
+   * a rendering decision with a locale and a zone in it, and this module
+   * compiles readings, not chrome. `osFeedChipParts` is the one owner of the
+   * string. The alternative considered and REFUSED was publishing the separate
+   * `asOfLabel` prop from the page: that would have a room format a timestamp
+   * and hand the frame a sentence it did not compile — exactly what
+   * `compileProvenanceSegments`' own header refuses — and would route one fact
+   * down two paths that can disagree.
+   *
+   * ── WHEN IT IS `null`, WHICH IS MOST OF THE HARD CASES ─────────────────────
+   *
+   *   bars only               there is no QUOTE instant. A time printed beside
+   *                           HISTORICAL BARS VERIFIED is the same overclaim
+   *                           the bars arm at :368-384 exists to refuse.
+   *   the FEED UNKNOWN arms   the reading rests on an absence; an instant
+   *                           printed there would be the most concrete thing
+   *                           on a chip that knows nothing.
+   *   clock ahead of ours     we have just declared this stamp untrustworthy.
+   *                           Rendering it as a wall clock would put a future
+   *                           time on the masthead.
+   *   implausible epoch       `readMarketFidelity` refuses a non-finite asOf
+   *                           (marketFidelityAlgebra.ts:158-162); a pre-2000 or
+   *                           far-future stamp is not an instant either.
+   *
+   * The invariant those add up to, pinned in the tests: `established === false`
+   * ⇒ `observedAtMs === null`. Never `Date.now()`, never `evaluatedAtMs` —
+   * that is a sampled RENDER clock (see this function's header), and the
+   * question the chip answers is when a PRICE was seen, not when the frame was
+   * painted.
+   */
+  readonly observedAtMs: number | null;
 }
 
 export interface FeedObservation {
@@ -306,6 +350,39 @@ const TONE_BY_LABEL: Record<CanonicalFidelityLabel, FeedTone> = {
 };
 
 /**
+ * THE WINDOW OUTSIDE WHICH AN EPOCH IS NOT AN INSTANT.
+ *
+ * `readMarketFidelity` refuses a non-finite `asOf`
+ * (marketFidelityAlgebra.ts:158-162) on the principle that a number which
+ * cannot be a time must not be rendered as one. The same rigor, one step
+ * further: a pre-2000 stamp is a sentinel, a unit mix-up (seconds read as
+ * milliseconds lands in 1970) or an uninitialised `0`, and a stamp past 2100 is
+ * a seconds/millis mix-up in the other direction. Either one formats happily
+ * into a perfectly plausible-looking `asOf 04:13:20 ET`.
+ *
+ * FIXED CONSTANTS rather than a window around "now", deliberately: a bound
+ * derived from the current time would make this compiler's output depend on
+ * when it is called, which is the render-clock dependency the whole file
+ * refuses. The near-future direction is already policed with real evidence by
+ * the clock-ahead guard below.
+ */
+const INSTANT_EPOCH_FLOOR_MS = Date.UTC(2000, 0, 1);
+const INSTANT_EPOCH_CEILING_MS = Date.UTC(2100, 0, 1);
+
+/**
+ * The observed instant, or `null` if this epoch cannot honestly be one.
+ *
+ * One owner for the plausibility rule, so the three arms that publish an
+ * instant cannot come to disagree about what counts as a time.
+ */
+function observedInstant(lastObservedAtMs: number | null): number | null {
+  if (typeof lastObservedAtMs !== "number" || !Number.isFinite(lastObservedAtMs)) return null;
+  if (lastObservedAtMs < INSTANT_EPOCH_FLOOR_MS) return null;
+  if (lastObservedAtMs >= INSTANT_EPOCH_CEILING_MS) return null;
+  return lastObservedAtMs;
+}
+
+/**
  * Compile the masthead's feed badge.
  *
  * ── THE DEFECT THIS ENDS, WHICH IS THE ONE ABOVE IT ────────────────────────
@@ -380,6 +457,11 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
         // is what the provenance footer reads to decide between printing the
         // detail and printing SOURCE UNKNOWN.
         established: true,
+        // NO QUOTE INSTANT EXISTS HERE. This arm is reached precisely because
+        // no gradeable quote arrived; the BAR pipe publishes no print time at
+        // all. `asOf` beside HISTORICAL BARS VERIFIED would read as "a price
+        // was seen then", which is the overclaim the rest of this arm refuses.
+        observedAtMs: null,
       };
     }
     // ── AN ABSENCE MUST BE A FINDING, NOT A DEFAULT (§14.1) ─────────────────
@@ -418,6 +500,12 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
       provenance: obs.source,
       tone: "UNKNOWN",
       established: false,
+      // Nothing was attributed, or a provider answered without a price, or a
+      // price arrived that cannot be aged. In all three the reading rests on an
+      // ABSENCE, and an exact wall clock would be the most concrete thing on a
+      // chip that knows nothing. The third case is the sharpest: a quote with
+      // no provider timestamp has no instant to print by definition.
+      observedAtMs: null,
     };
   }
 
@@ -442,6 +530,11 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
       provenance: obs.source,
       tone: "UNKNOWN",
       established: false,
+      // WE HAVE JUST DECLARED THIS STAMP UNTRUSTWORTHY. It is materially ahead
+      // of our clock by more than one sampling interval, so rendering it would
+      // put a FUTURE wall-clock time in the masthead — a fresher claim than any
+      // arm on this ladder can make, wearing FEED UNKNOWN.
+      observedAtMs: null,
     };
   }
 
@@ -486,6 +579,10 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
       provenance: obs.source,
       tone: "UNKNOWN",
       established: false,
+      // The delegate cannot grade this provider, so the frame holds no reading
+      // that the instant could qualify. Same rule as the arms above: the
+      // standing rests on an absence, and `established` is false.
+      observedAtMs: null,
     };
   }
 
@@ -510,6 +607,11 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
       provenance: obs.source,
       tone: "IDLE",
       established: true,
+      // PUBLISHED, and this is the arm where it matters most. The pipe is down
+      // and the price on the glass is frozen; "transport disconnected" says the
+      // pipe died and the instant says WHEN IT LAST SPOKE. The stamp itself is
+      // a real past observation — the transport's death does not retract it.
+      observedAtMs: observedInstant(obs.lastObservedAtMs),
     };
   }
 
@@ -528,6 +630,23 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     provenance: obs.source,
     tone: TONE_BY_LABEL[badge.label],
     established: true,
+    // THE LAST VERIFIED PRINT, on every arm this return covers:
+    //   certified realtime / observed   the instant is the live print time.
+    //   last print Ns ago               the instant is what the age is OF, now
+    //                                   stated absolutely instead of relatively.
+    //   session closed                  SESSION CLOSED — LAST VERIFIED names it:
+    //                                   the last verified print, which is the
+    //                                   one useful fact on a closed market.
+    //   REST sources (`fresh: undefined`)  the PRINT time, not a freshness
+    //                                   claim. A delayed REST provider cannot
+    //                                   reach a LIVE label on this ladder, so
+    //                                   the fidelity word beside the instant
+    //                                   already carries the delay; the instant
+    //                                   answers "how delayed", which is the
+    //                                   question a lone DELAYED label leaves
+    //                                   open. It is a PAST time either way, and
+    //                                   never a statement about now.
+    observedAtMs: observedInstant(obs.lastObservedAtMs),
   };
 }
 

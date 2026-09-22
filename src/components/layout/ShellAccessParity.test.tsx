@@ -553,6 +553,49 @@ describe("one OS · both shells mount the SAME panels", () => {
     expect(shell).toContain("standing.surface");
   });
 
+  /**
+   * × THE MATTING — C-101 "charts 70% FLOOR AREA".
+   *
+   * The canon draws exactly two pieces of axis furniture around the candles:
+   * the price axis on the RIGHT and the time axis along the BOTTOM. The build
+   * drew a third thing outside both — `os-room`'s own `padding: "14px 18px"`,
+   * MEASURED on production 2026-09-21 at 1440×900 as 28px of height and 36px
+   * of width. The chart already rules its own edges; that mat framed a machine
+   * as if it were a picture.
+   *
+   * TWO ASSERTIONS, NOT ONE, and the pairing is the point. A prop that is
+   * accepted at the call site and never spent inside the frame is the exact
+   * silent revert this guard exists to catch: the shell's line below would go
+   * on reading perfectly while the padding came back.
+   */
+  it("× THE MATTING: the market's room bleeds, every other room keeps its mat", () => {
+    const shell = source("../experience/WMExperienceShell.tsx");
+    const frame = source("../os/WMOperatingSystem.tsx");
+    // Anti-vacuity: `source()` strips comments, and "" satisfies every
+    // `toMatch` below exactly as badly as it satisfies a `not.toMatch`.
+    expect(frame.length, "the frame read as nothing").toBeGreaterThan(2000);
+
+    // ASKED — route-scoped, not global. A global bleed would put text against
+    // the frame edge in every card room in the product.
+    expect(
+      shell,
+      "the instrument view is matted again; C-101 spends that glass on the market",
+    ).toMatch(/room=\{\s*onInstrumentView\s*\?\s*"bleed"\s*:\s*"matted"\s*\}/);
+
+    // SPENT — the frame actually branches on it, in both places it costs.
+    expect(frame, "the frame takes `room` but never spends it on padding").toMatch(
+      /padding:\s*room === "bleed" \? 0 : "14px 18px"/,
+    );
+    expect(frame, "the frame takes `room` but never spends it on the gap").toMatch(
+      /gap:\s*room === "bleed" \? 0 : 12/,
+    );
+
+    // DEFAULT — a room that says nothing keeps today's pixels.
+    expect(frame, "`room` no longer defaults to matted — silent blast radius").toMatch(
+      /room = "matted"/,
+    );
+  });
+
   it("the chrome asks whether the points provider exists instead of assuming", () => {
     /**
      * PROVEN, NOT PREDICTED. Mounting <WMSBar/> here without this guard

@@ -720,6 +720,40 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
           <span>{parts.detail}</span>
         </span>
       )}
+      {/* THE THIRD PART — canon's literal `asOf 09:24:17 ET`.
+          `detail` says WHY the reading is what it is; this says WHEN a price was
+          actually seen, which "observed" alone cannot tell apart from forty
+          minutes ago. Rendered as its own node so a prover can measure it, and
+          paired with its separator for the same reason the detail is: a
+          dangling `·` promises a reading that is not there.
+          The string is composed in `osFeedChipParts` with a pinned locale and a
+          pinned America/New_York zone — never here — so this node cannot become
+          a render-time clock and re-open the #418 hydration mismatch. */}
+      {parts.instantSeparator !== null && (
+        <span
+          aria-hidden
+          data-testid="os-feed-standing-instant"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            minWidth: 0,
+            fontSize: 10,
+            letterSpacing: 0.4,
+            fontFamily: SERIF,
+            // MUTED for the same reason the detail is: an instant is evidence
+            // for the verdict, not a second verdict. Tone owns the alarm once.
+            color: MUTED,
+            lineHeight: 1.25,
+            // The clock must not be broken across two lines at a narrow
+            // masthead — a wrapped "09:24:17" reads as two numbers.
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span style={{ opacity: 0.55 }}>{parts.instantSeparator}</span>
+          <span>{parts.instant}</span>
+        </span>
+      )}
     </div>
   );
 }
@@ -891,6 +925,26 @@ export interface WMOperatingSystemProps {
    * equipment sheet and no pinned strip is drawn.
    */
   readonly destinations?: "rail" | "equipment";
+  /**
+   * ── MATTING IS FOR PICTURES, NOT FOR INSTRUMENTS ──────────────────────────
+   *
+   * `"matted"` — the default, and correct for every room whose children are
+   * CARDS. Text needs a margin or it collides with the frame, and 14px×18px is
+   * that margin.
+   *
+   * `"bleed"` — for a room whose child is a MACHINE that draws its own edges.
+   * The chart canvas already rules its own price axis on the right and its own
+   * time axis along the bottom; matting it adds a second, emptier border
+   * outside the one the instrument drew, and C-101 spends that glass on
+   * "charts 70% FLOOR AREA". MEASURED on production 2026-09-21 at 1440×900:
+   * 28px of vertical and 36px of horizontal, i.e. the padding alone was
+   * costing the market more height than the entire tool row below it.
+   *
+   * Default `"matted"` on purpose: a room that says nothing keeps today's
+   * pixels. Only a room that has looked at its own child and found an
+   * instrument may ask to bleed.
+   */
+  readonly room?: "matted" | "bleed";
   readonly children: React.ReactNode;
 }
 
@@ -912,6 +966,7 @@ export function WMOperatingSystem({
   railDefaultOpen = true,
   phoneDestinations = "bar",
   destinations = "rail",
+  room = "matted",
   children,
 }: WMOperatingSystemProps): React.ReactElement {
   // Read once, named once. Three separate places below branch on it — the bar,
@@ -1613,8 +1668,12 @@ export function WMOperatingSystem({
             overflow: "auto",
             display: "flex",
             flexDirection: "column",
-            gap: 12,
-            padding: "14px 18px",
+            // BLEED: a machine that draws its own axes needs no mat around
+            // it, and no gap between it and a sibling it does not have. See
+            // the `room` prop's note — this is the only place either value is
+            // spent, so the branch lives here rather than in five call sites.
+            gap: room === "bleed" ? 0 : 12,
+            padding: room === "bleed" ? 0 : "14px 18px",
           }}
         >
           {children}

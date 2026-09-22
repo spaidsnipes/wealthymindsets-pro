@@ -499,6 +499,24 @@ function SanctuaryRoom({
            equipment that belong to this scene — Workspace and Tools — and no
            destination rail. Every other room keeps its rail unchanged. */
         destinations={onInstrumentView ? "equipment" : "rail"}
+        /* ── THE MARKET IS NOT A PICTURE, SO IT IS NOT MATTED ─────────────────
+           C-101 spends the floor on the market: "charts 70% FLOOR AREA", with
+           exactly two pieces of axis furniture — price on the RIGHT, time
+           along the BOTTOM — and no third border outside them.
+
+           The build drew one anyway. MEASURED on production 2026-09-21 at
+           1440×900, `os-room` carried `padding: "14px 18px"`: 28px of height
+           and 36px of width spent framing an instrument that had already
+           ruled its own edges. For scale, the entire `wm-chart-toolbar`
+           beneath it is 32px — the matting alone cost the candles very nearly
+           a second tool row, and bought a margin nobody reads.
+
+           ROUTE-SCOPED, the eighth decision on this predicate, and scoped in
+           the same direction as the other seven: every room whose children
+           are CARDS keeps its mat, because text against a frame edge is a
+           legibility defect, not a reclaimed pixel. Only the room whose child
+           is a machine bleeds. */
+        room={onInstrumentView ? "bleed" : "matted"}
         /* ── THE ROOM DOES NOT NEED A NAMEPLATE WHEN THE ROOM IS THE MARKET ──
            F24's top band carries the two brass plates and the trailing chip.
            It does not carry a room name, and the build's band did: measured

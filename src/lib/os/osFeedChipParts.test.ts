@@ -11,9 +11,13 @@ function standing(over: Partial<FeedStanding>): FeedStanding {
     provenance: null,
     tone: "DELAYED",
     established: true,
+    observedAtMs: null,
     ...over,
   } as FeedStanding;
 }
+
+/** 2027-01-15T08:00:00Z — 03:00:00 in New York, a deliberate zone crossing. */
+const EPOCH = 1_800_000_000_000;
 
 /**
  * THE EIGHT SENTENCES THE COMPILER CAN ACTUALLY PRODUCE, read out of
@@ -95,8 +99,12 @@ describe("osFeedChipParts — the trailing chip has two halves, both on the glas
     // WM-CHART-PROV-EMERG-01 — the Founder emergency. `provenance` is marked
     // INTERNAL at osChrome.ts:122-128 and this chip must not be the place it
     // gets back onto the glass.
-    const p = osFeedChipParts(standing({ provenance: "yahoo", detail: "observed" }));
-    for (const field of [p.label, p.detail ?? "", p.separator ?? "", p.spoken]) {
+    const p = osFeedChipParts(standing({ provenance: "yahoo", detail: "observed", observedAtMs: EPOCH }));
+    // WIDENED with the chip's third part — a new rendered field is a new door
+    // for the leak, and this list is the only thing that watches all of them.
+    for (const field of [
+      p.label, p.detail ?? "", p.separator ?? "", p.instant ?? "", p.instantSeparator ?? "", p.spoken,
+    ]) {
       expect(field.toLowerCase(), "the vendor name reached a rendered field").not.toContain("yahoo");
     }
   });
@@ -106,6 +114,101 @@ describe("osFeedChipParts — the trailing chip has two halves, both on the glas
       const p = osFeedChipParts(standing({ detail: d }));
       expect(p.detail, d).toBe(d);
       expect(p.spoken, d).toContain(d);
+    }
+  });
+
+  it("× THE MISSING WALL CLOCK: the instant is a rendered part, in canon's words", () => {
+    // F24 draws `INDICATIVE · asOf 09:24:17 ET`. The build reached
+    // `ACTIVE DEGRADED · observed` — a verdict and a reason, and no moment.
+    const p = osFeedChipParts(standing({ detail: "observed", observedAtMs: EPOCH }));
+    expect(p.instant).toBe("asOf 03:00:00 ET");
+    expect(p.instantSeparator).toBe("·");
+    expect(p.spoken).toBe("ACTIVE DEGRADED · observed · asOf 03:00:00 ET");
+    // Eye order: verdict, then reason, then moment.
+    expect(p.spoken.indexOf("observed")).toBeLessThan(p.spoken.indexOf("asOf"));
+  });
+
+  it("× \"asOf —\": no instant means no slot at all, not an empty one", () => {
+    const p = osFeedChipParts(standing({ detail: "observed", observedAtMs: null }));
+    expect(p.instant).toBeNull();
+    expect(p.instantSeparator).toBeNull();
+    expect(p.spoken).toBe("ACTIVE DEGRADED · observed");
+    expect(p.spoken).not.toMatch(/·\s*$/);
+    expect(p.spoken).not.toContain("asOf");
+  });
+
+  it("× A NUMBER THAT CANNOT BE A TIME still cannot be printed as one", () => {
+    // `readMarketFidelity` refuses a non-finite asOf (marketFidelityAlgebra
+    // 158-162). Intl will happily format 0 into a confident "19:00:00 ET".
+    const impossible = [
+      NaN, Infinity, -Infinity, 0, -1, 1, 946_684_799_999, Date.UTC(2100, 0, 1),
+      Date.UTC(2200, 0, 1), null, undefined, "1800000000000", {}, [],
+    ];
+    for (const bad of impossible) {
+      const p = osFeedChipParts(standing({ observedAtMs: bad as never }));
+      expect(p.instant, String(bad)).toBeNull();
+      expect(p.instantSeparator, String(bad)).toBeNull();
+      expect(p.spoken, String(bad)).not.toContain("asOf");
+    }
+    // POSITIVE CONTROL — the boundary one millisecond inside the window does
+    // format, so the test above is refusing bad epochs rather than all epochs.
+    expect(osFeedChipParts(standing({ observedAtMs: Date.UTC(2000, 0, 1) })).instant)
+      .toMatch(/^asOf \d\d:\d\d:\d\d ET$/);
+  });
+
+  it("the chip never leads with a separator, even with a detail-less instant", () => {
+    // Unreachable from today's compiler — every established arm carries a
+    // detail — but this owner is total over `FeedStanding`, and the nested
+    // ternary form it replaced produced a LEADING "·" in exactly this case.
+    const p = osFeedChipParts(standing({ detail: "", observedAtMs: EPOCH }));
+    expect(p.detail).toBeNull();
+    expect(p.separator).toBeNull();
+    expect(p.spoken).toBe("ACTIVE DEGRADED · asOf 03:00:00 ET");
+    expect(p.spoken).not.toMatch(/^\s*·/);
+    expect(p.spoken).not.toContain("· ·");
+  });
+
+  it("× REACT #418: the clock is PINNED, so a server and a browser agree", () => {
+    /**
+     * TWO HAZARDS, both closed, and only one of them is visible in the value.
+     *
+     * DETERMINISM — same epoch, same string, always. If anything in the chain
+     * read the present moment, two calls a tick apart would diverge.
+     */
+    const once = osFeedChipParts(standing({ observedAtMs: EPOCH })).instant;
+    expect(once).toBe(osFeedChipParts(standing({ observedAtMs: EPOCH })).instant);
+
+    /**
+     * ZONE — 1_800_000_000_000 is 08:00:00 UTC and 03:00:00 in New York. A
+     * formatter left on the host's zone renders the first on a UTC server and
+     * the second in a New York browser FROM THE SAME NUMBER, which is the
+     * mismatch a deterministic input cannot save you from. Pinning the epoch
+     * across a zone boundary is what makes this assertion discriminating: it
+     * fails on any CI box not set to America/New_York if the zone is dropped.
+     */
+    expect(once).toBe("asOf 03:00:00 ET");
+    expect(once).not.toContain("08:00:00");
+
+    // MIDNIGHT under h23. `hour12: false` alone yields "24:00:17" on some ICU
+    // builds — a different string for the same instant, i.e. a mismatch.
+    const midnightET = Date.UTC(2027, 0, 15, 5, 0, 17); // 00:00:17 New York
+    expect(osFeedChipParts(standing({ observedAtMs: midnightET })).instant)
+      .toBe("asOf 00:00:17 ET");
+  });
+
+  it("the formatter reads NOTHING ambient — proven against the source", () => {
+    // The value test above is blind on a machine whose TZ already is New York.
+    // This reads the code instead: neither hazard can be present in it.
+    const SRC = readFileSync(resolve(process.cwd(), "src/lib/os/osFeedChipParts.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    // ANTI-VACUITY: `""` satisfies every `not.toContain` below.
+    expect(SRC.length, "osFeedChipParts read as empty code").toBeGreaterThan(400);
+    expect(SRC).toContain('timeZone: "America/New_York"');
+    expect(SRC).toContain('Intl.DateTimeFormat("en-US"');
+    expect(SRC).toContain('hourCycle: "h23"');
+    for (const ambient of ["Date.now(", "toLocaleTimeString", "toLocaleString", "new Date("]) {
+      expect(SRC, `${ambient} is a render-time or host-dependent clock`).not.toContain(ambient);
     }
   });
 
@@ -174,6 +277,25 @@ describe("WMOperatingSystem adoption — the chip composes the owner", () => {
     // existed only as an attribute value.
     expect(CODE).toMatch(/\{parts\.detail\}/);
     expect(CODE).toMatch(/parts\.separator/);
+  });
+
+  it("× THE MISSING WALL CLOCK, AT THE CALL SITE: the instant is painted", () => {
+    // Same rule as the detail one line up: composed by the owner, rendered as a
+    // node, gated on its own separator so it cannot dangle.
+    expect(CODE).toMatch(/\{parts\.instant\}/);
+    expect(CODE).toMatch(/parts\.instantSeparator !== null &&/);
+    expect(CODE).toContain('data-testid="os-feed-standing-instant"');
+  });
+
+  it("the badge does not grow a clock of its own", () => {
+    // The formatting lives in the pure owner precisely so this component cannot
+    // become a render-time clock and re-open the #418 hydration mismatch.
+    const badge = CODE.slice(CODE.indexOf("function FeedBadge"));
+    expect(badge.length, "FeedBadge sliced to nothing — this guard is blind")
+      .toBeGreaterThan(500);
+    for (const ambient of ["Date.now(", "toLocaleTimeString", "Intl.DateTimeFormat"]) {
+      expect(badge.slice(0, badge.indexOf("\nfunction ", 1)), ambient).not.toContain(ambient);
+    }
   });
 
   it("the chip is announced as one sentence, not two loose spans", () => {
