@@ -38,6 +38,10 @@ const readout = await page.evaluate(() => ({
   tiles: [...document.querySelectorAll("button[data-equipment]")].map((b) => ({
     id: b.getAttribute("data-equipment"),
     pressed: b.getAttribute("aria-pressed"),
+    // The desk light. A shot of the hand is only evidence if the readout says
+    // which tile was lit when the shutter fired.
+    arranged: b.getAttribute("data-equipment-arranged"),
+    current: b.getAttribute("aria-current"),
   })),
   marketStillVisible: document.querySelectorAll(".tv-lightweight-charts").length,
 }));
