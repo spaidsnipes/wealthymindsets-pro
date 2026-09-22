@@ -441,11 +441,14 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
           type="button"
           data-equipment={item.id}
           data-equipment-open={open ? "true" : undefined}
+          // Machine-checkable, so a Sentinel can prove the disclosure reached
+          // the glass rather than merely reaching the registry.
+          data-equipment-unbuilt={item.unbuilt ? "true" : undefined}
           // The state is in the accessible name too, not only in the paint. A
           // gold edge is invisible to a screen reader, and "what am I holding"
           // is exactly the orientation a non-sighted trader has least of.
           aria-pressed={open}
-          title={item.hint}
+          title={item.unbuilt ? `${item.hint} — ${item.unbuilt}` : item.hint}
           // A TOGGLE, BECAUSE `aria-pressed` ALREADY PROMISED ONE.
           //
           // MEASURED 2026-09-19 on live /charts, immediately after the announce
@@ -562,6 +565,27 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
                   trader does not need describing to, they need locating. */}
               {open ? "Open in this room" : item.hint}
             </span>
+            {/* THE CONFESSION ARRIVES BEFORE THE PRESS, NOT AFTER IT.
+                Rendered OUTSIDE the hint ternary on purpose: the hint is
+                swapped for "Open in this room" once the equipment is held, and
+                the one line the trader most needs while the panel is on their
+                glass is the line saying it drives nothing. `warn` ink rather
+                than HINT_INK because a disclosure in hint grey is a disclosure
+                designed not to be read. */}
+            {item.unbuilt ? (
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 3,
+                  fontSize: tiled ? 10 : 9.5,
+                  lineHeight: 1.35,
+                  letterSpacing: 0.2,
+                  color: WM.state.warn,
+                }}
+              >
+                {item.unbuilt}
+              </span>
+            ) : null}
           </span>
         </button>
         );

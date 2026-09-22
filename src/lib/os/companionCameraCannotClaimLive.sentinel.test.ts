@@ -191,10 +191,29 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
    */
   it("every fidelity surface answers 'is a camera driving', never 'is the panel open'", () => {
     const src = read("src/components/chart/ChartsDashboard.tsx");
-    // The named owner, and its value. `boolean` rather than the narrowed
-    // literal so the true branches of every reader stay compiled and flipping
-    // this stays a one-line change.
-    expect(src).toContain("const REPLAY_DRIVES_THE_CAMERA: boolean = false;");
+    // THE OWNER MOVED, AND THE PIN MOVED WITH IT — STRICTLY STRONGER.
+    //
+    // It was declared inside ChartsDashboard for one commit. Then the equipment
+    // REGISTRY needed the same answer, so that the WORKSPACE "Replay" entry can
+    // disclose that it drives nothing BEFORE the trader presses it rather than
+    // after — by which point an orange BAR REPLAY panel is already sitting
+    // under a LIVE masthead, and "impossible to confuse" has been spent. A
+    // registry with its own hardcoded `false` would have been a SECOND owner of
+    // one fact: the two-headed horse rebuilt one file over.
+    //
+    // So this now pins three things where it used to pin one: the owner exists,
+    // it is declared exactly once in the whole repo, and the room READS it
+    // rather than shadowing it with a local of the same name.
+    const registry = read("src/lib/workspace/roomEquipment.ts");
+    expect(registry, "the single owner is not declared in the registry")
+      .toContain("export const REPLAY_DRIVES_THE_CAMERA: boolean = false;");
+    expect(
+      src.match(/const REPLAY_DRIVES_THE_CAMERA/g) ?? [],
+      "ChartsDashboard re-declares the owner locally — a local shadow is a second owner " +
+        "that the registry's menu disclosure can silently drift away from",
+    ).toHaveLength(0);
+    expect(src, "ChartsDashboard no longer imports the single owner")
+      .toContain('import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";');
     expect(src).toContain(
       "const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;",
     );
@@ -214,6 +233,61 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     // And the panel's own disclosure is fed from that owner rather than being a
     // second literal that can drift away from it.
     expect(src).toContain("chartFollowsCursor={REPLAY_DRIVES_THE_CAMERA}");
+  });
+
+  /**
+   * THE CONFESSION MUST ARRIVE BEFORE THE PRESS.
+   *
+   * MEASURED on production 2026-09-22, deploy b1d8f2f0, AFTER the four clocks
+   * were killed and the owner was corrected. Engaging Replay left three LIVE
+   * readings on the glass — masthead `LIVE — CERTIFIED QUOTE` (1069,33), the
+   * `● LIVE TAPE` chip (439,126) and the spine's `LIVE · asOf …` (1216,409) —
+   * and every one of them was TRUE, because the bars really are live. Nothing
+   * was lying. The state was still confusable: an orange BAR REPLAY panel under
+   * a LIVE masthead, which the Companion Camera Law forbids by shape, not by
+   * truth value.
+   *
+   * The remaining defect was never the labels. It is that WM Pro ships a Bar
+   * Replay control which drives nothing — Wall Law 3, "the menu selects the
+   * tool; the invention appears in the world", and the FORBIDDEN list's "menu
+   * pretending to be an invention" verbatim.
+   *
+   * Until the real wire lands (frozen CanonicalBar ancestry; never a slice of
+   * today's bars) the honest move is to disclose at the MENU, so the confusable
+   * state is never entered unknowingly. The panel's own disclosure stays — it
+   * is the second line of defence — but it is no longer the first.
+   *
+   * THIS IS A RATCHET, NOT A DECORATION. The disclosure is derived from the one
+   * owner, so it cannot be deleted while replay is still unwired without either
+   * flipping the owner (which the tests above and `barReplayDisclosure` then
+   * demand MainChart actually back) or removing the branch, which fails here.
+   */
+  it("discloses the unwired camera at the MENU, one press before the trader can be confused", () => {
+    const registry = read("src/lib/workspace/roomEquipment.ts");
+    // Derived, never a second literal. A hardcoded sentence here would keep
+    // confessing on the day the wire lands, which is the same defect wearing
+    // the opposite sign.
+    expect(registry, "the Replay entry's disclosure is not gated on the single owner")
+      .toMatch(/\.\.\.\(REPLAY_DRIVES_THE_CAMERA\s*\n?\s*\?\s*null\s*\n?\s*:\s*\{\s*unbuilt:/);
+    expect(registry, "the disclosure does not say what is actually untrue")
+      .toContain("Not wired to the chart yet");
+    // And it has to reach the glass. A registry field nothing renders is a
+    // disclosure filed, not made.
+    const os = read("src/components/os/WMOperatingSystem.tsx");
+    expect(os, "the equipment rail never renders item.unbuilt").toContain("{item.unbuilt}");
+    expect(os, "the disclosure is not machine-checkable on the rendered control")
+      .toContain('data-equipment-unbuilt={item.unbuilt ? "true" : undefined}');
+    // It must survive being held. The hint is swapped for "Open in this room"
+    // once equipment is picked up, and the moment the panel is ON THE GLASS is
+    // precisely when "this drives nothing" matters most.
+    const hintSwap = os.indexOf('{open ? "Open in this room" : item.hint}');
+    expect(hintSwap, "the hint swap moved; re-pin this").toBeGreaterThan(-1);
+    const unbuiltAt = os.indexOf("{item.unbuilt ? (", hintSwap);
+    expect(
+      unbuiltAt,
+      "the disclosure is inside the hint's open/closed ternary, so it disappears at " +
+        "exactly the moment the trader is looking at the unwired panel",
+    ).toBeGreaterThan(hintSwap);
   });
 
   /**

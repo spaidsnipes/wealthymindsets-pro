@@ -89,7 +89,56 @@ export interface RoomEquipment {
    * "overlay equipment wall, D≈0, chart stays".
    */
   readonly direct?: boolean;
+  /**
+   * THE DOOR IS REAL, THE ROOM BEHIND IT IS NOT FINISHED — SAY SO HERE.
+   *
+   * Set to the sentence the trader should read BEFORE they press. Undefined on
+   * every honest piece of equipment, which is the point: this field exists so
+   * that the ONE entry which cannot yet do what its label says has somewhere to
+   * admit it, rather than being quietly deleted (which loses the work) or left
+   * flattering (which is the FORBIDDEN "menu pretending to be an invention").
+   *
+   * MEASURED on production 2026-09-22, canvas-hash sampled at t+1s / t+6s /
+   * t+11s after pressing Replay: the price pane kept repainting and the payload
+   * kept GROWING — a live socket appending prints, not a camera walking
+   * history. The panel that opens already confesses this in its own words. But
+   * a confession you can only read AFTER you have engaged the instrument is the
+   * confession arriving one press too late: by then an orange BAR REPLAY panel
+   * is sitting under a LIVE masthead, and the Companion Camera Law's
+   * "backtest historical replay and LIVE/LAST context must be impossible to
+   * confuse" has already been spent.
+   *
+   * So the disclosure moves UP, to the menu, where it costs the trader nothing.
+   *
+   * NOT A `disabled`. The control still opens, because the panel it opens is
+   * the honest one and a trader is entitled to look at equipment that exists.
+   * Greying it out would also delete the only route by which the Founder can
+   * SEE the unfinished work — and unfinished work that cannot be seen is how it
+   * stays unfinished.
+   */
+  readonly unbuilt?: string;
 }
+
+/**
+ * IS A COMPANION CAMERA ACTUALLY DRIVING THE BARS? — ONE OWNER, WHOLE PRODUCT.
+ *
+ * This lived as a local const inside `ChartsDashboard` for exactly one commit,
+ * and one commit was enough to show the problem: the equipment REGISTRY needs
+ * the same answer in order to decide whether to disclose at the menu, and a
+ * registry that hardcoded its own `false` would be a second owner of a fact the
+ * room already owns. Two owners of "is replay wired" is the same two-headed
+ * horse this whole repair exists to kill, rebuilt one file over.
+ *
+ * So the fact lives here — the lowest file that both the room and the rail
+ * already import — and there is exactly ONE edit to make on the day the real
+ * wire lands (frozen CanonicalBar ancestry; never a slice of today's bars).
+ *
+ * Typed `boolean` rather than left as the literal `false` on purpose: the
+ * narrowed type would let the compiler prune the true branches of every reader,
+ * and those branches must stay compiled so flipping this is a one-line change
+ * and not an excavation.
+ */
+export const REPLAY_DRIVES_THE_CAMERA: boolean = false;
 
 /**
  * Keyed by room href. Deliberately a small, hand-held map rather than a scan:
@@ -582,12 +631,26 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "workspace",
       direct: true,
     },
+    /**
+     * THE ONE ENTRY WHOSE HINT IS A PROMISE THE PRODUCT CANNOT KEEP TODAY.
+     *
+     * The hint below is retained WORD FOR WORD because it is the correct
+     * description of the instrument, and rewriting it to describe the current
+     * half-built state would mean rewriting it back later — and a hint that
+     * changes is a hint nobody trusts. What is added is the disclosure beside
+     * it, fed from the single owner above so that the menu, the panel's own
+     * `chartFollowsCursor` confession and every fidelity surface in the chart
+     * room cannot drift out of agreement with each other.
+     */
     {
       id: "bar-replay",
       label: "Replay",
       hint: "Walk this market forward one bar at a time",
       kind: "workspace",
       direct: true,
+      ...(REPLAY_DRIVES_THE_CAMERA
+        ? null
+        : { unbuilt: "Not wired to the chart yet — the candles keep running live" }),
     },
     /**
      * THE CHART ROOM'S EIGHTH TENANT — AND A CONTROL THAT WAS OFF THE SCREEN.

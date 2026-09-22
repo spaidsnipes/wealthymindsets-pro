@@ -169,6 +169,9 @@ import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
 import { subscribeEquipment, announceEquipmentStage } from "@/lib/workspace/equipmentChannel";
+// THE ONE OWNER of "is a companion camera actually driving the bars". Read
+// here, read by the equipment registry's own disclosure. See its note.
+import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -942,12 +945,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * never a slice of today's bars — ONE edit here turns the whole room at once,
    * which is the only arrangement in which those surfaces cannot drift apart.
    *
-   * Typed `boolean` rather than left as the literal `false` on purpose: the
-   * narrowed type would let a compiler prune the true branches of every reader
-   * below, and the branches must stay compiled so flipping this is a one-line
-   * change and not an excavation.
+   * THE OWNER MOVED OUT OF THIS FILE, AND THAT IS THE THIRD CORRECTION.
+   * It was declared here for one commit. Then the EQUIPMENT MENU needed the
+   * same answer — so that the Replay entry can disclose it drives nothing
+   * BEFORE the trader presses, instead of after, when an orange panel is
+   * already sitting under a LIVE masthead. A registry that hardcoded its own
+   * `false` would have been a second owner of one fact: the same two-headed
+   * horse, rebuilt one file over. So it lives in `roomEquipment.ts` — the
+   * lowest file both the room and the rail already import — and is read here.
    */
-  const REPLAY_DRIVES_THE_CAMERA: boolean = false;
   /** The single sentence every fidelity surface in this room is answering. */
   const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;
   const [replayPlaying,  setReplayPlaying]  = useState(false);

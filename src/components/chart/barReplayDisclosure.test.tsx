@@ -171,8 +171,20 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
       expect(dash, "no call site claims to drive, so the disclosure must be fed a false answer")
         .toMatch(/chartFollowsCursor=\{(false|REPLAY_DRIVES_THE_CAMERA)\}/);
       if (/chartFollowsCursor=\{REPLAY_DRIVES_THE_CAMERA\}/.test(dash)) {
-        expect(dash, "the named owner is not declared false")
-          .toMatch(/const REPLAY_DRIVES_THE_CAMERA: boolean = false;/);
+        // THE OWNER LIVES IN THE REGISTRY NOW, and the assertion followed it
+        // rather than being relaxed. It moved because the WORKSPACE menu needs
+        // the same answer to disclose "not wired" BEFORE the trader presses
+        // Replay; a registry holding its own `false` would be a second owner.
+        // `readFileSync` from this file's `SRC` only reaches src/components/chart,
+        // so this one reads from the repo root explicitly.
+        const registry = readFileSync(
+          join(process.cwd(), "src", "lib", "workspace", "roomEquipment.ts"),
+          "utf8",
+        );
+        expect(registry, "the named owner is not declared false in its own file")
+          .toMatch(/export const REPLAY_DRIVES_THE_CAMERA: boolean = false;/);
+        expect(dash, "ChartsDashboard does not read the single owner")
+          .toContain('import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";');
         expect(dash, "the fidelity surfaces are not gated on the same owner")
           .toMatch(/const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;/);
         // The whole point: NO surface may answer the panel's open/closed state.
