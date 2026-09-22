@@ -173,6 +173,36 @@ function SanctuaryRoom({
     </span>
   );
 
+  /**
+   * The seven states as a piece of WORKSPACE EQUIPMENT rather than a masthead
+   * band — handed to the frame's `workspaceLead` slot on the instrument view.
+   * See the prop site below for the measurement that moved it.
+   *
+   * IT CARRIES ITS OWN NAME. The frame publishes an unlabelled slot, and
+   * `RoomWorkspaceRail` draws the "WORKSPACE" eyebrow over ITS OWN list a few
+   * pixels lower. Without a heading here the panel's first content would sit
+   * above a caption belonging to something else, and a sighted trader would
+   * read "WORKSPACE" as the label of the seven buttons above it. The `<nav>`
+   * inside already announces itself as "Experience mode" to a screen reader;
+   * this is the same fact, said to the eye.
+   */
+  const modeEquipment = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 2.2,
+          textTransform: "uppercase",
+          color: WM.gold.mark,
+        }}
+      >
+        Mode
+      </div>
+      <ExperienceModeBar bus={bus} />
+    </div>
+  );
+
   /** Rendered only when there is actually a rail to toggle. */
   const railToggle = hasRail ? (
     <button
@@ -593,10 +623,51 @@ function SanctuaryRoom({
            F24 draws. */
         brand={onInstrumentView ? <></> : brand}
         mastheadCaption={onInstrumentView ? undefined : jobCaption}
-        /* Seven equal tabs answer "what is the current job?" seven times. On the
-           instrument view one gold chip answers it once and hands the widest
-           non-price object in the masthead back to price. See the prop's doc. */
-        mastheadCenter={<ExperienceModeBar bus={bus} collapsed={onInstrumentView} />}
+        /* ── THE MODE IS EQUIPMENT, SO IT STANDS ON THE EQUIPMENT WALL ───────
+           LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a 1440
+           shot of this build, `wm-os-masthead` read
+
+             "Workspace Tools OBSERVE ▾ ACTIVE DEGRADED · observed ·
+              asOf 20:13:42 ET"
+
+           F24's band carries the two brass plates at the leading edge and ONE
+           fidelity chip at the trailing edge. `OBSERVE ▾` is the last thing
+           standing in it that the canon does not draw.
+
+           IT IS NOT DELETED, AND DELETING IT WOULD BE THE WRONG REPAIR TWICE
+           OVER. OBSERVE is the trader's currently committed operating state —
+           truth, not decoration — and it is the only surface that names which
+           of the seven jobs the whole product is currently reorganised around.
+           Removing it would hide a committed mode AND orphan the
+           aria-controls/`EXPERIENCE_MODE_GROUP_ID` relationship that
+           `AriaControlsResolves.sentinel` pins.
+
+           SO IT MOVES, and it moves somewhere it belongs rather than somewhere
+           it fits. Mode is something the trader PICKS UP AND SETS; it is not a
+           reading they consult, which is what everything else left in this band
+           is. The frame already publishes the wall for exactly that class of
+           control, and an audit this session measured the Workspace wall
+           holding two tiles — Draw and Replay — where the canon draws six. The
+           room had space and the band did not.
+
+           AND IT ARRIVES EXPANDED, WHICH IS THE POINT OF MOVING IT. The
+           `collapsed` chip was the right answer for a masthead: one gold chip
+           instead of the widest non-price object above the candles. Inside the
+           Workspace panel there is no price to stand over — the panel is an
+           overlay the trader opened deliberately — so the reason to collapse is
+           gone, and collapsing here would cost a click for nothing. MEASURED
+           this session at 1440: that panel is 264px wide, and the bar's own
+           `flexWrap: "wrap"` lays the seven out at the 44px tap-target floor
+           inside it with no clipping. One click on Workspace shows all seven
+           with OBSERVE carrying `aria-current` — the SAME number of clicks the
+           collapsed chip cost, reaching all six others instead of one.
+
+           ROUTE-SCOPED, THE NINTH DECISION ON THIS PREDICATE. Every other room
+           keeps the seven-tab bar in its masthead exactly as it was, because
+           nowhere else is that band standing over a live market and nowhere
+           else is there an equipment wall to stand on. */
+        mastheadCenter={onInstrumentView ? undefined : <ExperienceModeBar bus={bus} />}
+        workspaceLead={onInstrumentView ? modeEquipment : undefined}
         mastheadActions={
           /* The rail toggle is a VIEW control for this room. The access chrome
              is the product's four always-reachable capabilities. Both sit in

@@ -781,6 +781,33 @@ export interface WMOperatingSystemProps {
   /** Trailing masthead controls, left of the feed badge. */
   readonly mastheadActions?: React.ReactNode;
   /**
+   * A control the caller wants standing AT THE HEAD OF THE WORKSPACE PANEL,
+   * above that room's equipment.
+   *
+   * ── Why this slot exists at all ─────────────────────────────────────────
+   *
+   * `destinations="equipment"` already says the frame's whole offer on this
+   * scene is "the equipment attached to it". A caller with a control that is
+   * genuinely equipment — something the trader PICKS UP and sets, as opposed
+   * to a reading they consult — had nowhere to put it but `mastheadCenter`,
+   * which on this scene is the band standing over live price. That is how the
+   * seven-mode bar ended up above the candles on /charts: not because anyone
+   * chose the masthead for it, but because the masthead was the only slot the
+   * frame published.
+   *
+   * ONLY DRAWN IN `destinations="equipment"`, and only while the trader is
+   * actually holding Workspace. A node handed here in rail mode is not
+   * silently relocated to some other corner: a slot that quietly re-homes its
+   * contents is how one control ends up drawn twice.
+   *
+   * ABOVE `RoomWorkspaceRail`, NOT INSIDE IT. That component's list is
+   * compiled from `roomEquipment(activeHref)` — one registry, one owner — and
+   * injecting a caller's node into it would fork the answer to "what equipment
+   * does this room have". This stands beside that list, under the same
+   * heading, and the registry keeps saying what it said.
+   */
+  readonly workspaceLead?: React.ReactNode;
+  /**
    * Open evidence items, or `null` when no ledger has been compiled. `0` and
    * `null` are emphatically not the same reading.
    */
@@ -956,6 +983,7 @@ export function WMOperatingSystem({
   mastheadCaption,
   mastheadCenter,
   mastheadActions,
+  workspaceLead,
   openEvidenceItems,
   rightOfWay,
   rightOfWayResolved,
@@ -1554,7 +1582,18 @@ export function WMOperatingSystem({
               stacking both. */}
           {equipmentMode ? (
             equipment === "workspace" ? (
-              <RoomWorkspaceRail activeHref={activeHref} kind="workspace" presentation="tile" />
+              <>
+                {/* The caller's own workspace control, at the head of the hand.
+                    See `workspaceLead` for why the frame publishes a slot here
+                    at all: without one, a control that IS equipment has no home
+                    on this scene except the band standing over live price. */}
+                {workspaceLead === undefined ? null : (
+                  <div data-testid="os-workspace-lead" style={{ padding: "14px 14px 0" }}>
+                    {workspaceLead}
+                  </div>
+                )}
+                <RoomWorkspaceRail activeHref={activeHref} kind="workspace" presentation="tile" />
+              </>
             ) : null
           ) : (
             <RoomWorkspaceRail activeHref={activeHref} />
