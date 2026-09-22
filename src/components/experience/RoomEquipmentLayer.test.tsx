@@ -196,12 +196,15 @@ describe("RoomEquipmentLayer — market equipment stays on the live camera", () 
       expect(html).toContain('class="wm-room-equipment--market-dock"');
       expect(html).toContain("left:18px");
       expect(html).toContain("top:92px");
-      expect(html).toContain("bottom:18px");
       expect(html).toContain("width:clamp(280px, 22vw, 340px)");
       expect(html).toContain("background:#0b0c0f");
       expect(html).not.toContain("background:rgba(11,12,15,0.96)");
       expect(html).not.toContain("right:18px;bottom:18px");
     }
+    expect(renderMarketDock("preview")).toContain("max-height:220px");
+    expect(renderMarketDock("preview")).not.toContain("bottom:18px");
+    expect(renderMarketDock("drawer")).toContain("bottom:18px");
+    expect(renderMarketDock("drawer")).not.toContain("max-height:220px");
   });
 
   it("keeps the narrow-screen projection as a bottom sheet", () => {

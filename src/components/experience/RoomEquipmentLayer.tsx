@@ -252,7 +252,10 @@ export function RoomEquipmentLayer({
             position: "fixed",
             left: 18,
             top: 92,
-            bottom: 18,
+            // PREVIEW is a glanceable instrument, not a blank full-height
+            // drawer. FL-06 keeps the inspect ticket subordinate to price;
+            // only DRAWER earns the full left-wall working depth.
+            ...(stage === "drawer" ? { bottom: 18 } : { maxHeight: 220 }),
             zIndex: 60,
             width: "clamp(280px, 22vw, 340px)",
             display: "flex",
