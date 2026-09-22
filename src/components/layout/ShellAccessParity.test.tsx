@@ -312,6 +312,13 @@ describe("one OS · 390 is not a different application", () => {
     expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-workspace"');
     expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-tools"');
     expect(INSTRUMENT_HTML).toContain('data-testid="os-market-rooms"');
+    // ── THE SECOND DOORWAY, ADDED 2026-09-22 ────────────────────────────────
+    // Measured on prod before this: in equipment mode the Community block
+    // rendered `null`, so /lounge, /tv, /radio, /creator, /partnerships, /shop
+    // and the trader's own /profile had NO door from HOME. This line is the
+    // one that fails if that absence ever comes back.
+    expect(INSTRUMENT_HTML).toContain('data-testid="os-market-community"');
+    expect(INSTRUMENT_HTML).toContain('aria-label="Community"');
     expect(INSTRUMENT_HTML).toContain('data-presentation="direct-doorway"');
     expect(INSTRUMENT_HTML).toContain("wm-os-provenance--masthead-owned");
     expect(INSTRUMENT_HTML).toContain('aria-label="Workspace"');

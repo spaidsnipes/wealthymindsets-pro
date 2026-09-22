@@ -1533,13 +1533,70 @@ describe("SENTINEL — Shot 1: equipment mode never restores the destination mal
   it("keeps the old room, workbench, and community lists out of HOME", () => {
     expect(rail).toMatch(/equipmentMode\s*\?\s*MARKET_HOME_ROOMS\.map[\s\S]*?:\s*OS_ROOMS\.map/);
     expect(rail).toMatch(/equipmentMode\s*\?\s*\([\s\S]*?scenePanel === "tools"[\s\S]*?:\s*\([\s\S]*?OS_WORKBENCH\.map/);
-    expect(rail).toMatch(/equipmentMode\s*\?\s*null\s*:\s*\([\s\S]*?OS_COMMUNITY\.map/);
   });
 
   it("opens the curated list only through the compact Rooms panel", () => {
-    expect(rail).toContain('data-testid="os-market-rooms"');
+    // READ THE VALUE, NOT THE ATTRIBUTE SPELLING. The two doorway words are
+    // now emitted from one mapped descriptor, so the source no longer contains
+    // the literal `data-testid="os-market-rooms"` — it contains the id as a
+    // field. This is NOT the guard being loosened to accommodate a refactor:
+    // the RENDERED attribute is asserted in ShellAccessParity.test.tsx against
+    // real markup, which is strictly stronger evidence than a source grep.
+    // What remains this file's job is the SHAPE: which panel gates which list.
+    expect(rail).toContain('"os-market-rooms"');
     expect(rail).toMatch(/equipmentMode && scenePanel !== "rooms" \? null/);
     expect(rail).toContain("MARKET_HOME_ROOMS.map");
+  });
+
+  /**
+   * THIS ASSERTION REPLACES A WEAKER ONE, AND IT IS NOT A RELAXATION.
+   *
+   * The line that used to sit in the test above read:
+   *
+   *   expect(rail).toMatch(/equipmentMode\s*\?\s*null\s*:\s*\([\s\S]*?OS_COMMUNITY\.map/)
+   *
+   * It pinned Community to `null` on HOME, and it was doing so in the name of
+   * "the destination mall never returns over a live market". Measured on prod
+   * 2026-09-22 at 1440x900, what it had actually pinned was an ABSENCE: seven
+   * destinations — Lounge, WM TV, WM Radio, Creator, Partnerships, Shop and
+   * the trader's own Profile — with no door of any kind from the room the
+   * product calls home.
+   *
+   * The mall law was never "Community is unreachable". It was "the destination
+   * list is not STACKED under the room list over live price", which is what
+   * made HOME read as a mall in the first place. So the guard is restated as
+   * the thing it was always protecting, and it is STRICTER than the old one on
+   * the point that matters: Community may render on HOME only while its own
+   * panel is the one the trader opened, and never beside the rooms.
+   */
+  it("gives Community its own doorway on HOME — never stacked under the rooms", () => {
+    // A door exists at all. This is the half the old assertion forbade.
+    // Same reason as the sibling above for reading the value rather than the
+    // attribute: the rendered `data-testid` is pinned in ShellAccessParity.
+    expect(rail).toContain('"os-market-community"');
+
+    // And it is gated on its OWN panel. `scenePanel !== "community"` is the
+    // load-bearing half: it makes Community mutually exclusive with the room
+    // list, which is the actual mall prohibition.
+    expect(
+      rail,
+      "Community must render on HOME only while its own panel is open",
+    ).toMatch(/equipmentMode && scenePanel !== "community" \? null/);
+
+    // The rooms list stays gated on ITS own panel, so the two can never be on
+    // screen together. Restated here rather than assumed from the test above,
+    // because the pairing is what the prohibition is made of.
+    expect(rail).toMatch(/equipmentMode && scenePanel !== "rooms" \? null/);
+  });
+
+  it("Community is a DOORWAY, not a third piece of equipment", () => {
+    // The canon's §3 gives the two EQUIPMENT hands a brass plate each. A
+    // destination doorway that grew equipment chrome would be telling the
+    // trader they had picked something up when they had only walked through a
+    // door — so Community must not appear in the equipment-plate list.
+    const plates = rail.match(/\(\["workspace", "tools"\] as const\)/);
+    expect(plates, `${RAIL} → the equipment-plate pair is gone or has grown`).not.toBeNull();
+    expect(rail).not.toMatch(/equipmentTriggers\.current\.community/);
   });
 
   it("equipment mode offers exactly the canon's two hands, by name", () => {

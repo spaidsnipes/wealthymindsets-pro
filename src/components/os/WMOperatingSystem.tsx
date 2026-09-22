@@ -1173,7 +1173,21 @@ export function WMOperatingSystem({
   // the only legal FIRST value on a market scene, and unlike `railOpen` it is
   // not seeded from a room's opinion: there is no opinion that justifies
   // opening a panel over price before the trader asked.
-  type ScenePanel = "rooms" | "workspace" | "tools";
+  //
+  // ── WHY THERE IS A FOURTH, AND WHY IT IS NOT A THIRD BRASS PLATE ──────────
+  // Measured on prod 2026-09-22 at 1440x900: in equipment mode the COMMUNITY
+  // block rendered `null`. Not "quieter" — absent. Seven destinations (Lounge,
+  // WM TV, WM Radio, Creator, Partnerships, Shop, Profile) had ZERO doors from
+  // the room the product calls home, including the trader's own Profile. The
+  // comment that guarded it said Community "has doors in every other room",
+  // which was true and beside the point: /charts is HOME, and a destination
+  // reachable only by leaving home is not reachable.
+  //
+  // It is a DOORWAY WORD, drawn exactly like Rooms, and deliberately NOT a
+  // brass plate. §3's "the two targets sit adjacent, LARGE" is about the two
+  // pieces of EQUIPMENT. Community is somewhere to go, not something to pick
+  // up, and giving it equipment chrome would say the opposite.
+  type ScenePanel = "rooms" | "workspace" | "tools" | "community";
   const [scenePanel, setScenePanel] = React.useState<ScenePanel | null>(null);
   // ONE predicate for "is the side panel on screen". The nav element is shared
   // between the two modes precisely so the phone overlay stylesheet, the close
@@ -1203,7 +1217,11 @@ export function WMOperatingSystem({
   const equipmentTriggers = React.useRef<
     Record<"workspace" | "tools", HTMLButtonElement | null>
   >({ workspace: null, tools: null });
-  const roomsTrigger = React.useRef<HTMLButtonElement | null>(null);
+  // The two DOORWAY words. One record rather than two refs, so adding a third
+  // doorway cannot forget to teach Escape where to put focus back.
+  const doorwayTriggers = React.useRef<
+    Record<"rooms" | "community", HTMLButtonElement | null>
+  >({ rooms: null, community: null });
 
   /**
    * IS THE TRADER ALREADY INSIDE SOMETHING THEY PICKED UP?
@@ -1234,7 +1252,7 @@ export function WMOperatingSystem({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setScenePanel(null);
-      if (held === "rooms") roomsTrigger.current?.focus();
+      if (held === "rooms" || held === "community") doorwayTriggers.current[held]?.focus();
       else equipmentTriggers.current[held]?.focus();
     };
     window.addEventListener("keydown", onKey);
@@ -1384,38 +1402,65 @@ export function WMOperatingSystem({
             className="wm-os-equipment-plates"
             style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}
           >
-            <button
-              ref={roomsTrigger}
-              type="button"
-              className="wm-os-market-rooms"
-              data-testid="os-market-rooms"
-              data-presentation={scenePanel === "rooms" ? "active-doorway" : "direct-doorway"}
-              onClick={() => setScenePanel((current) => (current === "rooms" ? null : "rooms"))}
-              aria-expanded={scenePanel === "rooms"}
-              aria-controls={scenePanel === "rooms" ? "wm-os-rail" : undefined}
-              aria-label="Rooms"
-              title="Open rooms for discovery, replay, review, and research"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 32,
-                padding: "6px 9px",
-                borderRadius: 3,
-                // V01/V12 keep one changed-job doorway, not a third brass
-                // equipment plate. Closed, the word itself is the doorway;
-                // the outline is earned only while its Rooms panel is open.
-                border: `1px solid ${scenePanel === "rooms" ? GOLD : "transparent"}`,
-                background: scenePanel === "rooms" ? "rgba(196,165,116,0.10)" : "transparent",
-                color: scenePanel === "rooms" ? GOLD : MUTED,
-                cursor: "pointer",
-                ...EYEBROW,
-                fontSize: 9,
-                letterSpacing: 1.5,
-              }}
-            >
-              Rooms
-            </button>
+            {(
+              [
+                {
+                  kind: "rooms" as const,
+                  label: "Rooms",
+                  testid: "os-market-rooms",
+                  className: "wm-os-market-rooms",
+                  title: "Open rooms for discovery, replay, review, and research",
+                },
+                {
+                  kind: "community" as const,
+                  label: "Community",
+                  testid: "os-market-community",
+                  className: "wm-os-market-community",
+                  title: "Open the community, media and account destinations",
+                },
+              ]
+            ).map((door) => {
+              const open = scenePanel === door.kind;
+              return (
+                <button
+                  key={door.kind}
+                  ref={(el) => {
+                    doorwayTriggers.current[door.kind] = el;
+                  }}
+                  type="button"
+                  className={door.className}
+                  data-testid={door.testid}
+                  data-presentation={open ? "active-doorway" : "direct-doorway"}
+                  onClick={() =>
+                    setScenePanel((current) => (current === door.kind ? null : door.kind))
+                  }
+                  aria-expanded={open}
+                  aria-controls={open ? "wm-os-rail" : undefined}
+                  aria-label={door.label}
+                  title={door.title}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 32,
+                    padding: "6px 9px",
+                    borderRadius: 3,
+                    // V01/V12 keep changed-job DOORWAYS, not further brass
+                    // equipment plates. Closed, the word itself is the doorway;
+                    // the outline is earned only while its own panel is open.
+                    border: `1px solid ${open ? GOLD : "transparent"}`,
+                    background: open ? "rgba(196,165,116,0.10)" : "transparent",
+                    color: open ? GOLD : MUTED,
+                    cursor: "pointer",
+                    ...EYEBROW,
+                    fontSize: 9,
+                    letterSpacing: 1.5,
+                  }}
+                >
+                  {door.label}
+                </button>
+              );
+            })}
             {(["workspace", "tools"] as const).map((kind) => {
               const open = scenePanel === kind;
               return (
@@ -1635,9 +1680,11 @@ export function WMOperatingSystem({
             equipmentMode
               ? scenePanel === "rooms"
                 ? "Rooms"
-                : scenePanel === "tools"
-                  ? "Tools"
-                  : "Workspace"
+                : scenePanel === "community"
+                  ? "Community"
+                  : scenePanel === "tools"
+                    ? "Tools"
+                    : "Workspace"
               : "Rooms"
           }
           data-testid="os-rail"
@@ -1733,8 +1780,16 @@ export function WMOperatingSystem({
               className="wm-os-rail-close"
               data-testid="os-rail-close"
               onClick={() => (equipmentMode ? setScenePanel(null) : setRailOpen(false))}
+              // "Put the equipment down" is only true of the two EQUIPMENT
+              // hands. Rooms and Community are doorways — nothing was picked
+              // up, so nothing is being put down, and the control must not say
+              // a trader is holding something they are not.
               aria-label={
-                equipmentMode && scenePanel !== "rooms" ? "Put the equipment down" : "Close rooms"
+                !equipmentMode || scenePanel === "rooms"
+                  ? "Close rooms"
+                  : scenePanel === "community"
+                    ? "Close community"
+                    : "Put the equipment down"
               }
               style={{
                 display: "none",
@@ -1855,11 +1910,25 @@ export function WMOperatingSystem({
           )}
 
           {/* COMMUNITY is neither equipment nor a tool — it is somewhere else
-              to be. It has doors in every other room; it does not get one over
-              a live market. */}
-          {equipmentMode ? null : (
+              to be. That is why it is never STACKED under the room list over a
+              live market: it gets its own doorway word and its own hand, so
+              opening it is a deliberate act and price is never sharing the
+              panel with a media mall.
+
+              What it is NOT any more is absent. The earlier rule here was
+              `equipmentMode ? null :` — on HOME these seven destinations, the
+              trader's own Profile among them, had no door at all. */}
+          {equipmentMode && scenePanel !== "community" ? null : (
             <>
-              <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Community</div>
+              <div
+                style={{
+                  ...EYEBROW,
+                  padding: equipmentMode ? "0 14px 10px" : "18px 14px 8px",
+                  color: equipmentMode ? GOLD : MUTED,
+                }}
+              >
+                Community
+              </div>
               {OS_COMMUNITY.map((d) => (
                 <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
               ))}
@@ -2133,9 +2202,20 @@ export function WMOperatingSystem({
 
       <style>{`
         @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
-          /* Phase 1 is desktop-only. The fresh Rooms doorway must not silently
-             become a phone redesign while the 390 certificate is closed. */
-          .wm-os-market-rooms { display: none !important; }
+          /* Phase 1 is desktop-only. The fresh doorway words must not silently
+             become a phone redesign while the 390 certificate is closed.
+             Community is held to exactly the same rule as Rooms — shipping one
+             doorway on the phone and hiding the other would be a phone
+             redesign performed by omission. The phone reaches Community the
+             way it always has: /profile has a permanent strip slot, and in a
+             phone-door room the pinned rail carries the full map.
+
+             NOTE FOR THE NEXT EDITOR: this comment is inside a TEMPLATE
+             LITERAL. A backtick here ends the stylesheet mid-sentence and the
+             rest of the component becomes a syntax error. Quote code with
+             plain words. */
+          .wm-os-market-rooms,
+          .wm-os-market-community { display: none !important; }
           ${
             phoneDoorOnly
               ? /* ── THE RAIL IS THE PHONE'S NAVIGATION HERE ──────────────
