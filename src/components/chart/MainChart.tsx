@@ -1252,6 +1252,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // Open paper-trade position lines (native IPriceLine on the candle series) +
   // the position each line represents, so we can refresh the live-P&L title on tick.
   const paperLinesRef = useRef<Array<{ line: any; qty: number; avgPx: number }>>([]);
+  // BROKER COST LINE (HOUSE PLAN bolt-on #6): the founder's REAL Webull
+  // positions for THIS symbol, fetched from /api/broker/webull/positions and
+  // painted as native price lines. Same paint rail as paper lines; different
+  // truth source (broker, not blotter) and its own cleanup list.
+  const brokerCostLinesRef = useRef<any[]>([]);
+  const [brokerCostPositions, setBrokerCostPositions] = useState<Array<{
+    symbol: string;
+    instrumentType: "STOCK" | "OPTION" | "OTHER";
+    quantity: number;
+    paintLevel: number;
+    costPrice: number;
+    option?: { type: "CALL" | "PUT"; strike: number; expireDate: string; multiplier: number };
+  }>>([]);
   // Live-updating oscillators: each entry recomputes its series values from the
   // CURRENT bars (barsRef) and pushes only the last point on every live tick, so
   // Tape Speed / Exhaustion / flow histograms visibly move with real-time data
@@ -4697,6 +4710,74 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       window.removeEventListener("focus", bump);
     };
   }, []);
+
+  /* ── BROKER COST LINE (HOUSE PLAN bolt-on #6) ────────────────────────
+   * The founder's REAL Webull positions for THIS symbol, painted on price.
+   * Truth source is /api/broker/webull/positions (auth-gated, read-only by
+   * construction). HONEST-PRICE RULE is enforced server-side: an OPTION's
+   * paintLevel is its STRIKE (premium confessed in the label), a STOCK's is
+   * its cost price. Honest absence = paint nothing — an empty book or a
+   * non-OBSERVED read state produces zero lines, never an invented level. */
+  useEffect(() => {
+    let cancelled = false;
+    const wanted = (symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!wanted) { setBrokerCostPositions([]); return; }
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/broker/webull/positions?symbol=${encodeURIComponent(wanted)}`,
+          { cache: "no-store" },
+        );
+        if (cancelled) return;
+        if (!res.ok) { setBrokerCostPositions([]); return; }
+        const receipt = await res.json();
+        if (cancelled) return;
+        // Only an OBSERVED read may paint. NO_POSITIONS, UNCONFIGURED,
+        // AWAITING_2FA etc. all mean "nothing honest to draw here".
+        setBrokerCostPositions(
+          receipt?.state === "OBSERVED" && Array.isArray(receipt.positions)
+            ? receipt.positions
+            : [],
+        );
+        // Dev-only diagnostic readback (never ships to production).
+        if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+          (window as unknown as { __wmBrokerCostLine?: unknown }).__wmBrokerCostLine = {
+            symbol: wanted, state: receipt?.state,
+            count: Array.isArray(receipt?.positions) ? receipt.positions.length : 0,
+            ts: Date.now(),
+          };
+        }
+      } catch {
+        if (!cancelled) setBrokerCostPositions([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const series = candleRef.current;
+    if (!series || !ready || !brokerCostPositions.length) return;
+    brokerCostPositions.forEach(p => {
+      const title = p.instrumentType === "OPTION" && p.option
+        ? `WEBULL ${p.option.strike}${p.option.type === "CALL" ? "C" : "P"} ${p.option.expireDate.slice(5)} ×${p.quantity} · prem ${p.costPrice}`
+        : `WEBULL COST ×${p.quantity}`;
+      try {
+        const line = series.createPriceLine({
+          price: p.paintLevel,
+          color: "#E8B54D",           // WM gold — broker truth, not blotter
+          lineWidth: 1,
+          lineStyle: 2,               // dashed: a held level, not a live P&L line
+          axisLabelVisible: true,
+          title,
+        });
+        brokerCostLinesRef.current.push(line);
+      } catch {}
+    });
+    return () => {
+      brokerCostLinesRef.current.forEach(line => { try { series.removePriceLine(line); } catch {} });
+      brokerCostLinesRef.current = [];
+    };
+  }, [brokerCostPositions, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Log / pct / auto scale mode ─────────────────────────── */
   useEffect(() => {

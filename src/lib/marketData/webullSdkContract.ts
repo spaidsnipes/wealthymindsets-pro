@@ -81,6 +81,22 @@ export const WEBULL_SDK_CONTRACT = {
     needsMarketData: false,
     sdkSource: "webull/trade/request/get_account_list_request.py",
   },
+  /**
+   * The positions read behind the BROKER COST LINE (bolt-on build order #6).
+   * Same request family as ACCOUNT_LIST (webull/trade/request/, non-v2 client):
+   * get_account_positions_request.py declares
+   *   ApiRequest.__init__(self, "/account/positions", version='v3', method="GET")
+   * with query params account_id / page_size / last_instrument_id. Note the v2
+   * client declares a DIFFERENT path (/trading/assets/positions/list) — the
+   * row below is the one whose sibling account-list rung is already proven
+   * CONNECTED in production, so it is the one WM Pro knocks on first.
+   */
+  ACCOUNT_POSITIONS: {
+    path: "/account/positions",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/get_account_positions_request.py",
+  },
   /** Instrument metadata. Needs auth but NOT a data package — it is the control
    *  rung that makes a market-data denial readable. */
   STOCK_PROFILES: {
