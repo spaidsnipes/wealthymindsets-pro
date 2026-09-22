@@ -16,6 +16,7 @@
     "prove:bubble-pixels": "node scripts/prove-bubble-pixels.mjs",
     "prove:passport-pixels": "node scripts/prove-passport-pixels.mjs",
     "prove:charts-floor": "node scripts/prove-charts-floor.mjs",
+    "prove:camera-on-resize": "node scripts/prove-camera-on-resize.mjs",
     "prove:revives": "node scripts/prove-revives-fail.mjs",
     "lint": "next lint",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",

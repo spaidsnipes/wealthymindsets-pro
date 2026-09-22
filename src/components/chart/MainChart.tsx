@@ -77,6 +77,11 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
+import {
+  openChartCameraKeeper,
+  type ChartCameraKeeper,
+  type CameraResizeOutcome,
+} from "@/lib/chart/chartCameraKeeper";
 import { STRUCTURE_DEFAULT_LOOKBACK } from "@/lib/marketData/viewModels/selectMarketStructure";
 
 /**
@@ -1213,6 +1218,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const vpNoteRef = useRef<string | null>(null);
   const [vpDeclineNote, setVpDeclineNote] = useState<string | null>(null);
   const chartRef      = useRef<any>(null);
+  // Holds the trader's visible bars across a chart WIDTH change (the equipment
+  // panel reflowing the chart into a narrower column). Created BEFORE
+  // LW.createChart and attached immediately after — the order is load-bearing;
+  // see chartCameraKeeper.ts. Nulled only on unmount, alongside chartRef.
+  const cameraKeeperRef = useRef<ChartCameraKeeper | null>(null);
+  const cameraOutcomeRef = useRef<CameraResizeOutcome | null>(null);
+  const cameraNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Shown ONLY when the chart changed width and the trader's bars could NOT be
+   * carried across it. Silence means the camera held — which is the common case
+   * and needs no chrome. A chart that quietly re-pointed itself and said nothing
+   * is the defect this whole atom exists to remove; clamping the view into
+   * "close enough" and staying silent would be the same defect wearing a fix.
+   */
+  const [cameraNote, setCameraNote] = useState<string | null>(null);
   // WM-CHART-P0-02: aborts the previous symbol/timeframe's in-flight candle
   // fetch the moment a new one starts, instead of only ignoring its result.
   const versionGuardRef = useRef<DataVersionGuard>(new DataVersionGuard());
@@ -2172,6 +2192,35 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const intervalSec = getIntervalSec(timeframe);
       const isNewChart  = !chartRef.current;
 
+      // ── CAMERA PRESERVATION ACROSS A WIDTH CHANGE ────────────────────────
+      // The equipment panel is moving from an overlay to a column, so opening
+      // Tools will REFLOW this chart narrower. lightweight-charts does not hold
+      // the visible bars through that — it re-derives the span from the new
+      // width and the trader's view slides. They would open a tool and find a
+      // different stretch of the market on screen than the one they were
+      // reading.
+      //
+      // This keeper MUST be opened BEFORE createChart(). It installs a
+      // ResizeObserver whose only job is to read the visible range while the
+      // scale still holds the OLD width, and ResizeObserver notifies in
+      // construction order — so being first here is what makes that read the
+      // trader's real pre-resize view. The matching attach() below, immediately
+      // after createChart(), installs the restore observer LAST, after the
+      // library's own. Reordering these two calls silently reintroduces the jump.
+      if (isNewChart && el) {
+        cameraKeeperRef.current = openChartCameraKeeper(el, {
+          onOutcome: (o) => {
+            cameraOutcomeRef.current = o;
+            if (o.preserved) { setCameraNote(null); return; }
+            // The view DID move. Say which and why, in the keeper's own words,
+            // then get out of the way — this is a one-time event, not status.
+            setCameraNote(o.plan.action === "stand-down" ? o.plan.spoken : null);
+            if (cameraNoteTimerRef.current) clearTimeout(cameraNoteTimerRef.current);
+            cameraNoteTimerRef.current = setTimeout(() => setCameraNote(null), 6000);
+          },
+        });
+      }
+
       const chart = chartRef.current ?? LW.createChart(el, {
         autoSize: true,
         localization: { timeFormatter: fmtAxisTime },
@@ -2226,6 +2275,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Assign immediately so a rapid second symbol/timeframe change during our
       // async candle fetch REUSES this chart instead of creating a duplicate.
       if (isNewChart) chartRef.current = chart;
+      // Attached HERE — after createChart, so the restore observer is the last
+      // one notified and the library's synchronous re-fit has already happened
+      // by the time it runs. `barsRef` is read lazily so the keeper always sees
+      // the live series rather than whatever was loaded at attach time.
+      if (isNewChart) {
+        cameraKeeperRef.current?.attach({
+          getVisibleLogicalRange: () => chart.timeScale().getVisibleLogicalRange(),
+          setVisibleLogicalRange: (r) => chart.timeScale().setVisibleLogicalRange(r),
+          barSpacingBounds: () => {
+            const o = chart.timeScale().options() ?? {};
+            return { minBarSpacing: o.minBarSpacing ?? 0, maxBarSpacing: o.maxBarSpacing ?? 0 };
+          },
+          barCount: () => barsRef.current.length,
+        });
+      }
 
       // ── NO VWAP / NO BANDS — moved to Indicators panel ──
 
@@ -2851,6 +2915,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // the plot from blanking during symbol/timeframe/candle-type switches.
   useEffect(() => {
     return () => {
+      // Disconnect the camera observers BEFORE the chart is removed, so a
+      // final resize notification can never reach a disposed time scale.
+      try { cameraKeeperRef.current?.dispose(); } catch {}
+      cameraKeeperRef.current = null;
+      if (cameraNoteTimerRef.current) clearTimeout(cameraNoteTimerRef.current);
+      cameraNoteTimerRef.current = null;
       try { chartRef.current?.remove(); } catch {}
       chartRef.current  = null;
       candleRef.current = null;
@@ -9988,6 +10058,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }}
           >
             {vpDeclineNote}
+          </div>
+        )}
+        {/*
+          CAMERA-MOVED NOTICE — the chart changed width and could not carry your
+          bars across it.
+
+          Bottom-LEFT, clear of the VP decline notice at top-right, because the
+          two can fire at once and a notice that covers another notice tells the
+          trader less than either would alone.
+
+          Rendered only on a refusal. When the camera IS preserved there is
+          nothing to report — the bars in front of the trader are the bars they
+          were already reading, and saying so every time would train them to
+          ignore the one time it is not true.
+        */}
+        {cameraNote && (
+          <div
+            data-camera-moved-notice
+            role="status"
+            className="absolute pointer-events-none"
+            style={{
+              bottom: TIMEFRAME_FOOTER_H + 8, left: 8, zIndex: 6,
+              maxWidth: 300,
+              padding: "4px 8px",
+              borderRadius: 4,
+              border: "1px solid rgba(240,180,41,0.45)",
+              background: "rgba(13,17,23,0.92)",
+              color: "rgba(240,180,41,1)",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              lineHeight: 1.35,
+            }}
+          >
+            {cameraNote}
           </div>
         )}
         {/* Drawing tools canvas — pointer-events only when tool is active */}
