@@ -79,7 +79,11 @@ import {
   roomEquipmentOfKind,
   type RoomEquipmentKind,
 } from "@/lib/workspace/roomEquipment";
-import { requestEquipment, subscribeEquipmentStage } from "@/lib/workspace/equipmentChannel";
+import {
+  heldEquipmentIds,
+  requestEquipment,
+  subscribeEquipmentStage,
+} from "@/lib/workspace/equipmentChannel";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
 import { ACTIVATOR_GLYPHS, equipmentGlyph } from "./equipmentGlyphs";
@@ -398,9 +402,19 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
   // The protocol is unchanged and the journey's behaviour is bit-identical:
   // CLOSE still announces `(null, "closed")`, which still clears everything.
   // What is newly expressible is `(id, "closed")` — "put THIS one down".
-  const [openIds, setOpenIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  //
+  // AND THE FIRST READING IS THE CHANNEL'S MEMORY, NOT AN EMPTY GUESS.
+  // MEASURED 2026-09-22 on live /charts: the frame closes this panel on the
+  // very announce that opens equipment, so this component UNMOUNTS the moment
+  // anything is picked up — and a rail that started from `new Set()` on the
+  // next open showed Replay un-pressed while the replay ran. Starting from
+  // `heldEquipmentIds()` is still being TOLD, not inferring: that set is
+  // written only by `announceEquipmentStage`, i.e. only by the room.
+  const [openIds, setOpenIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(heldEquipmentIds()),
+  );
   React.useEffect(() => {
-    setOpenIds(new Set());
+    setOpenIds(new Set(heldEquipmentIds()));
     return subscribeEquipmentStage(({ equipmentId, stage }) =>
       setOpenIds((current) => {
         // The honest empty announce — "I am holding nothing."

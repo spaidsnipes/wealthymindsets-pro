@@ -90,6 +90,35 @@ export function subscribeEquipment(handler: (req: EquipmentRequest) => void): ()
 
 export const EQUIPMENT_STAGE_EVENT = "wm:equipment-stage";
 
+/**
+ * THE CHANNEL'S MEMORY OF THE ROOM'S LAST WORDS.
+ *
+ * MEASURED 2026-09-22 on live /charts with a Playwright probe: press Replay
+ * (announce "drawer" arrives), the frame closes the Workspace panel on that
+ * very announce, the rail UNMOUNTS — and its `openIds` state dies with it.
+ * Reopen the door and the fresh rail shows Replay `aria-pressed="false"`
+ * while the replay disclosure is still up. The 2026-09-19 liar, resurrected
+ * through remount: the announce protocol was honest, but it only spoke once,
+ * and the listener that needed it was not in the room when it was said.
+ *
+ * So the channel keeps a record of what the rooms have announced and not yet
+ * retracted. THIS IS NOT THE STORE THE FILE HEADER ARGUES AGAINST: no room
+ * state moves into the frame, nothing here is computed or inferred, and the
+ * room remains the ONLY writer — this set is written exclusively by
+ * `announceEquipmentStage`, with exactly the reducer the rail already applies
+ * (`null` clears everything; a non-closed stage holds; `closed` releases).
+ * A mounting rail reads it as its FIRST reading and then subscribes as
+ * before. A room that unmounts without retracting is self-correcting: its
+ * announce effects re-publish the honest booleans on remount, and no other
+ * room's rail ever looks up ids that are not its own.
+ */
+const held = new Set<string>();
+
+/** Rail side, on MOUNT: everything the rooms have announced and not retracted. */
+export function heldEquipmentIds(): ReadonlySet<string> {
+  return held;
+}
+
 export interface EquipmentStageAnnounce {
   readonly equipmentId: string | null;
   readonly stage: EquipmentStage;
@@ -123,6 +152,11 @@ export function announceEquipmentStage(
   stage: EquipmentStage,
 ): void {
   if (typeof document === "undefined") return;
+  // The memory updates BEFORE the dispatch so a subscriber that reads
+  // `heldEquipmentIds()` inside its handler never sees the past.
+  if (equipmentId === null) held.clear();
+  else if (stage !== "closed") held.add(equipmentId);
+  else held.delete(equipmentId);
   document.dispatchEvent(
     new CustomEvent<EquipmentStageAnnounce>(EQUIPMENT_STAGE_EVENT, {
       detail: { equipmentId, stage },

@@ -398,6 +398,15 @@ describe("SENTINEL — WORKSPACE sits beneath ROOMS and opens equipment, not pag
     expect(body, `${RAIL} → the rail never hears the room`).toMatch(
       /subscribeEquipmentStage\(/,
     );
+    // And it must hear the room ACROSS ITS OWN REMOUNT. MEASURED 2026-09-22:
+    // the frame closes the panel on the announce that opens equipment, so the
+    // rail unmounts the moment anything is picked up; a rail that started
+    // from `new Set()` showed Replay un-pressed while the replay ran. The
+    // first reading must be the channel's memory of the room's last words.
+    expect(
+      body,
+      `${RAIL} → the rail starts from an empty guess instead of heldEquipmentIds(); a remounted rail will show held equipment as down`,
+    ).toMatch(/heldEquipmentIds\(\)/);
     expect(body, `${RAIL} → the rail hears the room and paints nothing`).toMatch(
       /data-equipment-open=/,
     );
