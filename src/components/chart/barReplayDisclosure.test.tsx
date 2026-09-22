@@ -129,6 +129,27 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
     ).toMatch(/flexShrink:\s*0/);
   });
 
+  it("puts the replay down on Escape — the room-side half of the frame's promise", () => {
+    // MEASURED on production 2026-09-22 (probe-truth-recovery.mjs): with the
+    // replay panel held, Escape did NOTHING — `replayStillUp: true`, the rail
+    // honestly reporting `aria-pressed="true"`. The OS frame deliberately does
+    // not listen for Escape while a journey is open, on the stated premise that
+    // the room "ALSO closes on Escape, one step at a time". Draw / Smart Money
+    // / Chart Tools keep that promise through ShellModalDrawer's focus hook;
+    // Bar Replay is a disclosure with no focus trap, so the room must keep it
+    // itself. Without this, a panel over a live chart is a MODE — dismissible
+    // only by re-finding the toggle while price is moving.
+    const dash = read("ChartsDashboard.tsx");
+    expect(
+      dash,
+      "the room no longer stops the replay on Escape — the frame's premise is a lie again",
+    ).toMatch(/if \(e\.key !== "Escape" \|\| e\.defaultPrevented\) return;\s*\n\s*stopReplay\(\);/);
+    // `defaultPrevented` is the one-level-per-press seam: a modal drawer above
+    // the panel prevents default before stopping propagation, so it consumes
+    // the press and the replay survives. Dropping the guard would make one
+    // Escape close two levels.
+  });
+
   it("renders the full instrument — clock, progress and counter — ONLY when it is driving", () => {
     const html = render(true);
     expect(html, "the driving branch lost its position counter").toContain("137/390");

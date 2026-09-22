@@ -2277,6 +2277,35 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => {
     announceEquipmentStage("bar-replay", replayActive ? "drawer" : "closed");
   }, [replayActive]);
+  /* ESCAPE PUTS THE REPLAY DOWN — the room-side half of the frame's promise.
+
+     The OS frame (WMOperatingSystem) deliberately does NOT listen for Escape
+     while a journey is open: "the room ALSO closes on Escape, one step at a
+     time." For Draw / Smart Money / Chart Tools that is true — each rides
+     `ShellModalDrawer`, whose focus hook handles Escape and calls
+     `preventDefault` + `stopPropagation`. Bar Replay is NOT a modal drawer;
+     it is a disclosure over the chart with no focus trap, and MEASURED on
+     production 2026-09-22 (probe-truth-recovery.mjs): with replay held,
+     Escape did NOTHING — `replayStillUp: true`, rail honestly reporting
+     `aria-pressed="true"`. A panel over a live chart that only closes by
+     hunting the same toggle again is a MODE, the exact thing the frame's
+     Escape doc forbids.
+
+     `defaultPrevented` is the seam: if a modal drawer is up ABOVE the replay
+     panel it consumes Escape first (its handler prevents default before
+     stopping propagation), so one press still closes exactly ONE level.
+     `stopReplay()` flips `replayActive`, the announce effect above publishes
+     "closed", and the channel memory + rail hear the put-down — same single
+     writer, no second brain. */
+  useEffect(() => {
+    if (!replayActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      stopReplay();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [replayActive, stopReplay]);
   /* Smart Money answers back on the SAME terms, and it has to.
      `aria-pressed` on the rail entry is a contract (see equipmentChannel's
      note): a rail that could open the panel but never hear it close would
