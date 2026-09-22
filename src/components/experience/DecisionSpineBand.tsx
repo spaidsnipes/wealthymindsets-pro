@@ -73,6 +73,7 @@ import {
 } from "@/lib/marketData/viewModels/selectWhySeverityBar";
 import { selectRiskReachBar } from "@/lib/traderMemory/viewModels/selectRiskReachBar";
 import { MarketHonestyPlaque } from "@/components/experience/MarketHonestyPlaque";
+import { selectFoldEscalation } from "@/lib/marketData/viewModels/selectFoldEscalation";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 
 /**
@@ -850,6 +851,22 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   // The horizontal BAND keeps all six cells inline. It is the phone/narrow
   // projection, it is not the 1440 frame S-501 governs, and its cells already
   // scroll rather than stack.
+  /* ── THE HANDLE MUST NAME THE STATE OF WHAT IT HIDES ──────────────────────
+     MEASURED prod /charts 2026-09-22 (eb63292b): the closed fold read only
+     "Risk · Why · Detail" while the plaque one click behind it already said
+     chart integrity WOUNDED and fidelity DEGRADED — over a chart that was
+     painting. S-501 made the handle name its REGIONS; it never made the handle
+     name its STATE, so a wounded canvas and a certified one drew identically.
+
+     Nothing moves out of the fold. S-501's four-chunk budget is untouched and
+     the six organs stay exactly where they are. The only change is that a
+     NON-NOMINAL fold stops being mute about it.
+
+     Derived from the SAME reading the plaque renders, through the SAME
+     `paintTreatment` owner — no second evidence engine, and INTACT emits
+     nothing at all, so the calm rail is byte-identical to the one shipping. */
+  const foldEscalation = selectFoldEscalation(props.honesty);
+
   const honestyCell = props.honesty !== undefined && (
     <div style={{ padding: rail ? "8px 10px" : "6px 8px", display: "flex" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -1377,9 +1394,37 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           <summary
             style={DETAIL_SUMMARY}
             data-testid="spine-detail-summary"
-            aria-label="Detail: market provenance, data fidelity, risk, why, and the evidence ledger"
+            data-fold-escalation={foldEscalation.level}
+            title={foldEscalation.detail}
+            aria-label={foldEscalation.detail}
           >
-            <span style={{ whiteSpace: "normal" }}>Risk · Why · Detail</span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{ whiteSpace: "normal" }}>Risk · Why · Detail</span>
+              {/* §9: the wound is VISIBLE, which is a different instruction
+                  from the wound is RED. One parchment word on a brass hairline
+                  — no severity rainbow, and absent entirely when INTACT. */}
+              {foldEscalation.word ? (
+                <span
+                  data-testid="spine-fold-integrity"
+                  data-integrity={foldEscalation.word}
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "1px 5px",
+                    borderRadius: 2,
+                    border: "1px solid rgba(139,106,41,0.45)",
+                    color: "#c2b892",
+                    background: "rgba(139,106,41,0.10)",
+                    fontSize: 11,
+                    lineHeight: "16px",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Chart integrity · {foldEscalation.word}
+                </span>
+              ) : null}
+            </span>
             <span aria-hidden="true" className="wm-spine-fold-chevron">
               ▸
             </span>

@@ -44,8 +44,12 @@ import {
   canPaint,
   paintTreatment,
   type MarketFidelityReading,
-  type PaintTreatment,
 } from "@/lib/marketData/marketFidelityAlgebra";
+// The word map moved out to the selector that the decision rail's fold handle
+// also reads. It is the SAME sentence in two places on one screen — the chip on
+// the closed handle, and this foot rail one click below it — so it must have
+// one spelling. A private copy here is how a rename lands on only one of them.
+import { INTEGRITY_WORD } from "@/lib/marketData/viewModels/selectFoldEscalation";
 
 /* ── PALETTE ───────────────────────────────────────────────────────────────── */
 
@@ -55,19 +59,11 @@ const PARCHMENT = "#c2b892";
 const MUTED = "#8a8271";
 const HAIR = "rgba(139,106,41,0.22)";
 
-/**
- * What the treatment means in words, for the foot rail.
- *
- * Note that NONE is not "fine" and not "broken" — it is the state where the
- * house declines to paint at all, and the rail says so rather than leaving the
- * slot empty. An empty integrity slot reads as integrity.
- */
-const INTEGRITY_WORD: Record<PaintTreatment, string> = {
-  FULL: "INTACT",
-  WOUNDED: "WOUNDED",
-  DIM: "DIMMED",
-  NONE: "NOT PAINTED",
-};
+/* INTEGRITY_WORD — what the treatment means in words, for the foot rail — now
+   lives in selectFoldEscalation and is imported above. NONE is not "fine" and
+   not "broken": it is the state where the house declines to paint at all, and
+   the rail says so rather than leaving the slot empty. An empty integrity slot
+   reads as integrity. */
 
 export interface MarketHonestyPlaqueProps {
   /**
