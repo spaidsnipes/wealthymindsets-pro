@@ -180,6 +180,43 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     expect(src).toContain("replayEngaged: replayActive");
   });
 
+  /**
+   * THE RESIDUE, MEASURED AFTER THE MASTHEAD WAS ALREADY CURED.
+   *
+   * Production, immediately after the compiler fix deployed. The masthead read
+   * correctly — "HISTORICAL BARS VERIFIED · bar replay", no wall clock — and a
+   * pulsing green "● LIVE TAPE" chip was still sitting over the replayed
+   * candles at (439,126), with a "Collecting live executed trades…" banner
+   * behind it on the same coordinates.
+   *
+   * That is this bug's third and fourth clock. Both overlays are pinned to the
+   * PRICE PANE, and both describe the live tape — which keeps running while the
+   * camera walks history, so neither may be made to say "no tape". What is
+   * false is their SUBJECT: the counters accumulate against live bars while the
+   * trader is looking at historical ones. Withheld, not falsified.
+   */
+  it("neither live-tape overlay may sit on the glass while the camera walks history", () => {
+    const src = read("src/components/chart/MainChart.tsx");
+    // Both gates, by their own anchors. Written as two assertions rather than a
+    // count so a future edit that fixes one and drops the other still fails.
+    expect(
+      src,
+      "the LIVE TAPE session chip is not gated on the camera",
+    ).toContain("{footprintEnabled && !replayActive && hasRealAggressorTape(tapeSource ?? \"\") &&\n");
+    expect(
+      src,
+      "the 'Collecting live executed trades…' banner is not gated on the camera",
+    ).toContain("{footprintEnabled && !replayActive && hasRealAggressorTape(tapeSource ?? \"\") && !recentTicks");
+  });
+
+  it("the withheld tape counters are DISCLOSED, not silently dropped", () => {
+    // Silence about a reading whose subject left the screen is honest. Silence
+    // about the RECORDER would be a new lie in the opposite direction — the
+    // trader would reasonably conclude collection stopped when replay began.
+    const src = read("src/components/chart/MainChart.tsx");
+    expect(src).toContain("Live tape collection continues in the background");
+  });
+
   it("MainChart's data-truth strip READS replayActive — the prop may not go dead again", () => {
     const src = read("src/components/chart/MainChart.tsx");
     // Not a spelling check: this is the exact failure that shipped. The prop

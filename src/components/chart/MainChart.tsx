@@ -9675,7 +9675,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   data-feed-recency-kind="replay"
                   data-replay-camera="engaged"
                   aria-label="Bar replay engaged — historical bars, not a live quote"
-                  title={"BAR REPLAY — the camera is walking historical bars.\nNo live-quote claim is made while replay is engaged."}
+                  title={"BAR REPLAY — the camera is walking historical bars.\nNo live-quote claim is made while replay is engaged.\nLive tape collection continues in the background; its counters are\nhidden because they describe live bars, not the ones on screen."}
                 >
                   <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
                     {showFidelityChrome
@@ -9874,7 +9874,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             candles with no explanation. Now the banner shows the collecting
             state until ANY trade arrives, then switches to a persistent
             "live-only footprint" note that stays as long as the tool is on. */}
-        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && !recentTicks?.some(t => t.trade) && (
+        {/* `!replayActive` — OWL WITH TWO CLOCKS, residue 1 of 2. This banner is
+            pinned over the PRICE PANE and its subject is "the footprints you are
+            looking at are filling in live". While the companion camera walks
+            history that sentence is false about the bars on the glass, and a
+            green "Collecting live executed trades…" over a replayed chart is the
+            same confusion the masthead fix just closed, one layer down. */}
+        {footprintEnabled && !replayActive && hasRealAggressorTape(tapeSource ?? "") && !recentTicks?.some(t => t.trade) && (
           <div
             role="status"
             aria-live="polite"
@@ -9899,7 +9905,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {/* WM Live Session tape chip — running counters from real observed
             executions. One compact on-glass reading; the complete retention,
             coverage and historical-tape limitations remain in aria/title. */}
-        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") &&
+        {/* `!replayActive` — OWL WITH TWO CLOCKS, residue 2 of 2, and the louder
+            one. MEASURED on production after the masthead was cured: the
+            masthead correctly read "HISTORICAL BARS VERIFIED · bar replay" while
+            a pulsing green "● LIVE TAPE" chip sat over the replayed candles at
+            (439,126). Correcting one of two contradicting chips does not make a
+            room impossible to confuse; it just moves the lie down the glass.
+
+            WITHHELD, NOT FALSIFIED. The recorder really is still running — the
+            socket does not stop when the camera turns around — so this chip may
+            not be made to say "no tape". What is false is its IMPLIED SUBJECT:
+            these counters are accumulating against LIVE bars while the trader is
+            looking at historical ones, so the reading does not describe the
+            chart it is pinned to. Silence is the honest answer for a reading
+            whose subject has left the screen, and the fact that collection
+            continues is stated in the BAR REPLAY strip's own receipt rather than
+            dropped. */}
+        {footprintEnabled && !replayActive && hasRealAggressorTape(tapeSource ?? "") &&
           (sessionTapeTick > 0 || sessionNectarUiVersion > 0) && (() => {
           const s = sessionTapeStatsRef.current;
           const fmt = (n: number) => {
