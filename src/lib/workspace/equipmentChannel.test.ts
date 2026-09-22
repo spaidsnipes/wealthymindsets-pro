@@ -12,6 +12,9 @@ import {
   announceEquipmentStage,
   arrangedEquipmentId,
   subscribeEquipmentArrangement,
+  announceEquipmentShortfalls,
+  announcedEquipmentShortfalls,
+  subscribeEquipmentShortfalls,
   readJourneyFromUrl,
   reflectJourneyInUrl,
   requestEquipment,
@@ -295,6 +298,80 @@ describe("arrangement — WHERE THE TRADER IS SITTING, not what they are holding
     );
     off();
     expect(seen).toEqual([null]);
+  });
+});
+
+describe("shortfalls — WHAT THE DESK CAN ACTUALLY DRAW, told by the room", () => {
+  afterEach(() => announceEquipmentShortfalls([]));
+
+  const partial = {
+    equipmentId: "arrange-order-flow",
+    readiness: "PARTIAL" as const,
+    deliverableCount: 1,
+    armedCount: 5,
+    note: "Arms five readings; four need a tape that states an aggressor side.",
+  };
+
+  it("delivers to a subscriber and remembers for the next mount", () => {
+    const seen: (readonly unknown[])[] = [];
+    const off = subscribeEquipmentShortfalls((s) => seen.push(s));
+    announceEquipmentShortfalls([partial]);
+    expect(announcedEquipmentShortfalls()).toEqual([partial]);
+    off();
+    expect(seen).toEqual([[partial]]);
+  });
+
+  it("STARTS EMPTY, AND EMPTY MEANS NOT MEASURED", () => {
+    // The whole asymmetry of this channel. A rail that read an empty list as
+    // "every desk is fine" would print reassurance on a screen where nothing
+    // has measured anything. Absence must produce silence, never comfort.
+    expect(announcedEquipmentShortfalls()).toEqual([]);
+  });
+
+  it("a later announce REPLACES — a desk that recovered stops confessing", () => {
+    announceEquipmentShortfalls([partial]);
+    announceEquipmentShortfalls([{ ...partial, readiness: "FULL", deliverableCount: 5 }]);
+    const now = announcedEquipmentShortfalls();
+    expect(now).toHaveLength(1);
+    expect(now[0].readiness).toBe("FULL");
+    // Accumulating rather than replacing would leave the old PARTIAL on the
+    // tile after the tape started stating a side — a stale warning, which is
+    // the same lie as a missing one pointed the other way.
+  });
+
+  it("publishes FULL too, rather than omitting it", () => {
+    // MEASURED, not merely silent. The rail decides that FULL draws nothing;
+    // the channel's job is to say what was found. If FULL were dropped here,
+    // "absent" would mean both NOT MEASURED and FINE, and the rail could no
+    // longer tell them apart.
+    const full = { ...partial, readiness: "FULL" as const, deliverableCount: 5 };
+    announceEquipmentShortfalls([full]);
+    expect(announcedEquipmentShortfalls()).toEqual([full]);
+  });
+
+  it("is a SEPARATE fact from which desk is in force", () => {
+    announceEquipmentArrangement("arrange-regime");
+    announceEquipmentShortfalls([partial]);
+    expect(arrangedEquipmentId()).toBe("arrange-regime");
+    announceEquipmentArrangement(null);
+    expect(announcedEquipmentShortfalls()).toEqual([partial]);
+  });
+
+  it("unsubscribes — a listener per remount is a leak", () => {
+    const handler = vi.fn();
+    subscribeEquipmentShortfalls(handler)();
+    announceEquipmentShortfalls([partial]);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("reads a malformed detail as NOTHING MEASURED, not as a crash", () => {
+    const seen: (readonly unknown[])[] = [];
+    const off = subscribeEquipmentShortfalls((s) => seen.push(s));
+    (g.document as EventTarget).dispatchEvent(
+      new CustomEvent("wm:equipment-shortfall", { detail: 7 }),
+    );
+    off();
+    expect(seen).toEqual([[]]);
   });
 });
 

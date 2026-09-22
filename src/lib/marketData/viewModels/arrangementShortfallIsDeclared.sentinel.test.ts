@@ -55,6 +55,29 @@ const DASHBOARD = readFileSync(
   join(ROOT, "src/components/chart/ChartsDashboard.tsx"),
   "utf8",
 );
+/*
+  THE SECOND DOOR.
+
+  MEASURED 2026-09-22 on prod /charts?symbol=TSLA at 1440x900: the Workspace
+  hand listed the three desks as
+
+      Order Flow   The chart is arranged this way now
+      Regime       Both volume profiles — where price has been accepted
+      Review       Session profile and effort-against-result, after the fact
+
+  — three flat promises, no readiness, no `data-readiness`, no declaration.
+  The compiler's disclosure reached the TOOLS drawer and stopped there. The
+  Workspace door was added later, wired the presses, and skipped the telling.
+
+  The assertions below are ADDITIVE. The Tools-door rule above is unchanged;
+  this extends the same rule to the door that now also names these desks,
+  because "the shortfall must appear where the desk is named" was never a
+  statement about one file.
+*/
+const RAIL = readFileSync(
+  join(ROOT, "src/components/os/WMOperatingSystem.tsx"),
+  "utf8",
+);
 
 /** Bars loaded, tape states no aggressor side — the ordinary futures chart. */
 const muteMenu = (active = {}) =>
@@ -208,5 +231,87 @@ describe("the honest component is actually on the chart", () => {
         "side by side in the same toolbar.",
     ).toContain("observedAggressorFlow");
     expect(tag![0]).toContain("barsPresent");
+  });
+});
+
+describe("the other door that names these desks tells the same truth", () => {
+  it("the room publishes per-desk readiness, not only which desk is active", () => {
+    expect(
+      DASHBOARD,
+      "ChartsDashboard announces the active arrangement to the rail but never " +
+        "announces what each desk can DRAW. The Workspace hand would then list " +
+        "three desks as flat promises while the compiler, in the same render, " +
+        "knows four of ORDER FLOW's five readings cannot paint.",
+    ).toContain("announceEquipmentShortfalls");
+  });
+
+  it("both halves of the answer come from ONE compiler call", () => {
+    // Two `selectChartArrangement` calls in one component is how `activeId`
+    // and `readiness` start describing different moments of the same chart.
+    const calls = DASHBOARD.match(/selectChartArrangement\s*\(/g) ?? [];
+    expect(
+      calls.length,
+      `ChartsDashboard invokes selectChartArrangement ${calls.length} times. ` +
+        `The active desk and the per-desk readiness must be read off the SAME ` +
+        `view model, or the rail can show a shortfall for an arrangement that ` +
+        `is no longer the one in force.`,
+    ).toBe(1);
+  });
+
+  it("the desk's own sentence is forwarded, never re-phrased at the rail", () => {
+    const memo = DASHBOARD.match(/arrangementShortfalls\s*=[\s\S]*?\n\s*\);/);
+    expect(memo, "no arrangementShortfalls mapping found").not.toBeNull();
+    expect(
+      memo![0],
+      "the shortfall payload no longer carries `entry.note`. Composing a " +
+        "second phrasing at the rail is how two doors begin describing one " +
+        "desk differently — the exact single-owner failure this product has " +
+        "shipped before.",
+    ).toMatch(/note:\s*entry\.note/);
+    expect(memo![0]).toMatch(/readiness:\s*entry\.readiness/);
+  });
+
+  it("the rail listens rather than inventing a memory of its own", () => {
+    expect(
+      RAIL,
+      "WMOperatingSystem no longer subscribes to the shortfall channel. A rail " +
+        "that derives readiness itself is a second compiler, and a second " +
+        "compiler is a second answer.",
+    ).toContain("subscribeEquipmentShortfalls");
+    expect(RAIL).toContain("announcedEquipmentShortfalls");
+  });
+
+  it("the confession reaches the glass, not only `title`", () => {
+    // Same obligation as the Tools popover above: `title` is hover-only, and a
+    // touch trader pressing ORDER FLOW is exactly the person being misled.
+    expect(
+      RAIL,
+      "the Workspace tile no longer renders `confess.note` as element content. " +
+        "If the shortfall survives only in `title`, every touch and mobile " +
+        "trader presses a desk named after five readings and is told nothing " +
+        "about the four that will not paint.",
+    ).toMatch(/\{\s*confess\.note\s*\}/);
+    expect(
+      RAIL,
+      "`data-equipment-shortfall` was removed — the attribute a live audit " +
+        "uses to read the rail's declared readiness without parsing prose.",
+    ).toContain("data-equipment-shortfall");
+  });
+
+  it("a desk that delivers everything confesses NOTHING", () => {
+    /*
+      The mutation this closes: publishing every desk's readiness and rendering
+      it unconditionally. That would pass every assertion above while putting a
+      permanent badge on all three tiles — and a warning present on the calm
+      case is a warning the trader stops seeing. This is the same
+      escalation-not-badge rule `selectFoldEscalation` was built on: the calm
+      case must emit nothing at all.
+    */
+    expect(
+      RAIL,
+      "the rail renders a shortfall without excluding FULL. A desk that can " +
+        "draw everything it arms has nothing to disclose, and a disclosure " +
+        "that is always on screen is decoration.",
+    ).toMatch(/readiness\s*!==\s*"FULL"/);
   });
 });

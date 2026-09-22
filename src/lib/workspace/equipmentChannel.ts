@@ -240,6 +240,111 @@ export function subscribeEquipmentArrangement(
 }
 
 /**
+ * WHAT THE DESK CAN ACTUALLY DRAW — the second door's missing half.
+ *
+ * ── WHAT WAS MEASURED ─────────────────────────────────────────────────────
+ *
+ * MEASURED on the serving Worker, /charts?symbol=TSLA&tf=5m, 1440x900,
+ * 2026-09-22. The Workspace hand offers the three desks with these labels and
+ * nothing else attached to them:
+ *
+ *     Order Flow   The chart is arranged this way now
+ *     Regime       Both volume profiles — where price has been accepted
+ *     Review       Session profile and effort-against-result, after the fact
+ *
+ * Flat promises. `selectChartArrangement` exists precisely to stop that, and
+ * says so in its own words: "an arrangement here is never presented as a
+ * promise. Every one of them reports, BEFORE it is pressed, how many of its
+ * own readings can draw on the tape in front of the trader right now."
+ *
+ * That guarantee reaches the TOOLS door, which renders `ChartArrangementBar`
+ * and its per-desk `note`. It does not reach the WORKSPACE door, which was
+ * added later (see `roomEquipment`'s "What was missing was a DOOR") and wired
+ * the presses without the disclosure. ORDER FLOW arms five readings of which
+ * four need an aggressor side; on the ordinary mute tape it paints one and the
+ * hand still reads as though it paints five. A trader who pressed the button
+ * named after the thing they wanted to see concludes the MARKET is quiet
+ * rather than that the FEED is mute — the exact confusion the compiler's
+ * docblock names, arriving through the door the compiler never got to speak
+ * through.
+ *
+ * ── WHY A CHANNEL AND NOT A STATIC HINT ───────────────────────────────────
+ *
+ * The shortfall is not a property of the desk. It is a property of the desk
+ * MEETING THIS TAPE, and it changes without anybody pressing anything: a feed
+ * that starts stating an aggressor side mid-session moves ORDER FLOW from
+ * PARTIAL to FULL. A sentence typed into `roomEquipment` could only ever be
+ * the worst case or the best case, and both are wrong most of the time.
+ *
+ * So it follows `announceEquipmentArrangement` exactly: THE ROOM IS THE ONLY
+ * WRITER, it publishes what the compiler measured rather than what it
+ * remembers pressing, and the rail is told rather than inferring.
+ *
+ * ── EMPTY IS "NOT MEASURED", NOT "NOTHING IS WRONG" ───────────────────────
+ *
+ * The same distinction `selectFoldEscalation` draws between `undefined` and
+ * `null`, and it matters for the same reason. A rail standing in a room that
+ * owns no chart has NOBODY to measure these desks, and must not therefore
+ * paint them as fully deliverable. So a FULL desk is published EXPLICITLY, as
+ * an entry saying FULL — and an empty list means no room has answered. The
+ * rail draws a confession only for a desk that is present and not FULL, which
+ * keeps the calm case byte-identical while never letting silence read as
+ * sufficiency.
+ */
+export const EQUIPMENT_SHORTFALL_EVENT = "wm:equipment-shortfall";
+
+/** One desk, as the chart's live switch positions and live tape make it. */
+export interface EquipmentShortfall {
+  /** The rail's vocabulary — e.g. "arrange-order-flow". */
+  readonly equipmentId: string;
+  /** FULL desks are published too. See the note on empty-vs-FULL above. */
+  readonly readiness: "FULL" | "PARTIAL" | "NONE";
+  /** How many of the desk's readings can draw on this tape right now. */
+  readonly deliverableCount: number;
+  /** How many the desk arms in total. */
+  readonly armedCount: number;
+  /**
+   * The compiler's own sentence, verbatim. NEVER composed here — a second
+   * phrasing of the same shortfall is how the two doors start disagreeing
+   * about one desk.
+   */
+  readonly note: string;
+}
+
+let equipmentShortfalls: readonly EquipmentShortfall[] = [];
+
+/** Rail side, on MOUNT — see `heldEquipmentIds` for why a first reading exists. */
+export function announcedEquipmentShortfalls(): readonly EquipmentShortfall[] {
+  return equipmentShortfalls;
+}
+
+/** Room side: "this is what each of my desks can draw on the tape I have." */
+export function announceEquipmentShortfalls(
+  shortfalls: readonly EquipmentShortfall[],
+): void {
+  equipmentShortfalls = shortfalls;
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(
+    new CustomEvent<readonly EquipmentShortfall[]>(EQUIPMENT_SHORTFALL_EVENT, {
+      detail: shortfalls,
+    }),
+  );
+}
+
+/** Rail side. Returns the unsubscribe — a listener per remount is a leak. */
+export function subscribeEquipmentShortfalls(
+  handler: (shortfalls: readonly EquipmentShortfall[]) => void,
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<readonly EquipmentShortfall[]>).detail;
+    handler(Array.isArray(detail) ? detail : []);
+  };
+  document.addEventListener(EQUIPMENT_SHORTFALL_EVENT, listener);
+  return () => document.removeEventListener(EQUIPMENT_SHORTFALL_EVENT, listener);
+}
+
+/**
  * Reflect the journey into the address bar WITHOUT a navigation.
  *
  * `history.replaceState` so the browser Back button still means "the previous

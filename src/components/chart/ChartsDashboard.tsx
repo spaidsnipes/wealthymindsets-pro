@@ -180,6 +180,7 @@ import {
   subscribeEquipment,
   announceEquipmentStage,
   announceEquipmentArrangement,
+  announceEquipmentShortfalls,
 } from "@/lib/workspace/equipmentChannel";
 // THE ONE OWNER of "is a companion camera actually driving the bars". Read
 // here, read by the equipment registry's own disclosure. See its note.
@@ -2249,16 +2250,62 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     a side effect, and the rail is a sibling component that must not be
     re-rendered from inside this one's render pass.
   */
-  const arrangementActiveId = selectChartArrangement({ menu: arrangementMenu }).activeId;
+  const arrangementVM = selectChartArrangement({ menu: arrangementMenu });
+  const arrangementActiveId = arrangementVM.activeId;
   useEffect(() => {
     announceEquipmentArrangement(
       arrangementActiveId ? ARRANGEMENT_EQUIPMENT_ID[arrangementActiveId] : null,
     );
   }, [arrangementActiveId]);
+
+  /*
+    AND WHAT EACH DESK CAN ACTUALLY DRAW — the other half of the same answer.
+
+    `activeId` told the rail WHERE the trader is sitting. It did not tell them
+    what any of the three desks would paint if pressed, and the Workspace hand
+    had no other source for that: its hints are static strings in
+    `roomEquipment`, typed once, blind to the tape.
+
+    MEASURED on the serving Worker 2026-09-22, /charts?symbol=TSLA, the hand
+    read "Regime — Both volume profiles — where price has been accepted" and
+    nothing more. The compiler had already counted, for every desk, how many of
+    its readings this tape can carry; the Tools door renders that count and the
+    Workspace door did not exist when it was written.
+
+    SAME COMPILER, SAME CALL, SAME RENDER. `arrangementVM` is the one reading
+    `activeId` is taken from three lines above — not a second `selectChartArrangement`
+    invocation, which could observe a different menu and let the two halves of
+    one answer disagree. The desk's own `note` is forwarded VERBATIM; composing
+    a second phrasing here is how two doors start describing one desk
+    differently.
+  */
+  const arrangementShortfalls = React.useMemo(
+    () =>
+      arrangementVM.entries.map((entry) => ({
+        equipmentId: ARRANGEMENT_EQUIPMENT_ID[entry.id],
+        readiness: entry.readiness,
+        deliverableCount: entry.deliverableCount,
+        armedCount: entry.armedCount,
+        note: entry.note,
+      })),
+    [arrangementVM],
+  );
+  useEffect(() => {
+    announceEquipmentShortfalls(arrangementShortfalls);
+  }, [arrangementShortfalls]);
+
   // LEAVING THE ROOM ENDS THE ARRANGEMENT. Without this, the chart's desk would
   // still be "in force" in the channel while the trader stood in Scanner — and
   // no other room's rail has any business inheriting this one's seating.
-  useEffect(() => () => announceEquipmentArrangement(null), []);
+  //
+  // The shortfalls are retracted for a sharper reason than tidiness: an empty
+  // list means NOT MEASURED, and once this room is gone nobody is measuring
+  // these desks against a tape. Leaving the last reading behind would let a
+  // rail in another room paint a deliverability it has no source for.
+  useEffect(() => () => {
+    announceEquipmentArrangement(null);
+    announceEquipmentShortfalls([]);
+  }, []);
 
   /*
     DIRECT EQUIPMENT — the frame asks, this room acts, nothing else moves.

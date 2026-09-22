@@ -85,7 +85,10 @@ import {
   subscribeEquipmentStage,
   arrangedEquipmentId,
   subscribeEquipmentArrangement,
+  announcedEquipmentShortfalls,
+  subscribeEquipmentShortfalls,
 } from "@/lib/workspace/equipmentChannel";
+import type { EquipmentShortfall } from "@/lib/workspace/equipmentChannel";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
 import { ACTIVATOR_GLYPHS, equipmentGlyph } from "./equipmentGlyphs";
@@ -442,6 +445,27 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
     return subscribeEquipmentArrangement(setArrangedId);
   }, [activeHref]);
 
+  /*
+    AND WHAT EACH DESK WOULD ACTUALLY PAINT.
+
+    `arrangedId` answers WHERE AM I SITTING. This answers WHAT WILL I GET IF I
+    PRESS — a question the Workspace hand had no source for at all, because its
+    hints are static strings in `roomEquipment` and the shortfall is a property
+    of the desk MEETING THIS TAPE, not of the desk.
+
+    Told, never inferred. An empty list means NOT MEASURED — no room is
+    answering — and a desk absent from the list therefore draws no confession
+    RATHER THAN a reassuring one. That asymmetry is the whole point: silence
+    must not read as sufficiency.
+  */
+  const [shortfalls, setShortfalls] = React.useState<readonly EquipmentShortfall[]>(
+    () => announcedEquipmentShortfalls(),
+  );
+  React.useEffect(() => {
+    setShortfalls(announcedEquipmentShortfalls());
+    return subscribeEquipmentShortfalls(setShortfalls);
+  }, [activeHref]);
+
   if (equipment.length === 0) return null;
   const tiled = presentation === "tile";
   return (
@@ -476,6 +500,17 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
         // perform. This gets `aria-current` instead, which claims exactly what
         // is true: of the things offered here, this is the current one.
         const inForce = arrangedId !== null && arrangedId === item.id;
+        // WHAT THIS DESK CAN ACTUALLY DRAW ON THE TAPE IN FRONT OF THE TRADER.
+        //
+        // Told by the room, never inferred here: the list is empty until a
+        // chart measures these desks, and a desk ABSENT from the list draws no
+        // confession rather than a reassuring one. FULL confesses nothing at
+        // all — a desk that delivers everything it arms has nothing to say, and
+        // a badge reading "FULL" on every calm tile is how a disclosure stops
+        // being read. Only a shortfall speaks.
+        const shortfall = shortfalls.find((s) => s.equipmentId === item.id) ?? null;
+        const confess =
+          shortfall && shortfall.readiness !== "FULL" ? shortfall : null;
         const lit = open || inForce;
         const glyph = equipmentGlyph(item.id);
         return (
@@ -492,11 +527,18 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
           // Machine-checkable, so a Sentinel can prove the disclosure reached
           // the glass rather than merely reaching the registry.
           data-equipment-unbuilt={item.unbuilt ? "true" : undefined}
+          // Same reason, one door later: a Sentinel must be able to prove the
+          // COMPILER's readiness reached the Workspace hand, not only the Tools
+          // drawer. The readiness word itself is published, so a probe can tell
+          // PARTIAL from NONE without parsing prose.
+          data-equipment-shortfall={confess ? confess.readiness : undefined}
           // The state is in the accessible name too, not only in the paint. A
           // gold edge is invisible to a screen reader, and "what am I holding"
           // is exactly the orientation a non-sighted trader has least of.
           aria-pressed={momentary ? undefined : open}
-          title={item.unbuilt ? `${item.hint} — ${item.unbuilt}` : item.hint}
+          title={[item.hint, item.unbuilt, confess?.note]
+            .filter(Boolean)
+            .join(" — ")}
           // A TOGGLE, BECAUSE `aria-pressed` ALREADY PROMISED ONE.
           //
           // MEASURED 2026-09-19 on live /charts, immediately after the announce
@@ -636,6 +678,30 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
                 }}
               >
                 {item.unbuilt}
+              </span>
+            ) : null}
+            {/* AND WHAT THIS DESK CANNOT DRAW ON TODAY'S TAPE.
+                Also outside the hint ternary, and for the same reason: once a
+                desk is IN FORCE the hint becomes "The chart is arranged this
+                way now" — which is exactly the moment a trader is most likely
+                to believe all five readings are on the glass. The sentence is
+                the COMPILER's own `note`, forwarded verbatim; phrasing it a
+                second time here is how two doors start describing one desk
+                differently. `warn` ink, like `unbuilt`, because this is a
+                disclosure and not a caption. */}
+            {confess ? (
+              <span
+                data-testid="equipment-shortfall-note"
+                style={{
+                  display: "block",
+                  marginTop: 3,
+                  fontSize: tiled ? 10 : 9.5,
+                  lineHeight: 1.35,
+                  letterSpacing: 0.2,
+                  color: WM.state.warn,
+                }}
+              >
+                {confess.note}
               </span>
             ) : null}
           </span>
