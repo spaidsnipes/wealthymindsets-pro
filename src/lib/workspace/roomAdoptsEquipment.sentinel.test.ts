@@ -1460,10 +1460,10 @@ describe("SENTINEL — Escape is a staircase, not a trapdoor", () => {
 
   it("the frame LEARNS the stage from the room — it never infers one", () => {
     // A frame that guessed could hold the wall shut after the room had
-    // already closed, leaving Escape dead with nothing on screen to explain
-    // why. The room is the only writer of its own stage.
+    // already closed. The room remains the only writer of its own stage;
+    // setting the rail down on open must not create a second stage owner.
     expect(rail, `${RAIL} → the frame does not hear the room's stage at all`).toMatch(
-      /subscribeEquipmentStage\(\(\{ stage \}\) => setJourneyOpen\(stage !== "closed"\)\)/,
+      /subscribeEquipmentStage\(\(\{ stage \}\) => \{[\s\S]*?const open = stage !== "closed";[\s\S]*?setJourneyOpen\(open\)/,
     );
   });
 

@@ -198,6 +198,8 @@ describe("RoomEquipmentLayer — market equipment stays on the live camera", () 
       expect(html).toContain("top:92px");
       expect(html).toContain("bottom:18px");
       expect(html).toContain("width:clamp(280px, 22vw, 340px)");
+      expect(html).toContain("background:#0b0c0f");
+      expect(html).not.toContain("background:rgba(11,12,15,0.96)");
       expect(html).not.toContain("right:18px;bottom:18px");
     }
   });

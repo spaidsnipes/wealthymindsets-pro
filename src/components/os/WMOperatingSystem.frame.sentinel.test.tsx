@@ -129,6 +129,11 @@ function cssRule(source: string, selector: string): string {
 }
 
 describe("OS frame · the desktop room must not clip itself", () => {
+  it("puts the Tools rail down when a selected instrument takes the left wall", () => {
+    const source = stripComments(OS);
+    expect(source).toMatch(/subscribeEquipmentStage\(\(\{ stage \}\) => \{[\s\S]*?if \(open\) setEquipment\(null\)/);
+  });
+
   it("the rail-and-room region is allowed to shrink", () => {
     /**
      * `flex: 1 1 auto` says "shrink me". The DEFAULT `min-height: auto` on a

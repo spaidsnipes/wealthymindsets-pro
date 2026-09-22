@@ -1058,14 +1058,18 @@ export function WMOperatingSystem({
    * would vanish, so a trader trying to back out one level would lose two.
    *
    * The room is the only writer of its stage; the frame never infers one. With
-   * this guard Escape is a staircase — each press leaves exactly one level,
-   * and the wall is the last thing to go because it was the first thing
-   * opened.
+   * The selected instrument now replaces the rail instead of stacking a
+   * second left wall over its cards. Escape therefore closes that instrument
+   * one journey level at a time; the rail is already down behind it.
    */
   const [journeyOpen, setJourneyOpen] = React.useState(false);
   React.useEffect(() => {
     if (!equipmentMode) return;
-    return subscribeEquipmentStage(({ stage }) => setJourneyOpen(stage !== "closed"));
+    return subscribeEquipmentStage(({ stage }) => {
+      const open = stage !== "closed";
+      setJourneyOpen(open);
+      if (open) setEquipment(null);
+    });
   }, [equipmentMode]);
 
   React.useEffect(() => {

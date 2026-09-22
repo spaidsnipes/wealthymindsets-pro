@@ -257,7 +257,9 @@ export function RoomEquipmentLayer({
             width: "clamp(280px, 22vw, 340px)",
             display: "flex",
             flexDirection: "column",
-            background: "rgba(11,12,15,0.96)",
+            // An instrument replaces the Tools rail while held. Keep its wall
+            // fully opaque so the retired tile stack cannot ghost through.
+            background: FIELD,
             border: `1px solid ${HAIR}`,
             borderLeftColor: "rgba(196,165,116,0.42)",
             boxShadow: "18px 0 46px rgba(0,0,0,0.42)",
