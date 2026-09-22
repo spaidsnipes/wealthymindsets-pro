@@ -2389,6 +2389,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // The journey lens is put down through the journey's OWN door — the
           // hook stays the single authority on what it holds.
           onChartEquipmentClose();
+          // AND THE READINGS COME DOWN TOO — through the SAME compiler door
+          // the three named desks use, because CLEAN became the fourth desk
+          // (HOUSE PLAN bolt-on, 2026-09-22: "CLEAN / ORDER FLOW / REGIME /
+          // REVIEW"). Before this line, Clean closed the panels but left
+          // every toggled reading painted over the candles — "just the
+          // market" with five overlays still on it. `arrangementSwitches
+          // ("CLEAN", …)` is the empty desk's switch set: every TOGGLE off,
+          // DRAW gestures untouched, so the trader's own drawn ranges
+          // survive exactly as they do for the other three desks. The
+          // compiler then reads all-off back as CLEAN and the tile lights
+          // via the same announced `activeId` as every other desk — no
+          // rail-side memory, same one writer.
+          arrangementDeskRef.current("CLEAN");
         } else if (req.equipmentId === "chart-tools") {
           // THE FOURTH DIRECT INSTRUMENT — THE REST OF THE DEMOLISHED STRIP.
           //

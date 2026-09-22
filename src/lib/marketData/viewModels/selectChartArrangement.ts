@@ -79,8 +79,19 @@ import type {
 
 export const CHART_ARRANGEMENT_VERSION = 1;
 
-/** The three named desks from FL-08, plus the honest "none of these". */
-export type ArrangementId = "ORDER_FLOW" | "REGIME" | "REVIEW";
+/**
+ * The named desks, plus the honest "none of these" (null → CUSTOM).
+ *
+ * REMODELLED 2026-09-22: CLEAN joins the vocabulary. The HOUSE PLAN +
+ * EXECUTION BOLT-ON — CURRENT — 2026-09-22 names the Workspace's states as
+ * "CLEAN / ORDER FLOW / REGIME / REVIEW" — FOUR, on the same camera. Before
+ * this, every-toggle-off compiled to CUSTOM, so the one state the bolt-on
+ * puts FIRST was the only named state the chart could never declare and the
+ * rail's Clean tile could never light. All-off is not "none of these": it is
+ * the desk called Clean, and a desk is a set of switch positions — the empty
+ * set is a set.
+ */
+export type ArrangementId = "CLEAN" | "ORDER_FLOW" | "REGIME" | "REVIEW";
 
 /**
  * FULL    — every reading this arrangement arms can draw right now.
@@ -131,13 +142,28 @@ export interface ChartArrangementVM {
 }
 
 /**
- * THE THREE DESKS.
+ * THE FOUR DESKS — the HOUSE PLAN bolt-on's "CLEAN / ORDER FLOW / REGIME /
+ * REVIEW", in its order (FIRST CURRENT BUILD ORDER #4, 2026-09-22).
  *
  * Each `arms` list is derived from what the readings SAY they do, in
  * `selectProfileMenu`'s catalogue — not from a preference about which layers
  * look good together.
  */
 const ARRANGEMENTS: readonly ArrangementSpec[] = [
+  {
+    id: "CLEAN",
+    label: "Clean",
+    purpose: "just the market — no reading armed over the candles",
+    /*
+      The empty desk, and it is NOT a placeholder. `matches` with an empty
+      `arms` list demands every TOGGLE be OFF — exactly the state the rail's
+      Clean command drives the chart into. Arming nothing means nothing can be
+      mute, so this is the one desk that is deliverable on every tape the
+      product can draw, including a chart with no bars at all: an empty chart
+      showing just the market is precisely what Clean promises.
+    */
+    arms: [],
+  },
   {
     id: "ORDER_FLOW",
     label: "Order Flow",
@@ -251,17 +277,31 @@ export function selectChartArrangement(
     const drawable = armed.filter(e => e.availability === "READY");
     const deliverableCount = drawable.length;
 
+    /*
+      AN EMPTY DESK IS ALWAYS FULL, BY NAME. The `armedCount > 0` guard exists
+      so a desk whose arms all name unknown profiles cannot count 0-of-0 as
+      ready — that stays true for every desk that CLAIMS readings. CLEAN claims
+      none: it promises "just the market", and every chart the product can
+      draw, including one with no bars yet, can deliver just the market. NONE
+      ("this tape can answer none of what this arrangement is named for")
+      would be the lie here — Clean is not asking the tape anything.
+    */
     const readiness: ArrangementReadiness =
-      deliverableCount === armedCount && armedCount > 0
+      spec.arms.length === 0
         ? "FULL"
-        : deliverableCount === 0
-          ? "NONE"
-          : "PARTIAL";
+        : deliverableCount === armedCount && armedCount > 0
+          ? "FULL"
+          : deliverableCount === 0
+            ? "NONE"
+            : "PARTIAL";
 
     const mute = armed.filter(e => e.availability !== "READY");
 
     let note: string;
-    if (readiness === "FULL") {
+    if (spec.arms.length === 0) {
+      // "All 0 readings can draw" is grammatically true and humanly absurd.
+      note = `${spec.label}: ${spec.purpose}. Arms no readings, so every tape can carry it.`;
+    } else if (readiness === "FULL") {
       note = `${spec.label}: ${spec.purpose}. All ${armedCount} readings can draw on this tape.`;
     } else {
       const names = mute.map(e => e.label).join(", ");

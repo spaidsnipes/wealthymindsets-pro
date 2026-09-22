@@ -175,6 +175,12 @@ export const REPLAY_DRIVES_THE_CAMERA: boolean = false;
  * ARRANGEMENT_SPECS fails to compile until it has a door here.
  */
 export const ARRANGEMENT_EQUIPMENT_ID: Readonly<Record<ArrangementId, string>> = {
+  // The fourth desk this comment promised would fail to compile until it had
+  // a door — and it did, 2026-09-22, when CLEAN joined `ArrangementId` per the
+  // HOUSE PLAN bolt-on's four-state Workspace. Its door is the tile the rail
+  // already had: a chart with every toggle down now LIGHTS Clean instead of
+  // announcing nothing.
+  CLEAN: "clean-room",
   ORDER_FLOW: "arrange-order-flow",
   REGIME: "arrange-regime",
   REVIEW: "arrange-review",

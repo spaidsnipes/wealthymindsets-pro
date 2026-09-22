@@ -44,7 +44,11 @@ describe("the desks are real — cross-read against the shipped profile catalogu
   it("every armed profile is one the product actually ships", () => {
     const known = new Set(menuOn().entries.map(e => e.id));
     for (const spec of ARRANGEMENT_SPECS) {
-      expect(spec.arms.length, `${spec.id} arms nothing`).toBeGreaterThan(0);
+      // CLEAN is the deliberate exception (REMODELLED 2026-09-22): the empty
+      // desk arms nothing BY NAME. Every OTHER desk still may not.
+      if (spec.id !== "CLEAN") {
+        expect(spec.arms.length, `${spec.id} arms nothing`).toBeGreaterThan(0);
+      }
       for (const id of spec.arms) {
         expect(
           known.has(id),
@@ -112,10 +116,22 @@ describe("readiness is measured against the tape, not assumed", () => {
     expect(of.deliverableCount).toBe(of.armedCount);
   });
 
-  it("with no bars at all, every desk reports NONE", () => {
+  it("with no bars at all, every desk that arms a reading reports NONE", () => {
     for (const e of vm(menuEmpty()).entries) {
+      if (e.arms.length === 0) continue; // CLEAN — held to its own truth below
       expect(e.readiness, `${e.id} claims to draw on a chart with no bars`).toBe("NONE");
       expect(e.deliverableCount).toBe(0);
+    }
+  });
+
+  it("CLEAN is FULL on every tape — including a chart with no bars", () => {
+    // Clean promises "just the market", and an empty chart can keep that
+    // promise. NONE would tell the trader the tape cannot answer a question
+    // Clean never asks.
+    for (const menu of [menuOn(), menuMute(), menuEmpty()]) {
+      const clean = vm(menu).entries.find(e => e.id === "CLEAN")!;
+      expect(clean.readiness).toBe("FULL");
+      expect(clean.armedCount).toBe(0);
     }
   });
 });
@@ -165,10 +181,22 @@ describe("the note tells the trader whether waiting would help", () => {
 });
 
 describe("the chart knows which desk it is at", () => {
-  it("reports CUSTOM when the switches match no desk", () => {
-    // Every toggle off is a real state a trader can reach, and it is not any
-    // of the three desks.
+  /**
+   * REMODELLED 2026-09-22. This test used to pin all-toggles-off as CUSTOM
+   * ("it is not any of the three desks"). The HOUSE PLAN bolt-on names FOUR
+   * desks — "CLEAN / ORDER FLOW / REGIME / REVIEW" — and all-off IS the first
+   * of them. CUSTOM keeps its meaning for genuinely unnamed mixtures.
+   */
+  it("every toggle off is CLEAN — the bolt-on's first desk, not an anonymous state", () => {
     const out = vm(menuOn({}));
+    expect(out.activeId).toBe("CLEAN");
+    expect(out.declaration).toBe("WORKSPACE: CLEAN");
+  });
+
+  it("reports CUSTOM when the switches match no desk", () => {
+    // A hand-flipped mixture: ABSORPTION alone is no desk's exact switch set
+    // (REVIEW needs SESSION on with it; ORDER FLOW needs four more).
+    const out = vm(menuOn({ ABSORPTION: true }));
     expect(out.activeId).toBeNull();
     expect(out.declaration).toBe("WORKSPACE: CUSTOM");
   });

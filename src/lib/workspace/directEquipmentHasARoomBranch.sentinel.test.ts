@@ -274,18 +274,23 @@ describe("SENTINEL — the arrangement the rail lights comes from the compiler",
   });
 
   it("NOT VACUOUS: there really are named arrangements to light", () => {
-    // Everything above iterates or greps for these three ids. If the desks
-    // were removed from the registry, this file would pass by finding nothing.
+    // Everything above iterates or greps for these ids. If the desks were
+    // removed from the registry, this file would pass by finding nothing.
+    //
+    // REMODELLED 2026-09-22, 3 → 4: CLEAN became the fourth compiled desk per
+    // the HOUSE PLAN bolt-on's "CLEAN / ORDER FLOW / REGIME / REVIEW". Its
+    // door is the clean-room tile the rail already offered — so the count of
+    // offered desks rises with the count of ids, and both stay pinned.
     expect(
       Object.keys(ARRANGEMENT_ID_SET).length,
-      "no named arrangements are declared any more; either the grammar went away (delete this block) or the map went stale",
-    ).toBe(3);
+      "the named arrangements no longer number the bolt-on's four; either the grammar changed (re-derive this pin from CURRENT canon) or the map went stale",
+    ).toBe(4);
     for (const href of ROOMS_WITH_DIRECT_EQUIPMENT) {
       const offered = roomEquipment(href).filter((e) => e.id in ARRANGEMENT_ID_SET);
       expect(
         offered.length,
         `${href} → the arrangement desks are no longer offered in this room's rail`,
-      ).toBe(3);
+      ).toBe(4);
       for (const e of offered) {
         expect(
           e.momentary,

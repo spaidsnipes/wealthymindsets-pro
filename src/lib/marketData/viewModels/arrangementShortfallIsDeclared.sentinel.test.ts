@@ -245,6 +245,18 @@ describe("the other door that names these desks tells the same truth", () => {
     ).toContain("announceEquipmentShortfalls");
   });
 
+  /**
+   * ADDED 2026-09-22 with the fourth desk. CLEAN's press must clear the
+   * toggled readings THROUGH the compiler's switch set — the same
+   * `arrangementDeskRef` door the other three desks walk. Without this call,
+   * Clean closes the panels but leaves every armed reading painted over the
+   * candles: "just the market" with the overlays still on it, and the tile
+   * never lights because all-off is never reached.
+   */
+  it("the Clean press drives the chart into the CLEAN desk, same door as the other three", () => {
+    expect(DASHBOARD).toMatch(/arrangementDeskRef\.current\("CLEAN"\)/);
+  });
+
   it("both halves of the answer come from ONE compiler call", () => {
     // Two `selectChartArrangement` calls in one component is how `activeId`
     // and `readiness` start describing different moments of the same chart.
