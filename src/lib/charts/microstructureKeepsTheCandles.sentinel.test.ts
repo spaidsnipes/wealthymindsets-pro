@@ -56,6 +56,10 @@ describe("the microstructure set", () => {
       // it without the bars would ask the reader to take the dividend on
       // trust — the one thing the worksheet exists to refuse.
       "Worksheet",
+      // Asset 02. Its whole finding is a LEVEL — the Value Center of Gravity
+      // and its measured band — and a level shown without the price pane is a
+      // level the trader must memorise and carry back.
+      "Gravity",
     ]);
   });
 
@@ -118,6 +122,7 @@ describe("ChartsDashboard keeps price on screen beneath the reading", () => {
       // stayed green — a guard that shrinks relative to the set it guards.
       "wm-chart-category-panel-continuation",
       "wm-chart-category-panel-worksheet",
+      "wm-chart-category-panel-gravity",
     ]) {
       const at = src.indexOf(`id="${id}"`);
       expect(at, `${id} not found`).toBeGreaterThan(-1);

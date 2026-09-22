@@ -263,6 +263,7 @@ import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggr
 import BigTradeIntelligenceView from "@/components/experience/BigTradeIntelligenceView";
 import { selectBigTradeIntelligence } from "@/lib/marketData/viewModels/selectBigTradeIntelligence";
 import LivingProfileView from "@/components/experience/LivingProfileView";
+import GravityValueView from "@/components/experience/GravityValueView";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -4342,7 +4343,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && activeTab !== "Worksheet" && (
+            {/* Asset 02 — GRAVITY / VALUE CENTER. The VM is the room's own
+                `chartOrderFlowReadings.valueCandle` — the ONE compilation of
+                the tape this room already holds for its candles and its
+                on-glass value band, so this view can never disagree with
+                either. Sibling of Chart for the plainest microstructure
+                reason: its whole finding is a LEVEL, and a level needs the
+                price pane above it to be located rather than memorised. */}
+            {activeTab === "Gravity" && (
+              <div role="tabpanel" id="wm-chart-category-panel-gravity" aria-label={`Gravity value center for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <GravityValueView vm={chartOrderFlowReadings.valueCandle} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && activeTab !== "Worksheet" && activeTab !== "Gravity" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

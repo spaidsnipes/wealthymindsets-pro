@@ -118,6 +118,7 @@ describe("charts category scene fusion", () => {
       "Value Profile",
       "Continuation",
       "Worksheet",
+      "Gravity",
       "Options",
       "ETFs",
       "Financials",

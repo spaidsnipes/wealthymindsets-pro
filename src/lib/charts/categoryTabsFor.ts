@@ -62,6 +62,7 @@ export const ALL_CATEGORY_TABS = [
   "Value Profile",
   "Continuation",
   "Worksheet",
+  "Gravity",
   "Options",
   "ETFs",
   "Financials",
@@ -123,6 +124,13 @@ export const MICROSTRUCTURE_TABS = [
   // names — the reader would have to take the dividend on trust, which is the
   // one thing this view exists to refuse.
   "Worksheet",
+  // Asset 02, Gravity / Value Center. It reads the SAME prints the candles are
+  // drawn from and its whole finding is a LEVEL — the Center of Gravity and
+  // its band. A level shown without the price it measures is a level carried
+  // in the head, so it belongs to the set for the plainest version of the
+  // shared reason. Offered on every class like Big Trades: on a feed with no
+  // tape it renders the compiler's own absence sentence rather than hiding.
+  "Gravity",
 ] as const satisfies readonly CategoryTab[];
 
 export type MicrostructureTab = (typeof MICROSTRUCTURE_TABS)[number];
@@ -141,25 +149,25 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
       // ETFs have Financials + Valuation + Profile + Shareholders
       // (holdings). No Corporate Actions, no separate ETFs tab
       // (redundant when the symbol IS an ETF).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Options", "Financials", "Valuation", "Shareholders", "Profile"] as const;
     case "options":
       // Viewing an options contract already IS the options view;
       // Financials/Valuation belong to the underlying, not the
       // derivative. Keep Chart + Profile only.
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"] as const;
     case "crypto":
     case "futures":
     case "forex":
       // No corporate structure, no shareholders, no ETF wrapper.
       // Chart is the whole thing; Profile carries what little
       // reference data exists (name / venue / contract spec).
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"] as const;
     default: {
       // Exhaustiveness guard — if CanonicalAssetClass grows, this
       // narrows to `never` and TS errors at build time.
       const _never: never = cls;
       void _never;
-      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Profile"] as const;
+      return ["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"] as const;
     }
   }
 }
