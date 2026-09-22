@@ -1842,6 +1842,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           readings={chartOrderFlowReadings}
           symbol={symbol}
           unabridged={unabridged}
+          /*
+            ONE W DOOR (bolt-on #5, 2026-09-22): the legacy Smart Money
+            read-out is reached through THIS door's depth now, not through a
+            second rail entry. Same one boolean the toolbar flips — the setter
+            is referentially stable, so the pinned deps list below is still
+            the complete set of things that can change this descriptor.
+          */
+          onOpenReadout={() => setSmartMoneyOpen(true)}
         />
       ),
     }),
@@ -2351,19 +2359,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         } else if (req.equipmentId === "bar-replay") {
           if (down) stopReplay();
           else startReplay();
-        } else if (req.equipmentId === "smart-money") {
-          // THE THIRD DIRECT INSTRUMENT, AND THE FIRST THAT IS A LENS.
-          //
-          // MEASURED 2026-09-21 at 390x844: the toolbar's Smart Money button
-          // laid out at x=633 inside a 390-wide viewport — rendered, costing
-          // floor, and off the glass. See the entry's note in roomEquipment.ts
-          // for the full measurement.
-          //
-          // `setSmartMoneyOpen` is the SAME setter `onSmartMoney` calls at the
-          // toolbar. Not a mirror of it, not a copy — the same one boolean.
-          // A door added to a room that already had one panel.
-          setSmartMoneyOpen(!down);
         } else if (req.equipmentId === "clean-room") {
+          // (The `smart-money` branch that stood between Replay and this one
+          // was RETIRED 2026-09-22 with its rail entry — ONE W DOOR, HOUSE
+          // PLAN bolt-on #5. The read-out panel is now reached through the
+          // ORDER FLOW door's depth; see `onOpenReadout` in
+          // `chartOrderFlowEquipment` and the retirement note in
+          // roomEquipment.ts.)
           // CLEAN — THE ROOM'S FIRST ARRANGEMENT, AND A SUBTRACTION MACHINE.
           //
           // The mansion map says WORKSPACE is "arrangement of the same market
@@ -2514,29 +2516,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [replayActive, stopReplay]);
-  /* Smart Money answers back on the SAME terms, and it has to.
-     `aria-pressed` on the rail entry is a contract (see equipmentChannel's
-     note): a rail that could open the panel but never hear it close would
-     report "pressed" forever the moment a trader used the panel's own X.
-     "drawer" rather than "full" — and that word is doing NARROWER work here
-     than it does for Draw and Replay, so say so rather than let it be read as
-     a promise it does not keep.
+  /* The smart-money stage announce that stood here was RETIRED 2026-09-22
+     with the rail entry it answered for (ONE W DOOR — HOUSE PLAN bolt-on #5,
+     "Do not keep Smart Money + Order Flow as separate warehouses"; see the
+     retirement note in roomEquipment.ts). An announce for equipment no room
+     declares would be a stage report into a dead channel — the inverse of the
+     half-wired defect equipmentChannel.ts records, and just as dishonest.
+     `smartMoneyOpen` and `SmartMoneyPanel` survive; the panel is now reached
+     through the ORDER FLOW door's own depth (`onOpenReadout` below) and the
+     toolbar's own button, both flipping the same ONE boolean.
 
-     MEASURED 2026-09-21 at 390x844, straight off the acceptance screenshot:
-     the chart stays MOUNTED (one `.tv-lightweight-charts`, feed never
-     reconnects, URL never moves) but the panel COVERS it. At that width there
-     is no "beside". On the desk it genuinely sits alongside. So the stage here
-     means THE ROOM DID NOT REMOUNT — which is exactly what `full` exists to
-     deny — and it does NOT yet mean the candles are in view on a phone.
-
-     `marketStaysVisible` has no runtime consumer today. The day one appears it
-     must read WIDTH, not stage alone, or it will silently inherit this gap.
-     Written down so the next reader inherits a known edge instead of a
-     surprise. Nothing in this effect computes a reading — it publishes the
-     boolean the panel already renders from. */
-  useEffect(() => {
-    announceEquipmentStage("smart-money", smartMoneyOpen ? "drawer" : "closed");
-  }, [smartMoneyOpen]);
+     The 390x844 measurement the retired note carried still matters where the
+     panel is concerned: at phone widths the panel COVERS the glass rather
+     than sitting beside it, and any future `marketStaysVisible` consumer must
+     read WIDTH, not stage alone. */
   /* And the fourth, on the same terms and for the same reason: the drawer
      carries its own X and its own Escape, so a rail that only ever heard the
      open would report `aria-pressed="true"` after the trader had closed it —

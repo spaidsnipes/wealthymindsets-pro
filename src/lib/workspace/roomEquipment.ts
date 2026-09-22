@@ -786,7 +786,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
         : { unbuilt: "Not wired to the chart yet — the candles keep running live" }),
     },
     /**
-     * THE CHART ROOM'S EIGHTH TENANT — AND A CONTROL THAT WAS OFF THE SCREEN.
+     * WHERE THE EIGHTH TENANT STOOD — `smart-money`, RETIRED INTO ONE W DOOR.
      *
      * MEASURED 2026-09-21 on local /charts at a 390x844 phone viewport, with
      * the auth RESPONSE stubbed for layout only. The toolbar's pinned cluster
@@ -802,46 +802,34 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      * you the product is broken.
      *
      * D-701's SALVAGE clause is the instruction for exactly this shape —
-     * "MIGRATE LEGITIMATE ORGANS INTO WORKSPACE/TOOLS DRAWERS" — and §3 of the
-     * Last Mile support doc says what Tools is FOR: "lenses + overlays +
-     * graduation toggles". Smart Money is an overlay reading. It belongs in
-     * the hand, not in a rail that runs off the edge of the glass.
+     * "MIGRATE LEGITIMATE ORGANS INTO WORKSPACE/TOOLS DRAWERS" — and that
+     * measurement is what first put a `smart-money` direct lens on this rail.
      *
-     * WHY `lens` AND NOT `workspace`. The two hands are not a size split. A
-     * workspace instrument CHANGES THE CHART (Draw, Replay); a lens READS it.
-     * Smart Money reads. Filing it under Workspace would have put a reading in
-     * the hand a trader reaches into to alter the tape.
+     * RETIRED 2026-09-22 — ONE W DOOR (HOUSE PLAN bolt-on, FIRST CURRENT
+     * BUILD ORDER #5: "Do not keep Smart Money + Order Flow as separate
+     * warehouses").
      *
-     * WHY `direct` AND NOT A JOURNEY. The field's own note draws the line at
-     * whether there is "a reading with depth worth previewing". Smart Money
-     * already exists as ONE BOOLEAN the room owns (`smartMoneyOpen`), with no
-     * threshold VM and no preview copy anywhere in the product. Inventing a
-     * preview here would mean compiling a second opinion about the panel in
-     * order to describe it — and a threshold that paraphrases a panel is how a
-     * rail and a room start to disagree. Direct keeps ONE writer.
+     * The paragraph this note replaces argued the opposite — "Two doors, two
+     * things" — and the bolt-on overrules it by name. Both doors opened onto
+     * readers of the SAME compilation (`useOrderFlowReadings` /
+     * `selectAggressorFlow`), so the rail was telling the trader the room
+     * holds two intelligences about who is pressing when it holds one. The
+     * Smart Money read-out panel is NOT deleted: `smartMoneyOpen` and
+     * `SmartMoneyPanel` survive, and the ORDER FLOW door's own depth now
+     * hands the trader the full read-out (see `OrderFlowDepthPanel`'s
+     * `onOpenReadout`) — one door, one family, the panel is its back room.
      *
-     * THIS IS A SECOND DOOR, NOT A SECOND PANEL. The branch in
-     * `ChartsDashboard` flips the exact `smartMoneyOpen` the toolbar button
-     * flips. There is one `SmartMoneyPanel`; this gives it a door the thumb
-     * can actually land on.
-     *
-     * NOT THE SAME EQUIPMENT AS `order-flow`, AND THE DISTINCTION IS OLD. The
-     * room's own comment has said so since before this entry existed:
-     * "detailed order-flow inspection belongs to the Smart Money doorway."
-     * `order-flow` is the four readings that DRAW ON THE AXIS; Smart Money is
-     * the read-out panel beside it. Two doors, two things.
+     * The entry that stood here was `id: "smart-money"`, direct, lens. Its
+     * salvage history (the 390px measurement, D-701's SALVAGE clause) is
+     * preserved in the `chart-tools` note below, which performed the same
+     * rescue on the rest of the strip.
      */
-    {
-      id: "smart-money",
-      label: "Smart money",
-      hint: "Who is actually pressing, and whether the tape can prove it",
-      kind: "lens",
-      direct: true,
-    },
     /**
      * THE NINTH TENANT — AND THE REST OF THE STRIP THAT COULD NOT BE REACHED.
      *
-     * `smart-money` above was ONE organ salvaged from `.wm-chart-toolbar-pinned`
+     * `smart-money` (a rail door retired 2026-09-22 into the ORDER FLOW
+     * family — see the note above) was ONE organ salvaged from
+     * `.wm-chart-toolbar-pinned`
      * and its own note closes by naming what was left behind: "NOT FIXED HERE:
      * Appearance and Chart tools are still off the glass at 390." This entry is
      * the rest of that salvage, and the measurement that forced it is not a

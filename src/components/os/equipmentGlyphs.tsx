@@ -240,14 +240,10 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
       <circle cx="12" cy="12" r="2.7" />
     </Glyph>
   ),
-  /** Who is actually pressing, and whether the tape can prove it. */
-  "smart-money": (
-    <Glyph>
-      <rect x="2.5" y="6" width="19" height="12" rx="2" />
-      <circle cx="12" cy="12" r="2.8" />
-      <path d="M6 9.5v5M18 9.5v5" />
-    </Glyph>
-  ),
+  // "smart-money" retired 2026-09-22 — ONE W DOOR (bolt-on #5). Its glyph is
+  // removed with the entry because the sentinel's second direction ("draws
+  // nothing no room hands out") is right: a mark for a door no room offers is
+  // dead paint that teaches readers of this map not to trust it.
 };
 
 /**
