@@ -251,7 +251,13 @@ export function RoomEquipmentLayer({
         ? {
             position: "fixed",
             left: 18,
-            top: 92,
+            // The live chart publishes instrument, OHLC, bias, and freshness
+            // on the first price horizon beneath the shell. A PREVIEW sitting
+            // at the drawer's 92px threshold covered that horizon even though
+            // it had already earned the smaller FL-06 footprint. Keep the
+            // threshold below the horizon until the trader explicitly asks
+            // for drawer depth; DRAWER retains the established left wall.
+            top: stage === "preview" ? 120 : 92,
             // PREVIEW is a glanceable instrument, not a blank full-height
             // drawer. FL-06 keeps the inspect ticket subordinate to price;
             // only DRAWER earns the full left-wall working depth.
