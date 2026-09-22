@@ -126,7 +126,7 @@ describe("Profiles menu wiring", () => {
     // screen with no branch at the wiring site, the trader clicks it and the
     // chart does nothing — a control that lies by responding to nothing.
     const src = read("src/components/chart/ChartsDashboard.tsx");
-    const vm = selectProfileMenu({ barsPresent: true, observedAggressorFlow: true, active: {} });
+    const vm = selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {} });
     for (const entry of vm.entries) {
       expect(src, `${entry.id} is in the catalogue but not handled in ChartsDashboard`)
         .toContain(entry.id);

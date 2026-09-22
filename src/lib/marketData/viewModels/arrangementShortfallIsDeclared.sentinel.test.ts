@@ -81,7 +81,7 @@ const RAIL = readFileSync(
 
 /** Bars loaded, tape states no aggressor side — the ordinary futures chart. */
 const muteMenu = (active = {}) =>
-  selectProfileMenu({ barsPresent: true, observedAggressorFlow: false, active });
+  selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: false, active });
 
 const shortfallDesks = selectChartArrangement({ menu: muteMenu() }).entries.filter(
   e => e.readiness !== "FULL",
@@ -127,6 +127,7 @@ describe("the shortfall travels inside the declaration", () => {
     // making the marker meaningless.
     const menu = selectProfileMenu({
       barsPresent: true,
+      printsPresent: true,
       observedAggressorFlow: true,
       active: {},
     });
@@ -135,6 +136,7 @@ describe("the shortfall travels inside the declaration", () => {
     for (const desk of full) {
       const menuAt = selectProfileMenu({
         barsPresent: true,
+        printsPresent: true,
         observedAggressorFlow: true,
         active: arrangementSwitches(desk.id, menu),
       });

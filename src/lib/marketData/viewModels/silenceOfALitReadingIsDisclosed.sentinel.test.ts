@@ -11,13 +11,14 @@
  * decide to arm a layer that is usually ready and occasionally not.
  *
  * Permitting it leaves a second, smaller dishonesty standing, and this file is
- * about that one. Four of the five order-flow readings default ON. All four are
- * gated, together, behind a single `hasVerifiedAggressorTape` call. On any feed
+ * about that one. Three default-on order-flow readings are gated together
+ * behind a single `hasVerifiedAggressorTape` call. Liquidity Weather is the
+ * raw-print exception. On any feed
  * that never states an aggressor side — every futures chart outside a live tape
- * session — the ORDINARY state of this product is four lit gold switches over a
+ * session — the ORDINARY state of this product is three lit gold switches over a
  * chart that is drawing nothing.
  *
- * Each of those four publishes its refusal. Into a `data-` attribute. And
+ * Each withheld reading publishes its refusal. Into a `data-` attribute. And
  * nowhere else. Absorption is the only one of the six that puts its refusal on
  * the glass ("EFFORT UNMEASURED"). A refusal legible only to someone opening
  * devtools is not a refusal the trader was given — it is a receipt filed in a
@@ -29,7 +30,7 @@
  *   SILENCE — IN THE VISIBLE LABEL, AND IN THE ACCESSIBLE NAME, AND IT MUST
  *   PRINT THE COMPILER'S SENTENCE RATHER THAN INVENTING ITS OWN.
  *
- * The rule is conditional on purpose. Turn all four defaults OFF and this file
+ * The rule is conditional on purpose. Turn all side-gated defaults OFF and this file
  * goes quiet, because then nobody was told a lit switch was drawing — the
  * trader armed it themselves and owns the consequence. The obligation is
  * created by the DEFAULT, not by the silence.
@@ -109,6 +110,7 @@ const SHIPPED_DEFAULTS = Object.fromEntries(
 
 const ON_A_TAPE_WITH_NO_SIDE = selectProfileMenu({
   barsPresent: true,
+  printsPresent: true,
   observedAggressorFlow: false,
   active: SHIPPED_DEFAULTS,
 });

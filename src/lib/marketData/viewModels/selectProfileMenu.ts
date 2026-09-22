@@ -52,10 +52,15 @@ export type ProfileId =
 
 /**
  * READY — it can draw now.
- * WAITING_FOR_BARS — it will draw as soon as the window fills. Wait.
+ * WAITING_FOR_BARS — it will draw as soon as the bar window fills. Wait.
+ * WAITING_FOR_PRINTS — it needs per-trade prints, but not aggressor side. Wait.
  * NEEDS_SIDED_TAPE — this feed never states an aggressor. Do not wait.
  */
-export type ProfileAvailability = "READY" | "WAITING_FOR_BARS" | "NEEDS_SIDED_TAPE";
+export type ProfileAvailability =
+  | "READY"
+  | "WAITING_FOR_BARS"
+  | "WAITING_FOR_PRINTS"
+  | "NEEDS_SIDED_TAPE";
 
 /**
  * NOT ALL FOUR ARE THE SAME GESTURE, AND THE MENU MAY NOT PRETEND THEY ARE.
@@ -94,6 +99,8 @@ export interface ProfileMenuEntry {
 export interface ProfileMenuInput {
   /** Has the chart actually loaded bars? Not "did we ask" — did we receive. */
   readonly barsPresent: boolean;
+  /** Has at least one real per-trade print reached the chart room? */
+  readonly printsPresent: boolean;
   /**
    * Has a SIDED print actually been observed on this symbol? A connected feed
    * is not the same fact: a socket can be open for an hour and never state an
@@ -117,13 +124,12 @@ export interface ProfileMenuVM {
    * active and eight ready-capable while four of those six are silent, because
    * the two counts are measured over different sets and never intersected.
    *
-   * The intersection is what the trader actually experiences. Four of the five
-   * order-flow readings default ON and are gated, together, behind one call to
-   * `hasVerifiedAggressorTape` — so on any feed that never states an aggressor
-   * side (every futures chart outside a live tape session) the ordinary state
-   * of this product is four lit switches painting nothing.
+   * The intersection is what the trader actually experiences. Three default-on
+   * order-flow readings require aggressor side. Liquidity Weather also defaults
+   * on but is independently deliverable from raw prints, so the compiler must
+   * never count it silent merely because side classification is missing.
    *
-   * Each of those four publishes its refusal into a `data-` attribute and
+   * Each withheld reading publishes its refusal into a `data-` attribute and
    * nowhere else. Absorption is the only reading that puts its refusal on the
    * glass ("EFFORT UNMEASURED"). A refusal legible only to someone inspecting
    * the DOM is not a refusal the trader was given, so this count exists to put
@@ -147,6 +153,8 @@ export interface ProfileMenuVM {
    * being withheld, so a caller can use emptiness as the test.
    */
   readonly silentNote: string;
+  /** Compact visible cause for the panel footer, compiled from the same facts. */
+  readonly silentSummary: string;
 }
 
 /**
@@ -202,10 +210,9 @@ const CATALOGUE: readonly ProfileSpec[] = [
     it painting — a chart the trader cannot quiet is not a chart the trader
     owns.
 
-    Every one of them is compiled from the SAME gated tick array by
-    `useOrderFlowReadings`, which is why all four are in NEEDS_SIDED_TAPE
-    below. That is not four independent judgements about four feeds; it is one
-    fact about one tape, stated four times because the menu lists four rows.
+    Three are side-dependent and receive the same gated tick array from
+    `useOrderFlowReadings`. Liquidity Weather is not: it measures volume per
+    price travel and receives raw observed prints because it never reads side.
 
     `levels` is the honest part. It names ONLY what each reading publishes as a
     coordinate. Liquidity weather's row says "Stall shelves" and nothing about
@@ -256,12 +263,7 @@ const GESTURE_NOTE: Readonly<Record<ProfileGesture, string>> = {
 };
 
 /**
- * Everything that cannot be computed from volume alone.
- *
- * `useOrderFlowReadings` gates all five order-flow readings behind ONE call to
- * `hasVerifiedAggressorTape` and hands every selector the same null array when
- * it fails — deliberately, so the five can never momentarily disagree about
- * whether the tape was real. This set is the menu's side of that same fact.
+ * Everything that requires an aggressor side rather than bars or raw prints.
  *
  * A row here reports NEEDS_SIDED_TAPE rather than WAITING_FOR_BARS, and the
  * difference is the whole point: one says wait, the other says do not.
@@ -271,6 +273,10 @@ const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>([
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",
+]);
+
+/** Readings that need real prints but deliberately do not need aggressor side. */
+const NEEDS_PRINTS: ReadonlySet<ProfileId> = new Set<ProfileId>([
   "LIQUIDITY_WEATHER",
 ]);
 
@@ -285,6 +291,10 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     if (!input.barsPresent) {
       availability = "WAITING_FOR_BARS";
       availabilityNote = "no bars loaded for this symbol yet";
+    } else if (NEEDS_PRINTS.has(spec.id) && !input.printsPresent) {
+      availability = "WAITING_FOR_PRINTS";
+      availabilityNote =
+        "no per-trade prints have reached this chart yet — aggressor side is not required";
     } else if (NEEDS_SIDED_TAPE.has(spec.id) && !input.observedAggressorFlow) {
       availability = "NEEDS_SIDED_TAPE";
       availabilityNote =
@@ -321,13 +331,14 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     because it is one fact about one tape (see NEEDS_SIDED_TAPE above), and
     repeating it per row would make one gap read as four unrelated failures.
 
-    Both reasons are carried, because they ask opposite things of the trader:
-    WAITING_FOR_BARS says wait, NEEDS_SIDED_TAPE says do not.
+    Every reason is carried because bars/prints say wait while an absent sided
+    tape says this feed cannot answer the question.
   */
   let silentNote = "";
   if (silentCount > 0) {
     const names = silent.map(e => e.label).join(", ");
     const waiting = silent.some(e => e.availability === "WAITING_FOR_BARS");
+    const waitingForPrints = silent.some(e => e.availability === "WAITING_FOR_PRINTS");
     const untaped = silent.some(e => e.availability === "NEEDS_SIDED_TAPE");
     /*
       CAUGHT ON THE SERVING CHART, NOT BY A TEST.
@@ -342,11 +353,14 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
       capitalise() helper at the joint, because each one IS a sentence and the
       only reason it did not look like one was the joint.
     */
-    const why = waiting && untaped
-      ? "Some are waiting for bars; the rest need a tape that states an aggressor side"
+    const causes = [waiting, waitingForPrints, untaped].filter(Boolean).length;
+    const why = causes > 1
+      ? "Some are waiting for market observations; the rest need a tape that states an aggressor side"
       : waiting
         ? "No bars have loaded for this symbol yet — these will draw when they do"
-        : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
+        : waitingForPrints
+          ? "No per-trade prints have reached this chart yet — these will draw when they do"
+          : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
     silentNote =
       `${silentCount} of ${activeCount} switched on but drawing nothing: ${names}. ${why}.`;
   }
@@ -358,6 +372,15 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     readyCount,
     silentCount,
     silentNote,
+    silentSummary: silentCount === 0
+      ? ""
+      : silent.every(e => e.availability === "WAITING_FOR_BARS")
+        ? `${silentCount} silent · waiting for bars`
+        : silent.every(e => e.availability === "WAITING_FOR_PRINTS")
+          ? `${silentCount} silent · waiting for prints`
+          : silent.every(e => e.availability === "NEEDS_SIDED_TAPE")
+            ? `${silentCount} silent · aggressor tape required`
+            : `${silentCount} silent · mixed missing inputs`,
     summary:
       activeCount === 0
         ? "PROFILES"

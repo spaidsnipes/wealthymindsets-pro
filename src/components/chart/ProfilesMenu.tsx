@@ -54,23 +54,27 @@ import {
 const AVAILABILITY_DOT: Record<ProfileMenuEntry["availability"], string> = {
   READY: "#4ADE80",
   WAITING_FOR_BARS: "#8B8FA8",
+  WAITING_FOR_PRINTS: "#8B8FA8",
   NEEDS_SIDED_TAPE: "#F0B429",
 };
 
 export function ProfilesMenu({
   barsPresent,
+  printsPresent,
   observedAggressorFlow,
   active,
   onToggle,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
+  /** At least one real per-trade print received by this chart room. */
+  printsPresent: boolean;
   /** `selectAggressorFlow(...).hasFlow` — a sided print OBSERVED, not promised. */
   observedAggressorFlow: boolean;
   active: ProfileMenuInput["active"];
   onToggle: (id: ProfileId) => void;
 }) {
-  const vm = selectProfileMenu({ barsPresent, observedAggressorFlow, active });
+  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active });
 
   return (
     <section
@@ -144,7 +148,9 @@ export function ProfilesMenu({
                 ? entry.active ? "DRAWING" : "READY"
                 : entry.availability === "WAITING_FOR_BARS"
                   ? "WAITING FOR BARS"
-                  : entry.active ? "SILENT · TAPE REQUIRED" : "TAPE REQUIRED";
+                  : entry.availability === "WAITING_FOR_PRINTS"
+                    ? "WAITING FOR PRINTS"
+                    : entry.active ? "SILENT · TAPE REQUIRED" : "TAPE REQUIRED";
 
               return (
                 <button
@@ -206,8 +212,8 @@ export function ProfilesMenu({
               className="mt-2 flex items-center justify-between gap-3 border-t border-wm-border/70 px-1 pt-2 text-[9px] uppercase tracking-[0.1em]"
               data-testid="profiles-silence-summary"
             >
-              <span style={{ color: AVAILABILITY_DOT.NEEDS_SIDED_TAPE }}>
-                {vm.silentCount} silent · aggressor tape required
+              <span style={{ color: "#F0B429" }}>
+                {vm.silentSummary}
               </span>
               <span className="text-wm-text-dim">Hover a reading for full provenance</span>
             </div>

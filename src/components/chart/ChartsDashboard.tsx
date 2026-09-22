@@ -667,17 +667,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * default ON. So the product shipped with this arrangement —
    *
    *   ON   stacked imbalance   ┐
-   *   ON   value candle        │ all four require a PROVIDER-ASSERTED
-   *   ON   delta divergence    │ aggressor side. `useOrderFlowReadings` gates
-   *   ON   liquidity weather   ┘ every one behind `hasVerifiedAggressorTape`.
+   *   ON   value candle        │ three require a PROVIDER-ASSERTED
+   *   ON   delta divergence    ┘ aggressor side. `useOrderFlowReadings` gates
+   *   ON   liquidity weather     raw prints only; side is not required.
    *   OFF  absorption anatomy    ← the ONLY one that draws from bars alone.
    *
-   * — which is exactly backwards. The four that cannot speak without sided tape
-   * are on; the one that can always speak is off. On a futures chart reading
-   * "NO LIVE PRINT", the four switched-on layers draw nothing and the one layer
-   * that had something to say was switched off. The trader saw an empty chart
-   * and four lit toggles, which is the worst of both: no picture AND no honest
-   * absence pointing at the real cause.
+   * — which was exactly backwards. Three cannot speak without sided tape and
+   * the fourth waits for raw prints; the bar-derived layer can always speak but
+   * was off. On a futures chart reading "NO LIVE PRINT", all four switched-on
+   * layers were silent for explicitly different reasons while the one layer
+   * with something to say was disabled. The trader saw an empty chart and four
+   * lit toggles, which is the worst of both: no picture AND no honest absence
+   * pointing at the real cause.
    *
    * Absorption is safe to default ON precisely because it never has to guess.
    * `selectAbsorptionAnatomy` publishes a TIERED basis — SIGNED_DELTA when the
@@ -2223,6 +2224,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   */
   const arrangementMenu = selectProfileMenu({
     barsPresent: chartBars.length > 0,
+    printsPresent: recentTicks.length > 0,
     observedAggressorFlow: chartFlowSnap.hasFlow,
     active: {
       FIXED_RANGE: fixedVPActive,
@@ -3827,6 +3829,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               */}
               <ChartArrangementBar
                 barsPresent={chartBars.length > 0}
+                printsPresent={recentTicks.length > 0}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 active={{
                   FIXED_RANGE: fixedVPActive,
@@ -3852,6 +3855,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
+                printsPresent={recentTicks.length > 0}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 active={{
                   FIXED_RANGE: fixedVPActive,

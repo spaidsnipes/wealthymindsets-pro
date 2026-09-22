@@ -4,10 +4,10 @@
  * THIS SENTINEL EXISTS BECAUSE THE DEFAULTS HAD INVERTED, AND NOBODY NOTICED
  * FOR TWO DAYS, BECAUSE EACH ONE WAS DEFENSIBLE ON ITS OWN.
  *
- * `selectProfileMenu` already publishes the fact that matters: five of this
+ * `selectProfileMenu` already publishes the fact that matters: four of this
  * product's eight profile inventions cannot say anything at all unless the tape
- * states an aggressor side. `useOrderFlowReadings` gates all five behind one
- * call to `hasVerifiedAggressorTape`, so they do not merely tend to be silent
+ * states an aggressor side. `useOrderFlowReadings` gates those side-dependent
+ * readings behind one call to `hasVerifiedAggressorTape`, so they do not merely tend to be silent
  * together — they are silent together by construction.
  *
  * Absorption anatomy is the exception, and it is the important exception. Its
@@ -15,7 +15,7 @@
  * falls back to plain traded volume, which is real, observed, unsigned, and a
  * legitimate basis for effort-vs-result in its own right. It therefore draws on
  * any chart that has bars — which is every chart — and on the days when the
- * other five have nothing to say, it is the only one of the six that does.
+ * side-dependent readings have nothing to say, it still does.
  *
  * On 2026-09-18 the four order-flow readings shipped defaulting ON. Absorption
  * had been defaulting OFF since it was built, for a reason written down at the
@@ -24,13 +24,14 @@
  *
  *     ON   stacked imbalance    ┐ needs a provider-asserted aggressor side
  *     ON   value candle         │ — draws NOTHING without sided tape
- *     ON   delta divergence     │
- *     ON   liquidity weather    ┘
+ *     ON   delta divergence     ┘
+ *     ON   liquidity weather      ← raw prints; side is not required
  *     OFF  absorption anatomy     ← draws from bars alone, always could
  *
- * Exactly backwards. On a futures chart reading "NO LIVE PRINT" the trader got
- * four lit switches painting nothing and the one layer with something to say
- * turned off. Not a bug in any module — an inversion that only exists in the
+ * Exactly backwards. On a futures chart with prints but no verified side, the
+ * trader got three lit switches painting nothing while raw-print Liquidity
+ * Weather could speak and the bar-derived layer was turned off. Not a bug in
+ * any module — an inversion that only exists in the
  * relationship BETWEEN modules, which is the kind a unit test cannot see and a
  * reviewer reading one diff cannot see either.
  *
@@ -43,7 +44,7 @@
  *   THAT USUALLY CANNOT.
  *
  * The rule is deliberately weak. It does not demand any particular reading be
- * on. Turn all five off and it stays quiet — a chart with no overlays is a
+ * on. Turn all side-dependent defaults off and it stays quiet — a chart with no overlays is a
  * legitimate product decision. It objects to one specific shape: the
  * tape-dependent layers being louder by default than the bar-derived one. That
  * shape is never what anybody meant, and it is what the product shipped.
@@ -105,6 +106,7 @@ function defaultFor(key: string): boolean {
  */
 const MENU_NO_TAPE = selectProfileMenu({
   barsPresent: true,
+  printsPresent: true,
   observedAggressorFlow: false,
   active: {},
 });
@@ -125,11 +127,18 @@ describe("the profile menu and the chart defaults agree about what can draw", ()
     ).toBe(false);
   });
 
-  for (const id of ["IMBALANCE_STACK", "VALUE_CANDLE", "DELTA_DIVERGENCE", "LIQUIDITY_WEATHER"] as const) {
+  for (const id of ["IMBALANCE_STACK", "VALUE_CANDLE", "DELTA_DIVERGENCE"] as const) {
     it(`${id} is correctly reported as needing sided tape`, () => {
       expect(needsSidedTape(id)).toBe(true);
     });
   }
+
+  it("LIQUIDITY_WEATHER remains ready from raw prints without aggressor side", () => {
+    expect(needsSidedTape("LIQUIDITY_WEATHER")).toBe(false);
+    expect(
+      MENU_NO_TAPE.entries.find(e => e.id === "LIQUIDITY_WEATHER")?.availability,
+    ).toBe("READY");
+  });
 });
 
 describe("a reading that can always draw is never shyer by default than one that usually cannot", () => {

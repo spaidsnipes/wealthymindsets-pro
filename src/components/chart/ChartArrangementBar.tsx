@@ -73,12 +73,15 @@ const READINESS_DOT: Record<ArrangementEntry["readiness"], string> = {
 
 export function ChartArrangementBar({
   barsPresent,
+  printsPresent,
   observedAggressorFlow,
   active,
   onApply,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
+  /** At least one real per-trade print received by this chart room. */
+  printsPresent: boolean;
   /** A sided print OBSERVED, not promised. */
   observedAggressorFlow: boolean;
   /** The chart's current switch positions. */
@@ -86,7 +89,7 @@ export function ChartArrangementBar({
   /** Apply a whole desk at once. Receives every TOGGLE profile's new position. */
   onApply: (switches: Readonly<Partial<Record<ProfileId, boolean>>>) => void;
 }) {
-  const menu = selectProfileMenu({ barsPresent, observedAggressorFlow, active });
+  const menu = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active });
   const vm = selectChartArrangement({ menu });
 
   const press = (id: ArrangementId) => {

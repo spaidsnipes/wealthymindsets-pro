@@ -21,15 +21,15 @@ import {
 
 /** A chart with bars and a tape that states an aggressor side — the best case. */
 const menuOn = (active: Readonly<Partial<Record<ProfileId, boolean>>> = {}) =>
-  selectProfileMenu({ barsPresent: true, observedAggressorFlow: true, active });
+  selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active });
 
 /** Bars, but a tape that never states a side — the ORDINARY futures case. */
 const menuMute = (active: Readonly<Partial<Record<ProfileId, boolean>>> = {}) =>
-  selectProfileMenu({ barsPresent: true, observedAggressorFlow: false, active });
+  selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: false, active });
 
 /** No bars at all — a symbol that has not loaded. */
 const menuEmpty = (active: Readonly<Partial<Record<ProfileId, boolean>>> = {}) =>
-  selectProfileMenu({ barsPresent: false, observedAggressorFlow: false, active });
+  selectProfileMenu({ barsPresent: false, printsPresent: false, observedAggressorFlow: false, active });
 
 const vm = (menu: ReturnType<typeof menuOn>) => selectChartArrangement({ menu });
 
@@ -237,10 +237,10 @@ describe("the declaration is printable chrome, not a debug string", () => {
     expect(out.activeId).toBe("ORDER_FLOW");
     expect(
       out.declaration,
-      "the chart declares ORDER FLOW on a tape that can draw only one of its " +
-        "five readings, with no indication that four are mute. That is the " +
+      "the chart declares ORDER FLOW on a tape that can draw only two of its " +
+        "five readings, with no indication that three are mute. That is the " +
         "beautiful lie this compiler exists to prevent.",
-    ).toMatch(/1 OF 5 DRAWING/);
+    ).toMatch(/2 OF 5 DRAWING/);
   });
 
   it("stays clean when the desk is fully deliverable", () => {

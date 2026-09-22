@@ -28,18 +28,18 @@ const ALL_IDS: readonly ProfileId[] = [
   "LIQUIDITY_WEATHER",
 ];
 
-/** The rows that cannot be computed from volume alone. */
+/** The rows that require provider-stated aggressor side. */
 const SIDED: readonly ProfileId[] = [
   "DELTA_VP",
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",
-  "LIQUIDITY_WEATHER",
 ];
 
 function input(over: Partial<ProfileMenuInput> = {}): ProfileMenuInput {
   return {
     barsPresent: true,
+    printsPresent: true,
     observedAggressorFlow: true,
     active: {},
     ...over,
@@ -101,7 +101,7 @@ describe("selectProfileMenu — availability is measured, never assumed", () => 
     expect(vm.readyCount).toBe(ALL_IDS.length);
   });
 
-  it("the tape-fed rows wait on a sided tape — the bar-fed ones draw from volume", () => {
+  it("side-dependent rows require side while Liquidity Weather only requires prints", () => {
     // Most feeds this product can reach never state an aggressor. Showing any
     // of these as ready and drawing nothing is the defect Asset 03 exists to
     // avoid: a shape that keeps its look and loses its meaning.
@@ -113,14 +113,18 @@ describe("selectProfileMenu — availability is measured, never assumed", () => 
     expect(byId.FIXED_RANGE.availability).toBe("READY");
     expect(byId.SESSION.availability).toBe("READY");
     expect(byId.ABSORPTION.availability).toBe("READY");
+    expect(byId.LIQUIDITY_WEATHER.availability).toBe("READY");
     expect(vm.readyCount).toBe(ALL_IDS.length - SIDED.length);
   });
 
-  it("the four order-flow readings share ONE fact about the tape, not four", () => {
-    // `useOrderFlowReadings` gates all of them behind a single call to
-    // `hasVerifiedAggressorTape` and hands every selector the same null array
-    // when it fails — precisely so they can never momentarily disagree about
-    // whether the tape was real. The menu must not re-open that question.
+  it("Liquidity Weather waits for prints without falsely asking for aggressor side", () => {
+    const vm = selectProfileMenu(input({ printsPresent: false, observedAggressorFlow: false }));
+    const weather = vm.entries.find(e => e.id === "LIQUIDITY_WEATHER")!;
+    expect(weather.availability).toBe("WAITING_FOR_PRINTS");
+    expect(weather.availabilityNote).toMatch(/side is not required/i);
+  });
+
+  it("the side-dependent rows share ONE fact about the tape", () => {
     const off = selectProfileMenu(input({ observedAggressorFlow: false }));
     const notes = new Set(
       off.entries.filter(e => SIDED.includes(e.id)).map(e => e.availabilityNote),
@@ -215,7 +219,7 @@ describe("selectProfileMenu — the chip counts what is DRAWN, not what is possi
   the readings, and that it cannot be reported when nothing is being withheld.
 */
 describe("selectProfileMenu — a lit switch that draws nothing says so", () => {
-  it("THE SHIPPED STATE: four order-flow readings on, tape states no side", () => {
+  it("THE SHIPPED STATE: side-dependent readings are silent while Liquidity Weather still draws", () => {
     const vm = selectProfileMenu(
       input({
         observedAggressorFlow: false,
@@ -230,14 +234,14 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
     );
 
     expect(vm.activeCount).toBe(5);
-    // Absorption draws from bars alone; the other four cannot.
-    expect(vm.silentCount).toBe(4);
+    // Absorption draws from bars; Liquidity Weather draws from raw prints.
+    expect(vm.silentCount).toBe(3);
     expect(
       vm.summary,
       "the chip is the only thing a trader sees without opening the menu, so " +
         "it must carry the withheld count rather than a number that reads as " +
         "five layers of working chart",
-    ).toContain("4");
+    ).toContain("3");
   });
 
   it("counts the switch the trader threw, not the drawing it produced", () => {
@@ -257,7 +261,7 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
       input({ observedAggressorFlow: false, active: { VALUE_CANDLE: true, LIQUIDITY_WEATHER: true } }),
     );
     expect(vm.silentNote).toContain("WM Value Candle");
-    expect(vm.silentNote).toContain("Liquidity Weather");
+    expect(vm.silentNote).not.toContain("Liquidity Weather");
   });
 
   it("does not name a reading that is silent but switched OFF", () => {
@@ -328,6 +332,17 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
     }
   });
 
+  it("a lit Liquidity Weather row says waiting for prints when prints are absent", () => {
+    const vm = selectProfileMenu(input({
+      printsPresent: false,
+      observedAggressorFlow: false,
+      active: { LIQUIDITY_WEATHER: true },
+    }));
+    expect(vm.silentCount).toBe(1);
+    expect(vm.silentSummary).toBe("1 silent · waiting for prints");
+    expect(vm.silentNote).toMatch(/per-trade prints/i);
+  });
+
   /*
     ── THE SUITE WAS GREEN WHILE THE PRODUCT SPOKE BADLY ────────────────────
 
@@ -348,6 +363,7 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
   it("every note it can produce is a well-formed sentence", () => {
     const states = [
       { barsPresent: true,  observedAggressorFlow: false },
+      { barsPresent: true, printsPresent: false, observedAggressorFlow: false },
       { barsPresent: false, observedAggressorFlow: false },
       { barsPresent: false, observedAggressorFlow: true },
     ];

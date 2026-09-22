@@ -55,6 +55,7 @@ const PAINTING: readonly string[] = [
 
 const MENU_INPUT: ProfileMenuInput = {
   barsPresent: true,
+  printsPresent: true,
   observedAggressorFlow: true,
   active: {},
 };
@@ -88,16 +89,14 @@ describe("every layer that paints on the price axis has a door in the menu", () 
   });
 
   it("a painting layer is never advertised as READY on a tape that cannot feed it", () => {
-    // All the glass layers are compiled from the one gated tick array. If a new
-    // one is added and forgotten here, the menu would invite the trader to
-    // switch on something that can only ever draw nothing.
+    // Side-dependent glass is withheld; Liquidity Weather is the deliberate
+    // raw-print exception because its selector never reads aggressor side.
     const unsided = selectProfileMenu({ ...MENU_INPUT, observedAggressorFlow: false });
     for (const engine of PAINTING) {
       const entry = unsided.entries.find(e => path.basename(e.owner, ".ts") === engine)!;
-      expect(
-        entry.availability,
-        `${engine} claims READY without a sided tape, but its glass is fed by the gated ticks`,
-      ).toBe("NEEDS_SIDED_TAPE");
+      expect(entry.availability).toBe(
+        engine === "selectLiquidityWeather" ? "READY" : "NEEDS_SIDED_TAPE",
+      );
     }
   });
 });

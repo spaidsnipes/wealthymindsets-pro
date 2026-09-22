@@ -306,18 +306,21 @@ export function selectChartArrangement(
     } else {
       const names = mute.map(e => e.label).join(", ");
       /*
-        WAITING_FOR_BARS and NEEDS_SIDED_TAPE ask opposite things of the trader
+        WAITING states and NEEDS_SIDED_TAPE ask opposite things of the trader
         — wait, versus do not wait. A note that lumps them together sends a
         trader to stare at a chart that is never going to fill in. Same
         distinction `selectProfileMenu` draws, made here for the same reason.
       */
       const waiting = mute.some(e => e.availability === "WAITING_FOR_BARS");
+      const waitingForPrints = mute.some(e => e.availability === "WAITING_FOR_PRINTS");
       const untaped = mute.some(e => e.availability === "NEEDS_SIDED_TAPE");
-      const why =
-        waiting && untaped
-          ? "Some are waiting for bars; the rest need a tape that states an aggressor side"
-          : waiting
-            ? "No bars have loaded for this symbol yet — these will draw when they do"
+      const causes = [waiting, waitingForPrints, untaped].filter(Boolean).length;
+      const why = causes > 1
+        ? "Some are waiting for market observations; the rest need a tape that states an aggressor side"
+        : waiting
+          ? "No bars have loaded for this symbol yet — these will draw when they do"
+          : waitingForPrints
+            ? "No per-trade prints have reached this chart yet — these will draw when they do"
             : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
       note =
         `${spec.label}: ${spec.purpose}. ` +

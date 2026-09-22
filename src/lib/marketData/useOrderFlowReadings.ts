@@ -28,11 +28,11 @@
  * agreeing readings that only agree until one of them is edited.
  *
  * ── WHY THE `realTape` GATE IS INSIDE, NOT AT THE CALL SITES ──────────────
- * Every one of these selectors is handed NOTHING rather than raw ticks when the
- * feed carries no verified aggressor tape, because a quote stream is not a tape
- * and a selector asked to weight prints nobody can attribute will answer
- * confidently about a guess. That gate belonged to whichever caller remembered
- * it. Now it cannot be forgotten, because there is nowhere left to forget it.
+ * The four side-dependent selectors are handed NOTHING rather than raw ticks
+ * when the feed carries no verified aggressor tape. Liquidity Weather is the
+ * deliberate exception: cost-of-travel reads print size and price movement and
+ * never reads aggressor side, so withholding real prints from it would turn a
+ * missing side classification into a missing market observation.
  *
  * ── WHAT THIS DELIBERATELY DOES NOT DO ────────────────────────────────────
  * It does not phrase anything. `selectOrderFlowStanding` ranks and phrases, and
@@ -88,15 +88,15 @@ export function compileOrderFlowReadings(
   tapeSource: TapeSource,
 ): OrderFlowReadingSet {
   const realTape = hasVerifiedAggressorTape(tapeSource);
-  // ONE gated array, read by every selector. Inlining the gate five times would
-  // let the five momentarily disagree about whether the tape was real.
-  const ticks = realTape ? recentTicks : null;
+  // ONE gated array for every SIDE-DEPENDENT selector. Liquidity Weather reads
+  // the raw observed prints because its selector deliberately never reads side.
+  const sidedTicks = realTape ? recentTicks : null;
   return {
-    valueCandle: selectValueCandle(ticks),
-    absorption: selectAbsorption(ticks),
-    deltaDivergence: selectDeltaDivergence(ticks),
-    liquidityWeather: selectLiquidityWeather(ticks),
-    stackedImbalance: selectStackedImbalance(ticks),
+    valueCandle: selectValueCandle(sidedTicks),
+    absorption: selectAbsorption(sidedTicks),
+    deltaDivergence: selectDeltaDivergence(sidedTicks),
+    liquidityWeather: selectLiquidityWeather(recentTicks),
+    stackedImbalance: selectStackedImbalance(sidedTicks),
     realTape,
   };
 }
