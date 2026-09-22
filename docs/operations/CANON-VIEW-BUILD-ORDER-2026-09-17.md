@@ -223,6 +223,18 @@ ASSET SET) was read on 2026-09-18 and contradicts them:
    compositions of the already-shipped 06 and 05, to be compared against them
    and merged. Only **08** needs the licensed Level 2 depth provider. Two assets
    were parked behind a blocker that was never theirs.
+
+   **CORRECTION 2026-09-22 — THE 08 HALF OF THIS BULLET FELL TOO.** Asset 08
+   shipped at `2cbe73ae` with NO depth provider: `selectLiquidityWeather` had
+   been measuring liquidity as COST OF TRAVEL (volume per spread of movement)
+   from the room's own per-trade tape since it was written, and only the
+   *mockup's rendering* — a resting-order heatmap — needed a book. The blocker
+   was inherited from the picture, not the measurement, which is the same
+   title-read defect as the Asset 13 correction below: assets in this one list
+   were parked behind blockers that belonged to their mockups' drawings rather
+   than to any owner in the repo. The heatmap rendering stays REFUSED (a
+   fabricated book); the measurement ships. See the Liquidity row in the
+   VIEW-STATUS table, which is the authority.
 2. **"zero data dependencies" is false for two of the five.** Asset **13**
    (Mastery Path) depends on the user having decision history; Asset **18**
    (Order Flow Long Division) depends on **signed tape**, which most symbols do
