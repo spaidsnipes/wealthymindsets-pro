@@ -1947,12 +1947,11 @@ export function WMOperatingSystem({
             </>
           )}
 
-          {/* STATE belongs in the legacy rail and beside working equipment.
-              Rooms and Community are changed-job doorways on HOME, not a
-              second decision surface. Repeating EVIDENCE DEBT and RIGHT OF
-              WAY there puts the same fact beside the canonical decision spine
-              and turns a destination list into another gold-card dashboard. */}
-          {equipmentMode && (scenePanel === "rooms" || scenePanel === "community") ? null : (
+          {/* STATE belongs in the legacy full-map rail. On HOME the canonical
+              decision spine remains visible beside every overlay, so adding
+              EVIDENCE DEBT and RIGHT OF WAY beneath Rooms, Community,
+              Workspace or Tools creates a second owner of the same truth. */}
+          {equipmentMode ? null : (
             <div
               data-testid="os-rail-state"
               style={{

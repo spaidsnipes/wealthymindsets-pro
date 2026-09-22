@@ -1610,14 +1610,12 @@ describe("SENTINEL — Shot 1: equipment mode never restores the destination mal
     expect(rail).not.toMatch(/equipmentTriggers\.current\.community/);
   });
 
-  it("destination doorways do not repeat the decision spine's standing truth", () => {
-    // Rooms and Community change the human job. They may name their
-    // destinations, but they may not grow a second EVIDENCE DEBT / RIGHT OF
-    // WAY surface beside the canonical decision spine. The legacy rail and
-    // the two working-equipment panels deliberately retain the state readout.
-    expect(rail).toMatch(
-      /equipmentMode && \(scenePanel === "rooms" \|\| scenePanel === "community"\) \? null/,
-    );
+  it("HOME overlays do not repeat the decision spine's standing truth", () => {
+    // The canonical decision spine remains visible beside every HOME panel.
+    // Rooms, Community, Workspace and Tools may carry their own content, but
+    // none may grow a second EVIDENCE DEBT / RIGHT OF WAY surface. Rail mode
+    // retains the standing readout for routes that still use the full map.
+    expect(rail).toMatch(/equipmentMode \? null : \(/);
     expect(rail).toContain('data-testid="os-rail-state"');
   });
 
