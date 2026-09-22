@@ -1,0 +1,20 @@
+import { chromium } from "playwright";
+const BASE = "https://wealthymindsetspro.com";
+const browser = await chromium.launch({ channel: "chrome" });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await ctx.route("**/api/auth/me", (r) => r.fulfill({ status:200, contentType:"application/json",
+  body: JSON.stringify({ user:{ id:"layout-probe", email:"layout@probe.local", displayName:"Layout Probe", handle:"layout", profileComplete:true } }) }));
+const page = await ctx.newPage();
+await page.goto(`${BASE}/charts?symbol=BTC&tf=5m`, { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(14000);
+const K=["wm_fixedVP","wm_sessionVP","wm_absorptionAnatomy","wm_ofImbalanceStack","wm_ofValueCandle","wm_ofDeltaDivergence","wm_ofLiquidityWeather"];
+const read=()=>page.evaluate(k=>Object.fromEntries(k.map(x=>[x.replace(/^wm_(of)?/,""),localStorage.getItem(x)])),K);
+const open=async()=>{ if(!(await page.$('button[data-equipment="arrange-regime"]'))){ await page.click('[data-testid="os-equipment-workspace"]'); await page.waitForTimeout(700);} };
+const press=async(id)=>{ await open(); await page.click(`button[data-equipment="${id}"]`); await page.waitForTimeout(1400); };
+const out={};
+await press("arrange-regime");   out.afterRegime = await read();
+await press("arrange-order-flow"); out.afterOrderFlow = await read();
+await press("arrange-review");   out.afterReview = await read();
+out.chartCount = await page.evaluate(()=>document.querySelectorAll(".tv-lightweight-charts").length);
+console.log(JSON.stringify(out,null,2));
+await browser.close();
