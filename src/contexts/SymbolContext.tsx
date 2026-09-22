@@ -1,9 +1,22 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect } from "react";
+import { resolveDefaultCameraSymbol } from "@/lib/marketData/defaultMarketCamera";
 
 const LAST_SYMBOL_KEY = "wm_last_symbol";
-const DEFAULT_SYMBOL = "NQ1!";
+/**
+ * NOT a hardcoded string any more. The first-arrival camera is derived from
+ * the capability registry so it can only ever land on a market whose tape the
+ * same gate as the draw loop (`hasVerifiedAggressorTape`) certifies.
+ *
+ * Before this, the default was `NQ1!` — and futures have no tape wire in the
+ * build at all, so every W invention on the product's front door reported
+ * UNMEASURED by construction. See src/lib/marketData/defaultMarketCamera.ts.
+ *
+ * The trader's own choice still outranks this completely: `wm_last_symbol`
+ * first, then `wm_settings.defSym`, and only then this.
+ */
+const DEFAULT_SYMBOL = resolveDefaultCameraSymbol();
 
 interface SymbolCtx {
   activeSymbol:    string;
