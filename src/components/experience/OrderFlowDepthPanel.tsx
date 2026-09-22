@@ -22,9 +22,10 @@
  *      constraint order (see below) is this panel's older law and the wings
  *      interleave across it. A tag tells the truth without moving furniture.
  *   2. The wings with no installed instrument — STRUCTURE and MEMORY/CONTEXT
- *      — are CONFESSED at full depth in one line, not faked with empty tiles.
- *      A named absence is intelligence; a hidden one is a hole the trader
- *      finds by needing it.
+ *      — are CONFESSED at every depth in one line, not faked with empty
+ *      tiles. A named absence is intelligence; a hidden one is a hole the
+ *      trader finds by needing it. (Every depth, not just full: the chart
+ *      room never reaches full by canon — see the note above the confession.)
  *   3. The legacy Smart Money read-out is reached THROUGH this door
  *      (`onOpenReadout`), not through a second rail entry. The prop is
  *      optional because only the chart room owns that panel; a room without
@@ -150,33 +151,42 @@ export function OrderFlowDepthPanel({
           <Wing name={MARKET_INTELLIGENCE_WINGS.VOLUME_PROFILE}>
             <ValueCandlePanel vm={readings.valueCandle} symbol={symbol} window={WINDOW_LABEL} />
           </Wing>
-          {/*
-            THE CONFESSED WINGS. One line, no tiles, no controls — a control
-            for an uninstalled instrument would be the painted door.
-          */}
-          <div
-            data-testid="order-flow-unbuilt-wings"
-            style={{ fontSize: 10, opacity: 0.5 }}
-          >
-            No instrument installed yet in {UNBUILT_WINGS.join(" or ")}.
-          </div>
-          {onOpenReadout ? (
-            <button
-              type="button"
-              data-testid="order-flow-open-readout"
-              onClick={onOpenReadout}
-              style={{
-                justifySelf: "start",
-                fontSize: 11,
-                padding: "8px 12px",
-                minHeight: 32,
-                cursor: "pointer",
-              }}
-            >
-              Full read-out — Smart money panel
-            </button>
-          ) : null}
         </>
+      ) : null}
+      {/*
+        THE CONFESSED WINGS AND THE STAIR — at EVERY depth, deliberately
+        OUTSIDE the `unabridged` gate above.
+
+        MEASURED 2026-09-22 in the serving worker: the chart room refuses
+        `stage=full` by canon (Last Mile 2026-09-18 — "chart stays"; no
+        `onEnter` handed down), so on /charts `unabridged` is ALWAYS false and
+        anything gated on it is a door that tests green and never appears —
+        the painted-door defect from the other direction. The drawer is that
+        room's deepest stage; the stair and the confession must stand at its
+        foot or they stand nowhere. The deck still reaches `unabridged` and
+        renders these same lines there — same objects, one more depth.
+      */}
+      <div
+        data-testid="order-flow-unbuilt-wings"
+        style={{ fontSize: 10, opacity: 0.5 }}
+      >
+        No instrument installed yet in {UNBUILT_WINGS.join(" or ")}.
+      </div>
+      {onOpenReadout ? (
+        <button
+          type="button"
+          data-testid="order-flow-open-readout"
+          onClick={onOpenReadout}
+          style={{
+            justifySelf: "start",
+            fontSize: 11,
+            padding: "8px 12px",
+            minHeight: 32,
+            cursor: "pointer",
+          }}
+        >
+          Full read-out — Smart money panel
+        </button>
       ) : null}
     </div>
   );
