@@ -159,8 +159,29 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
     const dash = read("ChartsDashboard.tsx");
     const claimsDriving = /chartFollowsCursor=\{true\}/.test(dash);
     if (!claimsDriving) {
-      expect(dash, "no call site claims to drive, and none passes replayBars — consistent")
-        .toMatch(/chartFollowsCursor=\{false\}/);
+      // REMODELLED, NOT WEAKENED. This used to demand the literal
+      // `chartFollowsCursor={false}`, which forbade the only correct DRY fix
+      // for the bug measured on prod 2026-09-22: the panel's disclosure and the
+      // room's fidelity chips were two independent literals, so the panel could
+      // say "nothing behind me is a replay" while the masthead an inch above
+      // certified HISTORICAL BARS over live candles. Both now read ONE named
+      // owner. The assertion is correspondingly stronger, not looser — it pins
+      // the owner AND its value AND that the fidelity publications are gated on
+      // it, where before it pinned a single literal.
+      expect(dash, "no call site claims to drive, so the disclosure must be fed a false answer")
+        .toMatch(/chartFollowsCursor=\{(false|REPLAY_DRIVES_THE_CAMERA)\}/);
+      if (/chartFollowsCursor=\{REPLAY_DRIVES_THE_CAMERA\}/.test(dash)) {
+        expect(dash, "the named owner is not declared false")
+          .toMatch(/const REPLAY_DRIVES_THE_CAMERA: boolean = false;/);
+        expect(dash, "the fidelity surfaces are not gated on the same owner")
+          .toMatch(/const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;/);
+        // The whole point: NO surface may answer the panel's open/closed state.
+        expect(
+          dash.match(/replayEngaged: replayActive\b/g) ?? [],
+          "a fidelity surface is still answering 'is the panel open' instead of " +
+            "'is a camera driving' — that is the OWL facing the other way",
+        ).toHaveLength(0);
+      }
       return;
     }
     const main = read("MainChart.tsx");

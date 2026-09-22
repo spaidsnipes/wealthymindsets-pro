@@ -918,6 +918,38 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
+  /**
+   * IS A COMPANION CAMERA ACTUALLY DRIVING THE BARS ON THIS GLASS?
+   *
+   * `replayActive` answers a DIFFERENT question — "is the replay panel open" —
+   * and the two answers are not the same answer today. MEASURED on production
+   * 2026-09-22, canvas-hash sampled at t+1s / t+6s / t+11s after engaging
+   * replay: the price pane kept repainting and the payload kept GROWING, which
+   * is a live socket appending prints, not a camera walking history. The panel
+   * itself says so in its own words — "Not wired to the chart yet … Nothing you
+   * see behind this panel is a replay."
+   *
+   * THE OWL CAME BACK FACING THE OTHER WAY. The masthead, the chart's data-truth
+   * strip and the decision spine were all taught to answer `replayActive`, so
+   * opening an unwired panel made three surfaces certify HISTORICAL BARS over
+   * candles that were live. Curing a lie by installing its mirror image is not
+   * a cure; "impossible to confuse" is violated in both directions.
+   *
+   * So the fidelity question gets its own owner, and the panel's own disclosure
+   * flag is fed from it rather than hardcoded a second time. While this is false
+   * every surface tells the truth about LIVE bars and the panel discloses that
+   * it drives nothing. When the real wire lands — frozen CanonicalBar ancestry,
+   * never a slice of today's bars — ONE edit here turns the whole room at once,
+   * which is the only arrangement in which those surfaces cannot drift apart.
+   *
+   * Typed `boolean` rather than left as the literal `false` on purpose: the
+   * narrowed type would let a compiler prune the true branches of every reader
+   * below, and the branches must stay compiled so flipping this is a one-line
+   * change and not an excavation.
+   */
+  const REPLAY_DRIVES_THE_CAMERA: boolean = false;
+  /** The single sentence every fidelity surface in this room is answering. */
+  const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;
   const [replayPlaying,  setReplayPlaying]  = useState(false);
   const [replaySpeed,    setReplaySpeed]    = useState<ReplaySpeed>(1);
   const [replayIdx,      setReplayIdx]      = useState(0);
@@ -1208,11 +1240,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       lastObservedAtMs,
       connected,
       sessionOpen,
-      // THE COMPANION CAMERA, handed up from the same `replayActive` the
-      // BarReplayControls render from — one boolean, one owner, so the
-      // controls on the glass and the masthead above them cannot come to
-      // disagree about which camera is driving this room.
-      replayEngaged: replayActive,
+      // THE COMPANION CAMERA. Not "is the panel open" — is a camera actually
+      // DRIVING these bars. See `cameraWalksHistory`: answering the panel's
+      // open/closed state here made the masthead certify HISTORICAL BARS over
+      // live candles, which is the same law broken in the opposite direction.
+      replayEngaged: cameraWalksHistory,
     },
   });
   // Real signal derivation: when the tape carries live per-trade
@@ -2543,12 +2575,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // so the chip and the plaque are two readers of one grading. `null` here is
     // a real, rendered state (UNMEASURED) and not an omission.
     honesty: chartHonesty,
-    // THE COMPANION CAMERA, handed to the band from the SAME `replayActive`
-    // state its replay controls render from and the same one published to the
-    // OS standing above. One boolean, one owner — the masthead, the chart's
-    // data-truth strip and this band cannot drift into disagreeing about which
-    // camera the room is looking through.
-    replayEngaged: replayActive,
+    // THE COMPANION CAMERA, from the SAME owner the masthead standing reads.
+    // One boolean, one owner — the masthead, the chart's data-truth strip and
+    // this band cannot drift into disagreeing about which camera the room is
+    // looking through, in either direction.
+    replayEngaged: cameraWalksHistory,
     market: {
       symbol,
       timeframe,
@@ -4160,7 +4191,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       extendedHours={extHours}
                       alertLevels={alertLevels}
                       chartSettings={effChartSettings}
-                      replayActive={replayActive}
+                      /* MainChart reads this ONLY to decide what its data-truth
+                         strip certifies and whether the live-tape overlays
+                         describe the bars on screen. Both are questions about
+                         the CAMERA, not about the panel, so both take
+                         `cameraWalksHistory`. Handing the panel's open/closed
+                         state here made the strip say HISTORICAL BARS and
+                         withhold the tape counters while the socket was still
+                         painting live candles behind them. */
+                      replayActive={cameraWalksHistory}
                       compareSymbol={compareSymbol}
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
@@ -4335,8 +4374,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                    Nothing reads them. Until the real wire lands (frozen
                    CanonicalBar ancestry + truth epochs, per M9 repair 2), the
                    panel must not narrate a chart it does not drive.
-                   DO NOT flip this to true by slicing today's bars. */
-                chartFollowsCursor={false}
+                   DO NOT flip this to true by slicing today's bars.
+
+                   NOW FED FROM `REPLAY_DRIVES_THE_CAMERA` rather than hardcoded
+                   a second time. The disclosure and the room's fidelity chips
+                   are answers to ONE question; while they were two separate
+                   literals the panel could say "nothing behind me is a replay"
+                   while the masthead an inch above certified HISTORICAL BARS.
+                   Measured in exactly that state on prod 2026-09-22. */
+                chartFollowsCursor={REPLAY_DRIVES_THE_CAMERA}
                 onPlay={toggleReplayPlay}
                 onPause={toggleReplayPlay}
                 onStepBack={() => setReplayIdx(i => Math.max(0, i - 1))}

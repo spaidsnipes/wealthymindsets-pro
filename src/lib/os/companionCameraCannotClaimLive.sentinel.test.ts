@@ -172,12 +172,48 @@ describe("the compiler: LIVE is unreachable while a companion camera drives the 
 });
 
 describe("the wire: the room that HAS a companion camera hands it up", () => {
-  it("/charts publishes replayEngaged from the same state its replay controls render from", () => {
+  /**
+   * THE OWL FACING THE OTHER WAY — MEASURED ON PRODUCTION 2026-09-22.
+   *
+   * The first cure taught every fidelity surface to answer `replayActive`. That
+   * is the wrong question. `replayActive` means "the replay panel is open";
+   * the law is about which camera is DRIVING THE BARS, and today those differ:
+   * bar replay is not wired, and the panel says so in its own words — "Not
+   * wired to the chart yet … Nothing you see behind this panel is a replay."
+   *
+   * Canvas hashes sampled at t+1s / t+6s / t+11s after engaging replay showed
+   * the price pane still repainting with a GROWING payload: a live socket
+   * appending prints, not a camera walking history. Three surfaces were
+   * certifying HISTORICAL BARS over live candles.
+   *
+   * "Impossible to confuse" is violated in BOTH directions. A cure that
+   * installs the mirror image of a lie has not cured anything.
+   */
+  it("every fidelity surface answers 'is a camera driving', never 'is the panel open'", () => {
     const src = read("src/components/chart/ChartsDashboard.tsx");
-    // One boolean, one owner. If the publication ever derives the flag from
-    // anything other than `replayActive`, the controls on the glass and the
-    // masthead above them can drift apart again.
-    expect(src).toContain("replayEngaged: replayActive");
+    // The named owner, and its value. `boolean` rather than the narrowed
+    // literal so the true branches of every reader stay compiled and flipping
+    // this stays a one-line change.
+    expect(src).toContain("const REPLAY_DRIVES_THE_CAMERA: boolean = false;");
+    expect(src).toContain(
+      "const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;",
+    );
+    // THE BUG ITSELF, spelled out. Not a style rule: `replayEngaged: replayActive`
+    // is the exact line that put HISTORICAL BARS VERIFIED over live candles.
+    expect(
+      src.match(/replayEngaged: replayActive\b/g) ?? [],
+      "a fidelity surface is answering the panel's open/closed state again",
+    ).toHaveLength(0);
+    // All three fidelity consumers on one owner: the OS masthead standing, the
+    // decision spine, and MainChart's strip + live-tape overlays.
+    expect(
+      src.match(/replayEngaged: cameraWalksHistory/g) ?? [],
+      "the masthead standing and the decision spine must read the same owner",
+    ).toHaveLength(2);
+    expect(src).toContain("replayActive={cameraWalksHistory}");
+    // And the panel's own disclosure is fed from that owner rather than being a
+    // second literal that can drift away from it.
+    expect(src).toContain("chartFollowsCursor={REPLAY_DRIVES_THE_CAMERA}");
   });
 
   /**
@@ -250,14 +286,12 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     );
   });
 
-  it("/charts hands the band the SAME boolean it hands the masthead", () => {
-    const src = read("src/components/chart/ChartsDashboard.tsx");
-    // Two publications, one owner. Counted so a future refactor that introduces
-    // a second, separately-derived replay flag fails here rather than shipping
-    // a masthead and a spine that can disagree about which camera is running.
-    const published = src.match(/replayEngaged: replayActive/g) ?? [];
-    expect(published.length).toBe(2); // OS standing + decisionSpineProps
-  });
+  // NOTE: the "both publications share one owner" assertion that stood here
+  // named `replayActive` as that owner. It has been absorbed — and corrected —
+  // into "every fidelity surface answers 'is a camera driving'" above, which
+  // counts the same two publications against the owner that is actually true.
+  // Two tests counting the same thing against different owners is how a room
+  // ends up with a green suite and a contradiction on the glass.
 
   it("MainChart's data-truth strip READS replayActive — the prop may not go dead again", () => {
     const src = read("src/components/chart/MainChart.tsx");
