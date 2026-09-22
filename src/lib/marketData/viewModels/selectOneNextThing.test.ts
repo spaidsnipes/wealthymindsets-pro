@@ -271,7 +271,22 @@ describe("× A NEXT THAT REPEATS NOW IS NOT A NEXT", () => {
 
 describe("× THE RAIL REVERTS", () => {
   const railPath = resolve(__dirname, "../../../components/experience/DecisionSpineBand.tsx");
-  const rail = readFileSync(railPath, "utf8");
+  /* COMMENTS ARE PROSE, AND PROSE IS NOT A REVERT.
+     This gate was written as a whole-file substring ban, which cannot tell the
+     reverted EXPRESSION from a comment EXPLAINING why it was reverted. When the
+     "one word, two mouths" duplicate was cut (2026-09-22) the band gained a
+     measured comment naming `oneStory.decision.value` as the shared origin of
+     the pill's verdict and the NOW headline — true, load-bearing documentation,
+     and this gate failed on it.
+
+     Stripping comments leaves the law on CODE exactly as strict as it was: the
+     reverted form is still banned everywhere it could actually execute. What it
+     stops doing is punishing the explanation. Matches `codeOnly()` in the
+     sibling enforcement Sentinels. NOT a weakening — a narrowing to the thing
+     the law was always about. */
+  const rail = readFileSync(railPath, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
   it("× THE DEAD IMPORT: the rail actually composes the selector", () => {
     expect(rail).toContain("selectOneNextThing");

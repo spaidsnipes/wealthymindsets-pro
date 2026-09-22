@@ -270,6 +270,67 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(html).toContain("do not gate the verdict");
   });
 
+  /**
+   * ONE WORD, TWO MOUTHS — measured on the serving Worker 2026-09-22 at
+   * /charts?symbol=BTC&tf=5m, 1440x900. This pill printed `WAIT` nested inside
+   * the rail's DECISION cell, and the NOW · STATE headline printed `WAIT`
+   * again forty-five pixels below it at the same x — `verbatimRepeat: true`.
+   * Not two engines agreeing: `selectDecisionWhyNot` reads
+   * `oneStory.decision.value` and so does that headline. One value, two
+   * mouths, inside a cell whose own answer on the line above is NOT BORN.
+   *
+   * The ink goes. The truth does not.
+   */
+  describe("when the surface it sits on already prints the verdict", () => {
+    const loud = () => vm({
+      verdict: "WAIT",
+      hasSnapshot: true,
+      blockers: ["Regime", "Direction"],
+      clearances: ["Liquidity"],
+    });
+
+    it("suppresses the duplicate glyphs", () => {
+      const html = renderToStaticMarkup(
+        <CanvasSummaryPill vm={loud()} verdictOwnedBySurface ariaLabel="Chart canvas" />,
+      );
+      // The counts survive — they are what this pill uniquely owns.
+      expect(html).toContain("2 blockers");
+      expect(html).toContain("1 cleared");
+      // The word does not appear in the visible content.
+      expect(html.replace(/<[^>]*>/g, "")).not.toContain("WAIT");
+    });
+
+    it("moves the verdict into the accessible name rather than withholding it", () => {
+      const html = renderToStaticMarkup(
+        <CanvasSummaryPill vm={loud()} verdictOwnedBySurface ariaLabel="Chart canvas" />,
+      );
+      expect(html).toContain('aria-label="Chart canvas — WAIT"');
+    });
+
+    it("never leads with an orphan separator", () => {
+      const html = renderToStaticMarkup(
+        <CanvasSummaryPill vm={vm({ verdict: "WAIT", hasSnapshot: true, blockers: ["Regime"] })} verdictOwnedBySurface />,
+      );
+      const text = html.replace(/<[^>]*>/g, "").trim();
+      expect(text.startsWith("·")).toBe(false);
+    });
+
+    it("renders nothing at all when the word was the only thing it had", () => {
+      const html = renderToStaticMarkup(
+        <CanvasSummaryPill vm={vm({ verdict: "WAIT", hasSnapshot: true })} verdictOwnedBySurface />,
+      );
+      // An empty lozenge is a border around nothing — worse than the duplicate.
+      expect(html).toBe("");
+    });
+
+    it("leaves every surface that does NOT print the verdict untouched", () => {
+      const html = renderToStaticMarkup(<CanvasSummaryPill vm={loud()} ariaLabel="Chart canvas" />);
+      expect(html).toContain("WAIT");
+      expect(html).toContain('aria-label="Chart canvas"');
+      expect(html).not.toContain("— WAIT");
+    });
+  });
+
   it("honors a custom aria-label", () => {
     const html = renderToStaticMarkup(
       <CanvasSummaryPill vm={vm({ hasSnapshot: true })} ariaLabel="TSLA canvas" />,

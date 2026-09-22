@@ -66,6 +66,41 @@ export interface CanvasSummaryPillProps {
     readonly roomHref: string;
     readonly id: string;
   };
+  /**
+   * ONE WORD, TWO MOUTHS.
+   *
+   * MEASURED on the serving Worker 2026-09-22, /charts?symbol=BTC&tf=5m, one
+   * 1440x900 viewport. The decision rail's DECISION cell read, verbatim:
+   *
+   *     Decision
+   *     NOT BORN
+   *     No decision born yet — permission has not crossed.
+   *     WAIT · 6 blockers · 2 cleared          <- this pill, nested in that cell
+   *
+   * and forty-five pixels directly below it, at the same x, the NOW · STATE
+   * cell printed `WAIT` again at 24px.
+   *
+   * These are not two engines that happen to agree. `selectDecisionWhyNot`
+   * takes its verdict from `oneStory.decision.value`, and the NOW cell renders
+   * `oneStory.decision.value`. It is ONE value, painted twice, forty-five
+   * pixels apart — and the second painting is nested under a label whose own
+   * answer on the line above is a DIFFERENT word. A trader reading downward is
+   * told the decision is NOT BORN and then, still inside the Decision cell,
+   * told WAIT. Wall Law 5: the current experience must feel calm.
+   *
+   * What this pill uniquely owns is the STANDING BAND and the counts. The
+   * verdict word is the one thing on it a headline can own better.
+   *
+   * SUPPRESSED INK, NOT SUPPRESSED TRUTH — the verdict stays in the accessible
+   * name and stays first in the tooltip, so nothing is withheld from anyone;
+   * only the duplicate glyphs go.
+   *
+   * THE CALLER DOES NOT GET TO ASSERT THIS. The only surface that passes it is
+   * `DecisionSpineBand`, which passes the value it computed for its OWN
+   * headline in the SAME render — so "the surface prints the verdict" cannot
+   * become false while this stays true. See its `surfaceOwnsVerdict`.
+   */
+  readonly verdictOwnedBySurface?: boolean;
 }
 
 const HAIR = "rgba(139,106,41,0.22)";
@@ -83,6 +118,7 @@ export function CanvasSummaryPill({
   ariaLabel,
   scrollToSelector,
   openEquipment,
+  verdictOwnedBySurface = false,
 }: CanvasSummaryPillProps): React.ReactElement | null {
   /* The door, VERIFIED AGAINST THE ROOM. A caller may ask for anything; only an
      entry the registry actually lists for this href becomes a control. */
@@ -226,17 +262,42 @@ export function CanvasSummaryPill({
     }
   }, [scrollToSelector]);
 
+  /* WITH THE WORD GONE, WHAT IS LEFT MUST STILL BE WORTH A PILL.
+     The band is silent when no dimension has a standing, and `parts` is empty
+     when there are no blockers, clearances or invalidators. Suppress the
+     verdict on top of that and the pill is an empty lozenge — a border around
+     nothing, which is worse than the duplicate it was removing. The surface
+     already prints the verdict, so there is genuinely nothing left to say.
+
+     `standingWords` is built by the band's own owner from the same arrays in
+     the same order, and is EMPTY exactly when the band draws no marks — so this
+     test cannot drift out of step with what the band actually paints. */
+  if (verdictOwnedBySurface && parts.length === 0 && standingWords.length === 0) {
+    return null;
+  }
+
+  /* THE INK IS SUPPRESSED; THE FACT IS NOT.
+     With the word gone from the content, the band aria-hidden and the counts
+     naming no verdict, a screen reader would learn the verdict from nothing at
+     all — the duplicate would have been removed for sighted traders by taking
+     it away from everyone else. So it moves into the accessible name, the one
+     place this pill still owns it. Sighted duplication down to one; spoken
+     duplication also one, because the surface headline is a separate node. */
+  const spokenVerdict = verdictOwnedBySurface ? ` — ${vm.verdict}` : "";
+
   const body = (
     <>
-      <span
-        style={{
-          textTransform: "uppercase",
-          fontWeight: 700,
-          color: marketCanvasVerdictColor(vm.verdict),
-        }}
-      >
-        {vm.verdict}
-      </span>
+      {!verdictOwnedBySurface && (
+        <span
+          style={{
+            textTransform: "uppercase",
+            fontWeight: 700,
+            color: marketCanvasVerdictColor(vm.verdict),
+          }}
+        >
+          {vm.verdict}
+        </span>
+      )}
       {/* HOW MUCH OF THE BOARD IS LIT, at chip scale. Drawn by the same owner
           as the panel's, so the header and the panel are one instrument at two
           sizes. aria-hidden because the whole reading is in the tooltip — a
@@ -244,7 +305,10 @@ export function CanvasSummaryPill({
       <span aria-hidden="true" style={{ display: "inline-flex", alignItems: "center" }}>
         <DimensionStandingBand vm={vm} testId="canvas-summary-standing" scale="pill" />
       </span>
-      {parts.length > 0 && (
+      {/* A SEPARATOR NEEDS SOMETHING ON BOTH SIDES OF IT. With the verdict
+          suppressed and no dimension yet carrying a standing, there is nothing
+          to this dot's left, and it would lead the pill: "· 6 blockers". */}
+      {parts.length > 0 && (!verdictOwnedBySurface || standingWords.length > 0) && (
         <span className="wm-canvas-summary-detail" style={{ color: "#8a8271" }}>·</span>
       )}
       {parts.length > 0 && (
@@ -258,7 +322,7 @@ export function CanvasSummaryPill({
       <button
         type="button"
         onClick={scroll}
-        aria-label={ariaLabel ?? "Canvas summary — jump to detail"}
+        aria-label={`${ariaLabel ?? "Canvas summary — jump to detail"}${spokenVerdict}`}
         title={tooltip}
         data-testid="canvas-summary-pill"
         className={className}
@@ -274,7 +338,7 @@ export function CanvasSummaryPill({
       <button
         type="button"
         onClick={() => requestEquipment(door.id)}
-        aria-label={ariaLabel ?? `Canvas summary — open ${door.label}`}
+        aria-label={`${ariaLabel ?? `Canvas summary — open ${door.label}`}${spokenVerdict}`}
         title={tooltip}
         data-testid="canvas-summary-pill"
         data-equipment-open={door.id}
@@ -288,7 +352,7 @@ export function CanvasSummaryPill({
 
   return (
     <div
-      aria-label={ariaLabel ?? "Canvas summary"}
+      aria-label={`${ariaLabel ?? "Canvas summary"}${spokenVerdict}`}
       role="status"
       title={tooltip}
       data-testid="canvas-summary-pill"

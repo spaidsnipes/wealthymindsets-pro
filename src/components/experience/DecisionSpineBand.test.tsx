@@ -131,7 +131,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
   it("compacts decision and MARKET provenance into one desktop rail header", () => {
     const html = render({
       presentation: "rail",
-      canvasSummary: <span data-testid="canonical-canvas-verdict">WAIT</span>,
+      canvasSummary: () => <span data-testid="canonical-canvas-verdict">WAIT</span>,
     });
     expect(html).toContain('data-presentation="rail"');
     expect(html).toContain("flex-direction:column");
@@ -157,8 +157,56 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain(">Now · State<");
   });
 
+  /* ONE WORD, TWO MOUTHS.
+     MEASURED on the serving Worker 2026-09-22 at /charts?symbol=BTC&tf=5m,
+     1440x900: the canvas pill printed `WAIT` inside the DECISION cell and this
+     band printed `WAIT` again forty-five pixels below it at the same x — one
+     value (`oneStory.decision.value`) painted twice. The fix is not "the pill
+     stops printing it"; the fix is that this band TELLS the attachment whether
+     it is about to print the word itself. These three cases are the gate on
+     that being COMPILED here rather than asserted by a caller. */
+  it("tells the canvas attachment it owns the verdict when it prints the headline", () => {
+    let seen: boolean | null = null;
+    render({
+      presentation: "rail",
+      oneStory: oneStory(),
+      canvasSummary: ({ verdictOwnedBySurface }) => {
+        seen = verdictOwnedBySurface;
+        return null;
+      },
+    });
+    expect(seen).toBe(true);
+  });
+
+  it("tells the attachment it does NOT own the verdict when no headline is drawn", () => {
+    // Same rail, but no decision compiled — so `spine-now-state` never renders
+    // and the word would go unsaid entirely if the pill also suppressed it.
+    const seen: boolean[] = [];
+    const html = render({
+      presentation: "rail",
+      oneStory: null,
+      canvasSummary: ({ verdictOwnedBySurface }) => {
+        seen.push(verdictOwnedBySurface);
+        return null;
+      },
+    });
+    expect(html).not.toContain('data-testid="spine-now-state"');
+    expect(seen).toEqual([false]);
+  });
+
+  it("draws no summary frame when the attachment decides it has nothing to say", () => {
+    const html = render({
+      presentation: "rail",
+      oneStory: oneStory(),
+      canvasSummary: () => null,
+    });
+    // An empty bordered box is worse than the duplicate it removed.
+    expect(html).not.toContain('data-testid="spine-canvas-summary"');
+    expect(html).toContain('data-testid="spine-now-state"');
+  });
+
   it("retains the horizontal band as the default responsive projection", () => {
-    const html = render({ canvasSummary: <span data-testid="canonical-canvas-verdict">WAIT</span> });
+    const html = render({ canvasSummary: () => <span data-testid="canonical-canvas-verdict">WAIT</span> });
     expect(html).toContain('data-presentation="band"');
     expect(html).toContain("flex-direction:row");
     expect(html).not.toContain('data-testid="spine-provenance-header"');

@@ -2831,16 +2831,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
       : null,
     onOpenWhy: openWhyFrom,
-    canvasSummary: (
+    canvasSummary: ({ verdictOwnedBySurface }: { readonly verdictOwnedBySurface: boolean }) => (
       /* The pill counts blockers; THIS room holds the equipment that explains
          them. `edde7236` stopped the pill telling the trader to "open the
          canvas" here — true, because there is no canvas on this page to scroll
          to — and that left a count with no destination. The destination is
          press-gated equipment, so the pill is handed the room and the id and
-         looks the door up itself. */
+         looks the door up itself.
+
+         `verdictOwnedBySurface` is NOT this file's opinion. It is handed in by
+         the band that is deciding, in the same render, whether to print the
+         verdict word as its own NOW · STATE headline — which on the 1440 rail
+         it does, forty-five pixels below this pill. This room forwards it
+         untouched; it never asserts it. */
       <CanvasSummaryPill
         vm={chartMarketCanvas}
         ariaLabel="Chart market canvas summary"
+        verdictOwnedBySurface={verdictOwnedBySurface}
         openEquipment={{ roomHref: INSTRUMENT_VIEW_ROUTE, id: "market-reality" }}
       />
     ),

@@ -196,9 +196,20 @@ export interface DecisionSpineBandProps {
   readonly expression: string | null;
   /** Opens the full WHY drawer. The band is the summary, not a replacement. */
   readonly onOpenWhy?: (trigger: HTMLButtonElement) => void;
-  /** Already-compiled canonical canvas verdict. Desktop may attach this to
-   * the rail; the horizontal fallback keeps it in the orientation strip. */
-  readonly canvasSummary?: React.ReactNode;
+  /**
+   * Already-compiled canonical canvas verdict. Desktop may attach this to
+   * the rail; the horizontal fallback keeps it in the orientation strip.
+   *
+   * A FUNCTION, NOT A NODE, AND FOR ONE REASON ONLY. This band decides — in
+   * this render, from `rail && nowDecision` — whether it is about to print the
+   * verdict word itself as the NOW · STATE headline. Anything nested in the
+   * DECISION cell must not print that same word a second time forty-five
+   * pixels above it. Handing the attachment a rendered node would mean the
+   * CALLER asserting "the surface prints the verdict", which can silently
+   * become false. Handing it a function lets this component pass down the very
+   * boolean it used for its own headline, so the two cannot disagree.
+   */
+  readonly canvasSummary?: (ctx: { readonly verdictOwnedBySurface: boolean }) => React.ReactNode;
   /** Desktop charts attach the same compiled spine beside MARKET. Other
    * surfaces retain the horizontal band without forking truth ownership. */
   readonly presentation?: "band" | "rail";
@@ -628,6 +639,26 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   // the value cannot drift back into NEXT, whose source guard deliberately
   // rejects the old raw-decision expression anywhere in this component.
   const nowDecision = oneStory?.decision ?? null;
+  /* ONE WORD, TWO MOUTHS — the single condition under which this surface puts
+     the verdict word on screen in its own ink. Measured on the serving Worker
+     2026-09-22: the pill printed WAIT inside the DECISION cell and this
+     headline printed WAIT again 45px below it at the same x. Not two engines
+     agreeing — `selectDecisionWhyNot` reads `oneStory.decision.value`, and so
+     does this line. One value, painted twice.
+
+     This const is the reason the duplicate cannot come back: the SAME boolean
+     gates the headline below AND is handed to the canvas-summary attachment,
+     in this render. If this surface stops printing the word, the attachment is
+     told so in the same breath. */
+  const surfaceOwnsVerdict = Boolean(rail && nowDecision);
+  /* The attachment is rendered HERE, with the flag this render computed, so
+     there is exactly one place the answer is produced and one place it is
+     consumed. An attachment that decides it has nothing left to say returns
+     null, and the wrapper below disappears with it rather than drawing an
+     empty frame. */
+  const canvasSummaryNode = props.canvasSummary
+    ? props.canvasSummary({ verdictOwnedBySurface: surfaceOwnsVerdict })
+    : null;
   const priceDisplay = formatSpinePrice(
     market.last,
     market.lastBarClose,
@@ -1203,9 +1234,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             <span style={RAIL_LABEL}>Decision</span>
             {decisionValue}
           </div>
-          {props.canvasSummary && (
+          {canvasSummaryNode && (
             <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
-              {props.canvasSummary}
+              {canvasSummaryNode}
             </div>
           )}
         </div>
@@ -1227,7 +1258,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             reading downward learns whether this market is trading before
             reading what it is doing, because the second only means something
             under the first. */}
-        {rail && nowDecision ? (
+        {surfaceOwnsVerdict && nowDecision ? (
           <span
             data-testid="spine-now-state"
             data-state={nowDecision.value}
