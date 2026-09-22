@@ -60,6 +60,11 @@ describe("the microstructure set", () => {
       // and its measured band — and a level shown without the price pane is a
       // level the trader must memorise and carry back.
       "Gravity",
+      // Asset 08. Measures the COST OF TRAVEL — volume spent per spread of
+      // movement — across the same window the candles draw, and "where did
+      // the tape get expensive to move" is a question only the price pane
+      // above can locate.
+      "Liquidity",
     ]);
   });
 
@@ -123,6 +128,7 @@ describe("ChartsDashboard keeps price on screen beneath the reading", () => {
       "wm-chart-category-panel-continuation",
       "wm-chart-category-panel-worksheet",
       "wm-chart-category-panel-gravity",
+      "wm-chart-category-panel-liquidity",
     ]) {
       const at = src.indexOf(`id="${id}"`);
       expect(at, `${id} not found`).toBeGreaterThan(-1);

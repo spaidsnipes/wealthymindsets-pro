@@ -264,6 +264,7 @@ import BigTradeIntelligenceView from "@/components/experience/BigTradeIntelligen
 import { selectBigTradeIntelligence } from "@/lib/marketData/viewModels/selectBigTradeIntelligence";
 import LivingProfileView from "@/components/experience/LivingProfileView";
 import GravityValueView from "@/components/experience/GravityValueView";
+import LiquidityWeatherView from "@/components/experience/LiquidityWeatherView";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -4356,7 +4357,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               </div>
             )}
 
-            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && activeTab !== "Worksheet" && activeTab !== "Gravity" && (
+            {/* Asset 08, LIQUIDITY WEATHER as a full view. The vm is the room's
+                ONE liquidityWeather compilation — the same reading the order-flow
+                drawer and the on-glass band consume — so this surface can never
+                disagree with either. Sibling of Chart for the shared microstructure
+                reason: cost of travel is measured across the SAME window the
+                candles above draw, and "where did the tape get expensive" is a
+                question only the price pane can locate. */}
+            {activeTab === "Liquidity" && (
+              <div role="tabpanel" id="wm-chart-category-panel-liquidity" aria-label={`Liquidity weather for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <LiquidityWeatherView vm={chartOrderFlowReadings.liquidityWeather} symbol={symbol} timeframe={timeframe} />
+              </div>
+            )}
+
+            {activeTab !== "Chart" && activeTab !== "Options" && activeTab !== "Absorption" && activeTab !== "Aggression" && activeTab !== "Big Trades" && activeTab !== "Value Profile" && activeTab !== "Continuation" && activeTab !== "Worksheet" && activeTab !== "Gravity" && activeTab !== "Liquidity" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
                 <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
               </div>

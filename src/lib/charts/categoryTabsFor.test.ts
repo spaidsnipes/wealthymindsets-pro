@@ -24,14 +24,14 @@ describe("categoryTabsFor — asset-class-aware category strip", () => {
 
   it("options contract shows Chart + Profile only — no Financials on a derivative", () => {
     const tabs = categoryTabsFor("options");
-    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Liquidity", "Profile"]);
     expect(tabs).not.toContain("Options"); // viewing an option; no self-reference
     expect(tabs).not.toContain("Financials");
   });
 
   it("crypto drops corporate + shareholder tabs", () => {
     const tabs = categoryTabsFor("crypto");
-    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Liquidity", "Profile"]);
     expect(tabs).not.toContain("Corporate Actions");
     expect(tabs).not.toContain("Shareholders");
     expect(tabs).not.toContain("Financials");
@@ -40,12 +40,12 @@ describe("categoryTabsFor — asset-class-aware category strip", () => {
 
   it("futures drops corporate + shareholder tabs", () => {
     const tabs = categoryTabsFor("futures");
-    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Liquidity", "Profile"]);
   });
 
   it("forex drops corporate + shareholder tabs", () => {
     const tabs = categoryTabsFor("forex");
-    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Profile"]);
+    expect(tabs).toEqual(["Chart", "Absorption", "Aggression", "Big Trades", "Value Profile", "Continuation", "Worksheet", "Gravity", "Liquidity", "Profile"]);
   });
 
   it("Chart is ALWAYS present — every asset class needs the primary surface", () => {
