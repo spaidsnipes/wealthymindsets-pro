@@ -1234,6 +1234,7 @@ export function WMOperatingSystem({
               type="button"
               className="wm-os-market-rooms"
               data-testid="os-market-rooms"
+              data-presentation={scenePanel === "rooms" ? "active-doorway" : "direct-doorway"}
               onClick={() => setScenePanel((current) => (current === "rooms" ? null : "rooms"))}
               aria-expanded={scenePanel === "rooms"}
               aria-controls={scenePanel === "rooms" ? "wm-os-rail" : undefined}
@@ -1246,7 +1247,10 @@ export function WMOperatingSystem({
                 minHeight: 32,
                 padding: "6px 9px",
                 borderRadius: 3,
-                border: `1px solid ${scenePanel === "rooms" ? GOLD : RULE}`,
+                // V01/V12 keep one changed-job doorway, not a third brass
+                // equipment plate. Closed, the word itself is the doorway;
+                // the outline is earned only while its Rooms panel is open.
+                border: `1px solid ${scenePanel === "rooms" ? GOLD : "transparent"}`,
                 background: scenePanel === "rooms" ? "rgba(196,165,116,0.10)" : "transparent",
                 color: scenePanel === "rooms" ? GOLD : MUTED,
                 cursor: "pointer",
