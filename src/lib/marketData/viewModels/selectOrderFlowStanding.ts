@@ -198,11 +198,19 @@ function noTapeHeadline(subject: OrderFlowSubject | undefined): string {
     return "No per-trade buy/sell tape on this feed yet. Crypto streams it around the clock; stocks stream it during market hours.";
   }
 
-  if (canonicalAssetClass(symbol) === "crypto") {
+  const assetClass = canonicalAssetClass(symbol);
+  if (assetClass === "crypto") {
     // Crypto tape never stops, so the clock cannot be the explanation. Saying
     // "during market hours" here would send the trader away to wait for a
     // condition that is permanently already true.
     return `No per-trade buy/sell tape ${named} on this feed. Crypto tape streams around the clock, so this is the feed's limit, not the clock's — waiting will not change it.`;
+  }
+
+  if (assetClass === "futures") {
+    // This provider has candles, not sided futures prints. A stock-hours
+    // promise on an NQ/ES chart sends the trader to wait for a tape this wire
+    // cannot supply, even if a session is later proven open or closed.
+    return `No per-trade buy/sell tape ${named} on this feed. This futures feed does not provide sided prints to WM; waiting for another session will not change that.`;
   }
 
   if (subject?.sessionClosed === false) {

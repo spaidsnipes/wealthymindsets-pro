@@ -68,6 +68,19 @@ describe("selectOrderFlowStanding", () => {
         .not.toMatch(/during market hours/);
     });
 
+    it("× FUTURES: never promises stock hours will supply a missing sided tape", () => {
+      for (const symbol of ["NQ1!", "ES1!", "ES=F"]) {
+        for (const sessionClosed of [null, false] as const) {
+          const out = selectOrderFlowStanding({}, { symbol, sessionClosed });
+          expect(out.verdict).toBe("NO TAPE");
+          expect(out.headline).toContain(symbol);
+          expect(out.headline).toMatch(/futures feed.*does not provide sided prints/i);
+          expect(out.headline).toMatch(/waiting.*will not change/i);
+          expect(out.headline).not.toMatch(/stock tape|market hours|it will resume/i);
+        }
+      }
+    });
+
     it("× PROVEN SHUT: the clock IS the reason, so it says what to wait for", () => {
       const out = selectOrderFlowStanding({}, { symbol: "TSLA", sessionClosed: false });
       expect(out.headline).toContain("TSLA");
