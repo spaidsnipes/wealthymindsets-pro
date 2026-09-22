@@ -91,6 +91,10 @@ function props(over: Partial<DecisionSpineBandProps> = {}): DecisionSpineBandPro
       detail: "no exchange calendar — the current session is not established",
       established: false,
     },
+    // NO COMPANION CAMERA is the default fixture, so every assertion below
+    // that reads the MARKET cell is reading the LIVE arm of it. The replay arm
+    // is exercised explicitly, by name, in the companion-camera Sentinel.
+    replayEngaged: false,
     market: { symbol: "TSLA", timeframe: "5m", quality: null, capturedAt: null, last: null },
     oneStory: null,
     availableR: null,

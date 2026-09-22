@@ -217,6 +217,48 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     expect(src).toContain("Live tape collection continues in the background");
   });
 
+  /**
+   * THE FOURTH CLOCK, MEASURED AFTER THE FIRST THREE WERE ALREADY CURED.
+   *
+   * Production, with the masthead correctly reading "HISTORICAL BARS VERIFIED ·
+   * bar replay" and both live-tape overlays correctly withheld, a leaf-element
+   * sweep of the replayed DOM returned exactly one surviving live claim:
+   *
+   *   { text: "LIVE · asOf 06:43:40Z", testid: "spine-detail-drawer",
+   *     box: { x: 1216, y: 409 } }
+   *
+   * Third owner, same single sentence of law. This is why the prop was made
+   * REQUIRED rather than optional on DecisionSpineBandProps: an optional flag
+   * defaults to false, and the next surface to grow a replay engine would
+   * inherit the live claim in silence — which is exactly how this cell survived
+   * three previous fixes to the same bug.
+   */
+  it("the decision spine's MARKET cell withholds the quality word AND the clock while replaying", () => {
+    const src = read("src/components/experience/DecisionSpineBand.tsx");
+    // REQUIRED, not optional. `readonly replayEngaged?:` would reintroduce the
+    // silent default that let this clock survive.
+    expect(src).toContain("readonly replayEngaged: boolean;");
+    // Read, not merely declared — the exact failure mode MainChart shipped.
+    expect(src).toContain("expression, replayEngaged } = props;");
+    // Both withholdings in one expression, so no future edit can restore the
+    // wall clock while leaving the label corrected.
+    expect(src).toContain(
+      "? `${CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED} · BAR REPLAY`",
+    );
+    expect(src).toContain(
+      ": `${qualifyMarketQuality(market.quality, priceDisplay.provenance)} · ${asOfText(market.capturedAt)}`",
+    );
+  });
+
+  it("/charts hands the band the SAME boolean it hands the masthead", () => {
+    const src = read("src/components/chart/ChartsDashboard.tsx");
+    // Two publications, one owner. Counted so a future refactor that introduces
+    // a second, separately-derived replay flag fails here rather than shipping
+    // a masthead and a spine that can disagree about which camera is running.
+    const published = src.match(/replayEngaged: replayActive/g) ?? [];
+    expect(published.length).toBe(2); // OS standing + decisionSpineProps
+  });
+
   it("MainChart's data-truth strip READS replayActive — the prop may not go dead again", () => {
     const src = read("src/components/chart/MainChart.tsx");
     // Not a spelling check: this is the exact failure that shipped. The prop

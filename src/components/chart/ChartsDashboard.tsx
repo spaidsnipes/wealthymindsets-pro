@@ -2543,6 +2543,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // so the chip and the plaque are two readers of one grading. `null` here is
     // a real, rendered state (UNMEASURED) and not an omission.
     honesty: chartHonesty,
+    // THE COMPANION CAMERA, handed to the band from the SAME `replayActive`
+    // state its replay controls render from and the same one published to the
+    // OS standing above. One boolean, one owner — the masthead, the chart's
+    // data-truth strip and this band cannot drift into disagreeing about which
+    // camera the room is looking through.
+    replayEngaged: replayActive,
     market: {
       symbol,
       timeframe,

@@ -136,6 +136,7 @@ const STATES = [
         clearances: ["No active contradiction to the thesis."],
       }),
       expression: null,
+      replayEngaged: false,
     },
   },
   {
@@ -159,6 +160,7 @@ const STATES = [
         clearances: ["No active contradiction to the thesis.", "6/6 evidence nodes paid."],
       }),
       expression: null,
+      replayEngaged: false,
     },
   },
   {
@@ -172,6 +174,27 @@ const STATES = [
       availableR: null,
       decisionWhy: null,
       expression: null,
+      replayEngaged: false,
+    },
+  },
+  {
+    // THE COMPANION CAMERA, drawn so it can be LOOKED AT beside the live rails.
+    // Deliberately given the SAME fully-populated MARKET evidence as the first
+    // two rails — a live quality grade and a real `capturedAt` — because the
+    // point of the frame is that a rail holding perfect live evidence still
+    // must not print it while the camera is walking history. A weakened fixture
+    // would show the right words for the wrong reason.
+    caption: "BAR REPLAY — perfect live evidence, and the cell still refuses the clock",
+    props: {
+      decisionId: "dec_0003",
+      decisionIdAbsence: "",
+      now: NOW,
+      market: MARKET,
+      oneStory: null,
+      availableR: null,
+      decisionWhy: null,
+      expression: null,
+      replayEngaged: true,
     },
   },
 ];

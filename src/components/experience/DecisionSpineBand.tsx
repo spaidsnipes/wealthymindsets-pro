@@ -52,6 +52,7 @@ import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWh
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
 import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
 import { formatSpinePrice, qualifyMarketQuality } from "@/lib/marketData/formatSpinePrice";
+import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import { selectOneNextThing } from "@/lib/marketData/viewModels/selectOneNextThing";
 import {
   selectWaitStanding,
@@ -170,6 +171,23 @@ export interface DecisionSpineBandProps {
    * compile.
    */
   readonly now: SpineNowEvidence;
+  /**
+   * WHETHER A COMPANION CAMERA IS WALKING HISTORY IN THIS ROOM RIGHT NOW.
+   *
+   * MEASURED on production AFTER the masthead and both chart overlays had
+   * already been cured: with Bar Replay engaged, this band's MARKET cell was
+   * still printing `LIVE · asOf 06:43:40Z` at (1216,409). Fourth clock, third
+   * owner, same single-sentence law — "Backtest historical replay and LIVE/LAST
+   * context must be impossible to confuse."
+   *
+   * REQUIRED for the reason `now` above it is required. This band's whole job
+   * is to state the conditions a decision is being made under, and "which
+   * camera am I looking through" is such a condition. An optional flag defaults
+   * to `false`, and the next surface to grow a replay engine would inherit the
+   * live claim in silence — which is precisely how this one survived three
+   * previous fixes to the same bug.
+   */
+  readonly replayEngaged: boolean;
   readonly market: SpineMarketEvidence;
   readonly oneStory: OneStoryVM | null;
   readonly availableR: AvailableRVM | null;
@@ -603,7 +621,7 @@ function asOfText(capturedAt: number | null): string {
 }
 
 export function DecisionSpineBand(props: DecisionSpineBandProps) {
-  const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression } = props;
+  const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression, replayEngaged } = props;
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
   // NOW owns the compiled posture on the rail. Name that projection here so
@@ -750,8 +768,28 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         {market.symbol} · {market.timeframe}
         {priceDisplay.provenance === "AWAITING" ? null : <> · {priceDisplay.text}</>}
       </span>
-      <span style={MUTED}>
-        {qualifyMarketQuality(market.quality, priceDisplay.provenance)} · {asOfText(market.capturedAt)}
+      {/* THE OWL WITH TWO CLOCKS, fourth clock, third owner. MEASURED on
+          production at (1216,409) with Bar Replay engaged and the masthead
+          already correctly reading "HISTORICAL BARS VERIFIED · bar replay":
+          this cell was still printing `LIVE · asOf 06:43:40Z`.
+
+          Two things are withheld and they are withheld for different reasons.
+          THE QUALITY WORD is a grade of the LIVE PRINT CHANNEL; it remains
+          true of that channel while the camera walks history, but it is
+          pinned beneath bars it no longer describes, so it is withheld rather
+          than falsified — the same distinction the two live-tape overlays are
+          gated on. THE WALL CLOCK is withheld for the sharper reason written
+          into `compileFeedStanding`: a label is a claim a trader can question,
+          but `asOf 06:43:40Z` beside a bar from last Tuesday reads as a fact.
+          The compiler answers `observedAtMs: null` there; this cell prints no
+          timestamp here, so the two owners cannot disagree.
+
+          The replacement is the canon's own word for what the camera is
+          showing — not a dialect invented in this component. */}
+      <span style={MUTED} data-replay-camera={replayEngaged ? "engaged" : undefined}>
+        {replayEngaged
+          ? `${CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED} · BAR REPLAY`
+          : `${qualifyMarketQuality(market.quality, priceDisplay.provenance)} · ${asOfText(market.capturedAt)}`}
       </span>
     </>
   );
