@@ -2198,6 +2198,32 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // toolbar. Not a mirror of it, not a copy — the same one boolean.
           // A door added to a room that already had one panel.
           setSmartMoneyOpen(!down);
+        } else if (req.equipmentId === "clean-room") {
+          // CLEAN — THE ROOM'S FIRST ARRANGEMENT, AND A SUBTRACTION MACHINE.
+          //
+          // The mansion map says WORKSPACE is "arrangement of the same market
+          // room", and until this branch the room had instruments but no
+          // arrangement: a trader with Draw, Replay, Smart Money, Chart tools
+          // and a lens all up had FIVE separate closes between them and the
+          // calm market Wall Law 5 demands.
+          //
+          // Every close below is the exact close the panel's own control
+          // calls — no new state, no layout memory, no restore. A Clean that
+          // remembered what was open would be a second layout store (a
+          // rabbit), and the arrangements that legitimately remember are a
+          // larger, separate slice.
+          //
+          // `momentary` in the registry: this is a command, so there is no
+          // put-down half and no stage announce — the direct-equipment
+          // Sentinel FORBIDS announcing a stage for it, because a stage for a
+          // command would claim a holding that does not exist.
+          setDrawSheetOpen(false);
+          stopReplay();
+          setSmartMoneyOpen(false);
+          setChartEquipmentOpen(false);
+          // The journey lens is put down through the journey's OWN door — the
+          // hook stays the single authority on what it holds.
+          onChartEquipmentClose();
         } else if (req.equipmentId === "chart-tools") {
           // THE FOURTH DIRECT INSTRUMENT — THE REST OF THE DEMOLISHED STRIP.
           //
@@ -2218,7 +2244,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           setChartEquipmentOpen(!down);
         }
       }),
-    [openDrawingTools, startReplay, stopReplay],
+    [openDrawingTools, startReplay, stopReplay, onChartEquipmentClose],
   );
 
   /*

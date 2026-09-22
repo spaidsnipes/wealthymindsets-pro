@@ -90,6 +90,27 @@ export interface RoomEquipment {
    */
   readonly direct?: boolean;
   /**
+   * TRUE when this equipment is a COMMAND, not a holdable.
+   *
+   * Every other entry names a thing the trader picks UP — a panel, a drawer,
+   * an instrument that is then IN HAND until put down. The rail reports that
+   * holding with `aria-pressed`, and `aria-pressed` is a contract: a button
+   * that says it is pressed promises pressing again reverses it.
+   *
+   * An ARRANGEMENT is not that shape. "Clean" puts everything down; there is
+   * nothing left in the hand afterwards for the button to claim. If it
+   * announced itself open it would be pressed with empty hands, and the
+   * reversal the role promises would have no meaning — un-pressing Clean
+   * cannot pick the instruments back up, because the room does not remember
+   * which were up (and a room that remembered would be a second layout store,
+   * a rabbit).
+   *
+   * So `momentary` equipment gets NO `aria-pressed`, sends only `pick-up`,
+   * and must never call `announceEquipmentStage` — a stage for a command is a
+   * fabricated holding, and the direct-equipment Sentinel forbids it by name.
+   */
+  readonly momentary?: boolean;
+  /**
    * THE DOOR IS REAL, THE ROOM BEHIND IT IS NOT FINISHED — SAY SO HERE.
    *
    * Set to the sentence the trader should read BEFORE they press. Undefined on
@@ -624,6 +645,34 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      *
      * `direct` because neither has a reading to preview. See the field's note.
      */
+    /**
+     * THE ROOM'S FIRST ARRANGEMENT — and the smallest one there is.
+     *
+     * The mansion map (Garden 10) says WORKSPACE is "arrangement of the same
+     * market room": Clean, Order Flow, Regime, Review. The chart room's
+     * Workspace hand held two instruments and NO arrangement at all — a
+     * trader who had Draw, Replay, Smart Money, Chart tools and a lens open
+     * had no single motion back to the calm market. Wall Law 5 is "the
+     * current experience must feel calm", and calm that takes five separate
+     * closes is not an arrangement, it is housekeeping.
+     *
+     * IT IS A SUBTRACTION MACHINE, NOT A LAYOUT STORE. Clean does not save
+     * what was open and does not restore anything: it walks the closes the
+     * room already owns — the exact same setters every panel's own X calls —
+     * and stops. A "restore" would be a second layout memory (a rabbit), and
+     * the named arrangements that DO remember (Order Flow, Regime, Review)
+     * are a later, larger slice that must not be faked by this one.
+     *
+     * `momentary` because there is nothing to hold — see the field's note.
+     */
+    {
+      id: "clean-room",
+      label: "Clean",
+      hint: "Put every panel and instrument down — just the market",
+      kind: "workspace",
+      direct: true,
+      momentary: true,
+    },
     {
       id: "draw-tools",
       label: "Draw",

@@ -412,11 +412,24 @@ describe("SENTINEL — WORKSPACE sits beneath ROOMS and opens equipment, not pag
   it("the open state is in the accessible name, not only in the paint", () => {
     // A gold left edge is invisible to a screen reader, and "what am I holding"
     // is the orientation a non-sighted trader has least of.
+    //
+    // REMODELLED for the `momentary` grammar, NOT weakened: a HOLDABLE entry
+    // still must claim `aria-pressed={…open}`, and a MOMENTARY command must
+    // OMIT the attribute entirely (`undefined`), never render `false`. A
+    // command carrying `aria-pressed={false}` still promises a toggle — a
+    // promise nothing can keep, because un-pressing Clean cannot pick the
+    // instruments back up.
     const start = rail.indexOf("function RoomWorkspaceRail");
     const body = rail.slice(start, rail.indexOf("\n}", start));
     expect(body, `${RAIL} → open equipment is announced only in colour`).toMatch(
-      /aria-pressed=\{open\}/,
+      /aria-pressed=\{momentary \? undefined : open\}/,
     );
+    // And the omission must be REAL: no unconditional aria-pressed anywhere
+    // else in the body that a command entry could fall into.
+    expect(
+      body,
+      `${RAIL} → an unconditional aria-pressed is back; a momentary command would claim a toggle it cannot keep`,
+    ).not.toMatch(/aria-pressed=\{open\}/);
   });
 
   it("a room with no equipment renders no heading", () => {
@@ -1700,12 +1713,26 @@ describe("SENTINEL — the rail can report equipment the JOURNEY does not carry"
   // earns it instead.
 
   it("a rail entry that reports itself pressed can actually be un-pressed", () => {
+    // REMODELLED for the `momentary` grammar, NOT weakened. A holdable still
+    // branches on `open` (put-down when held); a momentary command must send
+    // ONLY "pick-up" — its `open` is forced false by construction, and the
+    // `!momentary &&` guard is required IN the click expression so a command
+    // can never emit a put-down for a holding that does not exist.
     expect(
       rail,
       `${RAIL} → the rail's onClick no longer branches on \`open\`, so it can only ever re-request. ` +
-        `A control rendering \`aria-pressed={open}\` promises a reversal; re-requesting is not one. ` +
+        `A control rendering \`aria-pressed\` promises a reversal; re-requesting is not one. ` +
         `Either send "put-down" when it is open, or stop claiming aria-pressed`,
-    ).toMatch(/requestEquipment\(\s*item\.id\s*,\s*open \? "put-down" : "pick-up"\s*\)/);
+    ).toMatch(
+      /requestEquipment\(\s*item\.id\s*,\s*!momentary && open \? "put-down" : "pick-up"\s*\)/,
+    );
+    // And `open` itself must be gated: a momentary id must never be looked up
+    // in `openIds`, because the room is FORBIDDEN from announcing a stage for
+    // it — an ungated lookup would be dead code waiting to lie.
+    expect(
+      rail,
+      `${RAIL} → \`open\` no longer excludes momentary entries; a command could read as held`,
+    ).toMatch(/const open = !momentary && openIds\.has\(item\.id\)/);
   });
 
   it("the room answers a put-down with the SAME closes its own controls use", () => {

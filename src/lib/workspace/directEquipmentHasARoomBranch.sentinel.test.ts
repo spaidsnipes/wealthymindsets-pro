@@ -111,15 +111,40 @@ describe("SENTINEL — every direct instrument is wired in the room that declare
     }
   });
 
-  it("the room ANSWERS BACK — a stage announcement per direct id", () => {
+  it("the room ANSWERS BACK — a stage announcement per HOLDABLE direct id", () => {
+    // `momentary` entries are excluded ON PURPOSE, and the next test is the
+    // other half of that purpose. A command holds nothing, so it has no stage
+    // to report; demanding an announce here would force the room to fabricate
+    // one, and the rail would then paint `aria-pressed` on a button whose
+    // reversal cannot exist. REMODELLED, NOT WEAKENED: what was one blanket
+    // requirement is now a requirement plus a PROHIBITION — a momentary entry
+    // that starts announcing is a failure this suite reports by name.
     for (const href of ROOMS_WITH_DIRECT_EQUIPMENT) {
       const src = roomSource(href);
-      for (const e of roomEquipment(href).filter((x) => x.direct)) {
+      for (const e of roomEquipment(href).filter((x) => x.direct && !x.momentary)) {
         expect(
           src,
           `${ROOM_COMPONENT[href]} → "${e.label}" opens but never reports its stage, so the rail's aria-pressed ` +
             `will claim it is still held after the trader closes it from the panel's own control.`,
         ).toMatch(new RegExp(`announceEquipmentStage\\(\\s*["']${e.id}["']`));
+      }
+    }
+  });
+
+  it("a MOMENTARY command never announces a stage — a stage would be a fabricated holding", () => {
+    // The inverse guard that makes the exclusion above a design rather than a
+    // loophole. If a room starts announcing a stage for a momentary id, the
+    // rail would report the command as held — pressed with empty hands — and
+    // the aria-pressed contract (press again to reverse) would be a promise
+    // nothing can keep: un-pressing Clean cannot pick the instruments back up.
+    for (const href of ROOMS_WITH_DIRECT_EQUIPMENT) {
+      const src = roomSource(href);
+      for (const e of roomEquipment(href).filter((x) => x.direct && x.momentary)) {
+        expect(
+          src,
+          `${ROOM_COMPONENT[href]} → "${e.label}" is momentary but announces a stage; a command that ` +
+            `claims to be held is a liar the moment the trader picks anything back up.`,
+        ).not.toMatch(new RegExp(`announceEquipmentStage\\(\\s*["']${e.id}["']`));
       }
     }
   });

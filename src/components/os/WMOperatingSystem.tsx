@@ -433,7 +433,14 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
         {heading}
       </div>
       {equipment.map((item) => {
-        const open = openIds.has(item.id);
+        // A MOMENTARY entry is a command, not a holdable: the room never
+        // announces a stage for it (the Sentinel forbids one), so `openIds`
+        // can never contain it — but the flag is read here rather than relied
+        // on implicitly, because the aria contract below must be OMITTED for
+        // a command, not merely happen to read false. `aria-pressed={false}`
+        // still promises a toggle; a command makes no such promise.
+        const momentary = Boolean(item.momentary);
+        const open = !momentary && openIds.has(item.id);
         const glyph = equipmentGlyph(item.id);
         return (
         <button
@@ -447,7 +454,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
           // The state is in the accessible name too, not only in the paint. A
           // gold edge is invisible to a screen reader, and "what am I holding"
           // is exactly the orientation a non-sighted trader has least of.
-          aria-pressed={open}
+          aria-pressed={momentary ? undefined : open}
           title={item.unbuilt ? `${item.hint} — ${item.unbuilt}` : item.hint}
           // A TOGGLE, BECAUSE `aria-pressed` ALREADY PROMISED ONE.
           //
@@ -462,7 +469,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
           // `aria-pressed` would have been the cheap direction: it would trade
           // a screen reader's only source of "what am I holding" for the
           // silence that made the first defect invisible.
-          onClick={() => requestEquipment(item.id, open ? "put-down" : "pick-up")}
+          onClick={() => requestEquipment(item.id, !momentary && open ? "put-down" : "pick-up")}
           style={
             tiled
               ? {

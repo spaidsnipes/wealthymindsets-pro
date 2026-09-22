@@ -91,6 +91,17 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
     </Glyph>
   ),
   /**
+   * Just the market — a bare frame holding nothing but the price line.
+   * Deliberately the emptiest mark in the map: the arrangement it names is a
+   * subtraction, and a busy glyph would promise the opposite.
+   */
+  "clean-room": (
+    <Glyph>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M6.5 14.5l3.5-4 2.5 2 4.5-5" />
+    </Glyph>
+  ),
+  /**
    * The chart's own bench of controls — a tool tray with three implements
    * standing in it. Not a magnifier: `tools` above already owns that mark for
    * the masthead door, and two identical glyphs one press apart would undo in
