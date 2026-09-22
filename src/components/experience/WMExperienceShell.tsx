@@ -580,48 +580,19 @@ function SanctuaryRoom({
         rightOfWayResolved={standing.rightOfWayResolved}
         feed={standing.feed}
         asOfLabel={standing.asOfLabel}
-        /* ── THE INSTRUMENT VIEW'S MASTHEAD NAMES NO COMPANY ──────────────
-           LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 "Workspace
-           Equipment Over Live Chart" beside a 1440 shot of this build:
+        /* ── THE HOME KEEPS ITS ONE CANONICAL HOUSE MARK ──────────────────
+           RE-READ FROM THE EXACT CURRENT FILES, SIDE BY SIDE WITH SERVING
+           /charts, 2026-09-21: both V01 one-canvas (file 64/F24) and V12
+           finished WAIT (file 123/F16) carry the WealthyMindsets sanctuary
+           lockup above the market camera. The former empty fragment came from
+           a stale comparison and made HOME the only operating room that hid
+           the identity its own approved frames publish.
 
-             F24's top band carries EXACTLY two things — the Workspace and
-             Tools brass plates at the leading edge, and an
-             "INDICATIVE · asOf 09:24:17 ET" chip at the trailing edge. There
-             is no crest, no wordmark, no engraved legend, no job sentence.
-
-             The build's top band carries a THREE-LINE text stack in that same
-             leading corner: "WEALTHYMINDSETS PRO", under it
-             "— A TRADING SANCTUARY —", under that "Watch the market without
-             taking a position."
-
-           MEASURED, same session, scratchpad/desktop-chrome-stack.mjs at
-           1440x900: chrome above the candles = 147px, 16.3% of the glass.
-           F24 spends about 9.5%. `wm-os-masthead` is 69px of that 147 — the
-           single largest band — and three stacked lines of 10-13px type with
-           a 2px gap and 10px padding is precisely where 69px comes from.
-
-           NONE OF THIS IS DELETED — IT IS ROUTE-SCOPED. Every other room
-           still gets the wordmark, the legend and the job caption, because
-           everywhere else naming the place IS part of the job. See
-           MainLayout's note at the `brand` prop: the legend is a property of
-           the OPERATING ROOM. F24 is the INSTRUMENT VIEW, a different frame
-           in the same canon, and it answers the question differently: over a
-           live market the house does not advertise itself above price.
-
-           This is the same argument this file already made 350 lines up, when
-           a 26px caption stripe was folded into the masthead for consuming
-           viewport before the trader reached a market pixel. One route
-           further, and the caption has no reader here at all — `destinations
-           === "equipment"` means the mode bar beside it is already collapsed
-           to a single chip.
-
-           AN EMPTY FRAGMENT, NOT `undefined`. WMOperatingSystem's identity
-           cell is written `{brand ?? (<crest + wordmark fallback/>)}`, so
-           passing `undefined` or `null` is nullish and would summon the
-           frame's OWN crest and wordmark — louder than what we removed. A
-           fragment is non-nullish and renders nothing, which is the state
-           F24 draws. */
-        brand={onInstrumentView ? <></> : brand}
+           This restores the EXISTING brand owner; it does not add a banner,
+           duplicate a wordmark, or restore the job-caption stripe. The mark
+           stays inside the masthead whose 58px equipment plates already set
+           the row height, so MARKET loses no vertical floor area. */
+        brand={brand}
         mastheadCaption={onInstrumentView ? undefined : jobCaption}
         /* ── THE MODE IS EQUIPMENT, SO IT STANDS ON THE EQUIPMENT WALL ───────
            LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a 1440

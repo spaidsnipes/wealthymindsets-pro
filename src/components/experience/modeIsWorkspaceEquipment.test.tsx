@@ -125,6 +125,13 @@ describe("the instrument masthead carries the canon's occupants and no others", 
     expect(band).toContain('data-testid="os-equipment-tools"');
   });
 
+  it("keeps the shell-provided house mark on the live-market HOME", () => {
+    // This harness deliberately supplies the tiny marker "WM" so the test
+    // proves pass-through rather than accidentally matching the production
+    // wordmark's own implementation text.
+    expect(band).toContain("<span>WM</span>");
+  });
+
   it("does not stand the seven-tab mode nav over live price", () => {
     expect(band, `${INSTRUMENT_VIEW_ROUTE} masthead still carries the seven-tab mode nav`)
       .not.toContain(MODE_NAV);
