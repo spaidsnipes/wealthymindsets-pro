@@ -280,6 +280,57 @@ const VALUE: React.CSSProperties = {
 const MUTED: React.CSSProperties = { ...VALUE, color: "#8a8271" };
 
 /**
+ * ── F24 TYPE SCALE — THE RAIL IS AN INSTRUMENT, NOT A FOOTNOTE ──────────────
+ *
+ * MEASURED on a live 1440x900 /charts render 2026-09-21, against the canon
+ * frame `public/canon/F24-workspace-equipment-over-live-chart.jpg`:
+ *
+ *                        BUILD            F24 (scaled to 1440)
+ *   rail width           245px / 17.0%    12.8%      ← build is WIDER
+ *   label size           9px              ~17px
+ *   body size            11px             ~17px
+ *   body line pitch      14.85px          ~29px
+ *   blocks in column     14 text runs     4 groups
+ *
+ * The column was never too narrow. It was set in fine print — a trader
+ * watching price cannot read 9px brass out of the corner of an eye, so the
+ * rail was functionally invisible while occupying MORE room than the drawing
+ * allots it. F24 shows FOUR large calm statements. Big type is the whole
+ * point; it is also why the block census below had to fall with it, because
+ * canon type in this column with fourteen runs simply overflows.
+ *
+ * WHY THE LABEL AND THE BODY ARE THE SAME SIZE. They are in the drawing. F24
+ * separates `WHY` from "Post-session alignment held." by COLOUR and case —
+ * brass small-caps over pearl sentence — not by scale. Shrinking the label
+ * back into a caption is what produced the fine-print reading in the first
+ * place.
+ *
+ * SCOPE: rail-primary only. Everything inside the S-501 fold keeps LABEL /
+ * VALUE / MUTED, because the fold is disclosed detail, and inflating detail to
+ * headline scale would simply re-create the overflow one click deeper.
+ */
+const RAIL_LABEL: React.CSSProperties = {
+  ...LABEL,
+  fontSize: 17,
+  lineHeight: "24px",
+  letterSpacing: 1.5,
+};
+
+const RAIL_VALUE: React.CSSProperties = {
+  ...VALUE,
+  fontSize: 17,
+  lineHeight: "29px",
+  // A canon-scale line cannot be clipped to one ellipsised row: at 17px the
+  // NEXT sentence is three or four lines and every one of them is load-bearing.
+  // `hidden`/`ellipsis` were sized for an 11px single-line caption.
+  overflow: "visible",
+  textOverflow: "clip",
+  overflowWrap: "anywhere",
+};
+
+const RAIL_MUTED: React.CSSProperties = { ...RAIL_VALUE, color: "#8a8271" };
+
+/**
  * THE S-501 FOLD — the plate the fifth-through-eighth chunks collapse behind.
  *
  * Drawn as one seam in the attached instrument, not as another card. V12's
@@ -301,11 +352,14 @@ const DETAIL_DRAWER: React.CSSProperties = {
 };
 
 const DETAIL_SUMMARY: React.CSSProperties = {
-  ...LABEL,
+  // The handle is one of the four canon blocks, so it is set at canon scale
+  // like the other three. A 9px handle over 17px siblings reads as a footnote
+  // to the rail rather than as the fourth statement in it.
+  ...RAIL_LABEL,
   listStyle: "none",
   cursor: "pointer",
   // 44px is the touch floor this repo already enforces elsewhere; the rail is
-  // desktop-only but the same hand-size arithmetic is what makes a 9px label
+  // desktop-only but the same hand-size arithmetic is what makes a label
   // clickable with confidence by a mouse as well.
   minHeight: 44,
   display: "flex",
@@ -653,7 +707,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const decisionValue = decisionId ? (
     <code
       style={{
-        ...VALUE,
+        ...(rail ? RAIL_VALUE : VALUE),
+        // The id is the one canon-scale line that is a MACHINE TOKEN, not a
+        // sentence. F24 sets it a step under its own label so a 20-character
+        // hyphenated identifier stays on two lines in a 205px column instead
+        // of breaking mid-token across four.
+        ...(rail ? { fontSize: 15, lineHeight: "22px" } : null),
         color: "#e8b923",
         fontWeight: 700,
         whiteSpace: "normal",
@@ -668,7 +727,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   ) : rail ? (
     <>
       <span
-        style={{ ...MUTED, color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.45 }}
+        style={{ ...RAIL_MUTED, color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.45 }}
         data-testid="spine-decision-absent"
         title={decisionIdAbsence}
       >
@@ -821,6 +880,96 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       </span>
     </div>
   );
+
+  /* ── THE LEDGER'S TWO DRAWN FORMS, HOISTED SO THEY CAN BE PLACED ─────────
+     Identical markup, identical producers, identical testids. The only thing
+     the F24 pass changes is WHERE they mount: the horizontal band keeps them
+     inline under NEXT, and the 1440 rail renders them inside the S-501 fold
+     under an "Evidence ledger" heading.
+
+     Why these two and not the interlock plaque beside them: both are RESTATED
+     evidence. The bar is `aria-hidden` by its own long-standing argument — it
+     "adds no fact a screen reader is not already given by the sentence beneath
+     it" — and the roster names the same nodes that sentence counts. At F24
+     scale they were also the only two runs in the column set below 9px, i.e.
+     the literal fine print. The plaque stays primary, because its own comment
+     is right that it "states a fact that appears nowhere else on the rail". */
+  /* DRAWN BEFORE READ. The bar is decoration in the accessibility tree —
+     `aria-hidden` — because it adds no fact a screen reader is not already
+     given by the sentence beneath it. Removing it removes a rendering of the
+     ledger, never the ledger. */
+  const ladderBar = ladder ? (
+    <span
+      data-testid="evidence-ladder"
+      data-payable={ladder.payable}
+      data-resolved={ladder.resolved}
+      aria-hidden="true"
+      style={{ display: "flex", gap: 2, alignItems: "center", margin: "3px 0 1px" }}
+    >
+      {ladder.segments.map((segment, i) => (
+        <LadderSegment key={`ledger-${i}`} segment={segment} />
+      ))}
+      {ladder.watch.length > 0 ? (
+        <>
+          {/* The gap that names itself: everything right of this rule is
+              observed but ungradeable, and belongs to no numerator. */}
+          <span
+            data-testid="evidence-ladder-watch-rule"
+            style={{
+              flex: "0 0 auto",
+              width: 1,
+              height: LADDER_HEIGHT + 2,
+              background: "rgba(201,162,89,0.28)",
+              margin: "0 2px",
+            }}
+          />
+          {ladder.watch.map((segment, i) => (
+            <LadderSegment key={`watch-${i}`} segment={segment} />
+          ))}
+        </>
+      ) : null}
+    </span>
+  ) : null;
+
+  /* NAMED ONLY IF EVERY NODE IS NAMED.
+     A partial roster is worse than none: four chips over a seven-segment bar
+     reads as "these four are the debt", and the three it could not name would
+     vanish behind a number that no longer has a name for its own parts. All or
+     nothing is the only honest gate. */
+  const ladderRoster = ladderChips ? (
+    <span
+      data-testid="evidence-ladder-roster"
+      data-named={ladderChips.length}
+      data-visible={visibleLadderChips?.length ?? 0}
+      data-collapsed={collapsedLadderChips.length}
+      style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "3px 0 1px" }}
+    >
+      {visibleLadderChips?.map((segment) => (
+        <LadderChip key={`chip-${segment.key}`} segment={segment} />
+      ))}
+      {collapsedLadderChips.length > 0 ? (
+        <span
+          data-testid="evidence-ladder-more"
+          title={collapsedLadderDetail}
+          aria-label={`${collapsedLadderChips.length} more conditions. ${collapsedLadderDetail}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "1px 5px",
+            borderRadius: 2,
+            border: "1px solid rgba(139,143,168,0.26)",
+            color: "rgba(139,143,168,0.82)",
+            fontSize: 8.5,
+            lineHeight: "12px",
+            letterSpacing: "0.09em",
+            whiteSpace: "nowrap",
+          }}
+        >
+          +{collapsedLadderChips.length}
+        </span>
+      ) : null}
+    </span>
+  ) : null;
 
   const whyCell = (
     <div style={cellStyle}>
@@ -984,10 +1133,23 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         }
       `}</style>
       {/* DECISION_ID — the thing every other cell is about. On the desktop
-          rail, identity and MARKET provenance are one restrained header,
-          because the adjacent canvas already owns MARKET as the room. Keeping
-          them as separate hairlined cells made the rail read as six dashboard
-          cards. The horizontal band retains the full six-cell projection. */}
+          rail, identity and MARKET provenance were one restrained header,
+          because the adjacent canvas already owns MARKET as the room.
+
+          ── THE HEADER FINISHED THE ARGUMENT ITS OWN COMMENT STARTED ──────
+          "The adjacent canvas already owns MARKET as the room" was the reason
+          MARKET stopped being a hairlined cell. At F24 type scale it is the
+          reason MARKET stops being PRIMARY at all: `NQ1! · 5m · 30881.5` and
+          `PARTIAL · asOf 00:23:44Z` are two full canon-scale lines restating
+          the symbol, the timeframe and the price that the chart header three
+          hundred pixels to the left is already printing, over the candles they
+          describe. F24's right panel names no symbol and no price for exactly
+          that reason.
+
+          MOVED, NOT DELETED — one click, into the S-501 fold, at its TOP,
+          where it is the provenance the fidelity plaque directly below is a
+          reading OF. The horizontal band still renders MARKET as a full inline
+          cell; this is the 1440 rail silhouette, not a change to the band. */}
       {rail ? (
         <div
           data-testid="spine-provenance-header"
@@ -1000,12 +1162,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={LABEL}>Decision</span>
+            <span style={RAIL_LABEL}>Decision</span>
             {decisionValue}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={LABEL}>Market</span>
-            {marketValue}
           </div>
           {props.canvasSummary && (
             <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
@@ -1026,7 +1184,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           ? `Now. State ${nowDecision.value}. ${props.now.token}. ${oneStory.primary}`
           : undefined}
       >
-        <span style={LABEL}>{rail ? "Now · State" : "Now"}</span>
+        <span style={rail ? RAIL_LABEL : LABEL}>{rail ? "Now · State" : "Now"}</span>
         {/* The moment comes FIRST, above the structure narrative. A trader
             reading downward learns whether this market is trading before
             reading what it is doing, because the second only means something
@@ -1038,8 +1196,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             style={{
               color: nowDecision.tone === "resolved" ? "#c9c2a7" : "#d4af37",
               fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 21,
-              lineHeight: 1.05,
+              // F24 sets the verdict only a little above the surrounding
+              // lines — the whole panel is large, so the headline does not
+              // have to shout to lead. 21px over an 11px body was a headline
+              // over fine print; 24px over a 17px body is the drawing.
+              fontSize: 24,
+              lineHeight: "30px",
               letterSpacing: 1.1,
               fontWeight: 700,
             }}
@@ -1057,8 +1219,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             title={waitStanding.detail}
             aria-label={`Wait standing. ${waitStanding.detail}`}
             style={{
-              fontSize: 8.5,
-              lineHeight: "12px",
+              // F24's "complete" qualifier sits beside the verdict at reading
+              // size, not as a caption under it. 8.5px was unreadable at a
+              // glance, which defeats the whole reason this line exists.
+              fontSize: 13,
+              lineHeight: "18px",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               ...WAIT_STANDING_TONE[waitStanding.standing],
@@ -1070,7 +1235,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <span
           style={{
             ...NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"],
-            ...(rail ? { fontSize: 9, textTransform: "uppercase", letterSpacing: 0.7 } : null),
+            ...(rail
+              ? { fontSize: 13, lineHeight: "18px", textTransform: "uppercase", letterSpacing: 0.7 }
+              : null),
           }}
           data-testid="spine-now-session"
           data-session-established={props.now.established ? "true" : "false"}
@@ -1118,18 +1285,49 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       {!rail && honestyCell}
       {!rail && riskCell}
       {!rail && whyCell}
+      {/* ── THE FOLD NOW CARRIES SIX ORGANS, NOT THREE ──────────────────────
+          S-501 collapsed RISK, WHY and the fidelity plaque behind this one
+          disclosure. The F24 type pass adds MARKET provenance and the two
+          drawn forms of the evidence ledger (the severity-ordered bar and the
+          named roster), for the same stated reason and by the same rule:
+          COLLAPSE, NOT DELETE.
+
+          EVERY ONE OF THEM IS STILL ON THE SCENE, one click away, in the
+          markup at all times (native <details>, so SSR ships the content and
+          a screen reader is handed the whole rail regardless of visual state).
+          Nothing here is computed differently and no producer changed.
+
+          `summary` visible text names all four regions rather than the three
+          it used to, because a handle that under-names its contents is how a
+          fact becomes unreachable in practice while staying reachable in the
+          DOM. `aria-expanded` is supplied by the native element itself, so the
+          open/closed transition is announced without a hand-rolled attribute
+          that could drift out of sync with the real state. */}
       {rail && (
         <details data-testid="spine-detail-drawer" style={DETAIL_DRAWER}>
-          <summary style={DETAIL_SUMMARY} data-testid="spine-detail-summary">
-            <span>Risk · Why · Fidelity</span>
+          <summary
+            style={DETAIL_SUMMARY}
+            data-testid="spine-detail-summary"
+            aria-label="Detail: market provenance, data fidelity, risk, why, and the evidence ledger"
+          >
+            <span style={{ whiteSpace: "normal" }}>Risk · Why · Detail</span>
             <span aria-hidden="true" className="wm-spine-fold-chevron">
               ▸
             </span>
           </summary>
           <div style={{ paddingTop: 6 }}>
+            <div style={cellStyle}>
+              <span style={LABEL}>Market</span>
+              {marketValue}
+            </div>
             {honestyCell}
             {riskCell}
             {whyCell}
+            <div style={cellStyle}>
+              <span style={LABEL}>Evidence ledger</span>
+              {ladderBar}
+              {ladderRoster}
+            </div>
           </div>
         </details>
       )}
@@ -1157,46 +1355,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           Spare space now falls at the END of the column, where empty space
           reads as margin rather than as a break in the argument. */}
       <div style={cellStyle}>
-        <span style={LABEL}>Next</span>
-        <span style={VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
+        <span style={rail ? RAIL_LABEL : LABEL}>Next</span>
+        <span style={rail ? RAIL_VALUE : VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
           {expression ?? nextThing.headline}
         </span>
-        {/* DRAWN BEFORE READ. The bar is decoration in the accessibility tree —
-            `aria-hidden` — because it adds no fact a screen reader is not
-            already given by the sentence beneath it. Removing it removes a
-            rendering of the ledger, never the ledger. */}
-        {ladder ? (
-          <span
-            data-testid="evidence-ladder"
-            data-payable={ladder.payable}
-            data-resolved={ladder.resolved}
-            aria-hidden="true"
-            style={{ display: "flex", gap: 2, alignItems: "center", margin: "3px 0 1px" }}
-          >
-            {ladder.segments.map((segment, i) => (
-              <LadderSegment key={`ledger-${i}`} segment={segment} />
-            ))}
-            {ladder.watch.length > 0 ? (
-              <>
-                {/* The gap that names itself: everything right of this rule is
-                    observed but ungradeable, and belongs to no numerator. */}
-                <span
-                  data-testid="evidence-ladder-watch-rule"
-                  style={{
-                    flex: "0 0 auto",
-                    width: 1,
-                    height: LADDER_HEIGHT + 2,
-                    background: "rgba(201,162,89,0.28)",
-                    margin: "0 2px",
-                  }}
-                />
-                {ladder.watch.map((segment, i) => (
-                  <LadderSegment key={`watch-${i}`} segment={segment} />
-                ))}
-              </>
-            ) : null}
-          </span>
-        ) : null}
+        {rail ? null : ladderBar}
         {/* NAMED ONLY IF EVERY NODE IS NAMED.
             A partial roster is worse than none: four chips over a seven-segment
             bar reads as "these four are the debt", and the three it could not
@@ -1226,8 +1389,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
               margin: "4px 0 0",
               borderRadius: 2,
               border: "1px solid",
-              fontSize: 8,
-              lineHeight: "12px",
+              // 8px was the smallest run in the whole column, on the one line
+              // that states whether the trader may act. Raised to the canon
+              // qualifier step it shares with the WAIT standing line.
+              fontSize: 13,
+              lineHeight: "18px",
               letterSpacing: "0.13em",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
@@ -1237,40 +1403,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             {interlock.plaque}
           </span>
         ) : null}
-        {ladderChips ? (
-          <span
-            data-testid="evidence-ladder-roster"
-            data-named={ladderChips.length}
-            data-visible={visibleLadderChips?.length ?? 0}
-            data-collapsed={collapsedLadderChips.length}
-            style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "3px 0 1px" }}
-          >
-            {visibleLadderChips?.map((segment) => (
-              <LadderChip key={`chip-${segment.key}`} segment={segment} />
-            ))}
-            {collapsedLadderChips.length > 0 ? (
-              <span
-                data-testid="evidence-ladder-more"
-                title={collapsedLadderDetail}
-                aria-label={`${collapsedLadderChips.length} more conditions. ${collapsedLadderDetail}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "1px 5px",
-                  borderRadius: 2,
-                  border: "1px solid rgba(139,143,168,0.26)",
-                  color: "rgba(139,143,168,0.82)",
-                  fontSize: 8.5,
-                  lineHeight: "12px",
-                  letterSpacing: "0.09em",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                +{collapsedLadderChips.length}
-              </span>
-            ) : null}
-          </span>
-        ) : null}
+        {rail ? null : ladderRoster}
         <span style={MUTED} className={rail ? "wm-spine-sr-only" : undefined}>
           {expression ? "Attached expression" : nextThing.detail}
         </span>
