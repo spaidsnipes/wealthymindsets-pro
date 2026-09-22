@@ -77,6 +77,7 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
+import { chartIdentityLabel } from "@/lib/chart/chartIdentityLabel";
 import {
   openChartCameraKeeper,
   type ChartCameraKeeper,
@@ -9325,6 +9326,55 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }}
         className="flex items-center gap-4 px-3"
       >
+        {/* ── THE PANE SAYS WHAT IT IS ────────────────────────────────────
+            LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a
+            1440x900 shot of this room. F24's legend opens with
+            `TSLA · Tesla, Inc. · 1D · NASDAQ`. This one opened with a bare
+            number.
+
+            Read back from the live DOM, the symbol appeared in exactly two
+            places on the entire screen: the search field inside the 32px
+            `.wm-chart-toolbar` row, and the decision spine's `MARKET NQ1! ·
+            5m` line on the far right flank, ~1100px away. The market surface
+            itself never said which market it was.
+
+            That is a precondition, not a preference. The toolbar row is the
+            largest remaining band of chrome above the candles and it is
+            scheduled to move into the Tools room, whose door already reads
+            "Open in this room". Remove it while the pane has no identity and
+            the instrument's name leaves the market surface with it. Identity
+            arrives here first, deliberately, so that the removal is a pure
+            subtraction of chrome rather than a subtraction of truth.
+
+            It prints only what it can prove — see chartIdentityLabel for why
+            the company name and the exchange are absent rather than guessed.
+            A blank symbol renders NOTHING rather than an empty chip: an empty
+            chip is a frame around an answer nobody gave. */}
+        {(() => {
+          const identity = chartIdentityLabel(symbol, timeframe);
+          if (!identity) return null;
+          return (
+            <div
+              data-chart-identity
+              data-chart-identity-parts={identity.parts.map(p => p.kind).join(",")}
+              aria-label={identity.spoken}
+              className="flex items-baseline gap-1.5 text-[11px] font-semibold tracking-wide text-wm-text whitespace-nowrap"
+            >
+              {identity.parts.map((part, i) => (
+                <React.Fragment key={part.kind}>
+                  {i > 0 ? <span aria-hidden className="text-wm-text-dim/50">·</span> : null}
+                  <span
+                    data-identity-part={part.kind}
+                    className={part.kind === "symbol" ? undefined : "font-mono font-normal text-wm-text-dim"}
+                  >
+                    {part.text}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* Price + change + source provenance (WM-CHART-P0-05) */}
         <div className="flex items-baseline gap-2">
           {(() => {
