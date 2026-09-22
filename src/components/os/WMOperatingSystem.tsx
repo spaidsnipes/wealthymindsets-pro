@@ -977,6 +977,12 @@ export interface WMOperatingSystemProps {
    * instrument may ask to bleed.
    */
   readonly room?: "matted" | "bleed";
+  /**
+   * Keep the compiled provenance available on narrow screens while allowing a
+   * market scene whose masthead already carries source/fidelity/as-of to avoid
+   * repeating the same reading in a detached desktop footer.
+   */
+  readonly desktopProvenance?: "footer" | "masthead";
   readonly children: React.ReactNode;
 }
 
@@ -1000,6 +1006,7 @@ export function WMOperatingSystem({
   phoneDestinations = "bar",
   destinations = "rail",
   room = "matted",
+  desktopProvenance = "footer",
   children,
 }: WMOperatingSystemProps): React.ReactElement {
   // Read once, named once. Three separate places below branch on it — the bar,
@@ -1799,7 +1806,7 @@ export function WMOperatingSystem({
 
       {/* ── PROVENANCE ───────────────────────────────────────────────── */}
       <footer
-        className="wm-os-provenance"
+        className={`wm-os-provenance${desktopProvenance === "masthead" ? " wm-os-provenance--masthead-owned" : ""}`}
         aria-label="Provenance"
         data-testid="os-provenance"
         style={{
@@ -2061,6 +2068,12 @@ export function WMOperatingSystem({
           }
         }
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) {
+          /* F24 gives the live market one source/fidelity/as-of reader in the
+             masthead. The instrument scene already supplies that canonical
+             reader, so its desktop footer would be a second detached answer.
+             Narrow screens retain this footer because it also carries the
+             standing conditions after the rail leaves the canvas. */
+          .wm-os-provenance--masthead-owned { display: none !important; }
           .wm-os-standing-bar { display: none !important; }
           .wm-os-phone-nav { display: none !important; }
           /* ── THE BRASS PLATE, AT THE SIZE THE CANON DRAWS IT ─────────────

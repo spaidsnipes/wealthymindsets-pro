@@ -547,6 +547,7 @@ function SanctuaryRoom({
            legibility defect, not a reclaimed pixel. Only the room whose child
            is a machine bleeds. */
         room={onInstrumentView ? "bleed" : "matted"}
+        desktopProvenance={onInstrumentView ? "masthead" : "footer"}
         /* ── THE ROOM DOES NOT NEED A NAMEPLATE WHEN THE ROOM IS THE MARKET ──
            F24's top band carries the two brass plates and the trailing chip.
            It does not carry a room name, and the build's band did: measured

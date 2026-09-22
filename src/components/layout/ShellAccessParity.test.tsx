@@ -313,6 +313,7 @@ describe("one OS · 390 is not a different application", () => {
     expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-tools"');
     expect(INSTRUMENT_HTML).toContain('data-testid="os-market-rooms"');
     expect(INSTRUMENT_HTML).toContain('data-presentation="direct-doorway"');
+    expect(INSTRUMENT_HTML).toContain("wm-os-provenance--masthead-owned");
     expect(INSTRUMENT_HTML).toContain('aria-label="Workspace"');
     expect(INSTRUMENT_HTML).toContain('aria-label="Tools"');
     expect(INSTRUMENT_HTML).toContain('aria-label="Rooms"');
