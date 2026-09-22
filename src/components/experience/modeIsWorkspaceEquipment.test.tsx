@@ -206,7 +206,7 @@ describe("and the mode control is standing on the Workspace wall instead", () =>
 
   it("the frame draws that slot inside the WORKSPACE hand, and only there", () => {
     const os = source(OS);
-    const at = os.indexOf('equipment === "workspace"');
+    const at = os.indexOf('scenePanel === "workspace"');
     expect(at, `${OS} → the workspace branch is gone`).toBeGreaterThan(0);
     const branch = os.slice(at, os.indexOf("RoomWorkspaceRail", at) + 200);
     expect(branch.length, `${OS} → the workspace branch sliced empty`).toBeGreaterThan(120);

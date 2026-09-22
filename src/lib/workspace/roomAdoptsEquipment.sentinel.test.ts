@@ -1251,8 +1251,8 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
     // `router.back()` is the usual reflex and is wrong here: picking equipment
     // up never pushed a history entry, so back() leaves the room entirely and
     // lands the trader on whatever page preceded their arrival.
-    expect(effect, `${RAIL} → Escape must clear the held equipment`).toMatch(
-      /setEquipment\(null\)/,
+    expect(effect, `${RAIL} → Escape must clear the held scene panel`).toMatch(
+      /setScenePanel\(null\)/,
     );
     expect(
       effect,
@@ -1267,8 +1267,8 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
     expect(effect, `${RAIL} → the handler runs outside equipment mode`).toMatch(
       /!equipmentMode/,
     );
-    expect(effect, `${RAIL} → the handler runs with nothing in hand`).toMatch(
-      /equipment === null/,
+    expect(effect, `${RAIL} → the handler runs with no scene panel open`).toMatch(
+      /scenePanel === null/,
     );
   });
 
@@ -1340,12 +1340,12 @@ describe("SENTINEL — Escape puts the equipment down, and the address does not 
     // the key half leaves every touch trader inside the mode.
     const main = roomElement();
     expect(main, `${RAIL} → pressing the market does not dismiss the equipment`).toMatch(
-      /onPointerDown=\{[\s\S]*?setEquipment\(null\)/,
+      /onPointerDown=\{[\s\S]*?setScenePanel\(null\)/,
     );
     expect(
       main,
       `${RAIL} → the dismiss must be inert in rail mode, or one gesture has two meanings`,
-    ).toMatch(/equipmentMode && equipment !== null/);
+    ).toMatch(/equipmentMode && scenePanel !== null/);
   });
 
   it("the market press is OBSERVED, not consumed — no first-tap-eaten defect", () => {
@@ -1473,7 +1473,7 @@ describe("SENTINEL — Escape is a staircase, not a trapdoor", () => {
     expect(
       deps,
       `${RAIL} → journeyOpen is missing from the effect's dependencies, so the handler keeps the first value it ever saw`,
-    ).toMatch(/\[equipmentMode, equipment, journeyOpen\]/);
+    ).toMatch(/\[equipmentMode, scenePanel, journeyOpen\]/);
   });
 
   it("the market press defers too — one gesture, one meaning", () => {
@@ -1487,11 +1487,12 @@ describe("SENTINEL — Escape is a staircase, not a trapdoor", () => {
 });
 
 /**
- * SENTINEL — IN EQUIPMENT MODE THE FRAME OFFERS NO WAY TO LEAVE THE ROOM.
+ * SENTINEL — HOME KEEPS EQUIPMENT AND A CURATED CHANGED-JOB DOORWAY.
  *
  * This is the Founder's Shot 1 gate, stated as code: the default URL must be
  * a debt-honest HOME where the MARKET dominates and the frame offers exactly
- * two pieces of equipment — Workspace and Tools — and NO destination rail.
+ * two pieces of equipment — Workspace and Tools — plus one compact doorway
+ * that contains only the destinations that change the human job.
  *
  * The governing sentence of the whole shift is "kill the competing house",
  * and a house comes back one honest list at a time: Rooms was cut from the
@@ -1504,70 +1505,26 @@ describe("SENTINEL — Escape is a staircase, not a trapdoor", () => {
  * false side of the mode branch, which is the only shape that cannot be
  * restored by flipping a default.
  */
-describe("SENTINEL — Shot 1: equipment mode renders no destinations at all", () => {
+describe("SENTINEL — Shot 1: equipment mode never restores the destination mall", () => {
   const rail = read(RAIL);
-  const LISTS = ["OS_ROOMS.map", "OS_WORKBENCH.map", "OS_COMMUNITY.map"] as const;
 
-  /**
-   * The `{` that opens the JSX expression the list is rendered inside.
-   *
-   * WHY BRACE-MATCHING AND NOT `lastIndexOf("equipmentMode ?")`. That was the
-   * first draft, and it was GREEN against a deliberately reverted frame: the
-   * nearest preceding mention of the mode belonged to a DIFFERENT, correctly
-   * guarded block higher up, so the rule proved something true about a
-   * neighbour and nothing at all about the list in front of it. A sentinel
-   * that reads the wrong expression is worse than none, because its green is
-   * mistaken for cover.
-   *
-   * Called TWICE per list, and that is deliberate. `{OS_ROOMS.map(…)}` opens
-   * its own JSX expression, so one hop lands on the brace immediately to the
-   * left of the list and reads an empty string — a rule that can only ever be
-   * red. The guard we care about is the expression ONE level out, the
-   * `{equipmentMode ? … }` that decides whether the list exists at all.
-   */
-  const openerOf = (at: number): number => {
-    let depth = 0;
-    for (let i = at; i >= 0; i -= 1) {
-      const c = rail[i];
-      if (c === "}") depth += 1;
-      else if (c === "{") {
-        if (depth === 0) return i;
-        depth -= 1;
-      }
-    }
-    return -1;
-  };
+  it("keeps the old room, workbench, and community lists out of HOME", () => {
+    expect(rail).toMatch(/equipmentMode\s*\?\s*MARKET_HOME_ROOMS\.map[\s\S]*?:\s*OS_ROOMS\.map/);
+    expect(rail).toMatch(/equipmentMode\s*\?\s*\([\s\S]*?scenePanel === "tools"[\s\S]*?:\s*\([\s\S]*?OS_WORKBENCH\.map/);
+    expect(rail).toMatch(/equipmentMode\s*\?\s*null\s*:\s*\([\s\S]*?OS_COMMUNITY\.map/);
+  });
 
-  for (const list of LISTS) {
-    it(`${list} is rendered only when the frame is NOT in equipment mode`, () => {
-      const at = rail.indexOf(list);
-      expect(at, `${RAIL} → ${list} is gone from the rail; re-pin this`).toBeGreaterThan(-1);
-      const own = openerOf(at);
-      expect(own, `${RAIL} → ${list} is not inside a JSX expression at all`).toBeGreaterThan(-1);
-      const open = openerOf(own - 1);
-      expect(
-        open,
-        `${RAIL} → ${list} sits at the top of the rail with nothing wrapping it — there is no guard left to read`,
-      ).toBeGreaterThan(-1);
-      const head = rail.slice(open + 1, at).trimStart();
-      expect(
-        head.startsWith("equipmentMode ?"),
-        `${RAIL} → ${list} is rendered unconditionally — the destination mall is back over a live market`,
-      ).toBe(true);
-      // If the list sat on the TRUE side there would be no separator here,
-      // because the true arm has not been closed yet.
-      expect(
-        /null : \(|\) : \(/.test(head),
-        `${RAIL} → ${list} sits on the EQUIPMENT side of the branch; picking up a tool would hand the trader a list of places that are not here`,
-      ).toBe(true);
-    });
-  }
+  it("opens the curated list only through the compact Rooms panel", () => {
+    expect(rail).toContain('data-testid="os-market-rooms"');
+    expect(rail).toMatch(/equipmentMode && scenePanel !== "rooms" \? null/);
+    expect(rail).toContain("MARKET_HOME_ROOMS.map");
+  });
 
   it("equipment mode offers exactly the canon's two hands, by name", () => {
     // Named, not counted: "Workspace" and "Tools" are the canon's two hands.
     // A third equipment button is a new hand and must be a Founder decision,
     // not a merge.
-    const kinds = rail.match(/equipment === "(workspace|tools)"/g) ?? [];
+    const kinds = rail.match(/scenePanel === "(workspace|tools)"/g) ?? [];
     expect(kinds.length, `${RAIL} → the two-hand split is gone`).toBeGreaterThan(0);
     const named = new Set(kinds.map((k) => k.replace(/.*"(\w+)".*/, "$1")));
     expect([...named].sort(), `${RAIL} → equipment mode grew a third hand`).toEqual([

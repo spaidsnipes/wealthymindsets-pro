@@ -67,7 +67,11 @@ import * as React from "react";
 import Link from "next/link";
 // Where the product's rooms are has ONE owner. Retyping them here is what made
 // this rail a second definition — see the note on OS_ROOMS below.
-import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDestinations";
+import {
+  destinationsInGroup,
+  marketHomeRooms,
+  phoneNavDestinations,
+} from "@/lib/routing/wmDestinations";
 // WORKSPACE is not a fourth list of destinations — it is what the room the
 // trader is ALREADY standing in can hand them. See roomEquipment's header.
 import {
@@ -155,6 +159,7 @@ export const OS_ROOMS: readonly ShellRoom[] = destinationsInGroup("ROOM").map((d
  */
 const OS_WORKBENCH = destinationsInGroup("TOOL");
 const OS_COMMUNITY = destinationsInGroup("COMMUNITY");
+const MARKET_HOME_ROOMS = marketHomeRooms();
 
 /**
  * The five the phone gets, from the same owner the July shell reads. The
@@ -932,11 +937,11 @@ export interface WMOperatingSystemProps {
    * equipment buried as one block inside it. First paint was clean and the
    * PREMISE was still "navigation is the operating system".
    *
-   * So `"equipment"` does not hide the rail — it deletes the ROOM LIST from
-   * this route's frame entirely, and splits the one "Rooms" button into the
-   * two the approved picture shows: WORKSPACE (this scene's equipment) and
-   * TOOLS (the instruments). No Rooms toggle, no destination rail, no
-   * five-door phone bar. The shot gate's words: "two equipment buttons only".
+   * So `"equipment"` does not restore the old rail. It keeps the two large
+   * scene controls — WORKSPACE and TOOLS — and the fresh 2026-09-21/22 Drive
+   * authority adds one compact desktop Rooms doorway for only those routes
+   * that change the human job. It never exposes the twenty-one-door mall,
+   * Command Deck, Passport, or execution as peers of the live market.
    *
    * ── AND IT IS NOT AN AMPUTATION ──────────────────────────────────────────
    *
@@ -1019,11 +1024,12 @@ export function WMOperatingSystem({
   // the only legal FIRST value on a market scene, and unlike `railOpen` it is
   // not seeded from a room's opinion: there is no opinion that justifies
   // opening a panel over price before the trader asked.
-  const [equipment, setEquipment] = React.useState<"workspace" | "tools" | null>(null);
+  type ScenePanel = "rooms" | "workspace" | "tools";
+  const [scenePanel, setScenePanel] = React.useState<ScenePanel | null>(null);
   // ONE predicate for "is the side panel on screen". The nav element is shared
   // between the two modes precisely so the phone overlay stylesheet, the close
   // control and aria-controls keep describing the thing the trader sees.
-  const panelOpen = equipmentMode ? equipment !== null : railOpen;
+  const panelOpen = equipmentMode ? scenePanel !== null : railOpen;
 
   /**
    * ESCAPE PUTS THE EQUIPMENT DOWN. THE ADDRESS DOES NOT MOVE.
@@ -1048,6 +1054,7 @@ export function WMOperatingSystem({
   const equipmentTriggers = React.useRef<
     Record<"workspace" | "tools", HTMLButtonElement | null>
   >({ workspace: null, tools: null });
+  const roomsTrigger = React.useRef<HTMLButtonElement | null>(null);
 
   /**
    * IS THE TRADER ALREADY INSIDE SOMETHING THEY PICKED UP?
@@ -1068,21 +1075,22 @@ export function WMOperatingSystem({
     return subscribeEquipmentStage(({ stage }) => {
       const open = stage !== "closed";
       setJourneyOpen(open);
-      if (open) setEquipment(null);
+      if (open) setScenePanel(null);
     });
   }, [equipmentMode]);
 
   React.useEffect(() => {
-    if (!equipmentMode || equipment === null || journeyOpen) return;
-    const held = equipment;
+    if (!equipmentMode || scenePanel === null || journeyOpen) return;
+    const held = scenePanel;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      setEquipment(null);
-      equipmentTriggers.current[held]?.focus();
+      setScenePanel(null);
+      if (held === "rooms") roomsTrigger.current?.focus();
+      else equipmentTriggers.current[held]?.focus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [equipmentMode, equipment, journeyOpen]);
+  }, [equipmentMode, scenePanel, journeyOpen]);
   // Compiled ONCE. The rail and the provenance bar both read this array; two
   // independently-typed copies of one reading is how a screen ends up
   // disagreeing with itself.
@@ -1213,16 +1221,44 @@ export function WMOperatingSystem({
             ── AND ON A MARKET SCENE IT IS NOT DRAWN AT ALL ──────────────────
             A control labelled "Rooms" in the masthead of the instrument view
             is the competing house advertising itself above price. In
-            `destinations="equipment"` the same slot carries the two things
-            that belong to the SCENE — Workspace and Tools — and no list of
-            places to go. See the prop's doc. */}
+            `destinations="equipment"` the same slot carries Workspace and
+            Tools plus one compact, curated changed-job doorway. See the
+            prop's doc. */}
         {equipmentMode ? (
           <div
             className="wm-os-equipment-plates"
             style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}
           >
+            <button
+              ref={roomsTrigger}
+              type="button"
+              className="wm-os-market-rooms"
+              data-testid="os-market-rooms"
+              onClick={() => setScenePanel((current) => (current === "rooms" ? null : "rooms"))}
+              aria-expanded={scenePanel === "rooms"}
+              aria-controls={scenePanel === "rooms" ? "wm-os-rail" : undefined}
+              aria-label="Rooms"
+              title="Open rooms for discovery, replay, review, and research"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 32,
+                padding: "6px 9px",
+                borderRadius: 3,
+                border: `1px solid ${scenePanel === "rooms" ? GOLD : RULE}`,
+                background: scenePanel === "rooms" ? "rgba(196,165,116,0.10)" : "transparent",
+                color: scenePanel === "rooms" ? GOLD : MUTED,
+                cursor: "pointer",
+                ...EYEBROW,
+                fontSize: 9,
+                letterSpacing: 1.5,
+              }}
+            >
+              Rooms
+            </button>
             {(["workspace", "tools"] as const).map((kind) => {
-              const open = equipment === kind;
+              const open = scenePanel === kind;
               return (
                 <button
                   key={kind}
@@ -1235,7 +1271,7 @@ export function WMOperatingSystem({
                     equipmentTriggers.current[kind] = el;
                   }}
                   data-testid={`os-equipment-${kind}`}
-                  onClick={() => setEquipment((current) => (current === kind ? null : kind))}
+                  onClick={() => setScenePanel((current) => (current === kind ? null : kind))}
                   aria-expanded={open}
                   // MEASURED 2026-09-19 on live /charts at 1920: with the rail
                   // closed, BOTH of these buttons reported
@@ -1433,10 +1469,18 @@ export function WMOperatingSystem({
         <nav
           className="wm-os-rail"
           id="wm-os-rail"
-          // The accessible name is the TRUTH about what the panel contains. In
-          // equipment mode it contains no rooms, so calling it "Rooms" would
-          // be a label that lies to exactly the users who cannot see it.
-          aria-label={equipmentMode ? (equipment === "tools" ? "Tools" : "Workspace") : "Rooms"}
+          // The accessible name is the TRUTH about what the panel contains.
+          // Equipment mode has three mutually-exclusive hands: curated Rooms,
+          // Workspace, or Tools.
+          aria-label={
+            equipmentMode
+              ? scenePanel === "rooms"
+                ? "Rooms"
+                : scenePanel === "tools"
+                  ? "Tools"
+                  : "Workspace"
+              : "Rooms"
+          }
           data-testid="os-rail"
           style={{
             /* ── EQUIPMENT IS PICKED UP OVER THE MARKET, NOT BESIDE IT ──────
@@ -1529,8 +1573,10 @@ export function WMOperatingSystem({
               type="button"
               className="wm-os-rail-close"
               data-testid="os-rail-close"
-              onClick={() => (equipmentMode ? setEquipment(null) : setRailOpen(false))}
-              aria-label={equipmentMode ? "Put the equipment down" : "Close rooms"}
+              onClick={() => (equipmentMode ? setScenePanel(null) : setRailOpen(false))}
+              aria-label={
+                equipmentMode && scenePanel !== "rooms" ? "Put the equipment down" : "Close rooms"
+              }
               style={{
                 display: "none",
                 alignItems: "center",
@@ -1556,25 +1602,32 @@ export function WMOperatingSystem({
             </button>
           )}
 
-          {/* ── THE ROOM LIST, AND WHERE IT IS NOT DRAWN ────────────────────
-              This block IS the destination mall. In `destinations="equipment"`
-              it is not rendered — not collapsed, not hidden by CSS, not moved
-              behind a second click. A frame that still ships the list and only
-              declines to show it is a frame that will show it again the first
-              time someone flips a default. */}
-          {equipmentMode ? null : (
+          {/* ── THE ROOM LIST, AND WHERE THE MALL IS NOT DRAWN ──────────────
+              Rail mode retains the full product map. Equipment mode renders
+              only the five changed-job rooms owned by marketHomeRooms; the
+              old ROOM-group mall never returns over the live market. */}
+          {equipmentMode && scenePanel !== "rooms" ? null : (
             <>
               <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
 
-              {OS_ROOMS.map((room) => (
-                <RailLink
-                  key={room.href}
-                  href={room.href}
-                  label={room.label}
-                  activeHref={activeHref}
-                  legacy={room.legacy}
-                />
-              ))}
+              {equipmentMode
+                ? MARKET_HOME_ROOMS.map((room) => (
+                    <RailLink
+                      key={room.href}
+                      href={room.href}
+                      label={room.label}
+                      activeHref={activeHref}
+                    />
+                  ))
+                : OS_ROOMS.map((room) => (
+                    <RailLink
+                      key={room.href}
+                      href={room.href}
+                      label={room.label}
+                      activeHref={activeHref}
+                      legacy={room.legacy}
+                    />
+                  ))}
             </>
           )}
 
@@ -1585,7 +1638,7 @@ export function WMOperatingSystem({
               so the panel answers the question that was asked rather than
               stacking both. */}
           {equipmentMode ? (
-            equipment === "workspace" ? (
+            scenePanel === "workspace" ? (
               <>
                 {/* The caller's own workspace control, at the head of the hand.
                     See `workspaceLead` for why the frame publishes a slot here
@@ -1630,7 +1683,7 @@ export function WMOperatingSystem({
               mall one click below a masthead we had just cut it out of — the
               second house, rebuilt inside the first. */}
           {equipmentMode ? (
-            equipment === "tools" ? (
+            scenePanel === "tools" ? (
               <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" presentation="tile" />
             ) : null
           ) : (
@@ -1696,8 +1749,8 @@ export function WMOperatingSystem({
              whose panel dismisses differently depending on an invisible mode
              is a frame that has two answers to one gesture. */
           onPointerDown={
-            equipmentMode && equipment !== null && !journeyOpen
-              ? () => setEquipment(null)
+            equipmentMode && scenePanel !== null && !journeyOpen
+              ? () => setScenePanel(null)
               : undefined
           }
           style={{
@@ -1921,6 +1974,9 @@ export function WMOperatingSystem({
 
       <style>{`
         @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
+          /* Phase 1 is desktop-only. The fresh Rooms doorway must not silently
+             become a phone redesign while the 390 certificate is closed. */
+          .wm-os-market-rooms { display: none !important; }
           ${
             phoneDoorOnly
               ? /* ── THE RAIL IS THE PHONE'S NAVIGATION HERE ──────────────

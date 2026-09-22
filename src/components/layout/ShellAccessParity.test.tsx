@@ -303,22 +303,23 @@ describe("one OS · 390 is not a different application", () => {
    * shift's cut impossible: it pins a control labelled "Rooms" above a live
    * market and calls that the repair.
    *
-   * The Founder's 2026-09-19 order: the market scene is the operating system,
-   * and the only chrome the frame may offer on HOME is the equipment attached
-   * to that scene. So the gate now asserts the SHAPE THAT REPLACED the one
-   * labelled door — two equipment controls, named, keyboard-reachable, both
-   * closed on arrival — and asserts the room list is gone rather than hidden.
+   * The fresh 2026-09-21/22 Drive authority keeps the market scene as HOME and
+   * restores exactly one compact Rooms doorway for destinations that genuinely
+   * change the human job. Workspace and Tools remain the two scene-equipment
+   * plates; the old destination mall and Command Deck throne do not return.
    */
-  it("offers equipment, not a map", () => {
+  it("offers two pieces of scene equipment plus one compact changed-job doorway", () => {
     expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-workspace"');
     expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-tools"');
+    expect(INSTRUMENT_HTML).toContain('data-testid="os-market-rooms"');
     expect(INSTRUMENT_HTML).toContain('aria-label="Workspace"');
     expect(INSTRUMENT_HTML).toContain('aria-label="Tools"');
-    // The mall's own control and the mall's own name. Neither may come back.
+    expect(INSTRUMENT_HTML).toContain('aria-label="Rooms"');
+    // The old rail toggle does not return: this is a separate compact doorway
+    // with a curated changed-job list, not the twenty-one-destination mall.
     expect(INSTRUMENT_HTML).not.toContain('data-testid="os-rail-toggle"');
-    expect(INSTRUMENT_HTML).not.toContain('aria-label="Rooms"');
-    // Two buttons. Not three, and not two plus a quiet third that happens to
-    // navigate — "two equipment buttons only" is the shot gate's wording.
+    // Exactly two EQUIPMENT plates remain. Rooms is intentionally compact and
+    // therefore must never masquerade as a third piece of equipment.
     expect(INSTRUMENT_HTML.match(/data-testid="os-equipment-/g)).toHaveLength(2);
   });
 

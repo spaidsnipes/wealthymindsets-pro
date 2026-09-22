@@ -373,6 +373,35 @@ export function destinationsInGroup(group: WmDestinationGroup): readonly WmDesti
 }
 
 /**
+ * The few destinations that change the trader's job enough to leave the live
+ * market camera.
+ *
+ * This is deliberately not the old ROOM group. That group describes which
+ * routes wear the OS frame, so it also contains Charts itself, the quarantined
+ * Command Deck, Passport inspection and Paper Trade execution. None of those
+ * is a truthful answer to the compact Rooms doorway on HOME. The doorway is
+ * reserved for a different human job: discover, compare markets, replay,
+ * review, or research.
+ */
+export const MARKET_HOME_ROOM_HREFS: readonly string[] = [
+  "/scanner",
+  "/heatmaps",
+  "/backtesting",
+  "/journal",
+  "/news",
+];
+
+export function marketHomeRooms(): readonly WmDestination[] {
+  return MARKET_HOME_ROOM_HREFS.map((href) => {
+    const found = WM_DESTINATIONS.find((d) => d.href === href);
+    if (!found) {
+      throw new Error(`MARKET_HOME_ROOM_HREFS names ${href}, which is not a WM destination`);
+    }
+    return found;
+  });
+}
+
+/**
  * THE DOORS A PHONE GETS.
  *
  * A phone cannot hold twenty-one. The rail is `display: none` under 900px in
