@@ -101,6 +101,8 @@ export interface ShellAccessChromeProps {
    * capability can only go missing where someone WROTE that it should.
    */
   readonly showPoints?: boolean;
+  /** Fuse the market HOME utilities into one restrained control horizon. */
+  readonly compact?: boolean;
 }
 
 /**
@@ -124,7 +126,7 @@ export interface ShellAccessChromeProps {
  * sides: same component everywhere it appears, AND absent where canon says the
  * band is reserved.
  */
-export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps = {}) {
+export function ShellAccessChrome({ showPoints = true, compact = false }: ShellAccessChromeProps = {}) {
   const { user, signOut, signOutAllDevices } = useAuth();
 
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -142,6 +144,10 @@ export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps 
   /* Ask, don't assume. `useWMS` throws when no provider is above it — correct
      for a page, fatal for chrome. See useWMSAvailable in WMSContext.tsx. */
   const wmsAvailable = useWMSAvailable();
+
+  const actionButtonStyle: React.CSSProperties = compact
+    ? { ...ICON_BUTTON, border: "none", borderRadius: 0 }
+    : ICON_BUTTON;
 
   /**
    * EXCLUSIVE OPEN. Two modal drawers on screen at once is two dialogs
@@ -172,7 +178,20 @@ export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps 
   }, [open]);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+    <div
+      className={compact ? "wm-shell-access wm-shell-access--compact" : "wm-shell-access"}
+      data-presentation={compact ? "compact-strip" : "separate-actions"}
+      aria-label={compact ? "Market utilities" : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: compact ? 0 : 6,
+        flexShrink: 0,
+        border: compact ? `1px solid ${WM.border.hair}` : undefined,
+        borderRadius: compact ? WM.radius.md : undefined,
+        background: compact ? "rgba(7,9,15,0.28)" : undefined,
+      }}
+    >
       {/* ── THE TRADER'S OWN NUMBERS ──────────────────────────────────────
           Realized paper P&L and the WM points balance are facts ABOUT THE
           PERSON, not about the market — and they were drawn only in July's
@@ -215,7 +234,7 @@ export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps 
         // `aria-controls` is FOLLOWED, not ignored. `aria-expanded` alone carries
         // the whole disclosure claim, so dropping the reference silences nothing.
         aria-controls={searchOpen ? "wm-symbol-search-dialog" : undefined}
-        style={ICON_BUTTON}
+        style={actionButtonStyle}
       >
         <Search size={14} aria-hidden="true" />
       </button>
@@ -229,7 +248,7 @@ export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps 
         aria-expanded={notifsOpen}
         // Same defect, same repair as Search above.
         aria-controls={notifsOpen ? "wm-notifications-drawer" : undefined}
-        style={{ ...ICON_BUTTON, position: "relative" }}
+        style={{ ...actionButtonStyle, position: "relative" }}
       >
         <Bell size={14} aria-hidden="true" />
         {unreadCount > 0 && (
@@ -259,7 +278,7 @@ export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps 
         // single-slot switch, so a shared gate would have every control claiming
         // whichever panel happened to be up.
         aria-controls={settingsOpen ? "wm-settings-drawer" : undefined}
-        style={ICON_BUTTON}
+        style={actionButtonStyle}
       >
         <Settings size={14} aria-hidden="true" />
       </button>
@@ -273,9 +292,9 @@ export function ShellAccessChrome({ showPoints = true }: ShellAccessChromeProps 
           aria-haspopup="menu"
           aria-expanded={profileOpen}
           style={{
-            ...ICON_BUTTON,
-            borderRadius: 999,
-            borderColor: profileOpen ? WM.border.strong : WM.border.line,
+            ...actionButtonStyle,
+            borderRadius: compact ? 0 : 999,
+            borderColor: compact ? "transparent" : (profileOpen ? WM.border.strong : WM.border.line),
             color: WM.text.hero,
           }}
         >

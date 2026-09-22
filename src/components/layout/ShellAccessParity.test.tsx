@@ -323,6 +323,14 @@ describe("one OS · 390 is not a different application", () => {
     expect(INSTRUMENT_HTML.match(/data-testid="os-equipment-/g)).toHaveLength(2);
   });
 
+  it("fuses market utilities into one attention chunk without hiding a capability", () => {
+    expect(INSTRUMENT_HTML).toContain('data-presentation="compact-strip"');
+    expect(INSTRUMENT_HTML).toContain('aria-label="Search symbols"');
+    expect(INSTRUMENT_HTML).toContain("notifications");
+    expect(INSTRUMENT_HTML).toContain('aria-label="Open settings"');
+    expect(INSTRUMENT_HTML).toContain('aria-label="Open profile menu"');
+  });
+
   it("does not advertise the other house above price", () => {
     // The second throne had two carriers on this route: the rail's door and a
     // gold "COMMAND DECK →" chip in the chart's own action row. The chip is
@@ -516,7 +524,9 @@ describe("one OS · both shells mount the SAME panels", () => {
     expect(access).toMatch(/showPoints\s*=\s*true/);
 
     // 3. And it is actually WIRED. A prop nobody passes changes no pixel.
-    expect(shell).toMatch(/<ShellAccessChrome\s+showPoints=\{!onInstrumentView\}\s*\/>/);
+    expect(shell).toMatch(
+      /<ShellAccessChrome\s+showPoints=\{!onInstrumentView\}\s+compact=\{onInstrumentView\}\s*\/>/,
+    );
 
     // 4. POSITIVE CONTROL on the predicate itself: `onInstrumentView` must be
     //    the route test, not a free variable that could drift to anything.

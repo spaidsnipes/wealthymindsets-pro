@@ -659,7 +659,7 @@ function SanctuaryRoom({
                 standing over price. The P&L badge beside it STAYS everywhere:
                 realized paper P&L is a fact about the trader's positions, which
                 is the same subject as the candles, not a competing one. */}
-            <ShellAccessChrome showPoints={!onInstrumentView} />
+            <ShellAccessChrome showPoints={!onInstrumentView} compact={onInstrumentView} />
           </div>
         }
         contextRail={showRail ? rail : undefined}
