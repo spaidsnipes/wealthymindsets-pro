@@ -39,15 +39,44 @@ describe("Profiles equipment keeps MARKET visible", () => {
    * rather than forcing the drawer wider from the inside.
    */
   it("opens in a side drawer that leaves the candles on screen", () => {
-    const width = TOOLBAR.match(/id="chart-equipment-sheet"[\s\S]{0,600}?width=\{(\d+)\}/);
+    /*
+     * RE-AIMED 2026-09-21 (D-702) — THE WINDOW WAS A BYTE COUNT, AND IT MOVED.
+     *
+     * This matched `id="chart-equipment-sheet"[\s\S]{0,600}?width=\{(\d+)\}`.
+     * A fixed 600-byte window is two defects in one: it goes RED when the
+     * element's own props grow past it (which is what happened — the drawer's
+     * accessible `description` gained the four controls that arrived from the
+     * demolished band, and `width={420}` fell off the end), and it can
+     * OVERREACH past the tag's closing `>` and let a SIBLING element answer a
+     * question asked about this one.
+     *
+     * The window is now MEASURED to the element instead of guessed in bytes:
+     * from `<ShellModalDrawer` to the newline-`>` that closes its opening tag.
+     * Every assertion below reads that slice only, so no sibling can satisfy
+     * them and no amount of prose in this tag can break them. Strictly
+     * stronger: the old regex would have been satisfied by a `width={420}` on
+     * a completely different drawer 500 bytes downstream.
+     */
+    const idAt = TOOLBAR.indexOf('id="chart-equipment-sheet"');
+    expect(idAt, "the equipment drawer is gone from ChartToolbar").toBeGreaterThan(-1);
+    const tagAt = TOOLBAR.lastIndexOf("<ShellModalDrawer", idAt);
+    expect(tagAt, "`chart-equipment-sheet` is not on a ShellModalDrawer").toBeGreaterThan(-1);
+    const rest = TOOLBAR.slice(tagAt);
+    const closeAt = rest.search(/\n\s*>\s*\n/);
+    expect(closeAt, "the equipment drawer's opening tag never closes").toBeGreaterThan(-1);
+    const tag = rest.slice(0, closeAt);
+    // ANCHOR: a slice that came back empty or truncated would make the
+    // `not.toMatch` below pass vacuously.
+    expect(tag.length, "the drawer tag read as empty").toBeGreaterThan(120);
+    expect(tag, "the window overran into a sibling element").not.toContain("</");
+
+    const width = tag.match(/width=\{(\d+)\}/);
     expect(width, "the equipment drawer no longer declares a width").not.toBeNull();
     const px = Number(width![1]);
     expect(px, "the profiles drawer is wide enough to be a second screen").toBeLessThanOrEqual(456);
     expect(px, "the profiles drawer is too narrow for a two-column instrument grid")
       .toBeGreaterThanOrEqual(320);
-    expect(TOOLBAR, "the drawer went full-bleed").not.toMatch(
-      /id="chart-equipment-sheet"[\s\S]{0,600}?width=\{["']100/,
-    );
+    expect(tag, "the drawer went full-bleed").not.toMatch(/width=\{?["']?100/);
     expect(MENU, "the panel cannot shrink, so it will force its container wider")
       .toContain('className="min-w-0"');
   });

@@ -194,10 +194,38 @@ describe("phone chart control reachability", () => {
         "selector is how the element comes back",
     ).not.toMatch(/\.wm-chart-toolbar-pinned\s*\{/);
 
-    // The band itself still wraps on a phone. Unchanged requirement: it is the
-    // row the migrated controls left behind, and it still holds the symbol
-    // search, the trading-hours select and Indicators.
-    expect(css).toMatch(/\.wm-chart-toolbar\s*\{[\s\S]*?flex-wrap:\s*wrap/);
+    // ── RE-AIMED 2026-09-21 (D-702) · THE BAND LEFT, THE REQUIREMENT DID NOT ─
+    //
+    // This read `expect(css).toMatch(/\.wm-chart-toolbar\s*\{[\s\S]*?flex-wrap:
+    // \s*wrap/)` — the band must WRAP on a phone, so its controls cannot be
+    // scrolled off an edge. That was a workaround's property: it bought
+    // reachability inside a media query, for one element, below 768px.
+    //
+    // D-702 removed the band. Its four controls (asset class, symbol search,
+    // trading hours, Indicators) now mount inside `.wm-chart-equipment-market`
+    // at the top of the `chart-equipment-sheet` drawer.
+    //
+    // STRICTLY STRONGER, and here is the argument. The old assertion was
+    // satisfied by a band that wrapped at phone width and was still a
+    // 32px-tall `overflow-x: auto` scroller at every width above it — the
+    // arrangement that shipped the defect this file is named for. The new pair
+    // admits only arrangements where (a) the band does not exist in the
+    // stylesheet at all, so it cannot be dressed at any width, and (b) the
+    // controls' new container wraps and is NOT a horizontal scroller, in
+    // Tailwind utilities that carry no media query, so the property holds at
+    // every viewport rather than below one breakpoint.
+    expect(
+      css,
+      "globals.css carries a live `.wm-chart-toolbar` rule again — a rule for the " +
+        "selector is how the 32px band comes back already styled",
+    ).not.toMatch(/\.wm-chart-toolbar\s*[,{]/);
+    const group = toolbarCode.match(/className="wm-chart-equipment-market([^"]*)"/);
+    expect(group, "the migrated market controls have no container").not.toBeNull();
+    const utilities = group![1].trim().split(/\s+/);
+    expect(utilities, "the migrated controls can be pushed off an edge again")
+      .toContain("flex-wrap");
+    expect(utilities, "the migrated controls were put back inside a scroller")
+      .not.toContain("overflow-x-auto");
 
     // AND THE CAPABILITY LANDED SOMEWHERE. Without this, deleting the three
     // controls outright would pass every assertion above.
@@ -207,6 +235,11 @@ describe("phone chart control reachability", () => {
     expect(toolbarCode).toContain("onClick={onSmartMoney}");
     expect(toolbarCode).toContain("<span>Appearance</span>");
     expect(toolbarCode).toContain("<MoreHorizontal size={13} /> Chart tools");
+    // The four that arrived with D-702, named by the things only they can be.
+    expect(toolbarCode).toContain("{leadingSlot}");
+    expect(toolbarCode).toContain("placeholder={symbol}");
+    expect(toolbarCode).toContain('<option value="eth">ETH — Extended Hours</option>');
+    expect(toolbarCode).toContain("<span>Indicators</span>");
   });
 
   it("mounts the glass chip on the candle pane, and only where the setter is real", () => {

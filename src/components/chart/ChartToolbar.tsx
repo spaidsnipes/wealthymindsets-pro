@@ -868,176 +868,34 @@ export function ChartToolbar({
 
   return (
     <>
-    <div
-      // SCENE_FRAGMENTATION cure (Founder 2026-09-13): this band sits directly
-      // above MARKET. Opaque #0D0E14 + a hard #1E2030 rule made it the lid of
-      // a box the chart lived in. `wm-room-chrome` carries the same glass the
-      // pinned bands use, so the sanctuary reads through and the tool row
-      // delimits itself with a brass hairline instead.
-      //
-      // 36 → 32 on 2026-09-21. Not a guess: with the pinned cluster gone the
-      // tallest thing left in this row is the 28px (`h-7`) symbol search, so
-      // 32 is 28 plus two pixels of air each side. Four pixels is a small
-      // number and is reported as one — C-101's 70% floor is not bought by
-      // shrinking chrome, it is bought by the bands that are no longer here.
-      className="wm-room-chrome wm-chart-toolbar flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
-      style={{ scrollbarWidth:"none", height: 32, borderColor: "rgba(139,106,41,0.24)" }}
-    >
+    {/* ══ THE BAND ABOVE MARKET IS GONE (2026-09-21, D-702) ═══════════════
 
-      {leadingSlot}
+        `.wm-chart-toolbar` was a 32px full-width row between the OS masthead
+        and the first candle, reading `Futures | NQ1! | RTH — Regular Hours |
+        Indicators`. Canon F24 draws NOTHING there: masthead, then price.
 
-      {/* ══ Symbol Search — inline autocomplete ════════════ */}
-      <div className="wm-chart-symbol-search relative shrink-0" ref={symRef}>
-        {/* Always-visible input box that IS the search */}
-        <div
-          className="flex items-center gap-1.5 px-2 h-7 rounded bg-wm-surface border border-wm-border focus-within:border-wm-blue/50 transition-colors min-w-[130px] cursor-text"
-          onClick={() => { setSymbolOpen(true); symInputRef.current?.focus(); }}
-        >
-          <Search size={10} className="text-wm-text-muted shrink-0" />
-          <input
-            ref={symInputRef}
-            value={symbolSearch}
-            onChange={e => { setSymbolSearch(e.target.value); setSymbolOpen(true); }}
-            onFocus={() => setSymbolOpen(true)}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                // Priority: 1) built-in filtered list, 2) worldwide results, 3) raw typed symbol
-                const firstLocal = filteredSymbols[0];
-                const firstLive  = liveSymbols[0];
-                const typed      = symbolSearch.trim().toUpperCase();
-                const target     = firstLocal?.sym ?? firstLive?.sym ?? (typed || null);
-                if (target) {
-                  setSymbol(target);
-                  setSymbolOpen(false);
-                  setSymbolSearch("");
-                }
-              }
-              if (e.key === "Tab" && filteredSymbols.length > 0) {
-                e.preventDefault();
-                setSymbolSearch(filteredSymbols[0].sym);
-              }
-              if (e.key === "Escape") { setSymbolOpen(false); setSymbolSearch(""); }
-            }}
-            placeholder={symbol}
-            className="flex-1 bg-transparent text-[12px] font-black text-wm-text outline-none placeholder-wm-text-muted w-[80px]"
-            style={{ caretColor: "#4FA3E0" }}
-          />
-          {symbolSearch ? (
-            <button onClick={e => { e.stopPropagation(); setSymbolSearch(""); setSymbolOpen(false); }}>
-              <X size={10} className="text-wm-text-muted hover:text-wm-red transition-colors" />
-            </button>
-          ) : (
-            <ChevronDown size={10} className="text-wm-text-muted" />
-          )}
-        </div>
+        MEASURED at 1440x900 on 2026-09-21 (scratchpad/probe-toolbar-cut.mjs):
+        chrome above the candles was 111px — 12.3% of the glass — in exactly
+        two bands, the 79px masthead and this 32px row. With the row gone the
+        stack is 79px / 8.8%, under the canon frame's own 9.77%.
 
-        {symbolOpen && (() => {
-          const r = symRef.current?.getBoundingClientRect();
-          return (
-          <div style={{
-            position:"fixed", top:(r?.bottom ?? 36)+4, left:r?.left ?? 0,
-            zIndex:9999, width:360,
-            background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
-            borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
-            overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:460,
-          }}>
+        THE FOUR CONTROLS ARE REHOMED, NOT DELETED. Asset class, the symbol
+        search, the trading-hours select and Indicators are byte-for-byte the
+        controls that were in the row — same handlers, same local state, same
+        accessible names — now mounted at the TOP of the equipment drawer the
+        masthead's Tools door already opens. That door's `Chart tools` tile
+        printed the hint "Open in this room" while opening a drawer that held
+        none of the chart's market controls; it does now.
 
-            {/* Top-match autofill hint */}
-            {symbolSearch && filteredSymbols.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-wm-blue/10 border-b border-wm-blue/20 shrink-0">
-                <span className="text-[12px] text-wm-blue font-bold">{filteredSymbols[0].sym}</span>
-                <span className="text-[12px] text-wm-text-dim truncate flex-1">{filteredSymbols[0].name}</span>
-                <span className="text-[11px] text-wm-blue/60">Tab to fill · ↵ to select</span>
-              </div>
-            )}
+        WHY THE TOP OF THE DRAWER, above `profilesSlot`. Which instrument is
+        on the glass outranks which profile is drawn on it: a trader who opens
+        this drawer to change symbol must not scroll past a catalogue first.
 
-            {/* category tabs */}
-            <div className="flex gap-1 px-2 py-1.5 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth:"none" }}>
-              {SYM_CATS.map(c => (
-                <button key={c} onClick={() => setSymCat(c)}
-                  className={clsx(
-                    "px-2.5 py-0.5 rounded-full text-[12px] font-bold whitespace-nowrap transition-all border",
-                    symCat === c
-                      ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40"
-                      : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-                  )}>
-                  {c}
-                </button>
-              ))}
-            </div>
-
-            {/* results */}
-            <div className="overflow-y-auto flex-1" style={{ scrollbarWidth:"thin" }}>
-              {liveSearching && (
-                <div className="px-3 py-1 flex items-center gap-2 border-b border-wm-border/50">
-                  {/* §9 COLOR LAW: this pulse is HONEST — it is gated on
-                      `liveSearching`, so it reports a request genuinely in
-                      flight. Only the colour was wrong. A search that has not
-                      returned is a PENDING state, and §9 assigns pending to
-                      amber with a word beside it; green said "resolved, and
-                      resolved well" about an answer that had not arrived. */}
-                  <div className="w-2 h-2 rounded-full bg-[#F0B429] animate-pulse" />
-                  <span className="text-[11px] text-wm-text-dim">Searching all global markets…</span>
-                </div>
-              )}
-              {/* A failure to ASK is reported even when built-in rows matched,
-                  because otherwise a partial list looks like a complete one. */}
-              {liveFailure && !liveSearching && (
-                <div className="px-3 py-2 border-b border-wm-border/60 text-[11px] leading-relaxed" style={{ color:"#F0B429" }}>
-                  Worldwide search unavailable — showing built-in symbols only. {liveFailure}
-                </div>
-              )}
-              {filteredSymbols.length === 0 && liveSymbols.length === 0 && !liveSearching ? (
-                <div className="px-4 py-8 text-center">
-                  {/* Two different sentences, because the trader's next move
-                      after them is different. "No results" is a claim about the
-                      MARKET; it may only be made when the market was asked. */}
-                  <div className="text-wm-text-muted text-xs">
-                    {liveFailure
-                      ? <>No built-in symbol matches &ldquo;{symbolSearch}&rdquo;</>
-                      : <>No results for &ldquo;{symbolSearch}&rdquo;</>}
-                  </div>
-                  {!liveFailure && (
-                    <div className="text-wm-text-dim text-[12px] mt-1">Global markets searched.</div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {filteredSymbols.map(s => (
-                    <SymbolRow key={s.sym} s={s} symbol={symbol} onSelect={() => { setSymbol(s.sym); setSymbolOpen(false); setSymbolSearch(""); setSymCat("All"); }} />
-                  ))}
-                  {liveSymbols.length > 0 && (
-                    <>
-                      {filteredSymbols.length > 0 && (
-                        <div className="px-3 py-1 text-[11px] text-wm-text-dim border-t border-wm-border/40 bg-wm-dark/50">
-                          Global results
-                        </div>
-                      )}
-                      {liveSymbols.map((s, i) => (
-                        <SymbolRow key={`live-${s.sym}-${i}`} s={s} symbol={symbol} onSelect={() => { setSymbol(s.sym); setSymbolOpen(false); setSymbolSearch(""); setSymCat("All"); }} />
-                      ))}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* footer */}
-            <div className="px-3 py-1.5 border-t border-wm-border bg-wm-dark shrink-0 flex items-center justify-between">
-              <span className="text-[11px] text-wm-text-dim">
-                {/* The reach claim is CONDITIONAL. "search any symbol
-                    worldwide" was printed unconditionally while the vendor
-                    behind it answered NOT CONFIGURED on every query. */}
-                {filteredSymbols.length + liveSymbols.length} results · {liveFailure
-                  ? "built-in list only"
-                  : "search any symbol worldwide"}
-              </span>
-              <span className="text-[11px] text-wm-text-dim">↵ to select first result</span>
-            </div>
-          </div>
-          );
-        })()}
-      </div>
+        THE SYMBOL DID NOT VANISH WITH THE ROW. The search input's placeholder
+        was one of only two places the instrument's name was printed. Before
+        this cut, `MainChart` gained a `[data-chart-identity]` node inside the
+        candle pane (commit f5af0582) — MEASURED at (12,116) 57x18 reading
+        `NQ1! · 5m` both before and after this change. */}
 
       {/* ══ Timeframes — MOVED TO THE GLASS (2026-09-21) ═════
           Canon F24 draws one bordered timeframe chip at BOTTOM CENTER of the
@@ -1052,275 +910,6 @@ export function ChartToolbar({
           from the right, so the row rendered `1m 2m` and then stopped. Seven
           of the nine timeframes were behind an invisible scroller. The chip
           is centred on its own layer and cannot be clipped by either. */}
-      <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
-
-      {/* ══ Extended Hours dropdown ═════════════════════════ */}
-      <select
-        value={extendedHours ? "eth" : "rth"}
-        onChange={e => setExtendedHours(e.target.value === "eth")}
-        title="Regular vs Extended Trading Hours"
-        className="h-6 px-1.5 rounded text-[11px] font-semibold shrink-0 cursor-pointer outline-none"
-        style={{
-          background: extendedHours ? "rgba(240,180,41,0.12)" : "rgba(255,255,255,0.04)",
-          border: `1px solid ${extendedHours ? "rgba(240,180,41,0.35)" : "#1E2030"}`,
-          color: extendedHours ? "#F0B429" : "#8B8FA8",
-        }}
-      >
-        <option value="rth">RTH — Regular Hours</option>
-        <option value="eth">ETH — Extended Hours</option>
-      </select>
-
-      <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
-
-      {/* ══ Indicators ══════════════════════════════════════ */}
-      <div className="relative shrink-0" ref={indRef}>
-        <button
-          onClick={() => setIndicatorOpen(o => !o)}
-          className={clsx(
-            "flex items-center gap-1.5 px-2 h-6 rounded text-[11px] transition-colors border",
-            indicatorOpen
-              ? "bg-wm-surface text-wm-text border-wm-border"
-              : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-          )}
-          title="Indicators">
-          <BarChart2 size={12} />
-          <span>Indicators</span>
-          {activeInds.size > 0 && (
-            <span className="px-1.5 rounded-full bg-wm-green/25 text-wm-green text-[11px] font-black">
-              {activeInds.size}
-            </span>
-          )}
-        </button>
-
-        {indicatorOpen && (() => {
-          const r = indRef.current?.getBoundingClientRect();
-          return (
-          <div style={{
-            // Anchored to its trigger with a fixed 420px width, this popover
-            // ran ~130px off the right edge at a 390px viewport, hiding the
-            // right-hand controls of the Indicators picker. Clamp the width to
-            // the viewport and pull the left edge back when it would overflow,
-            // never past the 8px gutter. Desktop layout is unchanged.
-            position:"fixed", top:(r?.bottom ?? 36)+4,
-            left:`max(8px, min(${r?.left ?? 0}px, calc(100vw - 428px)))`,
-            zIndex:9999, width:"min(420px, calc(100vw - 16px))",
-            background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
-            borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
-            overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:520,
-          }}>
-
-            {/* header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-wm-border shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-black text-wm-text">Indicators</span>
-                <span className="text-[12px] text-wm-text-dim">({INDICATORS.length} total)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFavsOnly(v => !v)}
-                  className={clsx(
-                    "flex items-center gap-1 px-2 py-0.5 rounded text-[12px] font-semibold transition-all border",
-                    showFavsOnly ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:text-wm-text"
-                  )}>
-                  <Star size={10} /> Favorites
-                </button>
-                <button onClick={() => setIndicatorOpen(false)}>
-                  <X size={13} className="text-wm-text-muted hover:text-wm-text" />
-                </button>
-              </div>
-            </div>
-
-            {/* search */}
-            <div className="px-2 py-1.5 border-b border-wm-border shrink-0">
-              <div className="flex items-center gap-2 bg-wm-surface rounded-lg px-2.5 py-1.5 border border-wm-border focus-within:border-wm-blue/50 transition-colors">
-                <Search size={11} className="text-wm-text-muted shrink-0" />
-                <input
-                  autoFocus
-                  value={indSearch}
-                  onChange={e => setIndSearch(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Escape") { setIndSearch(""); setIndicatorOpen(false); }
-                    if (e.key === "Enter" && filteredInds.length > 0) { toggleIndicator(filteredInds[0].name); }
-                    if (e.key === "Tab" && filteredInds.length > 0) { e.preventDefault(); setIndSearch(filteredInds[0].name); }
-                  }}
-                  placeholder={`Search ${INDICATORS.length} indicators…  ↵ toggle top match`}
-                  className="flex-1 bg-transparent text-[11px] text-wm-text outline-none placeholder-wm-text-dim"
-                  style={{ caretColor: "#00D4AA" }}
-                />
-                {indSearch && (
-                  <button onClick={() => setIndSearch("")}>
-                    <X size={10} className="text-wm-text-muted hover:text-wm-text" />
-                  </button>
-                )}
-              </div>
-              {/* Autofill hint */}
-              {indSearch && filteredInds.length > 0 && (
-                <div className="flex items-center gap-2 mt-1 px-1">
-                  <span className="text-[11px] text-wm-green font-semibold truncate">{filteredInds[0].name}</span>
-                  <span className="text-[11px] text-wm-text-dim">— {filteredInds[0].cat}</span>
-                  <span className="ml-auto text-[10px] text-wm-text-dim">Tab=fill · ↵=toggle</span>
-                </div>
-              )}
-            </div>
-
-            {/* category tabs */}
-            <div className="flex gap-1 px-2 py-1 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth:"none" }}>
-              {IND_CATS.map(c => {
-                const isOF = c === "Order Flow";
-                const active = indCat === c;
-                return (
-                  <button key={c} onClick={() => setIndCat(c)}
-                    className={clsx(
-                      "px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border",
-                      active
-                        ? isOF
-                          ? "bg-wm-green/25 text-wm-green border-wm-green/50"
-                          : "bg-wm-green/20 text-wm-green border-wm-green/40"
-                        : isOF
-                          ? "text-wm-green/70 hover:text-wm-green hover:bg-wm-surface border-transparent"
-                          : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-                    )}>
-                    {isOF ? "⚡ Order Flow" : c}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* list */}
-            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
-              {filteredInds.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <div className="text-wm-text-muted text-xs">No indicators match "{indSearch}"</div>
-                  <div className="text-wm-text-dim text-[12px] mt-1">Try "VWAP", "RSI", "volume", etc.</div>
-                </div>
-              ) : filteredInds.map(ind => {
-                const on  = activeInds.has(ind.name);
-                const fav = favorites.has(ind.name);
-                const showDesc = descOpen.has(ind.name);
-                return (
-                  <React.Fragment key={ind.name}>
-                  <div
-                    onClick={() => toggleIndicator(ind.name)}
-                    className="flex items-center gap-2.5 px-3 py-2 hover:bg-wm-surface/60 cursor-pointer transition-colors group border-b border-wm-border/20"
-                  >
-                    {/* toggle switch */}
-                    <div className={clsx(
-                      "w-8 h-4 rounded-full transition-all shrink-0 relative border",
-                      on ? "bg-wm-green/30 border-wm-green/60" : "bg-wm-surface border-wm-border"
-                    )}>
-                      <div className={clsx(
-                        "absolute top-0.5 w-3 h-3 rounded-full transition-all",
-                        on ? "left-[18px] bg-wm-green" : "left-0.5 bg-wm-text-dim"
-                      )} />
-                    </div>
-
-                    {/* text */}
-                    <div className="flex-1 min-w-0">
-                      <div className={clsx("text-[11px] font-semibold truncate", on ? "text-wm-text" : "text-wm-text-muted")}>
-                        {ind.name}
-                      </div>
-                      <div className="text-[11px] text-wm-text-dim truncate">{ind.desc}</div>
-                    </div>
-
-                    {/* category badge */}
-                    <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block">{ind.cat}</span>
-
-                    {/* description "?" — opens an info panel below the row */}
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        setDescOpen(prev => {
-                          const next = new Set(prev);
-                          next.has(ind.name) ? next.delete(ind.name) : next.add(ind.name);
-                          return next;
-                        });
-                      }}
-                      title="Show description"
-                      className={clsx("shrink-0 transition-colors", showDesc ? "text-wm-blue" : "text-wm-text-dim hover:text-wm-blue")}
-                    >
-                      <HelpCircle size={11} />
-                    </button>
-
-                    {/* settings gear — only for configurable indicators */}
-                    {isConfigurable(ind.name) && onIndicatorSettings && (
-                      <button
-                        onClick={e => { e.stopPropagation(); onIndicatorSettings(ind.name); }}
-                        title="Indicator settings"
-                        className={clsx("shrink-0 transition-colors", on ? "text-wm-blue hover:text-wm-text" : "text-wm-text-dim hover:text-wm-text")}
-                      >
-                        <Settings size={11} />
-                      </button>
-                    )}
-
-                    {/* favorite star */}
-                    <button
-                      onClick={e => toggleFavorite(e, ind.name)}
-                      className={clsx("shrink-0 transition-colors", fav ? "text-wm-gold" : "text-wm-text-dim hover:text-wm-gold")}
-                    >
-                      <Star size={11} fill={fav ? "currentColor" : "none"} />
-                    </button>
-                  </div>
-
-                  {/* Expanded description panel — opened by the "?" button.
-                      Rich TradingView-style sections (Definition / Calculation /
-                      How to use / What to look for / Summary). */}
-                  {showDesc && (() => {
-                    const info = getIndicatorInfo(ind.name, ind.cat, ind.desc);
-                    const Section = ({ label, body }: { label: string; body: string }) => (
-                      <div className="mb-2.5 last:mb-0">
-                        <div className="text-[9px] font-bold uppercase tracking-wider text-wm-blue mb-0.5">{label}</div>
-                        <p className="text-[11px] text-wm-text-muted leading-relaxed">{body}</p>
-                      </div>
-                    );
-                    return (
-                      <div className="px-4 py-3 bg-wm-surface/40 border-b border-wm-blue/30 max-h-[320px] overflow-y-auto"
-                        style={{ borderLeft: "2px solid #4FA3E0" }}>
-                        <div className="flex items-center gap-2 mb-2 sticky top-0">
-                          <HelpCircle size={12} className="text-wm-blue shrink-0" />
-                          <span className="text-[12px] font-bold text-wm-text">{ind.name}</span>
-                          <span className="text-[9px] text-wm-text-dim px-1.5 py-0.5 rounded bg-wm-surface">{ind.cat}</span>
-                        </div>
-                        <Section label="Definition"        body={info.definition} />
-                        <Section label="Calculation"       body={info.calculation} />
-                        <Section label="How to use"        body={info.howToUse} />
-                        <Section label="What to look for"  body={info.whatToLookFor} />
-                        <Section label="Summary"           body={info.summary} />
-                      </div>
-                    );
-                  })()}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-
-            {/* footer */}
-            <div className="px-3 py-2 border-t border-wm-border bg-wm-dark shrink-0 flex items-center justify-between">
-              <span className="text-[11px] text-wm-text-dim">
-                {filteredInds.length} shown · {activeInds.size} active
-              </span>
-              <div className="flex items-center gap-3">
-                {onCommunity && (
-                  <button onClick={() => { setIndicatorOpen(false); onCommunity(); }}
-                    className="text-[12px] text-wm-blue hover:text-wm-text font-semibold transition-colors">
-                    📚 Community
-                  </button>
-                )}
-                <button onClick={() => { setIndicatorOpen(false); onPineScript(); }}
-                  className="text-[12px] text-wm-purple hover:text-wm-text font-semibold transition-colors">
-                  ƒ Pine Script →
-                </button>
-              </div>
-            </div>
-          </div>
-          );
-        })()}
-      </div>
-
-      <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
-
-      <div className="ml-auto" />
-
-    </div>
 
     {/* ══ THE EQUIPMENT DRAWER — WHERE THE PINNED CLUSTER WENT ═══════════
         Everything below this line used to be `.wm-chart-toolbar-pinned`: a
@@ -1352,13 +941,460 @@ export function ChartToolbar({
         titleId="chart-equipment-sheet-title"
         descriptionId="chart-equipment-sheet-description"
         title="Chart tools"
-        description="Profiles, how the book is arranged, appearance, Smart Money, and the chart's own menu. The chart stays loaded underneath."
+        // The description IS the drawer's accessible description, so it has to
+        // enumerate what is actually behind the door. Four controls arrived
+        // here on 2026-09-21 (D-702) — asset class, symbol, trading hours,
+        // indicators — and a description that still listed only profiles and
+        // appearance would tell a screen-reader user the symbol picker is
+        // somewhere else on a page where it no longer is.
+        description="Symbol, asset class, trading hours, indicators, profiles, how the book is arranged, appearance, Smart Money, and the chart's own menu. The chart stays loaded underneath."
         closeLabel="Close chart tools"
         width={420}
         onClose={onEquipmentClose}
         fallbackTriggerRef={equipmentFallbackRef}
       >
       <div className="flex flex-col gap-3 p-3">
+        {/* ══ THE MARKET CONTROLS — what the band used to hold ════════════
+            One wrapping flex group, not a scroller. The row they came from
+            was `overflow-x: auto` with `scrollbarWidth: "none"`, which is how
+            controls in it became unreachable; nothing that wraps can hide a
+            control off an edge. Every popover below is plain JSX inside this
+            drawer's DOM subtree, so `ShellModalDrawer`'s focus trap contains
+            them — the defect the drawer comment below warns about. */}
+        <div className="wm-chart-equipment-market flex flex-wrap items-center gap-2">
+          {leadingSlot}
+
+          {/* ══ Symbol Search — inline autocomplete ════════════ */}
+          <div className="wm-chart-symbol-search relative shrink-0" ref={symRef}>
+            {/* Always-visible input box that IS the search */}
+            <div
+              className="flex items-center gap-1.5 px-2 h-7 rounded bg-wm-surface border border-wm-border focus-within:border-wm-blue/50 transition-colors min-w-[130px] cursor-text"
+              onClick={() => { setSymbolOpen(true); symInputRef.current?.focus(); }}
+            >
+              <Search size={10} className="text-wm-text-muted shrink-0" />
+              <input
+                ref={symInputRef}
+                value={symbolSearch}
+                onChange={e => { setSymbolSearch(e.target.value); setSymbolOpen(true); }}
+                onFocus={() => setSymbolOpen(true)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    // Priority: 1) built-in filtered list, 2) worldwide results, 3) raw typed symbol
+                    const firstLocal = filteredSymbols[0];
+                    const firstLive  = liveSymbols[0];
+                    const typed      = symbolSearch.trim().toUpperCase();
+                    const target     = firstLocal?.sym ?? firstLive?.sym ?? (typed || null);
+                    if (target) {
+                      setSymbol(target);
+                      setSymbolOpen(false);
+                      setSymbolSearch("");
+                    }
+                  }
+                  if (e.key === "Tab" && filteredSymbols.length > 0) {
+                    e.preventDefault();
+                    setSymbolSearch(filteredSymbols[0].sym);
+                  }
+                  // ESCAPE DISMISSES THE INNERMOST SURFACE, NOT THE ROOM.
+                  //
+                  // MEASURED 2026-09-21 after this control moved into the
+                  // equipment drawer (scratchpad/p-trap.mjs): one Escape with
+                  // the symbol list open closed the LIST **and the DRAWER**,
+                  // because `ShellModalDrawer`'s panel `onKeyDown`
+                  // (`useShellModalFocus`) is a bubbling React handler and
+                  // this branch did not stop. In the old 32px band no ancestor
+                  // was listening, so the key was free; here, cancelling a
+                  // symbol lookup also threw away the trader's place. Stopping
+                  // propagation is what lets the two Escapes mean two
+                  // different things — a SECOND press still closes the drawer,
+                  // because by then this branch no longer fires.
+                  if (e.key === "Escape") { e.stopPropagation(); setSymbolOpen(false); setSymbolSearch(""); }
+                }}
+                placeholder={symbol}
+                className="flex-1 bg-transparent text-[12px] font-black text-wm-text outline-none placeholder-wm-text-muted w-[80px]"
+                style={{ caretColor: "#4FA3E0" }}
+              />
+              {symbolSearch ? (
+                <button onClick={e => { e.stopPropagation(); setSymbolSearch(""); setSymbolOpen(false); }}>
+                  <X size={10} className="text-wm-text-muted hover:text-wm-red transition-colors" />
+                </button>
+              ) : (
+                <ChevronDown size={10} className="text-wm-text-muted" />
+              )}
+            </div>
+
+            {symbolOpen && (() => {
+              const r = symRef.current?.getBoundingClientRect();
+              return (
+              <div style={{
+                position:"fixed", top:(r?.bottom ?? 36)+4, left:r?.left ?? 0,
+                zIndex:9999, width:360,
+                background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
+                borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
+                overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:460,
+              }}>
+
+                {/* Top-match autofill hint */}
+                {symbolSearch && filteredSymbols.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-wm-blue/10 border-b border-wm-blue/20 shrink-0">
+                    <span className="text-[12px] text-wm-blue font-bold">{filteredSymbols[0].sym}</span>
+                    <span className="text-[12px] text-wm-text-dim truncate flex-1">{filteredSymbols[0].name}</span>
+                    <span className="text-[11px] text-wm-blue/60">Tab to fill · ↵ to select</span>
+                  </div>
+                )}
+
+                {/* category tabs */}
+                <div className="flex gap-1 px-2 py-1.5 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth:"none" }}>
+                  {SYM_CATS.map(c => (
+                    <button key={c} onClick={() => setSymCat(c)}
+                      className={clsx(
+                        "px-2.5 py-0.5 rounded-full text-[12px] font-bold whitespace-nowrap transition-all border",
+                        symCat === c
+                          ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40"
+                          : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
+                      )}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+
+                {/* results */}
+                <div className="overflow-y-auto flex-1" style={{ scrollbarWidth:"thin" }}>
+                  {liveSearching && (
+                    <div className="px-3 py-1 flex items-center gap-2 border-b border-wm-border/50">
+                      {/* §9 COLOR LAW: this pulse is HONEST — it is gated on
+                          `liveSearching`, so it reports a request genuinely in
+                          flight. Only the colour was wrong. A search that has not
+                          returned is a PENDING state, and §9 assigns pending to
+                          amber with a word beside it; green said "resolved, and
+                          resolved well" about an answer that had not arrived. */}
+                      <div className="w-2 h-2 rounded-full bg-[#F0B429] animate-pulse" />
+                      <span className="text-[11px] text-wm-text-dim">Searching all global markets…</span>
+                    </div>
+                  )}
+                  {/* A failure to ASK is reported even when built-in rows matched,
+                      because otherwise a partial list looks like a complete one. */}
+                  {liveFailure && !liveSearching && (
+                    <div className="px-3 py-2 border-b border-wm-border/60 text-[11px] leading-relaxed" style={{ color:"#F0B429" }}>
+                      Worldwide search unavailable — showing built-in symbols only. {liveFailure}
+                    </div>
+                  )}
+                  {filteredSymbols.length === 0 && liveSymbols.length === 0 && !liveSearching ? (
+                    <div className="px-4 py-8 text-center">
+                      {/* Two different sentences, because the trader's next move
+                          after them is different. "No results" is a claim about the
+                          MARKET; it may only be made when the market was asked. */}
+                      <div className="text-wm-text-muted text-xs">
+                        {liveFailure
+                          ? <>No built-in symbol matches &ldquo;{symbolSearch}&rdquo;</>
+                          : <>No results for &ldquo;{symbolSearch}&rdquo;</>}
+                      </div>
+                      {!liveFailure && (
+                        <div className="text-wm-text-dim text-[12px] mt-1">Global markets searched.</div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {filteredSymbols.map(s => (
+                        <SymbolRow key={s.sym} s={s} symbol={symbol} onSelect={() => { setSymbol(s.sym); setSymbolOpen(false); setSymbolSearch(""); setSymCat("All"); }} />
+                      ))}
+                      {liveSymbols.length > 0 && (
+                        <>
+                          {filteredSymbols.length > 0 && (
+                            <div className="px-3 py-1 text-[11px] text-wm-text-dim border-t border-wm-border/40 bg-wm-dark/50">
+                              Global results
+                            </div>
+                          )}
+                          {liveSymbols.map((s, i) => (
+                            <SymbolRow key={`live-${s.sym}-${i}`} s={s} symbol={symbol} onSelect={() => { setSymbol(s.sym); setSymbolOpen(false); setSymbolSearch(""); setSymCat("All"); }} />
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* footer */}
+                <div className="px-3 py-1.5 border-t border-wm-border bg-wm-dark shrink-0 flex items-center justify-between">
+                  <span className="text-[11px] text-wm-text-dim">
+                    {/* The reach claim is CONDITIONAL. "search any symbol
+                        worldwide" was printed unconditionally while the vendor
+                        behind it answered NOT CONFIGURED on every query. */}
+                    {filteredSymbols.length + liveSymbols.length} results · {liveFailure
+                      ? "built-in list only"
+                      : "search any symbol worldwide"}
+                  </span>
+                  <span className="text-[11px] text-wm-text-dim">↵ to select first result</span>
+                </div>
+              </div>
+              );
+            })()}
+          </div>
+
+          {/* ══ Extended Hours dropdown ═════════════════════════ */}
+          <select
+            value={extendedHours ? "eth" : "rth"}
+            onChange={e => setExtendedHours(e.target.value === "eth")}
+            title="Regular vs Extended Trading Hours"
+            className="h-6 px-1.5 rounded text-[11px] font-semibold shrink-0 cursor-pointer outline-none"
+            style={{
+              background: extendedHours ? "rgba(240,180,41,0.12)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${extendedHours ? "rgba(240,180,41,0.35)" : "#1E2030"}`,
+              color: extendedHours ? "#F0B429" : "#8B8FA8",
+            }}
+          >
+            <option value="rth">RTH — Regular Hours</option>
+            <option value="eth">ETH — Extended Hours</option>
+          </select>
+
+          {/* ══ Indicators ══════════════════════════════════════ */}
+          <div className="relative shrink-0" ref={indRef}>
+            <button
+              onClick={() => setIndicatorOpen(o => !o)}
+              className={clsx(
+                "flex items-center gap-1.5 px-2 h-6 rounded text-[11px] transition-colors border",
+                indicatorOpen
+                  ? "bg-wm-surface text-wm-text border-wm-border"
+                  : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
+              )}
+              title="Indicators">
+              <BarChart2 size={12} />
+              <span>Indicators</span>
+              {activeInds.size > 0 && (
+                <span className="px-1.5 rounded-full bg-wm-green/25 text-wm-green text-[11px] font-black">
+                  {activeInds.size}
+                </span>
+              )}
+            </button>
+
+            {indicatorOpen && (() => {
+              const r = indRef.current?.getBoundingClientRect();
+              return (
+              <div style={{
+                // Anchored to its trigger with a fixed 420px width, this popover
+                // ran ~130px off the right edge at a 390px viewport, hiding the
+                // right-hand controls of the Indicators picker. Clamp the width to
+                // the viewport and pull the left edge back when it would overflow,
+                // never past the 8px gutter. Desktop layout is unchanged.
+                position:"fixed", top:(r?.bottom ?? 36)+4,
+                left:`max(8px, min(${r?.left ?? 0}px, calc(100vw - 428px)))`,
+                zIndex:9999, width:"min(420px, calc(100vw - 16px))",
+                background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
+                borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
+                overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:520,
+              }}>
+
+                {/* header */}
+                <div className="flex items-center justify-between px-3 py-2 border-b border-wm-border shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] font-black text-wm-text">Indicators</span>
+                    <span className="text-[12px] text-wm-text-dim">({INDICATORS.length} total)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowFavsOnly(v => !v)}
+                      className={clsx(
+                        "flex items-center gap-1 px-2 py-0.5 rounded text-[12px] font-semibold transition-all border",
+                        showFavsOnly ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:text-wm-text"
+                      )}>
+                      <Star size={10} /> Favorites
+                    </button>
+                    <button onClick={() => setIndicatorOpen(false)}>
+                      <X size={13} className="text-wm-text-muted hover:text-wm-text" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* search */}
+                <div className="px-2 py-1.5 border-b border-wm-border shrink-0">
+                  <div className="flex items-center gap-2 bg-wm-surface rounded-lg px-2.5 py-1.5 border border-wm-border focus-within:border-wm-blue/50 transition-colors">
+                    <Search size={11} className="text-wm-text-muted shrink-0" />
+                    <input
+                      autoFocus
+                      value={indSearch}
+                      onChange={e => setIndSearch(e.target.value)}
+                      onKeyDown={e => {
+                        // Same reason as the symbol input above: this popover
+                        // now opens INSIDE the equipment drawer, and an Escape
+                        // that reaches the drawer's panel handler closes the
+                        // room as well as the picker.
+                        if (e.key === "Escape") { e.stopPropagation(); setIndSearch(""); setIndicatorOpen(false); }
+                        if (e.key === "Enter" && filteredInds.length > 0) { toggleIndicator(filteredInds[0].name); }
+                        if (e.key === "Tab" && filteredInds.length > 0) { e.preventDefault(); setIndSearch(filteredInds[0].name); }
+                      }}
+                      placeholder={`Search ${INDICATORS.length} indicators…  ↵ toggle top match`}
+                      className="flex-1 bg-transparent text-[11px] text-wm-text outline-none placeholder-wm-text-dim"
+                      style={{ caretColor: "#00D4AA" }}
+                    />
+                    {indSearch && (
+                      <button onClick={() => setIndSearch("")}>
+                        <X size={10} className="text-wm-text-muted hover:text-wm-text" />
+                      </button>
+                    )}
+                  </div>
+                  {/* Autofill hint */}
+                  {indSearch && filteredInds.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1 px-1">
+                      <span className="text-[11px] text-wm-green font-semibold truncate">{filteredInds[0].name}</span>
+                      <span className="text-[11px] text-wm-text-dim">— {filteredInds[0].cat}</span>
+                      <span className="ml-auto text-[10px] text-wm-text-dim">Tab=fill · ↵=toggle</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* category tabs */}
+                <div className="flex gap-1 px-2 py-1 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth:"none" }}>
+                  {IND_CATS.map(c => {
+                    const isOF = c === "Order Flow";
+                    const active = indCat === c;
+                    return (
+                      <button key={c} onClick={() => setIndCat(c)}
+                        className={clsx(
+                          "px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border",
+                          active
+                            ? isOF
+                              ? "bg-wm-green/25 text-wm-green border-wm-green/50"
+                              : "bg-wm-green/20 text-wm-green border-wm-green/40"
+                            : isOF
+                              ? "text-wm-green/70 hover:text-wm-green hover:bg-wm-surface border-transparent"
+                              : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
+                        )}>
+                        {isOF ? "⚡ Order Flow" : c}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* list */}
+                <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
+                  {filteredInds.length === 0 ? (
+                    <div className="px-4 py-8 text-center">
+                      <div className="text-wm-text-muted text-xs">No indicators match "{indSearch}"</div>
+                      <div className="text-wm-text-dim text-[12px] mt-1">Try "VWAP", "RSI", "volume", etc.</div>
+                    </div>
+                  ) : filteredInds.map(ind => {
+                    const on  = activeInds.has(ind.name);
+                    const fav = favorites.has(ind.name);
+                    const showDesc = descOpen.has(ind.name);
+                    return (
+                      <React.Fragment key={ind.name}>
+                      <div
+                        onClick={() => toggleIndicator(ind.name)}
+                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-wm-surface/60 cursor-pointer transition-colors group border-b border-wm-border/20"
+                      >
+                        {/* toggle switch */}
+                        <div className={clsx(
+                          "w-8 h-4 rounded-full transition-all shrink-0 relative border",
+                          on ? "bg-wm-green/30 border-wm-green/60" : "bg-wm-surface border-wm-border"
+                        )}>
+                          <div className={clsx(
+                            "absolute top-0.5 w-3 h-3 rounded-full transition-all",
+                            on ? "left-[18px] bg-wm-green" : "left-0.5 bg-wm-text-dim"
+                          )} />
+                        </div>
+
+                        {/* text */}
+                        <div className="flex-1 min-w-0">
+                          <div className={clsx("text-[11px] font-semibold truncate", on ? "text-wm-text" : "text-wm-text-muted")}>
+                            {ind.name}
+                          </div>
+                          <div className="text-[11px] text-wm-text-dim truncate">{ind.desc}</div>
+                        </div>
+
+                        {/* category badge */}
+                        <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block">{ind.cat}</span>
+
+                        {/* description "?" — opens an info panel below the row */}
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setDescOpen(prev => {
+                              const next = new Set(prev);
+                              next.has(ind.name) ? next.delete(ind.name) : next.add(ind.name);
+                              return next;
+                            });
+                          }}
+                          title="Show description"
+                          className={clsx("shrink-0 transition-colors", showDesc ? "text-wm-blue" : "text-wm-text-dim hover:text-wm-blue")}
+                        >
+                          <HelpCircle size={11} />
+                        </button>
+
+                        {/* settings gear — only for configurable indicators */}
+                        {isConfigurable(ind.name) && onIndicatorSettings && (
+                          <button
+                            onClick={e => { e.stopPropagation(); onIndicatorSettings(ind.name); }}
+                            title="Indicator settings"
+                            className={clsx("shrink-0 transition-colors", on ? "text-wm-blue hover:text-wm-text" : "text-wm-text-dim hover:text-wm-text")}
+                          >
+                            <Settings size={11} />
+                          </button>
+                        )}
+
+                        {/* favorite star */}
+                        <button
+                          onClick={e => toggleFavorite(e, ind.name)}
+                          className={clsx("shrink-0 transition-colors", fav ? "text-wm-gold" : "text-wm-text-dim hover:text-wm-gold")}
+                        >
+                          <Star size={11} fill={fav ? "currentColor" : "none"} />
+                        </button>
+                      </div>
+
+                      {/* Expanded description panel — opened by the "?" button.
+                          Rich TradingView-style sections (Definition / Calculation /
+                          How to use / What to look for / Summary). */}
+                      {showDesc && (() => {
+                        const info = getIndicatorInfo(ind.name, ind.cat, ind.desc);
+                        const Section = ({ label, body }: { label: string; body: string }) => (
+                          <div className="mb-2.5 last:mb-0">
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-wm-blue mb-0.5">{label}</div>
+                            <p className="text-[11px] text-wm-text-muted leading-relaxed">{body}</p>
+                          </div>
+                        );
+                        return (
+                          <div className="px-4 py-3 bg-wm-surface/40 border-b border-wm-blue/30 max-h-[320px] overflow-y-auto"
+                            style={{ borderLeft: "2px solid #4FA3E0" }}>
+                            <div className="flex items-center gap-2 mb-2 sticky top-0">
+                              <HelpCircle size={12} className="text-wm-blue shrink-0" />
+                              <span className="text-[12px] font-bold text-wm-text">{ind.name}</span>
+                              <span className="text-[9px] text-wm-text-dim px-1.5 py-0.5 rounded bg-wm-surface">{ind.cat}</span>
+                            </div>
+                            <Section label="Definition"        body={info.definition} />
+                            <Section label="Calculation"       body={info.calculation} />
+                            <Section label="How to use"        body={info.howToUse} />
+                            <Section label="What to look for"  body={info.whatToLookFor} />
+                            <Section label="Summary"           body={info.summary} />
+                          </div>
+                        );
+                      })()}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+
+                {/* footer */}
+                <div className="px-3 py-2 border-t border-wm-border bg-wm-dark shrink-0 flex items-center justify-between">
+                  <span className="text-[11px] text-wm-text-dim">
+                    {filteredInds.length} shown · {activeInds.size} active
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {onCommunity && (
+                      <button onClick={() => { setIndicatorOpen(false); onCommunity(); }}
+                        className="text-[12px] text-wm-blue hover:text-wm-text font-semibold transition-colors">
+                        📚 Community
+                      </button>
+                    )}
+                    <button onClick={() => { setIndicatorOpen(false); onPineScript(); }}
+                      className="text-[12px] text-wm-purple hover:text-wm-text font-semibold transition-colors">
+                      ƒ Pine Script →
+                    </button>
+                  </div>
+                </div>
+              </div>
+              );
+            })()}
+          </div>
+        </div>
+
         {/* The one door in front of every profile this product owns. FIRST in
             the drawer for the reason given on `profilesSlot`: a catalogue
             behind a closed lid catalogues nothing, and a catalogue below the

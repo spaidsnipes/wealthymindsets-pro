@@ -120,8 +120,22 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
       .toEqual([]);
   });
 
+  // ── RE-AIMED 2026-09-21 (D-702) · ChartToolbar LEFT THIS TABLE ───────────
+  //
+  // `["ChartToolbar.tsx", "the 32px tool band above MARKET"]` was the first
+  // row here. The requirement it encoded was "the band above MARKET is glass,
+  // not an opaque lid". THERE IS NO BAND ABOVE MARKET ANY MORE — canon F24
+  // draws masthead, then candles, and MEASURED at 1440x900 the row cost 32 of
+  // the 111px of chrome above the first candle.
+  //
+  // This is NOT a file dropping out of a gate. Glass-versus-lid was only ever
+  // the second-best outcome; zero pixels is the first. The row is replaced
+  // below by a case that asserts the band is ABSENT from the markup AND the
+  // stylesheet — which no amount of `wm-room-chrome` can satisfy, and which
+  // forbids every arrangement the old row permitted. The file's OTHER surfaces
+  // are still swept for opaque slabs by the case after the table, where
+  // `ChartToolbar.tsx` remains listed.
   const FRAME: Array<[string, string]> = [
-    ["ChartToolbar.tsx", "the 32px tool band above MARKET"],
     ["LeftDrawingSidebar.tsx", "the 40px drawing rail left of MARKET"],
     ["StockInfoPanel.tsx", "the info panel right of MARKET"],
     ["ChartsDashboard.tsx", "the study row and the 14px collapse strip"],
@@ -194,9 +208,61 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
       "`.wm-chart-toolbar-pinned` is back. It was a sticky 823px strip over an unscrollable " +
         "row and it covered that row's own controls; D-701 demolished it on 2026-09-21.",
     ).not.toContain("wm-chart-toolbar-pinned");
-    // The band it used to float over is still the room's glass, not a lid.
-    expect(src).toContain('className="wm-room-chrome wm-chart-toolbar');
-    // And the organs were rehomed rather than deleted.
+    // ── RE-AIMED 2026-09-21 (D-702) · THE BAND IT FLOATED OVER IS GONE TOO ──
+    //
+    // This line read `expect(src).toContain('className="wm-room-chrome
+    // wm-chart-toolbar')` — the band must be glass. D-702 removed the band.
+    // Asserting glass on a deleted element is the definition of a vacuous
+    // guard, and the only way to make it green again would be to re-render the
+    // 32px row. So the axis moves from "what colour is the band" to "there is
+    // no band", which is the stronger claim and is held in the case below.
+    //
+    // The organs were rehomed rather than deleted — unchanged.
     expect(src).toContain('id="chart-equipment-sheet"');
+  });
+
+  // ── NEW 2026-09-21 (D-702) · STRICTLY STRONGER THAN THE FRAME ROW ────────
+  //
+  // The FRAME row this replaces was satisfied by a 32px opaque-free band. This
+  // is satisfied only by NO band, at any colour, at any width, under any media
+  // query — a strict subset. Checked at BOTH ends: a class deleted from the
+  // stylesheet but left on a div, or a div deleted while the rules survive to
+  // re-dress the next one, each fail.
+  it("stands no band between the masthead and the first candle", () => {
+    const src = CODE("components/chart/ChartToolbar.tsx");
+    // ANCHOR. `""` satisfies every negative below, and `CODE()` is DERIVED —
+    // a renamed file or a broken strip regex would turn this whole case green
+    // by deleting its subject.
+    expect(src.length, "the toolbar read as empty code").toBeGreaterThan(2000);
+
+    expect(
+      src,
+      "`.wm-chart-toolbar` is back in the markup. It was a 32px full-width row " +
+        "between the OS masthead and the first candle; canon F24 draws nothing there, " +
+        "and MEASURED at 1440x900 it cost 32 of 111px of chrome above the candles.",
+    ).not.toContain("wm-chart-toolbar");
+    expect(
+      css,
+      "globals.css carries a live `.wm-chart-toolbar` rule again — a rule for the " +
+        "selector is how a deleted band comes back already styled",
+    ).not.toMatch(/\.wm-chart-toolbar\s*[,{]/);
+
+    // AND THE CAPABILITY LANDED SOMEWHERE. Without these, deleting the four
+    // controls outright would satisfy every negative above. They are named by
+    // the things only THEY can be: the asset-class slot, the symbol input's
+    // placeholder, the two trading-hours options, and the Indicators trigger.
+    expect(src).toContain("{leadingSlot}");
+    expect(src).toContain('className="wm-chart-equipment-market');
+    expect(src).toContain("placeholder={symbol}");
+    expect(src).toContain('<option value="eth">ETH — Extended Hours</option>');
+    expect(src).toContain("<span>Indicators</span>");
+    // …and they landed INSIDE the drawer, not loose in the room. A control
+    // rendered outside it would be a band again with a different class name.
+    const drawer = src.indexOf('id="chart-equipment-sheet"');
+    expect(drawer, "the equipment drawer is gone").toBeGreaterThan(-1);
+    for (const control of ["{leadingSlot}", "placeholder={symbol}", "<span>Indicators</span>"]) {
+      expect(src.indexOf(control), `${control} renders outside the equipment drawer`)
+        .toBeGreaterThan(drawer);
+    }
   });
 });

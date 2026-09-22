@@ -321,8 +321,12 @@
     background: rgba(232,185,35,.12);
   }
 
+  /* `.wm-chart-toolbar` left this list on 2026-09-21 (D-702) with the element
+     itself. It was the 32px band between the masthead and the first candle;
+     canon F24 draws nothing there. Its four controls now mount at the top of
+     the `chart-equipment-sheet` drawer. A mask/scroller rule for a selector no
+     element carries is how a deleted band comes back and looks styled. */
   .wm-chart-tabs,
-  .wm-chart-toolbar,
   .wm-chart-tools,
   .wm-journal-header {
     scrollbar-width: none;
@@ -432,14 +436,13 @@
      A dangling !important for a deleted class is how a deleted thing gets
      quietly re-added later and looks correct. */
 
-  .wm-chart-toolbar {
-    height: auto !important;
-    min-height: 88px;
-    flex-wrap: wrap;
-    align-content: stretch;
-    overflow-x: hidden !important;
-    mask-image: none !important;
-  }
+  /* THE BAND ITSELF LEFT ON 2026-09-21 (D-702), AND SO DID ITS PHONE RULE.
+     This made `.wm-chart-toolbar` wrap to 88px so its controls could not be
+     scrolled out of reach on a phone. The controls are now in the
+     `chart-equipment-sheet` drawer inside `.wm-chart-equipment-market`, which
+     wraps by default (`flex-wrap`) and is not a scroller at any width — so the
+     requirement this rule bought is now structural rather than a media query.
+     Leaving the rule behind would style a band nothing renders. */
 
   /* THE TIMEFRAMES LEFT THE TOOLBAR (2026-09-21).
      These rules used to give the nine chips their own full-width scrolling
@@ -619,11 +622,9 @@
     display: none !important;
   }
 
-  .wm-chart-toolbar {
-    height: 34px !important;
-    padding-left: 6px !important;
-    padding-right: 6px !important;
-  }
+  /* The landscape-phone 34px trim for `.wm-chart-toolbar` was deleted with the
+     band on 2026-09-21 (D-702). In landscape the band cost 34px of a 390px-tall
+     viewport; it now costs zero at every orientation. */
 
   .wm-chart-tools {
     height: 28px !important;
