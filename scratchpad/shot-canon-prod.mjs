@@ -10,7 +10,11 @@
 import { chromium } from "playwright";
 
 const BASE = "https://wealthymindsetspro.com";
-const OUT = "public/canon/os-latest.png";
+// Optional W-ALIVE mode: `node shot-canon-prod.mjs BTC` shoots the room on a
+// symbol whose tape actually speaks, into the comparator's third slot, and
+// reads the draw receipts back so the shot cannot silently show a starved W.
+const SYMBOL = process.argv[2] ?? null;
+const OUT = SYMBOL ? "public/canon/os-latest-w-live.png" : "public/canon/os-latest.png";
 
 const browser = await chromium.launch({ channel: "chrome" });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -26,19 +30,25 @@ await ctx.route("**/api/auth/me", (route) =>
   }),
 );
 const page = await ctx.newPage();
-await page.goto(`${BASE}/charts`, { waitUntil: "domcontentloaded" });
-await page.waitForTimeout(12000);
+await page.goto(`${BASE}/charts${SYMBOL ? `?symbol=${encodeURIComponent(SYMBOL)}` : ""}`, { waitUntil: "domcontentloaded" });
+// A live tape needs time to accumulate before the W layers can measure.
+await page.waitForTimeout(SYMBOL ? 25000 : 12000);
 await page.screenshot({ path: OUT });
 console.log(JSON.stringify(await page.evaluate(() => {
   const tv = document.querySelector(".tv-lightweight-charts");
   const cr = tv?.getBoundingClientRect() ?? null;
   const id = document.querySelector("[data-chart-identity]");
   const mast = document.querySelector("[data-testid='os-masthead']");
+  const receipts = {};
+  for (const c of document.querySelectorAll("canvas")) {
+    for (const [k, v] of Object.entries(c.dataset)) receipts[k] = v;
+  }
   return {
     candlesTop: cr ? Math.round(cr.top) : null,
     candlesH: cr ? Math.round(cr.height) : null,
     identity: id ? (id.innerText || "").replace(/\s+/g, " ").trim() : null,
     masthead: mast ? (mast.innerText || "").replace(/\s+/g, " ").trim() : null,
+    receipts,
   };
-})), null, 2);
+})));
 await browser.close();
