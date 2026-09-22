@@ -277,9 +277,19 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     expect(os, "the equipment rail never renders item.unbuilt").toContain("{item.unbuilt}");
     expect(os, "the disclosure is not machine-checkable on the rendered control")
       .toContain('data-equipment-unbuilt={item.unbuilt ? "true" : undefined}');
-    // It must survive being held. The hint is swapped for "Open in this room"
-    // once equipment is picked up, and the moment the panel is ON THE GLASS is
-    // precisely when "this drives nothing" matters most.
+    // It must survive being held — the hint swaps to "Open in this room" once
+    // equipment is picked up, and a disclosure that vanishes at that moment is
+    // a disclosure that leaves exactly when it is needed.
+    //
+    // MEASURED on production 2026-09-22 (deploy b2d31722): the confession IS on
+    // the glass before the press — `data-equipment-unbuilt="true"` at (10,404),
+    // 243x108, reading "Replay / Walk this market forward one bar at a time /
+    // Not wired to the chart yet — the candles keep running live", and no other
+    // equipment carried the mark. AFTER the press the rail unmounts entirely
+    // (direct equipment closes the drawer), so the held state is not observable
+    // at runtime and the panel's own text is the second line of defence. This
+    // ordering rule is kept anyway: it costs nothing, and the day the drawer
+    // stays open is the day it would otherwise silently start lying.
     const hintSwap = os.indexOf('{open ? "Open in this room" : item.hint}');
     expect(hintSwap, "the hint swap moved; re-pin this").toBeGreaterThan(-1);
     const unbuiltAt = os.indexOf("{item.unbuilt ? (", hintSwap);
