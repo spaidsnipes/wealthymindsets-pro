@@ -1143,6 +1143,12 @@ export function WMOperatingSystem({
             // frames before its first publication reading FEED UNKNOWN rather
             // than inheriting a bars-only verdict it has no grounds for.
             barsPresent: false,
+            // A room that has published nothing is not replaying anything
+            // either. `false` is honest here for the same reason
+            // `barsPresent` is: this arm describes a room that has not
+            // spoken, and the reading it compiles to is FEED UNKNOWN, which
+            // claims nothing about a camera in the first place.
+            replayEngaged: false,
           },
           evaluatedAtMs,
         );

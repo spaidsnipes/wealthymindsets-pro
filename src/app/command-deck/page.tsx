@@ -554,6 +554,11 @@ function CommandDeckInner() {
       lastObservedAtMs: wsFeed.lastObservedAtMs,
       connected: wsFeed.connected,
       sessionOpen,
+      // The deck carries NO companion camera — it has no replay engine and no
+      // control that starts one. `false` here is a measured fact about this
+      // room, not a default: the day the deck grows a replay, this line is
+      // where the masthead finds out.
+      replayEngaged: false,
     },
   });
 

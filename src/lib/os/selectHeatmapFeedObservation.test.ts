@@ -61,6 +61,10 @@ describe("selectHeatmapFeedObservation — the evidence /heatmaps actually holds
       "connected",
       "lastObservedAtMs",
       "quotePresent",
+      // EVIDENCE, not a verdict, for the same reason every key beside it is:
+      // "is a companion camera driving this room". The board answers `false`
+      // because it has no replay engine — an answer, not a silence.
+      "replayEngaged",
       "sessionOpen",
       "source",
     ]);

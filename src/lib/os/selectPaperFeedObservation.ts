@@ -116,5 +116,10 @@ export function selectPaperFeedObservation(
     connected: null,
     sessionOpen: sessionOpenFromToken(input.sessionToken),
     barsPresent: false,
+    // /paper carries no companion camera. It has no replay engine, no replay
+    // control and no bars to walk — the same reason `barsPresent` is a flat
+    // `false` above rather than a derived value. A room that CAN replay must
+    // hand up its own live flag; this one has no such state to misreport.
+    replayEngaged: false,
   };
 }

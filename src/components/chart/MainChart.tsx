@@ -44,6 +44,9 @@ import {
   normalizeDeltaLevelCap,
 } from "@/lib/marketData/deltaLevelCap";
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
+// The canon owns the fidelity vocabulary; this file renders it and never
+// invents it. Imported for the bar-replay arm of the data-truth strip.
+import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import {
   findSessionNectarChannel,
   getSessionNectarSnapshot,
@@ -9647,6 +9650,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // bordered div announcing itself is the same interruption with
             // no words in it.
             if (status.state === "AWAITING") return null;
+            // ── THE SECOND CLOCK, ONE INCH BELOW THE FIRST ───────────────
+            //
+            // `replayActive` has been an accepted prop on this component
+            // since bar replay shipped, and NOTHING in this file read it —
+            // grep it: a declaration, a default, and no use. So when the
+            // trader engaged the companion camera, this strip kept pulsing
+            // "LIVE — CERTIFIED QUOTE" over a walked chart, exactly as the
+            // masthead above it did.
+            //
+            // Fixing only the masthead would have moved the lie rather than
+            // killed it. Both readings are on the same glass at the same
+            // time, and "impossible to confuse" is not satisfied by one of
+            // two contradicting chips being corrected.
+            //
+            // The vocabulary is the canon's, not this file's, and it is the
+            // same pair the masthead compiles to — HISTORICAL BARS VERIFIED
+            // when bars are on screen, silence when they are not — so the
+            // two chips say one thing in two places instead of two things.
+            if (replayActive) {
+              return (
+                <div
+                  className="flex items-center gap-1.5"
+                  data-feed-recency-kind="replay"
+                  data-replay-camera="engaged"
+                  aria-label="Bar replay engaged — historical bars, not a live quote"
+                  title={"BAR REPLAY — the camera is walking historical bars.\nNo live-quote claim is made while replay is engaged."}
+                >
+                  <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
+                    {showFidelityChrome
+                      ? `${CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED} · BAR REPLAY`
+                      : "BAR REPLAY"}
+                  </span>
+                </div>
+              );
+            }
             return (
               <div
                 className="flex items-center gap-1.5"

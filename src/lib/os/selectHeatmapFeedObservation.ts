@@ -66,5 +66,8 @@ export function selectHeatmapFeedObservation(
     // Percentage tiles, not OHLCV history. Reporting bars would let the frame
     // print an established provenance for a pipe this room does not run.
     barsPresent: false,
+    // No companion camera. The board has no replay engine and no bars to walk
+    // — the same reason `barsPresent` is flat `false` above.
+    replayEngaged: false,
   };
 }

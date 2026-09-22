@@ -36,6 +36,13 @@ const REAL_DETAILS = [
   "quote arrived without a provider timestamp",
   "provider clock ahead of ours",
   "provider not recognised",
+  // THE COMPANION CAMERA, added under the OWL WITH TWO CLOCKS cure. These two
+  // are the only sentences in the file that describe the CAMERA rather than the
+  // provider, and they must reach the glass for the same reason every sentence
+  // above them must: a reader who cannot see WHY a reading is not live has been
+  // given a verdict without its ground.
+  "bar replay",
+  "bar replay engaged, no bars observed",
 ] as const;
 
 describe("osFeedChipParts — the trailing chip has two halves, both on the glass", () => {

@@ -111,6 +111,10 @@ describe("selectMarketIntelFeedObservation — what the live monitor actually sa
       "connected",
       "lastObservedAtMs",
       "quotePresent",
+      // EVIDENCE, not a verdict, for the same reason every key beside it is:
+      // "is a companion camera driving this room". The monitor answers `false`
+      // because it watches a live wire and has no replay engine at all.
+      "replayEngaged",
       "sessionOpen",
       "source",
     ]);

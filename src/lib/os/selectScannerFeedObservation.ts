@@ -74,5 +74,8 @@ export function selectScannerFeedObservation(
     connected: null,
     sessionOpen: null,
     barsPresent: false,
+    // No companion camera. The scanner ranks a live list; it has no replay
+    // engine, and nothing here can point the room at the past.
+    replayEngaged: false,
   };
 }

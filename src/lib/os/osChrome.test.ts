@@ -35,6 +35,10 @@ const LIVE_OBS: FeedObservation = {
   lastObservedAtMs: NOW - 1_000,
   connected: true,
   sessionOpen: true,
+  // FALSE, for the reason `barsPresent` is false below: the fully-evidenced
+  // LIVE fixture must reach LIVE — CERTIFIED QUOTE on QUOTE evidence alone.
+  // A fixture that replayed could never reach it at all.
+  replayEngaged: false,
   // FALSE on the fully-evidenced fixture ON PURPOSE. Bars are the weaker
   // evidence, and defaulting them to present here would let a test reach a
   // confident label with the quote arm broken and never notice.
@@ -104,6 +108,7 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
       connected: null,
       sessionOpen: null,
       barsPresent: true,
+      replayEngaged: false,
     };
 
     it("never says 'no observation yet' over a chart that has bars", () => {
@@ -200,6 +205,7 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
       connected: null,
       sessionOpen: null,
       barsPresent: false,
+      replayEngaged: false,
     };
 
     it("says 'no observation yet' ONLY when nothing was even attributed", () => {

@@ -1208,6 +1208,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       lastObservedAtMs,
       connected,
       sessionOpen,
+      // THE COMPANION CAMERA, handed up from the same `replayActive` the
+      // BarReplayControls render from — one boolean, one owner, so the
+      // controls on the glass and the masthead above them cannot come to
+      // disagree about which camera is driving this room.
+      replayEngaged: replayActive,
     },
   });
   // Real signal derivation: when the tape carries live per-trade

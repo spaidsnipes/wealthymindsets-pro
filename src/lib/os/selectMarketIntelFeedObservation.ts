@@ -95,5 +95,8 @@ export function selectMarketIntelFeedObservation(
     // This monitor draws no chart. Claiming bars would let the frame print an
     // established provenance for a pipe this room does not run.
     barsPresent: false,
+    // No companion camera. This monitor watches a live wire and has no replay
+    // engine to point at the past.
+    replayEngaged: false,
   };
 }

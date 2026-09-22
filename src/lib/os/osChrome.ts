@@ -234,6 +234,36 @@ export interface FeedObservation {
    * defaults to silence, and silence here is what printed the false claim.
    */
   readonly barsPresent: boolean;
+  /**
+   * WHETHER A COMPANION CAMERA IS WALKING HISTORY IN THIS ROOM RIGHT NOW.
+   *
+   * ── MEASURED LIVE, production, wealthymindsetspro.com/charts ───────────────
+   * Bar Replay engaged from WORKSPACE on the live BTC chart. Sampled from the
+   * real DOM, before and after the click:
+   *
+   *   before  masthead "LIVE — CERTIFIED QUOTE · certified realtime · asOf
+   *           02:25:50 ET"   replay controls: none
+   *   after   masthead "LIVE — CERTIFIED QUOTE · certified realtime · asOf
+   *           02:25:54 ET"   replay controls: bar-replay-controls ON SCREEN
+   *
+   * Both clocks at once. The Companion Camera Law is one sentence long and
+   * this violated it exactly: "Backtest historical replay and LIVE/LAST
+   * context must be impossible to confuse."
+   *
+   * ── WHY THE ROOM HAS TO SAY IT, AND WHY THE COMPILER HAS TO ASK ───────────
+   * Every other field here is evidence about a PROVIDER. This one is evidence
+   * about the CAMERA, and no provider can supply it — the socket is still
+   * delivering certified realtime prints while the trader is looking at last
+   * Tuesday. That is precisely why the badge stayed green: nothing that fed it
+   * was wrong. The observation was simply not about what was on the glass.
+   *
+   * REQUIRED, for the reason `sessionOpen` and `barsPresent` are required: an
+   * optional flag defaults to `false`, and a room that grows a second camera
+   * would inherit the LIVE claim silently. A companion camera is continuity,
+   * not authority — it may not create an ambiguous LIVE vs REPLAY state, and
+   * the only way to make that unrepresentable is to make every room answer.
+   */
+  readonly replayEngaged: boolean;
 }
 
 /**
@@ -427,6 +457,56 @@ function observedInstant(lastObservedAtMs: number | null): number | null {
  * being read. One clock, owned where the reading is rendered.
  */
 export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number): FeedStanding {
+  // ── THE CAMERA IS ASKED BEFORE THE PROVIDER ────────────────────────────────
+  //
+  // FIRST, and deliberately above every provider arm below, because the defect
+  // this closes is not a grading error. When Bar Replay is engaged the socket
+  // is still delivering certified realtime prints — `source`, `quotePresent`,
+  // `connected` and `lastObservedAtMs` are all perfectly true — and the badge
+  // compiled from them was perfectly wrong, because the trader was looking at
+  // history. Every arm below would certify that quote correctly. None of them
+  // is about what is on the glass.
+  //
+  // So the question "is a companion camera driving this room" has to be
+  // answered before the ladder starts, not folded into it as one more input.
+  // Placed lower it would be a tiebreak; placed here it is a precondition, and
+  // the LIVE reading becomes UNREACHABLE while replay is engaged rather than
+  // merely outranked.
+  //
+  // NO INSTANT, in either arm. `asOf 02:25:54 ET` ticking beside a replayed
+  // bar from last Tuesday is the sharpest half of the original lie: the label
+  // is a claim a trader might question, but a wall clock reads as a fact.
+  if (obs.replayEngaged) {
+    // The camera is replaying BARS. `HISTORICAL BARS VERIFIED` is the canon's
+    // own word for that and needs no amendment — but it is still a
+    // CERTIFICATION, and it may only be spoken when bars were actually
+    // observed. A replay engaged over an empty chart has nothing to verify.
+    if (!obs.barsPresent) {
+      return {
+        label: FEED_UNKNOWN,
+        detail: "bar replay engaged, no bars observed",
+        provenance: obs.source,
+        tone: "UNKNOWN",
+        established: false,
+        observedAtMs: null,
+      };
+    }
+    return {
+      label: CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED,
+      // THE WORD THE CONTRADICTION NEEDED. The label says what the data is;
+      // this says what the CAMERA is doing, which is the fact the masthead was
+      // missing entirely. A trader reading "HISTORICAL BARS VERIFIED · bar
+      // replay" cannot confuse this room with a live one. No vendor appears
+      // here — WM-CHART-PROV-EMERG-01 — and none is needed: the identity of
+      // the provider is irrelevant to a camera pointed at the past.
+      detail: "bar replay",
+      provenance: obs.source,
+      tone: TONE_BY_LABEL[CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED],
+      established: true,
+      observedAtMs: null,
+    };
+  }
+
   // Nothing to grade. `quotePresent` is load-bearing and NOT redundant with a
   // source name: a configured provider that has answered with nothing is the
   // exact case `priceSourceBadge` refuses to grade, and handing it

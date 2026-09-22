@@ -50,6 +50,9 @@ const OBSERVED = {
   // False so this fixture proves the QUOTE arm. A room with bars would reach
   // an established standing by the other door and hide a broken quote wire.
   barsPresent: false,
+  // False for the same reason: this fixture must reach LIVE on quote evidence.
+  // A replaying room can never reach it, which is the point of the law.
+  replayEngaged: false,
 } as const;
 
 /** The masthead as a string, for one feed declaration. */
