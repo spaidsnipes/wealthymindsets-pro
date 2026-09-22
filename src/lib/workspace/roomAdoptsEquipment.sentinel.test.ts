@@ -1589,6 +1589,17 @@ describe("SENTINEL — Shot 1: equipment mode never restores the destination mal
     expect(rail).toMatch(/equipmentMode && scenePanel !== "rooms" \? null/);
   });
 
+  /**
+   * ADDED 2026-09-22 with the HOUSE PLAN bolt-on. The door and the taxonomy
+   * are DIFFERENT lists on purpose: the bolt-on puts Academy (/education)
+   * and News behind the House door, and neither is in the registry's
+   * COMMUNITY group. Rendering the group here would silently evict both —
+   * which is exactly the pre-fix absence shape, one list at a time.
+   */
+  it("the House door renders HOUSE_DOOR in equipment mode, the group only in rail mode", () => {
+    expect(rail).toMatch(/\(equipmentMode \? HOUSE_DOOR : OS_COMMUNITY\)\.map/);
+  });
+
   it("Community is a DOORWAY, not a third piece of equipment", () => {
     // The canon's §3 gives the two EQUIPMENT hands a brass plate each. A
     // destination doorway that grew equipment chrome would be telling the

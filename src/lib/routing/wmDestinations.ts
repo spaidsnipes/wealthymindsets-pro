@@ -379,16 +379,24 @@ export function destinationsInGroup(group: WmDestinationGroup): readonly WmDesti
  * This is deliberately not the old ROOM group. That group describes which
  * routes wear the OS frame, so it also contains Charts itself, the quarantined
  * Command Deck, Passport inspection and Paper Trade execution. None of those
- * is a truthful answer to the compact Rooms doorway on HOME. The doorway is
- * reserved for a different human job: discover, compare markets, replay,
- * review, or research.
+ * is a truthful answer to the compact Rooms doorway on HOME.
+ *
+ * CONTENTS SET BY CURRENT AUTHORITY, NOT BY THIS FILE. The HOUSE PLAN +
+ * EXECUTION BOLT-ON — CURRENT — 2026-09-22 (promoted into the ATH Command
+ * Center and the WM Pro Build Order the same day) names the door's tenants:
+ * "Build/verify compact ROOMS door with ONLY Journal/Review · Backtest Lab ·
+ * Scanner Deck · Research Heat Archive." /news was the fifth tenant here
+ * until that bolt-on; the same block moves News into the House/Community
+ * door ("Inside House: … News …") and declares itself to OUTRANK the older
+ * "News/Research is a Room" taxonomy wording. The order below is the
+ * bolt-on's order. /heatmaps is the Research Heat / Market Maps room —
+ * R-902: "use Market Maps / Heatmaps as the broad-market room identity."
  */
 export const MARKET_HOME_ROOM_HREFS: readonly string[] = [
+  "/journal",
+  "/backtesting",
   "/scanner",
   "/heatmaps",
-  "/backtesting",
-  "/journal",
-  "/news",
 ];
 
 export function marketHomeRooms(): readonly WmDestination[] {
@@ -396,6 +404,52 @@ export function marketHomeRooms(): readonly WmDestination[] {
     const found = WM_DESTINATIONS.find((d) => d.href === href);
     if (!found) {
       throw new Error(`MARKET_HOME_ROOM_HREFS names ${href}, which is not a WM destination`);
+    }
+    return found;
+  });
+}
+
+/**
+ * THE HOUSE / COMMUNITY DOOR ON HOME.
+ *
+ * CONTENTS SET BY CURRENT AUTHORITY — HOUSE PLAN + EXECUTION BOLT-ON —
+ * CURRENT — 2026-09-22: "Build/verify compact HOUSE / COMMUNITY door with
+ * Academy · Lounge · Radio/Media · News · Settings/Appearance." Plus the
+ * mansion taxonomy's COMMUNITY / MEDIA family (WOW TV, streams, creator
+ * programming, events), which is why /tv, /creator and /partnerships stay.
+ *
+ * This is NOT the registry's COMMUNITY group. That group is a measurement of
+ * which routes exist under the community frame; this list is the DOOR — and
+ * the bolt-on puts two non-COMMUNITY-group tenants behind it:
+ *
+ *   /education — "Academy / Learn". "Do not put Academy in Rooms." Before
+ *     this list, Academy sat in the TOOL group with NO door from HOME.
+ *   /news — moved here FROM the Rooms door by the same bolt-on block that
+ *     outranks the older "News/Research is a Room" wording.
+ *
+ * /profile stays as the nearest existing owner of "Settings / Appearance" —
+ * there is no /settings route today, and inventing one is not this door's
+ * job. /shop keeps its door for the reachability reason measured 2026-09-22:
+ * this door is the ONLY door those destinations have from HOME, and the
+ * bolt-on names minimum contents, not an exclusion list ("Inside House: …").
+ */
+export const HOUSE_DOOR_HREFS: readonly string[] = [
+  "/education",
+  "/lounge",
+  "/tv",
+  "/radio",
+  "/creator",
+  "/partnerships",
+  "/shop",
+  "/news",
+  "/profile",
+];
+
+export function houseDoorDestinations(): readonly WmDestination[] {
+  return HOUSE_DOOR_HREFS.map((href) => {
+    const found = WM_DESTINATIONS.find((d) => d.href === href);
+    if (!found) {
+      throw new Error(`HOUSE_DOOR_HREFS names ${href}, which is not a WM destination`);
     }
     return found;
   });

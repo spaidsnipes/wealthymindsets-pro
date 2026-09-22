@@ -22,10 +22,12 @@ import { chromium } from "playwright";
 const BASE = process.env.BASE ?? "https://wealthymindsetspro.com";
 const OUT = "public/canon/os-latest-community.png";
 
-// The registry's COMMUNITY group, restated here on purpose: a probe that
-// imports the same list it is checking proves only that the list equals
-// itself.
-const EXPECTED = ["/lounge", "/tv", "/radio", "/creator", "/partnerships", "/shop", "/profile"];
+// The HOUSE door per the HOUSE PLAN bolt-on (CURRENT — 2026-09-22), restated
+// here on purpose: a probe that imports the same list it is checking proves
+// only that the list equals itself. Academy (/education) and News moved
+// behind this door by the bolt-on; the seven COMMUNITY-group destinations
+// keep their only door from HOME.
+const EXPECTED = ["/education", "/lounge", "/tv", "/radio", "/creator", "/partnerships", "/shop", "/news", "/profile"];
 
 const browser = await chromium.launch({ channel: "chrome" });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

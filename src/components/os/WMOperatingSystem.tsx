@@ -69,6 +69,7 @@ import Link from "next/link";
 // this rail a second definition — see the note on OS_ROOMS below.
 import {
   destinationsInGroup,
+  houseDoorDestinations,
   marketHomeRooms,
   phoneNavDestinations,
 } from "@/lib/routing/wmDestinations";
@@ -169,6 +170,10 @@ export const OS_ROOMS: readonly ShellRoom[] = destinationsInGroup("ROOM").map((d
 const OS_WORKBENCH = destinationsInGroup("TOOL");
 const OS_COMMUNITY = destinationsInGroup("COMMUNITY");
 const MARKET_HOME_ROOMS = marketHomeRooms();
+// The House door's tenants differ from the COMMUNITY group on purpose: the
+// HOUSE PLAN bolt-on (CURRENT — 2026-09-22) adds Academy and News behind this
+// door. Rail mode keeps the group taxonomy; the DOOR obeys the bolt-on.
+const HOUSE_DOOR = houseDoorDestinations();
 
 /**
  * The five the phone gets, from the same owner the July shell reads. The
@@ -1818,7 +1823,8 @@ export function WMOperatingSystem({
 
           {/* ── THE ROOM LIST, AND WHERE THE MALL IS NOT DRAWN ──────────────
               Rail mode retains the full product map. Equipment mode renders
-              only the five changed-job rooms owned by marketHomeRooms; the
+              only the changed-job rooms owned by marketHomeRooms — the HOUSE
+              PLAN bolt-on's four: Journal · Backtest · Scanner · Heat; the
               old ROOM-group mall never returns over the live market. */}
           {equipmentMode && scenePanel !== "rooms" ? null : (
             <>
@@ -1916,8 +1922,14 @@ export function WMOperatingSystem({
               panel with a media mall.
 
               What it is NOT any more is absent. The earlier rule here was
-              `equipmentMode ? null :` — on HOME these seven destinations, the
-              trader's own Profile among them, had no door at all. */}
+              `equipmentMode ? null :` — on HOME these destinations, the
+              trader's own Profile among them, had no door at all.
+
+              TWO LISTS, SAME REASON AS THE ROOMS BLOCK ABOVE. Rail mode keeps
+              the registry's COMMUNITY group — the full-map taxonomy. The DOOR
+              in equipment mode renders HOUSE_DOOR, whose tenants are set by
+              the HOUSE PLAN bolt-on (CURRENT — 2026-09-22): Academy and News
+              live behind this door, and neither is in the COMMUNITY group. */}
           {equipmentMode && scenePanel !== "community" ? null : (
             <>
               <div
@@ -1929,7 +1941,7 @@ export function WMOperatingSystem({
               >
                 Community
               </div>
-              {OS_COMMUNITY.map((d) => (
+              {(equipmentMode ? HOUSE_DOOR : OS_COMMUNITY).map((d) => (
                 <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
               ))}
             </>
