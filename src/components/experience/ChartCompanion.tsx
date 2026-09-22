@@ -354,11 +354,25 @@ function CvdSparkline({ samples }: { samples: readonly number[] }): React.ReactE
   );
 }
 
-export function ChartCompanion(): React.ReactElement | null {
+/**
+ * `symbol` — OPTIONAL EXPLICIT SUBJECT, for surfaces whose selected object
+ * is not the room-shared identity. The Scanner's detail panel is the case
+ * in point: selecting a row to INSPECT it must not re-aim the mansion's
+ * one camera (SymbolContext) at that row — that would make browsing rows
+ * a WRITE to every other room. So the caller may name the subject and the
+ * panel stays a READER of everything else: the chart's persisted
+ * timeframe, the canonical store key that timeframe implies, the session
+ * token, the tape memory. Omitted, behaviour is unchanged: the companion
+ * follows the room-shared activeSymbol exactly as /news always has.
+ * Either way this component still owns NO market state and mints nothing
+ * (§8 Companion Camera Law — one MarketState owner, one Decision_ID
+ * lifecycle, LIVE vs bar-close named by chartHeaderPriceFact alone).
+ */
+export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } = {}): React.ReactElement | null {
   const { activeSymbol } = useActiveSymbol();
   const auth = useAuth();
   const camera = useChartCameraSettings();
-  const symbol = (activeSymbol || "").toUpperCase();
+  const symbol = (explicitSymbol ?? activeSymbol ?? "").toUpperCase().trim();
 
   // Identity = the SAME store key the chart's publisher writes for this
   // symbol at its persisted timeframe. Throws only on an unknown tf id

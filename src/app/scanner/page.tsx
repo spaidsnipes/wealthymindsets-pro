@@ -38,6 +38,7 @@ import {
 } from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { ChartCompanion } from "@/components/experience/ChartCompanion";
 import { selectScannerFeedObservation } from "@/lib/os/selectScannerFeedObservation";
 
 import {
@@ -1153,7 +1154,7 @@ export default function ScannerPage() {
         {/* Detail panel */}
         <AnimatePresence>
           {selected && (
-            <motion.div initial={{ width:0,opacity:0 }} animate={{ width:252,opacity:1 }} exit={{ width:0,opacity:0 }}
+            <motion.div initial={{ width:0,opacity:0 }} animate={{ width:264,opacity:1 }} exit={{ width:0,opacity:0 }}
               className="wm-scanner-detail border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden">
               <div className="px-3 py-2 border-b border-wm-border flex items-center justify-between">
                 <span className="text-xs font-bold text-wm-text">{selected.symbol} Detail</span>
@@ -1243,6 +1244,17 @@ export default function ScannerPage() {
                     Command Deck →
                   </button>
                 </div>
+                {/* §8 COMPANION CAMERA LAW — the SAME companion /news mounts,
+                    pointed at the selected row by explicit prop so browsing
+                    rows never re-aims the room-shared SymbolContext camera.
+                    It owns no market state: it reads the chart's persisted
+                    timeframe, the canonical store key that implies, and the
+                    browser-local tape — and its footer link hands the camera
+                    back to /charts carrying symbol + timeframe. When this
+                    page session holds no compiled state for the row, the
+                    panel says so and offers the door; nothing is estimated
+                    in its place. */}
+                <ChartCompanion symbol={selected.symbol} />
               </div>
             </motion.div>
           )}
