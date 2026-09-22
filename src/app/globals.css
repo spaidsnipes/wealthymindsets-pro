@@ -1260,6 +1260,18 @@ input[type=range]::-webkit-slider-runnable-track {
    only the persistent card chrome is retired. Phones keep the existing
    two-row arrangement so neither control can cover the other. */
 @media (min-width: 1024px) {
+  /* The two optional bar readers remain one press from the candle they inspect,
+     but on a desktop they are chart-edge labels, not two more floating cards.
+     Opening either reader still restores its full bounded working surface;
+     narrow screens retain the protective chip shell. */
+  .wm-chart-reading-anchor {
+    padding-inline: 4px !important;
+    border-color: transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
   .wm-live-session-chip {
     border: 0 !important;
     border-bottom: 1px solid rgba(240, 180, 41, 0.24) !important;

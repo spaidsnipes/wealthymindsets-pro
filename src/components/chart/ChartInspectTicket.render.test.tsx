@@ -107,6 +107,7 @@ describe("the ticket puts its verdict on the glass", () => {
   it("leaves a findable chip when closed rather than vanishing", () => {
     const html = markup(coveringTape(), { open: false });
     expect(html).toContain("chart-inspect-reopen");
+    expect(html).toContain("wm-chart-reading-anchor");
     expect(html).not.toContain("chart-inspect-ticket");
   });
 

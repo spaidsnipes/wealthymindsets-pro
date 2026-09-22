@@ -134,7 +134,7 @@ export function ChartEffortVsResult({
         onClick={() => onOpenChange(true)}
         aria-label="Open the effort versus result reading for the bar under the cursor"
         data-testid="chart-effort-result-reopen"
-        className="absolute top-16 left-3 z-20 flex items-center gap-1 rounded border px-2 h-6 text-[10px] font-bold tracking-wide"
+        className="wm-chart-reading-anchor absolute top-16 left-3 z-20 flex items-center gap-1 rounded border px-2 h-6 text-[10px] font-bold tracking-wide"
         style={{ background: "#131520", borderColor: "#1E2030", color: "#8B8FA8" }}
       >
         <Scale size={10} />

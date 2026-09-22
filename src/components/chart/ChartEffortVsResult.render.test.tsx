@@ -200,6 +200,7 @@ describe("the callout puts its verdict on the glass", () => {
   it("leaves a findable chip when closed rather than vanishing", () => {
     const html = markup(HIGH_EFFORT_WEAK_RESULT, plainCohort(), { open: false });
     expect(html).toContain("chart-effort-result-reopen");
+    expect(html).toContain("wm-chart-reading-anchor");
     expect(html).not.toContain('data-testid="chart-effort-result"');
   });
 
