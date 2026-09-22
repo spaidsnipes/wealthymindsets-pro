@@ -1610,6 +1610,17 @@ describe("SENTINEL — Shot 1: equipment mode never restores the destination mal
     expect(rail).not.toMatch(/equipmentTriggers\.current\.community/);
   });
 
+  it("destination doorways do not repeat the decision spine's standing truth", () => {
+    // Rooms and Community change the human job. They may name their
+    // destinations, but they may not grow a second EVIDENCE DEBT / RIGHT OF
+    // WAY surface beside the canonical decision spine. The legacy rail and
+    // the two working-equipment panels deliberately retain the state readout.
+    expect(rail).toMatch(
+      /equipmentMode && \(scenePanel === "rooms" \|\| scenePanel === "community"\) \? null/,
+    );
+    expect(rail).toContain('data-testid="os-rail-state"');
+  });
+
   it("equipment mode offers exactly the canon's two hands, by name", () => {
     // Named, not counted: "Workspace" and "Tools" are the canon's two hands.
     // A third equipment button is a new hand and must be a Founder decision,

@@ -1947,25 +1947,29 @@ export function WMOperatingSystem({
             </>
           )}
 
-          {/* STATE — the standing conditions live under the room list, where
-              they are visible without a scroll. A "persistent" condition you
-              have to go looking for is not persistent. */}
-          <div
-            data-testid="os-rail-state"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              marginTop: 16,
-              paddingTop: 14,
-              borderTop: `1px solid ${RULE}`,
-            }}
-          >
-            <div style={{ ...EYEBROW, padding: "0 14px", color: GOLD }}>State</div>
-            {standingConditions.map((condition) => (
-              <StateReadout key={condition.label} condition={condition} layout="stack" />
-            ))}
-          </div>
+          {/* STATE belongs in the legacy rail and beside working equipment.
+              Rooms and Community are changed-job doorways on HOME, not a
+              second decision surface. Repeating EVIDENCE DEBT and RIGHT OF
+              WAY there puts the same fact beside the canonical decision spine
+              and turns a destination list into another gold-card dashboard. */}
+          {equipmentMode && (scenePanel === "rooms" || scenePanel === "community") ? null : (
+            <div
+              data-testid="os-rail-state"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                marginTop: 16,
+                paddingTop: 14,
+                borderTop: `1px solid ${RULE}`,
+              }}
+            >
+              <div style={{ ...EYEBROW, padding: "0 14px", color: GOLD }}>State</div>
+              {standingConditions.map((condition) => (
+                <StateReadout key={condition.label} condition={condition} layout="stack" />
+              ))}
+            </div>
+          )}
         </nav>
         )}
 
