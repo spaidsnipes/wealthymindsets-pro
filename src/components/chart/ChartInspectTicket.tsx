@@ -133,7 +133,7 @@ export function ChartInspectTicket({
           <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
         </div>
         <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
-        <dl className="mt-2 text-[11px] text-wm-muted break-words space-y-1">
+        <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
           <dt>Executed price</dt><dd className="text-white">{String(p.priceLevel)}</dd>
           <dt>Executed size</dt><dd className="text-white">{String(p.total)}</dd>
           <dt>Execution time · UTC</dt><dd>{p.timeMs != null ? new Date(p.timeMs).toISOString() : "UNKNOWN"}</dd>
@@ -141,7 +141,7 @@ export function ChartInspectTicket({
           <dd>{describeAggressorMethod(p.aggressorMethod)}</dd>
           <dt>Execution identity</dt><dd>{p.printKey ?? "UNKNOWN"}</dd>
         </dl>
-        <p className="mt-2 border-t border-wm-border pt-2 text-[10px] text-wm-muted">Participant and intent: UNKNOWN. This retained print is not a live quote. Raw tape is session-only; refresh may remove it.</p>
+        <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>Participant and intent: UNKNOWN. This retained print is not a live quote. Raw tape is session-only; refresh may remove it.</p>
       </section>
     );
   }
