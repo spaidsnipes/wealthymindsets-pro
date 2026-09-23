@@ -8418,6 +8418,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               drawnMarks++;
             }
+
+            /*
+              POC · VAH · VAL — three reference lines the compiler already
+              chose. Drawn as short dotted horizontals at the same left
+              inset as the node marks, so they read as reference lines and
+              not as levels somebody is defending.
+
+              POC gets the strongest ink; VAH and VAL are the same, weaker
+              ink. No hue: value-area boundaries are BOUNDARIES, not sides —
+              a trader who trades against VAH tomorrow was trading with it
+              yesterday, and colour that spent one meaning on the first is
+              lying to them on the second.
+            */
+            const drawRef = (
+              price: number | null | undefined,
+              ink: string,
+              width: number,
+            ) => {
+              if (price == null) return;
+              const yr = srs.priceToCoordinate(price);
+              if (yr == null) return;
+              const y = Math.round(+yr) + 0.5;
+              ctx.strokeStyle = ink;
+              ctx.lineWidth = 1;
+              ctx.setLineDash([3, 4]);
+              ctx.beginPath();
+              ctx.moveTo(leftX, y);
+              ctx.lineTo(leftX + width, y);
+              ctx.stroke();
+            };
+            drawRef(lp.poc, "rgba(201,165,92,0.75)", laneMax + 20);
+            drawRef(lp.vah, "rgba(194,184,146,0.55)", laneMax + 10);
+            drawRef(lp.val, "rgba(194,184,146,0.55)", laneMax + 10);
+            ctx.setLineDash([]);
+
             ctx.restore();
             if (drawnMarks > 0) ds.livingProfileMarks = String(drawnMarks);
             else delete ds.livingProfileMarks;
