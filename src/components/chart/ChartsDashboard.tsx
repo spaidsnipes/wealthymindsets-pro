@@ -255,6 +255,8 @@ import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTi
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
+import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
+import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -725,6 +727,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
   const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
   const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", true) as boolean);
+  const [deltaLevelsOn, setDeltaLevelsOn] = useState<boolean>(() => lsGet("wm_ofDeltaLevels", true) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -948,6 +951,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofDeltaDivergence",   deltaDivergenceOn);
   usePersistOnChange("wm_ofLiquidityWeather",  liquidityWeatherOn);
   usePersistOnChange("wm_ofEffortMark",        effortMarkOn);
+  usePersistOnChange("wm_ofDeltaLevels",      deltaLevelsOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1609,6 +1613,27 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [effortVsResultVM, inspectBar],
   );
 
+  /**
+   * H-702 — DELTA LEVELS, out of the drawer and onto the price axis.
+   *
+   * `selectDeltaLevels` is the most price-honest module in this folder: every
+   * level it emits sits on the grid the prints themselves establish. Until
+   * now its only consumer was `SmartMoneyPanel`, a drawer, so a canvas that
+   * paints delta divergence at swing pivots was rendered next to a panel
+   * showing where delta ACTUALLY concentrated — measured, and invisible on
+   * the tape. That is PRICES TRAPPED IN A DRAWER.
+   *
+   * Two modules, both reading `recentTicks`, is not two truths — `selectDelta
+   * Levels` is pure and deterministic, and the room and the panel will
+   * compute an identical VM off the same array. The alternative — hoist the
+   * VM into `useOrderFlowReadings` and route both callers there — is a
+   * bigger surgery than the slice needs.
+   */
+  const deltaLevelsGlass = React.useMemo(
+    () => selectDeltaLevelsGlass(selectDeltaLevels(recentTicks)),
+    [recentTicks],
+  );
+
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2236,6 +2261,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
       if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
       if (s.EFFORT_MARK !== undefined) setEffortMarkOn(s.EFFORT_MARK);
+      if (s.DELTA_LEVELS !== undefined) setDeltaLevelsOn(s.DELTA_LEVELS);
     },
     [],
   );
@@ -2265,6 +2291,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       DELTA_DIVERGENCE: deltaDivergenceOn,
       LIQUIDITY_WEATHER: liquidityWeatherOn,
       EFFORT_MARK: effortMarkOn,
+      DELTA_LEVELS: deltaLevelsOn,
     },
   });
 
@@ -3870,6 +3897,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   VALUE_CANDLE: valueCandleOn,
                   DELTA_DIVERGENCE: deltaDivergenceOn,
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
+                  EFFORT_MARK: effortMarkOn,
+                  DELTA_LEVELS: deltaLevelsOn,
                 }}
                 /*
                   A desk applies EVERY toggle it names, on or off, in one press.
@@ -3900,6 +3929,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   DELTA_DIVERGENCE: deltaDivergenceOn,
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
                   EFFORT_MARK: effortMarkOn,
+                  DELTA_LEVELS: deltaLevelsOn,
                 }}
                 onToggle={(id) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3910,6 +3940,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
                   else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
                   else if (id === "EFFORT_MARK") setEffortMarkOn(v => !v);
+                  else if (id === "DELTA_LEVELS") setDeltaLevelsOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4577,6 +4608,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       */
                       liquidityWeather={chartOrderFlowReadings.liquidityWeather}
                       effortMark={effortMarkVerdict}
+                      deltaLevelsGlass={deltaLevelsGlass}
+                      deltaLevelsOnChart={deltaLevelsOn}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off

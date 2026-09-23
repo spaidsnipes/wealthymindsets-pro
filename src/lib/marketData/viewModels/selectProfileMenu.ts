@@ -49,7 +49,8 @@ export type ProfileId =
   | "VALUE_CANDLE"
   | "DELTA_DIVERGENCE"
   | "LIQUIDITY_WEATHER"
-  | "EFFORT_MARK";
+  | "EFFORT_MARK"
+  | "DELTA_LEVELS";
 
 /**
  * READY — it can draw now.
@@ -275,6 +276,25 @@ const CATALOGUE: readonly ProfileSpec[] = [
     // it — `effortRatio` and `resultRatio` never reach a coordinate function.
     levels: ["The subject bar's own high or low"],
   },
+  {
+    id: "DELTA_LEVELS",
+    label: "Delta Levels",
+    /*
+      WHAT IT DRAWS, ON THE TAPE'S OWN GRID.
+      Not where PRICE went — that is the candles' job, and delta and price
+      disagree constantly in a thin tape. What this draws is which side
+      crossed the spread hardest, at each real level.
+    */
+    what: "which side crossed the spread hardest at each real level",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectDeltaLevels.ts",
+    /*
+      A LEVEL IS A PRICE. Size is a lane length; it never reaches the axis.
+      The single named level is the price of the group — the low edge of it,
+      not a bucket centre invented by an average.
+    */
+    levels: ["Aggressor-delta rungs"],
+  },
 ];
 
 const GESTURE_NOTE: Readonly<Record<ProfileGesture, string>> = {
@@ -293,6 +313,9 @@ const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>([
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",
+  // Delta by definition asks WHICH SIDE crossed the spread. A tape that never
+  // states an aggressor cannot answer, and this row must NEEDS_SIDED_TAPE.
+  "DELTA_LEVELS",
 ]);
 
 /** Readings that need real prints but deliberately do not need aggressor side. */

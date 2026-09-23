@@ -112,8 +112,12 @@ describe("every layer that paints on the price axis has a door in the menu", () 
       .toBeGreaterThan(3);
 
     const ids = selectProfileMenu(MENU_INPUT).entries.map(e => e.id);
+    // Compare with underscores stripped: menu ids are `DELTA_LEVELS`, ref
+    // keys are `deltaLevels`. The join is layer-identity, not casing.
+    const norm = (s: string) => s.toLowerCase().replace(/_/g, "");
     for (const key of SWITCH_KEYS) {
-      const matched = ids.filter(id => id.toLowerCase().includes(key.toLowerCase()));
+      const nk = norm(key);
+      const matched = ids.filter(id => norm(id).includes(nk));
       expect(
         matched,
         `the overlay can quiet \`${key}\`, so \`${key}\` paints — and no single ` +

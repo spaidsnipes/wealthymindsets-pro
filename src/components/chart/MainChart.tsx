@@ -186,6 +186,7 @@ import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectL
 import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
+import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -920,6 +921,14 @@ interface Props {
    * file may not second-guess it. Null means the room asked nothing.
    */
   effortMark?: EffortMarkVerdict | null;
+  /**
+   * DELTA LEVELS ON GLASS — H-702, family Order Flow / Aggressor Delta.
+   *
+   * The most price-honest module in the folder, until now trapped inside
+   * SmartMoneyPanel. Every rung is at a real price on the tape's own grid;
+   * `selectDeltaLevelsGlass` refuses when no grid was measured.
+   */
+  deltaLevelsGlass?: DeltaLevelsGlass | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -937,6 +946,7 @@ interface Props {
   deltaDivergenceOnChart?: boolean;
   liquidityWeatherOnChart?: boolean;
   effortMarkOnChart?: boolean;
+  deltaLevelsOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1206,6 +1216,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   deltaDivergence = null,
   liquidityWeather = null,
   effortMark = null,
+  deltaLevelsGlass = null,
   // Default TRUE: these four shipped drawing, and silently switching one off
   // would be a second surprise dressed as a fix. The switch is the new thing.
   imbalanceStackOnChart = true,
@@ -1213,6 +1224,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   deltaDivergenceOnChart = true,
   liquidityWeatherOnChart = true,
   effortMarkOnChart = true,
+  deltaLevelsOnChart = true,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1333,6 +1345,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const effortMarkRef = useRef<EffortMarkVerdict | null>(null);
   useEffect(() => { effortMarkRef.current = effortMark ?? null; }, [effortMark]);
 
+  /**
+   * Delta levels ride the tape rate — a new print at any price rewrites the
+   * VM. Same rail rule as the four before them.
+   */
+  const deltaLevelsRef = useRef<DeltaLevelsGlass | null>(null);
+  useEffect(() => { deltaLevelsRef.current = deltaLevelsGlass ?? null; }, [deltaLevelsGlass]);
+
   /*
     The four switches, read the same way as the readings they gate. They change
     far more slowly than the tape does, but they are read INSIDE the rAF loop,
@@ -1340,7 +1359,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1348,8 +1367,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       divergence: deltaDivergenceOnChart,
       weather: liquidityWeatherOnChart,
       effort: effortMarkOnChart,
+      deltaLevels: deltaLevelsOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8256,6 +8276,61 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           } else {
             delete ds.effortMarkSide;
+          }
+        }
+
+        /* ══ H-702 · DELTA LEVELS ON GLASS ═══════════════════════════════════
+           `selectDeltaLevelsGlass` has already refused (or not) and named
+           reasons this file may not invent. The rules it enforces upstream:
+
+             · NO measured grid → nothing here paints at a level.
+             · A rung is the compiler's price, unchanged. Nothing here maps a
+               ratio, a volume, a weight, or a delta onto `priceToCoordinate`.
+             · SIDE is a semantic field, not a hue. §9: delta is which side
+               crossed the spread, not where price went — colouring buy delta
+               green would borrow the candles' meaning.
+
+           A lane grows RIGHT for BUY, LEFT for SELL, from a hairline centre
+           at a fixed inset from the price scale. Same ink for both.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const dl = deltaLevelsRef.current;
+          const on = layerOnRef.current.deltaLevels;
+          ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : "OFF";
+
+          if (on && dl?.drawn) {
+            ctx.save();
+            const centerX = W - 96; // Fixed chrome, outside the candle body area.
+            const laneMax = 40;
+            let drawnRungs = 0;
+            for (const r of dl.rungs) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) + 0.5;
+              const len = Math.max(2, Math.round(r.weight * laneMax));
+              ctx.strokeStyle = "rgba(237,230,211,0.75)";
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(centerX, y);
+              ctx.lineTo(r.side === "BUY" ? centerX + len : centerX - len, y);
+              ctx.stroke();
+              drawnRungs++;
+            }
+            // Hairline centre so the trader can see the axis the lanes grow
+            // from, even when only one side has rungs on screen.
+            ctx.strokeStyle = "rgba(139,106,41,0.35)";
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 3]);
+            ctx.beginPath();
+            ctx.moveTo(centerX + 0.5, 8);
+            ctx.lineTo(centerX + 0.5, H - 8);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+            if (drawnRungs > 0) ds.deltaLevelsRungs = String(drawnRungs);
+            else delete ds.deltaLevelsRungs;
+          } else {
+            delete ds.deltaLevelsRungs;
           }
         }
 

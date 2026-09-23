@@ -29,6 +29,8 @@ const ALL_IDS: readonly ProfileId[] = [
   // H-701. Needs bars and nothing else: it weighs a bar against the bars
   // before it, so it is neither prints-dependent nor side-dependent.
   "EFFORT_MARK",
+  // H-702. Aggressor delta at real grid prices — side-dependent.
+  "DELTA_LEVELS",
 ];
 
 /** The rows that require provider-stated aggressor side. */
@@ -37,6 +39,7 @@ const SIDED: readonly ProfileId[] = [
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",
+  "DELTA_LEVELS",
 ];
 
 function input(over: Partial<ProfileMenuInput> = {}): ProfileMenuInput {
