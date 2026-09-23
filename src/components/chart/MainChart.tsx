@@ -185,6 +185,7 @@ import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaD
 import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
 import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -905,6 +906,20 @@ interface Props {
    * stalled-segment shelves get a level. Null means the room has no reading.
    */
   liquidityWeather?: LiquidityWeatherVM | null;
+  /**
+   * THE EFFORT READING, PUT BACK ON THE CANDLE IT IS ABOUT.
+   *
+   * Child EFFORT→RESPONSE BAR MARK, family F06, plate H-701. Until this prop
+   * existed the reading lived entirely inside a 236px card pinned to the top
+   * left of the chart — a panel describing a candle while pointing at nothing.
+   * The house is blunt about that shape: a paragraph describing absorption is
+   * not absorption, and MENU BUILT + NO MARKET PAINT = OPEN.
+   *
+   * The room hands down a VERDICT, not a view model: `selectEffortMark` has
+   * already decided whether there is a lawful price to hang this on, and this
+   * file may not second-guess it. Null means the room asked nothing.
+   */
+  effortMark?: EffortMarkVerdict | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -1189,6 +1204,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   valueCandle = null,
   deltaDivergence = null,
   liquidityWeather = null,
+  effortMark = null,
   // Default TRUE: these four shipped drawing, and silently switching one off
   // would be a second surprise dressed as a fix. The switch is the new thing.
   imbalanceStackOnChart = true,
@@ -1303,6 +1319,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   /** And the fourth. Four tape-rate readings, one rule. */
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
   useEffect(() => { liquidityWeatherRef.current = liquidityWeather; }, [liquidityWeather]);
+
+  /**
+   * The effort mark rides the same rail, for a different reason.
+   *
+   * It does not change at tape rate — it changes at CURSOR rate, which is
+   * worse. Naming it in the overlay's dependency array would tear the rAF loop
+   * down on every mouse move across the pane, which is the documented cause of
+   * layers flashing off.
+   */
+  const effortMarkRef = useRef<EffortMarkVerdict | null>(null);
+  useEffect(() => { effortMarkRef.current = effortMark ?? null; }, [effortMark]);
 
   /*
     The four switches, read the same way as the readings they gate. They change
@@ -8153,6 +8180,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // A stale stage keeps describing weather that is no longer measured.
           delete ds.liquidityWeatherStage;
           delete ds.liquidityWeatherShelves;
+        }
+
+        /* ══ H-701 · EFFORT→RESPONSE BAR MARK ═══════════════════════════════
+           F06's reading, put back on the candle it is about.
+
+           Everything difficult here was already decided by `selectEffortMark`,
+           which is the point: this block may not grade, may not choose a side,
+           and may not invent a price. It receives a time and a price the BAR
+           ITSELF REACHED, or it receives a refusal with a reason.
+
+           WHAT IT MUST NOT DO, spelled out because both are one line away:
+             · map `effortRatio` or `resultRatio` onto the price axis. A ratio
+               has no price. The verdict carries neither, so there is nothing
+               here to map.
+             · choose a hue from the shape. §9 — SPENT·DIDN'T MOVE is where a
+               reversal starts and also where a trend rests, and the house
+               grades neither. One ivory, both corners.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const ev = effortMarkRef.current;
+          // The receipt is published in EVERY state. A layer that goes quiet
+          // without saying why is indistinguishable from a layer that broke.
+          ds.effortMark = ev ? ev.reason : "NO_READING";
+
+          if (ev?.drawn) {
+            const m = ev.mark;
+            const xr = chart.timeScale().timeToCoordinate(m.time as any);
+            const yr = srs.priceToCoordinate(m.price);
+            if (xr != null && yr != null) {
+              const x = Math.round(+xr) + 0.5;
+              const y = Math.round(+yr) + 0.5;
+              // Outside the extreme, so the description never covers the
+              // candle it describes.
+              const out = m.side === "ABOVE" ? -1 : 1;
+              ctx.save();
+              ctx.strokeStyle = "rgba(237,230,211,0.85)";
+              ctx.fillStyle = "rgba(237,230,211,0.85)";
+              ctx.lineWidth = 1;
+
+              // A short stem off the bar's own extreme. Not an arrow: an arrow
+              // points somewhere, and this reading refuses to say where.
+              ctx.beginPath();
+              ctx.moveTo(x, y + out * 3);
+              ctx.lineTo(x, y + out * 13);
+              ctx.stroke();
+
+              // A hollow cap. FILL is reserved elsewhere in this house for
+              // "answered"; nothing about this bar is answered.
+              ctx.beginPath();
+              ctx.arc(x, y + out * 16, 2.5, 0, Math.PI * 2);
+              ctx.stroke();
+
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "center";
+              ctx.textBaseline = m.side === "ABOVE" ? "bottom" : "top";
+              ctx.fillText(m.label, x, y + out * 21);
+              ctx.restore();
+
+              ds.effortMarkSide = m.side;
+            } else {
+              // Scrolled out of the visible range. The reading still stands;
+              // it simply has nowhere on this screen to stand. Saying DRAWN
+              // here would claim paint nobody can see.
+              ds.effortMark = "OFFSCREEN";
+              delete ds.effortMarkSide;
+            }
+          } else {
+            delete ds.effortMarkSide;
+          }
         }
 
         /* ── P-601 HEAT LENS: THE SECOND EXCEPTION, AND WHY IT IS ONE ──────

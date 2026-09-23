@@ -254,6 +254,7 @@ import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
+import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -1582,6 +1583,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       subjectIsForming: effortSubjectIsForming,
     }),
     [inspectBar, effortPriorBars, effortSubjectIsForming],
+  );
+
+  /**
+   * H-701 — THE SAME VERDICT, GIVEN A PLACE ON THE CANDLES.
+   *
+   * Not a second reading. `selectEffortMark` re-derives nothing: it takes the
+   * VM above and the subject bar's own coordinates and answers whether there
+   * is a lawful time and price to hang a mark on. Two components over one
+   * candle disagreeing about what that candle is, is the failure the Inspect
+   * Ticket's header warns about — so the mark reads `inspectBar` too, and the
+   * SAME `effortVsResultVM` the panel reads. One reading, one verdict, two
+   * renderings of it.
+   */
+  const effortMarkVerdict = React.useMemo(
+    () => selectEffortMark(
+      effortVsResultVM,
+      inspectBar
+        ? { time: inspectBar.time, open: inspectBar.o, close: inspectBar.c,
+            high: inspectBar.h, low: inspectBar.l }
+        : null,
+    ),
+    [effortVsResultVM, inspectBar],
   );
 
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
@@ -4547,6 +4570,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         price in it stops living exclusively in a drawer.
                       */
                       liquidityWeather={chartOrderFlowReadings.liquidityWeather}
+                      effortMark={effortMarkVerdict}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off

@@ -35,7 +35,19 @@ const ROOM = strip(read("src/components/chart/ChartsDashboard.tsx"));
 const block = (() => {
   const at = CHART.indexOf("selectDeltaDivergenceGlass(deltaDivergenceRef.current)");
   expect(at, "the glass call was renamed or removed").toBeGreaterThan(-1);
-  return CHART.slice(at, at + 5200);
+  /*
+    BOUNDED BY THE NEXT LAYER, NOT BY A CHARACTER COUNT.
+    A fixed 5200 was a bet that no layer would ever be added downstream inside
+    that reach — and H-701's effort mark was, at which point this file's
+    "never with the time scale" guard began failing on a NEIGHBOUR's lawful
+    `timeToCoordinate`. That is the wrong-instrument defect: a guard reporting
+    a violation in code it does not govern. The marker below is what this
+    block actually ends at.
+  */
+  const end = CHART.indexOf("selectLiquidityWeatherGlass", at);
+  expect(end, "the liquidity weather layer no longer follows this block")
+    .toBeGreaterThan(at);
+  return CHART.slice(at, end);
 })();
 
 describe("the reading reaches the chart", () => {
