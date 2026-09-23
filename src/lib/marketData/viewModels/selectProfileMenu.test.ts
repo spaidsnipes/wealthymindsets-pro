@@ -31,6 +31,9 @@ const ALL_IDS: readonly ProfileId[] = [
   "EFFORT_MARK",
   // H-702. Aggressor delta at real grid prices — side-dependent.
   "DELTA_LEVELS",
+  // H-703. HVN/LVN nodes off the developing profile. Needs bars only —
+  // neither side-dependent nor prints-dependent.
+  "LIVING_PROFILE",
 ];
 
 /** The rows that require provider-stated aggressor side. */

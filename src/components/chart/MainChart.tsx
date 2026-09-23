@@ -187,6 +187,7 @@ import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selec
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
+import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -929,6 +930,14 @@ interface Props {
    * `selectDeltaLevelsGlass` refuses when no grid was measured.
    */
   deltaLevelsGlass?: DeltaLevelsGlass | null;
+  /**
+   * LIVING PROFILE NODES ON GLASS — H-703, family F04 Profiles.
+   *
+   * HVN and LVN marks at their real bucket prices. The compiler has already
+   * refused the two ways this could lie: no measured profile → no paint;
+   * an untraded bucket is counted, not drawn.
+   */
+  livingProfileGlass?: LivingProfileGlass | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -947,6 +956,7 @@ interface Props {
   liquidityWeatherOnChart?: boolean;
   effortMarkOnChart?: boolean;
   deltaLevelsOnChart?: boolean;
+  livingProfileOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1217,6 +1227,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   liquidityWeather = null,
   effortMark = null,
   deltaLevelsGlass = null,
+  livingProfileGlass = null,
   // Default TRUE: these four shipped drawing, and silently switching one off
   // would be a second surprise dressed as a fix. The switch is the new thing.
   imbalanceStackOnChart = true,
@@ -1225,6 +1236,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   liquidityWeatherOnChart = true,
   effortMarkOnChart = true,
   deltaLevelsOnChart = true,
+  livingProfileOnChart = true,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1352,6 +1364,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const deltaLevelsRef = useRef<DeltaLevelsGlass | null>(null);
   useEffect(() => { deltaLevelsRef.current = deltaLevelsGlass ?? null; }, [deltaLevelsGlass]);
 
+  /** Living profile changes at BAR rate, but still through a ref for the same
+   *  reason as the six above it: this file's rule is where a value is read,
+   *  not how often it changes. */
+  const livingProfileRef = useRef<LivingProfileGlass | null>(null);
+  useEffect(() => { livingProfileRef.current = livingProfileGlass ?? null; }, [livingProfileGlass]);
+
   /*
     The four switches, read the same way as the readings they gate. They change
     far more slowly than the tape does, but they are read INSIDE the rAF loop,
@@ -1359,7 +1377,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1368,8 +1386,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       weather: liquidityWeatherOnChart,
       effort: effortMarkOnChart,
       deltaLevels: deltaLevelsOnChart,
+      livingProfile: livingProfileOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8353,6 +8372,60 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             else delete ds.deltaLevelsRungs;
           } else {
             delete ds.deltaLevelsRungs;
+          }
+        }
+
+        /* ══ H-703 · LIVING PROFILE NODES ON GLASS ═══════════════════════════
+           HVN and LVN marks at the compiler's bucket-low prices. Rules the
+           compiler already enforced:
+
+             · NO measured profile → nothing here paints.
+             · NODE IS A PRICE. `weight`, `distanceFromPoc`, `volume` never
+               reach `priceToCoordinate`. Only `mark.price` does.
+             · AN UNTRADED BUCKET IS NOT A NODE. Counted, not rendered — a
+               lane of any length would read as "size traded here" and none
+               did.
+
+           HVN and LVN are told apart by MARK SHAPE, never by hue. HVN gets a
+           filled tick (size is present), LVN gets a hollow ring (size is
+           absent). This is the same fill/weight law the gate rail uses.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const lp = livingProfileRef.current;
+          const on = layerOnRef.current.livingProfile;
+          ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
+
+          if (on && lp?.drawn) {
+            ctx.save();
+            const leftX = 122;  // Inset from the left chrome; outside price gutter.
+            const laneMax = 30;
+            let drawnMarks = 0;
+            for (const m of lp.marks) {
+              const yr = srs.priceToCoordinate(m.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) + 0.5;
+              const len = Math.max(3, Math.round(m.weight * laneMax));
+              if (m.kind === "HVN") {
+                // Filled short bar — the market lingered here.
+                ctx.fillStyle = "rgba(237,230,211,0.80)";
+                ctx.fillRect(leftX, y - 1, len, 2);
+              } else {
+                // Hollow ring — a level nobody chose. Same length rules, no
+                // fill: absence rendered as an outline, not as a value.
+                ctx.strokeStyle = "rgba(194,184,146,0.70)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(leftX + 0.5, y - 1.5, len, 3);
+              }
+              drawnMarks++;
+            }
+            ctx.restore();
+            if (drawnMarks > 0) ds.livingProfileMarks = String(drawnMarks);
+            else delete ds.livingProfileMarks;
+            if (lp.untradedCount > 0) ds.livingProfileUntraded = String(lp.untradedCount);
+            else delete ds.livingProfileUntraded;
+          } else {
+            delete ds.livingProfileMarks;
+            delete ds.livingProfileUntraded;
           }
         }
 

@@ -50,7 +50,8 @@ export type ProfileId =
   | "DELTA_DIVERGENCE"
   | "LIQUIDITY_WEATHER"
   | "EFFORT_MARK"
-  | "DELTA_LEVELS";
+  | "DELTA_LEVELS"
+  | "LIVING_PROFILE";
 
 /**
  * READY — it can draw now.
@@ -295,6 +296,24 @@ const CATALOGUE: readonly ProfileSpec[] = [
     */
     levels: ["Aggressor-delta rungs"],
   },
+  {
+    id: "LIVING_PROFILE",
+    label: "Living Profile",
+    /*
+      HVN and LVN together. A trader who wants to see one usually wants to
+      see the other by contrast — one names the levels the market lingered
+      at, the other the levels it avoided.
+    */
+    what: "the levels the market lingered at and the ones it avoided",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectLivingProfile.ts",
+    /*
+      Every mark is a real bucket-low price. Untraded prices are counted, not
+      rendered — a lane of any length would read as "size traded here" and
+      none did.
+    */
+    levels: ["HVN and LVN price nodes"],
+  },
 ];
 
 const GESTURE_NOTE: Readonly<Record<ProfileGesture, string>> = {
@@ -321,6 +340,9 @@ const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>([
 /** Readings that need real prints but deliberately do not need aggressor side. */
 const NEEDS_PRINTS: ReadonlySet<ProfileId> = new Set<ProfileId>([
   "LIQUIDITY_WEATHER",
+  // Living Profile can survive on bar volume alone (`buildLivingProfileSnapshot`
+  // falls back to bar-level distribution), so it does NOT need side. It does
+  // need SOMETHING to bucket, and bars-only is the minimum.
 ]);
 
 export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {

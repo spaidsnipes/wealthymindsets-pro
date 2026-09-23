@@ -257,6 +257,7 @@ import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVs
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
+import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -728,6 +729,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
   const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", true) as boolean);
   const [deltaLevelsOn, setDeltaLevelsOn] = useState<boolean>(() => lsGet("wm_ofDeltaLevels", true) as boolean);
+  const [livingProfileOn, setLivingProfileOn] = useState<boolean>(() => lsGet("wm_ofLivingProfile", true) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -952,6 +954,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofLiquidityWeather",  liquidityWeatherOn);
   usePersistOnChange("wm_ofEffortMark",        effortMarkOn);
   usePersistOnChange("wm_ofDeltaLevels",      deltaLevelsOn);
+  usePersistOnChange("wm_ofLivingProfile",    livingProfileOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1634,6 +1637,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [recentTicks],
   );
 
+  /**
+   * H-703 — LIVING PROFILE, out of the drawer. `livingProfileVM` is already
+   * being computed by the room for `LivingProfileView`; the glass compiler
+   * re-reads it and refuses every way it could lie (no profile, no HVN
+   * weight, untraded bucket).
+   */
+  const livingProfileGlass = React.useMemo(
+    () => selectLivingProfileGlass(livingProfileVM),
+    [livingProfileVM],
+  );
+
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2262,6 +2276,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
       if (s.EFFORT_MARK !== undefined) setEffortMarkOn(s.EFFORT_MARK);
       if (s.DELTA_LEVELS !== undefined) setDeltaLevelsOn(s.DELTA_LEVELS);
+      if (s.LIVING_PROFILE !== undefined) setLivingProfileOn(s.LIVING_PROFILE);
     },
     [],
   );
@@ -2292,6 +2307,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       LIQUIDITY_WEATHER: liquidityWeatherOn,
       EFFORT_MARK: effortMarkOn,
       DELTA_LEVELS: deltaLevelsOn,
+      LIVING_PROFILE: livingProfileOn,
     },
   });
 
@@ -3930,6 +3946,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
                   EFFORT_MARK: effortMarkOn,
                   DELTA_LEVELS: deltaLevelsOn,
+                  LIVING_PROFILE: livingProfileOn,
                 }}
                 onToggle={(id) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3941,6 +3958,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
                   else if (id === "EFFORT_MARK") setEffortMarkOn(v => !v);
                   else if (id === "DELTA_LEVELS") setDeltaLevelsOn(v => !v);
+                  else if (id === "LIVING_PROFILE") setLivingProfileOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4610,6 +4628,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       effortMark={effortMarkVerdict}
                       deltaLevelsGlass={deltaLevelsGlass}
                       deltaLevelsOnChart={deltaLevelsOn}
+                      livingProfileGlass={livingProfileGlass}
+                      livingProfileOnChart={livingProfileOn}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off
