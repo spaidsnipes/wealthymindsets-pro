@@ -52,6 +52,7 @@ import {
 } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
+import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 
 /** The tape this reads. Structurally the stream's own tick, never re-typed. */
 type Ticks = Parameters<typeof selectValueCandle>[0];
@@ -78,6 +79,15 @@ export interface OrderFlowReadingSet {
   readonly deltaDivergence: ReturnType<typeof selectDeltaDivergence>;
   readonly liquidityWeather: ReturnType<typeof selectLiquidityWeather>;
   readonly stackedImbalance: ReturnType<typeof selectStackedImbalance>;
+  /**
+   * DELTA LEVELS — where each side crossed the spread hardest, on the tape's
+   * OWN grid. Compiled HERE so the chart's overlay and the SmartMoneyPanel
+   * drawer cannot read a different moment of the same tape. Even though
+   * `selectDeltaLevels` is pure and both callers would arrive at the same
+   * answer given the same input, two useMemos over two closures is exactly
+   * the two-owner shape Canon Weakness #1 forbids.
+   */
+  readonly deltaLevels: ReturnType<typeof selectDeltaLevels>;
   /** True only for usable trade prints; quote events do not satisfy it. */
   readonly printsPresent: boolean;
   /** True when this feed carries per-trade aggressor prints WM can attribute. */
@@ -102,6 +112,7 @@ export function compileOrderFlowReadings(
     deltaDivergence: selectDeltaDivergence(sidedTicks),
     liquidityWeather: selectLiquidityWeather(recentTicks),
     stackedImbalance: selectStackedImbalance(sidedTicks),
+    deltaLevels: selectDeltaLevels(sidedTicks),
     printsPresent: hasLiquidityWeatherPrints(recentTicks),
     realTape,
   };

@@ -255,7 +255,6 @@ import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTi
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
-import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -1075,6 +1074,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, []);
 
   const { ticker, recentTicks, source, tapeSource, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
+  /*
+    ONE OWNER of the six order-flow readings — value candle, absorption,
+    delta divergence, liquidity weather, stacked imbalance, delta levels.
+    Hoisted immediately behind the tape so every consumer below (glass
+    compilers, panel, drawer) reads the same compiled moment. See the
+    header on `useOrderFlowReadings` for the shape of the defect this ends.
+  */
+  const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource);
   // The hook clears ticker state after a symbol transition. Retain the symbol
   // that actually owns the current render's ticker until that clear lands, so
   // the next Options request can never inherit the prior underlying's spot.
@@ -1633,8 +1640,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * bigger surgery than the slice needs.
    */
   const deltaLevelsGlass = React.useMemo(
-    () => selectDeltaLevelsGlass(selectDeltaLevels(recentTicks)),
-    [recentTicks],
+    () => selectDeltaLevelsGlass(chartOrderFlowReadings.deltaLevels),
+    [chartOrderFlowReadings.deltaLevels],
   );
 
   /**
@@ -1841,7 +1848,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     divergence". They ask whether the side pressing is being paid for its
     effort, and these five are the ways that question gets answered.
   */
-  const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource);
   /*
     WHAT THE CHART IS ACTUALLY DRAWING, IN WORDS.
     Compiled HERE and nowhere else, because the room is the only place that

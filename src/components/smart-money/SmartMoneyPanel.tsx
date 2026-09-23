@@ -27,7 +27,8 @@ import AbsorptionAnatomyPanel from "@/components/experience/AbsorptionAnatomyPan
 import DeltaDivergencePanel from "@/components/experience/DeltaDivergencePanel";
 import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel";
 import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel";
-import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
+// `selectDeltaLevels` no longer imported directly here — the compilation is
+// owned by `useOrderFlowReadings` and this panel reads its verdict.
 import {
   capDeltaLevels,
   DELTA_LEVEL_CAP_CHOICES,
@@ -363,6 +364,11 @@ export function SmartMoneyPanel({
     deltaDivergence,
     liquidityWeather,
     stackedImbalance,
+    // ONE OWNER. Read here off the single-owner set instead of computing a
+    // second `selectDeltaLevels(recentTicks)` — two closures reading a moving
+    // tape at two moments is exactly the multi-owner shape this hook was
+    // built to end.
+    deltaLevels: deltaVM,
   } = useOrderFlowReadings(recentTicks, tapeSource);
   const livePrice = ticker.price > 0 ? ticker.price : 0;
 
@@ -423,10 +429,9 @@ export function SmartMoneyPanel({
   // at — under a comment promising it never invented levels. Worse, the bucket
   // width was a function of the window's extremes, so one new high slid every
   // bubble to a new price with no trade at any of them.
-  const deltaVM = React.useMemo(
-    () => selectDeltaLevels(realTape ? recentTicks : null),
-    [realTape, recentTicks],
-  );
+  // `deltaVM` now arrives from `useOrderFlowReadings` above; see the note
+  // there on why a second closure over the same tape is exactly the defect
+  // that hook exists to end.
   // EVERY level the tape produced, before the trader's cap. Kept separate from
   // what gets rendered so the chip below can report both numbers — a cap that
   // hides observed levels is a fact the trader is owed, not a silent trim.

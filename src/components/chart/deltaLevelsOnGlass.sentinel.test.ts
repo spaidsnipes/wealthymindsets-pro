@@ -42,7 +42,10 @@ const block = (() => {
 describe("the reading reaches the chart", () => {
   it("the room hands the CHART the same glass verdict — no second selector on canvas", () => {
     expect(ROOM).toMatch(/deltaLevelsGlass=\{deltaLevelsGlass\}/);
-    expect(ROOM).toMatch(/selectDeltaLevelsGlass\(selectDeltaLevels\(recentTicks\)\)/);
+    // The compilation is owned by `useOrderFlowReadings`; the room reads the
+    // finished VM off the single-owner set rather than computing a second
+    // copy. Guarding the shape of the read, not the exact tape argument.
+    expect(ROOM).toMatch(/selectDeltaLevelsGlass\(chartOrderFlowReadings\.deltaLevels\)/);
   });
 
   it("the chart accepts it as a prop and re-derives nothing", () => {
