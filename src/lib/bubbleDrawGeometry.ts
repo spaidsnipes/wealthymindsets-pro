@@ -179,6 +179,27 @@ export function deltaBubbleRadius(absDelta: number, peakAbsDelta: number): numbe
 }
 
 /** Big-trade radius — value is the print's total, peak the bar's largest print. */
+/** Map an execution inside its containing bar onto the same time/price camera.
+ * The bar coordinate denotes its timestamp, not its left edge. Only the
+ * membrane may animate; the print's center must remain on this coordinate.
+ */
+export function bigTradeAnchor(input: {
+  barX: number | null;
+  barTime: number;
+  eventTime: number;
+  intervalSec: number;
+  barSpacing: number;
+  priceY: number | null;
+}): { x: number; y: number } | null {
+  const { barX, barTime, eventTime, intervalSec, barSpacing, priceY } = input;
+  if (barX == null || priceY == null ||
+      ![barX, barTime, eventTime, intervalSec, barSpacing, priceY].every(Number.isFinite) ||
+      intervalSec <= 0 || barSpacing <= 0) return null;
+  const elapsed = eventTime - barTime;
+  if (elapsed < 0 || elapsed >= intervalSec) return null;
+  return { x: barX + elapsed / intervalSec * barSpacing, y: priceY };
+}
+
 export function bigTradeBubbleRadius(total: number, peakTotal: number): number {
   return bubbleRadius(total, peakTotal, { maxR: BIG_TRADE_MAX_R });
 }

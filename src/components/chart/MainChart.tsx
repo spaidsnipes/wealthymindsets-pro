@@ -216,9 +216,10 @@ import {
   minBigTradeLot,
   type BigTradeTick,
   type BigTradeLevel,
+  type SelectedBigTrade,
 } from "@/lib/bigTradeLevels";
-import { bubbleClaimMagnitude, describeBubbleClaim } from "@/lib/bubbleClaim";
-import { bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
+import { bubbleClaimMagnitude, describeBubbleClaim, formatBubbleVolume, formatBubblePrice } from "@/lib/bubbleClaim";
+import { bigTradeAnchor, bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
@@ -857,6 +858,7 @@ interface Props {
   replayBars?:     LegacyOhlcvTuple[];
   compareSymbol?:  string;
   onPriceAtCursor?: (price: number) => void;
+  onSelectBigTrade?: (print: SelectedBigTrade) => void;
   onOHLCAtCursor?:  (ohlc: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => void;
   // WM VP indicators
   fixedVPActive?:  boolean;
@@ -1180,7 +1182,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
-  compareSymbol, onPriceAtCursor, onOHLCAtCursor,
+  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
   imbalanceStack = null,
@@ -6253,7 +6255,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // separate block trades into a single key on crypto.
             const spawnKey = bigTradeLevelKey(c.time as number, lv);
             if (bubbleSpawnRef.current.has(spawnKey)) return;
-            bubbleSpawnRef.current.add(spawnKey);
 
             // Size is OWNED by src/lib/bubbleDrawGeometry.ts. The inline form
             // that used to live here clamped at 28px, so every print from 4×
@@ -6277,15 +6278,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const phase = (sph - Math.floor(sph)) * Math.PI * 2;
             const rawLevY = srs.priceToCoordinate(lv.priceLevel);
             if (rawLevY == null) return;
-            const levY = Math.round(rawLevY);
             const barTime = c.time as number;
             const exactTime = lv.timeMs != null ? lv.timeMs / 1000 : barTime;
-            const withinBar = Math.max(0, Math.min(1, (exactTime - barTime) / (intervalSec ?? 60)));
-            const exactX = cx + (withinBar - 0.5) * bsp;
+            const anchor = bigTradeAnchor({ barX: cx, barTime, eventTime: exactTime,
+              intervalSec: intervalSec ?? 60, barSpacing: bsp, priceY: rawLevY });
+            if (!anchor) return;
+            bubbleSpawnRef.current.add(spawnKey);
 
             bubblesRef.current.push({
               id:    ++bubbleIdRef.current,
-              x:     exactX,  y: levY,  vx: 0, vy: 0,
+              x:     anchor.x,  y: anchor.y,  vx: 0, vy: 0,
               baseR,
               r:     baseR * 0.35,
               phase,
@@ -6336,28 +6338,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const nowMs = performance.now();
         const bubbles = bubblesRef.current;
 
-        // Physics: spring each bubble toward its anchored key level so it floats
-        // gently AT the level (buoyant bob). No lifespan, no expiry — a bubble
-        // never fades or pops; it persists until its bar scrolls off screen.
+        // Event centers stay exact through pan/scale. Atmosphere belongs to the
+        // membrane, never to a spring that moves the print off its evidence.
         for (const b of bubbles) {
           const barX = chart.timeScale().timeToCoordinate(b.anchorBarTime as any);
-          const barFraction = Math.max(0, Math.min(1, (b.anchorTime - b.anchorBarTime) / (intervalSec ?? 60)));
-          const hx = barX == null ? null : barX + (barFraction - 0.5) * bsp;
-          const hy = srs.priceToCoordinate(b.anchorPrice);
-          if (hx == null || hy == null) continue; // off-screen → culled below
-          const bob   = Math.sin(b.phase + nowMs / 1600) * 3;
-          const sibN  = b.siblingN ?? 1;
-          const lvlIx = b.levelIdx ?? 0;
-          const spread = sibN > 1 ? Math.min(28, Math.max(14, b.baseR * 0.75)) : 0;
-          // A Big Trade already owns an exact timestamp inside this bar.
-          // Staggering it horizontally would move the glyph off its evidence.
-          const offX  = b.kind === "big-trade" ? 0 : sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
-          const homeX = hx + offX + Math.cos(b.phase + nowMs / 2400) * 2;
-          const homeY = hy + bob - 3;
-          b.vx += (homeX - b.x) * 0.012;
-          b.vy += (homeY - b.y) * 0.012;
-          b.vx *= 0.93; b.vy *= 0.93;
-          b.x += b.vx; b.y += b.vy;
+          const anchor = bigTradeAnchor({ barX, barTime: b.anchorBarTime, eventTime: b.anchorTime,
+            intervalSec: intervalSec ?? 60, barSpacing: bsp, priceY: srs.priceToCoordinate(b.anchorPrice) });
+          if (!anchor) continue; // invalid/off-camera → culled below
+          b.x = anchor.x;
+          b.y = anchor.y;
+          b.vx = 0; b.vy = 0;
           if (b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12; // ease up on spawn
         }
 
@@ -6367,8 +6357,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const survivors: Bubble[] = [];
         for (const b of bubbles) {
           const barX = chart.timeScale().timeToCoordinate(b.anchorBarTime as any);
-          const barFraction = Math.max(0, Math.min(1, (b.anchorTime - b.anchorBarTime) / (intervalSec ?? 60)));
-          const hx = barX == null ? null : barX + (barFraction - 0.5) * bsp;
+          const hx = bigTradeAnchor({ barX, barTime: b.anchorBarTime, eventTime: b.anchorTime,
+            intervalSec: intervalSec ?? 60, barSpacing: bsp, priceY: srs.priceToCoordinate(b.anchorPrice) })?.x ?? null;
           if (hx == null || hx < -80 || hx > W + 80) {
             // free this level's dedupe key so it re-spawns on pan-back
             // The `?? \`bt:${b.anchorTime}:${b.anchorPrice}\`` fallback that used
@@ -6476,25 +6466,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillStyle = "rgba(255,255,255,0.4)";
           ctx.fill();
 
-          // EXACT PRICE label, centered — the price where this aggressive trade
-          // printed (e.g. "417.17"), NOT the notional. Deterministic anchorPrice →
-          // every user sees the same price on the same bubble.
+          // F07A: magnitude is the primary inscription, matching the area.
+          // Time and price are subordinate; exact values remain in Inspect.
           if (b.r >= 7) {
-            const p = b.anchorPrice;
-            // Thousands separators on large prices (63813 → "63,813") so the
-            // level reads cleanly like TradingView instead of a wall of digits.
-            const lbl = p >= 10000 ? Math.round(p).toLocaleString("en-US")
-                      : p >= 100   ? p.toFixed(2)
-                      : p >= 1     ? p.toFixed(2)
-                      :              p.toFixed(4);
+            const lbl = formatBubbleVolume(Math.abs(b.value));
             const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
             ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.lineWidth = Math.max(2, fontPx * 0.22);
             ctx.strokeStyle = "rgba(0,0,0,0.88)";
-            ctx.strokeText(lbl, b.x, b.y);
-            ctx.fillStyle = "rgba(255,255,255,0.99)";
-            ctx.fillText(lbl, b.x, b.y);
+            const labelY = b.r >= 24 ? b.y - 7 : b.y;
+            ctx.strokeText(lbl, b.x, labelY);
+            ctx.fillStyle = "rgba(246,224,176,0.99)";
+            ctx.fillText(lbl, b.x, labelY);
+            if (b.r >= 24) {
+              ctx.font = "8px Inter, monospace";
+              const timeLabel = new Date(b.anchorTime * 1000).toISOString().slice(11, 19);
+              ctx.fillStyle = "rgba(232,226,212,0.92)";
+              ctx.fillText(timeLabel, b.x, b.y + 5);
+              ctx.fillText(formatBubblePrice(b.anchorPrice), b.x, b.y + 15);
+            }
           }
           ctx.restore();
         }
@@ -9094,7 +9085,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     if (Math.hypot(x - s.x, y - s.y) > 5) return;   // was a pan, not a click
     const idx = hitTestDrawing(x, y);
     setSelectedIdx(idx >= 0 ? idx : null);
-  }, [drawingTool, hitTestDrawing]);
+    if (idx >= 0) return;
+    const hit = [...bubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
+    if (hit) onSelectBigTrade?.({
+      symbol, timeframe, barTime: hit.anchorBarTime, printKey: hit.spawnKey,
+      timeMs: hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
+      bid: hit.bid, ask: hit.ask, total: hit.bid + hit.ask, aggressorMethod: hit.aggressorMethod,
+    });
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, symbol, timeframe]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

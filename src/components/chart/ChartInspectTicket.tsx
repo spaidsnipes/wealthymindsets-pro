@@ -49,6 +49,8 @@
  */
 
 import React from "react";
+import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
+import { describeAggressorMethod } from "@/lib/bubbleClaim";
 import { Crosshair, X } from "lucide-react";
 
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
@@ -93,6 +95,7 @@ export function ChartInspectTicket({
   open,
   onOpenChange,
   onOpenFootprint,
+  selectedPrint = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -100,6 +103,7 @@ export function ChartInspectTicket({
   onOpenChange: (next: boolean) => void;
   /** Takes the trader to the surface that divides this bar by price level. */
   onOpenFootprint: () => void;
+  selectedPrint?: SelectedBigTrade | null;
 }) {
   if (!open) {
     return (
@@ -113,6 +117,32 @@ export function ChartInspectTicket({
         <Crosshair size={10} />
         INSPECT
       </button>
+    );
+  }
+
+  if (selectedPrint) {
+    const p = selectedPrint;
+    const stamped = p.aggressorMethod === "PROVIDER" || p.aggressorMethod === "MAKER_SIDE_INVERTED";
+    const inferred = p.aggressorMethod === "TICK_RULE" || p.aggressorMethod === "QUOTE_TEST";
+    return (
+      <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+        data-testid="chart-inspect-ticket" data-inspect-print={p.printKey}
+        aria-label={`Inspect selected print for ${p.symbol}`}>
+        <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
+          <Crosshair size={11} /> SELECTED PRINT
+          <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
+        </div>
+        <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
+        <dl className="mt-2 text-[11px] text-wm-muted break-words space-y-1">
+          <dt>Executed price</dt><dd className="text-white">{String(p.priceLevel)}</dd>
+          <dt>Executed size</dt><dd className="text-white">{String(p.total)}</dd>
+          <dt>Execution time · UTC</dt><dd>{p.timeMs != null ? new Date(p.timeMs).toISOString() : "UNKNOWN"}</dd>
+          <dt>Side fidelity</dt><dd>{stamped ? "OBSERVED" : inferred ? "INFERRED" : "UNKNOWN"}{stamped || inferred ? ` · ${p.ask >= p.bid ? "buy" : "sell"} classification` : " · classification not verified"}</dd>
+          <dd>{describeAggressorMethod(p.aggressorMethod)}</dd>
+          <dt>Execution identity</dt><dd>{p.printKey ?? "UNKNOWN"}</dd>
+        </dl>
+        <p className="mt-2 border-t border-wm-border pt-2 text-[10px] text-wm-muted">Participant and intent: UNKNOWN. This retained print is not a live quote. Raw tape is session-only; refresh may remove it.</p>
+      </section>
     );
   }
 

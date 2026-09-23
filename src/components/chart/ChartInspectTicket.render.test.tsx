@@ -69,6 +69,26 @@ const markup = (
   );
 
 describe("the ticket puts its verdict on the glass", () => {
+  it("inspects the selected individual print instead of unrelated live-bar totals", () => {
+    const html = markup(coveringTape(), {
+      selectedPrint: {
+        symbol: "BTCUSD", timeframe: "1m", barTime: BAR_OPEN_MS / 1000,
+        printKey: "event:coinbase:print-42", timeMs: BAR_OPEN_MS + 125,
+        priceLevel: 86250.125, bid: 0, ask: 1.17161234, total: 1.17161234,
+        aggressorMethod: "MAKER_SIDE_INVERTED",
+      },
+    });
+    expect(html).toContain("SELECTED PRINT");
+    expect(html).toContain("86250.125");
+    expect(html).toContain("1.17161234");
+    expect(html).toContain("event:coinbase:print-42");
+    expect(html).toContain(new Date(BAR_OPEN_MS + 125).toISOString());
+    expect(html).toContain("provider maker-side inversion");
+    expect(html).toContain("UNKNOWN");
+    expect(html).not.toContain("+25");
+    expect(html).not.toContain("chart-inspect-footprint-door");
+  });
+
   it("prints a read delta as a signed number", () => {
     const html = markup(coveringTape());
     expect(html).toContain("+25");

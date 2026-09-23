@@ -250,6 +250,7 @@ import FootprintWorksheetView from "@/components/experience/FootprintWorksheetVi
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
+import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
@@ -1466,6 +1467,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * about what the camera is owed. G-001: 1440 and 390 are the SAME ORGANISM.
    */
   const [inspectOpen, setInspectOpen] = useState(false);
+  const [selectedPrint, setSelectedPrint] = useState<SelectedBigTrade | null>(null);
+  const activeSelectedPrint = selectedPrint?.symbol === symbol && selectedPrint.timeframe === timeframe ? selectedPrint : null;
 
   /* The span comes from the bars the chart DREW, not from a second
    * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
@@ -4470,6 +4473,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          compiler above for why this, and not a second click
                          path, is the bar-selection route. */
                       onOHLCAtCursor={setCursorBar}
+                      onSelectBigTrade={print => { setSelectedPrint(print); setInspectOpen(true); }}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       onSelectMarketObject={setSelectedMarketObjectId}
@@ -4576,7 +4580,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         vm={inspectTicketVM}
                         followingLiveBar={inspectFollowingLiveBar}
                         open={inspectOpen}
-                        onOpenChange={setInspectOpen}
+                        selectedPrint={activeSelectedPrint}
+                        onOpenChange={open => { setInspectOpen(open); if (!open) setSelectedPrint(null); }}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}

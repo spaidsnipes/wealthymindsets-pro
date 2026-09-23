@@ -59,6 +59,12 @@ export interface BigTradeTick {
   aggressorMethod?: AggressorMethod;
 }
 
+export interface SelectedBigTrade extends BigTradeLevel {
+  symbol: string;
+  timeframe: string;
+  barTime: number;
+}
+
 export interface BigTradeLevel {
   /**
    * The price AS PRINTED — the level's identity and its claim, in one number.
