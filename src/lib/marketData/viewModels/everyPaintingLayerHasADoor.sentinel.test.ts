@@ -88,6 +88,41 @@ describe("every layer that paints on the price axis has a door in the menu", () 
     }
   });
 
+  /**
+   * THE SECOND JOIN, AND WHY ONE WAS NOT ENOUGH.
+   *
+   * The rule above is exactly as strong as the `select<X>Glass` naming
+   * convention it reads, and H-701's effort mark proved that is not strong
+   * enough: it paints on the price axis, at a bar's own extreme, and it calls
+   * no glass compiler at all. It would have sailed past this file untouched —
+   * which is the fifth layer this file's own header predicted.
+   *
+   * So the switch is the second join, and it is a better one because it is not
+   * a naming convention: the overlay quiets a layer by reading a key off
+   * `layerOnRef`, and every key there is, by construction, a layer that paints.
+   * Each key is a word from its own menu row's id, which is the mechanical
+   * link — no registry, nothing to remember to append to.
+   */
+  const SWITCH_KEYS: readonly string[] = [
+    ...new Set([...CHART.matchAll(/layerOnRef\.current\.([A-Za-z]+)/g)].map(m => m[1])),
+  ].sort();
+
+  it("EVERY SWITCH IN THE OVERLAY IS A ROW IN THE MENU", () => {
+    expect(SWITCH_KEYS.length, "no layerOnRef reads found — did the ref move?")
+      .toBeGreaterThan(3);
+
+    const ids = selectProfileMenu(MENU_INPUT).entries.map(e => e.id);
+    for (const key of SWITCH_KEYS) {
+      const matched = ids.filter(id => id.toLowerCase().includes(key.toLowerCase()));
+      expect(
+        matched,
+        `the overlay can quiet \`${key}\`, so \`${key}\` paints — and no single ` +
+          `profiles-menu row owns it. The trader cannot switch it off from the ` +
+          `menu and cannot learn it exists.`,
+      ).toHaveLength(1);
+    }
+  });
+
   it("a painting layer is never advertised as READY on a tape that cannot feed it", () => {
     // Side-dependent glass is withheld; Liquidity Weather is the deliberate
     // raw-print exception because its selector never reads aggressor side.

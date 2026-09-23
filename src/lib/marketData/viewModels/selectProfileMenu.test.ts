@@ -26,6 +26,9 @@ const ALL_IDS: readonly ProfileId[] = [
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",
   "LIQUIDITY_WEATHER",
+  // H-701. Needs bars and nothing else: it weighs a bar against the bars
+  // before it, so it is neither prints-dependent nor side-dependent.
+  "EFFORT_MARK",
 ];
 
 /** The rows that require provider-stated aggressor side. */

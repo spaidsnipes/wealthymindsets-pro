@@ -724,6 +724,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", true) as boolean);
   const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
   const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
+  const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", true) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -946,6 +947,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofValueCandle",       valueCandleOn);
   usePersistOnChange("wm_ofDeltaDivergence",   deltaDivergenceOn);
   usePersistOnChange("wm_ofLiquidityWeather",  liquidityWeatherOn);
+  usePersistOnChange("wm_ofEffortMark",        effortMarkOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2233,6 +2235,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
       if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
       if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
+      if (s.EFFORT_MARK !== undefined) setEffortMarkOn(s.EFFORT_MARK);
     },
     [],
   );
@@ -2261,6 +2264,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       VALUE_CANDLE: valueCandleOn,
       DELTA_DIVERGENCE: deltaDivergenceOn,
       LIQUIDITY_WEATHER: liquidityWeatherOn,
+      EFFORT_MARK: effortMarkOn,
     },
   });
 
@@ -3895,6 +3899,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   VALUE_CANDLE: valueCandleOn,
                   DELTA_DIVERGENCE: deltaDivergenceOn,
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
+                  EFFORT_MARK: effortMarkOn,
                 }}
                 onToggle={(id) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3904,6 +3909,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
                   else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
                   else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
+                  else if (id === "EFFORT_MARK") setEffortMarkOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4583,6 +4589,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       valueCandleOnChart={valueCandleOn}
                       deltaDivergenceOnChart={deltaDivergenceOn}
                       liquidityWeatherOnChart={liquidityWeatherOn}
+                      effortMarkOnChart={effortMarkOn}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}

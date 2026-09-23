@@ -48,7 +48,8 @@ export type ProfileId =
   | "IMBALANCE_STACK"
   | "VALUE_CANDLE"
   | "DELTA_DIVERGENCE"
-  | "LIQUIDITY_WEATHER";
+  | "LIQUIDITY_WEATHER"
+  | "EFFORT_MARK";
 
 /**
  * READY — it can draw now.
@@ -254,6 +255,25 @@ const CATALOGUE: readonly ProfileSpec[] = [
     // A cost has no price. The shelves are the ONLY thing this reading puts on
     // the axis; the stage and its statistics are words in the chrome.
     levels: ["Stall shelves"],
+  },
+  {
+    id: "EFFORT_MARK",
+    label: "Effort Mark",
+    /*
+      SAYS WHAT IT DRAWS AND, BY OMISSION, WHAT IT DOES NOT.
+      "the bar under your cursor" is load-bearing. The other TOGGLE rows draw
+      over the whole visible range, and a trader who reads this row as another
+      of those will switch it on, see nothing, and conclude the layer is
+      broken — the control-says-done/chart-says-nothing gap this menu's own
+      `ProfileGesture` note exists to close.
+    */
+    what: "when the bar under your cursor spent much and moved little, or the reverse",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/effortMarkGeometry.ts",
+    // A ratio has no price. The bar's own extreme is the ONLY thing this
+    // reading puts on the axis, and it puts it there because the bar traded
+    // it — `effortRatio` and `resultRatio` never reach a coordinate function.
+    levels: ["The subject bar's own high or low"],
   },
 ];
 

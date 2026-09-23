@@ -161,9 +161,32 @@ describe("§9 — two corners, one ink", () => {
   });
 });
 
+describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
+  it("a switched-off layer paints NOTHING, not merely a smaller mark", () => {
+    expect(block).toMatch(/if \(on && ev\?\.drawn\) \{/);
+  });
+
+  it("reads the switch from a REF, never from the overlay's dependency array", () => {
+    expect(block).toMatch(/const on = layerOnRef\.current\.effort/);
+    const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
+    expect(deps.slice(0, 400)).not.toMatch(/effortMarkOnChart/);
+  });
+
+  it("the switch travels as its OWN prop, not as a null verdict", () => {
+    // Passing null to turn it off would make "the trader closed this"
+    // indistinguishable from "no bar could be weighed" — H1, in a prop.
+    expect(CHART).toMatch(/effortMarkOnChart\?: boolean/);
+    expect(ROOM).toMatch(/effortMarkOnChart=\{effortMarkOn\}/);
+  });
+
+  it("OFF and NO_READING are different words in the receipt", () => {
+    expect(block).toMatch(/ds\.effortMark = on \? \(ev \? ev\.reason : "NO_READING"\) : "OFF"/);
+  });
+});
+
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.effortMark = ev \? ev\.reason : "NO_READING"/);
+    expect(block).toMatch(/ds\.effortMark = on \?/);
   });
 
   it("withdraws the side receipt rather than letting a stale one describe a new bar", () => {

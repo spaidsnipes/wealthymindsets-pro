@@ -936,6 +936,7 @@ interface Props {
   valueCandleOnChart?: boolean;
   deltaDivergenceOnChart?: boolean;
   liquidityWeatherOnChart?: boolean;
+  effortMarkOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1211,6 +1212,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   valueCandleOnChart = true,
   deltaDivergenceOnChart = true,
   liquidityWeatherOnChart = true,
+  effortMarkOnChart = true,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1338,15 +1340,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
       value: valueCandleOnChart,
       divergence: deltaDivergenceOnChart,
       weather: liquidityWeatherOnChart,
+      effort: effortMarkOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8202,9 +8205,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const ev = effortMarkRef.current;
           // The receipt is published in EVERY state. A layer that goes quiet
           // without saying why is indistinguishable from a layer that broke.
-          ds.effortMark = ev ? ev.reason : "NO_READING";
+          // OFF is not NO_READING. The bar answered; the trader closed the
+          // layer. A receipt that conflated the two would make a switched-off
+          // mark indistinguishable from a bar nobody could weigh — which is
+          // this product's cardinal defect wearing a dataset attribute.
+          const on = layerOnRef.current.effort;
+          ds.effortMark = on ? (ev ? ev.reason : "NO_READING") : "OFF";
 
-          if (ev?.drawn) {
+          if (on && ev?.drawn) {
             const m = ev.mark;
             const xr = chart.timeScale().timeToCoordinate(m.time as any);
             const yr = srs.priceToCoordinate(m.price);
