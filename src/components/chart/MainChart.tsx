@@ -7279,6 +7279,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          When nothing is measurable the field is not drawn at all. A flat band
          would read as "no pressure", which is a claim; absence is not.
       ══════════════════════════════════════════════════════════════════════ */
+      /*
+        ABSORPTION SILENCE MUST BE NAMED — the same rule the four order-flow
+        layers below obey. A layer that writes nothing when switched off is
+        indistinguishable from a layer that broke, and an external probe reading
+        `canvas.dataset.absorption` cannot tell those apart. Publish the
+        receipt in EVERY state; the paint work stays inside the truthy branch.
+      */
+      if (!absorptionAnatomyActive) {
+        const ds = canvas.dataset;
+        ds.absorption = "OFF";
+        delete ds.absorptionBasis;
+        delete ds.absorptionZones;
+      }
       if (absorptionAnatomyActive) {
         try {
           const srcBars = barsRef.current;
@@ -7374,6 +7387,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const ds = canvas.dataset;
           ds.absorptionBasis = anatomy.basis;
           ds.absorptionZones = String(anatomy.zones.length);
+          /*
+            A LAYER'S RECEIPT NAMES A STATE, NOT A METRIC. The three others
+            report DRAWN / OFF / NO_READING / <refusal>. Absorption's is
+            derived from the compiler: `measured` is the difference between a
+            reading that succeeded and a window too quiet to grade.
+          */
+          ds.absorption = anatomy.measured
+            ? (anatomy.zones.length > 0 ? "DRAWN" : "MEASURED_NO_ZONES")
+            : "UNMEASURED";
 
           if (anatomy.measured && pts.length >= 2) {
             ctx.save();
