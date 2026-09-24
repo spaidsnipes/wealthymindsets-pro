@@ -8,7 +8,7 @@ import {
   CheckCircle, X, Upload,
   Heart, Headphones, Volume2, VolumeX,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { WM } from "@/lib/design/wmTokens";
 import { useRadio } from "@/contexts/RadioContext";
@@ -880,7 +880,12 @@ export default function RadioPage() {
 
   // Load uploaded tracks from Supabase on mount
   useEffect(() => {
-    supabase.from("radio_tracks").select("*").order("created_at", { ascending: false })
+    // A runtime without Supabase has no uploaded tracks to list — that is
+    // the whole consequence. Going through the throwing proxy here took the
+    // ENTIRE room down with a raw runtime error instead.
+    const client = getSupabase();
+    if (!client) return;
+    client.from("radio_tracks").select("*").order("created_at", { ascending: false })
       .then(({ data }) => {
         if (!data) return;
         const tracks: Track[] = data.map(r => ({
