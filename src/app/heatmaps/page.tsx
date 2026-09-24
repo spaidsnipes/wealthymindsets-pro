@@ -391,17 +391,19 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
               borderRadius: 8, padding: "10px 12px",
               position: "relative",
             }}>
-              {/* Command Deck handoff — preserves symbol context per
-                  Founder Aug-14 §15 'A trader should not lose context
-                  moving between tools.' */}
+              {/* Market handoff — preserves symbol context per Founder
+                  Aug-14 §15 'A trader should not lose context moving between
+                  tools.' It lands the ONE market camera (/charts), not the
+                  legacy deck: a heat cell selects an instrument; the camera
+                  shows it. */}
               <button
                 type="button"
                 className="wm-markov-deck-action"
-                aria-label={`Open ${ms.sym} on the Command Deck`}
-                title="Open on Command Deck"
+                aria-label={`Open ${ms.sym} on the market`}
+                title="Open on the market camera"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/command-deck?symbol=${encodeURIComponent(ms.sym)}`);
+                  router.push(`/charts?symbol=${encodeURIComponent(ms.sym)}`);
                 }}
                 style={{
                   position: "absolute",
@@ -423,7 +425,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   zIndex: 2,
                 }}
               >
-                Deck →
+                Market →
               </button>
               {/* Top row */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, minHeight: 44, paddingRight: 52 }}>

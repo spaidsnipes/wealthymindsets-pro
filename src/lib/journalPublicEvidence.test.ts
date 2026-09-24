@@ -15,9 +15,12 @@ describe("Journal public market-evidence contract", () => {
     expect(journalPage).not.toContain("See current Nectar detail");
   });
 
-  it("returns through the canonical public workspace with the selected symbol", () => {
-    expect(journalPage).toContain("Open current evidence →");
-    expect(journalPage).toContain("/command-deck?symbol=");
+  it("returns through the ONE market camera with the selected symbol", () => {
+    // 2026-09-24: the return lands /charts, the one market HOME. The legacy
+    // deck was a second market and has no door in the house plan.
+    expect(journalPage).toContain("Open on the market →");
+    expect(journalPage).toContain("/charts?symbol=");
+    expect(journalPage).not.toContain("/command-deck?symbol=");
     expect(journalPage).not.toContain('href={`/nectar/${encodeURIComponent(selected.symbol)}`}');
   });
 
@@ -27,7 +30,7 @@ describe("Journal public market-evidence contract", () => {
     // session on the way back to the deck. The element type is OWNED by
     // src/lib/internalAnchorNavigation.sentinel.test.ts — this line only has
     // to stay consistent with it, and must not re-decide it.
-    expect(journalPage).toMatch(/Open current evidence →[\s\S]*?<\/Link>/);
+    expect(journalPage).toMatch(/Open on the market →[\s\S]*?<\/Link>/);
     expect(journalPage).toContain("style={{ minHeight: 44 }}");
   });
 });

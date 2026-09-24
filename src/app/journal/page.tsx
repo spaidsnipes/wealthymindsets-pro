@@ -3004,13 +3004,13 @@ Trade the system, trust the process, winners every day 🚀`,
                         private snapshot owner remains unchanged. */}
                     <div className="mt-3 pt-2 border-t border-wm-gold/15 flex flex-wrap items-center gap-2">
                       <Link
-                        href={`/command-deck?symbol=${encodeURIComponent(selected.symbol)}`}
+                        href={`/charts?symbol=${encodeURIComponent(selected.symbol)}`}
                         prefetch={false}
-                        aria-label={`Open current market evidence for ${selected.symbol}`}
+                        aria-label={`Open ${selected.symbol} on the market camera`}
                         className="inline-flex items-center gap-1 text-[10px] font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
                         style={{ minHeight: 44 }}
                       >
-                        Open current evidence →
+                        Open on the market →
                       </Link>
                     </div>
                   </div>

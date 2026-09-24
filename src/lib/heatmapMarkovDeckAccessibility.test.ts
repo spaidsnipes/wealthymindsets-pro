@@ -8,10 +8,12 @@ const page = fs.readFileSync(
 );
 
 describe("Heat Map Markov Deck handoff accessibility", () => {
-  it("keeps one native, named and encoded Command Deck action", () => {
+  it("keeps one native, named and encoded MARKET action (the one camera, not the deck)", () => {
     expect(page).toContain('className="wm-markov-deck-action"');
-    expect(page).toContain('aria-label={`Open ${ms.sym} on the Command Deck`}');
-    expect(page).toContain('router.push(`/command-deck?symbol=${encodeURIComponent(ms.sym)}`)');
+    expect(page).toContain('aria-label={`Open ${ms.sym} on the market`}');
+    expect(page).toContain('router.push(`/charts?symbol=${encodeURIComponent(ms.sym)}`)');
+    // A heat cell selects an instrument; the ONE market camera shows it.
+    expect(page).not.toContain("/command-deck?symbol=");
     expect(page).toContain("e.stopPropagation()");
     expect(page).not.toMatch(/wm-markov-deck-action[\s\S]{0,1000}onKeyDown/);
   });
