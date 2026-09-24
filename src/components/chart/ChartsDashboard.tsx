@@ -18,6 +18,9 @@ import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { MyStackBar } from "./MyStackBar";
+import { RiskReceiptBar } from "./RiskReceiptBar";
+import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
 import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot } from "./orderFlowToolsSlot";
@@ -770,6 +773,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [memoryGhostOn, setMemoryGhostOn] = useState<boolean>(() => lsGet("wm_ofMemoryGhost", false) as boolean);
   const [expectedEnvelopeOn, setExpectedEnvelopeOn] = useState<boolean>(() => lsGet("wm_ofExpectedEnvelope", false) as boolean);
   const [contradictionOn, setContradictionOn] = useState<boolean>(() => lsGet("wm_ofContradiction", false) as boolean);
+  // H-1001 — ON by default: risk is visible, bracketed, on the book. It only
+  // draws when the trader has drawn a Long / Short Position with a stop.
+  const [riskOnPriceOn, setRiskOnPriceOn] = useState<boolean>(() => lsGet("wm_ofRiskOnPrice", true) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -1016,6 +1022,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofMemoryGhost",      memoryGhostOn);
   usePersistOnChange("wm_ofExpectedEnvelope", expectedEnvelopeOn);
   usePersistOnChange("wm_ofContradiction",    contradictionOn);
+  usePersistOnChange("wm_ofRiskOnPrice",      riskOnPriceOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1905,6 +1912,58 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Scope synchronously during render. The cleanup effect below releases stale
   // state, but it cannot prevent one React paint after a symbol/owner switch.
   const currentSceneDecision = currentDecisionIdentity(sceneDecision, decisionScope);
+
+  /*
+    H-1001 · RISK ON PRICE + FROZEN asOf RECEIPT. MainChart owns the brackets
+    (it holds the drawings) and hands its reading up every frame into a REF;
+    only a change of plan or state re-renders this room. The receipt is torn
+    by an explicit press from the SAME decision identity the camera carries,
+    written once, and handed back down so the chart can print it.
+  */
+  const riskVMRef = useRef<RiskOnPriceVM | null>(null);
+  const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
+  const onRiskOnPrice = useCallback((vm: RiskOnPriceVM) => {
+    riskVMRef.current = vm;
+    setRiskPlan(prev =>
+      prev && prev.drawn === vm.drawn && prev.reason === vm.reason && prev.entry === vm.entry
+        && prev.stop === vm.stop && prev.target === vm.target && prev.state === vm.state ? prev : vm);
+  }, []);
+  const [riskReceipt, setRiskReceipt] = useState<RiskReceipt | null>(null);
+  const [riskTearNote, setRiskTearNote] = useState<string | null>(null);
+  const riskReceiptOwner = canvasUser?.id ?? null;
+  const riskDecisionId = currentSceneDecision?.decisionId ?? null;
+  useEffect(() => {
+    let found: RiskReceipt | null = null;
+    try { found = readRiskReceipt(window.localStorage, riskReceiptOwner, riskDecisionId); } catch { /* storage blocked */ }
+    setRiskReceipt(found);
+    setRiskTearNote(null);
+  }, [riskReceiptOwner, riskDecisionId]);
+  const tearRiskReceiptNow = () => {
+    const vm = riskVMRef.current;
+    if (!vm) { setRiskTearNote("Risk on Price is off — nothing is bracketed to tear."); return; }
+    const t = tearRiskReceipt({
+      decision: currentSceneDecision
+        ? { decisionId: currentSceneDecision.decisionId, bornAt: currentSceneDecision.bornAt, bornFrom: currentSceneDecision.bornFrom }
+        : null,
+      risk: vm,
+      symbol,
+      timeframe,
+      gates: {
+        verdict: chartCanvasVM.permission?.verdict ?? "UNKNOWN",
+        rules: (chartCanvasVM.permission?.evaluations ?? []).map(e => ({ label: e.rule.label, engaged: e.engaged })),
+      },
+      nowMs: Date.now(),
+    });
+    if (!t.ok) { setRiskTearNote(t.reason); return; }
+    let storage: Storage | null = null;
+    try { storage = window.localStorage; } catch { /* storage blocked */ }
+    const w = writeRiskReceiptOnce(storage, riskReceiptOwner, t.receipt);
+    if (w.ok) { setRiskReceipt(w.receipt); setRiskTearNote(null); }
+    else if (w.reason === "ALREADY_TORN") {
+      setRiskReceipt(w.existing);
+      setRiskTearNote(`Already torn at ${new Date(w.existing.asOf).toISOString()} — the first asOf stands.`);
+    } else setRiskTearNote("This device did not keep the receipt — nothing was torn.");
+  };
   const selectedMarketObject = chartMarketObjects.find(
     object => object.objectId === selectedMarketObjectId,
   ) ?? null;
@@ -2538,6 +2597,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   MEMORY_GHOST: memoryGhostOn,
                   EXPECTED_ENVELOPE: expectedEnvelopeOn,
                   CONTRADICTION: contradictionOn,
+                  RISK_ON_PRICE: riskOnPriceOn,
                   MARKET_STRUCTURE: marketStructureOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
@@ -2566,6 +2626,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "MEMORY_GHOST") setMemoryGhostOn(v => !v);
                   else if (id === "EXPECTED_ENVELOPE") setExpectedEnvelopeOn(v => !v);
                   else if (id === "CONTRADICTION") setContradictionOn(v => !v);
+                  else if (id === "RISK_ON_PRICE") setRiskOnPriceOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -2714,6 +2775,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.MEMORY_GHOST !== undefined) setMemoryGhostOn(s.MEMORY_GHOST);
       if (s.EXPECTED_ENVELOPE !== undefined) setExpectedEnvelopeOn(s.EXPECTED_ENVELOPE);
       if (s.CONTRADICTION !== undefined) setContradictionOn(s.CONTRADICTION);
+      if (s.RISK_ON_PRICE !== undefined) setRiskOnPriceOn(s.RISK_ON_PRICE);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -2762,6 +2824,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       MEMORY_GHOST: memoryGhostOn,
       EXPECTED_ENVELOPE: expectedEnvelopeOn,
       CONTRADICTION: contradictionOn,
+      RISK_ON_PRICE: riskOnPriceOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4414,6 +4477,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
               />
+              <RiskReceiptBar
+                risk={riskPlan}
+                decisionId={currentSceneDecision?.decisionId ?? null}
+                receipt={riskReceipt}
+                note={riskTearNote}
+                onTear={tearRiskReceiptNow}
+              />
               </>
             }
           />}
@@ -5097,6 +5167,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       profileStackPrefs={profileStackPrefs}
                       expectedEnvelopeOnChart={expectedEnvelopeOn}
                       contradictionOnChart={contradictionOn}
+                      riskOnPriceOnChart={riskOnPriceOn}
+                      riskReceipt={riskReceipt}
+                      onRiskOnPrice={onRiskOnPrice}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the

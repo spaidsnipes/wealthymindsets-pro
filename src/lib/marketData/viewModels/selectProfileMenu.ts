@@ -68,6 +68,7 @@ export type ProfileId =
   | "MEMORY_GHOST"
   | "EXPECTED_ENVELOPE"
   | "CONTRADICTION"
+  | "RISK_ON_PRICE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -165,6 +166,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   MEMORY_GHOST: "READING",
   EXPECTED_ENVELOPE: "READING",
   CONTRADICTION: "READING",
+  RISK_ON_PRICE: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -630,6 +632,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectContradiction.ts",
     levels: ["The contested price band"],
+  },
+  {
+    id: "RISK_ON_PRICE",
+    label: "Risk on Price",
+    /*
+      H-1001 / F17. Your own Long / Short Position drawing bracketed on the
+      price axis — stop / invalidation, entry, target, R, and the live price
+      against the stop. Risk is not in a room. Size, equity risk and fills
+      are named refusals: the chart holds none of them.
+    */
+    what: "your drawn position bracketed on the price axis — stop, entry, target, R and live price against the stop",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectRiskOnPrice.ts",
+    levels: ["Stop / invalidation", "Entry", "Target"],
   },
   {
     id: "MARKET_STRUCTURE",

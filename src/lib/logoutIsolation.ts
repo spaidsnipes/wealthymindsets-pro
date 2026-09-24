@@ -54,10 +54,14 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
  *   browser remembers, and leaving one behind for the next person to sign in
  *   and inherit would be a worse bug than the tab-splitting one continuity was
  *   built to fix.
+ * · `wm:risk-receipt:`       H-1001 receipts torn from a decision on this
+ *   device. Purging a device at sign-out is not rewriting a receipt; leaving
+ *   one for the next person to inherit would be a privacy leak.
  */
 const OWNER_SCOPED_PREFIXES: readonly string[] = [
   "wm-notes-",
   "wm:decision-identity:",
+  "wm:risk-receipt:",
 ] as const;
 
 /**

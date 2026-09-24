@@ -5,7 +5,7 @@ const H = 1000;
 const p = await sharp(plate).resize({ height: H }).toBuffer({ resolveWithObject: true });
 const r = await sharp(runtime).resize({ height: H }).toBuffer({ resolveWithObject: true });
 const W = p.info.width + r.info.width + 24;
-const d = await sharp(detail).resize({ width: W }).toBuffer({ resolveWithObject: true });
+const d = await sharp(detail).resize({ width: W, height: 1100, fit: "inside" }).toBuffer({ resolveWithObject: true });
 const bar = 56, gap = 40;
 const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const svg = `<svg width="${W}" height="${bar}" xmlns="http://www.w3.org/2000/svg">
@@ -21,6 +21,6 @@ await sharp({ create: { width: W, height: bar + H + gap + d.info.height, channel
     { input: p.data, top: bar, left: 0 },
     { input: r.data, top: bar, left: p.info.width + 24 },
     { input: Buffer.from(lab), top: bar + H, left: 0 },
-    { input: d.data, top: bar + H + gap, left: 0 },
+    { input: d.data, top: bar + H + gap, left: Math.round((W - d.info.width) / 2) },
   ]).png().toFile(out);
 console.log(out, W, bar + H + gap + d.info.height);

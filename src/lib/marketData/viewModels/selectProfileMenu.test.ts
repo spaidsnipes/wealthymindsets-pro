@@ -61,6 +61,7 @@ const ALL_IDS: readonly ProfileId[] = [
   "MEMORY_GHOST",
   "EXPECTED_ENVELOPE",
   "CONTRADICTION",
+  "RISK_ON_PRICE",
   "MARKET_STRUCTURE",
 ];
 

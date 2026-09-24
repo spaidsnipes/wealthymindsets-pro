@@ -209,6 +209,8 @@ import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectContradiction, type ContradictionInput } from "@/lib/marketData/viewModels/selectContradiction";
+import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
@@ -1035,6 +1037,12 @@ interface Props {
   expectedEnvelopeOnChart?: boolean;
   /** H-401 Contradiction Not Averaged. */
   contradictionOnChart?: boolean;
+  /** H-1001 — the trader's drawn position bracketed on the price axis. */
+  riskOnPriceOnChart?: boolean;
+  /** H-1001 — the receipt torn from this camera's decision, frozen. */
+  riskReceipt?: RiskReceipt | null;
+  /** H-1001 — the bracket reading, handed up every frame (into a ref). */
+  onRiskOnPrice?: (vm: RiskOnPriceVM) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1356,6 +1364,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   profileStackPrefs,
   expectedEnvelopeOnChart = false,
   contradictionOnChart = false,
+  riskOnPriceOnChart = true,
+  riskReceipt = null,
+  onRiskOnPrice,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1549,6 +1560,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * time the identity string changes.
    */
   const activeDecisionIdRef = useRef<string | null>(null);
+  const riskReceiptRef = useRef<RiskReceipt | null>(null);
+  useEffect(() => { riskReceiptRef.current = riskReceipt ?? null; }, [riskReceipt]);
+  const onRiskOnPriceRef = useRef<typeof onRiskOnPrice>(undefined);
+  useEffect(() => { onRiskOnPriceRef.current = onRiskOnPrice; }, [onRiskOnPrice]);
   useEffect(() => { activeDecisionIdRef.current = activeDecisionId ?? null; }, [activeDecisionId]);
 
   /*
@@ -1558,7 +1573,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1583,8 +1598,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       memoryGhost: memoryGhostOnChart,
       expectedEnvelope: expectedEnvelopeOnChart,
       contradiction: contradictionOnChart,
+      riskOnPrice: riskOnPriceOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -10802,6 +10818,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const top = 26;
             ctx.fillStyle = "rgba(11,10,8,0.82)";
             ctx.fillRect(rightX - pw + 6, top - 3, pw, (lines.length + 1) * 12 + 5);
+            // Chrome is an obstacle too: later readings step around the plate.
+            floatingChips.push({ x: rightX - pw + 6, y: top - 3, w: pw, h: (lines.length + 1) * 12 + 5 });
             ctx.fillStyle = "rgba(201,165,92,0.85)";
             ctx.fillText(zoom.tag, rightX, top);
             lines.forEach((l, i) => {
@@ -10932,6 +10950,219 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } else {
           delete ds.heatLensCells;
           delete ds.heatLensContours;
+        }
+        /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════
+           The trader's own Long / Short Position (entry · target · stop),
+           bracketed at the axis: RISK entry→stop, REWARD entry→target, the
+           live price against the stop in R, and what the bars did since the
+           plan was placed. Size, equity risk and fills are named refusals —
+           the chart holds none of them. A torn receipt (frozen asOf, the same
+           DECISION_ID) prints beside the brackets and never updates. Painted
+           last — after the profile lanes and the heat lens — so the hardware
+           sits on top of them; the header chrome is clipped out of the rail. */
+        if (layerOnRef.current.riskOnPrice === true) {
+          const bsR = barsRef.current ?? [];
+          const plansR = drawingsRef.current.map(planFromDrawing).filter((p): p is PositionPlanInput => p != null);
+          const rv = selectRiskOnPrice(plansR, bsR, bsR.length ? bsR[bsR.length - 1].close : null);
+          onRiskOnPriceRef.current?.(rv);
+          ds.riskOnPrice = rv.drawn ? `${rv.side}:${rv.state}` : rv.reason;
+          const fontR = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+          let axisWR = 60;
+          try { axisWR = chart.priceScale("right").width(); } catch { /* keep default */ }
+          const plotRightR = Math.max(8, W - axisWR);
+          const railX = plotRightR - 12;
+          const tfmt = (t: number | null) => {
+            if (t == null) return "";
+            const d = new Date(t * 1000);
+            return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+          };
+          // The position drawings' own zones live on the drawing canvas ABOVE
+          // this glass; a callout inside one would be struck through by the
+          // drawing's lines, so each zone is an obstacle too.
+          const tsZ = chart.timeScale();
+          const zoneRects: { x: number; y: number; w: number; h: number }[] = [];
+          for (const d of drawingsRef.current) {
+            if (d.tool !== "long-position" && d.tool !== "short-position") continue;
+            const xs = d.pts.map(pt => tsZ.timeToCoordinate(pt.time as never)).filter((v): v is NonNullable<typeof v> => v != null).map(Number);
+            const ys = d.pts.map(pt => srs.priceToCoordinate(pt.price)).filter((v): v is NonNullable<typeof v> => v != null).map(Number);
+            if (!xs.length || !ys.length) continue;
+            const zx0 = Math.min(...xs), zx1 = Math.max(...xs) + 40;
+            zoneRects.push({ x: zx0 - 4, y: Math.min(...ys) - 9, w: zx1 - zx0 + 8, h: Math.max(...ys) - Math.min(...ys) + 18 });
+          }
+          // A label slides LEFT along its own price until it covers no candle,
+          // no chip and no drawn zone, then a thin leader ties it to the rail.
+          const callout = (y: number, text: string, color: string, bold = true, sub?: string) => {
+            ctx.font = fontR(600, 9);
+            const subW = sub ? ctx.measureText(sub).width : 0;
+            ctx.font = fontR(bold ? 800 : 600, 10);
+            const w = Math.max(ctx.measureText(text).width, subW) + 12, h = sub ? 28 : 16;
+            let x = railX - 18 - w;
+            for (let k = 0; k < 40 && x > 8; k++) {
+              const hit = candleHits(x, y - h / 2, w, h)
+                + [...floatingChips, ...zoneRects].filter(r => r.x < x + w && r.x + r.w > x && r.y < y + h / 2 && r.y + r.h > y - h / 2).length;
+              if (!hit) break;
+              x -= 24;
+            }
+            x = Math.max(8, x);
+            ctx.strokeStyle = color; ctx.globalAlpha = 0.55; ctx.setLineDash([2, 3]);
+            ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(railX - 6, y); ctx.stroke();
+            ctx.setLineDash([]); ctx.globalAlpha = 1;
+            ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(x, y - h / 2, w, h);
+            ctx.strokeStyle = color; ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, w - 1, h - 1);
+            ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(text, x + 6, sub ? y - 5.5 : y + 0.5);
+            if (sub) {
+              ctx.font = fontR(600, 9);
+              ctx.fillStyle = "rgba(200,192,174,0.9)";
+              ctx.fillText(sub, x + 6, y + 7.5);
+            }
+            floatingChips.push({ x, y: y - h / 2, w, h });
+          };
+          if (rv.drawn && rv.entry != null && rv.stop != null && rv.riskPerUnit != null) {
+            const yE = srs.priceToCoordinate(rv.entry), yS = srs.priceToCoordinate(rv.stop);
+            const yT = rv.target != null ? srs.priceToCoordinate(rv.target) : null;
+            if (yE != null && yS != null) {
+              ctx.save();
+              // The rail never prints through chrome or a chip already on the
+              // glass (the zoom plate, INSPECT, earlier readings' chips).
+              ctx.beginPath();
+              ctx.rect(0, 0, W, H);
+              for (const r of floatingChips) ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+              ctx.clip("evenodd");
+              const RISK = "rgba(226,92,92,0.95)", REWARD = "rgba(0,192,118,0.95)", STEEL = "rgba(237,230,211,0.95)";
+              // The hardware: a steel rail with end caps, one bracket per side.
+              const bracket = (ya: number, yb: number, col: string) => {
+                const top = Math.min(ya, yb), bot = Math.max(ya, yb);
+                ctx.fillStyle = col.replace("0.95", "0.22");
+                ctx.fillRect(railX - 3, top, 6, bot - top);
+                ctx.strokeStyle = col; ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(railX - 12, top); ctx.lineTo(railX + 3, top); ctx.lineTo(railX + 3, bot); ctx.lineTo(railX - 12, bot);
+                ctx.stroke();
+                ctx.lineWidth = 1;
+              };
+              if (yT != null) bracket(+yE, +yT, REWARD);
+              bracket(+yE, +yS, RISK);
+              // Entry is the hinge both brackets hang from.
+              ctx.strokeStyle = STEEL; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.moveTo(railX - 14, +yE); ctx.lineTo(railX + 5, +yE); ctx.stroke(); ctx.lineWidth = 1;
+              ctx.restore();
+              ctx.save();
+              const stateTxt =
+                rv.state === "WAITING_FOR_ENTRY" ? "waiting for entry"
+                : rv.state === "LIVE_ON_PRICE" ? `entry touched ${tfmt(rv.entryAt)} · live on price`
+                : rv.state === "STOP_TOUCHED" ? `stop touched ${tfmt(rv.stopAt)} · invalidated on price`
+                : rv.state === "TARGET_TOUCHED" ? `target touched ${tfmt(rv.targetAt)}`
+                : "stop and target in one bar — this timeframe cannot order them";
+              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(2)} · risk ${rv.riskPerUnit.toFixed(2)} (${rv.riskPct?.toFixed(2)}%)`, RISK);
+              // The refusals ride under the entry, in words: the chart holds no
+              // size, no account and no fill, so none of them is estimated.
+              callout(+yE, `ENTRY ${rv.entry.toFixed(2)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
+              if (yT != null && rv.target != null) callout(+yT, `TARGET ${rv.target.toFixed(2)} · ${rv.rr?.toFixed(2)} R`, REWARD);
+              // LIVE: the chart's last price on the rail, in R.
+              if (rv.live) {
+                const yL = srs.priceToCoordinate(rv.live.price);
+                if (yL != null) {
+                  ctx.fillStyle = "rgba(240,190,70,1)";
+                  ctx.beginPath(); ctx.moveTo(railX + 4, +yL); ctx.lineTo(railX + 12, +yL - 5); ctx.lineTo(railX + 12, +yL + 5); ctx.fill();
+                  const lt = `LIVE ${rv.live.r >= 0 ? "+" : ""}${rv.live.r.toFixed(2)} R · ${rv.live.toStop.toFixed(2)} to stop`;
+                  const ly = Math.abs(+yL - +yE) < 18 ? +yE + (+yL >= +yE ? 18 : -18) : +yL;
+                  callout(ly, lt, "rgba(240,190,70,1)", false);
+                }
+              }
+              ctx.restore();
+            }
+          } else if (plansR.length) {
+            ctx.save();
+            ctx.font = fontR(700, 9);
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(rv.reason === "NO_STOP_ON_DRAWING"
+              ? "RISK ON PRICE · the position drawing has no stop — nothing to bracket"
+              : "RISK ON PRICE · the stop sits on the reward side — not bracketed", 12, H - 114);
+            ctx.restore();
+          }
+
+          /* THE RECEIPT — torn from the same DECISION_ID, frozen at asOf. It
+             is read from the stored receipt, never recomputed from the live
+             drawing, so moving the plan later does not move the receipt. */
+          const rc = riskReceiptRef.current;
+          if (rc) {
+            ds.riskReceipt = `${rc.decisionId}@${rc.asOf}`;
+            ctx.save();
+            const iso = (ms: number) => new Date(ms).toISOString();
+            const engaged = rc.gates.rules.filter(g => g.engaged).length;
+            const rows: { k: string; v: string; c?: string }[] = [
+              { k: "DECISION_ID", v: rc.decisionId.length > 30 ? `${rc.decisionId.slice(0, 30)}…` : rc.decisionId },
+              { k: "asOf (FROZEN)", v: iso(rc.asOf), c: "rgba(240,190,70,1)" },
+              { k: "DECISION BORN", v: `${iso(rc.decisionBornAt)} · ${rc.decisionBornFrom}` },
+              { k: "MARKET", v: `${rc.symbol} · ${rc.timeframe}` },
+              { k: "PLAN", v: `${rc.plan.side} · entry ${rc.plan.entry.toFixed(2)} · stop ${rc.plan.stop.toFixed(2)}${rc.plan.target != null ? ` · target ${rc.plan.target.toFixed(2)}` : ""}` },
+              { k: "RISK", v: `${rc.plan.riskPerUnit.toFixed(2)} per unit · ${rc.plan.riskPct.toFixed(2)}%${rc.plan.rr != null ? ` · ${rc.plan.rr.toFixed(2)} R` : ""}` },
+              { k: "PRICE AT TEAR", v: `${rc.priceAtTear != null ? rc.priceAtTear.toFixed(2) : "—"} · ${(rc.stateAtTear ?? "—").replace(/_/g, " ").toLowerCase()}` },
+              { k: "FILL", v: "NO FILL — nothing was executed", c: "rgba(226,92,92,0.95)" },
+              { k: "GATES AT TEAR", v: `${rc.gates.verdict} · ${engaged} of ${rc.gates.rules.length} rule${rc.gates.rules.length === 1 ? "" : "s"} engaged` },
+              ...[...rc.gates.rules].sort((a, b) => Number(b.engaged) - Number(a.engaged)).slice(0, 5).map(g => ({ k: `  ${g.label.length > 22 ? `${g.label.slice(0, 22)}…` : g.label}`, v: g.engaged ? "ENGAGED" : "OPEN", c: g.engaged ? "rgba(226,92,92,0.95)" : "rgba(0,192,118,0.95)" })),
+            ];
+            // Columns measured, never guessed: the key column fits its widest
+            // key, the card fits its widest value.
+            ctx.font = fontR(700, 9);
+            const keyW = Math.max(...rows.map(r => ctx.measureText(r.k).width)) + 14;
+            ctx.font = fontR(600, 9.5);
+            const valW = Math.max(...rows.map(r => ctx.measureText(r.v).width));
+            ctx.font = fontR(800, 10);
+            const headW = ctx.measureText("STATUS · FROZEN asOf · IMMUTABLE · THIS DEVICE").width;
+            const cw = Math.ceil(Math.max(headW + 24, 12 + keyW + valW + 14)), lh = 14, ch = 30 + rows.length * lh + 30;
+            // The right-edge profile lanes are not candles, but the receipt
+            // should not sit on them either while free glass exists.
+            const laneLeft = plotRightR - 190;
+            // Free space nearest the rail: no candle, no chip, under the header.
+            let best: { x: number; y: number; cost: number } | null = null;
+            for (let y = HEADER_FLOOR_Y + 4; y + ch <= H * 0.78; y += 24) {
+              for (let x = plotRightR - cw - 40; x >= 12; x -= 32) {
+                const hit = candleHits(x, y, cw, ch)
+                  + floatingChips.filter(r => r.x < x + cw && r.x + r.w > x && r.y < y + ch && r.y + r.h > y).length;
+                const laneOverlap = Math.max(0, x + cw - laneLeft);
+                const cost = hit * 1000 + laneOverlap * 2 + (plotRightR - (x + cw)) * 0.2 + (y - HEADER_FLOOR_Y) * 0.05;
+                if (!best || cost < best.cost) best = { x, y, cost };
+              }
+            }
+            if (best) {
+              const { x, y } = best;
+              ds.riskReceiptHits = String(Math.floor(best.cost / 1000));
+              ctx.fillStyle = "rgba(14,12,9,0.95)";
+              ctx.fillRect(x, y, cw, ch);
+              ctx.strokeStyle = "rgba(201,165,92,0.8)";
+              ctx.strokeRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
+              // The torn edge.
+              ctx.fillStyle = "rgba(14,12,9,0.95)";
+              ctx.beginPath(); ctx.moveTo(x, y);
+              for (let yy = y; yy < y + ch; yy += 8) { ctx.lineTo(x - 5, yy + 4); ctx.lineTo(x, yy + 8); }
+              ctx.closePath(); ctx.fill();
+              ctx.strokeStyle = "rgba(201,165,92,0.8)"; ctx.stroke();
+              ctx.textBaseline = "middle"; ctx.textAlign = "left";
+              ctx.font = fontR(800, 10); ctx.fillStyle = "rgba(201,165,92,1)";
+              ctx.fillText("RECEIPT · TORN FROM THE SAME DECISION_ID", x + 12, y + 15);
+              rows.forEach((r, i) => {
+                const ry = y + 34 + i * lh;
+                ctx.font = fontR(700, 9); ctx.fillStyle = "rgba(200,192,174,0.9)";
+                ctx.fillText(r.k, x + 12, ry);
+                ctx.font = fontR(600, 9.5); ctx.fillStyle = r.c ?? "rgba(237,230,211,0.95)";
+                ctx.fillText(r.v, x + 12 + keyW, ry);
+              });
+              ctx.font = fontR(800, 10); ctx.fillStyle = "rgba(240,190,70,1)";
+              ctx.fillText("STATUS · FROZEN asOf · IMMUTABLE · THIS DEVICE", x + 12, y + ch - 14);
+              floatingChips.push({ x: x - 6, y, w: cw + 6, h: ch });
+            }
+            ctx.restore();
+          } else {
+            delete ds.riskReceipt;
+            delete ds.riskReceiptHits;
+          }
+        } else {
+          ds.riskOnPrice = "OFF";
+          delete ds.riskReceipt;
+          delete ds.riskReceiptHits;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 
@@ -11546,7 +11777,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       else if (t === "price-range") { if (A && B) { const dp = d.pts[1].price - d.pts[0].price, pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0, up = dp >= 0, c2 = up ? "#00C076" : "#FF4D67"; ctx.fillStyle = c2 + "22"; ctx.fillRect(Math.min(A.x, B.x), Math.min(A.y, B.y), Math.abs(B.x - A.x), Math.abs(B.y - A.y)); ctx.strokeStyle = c2; seg({ x: B.x, y: A.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: A.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: B.y }, { x: B.x, y: A.y }); chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct.toFixed(2)}%)`, B.x + 6, (A.y + B.y) / 2, c2); } }
       else if (t === "date-range") { if (A && B) { const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const nb = (barsRef.current || []).filter((x: any) => x.time >= t0 && x.time <= t1).length; ctx.strokeStyle = col; seg({ x: A.x, y: B.y }, { x: B.x, y: B.y }); arrowHead({ x: A.x, y: B.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: B.y }, { x: A.x, y: B.y }); chip(`${nb} bars`, (A.x + B.x) / 2 - 18, B.y - 4, col); } }
       else if (t === "date-price-range" || t === "measure") { if (A && B) { const dp = d.pts[1].price - d.pts[0].price, pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0, up = dp >= 0, c2 = up ? "#00C076" : "#FF4D67"; const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const nb = (barsRef.current || []).filter((x: any) => x.time >= t0 && x.time <= t1).length; const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); ctx.fillStyle = c2 + "22"; ctx.fillRect(rx, ry, rw, rh); ctx.strokeStyle = c2; ctx.strokeRect(rx, ry, rw, rh); chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct.toFixed(2)}%)  ${nb} bars`, rx + 4, ry - 2, c2); } }
-      else if (t === "long-position" || t === "short-position") { if (A) { const xr = Math.max(A.x, B ? B.x : A.x, C ? C.x : A.x) + 40; ctx.setLineDash([]); if (B) { ctx.fillStyle = "#00C07622"; ctx.fillRect(A.x, Math.min(A.y, B.y), xr - A.x, Math.abs(B.y - A.y)); } if (C) { ctx.fillStyle = "#FF4D6722"; ctx.fillRect(A.x, Math.min(A.y, C.y), xr - A.x, Math.abs(C.y - A.y)); } ctx.strokeStyle = col; seg({ x: A.x, y: A.y }, { x: xr, y: A.y }); if (B) { ctx.strokeStyle = "#00C076"; seg({ x: A.x, y: B.y }, { x: xr, y: B.y }); } if (C) { ctx.strokeStyle = "#FF4D67"; seg({ x: A.x, y: C.y }, { x: xr, y: C.y }); const risk = Math.abs(d.pts[0].price - d.pts[2].price), reward = Math.abs(d.pts[1].price - d.pts[0].price), rr = risk ? reward / risk : 0; chip(`Entry ${d.pts[0].price.toFixed(dec)}  RR ${rr.toFixed(2)}`, A.x + 4, Math.min(A.y, B ? B.y : A.y, C.y) - 2, col); } } }
+      else if (t === "long-position" || t === "short-position") { if (A) { const xr = Math.max(A.x, B ? B.x : A.x, C ? C.x : A.x) + 40; ctx.setLineDash([]); if (B) { ctx.fillStyle = "#00C07622"; ctx.fillRect(A.x, Math.min(A.y, B.y), xr - A.x, Math.abs(B.y - A.y)); } if (C) { ctx.fillStyle = "#FF4D6722"; ctx.fillRect(A.x, Math.min(A.y, C.y), xr - A.x, Math.abs(C.y - A.y)); } ctx.strokeStyle = col; seg({ x: A.x, y: A.y }, { x: xr, y: A.y }); if (B) { ctx.strokeStyle = "#00C076"; seg({ x: A.x, y: B.y }, { x: xr, y: B.y }); } if (C) { ctx.strokeStyle = "#FF4D67"; seg({ x: A.x, y: C.y }, { x: xr, y: C.y }); const risk = Math.abs(d.pts[0].price - d.pts[2].price), reward = Math.abs(d.pts[1].price - d.pts[0].price), rr = risk ? reward / risk : 0; const chipTop = Math.min(A.y, B ? B.y : A.y, C.y) - 2; chip(`Entry ${d.pts[0].price.toFixed(dec)}  RR ${rr.toFixed(2)}`, A.x + 4, chipTop < 90 ? Math.max(A.y, B ? B.y : A.y, C.y) + 16 : chipTop, col); } } }
       // ── FREEHAND / POLYLINE ──
       else if (t === "brush" || t === "highlighter" || t === "polyline" || t === "path") { const Q = P.filter(Boolean) as Pt[]; if (t === "highlighter") { ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(8, s.width); } if (Q.length >= 2) { ctx.beginPath(); Q.forEach((q, i) => i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)); ctx.stroke(); } else if (Q.length === 1) { ctx.beginPath(); ctx.arc(Q[0].x, Q[0].y, 2, 0, Math.PI * 2); ctx.fill(); } }
       // ── TEXT & MARKERS ──
