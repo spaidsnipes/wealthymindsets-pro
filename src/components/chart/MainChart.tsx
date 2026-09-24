@@ -11266,15 +11266,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText(String(n), cx, cy + 0.5);
               }
-              // Current stage, printed at the right end of the band.
+              // Current stage, printed at the right end of the band — stepped
+              // off any chip already on the glass (absorption words, panels).
               ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
-              ctx.textAlign = "right"; ctx.textBaseline = "middle";
+              ctx.textBaseline = "middle";
               ctx.fillStyle = `rgba(${STAGE_RGB[pool.stage]},1)`;
-              if (pool.stage !== "CONSUMED") ctx.fillText(`${pool.stage} · ${pool.price.toFixed(2)}`, rightL - 6, top + h / 2);
+              const stageTxt = `${pool.stage} · ${pool.price.toFixed(2)}`;
+              const stw = ctx.measureText(stageTxt).width;
+              let sx: number | null = null;
+              if (pool.stage !== "CONSUMED") sx = rightL - 6 - stw;
               else {
                 const last = pool.events[pool.events.length - 1];
                 const xc = tsLc.timeToCoordinate(last.time as never);
-                if (xc != null) { ctx.textAlign = "left"; ctx.fillText(`CONSUMED · ${pool.price.toFixed(2)}`, +xc + 28, top + h / 2); }
+                if (xc != null) sx = +xc + 28;
+              }
+              if (sx != null) {
+                const clash = (yy: number) => floatingChips.some(r => sx! < r.x + r.w && sx! + stw > r.x && yy - 6 < r.y + r.h && yy + 6 > r.y);
+                const ym = top + h / 2;
+                const sy = [ym, ym - 12, ym + 12, ym - 24].find(yy => !clash(yy));
+                if (sy != null) {
+                  ctx.textAlign = "left";
+                  ctx.fillText(stageTxt, sx, sy);
+                  floatingChips.push({ x: sx, y: sy - 6, w: stw, h: 12 });
+                }
               }
             }
           }
