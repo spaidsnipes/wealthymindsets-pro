@@ -7956,8 +7956,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const cw = 292, ch = 188, gap = 12;
               const top = Math.max(200, H - 190 - ch);
               const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+              // The Question Lens owns the left column (strip, debt, control);
+              // the cards step right of it rather than printing over it.
+              const cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
               [cards.absorption, cards.exhaustion].forEach((c, k) => {
-                const x0 = 12 + k * (cw + gap);
+                const x0 = cardsLeft + k * (cw + gap);
                 const ex = c.kind === "EXHAUSTION";
                 const ACC = ex ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
                 const ACC_DIM = ex ? "rgba(226,92,92,0.55)" : "rgba(201,165,92,0.6)";
