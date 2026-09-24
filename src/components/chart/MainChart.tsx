@@ -247,7 +247,7 @@ import {
   type BigTradeLevel,
   type SelectedBigTrade,
 } from "@/lib/bigTradeLevels";
-import { bubbleClaimMagnitude, describeBubbleClaim, formatBubbleVolume, formatBubblePrice } from "@/lib/bubbleClaim";
+import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleVolume, formatBubblePrice } from "@/lib/bubbleClaim";
 import { bigTradeAnchor, bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
 import { computeProfileFromBars } from "@/lib/vpEngine";
@@ -6107,6 +6107,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           deltaSurvivors.push(b);
         }
         deltaBubblesRef.current = deltaSurvivors;
+        // Probe receipt: the largest delta bubble's centre, so a harness can
+        // click exactly where the paint put it.
+        {
+          const top = deltaSurvivors.reduce<Bubble | null>((m, b) => (!m || Math.abs(b.ask - b.bid) > Math.abs(m.ask - m.bid) ? b : m), null);
+          if (top) canvas.dataset.deltaBubbleTop = `${Math.round(top.x)},${Math.round(top.y)}`;
+          else delete canvas.dataset.deltaBubbleTop;
+        }
 
         const hoverIdD = bubbleHoverRef.current;
         for (const b of deltaBubblesRef.current) {
@@ -6687,6 +6694,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         canvas.dataset.bigTradeBubbleCount = String(bubblesRef.current.length);
         canvas.dataset.bigTradeBubbleIdentity = "INDIVIDUAL_EXECUTION";
         canvas.dataset.bigTradeBubbleStatus = bubblesRef.current.length ? "DRAWN" : "WAITING_FOR_PRINTS";
+        {
+          const top = bubblesRef.current.reduce<Bubble | null>((m, b) => (!m || b.bid + b.ask > m.bid + m.ask ? b : m), null);
+          if (top) canvas.dataset.bigTradeBubbleTop = `${Math.round(top.x)},${Math.round(top.y)}`;
+          else delete canvas.dataset.bigTradeBubbleTop;
+        }
         const hoverId = bubbleHoverRef.current;
         for (const b of bubblesRef.current) {
           const buy = b.side === "buy";
@@ -12072,12 +12084,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const idx = hitTestDrawing(x, y);
     setSelectedIdx(idx >= 0 ? idx : null);
     if (idx >= 0) return;
-    const hit = [...bubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
+    // H-701B · ANY bubble opens Inspect on this camera — delta bubbles too
+    // (they were hover-only). Same stacking as the hover: delta drawn last,
+    // so it is topmost. The selection carries its KIND, so the ticket never
+    // calls a zone's net an executed print, and its size RELATION among the
+    // retained bubbles of the same kind.
+    const hit = [...bubblesRef.current, ...deltaBubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
     if (hit) {
+      const same = hit.kind === "delta" ? deltaBubblesRef.current : bubblesRef.current;
+      const relation = bubbleRelation(
+        same.map(b => bubbleClaimMagnitude(b.kind, b.bid, b.ask)),
+        bubbleClaimMagnitude(hit.kind, hit.bid, hit.ask),
+      );
       onSelectBigTrade?.({
         symbol, timeframe, barTime: hit.anchorBarTime, printKey: hit.spawnKey,
-        timeMs: hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
+        timeMs: hit.kind === "delta" ? undefined : hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
         bid: hit.bid, ask: hit.ask, total: hit.bid + hit.ask, aggressorMethod: hit.aggressorMethod,
+        kind: hit.kind, relation,
       });
       return;
     }

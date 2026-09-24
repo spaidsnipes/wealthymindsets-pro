@@ -155,6 +155,22 @@ export function bubbleClaimMagnitude(kind: BubbleKind, bid: number, ask: number)
 }
 
 /**
+ * H-701B · "Big-trade size is relational to session/evidence, not decorative."
+ * Where one bubble stands among the retained bubbles of its own kind on this
+ * chart: its rank by claimed magnitude (1 = largest; ties share the better
+ * rank), how many there are, and their median. Pure; the magnitudes come from
+ * `bubbleClaimMagnitude`, so the relation ranks exactly what the headline says.
+ */
+export function bubbleRelation(sameKind: readonly number[], magnitude: number): { rank: number; of: number; median: number } | null {
+  const xs = sameKind.filter(v => Number.isFinite(v) && v > 0);
+  if (!xs.length || !(magnitude > 0)) return null;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return { rank: 1 + xs.filter(v => v > magnitude).length, of: xs.length, median };
+}
+
+/**
  * Volume magnitudes, in the chart's existing M/k house style.
  *
  * Sub-1 values keep real precision: crypto zones are legitimately 0.0431 BTC

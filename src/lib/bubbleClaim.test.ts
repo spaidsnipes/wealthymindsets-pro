@@ -446,3 +446,15 @@ describe("a bubble's SIZE and its SENTENCE claim the same number", () => {
     expect(sizing).not.toMatch(/absDelta\s*=\s*Math\.abs\(lv\.delta\)/);
   });
 });
+
+describe("H-701B · bubble size relation", () => {
+  it("ranks by the claimed magnitude among the same kind, with the median", async () => {
+    const { bubbleRelation } = await import("./bubbleClaim");
+    expect(bubbleRelation([100, 400, 250, 50], 250)).toEqual({ rank: 2, of: 4, median: 175 });
+    expect(bubbleRelation([100, 400, 250], 400)).toEqual({ rank: 1, of: 3, median: 250 });
+    // Ties share the better rank; empties are refused, not ranked "1 of 0".
+    expect(bubbleRelation([300, 300, 100], 300)?.rank).toBe(1);
+    expect(bubbleRelation([], 10)).toBeNull();
+    expect(bubbleRelation([10, 20], 0)).toBeNull();
+  });
+});

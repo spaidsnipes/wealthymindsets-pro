@@ -63,6 +63,20 @@ export interface SelectedBigTrade extends BigTradeLevel {
   symbol: string;
   timeframe: string;
   barTime: number;
+  /**
+   * Which bubble was clicked (H-701B). A delta bubble is a NET across a price
+   * bucket, not a print; absent means big-trade (older callers).
+   */
+  kind?: "big-trade" | "delta";
+  /** Size relative to the other retained bubbles of the same kind on this chart. */
+  relation?: BubbleRelation | null;
+}
+
+/** "#rank of N, median M" — a count, never a percentile dressed as a score. */
+export interface BubbleRelation {
+  readonly rank: number;
+  readonly of: number;
+  readonly median: number;
 }
 
 export interface BigTradeLevel {

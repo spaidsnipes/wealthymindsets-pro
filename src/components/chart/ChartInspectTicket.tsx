@@ -50,7 +50,7 @@
 
 import React from "react";
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
-import { describeAggressorMethod } from "@/lib/bubbleClaim";
+import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
@@ -300,6 +300,35 @@ export function ChartInspectTicket({
     const p = selectedPrint;
     const stamped = p.aggressorMethod === "PROVIDER" || p.aggressorMethod === "MAKER_SIDE_INVERTED";
     const inferred = p.aggressorMethod === "TICK_RULE" || p.aggressorMethod === "QUOTE_TEST";
+    // H-701B · the size relation, as a count among what this chart retained.
+    const relation = p.relation
+      ? `#${p.relation.rank} of ${p.relation.of} retained ${p.kind === "delta" ? "delta zones" : "big prints"} on this chart · median ${formatBubbleVolume(p.relation.median)}`
+      : "not ranked — no other bubble of this kind is retained";
+    if (p.kind === "delta") {
+      // A DELTA ZONE is a net across a price bucket, not a print: no
+      // "executed", no "at", no execution identity (bubbleClaim.ts).
+      const net = p.ask - p.bid;
+      return (
+        <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+          data-testid="chart-inspect-ticket" data-inspect-delta-zone={p.printKey}
+          aria-label={`Inspect selected delta zone for ${p.symbol}`}>
+          <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
+            <Crosshair size={11} /> SELECTED DELTA ZONE
+            <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
+          </div>
+          <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
+          <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
+            <dt>Net in this zone (bought − sold)</dt><dd className="text-white">{net >= 0 ? "+" : "−"}{formatBubbleExact(net)}</dd>
+            <dt>Bought · sold</dt><dd className="text-white">{formatBubbleVolume(p.ask)} · {formatBubbleVolume(p.bid)}</dd>
+            <dt>Anchor · heaviest tick</dt><dd>{formatBubblePrice(p.priceLevel)} — where it is drawn, not where all of it traded</dd>
+            <dt>Bar · UTC</dt><dd>{Number.isFinite(p.barTime) ? new Date(p.barTime * 1000).toISOString() : "UNKNOWN"}</dd>
+            <dt>Side fidelity</dt><dd>{stamped ? "OBSERVED" : inferred ? "INFERRED" : "UNKNOWN"} · {describeAggressorMethod(p.aggressorMethod)}</dd>
+            <dt>Size relation</dt><dd>{relation}</dd>
+          </dl>
+          <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>A net across a price bucket — not a single print. Participant and intent: UNKNOWN. Raw tape is session-only; refresh may remove it.</p>
+        </section>
+      );
+    }
     return (
       <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
         data-testid="chart-inspect-ticket" data-inspect-print={p.printKey}
@@ -316,6 +345,7 @@ export function ChartInspectTicket({
           <dt>Side fidelity</dt><dd>{stamped ? "OBSERVED" : inferred ? "INFERRED" : "UNKNOWN"}{stamped || inferred ? ` · ${p.ask >= p.bid ? "buy" : "sell"} classification` : " · classification not verified"}</dd>
           <dd>{describeAggressorMethod(p.aggressorMethod)}</dd>
           <dt>Execution identity</dt><dd>{p.printKey ?? "UNKNOWN"}</dd>
+          <dt>Size relation</dt><dd>{relation}</dd>
         </dl>
         <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>Participant and intent: UNKNOWN. This retained print is not a live quote. Raw tape is session-only; refresh may remove it.</p>
       </section>
