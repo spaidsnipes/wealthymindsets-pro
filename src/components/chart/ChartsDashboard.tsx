@@ -4375,6 +4375,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 families={["READING"]}
                 heading="Reading lenses"
                 testId="reading-lenses-panel"
+                columns={1}
+                stateDetail={scaffoldingDepth === "OFF" ? undefined : {
+                  SCAFFOLDING: scaffoldingDepth === "PRO" ? "PRO · CLICK TO CLOSE" : `${scaffoldingDepth} · CLICK FOR DEEPER`,
+                }}
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
               />

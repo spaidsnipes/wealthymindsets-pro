@@ -69,6 +69,7 @@ export function ProfilesMenu({
   heading = "Price instruments",
   testId = "profiles-menu-panel",
   columns = 2,
+  stateDetail,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -85,6 +86,8 @@ export function ProfilesMenu({
   testId?: string;
   /** 1 in the narrow tool-family doors, so a tool's name is never truncated. */
   columns?: 1 | 2;
+  /** A switched-on row's own position, printed after DRAWING (e.g. a depth). */
+  stateDetail?: Readonly<Partial<Record<ProfileId, string>>>;
 }) {
   const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families });
 
@@ -157,7 +160,7 @@ export function ProfilesMenu({
             {vm.entries.map(entry => {
               const ready = entry.availability === "READY";
               const stateLabel = ready
-                ? entry.active ? "DRAWING" : "READY"
+                ? entry.active ? (stateDetail?.[entry.id] ? `DRAWING · ${stateDetail[entry.id]}` : "DRAWING") : "READY"
                 : entry.availability === "WAITING_FOR_BARS"
                   ? "WAITING FOR BARS"
                   : entry.availability === "WAITING_FOR_PRINTS"
