@@ -58,3 +58,28 @@ export function fixtureDaysNow() {
   const shift = nowBar - src[src.length - 1].time;
   return src.map(b => ({ ...b, time: b.time + shift }));
 }
+
+// SIX RTH SESSIONS ending at the current 5m bar. FIXTURE — harness-injected,
+// NOT market data. Enough bars (468) for the FAR semantic depth (>= 300).
+export function fixtureWeekNow() {
+  let seed = 23;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const centres = [226, 229, 233, 230.5, 236, 233.2];
+  const out = [];
+  let px = 225.5;
+  const nowBar = Math.floor(Date.now() / 1000 / 300) * 300;
+  const days = centres.length;
+  for (let d = 0; d < days; d++) {
+    for (let i = 0; i < 78; i++) {
+      const t = nowBar - ((days - 1 - d) * 86400) - (77 - i) * 300;
+      const drift = (centres[d] - px) * 0.08;
+      const o = px;
+      const c = +(o + drift + (rnd() - 0.5) * 0.9).toFixed(2);
+      const h = +(Math.max(o, c) + rnd() * 0.5).toFixed(2);
+      const l = +(Math.min(o, c) - rnd() * 0.5).toFixed(2);
+      out.push({ time: t, open: o, high: h, low: l, close: c, volume: Math.round(15000 + rnd() * 30000) });
+      px = c;
+    }
+  }
+  return out;
+}

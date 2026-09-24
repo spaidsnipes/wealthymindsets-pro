@@ -201,6 +201,7 @@ import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompo
 import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
+import { selectSemanticDensity } from "@/lib/marketData/viewModels/selectSemanticDensity";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -7921,6 +7922,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          upstream in the compiler; it is named here so an edit to this block
          cannot quietly reintroduce the flattering number.
       ══════════════════════════════════════════════════════════════════════ */
+      /* ══ H-501 · SEMANTIC DENSITY — which geometry may speak at this depth ══
+         Computed ONCE per frame from the same visible-bar count the zoom
+         word uses, before the first layer paints. FAR lets macro speak,
+         MID the profile family, NEAR tape + candle anatomy; the other tiers
+         are quieted, never deleted. UNMEASURED leaves every layer at 1.
+      ══════════════════════════════════════════════════════════════════════ */
+      let semanticDensity = selectSemanticDensity(null);
+      try {
+        const vr0 = chartRef.current?.timeScale().getVisibleLogicalRange();
+        const c0 = vr0 ? Math.max(0, Math.floor(vr0.to) - Math.ceil(vr0.from) + 1) : null;
+        semanticDensity = selectSemanticDensity(selectSemanticZoom({ visibleBarCount: c0 }).state);
+      } catch { /* no camera yet: UNMEASURED, nothing dims */ }
+
       try {
         const glass = selectValueCandleGlass(valueCandleRef.current);
         const ds = canvas.dataset;
@@ -7952,7 +7966,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (col.fits && yCogR != null && Number.isFinite(+yCogR)) {
             const right = col.right;
             const width = col.width;
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
 
             // ── THE RUNGS. Each bin at its own two price edges, so a shelf is
             // drawn at the price it traded at and nowhere else. Width is the
@@ -8114,7 +8128,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             })();
             const plotRight = Math.max(8, W - axisW);
 
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
 
             // A band one tick tall is a line, and a line drawn as a 1px-high
             // rectangle disappears at some device pixel ratios. Floor the drawn
@@ -8263,7 +8277,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const laneL = 64;
             const laneR = 150;
 
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
             ctx.strokeStyle = "rgba(237,230,211,0.55)";
             ctx.lineWidth = 1;
             // Two marks, one per compared pivot, each at its own price.
@@ -8349,7 +8363,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ds.liquidityWeather = on ? glass.reason : "OFF";
 
         if (on && glass.drawn) {
-          ctx.save();
+          ctx.save(); ctx.globalAlpha = semanticDensity.micro;
 
           // ── THE SHELVES, at their prices. Drawn as a short dotted mark so a
           // level where nothing moved does not read as a support line somebody
@@ -8434,7 +8448,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Outside the extreme, so the description never covers the
               // candle it describes.
               const out = m.side === "ABOVE" ? -1 : 1;
-              ctx.save();
+              ctx.save(); ctx.globalAlpha = semanticDensity.micro;
               ctx.strokeStyle = "rgba(237,230,211,0.85)";
               ctx.fillStyle = "rgba(237,230,211,0.85)";
               ctx.lineWidth = 1;
@@ -8491,7 +8505,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : "OFF";
 
           if (on && dl?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
             const centerX = W - 96; // Fixed chrome, outside the candle body area.
             const laneMax = 40;
             let drawnRungs = 0;
@@ -8649,7 +8663,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
 
           if (on && lp?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
             /*
               GEOMETRY. The histogram lives at the right of the pane, inset
               from the price gutter so the axis labels stay legible. Bars
@@ -8946,7 +8960,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
-              ctx.save(); ctx.globalAlpha = magnetLight;
+              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro;
               const right = lane.right;
               const width = lane.width;
               const ys: number[] = [];
@@ -9022,7 +9036,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const lane = stackPlan.lanes.VISIBLE_RANGE;
           if (vrpVM?.drawn && lane?.fits) {
-            ctx.save(); ctx.globalAlpha = magnetLight;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
             const right = lane.right;
             const width = lane.width;
             const ys: number[] = [];
@@ -9112,7 +9126,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
 
           if (on && tpo?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
             const leftEdge = 10;
             const colMax = Math.min(140, Math.round(W * 0.14));
 
@@ -9221,7 +9235,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           const ax = sp?.anchor ? chart.timeScale().timeToCoordinate(sp.anchor.time as any) : null;
           if (on && sp?.drawn && sp.anchor && ax != null) {
-            ctx.save(); ctx.globalAlpha = trendLight;
+            ctx.save(); ctx.globalAlpha = trendLight * semanticDensity.mid;
             const x0 = Math.round(+ax);
             /*
               ROOM, NOT OVERLAP. The Living Profile owns the right-edge column
@@ -9356,7 +9370,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.profileFusion;
           ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : "OFF";
           if (on && fu?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro;
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let painted = 0;
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
@@ -9410,7 +9424,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.profileMemory;
           ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : "OFF";
           if (on && mem?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro;
             const ts = chart.timeScale();
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let drawn = 0;
@@ -9472,7 +9486,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.valueMigration;
           ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : "OFF";
           if (on && vm?.drawn) {
-            ctx.save(); ctx.globalAlpha = trendLight;
+            ctx.save(); ctx.globalAlpha = trendLight * semanticDensity.mid;
             const ts = chart.timeScale();
             const stepLine = (key: "poc" | "vah" | "val", ink: string, width: number, dash: number[]) => {
               ctx.strokeStyle = ink;
@@ -9547,7 +9561,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.marketStructureBias = ms?.bias ?? "";
 
           if (on && ms?.drawn) {
-            ctx.save(); ctx.globalAlpha = trendLight;
+            ctx.save(); ctx.globalAlpha = trendLight * semanticDensity.macro;
             let painted = 0;
             for (const p of ms.pivots) {
               const xr = chart.timeScale().timeToCoordinate(p.time as any);
@@ -9630,6 +9644,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             : null;
           const zoom = selectSemanticZoom({ visibleBarCount: count });
           ds.semanticZoom = zoom.tag ?? `UNMEASURED:${zoom.reason ?? ""}`;
+          ds.semanticDensity = `${semanticDensity.macro}/${semanticDensity.mid}/${semanticDensity.micro}`;
           if (zoom.visibleBarCount != null) ds.semanticZoomBars = String(zoom.visibleBarCount);
           else delete ds.semanticZoomBars;
 
@@ -9645,6 +9660,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(zoom.tag, rightX, 6);
             ctx.fillStyle = "rgba(138,130,113,0.85)";
             ctx.fillText(`${zoom.visibleBarCount} bars`, rightX, 18);
+            // What this depth lets speak — the plate's own words, not a hint.
+            if (semanticDensity.speaking) {
+              ctx.fillStyle = "rgba(201,165,92,0.7)";
+              ctx.fillText(semanticDensity.speaking, rightX - 70, 6);
+            }
 
             /*
               DECISION_ID CHROME — one identity per camera. Canon:

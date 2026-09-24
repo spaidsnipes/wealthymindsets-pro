@@ -1,0 +1,3 @@
+start {"zoom":"MID","bars":"126","density":"0.6/1/0.6","decision":"(none)"}
+out   {"zoom":"FAR","bars":"554","density":"1/0.6/0.28","decision":"(none)"}
+in    {"zoom":"NEAR","bars":"7","density":"0.28/0.6/1","decision":"(none)"}
