@@ -51,7 +51,7 @@
 import React from "react";
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { describeAggressorMethod } from "@/lib/bubbleClaim";
-import { Crosshair, X } from "lucide-react";
+import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
@@ -159,45 +159,102 @@ export function ChartInspectTicket({
       CONSUMED: "Still standing, but a touch swept through its far edge.",
       INVALID: "A bar closed beyond its far edge.",
     };
+    const stateColor = lc.state === "INVALID" ? "#FF4D6A" : lc.state === "CONSUMED" ? "#F0B429" : "#7FD1A6";
+    const heldWord = z.side === "DEMAND" ? "held above" : "held below";
+    const Head = ({ icon: Icon, children }: { icon: typeof Crosshair; children: React.ReactNode }) => (
+      <div className="flex items-center gap-2 text-[10px] font-bold tracking-[0.12em] text-wm-gold">
+        <Icon size={13} aria-hidden /> {children}
+      </div>
+    );
+    const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
+      <div className="grid grid-cols-[92px_1fr] gap-2 text-[11px]"><span style={{ color: "#8B8676" }}>{k}</span><span className="text-white">{v}</span></div>
+    );
     return (
-      <section className="absolute top-16 right-[76px] z-20 w-[248px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+      <section className="absolute top-2 bottom-2 right-[76px] w-[340px] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl"
+        // Opaque and above the chart's own chips: the passport is the object
+        // being read, so nothing on the glass may show through or sit on it.
+        style={{ background: "#0d0c0a", zIndex: 80 }}
         data-testid="chart-inspect-ticket" data-inspect-zone={z.object.objectId}
         aria-label={`Market object passport. ${z.side} zone ${z.object.priceLow} to ${z.object.priceHigh}. ${lc.state}.`}>
-        <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
-          <Crosshair size={11} /> MARKET OBJECT PASSPORT
-          <button className="ml-auto" aria-label="Close the passport" onClick={() => onOpenChange(false)}><X size={12} /></button>
+        <div className="flex items-start gap-2 border-b border-wm-border px-4 py-3">
+          <FileText size={18} className="mt-0.5 text-wm-gold" aria-hidden />
+          <div className="min-w-0">
+            <div className="text-[12px] font-bold tracking-[0.1em] text-white">MARKET OBJECT PASSPORT</div>
+            <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
+              {z.side === "DEMAND" ? "Demand" : "Supply"} zone · {z.origin.toLowerCase()} <span style={{ color: stateColor }}>●</span>
+            </div>
+          </div>
+          <button className="ml-auto" aria-label="Close the passport" onClick={() => onOpenChange(false)}><X size={14} /></button>
         </div>
-        <div className="mt-1 text-[10px]" style={{ color: "#C8C0AE" }}>ZONE · {z.side} · {z.origin}</div>
-        <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
-          <dt className="text-wm-gold text-[10px] font-bold">BIRTH</dt>
-          <dd>{t(z.birthTime)} · {z.object.priceLow.toFixed(2)} – {z.object.priceHigh.toFixed(2)}</dd>
-          <dt className="text-wm-gold text-[10px] font-bold">AGE</dt>
-          <dd>{age} · {lc.barsSinceBirth} bars since creation</dd>
-          <dt className="text-wm-gold text-[10px] font-bold">TOUCHES · {lc.touches.length}</dt>
-          <dd>
-            {lc.touches.length === 0 ? "None since birth." : (
-              <ol className="space-y-0.5">
+        <div className="divide-y divide-wm-border/70">
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={CalendarDays}>BIRTH</Head>
+            <Row k="Created" v={t(z.birthTime)} />
+            <Row k="Origin" v={<><span className="text-wm-gold">{z.side === "DEMAND" ? "Swing low" : "Swing high"}</span> · {z.object.priceLow.toFixed(2)} – {z.object.priceHigh.toFixed(2)}</>} />
+          </div>
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={Hourglass}>AGE</Head>
+            <Row k="Age" v={age} />
+            <Row k="Since creation" v={`${lc.barsSinceBirth} bars`} />
+          </div>
+          <div className="space-y-2 px-4 py-3">
+            <Head icon={Target}>TOUCHES</Head>
+            <Row k="Total touches" v={`${lc.touches.length}${lc.touches.length ? ` · ${lc.touches.filter(x => x.response !== "OPEN").length} completed` : ""}`} />
+            {lc.touches.length === 0 ? (
+              <p className="text-[11px]" style={{ color: "#C8C0AE" }}>None since birth.</p>
+            ) : (
+              <div className="relative mt-1 flex justify-between px-1" data-testid="passport-touch-timeline">
+                <div className="absolute left-2 right-2 top-[5px] h-px bg-wm-gold/30" aria-hidden />
+                {lc.touches.map(tc => (
+                  <div key={tc.start} className="relative flex flex-col items-center gap-1">
+                    <span className="h-[11px] w-[11px] rounded-full" style={{ background: tc.response === "INVALIDATED" ? "#FF4D6A" : tc.response === "OPEN" ? "transparent" : "#F0B429", border: "1px solid #F0B429" }} />
+                    <span className="text-[9px]" style={{ color: "#C8C0AE" }}>{t(tc.start).slice(5, 16)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {lc.touches.length > 0 && (
+            <div className="space-y-1 px-4 py-3">
+              <Head icon={Activity}>RESPONSE HISTORY</Head>
+              <ol className="space-y-0.5" data-testid="passport-response-history">
                 {lc.touches.map((tc, i) => (
-                  <li key={tc.start} className="flex justify-between gap-2">
-                    <span>{i + 1}. {t(tc.start).slice(5, 16)}</span>
+                  <li key={tc.start} className="grid grid-cols-[14px_1fr_auto_auto] gap-2 text-[11px]">
+                    <span style={{ color: "#8B8676" }}>{i + 1}</span>
+                    <span className="text-white">{t(tc.start).slice(5, 16)}</span>
                     <span style={{ color: tc.response === "REJECTED" ? "#F0B429" : tc.response === "INVALIDATED" ? "#FF4D6A" : "#EDE6D3" }}>
                       {tc.response === "REJECTED" ? "Rejection" : tc.response === "INVALIDATED" ? "Close beyond" : "Open"}{tc.swept ? " · swept" : ""}
                     </span>
+                    <span style={{ color: "#8B8676" }}>{tc.response === "REJECTED" ? heldWord : "—"}</span>
                   </li>
                 ))}
               </ol>
-            )}
-          </dd>
-          <dt className="text-wm-gold text-[10px] font-bold">CURRENT STATE</dt>
-          <dd><span className="text-white font-bold">{lc.state}</span> · {stateNote[lc.state]}</dd>
-          <dt className="text-wm-gold text-[10px] font-bold">SOURCE FIDELITY</dt>
-          <dd>{z.object.fidelityAtBirth} · confirmed swing from the structure owner</dd>
-          <dt className="text-wm-gold text-[10px] font-bold">INVALIDATION CONDITION</dt>
-          <dd>A close {z.side === "DEMAND" ? "below" : "above"} <span className="text-white">{lc.invalidationPrice.toFixed(2)}</span>{lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}</dd>
-        </dl>
-        <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>
-          Decay is stated, not projected: age and tests only. No half-life or invalidation probability is published — nothing measured one.
-        </p>
+            </div>
+          )}
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={Activity}>CURRENT STATE</Head>
+            <div className="text-[11px]"><span className="font-bold" style={{ color: stateColor }}>{lc.state}</span> <span style={{ color: "#C8C0AE" }}>· {stateNote[lc.state]}</span></div>
+            {lc.touches.length > 0 && <div className="text-[11px]" style={{ color: "#C8C0AE" }}>Price last touched {t(lc.touches[lc.touches.length - 1].end)}</div>}
+          </div>
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={Clock}>DECAY</Head>
+            <p className="text-[11px]" style={{ color: "#C8C0AE" }}>
+              Decay is stated, not projected: age and tests only. No half-life or invalidation probability is published — nothing measured one.
+            </p>
+          </div>
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={ShieldCheck}>SOURCE FIDELITY</Head>
+            <Row k="Fidelity" v={z.object.fidelityAtBirth} />
+            <Row k="Origin" v="Confirmed swing from the structure owner" />
+          </div>
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={AlertTriangle}>INVALIDATION CONDITION</Head>
+            <div className="text-[11px]" style={{ color: "#C8C0AE" }}>
+              Invalidated if a close {z.side === "DEMAND" ? "below" : "above"} <span style={{ color: "#FF4D6A" }}>{lc.invalidationPrice.toFixed(2)}</span>
+              {lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}
+            </div>
+          </div>
+        </div>
       </section>
     );
   }
