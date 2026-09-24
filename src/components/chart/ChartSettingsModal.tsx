@@ -38,7 +38,21 @@ export interface ChartSettings {
   showPnL: boolean;
   displayTimeZone: string; // IANA tz for the time axis + crosshair (e.g. "America/New_York")
   clock24h: boolean;       // true = 24h military time, false = 12h AM/PM clock
+  // ORDER FLOW paint (finish-line §21: one Appearance owner). Colour only —
+  // which bubbles exist, where, and how big is decided by the evidence.
+  bigTradeBuy?: string;
+  bigTradeSell?: string;
+  deltaBuy?: string;
+  deltaSell?: string;
 }
+
+/** The shipped order-flow colours — the exact values the chart painted before. */
+export const FLOW_COLOR_DEFAULTS = {
+  bigTradeBuy: "#00D4AA",
+  bigTradeSell: "#FF4D6A",
+  deltaBuy: "#22C55E",
+  deltaSell: "#EF4444",
+} as const;
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   // THE ROOM'S MATERIAL, not a charting-package navy. See
@@ -402,6 +416,13 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.wickDown}   onChange={v => set({ wickDown: v })}   label="Bear wick" />
                   <ColorSwatch value={s.borderUp}   onChange={v => set({ borderUp: v })}   label="Bull border" />
                   <ColorSwatch value={s.borderDown} onChange={v => set({ borderDown: v })} label="Bear border" />
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Flow Colors</div>
+                  <ColorSwatch value={s.bigTradeBuy ?? FLOW_COLOR_DEFAULTS.bigTradeBuy}   onChange={v => set({ bigTradeBuy: v })}   label="Big trade · buy" />
+                  <ColorSwatch value={s.bigTradeSell ?? FLOW_COLOR_DEFAULTS.bigTradeSell} onChange={v => set({ bigTradeSell: v })} label="Big trade · sell" />
+                  <ColorSwatch value={s.deltaBuy ?? FLOW_COLOR_DEFAULTS.deltaBuy}         onChange={v => set({ deltaBuy: v })}       label="Delta bubble · net buy" />
+                  <ColorSwatch value={s.deltaSell ?? FLOW_COLOR_DEFAULTS.deltaSell}       onChange={v => set({ deltaSell: v })}      label="Delta bubble · net sell" />
                 </div>
               )}
 

@@ -15,7 +15,7 @@ await ctx.routeWebSocket("wss://ws-feed.exchange.coinbase.com/", ws => { ws.onMe
       side: Math.random() < 0.55 ? "sell" : "buy", time: new Date().toISOString(), trade_id: ++trade,
       last_size: String(big ? (20 + Math.random() * 40).toFixed(3) : (0.1 + Math.random() * 2).toFixed(3)) })); } }, 100);
   ws.onClose(() => clearInterval(timer)); }); });
-await ctx.addInitScript(() => { localStorage.setItem("wm_fp_enabled", "false"); localStorage.setItem("wm_prefRepair", "1"); localStorage.setItem("wm_absorptionAnatomy", "false"); });
+await ctx.addInitScript((colors) => { localStorage.setItem("wm_fp_enabled", "false"); localStorage.setItem("wm_prefRepair", "1"); localStorage.setItem("wm_absorptionAnatomy", "false"); if (colors) localStorage.setItem("wm_chartSettings", JSON.stringify({ bigTradeBuy: "#3B82F6", bigTradeSell: "#F59E0B" })); }, process.env.COLORS ?? "");
 const p = await ctx.newPage();
 await p.goto("http://localhost:3100/charts?symbol=BTC&tf=5m", { waitUntil: "domcontentloaded", timeout: 120000 });
 await p.waitForTimeout(22000);
@@ -28,10 +28,12 @@ for (const [tool, key, tag] of [["Delta Bubbles", "d", "delta"], ["Big Trades", 
   const box = await canvasBox(); console.log(tag, "probe", JSON.stringify(box));
   const at = box[key]; if (!at) { console.log(tag, "no bubble"); continue; }
   const [x, y] = at.split(",").map(Number);
+  if (process.env.COLORS) { await p.mouse.move(10, 990); await p.waitForTimeout(500); await p.screenshot({ path: "scratchpad/shift0924/appearance_flow_colors.png", clip: { x: Math.max(0, x - 330), y: Math.max(0, y + 79 - 170), width: 440, height: 340 } }); break; }
   await p.mouse.click(box.x + x, box.y + y); await p.waitForTimeout(1200);
   const t = p.locator('[data-testid="chart-inspect-ticket"]');
   console.log(tag, "ticket:", (await t.innerText().catch(() => "none")).replace(/\s+/g, " ").slice(0, 400));
-  await p.screenshot({ path: `scratchpad/shift0924/runtime_bubble_inspect_${tag}.png` });
+  await p.screenshot({ path: `scratchpad/shift0924/runtime_bubble_inspect_${tag}${process.env.COLORS ? "_colors" : ""}.png` });
+  if (process.env.COLORS) { await p.keyboard.press("Escape"); await p.waitForTimeout(800); const box2 = await canvasBox(); const [cx, cy] = (box2[key] ?? "0,0").split(",").map(Number); await p.screenshot({ path: "scratchpad/shift0924/appearance_flow_colors.png", clip: { x: Math.max(0, cx - 260), y: Math.max(0, cy - 160 + 79), width: 420, height: 320 } }); }
   await p.keyboard.press("Escape");
   // turn the tool back off before the next
   await p.getByRole("button", { name: /^Tools/ }).first().click(); await p.waitForTimeout(900);

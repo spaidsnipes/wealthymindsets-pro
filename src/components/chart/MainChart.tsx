@@ -883,6 +883,8 @@ interface Props {
     candleTimer?: boolean;
     displayTimeZone?: string;
     clock24h?: boolean;
+    bigTradeBuy?: string; bigTradeSell?: string;
+    deltaBuy?: string; deltaSell?: string;
   };
   replayActive?:   boolean;
   replayBars?:     LegacyOhlcvTuple[];
@@ -2145,6 +2147,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const closeFlashRef  = useRef(false);
   const progressRef    = useRef(0); // 0→1 fraction of current candle elapsed
   const candleTimerRef = useRef(true); // live-readable copy of chartSettings.candleTimer
+  // Appearance's order-flow colours, as "r,g,b" for the bubble paints. Colour
+  // only: evidence decides which bubbles exist.
+  const hexRgb = (hex: string | undefined, fallback: string) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex ?? "");
+    if (!m) return fallback;
+    const n = parseInt(m[1], 16);
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+  };
+  const flowColorsRef = useRef({ btBuy: "0,212,170", btSell: "255,77,106", dBuy: "34,197,94", dSell: "239,68,68" });
+  flowColorsRef.current = {
+    btBuy: hexRgb(chartSettings?.bigTradeBuy, "0,212,170"),
+    btSell: hexRgb(chartSettings?.bigTradeSell, "255,77,106"),
+    dBuy: hexRgb(chartSettings?.deltaBuy, "34,197,94"),
+    dSell: hexRgb(chartSettings?.deltaSell, "239,68,68"),
+  };
   // Live-readable timezone + clock format for the time axis / crosshair labels.
   const tzRef          = useRef<string>(chartSettings?.displayTimeZone || (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "America/New_York"));
   const clock24hRef    = useRef<boolean>(chartSettings?.clock24h ?? false);
@@ -6140,7 +6157,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const hoverIdD = bubbleHoverRef.current;
         for (const b of deltaBubblesRef.current) {
           const buy = b.side === "buy";
-          const core = buy ? "34,197,94" : "239,68,68";
+          const core = buy ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
           const isHover = hoverIdD === b.id;
           const t = nowDelta / 520 + b.phase;
           const wob = 1 + Math.sin(t) * 0.05;
@@ -6726,7 +6743,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const buy = b.side === "buy";
           // Green = aggressive buy, red = aggressive sell — boosted contrast so both
           // are unmistakable when several bubbles share one candle.
-          const core = buy ? "0,212,170" : "255,77,106";
+          const core = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
           const isHover = hoverId === b.id;
 
           // gentle squash/stretch wobble so they feel alive like real bubbles
