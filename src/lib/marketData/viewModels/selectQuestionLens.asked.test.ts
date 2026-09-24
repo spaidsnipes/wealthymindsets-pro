@@ -44,10 +44,11 @@ describe("refusal — the lens never invents a level or a move to make a questio
 
 describe("CONTINUATION — is the move still healthy?", () => {
   it("a steady up-leg with effort held pays every item", () => {
-    const v = ask(upLeg, [{ time: 0, price: 100, kind: "LOW" }], "CONTINUATION");
+    const v = selectQuestionLens({ absorption: anatomy(upLeg), exhaustion: noEx, livingPoc: null, pivots: [{ time: 0, price: 100, kind: "LOW" }],
+      choice: "CONTINUATION", continuation: { health: "COHERENT", reason: "structure and regime agree" } });
     expect(v.kind).toBe("CONTINUATION");
     expect(v.question).toBe("Is the up-move from 100.00 still healthy?");
-    expect(v.debt.map(d => d.label)).toEqual(["NEW EXTREME", "EFFORT SUPPORTS", "PULLBACK SHALLOW", "NO EXHAUSTION"]);
+    expect(v.debt.map(d => d.label)).toEqual(["STRUCTURE + REGIME AGREE", "NEW EXTREME", "EFFORT SUPPORTS", "PULLBACK SHALLOW", "NO EXHAUSTION"]);
     expect(v.openDebt).toBe(0);
     expect(v.bandLow).toBe(100);
     expect(v.bandHigh).toBe(111);
@@ -68,6 +69,19 @@ describe("CONTINUATION — is the move still healthy?", () => {
     const v = ask(flat, [{ time: 0, price: 100, kind: "LOW" }], "CONTINUATION");
     expect(v.active).toBe(false);
     expect(v.refusal).toMatch(/no directional move/);
+  });
+});
+
+describe("Continuing? never mints a second continuation verdict", () => {
+  it("the owner's verdict is item one, verbatim; a CONTESTED owner leaves it unpaid", () => {
+    const v = selectQuestionLens({ absorption: anatomy(upLeg), exhaustion: noEx, livingPoc: null, pivots: [{ time: 0, price: 100, kind: "LOW" }],
+      choice: "CONTINUATION", continuation: { health: "CONTESTED", reason: "structure says HIGHER_HIGHS; regime says BALANCE" } });
+    expect(v.debt[0]).toEqual({ label: "STRUCTURE + REGIME AGREE", paid: false, evidence: "CONTESTED · structure says HIGHER_HIGHS; regime says BALANCE" });
+  });
+  it("no owner reading → stated as not read, never assumed", () => {
+    const v = ask(upLeg, [{ time: 0, price: 100, kind: "LOW" }], "CONTINUATION");
+    expect(v.debt[0].paid).toBe(false);
+    expect(v.debt[0].evidence).toBe("continuation owner not read on this camera");
   });
 });
 

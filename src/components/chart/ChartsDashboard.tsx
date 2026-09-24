@@ -5228,6 +5228,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       questionLensOnChart={questionLensOn}
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}
+                      continuationOnChart={continuationHealthVM ? { health: continuationHealthVM.health, reason: continuationHealthVM.reason } : null}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}

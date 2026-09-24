@@ -48,6 +48,8 @@
  *     last opposite confirmed swing: NEW EXTREME (in the last 5 bars) ·
  *     EFFORT SUPPORTS (second-half effort ≥ 80% of first) · PULLBACK SHALLOW
  *     (< 50% of the leg) · NO EXHAUSTION (no exhaustion mark on the leg).
+ *     Its FIRST item is the continuation owner's own verdict, verbatim
+ *     (STRUCTURE + REGIME AGREE ⇔ selectContinuationHealth says COHERENT).
  *   TRAP — "Was the break of <swing> a trap?" on the newest confirmed swing
  *     traded through in the last 30 bars: CLOSE BACK INSIDE (≤ 3 bars) · NO
  *     ACCEPTANCE (< 2 closes beyond) · FOLLOW-THROUGH FAILED (no extension of
@@ -140,6 +142,12 @@ export interface QuestionLensInput {
   readonly pivots: readonly { readonly time: number; readonly price: number; readonly kind?: "HIGH" | "LOW" }[];
   /** What the trader asked. Omitted → AUTO. */
   readonly choice?: QuestionChoice;
+  /**
+   * The ONE continuation owner's verdict (selectContinuationHealth), carried
+   * verbatim. Continuing? never mints a second continuation verdict — this is
+   * its first item, word for word; the lens only adds the leg's own facts.
+   */
+  readonly continuation?: { readonly health: "COHERENT" | "CONTESTED" | "ROTATING" | "UNREADABLE"; readonly reason: string } | null;
 }
 
 const NONE: QuestionLensVM = {
@@ -298,7 +306,10 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
     const e1 = mean(leg.slice(0, half)), e2 = mean(leg.slice(half));
     const retrace = size > 0 ? Math.abs(extreme - last.close) / size : 0;
     const exOnLeg = (input.exhaustion?.marks ?? []).find(m => m.time >= origin.time && m.direction === (up ? "UP" : "DOWN"));
+    const owner = input.continuation ?? null;
     const debt: DebtItem[] = [
+      { label: "STRUCTURE + REGIME AGREE", paid: owner?.health === "COHERENT",
+        evidence: owner ? `${owner.health} · ${owner.reason}` : "continuation owner not read on this camera" },
       { label: "NEW EXTREME", paid: barsSince < NEW_EXTREME_BARS,
         evidence: barsSince === 0 ? `extreme ${f2(extreme)} is on the newest bar` : `extreme ${f2(extreme)} was ${barsSince} bar${barsSince > 1 ? "s" : ""} ago (needs < ${NEW_EXTREME_BARS})` },
       { label: "EFFORT SUPPORTS", paid: e1 > 0 && e2 >= 0.8 * e1,
