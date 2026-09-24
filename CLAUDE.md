@@ -17,3 +17,7 @@ See `README.md` (hosting section) and `src/lib/ops/ghostHostRetirement.test.ts`.
 
 If the live site looks stale: check the latest `main` Workers Builds result first. A red
 Cloudflare build (e.g. a typecheck error on `main`) is the usual cause.
+
+A SHA pushed to both `main` and a feature branch gets TWO Workers Builds runs. The feature-branch
+(non-production) run fails in ~2 minutes and is NOT production — use
+`/commits/<sha>/check-runs?filter=all` and read the run that built `main`.
