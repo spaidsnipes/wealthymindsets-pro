@@ -460,8 +460,16 @@ describe("P-110 — the Profiles door reads as the blueprint's eleven organisms"
     expect(numbered.map(x => x.organism)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(numbered.map(x => x.id)).toEqual([
       "LIVING_PROFILE", "STRUCTURE_PROFILE", "PROFILE_FUSION", "PROFILE_MEMORY", "PROFILE_DNA",
-      "SESSION", "VISIBLE_RANGE_PROFILE", "FIXED_RANGE", "COMPOSITE_PROFILE", "TPO_PROFILE", "DELTA_VP",
+      "SESSION", "VISIBLE_RANGE_PROFILE", "ANCHORED_RANGE", "COMPOSITE_PROFILE", "TPO_PROFILE", "DELTA_VP",
     ]);
     expect(e.slice(11).every(x => x.organism == null)).toBe(true);
+  });
+
+  it("canon H-601 names: #8 is the user-selected Fixed Range, #11 the Bid/Ask split; no 12th species", () => {
+    const e = selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {}, families: ["PROFILE"] }).entries;
+    expect(e.find(x => x.organism === 8)?.label).toBe("Fixed Range Profile");
+    expect(e.find(x => x.organism === 11)?.label).toBe("Bid/Ask Split Profile");
+    expect(e.map(x => x.id)).not.toContain("VALUE_CANDLE");
+    expect(e.map(x => x.id)).not.toContain("VALUE_MIGRATION");
   });
 });

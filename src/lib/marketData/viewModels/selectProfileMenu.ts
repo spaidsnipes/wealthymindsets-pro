@@ -131,7 +131,8 @@ export const P110_ORGANISM: Readonly<Partial<Record<ProfileId, number>>> = {
   PROFILE_DNA: 5,
   SESSION: 6,
   VISIBLE_RANGE_PROFILE: 7,
-  FIXED_RANGE: 8,
+  // Canon #8 is user-selected: the drag-a-range profile.
+  ANCHORED_RANGE: 8,
   COMPOSITE_PROFILE: 9,
   TPO_PROFILE: 10,
   DELTA_VP: 11,
@@ -141,12 +142,14 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   FIXED_RANGE: "PROFILE",
   SESSION: "PROFILE",
   DELTA_VP: "PROFILE",
-  VALUE_CANDLE: "PROFILE",
+  // Where each bar's own volume concentrated — an order-flow tool on the candle.
+  VALUE_CANDLE: "ORDER_FLOW",
   LIVING_PROFILE: "PROFILE",
   TPO_PROFILE: "PROFILE",
   STRUCTURE_PROFILE: "PROFILE",
   PROFILE_DNA: "PROFILE",
-  VALUE_MIGRATION: "PROFILE",
+  // Living's auction movie (developing POC migrating) — read, not a 12th species.
+  VALUE_MIGRATION: "READING",
   PROFILE_MEMORY: "PROFILE",
   PROFILE_FUSION: "PROFILE",
   COMPOSITE_PROFILE: "PROFILE",
@@ -266,7 +269,9 @@ type ProfileSpec = Omit<
 const CATALOGUE: readonly ProfileSpec[] = [
   {
     id: "FIXED_RANGE",
-    label: "Fixed Range VP",
+    // Canon H-601: #8 Fixed Range is USER-SELECTED (Anchored/drag below). This
+    // one is the classic whole-chart VP — kept, unnumbered, never #8 or #12.
+    label: "Classic VP · all loaded bars",
     /*
       NOT "the bars on screen". The renderer sources every bar loaded for the
       chart (MainChart runWMVP → barsRef.current) precisely so POC/VAH/VAL do
@@ -287,7 +292,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
   },
   {
     id: "DELTA_VP",
-    label: "Delta + VP",
+    label: "Bid/Ask Split Profile",
     what: "the same profile split by which side was the aggressor",
     gesture: "DRAW",
     owner: "src/lib/deltaVP.ts",
@@ -522,7 +527,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
   },
   {
     id: "ANCHORED_RANGE",
-    label: "Anchored Range VP",
+    label: "Fixed Range Profile",
     /*
       P-110 #8 FIXED · anchored / static. A DRAW gesture: the trader drags
       across the bars they choose, and the profile stays anchored to those

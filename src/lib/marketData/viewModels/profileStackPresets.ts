@@ -39,13 +39,13 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
   },
   {
     id: "AUCTION", label: "Auction",
-    note: "auction letters, the session, value migrating, prior value carried forward",
-    on: ["TPO_PROFILE", "SESSION", "VALUE_MIGRATION", "PROFILE_MEMORY"],
+    note: "auction letters, the session, prior value carried forward",
+    on: ["TPO_PROFILE", "SESSION", "PROFILE_MEMORY"],
   },
   {
     id: "ORDER_FLOW", label: "Order Flow",
-    note: "developing value beside where each bar's own volume concentrated",
-    on: ["LIVING_PROFILE", "VALUE_CANDLE", "VISIBLE_RANGE_PROFILE"],
+    note: "developing value and the camera's own profile — flow tools live in Order flow",
+    on: ["LIVING_PROFILE", "VISIBLE_RANGE_PROFILE"],
   },
   {
     id: "MEMORY", label: "Memory",
