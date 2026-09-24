@@ -196,6 +196,7 @@ import type { StructureProfileVM } from "@/lib/marketData/viewModels/selectStruc
 import type { ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 import type { ValueMigrationVM } from "@/lib/marketData/viewModels/selectValueMigration";
 import type { ProfileMemoryVM } from "@/lib/marketData/viewModels/selectProfileMemory";
+import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileFusion";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -974,6 +975,8 @@ interface Props {
   valueMigration?: ValueMigrationVM | null;
   /** PROFILE MEMORY — P-110 #4, prior sessions' value drawn forward. */
   profileMemory?: ProfileMemoryVM | null;
+  /** PROFILE FUSION — P-110 #3, where switched-on profiles agree. */
+  profileFusion?: ProfileFusionVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -999,6 +1002,7 @@ interface Props {
   profileDnaOnChart?: boolean;
   valueMigrationOnChart?: boolean;
   profileMemoryOnChart?: boolean;
+  profileFusionOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1298,6 +1302,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   valueMigrationOnChart = false,
   profileMemory = null,
   profileMemoryOnChart = false,
+  profileFusion = null,
+  profileFusionOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1450,6 +1456,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const profileMemoryRef = useRef<ProfileMemoryVM | null>(null);
   useEffect(() => { profileMemoryRef.current = profileMemory ?? null; }, [profileMemory]);
 
+  const profileFusionRef = useRef<ProfileFusionVM | null>(null);
+  useEffect(() => { profileFusionRef.current = profileFusion ?? null; }, [profileFusion]);
+
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
 
@@ -1468,7 +1477,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1484,8 +1493,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       profileDna: profileDnaOnChart,
       valueMigration: valueMigrationOnChart,
       profileMemory: profileMemoryOnChart,
+      profileFusion: profileFusionOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -9043,6 +9053,59 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.structureProfileRows;
             delete ds.structureProfileAnchor;
             delete ds.structureProfileLegBars;
+          }
+        }
+
+        /* ══ P-110 #3 · PROFILE FUSION — WHERE THE SPECIES AGREE ═══════════
+           A thin brass band across the camera from the lowest to the highest
+           contributing price (never smoothed), with its provenance printed at
+           the left: which species, which level. "×3" is a count of species,
+           not a score. Painted under the other profile layers so it reads as
+           ground, not as another line.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const fu = profileFusionRef.current;
+          const on = layerOnRef.current.profileFusion;
+          ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : "OFF";
+          if (on && fu?.drawn) {
+            ctx.save();
+            const endX = ds.livingProfileLaneLeft ? Number(ds.livingProfileLaneLeft) - 8 : W - 80;
+            let painted = 0;
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textBaseline = "middle";
+            for (const z of fu.zones) {
+              const yh = srs.priceToCoordinate(z.high);
+              const yl = srs.priceToCoordinate(z.low);
+              if (yh == null || yl == null) continue;
+              const top = Math.min(+yh, +yl) - 2;
+              const h = Math.max(4, Math.abs(+yl - +yh) + 4);
+              ctx.fillStyle = "rgba(201,165,92,0.13)";
+              ctx.fillRect(0, top, endX, h);
+              ctx.strokeStyle = "rgba(201,165,92,0.55)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(0, Math.round(top) + 0.5); ctx.lineTo(endX, Math.round(top) + 0.5);
+              ctx.moveTo(0, Math.round(top + h) - 0.5); ctx.lineTo(endX, Math.round(top + h) - 0.5);
+              ctx.stroke();
+              const text = `FUSION ×${z.speciesCount} · ${z.low.toFixed(2)}${z.high !== z.low ? `–${z.high.toFixed(2)}` : ""} · ${z.provenance}`;
+              const w = Math.ceil(ctx.measureText(text).width) + 10;
+              const x = 44;
+              const y = Math.round(top + h / 2);
+              ctx.fillStyle = "rgba(11,10,8,0.86)";
+              ctx.fillRect(x, y - 8, w, 16);
+              ctx.strokeStyle = "rgba(201,165,92,0.7)";
+              ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
+              ctx.fillStyle = "rgba(201,165,92,1)";
+              ctx.textAlign = "left";
+              ctx.fillText(text, x + 5, y);
+              painted++;
+            }
+            ctx.restore();
+            ds.profileFusionZones = String(painted);
+            ds.profileFusionMaxSpecies = String(Math.max(0, ...fu.zones.map(z => z.speciesCount)));
+          } else {
+            delete ds.profileFusionZones;
+            delete ds.profileFusionMaxSpecies;
           }
         }
 

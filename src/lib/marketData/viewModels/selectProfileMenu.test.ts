@@ -44,6 +44,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "VALUE_MIGRATION",
   // P-110 #4. Prior sessions' value carried forward — bars only.
   "PROFILE_MEMORY",
+  // P-110 #3. Agreement across the switched-on species — bars only.
+  "PROFILE_FUSION",
   "MARKET_STRUCTURE",
 ];
 

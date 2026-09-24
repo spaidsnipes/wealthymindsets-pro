@@ -264,6 +264,7 @@ import selectProfileDna from "@/lib/marketData/viewModels/selectProfileDna";
 import selectValueMigration from "@/lib/marketData/viewModels/selectValueMigration";
 import selectProfileSlice from "@/lib/marketData/viewModels/selectProfileSlice";
 import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory";
+import selectProfileFusion, { type FusionSourceLevel } from "@/lib/marketData/viewModels/selectProfileFusion";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -744,6 +745,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [profileDnaOn, setProfileDnaOn] = useState<boolean>(() => lsGet("wm_ofProfileDna", false) as boolean);
   const [valueMigrationOn, setValueMigrationOn] = useState<boolean>(() => lsGet("wm_ofValueMigration", false) as boolean);
   const [profileMemoryOn, setProfileMemoryOn] = useState<boolean>(() => lsGet("wm_ofProfileMemory", false) as boolean);
+  const [profileFusionOn, setProfileFusionOn] = useState<boolean>(() => lsGet("wm_ofProfileFusion", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -975,6 +977,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofProfileDna",       profileDnaOn);
   usePersistOnChange("wm_ofValueMigration",   valueMigrationOn);
   usePersistOnChange("wm_ofProfileMemory",    profileMemoryOn);
+  usePersistOnChange("wm_ofProfileFusion",    profileFusionOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1771,6 +1774,37 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [valueMigrationVM, chartBars],
   );
 
+  /**
+   * P-110 #3 — FUSION over the ACTIVE stack only. A species the trader has
+   * switched off contributes nothing: fusing a level the glass is not showing
+   * would name a source the trader cannot see.
+   */
+  const profileFusionVM = React.useMemo(() => {
+    const levels: FusionSourceLevel[] = [];
+    const push = (species: FusionSourceLevel["species"], kind: string, price: number | null | undefined) => {
+      if (price != null && Number.isFinite(price)) levels.push({ species, kind, price });
+    };
+    if (livingProfileOn && livingProfileGlass.drawn) {
+      push("LIVING", "POC", livingProfileGlass.poc);
+      push("LIVING", "VAH", livingProfileGlass.vah);
+      push("LIVING", "VAL", livingProfileGlass.val);
+    }
+    if (tpoProfileOn && tpoProfileVM.drawn) {
+      push("TPO", "POC", tpoProfileVM.poc);
+      push("TPO", "VAH", tpoProfileVM.vah);
+      push("TPO", "VAL", tpoProfileVM.val);
+    }
+    if (structureProfileOn && structureProfileVM.drawn) {
+      push("STRUCTURE", "POC", structureProfileVM.poc);
+      push("STRUCTURE", "VAH", structureProfileVM.vah);
+      push("STRUCTURE", "VAL", structureProfileVM.val);
+    }
+    if (profileMemoryOn && profileMemoryVM.drawn) {
+      for (const l of profileMemoryVM.levels) push("MEMORY", `S-${l.sessionsAgo} ${l.kind}`, l.price);
+    }
+    return selectProfileFusion(levels);
+  }, [livingProfileOn, livingProfileGlass, tpoProfileOn, tpoProfileVM, structureProfileOn, structureProfileVM, profileMemoryOn, profileMemoryVM]);
+
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2405,6 +2439,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.PROFILE_DNA !== undefined) setProfileDnaOn(s.PROFILE_DNA);
       if (s.VALUE_MIGRATION !== undefined) setValueMigrationOn(s.VALUE_MIGRATION);
       if (s.PROFILE_MEMORY !== undefined) setProfileMemoryOn(s.PROFILE_MEMORY);
+      if (s.PROFILE_FUSION !== undefined) setProfileFusionOn(s.PROFILE_FUSION);
     },
     [],
   );
@@ -2441,6 +2476,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       PROFILE_DNA: profileDnaOn,
       VALUE_MIGRATION: valueMigrationOn,
       PROFILE_MEMORY: profileMemoryOn,
+      PROFILE_FUSION: profileFusionOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4086,6 +4122,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   PROFILE_DNA: profileDnaOn,
                   VALUE_MIGRATION: valueMigrationOn,
                   PROFILE_MEMORY: profileMemoryOn,
+                  PROFILE_FUSION: profileFusionOn,
                   MARKET_STRUCTURE: marketStructureOn,
                 }}
                 onToggle={(id) => {
@@ -4105,6 +4142,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "PROFILE_DNA") setProfileDnaOn(v => !v);
                   else if (id === "VALUE_MIGRATION") setValueMigrationOn(v => !v);
                   else if (id === "PROFILE_MEMORY") setProfileMemoryOn(v => !v);
+                  else if (id === "PROFILE_FUSION") setProfileFusionOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4791,6 +4829,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       valueMigrationOnChart={valueMigrationOn}
                       profileMemory={profileMemoryVM}
                       profileMemoryOnChart={profileMemoryOn}
+                      profileFusion={profileFusionVM}
+                      profileFusionOnChart={profileFusionOn}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off

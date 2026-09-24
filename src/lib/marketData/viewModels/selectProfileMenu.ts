@@ -57,6 +57,7 @@ export type ProfileId =
   | "PROFILE_DNA"
   | "VALUE_MIGRATION"
   | "PROFILE_MEMORY"
+  | "PROFILE_FUSION"
   | "MARKET_STRUCTURE";
 
 /**
@@ -392,6 +393,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectProfileMemory.ts",
     levels: ["Prior-session POC", "Prior-session VAH", "Prior-session VAL"],
+  },
+  {
+    id: "PROFILE_FUSION",
+    label: "Profile Fusion",
+    /*
+      Reads ONLY the species switched on above it. A zone appears where two
+      or more DIFFERENT species put a level within tolerance, and it names
+      every source. A count, never a score.
+    */
+    what: "zones where two or more switched-on profiles agree, each source named",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectProfileFusion.ts",
+    levels: ["Fused zone low", "Fused zone high"],
   },
   {
     id: "MARKET_STRUCTURE",
