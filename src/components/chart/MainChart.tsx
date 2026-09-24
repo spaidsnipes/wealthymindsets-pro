@@ -209,6 +209,7 @@ import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewMode
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
+import { selectLiquidityLifecycle, STAGE_ORDER } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
@@ -1042,6 +1043,8 @@ interface Props {
   contradictionOnChart?: boolean;
   /** H-1001 — the trader's drawn position bracketed on the price axis. */
   riskOnPriceOnChart?: boolean;
+  /** Founder mockup · Liquidity Weather lifecycle on price. */
+  liquidityLifecycleOnChart?: boolean;
   /** H-1001 — the receipt torn from this camera's decision, frozen. */
   riskReceipt?: RiskReceipt | null;
   /** H-1001 — the bracket reading, handed up every frame (into a ref). */
@@ -1376,6 +1379,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   expectedEnvelopeOnChart = false,
   contradictionOnChart = false,
   riskOnPriceOnChart = true,
+  liquidityLifecycleOnChart = false,
   riskReceipt = null,
   onRiskOnPrice,
   onContradiction,
@@ -1597,7 +1601,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1623,8 +1627,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       expectedEnvelope: expectedEnvelopeOnChart,
       contradiction: contradictionOnChart,
       riskOnPrice: riskOnPriceOnChart,
+      liquidityLifecycle: liquidityLifecycleOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -11076,6 +11081,92 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.heatLensCells;
           delete ds.heatLensContours;
         }
+        /* ══ LIQUIDITY LIFECYCLE — the Founder's Liquidity Weather mockup ════
+           Each pool (a volume-at-price node, candle-estimated) is a band on
+           price, coloured by the stage it was in over time, with a numbered
+           marker where each stage began: 1 APPEARED · 2 GREW · 3 PERSISTED ·
+           4 TOUCHED · 5 REFILLED · 6 CONSUMED. PULLED (7) needs book depth and
+           is shown in the legend as a named refusal, never on a pool. */
+        if (layerOnRef.current.liquidityLifecycle === true) {
+          const bsL = barsRef.current ?? [];
+          const lc = selectLiquidityLifecycle(bsL.map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close, volume: Number.isFinite(b.volume) ? b.volume : 0 })));
+          ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
+          const STAGE_RGB: Record<string, string> = {
+            APPEARED: "110,200,90", GREW: "190,210,70", PERSISTED: "235,190,60",
+            TOUCHED: "245,160,50", REFILLED: "240,120,40", CONSUMED: "215,60,50", PULLED: "150,90,200",
+          };
+          const tsLc = chart.timeScale();
+          let axisWL = 60;
+          try { axisWL = chart.priceScale("right").width(); } catch { /* keep default */ }
+          const rightL = W - axisWL - 2;
+          ctx.save();
+          if (lc.drawn) {
+            for (const pool of lc.pools) {
+              const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
+              if (yT == null || yB == null) continue;
+              const top = Math.min(+yT, +yB) - 2, h = Math.max(4, Math.abs(+yB - +yT) + 4);
+              pool.events.forEach((ev, k) => {
+                const xs = tsLc.timeToCoordinate(ev.time as never);
+                const next = pool.events[k + 1];
+                const xe = next ? tsLc.timeToCoordinate(next.time as never) : null;
+                const x0 = xs == null ? 0 : +xs;
+                // A consumed pool is gone: its band stops just past the consume mark.
+                const x1 = xe == null ? (ev.stage === "CONSUMED" ? x0 + 24 : rightL) : +xe;
+                if (x1 <= x0) return;
+                const g = ctx.createLinearGradient(0, top, 0, top + h);
+                g.addColorStop(0, `rgba(${STAGE_RGB[ev.stage]},0.05)`);
+                g.addColorStop(0.5, `rgba(${STAGE_RGB[ev.stage]},0.30)`);
+                g.addColorStop(1, `rgba(${STAGE_RGB[ev.stage]},0.05)`);
+                ctx.fillStyle = g;
+                ctx.fillRect(x0, top, x1 - x0, h);
+              });
+              // Numbered stage markers, the mockup's ①–⑥, at the moment each began.
+              for (const ev of pool.events) {
+                const xr = tsLc.timeToCoordinate(ev.time as never);
+                if (xr == null) continue;
+                const n = STAGE_ORDER.indexOf(ev.stage) + 1;
+                const cx = +xr, cy = top - 11;
+                ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fill();
+                ctx.strokeStyle = `rgba(${STAGE_RGB[ev.stage]},1)`; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1;
+                ctx.fillStyle = `rgba(${STAGE_RGB[ev.stage]},1)`;
+                ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(String(n), cx, cy + 0.5);
+              }
+              // Current stage, printed at the right end of the band.
+              ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "right"; ctx.textBaseline = "middle";
+              ctx.fillStyle = `rgba(${STAGE_RGB[pool.stage]},1)`;
+              if (pool.stage !== "CONSUMED") ctx.fillText(`${pool.stage} · ${pool.price.toFixed(2)}`, rightL - 6, top + h / 2);
+              else {
+                const last = pool.events[pool.events.length - 1];
+                const xc = tsLc.timeToCoordinate(last.time as never);
+                if (xc != null) { ctx.textAlign = "left"; ctx.fillText(`CONSUMED · ${pool.price.toFixed(2)}`, +xc + 28, top + h / 2); }
+              }
+            }
+          }
+          // The ramp legend, the mockup's header strip.
+          const lx = 12, ly = H - 128, segW = 84;
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(11,10,8,0.88)";
+          ctx.fillRect(lx - 4, ly - 20, segW * 7 + 8, 38);
+          ctx.fillStyle = "rgba(201,165,92,1)";
+          ctx.fillText(lc.drawn ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · volume-at-price, candle-estimated` : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`, lx, ly - 11);
+          STAGE_ORDER.forEach((st, k) => {
+            const x = lx + k * segW;
+            ctx.fillStyle = `rgba(${STAGE_RGB[st]},${st === "PULLED" ? 0.35 : 0.9})`;
+            ctx.fillRect(x, ly, segW - 2, 4);
+            ctx.fillStyle = st === "PULLED" ? "rgba(200,192,174,0.55)" : "rgba(237,230,211,0.9)";
+            ctx.fillText(`${k + 1} ${st}`, x, ly + 11);
+          });
+          ctx.restore();
+          if (lc.drawn) floatingChips.push({ x: lx - 4, y: ly - 20, w: segW * 7 + 8, h: 38 });
+        } else {
+          ds.liquidityLifecycle = "OFF";
+        }
+
         /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════
            The trader's own Long / Short Position (entry · target · stop),
            bracketed at the axis: RISK entry→stop, REWARD entry→target, the

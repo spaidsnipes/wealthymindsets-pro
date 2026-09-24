@@ -218,7 +218,7 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
       this desk lie every single time it was used.
     */
     // Scaffolding (Foundation → Intermediate → Pro) reads the finished session.
-    arms: ["SESSION", "ABSORPTION", "SCAFFOLDING"],
+    arms: ["SESSION", "ABSORPTION", "SCAFFOLDING", "LIQUIDITY_LIFECYCLE"],
   },
 ];
 

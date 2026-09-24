@@ -69,6 +69,7 @@ export type ProfileId =
   | "EXPECTED_ENVELOPE"
   | "CONTRADICTION"
   | "RISK_ON_PRICE"
+  | "LIQUIDITY_LIFECYCLE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -170,6 +171,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   EXPECTED_ENVELOPE: "READING",
   CONTRADICTION: "READING",
   RISK_ON_PRICE: "READING",
+  LIQUIDITY_LIFECYCLE: "ORDER_FLOW",
 };
 
 export interface ProfileMenuEntry {
@@ -637,6 +639,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectContradiction.ts",
     levels: ["The contested price band"],
+  },
+  {
+    id: "LIQUIDITY_LIFECYCLE",
+    label: "Liquidity Lifecycle",
+    /*
+      The Founder's Liquidity Weather mockup: APPEARED → GREW → PERSISTED →
+      TOUCHED → REFILLED → CONSUMED on price, from volume-at-price nodes
+      (candle-estimated). PULLED needs book depth and is refused, named.
+    */
+    what: "where volume pooled at price and what happened to each pool since — appeared, grew, persisted, touched, refilled, consumed",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectLiquidityLifecycle.ts",
+    levels: ["Pool band", "Stage markers"],
   },
   {
     id: "RISK_ON_PRICE",

@@ -797,6 +797,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // H-1001 — ON by default: risk is visible, bracketed, on the book. It only
   // draws when the trader has drawn a Long / Short Position with a stop.
   const [riskOnPriceOn, setRiskOnPriceOn] = useState<boolean>(() => lsGet("wm_ofRiskOnPrice", true) as boolean);
+  const [liquidityLifecycleOn, setLiquidityLifecycleOn] = useState<boolean>(() => lsGet("wm_ofLiquidityLifecycle", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -1044,6 +1045,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofExpectedEnvelope", expectedEnvelopeOn);
   usePersistOnChange("wm_ofContradiction",    contradictionOn);
   usePersistOnChange("wm_ofRiskOnPrice",      riskOnPriceOn);
+  usePersistOnChange("wm_ofLiquidityLifecycle", liquidityLifecycleOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2642,6 +2644,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   EXPECTED_ENVELOPE: expectedEnvelopeOn,
                   CONTRADICTION: contradictionOn,
                   RISK_ON_PRICE: riskOnPriceOn,
+                  LIQUIDITY_LIFECYCLE: liquidityLifecycleOn,
                   MARKET_STRUCTURE: marketStructureOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
@@ -2671,6 +2674,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "EXPECTED_ENVELOPE") setExpectedEnvelopeOn(v => !v);
                   else if (id === "CONTRADICTION") setContradictionOn(v => !v);
                   else if (id === "RISK_ON_PRICE") setRiskOnPriceOn(v => !v);
+                  else if (id === "LIQUIDITY_LIFECYCLE") setLiquidityLifecycleOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -2820,6 +2824,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.EXPECTED_ENVELOPE !== undefined) setExpectedEnvelopeOn(s.EXPECTED_ENVELOPE);
       if (s.CONTRADICTION !== undefined) setContradictionOn(s.CONTRADICTION);
       if (s.RISK_ON_PRICE !== undefined) setRiskOnPriceOn(s.RISK_ON_PRICE);
+      if (s.LIQUIDITY_LIFECYCLE !== undefined) setLiquidityLifecycleOn(s.LIQUIDITY_LIFECYCLE);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -2869,6 +2874,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       EXPECTED_ENVELOPE: expectedEnvelopeOn,
       CONTRADICTION: contradictionOn,
       RISK_ON_PRICE: riskOnPriceOn,
+      LIQUIDITY_LIFECYCLE: liquidityLifecycleOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -5217,6 +5223,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       expectedEnvelopeOnChart={expectedEnvelopeOn}
                       contradictionOnChart={contradictionOn}
                       riskOnPriceOnChart={riskOnPriceOn}
+                      liquidityLifecycleOnChart={liquidityLifecycleOn}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
                       onContradiction={onContradiction}
