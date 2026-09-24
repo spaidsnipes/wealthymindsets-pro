@@ -86,6 +86,24 @@ evaluated, not the plate's five.
 Also fixed: Inspect ticket now sits above zone target pins; exhaustion chip no longer prints into the header chrome; the position tool's own
 Entry·RR chip steps under its zone near the top; the zoom plate is an obstacle for later chips.
 
+## Finish-line shift (20:40–22:00 UTC) — coordinate sheet
+
+| Joint | Defect found | Canon | Commit | Proof (LOCAL DEV) |
+|---|---|---|---|---|
+| Connect Brokers | Only in the chart toolbar's Advanced menu | §22 | `f7b84a1` | connect_brokers_from_news.png |
+| Partnerships | Page published no partners | §27 | `367c613` | partnerships.png |
+| Profile Fusion (object) | Fusion only grouped agreeing levels; no fused object, no unfuse | §13 | `7a91876` | fusion_after.png |
+| Profiles taxonomy | #8 was the whole-chart VP; #11 "Delta + VP"; Value Candle / Value Migration in Profiles | §10, §12 | `8847a98` | taxonomy_profiles.png |
+| Webull continuity | Stream stopped dead on any drop; no backoff, no gap record | §23, §36 | `b01c00d` | webull_continuity_{drop,revoked}.png (FIXTURE SSE) |
+| Appearance · flow colours | Bubble colours hard-coded, not in the Appearance owner | §21 | `dd994f3` | appearance_flow_colors.png |
+
+Still OPEN (named, not closed): Living profile as a fusion source (its lane carries shares, not
+row volume); Appearance for profiles/POC/VA/imbalance/absorption/liquidity; Webull stream is
+still started by the trader (no auto-start at WM startup) and runs per browser, not as one
+server-side bridge; Moomoo (non-blocking, Founder reconnecting); question lenses beyond
+absorption/exhaustion; FUSED POC label can sit tight against a source label at the same price.
+Serving proof: this sandbox cannot reach the live site (egress CONNECT 403) — Founder glass.
+
 ## Still OPEN from the Manifestation Map
 
 P-110 stack controls: left/right/overlay placement, duplicate (reorder, opacity, lock, width,
