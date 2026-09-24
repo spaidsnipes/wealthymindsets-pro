@@ -191,14 +191,17 @@ export function ProfilesMenu({
                   </div>
 
                   <div className="mt-1 flex min-w-0 items-center justify-between gap-2 pl-3">
+                    {/* The STATE is the fact the trader needs and never
+                        truncates ("REA…" read as nothing). The levels list is
+                        detail — it yields, and stays whole in the tooltip. */}
                     <span
-                      className="truncate text-[8px] font-semibold uppercase tracking-[0.08em]"
+                      className="shrink-0 whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.08em]"
                       style={{ color: AVAILABILITY_DOT[entry.availability] }}
                       data-testid={`profile-note-${entry.id}`}
                     >
                       {stateLabel}
                     </span>
-                    <span className="truncate text-right text-[8px] uppercase tracking-[0.08em] text-wm-text-dim">
+                    <span className="min-w-0 truncate text-right text-[8px] uppercase tracking-[0.08em] text-wm-text-dim">
                       {entry.levels.join(" · ")}
                     </span>
                   </div>

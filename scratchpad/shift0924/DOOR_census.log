@@ -1,0 +1,22 @@
+21 rows
+ · Fixed Range VP. volume by price across every bar loaded for this chart — it holds still when you scroll. ready to draw from the bars on screen.
+ · Session VP. volume by price for the chosen session window. ready to draw from the bars on screen.
+ · Delta + VP. the same profile split by which side was the aggressor. this tape has not stated an aggressor side — the split cannot be drawn from volume alone.
+ · Absorption. effort against displacement, with absorption zones pinned at price. ready to draw from the bars on screen.
+ · Stacked Imbalance. consecutive price levels where one side kept out-trading the other. this tape has not stated an aggressor side — the split cannot be drawn from volume alone.
+ · WM Value Candle. where the window's volume actually concentrated, bin by bin. this tape has not stated an aggressor side — the split cannot be drawn from volume alone.
+ · Delta Divergence. the two swing pivots where price and cumulative delta disagreed. this tape has not stated an aggressor side — the split cannot be drawn from volume alone.
+ · Liquidity Weather. how much size it costs to move price, and where size moved it none. no per-trade prints have reached this chart yet — aggressor side is not required.
+ · Effort Mark. when the bar under your cursor spent much and moved little, or the reverse. ready to draw from the bars on screen.
+ · Delta Levels. which side crossed the spread hardest at each real level. this tape has not stated an aggressor side — the split cannot be drawn from volume alone.
+ · Living Profile. the levels the market lingered at and the ones it avoided. ready to draw from the bars on screen.
+ · TPO Profile. how many bars spent time at each price, on the left edge. ready to draw from the bars on screen.
+ · Structure Profile. volume by price since the last confirmed swing, drawn from that swing. ready to draw from the bars on screen.
+ · Profile DNA. the Living Profile's shape and sample, printed above it — never a forecast. ready to draw from the bars on screen.
+ · Value Migration. where POC and value stood after every bar, drawn across the candles. ready to draw from the bars on screen.
+ · Profile Memory. earlier sessions' POC and value, carried forward — naked until the market returns. ready to draw from the bars on screen.
+ · Profile Fusion. zones where two or more switched-on profiles agree, each source named. ready to draw from the bars on screen.
+ · Composite Profile. volume by price across the last completed sessions — today excluded. ready to draw from the bars on screen.
+ · Visible Range Profile. volume by price for exactly the bars in view — it moves when you scroll. ready to draw from the bars on screen.
+ · Anchored Range VP. volume by price for a span of bars you drag across — anchored, from bars alone. ready to draw from the bars on screen.
+ · Market Structure. confirmed swing highs and lows, with the last of each drawn loudest. ready to draw from the bars on screen.
