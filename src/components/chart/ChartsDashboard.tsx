@@ -1046,6 +1046,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofRegimeLighting",   regimeLightingOn);
   usePersistOnChange("wm_ofQuestionLens",     questionLensOn);
   usePersistOnChange("wm_questionChoice",     questionChoice);
+  // SHOW RAW is a look, not a setting: never persisted, so a reload can never
+  // open onto a bare chart the trader forgot they asked for.
+  const [rawOn, setRawOn] = useState(false);
   usePersistOnChange("wm_ofScaffolding",      scaffoldingDepth);
   usePersistOnChange("wm_ofAnatomyCards",     anatomyCardsOn);
   usePersistOnChange("wm_ofMemoryGhost",      memoryGhostOn);
@@ -5224,6 +5227,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       regimeLightingOnChart={regimeLightingOn}
                       questionLensOnChart={questionLensOn}
                       questionChoiceOnChart={questionChoice}
+                      rawOnChart={rawOn}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}
@@ -5296,6 +5300,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                             {c.label}
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          aria-pressed={rawOn}
+                          data-testid="show-raw"
+                          onClick={() => setRawOn(v => !v)}
+                          className={`min-h-7 rounded border px-2 text-[10px] font-semibold ${rawOn ? "border-wm-gold/60 bg-wm-gold/20 text-wm-gold" : "border-wm-border text-wm-text-muted hover:text-wm-text"}`}
+                        >
+                          {rawOn ? "Raw · restore" : "Show raw"}
+                        </button>
                       </div>
                     )}
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (

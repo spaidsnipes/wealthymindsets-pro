@@ -1034,6 +1034,8 @@ interface Props {
   questionLensOnChart?: boolean;
   /** What the trader asked of the Question Lens (AUTO = the camera chooses). */
   questionChoiceOnChart?: QuestionChoice;
+  /** SHOW RAW — every overlay reading hidden, candles bare; switches untouched. */
+  rawOnChart?: boolean;
   /** Absorption vs Exhaustion key-metric cards (MOCK 1). */
   anatomyCardsOnChart?: boolean;
   /** H-201 Memory Ghost — prior analogue under the live bars. */
@@ -1376,6 +1378,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   visibleRangeProfileOnChart = false,
   questionLensOnChart = false,
   questionChoiceOnChart = "AUTO",
+  rawOnChart = false,
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
   memoryGhostOnChart = false,
@@ -1607,6 +1610,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   */
   const questionChoiceRef = useRef<QuestionChoice>("AUTO");
   questionChoiceRef.current = questionChoiceOnChart;
+  const rawRef = useRef(false);
+  rawRef.current = rawOnChart;
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false });
   useEffect(() => {
     layerOnRef.current = {
@@ -5626,6 +5631,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
+      // SHOW RAW (Founder correction). The glass paints NOTHING but its own
+      // stamp; no switch is changed, so turning raw off restores every reading
+      // exactly as it was. The candles and volume are the chart's own series.
+      if (rawRef.current) {
+        canvas.dataset.raw = "ON";
+        const stamp = "RAW · every reading hidden · candles and volume only";
+        ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+        const sw = ctx.measureText(stamp).width + 16;
+        ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(12, 100, sw, 20);
+        ctx.strokeStyle = "rgba(201,165,92,0.6)"; ctx.lineWidth = 1; ctx.strokeRect(12.5, 100.5, sw - 1, 19);
+        ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(stamp, 20, 110.5);
+        return;
+      }
+      canvas.dataset.raw = "OFF";
       // NOTE: do NOT early-return when footprint is off — the WM Fixed/Session VP
       // overlays are independent of order-flow footprint and must still render.
       // Footprint MODE blocks below are gated via effectiveFP instead.
