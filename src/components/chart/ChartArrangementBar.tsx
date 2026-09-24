@@ -198,7 +198,7 @@ export function ChartArrangementBar({
                   className="pl-4 pt-1 text-[10px] leading-snug"
                   style={{ color: READINESS_DOT[entry.readiness] }}
                 >
-                  {entry.note}
+                  {entry.shortNote || entry.note}
                 </div>
               )}
             </button>

@@ -2797,6 +2797,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         deliverableCount: entry.deliverableCount,
         armedCount: entry.armedCount,
         note: entry.note,
+        shortNote: entry.shortNote,
       })),
     [arrangementVM],
   );

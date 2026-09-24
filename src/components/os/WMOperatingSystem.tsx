@@ -707,7 +707,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
                   color: WM.state.warn,
                 }}
               >
-                {confess.note}
+                {confess.shortNote || confess.note}
               </span>
             ) : null}
           </span>

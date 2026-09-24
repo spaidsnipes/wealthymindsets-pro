@@ -299,3 +299,16 @@ describe("arrangementSwitches hands back a complete, honest switch set", () => {
     expect(arrangementSwitches("NOT_A_DESK" as ArrangementId, menuOn())).toEqual({});
   });
 });
+
+describe("the tile copy is one line (Founder: no paragraphs on the glass)", () => {
+  it("a mute desk's shortNote is a single short line; a full desk says nothing", () => {
+    const menu = selectProfileMenu({ barsPresent: true, printsPresent: false, observedAggressorFlow: false, active: {} });
+    const vm = selectChartArrangement({ menu });
+    const of = vm.entries.find(e => e.id === "ORDER_FLOW")!;
+    expect(of.shortNote.length).toBeGreaterThan(0);
+    expect(of.shortNote.length).toBeLessThanOrEqual(60);
+    expect(of.note.length).toBeGreaterThan(of.shortNote.length);
+    const clean = vm.entries.find(e => e.id === "CLEAN")!;
+    expect(clean.shortNote).toBe("");
+  });
+});

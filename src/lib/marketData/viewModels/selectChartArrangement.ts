@@ -123,6 +123,11 @@ export interface ArrangementEntry extends ArrangementSpec {
    * be missing and whether waiting would help.
    */
   readonly note: string;
+  /**
+   * The same fact in one line, for the rail tile (Founder: no paragraphs on
+   * the glass). The full `note` rides the tile's title for whoever asks.
+   */
+  readonly shortNote: string;
 }
 
 export interface ChartArrangementVM {
@@ -328,6 +333,11 @@ export function selectChartArrangement(
         `${why}.`;
     }
 
+    const shortNote = readiness === "FULL" || spec.arms.length === 0
+      ? ""
+      : mute.some(e => e.availability === "NEEDS_SIDED_TAPE")
+        ? `${deliverableCount} of ${armedCount} draw here · rest need a sided tape`
+        : `${deliverableCount} of ${armedCount} draw here · rest waiting for data`;
     return {
       ...spec,
       active: matches(spec, toggles),
@@ -335,6 +345,7 @@ export function selectChartArrangement(
       armedCount,
       readiness,
       note,
+      shortNote,
     };
   });
 

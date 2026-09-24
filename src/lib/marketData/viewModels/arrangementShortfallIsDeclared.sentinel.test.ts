@@ -195,7 +195,8 @@ describe("the declaration reaches the glass", () => {
       "the popover no longer renders `entry.note` as visible content. If the " +
         "reason survives only in `title`, every touch user presses a desk " +
         "named after a reading it cannot deliver and is told nothing.",
-    ).toMatch(/>\s*\{\s*entry\.note\s*\}\s*</);
+    // One-line `shortNote` is the glass copy; the full note is its fallback.
+    ).toMatch(/>\s*\{\s*entry\.(?:shortNote\s*\|\|\s*entry\.)?note\s*\}\s*</);
   });
 
   it("readiness is published for an outside probe", () => {
@@ -304,7 +305,9 @@ describe("the other door that names these desks tells the same truth", () => {
         "If the shortfall survives only in `title`, every touch and mobile " +
         "trader presses a desk named after five readings and is told nothing " +
         "about the four that will not paint.",
-    ).toMatch(/\{\s*confess\.note\s*\}/);
+    // The one-line form (`shortNote`, the compiler's own) is the glass copy
+    // since the Founder's no-paragraphs pass; the full note is its fallback.
+    ).toMatch(/\{\s*confess\.(?:shortNote\s*\|\|\s*confess\.)?note\s*\}/);
     expect(
       RAIL,
       "`data-equipment-shortfall` was removed — the attribute a live audit " +

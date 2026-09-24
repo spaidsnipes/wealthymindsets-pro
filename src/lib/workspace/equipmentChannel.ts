@@ -303,6 +303,8 @@ export interface EquipmentShortfall {
   readonly deliverableCount: number;
   /** How many the desk arms in total. */
   readonly armedCount: number;
+  /** The compiler's one-line form, printed on the tile. Optional for old publishers. */
+  readonly shortNote?: string;
   /**
    * The compiler's own sentence, verbatim. NEVER composed here — a second
    * phrasing of the same shortfall is how the two doors start disagreeing
