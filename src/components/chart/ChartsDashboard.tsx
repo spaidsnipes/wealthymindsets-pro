@@ -267,6 +267,7 @@ import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory
 import selectProfileFusion, { type FusionSourceLevel } from "@/lib/marketData/viewModels/selectProfileFusion";
 import selectCompositeProfile from "@/lib/marketData/viewModels/selectCompositeProfile";
 import selectRegimeLighting from "@/lib/marketData/viewModels/selectRegimeLighting";
+import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -1392,11 +1393,27 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       })),
     ),
   [chartBars]);
-  const chartMarketObjects = React.useMemo(() => selectStructureMarketObjects({
+  /*
+    SWING-ORIGIN ZONES (Market Object Passport mockup). Same structure owner,
+    same identities; biography from the ONE lifecycle owner. They join the
+    selectable objects so they get the existing on-price selectors.
+  */
+  const chartStructureZones = React.useMemo(() => selectStructureZoneObjects({
     structure: chartStructureVM,
-    bars: chartBars,
+    bars: chartBars.map(b => ({
+      time: typeof b.time === "number" ? b.time : Number(b.time),
+      open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+    })),
     identities: chartBarIdentities,
   }), [chartStructureVM, chartBars, chartBarIdentities]);
+  const chartMarketObjects = React.useMemo(() => [
+    ...selectStructureMarketObjects({
+      structure: chartStructureVM,
+      bars: chartBars,
+      identities: chartBarIdentities,
+    }),
+    ...chartStructureZones.map(z => z.object),
+  ], [chartStructureVM, chartBars, chartBarIdentities, chartStructureZones]);
   const chartMarketObjectTargets = React.useMemo(() => chartMarketObjects.flatMap(object => {
     const birth = chartBarIdentities.find(identity => identity.barId === object.birthBarId);
     return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
@@ -4780,7 +4797,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
-                      onSelectMarketObject={setSelectedMarketObjectId}
+                      onSelectMarketObject={id => {
+                        setSelectedMarketObjectId(current => (current === id ? null : id));
+                        // A selected zone opens the ONE Inspect ticket as its
+                        // Passport; any other selection gives way.
+                        if (chartStructureZones.some(z => z.object.objectId === id)) {
+                          setSelectedPrint(null);
+                          setSelectedSlicePrice(null);
+                          setInspectOpen(true);
+                        }
+                      }}
+                      structureZones={chartStructureZones}
                       selectedMarketObjectWait={selectedMarketObjectWait}
                       marketStanding={marketStanding}
                       drawingTool={drawingTool}
@@ -4911,9 +4938,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         open={inspectOpen}
                         selectedPrint={activeSelectedPrint}
                         selectedProfileSlice={activeProfileSlice}
+                        selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         profileSliceSymbol={symbol}
                         profileSliceAsOf={livingProfileAsOf}
-                        onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); } }}
+                        onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); if (chartStructureZones.some(z => z.object.objectId === selectedMarketObjectId)) setSelectedMarketObjectId(null); } }}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}

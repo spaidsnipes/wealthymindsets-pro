@@ -55,6 +55,7 @@ import { Crosshair, X } from "lucide-react";
 
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
+import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -100,6 +101,7 @@ export function ChartInspectTicket({
   selectedProfileSlice = null,
   profileSliceSymbol = "",
   profileSliceAsOf = null,
+  selectedZone = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -113,6 +115,8 @@ export function ChartInspectTicket({
   profileSliceSymbol?: string;
   /** Unix seconds of the newest bar the profile was built from. */
   profileSliceAsOf?: number | null;
+  /** F11 · a selected swing-origin ZONE — its Passport. */
+  selectedZone?: StructureZone | null;
 }) {
   if (!open) {
     return (
@@ -135,6 +139,69 @@ export function ChartInspectTicket({
     about the bucket, and the profile's fidelity — never an intent, never a
     call. A click that found no traded bucket says so instead of going quiet.
   */
+  /*
+    F11 · MARKET OBJECT PASSPORT — the Founder's mockup, in the ONE ticket.
+    Birth · Age · Touches · Response history · Current state · Source
+    fidelity · Invalidation condition. Every line is what the lifecycle owner
+    measured; there is no decay rate, half-life or invalidation probability,
+    because nothing measured one.
+  */
+  if (selectedZone) {
+    const z = selectedZone;
+    const lc = z.lifecycle;
+    const t = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+    const ageSec = lc.asOf != null ? lc.asOf - z.birthTime : null;
+    const age = ageSec == null ? "UNKNOWN" : `${Math.floor(ageSec / 86400)}d ${Math.floor((ageSec % 86400) / 3600)}h ${Math.floor((ageSec % 3600) / 60)}m`;
+    const stateNote: Record<string, string> = {
+      ALIVE: "Untouched since birth.",
+      TESTED: "Price is inside it now — no response yet.",
+      DEFENDED: "Every completed touch was rejected.",
+      CONSUMED: "Still standing, but a touch swept through its far edge.",
+      INVALID: "A bar closed beyond its far edge.",
+    };
+    return (
+      <section className="absolute top-16 right-[76px] z-20 w-[248px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+        data-testid="chart-inspect-ticket" data-inspect-zone={z.object.objectId}
+        aria-label={`Market object passport. ${z.side} zone ${z.object.priceLow} to ${z.object.priceHigh}. ${lc.state}.`}>
+        <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
+          <Crosshair size={11} /> MARKET OBJECT PASSPORT
+          <button className="ml-auto" aria-label="Close the passport" onClick={() => onOpenChange(false)}><X size={12} /></button>
+        </div>
+        <div className="mt-1 text-[10px]" style={{ color: "#C8C0AE" }}>ZONE · {z.side} · {z.origin}</div>
+        <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
+          <dt className="text-wm-gold text-[10px] font-bold">BIRTH</dt>
+          <dd>{t(z.birthTime)} · {z.object.priceLow.toFixed(2)} – {z.object.priceHigh.toFixed(2)}</dd>
+          <dt className="text-wm-gold text-[10px] font-bold">AGE</dt>
+          <dd>{age} · {lc.barsSinceBirth} bars since creation</dd>
+          <dt className="text-wm-gold text-[10px] font-bold">TOUCHES · {lc.touches.length}</dt>
+          <dd>
+            {lc.touches.length === 0 ? "None since birth." : (
+              <ol className="space-y-0.5">
+                {lc.touches.map((tc, i) => (
+                  <li key={tc.start} className="flex justify-between gap-2">
+                    <span>{i + 1}. {t(tc.start).slice(5, 16)}</span>
+                    <span style={{ color: tc.response === "REJECTED" ? "#F0B429" : tc.response === "INVALIDATED" ? "#FF4D6A" : "#EDE6D3" }}>
+                      {tc.response === "REJECTED" ? "Rejection" : tc.response === "INVALIDATED" ? "Close beyond" : "Open"}{tc.swept ? " · swept" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </dd>
+          <dt className="text-wm-gold text-[10px] font-bold">CURRENT STATE</dt>
+          <dd><span className="text-white font-bold">{lc.state}</span> · {stateNote[lc.state]}</dd>
+          <dt className="text-wm-gold text-[10px] font-bold">SOURCE FIDELITY</dt>
+          <dd>{z.object.fidelityAtBirth} · confirmed swing from the structure owner</dd>
+          <dt className="text-wm-gold text-[10px] font-bold">INVALIDATION CONDITION</dt>
+          <dd>A close {z.side === "DEMAND" ? "below" : "above"} <span className="text-white">{lc.invalidationPrice.toFixed(2)}</span>{lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}</dd>
+        </dl>
+        <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>
+          Decay is stated, not projected: age and tests only. No half-life or invalidation probability is published — nothing measured one.
+        </p>
+      </section>
+    );
+  }
+
   if (selectedProfileSlice) {
     const sl = selectedProfileSlice;
     const fmt = (n: number) => n.toFixed(2);

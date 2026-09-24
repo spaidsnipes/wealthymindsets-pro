@@ -202,6 +202,7 @@ import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangePro
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
+import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -1052,6 +1053,8 @@ interface Props {
   activeDecisionId?: string | null;
   selectedMarketObjectId?: string | null;
   onSelectMarketObject?: (objectId: string) => void;
+  /** Swing-origin ZONES with their lifecycle — painted on price. */
+  structureZones?: readonly StructureZone[];
   selectedMarketObjectWait?: WaitStandingVM | null;
 }
 
@@ -1332,6 +1335,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   activeDecisionId = null,
   selectedMarketObjectId = null,
   onSelectMarketObject,
+  structureZones = [],
   selectedMarketObjectWait = null,
 }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -1487,6 +1491,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   /** Last crosshair reading published — see the crosshair subscription. */
   const lastCursorKeyRef = useRef<string | null>(null);
+
+  const structureZonesRef = useRef<readonly StructureZone[]>([]);
+  useEffect(() => { structureZonesRef.current = structureZones; }, [structureZones]);
+  const selectedObjectIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedObjectIdRef.current = selectedMarketObjectId ?? null; }, [selectedMarketObjectId]);
 
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
@@ -9545,6 +9554,99 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           } else {
             delete ds.valueMigrationPoints;
             delete ds.valueMigrationSessions;
+          }
+        }
+
+        /* ══ F11 · MARKET OBJECT ZONES — the Passport mockup, on price ═══════
+           Swing-origin ZONES from the structure owner, biography from the
+           lifecycle owner. Unselected: a quiet outline, so HOME stays calm.
+           SELECTED: the zone from its birth bar to the profile stack, a dot
+           at every touch (filled brass = rejected, hollow ring = closed
+           beyond, ivory = still open), the state named on a chip, and the
+           invalidation edge dashed. State is told by FORM and WORD, never by
+           a market hue: an invalid zone is not a bearish one. Zones speak at MID depth (zones + profile).
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const zones = structureZonesRef.current;
+          const selId = selectedObjectIdRef.current;
+          ds.marketZones = String(zones.length);
+          if (zones.length > 0) {
+            ctx.save(); ctx.globalAlpha = semanticDensity.mid;
+            const ts = chart.timeScale();
+            const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
+            let selectedPainted = "";
+            for (const z of zones) {
+              const yh = srs.priceToCoordinate(z.object.priceHigh);
+              const yl = srs.priceToCoordinate(z.object.priceLow);
+              if (yh == null || yl == null) continue;
+              const top = Math.min(+yh, +yl);
+              const h = Math.max(3, Math.abs(+yl - +yh));
+              const xr = ts.timeToCoordinate(z.birthTime as any);
+              const x0 = xr == null ? 0 : Math.max(0, Math.round(+xr));
+              // A zone born near "now" sits inside the profile stack's column.
+              // It is the freshest object on the camera, so it gets reach over
+              // the stack rather than being skipped.
+              const zEnd = Math.min(W - 76, Math.max(endX, x0 + 60));
+              if (x0 >= zEnd) continue;
+              const selected = z.object.objectId === selId;
+              const invalid = z.lifecycle.state === "INVALID";
+              if (!selected) {
+                ctx.strokeStyle = invalid ? "rgba(150,150,160,0.30)" : "rgba(201,165,92,0.30)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 4]);
+                ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
+                ctx.setLineDash([]);
+                continue;
+              }
+              // SELECTED
+              ctx.fillStyle = invalid ? "rgba(150,150,160,0.08)" : "rgba(240,180,41,0.16)";
+              ctx.fillRect(x0, top, zEnd - x0, h);
+              ctx.strokeStyle = invalid ? "rgba(170,170,180,0.85)" : "rgba(240,180,41,0.9)";
+              ctx.lineWidth = 1.25;
+              ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
+              // Invalidation edge, dashed across the zone.
+              const yi = srs.priceToCoordinate(z.lifecycle.invalidationPrice);
+              if (yi != null) {
+                ctx.setLineDash([4, 3]);
+                ctx.strokeStyle = "rgba(237,230,211,0.55)";
+                ctx.beginPath(); ctx.moveTo(x0, Math.round(+yi) + 0.5); ctx.lineTo(zEnd, Math.round(+yi) + 0.5); ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              // Touch dots at each episode's first bar, on the zone's middle.
+              const midY = top + h / 2;
+              for (const t of z.lifecycle.touches) {
+                const tx = ts.timeToCoordinate(t.start as any);
+                if (tx == null) continue;
+                ctx.beginPath();
+                ctx.arc(Math.round(+tx), midY, 4, 0, Math.PI * 2);
+                if (t.response === "INVALIDATED") {
+                  ctx.strokeStyle = "rgba(237,230,211,0.95)"; ctx.lineWidth = 1.5; ctx.stroke();
+                } else {
+                  ctx.fillStyle = t.response === "REJECTED" ? "rgba(240,180,41,1)" : "rgba(237,230,211,0.95)";
+                  ctx.fill();
+                  ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+                }
+              }
+              // The chip, as the mockup draws it: what it is and its range.
+              const text = `SELECTED ZONE · ${z.side} · ${z.object.priceLow.toFixed(2)} – ${z.object.priceHigh.toFixed(2)} · ${z.lifecycle.state}`;
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              const w = Math.ceil(ctx.measureText(text).width) + 14;
+              const cx = Math.max(4, Math.min(x0 + (zEnd - x0) / 2 - w / 2, endX - w));
+              const cy = Math.max(24, top - 22);
+              ctx.fillStyle = "rgba(11,10,8,0.9)";
+              ctx.fillRect(cx, cy - 9, w, 18);
+              ctx.strokeStyle = invalid ? "rgba(170,170,180,0.9)" : "rgba(240,180,41,0.95)";
+              ctx.strokeRect(cx + 0.5, cy - 8.5, w - 1, 17);
+              ctx.fillStyle = invalid ? "rgba(220,220,228,1)" : "rgba(240,180,41,1)";
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.fillText(text, cx + 7, cy);
+              selectedPainted = z.object.objectId;
+            }
+            ctx.restore();
+            if (selectedPainted) ds.marketZoneSelected = selectedPainted;
+            else delete ds.marketZoneSelected;
+          } else {
+            delete ds.marketZoneSelected;
           }
         }
 
