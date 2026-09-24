@@ -206,6 +206,7 @@ import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost";
+import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -1027,6 +1028,8 @@ interface Props {
   anatomyCardsOnChart?: boolean;
   /** H-201 Memory Ghost — prior analogue under the live bars. */
   memoryGhostOnChart?: boolean;
+  /** P-110 stack order + per-lane opacity (the plan still owns geometry). */
+  profileStackPrefs?: ProfileStackPrefs;
   /** H-801 Expected Envelope — typical reach from the open. */
   expectedEnvelopeOnChart?: boolean;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
@@ -1347,6 +1350,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
   memoryGhostOnChart = false,
+  profileStackPrefs,
   expectedEnvelopeOnChart = false,
   scaffoldingStructure = null,
   regimeLighting = null,
@@ -1488,6 +1492,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
   const scaffoldingDepthRef = useRef<ScaffoldingDepth | "OFF">("OFF");
+  const stackPrefsRef = useRef<ProfileStackPrefs>(DEFAULT_STACK_PREFS);
+  useEffect(() => { stackPrefsRef.current = profileStackPrefs ?? DEFAULT_STACK_PREFS; }, [profileStackPrefs]);
   /** Offscreen layer the P-601 heat cells composite into before meeting the glass once. */
   const heatLayerRef = useRef<HTMLCanvasElement | null>(null);
   const scaffoldingStructureRef = useRef<MarketStructureVM | null>(null);
@@ -9357,6 +9363,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (layerOnRef.current.livingProfile && livingProfileRef.current?.drawn) stackOrder.push("LIVING");
         if (layerOnRef.current.compositeProfile && compositeProfileRef.current?.drawn) stackOrder.push("COMPOSITE");
         if (vrpOn && vrpVM?.drawn) stackOrder.push("VISIBLE_RANGE");
+        // The trader's order (P-110 stack preferences); geometry stays with the plan.
+        const orderedStack = orderStack(stackOrder, stackPrefsRef.current);
+        stackOrder.splice(0, stackOrder.length, ...orderedStack);
         const stackPlan = planProfileStack({
           canvasWidth: W,
           axisWidth: stackAxisW,
@@ -9416,7 +9425,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
 
           if (on && lp?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("LIVING", stackPrefsRef.current);
             /*
               GEOMETRY. The histogram lives at the right of the pane, inset
               from the price gutter so the axis labels stay legible. Bars
@@ -9713,7 +9722,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
-              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro;
+              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro * stackOpacity("COMPOSITE", stackPrefsRef.current);
               const right = lane.right;
               const width = lane.width;
               const ys: number[] = [];
@@ -9789,7 +9798,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const lane = stackPlan.lanes.VISIBLE_RANGE;
           if (vrpVM?.drawn && lane?.fits) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("VISIBLE_RANGE", stackPrefsRef.current);
             const right = lane.right;
             const width = lane.width;
             const ys: number[] = [];

@@ -18,6 +18,8 @@ import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { MyStackBar } from "./MyStackBar";
+import { StackArrangeBar } from "./StackArrangeBar";
+import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot } from "./orderFlowToolsSlot";
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
@@ -757,6 +759,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [regimeLightingOn, setRegimeLightingOn] = useState<boolean>(() => lsGet("wm_ofRegimeLighting", false) as boolean);
   const [questionLensOn, setQuestionLensOn] = useState<boolean>(() => lsGet("wm_ofQuestionLens", false) as boolean);
   const [anatomyCardsOn, setAnatomyCardsOn] = useState<boolean>(() => lsGet("wm_ofAnatomyCards", false) as boolean);
+  const [profileStackPrefs, setProfileStackPrefs] = useState<ProfileStackPrefs>(() => {
+    if (typeof window === "undefined") return parseStackPrefs(null);
+    try { return parseStackPrefs(localStorage.getItem(STACK_PREFS_STORAGE_KEY)); } catch { return parseStackPrefs(null); }
+  });
+  const onStackPrefsChange = (p: ProfileStackPrefs) => {
+    setProfileStackPrefs(p);
+    try { localStorage.setItem(STACK_PREFS_STORAGE_KEY, JSON.stringify(p)); } catch { /* storage blocked — this visit only */ }
+  };
   const [memoryGhostOn, setMemoryGhostOn] = useState<boolean>(() => lsGet("wm_ofMemoryGhost", false) as boolean);
   const [expectedEnvelopeOn, setExpectedEnvelopeOn] = useState<boolean>(() => lsGet("wm_ofExpectedEnvelope", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
@@ -4379,6 +4389,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 onToggle={onProfileMenuToggle}
               />
               <MyStackBar active={profileMenuActive} onRestore={applyArrangementSwitches} />
+              <StackArrangeBar prefs={profileStackPrefs} onChange={onStackPrefsChange} />
               {/* READING LENSES — structure, regime lighting, the question lens and
                   scaffolding re-read the SAME camera; they are not profiles and do
                   not share the profiles' grid. Order-flow tools live behind
@@ -5077,6 +5088,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}
+                      profileStackPrefs={profileStackPrefs}
                       expectedEnvelopeOnChart={expectedEnvelopeOn}
                       scaffoldingStructure={chartStructureVM}
                       /*
