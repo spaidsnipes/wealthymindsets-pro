@@ -7,11 +7,13 @@
 import React from "react";
 import type { StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import {
-  STACK_LABEL, STACK_SPECIES, cycleOpacity, cycleWidth, isLocked, stackWidth, moveSpecies, orderStack, stackOpacity, toggleLock, type ProfileStackPrefs,
+  STACK_LABEL, STACK_SPECIES, FUSABLE_SPECIES, cycleOpacity, cycleWidth, isLocked, setFusion, stackWidth, moveSpecies, orderStack, stackOpacity, toggleLock, type ProfileStackPrefs,
 } from "@/lib/marketData/viewModels/profileStackPrefs";
 
-export function StackArrangeBar({ prefs, onChange }: { prefs: ProfileStackPrefs; onChange: (p: ProfileStackPrefs) => void }) {
+export function StackArrangeBar({ prefs, onChange, fusionNote }: { prefs: ProfileStackPrefs; onChange: (p: ProfileStackPrefs) => void; fusionNote?: string | null }) {
   const order = orderStack(STACK_SPECIES, prefs);
+  const [pick, setPick] = React.useState<StackSpecies[]>([]);
+  const fused = prefs.fusion && prefs.fusion.length === 2 ? prefs.fusion : null;
   return (
     <div data-testid="stack-arrange-bar" className="mt-2 rounded-lg border border-wm-border px-3 py-2">
       <div className="pb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-wm-text-dim">
@@ -38,6 +40,14 @@ export function StackArrangeBar({ prefs, onChange }: { prefs: ProfileStackPrefs;
               className="min-h-7 min-w-12 rounded border border-wm-border px-1 text-[10px] font-semibold text-wm-text">
               W {Math.round(stackWidth(sp, prefs) * 100)}%
             </button>
+            <button type="button" aria-pressed={pick.includes(sp)} data-testid={`stack-pick-${sp}`}
+              disabled={!!fused || !FUSABLE_SPECIES.includes(sp)}
+              title={FUSABLE_SPECIES.includes(sp) ? "Select for fusion" : "This lane carries shares, not row volume — it cannot be fused honestly yet"}
+              onClick={() => setPick(p => (p.includes(sp) ? p.filter(x => x !== sp) : [...p, sp].slice(-2)))}
+              className="min-h-7 min-w-12 rounded border px-1 text-[10px] font-semibold disabled:opacity-30"
+              style={{ borderColor: pick.includes(sp) ? "rgba(212,175,55,0.8)" : undefined, color: pick.includes(sp) ? "#d4af37" : undefined }}>
+              {pick.includes(sp) ? "PICKED" : "PICK"}
+            </button>
             <button type="button" aria-pressed={isLocked(sp, prefs)} data-testid={`stack-lock-${sp}`}
               aria-label={`${isLocked(sp, prefs) ? "Unlock" : "Lock"} ${STACK_LABEL[sp]} — presets and desks leave a locked lane as it is`}
               title="Locked: presets, desks and Restore leave this lane as it is"
@@ -49,6 +59,18 @@ export function StackArrangeBar({ prefs, onChange }: { prefs: ProfileStackPrefs;
           </span>
         </div>
       ))}
+      <div className="mt-1 flex items-center justify-between gap-2 border-t border-wm-border pt-1" data-testid="stack-fusion">
+        <span className="text-[11px] text-wm-text-dim">
+          {fused ? `Fused · ${STACK_LABEL[fused[0]]} + ${STACK_LABEL[fused[1]]}${fusionNote ? ` · ${fusionNote}` : ""}` : "Fusion · pick two lanes (Composite, Visible Range)"}
+        </span>
+        {fused ? (
+          <button type="button" data-testid="stack-unfuse" onClick={() => { onChange(setFusion(prefs, null)); setPick([]); }}
+            className="min-h-7 rounded border border-wm-border px-2 text-[10px] font-semibold text-wm-text">Unfuse</button>
+        ) : (
+          <button type="button" data-testid="stack-fuse" disabled={pick.length !== 2} onClick={() => onChange(setFusion(prefs, pick))}
+            className="min-h-7 rounded border border-wm-border px-2 text-[10px] font-semibold text-wm-text disabled:opacity-30">Fuse</button>
+        )}
+      </div>
     </div>
   );
 }

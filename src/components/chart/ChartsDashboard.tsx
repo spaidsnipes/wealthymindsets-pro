@@ -25,6 +25,7 @@ import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPric
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
 import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, withoutLocked, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -1957,6 +1958,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const onExpectedEnvelope = useCallback((vm: ExpectedEnvelopeVM | null) => {
     const sig = (v: ExpectedEnvelopeVM | null) => (v ? `${v.reason}|${v.sessions}|${v.sessionStart}|${v.upper?.toFixed(4)}|${v.lower?.toFixed(4)}|${v.up?.matchedBy}|${v.down?.matchedBy}` : "");
     setEnvelopeVM(prev => (sig(prev) === sig(vm) ? prev : vm));
+  }, []);
+  // H-601 #3 — the fused profile object for Inspect and the stack bar.
+  const [fusion, setFusionState] = useState<{ fused: FusedProfileObject | null; refusal: string | null }>({ fused: null, refusal: null });
+  const onProfileFusion = useCallback((fused: FusedProfileObject | null, refusal: string | null) => {
+    setFusionState(prev => (prev.refusal === refusal && prev.fused?.poc === fused?.poc && prev.fused?.vah === fused?.vah && prev.fused?.val === fused?.val && prev.fused?.totalVolume === fused?.totalVolume ? prev : { fused, refusal }));
   }, []);
   const riskVMRef = useRef<RiskOnPriceVM | null>(null);
   const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
@@ -4500,7 +4506,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 onToggle={onProfileMenuToggle}
               />
               <MyStackBar active={profileMenuActive} onRestore={applyRespectingLocks} />
-              <StackArrangeBar prefs={profileStackPrefs} onChange={onStackPrefsChange} />
+              <StackArrangeBar prefs={profileStackPrefs} onChange={onStackPrefsChange}
+                fusionNote={fusion.fused ? `POC ${fusion.fused.poc.toFixed(2)} recomputed` : fusion.refusal ? `refused · ${fusion.refusal.replace(/_/g, " ").toLowerCase()}` : null} />
               {/* READING LENSES — structure, regime lighting, the question lens and
                   scaffolding re-read the SAME camera; they are not profiles and do
                   not share the profiles' grid. Order-flow tools live behind
@@ -5215,6 +5222,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onContradiction={onContradiction}
                       onMemoryGhost={onMemoryGhost}
                       onExpectedEnvelope={onExpectedEnvelope}
+                      onProfileFusion={onProfileFusion}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the
@@ -5254,6 +5262,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         contradiction={contradictionVM}
                         memoryGhost={memoryGhostVM}
                         envelope={envelopeVM}
+                        fusion={fusion.fused}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         profileSliceSymbol={symbol}

@@ -53,6 +53,7 @@ import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
@@ -108,6 +109,7 @@ export function ChartInspectTicket({
   contradiction = null,
   memoryGhost = null,
   envelope = null,
+  fusion = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -129,6 +131,8 @@ export function ChartInspectTicket({
   memoryGhost?: MemoryGhostVM | null;
   /** H-801 · the envelope and its surprise, as counts of this chart's sessions. */
   envelope?: ExpectedEnvelopeVM | null;
+  /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
+  fusion?: FusedProfileObject | null;
 }) {
   if (!open) {
     return (
@@ -421,6 +425,17 @@ export function ChartInspectTicket({
           <Row key={row.id} row={row} />
         ))}
       </div>
+
+      {fusion && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-fusion={fusion.id} style={{ color: "#C8C0AE" }}>
+          <div className="font-bold tracking-wide text-wm-gold">PROFILE FUSION · {fusion.id}</div>
+          <div>Fused POC {fusion.poc.toFixed(2)} · VA {fusion.val.toFixed(2)}–{fusion.vah.toFixed(2)} · recomputed from summed row volume</div>
+          {fusion.sources.map(s => (
+            <div key={s.id}>Source {s.species} · own POC {s.poc?.toFixed(2) ?? "—"} · volume {Math.round(s.volume).toLocaleString("en-US")}</div>
+          ))}
+          <div>Method {fusion.method} v{fusion.version} · grid {fusion.step} · asOf {fusion.asOf != null ? new Date(fusion.asOf * 1000).toISOString().slice(0, 16).replace("T", " ") : "—"} UTC · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
+        </div>
+      )}
 
       {/* H-801 · where a typical session of THIS market reached — never a forecast. */}
       {envelope && (

@@ -208,6 +208,7 @@ import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCar
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
@@ -1049,6 +1050,8 @@ interface Props {
   onMemoryGhost?: (vm: MemoryGhostVM | null) => void;
   /** H-801 — the envelope and its surprise counts, handed up for Inspect. */
   onExpectedEnvelope?: (vm: ExpectedEnvelopeVM | null) => void;
+  /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
+  onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1376,6 +1379,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onContradiction,
   onMemoryGhost,
   onExpectedEnvelope,
+  onProfileFusion,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1575,6 +1579,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onContradictionRef = useRef<typeof onContradiction>(undefined);
   const onMemoryGhostRef = useRef<typeof onMemoryGhost>(undefined);
   const onExpectedEnvelopeRef = useRef<typeof onExpectedEnvelope>(undefined);
+  const onProfileFusionRef = useRef<typeof onProfileFusion>(undefined);
+  useEffect(() => { onProfileFusionRef.current = onProfileFusion; }, [onProfileFusion]);
+  const fusionObjectRef = useRef<FusedProfileObject | null>(null);
   useEffect(() => { onExpectedEnvelopeRef.current = onExpectedEnvelope; }, [onExpectedEnvelope]);
   useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
   useEffect(() => { onContradictionRef.current = onContradiction; }, [onContradiction]);
@@ -10177,6 +10184,69 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.visibleRangeProfileRows;
             delete ds.visibleRangeProfileBars;
             delete ds.visibleRangeProfilePoc;
+          }
+        }
+
+        /* ══ H-601 #3 · PROFILE FUSION — the fused OBJECT ═══════════════════
+           When the trader fused two lanes (Arrange the stack › Pick · Fuse),
+           `fuseProfiles` builds a NEW profile from the two live sources:
+           volume summed by row on the coarser grid, POC and value area
+           recomputed (never averaged), sources / method / asOf / fidelity
+           kept. The sources keep drawing in their own lanes; the fused
+           profile is outlined in gold across both lanes. Unfuse drops it. */
+        {
+          const pair = stackPrefsRef.current.fusion;
+          if (pair && pair.length === 2) {
+            const cpF = layerOnRef.current.compositeProfile ? compositeProfileRef.current : null;
+            const source = (sp: StackSpecies): FusionSourceProfile | null =>
+              sp === "COMPOSITE" && cpF?.drawn
+                ? { id: "composite", species: "COMPOSITE", rows: cpF.rows, poc: cpF.poc, asOf: cpF.asOf, fidelity: null }
+                : sp === "VISIBLE_RANGE" && vrpOn && vrpVM?.drawn
+                  ? { id: "visible-range", species: "VISIBLE_RANGE", rows: vrpVM.rows, poc: vrpVM.poc, asOf: (barsRef.current?.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null), fidelity: null }
+                  : null;
+            const fr = fuseProfiles(source(pair[0]), source(pair[1]));
+            fusionObjectRef.current = fr.ok ? fr.fused : null;
+            ds.profileFusionObject = fr.ok ? `FUSED:${fr.fused.poc}:${fr.fused.sources.map(s => s.id).join("+")}` : `REFUSED:${fr.reason}`;
+            onProfileFusionRef.current?.(fr.ok ? fr.fused : null, fr.ok ? null : fr.reason);
+            const lanes = pair.map(sp => stackPlan.lanes[sp]).filter((l): l is NonNullable<typeof l> => !!l && l.fits);
+            if (fr.ok && lanes.length) {
+              const f = fr.fused;
+              const spanR = Math.max(...lanes.map(l => l.right));
+              const spanL = Math.min(...lanes.map(l => l.right - l.width));
+              const spanW = spanR - spanL;
+              const maxV = Math.max(...f.rows.map(r => r.volume));
+              ctx.save();
+              ctx.strokeStyle = "rgba(240,190,70,0.95)";
+              ctx.lineWidth = 1;
+              for (const r of f.rows) {
+                const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
+                if (y0 == null || y1 == null) continue;
+                const h = Math.max(1, Math.abs(+y1 - +y0) - 1);
+                const w = (r.volume / maxV) * spanW;
+                const inVa = r.price >= f.val && r.price < f.vah;
+                ctx.globalAlpha = inVa ? 0.95 : 0.55;
+                ctx.strokeRect(spanR - w + 0.5, Math.min(+y0, +y1) + 0.5, w - 1, h);
+              }
+              ctx.globalAlpha = 1;
+              const line = (price: number, label: string, dash: number[]) => {
+                const y = srs.priceToCoordinate(price);
+                if (y == null) return;
+                ctx.setLineDash(dash);
+                ctx.beginPath(); ctx.moveTo(spanL, +y); ctx.lineTo(spanR, +y); ctx.stroke();
+                ctx.setLineDash([]);
+                stackLabel(+y, label, "rgba(240,190,70,1)");
+              };
+              ctx.lineWidth = 2;
+              line(f.poc, `FUSED POC ${f.poc.toFixed(2)}`, []);
+              ctx.lineWidth = 1;
+              line(f.vah, `FUSED VAH ${f.vah.toFixed(2)}`, [4, 3]);
+              line(f.val, `FUSED VAL ${f.val.toFixed(2)}`, [4, 3]);
+              ctx.restore();
+            }
+          } else {
+            fusionObjectRef.current = null;
+            delete ds.profileFusionObject;
+            onProfileFusionRef.current?.(null, null);
           }
         }
 

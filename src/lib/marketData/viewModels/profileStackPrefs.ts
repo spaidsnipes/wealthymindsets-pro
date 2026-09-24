@@ -39,6 +39,16 @@ export interface ProfileStackPrefs {
    * never more than the lane, so a width can never make two lanes overlap.
    */
   readonly width?: Readonly<Partial<Record<StackSpecies, number>>>;
+  /** H-601 #3 — the two lanes fused into a new profile object, or none. */
+  readonly fusion?: readonly StackSpecies[] | null;
+}
+
+/** Lanes whose glass carries absolute row volume — the only honest fusion sources. */
+export const FUSABLE_SPECIES: readonly StackSpecies[] = ["COMPOSITE", "VISIBLE_RANGE"];
+
+export function setFusion(prefs: ProfileStackPrefs, pair: readonly StackSpecies[] | null): ProfileStackPrefs {
+  const ok = pair && pair.length === 2 && pair[0] !== pair[1] && pair.every(s => FUSABLE_SPECIES.includes(s));
+  return { ...prefs, fusion: ok ? [pair![0], pair![1]] : null };
 }
 
 /** The share of its lane a histogram may use. Never above 1: the plan owns the lane. */
@@ -55,7 +65,7 @@ export function cycleWidth(prefs: ProfileStackPrefs, sp: StackSpecies): ProfileS
   return { ...prefs, width: { ...(prefs.width ?? {}), [sp]: WIDTH_STEPS[(k + 1) % WIDTH_STEPS.length] } };
 }
 
-export const DEFAULT_STACK_PREFS: ProfileStackPrefs = { order: STACK_SPECIES, opacity: {}, locked: [], width: {} };
+export const DEFAULT_STACK_PREFS: ProfileStackPrefs = { order: STACK_SPECIES, opacity: {}, locked: [], width: {}, fusion: null };
 
 /** The Profiles-door switch each stacked lane answers to. */
 export const STACK_PROFILE_ID: Readonly<Record<StackSpecies, ProfileId>> = {
@@ -113,7 +123,7 @@ export function cycleOpacity(prefs: ProfileStackPrefs, sp: StackSpecies): Profil
 export function parseStackPrefs(raw: string | null): ProfileStackPrefs {
   if (!raw) return DEFAULT_STACK_PREFS;
   try {
-    const o = JSON.parse(raw) as { order?: unknown; opacity?: unknown; locked?: unknown; width?: unknown };
+    const o = JSON.parse(raw) as { order?: unknown; opacity?: unknown; locked?: unknown; width?: unknown; fusion?: unknown };
     const order = Array.isArray(o.order)
       ? (o.order.filter(s => (STACK_SPECIES as readonly string[]).includes(s as string)) as StackSpecies[])
       : [];
@@ -135,7 +145,8 @@ export function parseStackPrefs(raw: string | null): ProfileStackPrefs {
         if (typeof v === "number" && Number.isFinite(v)) width[sp] = Math.min(1, Math.max(0.45, v));
       }
     }
-    return { order: full, opacity, locked, width };
+    const fusion = Array.isArray(o.fusion) ? setFusion(DEFAULT_STACK_PREFS, o.fusion as StackSpecies[]).fusion ?? null : null;
+    return { order: full, opacity, locked, width, fusion };
   } catch {
     return DEFAULT_STACK_PREFS;
   }

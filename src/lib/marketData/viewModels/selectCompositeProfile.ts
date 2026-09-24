@@ -34,6 +34,8 @@ export type CompositeReason = "DRAWN" | "NO_BARS" | "NO_COMPLETED_SESSION" | "NO
 
 export interface CompositeRow {
   readonly price: number;
+  /** Absolute volume in this row — what a fusion sums (shares cannot be summed). */
+  readonly volume: number;
   readonly share: number;
   readonly insideValueArea: boolean;
   readonly isPoc: boolean;
@@ -96,6 +98,7 @@ export function selectCompositeProfile(
     bars: kept.length,
     rows: snap.rows.map(r => ({
       price: r.price,
+      volume: r.total,
       share: r.total / heaviest,
       insideValueArea: r.price >= snap.val && r.price <= snap.vah,
       isPoc: r.price === snap.poc,

@@ -1,0 +1,38 @@
+import { chromium } from "playwright-core";
+import { fixtureWeekNow } from "./fixture.mjs";
+const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
+await ctx.route("**/api/auth/me", r => r.fulfill({ status: 200, contentType: "application/json",
+  body: JSON.stringify({ user: { id: "floor-instrument-no-real-account", email: "x@localhost.invalid", displayName: "F", handle: "floor", profileComplete: true } }) }));
+await ctx.route("**/api/yahoo?*type=candles*", r => r.fulfill({ status: 200, contentType: "application/json",
+  body: JSON.stringify({ candles: fixtureWeekNow(), barFidelity: "INDICATIVE", sessionKnown: false }) }));
+await ctx.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s","1"); localStorage.removeItem("wm_ofStackPrefs");
+  localStorage.setItem("wm_ofLivingProfile","true"); localStorage.setItem("wm_ofCompositeProfile","true"); localStorage.setItem("wm_ofVisibleRangeProfile","true"); } });
+const p = await ctx.newPage();
+await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "domcontentloaded", timeout: 120000 });
+await p.waitForTimeout(18000);
+const lanes = () => p.evaluate(() => [...document.querySelectorAll("canvas")].map(c => c.dataset.profileStackLanes).find(x => x !== undefined) ?? "none");
+console.log("lanes before:", await lanes());
+await p.screenshot({ path: "scratchpad/shift0924/fusion_before.png" });
+await p.getByRole("button", { name: /^Tools/ }).first().click(); await p.waitForTimeout(700);
+await p.getByText("Chart tools", { exact: true }).first().click(); await p.waitForTimeout(1200);
+await p.locator('[data-testid="stack-pick-COMPOSITE"]').scrollIntoViewIfNeeded();
+await p.locator('[data-testid="stack-pick-COMPOSITE"]').click(); await p.locator('[data-testid="stack-pick-VISIBLE_RANGE"]').click();
+await p.locator('[data-testid="stack-fuse"]').click(); await p.waitForTimeout(1500);
+console.log("bar:", (await p.locator('[data-testid="stack-fusion"]').innerText()).replace(/\s+/g, " "));
+await p.screenshot({ path: "scratchpad/shift0924/fusion_panel.png" });
+await p.keyboard.press("Escape"); await p.waitForTimeout(1500);
+const fo = () => p.evaluate(() => [...document.querySelectorAll("canvas")].map(c => c.dataset.profileFusionObject).find(x => x !== undefined) ?? "none");
+console.log("fused object:", await fo());
+await p.getByRole("button", { name: /inspect/i }).first().click(); await p.waitForTimeout(1500);
+console.log("inspect:", (await p.locator('[data-inspect-fusion]').innerText().catch(() => "none")).replace(/\s+/g, " "));
+await p.screenshot({ path: "scratchpad/shift0924/fusion_after.png" });
+await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForTimeout(16000);
+console.log("after reload:", await fo());
+await p.getByRole("button", { name: /^Tools/ }).first().click(); await p.waitForTimeout(700);
+await p.getByText("Chart tools", { exact: true }).first().click(); await p.waitForTimeout(1200);
+await p.locator('[data-testid="stack-unfuse"]').scrollIntoViewIfNeeded();
+await p.locator('[data-testid="stack-unfuse"]').click(); await p.waitForTimeout(800);
+await p.keyboard.press("Escape"); await p.waitForTimeout(1200);
+console.log("after unfuse:", await fo(), "| lanes still:", await lanes());
+await b.close();

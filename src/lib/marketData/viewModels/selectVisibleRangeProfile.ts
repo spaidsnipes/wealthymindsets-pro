@@ -32,6 +32,8 @@ export type VisibleRangeReason = "DRAWN" | "NO_RANGE" | "TOO_FEW_BARS_IN_VIEW" |
 
 export interface VisibleRangeRow {
   readonly price: number;
+  /** Absolute volume in this row — what a fusion sums (shares cannot be summed). */
+  readonly volume: number;
   readonly share: number;
   readonly insideValueArea: boolean;
   readonly isPoc: boolean;
@@ -91,6 +93,7 @@ export function selectVisibleRangeProfile(
     to,
     rows: snap.rows.map(r => ({
       price: r.price,
+      volume: r.total,
       share: r.total / heaviest,
       insideValueArea: r.price >= snap.val && r.price <= snap.vah,
       isPoc: r.price === snap.poc,
