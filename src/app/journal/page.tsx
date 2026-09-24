@@ -101,7 +101,6 @@ import {
   type ProcessOutcome,
   type ProcessQuality,
 } from "@/lib/journalProcess";
-import { FabioInsights } from "@/components/fabio/FabioInsights";
 import {
   filterLinkedDecisionEntries,
   parseLinkedDecisionIds,
@@ -2560,9 +2559,6 @@ Trade the system, trust the process, winners every day 🚀`,
                 style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
                 + Log New Trade
               </button>
-              <div style={{ width: "100%", maxWidth: 460, marginTop: 8 }}>
-                <FabioInsights variant="inline" surface="journal" title="WM Playbook — Before You Trade" limit={3} />
-              </div>
             </div>
           )}
 

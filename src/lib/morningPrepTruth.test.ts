@@ -76,7 +76,10 @@ describe("fabio label truth", () => {
     // Assert on the JSX prop, not prose — the explanatory comment above the
     // call site legitimately quotes the old label.
     expect(page).not.toMatch(/title="WM Playbook — Today's Focus"/);
-    expect(page).toContain('title="WM Playbook"');
+    // Stronger since 2026-09-24: the placeholder note wall is not embedded in
+    // the prep room at all (teaching lives behind the Academy door), so it
+    // cannot promise a daily focus under ANY label.
+    expect(page).not.toMatch(/<FabioInsights\b/);
   });
 
   it("the context chip reflects placeholder status", () => {

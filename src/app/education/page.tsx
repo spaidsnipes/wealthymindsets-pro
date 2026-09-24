@@ -6,6 +6,7 @@
  */
 
 import { shufflePick } from "@/lib/shufflePick";
+import { FabioInsights } from "@/components/fabio/FabioInsights";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -822,6 +823,13 @@ export default function EducationPage() {
                   <span className="text-base font-black text-wm-text">{pct}%</span>
                   <span className="text-[9px] text-wm-text-dim">Verified</span>
                 </div>
+              </div>
+              {/* THE PLAYBOOK LIVES IN THE ACADEMY (2026-09-24). It used to be
+                  stacked as gold paragraph cards in Journal, News and Morning
+                  Prep; teaching belongs behind this door. Its own banner still
+                  marks the notes as framework placeholders. */}
+              <div style={{ width: "100%", maxWidth: 520 }}>
+                <FabioInsights variant="inline" surface="academy" title="WM Playbook" limit={3} />
               </div>
             </div>
           )}

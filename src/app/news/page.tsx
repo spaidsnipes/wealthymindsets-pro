@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
-import { FabioInsights } from "@/components/fabio/FabioInsights";
 import { selectHeadlineLean, type HeadlineLean } from "@/lib/experience/selectHeadlineLean";
 import { HeadlineLeanBand } from "@/components/experience/HeadlineLeanBand";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
@@ -908,7 +907,6 @@ export default function NewsPage() {
            lg — MobileSessionPill already owns the camera on phones. */}
       <div className="flex flex-1 min-h-0">
       <div className="flex-1 overflow-auto p-4 space-y-3">
-        <FabioInsights variant="inline" surface="news" title="WM Playbook — Reading the Tape Today" limit={2} />
         {loading && (
           <div className="space-y-3">
             {[1,2,3,4].map(i => (
