@@ -32,6 +32,7 @@ None of them is serving proof.
 | P-601 Heat lens | Tools › Order flow › *Liquidity Weather · Heat Lens* | Heat bands on price, regulator applied to the composite |
 | H-201 Memory Ghost | Reading lenses › *Memory Ghost* | Best-fitting earlier stretch (r ≥ 0.8) ghosted ≤ 0.18 under the newest 20 bars, with date · fit · mismatch; never projected forward |
 | H-801 Expected Envelope | Reading lenses › *Expected Envelope* | Median reach above/below the open from this chart's completed sessions, on today's open; surprise = "k of N sessions went this far" |
+| P-110 Save My Stack | Chart tools › Profiles › *Save my stack* / *Restore* | Keeps the trader's PROFILE-family switches; restore goes through the desks' switch door |
 
 **One door per family.** Every menu row has exactly one family (`PROFILE_FAMILY` in
 `selectProfileMenu.ts`): PROFILE → Chart tools › Profiles; ORDER_FLOW → Tools › Order flow
@@ -65,7 +66,9 @@ Playwright and feeds labelled fixture prints through the real parser.
 
 ## Still OPEN from the Manifestation Map
 
-H-401 Contradiction Not Averaged · H-1001 Risk on Price + Frozen Receipt — no chart form yet.
+H-401 Contradiction Not Averaged — no chart form yet. H-1001 Risk on Price: the planning geometry
+exists (Draw › Long/Short Position: entry · stop · target · R zones on price); the FROZEN RECEIPT
+half is still open. P-110 stack controls (reorder, width, opacity, lock, duplicate) are still open.
 (H-801 is built as a measured envelope; its "analogue surprise" is the session count, not an analogue path.) Memory Ghost (H-201) is now built;
 its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet in Inspect.
 
@@ -85,4 +88,4 @@ its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet
 
 ## Verification at hand-off
 
-`npx tsc --noEmit` clean · `npx vitest run` 947 files / 12,011 tests green · `npm run build` green (re-run at hand-off).
+`npx tsc --noEmit` clean · `npx vitest run` 948 files / 12,014 tests green · `npm run build` green (re-run at hand-off).
