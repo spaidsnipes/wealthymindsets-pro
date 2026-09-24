@@ -9,9 +9,9 @@
 > public route → human scene → receipt.
 <!-- END:ath-historical-lineage -->
 
-# Claude session — 2026-09-24 (overnight burst + morning shift)
+# Claude session — 2026-09-24 (overnight burst + morning shift + afternoon shift)
 
-Branch: `claude/nice-noether-vwt7jl` (local only — every push returned 403; see Blockers).
+Branch: `claude/nice-noether-vwt7jl`, fast-forwarded into `main` after every validated commit (Founder-authorised).
 Proof harness and side-by-side receipts: `scratchpad/shift0924/` (`SIDE_*.png`, `*.mjs`).
 All receipts are LOCAL DEV, desktop, FIXTURE bars (and a labelled FIXTURE tape where noted).
 None of them is serving proof.
@@ -64,13 +64,32 @@ Playwright and feeds labelled fixture prints through the real parser.
   the scaffold card, below it, or fold into two measured lines at the foot of the plot.
 - Exhaustion chip hid under the Question Lens strip → hangs below its mark.
 
+## Afternoon shift (17:35–21:00 UTC) — built on `main`, each deployed by Workers Builds
+
+| Child | Where | What draws | Commit |
+|---|---|---|---|
+| H-401 Contradiction Not Averaged | Reading lenses › *Contradiction* | Contested band dashed on price; LEANS UP / LEANS DOWN columns with each family's measured fact; UNRESOLVED under the crack; WAIT; silent families named. Placed where it covers no candle/chip/header | `455cb8a` |
+| H-401 "Passport shows both family lines" | Inspect ticket | Both family lines, silent families with why, posture | `ef995d6` |
+| H-1001 Risk on Price + Frozen Receipt | Reading lenses › *Risk on Price* (on by default; draws only with a Long/Short Position that has a stop) · *Tear receipt* | Steel rail at the axis: RISK entry→stop, REWARD entry→target; STOP / INVALIDATION, ENTRY (+ what the bars did since the plan), TARGET R, LIVE R + distance to stop. Receipt torn from the camera's DECISION_ID: frozen asOf, write-once, owner-scoped, NO FILL | `71ad3fc` |
+| H-601A Profile presets | Chart tools › Profiles (head) | Clean / Day Trader / Auction / Order Flow / Memory / Research — PROFILE toggles only; lit preset compiled from switches | `6cd756a` |
+| H-701B Click bubble → Inspect | any bubble | Delta bubbles now clickable; SELECTED DELTA ZONE (net, anchor — never "executed"/"at"); both kinds show "#rank of N retained · median" | `272ada5` |
+| H-201 analogue in Inspect | Inspect ticket | Sample window, fit r, mismatch, candidates; or why none | `4cd8e4f` |
+
+Refused on purpose: size, equity risk and fill on H-1001 (the chart holds no account and executes
+nothing — named on the entry callout and the receipt); H-1001's RISK CAP bracket and FILL
+FIDELITY rows (no source); the gate names on the receipt are the permission rules actually
+evaluated, not the plate's five.
+
+Also fixed: exhaustion chip no longer prints into the header chrome; the position tool's own
+Entry·RR chip steps under its zone near the top; the zoom plate is an obstacle for later chips.
+
 ## Still OPEN from the Manifestation Map
 
-H-401 Contradiction Not Averaged — no chart form yet. H-1001 Risk on Price: the planning geometry
-exists (Draw › Long/Short Position: entry · stop · target · R zones on price); the FROZEN RECEIPT
-half is still open. P-110 stack controls (reorder, width, opacity, lock, duplicate) are still open.
-(H-801 is built as a measured envelope; its "analogue surprise" is the session count, not an analogue path.) Memory Ghost (H-201) is now built;
-its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet in Inspect.
+P-110 stack controls: width, lock, left/right/overlay placement, duplicate (reorder, opacity,
+Auto Arrange, Save My Stack and presets are built). H-701A/B on a LIVE sided tape (proved on a
+fixture tape only). Question lenses named in the correction (continuation healthy? · trap? ·
+permission? · hold? · WHAT CHANGED? · SHOW RAW) — the Question Lens today asks the
+absorption/exhaustion questions only. Zone target diamonds paint above the Inspect ticket.
 
 ## Deploy — why the live site was stale, and what fixed it (2026-09-24 16:00–16:40 UTC)
 
@@ -94,6 +113,7 @@ its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet
 ## Blockers
 
 - ~~Push 403~~ — resolved 16:0x UTC: Claude GitHub App installed; branch pushed and merged.
+- The Vercel GitHub App was suspended by the Founder (afternoon); its ghost statuses may persist on old commits.
 - **No live tape here.** The environment's egress policy rejects Coinbase, Binance.US and the
   Railway relay, so delta bubbles / big trades / heat lens are proved on a FIXTURE tape only.
 
@@ -106,4 +126,4 @@ its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet
 
 ## Verification at hand-off
 
-`npx tsc --noEmit` clean · `npx vitest run` 948 files / 12,014 tests green · `npm run build` green (re-run at hand-off).
+`npx tsc --noEmit` clean · `npx vitest run` 953 files / 12,040 tests green · `npm run build` green (re-run before every push this afternoon).
