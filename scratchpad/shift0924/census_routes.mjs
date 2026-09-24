@@ -1,6 +1,6 @@
 import { chromium } from "playwright-core";
 import { fixtureWeekNow } from "./fixture.mjs";
-const ROUTES = ["/charts","/command-deck","/heatmaps","/scanner","/journal","/backtesting","/news","/lounge","/education","/radio","/paper","/morning-prep"];
+const ROUTES = ["/heatmaps","/scanner","/journal","/backtesting","/education","/lounge","/radio","/news","/settings"];
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
 await ctx.route("**/api/auth/me", r => r.fulfill({ status: 200, contentType: "application/json",
