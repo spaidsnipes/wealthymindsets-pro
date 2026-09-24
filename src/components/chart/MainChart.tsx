@@ -7502,6 +7502,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       let questionQuiet = 1;
       // SCAFFOLDING — set when the card was drawn from a measured anatomy.
       let scaffoldPainted: string | null = null;
+      // Chips that float with price and were painted this frame; later chrome
+      // steps around them instead of printing through them.
+      const floatingChips: { x: number; y: number; w: number; h: number }[] = [];
       if (!absorptionAnatomyActive) {
         const ds = canvas.dataset;
         ds.absorption = "OFF";
@@ -7939,6 +7942,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const cy = up ? y0 - 26 : y0 + 12;
                 ctx.fillStyle = "rgba(20,8,8,0.88)";
                 ctx.fillRect(cx, cy, cw, 14);
+                floatingChips.push({ x: cx, y: cy, w: cw, h: 14 });
                 ctx.strokeStyle = "rgba(226,92,92,0.85)";
                 ctx.lineWidth = 1;
                 ctx.strokeRect(cx + 0.5, cy + 0.5, cw - 1, 13);
@@ -8563,7 +8567,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // its mark on price (the spine above); the words take a fixed slot
             // under INSPECT, right-aligned to the lane.
             const chipX = Math.max(2, right - (lw + 12));
-            const chipY = 96;
+            const blockH = chipH + (glass.migrationLabel ? 14 : 0);
+            let chipY = 96;
+            for (let guard = 0; guard < 6; guard++) {
+              const hit = floatingChips.find(r =>
+                chipX < r.x + r.w && chipX + lw + 12 > r.x && chipY < r.y + r.h && chipY + blockH > r.y);
+              if (!hit) break;
+              chipY = hit.y + hit.h + 4;
+            }
             ctx.fillStyle = "rgba(14,12,8,0.92)";
             ctx.fillRect(chipX, chipY, lw + 12, chipH);
             ctx.strokeStyle = "rgba(212,175,55,0.65)";
@@ -8573,8 +8584,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textBaseline = "middle";
             ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
             if (glass.migrationLabel) {
+              // Right-aligned to the chip's edge so the longer finding grows
+              // leftward into the pane, never across the price axis.
               ctx.fillStyle = "rgba(237,230,211,0.80)";
-              ctx.fillText(glass.migrationLabel, chipX + 6, chipY + chipH + 8);
+              ctx.textAlign = "right";
+              ctx.fillText(glass.migrationLabel, chipX + lw + 6, chipY + chipH + 8);
+              ctx.textAlign = "left";
             }
 
             ctx.restore();
