@@ -8471,8 +8471,33 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               candles they can reach — a profile that eats the whole canvas
               is not a profile, it is wallpaper.
             */
-            const rightEdge = W - 76;
-            const histMax = Math.min(160, Math.round(W * 0.16));
+            /*
+              PROFILE STACK · AUTO ARRANGE. Right-edge profiles share ONE lane
+              system (vpColumnLayout): legacy Fixed/Session VP own lanes
+              0..n-1, the Value Candle takes the next when it painted this
+              frame, and the Living Profile takes the lane after that. Alone,
+              it keeps its full solo geometry. Two histograms in one column
+              read as one wrong shape — the Founder saw exactly that.
+            */
+            const lanesTaken =
+              (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0) +
+              (ds.valueCandleRungs ? 1 : 0);
+            let rightEdge = W - 76;
+            let histMax = Math.min(160, Math.round(W * 0.16));
+            if (lanesTaken > 0) {
+              const axisW = (() => {
+                try {
+                  const w = chart.priceScale("right").width();
+                  if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
+                } catch {}
+                return 90;
+              })();
+              const lane = vpColumnLayout(W, axisW, lanesTaken, lanesTaken + 1);
+              if (lane.fits) { rightEdge = lane.right; histMax = lane.width; }
+            }
+            const stacked = lanesTaken > 0;
+            ds.livingProfileLane = String(lanesTaken);
+            ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
 
             /*
               VALUE-AREA BAND — across the entire pane, not just the histogram.
@@ -8628,11 +8653,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
               ctx.fillStyle = ink;
-              ctx.fillText(text, rightEdge + 4, +yr);
+              // Stacked: the lane to the right belongs to another profile, so
+              // the labels sit on the LEFT of this histogram instead.
+              if (stacked) {
+                ctx.textAlign = "right";
+                ctx.fillText(text, rightEdge - histMax - 8, +yr);
+                ctx.textAlign = "left";
+              } else {
+                ctx.fillText(text, rightEdge + 4, +yr);
+              }
             };
-            if (lp.poc != null) label(lp.poc, `POC ${lp.poc.toFixed(2)}`, "rgba(201,165,92,0.95)");
-            if (lp.vah != null) label(lp.vah, `VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
-            if (lp.val != null) label(lp.val, `VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
+            const tag = stacked ? "LIVING " : "";
+            if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, "rgba(201,165,92,0.95)");
+            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
+            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
@@ -8703,6 +8737,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lp.nodesWithheld) ds.livingProfileNodesWithheld = lp.nodesWithheld;
             else delete ds.livingProfileNodesWithheld;
           } else {
+            delete ds.livingProfileLane;
+            delete ds.livingProfileLaneLeft;
             delete ds.livingProfileFidelity;
             delete ds.livingProfileNodesWithheld;
             // DNA describes the profile on the glass; with none drawn, it says so.
@@ -8853,10 +8889,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               the room between its anchor and that column — never less than
               a legible 24px, never more than 10% of the pane.
             */
-            const livingCol = layerOnRef.current.livingProfile
-              ? Math.min(160, Math.round(W * 0.16)) + 12 : 0;
-            const room = (W - 76 - livingCol) - (x0 + 2);
-            const colMax = Math.max(24, Math.min(120, Math.round(W * 0.1), room));
+            // The right-edge profile stack's leftmost x, as the Living
+            // Profile published it this frame; the price gutter otherwise.
+            const stackLeft = ds.livingProfileLaneLeft ? Number(ds.livingProfileLaneLeft) - 12 : W - 76;
+            const livingCol = (W - 76) - stackLeft;
+            const room = stackLeft - (x0 + 2);
+            const colMax = Math.max(48, Math.min(120, Math.round(W * 0.1), room));
+            /*
+              A leg that began inside the right-edge stack has no room of its
+              own there. Its histogram is pinned just LEFT of the stack; the
+              anchor hairline and leg POC still start at the real swing bar,
+              so the anchor stays a coordinate and the bars stay legible.
+            */
+            const histX = Math.min(x0 + 2, stackLeft - colMax - 4);
 
             const ys: number[] = [];
             for (const r of sp.rows) {
@@ -8885,7 +8930,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 : r.insideValueArea
                   ? "rgba(237,230,211,0.26)"
                   : "rgba(194,184,146,0.14)";
-              ctx.fillRect(x0 + 2, y, w, Math.max(1, rowH - 1));
+              ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
               top = Math.min(top, y);
               bot = Math.max(bot, y + rowH);
               drawnRows++;
