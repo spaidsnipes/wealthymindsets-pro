@@ -8346,6 +8346,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const bw = Math.min(W - 100, 900);
                   ctx.fillStyle = "rgba(11,10,8,0.94)";
                   ctx.fillRect(bx, by, bw, bh);
+                  floatingChips.push({ x: bx, y: by, w: bw, h: bh });
                   ctx.strokeStyle = "rgba(201,165,92,0.75)"; ctx.lineWidth = 1;
                   ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
                   const c1 = Math.round(bw * 0.58), c2 = Math.round(bw * 0.24);
@@ -8375,6 +8376,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const ch = 70 + rows * 30 + 38;
                   ctx.fillStyle = "rgba(11,10,8,0.94)";
                   ctx.fillRect(lx, top, colW, ch);
+                  floatingChips.push({ x: lx, y: top, w: colW, h: ch });
                   ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.75)" : "rgba(201,165,92,0.75)";
                   ctx.strokeRect(lx + 0.5, top + 0.5, colW - 1, ch - 1);
                   // Ring: one arc per item — filled gold when paid, crimson outline when owed.
@@ -8429,6 +8431,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const cy = top + ch + 8, cwh = 92;
                     ctx.fillStyle = "rgba(11,10,8,0.94)";
                     ctx.fillRect(lx, cy, colW, cwh);
+                    floatingChips.push({ x: lx, y: cy, w: colW, h: cwh });
                     ctx.strokeStyle = "rgba(201,165,92,0.55)";
                     ctx.strokeRect(lx + 0.5, cy + 0.5, colW - 1, cwh - 1);
                     ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
