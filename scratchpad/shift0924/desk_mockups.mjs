@@ -9,7 +9,7 @@ await ctx.route("**/api/yahoo?*type=candles*", r => r.fulfill({ status: 200, con
 const p = await ctx.newPage();
 await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "domcontentloaded", timeout: 180000 });
 await p.waitForTimeout(16000);
-const ds = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorption !== undefined); const d = c?.dataset ?? {}; return { absorption: d.absorption, cards: d.anatomyCards, lens: d.questionLens, scaffold: d.scaffolding }; });
+const ds = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorption !== undefined); const d = c?.dataset ?? {}; return { absorption: d.absorption, cards: d.anatomyCards, lens: d.questionLens, scaffold: d.scaffolding, chips: d.absorptionChips }; });
 for (const desk of ["Order Flow", "Review"]) {
   await p.getByRole("button", { name: /^Workspace/ }).first().click(); await p.waitForTimeout(900);
   await p.getByRole("button", { name: new RegExp("^" + desk) }).first().click(); await p.waitForTimeout(2000);

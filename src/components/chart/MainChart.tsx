@@ -7877,6 +7877,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
+            const absorbChipRects: { x: number; y: number; w: number; h: number }[] = [];
+            let absorbChipsHidden = 0;
             for (const zone of anatomy.zones) {
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
@@ -7980,7 +7982,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               })();
               const plotRight = Math.max(4, W - axisW);
               const chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
-              const chipY = Math.max(2, yHi - chipH - 2);
+              // NO TWO CHIPS ON ONE ANOTHER. Neighbouring shelves printed
+              // "ABSORPTION 4.18 MOD…ABSORPTION 2.83" as one smear. Try above
+              // the shelf, then below it, then stepped further up; if every
+              // slot is taken the shelf still paints and only its words wait
+              // (Inspect on the shelf still reads it).
+              const hit = (y: number) => absorbChipRects.some(r =>
+                chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
+              const slots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6];
+              const freeY = slots.map(y => Math.max(2, y)).find(y => !hit(y));
+              if (freeY == null) { absorbChipsHidden++; continue; }
+              const chipY = freeY;
+              absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               if (desktopShelfInstrument) {
                 // Direct annotation, not another gold card. A restrained
                 // shadow protects legibility while the shelf remains the
@@ -8005,6 +8018,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5);
               }
             }
+
+            ds.absorptionChips = `${absorbChipRects.length}/${absorbChipRects.length + absorbChipsHidden}`;
 
             // ── BASIS. Compact, always visible, never a vendor name.
             const basisTxt = BASIS_LABEL[anatomy.basis];
