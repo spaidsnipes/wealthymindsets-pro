@@ -10932,7 +10932,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = invalid ? "rgba(220,220,228,1)" : "rgba(240,180,41,1)";
               ctx.fillText(l1, cx + w / 2, by + 11);
               ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
-              ctx.fillStyle = invalid ? "rgba(220,220,228,0.9)" : z.side === "DEMAND" ? "rgba(0,192,118,1)" : "rgba(255,77,106,1)";
+              // Cream, not green/red: the side is the WORD (house rule — these
+              // layers never tell sides apart by hue; see the glass sentinels).
+              ctx.fillStyle = invalid ? "rgba(220,220,228,0.9)" : "rgba(237,230,211,0.95)";
               ctx.fillText(l2, cx + w / 2, by + 26);
               ctx.textAlign = "left";
               floatingChips.push({ x: cx, y: by, w, h: bh2 });
