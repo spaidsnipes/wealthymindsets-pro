@@ -7368,7 +7368,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // On phones, the truthful footprint + session status chips occupy
               // the top of the chart. Keep the canvas-owned horizon label below
               // them so three truth surfaces never paint over one another.
-              const boxY = W < 480 ? 104 : 6;
+              // Desktop: the top row belongs to the DOM bar clock and the
+              // depth tag (a live tape printed this pill through the clock,
+              // 2026-09-24), so the horizon's words sit at the FOOT of its
+              // own line, just above the time axis.
+              const boxY = W < 480 ? 104 : Math.max(6, H - 64);
               ctx.fillStyle = "rgba(11,14,26,0.92)";
               ctx.strokeStyle = "rgba(240,180,41,0.75)";
               ctx.lineWidth = 1;
