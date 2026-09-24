@@ -33,19 +33,14 @@
 
 import { computeProfileFromBars, chooseTickSize, type ProfileQuality } from "@/lib/vpEngine";
 import type { MarketStructureVM } from "./selectMarketStructure";
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 export const STRUCTURE_PROFILE_VERSION = 1;
 export const MIN_LEG_BARS = 6;
 export const STRUCTURE_TARGET_ROWS = 60;
 
-export interface StructureProfileBarInput {
-  readonly time: number;
-  readonly open: number;
-  readonly high: number;
-  readonly low: number;
-  readonly close: number;
-  readonly volume: number;
-}
+/** The canonical bar tuple — no private bar shape (M8 census). */
+export type StructureProfileBarInput = LegacyOhlcvTuple;
 
 export type StructureProfileReason =
   | "DRAWN"
@@ -137,7 +132,7 @@ export function selectStructureProfile(
   }
   const range = top - bottom;
   const snap = computeProfileFromBars(
-    leg.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume })),
+    leg,
     { tickSize: chooseTickSize(range > 0 ? range : Math.abs(top) || 1, STRUCTURE_TARGET_ROWS) },
   );
   if (snap.rows.length === 0 || !(snap.totalVolume > 0)) {
