@@ -8176,7 +8176,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               } else {
                 ds.anatomyCardsLayout = "CARDS";
               }
+              // MOCKUP SCALE (as the scaffolding plate): on a desktop camera
+              // the two cards are magnified as one piece, growing UP from the
+              // same floor so the volume pane stays clear. Held to 1 beside the
+              // scaffolding card or where the plot is too narrow. Leaders are
+              // drawn unscaled, so they still land on their own candles.
+              let cardK = 1;
+              if (!compact && sDepth === "OFF" && W >= 1280 && H >= 820) {
+                let aw = 90;
+                try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) aw = Math.ceil(w0); } catch {}
+                cardK = Math.max(1, Math.min(1.28, (W - aw - 12 - cardsLeft) / (2 * cw + gap), (cardsTop + ch - 240) / ch));
+              }
+              if (cardK > 1) cardsTop = cardsTop + ch - ch * cardK;
+              ds.anatomyCardsScale = cardK.toFixed(2);
               if (!compact) [cards.absorption, cards.exhaustion].forEach((c, k) => {
+                // Scaled space: origin at (cardsLeft, cardsTop).
+                ctx.save();
+                if (cardK > 1) { ctx.translate(cardsLeft, cardsTop); ctx.scale(cardK, cardK); ctx.translate(-cardsLeft, -cardsTop); }
                 const x0 = cardsLeft + k * (cw + gap);
                 const ex = c.kind === "EXHAUSTION";
                 const ACC = ex ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
@@ -8196,6 +8212,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (c.empty) {
                   ctx.font = font(600, 9); ctx.fillStyle = "rgba(200,192,174,0.85)";
                   ctx.fillText(c.empty.length > 52 ? c.empty.slice(0, 51) + "…" : c.empty, x0 + cw / 2, cardsTop + ch / 2 + 6);
+                  ctx.restore();
                   return;
                 }
                 // Four metric tiles, 2×2: label · big number · word.
@@ -8218,14 +8235,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillText(`${ex ? "EXHAUSTION" : "ABSORPTION"} OUTCOME · ${c.outcome}`, x0 + 10, cardsTop + ch - 24);
                 ctx.font = font(500, 8); ctx.fillStyle = "rgba(200,192,174,0.85)";
                 ctx.fillText(c.outcomeNote, x0 + 10, cardsTop + ch - 10);
-                // Leader to the candles.
+                ctx.restore();
+                // Leader to the candles — in SCREEN space.
                 if (c.time != null && c.price != null) {
                   const xr = ts.timeToCoordinate(c.time as never);
                   const yr = srs.priceToCoordinate(c.price);
                   if (xr != null && yr != null) {
                     ctx.setLineDash([2, 3]);
                     ctx.strokeStyle = ACC_DIM;
-                    ctx.beginPath(); ctx.moveTo(x0 + cw / 2, cardsTop); ctx.lineTo(+xr, +yr); ctx.stroke();
+                    const lx0 = cardsLeft + (x0 - cardsLeft + cw / 2) * cardK;
+                    ctx.beginPath(); ctx.moveTo(lx0, cardsTop); ctx.lineTo(+xr, +yr); ctx.stroke();
                     ctx.setLineDash([]);
                     ctx.fillStyle = ACC;
                     ctx.beginPath(); ctx.arc(+xr, +yr, 3, 0, Math.PI * 2); ctx.fill();
