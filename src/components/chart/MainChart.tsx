@@ -203,7 +203,7 @@ import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
-import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -1032,6 +1032,8 @@ interface Props {
   visibleRangeProfileOnChart?: boolean;
   /** QUESTION LENS — the active evidence question asked of this camera. */
   questionLensOnChart?: boolean;
+  /** What the trader asked of the Question Lens (AUTO = the camera chooses). */
+  questionChoiceOnChart?: QuestionChoice;
   /** Absorption vs Exhaustion key-metric cards (MOCK 1). */
   anatomyCardsOnChart?: boolean;
   /** H-201 Memory Ghost — prior analogue under the live bars. */
@@ -1373,6 +1375,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   compositeProfileOnChart = false,
   visibleRangeProfileOnChart = false,
   questionLensOnChart = false,
+  questionChoiceOnChart = "AUTO",
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
   memoryGhostOnChart = false,
@@ -1602,6 +1605,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
+  const questionChoiceRef = useRef<QuestionChoice>("AUTO");
+  questionChoiceRef.current = questionChoiceOnChart;
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false });
   useEffect(() => {
     layerOnRef.current = {
@@ -8270,8 +8275,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 exhaustion: selectExhaustion(anatomy),
                 livingPoc: livingProfileRef.current?.drawn ? livingProfileRef.current.poc : null,
                 pivots: marketStructureRef.current?.drawn ? marketStructureRef.current.pivots : [],
+                choice: questionChoiceRef.current,
               });
-              ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : "NO_QUESTION";
+              ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
+              ds.questionChoice = lens.choice;
+              // The strip yields its right end to the ASK chooser (a DOM row
+              // at left: min(920px, 100% − 420px)).
+              const stripW = Math.max(420, Math.min(W - 440, 900));
+              if (!lens.active && lens.refusal) {
+                // ASKED, BUT NOTHING TO ASK IT OF — said on the strip, nothing quieted.
+                ctx.save();
+                const bx = 12, by = 100, bh = 44;
+                ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(bx, by, stripW, bh);
+                floatingChips.push({ x: bx, y: by, w: stripW, h: bh });
+                ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, stripW - 1, bh - 1);
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(201,165,92,0.9)";
+                ctx.fillText(`ASKED · ${lens.choice} · NOT ASKABLE ON THIS CAMERA · NOTHING QUIETED`, bx + 14, by + 14);
+                ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.95)";
+                let t = lens.refusal.charAt(0).toUpperCase() + lens.refusal.slice(1);
+                while (t.length > 4 && ctx.measureText(t).width > stripW - 28) t = t.slice(0, -2);
+                ctx.fillText(t, bx + 14, by + 31);
+                ctx.restore();
+              }
               if (lens.active && lens.question) {
                 questionQuiet = 0.35;
                 ctx.save();
@@ -8294,7 +8320,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     // absorbed — the measured displacement that failed to come.
                     // Both lines are the lens's numbers; no trend is claimed.
                     const tagCol = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(226,92,92,0.95)";
-                    const tag = `${lens.kind === "EXHAUSTION" ? "EXHAUSTION" : "ABSORPTION"} ZONE · ${lens.bandLow.toFixed(2)}–${lens.bandHigh.toFixed(2)}`;
+                    const tagWord = lens.kind === "EXHAUSTION" ? "EXHAUSTION ZONE" : lens.kind === "CONTINUATION" ? "THE LEG" : lens.kind === "TRAP" ? "BROKEN SWING" : lens.kind === "HOLD" ? "LEVEL ASKED" : "ABSORPTION ZONE";
+                    const tag = lens.bandLow === lens.bandHigh ? `${tagWord} · ${lens.bandLow.toFixed(2)}` : `${tagWord} · ${lens.bandLow.toFixed(2)}–${lens.bandHigh.toFixed(2)}`;
                     ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
                     const tw = ctx.measureText(tag).width + 16;
                     // The PLOT's right edge, not the container's: the price
@@ -8346,7 +8373,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // SECONDARY NOISE · QUIETED, across the camera.
                 {
                   const bx = 12, by = 100, bh = 52;
-                  const bw = Math.min(W - 100, 900);
+                  const bw = stripW;
                   ctx.fillStyle = "rgba(11,10,8,0.94)";
                   ctx.fillRect(bx, by, bw, bh);
                   floatingChips.push({ x: bx, y: by, w: bw, h: bh });

@@ -38,6 +38,26 @@
  * pay." No probability, no confidence bar — the plate's "confidence read"
  * is deliberately NOT built: nothing measures one.
  *
+ * ── ASKED QUESTIONS (Founder correction: "continuation healthy? · trap? ·
+ * hold?") ─────────────────────────────────────────────────────────────────
+ * The trader may ASK instead of taking AUTO. Each asked question is compiled
+ * from the same bars and confirmed swings; when the camera holds nothing the
+ * question could be asked of, the lens says so (`refusal`) — it never picks
+ * a level or a move to make the question answerable.
+ *   CONTINUATION — "Is the <up/down> move still healthy?" on the leg from the
+ *     last opposite confirmed swing: NEW EXTREME (in the last 5 bars) ·
+ *     EFFORT SUPPORTS (second-half effort ≥ 80% of first) · PULLBACK SHALLOW
+ *     (< 50% of the leg) · NO EXHAUSTION (no exhaustion mark on the leg).
+ *   TRAP — "Was the break of <swing> a trap?" on the newest confirmed swing
+ *     traded through in the last 30 bars: CLOSE BACK INSIDE (≤ 3 bars) · NO
+ *     ACCEPTANCE (< 2 closes beyond) · FOLLOW-THROUGH FAILED (no extension of
+ *     1 median range past the break bar, ≥ 3 bars later) · EFFORT FADED.
+ *   HOLD — "Is <swing> holding?" on the nearest confirmed swing on the far
+ *     side of price: TESTED (traded within ¼ median range) · REJECTED (a
+ *     close 1 median range away after the last test) · NO CLOSE BEYOND ·
+ *     DEFENDED TWICE (two separate tests).
+ * For TRAP and HOLD a paid item is evidence FOR the question's "yes".
+ *
  * PURE. DETERMINISTIC.
  */
 
@@ -57,7 +77,11 @@ export interface DebtItem {
 export interface QuestionLensVM {
   readonly version: number;
   readonly active: boolean;
-  readonly kind: "ABSORPTION" | "EXHAUSTION" | null;
+  readonly kind: "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | null;
+  /** What was asked (AUTO when the camera chose). */
+  readonly choice: QuestionChoice;
+  /** Set when the asked question has nothing on this camera to be asked of. */
+  readonly refusal: string | null;
   readonly question: string | null;
   readonly focus: string | null;
   /** Price band the question is about (for the on-price band). */
@@ -83,35 +107,59 @@ export interface QuestionLensVM {
   } | null;
 }
 
+export type QuestionChoice = "AUTO" | "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD";
+export const QUESTION_CHOICES: readonly { readonly id: QuestionChoice; readonly label: string }[] = [
+  { id: "AUTO", label: "Auto" },
+  { id: "ABSORPTION", label: "Absorbed?" },
+  { id: "EXHAUSTION", label: "Exhausted?" },
+  { id: "CONTINUATION", label: "Continuing?" },
+  { id: "TRAP", label: "Trap?" },
+  { id: "HOLD", label: "Holding?" },
+];
+export const NEW_EXTREME_BARS = 5;
+export const TRAP_WINDOW_BARS = 30;
+
 export interface QuestionLensInput {
   readonly absorption: AbsorptionAnatomyVM | null;
   readonly exhaustion: ExhaustionVM | null;
   /** Living Profile POC, when drawn. */
   readonly livingPoc: number | null;
-  /** Confirmed structure pivots (time + price). */
-  readonly pivots: readonly { readonly time: number; readonly price: number }[];
+  /** Confirmed structure pivots (time + price; kind when the owner states it). */
+  readonly pivots: readonly { readonly time: number; readonly price: number; readonly kind?: "HIGH" | "LOW" }[];
+  /** What the trader asked. Omitted → AUTO. */
+  readonly choice?: QuestionChoice;
 }
 
 const NONE: QuestionLensVM = {
-  version: QUESTION_LENS_VERSION, active: false, kind: null, question: null, focus: null,
+  version: QUESTION_LENS_VERSION, active: false, kind: null, choice: "AUTO", refusal: null, question: null, focus: null,
   bandLow: null, bandHigh: null, bandStart: null, debt: [], openDebt: 0, posture: null, nextQuestion: null,
   control: null,
 };
 
 const f2 = (n: number) => n.toFixed(2);
 
+const refuse = (choice: QuestionChoice, why: string): QuestionLensVM => ({ ...NONE, choice, refusal: why });
+
 export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
+  const choice = input.choice ?? "AUTO";
   const a = input.absorption;
   const bars = a?.measured ? a.bars : [];
-  if (bars.length === 0) return NONE;
-  const zone = a!.zones.at(-1) ?? null;
-  const ex = input.exhaustion?.marks.at(-1) ?? null;
-  if (!zone && !ex) return NONE;
+  if (bars.length === 0) return choice === "AUTO" ? NONE : refuse(choice, "no measured bars on this camera yet");
 
   const ranges = bars.map(b => b.high - b.low).filter(r => r > 0).sort((x, y) => x - y);
   const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+  if (choice === "CONTINUATION" || choice === "TRAP" || choice === "HOLD") {
+    const vm = askStructural(choice, bars, med, input);
+    return vm;
+  }
 
-  const useExhaustion = ex && (!zone || ex.time > zone.endTime);
+  const zone = a!.zones.at(-1) ?? null;
+  const ex = input.exhaustion?.marks.at(-1) ?? null;
+  if (choice === "ABSORPTION" && !zone) return refuse(choice, "no absorption zone on this camera to ask about");
+  if (choice === "EXHAUSTION" && !ex) return refuse(choice, "no exhausted push on this camera to ask about");
+  if (!zone && !ex) return NONE;
+
+  const useExhaustion = choice === "EXHAUSTION" || (choice === "AUTO" && ex && (!zone || ex.time > zone.endTime));
 
   if (!useExhaustion && zone) {
     const after = bars.filter(b => b.time > zone.endTime);
@@ -143,6 +191,8 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       version: QUESTION_LENS_VERSION,
       active: true,
       kind: "ABSORPTION",
+      choice,
+      refusal: null,
       question: `Is ${who} being absorbed at ${f2(zone.priceLo)}–${f2(zone.priceHi)}?`,
       focus: `Absorption of ${who}${delta ? "" : " (volume basis — side unknown)"}`,
       bandLow: zone.priceLo,
@@ -183,6 +233,8 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
     version: QUESTION_LENS_VERSION,
     active: true,
     kind: "EXHAUSTION",
+    choice,
+    refusal: null,
     question: `Is this ${m.direction === "UP" ? "up" : "down"}-push exhausted at ${f2(m.price)}?`,
     focus: "Exhaustion of the push",
     bandLow: m.price,
@@ -194,6 +246,127 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
     nextQuestion: m.direction === "UP" ? "Is seller effort now being rewarded?" : "Is buyer effort now being rewarded?",
     control: null,
   };
+}
+
+
+type Bar = AbsorptionAnatomyVM["bars"][number];
+
+function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly Bar[], med: number, input: QuestionLensInput): QuestionLensVM {
+  const pivots = input.pivots.filter(p => p.kind === "HIGH" || p.kind === "LOW");
+  if (pivots.length === 0) return refuse(choice, "no confirmed swings on this camera — structure is not measured yet");
+  const last = bars[bars.length - 1];
+  const idxAfter = (t: number) => { const i = bars.findIndex(b => b.time > t); return i < 0 ? bars.length : i; };
+  const mean = (xs: readonly Bar[]) => (xs.length ? xs.reduce((t, b) => t + b.effortNorm, 0) / xs.length : 0);
+  const done = (kind: "CONTINUATION" | "TRAP" | "HOLD", question: string, focus: string, lo: number, hi: number, start: number, debt: DebtItem[], next: string): QuestionLensVM => {
+    const open = debt.filter(d => !d.paid).length;
+    return {
+      version: QUESTION_LENS_VERSION, active: true, kind, choice, refusal: null, question, focus,
+      bandLow: Math.min(lo, hi), bandHigh: Math.max(lo, hi), bandStart: start, debt, openDebt: open,
+      posture: open > 0 ? "WAIT · LET THE MARKET PAY" : "DEBT PAID · READ THE ANSWER",
+      nextQuestion: next, control: null,
+    };
+  };
+
+  if (choice === "CONTINUATION") {
+    // The leg runs from the newest confirmed swing to the extreme since it.
+    const origin = pivots.reduce((m, p) => (p.time > m.time ? p : m));
+    const up = origin.kind === "LOW";
+    const leg = bars.slice(idxAfter(origin.time - 1));
+    if (leg.length < 4) return refuse(choice, "the move since the last confirmed swing is under 4 bars — too short to ask about");
+    let exI = 0;
+    leg.forEach((b, i) => { if (up ? b.high >= leg[exI].high : b.low <= leg[exI].low) exI = i; });
+    const extreme = up ? leg[exI].high : leg[exI].low;
+    const size = Math.abs(extreme - origin.price);
+    if (med > 0 && size < 2 * med) return refuse(choice, `no directional move to ask about — the leg since ${f2(origin.price)} is ${f2(size)}, under 2 median ranges`);
+    const barsSince = leg.length - 1 - exI;
+    const half = Math.floor(leg.length / 2);
+    const e1 = mean(leg.slice(0, half)), e2 = mean(leg.slice(half));
+    const retrace = size > 0 ? Math.abs(extreme - last.close) / size : 0;
+    const exOnLeg = (input.exhaustion?.marks ?? []).find(m => m.time >= origin.time && m.direction === (up ? "UP" : "DOWN"));
+    const debt: DebtItem[] = [
+      { label: "NEW EXTREME", paid: barsSince < NEW_EXTREME_BARS,
+        evidence: barsSince === 0 ? `extreme ${f2(extreme)} is on the newest bar` : `extreme ${f2(extreme)} was ${barsSince} bar${barsSince > 1 ? "s" : ""} ago (needs < ${NEW_EXTREME_BARS})` },
+      { label: "EFFORT SUPPORTS", paid: e1 > 0 && e2 >= 0.8 * e1,
+        evidence: `second-half effort ${Math.round(e2 * 100)}% vs first half ${Math.round(e1 * 100)}%` },
+      { label: "PULLBACK SHALLOW", paid: retrace < 0.5,
+        evidence: `price has given back ${Math.round(retrace * 100)}% of the leg (needs < 50%)` },
+      { label: "NO EXHAUSTION", paid: !exOnLeg,
+        evidence: exOnLeg ? `exhaustion marked at ${f2(exOnLeg.price)} on this leg` : "no exhaustion mark on this leg" },
+    ];
+    return done("CONTINUATION", `Is the ${up ? "up" : "down"}-move from ${f2(origin.price)} still healthy?`,
+      `Continuation of the ${up ? "up" : "down"}-leg`, origin.price, extreme, origin.time, debt,
+      up ? "If it stalls, is buyer effort being absorbed?" : "If it stalls, is seller effort being absorbed?");
+  }
+
+  if (choice === "TRAP") {
+    // The newest confirmed swing traded through within the window.
+    const windowStart = bars[Math.max(0, bars.length - TRAP_WINDOW_BARS)].time;
+    let found: { p: typeof pivots[number]; i: number } | null = null;
+    for (const p of pivots) {
+      const from = idxAfter(p.time);
+      for (let i = from; i < bars.length; i++) {
+        const b = bars[i];
+        if (p.kind === "HIGH" ? b.high > p.price : b.low < p.price) {
+          if (b.time >= windowStart && (!found || b.time > bars[found.i].time)) found = { p, i };
+          break;
+        }
+      }
+    }
+    if (!found) return refuse(choice, `no confirmed swing was traded through in the last ${TRAP_WINDOW_BARS} bars — there is no break to ask about`);
+    const { p, i } = found;
+    const hi = p.kind === "HIGH";
+    const brk = bars[i];
+    const after = bars.slice(i + 1);
+    const backInside = bars.slice(i, i + 4).some(b => (hi ? b.close < p.price : b.close > p.price));
+    const closesBeyond = bars.slice(i).filter(b => (hi ? b.close > p.price : b.close < p.price)).length;
+    const brkExt = hi ? brk.high : brk.low;
+    const extended = after.some(b => (hi ? b.high - brkExt : brkExt - b.low) >= med);
+    const faded = after.length > 0 && mean(after) < brk.effortNorm;
+    const debt: DebtItem[] = [
+      { label: "CLOSE BACK INSIDE", paid: backInside,
+        evidence: backInside ? `closed back ${hi ? "below" : "above"} ${f2(p.price)} within 3 bars of the break` : `no close back ${hi ? "below" : "above"} ${f2(p.price)} within 3 bars` },
+      { label: "NO ACCEPTANCE", paid: closesBeyond < 2,
+        evidence: `${closesBeyond} close${closesBeyond === 1 ? "" : "s"} beyond the level since the break (a trap has < 2)` },
+      { label: "FOLLOW-THROUGH FAILED", paid: after.length >= 3 && !extended,
+        evidence: after.length < 3 ? `${after.length} bar${after.length === 1 ? "" : "s"} since the break — too early` : extended ? "price extended a median range past the break bar" : "no extension of a median range past the break bar" },
+      { label: "EFFORT FADED", paid: faded,
+        evidence: after.length === 0 ? "no bars since the break" : `effort after ${Math.round(mean(after) * 100)}% vs at the break ${Math.round(brk.effortNorm * 100)}%` },
+    ];
+    return done("TRAP", `Was the break of the swing ${hi ? "high" : "low"} ${f2(p.price)} a trap?`,
+      `Break of ${f2(p.price)} — trap or acceptance`, p.price, p.price, p.time, debt,
+      "Is the level now holding from the other side?");
+  }
+
+  // HOLD — the nearest confirmed swing on the far side of price.
+  const below = pivots.filter(p => p.kind === "LOW" && p.price < last.close).sort((x, y) => y.price - x.price)[0];
+  const above = pivots.filter(p => p.kind === "HIGH" && p.price > last.close).sort((x, y) => x.price - y.price)[0];
+  const lvl = !below ? above : !above ? below : (last.close - below.price <= above.price - last.close ? below : above);
+  if (!lvl) return refuse(choice, "no confirmed swing on either side of price to ask about");
+  const support = lvl.kind === "LOW";
+  const tol = 0.25 * med;
+  const after = bars.slice(idxAfter(lvl.time));
+  const tests: number[] = [];
+  after.forEach((b, i) => {
+    const touch = support ? b.low <= lvl.price + tol : b.high >= lvl.price - tol;
+    if (touch && (tests.length === 0 || i - tests[tests.length - 1] > 3)) tests.push(i);
+    else if (touch) tests[tests.length - 1] = i;
+  });
+  const lastTest = tests.length ? tests[tests.length - 1] : -1;
+  const rejected = lastTest >= 0 && after.slice(lastTest + 1).some(b => (support ? b.close - lvl.price : lvl.price - b.close) >= med);
+  const beyond = after.some(b => (support ? b.close < lvl.price : b.close > lvl.price));
+  const debt: DebtItem[] = [
+    { label: "TESTED", paid: tests.length > 0,
+      evidence: tests.length ? `price traded within ${f2(tol)} of ${f2(lvl.price)} (${tests.length} test${tests.length > 1 ? "s" : ""})` : `price has not come within ${f2(tol)} of ${f2(lvl.price)}` },
+    { label: "REJECTED", paid: rejected,
+      evidence: rejected ? `closed a median range ${support ? "above" : "below"} it after the last test` : lastTest < 0 ? "no test yet to reject" : "no close a median range away after the last test" },
+    { label: "NO CLOSE BEYOND", paid: !beyond,
+      evidence: beyond ? `a bar closed ${support ? "below" : "above"} ${f2(lvl.price)}` : `no close ${support ? "below" : "above"} ${f2(lvl.price)} since it formed` },
+    { label: "DEFENDED TWICE", paid: tests.length >= 2,
+      evidence: `${tests.length} separate test${tests.length === 1 ? "" : "s"}` },
+  ];
+  return done("HOLD", `Is the swing ${support ? "low" : "high"} ${f2(lvl.price)} holding?`,
+    `${support ? "Support" : "Resistance"} at a confirmed swing`, lvl.price, lvl.price, lvl.time, debt,
+    "If it breaks, is the break a trap?");
 }
 
 export default selectQuestionLens;

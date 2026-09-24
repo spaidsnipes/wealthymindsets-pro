@@ -263,6 +263,7 @@ import FootprintWorksheetView from "@/components/experience/FootprintWorksheetVi
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
+import { QUESTION_CHOICES, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
@@ -782,6 +783,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [visibleRangeProfileOn, setVisibleRangeProfileOn] = useState<boolean>(() => lsGet("wm_ofVisibleRangeProfile", false) as boolean);
   const [regimeLightingOn, setRegimeLightingOn] = useState<boolean>(() => lsGet("wm_ofRegimeLighting", false) as boolean);
   const [questionLensOn, setQuestionLensOn] = useState<boolean>(() => lsGet("wm_ofQuestionLens", false) as boolean);
+  // What the trader ASKED of the Question Lens (Auto = the camera chooses).
+  const [questionChoice, setQuestionChoice] = useState<QuestionChoice>(() => {
+    const v = lsGet("wm_questionChoice", "AUTO") as string;
+    return QUESTION_CHOICES.some(c => c.id === v) ? (v as QuestionChoice) : "AUTO";
+  });
   const [anatomyCardsOn, setAnatomyCardsOn] = useState<boolean>(() => lsGet("wm_ofAnatomyCards", false) as boolean);
   const [profileStackPrefs, setProfileStackPrefs] = useState<ProfileStackPrefs>(() => {
     if (typeof window === "undefined") return parseStackPrefs(null);
@@ -1039,6 +1045,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofVisibleRangeProfile", visibleRangeProfileOn);
   usePersistOnChange("wm_ofRegimeLighting",   regimeLightingOn);
   usePersistOnChange("wm_ofQuestionLens",     questionLensOn);
+  usePersistOnChange("wm_questionChoice",     questionChoice);
   usePersistOnChange("wm_ofScaffolding",      scaffoldingDepth);
   usePersistOnChange("wm_ofAnatomyCards",     anatomyCardsOn);
   usePersistOnChange("wm_ofMemoryGhost",      memoryGhostOn);
@@ -5216,6 +5223,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       regimeLighting={chartRegimeLighting}
                       regimeLightingOnChart={regimeLightingOn}
                       questionLensOnChart={questionLensOn}
+                      questionChoiceOnChart={questionChoice}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}
@@ -5260,6 +5268,36 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       could not tell which prints belong to the bar — the exact
                       condition under which it would have to invent one.
                     */}
+                    {/*
+                      THE ASK — the Founder's correction names the questions a
+                      trader asks of the camera (continuation healthy? · trap? ·
+                      hold?). Only while the Question Lens is on; the lens owner
+                      compiles the answer and refuses what it cannot ask.
+                    */}
+                    {activeTab === "Chart" && !gridView && questionLensOn && (
+                      <div
+                        role="radiogroup"
+                        aria-label="Ask the chart a question"
+                        data-testid="question-lens-chooser"
+                        className="absolute z-[60] flex flex-wrap items-center gap-1 rounded-md border border-wm-gold/40 px-1.5 py-1"
+                        style={{ left: "min(920px, calc(100% - 420px))", top: 100, maxWidth: 330, background: "rgba(11,10,8,0.92)" }}
+                      >
+                        <span className="px-1 text-[9px] font-bold uppercase tracking-[0.12em] text-wm-text-dim">Ask</span>
+                        {QUESTION_CHOICES.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={questionChoice === c.id}
+                            data-question-choice={c.id}
+                            onClick={() => setQuestionChoice(c.id)}
+                            className={`min-h-7 rounded px-2 text-[10px] font-semibold ${questionChoice === c.id ? "bg-wm-gold/20 text-wm-gold" : "text-wm-text-muted hover:text-wm-text"}`}
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
                       <ChartInspectTicket
                         vm={inspectTicketVM}
