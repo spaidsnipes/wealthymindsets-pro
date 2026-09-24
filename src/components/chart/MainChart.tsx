@@ -8426,8 +8426,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const histMax = Math.min(160, Math.round(W * 0.16));
 
             /*
-              VALUE-AREA BACKDROP. Two prices become one band. Draw first, so
-              histogram bars and HVN/LVN dots sit on top of it.
+              VALUE-AREA BAND — across the entire pane, not just the histogram.
+              §B5 said no full-width paint that eats candles; this obeys it
+              by keeping alpha at 4% ivory, faint enough that candles read
+              through unchanged and yet visible enough that "inside value"
+              vs "outside value" is a glance. Two horizontal hairlines at
+              VAH and VAL give the band real edges without hue.
             */
             if (lp.vah != null && lp.val != null) {
               const yh = srs.priceToCoordinate(lp.vah);
@@ -8435,8 +8439,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (yh != null && yl != null) {
                 const top = Math.min(+yh, +yl);
                 const bot = Math.max(+yh, +yl);
-                ctx.fillStyle = "rgba(237,230,211,0.05)";
-                ctx.fillRect(rightEdge - histMax - 4, top, histMax + 8, Math.max(1, bot - top));
+                const band = Math.max(1, bot - top);
+                ctx.fillStyle = "rgba(237,230,211,0.04)";
+                ctx.fillRect(0, top, W, band);
+                // Denser fill only inside the histogram column so the two
+                // meanings — value area, and where the histogram itself
+                // sits — read together instead of one washing out the other.
+                ctx.fillStyle = "rgba(237,230,211,0.06)";
+                ctx.fillRect(rightEdge - histMax - 4, top, histMax + 8, band);
+                // Hairlines at VAH/VAL across the pane so the boundaries
+                // register even where the fill is faint.
+                ctx.strokeStyle = "rgba(194,184,146,0.35)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath();
+                ctx.moveTo(0, +yh + 0.5); ctx.lineTo(W, +yh + 0.5);
+                ctx.moveTo(0, +yl + 0.5); ctx.lineTo(W, +yl + 0.5);
+                ctx.stroke();
+                ctx.setLineDash([]);
               }
             }
 
