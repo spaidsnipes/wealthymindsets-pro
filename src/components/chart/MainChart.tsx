@@ -886,6 +886,7 @@ interface Props {
     clock24h?: boolean;
     bigTradeBuy?: string; bigTradeSell?: string;
     deltaBuy?: string; deltaSell?: string;
+    absorptionInk?: string; fusedProfileInk?: string;
   };
   replayActive?:   boolean;
   replayBars?:     LegacyOhlcvTuple[];
@@ -2160,8 +2161,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const n = parseInt(m[1], 16);
     return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
   };
-  const flowColorsRef = useRef({ btBuy: "0,212,170", btSell: "255,77,106", dBuy: "34,197,94", dSell: "239,68,68" });
+  const flowColorsRef = useRef({ btBuy: "0,212,170", btSell: "255,77,106", dBuy: "34,197,94", dSell: "239,68,68", absorb: "224,190,92", fused: "240,190,70" });
   flowColorsRef.current = {
+    absorb: hexRgb(chartSettings?.absorptionInk, "224,190,92"),
+    fused: hexRgb(chartSettings?.fusedProfileInk, "240,190,70"),
     btBuy: hexRgb(chartSettings?.bigTradeBuy, "0,212,170"),
     btSell: hexRgb(chartSettings?.bigTradeSell, "255,77,106"),
     dBuy: hexRgb(chartSettings?.deltaBuy, "34,197,94"),
@@ -8000,7 +8003,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // shadow protects legibility while the shelf remains the
                 // dominant shape and the candles remain visible.
                 ctx.save();
-                ctx.fillStyle = "rgba(224,190,92,0.96)";
+                ctx.fillStyle = `rgba(${flowColorsRef.current.absorb},0.96)`;
                 ctx.shadowColor = "rgba(0,0,0,0.95)";
                 ctx.shadowBlur = 3;
                 ctx.textAlign = "left";
@@ -10347,7 +10350,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const spanW = spanR - spanL;
               const maxV = Math.max(...f.rows.map(r => r.volume));
               ctx.save();
-              ctx.strokeStyle = "rgba(240,190,70,0.95)";
+              ctx.strokeStyle = `rgba(${flowColorsRef.current.fused},0.95)`;
               ctx.lineWidth = 1;
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
@@ -10365,7 +10368,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.setLineDash(dash);
                 ctx.beginPath(); ctx.moveTo(spanL, +y); ctx.lineTo(spanR, +y); ctx.stroke();
                 ctx.setLineDash([]);
-                stackLabel(+y, label, "rgba(240,190,70,1)");
+                stackLabel(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
               };
               ctx.lineWidth = 2;
               line(f.poc, `FUSED POC ${f.poc.toFixed(2)}`, []);

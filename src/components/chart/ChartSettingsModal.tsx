@@ -44,6 +44,9 @@ export interface ChartSettings {
   bigTradeSell?: string;
   deltaBuy?: string;
   deltaSell?: string;
+  // Reading inks (same owner): the absorption shelf's words, the fused profile.
+  absorptionInk?: string;
+  fusedProfileInk?: string;
 }
 
 /** The shipped order-flow colours — the exact values the chart painted before. */
@@ -52,6 +55,8 @@ export const FLOW_COLOR_DEFAULTS = {
   bigTradeSell: "#FF4D6A",
   deltaBuy: "#22C55E",
   deltaSell: "#EF4444",
+  absorptionInk: "#E0BE5C",
+  fusedProfileInk: "#F0BE46",
 } as const;
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
@@ -423,6 +428,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.bigTradeSell ?? FLOW_COLOR_DEFAULTS.bigTradeSell} onChange={v => set({ bigTradeSell: v })} label="Big trade · sell" />
                   <ColorSwatch value={s.deltaBuy ?? FLOW_COLOR_DEFAULTS.deltaBuy}         onChange={v => set({ deltaBuy: v })}       label="Delta bubble · net buy" />
                   <ColorSwatch value={s.deltaSell ?? FLOW_COLOR_DEFAULTS.deltaSell}       onChange={v => set({ deltaSell: v })}      label="Delta bubble · net sell" />
+                  <ColorSwatch value={s.absorptionInk ?? FLOW_COLOR_DEFAULTS.absorptionInk}     onChange={v => set({ absorptionInk: v })}   label="Absorption shelf · words" />
+                  <ColorSwatch value={s.fusedProfileInk ?? FLOW_COLOR_DEFAULTS.fusedProfileInk} onChange={v => set({ fusedProfileInk: v })} label="Fused profile · outline + POC/VA" />
                 </div>
               )}
 
