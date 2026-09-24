@@ -198,6 +198,8 @@ import type { ValueMigrationVM } from "@/lib/marketData/viewModels/selectValueMi
 import type { ProfileMemoryVM } from "@/lib/marketData/viewModels/selectProfileMemory";
 import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileFusion";
 import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompositeProfile";
+import { selectVisibleRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
+import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -1007,6 +1009,8 @@ interface Props {
   profileMemoryOnChart?: boolean;
   profileFusionOnChart?: boolean;
   compositeProfileOnChart?: boolean;
+  /** VISIBLE RANGE — P-110 #7. Computed here: only this file knows the camera. */
+  visibleRangeProfileOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1310,6 +1314,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   profileFusionOnChart = false,
   compositeProfile = null,
   compositeProfileOnChart = false,
+  visibleRangeProfileOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1468,6 +1473,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const compositeProfileRef = useRef<CompositeProfileVM | null>(null);
   useEffect(() => { compositeProfileRef.current = compositeProfile ?? null; }, [compositeProfile]);
 
+  const vrpCacheRef = useRef<{ key: string; vm: VisibleRangeProfileVM } | null>(null);
+
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
 
@@ -1486,7 +1493,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1504,8 +1511,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       profileMemory: profileMemoryOnChart,
       profileFusion: profileFusionOnChart,
       compositeProfile: compositeProfileOnChart,
+      visibleRangeProfile: visibleRangeProfileOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8488,6 +8496,70 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
+        /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════
+           Asked ONCE per frame: which species will draw (Living, Composite,
+           Visible Range) after the fixed lanes this plan does not own (VP
+           columns, Value Candle), and where each lane, the stack's left edge
+           and the one shared label column sit. `planProfileStack` is pure and
+           tested: no two lanes can share a column.
+        ═══════════════════════════════════════════════════════════════════ */
+        const stackAxisW = (() => {
+          try {
+            const w = chart.priceScale("right").width();
+            if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
+          } catch {}
+          return 90;
+        })();
+        // P-110 #7 · VISIBLE RANGE — computed only when switched on, and only
+        // when the camera's time range or the newest bar changed.
+        const vrpOn = layerOnRef.current.visibleRangeProfile === true;
+        let vrpVM: VisibleRangeProfileVM | null = null;
+        if (vrpOn) {
+          let from: number | null = null;
+          let to: number | null = null;
+          try {
+            const vr = chart.timeScale().getVisibleRange();
+            if (vr) { from = Number(vr.from); to = Number(vr.to); }
+          } catch {}
+          const bs = barsRef.current;
+          const last = bs[bs.length - 1];
+          const key = `${from}|${to}|${bs.length}|${last?.time ?? ""}|${last?.volume ?? ""}|${last?.close ?? ""}`;
+          if (vrpCacheRef.current?.key === key) vrpVM = vrpCacheRef.current.vm;
+          else {
+            vrpVM = selectVisibleRangeProfile(bs, from, to);
+            vrpCacheRef.current = { key, vm: vrpVM };
+          }
+        }
+        ds.visibleRangeProfile = vrpOn ? (vrpVM?.reason ?? "NO_READING") : "OFF";
+        const stackOrder: StackSpecies[] = [];
+        if (layerOnRef.current.livingProfile && livingProfileRef.current?.drawn) stackOrder.push("LIVING");
+        if (layerOnRef.current.compositeProfile && compositeProfileRef.current?.drawn) stackOrder.push("COMPOSITE");
+        if (vrpOn && vrpVM?.drawn) stackOrder.push("VISIBLE_RANGE");
+        const stackPlan = planProfileStack({
+          canvasWidth: W,
+          axisWidth: stackAxisW,
+          fixedLanes: (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0) + (ds.valueCandleRungs ? 1 : 0),
+          order: stackOrder,
+        });
+        if (stackOrder.length > 0) ds.profileStackLeft = String(stackPlan.stackLeft);
+        else delete ds.profileStackLeft;
+        ds.profileStackLanes = stackOrder.join(",");
+        // The ONE label column. A label that would land on another steps down
+        // a line, so agreeing levels (LIVING POC / CMP POC) never overprint.
+        const stackLabelYs: number[] = [];
+        const stackLabel = (y: number, text: string, ink: string) => {
+          let yy = y;
+          while (stackLabelYs.some(t => Math.abs(t - yy) < 11)) yy += 11;
+          stackLabelYs.push(yy);
+          ctx.save();
+          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = ink;
+          ctx.fillText(text, stackPlan.labelRight, yy);
+          ctx.restore();
+        };
+
         /* ══ H-703 · LIVING PROFILE — THE HISTOGRAM ON THE CANVAS ══════════
            P-110's blueprint. The trader looks for a horizontal profile at the
            right side of the market canvas; every mockup that includes a
@@ -8531,31 +8603,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               it keeps its full solo geometry. Two histograms in one column
               read as one wrong shape — the Founder saw exactly that.
             */
-            const lanesTaken =
-              (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0) +
-              (ds.valueCandleRungs ? 1 : 0);
-            let rightEdge = W - 76;
-            let histMax = Math.min(160, Math.round(W * 0.16));
-            // A Composite lane will be drawn after this one: reserve the lane
-            // system now, or the two histograms share a column.
-            const compositeFollows =
-              layerOnRef.current.compositeProfile === true && compositeProfileRef.current?.drawn === true;
-            if (lanesTaken > 0 || compositeFollows) {
-              const axisW = (() => {
-                try {
-                  const w = chart.priceScale("right").width();
-                  if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
-                } catch {}
-                return 90;
-              })();
-              const lane = vpColumnLayout(W, axisW, lanesTaken, lanesTaken + 1 + (compositeFollows ? 1 : 0));
-              if (lane.fits) { rightEdge = lane.right; histMax = lane.width; }
-            }
-            const stacked = lanesTaken > 0 || compositeFollows;
-            ds.livingProfileLane = String(lanesTaken);
+            const livingLane = stackPlan.lanes.LIVING ?? soloLane(W);
+            const rightEdge = livingLane.right;
+            const histMax = livingLane.width;
+            const stacked = stackPlan.stacked;
+            ds.livingProfileLane = String(stackOrder.indexOf("LIVING"));
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
             ds.livingProfileLaneRight = String(Math.round(rightEdge));
-            ds.profileStackLeft = String(Math.round(rightEdge - histMax));
 
             /*
               VALUE-AREA BAND — across the entire pane, not just the histogram.
@@ -8722,23 +8776,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Stacked: the lane to the right belongs to another profile, so
               // the labels sit on the LEFT of this histogram instead.
               if (stacked) {
-                // With a Composite lane following, step past it too: the
-                // labels belong left of the whole stack, not on its bars.
-                const skip = compositeFollows ? histMax + 12 : 0;
-                ctx.textAlign = "right";
-                ctx.fillText(text, rightEdge - histMax - 8 - skip, +yr);
-                ctx.textAlign = "left";
-                labelYs.push(+yr);
+                // Stacked: labels go to the ONE column left of the whole stack.
+                stackLabel(+yr, text, ink);
               } else {
                 ctx.fillText(text, rightEdge + 4, +yr);
               }
             };
             const tag = stacked ? "LIVING " : "";
-            const labelYs: number[] = [];
             if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, "rgba(201,165,92,0.95)");
             if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
             if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
-            ds.livingProfileLabelYs = labelYs.map(v => Math.round(v)).join(",");
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
@@ -8809,8 +8856,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lp.nodesWithheld) ds.livingProfileNodesWithheld = lp.nodesWithheld;
             else delete ds.livingProfileNodesWithheld;
           } else {
-            delete ds.livingProfileLabelYs;
-            delete ds.profileStackLeft;
             delete ds.livingProfileLane;
             delete ds.livingProfileLaneLeft;
             delete ds.livingProfileLaneRight;
@@ -8837,19 +8882,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.compositeProfile;
           ds.compositeProfile = on ? (cp ? cp.reason : "NO_READING") : "OFF";
           if (on && cp?.drawn) {
-            const lanesTaken =
-              (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0) +
-              (ds.valueCandleRungs ? 1 : 0) + (ds.livingProfileLane != null ? 1 : 0);
-            const axisW = (() => {
-              try {
-                const w = chart.priceScale("right").width();
-                if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
-              } catch {}
-              return 90;
-            })();
-            const lane = lanesTaken === 0
-              ? { right: W - 76, width: Math.min(140, Math.round(W * 0.14)), fits: true }
-              : vpColumnLayout(W, axisW, lanesTaken, lanesTaken + 1);
+            const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
               ctx.save();
               const right = lane.right;
@@ -8881,18 +8914,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               ctx.textAlign = "right";
               ctx.textBaseline = "middle";
-              // Living's labels already printed this frame; a Composite label
-              // that would land on one steps down a line instead of overprinting.
-              const taken = (ds.livingProfileLabelYs ?? "").split(",").filter(Boolean).map(Number);
               const lab = (price: number | null, text: string, ink: string) => {
                 if (price == null) return;
                 const yr = srs.priceToCoordinate(price);
                 if (yr == null) return;
-                let y = +yr;
-                while (taken.some(t => Math.abs(t - y) < 11)) y += 11;
-                taken.push(y);
+                if (stackPlan.stacked) { stackLabel(+yr, text, ink); return; }
                 ctx.fillStyle = ink;
-                ctx.fillText(text, right - width - 8, y);
+                ctx.fillText(text, right - width - 8, +yr);
               };
               lab(cp.poc, `CMP POC ${cp.poc?.toFixed(2)}`, "rgba(201,165,92,0.95)");
               lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(2)}`, "rgba(184,190,196,0.85)");
@@ -8901,7 +8929,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED`;
                 const tw = Math.ceil(ctx.measureText(text).width) + 8;
                 const tx = Math.max(4, right - tw);
-                const ty = Math.max(40, top - 10);
+                // Stack headers own fixed rows under the top chrome: they can
+                // never cover each other, whatever the profiles' price range.
+                const ty = 50;
                 ctx.fillStyle = "rgba(11,10,8,0.85)";
                 ctx.fillRect(tx, ty - 7, tw, 14);
                 ctx.textAlign = "left";
@@ -8911,7 +8941,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.restore();
               ds.compositeProfileRows = String(drawn);
               ds.compositeProfileSessions = String(cp.sessions);
-              ds.profileStackLeft = String(Math.round(right - width));
             } else {
               ds.compositeProfile = "NO_ROOM";
               delete ds.compositeProfileRows;
@@ -8920,6 +8949,82 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           } else {
             delete ds.compositeProfileRows;
             delete ds.compositeProfileSessions;
+          }
+        }
+
+        /* ══ P-110 #7 · VISIBLE RANGE PROFILE — THE BARS IN VIEW ══════════
+           Its lane comes from the stack plan like every other. Drawn with an
+           outline-only POC and hollow bars so it reads as "this camera", not
+           as another settled profile; the header says it moves with the view.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const lane = stackPlan.lanes.VISIBLE_RANGE;
+          if (vrpVM?.drawn && lane?.fits) {
+            ctx.save();
+            const right = lane.right;
+            const width = lane.width;
+            const ys: number[] = [];
+            for (const r of vrpVM.rows) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
+            let rowH = 2;
+            if (ys.length >= 2) {
+              const sorted = [...ys].sort((a, b) => a - b);
+              const gaps: number[] = [];
+              for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+              const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2;
+              rowH = Math.max(2, Math.min(10, Math.round(g)));
+            }
+            let drawn = 0;
+            let top = Infinity;
+            ctx.lineWidth = 1;
+            for (const r of vrpVM.rows) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) - Math.floor(rowH / 2);
+              const w = Math.max(1, Math.round(r.share * width));
+              const h = Math.max(1, rowH - 1);
+              ctx.fillStyle = r.isPoc ? "rgba(201,165,92,0.35)" : r.insideValueArea ? "rgba(237,230,211,0.14)" : "rgba(237,230,211,0.06)";
+              ctx.fillRect(right - w, y, w, h);
+              ctx.strokeStyle = r.isPoc ? "rgba(201,165,92,0.95)" : r.insideValueArea ? "rgba(237,230,211,0.55)" : "rgba(237,230,211,0.28)";
+              if (h >= 3) ctx.strokeRect(right - w + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
+              top = Math.min(top, y);
+              drawn++;
+            }
+            const lab = (price: number | null, text: string, ink: string) => {
+              if (price == null) return;
+              const yr = srs.priceToCoordinate(price);
+              if (yr == null) return;
+              if (stackPlan.stacked) { stackLabel(+yr, text, ink); return; }
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "right";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = ink;
+              ctx.fillText(text, right - width - 8, +yr);
+            };
+            lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(2)}`, "rgba(201,165,92,0.95)");
+            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(2)}`, "rgba(237,230,211,0.75)");
+            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(2)}`, "rgba(237,230,211,0.75)");
+            if (Number.isFinite(top)) {
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW`;
+              const tw = Math.ceil(ctx.measureText(text).width) + 8;
+              const tx = Math.max(4, right - tw);
+              const ty = 66;
+              ctx.fillStyle = "rgba(11,10,8,0.85)";
+              ctx.fillRect(tx, ty - 7, tw, 14);
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = "rgba(237,230,211,0.92)";
+              ctx.fillText(text, tx + 4, ty);
+            }
+            ctx.restore();
+            ds.visibleRangeProfileRows = String(drawn);
+            ds.visibleRangeProfileBars = String(vrpVM.barsInView);
+            ds.visibleRangeProfilePoc = String(vrpVM.poc);
+          } else {
+            if (vrpVM?.drawn && !lane?.fits) ds.visibleRangeProfile = "NO_ROOM";
+            delete ds.visibleRangeProfileRows;
+            delete ds.visibleRangeProfileBars;
+            delete ds.visibleRangeProfilePoc;
           }
         }
 

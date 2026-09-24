@@ -94,12 +94,16 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
   });
 
   it("joins the shared profile lane system instead of painting over the VP columns", () => {
-    expect(block).toMatch(/vpColumnLayout\(W, axisW, lanesTaken, lanesTaken \+ 1\)/);
-    expect(block).toMatch(/fixedVPActive \? 1 : 0\) \+ \(sessionVPActive \? 1 : 0\)/);
+    // Geometry comes from the ONE stack plan, which counts the VP columns.
+    expect(block).toMatch(/stackPlan\.lanes\.LIVING/);
+    expect(CHART).toMatch(/fixedLanes: \(fixedVPActive \? 1 : 0\) \+ \(sessionVPActive \? 1 : 0\)/);
   });
 
   it("caps the histogram width so it cannot eat the whole canvas", () => {
-    expect(block).toMatch(/histMax = Math\.min\(160,/);
+    // The cap moved to the one lane owner: solo geometry lives in soloLane.
+    expect(block).toMatch(/stackPlan\.lanes\.LIVING \?\? soloLane\(W\)/);
+    const plan = read("src/lib/marketData/viewModels/profileStackPlan.ts");
+    expect(plan).toMatch(/Math\.min\(160, Math\.round\(canvasWidth \* 0\.16\)\)/);
   });
 });
 

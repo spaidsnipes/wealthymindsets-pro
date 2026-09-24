@@ -1,0 +1,3 @@
+BEFORE {"vrp":"DRAWN","vrpBars":"122","vrpPoc":"236.7","lanes":"LIVING,COMPOSITE,VISIBLE_RANGE","living":"DRAWN","composite":"DRAWN"}
+AFTER  {"vrp":"DRAWN","vrpBars":"127","vrpPoc":"230.6","lanes":"LIVING,COMPOSITE,VISIBLE_RANGE","living":"DRAWN","composite":"DRAWN"}
+VRP MOVED WITH THE VIEW ✓

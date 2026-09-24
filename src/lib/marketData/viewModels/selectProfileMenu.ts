@@ -59,6 +59,7 @@ export type ProfileId =
   | "PROFILE_MEMORY"
   | "PROFILE_FUSION"
   | "COMPOSITE_PROFILE"
+  | "VISIBLE_RANGE_PROFILE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -419,6 +420,18 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectCompositeProfile.ts",
     levels: ["Composite POC", "Composite VAH", "Composite VAL"],
+  },
+  {
+    id: "VISIBLE_RANGE_PROFILE",
+    label: "Visible Range Profile",
+    /*
+      The one profile that is SUPPOSED to move on scroll: it describes the
+      bars in view. Fixed Range VP is the one that holds still.
+    */
+    what: "volume by price for exactly the bars in view — it moves when you scroll",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectVisibleRangeProfile.ts",
+    levels: ["VRP POC", "VRP VAH", "VRP VAL"],
   },
   {
     id: "MARKET_STRUCTURE",

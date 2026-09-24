@@ -748,6 +748,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [profileMemoryOn, setProfileMemoryOn] = useState<boolean>(() => lsGet("wm_ofProfileMemory", false) as boolean);
   const [profileFusionOn, setProfileFusionOn] = useState<boolean>(() => lsGet("wm_ofProfileFusion", false) as boolean);
   const [compositeProfileOn, setCompositeProfileOn] = useState<boolean>(() => lsGet("wm_ofCompositeProfile", false) as boolean);
+  const [visibleRangeProfileOn, setVisibleRangeProfileOn] = useState<boolean>(() => lsGet("wm_ofVisibleRangeProfile", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -981,6 +982,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofProfileMemory",    profileMemoryOn);
   usePersistOnChange("wm_ofProfileFusion",    profileFusionOn);
   usePersistOnChange("wm_ofCompositeProfile", compositeProfileOn);
+  usePersistOnChange("wm_ofVisibleRangeProfile", visibleRangeProfileOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2455,6 +2457,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.PROFILE_MEMORY !== undefined) setProfileMemoryOn(s.PROFILE_MEMORY);
       if (s.PROFILE_FUSION !== undefined) setProfileFusionOn(s.PROFILE_FUSION);
       if (s.COMPOSITE_PROFILE !== undefined) setCompositeProfileOn(s.COMPOSITE_PROFILE);
+      if (s.VISIBLE_RANGE_PROFILE !== undefined) setVisibleRangeProfileOn(s.VISIBLE_RANGE_PROFILE);
     },
     [],
   );
@@ -2493,6 +2496,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       PROFILE_MEMORY: profileMemoryOn,
       PROFILE_FUSION: profileFusionOn,
       COMPOSITE_PROFILE: compositeProfileOn,
+      VISIBLE_RANGE_PROFILE: visibleRangeProfileOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4140,6 +4144,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   PROFILE_MEMORY: profileMemoryOn,
                   PROFILE_FUSION: profileFusionOn,
                   COMPOSITE_PROFILE: compositeProfileOn,
+                  VISIBLE_RANGE_PROFILE: visibleRangeProfileOn,
                   MARKET_STRUCTURE: marketStructureOn,
                 }}
                 onToggle={(id) => {
@@ -4161,6 +4166,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "PROFILE_MEMORY") setProfileMemoryOn(v => !v);
                   else if (id === "PROFILE_FUSION") setProfileFusionOn(v => !v);
                   else if (id === "COMPOSITE_PROFILE") setCompositeProfileOn(v => !v);
+                  else if (id === "VISIBLE_RANGE_PROFILE") setVisibleRangeProfileOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4851,6 +4857,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       profileFusionOnChart={profileFusionOn}
                       compositeProfile={compositeProfileVM}
                       compositeProfileOnChart={compositeProfileOn}
+                      visibleRangeProfileOnChart={visibleRangeProfileOn}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off

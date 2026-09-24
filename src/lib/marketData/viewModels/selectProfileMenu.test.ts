@@ -48,6 +48,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "PROFILE_FUSION",
   // P-110 #9. Completed sessions aggregated — bars only.
   "COMPOSITE_PROFILE",
+  // P-110 #7. The bars in view — bars only; moves with the camera.
+  "VISIBLE_RANGE_PROFILE",
   "MARKET_STRUCTURE",
 ];
 
