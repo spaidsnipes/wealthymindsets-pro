@@ -260,6 +260,7 @@ import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingPr
 import selectMarketStructureGlass from "@/lib/marketData/viewModels/selectMarketStructureGlass";
 import selectTpoProfile from "@/lib/marketData/viewModels/selectTpoProfile";
 import selectStructureProfile from "@/lib/marketData/viewModels/selectStructureProfile";
+import selectProfileDna from "@/lib/marketData/viewModels/selectProfileDna";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -737,6 +738,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [tpoProfileOn, setTpoProfileOn] = useState<boolean>(() => lsGet("wm_ofTpoProfile", false) as boolean);
   // P-110 #2. OFF by default for the same reason.
   const [structureProfileOn, setStructureProfileOn] = useState<boolean>(() => lsGet("wm_ofStructureProfile", false) as boolean);
+  const [profileDnaOn, setProfileDnaOn] = useState<boolean>(() => lsGet("wm_ofProfileDna", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -965,6 +967,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofMarketStructure",  marketStructureOn);
   usePersistOnChange("wm_ofTpoProfile",       tpoProfileOn);
   usePersistOnChange("wm_ofStructureProfile", structureProfileOn);
+  usePersistOnChange("wm_ofProfileDna",       profileDnaOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1702,6 +1705,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [chartStructureVM, chartBars],
   );
 
+  /**
+   * P-110 #5 — PROFILE DNA. Reads the SAME `livingProfileVM` the histogram is
+   * drawn from, so the fingerprint cannot describe a different profile.
+   */
+  const profileDnaVM = React.useMemo(
+    () => livingProfileVM.measured
+      ? selectProfileDna({
+          curve: livingProfileVM.curve,
+          poc: livingProfileVM.poc,
+          vah: livingProfileVM.vah,
+          val: livingProfileVM.val,
+          bars: chartBars.length,
+          estimated: livingProfileVM.quality !== "trade-based",
+        })
+      : selectProfileDna(null),
+    [livingProfileVM, chartBars.length],
+  );
+
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2333,6 +2354,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.MARKET_STRUCTURE !== undefined) setMarketStructureOn(s.MARKET_STRUCTURE);
       if (s.TPO_PROFILE !== undefined) setTpoProfileOn(s.TPO_PROFILE);
       if (s.STRUCTURE_PROFILE !== undefined) setStructureProfileOn(s.STRUCTURE_PROFILE);
+      if (s.PROFILE_DNA !== undefined) setProfileDnaOn(s.PROFILE_DNA);
     },
     [],
   );
@@ -2366,6 +2388,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       LIVING_PROFILE: livingProfileOn,
       TPO_PROFILE: tpoProfileOn,
       STRUCTURE_PROFILE: structureProfileOn,
+      PROFILE_DNA: profileDnaOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4008,6 +4031,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   LIVING_PROFILE: livingProfileOn,
                   TPO_PROFILE: tpoProfileOn,
                   STRUCTURE_PROFILE: structureProfileOn,
+                  PROFILE_DNA: profileDnaOn,
                   MARKET_STRUCTURE: marketStructureOn,
                 }}
                 onToggle={(id) => {
@@ -4024,6 +4048,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "MARKET_STRUCTURE") setMarketStructureOn(v => !v);
                   else if (id === "TPO_PROFILE") setTpoProfileOn(v => !v);
                   else if (id === "STRUCTURE_PROFILE") setStructureProfileOn(v => !v);
+                  else if (id === "PROFILE_DNA") setProfileDnaOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4702,6 +4727,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       tpoProfileOnChart={tpoProfileOn}
                       structureProfile={structureProfileVM}
                       structureProfileOnChart={structureProfileOn}
+                      profileDna={profileDnaVM}
+                      profileDnaOnChart={profileDnaOn}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off

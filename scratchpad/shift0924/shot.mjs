@@ -16,7 +16,7 @@ const p = await ctx.newPage();
 await p.addInitScript(() => {
   try {
     localStorage.setItem("wm_ofTpoProfile", "true");
-    localStorage.setItem("wm_ofLivingProfile", "true"); localStorage.setItem("wm_ofStructureProfile", "true");
+    localStorage.setItem("wm_ofLivingProfile", "true"); localStorage.setItem("wm_ofStructureProfile", "true"); localStorage.setItem("wm_ofProfileDna", "true");
   } catch {}
 });
 const logs = [];

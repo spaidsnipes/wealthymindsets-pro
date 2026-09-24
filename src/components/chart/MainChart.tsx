@@ -193,6 +193,7 @@ import selectSemanticZoom from "@/lib/marketData/viewModels/selectSemanticZoom";
 import type { MarketStructureGlass } from "@/lib/marketData/viewModels/selectMarketStructureGlass";
 import type { TpoProfileVM } from "@/lib/marketData/viewModels/selectTpoProfile";
 import type { StructureProfileVM } from "@/lib/marketData/viewModels/selectStructureProfile";
+import type { ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -957,6 +958,8 @@ interface Props {
   tpoProfile?: TpoProfileVM | null;
   /** STRUCTURE PROFILE — P-110 #2, drawn FROM the anchoring swing bar. */
   structureProfile?: StructureProfileVM | null;
+  /** PROFILE DNA — P-110 #5, printed above the Living Profile it describes. */
+  profileDna?: ProfileDnaVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -979,6 +982,7 @@ interface Props {
   marketStructureOnChart?: boolean;
   tpoProfileOnChart?: boolean;
   structureProfileOnChart?: boolean;
+  profileDnaOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1271,6 +1275,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   tpoProfileOnChart = false,
   structureProfile = null,
   structureProfileOnChart = false,
+  profileDna = null,
+  profileDnaOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1414,6 +1420,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const structureProfileRef = useRef<StructureProfileVM | null>(null);
   useEffect(() => { structureProfileRef.current = structureProfile ?? null; }, [structureProfile]);
 
+  const profileDnaRef = useRef<ProfileDnaVM | null>(null);
+  useEffect(() => { profileDnaRef.current = profileDna ?? null; }, [profileDna]);
+
   /**
    * DECISION_ID — one truth per camera. Read through a ref so the chrome
    * word can be painted inside the rAF without tearing the loop down every
@@ -1429,7 +1438,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1442,8 +1451,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       marketStructure: marketStructureOnChart,
       tpo: tpoProfileOnChart,
       structureProfile: structureProfileOnChart,
+      profileDna: profileDnaOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8652,11 +8662,52 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lp.untradedCount > 0) ds.livingProfileUntraded = String(lp.untradedCount);
             else delete ds.livingProfileUntraded;
             ds.livingProfileFidelity = lp.estimated ? "CANDLE_ESTIMATED" : "TRADE_BASED";
+
+            /*
+              P-110 #5 · PROFILE DNA — the fingerprint printed ABOVE the
+              histogram it describes (anchored at VAH), so shape, sample and
+              fidelity are read in the same glance as the profile. Only ever
+              drawn with the Living Profile: DNA of an unseen profile is a
+              card, and a card is not the invention.
+            */
+            {
+              const dna = profileDnaRef.current;
+              const dnaOn = layerOnRef.current.profileDna;
+              ds.profileDna = dnaOn ? (dna ? dna.reason : "NO_READING") : "OFF";
+              if (dnaOn && dna?.measured && lp.vah != null) {
+                const yv = srs.priceToCoordinate(lp.vah);
+                if (yv != null) {
+                  ctx.save();
+                  ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.textBaseline = "middle";
+                  const text = dna.strip;
+                  const w = Math.ceil(ctx.measureText(text).width) + 10;
+                  const x = Math.max(4, rightEdge - w);
+                  const y = Math.max(10, Math.round(+yv) - 16);
+                  ctx.fillStyle = "rgba(11,10,8,0.85)";
+                  ctx.fillRect(x, y - 8, w, 16);
+                  ctx.strokeStyle = "rgba(201,165,92,0.45)";
+                  ctx.lineWidth = 1;
+                  ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
+                  ctx.fillStyle = "rgba(237,230,211,0.92)";
+                  ctx.textAlign = "left";
+                  ctx.fillText(text, x + 5, y);
+                  ctx.restore();
+                  ds.profileDnaShape = dna.shape ?? "";
+                } else delete ds.profileDnaShape;
+              } else {
+                if (dnaOn && dna?.measured) ds.profileDna = "LIVING_PROFILE_NOT_DRAWN";
+                delete ds.profileDnaShape;
+              }
+            }
             if (lp.nodesWithheld) ds.livingProfileNodesWithheld = lp.nodesWithheld;
             else delete ds.livingProfileNodesWithheld;
           } else {
             delete ds.livingProfileFidelity;
             delete ds.livingProfileNodesWithheld;
+            // DNA describes the profile on the glass; with none drawn, it says so.
+            ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
+            delete ds.profileDnaShape;
             delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;

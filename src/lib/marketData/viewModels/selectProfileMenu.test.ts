@@ -38,6 +38,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "TPO_PROFILE",
   // P-110 #2. Volume since the last confirmed swing — bars only.
   "STRUCTURE_PROFILE",
+  // P-110 #5. Numbers about the Living Profile — bars only.
+  "PROFILE_DNA",
   "MARKET_STRUCTURE",
 ];
 

@@ -54,6 +54,7 @@ export type ProfileId =
   | "LIVING_PROFILE"
   | "TPO_PROFILE"
   | "STRUCTURE_PROFILE"
+  | "PROFILE_DNA"
   | "MARKET_STRUCTURE";
 
 /**
@@ -344,6 +345,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectStructureProfile.ts",
     levels: ["Leg POC", "Leg VAH", "Leg VAL", "Anchor swing"],
+  },
+  {
+    id: "PROFILE_DNA",
+    label: "Profile DNA",
+    /*
+      Describes the Living Profile's SHAPE in stated numbers, printed on the
+      glass above the histogram it describes. Description, never prophecy.
+    */
+    what: "the Living Profile's shape and sample, printed above it — never a forecast",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectProfileDna.ts",
+    // A ratio has no price. The only coordinate is the Living Profile's VAH,
+    // which it borrows as an anchor for the strip.
+    levels: ["Anchored to the Living Profile's VAH"],
   },
   {
     id: "MARKET_STRUCTURE",
