@@ -75,6 +75,7 @@ Playwright and feeds labelled fixture prints through the real parser.
 | H-701B Click bubble → Inspect | any bubble | Delta bubbles now clickable; SELECTED DELTA ZONE (net, anchor — never "executed"/"at"); both kinds show "#rank of N retained · median" | `272ada5` |
 | Lane width | Arrange the stack › W | 100 / 70 / 45 % of the lane's own width — never wider, so never overlapping | (this commit) |
 | Lane lock | Arrange the stack › LOCK | A locked lane keeps its switch against presets, desks and Restore | (this commit) |
+| H-801 envelope in Inspect | Inspect ticket | Open, typical reach up/down, and per side "k of N sessions went this far" (+ outside) | (this commit) |
 | H-201 analogue in Inspect | Inspect ticket | Sample window, fit r, mismatch, candidates; or why none | `4cd8e4f` |
 
 Refused on purpose: size, equity risk and fill on H-1001 (the chart holds no account and executes

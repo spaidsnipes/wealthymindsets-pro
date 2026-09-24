@@ -23,6 +23,7 @@ import { RiskReceiptBar } from "./RiskReceiptBar";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
+import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
 import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, withoutLocked, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -1934,6 +1935,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const onMemoryGhost = useCallback((vm: MemoryGhostVM | null) => {
     const sig = (v: MemoryGhostVM | null) => (v ? `${v.reason}|${v.analogueStart}|${v.fit?.toFixed(3)}|${v.candidates}` : "");
     setMemoryGhostVM(prev => (sig(prev) === sig(vm) ? prev : vm));
+  }, []);
+  // H-801 — the envelope for Inspect; re-render only when a count changes.
+  const [envelopeVM, setEnvelopeVM] = useState<ExpectedEnvelopeVM | null>(null);
+  const onExpectedEnvelope = useCallback((vm: ExpectedEnvelopeVM | null) => {
+    const sig = (v: ExpectedEnvelopeVM | null) => (v ? `${v.reason}|${v.sessions}|${v.sessionStart}|${v.upper?.toFixed(4)}|${v.lower?.toFixed(4)}|${v.up?.matchedBy}|${v.down?.matchedBy}` : "");
+    setEnvelopeVM(prev => (sig(prev) === sig(vm) ? prev : vm));
   }, []);
   const riskVMRef = useRef<RiskOnPriceVM | null>(null);
   const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
@@ -5191,6 +5198,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onRiskOnPrice={onRiskOnPrice}
                       onContradiction={onContradiction}
                       onMemoryGhost={onMemoryGhost}
+                      onExpectedEnvelope={onExpectedEnvelope}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the
@@ -5229,6 +5237,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         selectedPrint={activeSelectedPrint}
                         contradiction={contradictionVM}
                         memoryGhost={memoryGhostVM}
+                        envelope={envelopeVM}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         profileSliceSymbol={symbol}

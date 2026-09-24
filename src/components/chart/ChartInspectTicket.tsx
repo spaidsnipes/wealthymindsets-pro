@@ -52,6 +52,7 @@ import React from "react";
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
+import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
@@ -106,6 +107,7 @@ export function ChartInspectTicket({
   selectedZone = null,
   contradiction = null,
   memoryGhost = null,
+  envelope = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -125,6 +127,8 @@ export function ChartInspectTicket({
   contradiction?: ContradictionVM | null;
   /** H-201 · "Analogue sample / mismatch belongs in Inspect." */
   memoryGhost?: MemoryGhostVM | null;
+  /** H-801 · the envelope and its surprise, as counts of this chart's sessions. */
+  envelope?: ExpectedEnvelopeVM | null;
 }) {
   if (!open) {
     return (
@@ -417,6 +421,22 @@ export function ChartInspectTicket({
           <Row key={row.id} row={row} />
         ))}
       </div>
+
+      {/* H-801 · where a typical session of THIS market reached — never a forecast. */}
+      {envelope && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-envelope={envelope.reason} style={{ color: "#C8C0AE" }}>
+          <div className="font-bold tracking-wide text-wm-gold">EXPECTED ENVELOPE · {envelope.drawn ? `${envelope.sessions} COMPLETED SESSIONS` : "NOT DRAWN"}</div>
+          {envelope.drawn && envelope.up && envelope.down && envelope.open != null ? (
+            <>
+              <div>Open {envelope.open.toFixed(2)} · typical reach {envelope.upper?.toFixed(2)} / {envelope.lower?.toFixed(2)} (median of each session&apos;s reach)</div>
+              <div>Up so far {envelope.up.reach.toFixed(2)} — {envelope.up.matchedBy} of {envelope.sessions} sessions went this far{envelope.up.outside ? " · outside" : ""}</div>
+              <div>Down so far {envelope.down.reach.toFixed(2)} — {envelope.down.matchedBy} of {envelope.sessions} sessions went this far{envelope.down.outside ? " · outside" : ""}</div>
+            </>
+          ) : (
+            <div>Needs 3 completed sessions on this chart ({envelope.sessions} loaded) — a count, not a guess.</div>
+          )}
+        </div>
+      )}
 
       {/* H-201 · the analogue behind the ghost: sample, fit, mismatch — or why none. */}
       {memoryGhost && (

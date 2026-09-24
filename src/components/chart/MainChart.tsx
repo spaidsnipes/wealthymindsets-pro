@@ -207,7 +207,7 @@ import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLe
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
-import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
@@ -1047,6 +1047,8 @@ interface Props {
   onContradiction?: (vm: ContradictionVM | null) => void;
   /** H-201 — the ghost's analogue sample / mismatch, handed up for Inspect. */
   onMemoryGhost?: (vm: MemoryGhostVM | null) => void;
+  /** H-801 — the envelope and its surprise counts, handed up for Inspect. */
+  onExpectedEnvelope?: (vm: ExpectedEnvelopeVM | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1373,6 +1375,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onRiskOnPrice,
   onContradiction,
   onMemoryGhost,
+  onExpectedEnvelope,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1571,6 +1574,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onRiskOnPriceRef = useRef<typeof onRiskOnPrice>(undefined);
   const onContradictionRef = useRef<typeof onContradiction>(undefined);
   const onMemoryGhostRef = useRef<typeof onMemoryGhost>(undefined);
+  const onExpectedEnvelopeRef = useRef<typeof onExpectedEnvelope>(undefined);
+  useEffect(() => { onExpectedEnvelopeRef.current = onExpectedEnvelope; }, [onExpectedEnvelope]);
   useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
   useEffect(() => { onContradictionRef.current = onContradiction; }, [onContradiction]);
   useEffect(() => { onRiskOnPriceRef.current = onRiskOnPrice; }, [onRiskOnPrice]);
@@ -9381,6 +9386,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.expectedEnvelope = env.drawn
             ? `UP:${env.up!.matchedBy}/${env.sessions}${env.up!.outside ? "!" : ""}|DN:${env.down!.matchedBy}/${env.sessions}${env.down!.outside ? "!" : ""}`
             : env.reason;
+          onExpectedEnvelopeRef.current?.(env);
           ctx.save();
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "middle";
@@ -9419,6 +9425,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         } else {
           ds.expectedEnvelope = "OFF";
+          onExpectedEnvelopeRef.current?.(null);
         }
 
         /* ══ H-401 · CONTRADICTION NOT AVERAGED — both truths paint ══════════
