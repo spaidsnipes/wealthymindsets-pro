@@ -88,6 +88,8 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_delta_levels",          // delta thresholds — device chart pref
   "wm_footprint",             // footprint config — device chart pref
   "wm_fp_enabled",            // footprint on/off — device chart pref
+  "wm_ofScaffolding",         // scaffolding lens depth — device chart pref (set by the Academy door)
+  "wm_absorptionAnatomy",     // absorption layer on/off — device chart pref (set by the Academy door)
   "wm_flow_opacity",          // orderflow opacity — device chart pref
   "wm_fixedVP",               // fixed VP config — device chart pref
   "wm_sessionVP",             // session VP config — device chart pref

@@ -9,6 +9,7 @@ import { shufflePick } from "@/lib/shufflePick";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import {
   Play, BookOpen, CheckCircle2, Lock, Star,
   ChevronRight, ChevronUp, Pencil,
@@ -847,7 +848,7 @@ export default function EducationPage() {
                   <li><span className="block font-bold text-wm-text">3 · Pro</span>Effort against result, geometry only</li>
                 </ol>
                 <Link
-                  href="/charts"
+                  href={INSTRUMENT_VIEW_ROUTE}
                   prefetch={false}
                   onClick={() => { try { localStorage.setItem("wm_ofScaffolding", JSON.stringify("FOUNDATION")); localStorage.setItem("wm_absorptionAnatomy", "true"); } catch { /* storage blocked — the chart opens without the lens */ } }}
                   className="mt-3 inline-flex min-h-9 items-center rounded border border-wm-border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold"
