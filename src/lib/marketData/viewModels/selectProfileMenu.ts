@@ -113,6 +113,26 @@ export type ProfileGesture = "TOGGLE" | "DRAW";
  */
 export type ProfileFamily = "PROFILE" | "ORDER_FLOW" | "READING";
 
+/**
+ * P-110 PROFILE ORGANISM — the blueprint's eleven types, in its own order.
+ * The Profiles door lists them numbered 1–11, then the family's other
+ * members (Value Candle, Value Migration, Anchored Range) unnumbered.
+ * #11 BID/ASK "two-sided market profile" is Delta + VP.
+ */
+export const P110_ORGANISM: Readonly<Partial<Record<ProfileId, number>>> = {
+  LIVING_PROFILE: 1,
+  STRUCTURE_PROFILE: 2,
+  PROFILE_FUSION: 3,
+  PROFILE_MEMORY: 4,
+  PROFILE_DNA: 5,
+  SESSION: 6,
+  VISIBLE_RANGE_PROFILE: 7,
+  FIXED_RANGE: 8,
+  COMPOSITE_PROFILE: 9,
+  TPO_PROFILE: 10,
+  DELTA_VP: 11,
+};
+
 export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   FIXED_RANGE: "PROFILE",
   SESSION: "PROFILE",
@@ -155,6 +175,8 @@ export interface ProfileMenuEntry {
   /** The named levels it publishes, so the menu never implies more than it has. */
   readonly levels: readonly string[];
   readonly active: boolean;
+  /** P-110 organism number (1–11), when this row is one of the eleven. */
+  readonly organism: number | null;
   readonly availability: ProfileAvailability;
   /** Why it is in that state, in a sentence the panel prints verbatim. */
   readonly availabilityNote: string;
@@ -230,7 +252,7 @@ export interface ProfileMenuVM {
  */
 type ProfileSpec = Omit<
   ProfileMenuEntry,
-  "active" | "availability" | "availabilityNote" | "gestureNote"
+  "active" | "availability" | "availabilityNote" | "gestureNote" | "organism"
 >;
 
 const CATALOGUE: readonly ProfileSpec[] = [
@@ -630,12 +652,18 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
 
     return {
       ...spec,
+      organism: P110_ORGANISM[spec.id] ?? null,
       gestureNote: GESTURE_NOTE[spec.gesture],
       active: input.active[spec.id] === true,
       availability,
       availabilityNote,
     };
   });
+
+  // The Profiles door reads in P-110 order: organisms 1–11, then the rest.
+  if (fams && fams.length === 1 && fams[0] === "PROFILE") {
+    entries.sort((a, b) => (a.organism ?? 99) - (b.organism ?? 99));
+  }
 
   const activeCount = entries.reduce((n, e) => (e.active ? n + 1 : n), 0);
   const readyCount = entries.reduce((n, e) => (e.availability === "READY" ? n + 1 : n), 0);

@@ -188,6 +188,16 @@ export function ProfilesMenu({
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
                       style={{ background: AVAILABILITY_DOT[entry.availability] }}
                     />
+                    {entry.organism != null && (
+                      <span
+                        className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border text-[8px] font-bold"
+                        style={{ borderColor: "rgba(201,165,92,0.55)", color: "#d4af37" }}
+                        title={`P-110 organism ${entry.organism}`}
+                        data-testid={`profile-organism-${entry.id}`}
+                      >
+                        {entry.organism}
+                      </span>
+                    )}
                     <span
                       className="min-w-0 truncate text-[11px] font-bold"
                       style={{ color: entry.active ? "#d4af37" : "#C9CCDA" }}

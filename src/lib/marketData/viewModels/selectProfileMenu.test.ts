@@ -448,3 +448,16 @@ describe("ONE DOOR PER FAMILY — tools are not smushed together (Founder, 2026-
     expect(selectProfileMenu({ ...base, active: {} }).summary).toBe("PROFILES");
   });
 });
+
+describe("P-110 — the Profiles door reads as the blueprint's eleven organisms", () => {
+  it("numbers 1–11 in blueprint order, the family's other members after", () => {
+    const e = selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {}, families: ["PROFILE"] }).entries;
+    const numbered = e.filter(x => x.organism != null);
+    expect(numbered.map(x => x.organism)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(numbered.map(x => x.id)).toEqual([
+      "LIVING_PROFILE", "STRUCTURE_PROFILE", "PROFILE_FUSION", "PROFILE_MEMORY", "PROFILE_DNA",
+      "SESSION", "VISIBLE_RANGE_PROFILE", "FIXED_RANGE", "COMPOSITE_PROFILE", "TPO_PROFILE", "DELTA_VP",
+    ]);
+    expect(e.slice(11).every(x => x.organism == null)).toBe(true);
+  });
+});
