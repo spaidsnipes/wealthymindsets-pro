@@ -58,6 +58,7 @@ const ALL_IDS: readonly ProfileId[] = [
   "QUESTION_LENS",
   "SCAFFOLDING",
   "ANATOMY_CARDS",
+  "MEMORY_GHOST",
   "MARKET_STRUCTURE",
 ];
 

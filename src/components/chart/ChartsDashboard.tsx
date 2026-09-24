@@ -756,6 +756,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [regimeLightingOn, setRegimeLightingOn] = useState<boolean>(() => lsGet("wm_ofRegimeLighting", false) as boolean);
   const [questionLensOn, setQuestionLensOn] = useState<boolean>(() => lsGet("wm_ofQuestionLens", false) as boolean);
   const [anatomyCardsOn, setAnatomyCardsOn] = useState<boolean>(() => lsGet("wm_ofAnatomyCards", false) as boolean);
+  const [memoryGhostOn, setMemoryGhostOn] = useState<boolean>(() => lsGet("wm_ofMemoryGhost", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -999,6 +1000,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofQuestionLens",     questionLensOn);
   usePersistOnChange("wm_ofScaffolding",      scaffoldingDepth);
   usePersistOnChange("wm_ofAnatomyCards",     anatomyCardsOn);
+  usePersistOnChange("wm_ofMemoryGhost",      memoryGhostOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2518,6 +2520,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   QUESTION_LENS: questionLensOn,
                   SCAFFOLDING: scaffoldingDepth !== "OFF",
                   ANATOMY_CARDS: anatomyCardsOn,
+                  MEMORY_GHOST: memoryGhostOn,
                   MARKET_STRUCTURE: marketStructureOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
@@ -2543,6 +2546,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "REGIME_LIGHTING") setRegimeLightingOn(v => !v);
                   else if (id === "QUESTION_LENS") setQuestionLensOn(v => !v);
                   else if (id === "ANATOMY_CARDS") setAnatomyCardsOn(v => !v);
+                  else if (id === "MEMORY_GHOST") setMemoryGhostOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -2688,6 +2692,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.REGIME_LIGHTING !== undefined) setRegimeLightingOn(s.REGIME_LIGHTING);
       if (s.QUESTION_LENS !== undefined) setQuestionLensOn(s.QUESTION_LENS);
       if (s.ANATOMY_CARDS !== undefined) setAnatomyCardsOn(s.ANATOMY_CARDS);
+      if (s.MEMORY_GHOST !== undefined) setMemoryGhostOn(s.MEMORY_GHOST);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -2733,6 +2738,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       QUESTION_LENS: questionLensOn,
       SCAFFOLDING: scaffoldingDepth !== "OFF",
       ANATOMY_CARDS: anatomyCardsOn,
+      MEMORY_GHOST: memoryGhostOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -5062,6 +5068,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       questionLensOnChart={questionLensOn}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
+                      memoryGhostOnChart={memoryGhostOn}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the

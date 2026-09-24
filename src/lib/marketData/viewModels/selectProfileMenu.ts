@@ -65,6 +65,7 @@ export type ProfileId =
   | "QUESTION_LENS"
   | "SCAFFOLDING"
   | "ANATOMY_CARDS"
+  | "MEMORY_GHOST"
   | "MARKET_STRUCTURE";
 
 /**
@@ -159,6 +160,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   REGIME_LIGHTING: "READING",
   QUESTION_LENS: "READING",
   SCAFFOLDING: "READING",
+  MEMORY_GHOST: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -583,6 +585,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectAnatomyCards.ts",
     levels: ["Newest absorption zone", "Newest push extreme"],
+  },
+  {
+    id: "MEMORY_GHOST",
+    label: "Memory Ghost",
+    /*
+      H-201 / F03. The earlier stretch of this chart that made the same shape,
+      laid faintly under the live bars it matched (opacity ≤ 0.18). A
+      comparison, never a forecast: nothing is drawn right of the newest bar.
+      A weak fit is silence with a reason.
+    */
+    what: "the earlier stretch that made this same shape, ghosted under the live bars — never projected forward",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectMemoryGhost.ts",
+    levels: ["No level of its own — a re-based path under the live bars"],
   },
   {
     id: "MARKET_STRUCTURE",

@@ -205,6 +205,7 @@ import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketD
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
+import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
@@ -1023,6 +1024,8 @@ interface Props {
   questionLensOnChart?: boolean;
   /** Absorption vs Exhaustion key-metric cards (MOCK 1). */
   anatomyCardsOnChart?: boolean;
+  /** H-201 Memory Ghost — prior analogue under the live bars. */
+  memoryGhostOnChart?: boolean;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1340,6 +1343,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   questionLensOnChart = false,
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
+  memoryGhostOnChart = false,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1540,7 +1544,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1562,8 +1566,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       regimeLighting: regimeLightingOnChart,
       questionLens: questionLensOnChart,
       anatomyCards: anatomyCardsOnChart,
+      memoryGhost: memoryGhostOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -9200,6 +9205,62 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillStyle = regimeLight.breaker ? "rgba(201,165,92,1)" : "rgba(200,204,218,0.9)";
           ctx.fillText(regimeLight.chip, x0 + 8, y0 + ph + 20);
           ctx.restore();
+        }
+
+        /* ══ H-201 · MEMORY GHOST — the market has made this shape before ═══
+           The earlier stretch of THESE bars whose % path best matches the
+           newest window, re-based and laid faintly under the live bars it
+           matched (≤ 0.18). Nothing right of the newest bar: a comparison, not
+           a forecast. Weak fit / short history → a named silence. */
+        if (layerOnRef.current.memoryGhost === true && srs) {
+          const ghostBars = (barsRef.current ?? []).map(b => ({ time: Number(b.time), close: Number(b.close) }));
+          ds.memoryGhostBars = String(ghostBars.length);
+          const ghost = selectMemoryGhost(ghostBars);
+          ds.memoryGhost = ghost.drawn ? `DRAWN:${ghost.fit!.toFixed(2)}` : ghost.reason;
+          const tsG = chart.timeScale();
+          ctx.save();
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          if (ghost.drawn) {
+            ctx.globalAlpha = ghost.opacity;
+            ctx.strokeStyle = "rgba(237,230,211,1)";
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            let started = false;
+            let lastXY: { x: number; y: number } | null = null;
+            for (const pt of ghost.points) {
+              const x = tsG.timeToCoordinate(pt.time as never);
+              const y = srs.priceToCoordinate(pt.price);
+              if (x == null || y == null) continue;
+              if (!started) { ctx.moveTo(+x, +y); started = true; } else ctx.lineTo(+x, +y);
+              lastXY = { x: +x, y: +y };
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 0.85;
+            if (lastXY) {
+              const when = new Date(ghost.analogueStart! * 1000).toISOString().slice(5, 16).replace("T", " ");
+              const t = `MEMORY · ${when} UTC · fit ${ghost.fit!.toFixed(2)} · off ${ghost.mismatchPct!.toFixed(2)}%`;
+              const tw = ctx.measureText(t).width;
+              const lx = Math.max(4, Math.min(lastXY.x - tw - 14, W - 90 - tw));
+              const ly = Math.max(12, lastXY.y - 16);
+              ctx.fillStyle = "rgba(11,10,8,0.85)";
+              ctx.fillRect(lx - 4, ly - 7, tw + 8, 14);
+              ctx.fillStyle = "rgba(237,230,211,0.9)";
+              ctx.fillText(t, lx, ly);
+            }
+          } else {
+            const t = ghost.reason === "INSUFFICIENT_HISTORY"
+              ? "MEMORY · not enough history on this chart for an analogue"
+              : `MEMORY · no earlier stretch fits this shape (${ghost.candidates} compared)`;
+            ctx.globalAlpha = 0.85;
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.fillText(t, 12, H - 72);
+          }
+          ctx.restore();
+        } else {
+          ds.memoryGhost = "OFF";
         }
 
         /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════
