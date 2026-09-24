@@ -2600,6 +2600,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           observedAggressorFlow={chartFlowSnap.hasFlow}
           onDisable={() => setFootprintEnabled(false)}
           onChange={onFootprintChange}
+          wrapNote
         />
       </div>
       <ProfilesMenu

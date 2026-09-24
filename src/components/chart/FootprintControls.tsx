@@ -502,7 +502,7 @@ const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
    lives in `orderFlowToolCapability` — not here, and not six times. */
 export function FootprintControls({
   active, enabled, onChange, onDisable, bigTradesOverlay = false,
-  tapeSource = null, observedAggressorFlow = false,
+  tapeSource = null, observedAggressorFlow = false, wrapNote = false,
 }: {
   active: FootprintType;
   enabled: boolean;
@@ -513,6 +513,11 @@ export function FootprintControls({
   tapeSource?: string | null;
   /** `selectAggressorFlow(...).hasFlow` — sided volume OBSERVED, not promised. */
   observedAggressorFlow?: boolean;
+  /**
+   * In a door with room to wrap (Tools › Order flow), print the whole reason.
+   * The 30px study row keeps its one truncated line.
+   */
+  wrapNote?: boolean;
 }) {
   const capabilityOf = (id: FootprintType, label: string) =>
     orderFlowToolCapability(id, label, { source: tapeSource, observedAggressorFlow });
@@ -593,7 +598,9 @@ export function FootprintControls({
           role="status"
           data-of-armed-state={armedCapability.state}
           title={armedCapability.reason}
-          className="ml-2 shrink-0 max-w-[30ch] truncate text-[10px] leading-tight text-amber-300/90"
+          className={wrapNote
+            ? "ml-2 basis-full whitespace-normal text-[10px] leading-snug text-amber-300/90"
+            : "ml-2 shrink-0 max-w-[30ch] truncate text-[10px] leading-tight text-amber-300/90"}
         >
           {armedCapability.state === "AWAITING_TAPE"
             ? "Nothing to draw yet — awaiting sided prints"
