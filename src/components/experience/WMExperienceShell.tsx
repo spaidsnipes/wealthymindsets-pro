@@ -511,7 +511,7 @@ function SanctuaryRoom({
            Everywhere else the doors stay in front of the trader, because
            everywhere else choosing where to go IS part of the job. See
            WMOperatingSystem's railDefaultOpen for the measurement. */
-        railDefaultOpen={!onInstrumentView}
+        railDefaultOpen={false}
         /* AND THE PHONE GETS THE SAME ANSWER, WHICH IS THE WHOLE POINT.
            `railDefaultOpen` alone only cleared the desk: at 390 the instrument
            view still carried a pinned five-door strip across the bottom of the
@@ -528,7 +528,11 @@ function SanctuaryRoom({
            collapsing it: on /charts the frame offers the two pieces of
            equipment that belong to this scene — Workspace and Tools — and no
            destination rail. Every other room keeps its rail unchanged. */
-        destinations={onInstrumentView ? "equipment" : "rail"}
+        /* ONE HOUSE (2026-09-24). Every other room now wears the SAME
+           doorways as HOME instead of the 21-place rail — the rail was the
+           second app the Founder kept walking into. Desktop only: the phone
+           answer below is Phase 2 and is deliberately left as it was. */
+        destinations={onInstrumentView ? "equipment" : "doors"}
         /* ── THE MARKET IS NOT A PICTURE, SO IT IS NOT MATTED ─────────────────
            C-101 spends the floor on the market: "charts 70% FLOOR AREA", with
            exactly two pieces of axis furniture — price on the RIGHT, time

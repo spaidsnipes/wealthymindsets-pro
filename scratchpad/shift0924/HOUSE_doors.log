@@ -1,0 +1,3 @@
+ROOMS door : Journal | Backtest | Scanner | Heatmaps
+HOUSE door : Academy | Lounge | WM TV | WM Radio | Creator | Partnerships | Shop | News | Profile
+MARKET door -> /charts

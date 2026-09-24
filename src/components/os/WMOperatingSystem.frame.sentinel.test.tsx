@@ -338,9 +338,11 @@ describe("the OS frame · doors are transitions, not document loads", () => {
 
   it("both door groups route through next/link", () => {
     expect(CODE).toContain('from "next/link"');
-    // Two `<Link` openings: the rail door and the phone-bar door. Pinned by
-    // count so deleting one and leaving the other passes nothing.
-    expect([...CODE.matchAll(/<Link[\s>]/g)]).toHaveLength(2);
+    // Three `<Link` openings: the rail door, the phone-bar door, and the
+    // Market doorway every non-market room carries home (2026-09-24, one
+    // house). Pinned by count so deleting one and leaving the others passes
+    // nothing.
+    expect([...CODE.matchAll(/<Link[\s>]/g)]).toHaveLength(3);
   });
 
   it("the doors do not silently take up prefetching as a side effect", () => {
@@ -348,7 +350,7 @@ describe("the OS frame · doors are transitions, not document loads", () => {
     // transition. Prefetching every room on viewport entry is a different
     // claim about network cost, and it was not measured. Both doors say so
     // explicitly rather than inheriting the default.
-    expect([...CODE.matchAll(/prefetch=\{false\}/g)]).toHaveLength(2);
+    expect([...CODE.matchAll(/prefetch=\{false\}/g)]).toHaveLength(3);
   });
 
   it("the active door still answers 'where am I' to a screen reader", () => {

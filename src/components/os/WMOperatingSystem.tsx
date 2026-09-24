@@ -65,6 +65,7 @@ import * as React from "react";
 // viewport entry is a different claim about network cost, unmeasured here, and
 // it does not belong in the same commit.
 import Link from "next/link";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 // Where the product's rooms are has ONE owner. Retyping them here is what made
 // this rail a second definition — see the note on OS_ROOMS below.
 import {
@@ -1103,7 +1104,17 @@ export interface WMOperatingSystemProps {
    * `"door"`, so the same answer holds at 390: the panel is the phone's
    * equipment sheet and no pinned strip is drawn.
    */
-  readonly destinations?: "rail" | "equipment";
+  /*
+   * `"doors"` — EVERY OTHER ROOM, ONE HOUSE. The Garden 10 lock: "KILL THE
+   * MALL. KEEP THE ROOMS. KEEP ONE COMPACT DOOR." Rooms off the market used
+   * to get `"rail"`: a permanent 21-place rail beside the room, so walking
+   * out of /charts dropped the trader into a second app. `"doors"` gives them
+   * the SAME masthead doorways as HOME (Rooms · Community) plus a Market
+   * doorway back to the camera, and no rail. Workspace and Tools are not
+   * offered: they arrange and equip the chart camera, and there is no camera
+   * here to arrange.
+   */
+  readonly destinations?: "rail" | "equipment" | "doors";
   /**
    * ── MATTING IS FOR PICTURES, NOT FOR INSTRUMENTS ──────────────────────────
    *
@@ -1173,7 +1184,10 @@ export function WMOperatingSystem({
   // Read once, named once. Six places below branch on it, and six
   // independently-typed string comparisons is how five of them agree and one
   // silently keeps drawing the mall.
-  const equipmentMode = destinations === "equipment";
+  const equipmentMode = destinations === "equipment" || destinations === "doors";
+  // A room off the market: the same doorways as HOME, without the camera's
+  // own equipment, plus the one door back to the camera.
+  const doorsOnly = destinations === "doors";
   // Which piece of equipment the trader has picked up. `null` — nothing — is
   // the only legal FIRST value on a market scene, and unlike `railOpen` it is
   // not seeded from a room's opinion: there is no opinion that justifies
@@ -1407,6 +1421,33 @@ export function WMOperatingSystem({
             className="wm-os-equipment-plates"
             style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}
           >
+            {doorsOnly && (
+              <Link
+                href={INSTRUMENT_VIEW_ROUTE}
+                prefetch={false}
+                data-testid="os-market-home"
+                className="wm-os-market-home"
+                title="Back to the market — HOME"
+                aria-label="Market"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 32,
+                  padding: "6px 9px",
+                  borderRadius: 3,
+                  border: `1px solid ${GOLD}`,
+                  background: "rgba(196,165,116,0.10)",
+                  color: GOLD,
+                  textDecoration: "none",
+                  ...EYEBROW,
+                  fontSize: 9,
+                  letterSpacing: 1.5,
+                }}
+              >
+                Market
+              </Link>
+            )}
             {(
               [
                 {
@@ -1466,7 +1507,7 @@ export function WMOperatingSystem({
                 </button>
               );
             })}
-            {(["workspace", "tools"] as const).map((kind) => {
+            {(["workspace", "tools"] as const).filter(() => !doorsOnly).map((kind) => {
               const open = scenePanel === kind;
               return (
                 <button

@@ -51,7 +51,12 @@ vi.mock("next/navigation", async (importOriginal) => ({
 
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import { WMOperatingSystem } from "@/components/os/WMOperatingSystem";
-import { phoneNavDestinations, WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
+import {
+  houseDoorDestinations,
+  marketHomeRooms,
+  phoneNavDestinations,
+  WM_DESTINATIONS,
+} from "@/lib/routing/wmDestinations";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 function renderShellAt(pathname: string | null): string {
@@ -178,37 +183,89 @@ describe("one OS · the access chrome is reachable from an OS room", () => {
   });
 });
 
-describe("one OS · every room has a door in the rail", () => {
+describe("one OS · every room wears ONE house (doors, not a rail)", () => {
   /**
-   * ── THE MEASURED DEFECT ─────────────────────────────────────────────
-   * The rail drew the seven ROOM destinations and stopped. The fourteen in
-   * TOOL and COMMUNITY — scanner, news, academy, lounge, shop, the trader's
-   * own profile — had NO door in an OS room. Not a broken link: no link.
+   * ── THE CONTRACT THIS REPLACES, AND WHY ──────────────────────────────
+   * This block used to assert that every room drew a permanent rail with a
+   * door for all 21 destinations. That rail is the "mall" the Garden 10 lock
+   * forbids restoring ("KILL THE MALL. KEEP THE ROOMS. KEEP ONE COMPACT
+   * DOOR."), and walking from /charts into any other room dropped the trader
+   * into it, which is the Founder's "three apps in one app".
    *
-   * And nothing in this suite went red while that was true, which is the
-   * whole reason this gate exists. It asserts against the OWNER's list, so
-   * a destination added to `wmDestinations` tomorrow and forgotten in the
-   * rail fails HERE rather than being discovered by a trader.
+   * The value the old gate protected is kept: NO DESTINATION MAY GO QUIETLY
+   * DOORLESS. Every destination is either behind a door (derived from the
+   * owner's own door lists, never retyped here) or on the explicit list
+   * below of destinations the current house plan gives no door. A
+   * destination added tomorrow that is in neither fails HERE.
    */
-  it("renders an href for every destination the owner declares", () => {
-    expect(WM_DESTINATIONS.length).toBeGreaterThanOrEqual(21); // vacuity guard
-    const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`href="${d.href}"`));
-    expect(missing.map((d) => `${d.label} → ${d.href}`)).toEqual([]);
+  const DOORLESS_BY_CANON: readonly string[] = [
+    // Opening Bell posture is context, "not a separate market HOME".
+    "/morning-prep",
+    // Legacy authority; the deck was mixing a second market into Workspace.
+    "/command-deck",
+    // Passport is Inspect: "No Passport app."
+    "/nectar",
+    // Execution venue; not in the canon Rooms list. Named for the Founder.
+    "/paper",
+    // Academy child, reachable from Academy.
+    "/proof-lane",
+    // Not in the canon Rooms or House lists. Named for the Founder.
+    "/copy-trading",
+    // "No AI copilot app owning truth."
+    "/ai-bot",
+  ];
+
+  it("a non-market room offers HOME's doorways and the way back — and no rail", () => {
+    expect(HTML).toContain('data-testid="os-market-home"');
+    expect(HTML).toContain('data-testid="os-market-rooms"');
+    expect(HTML).toContain('data-testid="os-market-community"');
+    expect(HTML).not.toContain('id="wm-os-rail"');
   });
 
-  it("names each door with the owner's label, not a second copy of it", () => {
-    // The drift this ends was real and measured: the same room was called
-    // "Chart" on one rail and "Charts" on the other.
-    //
-    // The matcher closes on `<` and not on `</a>` DELIBERATELY. A door may
-    // carry a chip after its label — /command-deck carries LEGACY since the
-    // M3 quarantine — and `>Command Deck</a>` went red for a rail that was
-    // drawing the label perfectly well. That failure was this gate reporting
-    // a MARKUP SHAPE, not the naming drift it exists to catch. `>Label<`
-    // still pins the label as the anchor's first text and still fails on
-    // "Chart" vs "Charts"; it simply stops caring what follows it.
-    const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`>${d.label}<`));
-    expect(missing.map((d) => d.label)).toEqual([]);
+  it("the camera's own equipment stays on the camera", () => {
+    // Workspace and Tools arrange and equip the chart; a room has no chart.
+    expect(HTML).not.toContain('data-testid="os-equipment-workspace"');
+    expect(INSTRUMENT_HTML).toContain('data-testid="os-equipment-workspace"');
+  });
+
+  it("NO DESTINATION IS QUIETLY DOORLESS", () => {
+    expect(WM_DESTINATIONS.length).toBeGreaterThanOrEqual(21); // vacuity guard
+    const behindADoor = new Set<string>([
+      INSTRUMENT_VIEW_ROUTE, // the Market doorway
+      ...marketHomeRooms().map((d) => d.href),
+      ...houseDoorDestinations().map((d) => d.href),
+    ]);
+    const orphans = WM_DESTINATIONS
+      .filter((d) => !behindADoor.has(d.href) && !DOORLESS_BY_CANON.includes(d.href))
+      .map((d) => `${d.label} → ${d.href}`);
+    expect(orphans).toEqual([]);
+  });
+
+  it("the doorless list names only real destinations (no stale exemptions)", () => {
+    const real = new Set(WM_DESTINATIONS.map((d) => d.href));
+    expect(DOORLESS_BY_CANON.filter((h) => !real.has(h))).toEqual([]);
+  });
+
+  it("the rail component itself still names each door with the owner's label", () => {
+    // `"rail"` survives as a frame mode; its naming guard survives with it.
+    const RAIL_HTML = renderToStaticMarkup(
+      <WMOperatingSystem
+        activeHref=""
+        surface="Room"
+        openEvidenceItems={null}
+        rightOfWay="UNKNOWN"
+        rightOfWayResolved={false}
+        feed={null}
+        destinations="rail"
+        railDefaultOpen
+      >
+        <div />
+      </WMOperatingSystem>,
+    );
+    const missingHref = WM_DESTINATIONS.filter((d) => !RAIL_HTML.includes(`href="${d.href}"`));
+    expect(missingHref.map((d) => `${d.label} → ${d.href}`)).toEqual([]);
+    const missingLabel = WM_DESTINATIONS.filter((d) => !RAIL_HTML.includes(`>${d.label}<`));
+    expect(missingLabel.map((d) => d.label)).toEqual([]);
   });
 });
 

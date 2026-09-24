@@ -1,0 +1,12 @@
+/charts         {"path":"/charts","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":[]}
+/command-deck   {"path":"/command-deck","shell":"?","goldParagraphs":0,"longParagraphs":1,"headings":["What is the market actually doing right now?","Decision Receipt"]}
+/heatmaps       {"path":"/heatmaps","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":[]}
+/scanner        {"path":"/scanner","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Scanner"]}
+/journal        {"path":"/journal","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Trade Journal"]}
+/backtesting    {"path":"/backtesting","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Backtesting Engine"]}
+/news           {"path":"/news","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Market Intelligence"]}
+/lounge         {"path":"/lounge","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Lounge is not configured on this runtime"]}
+/education      {"path":"/education","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Education"]}
+/radio          {"path":"/radio","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["This page couldn’t load"]}
+/paper          {"path":"/paper","shell":"?","goldParagraphs":0,"longParagraphs":3,"headings":["Paper Trading","Academy Challenge rehearsal"]}
+/morning-prep   {"path":"/morning-prep","shell":"?","goldParagraphs":0,"longParagraphs":0,"headings":["Morning Prep","How are you growing?"]}
