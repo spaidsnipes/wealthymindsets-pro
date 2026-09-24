@@ -8049,59 +8049,89 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, W - 76 - x0, Math.round(h));
                   }
                 }
-                // Banner: ACTIVE QUESTION · focus · noise quieted.
-                ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
-                const q = `“${lens.question}”`;
-                const qW = ctx.measureText(q).width;
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-                const sub = `QUESTION FOCUS · ${lens.focus} · SECONDARY NOISE · QUIETED`;
-                const sW = ctx.measureText(sub).width;
-                const bw = Math.max(qW, sW) + 28;
-                const bx = Math.round(W / 2 - bw / 2);
-                const by = 132;
-                ctx.fillStyle = "rgba(11,10,8,0.9)";
-                ctx.fillRect(bx, by, bw, 46);
-                ctx.strokeStyle = "rgba(201,165,92,0.85)";
-                ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 45);
-                ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                ctx.fillStyle = "rgba(201,165,92,0.85)";
-                ctx.fillText("ACTIVE QUESTION", bx + 14, by + 10);
-                ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillStyle = "rgba(240,190,70,1)";
-                ctx.fillText(q, bx + 14, by + 24);
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillStyle = "rgba(237,230,211,0.8)";
-                ctx.fillText(sub, bx + 14, by + 38);
-                // Evidence debt column: what this question is still owed.
-                const lx = 12;
-                let ly = 188;
-                const colW = 250;
-                const rows = lens.debt.length;
-                ctx.fillStyle = "rgba(11,10,8,0.88)";
-                ctx.fillRect(lx, ly - 12, colW, 34 + rows * 26 + 34);
-                ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.75)" : "rgba(201,165,92,0.75)";
-                ctx.strokeRect(lx + 0.5, ly - 11.5, colW - 1, 33 + rows * 26 + 34);
-                ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillStyle = "rgba(237,230,211,0.95)";
-                ctx.fillText(`EVIDENCE DEBT · THIS QUESTION · ${lens.openDebt} OPEN`, lx + 10, ly);
-                ly += 22;
-                for (const d of lens.debt) {
-                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-                  ctx.fillStyle = d.paid ? "rgba(201,165,92,1)" : "rgba(255,150,150,1)";
-                  ctx.fillText(`${d.paid ? "PAID" : "MISSING"} · ${d.label}`, lx + 10, ly);
-                  ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
-                  ctx.fillStyle = "rgba(200,192,174,0.85)";
-                  const ev = d.evidence.length > 52 ? d.evidence.slice(0, 51) + "…" : d.evidence;
-                  ctx.fillText(ev, lx + 10, ly + 11);
-                  ly += 26;
+                // THE PLATE'S TOP STRIP — ACTIVE QUESTION | QUESTION FOCUS |
+                // SECONDARY NOISE · QUIETED, across the camera.
+                {
+                  const bx = 12, by = 100, bh = 52;
+                  const bw = Math.min(W - 100, 900);
+                  ctx.fillStyle = "rgba(11,10,8,0.94)";
+                  ctx.fillRect(bx, by, bw, bh);
+                  ctx.strokeStyle = "rgba(201,165,92,0.75)"; ctx.lineWidth = 1;
+                  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+                  const c1 = Math.round(bw * 0.58), c2 = Math.round(bw * 0.24);
+                  ctx.strokeStyle = "rgba(201,165,92,0.3)";
+                  for (const cx of [bx + c1, bx + c1 + c2]) { ctx.beginPath(); ctx.moveTo(cx + 0.5, by + 8); ctx.lineTo(cx + 0.5, by + bh - 8); ctx.stroke(); }
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  const cell = (x: number, w: number, head: string, body: string, bodyPx: number, bodyColor: string) => {
+                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.fillStyle = "rgba(201,165,92,0.9)";
+                    ctx.fillText(head, x + 14, by + 15);
+                    ctx.font = `600 ${bodyPx}px ui-sans-serif, system-ui, sans-serif`;
+                    let t = body;
+                    while (t.length > 4 && ctx.measureText(t).width > w - 24) t = t.slice(0, -2);
+                    if (t !== body) t = t.slice(0, -1) + "…";
+                    ctx.fillStyle = bodyColor;
+                    ctx.fillText(t, x + 14, by + 35);
+                  };
+                  cell(bx, c1, "ACTIVE QUESTION", `“${lens.question}”`, 15, "rgba(247,241,223,1)");
+                  cell(bx + c1, c2, "QUESTION FOCUS", lens.focus ?? "", 11, "rgba(237,230,211,0.95)");
+                  cell(bx + c1 + c2, bw - c1 - c2, "SECONDARY NOISE", "Quieted", 11, "rgba(237,230,211,0.95)");
                 }
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
-                ctx.fillText(lens.posture ?? "", lx + 10, ly + 2);
-                if (lens.nextQuestion) {
-                  ctx.fillStyle = "rgba(200,192,174,0.85)";
-                  ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
-                  ctx.fillText(`NEXT QUESTION → ${lens.nextQuestion}`, lx + 10, ly + 16);
+                // EVIDENCE DEBT CARD — the plate's gauge: paid of owed, as a
+                // ring; then each item, PAID or MISSING, with its measured fact.
+                {
+                  const lx = 12, top = 164, colW = 300;
+                  const rows = lens.debt.length;
+                  const ch = 70 + rows * 30 + 38;
+                  ctx.fillStyle = "rgba(11,10,8,0.94)";
+                  ctx.fillRect(lx, top, colW, ch);
+                  ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.75)" : "rgba(201,165,92,0.75)";
+                  ctx.strokeRect(lx + 0.5, top + 0.5, colW - 1, ch - 1);
+                  // Ring: one arc per item — filled gold when paid, crimson outline when owed.
+                  const rcx = lx + 36, rcy = top + 36, rr = 22;
+                  const seg = (Math.PI * 2) / Math.max(1, rows);
+                  lens.debt.forEach((d, i) => {
+                    ctx.beginPath();
+                    ctx.arc(rcx, rcy, rr, -Math.PI / 2 + i * seg + 0.08, -Math.PI / 2 + (i + 1) * seg - 0.08);
+                    ctx.lineWidth = 5;
+                    ctx.strokeStyle = d.paid ? "rgba(240,190,70,1)" : "rgba(226,92,92,0.9)";
+                    ctx.stroke();
+                  });
+                  ctx.lineWidth = 1;
+                  ctx.textAlign = "center";
+                  ctx.font = "800 13px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = "rgba(247,241,223,1)";
+                  ctx.fillText(`${rows - lens.openDebt}/${rows}`, rcx, rcy);
+                  ctx.textAlign = "left";
+                  ctx.font = "800 12px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = "rgba(247,241,223,1)";
+                  ctx.fillText("EVIDENCE DEBT", lx + 70, top + 22);
+                  ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
+                  ctx.fillText(lens.openDebt > 0 ? `${lens.openDebt} OPEN ITEM${lens.openDebt > 1 ? "S" : ""} · THIS QUESTION` : "PAID · THIS QUESTION", lx + 70, top + 40);
+                  let ly = top + 76;
+                  for (const d of lens.debt) {
+                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.fillStyle = d.paid ? "rgba(201,165,92,1)" : "rgba(255,150,150,1)";
+                    ctx.fillText(`${d.paid ? "PAID" : "MISSING"} · ${d.label}`, lx + 12, ly);
+                    ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif";
+                    ctx.fillStyle = "rgba(200,192,174,0.85)";
+                    let ev = d.evidence;
+                    while (ev.length > 4 && ctx.measureText(ev).width > colW - 24) ev = ev.slice(0, -2);
+                    if (ev !== d.evidence) ev = ev.slice(0, -1) + "…";
+                    ctx.fillText(ev, lx + 12, ly + 12);
+                    ly += 30;
+                  }
+                  ctx.strokeStyle = "rgba(201,165,92,0.25)";
+                  ctx.beginPath(); ctx.moveTo(lx + 10, ly - 6.5); ctx.lineTo(lx + colW - 10, ly - 6.5); ctx.stroke();
+                  ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
+                  ctx.fillText(lens.posture ?? "", lx + 12, ly + 6);
+                  if (lens.nextQuestion) {
+                    ctx.fillStyle = "rgba(200,192,174,0.85)";
+                    ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif";
+                    ctx.fillText(`NEXT QUESTION → ${lens.nextQuestion}`, lx + 12, ly + 20);
+                  }
                 }
                 ctx.restore();
               }
@@ -8157,7 +8187,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillText(t, W - 84 - tw - 4, +y);
                 }
 
-                const x0 = layerOnRef.current.questionLens === true && questionQuiet < 1 ? 272 : 12;
+                const x0 = layerOnRef.current.questionLens === true && questionQuiet < 1 ? 322 : 12;
                 const y0 = 176;
                 // The removal path: where this depth sits.
                 ctx.font = font(700, 9);
