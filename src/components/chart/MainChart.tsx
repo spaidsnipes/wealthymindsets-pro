@@ -995,6 +995,12 @@ interface Props {
     readonly object: MarketObject;
     readonly birthTime: number;
   }[];
+  /**
+   * The active DECISION_ID, when the room holds one. Printed in the chrome so
+   * a trader looking at the chart always knows the identity every layer is
+   * bound to. Canon: "One market. One camera. One truth. One Decision_ID."
+   */
+  activeDecisionId?: string | null;
   selectedMarketObjectId?: string | null;
   onSelectMarketObject?: (objectId: string) => void;
   selectedMarketObjectWait?: WaitStandingVM | null;
@@ -1255,6 +1261,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   showFidelityChrome = true,
   marketStanding = null,
   marketObjectTargets = [],
+  activeDecisionId = null,
   selectedMarketObjectId = null,
   onSelectMarketObject,
   selectedMarketObjectWait = null,
@@ -1384,6 +1391,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
   useEffect(() => { marketStructureRef.current = marketStructureGlass ?? null; }, [marketStructureGlass]);
+
+  /**
+   * DECISION_ID — one truth per camera. Read through a ref so the chrome
+   * word can be painted inside the rAF without tearing the loop down every
+   * time the identity string changes.
+   */
+  const activeDecisionIdRef = useRef<string | null>(null);
+  useEffect(() => { activeDecisionIdRef.current = activeDecisionId ?? null; }, [activeDecisionId]);
 
   /*
     The four switches, read the same way as the readings they gate. They change
@@ -8710,8 +8725,27 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(zoom.tag, rightX, 6);
             ctx.fillStyle = "rgba(138,130,113,0.85)";
             ctx.fillText(`${zoom.visibleBarCount} bars`, rightX, 18);
+
+            /*
+              DECISION_ID CHROME — one identity per camera. Canon:
+              "One market. One camera. One truth. One Decision_ID."
+              Printed under the semantic-zoom tag so a trader reading FAR /
+              MID / NEAR sees which identity every layer is bound to.
+            */
+            const did = activeDecisionIdRef.current;
+            if (did && did.length > 0) {
+              // Truncate to a readable prefix so a v4 UUID does not eat
+              // the whole line.
+              const short = did.length > 20 ? `${did.slice(0, 20)}…` : did;
+              ctx.fillStyle = "rgba(194,184,146,0.75)";
+              ctx.fillText(`DECISION_ID`, rightX, 32);
+              ctx.fillStyle = "rgba(237,230,211,0.85)";
+              ctx.fillText(short, rightX, 44);
+            }
             ctx.restore();
           }
+          if (activeDecisionIdRef.current) ds.activeDecisionId = activeDecisionIdRef.current;
+          else delete ds.activeDecisionId;
         }
 
         /* ── P-601 HEAT LENS: THE SECOND EXCEPTION, AND WHY IT IS ONE ──────

@@ -4572,6 +4572,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onSelectBigTrade={print => { setSelectedPrint(print); setInspectOpen(true); }}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
+                      activeDecisionId={currentSceneDecision?.decisionId ?? null}
                       onSelectMarketObject={setSelectedMarketObjectId}
                       selectedMarketObjectWait={selectedMarketObjectWait}
                       marketStanding={marketStanding}
