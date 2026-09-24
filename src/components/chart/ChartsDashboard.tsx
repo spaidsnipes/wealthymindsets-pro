@@ -18,6 +18,7 @@ import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { MyStackBar } from "./MyStackBar";
+import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
@@ -4448,6 +4449,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 */
                 onApply={applyArrangementSwitches}
               />
+              <ProfilePresetBar active={profileMenuActive} onApply={applyArrangementSwitches} />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
