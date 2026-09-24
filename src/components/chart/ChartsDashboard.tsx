@@ -25,7 +25,7 @@ import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradi
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
-import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
+import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, withoutLocked, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot } from "./orderFlowToolsSlot";
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
@@ -2844,9 +2844,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     },
   });
 
+  // Locked profile lanes hold their switch against desks, presets and Restore.
+  const applyRespectingLocks = (s: Readonly<Partial<Record<ProfileId, boolean>>>) =>
+    applyArrangementSwitches(withoutLocked(s, profileStackPrefs));
   const arrangementDeskRef = useRef<(id: ArrangementId) => void>(() => {});
   arrangementDeskRef.current = (id: ArrangementId) =>
-    applyArrangementSwitches(arrangementSwitches(id, arrangementMenu));
+    applyRespectingLocks(arrangementSwitches(id, arrangementMenu));
 
   /*
     WHERE THE TRADER IS SITTING, PUBLISHED — NOT REMEMBERED.
@@ -4461,9 +4464,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   `applyArrangementSwitches` above, because the Workspace rail
                   grew a door to the same three desks. One setter, two doors.
                 */
-                onApply={applyArrangementSwitches}
+                onApply={applyRespectingLocks}
               />
-              <ProfilePresetBar active={profileMenuActive} onApply={applyArrangementSwitches} />
+              <ProfilePresetBar active={profileMenuActive} onApply={applyRespectingLocks} />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
@@ -4473,7 +4476,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
               />
-              <MyStackBar active={profileMenuActive} onRestore={applyArrangementSwitches} />
+              <MyStackBar active={profileMenuActive} onRestore={applyRespectingLocks} />
               <StackArrangeBar prefs={profileStackPrefs} onChange={onStackPrefsChange} />
               {/* READING LENSES — structure, regime lighting, the question lens and
                   scaffolding re-read the SAME camera; they are not profiles and do

@@ -29,3 +29,16 @@ describe("P-110 stack preferences — reorder and opacity, never geometry", () =
     expect(parseStackPrefs(JSON.stringify({ order: ["BOGUS", "COMPOSITE"] })).order).toEqual(["COMPOSITE", "LIVING", "VISIBLE_RANGE"]);
   });
 });
+
+describe("H-601A · lane lock", () => {
+  it("a locked lane's switch is removed from any preset / desk / restore set", async () => {
+    const { toggleLock, withoutLocked, isLocked, parseStackPrefs, DEFAULT_STACK_PREFS } = await import("./profileStackPrefs");
+    const locked = toggleLock(DEFAULT_STACK_PREFS, "LIVING");
+    expect(isLocked("LIVING", locked)).toBe(true);
+    const sent = withoutLocked({ LIVING_PROFILE: false, SESSION: true, COMPOSITE_PROFILE: true }, locked);
+    expect(sent).toEqual({ SESSION: true, COMPOSITE_PROFILE: true });
+    expect(isLocked("LIVING", toggleLock(locked, "LIVING"))).toBe(false);
+    // Survives storage; unknown lanes are dropped.
+    expect(parseStackPrefs(JSON.stringify({ ...locked, locked: ["LIVING", "BOGUS"] })).locked).toEqual(["LIVING"]);
+  });
+});

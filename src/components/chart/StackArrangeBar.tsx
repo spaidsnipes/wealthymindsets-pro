@@ -7,7 +7,7 @@
 import React from "react";
 import type { StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import {
-  STACK_LABEL, STACK_SPECIES, cycleOpacity, moveSpecies, orderStack, stackOpacity, type ProfileStackPrefs,
+  STACK_LABEL, STACK_SPECIES, cycleOpacity, isLocked, moveSpecies, orderStack, stackOpacity, toggleLock, type ProfileStackPrefs,
 } from "@/lib/marketData/viewModels/profileStackPrefs";
 
 export function StackArrangeBar({ prefs, onChange }: { prefs: ProfileStackPrefs; onChange: (p: ProfileStackPrefs) => void }) {
@@ -31,6 +31,14 @@ export function StackArrangeBar({ prefs, onChange }: { prefs: ProfileStackPrefs;
               onClick={() => onChange(cycleOpacity(prefs, sp))}
               className="min-h-7 min-w-12 rounded border border-wm-border px-1 text-[10px] font-semibold text-wm-text">
               {Math.round(stackOpacity(sp, prefs) * 100)}%
+            </button>
+            <button type="button" aria-pressed={isLocked(sp, prefs)} data-testid={`stack-lock-${sp}`}
+              aria-label={`${isLocked(sp, prefs) ? "Unlock" : "Lock"} ${STACK_LABEL[sp]} — presets and desks leave a locked lane as it is`}
+              title="Locked: presets, desks and Restore leave this lane as it is"
+              onClick={() => onChange(toggleLock(prefs, sp))}
+              className="min-h-7 min-w-12 rounded border px-1 text-[10px] font-semibold"
+              style={{ borderColor: isLocked(sp, prefs) ? "rgba(212,175,55,0.8)" : undefined, color: isLocked(sp, prefs) ? "#d4af37" : undefined }}>
+              {isLocked(sp, prefs) ? "LOCKED" : "LOCK"}
             </button>
           </span>
         </div>

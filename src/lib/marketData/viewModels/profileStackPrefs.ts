@@ -12,6 +12,7 @@
  */
 
 import type { StackSpecies } from "./profileStackPlan";
+import type { ProfileId } from "./selectProfileMenu";
 
 export const STACK_PREFS_STORAGE_KEY = "wm_ofStackPrefs";
 export const STACK_SPECIES: readonly StackSpecies[] = ["LIVING", "COMPOSITE", "VISIBLE_RANGE"];
@@ -27,9 +28,38 @@ export interface ProfileStackPrefs {
   /** Innermost (rightmost) first. */
   readonly order: readonly StackSpecies[];
   readonly opacity: Readonly<Partial<Record<StackSpecies, number>>>;
+  /**
+   * LOCK (H-601A stack controls). A locked lane keeps its switch position
+   * when a preset, a Workspace desk or Restore sends a switch set; only the
+   * trader's own hand in the Profiles grid moves it.
+   */
+  readonly locked?: readonly StackSpecies[];
 }
 
-export const DEFAULT_STACK_PREFS: ProfileStackPrefs = { order: STACK_SPECIES, opacity: {} };
+export const DEFAULT_STACK_PREFS: ProfileStackPrefs = { order: STACK_SPECIES, opacity: {}, locked: [] };
+
+/** The Profiles-door switch each stacked lane answers to. */
+export const STACK_PROFILE_ID: Readonly<Record<StackSpecies, ProfileId>> = {
+  LIVING: "LIVING_PROFILE",
+  COMPOSITE: "COMPOSITE_PROFILE",
+  VISIBLE_RANGE: "VISIBLE_RANGE_PROFILE",
+};
+
+export function isLocked(sp: StackSpecies, prefs: ProfileStackPrefs): boolean {
+  return (prefs.locked ?? []).includes(sp);
+}
+
+export function toggleLock(prefs: ProfileStackPrefs, sp: StackSpecies): ProfileStackPrefs {
+  const cur = prefs.locked ?? [];
+  return { ...prefs, locked: cur.includes(sp) ? cur.filter(x => x !== sp) : [...cur, sp] };
+}
+
+/** A switch set with every locked lane's switch removed — the lock holds. */
+export function withoutLocked<T extends Readonly<Partial<Record<ProfileId, boolean>>>>(switches: T, prefs: ProfileStackPrefs): Partial<Record<ProfileId, boolean>> {
+  const out: Partial<Record<ProfileId, boolean>> = { ...switches };
+  for (const sp of prefs.locked ?? []) delete out[STACK_PROFILE_ID[sp]];
+  return out;
+}
 
 /** The species that WILL draw, in the trader's order (unknown ones keep catalogue order). */
 export function orderStack(present: readonly StackSpecies[], prefs: ProfileStackPrefs): StackSpecies[] {
@@ -64,7 +94,7 @@ export function cycleOpacity(prefs: ProfileStackPrefs, sp: StackSpecies): Profil
 export function parseStackPrefs(raw: string | null): ProfileStackPrefs {
   if (!raw) return DEFAULT_STACK_PREFS;
   try {
-    const o = JSON.parse(raw) as { order?: unknown; opacity?: unknown };
+    const o = JSON.parse(raw) as { order?: unknown; opacity?: unknown; locked?: unknown };
     const order = Array.isArray(o.order)
       ? (o.order.filter(s => (STACK_SPECIES as readonly string[]).includes(s as string)) as StackSpecies[])
       : [];
@@ -76,7 +106,10 @@ export function parseStackPrefs(raw: string | null): ProfileStackPrefs {
       }
     }
     const full = [...new Set([...order, ...STACK_SPECIES])];
-    return { order: full, opacity };
+    const locked = Array.isArray(o.locked)
+      ? (o.locked.filter(s => (STACK_SPECIES as readonly string[]).includes(s as string)) as StackSpecies[])
+      : [];
+    return { order: full, opacity, locked };
   } catch {
     return DEFAULT_STACK_PREFS;
   }
