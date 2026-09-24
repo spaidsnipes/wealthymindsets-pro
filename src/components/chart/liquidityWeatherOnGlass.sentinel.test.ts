@@ -145,18 +145,25 @@ describe("the heat lens reads as a tide without inventing another market fact", 
     expect(CHART).toMatch(/createLinearGradient\(0, top, 0, top \+ band\)/);
     expect(CHART).toMatch(/wash\.addColorStop\(0, "rgba\(0,0,0,0\)"\)/);
     expect(CHART).toMatch(/wash\.addColorStop\(1, "rgba\(0,0,0,0\)"\)/);
-    expect(CHART).toMatch(/ctx\.globalAlpha = alpha \* 0\.72/);
+    // Each cell paints at its strength RELATIVE to the regulator into an
+    // offscreen layer; the layer meets the glass once at maxOpacity × 0.72, so
+    // a lone cell looks exactly as before and overlapping cells cannot stack
+    // past the cap (the slab observed on a fixture tape, 2026-09-24).
+    expect(CHART).toMatch(/ctxHeat\.globalAlpha = heat\.maxOpacity > 0 \? alpha \/ heat\.maxOpacity : 0/);
+    expect(CHART).toMatch(/const glassAlpha = heat\.maxOpacity \* 0\.72/);
+    expect(CHART).toMatch(/mainCtx\.globalAlpha = glassAlpha;\s*mainCtx\.drawImage\(hc, 0, 0\)/);
   });
 
   it("clips every contour to the segment's measured high and low", () => {
-    expect(CHART).toMatch(/ctx\.rect\(0, top, W, band\)/);
-    expect(CHART).toMatch(/ctx\.clip\(\)/);
+    expect(CHART).toMatch(/ctxHeat\.rect\(0, top, W, band\)/);
+    expect(CHART).toMatch(/ctxHeat\.clip\(\)/);
     expect(CHART).toMatch(/const y = top \+ \(band \* ci\) \/ \(contourCount \+ 1\)/);
   });
 
   it("lets measured intensity control texture while the regulator still caps opacity", () => {
     expect(CHART).toMatch(/1 \+ Math\.round\(cell\.intensity \* 2\)/);
-    expect(CHART).toMatch(/Math\.min\(alpha \* 0\.9, heat\.maxOpacity\)/);
+    // Relative to the regulator here; the regulator itself is applied once, at the blit.
+    expect(CHART).toMatch(/Math\.min\(1, \(alpha \* 0\.9\) \/ heat\.maxOpacity\)/);
     expect(CHART).toMatch(/heatRampColor\(cell\.intensity\)/);
   });
 

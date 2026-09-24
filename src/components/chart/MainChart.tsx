@@ -1480,6 +1480,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
   const scaffoldingDepthRef = useRef<ScaffoldingDepth | "OFF">("OFF");
+  /** Offscreen layer the P-601 heat cells composite into before meeting the glass once. */
+  const heatLayerRef = useRef<HTMLCanvasElement | null>(null);
   const scaffoldingStructureRef = useRef<MarketStructureVM | null>(null);
   useEffect(() => {
     scaffoldingDepthRef.current = scaffoldingDepthOnChart;
@@ -10367,10 +10369,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const heat = selectHeatLens(liquidityWeatherRef.current);
         ds.heatLens = !on ? "OFF" : heat.drawable ? "DRAWN" : "REFUSED";
         if (on && heat.drawable) {
-          ctx.save();
+          /* THE REGULATOR GOVERNS THE COMPOSITE, NOT EACH CELL (2026-09-24).
+             Observed on a desktop fixture tape: twelve segments at nearly the
+             same prices each painted at <= 0.30, and source-over stacked them
+             into a near-opaque salmon slab across the whole camera — the
+             exact "zones bury candles" failure P-601's regulator exists to
+             prevent. So every cell paints into an OFFSCREEN layer at its
+             relative strength (hottest last), and that layer meets the glass
+             ONCE at the regulator. Overlap can no longer add up past the cap. */
+          const hc = heatLayerRef.current ?? (heatLayerRef.current = document.createElement("canvas"));
+          if (hc.width !== canvas.width || hc.height !== canvas.height) { hc.width = canvas.width; hc.height = canvas.height; }
+          const hctx = hc.getContext("2d");
+          if (!hctx) { ds.heatLens = "REFUSED"; }
+          const mainCtx = ctx;
+          const glassAlpha = heat.maxOpacity * 0.72;
+          const ctxHeat = hctx ?? ctx;
+          ctxHeat.save();
+          ctxHeat.setTransform(1, 0, 0, 1, 0, 0);
+          ctxHeat.clearRect(0, 0, hc.width, hc.height);
+          ctxHeat.setTransform(mainCtx.getTransform());
           let painted = 0;
           let contours = 0;
-          for (const cell of heat.cells) {
+          // No offscreen context → paint nothing rather than paint unregulated.
+          const orderedCells = hctx ? [...heat.cells].sort((a, b) => a.intensity - b.intensity) : [];
+          for (const cell of orderedCells) {
             if (!cell.paintable) continue;
             const yh = srs.priceToCoordinate(cell.high);
             const yl = srs.priceToCoordinate(cell.low);
@@ -10392,40 +10414,47 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                A vertical fade keeps the candle bodies legible at both edges
                of the zone. The selector still owns the hard 0.30 regulator;
                this renderer can only spend less than it was handed. */
-            const wash = ctx.createLinearGradient(0, top, 0, top + band);
+            const wash = ctxHeat.createLinearGradient(0, top, 0, top + band);
             wash.addColorStop(0, "rgba(0,0,0,0)");
             wash.addColorStop(0.28, tone);
             wash.addColorStop(0.72, tone);
             wash.addColorStop(1, "rgba(0,0,0,0)");
-            ctx.globalAlpha = alpha * 0.72;
-            ctx.fillStyle = wash;
-            ctx.fillRect(0, top, W, band);
+            ctxHeat.globalAlpha = heat.maxOpacity > 0 ? alpha / heat.maxOpacity : 0;
+            ctxHeat.fillStyle = wash;
+            ctxHeat.fillRect(0, top, W, band);
 
             // One to three contour lines: a quiet, deterministic expression
             // of intensity. More expensive travel earns denser texture. The
             // line never leaves the observed high/low band.
             const contourCount = 1 + Math.round(cell.intensity * 2);
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, top, W, band);
-            ctx.clip();
-            ctx.strokeStyle = tone;
-            ctx.lineWidth = 0.7;
-            ctx.globalAlpha = Math.min(alpha * 0.9, heat.maxOpacity);
+            ctxHeat.save();
+            ctxHeat.beginPath();
+            ctxHeat.rect(0, top, W, band);
+            ctxHeat.clip();
+            ctxHeat.strokeStyle = tone;
+            ctxHeat.lineWidth = 0.7;
+            ctxHeat.globalAlpha = heat.maxOpacity > 0 ? Math.min(1, (alpha * 0.9) / heat.maxOpacity) : 0;
             for (let ci = 1; ci <= contourCount; ci++) {
               const y = top + (band * ci) / (contourCount + 1);
               const swell = Math.min(3.5, Math.max(0.7, band * 0.12)) * cell.intensity;
-              ctx.beginPath();
-              ctx.moveTo(0, y);
-              ctx.bezierCurveTo(W * 0.24, y - swell, W * 0.42, y + swell, W * 0.58, y);
-              ctx.bezierCurveTo(W * 0.74, y - swell, W * 0.88, y + swell, W, y);
-              ctx.stroke();
+              ctxHeat.beginPath();
+              ctxHeat.moveTo(0, y);
+              ctxHeat.bezierCurveTo(W * 0.24, y - swell, W * 0.42, y + swell, W * 0.58, y);
+              ctxHeat.bezierCurveTo(W * 0.74, y - swell, W * 0.88, y + swell, W, y);
+              ctxHeat.stroke();
               contours++;
             }
-            ctx.restore();
+            ctxHeat.restore();
             painted++;
           }
-          ctx.restore();
+          ctxHeat.restore();
+          if (hctx && painted > 0) {
+            mainCtx.save();
+            mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+            mainCtx.globalAlpha = glassAlpha;
+            mainCtx.drawImage(hc, 0, 0);
+            mainCtx.restore();
+          }
           if (painted > 0) {
             ds.heatLensCells = String(painted);
             ds.heatLensContours = String(contours);
