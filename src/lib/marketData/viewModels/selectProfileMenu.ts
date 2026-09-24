@@ -51,7 +51,8 @@ export type ProfileId =
   | "LIQUIDITY_WEATHER"
   | "EFFORT_MARK"
   | "DELTA_LEVELS"
-  | "LIVING_PROFILE";
+  | "LIVING_PROFILE"
+  | "MARKET_STRUCTURE";
 
 /**
  * READY — it can draw now.
@@ -313,6 +314,14 @@ const CATALOGUE: readonly ProfileSpec[] = [
       none did.
     */
     levels: ["HVN and LVN price nodes"],
+  },
+  {
+    id: "MARKET_STRUCTURE",
+    label: "Market Structure",
+    what: "confirmed swing highs and lows, with the last of each drawn loudest",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectMarketStructure.ts",
+    levels: ["Swing highs", "Swing lows"],
   },
 ];
 

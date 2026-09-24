@@ -190,6 +190,7 @@ import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import selectSemanticZoom from "@/lib/marketData/viewModels/selectSemanticZoom";
+import type { MarketStructureGlass } from "@/lib/marketData/viewModels/selectMarketStructureGlass";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -940,6 +941,12 @@ interface Props {
    * an untraded bucket is counted, not drawn.
    */
   livingProfileGlass?: LivingProfileGlass | null;
+  /**
+   * MARKET STRUCTURE — swing highs / swing lows on the axis. H-704.
+   * P-110's #2 organism. `selectMarketStructureGlass` refuses insufficient
+   * windows and empty sequences; every pivot it emits is a real price.
+   */
+  marketStructureGlass?: MarketStructureGlass | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -959,6 +966,7 @@ interface Props {
   effortMarkOnChart?: boolean;
   deltaLevelsOnChart?: boolean;
   livingProfileOnChart?: boolean;
+  marketStructureOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1230,6 +1238,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   effortMark = null,
   deltaLevelsGlass = null,
   livingProfileGlass = null,
+  marketStructureGlass = null,
   // Default TRUE: these four shipped drawing, and silently switching one off
   // would be a second surprise dressed as a fix. The switch is the new thing.
   imbalanceStackOnChart = true,
@@ -1239,6 +1248,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   effortMarkOnChart = true,
   deltaLevelsOnChart = true,
   livingProfileOnChart = true,
+  marketStructureOnChart = true,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1372,6 +1382,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const livingProfileRef = useRef<LivingProfileGlass | null>(null);
   useEffect(() => { livingProfileRef.current = livingProfileGlass ?? null; }, [livingProfileGlass]);
 
+  const marketStructureRef = useRef<MarketStructureGlass | null>(null);
+  useEffect(() => { marketStructureRef.current = marketStructureGlass ?? null; }, [marketStructureGlass]);
+
   /*
     The four switches, read the same way as the readings they gate. They change
     far more slowly than the tape does, but they are read INSIDE the rAF loop,
@@ -1379,7 +1392,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1389,8 +1402,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       effort: effortMarkOnChart,
       deltaLevels: deltaLevelsOnChart,
       livingProfile: livingProfileOnChart,
+      marketStructure: marketStructureOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8562,6 +8576,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;
+          }
+        }
+
+        /* ══ H-704 · MARKET STRUCTURE — swing highs and lows on the axis ═══
+           P-110's #2 organism. Each pivot is a real price the compiler
+           picked; the LAST pivot of each kind is drawn a step louder.
+           Bias word top-right, near (but not colliding with) the semantic
+           zoom tag.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const ms = marketStructureRef.current;
+          const on = layerOnRef.current.marketStructure;
+          ds.marketStructure = on ? (ms ? ms.reason : "NO_READING") : "OFF";
+          ds.marketStructureBias = ms?.bias ?? "";
+
+          if (on && ms?.drawn) {
+            ctx.save();
+            let painted = 0;
+            for (const p of ms.pivots) {
+              const xr = chart.timeScale().timeToCoordinate(p.time as any);
+              const yr = srs.priceToCoordinate(p.price);
+              if (xr == null || yr == null) continue;
+              const x = Math.round(+xr) + 0.5;
+              const y = Math.round(+yr) + 0.5;
+              // Highs get an upward tick, lows a downward tick — a shape
+              // reads before a colour would, and this reading has no side.
+              const dir = p.kind === "HIGH" ? -1 : 1;
+              const len = p.isLast ? 10 : 6;
+              ctx.strokeStyle = p.isLast
+                ? "rgba(237,230,211,0.90)"
+                : "rgba(194,184,146,0.55)";
+              ctx.lineWidth = p.isLast ? 1.5 : 1;
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(x, y + dir * len);
+              ctx.stroke();
+              // Small cap so the tick reads as a marker, not a wick tail.
+              ctx.beginPath();
+              ctx.arc(x, y, p.isLast ? 2.2 : 1.6, 0, Math.PI * 2);
+              if (p.isLast) {
+                ctx.fillStyle = "rgba(237,230,211,0.90)";
+                ctx.fill();
+              } else {
+                ctx.stroke();
+              }
+              painted++;
+            }
+
+            // Bias word above the pane, right side but LEFT of the semantic
+            // zoom tag so the two chrome words never overlap.
+            if (ms.bias !== "UNCLEAR") {
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "right";
+              ctx.textBaseline = "top";
+              ctx.fillStyle = "rgba(194,184,146,0.85)";
+              const label =
+                ms.bias === "HIGHER_HIGHS" ? "HH · HL"
+                : ms.bias === "LOWER_LOWS" ? "LL · LH"
+                : "RANGE";
+              ctx.fillText(label, W - 168, 6);
+              ctx.fillStyle = "rgba(138,130,113,0.75)";
+              ctx.fillText(`+${ms.unconfirmedBars} unconfirmed`, W - 168, 18);
+            }
+
+            ctx.restore();
+            if (painted > 0) ds.marketStructurePivots = String(painted);
+            else delete ds.marketStructurePivots;
+          } else {
+            delete ds.marketStructurePivots;
           }
         }
 

@@ -34,6 +34,7 @@ const ALL_IDS: readonly ProfileId[] = [
   // H-703. HVN/LVN nodes off the developing profile. Needs bars only —
   // neither side-dependent nor prints-dependent.
   "LIVING_PROFILE",
+  "MARKET_STRUCTURE",
 ];
 
 /** The rows that require provider-stated aggressor side. */
