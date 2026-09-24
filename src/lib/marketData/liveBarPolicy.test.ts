@@ -39,3 +39,19 @@ describe("forward-only live bar policy", () => {
     expect(result).toEqual({ status: "LATE_EVENT_IGNORED", bar: current, lastEventAt: 125_000 });
   });
 });
+
+import { shouldFoldChartLiveBar } from "./liveBarPolicy";
+
+describe("shouldFoldChartLiveBar", () => {
+  it("folds a non-advancing update into the last candle", () => {
+    expect(shouldFoldChartLiveBar(1_000, 1_000, false)).toBe(true);
+    expect(shouldFoldChartLiveBar(1_000, 990, false)).toBe(true);
+  });
+  it("folds an out-of-hours update on a regular-hours chart", () => {
+    expect(shouldFoldChartLiveBar(1_000, 1_060, true)).toBe(true);
+  });
+  it("a later update after a gap keeps its own candle — gaps are not folded", () => {
+    expect(shouldFoldChartLiveBar(1_000, 1_060, false)).toBe(false);
+    expect(shouldFoldChartLiveBar(1_000, 1_000 + 3_600, false)).toBe(false);
+  });
+});

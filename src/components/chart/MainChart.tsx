@@ -191,6 +191,7 @@ import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLe
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import selectSemanticZoom from "@/lib/marketData/viewModels/selectSemanticZoom";
 import type { MarketStructureGlass } from "@/lib/marketData/viewModels/selectMarketStructureGlass";
+import type { TpoProfileVM } from "@/lib/marketData/viewModels/selectTpoProfile";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -947,6 +948,12 @@ interface Props {
    * windows and empty sequences; every pivot it emits is a real price.
    */
   marketStructureGlass?: MarketStructureGlass | null;
+  /**
+   * TPO — time at price, P-110 #10. Painted on the LEFT edge so it never
+   * shares a column with the Living Profile's volume histogram on the right:
+   * two distributions, two sides, and their disagreement is readable.
+   */
+  tpoProfile?: TpoProfileVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -967,6 +974,7 @@ interface Props {
   deltaLevelsOnChart?: boolean;
   livingProfileOnChart?: boolean;
   marketStructureOnChart?: boolean;
+  tpoProfileOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1255,6 +1263,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   deltaLevelsOnChart = true,
   livingProfileOnChart = true,
   marketStructureOnChart = true,
+  tpoProfile = null,
+  tpoProfileOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1392,6 +1402,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
   useEffect(() => { marketStructureRef.current = marketStructureGlass ?? null; }, [marketStructureGlass]);
 
+  const tpoProfileRef = useRef<TpoProfileVM | null>(null);
+  useEffect(() => { tpoProfileRef.current = tpoProfile ?? null; }, [tpoProfile]);
+
   /**
    * DECISION_ID — one truth per camera. Read through a ref so the chrome
    * word can be painted inside the rAF without tearing the loop down every
@@ -1407,7 +1420,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1418,8 +1431,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       deltaLevels: deltaLevelsOnChart,
       livingProfile: livingProfileOnChart,
       marketStructure: marketStructureOnChart,
+      tpo: tpoProfileOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8600,6 +8614,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lp.vah != null) label(lp.vah, `VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
             if (lp.val != null) label(lp.val, `VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
 
+            /*
+              FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
+              reading of bar volume, and it says so where the trader is
+              looking — under the histogram — along with the one claim it
+              withholds. Muted ivory: an honesty note, not an alarm.
+            */
+            if (lp.estimated || lp.nodesWithheld) {
+              const anchor = lp.val ?? lp.poc;
+              const ya = anchor != null ? srs.priceToCoordinate(anchor) : null;
+              if (ya != null) {
+                ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
+                ctx.textAlign = "right";
+                ctx.fillStyle = "rgba(194,184,146,0.70)";
+                const words = [lp.estimated ? "CANDLE-ESTIMATED" : null, lp.nodesWithheld ? "NODES WITHHELD" : null]
+                  .filter(Boolean).join(" · ");
+                ctx.fillText(words, rightEdge, +ya + 14);
+                ctx.textAlign = "left";
+              }
+            }
+
             ctx.restore();
             if (drawnBars > 0) ds.livingProfileBars = String(drawnBars);
             else delete ds.livingProfileBars;
@@ -8607,10 +8641,131 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             else delete ds.livingProfileMarks;
             if (lp.untradedCount > 0) ds.livingProfileUntraded = String(lp.untradedCount);
             else delete ds.livingProfileUntraded;
+            ds.livingProfileFidelity = lp.estimated ? "CANDLE_ESTIMATED" : "TRADE_BASED";
+            if (lp.nodesWithheld) ds.livingProfileNodesWithheld = lp.nodesWithheld;
+            else delete ds.livingProfileNodesWithheld;
           } else {
+            delete ds.livingProfileFidelity;
+            delete ds.livingProfileNodesWithheld;
             delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;
+          }
+        }
+
+        /* ══ P-110 #10 · TPO — TIME AT PRICE, LEFT EDGE ═════════════════════
+           The Living Profile owns the right edge and answers "where did SIZE
+           trade". This column owns the left edge and answers "where did the
+           market SPEND TIME". Two distributions on two sides of the same
+           camera, so a level with size and no time (rejection) or time and no
+           size (acceptance) reads at a glance instead of by toggling.
+
+           Compiler-owned rules this file may not decide:
+             · NOT DRAWN → nothing paints, and the reason is published.
+             · A ROW IS A PRICE. `share` is already against the busiest row.
+             · Untouched buckets are absent from `rows` and never drawn.
+
+           Told apart from the volume histogram by FORM, not hue: outlined
+           cells instead of solid bars, because "time" and "size" are both
+           neutral facts and neither may borrow a market colour.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const tpo = tpoProfileRef.current;
+          const on = layerOnRef.current.tpo;
+          ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
+
+          if (on && tpo?.drawn) {
+            ctx.save();
+            const leftEdge = 10;
+            const colMax = Math.min(140, Math.round(W * 0.14));
+
+            // Row height from on-screen spacing between successive grid rows,
+            // same rule as the volume histogram so the two read at one scale.
+            const ys: number[] = [];
+            for (const r of tpo.rows) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr != null) ys.push(+yr);
+            }
+            let rowH = 2;
+            if (ys.length >= 2) {
+              const sorted = [...ys].sort((a, b) => a - b);
+              const gaps: number[] = [];
+              for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+              const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2;
+              rowH = Math.max(2, Math.min(12, Math.round(g)));
+            }
+
+            let drawnRows = 0;
+            let drawnSingles = 0;
+            ctx.lineWidth = 1;
+            for (const r of tpo.rows) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) - Math.floor(rowH / 2);
+              const h = Math.max(1, rowH - 1);
+              const w = Math.max(1, Math.round(r.share * colMax));
+              if (r.isPoc) {
+                ctx.fillStyle = "rgba(201,165,92,0.55)";
+                ctx.fillRect(leftEdge, y, w, h);
+                ctx.strokeStyle = "rgba(201,165,92,0.95)";
+              } else {
+                ctx.fillStyle = r.insideValueArea
+                  ? "rgba(237,230,211,0.10)"
+                  : "rgba(194,184,146,0.05)";
+                ctx.fillRect(leftEdge, y, w, h);
+                ctx.strokeStyle = r.insideValueArea
+                  ? "rgba(237,230,211,0.62)"
+                  : "rgba(194,184,146,0.38)";
+              }
+              if (h >= 3) ctx.strokeRect(leftEdge + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
+              else { ctx.beginPath(); ctx.moveTo(leftEdge, y + 0.5); ctx.lineTo(leftEdge + w, y + 0.5); ctx.stroke(); }
+              drawnRows++;
+              // SINGLE PRINT — the auction passed through once and never
+              // returned. A short brass tick OUTSIDE the column, so it reads
+              // as a mark on the row and not as a longer bar.
+              if (r.single) {
+                ctx.fillStyle = "rgba(201,165,92,0.85)";
+                ctx.fillRect(leftEdge - 6, y, 3, h);
+                drawnSingles++;
+              }
+            }
+
+            // TPO POC / VAH / VAL: short reference strokes across the column
+            // and a label at its right, so the levels are quotable.
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            const ref = (price: number | null, text: string, ink: string, dashed: boolean) => {
+              if (price == null) return;
+              const yr = srs.priceToCoordinate(price);
+              if (yr == null) return;
+              const y = Math.round(+yr) + 0.5;
+              ctx.strokeStyle = ink;
+              ctx.setLineDash(dashed ? [3, 4] : []);
+              ctx.beginPath();
+              ctx.moveTo(leftEdge, y);
+              ctx.lineTo(leftEdge + colMax + 4, y);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              ctx.fillStyle = ink;
+              ctx.fillText(text, leftEdge + colMax + 8, y);
+            };
+            ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(2) ?? ""}`, "rgba(201,165,92,0.95)", false);
+            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(2) ?? ""}`, "rgba(194,184,146,0.75)", true);
+            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(2) ?? ""}`, "rgba(194,184,146,0.75)", true);
+
+            ctx.restore();
+            ds.tpoProfileRows = String(drawnRows);
+            ds.tpoProfilePeriods = String(tpo.periods);
+            if (drawnSingles > 0) ds.tpoProfileSingles = String(drawnSingles);
+            else delete ds.tpoProfileSingles;
+            if (tpo.asOf != null) ds.tpoProfileAsOf = String(tpo.asOf);
+            else delete ds.tpoProfileAsOf;
+          } else {
+            delete ds.tpoProfileRows;
+            delete ds.tpoProfilePeriods;
+            delete ds.tpoProfileSingles;
+            delete ds.tpoProfileAsOf;
           }
         }
 

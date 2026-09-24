@@ -235,3 +235,34 @@ describe("the module ships no permission", () => {
     }
   });
 });
+
+describe("a withheld node set degrades ONLY the node claim", () => {
+  const curve = [
+    { price: 100.00, volume: 40, share: 0.4, insideValueArea: true, isPoc: false, node: null },
+    { price: 100.05, volume: 100, share: 1, insideValueArea: true, isPoc: true, node: null },
+    { price: 100.10, volume: 60, share: 0.6, insideValueArea: true, isPoc: false, node: null },
+  ];
+
+  it("a candle-estimated profile still paints its histogram and POC/VAH/VAL", () => {
+    const v = selectLivingProfileGlass(vm({
+      quality: "candle-estimated" as any,
+      nodesMeasured: false,
+      nodesMissingInput: "CANDLE_ESTIMATED" as any,
+      hvn: [], lvn: [],
+      curve: curve as any,
+    }));
+    expect(v.drawn).toBe(true);
+    if (!v.drawn) return;
+    expect(v.bars).toHaveLength(3);
+    expect(v.marks).toEqual([]);
+    expect(v.poc).toBe(100.05);
+    expect(v.estimated).toBe(true);
+    expect(v.nodesWithheld).toBe("CANDLE_ESTIMATED");
+  });
+
+  it("a trade-based profile is not labelled estimated", () => {
+    const v = selectLivingProfileGlass(vm({ quality: "trade-based" as any, curve: curve as any }));
+    expect(v.drawn && v.estimated).toBe(false);
+    expect(v.drawn && v.nodesWithheld).toBeNull();
+  });
+});

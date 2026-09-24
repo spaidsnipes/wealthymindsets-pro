@@ -84,3 +84,24 @@ export function applyTickToLiveBar(
     lastEventAt: tick.time,
   };
 }
+
+/**
+ * Does a live chart update FOLD into the last drawn candle, or open its own?
+ *
+ * Fold only when the update cannot lawfully be a new candle:
+ *   · it is not strictly after the last candle's time (the series would throw
+ *     on a non-ascending update and the price would freeze), or
+ *   · it arrived outside regular hours on a chart that hides them.
+ *
+ * A LATER update keeps its own timestamp even after missed intervals. The old
+ * rule also folded anything more than one interval ahead, which pinned the
+ * last candle's time forever after a gap — every following update was still
+ * "too far ahead" — and quietly fabricated one enormous candle out of many.
+ */
+export function shouldFoldChartLiveBar(
+  lastBarTime: number,
+  updateTime: number,
+  outsideRegularHours: boolean,
+): boolean {
+  return outsideRegularHours || updateTime <= lastBarTime;
+}

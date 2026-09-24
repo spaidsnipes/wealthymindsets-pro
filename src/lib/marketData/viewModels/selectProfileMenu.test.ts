@@ -34,6 +34,8 @@ const ALL_IDS: readonly ProfileId[] = [
   // H-703. HVN/LVN nodes off the developing profile. Needs bars only —
   // neither side-dependent nor prints-dependent.
   "LIVING_PROFILE",
+  // P-110 #10. Time at price from bar ranges — no volume, no side.
+  "TPO_PROFILE",
   "MARKET_STRUCTURE",
 ];
 

@@ -52,6 +52,7 @@ export type ProfileId =
   | "EFFORT_MARK"
   | "DELTA_LEVELS"
   | "LIVING_PROFILE"
+  | "TPO_PROFILE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -314,6 +315,21 @@ const CATALOGUE: readonly ProfileSpec[] = [
       none did.
     */
     levels: ["HVN and LVN price nodes"],
+  },
+  {
+    id: "TPO_PROFILE",
+    label: "TPO Profile",
+    /*
+      TIME, NOT SIZE. Sits next to the Living Profile in reading order because
+      the two answer sibling questions — where size traded, and where the
+      market spent time — and their disagreement is the reading.
+    */
+    what: "how many bars spent time at each price, on the left edge",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectTpoProfile.ts",
+    // Counts have no price. POC/VAH/VAL and single-print rows are bucket
+    // low edges on the grid; nothing else reaches the axis.
+    levels: ["TPO POC", "TPO VAH", "TPO VAL", "Single prints"],
   },
   {
     id: "MARKET_STRUCTURE",

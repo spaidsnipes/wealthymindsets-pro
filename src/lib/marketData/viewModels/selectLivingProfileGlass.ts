@@ -101,6 +101,17 @@ export type LivingProfileGlass =
        * would read as "size traded here" and none did.
        */
       readonly untradedCount: number;
+      /**
+       * TRUE when the profile was estimated from candles rather than built
+       * from classified trades. The canvas prints it — fidelity is on the
+       * glass, not in a drawer.
+       */
+      readonly estimated: boolean;
+      /**
+       * Why the node marks are absent while the histogram still paints, or
+       * null when nodes were measured. Degrades ONLY the node claim.
+       */
+      readonly nodesWithheld: string | null;
     }
   | {
       readonly drawn: false;
@@ -117,6 +128,8 @@ const refuse = (reason: string): LivingProfileGlass => ({
   drawn: false, reason,
   marks: [], bars: [], poc: null, vah: null, val: null, untradedCount: 0,
 });
+/* (`estimated`/`nodesWithheld` exist only on the drawn arm: a refusal claims
+   no profile, so it has no fidelity to state.) */
 
 const finite = (v: unknown): v is number =>
   typeof v === "number" && Number.isFinite(v);
@@ -136,40 +149,20 @@ export function selectLivingProfileGlass(
 ): LivingProfileGlass {
   if (!vm) return refuse("NO_READING");
   if (!vm.measured) return refuse(vm.missingInput ?? "UNMEASURED");
-  if (!vm.nodesMeasured) return refuse(vm.nodesMissingInput ?? "NODES_UNMEASURED");
-
-  // The scale every lane is drawn against. Heaviest HVN wins; if there are no
-  // HVNs at all the LVNs get no scale and the layer refuses rather than
-  // inventing a max out of thin air.
-  const heaviest = vm.hvn.reduce((m, n) => Math.max(m, n.volume), 0);
-  if (!(heaviest > 0)) return refuse("NO_HVN_WEIGHT");
-
-  const untradedCount = [...vm.hvn, ...vm.lvn].filter(n => n.untraded).length;
-
-  const marks: ProfileNodeMark[] = [];
-  const pushMark = (n: ProfileNode) => {
-    // RULE 3. An untraded bucket is not a node on the glass. The panel says so
-    // in words; the axis does not lie about it.
-    if (n.untraded) return;
-    if (!finite(n.price) || !finite(n.volume)) return;
-    marks.push({
-      price: n.price,
-      kind: n.kind,
-      weight: Math.min(1, n.volume / heaviest),
-      insideValueArea: n.insideValueArea,
-    });
-  };
-  for (const n of vm.hvn) pushMark(n);
-  for (const n of vm.lvn) pushMark(n);
-
-  if (marks.length === 0) return refuse("NO_LAWFUL_NODES");
 
   /*
-    THE HISTOGRAM ITSELF. The compiler already normalised `share` against the
-    heaviest bucket, so this is a straight projection — the untraded buckets
-    are the only thing dropped, for the same reason the dots dropped them: a
-    horizontal bar of any length at a price that took no volume reads as
-    "size traded here" and none did.
+    THE HISTOGRAM FIRST, AND INDEPENDENT OF THE NODES.
+
+    This used to refuse the WHOLE layer whenever nodes were withheld. On every
+    bar-only feed nodes are withheld on purpose (a low-volume node read from a
+    candle-smeared curve describes candle geometry, not refusal), so the
+    measured profile — POC, VAH, VAL and the distribution itself — never
+    reached the glass. One missing sense blanked a claim that did not need it.
+    Now only the node claim degrades; the profile paints, labelled ESTIMATED.
+
+    The compiler already normalised `share` against the heaviest bucket, so
+    this is a straight projection. Untraded buckets are dropped: a bar of any
+    length at a price that took no volume reads as "size traded here".
   */
   const bars: ProfileHistogramBar[] = vm.curve
     .filter(p => finite(p.price) && finite(p.share) && p.volume > 0)
@@ -180,6 +173,39 @@ export function selectLivingProfileGlass(
       isPoc: p.isPoc,
       node: p.node,
     }));
+
+  const nodesWithheld: string | null = vm.nodesMeasured
+    ? null
+    : (vm.nodesMissingInput ?? "NODES_UNMEASURED");
+
+  // The scale every node lane is drawn against. Heaviest HVN wins; with no HVN
+  // the LVNs get no scale and NO marks, rather than a max invented from air.
+  const heaviest = vm.hvn.reduce((m, n) => Math.max(m, n.volume), 0);
+  const untradedCount = [...vm.hvn, ...vm.lvn].filter(n => n.untraded).length;
+
+  const marks: ProfileNodeMark[] = [];
+  if (nodesWithheld === null && heaviest > 0) {
+    const pushMark = (n: ProfileNode) => {
+      // RULE 3. An untraded bucket is not a node on the glass.
+      if (n.untraded) return;
+      if (!finite(n.price) || !finite(n.volume)) return;
+      marks.push({
+        price: n.price,
+        kind: n.kind,
+        weight: Math.min(1, n.volume / heaviest),
+        insideValueArea: n.insideValueArea,
+      });
+    };
+    for (const n of vm.hvn) pushMark(n);
+    for (const n of vm.lvn) pushMark(n);
+  }
+
+  // Nothing drawable at all → refuse with the most specific reason known.
+  if (bars.length === 0 && marks.length === 0) {
+    if (nodesWithheld !== null) return refuse(nodesWithheld);
+    if (!(heaviest > 0)) return refuse("NO_HVN_WEIGHT");
+    return refuse("NO_LAWFUL_NODES");
+  }
 
   // Strongest first, then price-sort back to a ladder so a canvas reading them
   // top-to-bottom draws a ladder, not a strength ranking.
@@ -196,6 +222,8 @@ export function selectLivingProfileGlass(
     vah: vm.vah,
     val: vm.val,
     untradedCount,
+    estimated: vm.quality !== "trade-based",
+    nodesWithheld,
   };
 }
 

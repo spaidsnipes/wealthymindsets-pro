@@ -50,7 +50,14 @@
 export function roundSig(v: number, digits = 4): number {
   if (!Number.isFinite(v) || v === 0) return 0;
   const mag = Math.ceil(Math.log10(Math.abs(v)));
-  const factor = Math.pow(10, digits - mag);
+  const shift = digits - mag;
+  // Above the kept digits, multiply back by a whole power of ten: dividing by
+  // a fractional factor (414 / 0.0001) lands on 4139999.9999 instead of 4140000.
+  if (shift < 0) {
+    const step = Math.pow(10, -shift);
+    return Math.round(v / step) * step;
+  }
+  const factor = Math.pow(10, shift);
   return Math.round(v * factor) / factor;
 }
 
