@@ -10240,33 +10240,37 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textBaseline = "top";
             // Brass on the tag itself — it is HOUSE HARDWARE, not a market
             // reading. Muted ivory on the note beside it.
-            ctx.fillStyle = "rgba(201,165,92,0.85)";
-            const rightX = W - 76;
-            ctx.fillText(zoom.tag, rightX, 6);
-            ctx.fillStyle = "rgba(138,130,113,0.85)";
-            ctx.fillText(`${zoom.visibleBarCount} bars`, rightX, 18);
+            //
+            // BELOW THE BAR CLOCK, ON A PLATE (2026-09-24): this used to print
+            // at y=6, UNDER the DOM "BAR OPENED … FORMING" clock, and every
+            // desktop receipt showed the two strings overprinted into noise.
+            // Three stacked lines under the clock, on a backing plate, so the
+            // depth that is speaking can actually be read.
+            const rightX = W - 84;
+            const did = activeDecisionIdRef.current;
+            const short = did && did.length > 0 ? (did.length > 20 ? `${did.slice(0, 20)}…` : did) : null;
+            const lines: { t: string; c: string }[] = [
+              { t: `${zoom.visibleBarCount} bars`, c: "rgba(138,130,113,0.85)" },
+            ];
             // What this depth lets speak — the plate's own words, not a hint.
-            if (semanticDensity.speaking) {
-              ctx.fillStyle = "rgba(201,165,92,0.7)";
-              ctx.fillText(semanticDensity.speaking, rightX - 70, 6);
-            }
-
+            if (semanticDensity.speaking) lines.push({ t: semanticDensity.speaking, c: "rgba(237,230,211,0.85)" });
             /*
               DECISION_ID CHROME — one identity per camera. Canon:
               "One market. One camera. One truth. One Decision_ID."
               Printed under the semantic-zoom tag so a trader reading FAR /
               MID / NEAR sees which identity every layer is bound to.
             */
-            const did = activeDecisionIdRef.current;
-            if (did && did.length > 0) {
-              // Truncate to a readable prefix so a v4 UUID does not eat
-              // the whole line.
-              const short = did.length > 20 ? `${did.slice(0, 20)}…` : did;
-              ctx.fillStyle = "rgba(194,184,146,0.75)";
-              ctx.fillText(`DECISION_ID`, rightX, 32);
-              ctx.fillStyle = "rgba(237,230,211,0.85)";
-              ctx.fillText(short, rightX, 44);
-            }
+            if (short) lines.push({ t: `DECISION_ID ${short}`, c: "rgba(194,184,146,0.8)" });
+            const pw = Math.max(ctx.measureText(zoom.tag).width, ...lines.map(l => ctx.measureText(l.t).width)) + 12;
+            const top = 26;
+            ctx.fillStyle = "rgba(11,10,8,0.82)";
+            ctx.fillRect(rightX - pw + 6, top - 3, pw, (lines.length + 1) * 12 + 5);
+            ctx.fillStyle = "rgba(201,165,92,0.85)";
+            ctx.fillText(zoom.tag, rightX, top);
+            lines.forEach((l, i) => {
+              ctx.fillStyle = l.c;
+              ctx.fillText(l.t, rightX, top + (i + 1) * 12);
+            });
             ctx.restore();
           }
           if (activeDecisionIdRef.current) ds.activeDecisionId = activeDecisionIdRef.current;
