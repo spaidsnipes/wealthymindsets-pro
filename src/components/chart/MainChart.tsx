@@ -8407,7 +8407,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const GOLD = "rgba(201,165,92,0.95)";
                 const CREAM = "rgba(237,230,211,0.95)";
                 const DIM = "rgba(200,192,174,0.8)";
-                const PANEL = "rgba(11,10,8,0.9)";
+                const PANEL = "rgba(11,10,8,0.97)";
                 const HAIR = "rgba(201,165,92,0.6)";
                 const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
                 const clip = (t: string, max: number) => {
@@ -8439,6 +8439,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
                 const x0 = layerOnRef.current.questionLens === true && questionQuiet < 1 ? 322 : 12;
                 const y0 = 176;
+                // MOCKUP SCALE. At desktop size the Founder's plate reads its
+                // tiers at ~1.3× what the 8–11px chrome gave; the whole plate
+                // is magnified as one piece so its geometry never drifts. Held
+                // to 1 where the enlarged Foundation plate would leave the pane.
+                const scafK = W >= 1280 && H >= 820 ? Math.min(1.32, (H - y0 - 40) / 300, (W - x0 - 120) / 470) : 1;
+                if (scafK > 1) { ctx.translate(x0, y0); ctx.scale(scafK, scafK); ctx.translate(-x0, -y0); }
+                ds.scaffoldingScale = scafK.toFixed(2);
                 // The removal path: where this depth sits.
                 ctx.font = font(700, 9);
                 ctx.fillStyle = PANEL;
