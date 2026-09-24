@@ -40,6 +40,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "STRUCTURE_PROFILE",
   // P-110 #5. Numbers about the Living Profile — bars only.
   "PROFILE_DNA",
+  // Living Profile's developing value, bar by bar — bars only, no lookahead.
+  "VALUE_MIGRATION",
   "MARKET_STRUCTURE",
 ];
 

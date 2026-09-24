@@ -194,6 +194,7 @@ import type { MarketStructureGlass } from "@/lib/marketData/viewModels/selectMar
 import type { TpoProfileVM } from "@/lib/marketData/viewModels/selectTpoProfile";
 import type { StructureProfileVM } from "@/lib/marketData/viewModels/selectStructureProfile";
 import type { ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
+import type { ValueMigrationVM } from "@/lib/marketData/viewModels/selectValueMigration";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -960,6 +961,8 @@ interface Props {
   structureProfile?: StructureProfileVM | null;
   /** PROFILE DNA — P-110 #5, printed above the Living Profile it describes. */
   profileDna?: ProfileDnaVM | null;
+  /** Developing POC/VAH/VAL, painted across the candles they developed with. */
+  valueMigration?: ValueMigrationVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -983,6 +986,7 @@ interface Props {
   tpoProfileOnChart?: boolean;
   structureProfileOnChart?: boolean;
   profileDnaOnChart?: boolean;
+  valueMigrationOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1277,6 +1281,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   structureProfileOnChart = false,
   profileDna = null,
   profileDnaOnChart = false,
+  valueMigration = null,
+  valueMigrationOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1423,6 +1429,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const profileDnaRef = useRef<ProfileDnaVM | null>(null);
   useEffect(() => { profileDnaRef.current = profileDna ?? null; }, [profileDna]);
 
+  const valueMigrationRef = useRef<ValueMigrationVM | null>(null);
+  useEffect(() => { valueMigrationRef.current = valueMigration ?? null; }, [valueMigration]);
+
   /**
    * DECISION_ID — one truth per camera. Read through a ref so the chrome
    * word can be painted inside the rAF without tearing the loop down every
@@ -1438,7 +1447,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1452,8 +1461,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       tpo: tpoProfileOnChart,
       structureProfile: structureProfileOnChart,
       profileDna: profileDnaOnChart,
+      valueMigration: valueMigrationOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -9001,6 +9011,80 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.structureProfileRows;
             delete ds.structureProfileAnchor;
             delete ds.structureProfileLegBars;
+          }
+        }
+
+        /* ══ LIVING PROFILE · DEVELOPING VALUE MIGRATION ═══════════════════
+           The auction's movie on the candles: after every bar, where POC and
+           value stood, drawn at the time it was true. Stepped, because value
+           does not glide between buckets — it jumps when a bucket overtakes.
+           POC in brass (house hardware, not a side); VAH/VAL as faint ivory
+           dashes. Each session is its own line: they break at the gap.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const vm = valueMigrationRef.current;
+          const on = layerOnRef.current.valueMigration;
+          ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : "OFF";
+          if (on && vm?.drawn) {
+            ctx.save();
+            const ts = chart.timeScale();
+            const stepLine = (key: "poc" | "vah" | "val", ink: string, width: number, dash: number[]) => {
+              ctx.strokeStyle = ink;
+              ctx.lineWidth = width;
+              ctx.setLineDash(dash);
+              ctx.beginPath();
+              let prevSession = -1;
+              let prevY: number | null = null;
+              let painted = 0;
+              for (const p of vm.points) {
+                const xr = ts.timeToCoordinate(p.time as any);
+                const yr = srs.priceToCoordinate(p[key]);
+                if (xr == null || yr == null) { prevY = null; continue; }
+                const x = Math.round(+xr) + 0.5;
+                const y = Math.round(+yr) + 0.5;
+                if (p.session !== prevSession || prevY == null) {
+                  ctx.moveTo(x, y);
+                } else {
+                  ctx.lineTo(x, prevY); // hold the old value until this bar
+                  ctx.lineTo(x, y);     // then step to the new one
+                }
+                prevSession = p.session;
+                prevY = y;
+                painted++;
+              }
+              ctx.stroke();
+              ctx.setLineDash([]);
+              return painted;
+            };
+            stepLine("vah", "rgba(237,230,211,0.38)", 1, [2, 3]);
+            stepLine("val", "rgba(237,230,211,0.38)", 1, [2, 3]);
+            const drawn = stepLine("poc", "rgba(201,165,92,0.85)", 1.5, []);
+
+            // Name the line once, at its newest point, with the session's
+            // POC travel — a stated distance, not a direction call.
+            const last = vm.points[vm.points.length - 1];
+            const lx = ts.timeToCoordinate(last.time as any);
+            const ly = srs.priceToCoordinate(last.poc);
+            if (lx != null && ly != null && vm.latestPocTravel != null) {
+              const t = vm.latestPocTravel;
+              const text = `dPOC ${last.poc.toFixed(2)} · ${t >= 0 ? "+" : ""}${t.toFixed(2)} THIS SESSION · EST`;
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              const w = Math.ceil(ctx.measureText(text).width) + 8;
+              const x = Math.max(4, Math.round(+lx) - w - 6);
+              const y = Math.round(+ly) - 12;
+              ctx.fillStyle = "rgba(11,10,8,0.82)";
+              ctx.fillRect(x, y - 7, w, 14);
+              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(text, x + 4, y);
+            }
+            ctx.restore();
+            ds.valueMigrationPoints = String(drawn);
+            ds.valueMigrationSessions = String(vm.sessions);
+          } else {
+            delete ds.valueMigrationPoints;
+            delete ds.valueMigrationSessions;
           }
         }
 

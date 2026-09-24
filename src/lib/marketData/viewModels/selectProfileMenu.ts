@@ -55,6 +55,7 @@ export type ProfileId =
   | "TPO_PROFILE"
   | "STRUCTURE_PROFILE"
   | "PROFILE_DNA"
+  | "VALUE_MIGRATION"
   | "MARKET_STRUCTURE";
 
 /**
@@ -359,6 +360,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     // A ratio has no price. The only coordinate is the Living Profile's VAH,
     // which it borrows as an anchor for the strip.
     levels: ["Anchored to the Living Profile's VAH"],
+  },
+  {
+    id: "VALUE_MIGRATION",
+    label: "Value Migration",
+    /*
+      The Living Profile's movie: where POC and value stood after each bar,
+      drawn at the time it was true. No lookahead — a later bar can never move
+      an earlier point.
+    */
+    what: "where POC and value stood after every bar, drawn across the candles",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectValueMigration.ts",
+    levels: ["Developing POC", "Developing VAH", "Developing VAL"],
   },
   {
     id: "MARKET_STRUCTURE",
