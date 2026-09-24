@@ -64,6 +64,8 @@ export interface ProfileHistogramBar {
   readonly price: number;
   /** volume ÷ heaviest bucket's volume, in [0,1]. */
   readonly share: number;
+  /** The bucket's absolute volume — what a Profile Fusion sums. */
+  readonly volume: number;
   /** True when this bucket is inside the compiler's value area. */
   readonly insideValueArea: boolean;
   /** True when this bucket IS the Point of Control. */
@@ -169,6 +171,7 @@ export function selectLivingProfileGlass(
     .map(p => ({
       price: p.price,
       share: Math.min(1, Math.max(0, p.share)),
+      volume: p.volume,
       insideValueArea: p.insideValueArea,
       isPoc: p.isPoc,
       node: p.node,

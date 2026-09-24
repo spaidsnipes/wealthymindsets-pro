@@ -8,11 +8,11 @@ const glass = (over: Partial<Extract<LivingProfileGlass, { drawn: true }>> = {})
   reason: "DRAWN",
   marks: [],
   bars: [
-    { price: 100.0, share: 0.3, insideValueArea: false, isPoc: false, node: null },
-    { price: 100.1, share: 1, insideValueArea: true, isPoc: true, node: null },
-    { price: 100.2, share: 0.6, insideValueArea: true, isPoc: false, node: null },
+    { price: 100.0, share: 0.3, volume: 0.3 * 1000, insideValueArea: false, isPoc: false, node: null },
+    { price: 100.1, share: 1, volume: 1 * 1000, insideValueArea: true, isPoc: true, node: null },
+    { price: 100.2, share: 0.6, volume: 0.6 * 1000, insideValueArea: true, isPoc: false, node: null },
     // 100.3 untraded — absent
-    { price: 100.4, share: 0.2, insideValueArea: false, isPoc: false, node: null },
+    { price: 100.4, share: 0.2, volume: 0.2 * 1000, insideValueArea: false, isPoc: false, node: null },
   ],
   poc: 100.1,
   vah: 100.2,

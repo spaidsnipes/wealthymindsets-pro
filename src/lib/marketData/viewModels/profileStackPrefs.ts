@@ -44,7 +44,7 @@ export interface ProfileStackPrefs {
 }
 
 /** Lanes whose glass carries absolute row volume — the only honest fusion sources. */
-export const FUSABLE_SPECIES: readonly StackSpecies[] = ["COMPOSITE", "VISIBLE_RANGE"];
+export const FUSABLE_SPECIES: readonly StackSpecies[] = ["LIVING", "COMPOSITE", "VISIBLE_RANGE"];
 
 export function setFusion(prefs: ProfileStackPrefs, pair: readonly StackSpecies[] | null): ProfileStackPrefs {
   const ok = pair && pair.length === 2 && pair[0] !== pair[1] && pair.every(s => FUSABLE_SPECIES.includes(s));

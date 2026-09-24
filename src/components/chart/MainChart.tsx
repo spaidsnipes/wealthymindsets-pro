@@ -10215,8 +10215,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const pair = stackPrefsRef.current.fusion;
           if (pair && pair.length === 2) {
             const cpF = layerOnRef.current.compositeProfile ? compositeProfileRef.current : null;
+            const lpF = layerOnRef.current.livingProfile ? livingProfileRef.current : null;
+            const lastT = barsRef.current?.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null;
             const source = (sp: StackSpecies): FusionSourceProfile | null =>
-              sp === "COMPOSITE" && cpF?.drawn
+              sp === "LIVING" && lpF?.drawn
+                ? { id: "living", species: "LIVING", rows: lpF.bars, poc: lpF.poc, asOf: lastT, fidelity: null }
+                : sp === "COMPOSITE" && cpF?.drawn
                 ? { id: "composite", species: "COMPOSITE", rows: cpF.rows, poc: cpF.poc, asOf: cpF.asOf, fidelity: null }
                 : sp === "VISIBLE_RANGE" && vrpOn && vrpVM?.drawn
                   ? { id: "visible-range", species: "VISIBLE_RANGE", rows: vrpVM.rows, poc: vrpVM.poc, asOf: (barsRef.current?.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null), fidelity: null }

@@ -95,10 +95,10 @@ Entry·RR chip steps under its zone near the top; the zoom plate is an obstacle 
 | Profile Fusion (object) | Fusion only grouped agreeing levels; no fused object, no unfuse | §13 | `7a91876` | fusion_after.png |
 | Profiles taxonomy | #8 was the whole-chart VP; #11 "Delta + VP"; Value Candle / Value Migration in Profiles | §10, §12 | `8847a98` | taxonomy_profiles.png |
 | Webull continuity | Stream stopped dead on any drop; no backoff, no gap record | §23, §36 | `b01c00d` | webull_continuity_{drop,revoked}.png (FIXTURE SSE) |
+| Living as a fusion source | Glass dropped row volume | §13 | (this commit) | fusion_living_after.png |
 | Appearance · flow colours | Bubble colours hard-coded, not in the Appearance owner | §21 | `dd994f3` | appearance_flow_colors.png |
 
-Still OPEN (named, not closed): Living profile as a fusion source (its lane carries shares, not
-row volume); Appearance for profiles/POC/VA/imbalance/absorption/liquidity; Webull stream is
+Still OPEN (named, not closed): Appearance for profiles/POC/VA/imbalance/absorption/liquidity; Webull stream is
 still started by the trader (no auto-start at WM startup) and runs per browser, not as one
 server-side bridge; Moomoo (non-blocking, Founder reconnecting); question lenses beyond
 absorption/exhaustion; FUSED POC label can sit tight against a source label at the same price.

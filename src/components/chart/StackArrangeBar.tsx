@@ -61,7 +61,7 @@ export function StackArrangeBar({ prefs, onChange, fusionNote }: { prefs: Profil
       ))}
       <div className="mt-1 flex items-center justify-between gap-2 border-t border-wm-border pt-1" data-testid="stack-fusion">
         <span className="text-[11px] text-wm-text-dim">
-          {fused ? `Fused · ${STACK_LABEL[fused[0]]} + ${STACK_LABEL[fused[1]]}${fusionNote ? ` · ${fusionNote}` : ""}` : "Fusion · pick two lanes (Composite, Visible Range)"}
+          {fused ? `Fused · ${STACK_LABEL[fused[0]]} + ${STACK_LABEL[fused[1]]}${fusionNote ? ` · ${fusionNote}` : ""}` : "Fusion · pick two lanes, then Fuse"}
         </span>
         {fused ? (
           <button type="button" data-testid="stack-unfuse" onClick={() => { onChange(setFusion(prefs, null)); setPick([]); }}
