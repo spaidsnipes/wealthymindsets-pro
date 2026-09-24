@@ -46,6 +46,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "PROFILE_MEMORY",
   // P-110 #3. Agreement across the switched-on species — bars only.
   "PROFILE_FUSION",
+  // P-110 #9. Completed sessions aggregated — bars only.
+  "COMPOSITE_PROFILE",
   "MARKET_STRUCTURE",
 ];
 

@@ -197,6 +197,7 @@ import type { ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna"
 import type { ValueMigrationVM } from "@/lib/marketData/viewModels/selectValueMigration";
 import type { ProfileMemoryVM } from "@/lib/marketData/viewModels/selectProfileMemory";
 import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileFusion";
+import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompositeProfile";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -977,6 +978,8 @@ interface Props {
   profileMemory?: ProfileMemoryVM | null;
   /** PROFILE FUSION — P-110 #3, where switched-on profiles agree. */
   profileFusion?: ProfileFusionVM | null;
+  /** COMPOSITE PROFILE — P-110 #9, completed sessions, one stack lane. */
+  compositeProfile?: CompositeProfileVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -1003,6 +1006,7 @@ interface Props {
   valueMigrationOnChart?: boolean;
   profileMemoryOnChart?: boolean;
   profileFusionOnChart?: boolean;
+  compositeProfileOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1304,6 +1308,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   profileMemoryOnChart = false,
   profileFusion = null,
   profileFusionOnChart = false,
+  compositeProfile = null,
+  compositeProfileOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1459,6 +1465,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const profileFusionRef = useRef<ProfileFusionVM | null>(null);
   useEffect(() => { profileFusionRef.current = profileFusion ?? null; }, [profileFusion]);
 
+  const compositeProfileRef = useRef<CompositeProfileVM | null>(null);
+  useEffect(() => { compositeProfileRef.current = compositeProfile ?? null; }, [compositeProfile]);
+
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
 
@@ -1477,7 +1486,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1494,8 +1503,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       valueMigration: valueMigrationOnChart,
       profileMemory: profileMemoryOnChart,
       profileFusion: profileFusionOnChart,
+      compositeProfile: compositeProfileOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8526,7 +8536,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               (ds.valueCandleRungs ? 1 : 0);
             let rightEdge = W - 76;
             let histMax = Math.min(160, Math.round(W * 0.16));
-            if (lanesTaken > 0) {
+            // A Composite lane will be drawn after this one: reserve the lane
+            // system now, or the two histograms share a column.
+            const compositeFollows =
+              layerOnRef.current.compositeProfile === true && compositeProfileRef.current?.drawn === true;
+            if (lanesTaken > 0 || compositeFollows) {
               const axisW = (() => {
                 try {
                   const w = chart.priceScale("right").width();
@@ -8534,13 +8548,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 } catch {}
                 return 90;
               })();
-              const lane = vpColumnLayout(W, axisW, lanesTaken, lanesTaken + 1);
+              const lane = vpColumnLayout(W, axisW, lanesTaken, lanesTaken + 1 + (compositeFollows ? 1 : 0));
               if (lane.fits) { rightEdge = lane.right; histMax = lane.width; }
             }
-            const stacked = lanesTaken > 0;
+            const stacked = lanesTaken > 0 || compositeFollows;
             ds.livingProfileLane = String(lanesTaken);
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
             ds.livingProfileLaneRight = String(Math.round(rightEdge));
+            ds.profileStackLeft = String(Math.round(rightEdge - histMax));
 
             /*
               VALUE-AREA BAND — across the entire pane, not just the histogram.
@@ -8707,17 +8722,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Stacked: the lane to the right belongs to another profile, so
               // the labels sit on the LEFT of this histogram instead.
               if (stacked) {
+                // With a Composite lane following, step past it too: the
+                // labels belong left of the whole stack, not on its bars.
+                const skip = compositeFollows ? histMax + 12 : 0;
                 ctx.textAlign = "right";
-                ctx.fillText(text, rightEdge - histMax - 8, +yr);
+                ctx.fillText(text, rightEdge - histMax - 8 - skip, +yr);
                 ctx.textAlign = "left";
+                labelYs.push(+yr);
               } else {
                 ctx.fillText(text, rightEdge + 4, +yr);
               }
             };
             const tag = stacked ? "LIVING " : "";
+            const labelYs: number[] = [];
             if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, "rgba(201,165,92,0.95)");
             if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
             if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
+            ds.livingProfileLabelYs = labelYs.map(v => Math.round(v)).join(",");
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
@@ -8788,6 +8809,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lp.nodesWithheld) ds.livingProfileNodesWithheld = lp.nodesWithheld;
             else delete ds.livingProfileNodesWithheld;
           } else {
+            delete ds.livingProfileLabelYs;
+            delete ds.profileStackLeft;
             delete ds.livingProfileLane;
             delete ds.livingProfileLaneLeft;
             delete ds.livingProfileLaneRight;
@@ -8799,6 +8822,104 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;
+          }
+        }
+
+        /* ══ P-110 #9 · COMPOSITE PROFILE — ONE MORE LANE IN THE STACK ═════
+           Completed sessions only. Takes the lane after everything already in
+           the right-edge stack (VP columns, Value Candle, Living), so no two
+           histograms ever share a column. Cooler parchment than Living so
+           "settled value" and "live value" read apart without a market hue;
+           POC in brass. Labels sit left of its own lane.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const cp = compositeProfileRef.current;
+          const on = layerOnRef.current.compositeProfile;
+          ds.compositeProfile = on ? (cp ? cp.reason : "NO_READING") : "OFF";
+          if (on && cp?.drawn) {
+            const lanesTaken =
+              (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0) +
+              (ds.valueCandleRungs ? 1 : 0) + (ds.livingProfileLane != null ? 1 : 0);
+            const axisW = (() => {
+              try {
+                const w = chart.priceScale("right").width();
+                if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
+              } catch {}
+              return 90;
+            })();
+            const lane = lanesTaken === 0
+              ? { right: W - 76, width: Math.min(140, Math.round(W * 0.14)), fits: true }
+              : vpColumnLayout(W, axisW, lanesTaken, lanesTaken + 1);
+            if (lane.fits) {
+              ctx.save();
+              const right = lane.right;
+              const width = lane.width;
+              const ys: number[] = [];
+              for (const r of cp.rows) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
+              let rowH = 2;
+              if (ys.length >= 2) {
+                const sorted = [...ys].sort((a, b) => a - b);
+                const gaps: number[] = [];
+                for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+                const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2;
+                rowH = Math.max(2, Math.min(10, Math.round(g)));
+              }
+              let drawn = 0;
+              let top = Infinity;
+              for (const r of cp.rows) {
+                const yr = srs.priceToCoordinate(r.price);
+                if (yr == null) continue;
+                const y = Math.round(+yr) - Math.floor(rowH / 2);
+                const w = Math.max(1, Math.round(r.share * width));
+                ctx.fillStyle = r.isPoc
+                  ? "rgba(201,165,92,0.85)"
+                  : r.insideValueArea ? "rgba(184,190,196,0.55)" : "rgba(160,166,172,0.28)";
+                ctx.fillRect(right - w, y, w, Math.max(1, rowH - 1));
+                top = Math.min(top, y);
+                drawn++;
+              }
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "right";
+              ctx.textBaseline = "middle";
+              // Living's labels already printed this frame; a Composite label
+              // that would land on one steps down a line instead of overprinting.
+              const taken = (ds.livingProfileLabelYs ?? "").split(",").filter(Boolean).map(Number);
+              const lab = (price: number | null, text: string, ink: string) => {
+                if (price == null) return;
+                const yr = srs.priceToCoordinate(price);
+                if (yr == null) return;
+                let y = +yr;
+                while (taken.some(t => Math.abs(t - y) < 11)) y += 11;
+                taken.push(y);
+                ctx.fillStyle = ink;
+                ctx.fillText(text, right - width - 8, y);
+              };
+              lab(cp.poc, `CMP POC ${cp.poc?.toFixed(2)}`, "rgba(201,165,92,0.95)");
+              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(2)}`, "rgba(184,190,196,0.85)");
+              lab(cp.val, `CMP VAL ${cp.val?.toFixed(2)}`, "rgba(184,190,196,0.85)");
+              if (Number.isFinite(top)) {
+                const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED`;
+                const tw = Math.ceil(ctx.measureText(text).width) + 8;
+                const tx = Math.max(4, right - tw);
+                const ty = Math.max(40, top - 10);
+                ctx.fillStyle = "rgba(11,10,8,0.85)";
+                ctx.fillRect(tx, ty - 7, tw, 14);
+                ctx.textAlign = "left";
+                ctx.fillStyle = "rgba(184,190,196,0.95)";
+                ctx.fillText(text, tx + 4, ty);
+              }
+              ctx.restore();
+              ds.compositeProfileRows = String(drawn);
+              ds.compositeProfileSessions = String(cp.sessions);
+              ds.profileStackLeft = String(Math.round(right - width));
+            } else {
+              ds.compositeProfile = "NO_ROOM";
+              delete ds.compositeProfileRows;
+              delete ds.compositeProfileSessions;
+            }
+          } else {
+            delete ds.compositeProfileRows;
+            delete ds.compositeProfileSessions;
           }
         }
 
@@ -8943,7 +9064,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             */
             // The right-edge profile stack's leftmost x, as the Living
             // Profile published it this frame; the price gutter otherwise.
-            const stackLeft = ds.livingProfileLaneLeft ? Number(ds.livingProfileLaneLeft) - 12 : W - 76;
+            const stackLeft = ds.profileStackLeft ? Number(ds.profileStackLeft) - 12 : W - 76;
             const livingCol = (W - 76) - stackLeft;
             const room = stackLeft - (x0 + 2);
             const colMax = Math.max(48, Math.min(120, Math.round(W * 0.1), room));
@@ -9069,7 +9190,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : "OFF";
           if (on && fu?.drawn) {
             ctx.save();
-            const endX = ds.livingProfileLaneLeft ? Number(ds.livingProfileLaneLeft) - 8 : W - 80;
+            const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let painted = 0;
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "middle";
@@ -9124,7 +9245,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && mem?.drawn) {
             ctx.save();
             const ts = chart.timeScale();
-            const endX = ds.livingProfileLaneLeft ? Number(ds.livingProfileLaneLeft) - 8 : W - 80;
+            const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let drawn = 0;
             let naked = 0;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";

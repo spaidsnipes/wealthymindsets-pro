@@ -58,6 +58,7 @@ export type ProfileId =
   | "VALUE_MIGRATION"
   | "PROFILE_MEMORY"
   | "PROFILE_FUSION"
+  | "COMPOSITE_PROFILE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -406,6 +407,18 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectProfileFusion.ts",
     levels: ["Fused zone low", "Fused zone high"],
+  },
+  {
+    id: "COMPOSITE_PROFILE",
+    label: "Composite Profile",
+    /*
+      Completed sessions only. Today's developing auction is excluded — that
+      exclusion is what makes it a composite and not a Fixed Range VP.
+    */
+    what: "volume by price across the last completed sessions — today excluded",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectCompositeProfile.ts",
+    levels: ["Composite POC", "Composite VAH", "Composite VAL"],
   },
   {
     id: "MARKET_STRUCTURE",

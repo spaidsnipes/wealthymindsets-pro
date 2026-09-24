@@ -37,13 +37,15 @@
 
 import { chooseTickSize } from "@/lib/vpEngine";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { sessionsByGap, SESSION_GAP_FACTOR } from "./sessionsByGap";
+
+export { SESSION_GAP_FACTOR };
 
 export const VALUE_MIGRATION_VERSION = 1;
 export const MIGRATION_TARGET_ROWS = 120;
 export const MIGRATION_VALUE_AREA_PCT = 0.7;
 /** A session needs this many bars before its value is worth drawing. */
 export const MIN_SESSION_BARS = 3;
-export const SESSION_GAP_FACTOR = 3;
 /** Grid ceiling so a pathological range cannot allocate a huge array. */
 export const MAX_MIGRATION_ROWS = 20_000;
 
@@ -80,12 +82,6 @@ const empty = (reason: Exclude<ValueMigrationReason, "DRAWN">): ValueMigrationVM
   latestPocTravel: null,
 });
 
-function median(xs: number[]): number {
-  if (xs.length === 0) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  return s[Math.floor(s.length / 2)];
-}
-
 export function selectValueMigration(
   input: readonly LegacyOhlcvTuple[] | null | undefined,
 ): ValueMigrationVM {
@@ -118,10 +114,8 @@ export function selectValueMigration(
   // is itself a tick multiple the PRICE of a bucket never depends on `lo`.
   const priceAt = (i: number) => +((base + i * tick).toFixed(10));
 
-  const gaps: number[] = [];
-  for (let i = 1; i < bars.length; i++) gaps.push(bars[i].time - bars[i - 1].time);
-  const step = median(gaps.filter(g => g > 0));
-  const breakAfter = step > 0 ? step * SESSION_GAP_FACTOR : Infinity;
+  // RULE 3 — the ONE session splitter the profile family shares.
+  const sessionOf = sessionsByGap(bars.map(b => b.time));
 
   const points: ValueMigrationPoint[] = [];
   let vol = new Float64Array(n);
@@ -134,7 +128,7 @@ export function selectValueMigration(
 
   for (let k = 0; k < bars.length; k++) {
     const b = bars[k];
-    if (k > 0 && b.time - bars[k - 1].time > breakAfter) {
+    if (k > 0 && sessionOf[k] !== sessionOf[k - 1]) {
       // RULE 3 — a new auction. Yesterday's value does not carry over.
       session++;
       vol = new Float64Array(n);
