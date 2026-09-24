@@ -200,6 +200,7 @@ import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileF
 import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompositeProfile";
 import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
+import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -1011,6 +1012,9 @@ interface Props {
   compositeProfileOnChart?: boolean;
   /** VISIBLE RANGE — P-110 #7. Computed here: only this file knows the camera. */
   visibleRangeProfileOnChart?: boolean;
+  /** H-901 — the regime dimmer, compiled from the one regime owner. */
+  regimeLighting?: RegimeLightingVM | null;
+  regimeLightingOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1316,6 +1320,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   compositeProfile = null,
   compositeProfileOnChart = false,
   visibleRangeProfileOnChart = false,
+  regimeLighting = null,
+  regimeLightingOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1475,6 +1481,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { compositeProfileRef.current = compositeProfile ?? null; }, [compositeProfile]);
 
   const vrpCacheRef = useRef<{ key: string; vm: VisibleRangeProfileVM } | null>(null);
+  const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
+  useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
 
   /** Last crosshair reading published — see the crosshair subscription. */
   const lastCursorKeyRef = useRef<string | null>(null);
@@ -1497,7 +1505,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1516,8 +1524,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       profileFusion: profileFusionOnChart,
       compositeProfile: compositeProfileOnChart,
       visibleRangeProfile: visibleRangeProfileOnChart,
+      regimeLighting: regimeLightingOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8517,6 +8526,38 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
+        /* ══ H-901 · REGIME LIGHTING — which geometry may speak ═════════════
+           One breaker, read from the regime owner. Every profile fixture
+           below multiplies its own alpha by its class's light: MAGNETS
+           (Living, TPO, Composite, Visible Range, Memory, Fusion) or TREND
+           (Structure leg, Value Migration, swing marks). Switched off, or
+           UNKNOWN, every light stays at 1. The breaker is named on the glass.
+        ═══════════════════════════════════════════════════════════════════ */
+        const lightOn = layerOnRef.current.regimeLighting === true;
+        const regimeLight = lightOn ? regimeLightingRef.current : null;
+        const magnetLight = regimeLight?.magnets ?? 1;
+        const trendLight = regimeLight?.trend ?? 1;
+        ds.regimeLighting = lightOn ? (regimeLight?.breaker ?? "NO_BREAKER") : "OFF";
+        ds.regimeLightingVerdict = regimeLight?.verdict ?? "";
+        if (lightOn && regimeLight) {
+          ctx.save();
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          const text = regimeLight.chip;
+          const w = Math.ceil(ctx.measureText(text).width) + 12;
+          const x = Math.round(W / 2 - w / 2);
+          const y = 112;
+          ctx.fillStyle = "rgba(11,10,8,0.86)";
+          ctx.fillRect(x, y - 8, w, 16);
+          ctx.strokeStyle = regimeLight.breaker ? "rgba(201,165,92,0.8)" : "rgba(139,143,168,0.5)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
+          ctx.fillStyle = regimeLight.breaker ? "rgba(201,165,92,1)" : "rgba(200,204,218,0.9)";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, x + 6, y);
+          ctx.restore();
+        }
+
         /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════
            Asked ONCE per frame: which species will draw (Living, Composite,
            Visible Range) after the fixed lanes this plan does not own (VP
@@ -8608,7 +8649,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
 
           if (on && lp?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = magnetLight;
             /*
               GEOMETRY. The histogram lives at the right of the pane, inset
               from the price gutter so the axis labels stay legible. Bars
@@ -8905,7 +8946,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
-              ctx.save();
+              ctx.save(); ctx.globalAlpha = magnetLight;
               const right = lane.right;
               const width = lane.width;
               const ys: number[] = [];
@@ -8981,7 +9022,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const lane = stackPlan.lanes.VISIBLE_RANGE;
           if (vrpVM?.drawn && lane?.fits) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = magnetLight;
             const right = lane.right;
             const width = lane.width;
             const ys: number[] = [];
@@ -9071,7 +9112,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
 
           if (on && tpo?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = magnetLight;
             const leftEdge = 10;
             const colMax = Math.min(140, Math.round(W * 0.14));
 
@@ -9180,7 +9221,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           const ax = sp?.anchor ? chart.timeScale().timeToCoordinate(sp.anchor.time as any) : null;
           if (on && sp?.drawn && sp.anchor && ax != null) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = trendLight;
             const x0 = Math.round(+ax);
             /*
               ROOM, NOT OVERLAP. The Living Profile owns the right-edge column
@@ -9315,7 +9356,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.profileFusion;
           ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : "OFF";
           if (on && fu?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = magnetLight;
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let painted = 0;
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
@@ -9369,7 +9410,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.profileMemory;
           ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : "OFF";
           if (on && mem?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = magnetLight;
             const ts = chart.timeScale();
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let drawn = 0;
@@ -9431,7 +9472,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.valueMigration;
           ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : "OFF";
           if (on && vm?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = trendLight;
             const ts = chart.timeScale();
             const stepLine = (key: "poc" | "vah" | "val", ink: string, width: number, dash: number[]) => {
               ctx.strokeStyle = ink;
@@ -9506,7 +9547,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.marketStructureBias = ms?.bias ?? "";
 
           if (on && ms?.drawn) {
-            ctx.save();
+            ctx.save(); ctx.globalAlpha = trendLight;
             let painted = 0;
             for (const p of ms.pivots) {
               const xr = chart.timeScale().timeToCoordinate(p.time as any);

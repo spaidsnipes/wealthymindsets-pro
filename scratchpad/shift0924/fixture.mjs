@@ -49,3 +49,12 @@ export function fixtureDays() {
   }
   return out;
 }
+
+// The same three sessions, re-timed so the newest bar is the current 5m bar.
+// FIXTURE — harness-injected, NOT market data. Only the clock is moved.
+export function fixtureDaysNow() {
+  const src = fixtureDays();
+  const nowBar = Math.floor(Date.now() / 1000 / 300) * 300;
+  const shift = nowBar - src[src.length - 1].time;
+  return src.map(b => ({ ...b, time: b.time + shift }));
+}

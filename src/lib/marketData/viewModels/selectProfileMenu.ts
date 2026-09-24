@@ -61,6 +61,7 @@ export type ProfileId =
   | "COMPOSITE_PROFILE"
   | "VISIBLE_RANGE_PROFILE"
   | "ANCHORED_RANGE"
+  | "REGIME_LIGHTING"
   | "MARKET_STRUCTURE";
 
 /**
@@ -447,6 +448,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "DRAW",
     owner: "src/lib/marketData/viewModels/selectVisibleRangeProfile.ts",
     levels: ["Range POC", "Range VAH", "Range VAL"],
+  },
+  {
+    id: "REGIME_LIGHTING",
+    label: "Regime Lighting",
+    /*
+      H-901. A dimmer over the geometry above, not a reading of its own:
+      TREND dims value magnets, RANGE caps trend fixtures, TRANSITION dims
+      both. Reads the one regime owner; UNKNOWN leaves every light on.
+    */
+    what: "dims the geometry the current regime says should stay quiet — a dimmer, not a room",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectRegimeLighting.ts",
+    // A dimmer has no price. It borrows none.
+    levels: ["No level of its own — relights the profiles above"],
   },
   {
     id: "MARKET_STRUCTURE",

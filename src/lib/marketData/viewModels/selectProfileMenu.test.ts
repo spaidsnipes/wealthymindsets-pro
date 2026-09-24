@@ -52,6 +52,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "VISIBLE_RANGE_PROFILE",
   // P-110 #8. Trader-anchored range from bars — a DRAW gesture, no side.
   "ANCHORED_RANGE",
+  // H-901. A dimmer over the profile family — reads the regime owner.
+  "REGIME_LIGHTING",
   "MARKET_STRUCTURE",
 ];
 
