@@ -63,6 +63,7 @@ export type ProfileId =
   | "ANCHORED_RANGE"
   | "REGIME_LIGHTING"
   | "QUESTION_LENS"
+  | "SCAFFOLDING"
   | "MARKET_STRUCTURE";
 
 /**
@@ -476,6 +477,23 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectQuestionLens.ts",
     levels: ["The question's own price band"],
+  },
+  {
+    id: "SCAFFOLDING",
+    label: "Scaffolding",
+    /*
+      The Founder's "SAME SKILL. DEEPER MASTERY. LESS HAND-HOLDING." plate on
+      the SAME camera: one read of structure, effort, result, location and
+      order flow, shown at FOUNDATION (six steps) → INTERMEDIATE (three
+      dynamics) → PRO (geometry only). Each click goes one depth deeper; the
+      click after PRO switches it off. The truth never changes — only the
+      scaffolding does.
+    */
+    what: "the same read at three depths — six steps, three dynamics, then geometry only; click again to go deeper",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectScaffoldingRead.ts",
+    // A teaching lens has no price of its own; it names the swings it reads.
+    levels: ["No level of its own — reads the nearest confirmed swings"],
   },
   {
     id: "MARKET_STRUCTURE",

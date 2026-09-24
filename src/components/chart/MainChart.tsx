@@ -204,6 +204,8 @@ import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeL
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
+import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
@@ -1018,6 +1020,10 @@ interface Props {
   visibleRangeProfileOnChart?: boolean;
   /** QUESTION LENS — the active evidence question asked of this camera. */
   questionLensOnChart?: boolean;
+  /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
+  scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
+  /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
+  scaffoldingStructure?: MarketStructureVM | null;
   /** H-901 — the regime dimmer, compiled from the one regime owner. */
   regimeLighting?: RegimeLightingVM | null;
   regimeLightingOnChart?: boolean;
@@ -1329,6 +1335,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   compositeProfileOnChart = false,
   visibleRangeProfileOnChart = false,
   questionLensOnChart = false,
+  scaffoldingDepthOnChart = "OFF",
+  scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
   bigTradesOverlay = false,
@@ -1467,6 +1475,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { livingProfileRef.current = livingProfileGlass ?? null; }, [livingProfileGlass]);
 
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
+  const scaffoldingDepthRef = useRef<ScaffoldingDepth | "OFF">("OFF");
+  const scaffoldingStructureRef = useRef<MarketStructureVM | null>(null);
+  useEffect(() => {
+    scaffoldingDepthRef.current = scaffoldingDepthOnChart;
+    scaffoldingStructureRef.current = scaffoldingStructure;
+  }, [scaffoldingDepthOnChart, scaffoldingStructure]);
   useEffect(() => { marketStructureRef.current = marketStructureGlass ?? null; }, [marketStructureGlass]);
 
   const tpoProfileRef = useRef<TpoProfileVM | null>(null);
@@ -7475,6 +7489,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // H-501/F16 QUESTION LENS — set inside the absorption section when a
       // question is active; every later layer is quieted by it. 1 = no lens.
       let questionQuiet = 1;
+      // SCAFFOLDING — set when the card was drawn from a measured anatomy.
+      let scaffoldPainted: string | null = null;
       if (!absorptionAnatomyActive) {
         const ds = canvas.dataset;
         ds.absorption = "OFF";
@@ -8015,6 +8031,189 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ds.questionLens = "OFF";
             }
 
+            /* ── SCAFFOLDING — "SAME SKILL. DEEPER MASTERY. LESS HAND-HOLDING." ──
+               One read of THIS camera (structure owner + this anatomy + its
+               exhaustion) shown at the trader's chosen depth. The nearest
+               confirmed swings go ON PRICE at every depth; the card only
+               changes how much of the reasoning is spelled out. */
+            const depth = scaffoldingDepthRef.current;
+            if (depth !== "OFF") {
+              const sc = selectScaffoldingRead({
+                structure: scaffoldingStructureRef.current,
+                absorption: anatomy,
+                exhaustion: selectExhaustion(anatomy),
+              });
+              scaffoldPainted = sc.measured ? `${depth}:${sc.posture}:${sc.cautionFlags.length}` : `${depth}:${sc.reason}`;
+              if (sc.measured) {
+                ctx.save();
+                const GOLD = "rgba(201,165,92,0.95)";
+                const CREAM = "rgba(237,230,211,0.95)";
+                const DIM = "rgba(200,192,174,0.8)";
+                const PANEL = "rgba(11,10,8,0.9)";
+                const HAIR = "rgba(201,165,92,0.6)";
+                const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+                const clip = (t: string, max: number) => {
+                  if (ctx.measureText(t).width <= max) return t;
+                  let u = t;
+                  while (u.length > 1 && ctx.measureText(u + "…").width > max) u = u.slice(0, -1);
+                  return u + "…";
+                };
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+
+                // Location on price: the nearest confirmed swings, dashed.
+                for (const [lvl, tag] of [[sc.swingAbove, "SWING ABOVE"], [sc.swingBelow, "SWING BELOW"]] as const) {
+                  if (lvl == null) continue;
+                  const y = srs.priceToCoordinate(lvl);
+                  if (y == null) continue;
+                  ctx.setLineDash([6, 4]);
+                  ctx.strokeStyle = "rgba(237,230,211,0.55)";
+                  ctx.lineWidth = 1;
+                  ctx.beginPath(); ctx.moveTo(0, Math.round(+y) + 0.5); ctx.lineTo(W - 76, Math.round(+y) + 0.5); ctx.stroke();
+                  ctx.setLineDash([]);
+                  ctx.font = font(700, 8);
+                  const t = `${tag} · ${lvl.toFixed(2)}`;
+                  const tw = ctx.measureText(t).width;
+                  ctx.fillStyle = PANEL;
+                  ctx.fillRect(W - 84 - tw - 8, +y - 7, tw + 8, 14);
+                  ctx.fillStyle = CREAM;
+                  ctx.fillText(t, W - 84 - tw - 4, +y);
+                }
+
+                const x0 = layerOnRef.current.questionLens === true && questionQuiet < 1 ? 272 : 12;
+                const y0 = 176;
+                // The removal path: where this depth sits.
+                ctx.font = font(700, 9);
+                ctx.fillStyle = PANEL;
+                ctx.fillRect(x0, y0 - 9, 290, 18);
+                let px = x0 + 8;
+                const path: ScaffoldingDepth[] = ["FOUNDATION", "INTERMEDIATE", "PRO"];
+                for (const d of path) {
+                  const t = d === "PRO" ? "ADVANCED / PRO" : d;
+                  ctx.fillStyle = d === depth ? GOLD : "rgba(200,192,174,0.45)";
+                  ctx.fillText(t, px, y0);
+                  px += ctx.measureText(t).width + 8;
+                  if (d !== "PRO") { ctx.fillStyle = "rgba(200,192,174,0.45)"; ctx.fillText("›", px, y0); px += 12; }
+                }
+                const top = y0 + 12;
+
+                if (depth === "FOUNDATION") {
+                  const w = 470, rowH = 30, h = 40 + sc.steps.length * rowH + 30;
+                  ctx.fillStyle = PANEL; ctx.fillRect(x0, top, w, h);
+                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, top + 0.5, w - 1, h - 1);
+                  ctx.font = font(700, 11); ctx.fillStyle = GOLD;
+                  ctx.fillText("FOUNDATION VIEW", x0 + 12, top + 14);
+                  ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                  ctx.fillText("Full scaffolding · six steps fully expanded · every verdict measured", x0 + 12, top + 28);
+                  let ry = top + 40;
+                  for (const st of sc.steps) {
+                    ctx.strokeStyle = "rgba(201,165,92,0.18)";
+                    ctx.beginPath(); ctx.moveTo(x0 + 8, ry + 0.5); ctx.lineTo(x0 + w - 8, ry + 0.5); ctx.stroke();
+                    ctx.font = font(700, 13); ctx.fillStyle = GOLD;
+                    ctx.fillText(String(st.n), x0 + 12, ry + rowH / 2);
+                    ctx.font = font(700, 9); ctx.fillStyle = CREAM;
+                    ctx.fillText(clip(st.title, 230), x0 + 30, ry + 10);
+                    ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                    ctx.fillText(clip(st.evidence, 262), x0 + 30, ry + 22);
+                    const cw = 160, cx = x0 + w - cw - 10;
+                    ctx.strokeStyle = HAIR; ctx.strokeRect(cx + 0.5, ry + 4.5, cw, rowH - 9);
+                    ctx.font = font(700, 8); ctx.fillStyle = CREAM;
+                    ctx.textAlign = "center";
+                    ctx.fillText(clip(st.verdict, cw - 8), cx + cw / 2, ry + rowH / 2);
+                    ctx.textAlign = "left";
+                    ry += rowH;
+                  }
+                  ctx.strokeStyle = HAIR; ctx.strokeRect(x0 + 8.5, ry + 4.5, w - 17, 20);
+                  ctx.font = font(700, 8.5); ctx.fillStyle = GOLD;
+                  ctx.textAlign = "center";
+                  ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 30), x0 + w / 2, ry + 14.5);
+                  ctx.textAlign = "left";
+                } else if (depth === "INTERMEDIATE") {
+                  const w = 300, rowH = 40, h = 40 + sc.dynamics.length * rowH + 56 + 18;
+                  ctx.fillStyle = PANEL; ctx.fillRect(x0, top, w, h);
+                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, top + 0.5, w - 1, h - 1);
+                  ctx.font = font(700, 11); ctx.fillStyle = GOLD;
+                  ctx.fillText("INTERMEDIATE VIEW", x0 + 12, top + 14);
+                  ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                  ctx.fillText("Compressed to core dynamics", x0 + 12, top + 28);
+                  let ry = top + 40;
+                  for (const d of sc.dynamics) {
+                    ctx.strokeStyle = "rgba(201,165,92,0.18)";
+                    ctx.beginPath(); ctx.moveTo(x0 + 8, ry + 0.5); ctx.lineTo(x0 + w - 8, ry + 0.5); ctx.stroke();
+                    ctx.font = font(700, 18); ctx.fillStyle = GOLD;
+                    ctx.fillText(d.trend === "UP" ? "↑" : d.trend === "DOWN" ? "↓" : "•", x0 + 14, ry + rowH / 2);
+                    ctx.font = font(700, 11); ctx.fillStyle = CREAM;
+                    ctx.fillText(d.label, x0 + 40, ry + 13);
+                    ctx.font = font(500, 9); ctx.fillStyle = DIM;
+                    ctx.fillText(d.line, x0 + 40, ry + 28);
+                    ry += rowH;
+                  }
+                  ctx.strokeStyle = sc.caution ? GOLD : HAIR;
+                  ctx.strokeRect(x0 + 8.5, ry + 6.5, w - 17, 46);
+                  ctx.font = font(700, 16); ctx.fillStyle = GOLD;
+                  ctx.fillText(sc.posture, x0 + 20, ry + 22);
+                  ctx.font = font(500, 8); ctx.fillStyle = CREAM;
+                  ctx.fillText(clip(sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired — the read is yours", w - 40), x0 + 20, ry + 40);
+                  ctx.font = font(700, 8); ctx.fillStyle = DIM;
+                  ctx.textAlign = "center";
+                  ctx.fillText("SAME READ. FEWER STEPS. HIGHER OWNERSHIP.", x0 + w / 2, ry + 64);
+                  ctx.textAlign = "left";
+                } else {
+                  const w = 300, gh = 130, h = 40 + gh + 96;
+                  ctx.fillStyle = PANEL; ctx.fillRect(x0, top, w, h);
+                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, top + 0.5, w - 1, h - 1);
+                  ctx.font = font(700, 11); ctx.fillStyle = GOLD;
+                  ctx.fillText("ADVANCED / PRO", x0 + 12, top + 14);
+                  ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                  ctx.fillText("Geometry & efficiency only · effort vs result, cumulative", x0 + 12, top + 28);
+                  const gx = x0 + 34, gy = top + 40, gw = w - 48;
+                  ctx.strokeStyle = "rgba(237,230,211,0.12)";
+                  for (let k = 0; k <= 4; k++) {
+                    const yy = Math.round(gy + (gh * k) / 4) + 0.5;
+                    ctx.beginPath(); ctx.moveTo(gx, yy); ctx.lineTo(gx + gw, yy); ctx.stroke();
+                  }
+                  const n = sc.effortCurve.length;
+                  const X = (i: number) => gx + (n > 1 ? (gw * i) / (n - 1) : 0);
+                  const Y = (v: number) => gy + gh - v * gh;
+                  // Where effort ran ahead of result, the unpaid effort is filled.
+                  for (let i = 1; i < n; i++) {
+                    const e0 = sc.effortCurve[i - 1], e1 = sc.effortCurve[i];
+                    const r0 = sc.resultCurve[i - 1], r1 = sc.resultCurve[i];
+                    ctx.fillStyle = e1 >= r1 ? "rgba(240,180,41,0.28)" : "rgba(140,165,190,0.28)";
+                    ctx.beginPath();
+                    ctx.moveTo(X(i - 1), Y(e0)); ctx.lineTo(X(i), Y(e1)); ctx.lineTo(X(i), Y(r1)); ctx.lineTo(X(i - 1), Y(r0));
+                    ctx.closePath(); ctx.fill();
+                  }
+                  ctx.lineWidth = 1.5;
+                  ctx.strokeStyle = "rgba(240,190,70,1)";
+                  ctx.beginPath(); sc.effortCurve.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
+                  ctx.strokeStyle = "rgba(180,200,220,1)";
+                  ctx.beginPath(); sc.resultCurve.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
+                  ctx.lineWidth = 1;
+                  const mid = X(Math.floor(n / 2));
+                  ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(237,230,211,0.35)";
+                  ctx.beginPath(); ctx.moveTo(Math.round(mid) + 0.5, gy); ctx.lineTo(Math.round(mid) + 0.5, gy + gh); ctx.stroke();
+                  ctx.setLineDash([]);
+                  ctx.font = font(700, 8);
+                  ctx.fillStyle = "rgba(240,190,70,1)"; ctx.fillText("EFFORT", gx + 4, gy + 8);
+                  ctx.fillStyle = "rgba(180,200,220,1)"; ctx.fillText("RESULT", gx + 48, gy + 8);
+                  ctx.fillStyle = DIM; ctx.fillText(`${n} BARS`, gx + gw - 40, gy + gh + 9);
+                  const by = gy + gh + 18;
+                  ctx.strokeStyle = HAIR; ctx.strokeRect(x0 + 40.5, by + 0.5, w - 80, 50);
+                  ctx.textAlign = "center";
+                  ctx.font = font(700, 8); ctx.fillStyle = GOLD;
+                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", x0 + w / 2, by + 10);
+                  ctx.font = font(700, 15); ctx.fillStyle = CREAM;
+                  ctx.fillText(sc.resultPerEffort == null ? "—" : `${sc.resultPerEffort.toFixed(2)}×`, x0 + w / 2, by + 26);
+                  ctx.font = font(700, 8); ctx.fillStyle = GOLD;
+                  ctx.fillText(sc.conversion ?? "NO EFFORT", x0 + w / 2, by + 42);
+                  ctx.font = font(700, 8); ctx.fillStyle = DIM;
+                  ctx.fillText("PURE SIGNAL. MAXIMUM DISCRETION.", x0 + w / 2, top + h - 9);
+                  ctx.textAlign = "left";
+                }
+                ctx.restore();
+              }
+            }
+
             ctx.restore();
           } else {
             // REFUSAL IS A FIRST-CLASS RENDER. No field, no band, no implied
@@ -8039,6 +8238,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.restore();
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      }
+
+      {
+        const depth = scaffoldingDepthRef.current;
+        canvas.dataset.scaffolding = depth === "OFF" ? "OFF" : (scaffoldPainted ?? `${depth}:NEEDS_ABSORPTION`);
+        if (depth !== "OFF" && (scaffoldPainted == null || !scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
+          // Refusal is a render: the lens reads effort, and effort is not being read.
+          ctx.save();
+          const txt = scaffoldPainted == null
+            ? "SCAFFOLDING · READS EFFORT — SWITCH ON ABSORPTION"
+            : `SCAFFOLDING · ${scaffoldPainted.split(":")[1] === "TOO_FEW_BARS" ? "TOO FEW BARS ON SCREEN" : "EFFORT NOT MEASURED"}`;
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          const tw = ctx.measureText(txt).width;
+          ctx.fillStyle = "rgba(11,10,8,0.9)";
+          ctx.fillRect(12, 176, tw + 16, 18);
+          ctx.strokeStyle = "rgba(201,165,92,0.6)";
+          ctx.strokeRect(12.5, 176.5, tw + 15, 17);
+          ctx.fillStyle = "rgba(237,230,211,0.9)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.fillText(txt, 20, 185.5);
+          ctx.restore();
+        }
       }
 
       /* ══════════════════════════════════════════════════════════════════════

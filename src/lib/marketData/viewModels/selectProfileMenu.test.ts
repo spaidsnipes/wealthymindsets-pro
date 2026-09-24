@@ -56,6 +56,7 @@ const ALL_IDS: readonly ProfileId[] = [
   "REGIME_LIGHTING",
   // Question-driven mode on the same camera — reads absorption/exhaustion.
   "QUESTION_LENS",
+  "SCAFFOLDING",
   "MARKET_STRUCTURE",
 ];
 

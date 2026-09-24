@@ -267,6 +267,7 @@ import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory
 import selectProfileFusion, { type FusionSourceLevel } from "@/lib/marketData/viewModels/selectProfileFusion";
 import selectCompositeProfile from "@/lib/marketData/viewModels/selectCompositeProfile";
 import selectRegimeLighting from "@/lib/marketData/viewModels/selectRegimeLighting";
+import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
@@ -753,6 +754,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [visibleRangeProfileOn, setVisibleRangeProfileOn] = useState<boolean>(() => lsGet("wm_ofVisibleRangeProfile", false) as boolean);
   const [regimeLightingOn, setRegimeLightingOn] = useState<boolean>(() => lsGet("wm_ofRegimeLighting", false) as boolean);
   const [questionLensOn, setQuestionLensOn] = useState<boolean>(() => lsGet("wm_ofQuestionLens", false) as boolean);
+  // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
+  const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
+    const v = lsGet("wm_ofScaffolding", "OFF") as string;
+    return (SCAFFOLDING_DEPTHS as readonly string[]).includes(v) ? (v as ScaffoldingDepth) : "OFF";
+  });
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -989,6 +995,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofVisibleRangeProfile", visibleRangeProfileOn);
   usePersistOnChange("wm_ofRegimeLighting",   regimeLightingOn);
   usePersistOnChange("wm_ofQuestionLens",     questionLensOn);
+  usePersistOnChange("wm_ofScaffolding",      scaffoldingDepth);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2484,6 +2491,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.VISIBLE_RANGE_PROFILE !== undefined) setVisibleRangeProfileOn(s.VISIBLE_RANGE_PROFILE);
       if (s.REGIME_LIGHTING !== undefined) setRegimeLightingOn(s.REGIME_LIGHTING);
       if (s.QUESTION_LENS !== undefined) setQuestionLensOn(s.QUESTION_LENS);
+      if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
   );
@@ -2526,6 +2534,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       VISIBLE_RANGE_PROFILE: visibleRangeProfileOn,
       REGIME_LIGHTING: regimeLightingOn,
       QUESTION_LENS: questionLensOn,
+      SCAFFOLDING: scaffoldingDepth !== "OFF",
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4178,6 +4187,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   VISIBLE_RANGE_PROFILE: visibleRangeProfileOn,
                   REGIME_LIGHTING: regimeLightingOn,
                   QUESTION_LENS: questionLensOn,
+                  SCAFFOLDING: scaffoldingDepth !== "OFF",
                   MARKET_STRUCTURE: marketStructureOn,
                 }}
                 onToggle={(id) => {
@@ -4202,6 +4212,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "VISIBLE_RANGE_PROFILE") setVisibleRangeProfileOn(v => !v);
                   else if (id === "REGIME_LIGHTING") setRegimeLightingOn(v => !v);
                   else if (id === "QUESTION_LENS") setQuestionLensOn(v => !v);
+                  else if (id === "SCAFFOLDING") {
+                    setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
+                  }
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4909,6 +4922,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       regimeLighting={chartRegimeLighting}
                       regimeLightingOnChart={regimeLightingOn}
                       questionLensOnChart={questionLensOn}
+                      scaffoldingDepthOnChart={scaffoldingDepth}
+                      scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off
