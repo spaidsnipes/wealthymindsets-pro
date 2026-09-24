@@ -7968,34 +7968,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
               // The Question Lens owns the left column (strip, debt, control);
               // the cards step right of it rather than printing over it.
-              const cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
-              [cards.absorption, cards.exhaustion].forEach((c, k) => {
+              let cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
+              let cardsTop = top;
+              // SCAFFOLDING owns its card (painted later this frame at the
+              // same left column). Find room beside it, then below it; if the
+              // camera has neither, the two cards fold into two measured lines
+              // at the foot of the plot — same numbers, nothing dropped.
+              const sDepth = scaffoldingDepthRef.current;
+              let compact = false;
+              if (sDepth !== "OFF") {
+                const sx = cardsLeft, sy = 176;
+                const sw = sDepth === "FOUNDATION" ? 470 : 300;
+                const sh = 12 + (sDepth === "FOUNDATION" ? 250 : sDepth === "INTERMEDIATE" ? 234 : 266);
+                const need = 2 * cw + gap;
+                if (sx + sw + 12 + need <= W - 90) {
+                  cardsLeft = sx + sw + 12;
+                } else if (sy + sh + 8 + ch <= H - 40) {
+                  cardsTop = sy + sh + 8;
+                } else {
+                  compact = true;
+                }
+              }
+              if (compact) {
+                const lines = [cards.absorption, cards.exhaustion].map(c =>
+                  c.empty
+                    ? `${c.title} · ${c.empty}`
+                    : `${c.kind} · ${c.metrics.map(m => `${m.label.toLowerCase()} ${m.value}`).join(" · ")} · ${c.outcome}`);
+                ctx.font = font(700, 9);
+                const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 16;
+                const ly = H - 58;
+                ctx.fillStyle = "rgba(11,10,8,0.92)";
+                ctx.fillRect(cardsLeft, ly, lw, 34);
+                ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1;
+                ctx.strokeRect(cardsLeft + 0.5, ly + 0.5, lw - 1, 33);
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillStyle = "rgba(240,190,70,1)";
+                ctx.fillText(lines[0], cardsLeft + 8, ly + 10);
+                ctx.fillStyle = "rgba(226,92,92,1)";
+                ctx.fillText(lines[1], cardsLeft + 8, ly + 24);
+                ds.anatomyCardsLayout = "COMPACT";
+              } else {
+                ds.anatomyCardsLayout = "CARDS";
+              }
+              if (!compact) [cards.absorption, cards.exhaustion].forEach((c, k) => {
                 const x0 = cardsLeft + k * (cw + gap);
                 const ex = c.kind === "EXHAUSTION";
                 const ACC = ex ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
                 const ACC_DIM = ex ? "rgba(226,92,92,0.55)" : "rgba(201,165,92,0.6)";
                 ctx.fillStyle = ex ? "rgba(20,8,8,0.92)" : "rgba(11,10,8,0.92)";
-                ctx.fillRect(x0, top, cw, ch);
+                ctx.fillRect(x0, cardsTop, cw, ch);
                 ctx.strokeStyle = ACC_DIM; ctx.lineWidth = 1;
-                ctx.strokeRect(x0 + 0.5, top + 0.5, cw - 1, ch - 1);
+                ctx.strokeRect(x0 + 0.5, cardsTop + 0.5, cw - 1, ch - 1);
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.font = font(800, 13); ctx.fillStyle = ACC;
-                ctx.fillText(c.title, x0 + cw / 2, top + 15);
+                ctx.fillText(c.title, x0 + cw / 2, cardsTop + 15);
                 ctx.fillStyle = "rgba(237,230,211,0.75)";
                 let sp = 7.5;
                 ctx.font = font(600, sp);
                 while (sp > 5.5 && ctx.measureText(`(${c.subtitle})`).width > cw - 16) { sp -= 0.25; ctx.font = font(600, sp); }
-                ctx.fillText(`(${c.subtitle})`, x0 + cw / 2, top + 29);
+                ctx.fillText(`(${c.subtitle})`, x0 + cw / 2, cardsTop + 29);
                 if (c.empty) {
                   ctx.font = font(600, 9); ctx.fillStyle = "rgba(200,192,174,0.85)";
-                  ctx.fillText(c.empty.length > 52 ? c.empty.slice(0, 51) + "…" : c.empty, x0 + cw / 2, top + ch / 2 + 6);
+                  ctx.fillText(c.empty.length > 52 ? c.empty.slice(0, 51) + "…" : c.empty, x0 + cw / 2, cardsTop + ch / 2 + 6);
                   return;
                 }
                 // Four metric tiles, 2×2: label · big number · word.
                 const tw = (cw - 24) / 2, th = 50;
                 c.metrics.forEach((m, i) => {
                   const tx = x0 + 8 + (i % 2) * (tw + 8);
-                  const ty = top + 40 + Math.floor(i / 2) * (th + 6);
+                  const ty = cardsTop + 40 + Math.floor(i / 2) * (th + 6);
                   ctx.strokeStyle = "rgba(237,230,211,0.12)";
                   ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
                   ctx.textAlign = "left";
@@ -8008,9 +8049,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 });
                 ctx.textAlign = "left";
                 ctx.font = font(800, 10); ctx.fillStyle = ACC;
-                ctx.fillText(`${ex ? "EXHAUSTION" : "ABSORPTION"} OUTCOME · ${c.outcome}`, x0 + 10, top + ch - 24);
+                ctx.fillText(`${ex ? "EXHAUSTION" : "ABSORPTION"} OUTCOME · ${c.outcome}`, x0 + 10, cardsTop + ch - 24);
                 ctx.font = font(500, 8); ctx.fillStyle = "rgba(200,192,174,0.85)";
-                ctx.fillText(c.outcomeNote, x0 + 10, top + ch - 10);
+                ctx.fillText(c.outcomeNote, x0 + 10, cardsTop + ch - 10);
                 // Leader to the candles.
                 if (c.time != null && c.price != null) {
                   const xr = ts.timeToCoordinate(c.time as never);
@@ -8018,7 +8059,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   if (xr != null && yr != null) {
                     ctx.setLineDash([2, 3]);
                     ctx.strokeStyle = ACC_DIM;
-                    ctx.beginPath(); ctx.moveTo(x0 + cw / 2, top); ctx.lineTo(+xr, +yr); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(x0 + cw / 2, cardsTop); ctx.lineTo(+xr, +yr); ctx.stroke();
                     ctx.setLineDash([]);
                     ctx.fillStyle = ACC;
                     ctx.beginPath(); ctx.arc(+xr, +yr, 3, 0, Math.PI * 2); ctx.fill();
