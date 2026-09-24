@@ -20,6 +20,6 @@ for (let i = 0; i < 2; i++) {
   console.log("click", i + 1, "→", (await row.innerText()).replace(/\s+/g, " "),
     "| canvas:", await p.evaluate(() => [...document.querySelectorAll("canvas")].map(c => c.dataset.scaffolding).find(Boolean)));
 }
-await row.scrollIntoViewIfNeeded();
+await p.locator('[data-testid="reading-lenses-panel"]').scrollIntoViewIfNeeded();
 await p.screenshot({ path: "scratchpad/shift0924/scaffold_door.png" });
 await b.close();
