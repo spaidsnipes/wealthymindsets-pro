@@ -1438,7 +1438,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             {riskCell}
             {whyCell}
             <div style={cellStyle}>
-              <span style={LABEL}>Evidence ledger</span>
+              {/* A two-word phrase, not a one-word cell label: it takes the
+                  phrase floor (11px) rather than LABEL's 9px caps. */}
+              <span style={{ ...LABEL, fontSize: 11 }}>Evidence ledger</span>
               {ladderBar}
               {ladderRoster}
             </div>

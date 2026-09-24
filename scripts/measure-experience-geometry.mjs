@@ -700,6 +700,16 @@ for (const surface of surfaces) {
           if (el.getClientRects().length === 0) return false;
           // aria-hidden decorative glyphs are not phrases a reader parses.
           if (el.getAttribute("aria-hidden") === "true") return false;
+          // SCREEN-READER-ONLY text (the standard visually-hidden pattern:
+          // clip: rect(0,0,0,0) in a 1px box) is deliberately not painted for
+          // sighted readers — it is announced, not shown. Measuring it as
+          // "crushed" flagged the decision rail's sr-only sentences, which is
+          // the opposite of a legibility defect. Walks up, because the clip
+          // may sit on an ancestor.
+          for (let n = el; n && n !== host.parentElement; n = n.parentElement) {
+            const c = getComputedStyle(n);
+            if (c.clip === "rect(0px, 0px, 0px, 0px)" || c.clipPath === "inset(50%)" || c.clipPath === "inset(100%)") return false;
+          }
           return true;
         };
 
