@@ -60,6 +60,7 @@ export type ProfileId =
   | "PROFILE_FUSION"
   | "COMPOSITE_PROFILE"
   | "VISIBLE_RANGE_PROFILE"
+  | "ANCHORED_RANGE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -432,6 +433,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectVisibleRangeProfile.ts",
     levels: ["VRP POC", "VRP VAH", "VRP VAL"],
+  },
+  {
+    id: "ANCHORED_RANGE",
+    label: "Anchored Range VP",
+    /*
+      P-110 #8 FIXED · anchored / static. A DRAW gesture: the trader drags
+      across the bars they choose, and the profile stays anchored to those
+      times on scroll. Built from bars, so unlike Delta + VP it draws on a
+      feed that never states an aggressor.
+    */
+    what: "volume by price for a span of bars you drag across — anchored, from bars alone",
+    gesture: "DRAW",
+    owner: "src/lib/marketData/viewModels/selectVisibleRangeProfile.ts",
+    levels: ["Range POC", "Range VAH", "Range VAL"],
   },
   {
     id: "MARKET_STRUCTURE",

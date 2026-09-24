@@ -125,6 +125,7 @@ const TOOL_GROUPS: ToolGroup[] = [
     label: "Order Flow", color: "#00D4AA",
     tools: [
       { id: "delta-vp", label: "Delta + VP Box", icon: "⧉", desc: "Draw a box: left = per-level delta profile (green buy / red sell), right = volume profile bars with POC. Numbers on every row." },
+      { id: "anchored-vp", label: "Anchored Range VP", icon: "▤", desc: "Drag across the bars you choose: volume by price for exactly that span, from bars alone (no aggressor side needed). It stays anchored when you scroll." },
     ],
   },
   {

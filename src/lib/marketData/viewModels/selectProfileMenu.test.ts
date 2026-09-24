@@ -50,6 +50,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "COMPOSITE_PROFILE",
   // P-110 #7. The bars in view — bars only; moves with the camera.
   "VISIBLE_RANGE_PROFILE",
+  // P-110 #8. Trader-anchored range from bars — a DRAW gesture, no side.
+  "ANCHORED_RANGE",
   "MARKET_STRUCTURE",
 ];
 

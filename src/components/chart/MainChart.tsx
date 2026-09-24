@@ -198,7 +198,7 @@ import type { ValueMigrationVM } from "@/lib/marketData/viewModels/selectValueMi
 import type { ProfileMemoryVM } from "@/lib/marketData/viewModels/selectProfileMemory";
 import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileFusion";
 import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompositeProfile";
-import { selectVisibleRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
+import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
@@ -1238,6 +1238,7 @@ const DRAW_PTS: Record<string, number> = {
   "long-position": 3, "short-position": 3,
   // order flow
   "delta-vp": 2,
+  "anchored-vp": 2,
 };
 const drawPtsNeeded = (tool: string): number => (tool in DRAW_PTS ? DRAW_PTS[tool] : 2);
 
@@ -1262,7 +1263,7 @@ const FILL_TOOLS = new Set([
   "rect", "circle", "ellipse", "rotated-rect", "triangle", "fibonacci", "fib-ext",
   "gann-box", "gann-square", "gann-square-fixed", "channel", "parallel-channel",
   "flat-channel", "regression", "price-range", "date-range", "date-price-range",
-  "measure", "long-position", "short-position", "fib-circles", "delta-vp",
+  "measure", "long-position", "short-position", "fib-circles", "delta-vp", "anchored-vp",
 ]);
 const DRAW_COLORS = [
   "#00D4AA", "#4FA3E0", "#F0B429", "#FF4D6A", "#8B5CF6",
@@ -10099,6 +10100,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       else if (t === "crossline") { if (A) { seg({ x: 0, y: A.y }, { x: W, y: A.y }); seg({ x: A.x, y: 0 }, { x: A.x, y: H }); } }
       // ── RECT / CHANNEL(box) ──
       else if (t === "rect" || t === "channel") { if (A && B) { const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); const fullPane = rw > W * 0.92 && rh > H * 0.92; if (s.fill && !fullPane) { ctx.fillStyle = fillCol; ctx.fillRect(rx, ry, rw, rh); } ctx.strokeRect(rx, ry, rw, rh); } }
+      // ── ANCHORED RANGE VP (P-110 #8 · FIXED / anchored) ──
+      // The trader's two points fix a TIME span; the profile is every bar in
+      // it, from bars alone (no aggressor side), through the same engine the
+      // Visible Range uses. Anchored to times, so scrolling moves the box with
+      // its bars and never re-profiles a different span.
+      else if (t === "anchored-vp") {
+        if (A && B) {
+          const tLo = Math.min(d.pts[0].time, d.pts[1].time);
+          const tHi = Math.max(d.pts[0].time, d.pts[1].time);
+          const vm = selectTimeRangeProfile(barsRef.current || [], tLo, tHi);
+          const x0 = Math.min(A.x, B.x);
+          const x1 = Math.max(A.x, B.x);
+          const rw = Math.max(1, x1 - x0);
+          ctx.save();
+          ctx.setLineDash([]);
+          if (vm.drawn) {
+            // The box spans the bars' own price range, not the drag's y: a
+            // fixed range is a span of TIME, and its prices are what traded.
+            const ys = vm.rows.map(r => priceY(r.price)).filter((v): v is number => v != null);
+            const yTop = Math.min(...ys) - 4;
+            const yBot = Math.max(...ys) + 4;
+            ctx.fillStyle = "rgba(201,165,92,0.05)";
+            ctx.fillRect(x0, yTop, rw, yBot - yTop);
+            ctx.strokeStyle = "rgba(201,165,92,0.7)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x0 + 0.5, yTop + 0.5, rw - 1, yBot - yTop - 1);
+            const sorted = [...ys].sort((a, b) => a - b);
+            let rowH = 2;
+            if (sorted.length >= 2) {
+              const gaps: number[] = [];
+              for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+              rowH = Math.max(2, Math.min(10, Math.round(gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2)));
+            }
+            const maxW = Math.max(12, Math.min(rw - 4, 180));
+            for (const r of vm.rows) {
+              const y = priceY(r.price);
+              if (y == null) continue;
+              const w = Math.max(1, Math.round(r.share * maxW));
+              ctx.fillStyle = r.isPoc ? "rgba(201,165,92,0.85)" : r.insideValueArea ? "rgba(237,230,211,0.45)" : "rgba(194,184,146,0.22)";
+              ctx.fillRect(x0 + 2, Math.round(y) - Math.floor(rowH / 2), w, Math.max(1, rowH - 1));
+            }
+            const hline = (price: number | null, ink: string, dash: number[]) => {
+              if (price == null) return;
+              const y = priceY(price);
+              if (y == null) return;
+              ctx.strokeStyle = ink; ctx.setLineDash(dash);
+              ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + 0.5); ctx.lineTo(x1, Math.round(y) + 0.5); ctx.stroke();
+              ctx.setLineDash([]);
+            };
+            hline(vm.poc, "rgba(201,165,92,0.9)", []);
+            hline(vm.vah, "rgba(237,230,211,0.5)", [3, 4]);
+            hline(vm.val, "rgba(237,230,211,0.5)", [3, 4]);
+            const est = vm.quality === "trade-based" ? "" : " · CANDLE-EST";
+            chip(`ANCHORED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(2)}${est}`, x0 + 2, yTop - 3, "#C9A55C");
+          } else {
+            // Named refusal, where the trader dragged — never an empty box.
+            ctx.strokeStyle = "rgba(240,180,41,0.6)";
+            ctx.setLineDash([4, 4]);
+            const ry = Math.min(A.y, B.y), rh = Math.max(1, Math.abs(B.y - A.y));
+            ctx.strokeRect(x0 + 0.5, ry + 0.5, rw - 1, rh - 1);
+            ctx.setLineDash([]);
+            const why = vm.reason === "TOO_FEW_BARS_IN_VIEW"
+              ? `${vm.barsInView} bars in the span — drag across at least 5`
+              : vm.reason === "NO_VOLUME" ? "the bars in this span carry no volume" : "no span";
+            chip(`ANCHORED RANGE · ${why}`, x0 + 2, ry - 3, "#F0B429");
+          }
+          ctx.restore();
+        }
+      }
       // ── DELTA + VOLUME PROFILE BOX (order flow) ──
       // Left column = per-price DELTA profile (buy−sell), right column = VOLUME
       // profile (ask=green / bid=red, POC=gold). Aggregated from getBarFootprint —

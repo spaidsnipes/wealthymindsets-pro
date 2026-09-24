@@ -28,6 +28,7 @@ export type DrawingTool =
   | "price-range" | "date-range" | "date-price-range" | "measure"
   | "long-position" | "short-position"
   | "delta-vp"
+  | "anchored-vp"
   | "brush" | "highlighter"
   | "arrow" | "arrow-up" | "arrow-down"
   | "rect" | "rotated-rect" | "path" | "circle" | "ellipse" | "polyline"

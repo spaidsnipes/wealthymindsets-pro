@@ -102,4 +102,12 @@ export function selectVisibleRangeProfile(
   };
 }
 
+/**
+ * ONE ENGINE, TWO ANCHORS. A profile over a time span is the same computation
+ * whether the span comes from the camera (Visible Range, P-110 #7) or from a
+ * box the trader dragged (Anchored Range, P-110 #8). The anchored tool calls
+ * it by this name so the call site says which contract it holds.
+ */
+export const selectTimeRangeProfile = selectVisibleRangeProfile;
+
 export default selectVisibleRangeProfile;

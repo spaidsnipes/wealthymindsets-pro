@@ -2482,6 +2482,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       SESSION: sessionVPChart,
       ABSORPTION: absorptionAnatomy,
       DELTA_VP: drawingTool === "delta-vp",
+      ANCHORED_RANGE: drawingTool === "anchored-vp",
       IMBALANCE_STACK: imbalanceStackOn,
       VALUE_CANDLE: valueCandleOn,
       DELTA_DIVERGENCE: deltaDivergenceOn,
@@ -4099,6 +4100,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   SESSION: sessionVPChart,
                   ABSORPTION: absorptionAnatomy,
                   DELTA_VP: drawingTool === "delta-vp",
+                  ANCHORED_RANGE: drawingTool === "anchored-vp",
                   IMBALANCE_STACK: imbalanceStackOn,
                   VALUE_CANDLE: valueCandleOn,
                   DELTA_DIVERGENCE: deltaDivergenceOn,
@@ -4129,6 +4131,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   // Delta + VP is ARMED, not drawn — it is active exactly when
                   // its drawing tool is the one the cursor is holding.
                   DELTA_VP: drawingTool === "delta-vp",
+                  ANCHORED_RANGE: drawingTool === "anchored-vp",
                   // The four order-flow readings that now draw on the axis.
                   IMBALANCE_STACK: imbalanceStackOn,
                   VALUE_CANDLE: valueCandleOn,
@@ -4171,6 +4174,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
                     setDrawingTool(t => (t === "delta-vp" ? "cursor" : "delta-vp"));
+                  }
+                  else if (id === "ANCHORED_RANGE") {
+                    setDrawingTool(t => (t === "anchored-vp" ? "cursor" : "anchored-vp"));
                   }
                 }}
               />
