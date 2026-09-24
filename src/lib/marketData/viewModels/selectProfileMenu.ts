@@ -214,10 +214,10 @@ const CATALOGUE: readonly ProfileSpec[] = [
   {
     id: "ABSORPTION",
     label: "Absorption",
-    what: "effort against displacement, with absorption zones pinned at price",
+    what: "effort against displacement: absorption zones and exhaustion marks, pinned at price",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/selectAbsorptionAnatomy.ts",
-    levels: ["Zone high", "Zone low", "Efficiency ratio"],
+    levels: ["Zone high", "Zone low", "Exhaustion extreme"],
   },
 
   /*

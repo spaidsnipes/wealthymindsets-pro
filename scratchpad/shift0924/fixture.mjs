@@ -83,3 +83,31 @@ export function fixtureWeekNow() {
   }
   return out;
 }
+
+// SCENARIO FIXTURE — "exhaust": the 3-session fixture, then a 7-bar up push
+// whose volume fades bar by bar, then three bars that fail to exceed its
+// high. Harness-injected, NOT market data; exists to show the Exhaustion
+// anatomy on the glass. The compiler and the paint are the real ones.
+export function fixtureExhaustNow() {
+  const src = fixtureDays();
+  const nowBar = Math.floor(Date.now() / 1000 / 300) * 300;
+  const tail = [];
+  let px = src[src.length - 1].close;
+  const vols = [62000, 58000, 51000, 30000, 22000, 16000, 12000];
+  for (let k = 0; k < 7; k++) {
+    const o = px, c = +(px + 0.55 + k * 0.05).toFixed(2);
+    tail.push({ open: o, close: c, high: +(c + 0.12).toFixed(2), low: +(o - 0.08).toFixed(2), volume: vols[k] });
+    px = c;
+  }
+  const top = tail[tail.length - 1].high;
+  for (const [o, c] of [[px, px - 0.2], [px - 0.2, px - 0.35], [px - 0.35, px - 0.6]]) {
+    tail.push({ open: +o.toFixed(2), close: +c.toFixed(2), high: +(Math.min(top - 0.05, Math.max(o, c) + 0.1)).toFixed(2), low: +(Math.min(o, c) - 0.15).toFixed(2), volume: 14000 });
+  }
+  const all = [...src.map(b => ({ ...b })), ...tail];
+  const shift = nowBar - (src[src.length - 1].time + tail.length * 300);
+  let t = src[src.length - 1].time;
+  return all.map((b, i) => {
+    if (i >= src.length) t += 300;
+    return { ...b, time: (i < src.length ? b.time : t) + shift };
+  });
+}

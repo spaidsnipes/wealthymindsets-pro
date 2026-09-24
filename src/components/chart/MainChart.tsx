@@ -202,6 +202,7 @@ import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangePro
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
+import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
@@ -7869,6 +7870,49 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
               ctx.fillText(basisTxt, bx + 6, by + 7.5);
+            }
+
+            /* ── EXHAUSTION ANATOMY — the plate's right half ────────────────
+               Same effort series as the absorption zones above (one owner,
+               two readings). At the extreme of every push whose effort faded
+               as it extended and then failed to follow through: three fading
+               bars (declining aggression) just beyond the extreme, and the
+               plate's four metrics on a chip. Crimson is the plate's own
+               exhaustion colour; the mark is a fact about the push, never a
+               forecast. */
+            {
+              const ex = selectExhaustion(anatomy);
+              ds.exhaustion = ex.reason === "MEASURED" ? String(ex.marks.length) : ex.reason;
+              for (const m of ex.marks) {
+                const xr = ts.timeToCoordinate(m.time as never);
+                const yr = srs.priceToCoordinate(m.price);
+                if (xr == null || yr == null) continue;
+                const x = +xr;
+                const up = m.direction === "UP";
+                const y0 = up ? +yr - 8 : +yr + 8;
+                ctx.save();
+                ctx.fillStyle = "rgba(226,92,92,0.95)";
+                [9, 6, 3].forEach((h, k) => {
+                  const bxk = x - 6 + k * 5;
+                  ctx.fillRect(bxk, up ? y0 - h : y0, 3, h);
+                });
+                const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+                const chipTxt = `EXHAUSTION · AGG ${pct(m.aggressionLevel)} · EXT ${m.extension.toFixed(1)}× · FT ${m.followThrough ?? "—"}/3 · ET ${pct(m.energyTransfer)}`;
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                const cw = ctx.measureText(chipTxt).width + 12;
+                const cx = Math.max(4, Math.min(x - cw / 2, W - 96 - cw));
+                const cy = up ? y0 - 26 : y0 + 12;
+                ctx.fillStyle = "rgba(20,8,8,0.88)";
+                ctx.fillRect(cx, cy, cw, 14);
+                ctx.strokeStyle = "rgba(226,92,92,0.85)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cx + 0.5, cy + 0.5, cw - 1, 13);
+                ctx.fillStyle = "rgba(255,170,170,1)";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(chipTxt, cx + 6, cy + 7.5);
+                ctx.restore();
+              }
             }
 
             ctx.restore();
