@@ -828,6 +828,34 @@ export default function EducationPage() {
                   stacked as gold paragraph cards in Journal, News and Morning
                   Prep; teaching belongs behind this door. Its own banner still
                   marks the notes as framework placeholders. */}
+              {/* SCAFFOLDING REMOVAL PATH (MOCK 2) — the Academy's door to the
+                  chart lens. Same skill, deeper mastery, less hand-holding:
+                  the truth on the chart never changes, only how much of the
+                  reasoning is spelled out. The button opens /charts with the
+                  Scaffolding lens at FOUNDATION; each further press in
+                  Tools › Chart tools › Reading lenses goes one depth deeper. */}
+              <section
+                data-testid="academy-scaffolding-path"
+                className="w-full rounded-lg border border-wm-border p-4"
+                style={{ maxWidth: 520 }}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-wm-text-dim">Scaffolding removal path</div>
+                <div className="mt-1 text-[13px] font-semibold text-wm-text">Same skill. Deeper mastery. Less hand-holding.</div>
+                <ol className="mt-3 grid grid-cols-3 gap-2 text-[10px] text-wm-text-muted">
+                  <li><span className="block font-bold text-wm-text">1 · Foundation</span>Six steps, every verdict with its fact</li>
+                  <li><span className="block font-bold text-wm-text">2 · Intermediate</span>Effort, result, location — one posture</li>
+                  <li><span className="block font-bold text-wm-text">3 · Pro</span>Effort against result, geometry only</li>
+                </ol>
+                <Link
+                  href="/charts"
+                  prefetch={false}
+                  onClick={() => { try { localStorage.setItem("wm_ofScaffolding", JSON.stringify("FOUNDATION")); localStorage.setItem("wm_absorptionAnatomy", "true"); } catch { /* storage blocked — the chart opens without the lens */ } }}
+                  className="mt-3 inline-flex min-h-9 items-center rounded border border-wm-border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold"
+                  data-testid="academy-scaffolding-open"
+                >
+                  Practice it on the market →
+                </Link>
+              </section>
               <div style={{ width: "100%", maxWidth: 520 }}>
                 <FabioInsights variant="inline" surface="academy" title="WM Playbook" limit={3} />
               </div>
