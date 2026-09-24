@@ -70,6 +70,17 @@ export interface QuestionLensVM {
   readonly posture: string | null;
   /** The next question the plate asks, when the current one is answered. */
   readonly nextQuestion: string | null;
+  /**
+   * MOCK 3's "AGGRESSION vs DISPLACEMENT — who is in control?" pair, read
+   * from the zone's own bars: mean effort and mean displacement (0..1 of the
+   * window's peaks), and the verdict the plate prints under them. Absorption
+   * questions only; null otherwise.
+   */
+  readonly control: {
+    readonly aggression: number;
+    readonly displacement: number;
+    readonly verdict: "EFFORT ABSORBED" | "AGGRESSION PAID";
+  } | null;
 }
 
 export interface QuestionLensInput {
@@ -84,6 +95,7 @@ export interface QuestionLensInput {
 const NONE: QuestionLensVM = {
   version: QUESTION_LENS_VERSION, active: false, kind: null, question: null, focus: null,
   bandLow: null, bandHigh: null, bandStart: null, debt: [], openDebt: 0, posture: null, nextQuestion: null,
+  control: null,
 };
 
 const f2 = (n: number) => n.toFixed(2);
@@ -140,6 +152,15 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       openDebt: open,
       posture: open > 0 ? "WAIT · LET THE MARKET PAY" : "DEBT PAID · READ THE ANSWER",
       nextQuestion: "Is the opposite side's effort being rewarded?",
+      control: (() => {
+        const disp = inZone.length ? inZone.reduce((t, b) => t + b.displacementNorm, 0) / inZone.length : 0;
+        return {
+          aggression: zoneEffort,
+          displacement: disp,
+          // The anatomy owner's own weak-displacement gate (0.35).
+          verdict: disp <= 0.35 ? "EFFORT ABSORBED" as const : "AGGRESSION PAID" as const,
+        };
+      })(),
     };
   }
 
@@ -171,6 +192,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
     openDebt: open,
     posture: open > 0 ? "WAIT · LET THE MARKET PAY" : "DEBT PAID · READ THE ANSWER",
     nextQuestion: m.direction === "UP" ? "Is seller effort now being rewarded?" : "Is buyer effort now being rewarded?",
+    control: null,
   };
 }
 

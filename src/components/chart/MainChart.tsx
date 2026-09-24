@@ -8132,6 +8132,37 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif";
                     ctx.fillText(`NEXT QUESTION → ${lens.nextQuestion}`, lx + 12, ly + 20);
                   }
+                  // MOCK 3 · AGGRESSION vs DISPLACEMENT — who is in control.
+                  // Two measured columns and the plate's verdict, under the debt.
+                  if (lens.control) {
+                    const c = lens.control;
+                    const cy = top + ch + 8, cwh = 92;
+                    ctx.fillStyle = "rgba(11,10,8,0.94)";
+                    ctx.fillRect(lx, cy, colW, cwh);
+                    ctx.strokeStyle = "rgba(201,165,92,0.55)";
+                    ctx.strokeRect(lx + 0.5, cy + 0.5, colW - 1, cwh - 1);
+                    ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.fillStyle = "rgba(237,230,211,0.95)";
+                    ctx.fillText("AGGRESSION vs DISPLACEMENT · WHO IS IN CONTROL?", lx + 12, cy + 13);
+                    const half = (colW - 36) / 2;
+                    ([
+                      ["AGGRESSION", c.aggression, "rgba(226,92,92,1)", "initiating pressure"],
+                      ["DISPLACEMENT", c.displacement, "rgba(120,160,220,1)", "what price did about it"],
+                    ] as const).forEach(([lab, v, col, sub], i) => {
+                      const x = lx + 12 + i * (half + 12);
+                      ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                      ctx.fillStyle = col;
+                      ctx.fillText(lab, x, cy + 31);
+                      ctx.font = "800 17px ui-sans-serif, system-ui, sans-serif";
+                      ctx.fillText(`${Math.round(v * 100)}%`, x, cy + 49);
+                      ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
+                      ctx.fillStyle = "rgba(200,192,174,0.8)";
+                      ctx.fillText(sub, x + 44, cy + 50);
+                    });
+                    ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+                    ctx.fillStyle = c.verdict === "EFFORT ABSORBED" ? "rgba(120,160,220,1)" : "rgba(226,92,92,1)";
+                    ctx.fillText(`VERDICT: ${c.verdict}`, lx + 12, cy + 76);
+                  }
                 }
                 ctx.restore();
               }

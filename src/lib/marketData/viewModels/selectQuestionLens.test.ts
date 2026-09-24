@@ -70,3 +70,15 @@ describe("exhaustion wins when it is newer", () => {
     expect(v.debt.find(d => d.label === "FOLLOW-THROUGH LOST")!.paid).toBe(true);
   });
 });
+
+describe("MOCK 3 · aggression vs displacement — who is in control", () => {
+  it("reads the zone's own effort and displacement and prints the plate's verdict", () => {
+    const bars = [b(0, 99, 100), b(60, 100, 101, 0.9), b(120, 100.2, 100.9, 0.9), b(180, 100.5, 101.2, 0.3)]
+      .map((x, i) => (i === 1 || i === 2 ? { ...x, displacementNorm: 0.2 } : x));
+    const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: noEx, livingPoc: null, pivots: [] });
+    expect(v.control).toEqual({ aggression: 0.9, displacement: 0.2, verdict: "EFFORT ABSORBED" });
+  });
+  it("an exhaustion question carries no control pair", () => {
+    expect(selectQuestionLens({ absorption: null, exhaustion: null, livingPoc: null, pivots: [] }).control).toBeNull();
+  });
+});
