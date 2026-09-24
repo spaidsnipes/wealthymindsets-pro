@@ -340,8 +340,11 @@ const CATALOGUE: readonly ProfileSpec[] = [
   },
   {
     id: "LIQUIDITY_WEATHER",
-    label: "Liquidity Weather",
-    what: "how much size it costs to move price, and where size moved it none",
+    // Carries the P-601 HEAT LENS: the same switch pipes the weather onto
+    // price as heat bands, so the heatmap invention is reachable on the
+    // candles from Tools › Order flow and never needs a room of its own.
+    label: "Liquidity Weather · Heat Lens",
+    what: "how much size it costs to move price, painted on price as heat bands — dear is hot, cheap is cool",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectLiquidityWeather.ts",
     // A cost has no price. The shelves are the ONLY thing this reading puts on
