@@ -179,7 +179,12 @@ const CATALOGUE: readonly ProfileSpec[] = [
   {
     id: "FIXED_RANGE",
     label: "Fixed Range VP",
-    what: "volume by price across the bars on screen",
+    /*
+      NOT "the bars on screen". The renderer sources every bar loaded for the
+      chart (MainChart runWMVP → barsRef.current) precisely so POC/VAH/VAL do
+      not jump when the trader scrolls. The sentence describes the code.
+    */
+    what: "volume by price across every bar loaded for this chart — it holds still when you scroll",
     gesture: "TOGGLE",
     owner: "src/lib/vpEngine.ts",
     levels: ["POC", "VAH", "VAL"],

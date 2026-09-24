@@ -1,0 +1,6 @@
+1 after first load         livingProfile=DRAWN  tpoProfile=DRAWN  structureProfile=DRAWN  profileDna=MEASURED  valueMigration=DRAWN  | ls: true,true,true,true,true  | url: /charts?symbol=AAPL&tf=5m
+2 after REFRESH            livingProfile=DRAWN  tpoProfile=DRAWN  structureProfile=DRAWN  profileDna=MEASURED  valueMigration=DRAWN  | ls: true,true,true,true,true  | url: /charts?symbol=AAPL&tf=5m
+3 W (Tools) OPEN           livingProfile=DRAWN  tpoProfile=DRAWN  structureProfile=DRAWN  profileDna=MEASURED  valueMigration=DRAWN  | ls: true,true,true,true,true  | url: /charts?symbol=AAPL&tf=5m
+4 W closed (Escape)        livingProfile=DRAWN  tpoProfile=DRAWN  structureProfile=DRAWN  profileDna=MEASURED  valueMigration=DRAWN  | ls: true,true,true,true,true  | url: /charts?symbol=AAPL&tf=5m
+5 timeframe 15m            livingProfile=DRAWN  tpoProfile=DRAWN  structureProfile=DRAWN  profileDna=MEASURED  valueMigration=DRAWN  | ls: true,true,true,true,true  | url: /charts?symbol=AAPL&tf=15m
+6 RETURN to 5m             livingProfile=DRAWN  tpoProfile=DRAWN  structureProfile=DRAWN  profileDna=MEASURED  valueMigration=DRAWN  | ls: true,true,true,true,true  | url: /charts?symbol=AAPL&tf=5m
