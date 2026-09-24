@@ -72,10 +72,28 @@ half is still open. P-110 stack controls (reorder, width, opacity, lock, duplica
 (H-801 is built as a measured envelope; its "analogue surprise" is the session count, not an analogue path.) Memory Ghost (H-201) is now built;
 its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet in Inspect.
 
+## Deploy — why the live site was stale, and what fixed it (2026-09-24 16:00–16:40 UTC)
+
+- `main` failed `tsc` from `42fec08` (09-23 19:26): `MainChart` imported `shouldFoldChartLiveBar`,
+  which `liveBarPolicy.ts` did not export. Cloudflare Workers Builds runs the same typecheck, so
+  every production build failed and wealthymindsetspro.com kept serving the 09-23 afternoon build.
+- This branch restored the export; `main` was fast-forwarded to it (`3b6d5e5`, then `c0b8125`).
+  **Workers Builds on `c0b8125`: SUCCESS.**
+- The GitHub `typecheck · sentinels · build` job then reached the interior-geometry step for the
+  first time in a day and flagged sr-only rail text as "clipped" plus a 9px "Evidence ledger";
+  fixed in `464d33b` (measurer honours visually-hidden text; label at the 11px phrase floor).
+- `464d33b` on `main`: GitHub `typecheck · sentinels · build` **success** · Workers Builds production
+  **success**. Every SHA pushed to both `main` and a feature branch gets TWO Workers Builds runs; the
+  feature-branch (non-production) run fails in ~2 min every time and is NOT production. Read the
+  run whose build ID matches the production deployment, or turn off non-production branch builds
+  in Cloudflare (Workers › wealthymindsets-pro › Settings › Builds).
+- **Vercel was never the blocker.** Its GitHub App still posts "Account is blocked" statuses on
+  every commit; they are ghosts (see CLAUDE.md › HOSTING LAW). Uninstalling the Vercel GitHub App
+  (github.com/settings/installations) removes them for good.
+
 ## Blockers
 
-- **Push 403.** GitHub account is connected, but the Claude GitHub App is not installed on
-  `spaidsnipes/wealthymindsets-pro` (claude.ai › Connectors › GitHub › *Install on GitHub*).
+- ~~Push 403~~ — resolved 16:0x UTC: Claude GitHub App installed; branch pushed and merged.
 - **No live tape here.** The environment's egress policy rejects Coinbase, Binance.US and the
   Railway relay, so delta bubbles / big trades / heat lens are proved on a FIXTURE tape only.
 
