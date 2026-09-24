@@ -51,6 +51,7 @@
 import React from "react";
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
+import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
@@ -104,6 +105,7 @@ export function ChartInspectTicket({
   profileSliceAsOf = null,
   selectedZone = null,
   contradiction = null,
+  memoryGhost = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -121,6 +123,8 @@ export function ChartInspectTicket({
   selectedZone?: StructureZone | null;
   /** H-401 · "Passport shows both family lines." */
   contradiction?: ContradictionVM | null;
+  /** H-201 · "Analogue sample / mismatch belongs in Inspect." */
+  memoryGhost?: MemoryGhostVM | null;
 }) {
   if (!open) {
     return (
@@ -413,6 +417,22 @@ export function ChartInspectTicket({
           <Row key={row.id} row={row} />
         ))}
       </div>
+
+      {/* H-201 · the analogue behind the ghost: sample, fit, mismatch — or why none. */}
+      {memoryGhost && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-memory-ghost={memoryGhost.reason} style={{ color: "#C8C0AE" }}>
+          <div className="font-bold tracking-wide text-wm-gold">MEMORY GHOST · {memoryGhost.drawn ? "ANALOGUE" : "NO ANALOGUE DRAWN"}</div>
+          {memoryGhost.drawn && memoryGhost.analogueStart != null && memoryGhost.analogueEnd != null ? (
+            <>
+              <div>Sample · {new Date(memoryGhost.analogueStart * 1000).toISOString().slice(0, 16).replace("T", " ")} → {new Date(memoryGhost.analogueEnd * 1000).toISOString().slice(11, 16)} UTC · {memoryGhost.points.length} bars</div>
+              <div>Fit r = {memoryGhost.fit?.toFixed(2)} · mismatch {memoryGhost.mismatchPct?.toFixed(2)} pts of % path</div>
+              <div>Best of {memoryGhost.candidates} earlier windows · laid under the live bars only — never projected forward</div>
+            </>
+          ) : (
+            <div>{memoryGhost.reason === "INSUFFICIENT_HISTORY" ? "Too little history loaded for an analogue — silence, not a guess." : `No earlier window fit well enough (${memoryGhost.candidates} compared) — silence, not a guess.`}</div>
+          )}
+        </div>
+      )}
 
       {/* H-401 · BOTH FAMILY LINES, never one blended verdict. */}
       {contradiction && contradiction.state !== "NOT_ENOUGH" && (

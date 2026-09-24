@@ -205,7 +205,7 @@ import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketD
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
-import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost";
+import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
@@ -1045,6 +1045,8 @@ interface Props {
   onRiskOnPrice?: (vm: RiskOnPriceVM) => void;
   /** H-401 — the contradiction reading, handed up so Inspect shows both family lines. */
   onContradiction?: (vm: ContradictionVM | null) => void;
+  /** H-201 — the ghost's analogue sample / mismatch, handed up for Inspect. */
+  onMemoryGhost?: (vm: MemoryGhostVM | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1370,6 +1372,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   riskReceipt = null,
   onRiskOnPrice,
   onContradiction,
+  onMemoryGhost,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1567,6 +1570,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { riskReceiptRef.current = riskReceipt ?? null; }, [riskReceipt]);
   const onRiskOnPriceRef = useRef<typeof onRiskOnPrice>(undefined);
   const onContradictionRef = useRef<typeof onContradiction>(undefined);
+  const onMemoryGhostRef = useRef<typeof onMemoryGhost>(undefined);
+  useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
   useEffect(() => { onContradictionRef.current = onContradiction; }, [onContradiction]);
   useEffect(() => { onRiskOnPriceRef.current = onRiskOnPrice; }, [onRiskOnPrice]);
   useEffect(() => { activeDecisionIdRef.current = activeDecisionId ?? null; }, [activeDecisionId]);
@@ -9318,6 +9323,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.memoryGhostBars = String(ghostBars.length);
           const ghost = selectMemoryGhost(ghostBars);
           ds.memoryGhost = ghost.drawn ? `DRAWN:${ghost.fit!.toFixed(2)}` : ghost.reason;
+          onMemoryGhostRef.current?.(ghost);
           const tsG = chart.timeScale();
           ctx.save();
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -9362,6 +9368,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         } else {
           ds.memoryGhost = "OFF";
+          onMemoryGhostRef.current?.(null);
         }
 
         /* ══ H-801 · EXPECTED ENVELOPE — typical reach from today's open ═════

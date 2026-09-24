@@ -22,6 +22,7 @@ import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
+import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
 import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -1927,6 +1928,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const onContradiction = useCallback((vm: ContradictionVM | null) => {
     const sig = (v: ContradictionVM | null) => (v ? `${v.state}|${v.up.map(l => l.evidence).join(";")}|${v.down.map(l => l.evidence).join(";")}` : "");
     setContradictionVM(prev => (sig(prev) === sig(vm) ? prev : vm));
+  }, []);
+  // H-201 — the ghost's analogue, for Inspect; re-render only when it changes.
+  const [memoryGhostVM, setMemoryGhostVM] = useState<MemoryGhostVM | null>(null);
+  const onMemoryGhost = useCallback((vm: MemoryGhostVM | null) => {
+    const sig = (v: MemoryGhostVM | null) => (v ? `${v.reason}|${v.analogueStart}|${v.fit?.toFixed(3)}|${v.candidates}` : "");
+    setMemoryGhostVM(prev => (sig(prev) === sig(vm) ? prev : vm));
   }, []);
   const riskVMRef = useRef<RiskOnPriceVM | null>(null);
   const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
@@ -5180,6 +5187,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
                       onContradiction={onContradiction}
+                      onMemoryGhost={onMemoryGhost}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the
@@ -5217,6 +5225,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         open={inspectOpen}
                         selectedPrint={activeSelectedPrint}
                         contradiction={contradictionVM}
+                        memoryGhost={memoryGhostVM}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         profileSliceSymbol={symbol}

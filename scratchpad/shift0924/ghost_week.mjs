@@ -15,6 +15,7 @@ await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "dom
 await p.waitForTimeout(22000);
 console.log("ghost:", await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.memoryGhost); return c ? c.dataset.memoryGhost + " bars=" + c.dataset.memoryGhostBars : "none"; }));
 await p.screenshot({ path: "scratchpad/shift0924/runtime_ghost_week.png" });
+if (process.env.INSPECT) { await p.getByRole("button", { name: /inspect/i }).first().click(); await p.waitForTimeout(1500); console.log("ghost ticket:", (await p.locator('[data-inspect-memory-ghost]').innerText().catch(() => "none")).replace(/\s+/g, " ")); await p.screenshot({ path: "scratchpad/shift0924/runtime_ghost_inspect.png" }); }
 await b.close();
 process.exit(0);
 const ids = await p.$$eval("[data-market-object-target]", els => els.map(e => e.getAttribute("data-market-object-target")));
