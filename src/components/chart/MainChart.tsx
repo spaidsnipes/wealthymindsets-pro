@@ -10104,6 +10104,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (x0 >= zEnd) continue;
               const selected = z.object.objectId === selId;
               const invalid = z.lifecycle.state === "INVALID";
+              // The object being READ is never dimmed by the depth governor:
+              // the trader chose it, so it paints at full strength (MOCK 4).
+              ctx.globalAlpha = selected ? 1 : semanticDensity.mid;
               if (!selected) {
                 ctx.strokeStyle = invalid ? "rgba(150,150,160,0.30)" : "rgba(201,165,92,0.30)";
                 ctx.lineWidth = 1;
@@ -10113,7 +10116,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 continue;
               }
               // SELECTED
-              ctx.fillStyle = invalid ? "rgba(150,150,160,0.08)" : "rgba(240,180,41,0.16)";
+              ctx.fillStyle = invalid ? "rgba(150,150,160,0.08)" : "rgba(240,180,41,0.24)";
               ctx.fillRect(x0, top, zEnd - x0, h);
               ctx.strokeStyle = invalid ? "rgba(170,170,180,0.85)" : "rgba(240,180,41,0.9)";
               ctx.lineWidth = 1.25;

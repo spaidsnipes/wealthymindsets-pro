@@ -170,7 +170,10 @@ export function ChartInspectTicket({
       <div className="grid grid-cols-[92px_1fr] gap-2 text-[11px]"><span style={{ color: "#8B8676" }}>{k}</span><span className="text-white">{v}</span></div>
     );
     return (
-      <section className="absolute top-2 bottom-2 right-[76px] w-[340px] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl"
+      // LEFT WALL, not right: a zone is born at a recent swing, so it lives at
+      // the right of the camera — a right-hand passport covered the very
+      // object it describes. The plate shows the zone beside its passport.
+      <section className="absolute top-2 bottom-2 left-2 w-[340px] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl"
         // Opaque and above the chart's own chips: the passport is the object
         // being read, so nothing on the glass may show through or sit on it.
         style={{ background: "#0d0c0a", zIndex: 80 }}

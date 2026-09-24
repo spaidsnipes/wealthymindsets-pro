@@ -15,11 +15,14 @@
  */
 import React, { useSyncExternalStore } from "react";
 
-let current: React.ReactNode = null;
+/** Each tool-family door has its own slot; the dashboard publishes, the drawer reads. */
+export type ToolsSlotKey = "order-flow" | "market-object-passport";
+
+const current: Record<ToolsSlotKey, React.ReactNode> = { "order-flow": null, "market-object-passport": null };
 const subs = new Set<() => void>();
 
-export function publishOrderFlowTools(node: React.ReactNode): void {
-  current = node;
+export function publishToolsSlot(key: ToolsSlotKey, node: React.ReactNode): void {
+  current[key] = node;
   subs.forEach(fn => fn());
 }
 
@@ -28,7 +31,15 @@ function subscribe(fn: () => void) {
   return () => { subs.delete(fn); };
 }
 
-export function OrderFlowToolsSlot() {
-  const node = useSyncExternalStore(subscribe, () => current, () => null);
+export function ToolsSlot({ slot }: { slot: ToolsSlotKey }) {
+  const node = useSyncExternalStore(subscribe, () => current[slot], () => null);
   return <>{node}</>;
+}
+
+export function publishOrderFlowTools(node: React.ReactNode): void {
+  publishToolsSlot("order-flow", node);
+}
+
+export function OrderFlowToolsSlot() {
+  return <ToolsSlot slot="order-flow" />;
 }

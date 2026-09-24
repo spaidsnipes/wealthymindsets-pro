@@ -17,7 +17,7 @@ import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
-import { OrderFlowToolsSlot, publishOrderFlowTools } from "./orderFlowToolsSlot";
+import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot } from "./orderFlowToolsSlot";
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
 // imports the SAME two functions for the Tools door — one owner, two call sites.
@@ -2023,6 +2023,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         },
         { testId: "equipment-count-passport-objects", label: `${chartPassportVM.totalCount} objects` },
       ],
+      // THE OBJECTS ON THE CANDLES, first press — pick one and it is
+      // selected on price and its Passport opens beside it (MOCK 4). The
+      // lineage summary stays at depth.
+      renderPreviewTools: () => <ToolsSlot slot="market-object-passport" />,
       renderDepth: (unabridged: boolean) => (
         <MarketObjectPassportPanel vm={chartPassportVM} unabridged={unabridged} embedded />
       ),
@@ -2612,6 +2616,52 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     </div>
   );
   useEffect(() => { publishOrderFlowTools(orderFlowToolsNode); });
+
+  /*
+    TOOLS › MARKET OBJECT PASSPORT — the objects ON the candles, as a picker.
+    Choosing one selects it on price exactly as clicking it on the chart does,
+    and the Passport opens beside it. No second screen.
+  */
+  const passportToolsNode = (
+    <div data-testid="passport-object-picker" className="space-y-1">
+      <div className="px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
+        Objects on the candles · select to read its passport
+      </div>
+      {chartStructureZones.length === 0 ? (
+        <p className="px-1 text-[11px]" style={{ color: "#C8C0AE" }}>No confirmed swing zone on this chart yet.</p>
+      ) : (
+        chartStructureZones.map(z => {
+          const selected = selectedMarketObjectId === z.object.objectId;
+          return (
+            <button
+              key={z.object.objectId}
+              type="button"
+              data-testid={`passport-pick-${z.side}`}
+              aria-pressed={selected}
+              onClick={() => {
+                setSelectedMarketObjectId(z.object.objectId);
+                setSelectedPrint(null);
+                setSelectedSlicePrice(null);
+                setInspectOpen(true);
+                // Hand the glass back: the object is read ON price now.
+                onChartEquipmentClose();
+              }}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left"
+              style={{ borderColor: selected ? "rgba(212,175,55,0.7)" : "rgba(139,106,41,0.3)", background: "rgba(11,10,8,0.6)" }}
+            >
+              <span className="text-[11px] font-bold" style={{ color: selected ? "#d4af37" : "#EDE6D3" }}>
+                {z.side} ZONE · {z.object.priceLow.toFixed(2)} – {z.object.priceHigh.toFixed(2)}
+              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.1em]" style={{ color: "#C8C0AE" }}>
+                {z.lifecycle.state} · {z.lifecycle.touches.length} touch{z.lifecycle.touches.length === 1 ? "" : "es"}
+              </span>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+  useEffect(() => { publishToolsSlot("market-object-passport", passportToolsNode); });
 
   const applyArrangementSwitches = useCallback(
     (s: Readonly<Partial<Record<ProfileId, boolean>>>) => {
