@@ -769,6 +769,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   };
   const [memoryGhostOn, setMemoryGhostOn] = useState<boolean>(() => lsGet("wm_ofMemoryGhost", false) as boolean);
   const [expectedEnvelopeOn, setExpectedEnvelopeOn] = useState<boolean>(() => lsGet("wm_ofExpectedEnvelope", false) as boolean);
+  const [contradictionOn, setContradictionOn] = useState<boolean>(() => lsGet("wm_ofContradiction", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -1014,6 +1015,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofAnatomyCards",     anatomyCardsOn);
   usePersistOnChange("wm_ofMemoryGhost",      memoryGhostOn);
   usePersistOnChange("wm_ofExpectedEnvelope", expectedEnvelopeOn);
+  usePersistOnChange("wm_ofContradiction",    contradictionOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2535,6 +2537,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   ANATOMY_CARDS: anatomyCardsOn,
                   MEMORY_GHOST: memoryGhostOn,
                   EXPECTED_ENVELOPE: expectedEnvelopeOn,
+                  CONTRADICTION: contradictionOn,
                   MARKET_STRUCTURE: marketStructureOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
@@ -2562,6 +2565,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "ANATOMY_CARDS") setAnatomyCardsOn(v => !v);
                   else if (id === "MEMORY_GHOST") setMemoryGhostOn(v => !v);
                   else if (id === "EXPECTED_ENVELOPE") setExpectedEnvelopeOn(v => !v);
+                  else if (id === "CONTRADICTION") setContradictionOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -2709,6 +2713,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.ANATOMY_CARDS !== undefined) setAnatomyCardsOn(s.ANATOMY_CARDS);
       if (s.MEMORY_GHOST !== undefined) setMemoryGhostOn(s.MEMORY_GHOST);
       if (s.EXPECTED_ENVELOPE !== undefined) setExpectedEnvelopeOn(s.EXPECTED_ENVELOPE);
+      if (s.CONTRADICTION !== undefined) setContradictionOn(s.CONTRADICTION);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -2756,6 +2761,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       ANATOMY_CARDS: anatomyCardsOn,
       MEMORY_GHOST: memoryGhostOn,
       EXPECTED_ENVELOPE: expectedEnvelopeOn,
+      CONTRADICTION: contradictionOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -5090,6 +5096,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       memoryGhostOnChart={memoryGhostOn}
                       profileStackPrefs={profileStackPrefs}
                       expectedEnvelopeOnChart={expectedEnvelopeOn}
+                      contradictionOnChart={contradictionOn}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the

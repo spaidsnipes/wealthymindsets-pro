@@ -111,3 +111,32 @@ export function fixtureExhaustNow() {
     return { ...b, time: (i < src.length ? b.time : t) + shift };
   });
 }
+
+/**
+ * FIXTURE — a rising staircase (higher highs AND higher lows) that ends in an
+ * exhausted up-push: structure leans UP, exhaustion leans DOWN. Built to make
+ * H-401 draw; NOT market data.
+ */
+export function fixtureContradictNow() {
+  const nowBar = Math.floor(Date.now() / 1000 / 300) * 300;
+  const bars = [];
+  let px = 200;
+  // Six legs: up 8 bars, pull back 4 bars, each leg higher than the last. Extremes are
+  // STRICT (the detector refuses equal highs/lows as pivots): a pullback bar's high sits
+  // under the leg's top, a new leg's first low sits above the pullback's low.
+  for (let leg = 0; leg < 6; leg++) {
+    for (let k = 0; k < 8; k++) { const o = px, c = +(px + 0.45).toFixed(2); bars.push({ open: o, close: c, high: +(c + 0.1).toFixed(2), low: +(o - 0.05).toFixed(2), volume: 30000 + ((k * 7919) % 9000) }); px = c; }
+    for (let k = 0; k < 4; k++) { const o = px, c = +(px - 0.4).toFixed(2); bars.push({ open: o, close: c, high: +(o + 0.05).toFixed(2), low: +(c - 0.1).toFixed(2), volume: 22000 + ((k * 6007) % 7000) }); px = c; }
+  }
+  // Final up-push: effort fades as it extends, then three bars fail to exceed it.
+  const vols = [62000, 58000, 51000, 30000, 22000, 16000, 12000];
+  for (let k = 0; k < 7; k++) { const o = px, c = +(px + 0.55 + k * 0.05).toFixed(2); bars.push({ open: o, close: c, high: +(c + 0.12).toFixed(2), low: +(o - 0.08).toFixed(2), volume: vols[k] }); px = c; }
+  const top = bars[bars.length - 1].high;
+  for (const [o, c] of [[px, px - 0.2], [px - 0.2, px - 0.35], [px - 0.35, px - 0.6]]) {
+    bars.push({ open: +o.toFixed(2), close: +c.toFixed(2), high: +(Math.min(top - 0.05, Math.max(o, c) + 0.1)).toFixed(2), low: +(Math.min(o, c) - 0.15).toFixed(2), volume: 14000 });
+  }
+  // Borrow real session timestamps from the exhaustion fixture (its tail ends "now").
+  const times = fixtureExhaustNow().map(b => b.time).slice(-bars.length);
+  void nowBar;
+  return bars.map((b, i) => ({ ...b, time: times[i] }));
+}

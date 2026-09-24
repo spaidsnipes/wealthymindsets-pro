@@ -208,6 +208,7 @@ import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCar
 import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import { selectContradiction, type ContradictionInput } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
@@ -1032,6 +1033,8 @@ interface Props {
   profileStackPrefs?: ProfileStackPrefs;
   /** H-801 Expected Envelope — typical reach from the open. */
   expectedEnvelopeOnChart?: boolean;
+  /** H-401 Contradiction Not Averaged. */
+  contradictionOnChart?: boolean;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1352,6 +1355,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   memoryGhostOnChart = false,
   profileStackPrefs,
   expectedEnvelopeOnChart = false,
+  contradictionOnChart = false,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1554,7 +1558,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1578,8 +1582,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       anatomyCards: anatomyCardsOnChart,
       memoryGhost: memoryGhostOnChart,
       expectedEnvelope: expectedEnvelopeOnChart,
+      contradiction: contradictionOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -7521,6 +7526,112 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [];
+      // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
+      // plot's top band; floating chips and cards stay below this line.
+      const HEADER_FLOOR_Y = 90;
+      // Screen boxes of the candles in view — what floating chrome must not
+      // cover. Built at most once per frame, only when something asks.
+      let candleBoxes: { x: number; y0: number; y1: number }[] | null = null;
+      const candleHits = (x: number, y: number, w: number, h: number) => {
+        if (!candleBoxes) {
+          candleBoxes = [];
+          const bsV = barsRef.current ?? [];
+          const tsV = chart.timeScale();
+          const vrV = tsV.getVisibleLogicalRange();
+          const i0 = vrV ? Math.max(0, Math.floor(vrV.from)) : 0;
+          const i1 = vrV ? Math.min(bsV.length - 1, Math.ceil(vrV.to)) : bsV.length - 1;
+          for (let i = i0; i <= i1; i++) {
+            const b = bsV[i];
+            if (!b) continue;
+            const xr = tsV.timeToCoordinate(b.time as never);
+            const yh = srs.priceToCoordinate(b.high), yl = srs.priceToCoordinate(b.low);
+            if (xr != null && yh != null && yl != null) candleBoxes.push({ x: +xr, y0: +yh, y1: +yl });
+          }
+        }
+        let n = 0;
+        for (const c of candleBoxes) if (c.x >= x - 5 && c.x <= x + w + 5 && c.y1 >= y - 5 && c.y0 <= y + h + 5) n++;
+        return n;
+      };
+      // ONE visible-window anatomy per frame (M8: one mapping per room). The
+      // absorption layer paints it; H-401 reads its exhaustion off the SAME
+      // measurement even when the Absorption tool is off. Built at most once.
+      let anatomyFrame: { anatomy: ReturnType<typeof selectAbsorptionAnatomy>; windowCapped: boolean } | null = null;
+      const anatomyInView = () => {
+        if (anatomyFrame) return anatomyFrame;
+        const srcBars = barsRef.current;
+        const ts = chart.timeScale();
+
+        // ── THE WINDOW FOLLOWS THE EYE ─────────────────────────────────
+        // Observed live on /charts (2026-09-17): this was pinned at the
+        // trailing 30 bars. The number of bars ON SCREEN is not pinned at
+        // anything — at the default zoom the chart draws several hundred,
+        // so a 30-bar field collapsed into a sliver at the right edge,
+        // underneath the volume profile, where it could not be read at any
+        // zoom step. The layer was live, correct, and invisible.
+        //
+        // A fixed bar count cannot be right, because the question the field
+        // answers — "was the effort in FRONT OF ME paid for?" — is asked
+        // about whatever the trader is looking at. So the window is the
+        // VISIBLE range. It is not `slice(-N)`: a trader who has scrolled
+        // back into history must get the field over the bars actually in
+        // front of them, not over the live edge they cannot see.
+        //
+        // The selector normalises effort and displacement against whatever
+        // window it is handed, so a moving window stays self-scaling — the
+        // tallest column is always the biggest effort IN VIEW, which is the
+        // only claim the drawing ever makes.
+        const vis = ts.getVisibleLogicalRange();
+        let from = 0;
+        let to = srcBars.length;
+        if (vis) {
+          const lo = Math.floor(vis.from);
+          const hi = Math.ceil(vis.to) + 1;
+          if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
+            from = Math.max(0, Math.min(srcBars.length, lo));
+            to = Math.max(from, Math.min(srcBars.length, hi));
+          }
+        }
+        // Upper bound is a drawing constraint, not a market one: past a few
+        // hundred columns the strata are thinner than a pixel and the field
+        // stops being readable as shape. When the cap bites we keep the
+        // RIGHT-hand end of the view, because the newest bars in view are
+        // the ones a decision is being made about — and the dashed edge
+        // below declares exactly where the covered span starts, so a capped
+        // window is visible as a capped window rather than passing for the
+        // whole view.
+        const MAX_COLUMNS = 240;
+        const windowCapped = to - from > MAX_COLUMNS;
+        if (windowCapped) from = to - MAX_COLUMNS;
+        // No floor is enforced here. A window too small to measure flows
+        // into the selector, comes back UNMEASURED, and lands in the refusal
+        // branch below — which is the correct render, and one fewer place
+        // that decides what "enough" means.
+        const tail = srcBars.slice(from, to);
+        const WINDOW = tail.length;
+
+        const anatomyInput: AnatomyBarInput[] = tail.map(b => {
+          // Real tape or null — never synthesized. Unstamped on purpose:
+          // we cannot prove the venue asserted these sides.
+          const sub = getBarSubProfile(b);
+          let askVol: number | null = null;
+          let bidVol: number | null = null;
+          if (sub) {
+            let a = 0, d = 0;
+            for (const s of sub) { a += s.ask; d += s.bid; }
+            if (a + d > 0) { askVol = a; bidVol = d; }
+          }
+          return {
+            time: b.time as number,
+            open: b.open, high: b.high, low: b.low, close: b.close,
+            volume: Number.isFinite(b.volume) ? b.volume : 0,
+            askVol, bidVol,
+          };
+        });
+
+        const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW });
+        anatomyFrame = { anatomy, windowCapped };
+        return anatomyFrame;
+      };
       if (!absorptionAnatomyActive) {
         const ds = canvas.dataset;
         ds.absorption = "OFF";
@@ -7529,77 +7640,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
       if (absorptionAnatomyActive) {
         try {
-          const srcBars = barsRef.current;
           const ts = chart.timeScale();
-
-          // ── THE WINDOW FOLLOWS THE EYE ─────────────────────────────────
-          // Observed live on /charts (2026-09-17): this was pinned at the
-          // trailing 30 bars. The number of bars ON SCREEN is not pinned at
-          // anything — at the default zoom the chart draws several hundred,
-          // so a 30-bar field collapsed into a sliver at the right edge,
-          // underneath the volume profile, where it could not be read at any
-          // zoom step. The layer was live, correct, and invisible.
-          //
-          // A fixed bar count cannot be right, because the question the field
-          // answers — "was the effort in FRONT OF ME paid for?" — is asked
-          // about whatever the trader is looking at. So the window is the
-          // VISIBLE range. It is not `slice(-N)`: a trader who has scrolled
-          // back into history must get the field over the bars actually in
-          // front of them, not over the live edge they cannot see.
-          //
-          // The selector normalises effort and displacement against whatever
-          // window it is handed, so a moving window stays self-scaling — the
-          // tallest column is always the biggest effort IN VIEW, which is the
-          // only claim the drawing ever makes.
-          const vis = ts.getVisibleLogicalRange();
-          let from = 0;
-          let to = srcBars.length;
-          if (vis) {
-            const lo = Math.floor(vis.from);
-            const hi = Math.ceil(vis.to) + 1;
-            if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
-              from = Math.max(0, Math.min(srcBars.length, lo));
-              to = Math.max(from, Math.min(srcBars.length, hi));
-            }
-          }
-          // Upper bound is a drawing constraint, not a market one: past a few
-          // hundred columns the strata are thinner than a pixel and the field
-          // stops being readable as shape. When the cap bites we keep the
-          // RIGHT-hand end of the view, because the newest bars in view are
-          // the ones a decision is being made about — and the dashed edge
-          // below declares exactly where the covered span starts, so a capped
-          // window is visible as a capped window rather than passing for the
-          // whole view.
-          const MAX_COLUMNS = 240;
-          const windowCapped = to - from > MAX_COLUMNS;
-          if (windowCapped) from = to - MAX_COLUMNS;
-          // No floor is enforced here. A window too small to measure flows
-          // into the selector, comes back UNMEASURED, and lands in the refusal
-          // branch below — which is the correct render, and one fewer place
-          // that decides what "enough" means.
-          const tail = srcBars.slice(from, to);
-          const WINDOW = tail.length;
-
-          const anatomyInput: AnatomyBarInput[] = tail.map(b => {
-            // Real tape or null — never synthesized. Unstamped on purpose:
-            // we cannot prove the venue asserted these sides.
-            const sub = getBarSubProfile(b);
-            let askVol: number | null = null;
-            let bidVol: number | null = null;
-            if (sub) {
-              let a = 0, d = 0;
-              for (const s of sub) { a += s.ask; d += s.bid; }
-              if (a + d > 0) { askVol = a; bidVol = d; }
-            }
-            return {
-              time: b.time as number,
-              open: b.open, high: b.high, low: b.low, close: b.close,
-              volume: Number.isFinite(b.volume) ? b.volume : 0,
-              askVol, bidVol,
-            };
-          });
-
-          const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW });
+          const { anatomy, windowCapped } = anatomyInView();
 
           // Screen positions for every bar that is actually on screen.
           const pts = anatomy.bars.map(b => {
@@ -7961,16 +8003,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const lensBand = layerOnRef.current.questionLens === true;
                 let cy = up ? y0 - 26 : y0 + 12;
                 if (lensBand && cy < 158 && cy + 14 > 96) cy = up ? y0 + 16 : Math.max(160, y0 + 12);
+                // A push that tops out near the plot's top edge would print its
+                // chip into the header chrome (the zoom plate, INSPECT). Then it
+                // sits beside its mark instead — whichever side covers the
+                // fewest candles — and never above the header floor.
+                let cxx = cx;
+                if (cy < HEADER_FLOOR_Y) {
+                  const yMid = Math.max(HEADER_FLOOR_Y, Math.min(H - 60, +yr - 7));
+                  const opts = [
+                    { x: x - cw - 16, y: yMid },
+                    { x: x + 16, y: yMid },
+                    { x: cx, y: Math.max(HEADER_FLOOR_Y, y0 + 16) },
+                  ].filter(o => o.x >= 4 && o.x + cw <= W - 96);
+                  const pick = opts.map(o => ({ ...o, hit: candleHits(o.x, o.y, cw, 14) })).sort((a, b) => a.hit - b.hit)[0];
+                  if (pick) { cxx = pick.x; cy = pick.y; } else cy = Math.max(HEADER_FLOOR_Y, y0 + 16);
+                }
                 ctx.fillStyle = "rgba(20,8,8,0.88)";
-                ctx.fillRect(cx, cy, cw, 14);
-                floatingChips.push({ x: cx, y: cy, w: cw, h: 14 });
+                ctx.fillRect(cxx, cy, cw, 14);
+                floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });
                 ctx.strokeStyle = "rgba(226,92,92,0.85)";
                 ctx.lineWidth = 1;
-                ctx.strokeRect(cx + 0.5, cy + 0.5, cw - 1, 13);
+                ctx.strokeRect(cxx + 0.5, cy + 0.5, cw - 1, 13);
                 ctx.fillStyle = "rgba(255,170,170,1)";
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
-                ctx.fillText(chipTxt, cx + 6, cy + 7.5);
+                ctx.fillText(chipTxt, cxx + 6, cy + 7.5);
                 ctx.restore();
               }
             }
@@ -9322,6 +9379,213 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         } else {
           ds.expectedEnvelope = "OFF";
+        }
+
+        /* ══ H-401 · CONTRADICTION NOT AVERAGED — both truths paint ══════════
+           Each family's own lean at the current price, from its own owner.
+           Opposite leans → the contested band, UP column, DOWN column and
+           UNRESOLVED at the crack. Nothing is weighted into one score. */
+        if (layerOnRef.current.contradiction === true && srs) {
+          const bsC = barsRef.current ?? [];
+          const lastC = bsC[bsC.length - 1];
+          const st = scaffoldingStructureRef.current;
+          // Exhaustion and effort are read off THIS frame's one visible-window
+          // anatomy — the measurement the Absorption tool paints — so the
+          // family is asked even when that tool is off.
+          let evC: Pick<ContradictionInput, "exhaustion" | "recentDelta" | "medianRange"> | null = null;
+          try {
+            const { anatomy } = anatomyInView();
+            const mk = selectExhaustion(anatomy).marks.at(-1);
+            const sided = anatomy.basis === "SIGNED_DELTA" || anatomy.basis === "INFERRED_DELTA";
+            const rs = anatomy.bars.map(b => b.high - b.low).filter(r => r > 0).sort((a, b) => a - b);
+            evC = {
+              exhaustion: mk ? { direction: mk.direction, price: mk.price, followThrough: mk.followThrough } : null,
+              recentDelta: sided ? anatomy.bars.map(b => b.delta ?? 0) : null,
+              medianRange: rs.length ? rs[Math.floor(rs.length / 2)] : 0,
+            };
+          } catch { /* chart mid-transition — nothing is claimed this frame */ }
+          const hsC = st?.measured ? st.swingHighs : [];
+          const lsC = st?.measured ? st.swingLows : [];
+          const cv = evC && selectContradiction({
+            lastClose: lastC ? lastC.close : null,
+            lastBarLow: lastC ? lastC.low : null,
+            lastBarHigh: lastC ? lastC.high : null,
+            structureBias: st?.measured ? st.bias : null,
+            structureNote: st?.measured ? st.biasNote : null,
+            structurePivots: hsC.length >= 2 && lsC.length >= 2
+              ? { h1: hsC[hsC.length - 2].price, h2: hsC[hsC.length - 1].price, l1: lsC[lsC.length - 2].price, l2: lsC[lsC.length - 1].price }
+              : null,
+            zones: structureZonesRef.current.map(z => ({ side: z.side, low: z.object.priceLow, high: z.object.priceHigh, state: z.lifecycle.state })),
+            ...evC,
+          });
+          if (cv) {
+            ds.contradiction = `${cv.state}:${cv.up.length}/${cv.down.length}`;
+            ctx.save();
+            ctx.textBaseline = "middle";
+            const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+            const silentNote = cv.silent.length ? ` · silent: ${cv.silent.map(x => x.family.toLowerCase()).join(", ")}` : "";
+            let placed = "CHIP";
+            if (cv.state === "UNRESOLVED" && cv.bandLow != null && cv.bandHigh != null) {
+              const yA = srs.priceToCoordinate(cv.bandHigh), yB = srs.priceToCoordinate(cv.bandLow);
+              if (yA != null && yB != null) {
+                const bandTop = Math.min(+yA, +yB) - 4, bandH = Math.max(10, Math.abs(+yB - +yA) + 8);
+                const bandBot = bandTop + bandH;
+                const x1 = Math.round(W * 0.34), x2 = W - 90;
+                // The contested zone — dashed, like the sheet's detail box. It
+                // is clipped around chips already painted this frame, so its
+                // edge never prints through their words.
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, W, H);
+                for (const r of floatingChips) ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+                ctx.clip("evenodd");
+                ctx.setLineDash([5, 4]);
+                ctx.strokeStyle = "rgba(237,230,211,0.7)";
+                ctx.strokeRect(x1 + 0.5, Math.round(bandTop) + 0.5, x2 - x1, Math.round(bandH));
+                ctx.setLineDash([]);
+                ctx.fillStyle = "rgba(237,230,211,0.06)";
+                ctx.fillRect(x1, bandTop, x2 - x1, bandH);
+                ctx.restore();
+
+                // THE SHEET'S ORDER — UP column · the crack · DOWN column, with
+                // UNRESOLVED under the crack. The group goes where it covers no
+                // candle and no floating chip: above or below the band (inside
+                // it when the band is deep enough to hold it, as on the sheet),
+                // slid along it, never into the header chrome or the volume pane.
+                const colW = 270, gap = 110, lineH = 12;
+                // Each family: its name, then its evidence in up to two lines —
+                // wrapped, never cut, so the measured fact is read whole.
+                ctx.font = font(500, 9);
+                const wrap = (t: string, w: number): string[] => {
+                  const out: string[] = [];
+                  let cur = "";
+                  for (const word of t.split(" ")) {
+                    const nx = cur ? `${cur} ${word}` : word;
+                    if (cur && ctx.measureText(nx).width > w) { out.push(cur); cur = word; } else cur = nx;
+                  }
+                  if (cur) out.push(cur);
+                  return out.slice(0, 2);
+                };
+                const textW = colW - 46;
+                const famH = (ls: typeof cv.up) => ls.reduce((h, l) => h + lineH * (1 + wrap(l.evidence, textW).length) + 4, 0);
+                const colH = 30 + Math.max(famH(cv.up), famH(cv.down)) + 6;
+                const gW = colW * 2 + gap, gH = colH + 20;
+                const SAFE_TOP = HEADER_FLOOR_Y, SAFE_BOT = H * 0.76;
+                const covers = (x: number, y: number, w: number, h: number) => {
+                  let n = candleHits(x, y, w, h);
+                  for (const r of floatingChips) if (r.x < x + w && r.x + r.w > x && r.y < y + h && r.y + r.h > y) n++;
+                  return n;
+                };
+                const bandMidX = (x1 + x2) / 2;
+                const rowsY: { gy: number; where: string }[] = [
+                  { gy: bandTop - gH - 12, where: "ABOVE" },
+                  { gy: bandBot + 12, where: "BELOW" },
+                ];
+                if (bandH >= gH + 16) rowsY.push({ gy: bandTop + (bandH - gH) / 2, where: "INSIDE" });
+                let best: { gx: number; gy: number; where: string; hit: number; cost: number } | null = null;
+                for (const r of rowsY) {
+                  if (r.gy < SAFE_TOP || r.gy + gH > SAFE_BOT) continue;
+                  for (let gx = 12; gx + gW <= x2; gx += 16) {
+                    const hit = covers(gx, r.gy, gW, gH);
+                    const cost = hit * 1000 + Math.abs(gx + gW / 2 - bandMidX) * 0.05 + (r.where === "BELOW" ? 1 : 0);
+                    if (!best || cost < best.cost) best = { gx, gy: r.gy, where: r.where, hit, cost };
+                  }
+                }
+                if (best) {
+                  placed = `${best.where}:${best.hit}`;
+                  const { gx, gy } = best;
+                  const mid = gx + colW + gap / 2;
+                  // One dashed leader from the crack to the band it is about.
+                  const lx = Math.min(x2 - 6, Math.max(x1 + 6, mid));
+                  ctx.setLineDash([3, 3]);
+                  ctx.strokeStyle = "rgba(237,230,211,0.55)";
+                  ctx.beginPath();
+                  if (best.where === "ABOVE") { ctx.moveTo(mid, gy + gH); ctx.lineTo(lx, bandTop); }
+                  else if (best.where === "BELOW") { ctx.moveTo(mid, gy); ctx.lineTo(lx, bandBot); }
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                  const draw = (lines: typeof cv.up, x: number, lean: "UP" | "DOWN") => {
+                    ctx.fillStyle = "rgba(11,10,8,0.92)";
+                    ctx.fillRect(x, gy, colW, colH);
+                    ctx.strokeStyle = "rgba(237,230,211,0.45)";
+                    ctx.strokeRect(x + 0.5, gy + 0.5, colW - 1, colH - 1);
+                    // The sheet's arrow, drawn as geometry.
+                    const ax = x + 18, ay0 = gy + 10, ay1 = gy + colH - 10;
+                    ctx.strokeStyle = "rgba(237,230,211,0.9)"; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(ax, lean === "UP" ? ay1 : ay0); ctx.lineTo(ax, lean === "UP" ? ay0 + 6 : ay1 - 6); ctx.stroke();
+                    ctx.fillStyle = "rgba(237,230,211,0.9)";
+                    ctx.beginPath();
+                    if (lean === "UP") { ctx.moveTo(ax - 7, ay0 + 8); ctx.lineTo(ax + 7, ay0 + 8); ctx.lineTo(ax, ay0 - 2); }
+                    else { ctx.moveTo(ax - 7, ay1 - 8); ctx.lineTo(ax + 7, ay1 - 8); ctx.lineTo(ax, ay1 + 2); }
+                    ctx.fill(); ctx.lineWidth = 1;
+                    ctx.textAlign = "left";
+                    ctx.font = font(800, 11); ctx.fillStyle = "rgba(247,241,223,1)";
+                    ctx.fillText(lean === "UP" ? "LEANS UP" : "LEANS DOWN", x + 36, gy + 14);
+                    let ly = gy + 32;
+                    for (const l of lines) {
+                      ctx.font = font(700, 9); ctx.fillStyle = "rgba(201,165,92,1)";
+                      ctx.fillText(l.family, x + 36, ly);
+                      ctx.font = font(500, 9); ctx.fillStyle = "rgba(214,206,188,0.95)";
+                      const evl = wrap(l.evidence, textW);
+                      evl.forEach((t, k) => ctx.fillText(t, x + 36, ly + lineH * (k + 1)));
+                      ly += lineH * (1 + evl.length) + 4;
+                    }
+                  };
+                  draw(cv.up, gx, "UP");
+                  draw(cv.down, gx + colW + gap, "DOWN");
+                  // The crack, and UNRESOLVED under it.
+                  // The sheet's split X: two jagged fractures crossing, with a
+                  // few short branches — a crack, not a divider.
+                  ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 1.3;
+                  const ckTop = gy + 5, ckBot = gy + colH - 24, ckH = ckBot - ckTop, hw = Math.min(26, gap / 2 - 10);
+                  const jag = (sx: number, dx: number) => {
+                    ctx.moveTo(mid + sx * hw, ckTop);
+                    [0.22, 0.45, 0.68, 1].forEach((t, k) => ctx.lineTo(mid + sx * hw + dx * hw * 2 * t + (k % 2 ? 3 : -3), ckTop + ckH * t));
+                  };
+                  ctx.beginPath();
+                  jag(-1, 1); jag(1, -1);
+                  ctx.stroke();
+                  ctx.lineWidth = 0.9;
+                  ctx.beginPath();
+                  for (const [bx0, by0, bx1, by1] of [[-0.5, 0.25, -0.95, 0.12], [0.55, 0.3, 0.95, 0.2], [-0.45, 0.72, -0.9, 0.86], [0.5, 0.75, 0.92, 0.9]]) {
+                    ctx.moveTo(mid + bx0 * hw, ckTop + ckH * by0); ctx.lineTo(mid + bx1 * hw, ckTop + ckH * by1);
+                  }
+                  ctx.stroke(); ctx.lineWidth = 1;
+                  ctx.textAlign = "center";
+                  ctx.font = font(800, 12);
+                  const uw = ctx.measureText("UNRESOLVED").width + 10;
+                  ctx.fillStyle = "rgba(11,10,8,0.92)";
+                  ctx.fillRect(mid - uw / 2, gy + colH - 18, uw, 16);
+                  ctx.fillStyle = "rgba(247,241,223,1)";
+                  ctx.fillText("UNRESOLVED", mid, gy + colH - 10);
+                  const pt = `${cv.posture} · not blended into one score${silentNote}`;
+                  ctx.font = font(600, 9);
+                  const pw = ctx.measureText(pt).width + 12;
+                  ctx.fillStyle = "rgba(11,10,8,0.88)";
+                  ctx.fillRect(gx + gW / 2 - pw / 2, gy + colH + 2, pw, 15);
+                  ctx.fillStyle = "rgba(214,206,188,0.95)";
+                  ctx.fillText(pt, gx + gW / 2, gy + colH + 10);
+                  ctx.textAlign = "left";
+                }
+              }
+            }
+            if (placed === "CHIP") {
+              ctx.font = font(700, 9);
+              ctx.fillStyle = "rgba(200,192,174,0.85)";
+              ctx.textAlign = "left";
+              const t = cv.state === "UNRESOLVED"
+                ? `CONTRADICTION · UNRESOLVED — up: ${cv.up.map(l => l.family.toLowerCase()).join(", ")} · down: ${cv.down.map(l => l.family.toLowerCase()).join(", ")} · ${cv.posture}`
+                : cv.state === "AGREE"
+                ? `CONTRADICTION · none at price — ${cv.up.length + cv.down.length} families lean ${cv.up.length ? "up" : "down"} · still your read`
+                : `CONTRADICTION · not enough families lean (${cv.silent.map(x => x.family.toLowerCase()).join(", ")} silent)`;
+              ctx.fillText(t, 12, H - 100);
+            }
+            ds.contradictionPlaced = placed;
+            ctx.restore();
+          }
+        } else {
+          ds.contradiction = "OFF";
+          delete ds.contradictionPlaced;
         }
 
         /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════

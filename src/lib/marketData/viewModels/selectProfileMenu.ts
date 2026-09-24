@@ -67,6 +67,7 @@ export type ProfileId =
   | "ANATOMY_CARDS"
   | "MEMORY_GHOST"
   | "EXPECTED_ENVELOPE"
+  | "CONTRADICTION"
   | "MARKET_STRUCTURE";
 
 /**
@@ -163,6 +164,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   SCAFFOLDING: "READING",
   MEMORY_GHOST: "READING",
   EXPECTED_ENVELOPE: "READING",
+  CONTRADICTION: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -615,6 +617,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectExpectedEnvelope.ts",
     levels: ["Typical reach above the open", "Typical reach below the open"],
+  },
+  {
+    id: "CONTRADICTION",
+    label: "Contradiction",
+    /*
+      H-401 / F14. When evidence families lean opposite ways at the current
+      price, BOTH paint and the zone reads UNRESOLVED — never blended into one
+      score. Each family states its own lean from its own owner.
+    */
+    what: "when families disagree at price, both truths paint and the zone reads unresolved — never averaged",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectContradiction.ts",
+    levels: ["The contested price band"],
   },
   {
     id: "MARKET_STRUCTURE",
