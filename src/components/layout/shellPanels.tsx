@@ -37,6 +37,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { requestBrokerConnect } from "@/lib/broker/brokerConnectDoor";
 
 /* ── All searchable symbols ─────────────────────────────── */
 /**
@@ -557,6 +558,23 @@ export function SettingsPanel({
         </div>
       )}
     >
+        {/* CONNECT BROKERS — the one door. It opens the market room's own broker
+            panel (every connection feeds the same broker joint); Settings only knocks. */}
+        <div className="px-4 pt-3">
+          <button
+            type="button"
+            data-testid="settings-connect-brokers"
+            onClick={() => { onClose(); requestBrokerConnect(); }}
+            className="flex min-h-11 w-full items-center justify-between rounded-xl border border-wm-gold/50 px-3 py-2 text-left hover:border-wm-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+          >
+            <span>
+              <span className="block text-sm font-bold text-wm-gold">Connect brokers</span>
+              <span className="block text-[11px] text-wm-text-muted">Connection, setup and status for your brokers and data rails</span>
+            </span>
+            <span aria-hidden="true" className="text-wm-gold">→</span>
+          </button>
+        </div>
+
         {/* Tabs */}
         <div role="tablist" aria-label="Settings sections" className="flex shrink-0 border-b border-wm-border">
           {TABS.map(t => (

@@ -14,6 +14,7 @@ import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./
 import { DOMPanel } from "./DOMPanel";
 import { PnLStatsPanel } from "./PnLStatsPanel";
 import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
+import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
@@ -532,6 +533,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     brokerFallbackTriggerRef.current = trigger;
     setBrokerOpen(true);
   }, []);
+  // The Settings door (brokerConnectDoor.ts): an in-room knock, or arriving
+  // with ?connect=brokers. Either opens THIS panel; the param is read once.
+  useEffect(() => {
+    const knock = () => openBrokerConnect(null);
+    window.addEventListener(BROKER_CONNECT_EVENT, knock);
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get(BROKER_CONNECT_PARAM) === BROKER_CONNECT_VALUE) {
+        url.searchParams.delete(BROKER_CONNECT_PARAM);
+        window.history.replaceState(window.history.state, "", url.pathname + (url.search ? url.search : "") + url.hash);
+        knock();
+      }
+    } catch { /* malformed URL — the Tools door still opens the panel */ }
+    return () => window.removeEventListener(BROKER_CONNECT_EVENT, knock);
+  }, [openBrokerConnect]);
   const [tradeOpen,       setTradeOpen]       = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity; providerPath: string | null; rightsPolicyId: string | null } | null>(null);
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
