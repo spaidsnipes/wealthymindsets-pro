@@ -36,7 +36,13 @@ const FORBIDDEN = /(^|\/|[-_])(profiles|tpo|market-?profile|volume-?profile|valu
 
 describe("no Profiles room", () => {
   it("no route directory exists for any profile species", () => {
-    const offenders = routeDirs(APP)
+    const all = routeDirs(APP);
+    // VACUITY GUARD: an empty scan must fail, not pass. /charts and the
+    // singular account page must be among what was scanned.
+    expect(all.length).toBeGreaterThan(10);
+    expect(all).toContain("charts");
+    expect(all).toContain(ACCOUNT_PAGE);
+    const offenders = all
       .filter(r => r !== ACCOUNT_PAGE && !r.startsWith(`${ACCOUNT_PAGE}/`))
       .filter(r => FORBIDDEN.test(r));
     expect(offenders, "a profile species earned a route — profiles live on /charts").toEqual([]);
