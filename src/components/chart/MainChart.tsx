@@ -203,6 +203,7 @@ import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
+import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
@@ -1015,6 +1016,8 @@ interface Props {
   compositeProfileOnChart?: boolean;
   /** VISIBLE RANGE — P-110 #7. Computed here: only this file knows the camera. */
   visibleRangeProfileOnChart?: boolean;
+  /** QUESTION LENS — the active evidence question asked of this camera. */
+  questionLensOnChart?: boolean;
   /** H-901 — the regime dimmer, compiled from the one regime owner. */
   regimeLighting?: RegimeLightingVM | null;
   regimeLightingOnChart?: boolean;
@@ -1325,6 +1328,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   compositeProfile = null,
   compositeProfileOnChart = false,
   visibleRangeProfileOnChart = false,
+  questionLensOnChart = false,
   regimeLighting = null,
   regimeLightingOnChart = false,
   bigTradesOverlay = false,
@@ -1516,7 +1520,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1536,8 +1540,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       compositeProfile: compositeProfileOnChart,
       visibleRangeProfile: visibleRangeProfileOnChart,
       regimeLighting: regimeLightingOnChart,
+      questionLens: questionLensOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -7467,6 +7472,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         `canvas.dataset.absorption` cannot tell those apart. Publish the
         receipt in EVERY state; the paint work stays inside the truthy branch.
       */
+      // H-501/F16 QUESTION LENS — set inside the absorption section when a
+      // question is active; every later layer is quieted by it. 1 = no lens.
+      let questionQuiet = 1;
       if (!absorptionAnatomyActive) {
         const ds = canvas.dataset;
         ds.absorption = "OFF";
@@ -7915,6 +7923,98 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
 
+            /* ── QUESTION LENS — the plate's "Is buyer effort being absorbed?" ──
+               Asked of THIS camera's newest material reading. Banner at the
+               top of the pane, the question's band on price, and the measured
+               evidence debt as a compact column. While active, every layer
+               that is not the question's subject is quieted (questionQuiet). */
+            if (layerOnRef.current.questionLens === true) {
+              const lens = selectQuestionLens({
+                absorption: anatomy,
+                exhaustion: selectExhaustion(anatomy),
+                livingPoc: livingProfileRef.current?.drawn ? livingProfileRef.current.poc : null,
+                pivots: marketStructureRef.current?.drawn ? marketStructureRef.current.pivots : [],
+              });
+              ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : "NO_QUESTION";
+              if (lens.active && lens.question) {
+                questionQuiet = 0.35;
+                ctx.save();
+                // The question's band across the camera.
+                if (lens.bandLow != null && lens.bandHigh != null) {
+                  const yh = srs.priceToCoordinate(lens.bandHigh);
+                  const yl = srs.priceToCoordinate(lens.bandLow);
+                  const xs = lens.bandStart != null ? ts.timeToCoordinate(lens.bandStart as never) : null;
+                  if (yh != null && yl != null) {
+                    const top = Math.min(+yh, +yl) - (lens.kind === "EXHAUSTION" ? 3 : 0);
+                    const h = Math.max(6, Math.abs(+yl - +yh));
+                    const x0 = xs == null ? 0 : Math.max(0, +xs - 6);
+                    ctx.fillStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.14)" : "rgba(240,180,41,0.14)";
+                    ctx.fillRect(x0, top, W - 76 - x0, h);
+                    ctx.strokeStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.7)" : "rgba(240,180,41,0.75)";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, W - 76 - x0, Math.round(h));
+                  }
+                }
+                // Banner: ACTIVE QUESTION · focus · noise quieted.
+                ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
+                const q = `“${lens.question}”`;
+                const qW = ctx.measureText(q).width;
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                const sub = `QUESTION FOCUS · ${lens.focus} · SECONDARY NOISE · QUIETED`;
+                const sW = ctx.measureText(sub).width;
+                const bw = Math.max(qW, sW) + 28;
+                const bx = Math.round(W / 2 - bw / 2);
+                const by = 132;
+                ctx.fillStyle = "rgba(11,10,8,0.9)";
+                ctx.fillRect(bx, by, bw, 46);
+                ctx.strokeStyle = "rgba(201,165,92,0.85)";
+                ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 45);
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillStyle = "rgba(201,165,92,0.85)";
+                ctx.fillText("ACTIVE QUESTION", bx + 14, by + 10);
+                ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = "rgba(240,190,70,1)";
+                ctx.fillText(q, bx + 14, by + 24);
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = "rgba(237,230,211,0.8)";
+                ctx.fillText(sub, bx + 14, by + 38);
+                // Evidence debt column: what this question is still owed.
+                const lx = 12;
+                let ly = 188;
+                const colW = 250;
+                const rows = lens.debt.length;
+                ctx.fillStyle = "rgba(11,10,8,0.88)";
+                ctx.fillRect(lx, ly - 12, colW, 34 + rows * 26 + 34);
+                ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.75)" : "rgba(201,165,92,0.75)";
+                ctx.strokeRect(lx + 0.5, ly - 11.5, colW - 1, 33 + rows * 26 + 34);
+                ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = "rgba(237,230,211,0.95)";
+                ctx.fillText(`EVIDENCE DEBT · THIS QUESTION · ${lens.openDebt} OPEN`, lx + 10, ly);
+                ly += 22;
+                for (const d of lens.debt) {
+                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = d.paid ? "rgba(201,165,92,1)" : "rgba(255,150,150,1)";
+                  ctx.fillText(`${d.paid ? "PAID" : "MISSING"} · ${d.label}`, lx + 10, ly);
+                  ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  const ev = d.evidence.length > 52 ? d.evidence.slice(0, 51) + "…" : d.evidence;
+                  ctx.fillText(ev, lx + 10, ly + 11);
+                  ly += 26;
+                }
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
+                ctx.fillText(lens.posture ?? "", lx + 10, ly + 2);
+                if (lens.nextQuestion) {
+                  ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillText(`NEXT QUESTION → ${lens.nextQuestion}`, lx + 10, ly + 16);
+                }
+                ctx.restore();
+              }
+            } else {
+              ds.questionLens = "OFF";
+            }
+
             ctx.restore();
           } else {
             // REFUSAL IS A FIRST-CLASS RENDER. No field, no band, no implied
@@ -7987,6 +8087,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const c0 = vr0 ? Math.max(0, Math.floor(vr0.to) - Math.ceil(vr0.from) + 1) : null;
         semanticDensity = semanticDensityForBarCount(c0);
       } catch { /* no camera yet: UNMEASURED, nothing dims */ }
+      // An active question quiets everything that is not its subject
+      // ("SECONDARY NOISE · QUIETED"). Dims, never deletes.
+      if (questionQuiet < 1) {
+        semanticDensity = {
+          ...semanticDensity,
+          macro: semanticDensity.macro * questionQuiet,
+          mid: semanticDensity.mid * questionQuiet,
+          micro: semanticDensity.micro * questionQuiet,
+        };
+      }
 
       try {
         const glass = selectValueCandleGlass(valueCandleRef.current);

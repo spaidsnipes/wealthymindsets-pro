@@ -3,7 +3,7 @@
 import { chromium } from "playwright-core";
 import { fixtureBars, fixtureDays, fixtureDaysNow, fixtureWeekNow, fixtureExhaustNow } from "./fixture.mjs";
 const [,, out, ...onKeys] = process.argv;
-const ALL = ["wm_fixedVP","wm_sessionVP","wm_ofLivingProfile","wm_ofTpoProfile","wm_ofStructureProfile","wm_ofProfileDna","wm_ofMarketStructure","wm_ofValueMigration","wm_ofProfileMemory","wm_ofProfileFusion","wm_ofCompositeProfile","wm_ofVisibleRangeProfile","wm_ofRegimeLighting","wm_absorptionAnatomy"];
+const ALL = ["wm_fixedVP","wm_sessionVP","wm_ofLivingProfile","wm_ofTpoProfile","wm_ofStructureProfile","wm_ofProfileDna","wm_ofMarketStructure","wm_ofValueMigration","wm_ofProfileMemory","wm_ofProfileFusion","wm_ofCompositeProfile","wm_ofVisibleRangeProfile","wm_ofRegimeLighting","wm_absorptionAnatomy","wm_ofQuestionLens","wm_ofMarketStructure"];
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
 await ctx.route("**/api/auth/me", r => r.fulfill({ status: 200, contentType: "application/json",

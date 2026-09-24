@@ -62,6 +62,7 @@ export type ProfileId =
   | "VISIBLE_RANGE_PROFILE"
   | "ANCHORED_RANGE"
   | "REGIME_LIGHTING"
+  | "QUESTION_LENS"
   | "MARKET_STRUCTURE";
 
 /**
@@ -462,6 +463,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     owner: "src/lib/marketData/viewModels/selectRegimeLighting.ts",
     // A dimmer has no price. It borrows none.
     levels: ["No level of its own — relights the profiles above"],
+  },
+  {
+    id: "QUESTION_LENS",
+    label: "Question Lens",
+    /*
+      The Founder's question-driven mode, on the SAME camera: one active
+      question asked of the newest absorption or exhaustion reading, its
+      evidence debt measured item by item, and everything else quieted.
+    */
+    what: "asks the newest absorption or exhaustion one question, lists what it is still owed, quiets the rest",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectQuestionLens.ts",
+    levels: ["The question's own price band"],
   },
   {
     id: "MARKET_STRUCTURE",

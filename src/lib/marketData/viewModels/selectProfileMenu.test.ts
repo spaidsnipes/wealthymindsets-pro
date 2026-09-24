@@ -54,6 +54,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "ANCHORED_RANGE",
   // H-901. A dimmer over the profile family — reads the regime owner.
   "REGIME_LIGHTING",
+  // Question-driven mode on the same camera — reads absorption/exhaustion.
+  "QUESTION_LENS",
   "MARKET_STRUCTURE",
 ];
 
