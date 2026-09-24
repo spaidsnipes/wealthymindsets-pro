@@ -48,7 +48,15 @@ const PHASE_COLOR: Record<WebullStreamPhase, string> = {
 /** Only the four event names the server actually emits are listened for. */
 const EVENT_KINDS = ["handshake", "subscribe", "quote", "closed"] as const;
 
-export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL }: { symbol?: string }) {
+export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoStart = false }: {
+  symbol?: string;
+  /**
+   * Start on its own once the signed wire check says CONNECTED — the Founder
+   * should not have to press twice to see a print. Fires once per mount; a
+   * trader's Stop is honoured and never overridden by this.
+   */
+  autoStart?: boolean;
+}) {
   const [state, setState] = useState<WebullLiveStreamState>(initialWebullStreamState);
   const [running, setRunning] = useState(false);
   const sourceRef = useRef<EventSource | null>(null);
@@ -136,6 +144,17 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL }: { sy
     open();
   }, [closeSource, open]);
 
+  // Only a trader's own Stop press blocks auto-start; the unmount cleanup
+  // (which also calls stop) must not, or a remount would never go live.
+  const traderStoppedRef = useRef(false);
+  const autoStartedRef = useRef(false);
+  useEffect(() => () => { autoStartedRef.current = false; }, []);
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current || traderStoppedRef.current || running) return;
+    autoStartedRef.current = true;
+    start();
+  }, [autoStart, running, start]);
+
   const silence = describeSilence(state);
   const color = PHASE_COLOR[state.phase];
 
@@ -155,7 +174,7 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL }: { sy
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            if (running) stop();
+            if (running) { traderStoppedRef.current = true; stop(); }
             else start();
           }}
           className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-wm-border bg-wm-card px-3 text-[9px] font-black uppercase tracking-wider text-wm-text-muted transition-colors hover:text-wm-text"
