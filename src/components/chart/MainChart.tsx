@@ -1476,6 +1476,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const vrpCacheRef = useRef<{ key: string; vm: VisibleRangeProfileVM } | null>(null);
 
+  /** Last crosshair reading published — see the crosshair subscription. */
+  const lastCursorKeyRef = useRef<string | null>(null);
+
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
 
@@ -3106,26 +3109,43 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         });
 
         // Crosshair move → data window update
+        //
+        // PUBLISH ONLY WHAT CHANGED. Lightweight-charts fires crosshair moves
+        // SYNCHRONOUSLY from inside a pan (scrollTimeTo → recalculate →
+        // crosshair), many times per drag, for the same bar under the same
+        // cursor. Publishing a fresh object each time re-rendered the room on
+        // every one; with a drawing on the glass, a commit re-triggered the
+        // next event until React aborted ("Maximum update depth exceeded",
+        // reproduced on the pre-shift build too). The reading only changes
+        // when the bar, its OHLCV, or the cursor price changes — so only then
+        // is it published.
         chart.subscribeCrosshairMove((param: any) => {
           if (!chartRef.current) return;
           if (!param || !param.time) {
-            setDataWindow(null); onOHLCAtCursor?.(null);
+            if (lastCursorKeyRef.current !== null) {
+              lastCursorKeyRef.current = null;
+              setDataWindow(null); onOHLCAtCursor?.(null);
+            }
             return;
           }
           // Find bar at crosshair time
           const bar = barsRef.current.find(b => b.time === param.time);
           if (bar) {
-            const ohlc = { o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time };
-            setDataWindow(ohlc);
-            onOHLCAtCursor?.(ohlc);
-            // Get price at crosshair Y (from the CURRENT candle series)
+            let cursorPrice: number | null = null;
             try {
               const series = candleRef.current;
               if (series && param.point) {
                 const price = series.coordinateToPrice(param.point.y);
-                if (price != null) onPriceAtCursor?.(+price.toFixed(bar.close > 100 ? 2 : 4));
+                if (price != null) cursorPrice = +price.toFixed(bar.close > 100 ? 2 : 4);
               }
             } catch {}
+            const key = `${bar.time}|${bar.open}|${bar.high}|${bar.low}|${bar.close}|${bar.volume}|${cursorPrice}`;
+            if (key === lastCursorKeyRef.current) return;
+            lastCursorKeyRef.current = key;
+            const ohlc = { o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time };
+            setDataWindow(ohlc);
+            onOHLCAtCursor?.(ohlc);
+            if (cursorPrice != null) onPriceAtCursor?.(cursorPrice);
           }
         });
       }

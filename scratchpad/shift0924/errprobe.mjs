@@ -11,9 +11,18 @@ await ctx.addInitScript((mode) => {
   const all = ["wm_fixedVP","wm_sessionVP","wm_ofTpoProfile","wm_ofStructureProfile","wm_ofProfileDna","wm_ofValueMigration","wm_ofProfileMemory","wm_ofProfileFusion","wm_ofCompositeProfile","wm_ofVisibleRangeProfile"];
   for (const k of all) localStorage.setItem(k, mode === "allon" ? "true" : "false");
 }, mode);
+await ctx.addInitScript({ content: `
+  (function(){
+    var orig = console.error;
+    window.__loopStacks = [];
+    console.error = function(){
+      try { if (String(arguments[0]).indexOf("Maximum update depth") >= 0) window.__loopStacks.push(new Error().stack); } catch (e) {}
+      return orig.apply(this, arguments);
+    };
+  })();` });
 const p = await ctx.newPage();
 const t0 = Date.now();
-p.on("console", m => { if (m.type() === "error" && /Maximum update depth/.test(m.text())) console.log(`LOOP at +${((Date.now()-t0)/1000).toFixed(1)}s`); });
+p.on("console", m => { if (m.type() === "error" && /Maximum update depth/.test(m.text())) { console.log(`LOOP at +${((Date.now()-t0)/1000).toFixed(1)}s`); console.log(m.text().slice(0, 4000)); } });
 await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "domcontentloaded", timeout: 120000 });
 await p.waitForTimeout(25000);
 if (mode === "tools") {
@@ -38,5 +47,7 @@ if (mode.startsWith("draw-")) {
   await p.mouse.move(500, 300); await p.mouse.down(); await p.mouse.move(700, 300, { steps: 10 }); await p.mouse.up();
   await p.waitForTimeout(2500);
 }
+const stacks = await p.evaluate(() => (window).__loopStacks || []);
+if (stacks.length) console.log("STACK:\n" + stacks[0].split("\n").slice(0, 40).join("\n"));
 console.log("done", mode);
 await b.close();
