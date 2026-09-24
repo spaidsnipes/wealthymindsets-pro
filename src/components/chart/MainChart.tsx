@@ -7939,7 +7939,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
                 const cw = ctx.measureText(chipTxt).width + 12;
                 const cx = Math.max(4, Math.min(x - cw / 2, W - 96 - cw));
-                const cy = up ? y0 - 26 : y0 + 12;
+                // The Question Lens strip owns y≈100–152 while it is on; a chip
+                // there would be covered by the very question it answers, so it
+                // hangs on the other side of its mark instead.
+                const lensBand = layerOnRef.current.questionLens === true;
+                let cy = up ? y0 - 26 : y0 + 12;
+                if (lensBand && cy < 158 && cy + 14 > 96) cy = up ? y0 + 16 : Math.max(160, y0 + 12);
                 ctx.fillStyle = "rgba(20,8,8,0.88)";
                 ctx.fillRect(cx, cy, cw, 14);
                 floatingChips.push({ x: cx, y: cy, w: cw, h: 14 });
