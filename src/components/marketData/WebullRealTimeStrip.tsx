@@ -26,6 +26,14 @@ import {
   type WebullLiveStreamState,
   type WebullStreamPhase,
 } from "@/lib/marketData/webullStreamState";
+import {
+  initialReconnectState,
+  nextStep,
+  observe,
+  recordAttempt,
+  type NextStep,
+  type ReconnectState,
+} from "@/lib/marketData/webullReconnectPolicy";
 
 const PHASE_COLOR: Record<WebullStreamPhase, string> = {
   IDLE: "#9ca3af",
@@ -44,20 +52,49 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL }: { sy
   const [state, setState] = useState<WebullLiveStreamState>(initialWebullStreamState);
   const [running, setRunning] = useState(false);
   const sourceRef = useRef<EventSource | null>(null);
+  // CONTINUITY (webullReconnectPolicy.ts): the policy decides; this owner obeys.
+  const reconnectRef = useRef<ReconnectState>(initialReconnectState);
+  const userStoppedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openedAtRef = useRef(0);
+  const [step, setStep] = useState<NextStep | null>(null);
+  const [gaps, setGaps] = useState<ReconnectState["gaps"]>([]);
 
-  const stop = useCallback(() => {
+  const closeSource = useCallback(() => {
     sourceRef.current?.close();
     sourceRef.current = null;
-    setRunning(false);
   }, []);
+
+  const stop = useCallback(() => {
+    userStoppedRef.current = true;
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    closeSource();
+    setStep(null);
+    setRunning(false);
+  }, [closeSource]);
 
   useEffect(() => stop, [stop]);
 
-  const start = useCallback(() => {
-    stop();
-    setState(openingWebullStreamState);
-    setRunning(true);
+  const openRef = useRef<() => void>(() => {});
+  const ended = useCallback(() => {
+    if (!sourceRef.current) return;
+    closeSource();
+    reconnectRef.current = observe(reconnectRef.current, { kind: "ended", upMs: Date.now() - openedAtRef.current });
+    const n = nextStep(reconnectRef.current, userStoppedRef.current);
+    setStep(n);
+    if (n.kind === "RETRY") {
+      reconnectRef.current = recordAttempt(reconnectRef.current);
+      retryTimerRef.current = setTimeout(() => openRef.current(), n.delayMs);
+    } else {
+      setRunning(false);
+    }
+  }, [closeSource]);
 
+  const open = useCallback(() => {
+    // Each open is a NEW stream: the server repeats handshake AND subscribe.
+    setState(openingWebullStreamState);
+    openedAtRef.current = Date.now();
     const source = new EventSource(
       `/api/market-data/webull/stream?symbols=${encodeURIComponent(symbol)}&subTypes=QUOTE`,
     );
@@ -68,20 +105,36 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL }: { sy
         try {
           const event = JSON.parse((message as MessageEvent<string>).data) as WebullStreamEvent;
           setState((previous) => reduceWebullStream(previous, event));
+          if (event.kind === "handshake") {
+            reconnectRef.current = observe(reconnectRef.current, { kind: "handshake", accepted: event.accepted, credentialRejected: event.credentialRejected });
+          } else if (event.kind === "quote") {
+            reconnectRef.current = observe(reconnectRef.current, { kind: "quote", receivedAt: event.receivedAt });
+            setGaps(reconnectRef.current.gaps);
+            setStep(null);
+          }
         } catch {
           // A frame we cannot parse is dropped rather than rendered as a
           // failure of the lane — that would be a claim we have no basis for.
         }
-        if (kind === "closed") stop();
+        if (kind === "closed") ended();
       });
     }
 
-    source.onerror = () => {
-      // EventSource reports the browser's view, which cannot distinguish a
-      // finished stream from a dropped one. It therefore changes no phase.
-      stop();
-    };
-  }, [stop, symbol]);
+    // EventSource cannot tell a finished stream from a dropped one; the
+    // POLICY decides what happens next, not this handler.
+    source.onerror = () => ended();
+  }, [ended, symbol]);
+  openRef.current = open;
+
+  const start = useCallback(() => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    closeSource();
+    userStoppedRef.current = false;
+    reconnectRef.current = { ...initialReconnectState, gaps: reconnectRef.current.gaps };
+    setStep(null);
+    setRunning(true);
+    open();
+  }, [closeSource, open]);
 
   const silence = describeSilence(state);
   const color = PHASE_COLOR[state.phase];
@@ -138,6 +191,18 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL }: { sy
           </p>
         )}
         {silence && <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">{silence}</p>}
+        {step && step.kind !== "STOPPED" && (
+          <p className="mt-1 text-[10px] font-bold leading-snug" data-webull-continuity={step.kind}
+            style={{ color: step.kind === "REAUTHORIZE" ? "#facc15" : "#C8C0AE" }}>
+            {step.kind === "RETRY" ? `Reconnecting in ${Math.round(step.delayMs / 1000)} s · attempt ${step.attempt} — handshake and subscribe will be repeated`
+              : step.kind === "REAUTHORIZE" ? `REAUTHORIZE · ${step.note}` : step.note}
+          </p>
+        )}
+        {gaps.length > 0 && (
+          <p className="mt-1 text-[9px] leading-snug text-wm-text-dim" data-webull-gaps={gaps.length}>
+            Recorded gaps (not filled): {gaps.slice(-3).map(g => `${new Date(g.from).toLocaleTimeString()} → ${new Date(g.to).toLocaleTimeString()}`).join(" · ")}
+          </p>
+        )}
       </div>
     </div>
   );
