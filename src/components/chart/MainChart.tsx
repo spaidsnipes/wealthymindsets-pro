@@ -18,6 +18,7 @@ import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorC
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
+import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
@@ -188,6 +189,7 @@ import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiqui
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
+import selectSemanticZoom from "@/lib/marketData/viewModels/selectSemanticZoom";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -3126,13 +3128,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     let bar: LegacyOhlcvTuple;
     let t = Math.floor(liveBar.time);
     const intervalSec = getIntervalSec(timeframe);
-    // Fold the live price into the last candle when EITHER (a) the live time is
-    // behind/equal to the last bar, OR (b) it is MORE THAN ONE interval ahead.
-    // Case (b) happens in pre/after-hours (the regular-session data ends at the
-    // close, but live ticks carry a timestamp hours later) and when the tab was
-    // idle and skipped intervals. Creating a new candle there draws a DISCONNECTED
-    // candle far to the right with a big gap and stray fragments — exactly the
-    // "gap + piece of a candle" artifact. Folding keeps the series continuous.
+    // A later observed bar keeps its own timestamp, even after missed intervals.
+    // Folding gaps into the last candle pins its timestamp forever: every next
+    // event is still more than one interval ahead. Do not fabricate gap bars.
     // In RTH mode, an equity tick that arrives outside 9:30–16:00 ET must NOT
     // open a new (after-hours) candle — that is exactly the floating-fragment
     // artifact. Fold it into the last regular-session bar instead.
@@ -3140,7 +3138,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // "is this instant inside 9:30–16:00 ET?" test (not a bar-span overlap).
     const outsideRTH = !extendedHours && intervalSec < 86400 &&
       isEquitySymbol(symbol) && !isRegularSession(t, 60);
-    if (lastBar && (outsideRTH || t <= lastBar.time || t > lastBar.time + intervalSec)) {
+    if (lastBar && shouldFoldChartLiveBar(lastBar.time, t, outsideRTH)) {
       t = lastBar.time; // update the current forming candle in place
       bar = {
         time:   t as any,
@@ -8464,6 +8462,52 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
+        /* ══ F13 · SEMANTIC ZOOM TAG ═════════════════════════════════════════
+           FAR · MID · NEAR on the SAME camera. One word top-right, telling
+           the trader which resolution the picture in front of them is at.
+
+           Canon is blunt about the forbidden opposite: "Do not convert the
+           teaching plate into a permanent 3-column chart. Do not confuse
+           semantic resolution with data/source resolution." So this reading:
+
+             · never sources data
+             · never picks candles
+             · never routes
+             · reads bar COUNT (not time span, not price span) because
+               semantic resolution is a property of what a human eye can weigh
+               at once, and bar count is the same denominator on every symbol
+               and every timeframe.
+
+           H1 — an empty range or a chart not yet loaded is UNMEASURED, not
+           NEAR. Rendering NEAR of nothing would say "you are reading candle
+           anatomy of nothing," which is absence as a value.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const vr = chart.timeScale().getVisibleLogicalRange();
+          const count = vr
+            ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1)
+            : null;
+          const zoom = selectSemanticZoom({ visibleBarCount: count });
+          ds.semanticZoom = zoom.tag ?? `UNMEASURED:${zoom.reason ?? ""}`;
+          if (zoom.visibleBarCount != null) ds.semanticZoomBars = String(zoom.visibleBarCount);
+          else delete ds.semanticZoomBars;
+
+          if (zoom.tag) {
+            ctx.save();
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            // Brass on the tag itself — it is HOUSE HARDWARE, not a market
+            // reading. Muted ivory on the note beside it.
+            ctx.fillStyle = "rgba(201,165,92,0.85)";
+            const rightX = W - 76;
+            ctx.fillText(zoom.tag, rightX, 6);
+            ctx.fillStyle = "rgba(138,130,113,0.85)";
+            ctx.fillText(`${zoom.visibleBarCount} bars`, rightX, 18);
+            ctx.restore();
+          }
+        }
+
         /* ── P-601 HEAT LENS: THE SECOND EXCEPTION, AND WHY IT IS ONE ──────
            The note above is right that a COST HAS NO LEVEL, and this does not
            overturn it. It draws no band for the STAGE — "THINNING" is still a
@@ -10484,8 +10528,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               data-nectar-quarantined={nectar.receipts.quarantined}
               data-nectar-unsupported={nectar.unsupportedCapabilities}
               role="group"
-              aria-label={`Live footprint recording; historical bars before this tab opened stay blank. Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Current-tab delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageAriaClause}. ${s.bigTradeCount} current-tab large trades. ${gapCount} gaps. Retention: ${retentionShort}. Raw tape is not retained.`}
-              title={`LIVE TAPE — new bars only; historical bars before this tab opened stay blank.\nWM Nectar memory for ${normalizeSym(symbol)}.\nCurrent tab since: ${horizonTime}\nBuys this tab: ${fmt(s.buyVol)}\nSells this tab: ${fmt(s.sellVol)}\nDelta this tab = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
+              aria-label={`Live footprint recording; historical bars before this tab opened stay blank. Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Accumulated summary — may include browser-restored counters. Summary delta ${fmt(s.delta)}. ${s.tradeCount} summary trades. ${coverageAriaClause}. ${s.bigTradeCount} summary large trades. ${gapCount} gaps. Coverage retention: ${retentionShort}. Raw tape is not retained.`}
+              title={`LIVE TAPE — new bars only; historical bars before this tab opened stay blank.\nWM Nectar memory for ${normalizeSym(symbol)}.\nAccumulated summary — may include browser-restored counters; not raw tape.\nSummary horizon began: ${horizonTime}\nSummary buys: ${fmt(s.buyVol)}\nSummary sells: ${fmt(s.sellVol)}\nSummary delta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nCoverage retention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
               data-visual-density="compact"
               style={{
                 position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",

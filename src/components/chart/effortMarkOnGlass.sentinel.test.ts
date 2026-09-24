@@ -45,8 +45,13 @@ const block = (() => {
   // Bounded by the NEXT layer rather than by a character count. A fixed window
   // that overruns into the heat lens would fail this file's own "no open/close
   // here" guard on the neighbour's code — a guard distorting what it protects.
-  const end = CHART.indexOf("selectHeatLens", at);
-  expect(end, "the heat lens no longer follows this block").toBeGreaterThan(at);
+  // Bounded by the NEAREST-known landmark that follows this block, not by
+  // `selectHeatLens` — three other layers moved in between over the course of
+  // the shift, and each one has its own `fillText(…)` that would spuriously
+  // trip this file's "no composed words here" guard on unrelated code.
+  const marker = "const dl = deltaLevelsRef.current";
+  const end = CHART.indexOf(marker, at);
+  expect(end, `the delta-levels block no longer follows this one`).toBeGreaterThan(at);
   return CHART.slice(at, end);
 })();
 
