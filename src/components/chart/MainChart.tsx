@@ -201,7 +201,7 @@ import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompo
 import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
-import { selectSemanticDensity } from "@/lib/marketData/viewModels/selectSemanticDensity";
+import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -7932,7 +7932,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       try {
         const vr0 = chartRef.current?.timeScale().getVisibleLogicalRange();
         const c0 = vr0 ? Math.max(0, Math.floor(vr0.to) - Math.ceil(vr0.from) + 1) : null;
-        semanticDensity = selectSemanticDensity(selectSemanticZoom({ visibleBarCount: c0 }).state);
+        semanticDensity = semanticDensityForBarCount(c0);
       } catch { /* no camera yet: UNMEASURED, nothing dims */ }
 
       try {

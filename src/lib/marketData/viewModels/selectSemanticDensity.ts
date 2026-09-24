@@ -30,7 +30,7 @@
  * PURE. DETERMINISTIC.
  */
 
-import type { SemanticZoomState } from "./selectSemanticZoom";
+import { selectSemanticZoom, type SemanticZoomState } from "./selectSemanticZoom";
 
 export const SEMANTIC_DENSITY_VERSION = 1;
 export const QUIET = 0.28;
@@ -61,6 +61,14 @@ export function selectSemanticDensity(depth: SemanticZoomState | null | undefine
     default:
       return { ...base, macro: 1, mid: 1, micro: 1, speaking: "" };
   }
+}
+
+/**
+ * The density for a visible bar count, through the ONE zoom rule — so the
+ * depth that governs the layers is the depth the tag prints, by construction.
+ */
+export function semanticDensityForBarCount(visibleBarCount: number | null): SemanticDensityVM {
+  return selectSemanticDensity(selectSemanticZoom({ visibleBarCount }).state);
 }
 
 export default selectSemanticDensity;

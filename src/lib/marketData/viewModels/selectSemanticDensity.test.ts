@@ -37,3 +37,14 @@ describe("H-501 — each depth lets its own geometry speak", () => {
     }
   });
 });
+
+import { semanticDensityForBarCount } from "./selectSemanticDensity";
+import { selectSemanticZoom } from "./selectSemanticZoom";
+
+describe("the governing depth IS the printed depth", () => {
+  it("bar count goes through the one zoom rule", () => {
+    for (const n of [0, 5, 30, 31, 120, 299, 300, 800]) {
+      expect(semanticDensityForBarCount(n).depth).toBe(selectSemanticZoom({ visibleBarCount: n }).state);
+    }
+  });
+});
