@@ -104,6 +104,25 @@ server-side bridge; Moomoo (non-blocking, Founder reconnecting); question lenses
 absorption/exhaustion; FUSED POC label can sit tight against a source label at the same price.
 Serving proof: this sandbox cannot reach the live site (egress CONNECT 403) — Founder glass.
 
+## Evening shift (22:20–00:00 UTC) — the five Founder mockups, side by side
+
+| Mockup | Defect found | Commit | Proof (LOCAL DEV, FIXTURE bars) |
+|---|---|---|---|
+| 2 · Liquidity Weather lifecycle | Not built (heat lens is cost-based) | `d9ec1a4` | SIDE_liquidity_lifecycle.png |
+| 1 · Absorption anatomy | Neighbouring chips printed on one another | `85cd652` | desk_order_flow.png (`ds.absorptionChips` 9/9) |
+| 5 · Market Object Passport | 10–11px type; panel stretched to the floor; rule unstated | `7a6fe98` | SIDE_MOCK4_object_passport.png |
+| 3 · Scaffolding | Plate at ~¾ of the mockup's scale; Pro graph see-through | `f838ec2` | SIDE_MOCK2_scaffolding.png |
+| 4 · Question mode | Zone not named on price; no displacement callout | `531f66b` | SIDE_MOCK5_question_mode.png |
+
+Where each one lives: Workspace › ORDER FLOW (anatomy cards + question lens), Workspace › REVIEW
+(scaffolding + liquidity lifecycle), click a zone on price (passport). Refused, not built: PULLED
+(needs book depth), decay rate / half-life / invalidation probability, "decreasing buyer effort"
+trend words, the mockup's static LOOK FOR teaching lists and CLARITY STATE.
+
+Webull on the live site: the code path is signed OpenAPI + one KV session (`WEBULL_SESSION`).
+Signed in, `/api/broker/webull/status` names the state: UNCONFIGURED lists the missing Worker
+secret names; AWAITING_2FA means one tap in the Webull phone app; CONNECTED lists account types.
+
 ## Still OPEN from the Manifestation Map
 
 P-110 stack controls: left/right/overlay placement, duplicate (reorder, opacity, lock, width,
