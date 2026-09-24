@@ -8563,6 +8563,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.font = font(700, 8.5); ctx.fillStyle = GOLD;
                   ctx.textAlign = "center";
                   ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 30), x0 + w / 2, ry + 14.5);
+                  floatingChips.push({ x: x0, y: y0 - 9, w: w * scafK, h: (top + h - (y0 - 9)) * scafK });
                   ctx.textAlign = "left";
                 } else if (depth === "INTERMEDIATE") {
                   const w = 300, rowH = 40, h = 40 + sc.dynamics.length * rowH + 56 + 18;
@@ -8593,6 +8594,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.font = font(700, 8); ctx.fillStyle = DIM;
                   ctx.textAlign = "center";
                   ctx.fillText("SAME READ. FEWER STEPS. HIGHER OWNERSHIP.", x0 + w / 2, ry + 64);
+                  floatingChips.push({ x: x0, y: y0 - 9, w: w * scafK, h: (top + h - (y0 - 9)) * scafK });
                   ctx.textAlign = "left";
                 } else {
                   const w = 300, gh = 130, h = 40 + gh + 96;
@@ -8645,6 +8647,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillText(sc.conversion ?? "NO EFFORT", x0 + w / 2, by + 42);
                   ctx.font = font(700, 8); ctx.fillStyle = DIM;
                   ctx.fillText("PURE SIGNAL. MAXIMUM DISCRETION.", x0 + w / 2, top + h - 9);
+                  floatingChips.push({ x: x0, y: y0 - 9, w: w * scafK, h: (top + h - (y0 - 9)) * scafK });
                   ctx.textAlign = "left";
                 }
                 ctx.restore();
@@ -11255,6 +11258,65 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = st === "PULLED" ? "rgba(200,192,174,0.55)" : "rgba(237,230,211,0.9)";
             ctx.fillText(`${k + 1} ${st}`, x, ly + 11);
           });
+          // LIFECYCLE STATUS — the plate's right column, one row per stage:
+          // how many pools stand at it now and when it last happened, counted
+          // in bars. PULLED keeps its row and says why it is never called.
+          // (The plate's 0–100 "Liquidity Weather Index" is not drawn: no
+          // measurement here produces such a score.)
+          if (lc.drawn && W >= 960) {
+            const lastT = bsL.length ? Number(bsL[bsL.length - 1].time) : null;
+            const barsAgo = (t: number) => { let n = 0; for (let i = bsL.length - 1; i >= 0 && Number(bsL[i].time) > t; i--) n++; return n; };
+            const NOTE: Record<string, string> = {
+              APPEARED: "new volume node", GREW: "volume at price rising", PERSISTED: "held 3+ steps",
+              TOUCHED: "price traded back in", REFILLED: "rebuilt after a touch", CONSUMED: "closed through, held",
+              PULLED: "refused · needs book depth",
+            };
+            const pw = 236, rowH = 27, ph = 44 + STAGE_ORDER.length * rowH + 8;
+            const hitP = (x: number, y: number) => floatingChips.some(r => r.h >= 30 && x < r.x + r.w + 6 && x + pw + 6 > r.x && y < r.y + r.h + 6 && y + ph + 6 > r.y);
+            const cands = [{ x: 12, y: 176 }, ...floatingChips.filter(r => r.y < 260 && r.h > 150).map(r => ({ x: r.x + r.w + 12, y: 176 }))]
+              .filter(o => o.x + pw <= rightL - 8 && o.y + ph <= H - 150);
+            const at = cands.find(o => !hitP(o.x, o.y));
+            ds.liquidityLifecycleStatus = at ? "PANEL" : "NO_ROOM";
+            if (at) {
+              const { x: px, y: py } = at;
+              ctx.fillStyle = "rgba(11,10,8,0.95)"; ctx.fillRect(px, py, pw, ph);
+              ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.font = "800 11px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,1)";
+              ctx.fillText("LIFECYCLE STATUS", px + 12, py + 15);
+              ctx.font = "600 8.5px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(200,192,174,0.8)";
+              ctx.fillText(`KEY LIQUIDITY POOLS · ${lc.pools.length} ON THIS CAMERA`, px + 12, py + 30);
+              STAGE_ORDER.forEach((st, k) => {
+                const ry = py + 44 + k * rowH;
+                const col = STAGE_RGB[st];
+                const pulled = st === "PULLED";
+                const now = lc.pools.filter(pl => pl.stage === st).length;
+                const evTimes = lc.pools.flatMap(pl => pl.events.filter(e => e.stage === st).map(e => e.time));
+                const lastEv = evTimes.length ? Math.max(...evTimes) : null;
+                ctx.strokeStyle = "rgba(201,165,92,0.15)";
+                ctx.beginPath(); ctx.moveTo(px + 8, ry + 0.5); ctx.lineTo(px + pw - 8, ry + 0.5); ctx.stroke();
+                ctx.beginPath(); ctx.arc(px + 20, ry + rowH / 2, 8, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(${col},${pulled ? 0.4 : 1})`; ctx.lineWidth = 1.3; ctx.stroke(); ctx.lineWidth = 1;
+                ctx.textAlign = "center"; ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = `rgba(${col},${pulled ? 0.5 : 1})`; ctx.fillText(String(k + 1), px + 20, ry + rowH / 2 + 0.5);
+                ctx.textAlign = "left";
+                ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = pulled ? "rgba(200,192,174,0.55)" : `rgba(${col},1)`;
+                ctx.fillText(st, px + 36, ry + 9);
+                ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(200,192,174,0.85)";
+                ctx.fillText(NOTE[st], px + 36, ry + 20);
+                ctx.textAlign = "right";
+                if (!pulled) {
+                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.95)";
+                  ctx.fillText(`${now} now`, px + pw - 10, ry + 9);
+                  ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(200,192,174,0.8)";
+                  ctx.fillText(lastEv == null || lastT == null ? "never" : barsAgo(lastEv) === 0 ? "this bar" : `${barsAgo(lastEv)} bars ago`, px + pw - 10, ry + 20);
+                }
+                ctx.textAlign = "left";
+              });
+              floatingChips.push({ x: px, y: py, w: pw, h: ph });
+            }
+          } else ds.liquidityLifecycleStatus = lc.drawn ? "NARROW" : "NONE";
           ctx.restore();
           if (lc.drawn) floatingChips.push({ x: lx - 4, y: ly - 20, w: segW * 7 + 8, h: 38 });
         } else {
