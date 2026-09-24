@@ -115,6 +115,15 @@ Serving proof: this sandbox cannot reach the live site (egress CONNECT 403) — 
 | 4 · Question mode | Zone not named on price; no displacement callout | `531f66b` | SIDE_MOCK5_question_mode.png |
 | 1 · Anatomy cards | Cards at ~¾ of the plate's scale | `5c35033` | SIDE_MOCK1_anatomy_cards.png (`ds.anatomyCardsScale` 1.28) |
 | 2 · Lifecycle Status column | Plate's right column missing | `baa0180` | SIDE_liquidity_lifecycle.png (`ds.liquidityLifecycleStatus` PANEL) |
+| 5 · Selected-zone callout | One-line chip; mockup has a two-line box on a leader | `7d35cae` + `125332d` | SIDE_MOCK4_object_passport.png, zone_callout_crop.png |
+| Webull · see it connected | Stream needed a second press after CONNECTED | `2c55ed8` | webull_autostart.mjs (FIXTURE status + SSE: CONNECTED → live with no press; UNCONFIGURED → never starts) |
+| Appearance · one owner | Absorption words + fused profile inks hard-coded | `14aa56d` | appearance_inks.mjs (cyan ink → 4,060 cyan px; default → 0) |
+| Profile stack labels | FUSED POC tight against a source POC | `d58b5e5` | fusion_labels_crop.png |
+| Obstacles | Question-lens panels and scaffolding plate not registered | `28077b2`, `baa0180` | desk_review.png |
+
+Slip, owned: `7d35cae` went to `main` with two glass sentinels red (side-coloured callout text in the
+stretch they scan). Workers Builds deployed it (build-only gate); fixed in `125332d` four minutes later,
+full suite green. Every push after that is gated on the vitest exit code, not a grep of its output.
 
 Where each one lives: Workspace › ORDER FLOW (anatomy cards + question lens), Workspace › REVIEW
 (scaffolding + liquidity lifecycle), click a zone on price (passport). Refused, not built: PULLED
