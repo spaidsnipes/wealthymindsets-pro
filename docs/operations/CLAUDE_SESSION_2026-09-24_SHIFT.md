@@ -113,11 +113,16 @@ Serving proof: this sandbox cannot reach the live site (egress CONNECT 403) — 
 | 5 · Market Object Passport | 10–11px type; panel stretched to the floor; rule unstated | `7a6fe98` | SIDE_MOCK4_object_passport.png |
 | 3 · Scaffolding | Plate at ~¾ of the mockup's scale; Pro graph see-through | `f838ec2` | SIDE_MOCK2_scaffolding.png |
 | 4 · Question mode | Zone not named on price; no displacement callout | `531f66b` | SIDE_MOCK5_question_mode.png |
+| 1 · Anatomy cards | Cards at ~¾ of the plate's scale | `5c35033` | SIDE_MOCK1_anatomy_cards.png (`ds.anatomyCardsScale` 1.28) |
+| 2 · Lifecycle Status column | Plate's right column missing | `baa0180` | SIDE_liquidity_lifecycle.png (`ds.liquidityLifecycleStatus` PANEL) |
 
 Where each one lives: Workspace › ORDER FLOW (anatomy cards + question lens), Workspace › REVIEW
 (scaffolding + liquidity lifecycle), click a zone on price (passport). Refused, not built: PULLED
 (needs book depth), decay rate / half-life / invalidation probability, "decreasing buyer effort"
-trend words, the mockup's static LOOK FOR teaching lists and CLARITY STATE.
+trend words, the mockup's static LOOK FOR teaching lists and CLARITY STATE, the 0–100 Liquidity
+Weather Index and the ENVIRONMENT panel (Depth needs a book).
+
+Verification: full `npx vitest run` 958 files / 12,061 tests green after `baa0180`; `npm run build` green before every push.
 
 Webull on the live site: the code path is signed OpenAPI + one KV session (`WEBULL_SESSION`).
 Signed in, `/api/broker/webull/status` names the state: UNCONFIGURED lists the missing Worker
