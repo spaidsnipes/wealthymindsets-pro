@@ -10901,19 +10901,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
                 }
               }
-              // The chip, as the mockup draws it: what it is and its range.
-              const text = `SELECTED ZONE · ${z.side} · ${z.object.priceLow.toFixed(2)} – ${z.object.priceHigh.toFixed(2)} · ${z.lifecycle.state}`;
+              // The callout, as the mockup draws it: a two-line box standing
+              // above the zone on a leader to its middle — what it is, then its
+              // side, range and measured state.
+              const l1 = "SELECTED ZONE";
+              const l2 = `${z.side} · ${z.object.priceLow.toFixed(2)} – ${z.object.priceHigh.toFixed(2)} · ${z.lifecycle.state}`;
+              ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+              const w1 = ctx.measureText(l1).width;
               ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
-              const w = Math.ceil(ctx.measureText(text).width) + 14;
-              const cx = Math.max(4, Math.min(x0 + (zEnd - x0) / 2 - w / 2, endX - w));
-              const cy = Math.max(24, top - 22);
-              ctx.fillStyle = "rgba(11,10,8,0.9)";
-              ctx.fillRect(cx, cy - 9, w, 18);
-              ctx.strokeStyle = invalid ? "rgba(170,170,180,0.9)" : "rgba(240,180,41,0.95)";
-              ctx.strokeRect(cx + 0.5, cy - 8.5, w - 1, 17);
+              const w2 = ctx.measureText(l2).width + 14;
+              const w = Math.ceil(Math.max(w1 + 20, w2 + 8));
+              const bh2 = 36;
+              const anchorX = x0 + (zEnd - x0) / 2;
+              const cx = Math.max(4, Math.min(anchorX - w / 2, endX - w));
+              const by = Math.max(HEADER_FLOOR_Y, top - bh2 - 34);
+              const gold = invalid ? "rgba(170,170,180,0.9)" : "rgba(240,180,41,0.95)";
+              if (by + bh2 < top - 4) {
+                ctx.strokeStyle = gold; ctx.lineWidth = 1;
+                // Leave from the box's own foot (clamped under it), land on the zone.
+                const footX = Math.max(cx + 10, Math.min(anchorX, cx + w - 10));
+                ctx.beginPath(); ctx.moveTo(Math.round(footX) + 0.5, by + bh2); ctx.lineTo(Math.round(anchorX) + 0.5, midY); ctx.stroke();
+                ctx.beginPath(); ctx.arc(anchorX, midY, 3, 0, Math.PI * 2); ctx.fillStyle = gold; ctx.fill();
+              }
+              ctx.fillStyle = "rgba(11,10,8,0.92)";
+              ctx.fillRect(cx, by, w, bh2);
+              ctx.strokeStyle = gold;
+              ctx.strokeRect(cx + 0.5, by + 0.5, w - 1, bh2 - 1);
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
               ctx.fillStyle = invalid ? "rgba(220,220,228,1)" : "rgba(240,180,41,1)";
-              ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              ctx.fillText(text, cx + 7, cy);
+              ctx.fillText(l1, cx + w / 2, by + 11);
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = invalid ? "rgba(220,220,228,0.9)" : z.side === "DEMAND" ? "rgba(0,192,118,1)" : "rgba(255,77,106,1)";
+              ctx.fillText(l2, cx + w / 2, by + 26);
+              ctx.textAlign = "left";
+              floatingChips.push({ x: cx, y: by, w, h: bh2 });
               selectedPainted = z.object.objectId;
             }
             ctx.restore();
