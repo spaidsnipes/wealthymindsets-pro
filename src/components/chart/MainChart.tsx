@@ -9046,21 +9046,52 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ds.regimeLighting = lightOn ? (regimeLight?.breaker ?? "NO_BREAKER") : "OFF";
         ds.regimeLightingVerdict = regimeLight?.verdict ?? "";
         if (lightOn && regimeLight) {
+          // THE PLATE'S BREAKER PANEL — three breakers, only one ON. UNKNOWN
+          // leaves all three OFF and says so; nothing is switched by guess.
           ctx.save();
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-          const text = regimeLight.chip;
-          const w = Math.ceil(ctx.measureText(text).width) + 12;
-          const x = Math.round(W / 2 - w / 2);
-          const y = 112;
-          ctx.fillStyle = "rgba(11,10,8,0.86)";
-          ctx.fillRect(x, y - 8, w, 16);
-          ctx.strokeStyle = regimeLight.breaker ? "rgba(201,165,92,0.8)" : "rgba(139,143,168,0.5)";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
+          const BRK: { id: "TREND" | "RANGE" | "TRANSITION"; note: string }[] = [
+            { id: "TREND", note: "mean-reversion magnets dim" },
+            { id: "RANGE", note: "trend fixtures capped" },
+            { id: "TRANSITION", note: "all fixtures dimmed" },
+          ];
+          const bw = 138, gap = 6, ph = 62;
+          const pw = bw * 3 + gap * 2 + 16;
+          const x0 = Math.round(W / 2 - pw / 2);
+          const y0 = 100;
+          ctx.fillStyle = "rgba(11,10,8,0.9)";
+          ctx.fillRect(x0, y0, pw, ph + 32);
+          ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1;
+          ctx.strokeRect(x0 + 0.5, y0 + 0.5, pw - 1, ph + 31);
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(237,230,211,0.95)";
+          ctx.fillText("REGIME CIRCUIT BREAKERS · ONLY ONE ON", x0 + 8, y0 + 11);
+          BRK.forEach((b, i) => {
+            const on = regimeLight.breaker === b.id;
+            const bx = x0 + 8 + i * (bw + gap), by = y0 + 20;
+            ctx.strokeStyle = on ? "rgba(240,190,70,1)" : "rgba(139,143,168,0.45)";
+            ctx.lineWidth = on ? 1.5 : 1;
+            ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, ph - 22);
+            ctx.lineWidth = 1;
+            ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+            ctx.fillStyle = on ? "rgba(240,190,70,1)" : "rgba(200,204,218,0.75)";
+            ctx.fillText(b.id, bx + 7, by + 11);
+            ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
+            ctx.fillStyle = "rgba(200,192,174,0.8)";
+            ctx.fillText(b.note, bx + 7, by + 24);
+            // Status tab: ON filled, OFF hollow.
+            const sx = bx + bw - 30, sy = by + 5;
+            if (on) { ctx.fillStyle = "rgba(240,190,70,1)"; ctx.fillRect(sx, sy, 24, 12); }
+            else { ctx.strokeStyle = "rgba(139,143,168,0.6)"; ctx.strokeRect(sx + 0.5, sy + 0.5, 23, 11); }
+            ctx.font = "800 7.5px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = on ? "rgba(11,10,8,1)" : "rgba(200,204,218,0.75)";
+            ctx.fillText(on ? "ON" : "OFF", sx + 12, sy + 6.5);
+            ctx.textAlign = "left";
+          });
+          ctx.font = "700 8.5px ui-sans-serif, system-ui, sans-serif";
           ctx.fillStyle = regimeLight.breaker ? "rgba(201,165,92,1)" : "rgba(200,204,218,0.9)";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "middle";
-          ctx.fillText(text, x + 6, y);
+          ctx.fillText(regimeLight.chip, x0 + 8, y0 + ph + 20);
           ctx.restore();
         }
 
