@@ -204,6 +204,7 @@ import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeL
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
@@ -1020,6 +1021,8 @@ interface Props {
   visibleRangeProfileOnChart?: boolean;
   /** QUESTION LENS — the active evidence question asked of this camera. */
   questionLensOnChart?: boolean;
+  /** Absorption vs Exhaustion key-metric cards (MOCK 1). */
+  anatomyCardsOnChart?: boolean;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1336,6 +1339,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   visibleRangeProfileOnChart = false,
   questionLensOnChart = false,
   scaffoldingDepthOnChart = "OFF",
+  anatomyCardsOnChart = false,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1534,7 +1538,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1555,8 +1559,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       visibleRangeProfile: visibleRangeProfileOnChart,
       regimeLighting: regimeLightingOnChart,
       questionLens: questionLensOnChart,
+      anatomyCards: anatomyCardsOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -7937,6 +7942,79 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillText(chipTxt, cx + 6, cy + 7.5);
                 ctx.restore();
               }
+            }
+
+            /* ── ANATOMY CARDS — the plate's two KEY METRICS columns ─────────
+               ABSORPTION ANATOMY (gold) beside EXHAUSTION ANATOMY (crimson),
+               four big numbers each, the outcome under them, and a dotted
+               leader from each card to the candles it measured — so the card
+               can never float free of the price it is a claim about. */
+            if (layerOnRef.current.anatomyCards === true) {
+              const cards = selectAnatomyCards(anatomy, selectExhaustion(anatomy));
+              ds.anatomyCards = `${cards.absorption.empty ? "NONE" : cards.absorption.outcome}|${cards.exhaustion.empty ? "NONE" : cards.exhaustion.outcome}`;
+              ctx.save();
+              const cw = 292, ch = 188, gap = 12;
+              const top = Math.max(200, H - 190 - ch);
+              const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+              [cards.absorption, cards.exhaustion].forEach((c, k) => {
+                const x0 = 12 + k * (cw + gap);
+                const ex = c.kind === "EXHAUSTION";
+                const ACC = ex ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
+                const ACC_DIM = ex ? "rgba(226,92,92,0.55)" : "rgba(201,165,92,0.6)";
+                ctx.fillStyle = ex ? "rgba(20,8,8,0.92)" : "rgba(11,10,8,0.92)";
+                ctx.fillRect(x0, top, cw, ch);
+                ctx.strokeStyle = ACC_DIM; ctx.lineWidth = 1;
+                ctx.strokeRect(x0 + 0.5, top + 0.5, cw - 1, ch - 1);
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.font = font(800, 13); ctx.fillStyle = ACC;
+                ctx.fillText(c.title, x0 + cw / 2, top + 15);
+                ctx.fillStyle = "rgba(237,230,211,0.75)";
+                let sp = 7.5;
+                ctx.font = font(600, sp);
+                while (sp > 5.5 && ctx.measureText(`(${c.subtitle})`).width > cw - 16) { sp -= 0.25; ctx.font = font(600, sp); }
+                ctx.fillText(`(${c.subtitle})`, x0 + cw / 2, top + 29);
+                if (c.empty) {
+                  ctx.font = font(600, 9); ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  ctx.fillText(c.empty.length > 52 ? c.empty.slice(0, 51) + "…" : c.empty, x0 + cw / 2, top + ch / 2 + 6);
+                  return;
+                }
+                // Four metric tiles, 2×2: label · big number · word.
+                const tw = (cw - 24) / 2, th = 50;
+                c.metrics.forEach((m, i) => {
+                  const tx = x0 + 8 + (i % 2) * (tw + 8);
+                  const ty = top + 40 + Math.floor(i / 2) * (th + 6);
+                  ctx.strokeStyle = "rgba(237,230,211,0.12)";
+                  ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+                  ctx.textAlign = "left";
+                  ctx.font = font(700, 7.5); ctx.fillStyle = "rgba(237,230,211,0.8)";
+                  ctx.fillText(m.label, tx + 8, ty + 10);
+                  ctx.font = font(800, 19); ctx.fillStyle = ACC;
+                  ctx.fillText(m.value, tx + 8, ty + 28);
+                  ctx.font = font(700, 7.5); ctx.fillStyle = ACC_DIM;
+                  ctx.fillText(m.word, tx + 8, ty + 43);
+                });
+                ctx.textAlign = "left";
+                ctx.font = font(800, 10); ctx.fillStyle = ACC;
+                ctx.fillText(`${ex ? "EXHAUSTION" : "ABSORPTION"} OUTCOME · ${c.outcome}`, x0 + 10, top + ch - 24);
+                ctx.font = font(500, 8); ctx.fillStyle = "rgba(200,192,174,0.85)";
+                ctx.fillText(c.outcomeNote, x0 + 10, top + ch - 10);
+                // Leader to the candles.
+                if (c.time != null && c.price != null) {
+                  const xr = ts.timeToCoordinate(c.time as never);
+                  const yr = srs.priceToCoordinate(c.price);
+                  if (xr != null && yr != null) {
+                    ctx.setLineDash([2, 3]);
+                    ctx.strokeStyle = ACC_DIM;
+                    ctx.beginPath(); ctx.moveTo(x0 + cw / 2, top); ctx.lineTo(+xr, +yr); ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = ACC;
+                    ctx.beginPath(); ctx.arc(+xr, +yr, 3, 0, Math.PI * 2); ctx.fill();
+                  }
+                }
+              });
+              ctx.restore();
+            } else {
+              ds.anatomyCards = "OFF";
             }
 
             /* ── QUESTION LENS — the plate's "Is buyer effort being absorbed?" ──

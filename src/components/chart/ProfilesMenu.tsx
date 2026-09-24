@@ -48,6 +48,7 @@ import {
   type ProfileId,
   type ProfileMenuEntry,
   type ProfileMenuInput,
+  type ProfileFamily,
 } from "@/lib/marketData/viewModels/selectProfileMenu";
 
 /** The dot beside each entry. Availability is a colour AND a sentence, never only a colour. */
@@ -64,6 +65,10 @@ export function ProfilesMenu({
   observedAggressorFlow,
   active,
   onToggle,
+  families,
+  heading = "Price instruments",
+  testId = "profiles-menu-panel",
+  columns = 2,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -73,8 +78,15 @@ export function ProfilesMenu({
   observedAggressorFlow: boolean;
   active: ProfileMenuInput["active"];
   onToggle: (id: ProfileId) => void;
+  /** One door per family — omitted shows the whole catalogue. */
+  families?: readonly ProfileFamily[];
+  /** The grid's small caps heading ("Price instruments", "Order-flow tools" …). */
+  heading?: string;
+  testId?: string;
+  /** 1 in the narrow tool-family doors, so a tool's name is never truncated. */
+  columns?: 1 | 2;
 }) {
-  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active });
+  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families });
 
   return (
     <section
@@ -110,7 +122,7 @@ export function ProfilesMenu({
       // label, and so the glass and the chrome can be checked against each
       // other from outside the app.
       data-profiles-silent={String(vm.silentCount)}
-      data-testid="profiles-menu-panel"
+      data-testid={testId}
       data-profile-layout="instrument-grid"
       className="min-w-0"
     >
@@ -134,14 +146,14 @@ export function ProfilesMenu({
 
           <div className="flex items-center justify-between gap-3 px-1 pb-2">
             <div className="text-[9px] uppercase tracking-[0.16em] text-wm-text-dim">
-              Price instruments
+              {heading}
             </div>
             <div className="text-[9px] uppercase tracking-[0.12em] text-wm-text-dim">
               {vm.readyCount}/{vm.entries.length} ready
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1" data-testid="profiles-instrument-grid">
+          <div className={columns === 1 ? "grid grid-cols-1 gap-1" : "grid grid-cols-2 gap-1"} data-testid={testId === "profiles-menu-panel" ? "profiles-instrument-grid" : `${testId}-grid`}>
             {vm.entries.map(entry => {
               const ready = entry.availability === "READY";
               const stateLabel = ready

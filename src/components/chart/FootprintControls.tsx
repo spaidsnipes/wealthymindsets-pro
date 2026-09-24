@@ -487,7 +487,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
 
 const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
   { id: "bid-ask",            label: "Bid × Ask",    desc: "Bid/ask split cells per price level — order flow footprint" },
-  { id: "delta",              label: "Delta",         desc: "Net ask−bid per row. Teal = buying pressure, purple = selling" },
+  { id: "delta",              label: "Delta Bubbles", desc: "Net aggressive delta per price zone, drawn as bubbles on the candle. Teal = buying pressure, purple = selling" },
   { id: "volume-profile",     label: "Vol Profile",   desc: "Volume-at-price horizontal bars per candle" },
   { id: "imbalance",          label: "Imbalance",     desc: "Highlight cells with >2.5× bid/ask ratio — spot trapped traders" },
   { id: "aggressive-passive", label: "Agg/Passive Proxy", desc: "Aggressor side is observed from tape; passive roles are location-based inferences, not resting-order observations" },

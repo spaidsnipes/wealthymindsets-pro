@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { selectProfileMenu, type ProfileId, type ProfileMenuInput } from "./selectProfileMenu";
+import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "./selectProfileMenu";
 
 const ALL_IDS: readonly ProfileId[] = [
   "FIXED_RANGE",
@@ -57,6 +57,7 @@ const ALL_IDS: readonly ProfileId[] = [
   // Question-driven mode on the same camera — reads absorption/exhaustion.
   "QUESTION_LENS",
   "SCAFFOLDING",
+  "ANATOMY_CARDS",
   "MARKET_STRUCTURE",
 ];
 
@@ -414,5 +415,36 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
       ).not.toMatch(/\.\s+[a-z]/);
       expect(note[0], `the note opens lowercase: ${note}`).not.toMatch(/[a-z]/);
     }
+  });
+});
+
+describe("ONE DOOR PER FAMILY — tools are not smushed together (Founder, 2026-09-24 08:13)", () => {
+  const base = { barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {} };
+  const ids = (families: readonly ("PROFILE" | "ORDER_FLOW" | "READING")[]) =>
+    selectProfileMenu({ ...base, families }).entries.map(e => e.id);
+
+  it("every row belongs to exactly one family, and the families cover the catalogue", () => {
+    const all = selectProfileMenu(base).entries.map(e => e.id).sort();
+    const split = [...ids(["PROFILE"]), ...ids(["ORDER_FLOW"]), ...ids(["READING"])].sort();
+    expect(split).toEqual(all);
+    for (const id of all) expect(PROFILE_FAMILY[id]).toBeDefined();
+  });
+
+  it("Tools › Order flow holds the order-flow tools — and no profile", () => {
+    const of = ids(["ORDER_FLOW"]);
+    expect(of).toEqual(expect.arrayContaining(["ABSORPTION", "ANATOMY_CARDS", "IMBALANCE_STACK", "DELTA_DIVERGENCE"]));
+    expect(of.some(id => /PROFILE|RANGE|SESSION/.test(id))).toBe(false);
+  });
+
+  it("the Profiles door holds no order-flow tool and no lens", () => {
+    const pr = ids(["PROFILE"]);
+    for (const id of ["ABSORPTION", "ANATOMY_CARDS", "QUESTION_LENS", "SCAFFOLDING", "REGIME_LIGHTING"]) {
+      expect(pr).not.toContain(id);
+    }
+  });
+
+  it("a single-family door names itself on its badge", () => {
+    expect(selectProfileMenu({ ...base, families: ["ORDER_FLOW"], active: { ABSORPTION: true } }).summary).toBe("ORDER FLOW · 1");
+    expect(selectProfileMenu({ ...base, active: {} }).summary).toBe("PROFILES");
   });
 });

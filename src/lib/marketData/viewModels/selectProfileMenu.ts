@@ -64,6 +64,7 @@ export type ProfileId =
   | "REGIME_LIGHTING"
   | "QUESTION_LENS"
   | "SCAFFOLDING"
+  | "ANATOMY_CARDS"
   | "MARKET_STRUCTURE";
 
 /**
@@ -92,6 +93,53 @@ export type ProfileAvailability =
  * published field and the menu prints it.
  */
 export type ProfileGesture = "TOGGLE" | "DRAW";
+
+/**
+ * WHICH DOOR A TOOL LIVES BEHIND (Founder, 2026-09-24 08:13: "when you click
+ * on order flow you should see order flow tools … stop smushing everything
+ * together — the mockups are actual chart tools, not separate screens").
+ *
+ *   PROFILE    — where trade happened at price: the volume/time profiles.
+ *                Door: Tools › Chart tools › Profiles.
+ *   ORDER_FLOW — who pressed and what it paid for: absorption vs exhaustion,
+ *                imbalance, divergence, effort, delta levels, weather.
+ *                Door: Tools › Order flow.
+ *   READING    — lenses that re-read the SAME camera: structure, regime
+ *                lighting, the question lens, scaffolding.
+ *                Door: Tools › Chart tools › Reading lenses.
+ *
+ * Every id has exactly one family; a sentinel pins that no row is homeless
+ * and none is listed twice.
+ */
+export type ProfileFamily = "PROFILE" | "ORDER_FLOW" | "READING";
+
+export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
+  FIXED_RANGE: "PROFILE",
+  SESSION: "PROFILE",
+  DELTA_VP: "PROFILE",
+  VALUE_CANDLE: "PROFILE",
+  LIVING_PROFILE: "PROFILE",
+  TPO_PROFILE: "PROFILE",
+  STRUCTURE_PROFILE: "PROFILE",
+  PROFILE_DNA: "PROFILE",
+  VALUE_MIGRATION: "PROFILE",
+  PROFILE_MEMORY: "PROFILE",
+  PROFILE_FUSION: "PROFILE",
+  COMPOSITE_PROFILE: "PROFILE",
+  VISIBLE_RANGE_PROFILE: "PROFILE",
+  ANCHORED_RANGE: "PROFILE",
+  ABSORPTION: "ORDER_FLOW",
+  ANATOMY_CARDS: "ORDER_FLOW",
+  IMBALANCE_STACK: "ORDER_FLOW",
+  DELTA_DIVERGENCE: "ORDER_FLOW",
+  LIQUIDITY_WEATHER: "ORDER_FLOW",
+  EFFORT_MARK: "ORDER_FLOW",
+  DELTA_LEVELS: "ORDER_FLOW",
+  MARKET_STRUCTURE: "READING",
+  REGIME_LIGHTING: "READING",
+  QUESTION_LENS: "READING",
+  SCAFFOLDING: "READING",
+};
 
 export interface ProfileMenuEntry {
   readonly id: ProfileId;
@@ -125,6 +173,8 @@ export interface ProfileMenuInput {
   readonly observedAggressorFlow: boolean;
   /** Which profiles the trader currently has switched on. */
   readonly active: Readonly<Partial<Record<ProfileId, boolean>>>;
+  /** Only these families' rows (one door each). Omitted → the whole catalogue. */
+  readonly families?: readonly ProfileFamily[];
 }
 
 export interface ProfileMenuVM {
@@ -215,7 +265,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
   },
   {
     id: "ABSORPTION",
-    label: "Absorption",
+    label: "Absorption vs Exhaustion",
     what: "effort against displacement: absorption zones and exhaustion marks, pinned at price",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/selectAbsorptionAnatomy.ts",
@@ -496,6 +546,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     levels: ["No level of its own — reads the nearest confirmed swings"],
   },
   {
+    id: "ANATOMY_CARDS",
+    label: "Anatomy Cards",
+    /*
+      The Founder's "ABSORPTION vs EXHAUSTION — The Anatomy of Impact" plate's
+      two KEY METRICS columns, side by side on the camera, each tied by a
+      leader to the reading it describes. Numbers come from the absorption
+      and exhaustion owners already drawn on the candles.
+    */
+    what: "the absorption and exhaustion key metrics side by side, each tied to the candles it measured",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectAnatomyCards.ts",
+    levels: ["Newest absorption zone", "Newest push extreme"],
+  },
+  {
     id: "MARKET_STRUCTURE",
     label: "Market Structure",
     what: "confirmed swing highs and lows, with the last of each drawn loudest",
@@ -535,7 +599,13 @@ const NEEDS_PRINTS: ReadonlySet<ProfileId> = new Set<ProfileId>([
 ]);
 
 export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
-  const entries: ProfileMenuEntry[] = CATALOGUE.map(spec => {
+  const fams = input.families;
+  // The door's own name on its badge: a single-family door says what it holds.
+  const noun =
+    fams && fams.length === 1
+      ? fams[0] === "ORDER_FLOW" ? "ORDER FLOW" : fams[0] === "READING" ? "READING LENSES" : "PROFILES"
+      : "PROFILES";
+  const entries: ProfileMenuEntry[] = CATALOGUE.filter(spec => !fams || fams.includes(PROFILE_FAMILY[spec.id])).map(spec => {
     // Ordering matters. "No bars" is the wider absence and is checked first:
     // reporting "this tape states no side" on an empty chart would name the
     // narrower gap while the bigger one goes unmentioned.
@@ -637,9 +707,9 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
             : `${silentCount} silent · mixed missing inputs`,
     summary:
       activeCount === 0
-        ? "PROFILES"
+        ? noun
         : silentCount > 0
-          ? `PROFILES · ${activeCount} · ${silentCount} SILENT`
-          : `PROFILES · ${activeCount}`,
+          ? `${noun} · ${activeCount} · ${silentCount} SILENT`
+          : `${noun} · ${activeCount}`,
   };
 }

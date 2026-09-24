@@ -98,6 +98,13 @@ export interface EquipmentContent {
    * layer only promises the screen is no longer the constraint.
    */
   readonly renderDepth: (unabridged: boolean) => React.ReactElement;
+  /**
+   * OPTIONAL. Controls that must be in reach at the FIRST press — the chart
+   * tools a tool-family door exists to hand over (Tools › Order flow). A
+   * preview that only described the tape would make the trader press twice
+   * to reach a switch. Readings stay at depth; switches may ride the preview.
+   */
+  readonly renderPreviewTools?: () => React.ReactElement;
 }
 
 export interface RoomEquipmentLayerProps {
@@ -261,7 +268,10 @@ export function RoomEquipmentLayer({
             // PREVIEW is a glanceable instrument, not a blank full-height
             // drawer. FL-06 keeps the inspect ticket subordinate to price;
             // only DRAWER earns the full left-wall working depth.
-            ...(stage === "drawer" ? { bottom: 18 } : { maxHeight: 220 }),
+            // A TOOL-FAMILY door (renderPreviewTools) carries switches, not a
+            // glance — it takes the drawer's wall at preview so every switch
+            // is reachable on the first press.
+            ...(stage === "drawer" || content.renderPreviewTools ? { bottom: 18 } : { maxHeight: 220 }),
             zIndex: 60,
             width: "clamp(280px, 22vw, 340px)",
             display: "flex",
@@ -404,6 +414,7 @@ export function RoomEquipmentLayer({
                 </span>
               ))}
             </div>
+            {content.renderPreviewTools ? content.renderPreviewTools() : null}
           </div>
         ) : (
           // ONE compilation, and at FULL it is finally allowed to say all of

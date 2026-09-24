@@ -17,6 +17,7 @@ import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
+import { OrderFlowToolsSlot, publishOrderFlowTools } from "./orderFlowToolsSlot";
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
 // imports the SAME two functions for the Tools door — one owner, two call sites.
@@ -754,6 +755,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [visibleRangeProfileOn, setVisibleRangeProfileOn] = useState<boolean>(() => lsGet("wm_ofVisibleRangeProfile", false) as boolean);
   const [regimeLightingOn, setRegimeLightingOn] = useState<boolean>(() => lsGet("wm_ofRegimeLighting", false) as boolean);
   const [questionLensOn, setQuestionLensOn] = useState<boolean>(() => lsGet("wm_ofQuestionLens", false) as boolean);
+  const [anatomyCardsOn, setAnatomyCardsOn] = useState<boolean>(() => lsGet("wm_ofAnatomyCards", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -996,6 +998,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofRegimeLighting",   regimeLightingOn);
   usePersistOnChange("wm_ofQuestionLens",     questionLensOn);
   usePersistOnChange("wm_ofScaffolding",      scaffoldingDepth);
+  usePersistOnChange("wm_ofAnatomyCards",     anatomyCardsOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2110,7 +2113,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           label: `${chartOrderFlowStanding.measuredCount} of 5 measured`,
         },
       ],
+      renderPreviewTools: () => <OrderFlowToolsSlot />,
       renderDepth: (unabridged: boolean) => (
+        <div className="space-y-3">
+        {/* THE TOOLS FIRST — what the trader switches ON THE CANDLES. The
+            readings below are the text account of the same tape. */}
+        <OrderFlowToolsSlot />
+        <div data-testid="order-flow-readings-heading" className="border-t border-wm-border/70 px-1 pt-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
+          Order-flow readings · text account
+        </div>
         <OrderFlowDepthPanel
           readings={chartOrderFlowReadings}
           symbol={symbol}
@@ -2124,6 +2135,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           */
           onOpenReadout={() => setSmartMoneyOpen(true)}
         />
+        </div>
       ),
     }),
     [chartOrderFlowReadings, chartOrderFlowStanding, symbol],
@@ -2468,6 +2480,139 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     `arrangementSwitches` omits DRAW-gesture profiles entirely, so choosing a
     desk never silently erases a range the trader dragged themselves.
   */
+  /*
+    THE ONE SWITCH MAP — every chart tool's on/off, read by every door that
+    shows a family of them (Chart tools › Profiles, Chart tools › Reading
+    lenses, Tools › Order flow). One map, one toggle, three doors: a tool can
+    never read ON behind one door and OFF behind another.
+  */
+  const profileMenuActive: Readonly<Partial<Record<ProfileId, boolean>>> = {
+                  FIXED_RANGE: fixedVPActive,
+                  SESSION: sessionVPChart,
+                  ABSORPTION: absorptionAnatomy,
+                  // Delta + VP is ARMED, not drawn — it is active exactly when
+                  // its drawing tool is the one the cursor is holding.
+                  DELTA_VP: drawingTool === "delta-vp",
+                  ANCHORED_RANGE: drawingTool === "anchored-vp",
+                  // The four order-flow readings that now draw on the axis.
+                  IMBALANCE_STACK: imbalanceStackOn,
+                  VALUE_CANDLE: valueCandleOn,
+                  DELTA_DIVERGENCE: deltaDivergenceOn,
+                  LIQUIDITY_WEATHER: liquidityWeatherOn,
+                  EFFORT_MARK: effortMarkOn,
+                  DELTA_LEVELS: deltaLevelsOn,
+                  LIVING_PROFILE: livingProfileOn,
+                  TPO_PROFILE: tpoProfileOn,
+                  STRUCTURE_PROFILE: structureProfileOn,
+                  PROFILE_DNA: profileDnaOn,
+                  VALUE_MIGRATION: valueMigrationOn,
+                  PROFILE_MEMORY: profileMemoryOn,
+                  PROFILE_FUSION: profileFusionOn,
+                  COMPOSITE_PROFILE: compositeProfileOn,
+                  VISIBLE_RANGE_PROFILE: visibleRangeProfileOn,
+                  REGIME_LIGHTING: regimeLightingOn,
+                  QUESTION_LENS: questionLensOn,
+                  SCAFFOLDING: scaffoldingDepth !== "OFF",
+                  ANATOMY_CARDS: anatomyCardsOn,
+                  MARKET_STRUCTURE: marketStructureOn,
+  };
+  const onProfileMenuToggle = (id: ProfileId) => {
+                  if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
+                  else if (id === "SESSION") setSessionVPChart(v => !v);
+                  else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
+                  else if (id === "IMBALANCE_STACK") setImbalanceStackOn(v => !v);
+                  else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
+                  else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
+                  else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
+                  else if (id === "EFFORT_MARK") setEffortMarkOn(v => !v);
+                  else if (id === "DELTA_LEVELS") setDeltaLevelsOn(v => !v);
+                  else if (id === "LIVING_PROFILE") setLivingProfileOn(v => !v);
+                  else if (id === "MARKET_STRUCTURE") setMarketStructureOn(v => !v);
+                  else if (id === "TPO_PROFILE") setTpoProfileOn(v => !v);
+                  else if (id === "STRUCTURE_PROFILE") setStructureProfileOn(v => !v);
+                  else if (id === "PROFILE_DNA") setProfileDnaOn(v => !v);
+                  else if (id === "VALUE_MIGRATION") setValueMigrationOn(v => !v);
+                  else if (id === "PROFILE_MEMORY") setProfileMemoryOn(v => !v);
+                  else if (id === "PROFILE_FUSION") setProfileFusionOn(v => !v);
+                  else if (id === "COMPOSITE_PROFILE") setCompositeProfileOn(v => !v);
+                  else if (id === "VISIBLE_RANGE_PROFILE") setVisibleRangeProfileOn(v => !v);
+                  else if (id === "REGIME_LIGHTING") setRegimeLightingOn(v => !v);
+                  else if (id === "QUESTION_LENS") setQuestionLensOn(v => !v);
+                  else if (id === "ANATOMY_CARDS") setAnatomyCardsOn(v => !v);
+                  else if (id === "SCAFFOLDING") {
+                    setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
+                  }
+                  else if (id === "DELTA_VP") {
+                    // Re-picking the armed tool disarms it, so the row behaves
+                    // like the toggles beside it rather than being a one-way door.
+                    setDrawingTool(t => (t === "delta-vp" ? "cursor" : "delta-vp"));
+                  }
+                  else if (id === "ANCHORED_RANGE") {
+                    setDrawingTool(t => (t === "anchored-vp" ? "cursor" : "anchored-vp"));
+                  }
+                };
+
+  const onFootprintChange = (t: FootprintType) => {
+                  // Big Trades in Simultaneous Mode is an INDEPENDENT overlay: clicking
+                  // it toggles the overlay on/off WITHOUT disturbing the active order-flow
+                  // tool (Delta, Bid×Ask, Imbalance, Agg/Passive, Vol Profile).
+                  if (t === "big-trades" && bigTradesSimul) {
+                    setBigTradesOverlay(v => !v);
+                    return;
+                  }
+                  // Re-clicking the mode that's already active toggles it OFF, so each
+                  // order-flow button (incl. Big Trades in exclusive mode) is a reliable
+                  // on/off toggle. Otherwise switch to / enable the clicked mode.
+                  if (footprintEnabled && footprintType === t) {
+                    setFootprintEnabled(false);
+                  } else {
+                    setFootprintEnabled(true);
+                    setFootprintType(t);
+                    // Switching to a non-big-trades exclusive tool clears any leftover
+                    // overlay so the two states never fight.
+                    if (t !== "big-trades") setBigTradesOverlay(false);
+                  }
+                };
+
+  /*
+    TOOLS › ORDER FLOW — the order-flow CHART TOOLS, behind their own door.
+    Top: the footprint instruments that paint on each candle (Bid × Ask, Delta
+    bubbles, Imbalance cells, Big Trades …). Below: the order-flow readings
+    that paint on price (Absorption vs Exhaustion, Anatomy Cards, Stacked
+    Imbalance, Divergence …). Every row is a switch on the candles; none opens
+    a screen. Same handlers as the study row and the profile doors.
+  */
+  const orderFlowToolsNode = (
+    <div data-testid="order-flow-tools" className="space-y-2">
+      <div className="px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
+        On each candle · footprint
+      </div>
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-wm-border bg-wm-surface/95 p-2">
+        <FootprintControls
+          active={footprintType}
+          enabled={footprintEnabled}
+          bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
+          tapeSource={source}
+          observedAggressorFlow={chartFlowSnap.hasFlow}
+          onDisable={() => setFootprintEnabled(false)}
+          onChange={onFootprintChange}
+        />
+      </div>
+      <ProfilesMenu
+        barsPresent={chartBars.length > 0}
+        printsPresent={chartOrderFlowReadings.printsPresent}
+        observedAggressorFlow={chartFlowSnap.hasFlow}
+        families={["ORDER_FLOW"]}
+        heading="On price · order-flow readings"
+        testId="order-flow-tools-menu"
+        columns={1}
+        active={profileMenuActive}
+        onToggle={onProfileMenuToggle}
+      />
+    </div>
+  );
+  useEffect(() => { publishOrderFlowTools(orderFlowToolsNode); });
+
   const applyArrangementSwitches = useCallback(
     (s: Readonly<Partial<Record<ProfileId, boolean>>>) => {
       if (s.FIXED_RANGE !== undefined) setFixedVPActive(s.FIXED_RANGE);
@@ -2491,6 +2636,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.VISIBLE_RANGE_PROFILE !== undefined) setVisibleRangeProfileOn(s.VISIBLE_RANGE_PROFILE);
       if (s.REGIME_LIGHTING !== undefined) setRegimeLightingOn(s.REGIME_LIGHTING);
       if (s.QUESTION_LENS !== undefined) setQuestionLensOn(s.QUESTION_LENS);
+      if (s.ANATOMY_CARDS !== undefined) setAnatomyCardsOn(s.ANATOMY_CARDS);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -2535,6 +2681,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       REGIME_LIGHTING: regimeLightingOn,
       QUESTION_LENS: questionLensOn,
       SCAFFOLDING: scaffoldingDepth !== "OFF",
+      ANATOMY_CARDS: anatomyCardsOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4161,69 +4308,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
-                active={{
-                  FIXED_RANGE: fixedVPActive,
-                  SESSION: sessionVPChart,
-                  ABSORPTION: absorptionAnatomy,
-                  // Delta + VP is ARMED, not drawn — it is active exactly when
-                  // its drawing tool is the one the cursor is holding.
-                  DELTA_VP: drawingTool === "delta-vp",
-                  ANCHORED_RANGE: drawingTool === "anchored-vp",
-                  // The four order-flow readings that now draw on the axis.
-                  IMBALANCE_STACK: imbalanceStackOn,
-                  VALUE_CANDLE: valueCandleOn,
-                  DELTA_DIVERGENCE: deltaDivergenceOn,
-                  LIQUIDITY_WEATHER: liquidityWeatherOn,
-                  EFFORT_MARK: effortMarkOn,
-                  DELTA_LEVELS: deltaLevelsOn,
-                  LIVING_PROFILE: livingProfileOn,
-                  TPO_PROFILE: tpoProfileOn,
-                  STRUCTURE_PROFILE: structureProfileOn,
-                  PROFILE_DNA: profileDnaOn,
-                  VALUE_MIGRATION: valueMigrationOn,
-                  PROFILE_MEMORY: profileMemoryOn,
-                  PROFILE_FUSION: profileFusionOn,
-                  COMPOSITE_PROFILE: compositeProfileOn,
-                  VISIBLE_RANGE_PROFILE: visibleRangeProfileOn,
-                  REGIME_LIGHTING: regimeLightingOn,
-                  QUESTION_LENS: questionLensOn,
-                  SCAFFOLDING: scaffoldingDepth !== "OFF",
-                  MARKET_STRUCTURE: marketStructureOn,
-                }}
-                onToggle={(id) => {
-                  if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
-                  else if (id === "SESSION") setSessionVPChart(v => !v);
-                  else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
-                  else if (id === "IMBALANCE_STACK") setImbalanceStackOn(v => !v);
-                  else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
-                  else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
-                  else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
-                  else if (id === "EFFORT_MARK") setEffortMarkOn(v => !v);
-                  else if (id === "DELTA_LEVELS") setDeltaLevelsOn(v => !v);
-                  else if (id === "LIVING_PROFILE") setLivingProfileOn(v => !v);
-                  else if (id === "MARKET_STRUCTURE") setMarketStructureOn(v => !v);
-                  else if (id === "TPO_PROFILE") setTpoProfileOn(v => !v);
-                  else if (id === "STRUCTURE_PROFILE") setStructureProfileOn(v => !v);
-                  else if (id === "PROFILE_DNA") setProfileDnaOn(v => !v);
-                  else if (id === "VALUE_MIGRATION") setValueMigrationOn(v => !v);
-                  else if (id === "PROFILE_MEMORY") setProfileMemoryOn(v => !v);
-                  else if (id === "PROFILE_FUSION") setProfileFusionOn(v => !v);
-                  else if (id === "COMPOSITE_PROFILE") setCompositeProfileOn(v => !v);
-                  else if (id === "VISIBLE_RANGE_PROFILE") setVisibleRangeProfileOn(v => !v);
-                  else if (id === "REGIME_LIGHTING") setRegimeLightingOn(v => !v);
-                  else if (id === "QUESTION_LENS") setQuestionLensOn(v => !v);
-                  else if (id === "SCAFFOLDING") {
-                    setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
-                  }
-                  else if (id === "DELTA_VP") {
-                    // Re-picking the armed tool disarms it, so the row behaves
-                    // like the toggles beside it rather than being a one-way door.
-                    setDrawingTool(t => (t === "delta-vp" ? "cursor" : "delta-vp"));
-                  }
-                  else if (id === "ANCHORED_RANGE") {
-                    setDrawingTool(t => (t === "anchored-vp" ? "cursor" : "anchored-vp"));
-                  }
-                }}
+                families={["PROFILE"]}
+                heading="Profiles"
+                active={profileMenuActive}
+                onToggle={onProfileMenuToggle}
+              />
+              {/* READING LENSES — structure, regime lighting, the question lens and
+                  scaffolding re-read the SAME camera; they are not profiles and do
+                  not share the profiles' grid. Order-flow tools live behind
+                  Tools › Order flow. */}
+              <ProfilesMenu
+                barsPresent={chartBars.length > 0}
+                printsPresent={chartOrderFlowReadings.printsPresent}
+                observedAggressorFlow={chartFlowSnap.hasFlow}
+                families={["READING"]}
+                heading="Reading lenses"
+                testId="reading-lenses-panel"
+                active={profileMenuActive}
+                onToggle={onProfileMenuToggle}
               />
               </>
             }
@@ -4293,27 +4395,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 tapeSource={source}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 onDisable={() => setFootprintEnabled(false)}
-                onChange={(t) => {
-                  // Big Trades in Simultaneous Mode is an INDEPENDENT overlay: clicking
-                  // it toggles the overlay on/off WITHOUT disturbing the active order-flow
-                  // tool (Delta, Bid×Ask, Imbalance, Agg/Passive, Vol Profile).
-                  if (t === "big-trades" && bigTradesSimul) {
-                    setBigTradesOverlay(v => !v);
-                    return;
-                  }
-                  // Re-clicking the mode that's already active toggles it OFF, so each
-                  // order-flow button (incl. Big Trades in exclusive mode) is a reliable
-                  // on/off toggle. Otherwise switch to / enable the clicked mode.
-                  if (footprintEnabled && footprintType === t) {
-                    setFootprintEnabled(false);
-                  } else {
-                    setFootprintEnabled(true);
-                    setFootprintType(t);
-                    // Switching to a non-big-trades exclusive tool clears any leftover
-                    // overlay so the two states never fight.
-                    if (t !== "big-trades") setBigTradesOverlay(false);
-                  }
-                }}
+                onChange={onFootprintChange}
               />
               {/* The Profiles menu itself is PINNED in ChartToolbar — see
                   `profilesMenu` below and the `profilesSlot` prop. Only the VP
@@ -4923,6 +5005,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       regimeLightingOnChart={regimeLightingOn}
                       questionLensOnChart={questionLensOn}
                       scaffoldingDepthOnChart={scaffoldingDepth}
+                      anatomyCardsOnChart={anatomyCardsOn}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the
