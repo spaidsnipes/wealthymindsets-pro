@@ -87,10 +87,15 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
     expect(block).toMatch(/b\.isPoc/);
   });
 
-  it("prints POC · VAH · VAL prices at the right of the histogram", () => {
-    expect(block).toMatch(/`POC \$\{lp\.poc\.toFixed\(2\)\}`/);
-    expect(block).toMatch(/`VAH \$\{lp\.vah\.toFixed\(2\)\}`/);
-    expect(block).toMatch(/`VAL \$\{lp\.val\.toFixed\(2\)\}`/);
+  it("prints POC · VAH · VAL prices beside the histogram (tagged LIVING when stacked)", () => {
+    expect(block).toMatch(/`(?:\$\{tag\})?POC \$\{lp\.poc\.toFixed\(2\)\}`/);
+    expect(block).toMatch(/`(?:\$\{tag\})?VAH \$\{lp\.vah\.toFixed\(2\)\}`/);
+    expect(block).toMatch(/`(?:\$\{tag\})?VAL \$\{lp\.val\.toFixed\(2\)\}`/);
+  });
+
+  it("joins the shared profile lane system instead of painting over the VP columns", () => {
+    expect(block).toMatch(/vpColumnLayout\(W, axisW, lanesTaken, lanesTaken \+ 1\)/);
+    expect(block).toMatch(/fixedVPActive \? 1 : 0\) \+ \(sessionVPActive \? 1 : 0\)/);
   });
 
   it("caps the histogram width so it cannot eat the whole canvas", () => {
