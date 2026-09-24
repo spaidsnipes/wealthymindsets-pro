@@ -15,7 +15,7 @@ await p.keyboard.press("Escape"); await p.mouse.move(1590, 990); await p.waitFor
 const ds = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.questionLens !== undefined); return { lens: c?.dataset.questionLens, choice: c?.dataset.questionChoice }; });
 console.log("chooser count", await p.locator("[data-testid=question-lens-chooser]").count(), "lens", JSON.stringify(await ds()));
 await p.screenshot({ path: "scratchpad/shift0924/ask_debug.png" });
-for (const id of ["AUTO", "CONTINUATION", "TRAP", "HOLD", "EXHAUSTION", "ABSORPTION"]) {
+for (const id of ["AUTO", "CONTINUATION", "TRAP", "HOLD", "EXHAUSTION", "WHAT_CHANGED", "ABSORPTION"]) {
   await p.locator(`[data-testid=question-lens-chooser] [data-question-choice="${id}"]`).click(); await p.mouse.move(1590, 990); await p.waitForTimeout(1500);
   console.log(id, JSON.stringify(await ds()));
   await p.screenshot({ path: `scratchpad/shift0924/ask_${id.toLowerCase()}.png` });

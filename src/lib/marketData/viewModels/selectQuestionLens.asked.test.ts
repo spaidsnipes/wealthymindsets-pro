@@ -21,8 +21,8 @@ const ask = (bars: AnatomyBar[], pivots: { time: number; price: number; kind: "H
 const upLeg = Array.from({ length: 11 }, (_, i) => b(i, 100 + i, 100.5 + i, 0.6));
 
 describe("the chooser offers exactly the canon's questions", () => {
-  it("Auto plus five asked questions, no more", () => {
-    expect(QUESTION_CHOICES.map(c => c.id)).toEqual(["AUTO", "ABSORPTION", "EXHAUSTION", "CONTINUATION", "TRAP", "HOLD"]);
+  it("Auto plus six asked questions, no more", () => {
+    expect(QUESTION_CHOICES.map(c => c.id)).toEqual(["AUTO", "ABSORPTION", "EXHAUSTION", "CONTINUATION", "TRAP", "HOLD", "WHAT_CHANGED"]);
   });
 });
 
@@ -117,5 +117,35 @@ describe("no probability, confidence or score on any asked question", () => {
   it("keys stay honest", () => {
     const v = ask(upLeg, [{ time: 0, price: 100, kind: "LOW" }], "CONTINUATION");
     expect(Object.keys(v).some(k => /prob|confidence|score/i.test(k))).toBe(false);
+  });
+});
+
+describe("WHAT CHANGED? — measured differences, nothing owed", () => {
+  const quiet = Array.from({ length: 20 }, (_, i) => b(i, 100, 100.5));
+  it("a quiet camera: every item SAME, the prior read stands", () => {
+    const v = selectQuestionLens({ absorption: anatomy(quiet), exhaustion: noEx, livingPoc: null, pivots: [{ time: 60, price: 101, kind: "HIGH" }], choice: "WHAT_CHANGED" });
+    expect(v.kind).toBe("WHAT_CHANGED");
+    expect(v.ledger).toBe("CHANGES");
+    expect(v.openDebt).toBe(0);
+    expect(v.debt.map(d => d.label)).toEqual(["NEW SWING CONFIRMED", "SWING TRADED THROUGH", "NEW ABSORPTION ZONE", "NEW EXHAUSTION MARK", "RANGE EXPANDED"]);
+    expect(v.debt.every(d => !d.paid)).toBe(true);
+    expect(v.posture).toBe("NOTHING MOVED · THE PRIOR READ STANDS");
+  });
+  it("a new swing, a break and an expansion in the window are each named", () => {
+    const bars = [...quiet.slice(0, 12), ...Array.from({ length: 8 }, (_, k) => ({ ...b(12 + k, 100 + k, 101 + k), high: 102.5 + k }))];
+    const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: noEx, livingPoc: null,
+      pivots: [{ time: 60, price: 101, kind: "HIGH" }, { time: 14 * 60, price: 102, kind: "LOW" }], choice: "WHAT_CHANGED" });
+    const by = Object.fromEntries(v.debt.map(d => [d.label, d]));
+    expect(by["NEW SWING CONFIRMED"].paid).toBe(true);
+    expect(by["SWING TRADED THROUGH"].paid).toBe(true);
+    expect(by["SWING TRADED THROUGH"].evidence).toMatch(/high 101\.00/);
+    expect(by["RANGE EXPANDED"].paid).toBe(true);
+    expect(v.posture).toMatch(/^3 CHANGES/);
+    expect(v.nextQuestion).toBe("Was that break a trap?");
+  });
+  it("too few bars to compare → refused", () => {
+    const v = selectQuestionLens({ absorption: anatomy(quiet.slice(0, 10)), exhaustion: noEx, livingPoc: null, pivots: [], choice: "WHAT_CHANGED" });
+    expect(v.active).toBe(false);
+    expect(v.refusal).toMatch(/nothing earlier to compare/);
   });
 });

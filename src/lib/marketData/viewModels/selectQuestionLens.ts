@@ -57,6 +57,10 @@
  *     close 1 median range away after the last test) · NO CLOSE BEYOND ·
  *     DEFENDED TWICE (two separate tests).
  * For TRAP and HOLD a paid item is evidence FOR the question's "yes".
+ *   WHAT CHANGED? — the last CHANGE_WINDOW_BARS bars against everything
+ *     before: NEW SWING CONFIRMED · SWING TRADED THROUGH · NEW ABSORPTION
+ *     ZONE · NEW EXHAUSTION MARK · RANGE EXPANDED (window mean ≥ 1.5× the
+ *     median). Ledger CHANGES: CHANGED / SAME, nothing owed.
  *
  * PURE. DETERMINISTIC.
  */
@@ -77,7 +81,12 @@ export interface DebtItem {
 export interface QuestionLensVM {
   readonly version: number;
   readonly active: boolean;
-  readonly kind: "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | null;
+  readonly kind: "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED" | null;
+  /**
+   * DEBT — items are evidence owed (PAID / MISSING). CHANGES — WHAT CHANGED?
+   * items are measured differences (CHANGED / SAME); nothing is owed.
+   */
+  readonly ledger: "DEBT" | "CHANGES";
   /** What was asked (AUTO when the camera chose). */
   readonly choice: QuestionChoice;
   /** Set when the asked question has nothing on this camera to be asked of. */
@@ -107,7 +116,7 @@ export interface QuestionLensVM {
   } | null;
 }
 
-export type QuestionChoice = "AUTO" | "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD";
+export type QuestionChoice = "AUTO" | "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED";
 export const QUESTION_CHOICES: readonly { readonly id: QuestionChoice; readonly label: string }[] = [
   { id: "AUTO", label: "Auto" },
   { id: "ABSORPTION", label: "Absorbed?" },
@@ -115,7 +124,10 @@ export const QUESTION_CHOICES: readonly { readonly id: QuestionChoice; readonly 
   { id: "CONTINUATION", label: "Continuing?" },
   { id: "TRAP", label: "Trap?" },
   { id: "HOLD", label: "Holding?" },
+  { id: "WHAT_CHANGED", label: "What changed?" },
 ];
+/** WHAT CHANGED? looks back this many bars (one hour on a 5m camera). */
+export const CHANGE_WINDOW_BARS = 12;
 export const NEW_EXTREME_BARS = 5;
 export const TRAP_WINDOW_BARS = 30;
 
@@ -131,7 +143,7 @@ export interface QuestionLensInput {
 }
 
 const NONE: QuestionLensVM = {
-  version: QUESTION_LENS_VERSION, active: false, kind: null, choice: "AUTO", refusal: null, question: null, focus: null,
+  version: QUESTION_LENS_VERSION, active: false, kind: null, ledger: "DEBT", choice: "AUTO", refusal: null, question: null, focus: null,
   bandLow: null, bandHigh: null, bandStart: null, debt: [], openDebt: 0, posture: null, nextQuestion: null,
   control: null,
 };
@@ -148,6 +160,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
 
   const ranges = bars.map(b => b.high - b.low).filter(r => r > 0).sort((x, y) => x - y);
   const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+  if (choice === "WHAT_CHANGED") return whatChanged(bars, med, input);
   if (choice === "CONTINUATION" || choice === "TRAP" || choice === "HOLD") {
     const vm = askStructural(choice, bars, med, input);
     return vm;
@@ -191,6 +204,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       version: QUESTION_LENS_VERSION,
       active: true,
       kind: "ABSORPTION",
+      ledger: "DEBT",
       choice,
       refusal: null,
       question: `Is ${who} being absorbed at ${f2(zone.priceLo)}–${f2(zone.priceHi)}?`,
@@ -233,6 +247,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
     version: QUESTION_LENS_VERSION,
     active: true,
     kind: "EXHAUSTION",
+    ledger: "DEBT",
     choice,
     refusal: null,
     question: `Is this ${m.direction === "UP" ? "up" : "down"}-push exhausted at ${f2(m.price)}?`,
@@ -260,7 +275,7 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
   const done = (kind: "CONTINUATION" | "TRAP" | "HOLD", question: string, focus: string, lo: number, hi: number, start: number, debt: DebtItem[], next: string): QuestionLensVM => {
     const open = debt.filter(d => !d.paid).length;
     return {
-      version: QUESTION_LENS_VERSION, active: true, kind, choice, refusal: null, question, focus,
+      version: QUESTION_LENS_VERSION, active: true, kind, ledger: "DEBT", choice, refusal: null, question, focus,
       bandLow: Math.min(lo, hi), bandHigh: Math.max(lo, hi), bandStart: start, debt, openDebt: open,
       posture: open > 0 ? "WAIT · LET THE MARKET PAY" : "DEBT PAID · READ THE ANSWER",
       nextQuestion: next, control: null,
@@ -367,6 +382,44 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
   return done("HOLD", `Is the swing ${support ? "low" : "high"} ${f2(lvl.price)} holding?`,
     `${support ? "Support" : "Resistance"} at a confirmed swing`, lvl.price, lvl.price, lvl.time, debt,
     "If it breaks, is the break a trap?");
+}
+
+function whatChanged(bars: readonly Bar[], med: number, input: QuestionLensInput): QuestionLensVM {
+  if (bars.length <= CHANGE_WINDOW_BARS) return refuse("WHAT_CHANGED", `fewer than ${CHANGE_WINDOW_BARS + 1} bars — nothing earlier to compare against`);
+  const from = bars[bars.length - CHANGE_WINDOW_BARS].time;
+  const win = bars.slice(-CHANGE_WINDOW_BARS);
+  const newPivots = input.pivots.filter(p => p.time >= from);
+  const broken = input.pivots.filter(p => p.kind === "HIGH" || p.kind === "LOW").map(p => {
+    const b = bars.find(x => x.time > p.time && (p.kind === "HIGH" ? x.high > p.price : x.low < p.price));
+    return b && b.time >= from ? { p, t: b.time } : null;
+  }).filter((x): x is NonNullable<typeof x> => !!x);
+  const zones = (input.absorption?.zones ?? []).filter(z => z.endTime >= from);
+  const marks = (input.exhaustion?.marks ?? []).filter(m => m.time >= from);
+  const winRange = win.reduce((t, b) => t + (b.high - b.low), 0) / win.length;
+  const expanded = med > 0 && winRange >= 1.5 * med;
+  const items: DebtItem[] = [
+    { label: "NEW SWING CONFIRMED", paid: newPivots.length > 0,
+      evidence: newPivots.length ? newPivots.map(p => `${p.kind === "LOW" ? "low" : p.kind === "HIGH" ? "high" : "swing"} ${f2(p.price)}`).slice(-3).join(" · ") : "no swing confirmed in the window" },
+    { label: "SWING TRADED THROUGH", paid: broken.length > 0,
+      evidence: broken.length ? broken.map(x => `${x.p.kind === "HIGH" ? "high" : "low"} ${f2(x.p.price)}`).slice(-3).join(" · ") : "no swing traded through in the window" },
+    { label: "NEW ABSORPTION ZONE", paid: zones.length > 0,
+      evidence: zones.length ? zones.map(z => `${f2(z.priceLo)}–${f2(z.priceHi)}`).slice(-2).join(" · ") : "no new zone in the window" },
+    { label: "NEW EXHAUSTION MARK", paid: marks.length > 0,
+      evidence: marks.length ? marks.map(m => `${m.direction === "UP" ? "up" : "down"}-push at ${f2(m.price)}`).slice(-2).join(" · ") : "no push exhausted in the window" },
+    { label: "RANGE EXPANDED", paid: expanded,
+      evidence: `window mean range ${f2(winRange)} vs median ${f2(med)} (changed at ≥ 1.5×)` },
+  ];
+  const n = items.filter(i => i.paid).length;
+  return {
+    version: QUESTION_LENS_VERSION, active: true, kind: "WHAT_CHANGED", ledger: "CHANGES", choice: "WHAT_CHANGED", refusal: null,
+    question: `What changed in the last ${CHANGE_WINDOW_BARS} bars?`,
+    focus: "Differences on this camera, measured",
+    bandLow: null, bandHigh: null, bandStart: null,
+    debt: items, openDebt: 0,
+    posture: n > 0 ? `${n} CHANGE${n > 1 ? "S" : ""} · RE-READ THE CAMERA` : "NOTHING MOVED · THE PRIOR READ STANDS",
+    nextQuestion: broken.length ? "Was that break a trap?" : zones.length ? "Is effort being absorbed there?" : "Is the level nearest price holding?",
+    control: null,
+  };
 }
 
 export default selectQuestionLens;
