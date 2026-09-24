@@ -19,6 +19,7 @@ None of them is serving proof.
 | H-501 Semantic zoom | always | FAR/MID/NEAR tag + what speaks, under the bar clock |
 | H-901 Regime lighting | Reading lenses › *Regime Lighting* | Three-breaker panel, only one ON; UNKNOWN leaves all OFF |
 | P-601 Heat lens | Tools › Order flow › *Liquidity Weather · Heat Lens* | Heat bands on price, regulator applied to the composite |
+| H-201 Memory Ghost | Reading lenses › *Memory Ghost* | Best-fitting earlier stretch (r ≥ 0.8) ghosted ≤ 0.18 under the newest 20 bars, with date · fit · mismatch; never projected forward |
 
 **One door per family.** Every menu row has exactly one family (`PROFILE_FAMILY` in
 `selectProfileMenu.ts`): PROFILE → Chart tools › Profiles; ORDER_FLOW → Tools › Order flow
@@ -46,6 +47,15 @@ Playwright and feeds labelled fixture prints through the real parser.
   steps around floating chips.
 - Tape-horizon pill printed through the bar clock → foot of its own line on desktop.
 - Stacked profile labels inverted price order on collision → step toward their own side.
+- Question Lens + Scaffolding + Anatomy Cards at once overprinted at 1366×768 → cards go beside
+  the scaffold card, below it, or fold into two measured lines at the foot of the plot.
+- Exhaustion chip hid under the Question Lens strip → hangs below its mark.
+
+## Still OPEN from the Manifestation Map
+
+H-401 Contradiction Not Averaged · H-801 Expected Envelope + Analogue Surprise ·
+H-1001 Risk on Price + Frozen Receipt — no chart form yet. Memory Ghost (H-201) is now built;
+its "analogue sample / mismatch in Inspect" is on the ghost's own label, not yet in Inspect.
 
 ## Blockers
 
