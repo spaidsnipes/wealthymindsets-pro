@@ -16,9 +16,62 @@ type Partner = {
   gradient: string;
   glow: string;
   accent: string;
+  /** Plain-words relationship disclosure — shown on the card, never hidden. */
+  disclosure: string;
+  /** Referral code, where the relationship has one. */
+  referralCode?: string;
 };
 
-const PARTNERS: Partner[] = [];
+/*
+  FOUNDER-DESIGNATED PARTNERS (finish-line shift, 2026-09-24). Published
+  with the relationship disclosed on the card. No discount, promotion,
+  eligibility or product claim is printed: those are the partner's current
+  terms and live on the partner's own site. Partners are not market-data
+  providers, execution engines or trading signals.
+*/
+const PARTNERS: Partner[] = [
+  {
+    name: "Upcomers",
+    tagline: "Founder affiliate partner",
+    description:
+      "Wealthy Mindsets' founder has an affiliate relationship with Upcomers. Products, pricing, eligibility and any promotion are set by Upcomers — read their current terms on their site before you sign up.",
+    url: "https://upcomers.com",
+    cta: "Visit Upcomers",
+    tier: "Partner",
+    gradient: "linear-gradient(135deg,#c9a55c,#8b6a29)",
+    glow: "0 0 18px rgba(201,165,92,0.25)",
+    accent: "#c9a55c",
+    disclosure:
+      "Affiliate disclosure: signing up with the referral code below may credit the founder. It does not change what Upcomers offers you, and nothing here is a trading recommendation.",
+    referralCode: "4vf9k7v",
+  },
+  {
+    name: "VeddBuild",
+    tagline: "Official partner",
+    description: "VeddBuild is a Founder-designated official partner of Wealthy Mindsets.",
+    url: "https://veddbuild.com",
+    cta: "Visit veddbuild.com",
+    tier: "Featured Partner",
+    gradient: "linear-gradient(135deg,#1f7a5a,#0e3d2e)",
+    glow: "0 0 18px rgba(31,122,90,0.25)",
+    accent: "#4fbf8f",
+    disclosure: "Official partnership. VeddBuild is not a market-data provider, broker or signal source for this app.",
+  },
+];
+
+function CopyCode({ code }: { code: string }) {
+  const [copied, setCopied] = React.useState(false);
+  return (
+    <button
+      type="button"
+      data-testid={`referral-code-${code}`}
+      onClick={() => { navigator.clipboard?.writeText(code).then(() => setCopied(true)).catch(() => setCopied(false)); }}
+      className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-wm-border px-3 text-xs font-bold text-wm-text"
+    >
+      Referral code <span className="font-mono text-wm-gold">{code}</span> · {copied ? "copied" : "copy"}
+    </button>
+  );
+}
 
 export default function PartnershipsPage() {
   // This room carries no market feed. See /lounge for the measurement and
@@ -74,7 +127,7 @@ export default function PartnershipsPage() {
               color: "#8a8271", margin: 0, marginTop: 2,
             }}
           >
-            Only verified partner records are published here
+            Founder-designated partners, with the relationship disclosed
           </p>
         </div>
         <div
@@ -89,7 +142,7 @@ export default function PartnershipsPage() {
             textTransform: "uppercase",
           }}
         >
-          <ShieldCheck size={10} /> Verification required
+          <ShieldCheck size={10} /> Relationships disclosed
         </div>
       </div>
 
@@ -99,8 +152,8 @@ export default function PartnershipsPage() {
         style={{ background: "linear-gradient(135deg, rgba(240,180,41,0.08), rgba(255,77,106,0.05))" }}
       >
         <p className="text-[11px] text-wm-text-muted leading-relaxed max-w-3xl">
-          Partner listings remain hidden until the organization, destination, relationship, and claims have been verified.
-          No unverified endorsement or outbound partner link is shown.
+          Each listing names the relationship in plain words. No discount, promotion or outcome is claimed here —
+          a partner&apos;s current terms live on the partner&apos;s own site.
         </p>
       </div>
 
@@ -133,7 +186,9 @@ export default function PartnershipsPage() {
                   </span>
                 </div>
                 <p className="text-[11px] font-bold mb-1.5" style={{ color: p.accent }}>{p.tagline}</p>
-                <p className="text-[11px] text-wm-text-muted leading-relaxed mb-3">{p.description}</p>
+                <p className="text-[11px] text-wm-text-muted leading-relaxed mb-2">{p.description}</p>
+                <p className="text-[11px] leading-relaxed mb-3" style={{ color: "#C8C0AE" }}>{p.disclosure}</p>
+                {p.referralCode && <div className="mb-3"><CopyCode code={p.referralCode} /></div>}
                 <a
                   href={p.url}
                   target="_blank"
