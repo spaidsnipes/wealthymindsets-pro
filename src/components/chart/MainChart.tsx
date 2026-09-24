@@ -7994,6 +7994,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (freeY == null) { absorbChipsHidden++; continue; }
               const chipY = freeY;
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
+              floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               if (desktopShelfInstrument) {
                 // Direct annotation, not another gold card. A restrained
                 // shadow protects legibility while the shelf remains the
@@ -8266,6 +8267,57 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.strokeStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.7)" : "rgba(240,180,41,0.75)";
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, W - 76 - x0, Math.round(h));
+                    // MOCK 4's tag on the band: the zone NAMED on price, and —
+                    // only when the lens's own control reading says effort was
+                    // absorbed — the measured displacement that failed to come.
+                    // Both lines are the lens's numbers; no trend is claimed.
+                    const tagCol = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(226,92,92,0.95)";
+                    const tag = `${lens.kind === "EXHAUSTION" ? "EXHAUSTION" : "ABSORPTION"} ZONE · ${lens.bandLow.toFixed(2)}–${lens.bandHigh.toFixed(2)}`;
+                    ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+                    const tw = ctx.measureText(tag).width + 16;
+                    // The PLOT's right edge, not the container's: the price
+                    // axis is painted over the overlay (see the absorption chip).
+                    let lensAxisW = 90;
+                    try { const aw = chart.priceScale("right").width(); if (Number.isFinite(aw) && aw > 0) lensAxisW = Math.ceil(aw); } catch {}
+                    const plotR = W - lensAxisW - 4;
+                    const busy = (x: number, y: number, w: number, hh: number) =>
+                      (y < 160 && y + hh > 96) || floatingChips.some(r => x < r.x + r.w + 3 && x + w + 3 > r.x && y < r.y + r.h + 1 && y + hh + 1 > r.y);
+                    const txR = Math.max(4, plotR - tw);
+                    const tagSlots = [
+                      { x: Math.min(txR, Math.max(x0, x0 + (plotR - x0) / 2 - tw / 2)), y: top - 22 },
+                      { x: txR, y: top - 22 },
+                      { x: Math.min(txR, Math.max(4, x0)), y: top - 22 },
+                      { x: Math.min(txR, Math.max(4, x0 - tw - 8)), y: top + h / 2 - 9 },
+                      { x: txR, y: top - 42 },
+                    ];
+                    const slot = tagSlots.find(o => !busy(o.x, o.y, tw, 18)) ?? { x: txR, y: top + h + 4 };
+                    const tx = slot.x, ty = slot.y;
+                    ctx.fillStyle = "rgba(40,8,10,0.92)";
+                    ctx.fillRect(tx, ty, tw, 18);
+                    ctx.strokeStyle = tagCol; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, 17);
+                    ctx.fillStyle = "rgba(255,190,190,1)";
+                    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                    ctx.fillText(tag, tx + 8, ty + 9.5);
+                    floatingChips.push({ x: tx, y: ty, w: tw, h: 18 });
+                    const c = lens.control;
+                    if (c && c.verdict === "EFFORT ABSORBED") {
+                      const call = `NO CONVINCING DISPLACEMENT · ${Math.round(c.displacement * 100)}% vs EFFORT ${Math.round(c.aggression * 100)}%`;
+                      ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                      const cw3 = ctx.measureText(call).width;
+                      const ax = plotR - 8, ay = top + h / 2;
+                      const lx = Math.max(4, plotR - cw3 - 30);
+                      let ly = Math.min(H - 40, top + h + 28);
+                      for (let k = 0; k < 4 && busy(lx - 4, ly - 8, cw3 + 8, 16); k++) ly += 18;
+                      ctx.strokeStyle = "rgba(240,180,41,0.85)";
+                      ctx.beginPath(); ctx.arc(ax, ay, 6, 0, Math.PI * 2); ctx.stroke();
+                      ctx.beginPath(); ctx.moveTo(ax - 4, ay + 5); ctx.lineTo(lx + cw3 + 4, ly); ctx.stroke();
+                      ctx.fillStyle = "rgba(0,0,0,0.75)";
+                      ctx.fillRect(lx - 4, ly - 8, cw3 + 8, 16);
+                      ctx.fillStyle = "rgba(240,180,41,1)";
+                      ctx.fillText(call, lx, ly);
+                      floatingChips.push({ x: lx - 4, y: ly - 8, w: cw3 + 8, h: 16 });
+                      ds.questionCallout = "NO_CONVINCING_DISPLACEMENT";
+                    } else ds.questionCallout = "NONE";
                   }
                 }
                 // THE PLATE'S TOP STRIP — ACTIVE QUESTION | QUESTION FOCUS |
@@ -8387,6 +8439,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             } else {
               ds.questionLens = "OFF";
+              ds.questionCallout = "OFF";
             }
 
             /* ── SCAFFOLDING — "SAME SKILL. DEEPER MASTERY. LESS HAND-HOLDING." ──

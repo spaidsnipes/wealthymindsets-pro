@@ -9,11 +9,11 @@ await ctx.route("**/api/yahoo?*type=candles*", r => r.fulfill({ status: 200, con
 const p = await ctx.newPage();
 await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "domcontentloaded", timeout: 180000 });
 await p.waitForTimeout(16000);
-const ds = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorption !== undefined); const d = c?.dataset ?? {}; return { absorption: d.absorption, cards: d.anatomyCards, lens: d.questionLens, scaffold: d.scaffolding, chips: d.absorptionChips }; });
+const ds = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorption !== undefined); const d = c?.dataset ?? {}; return { absorption: d.absorption, cards: d.anatomyCards, lens: d.questionLens, scaffold: d.scaffolding, chips: d.absorptionChips, callout: d.questionCallout }; });
 for (const desk of ["Order Flow", "Review"]) {
   await p.getByRole("button", { name: /^Workspace/ }).first().click(); await p.waitForTimeout(900);
   await p.getByRole("button", { name: new RegExp("^" + desk) }).first().click(); await p.waitForTimeout(2000);
-  await p.keyboard.press("Escape"); await p.waitForTimeout(1500);
+  await p.keyboard.press("Escape"); await p.mouse.move(1590, 990); await p.waitForTimeout(1500);
   console.log(desk, JSON.stringify(await ds()));
   await p.screenshot({ path: `scratchpad/shift0924/desk_${desk.replace(" ", "_").toLowerCase()}.png` });
 }
