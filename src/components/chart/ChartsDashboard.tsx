@@ -263,6 +263,7 @@ import selectStructureProfile from "@/lib/marketData/viewModels/selectStructureP
 import selectProfileDna from "@/lib/marketData/viewModels/selectProfileDna";
 import selectValueMigration from "@/lib/marketData/viewModels/selectValueMigration";
 import selectProfileSlice from "@/lib/marketData/viewModels/selectProfileSlice";
+import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -742,6 +743,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [structureProfileOn, setStructureProfileOn] = useState<boolean>(() => lsGet("wm_ofStructureProfile", false) as boolean);
   const [profileDnaOn, setProfileDnaOn] = useState<boolean>(() => lsGet("wm_ofProfileDna", false) as boolean);
   const [valueMigrationOn, setValueMigrationOn] = useState<boolean>(() => lsGet("wm_ofValueMigration", false) as boolean);
+  const [profileMemoryOn, setProfileMemoryOn] = useState<boolean>(() => lsGet("wm_ofProfileMemory", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   // Keep price action as the dominant canvas. Drawer visibility is deliberately
@@ -972,6 +974,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofStructureProfile", structureProfileOn);
   usePersistOnChange("wm_ofProfileDna",       profileDnaOn);
   usePersistOnChange("wm_ofValueMigration",   valueMigrationOn);
+  usePersistOnChange("wm_ofProfileMemory",    profileMemoryOn);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1756,6 +1759,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [chartBars],
   );
 
+  /** P-110 #4 — prior sessions' FINAL migration value, carried forward. */
+  const profileMemoryVM = React.useMemo(
+    () => selectProfileMemory(
+      valueMigrationVM,
+      chartBars.map(b => ({
+        time: typeof b.time === "number" ? b.time : Number(b.time),
+        open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+      })),
+    ),
+    [valueMigrationVM, chartBars],
+  );
+
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2389,6 +2404,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.STRUCTURE_PROFILE !== undefined) setStructureProfileOn(s.STRUCTURE_PROFILE);
       if (s.PROFILE_DNA !== undefined) setProfileDnaOn(s.PROFILE_DNA);
       if (s.VALUE_MIGRATION !== undefined) setValueMigrationOn(s.VALUE_MIGRATION);
+      if (s.PROFILE_MEMORY !== undefined) setProfileMemoryOn(s.PROFILE_MEMORY);
     },
     [],
   );
@@ -2424,6 +2440,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       STRUCTURE_PROFILE: structureProfileOn,
       PROFILE_DNA: profileDnaOn,
       VALUE_MIGRATION: valueMigrationOn,
+      PROFILE_MEMORY: profileMemoryOn,
       MARKET_STRUCTURE: marketStructureOn,
     },
   });
@@ -4068,6 +4085,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   STRUCTURE_PROFILE: structureProfileOn,
                   PROFILE_DNA: profileDnaOn,
                   VALUE_MIGRATION: valueMigrationOn,
+                  PROFILE_MEMORY: profileMemoryOn,
                   MARKET_STRUCTURE: marketStructureOn,
                 }}
                 onToggle={(id) => {
@@ -4086,6 +4104,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "STRUCTURE_PROFILE") setStructureProfileOn(v => !v);
                   else if (id === "PROFILE_DNA") setProfileDnaOn(v => !v);
                   else if (id === "VALUE_MIGRATION") setValueMigrationOn(v => !v);
+                  else if (id === "PROFILE_MEMORY") setProfileMemoryOn(v => !v);
                   else if (id === "DELTA_VP") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
@@ -4770,6 +4789,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       profileDnaOnChart={profileDnaOn}
                       valueMigration={valueMigrationVM}
                       valueMigrationOnChart={valueMigrationOn}
+                      profileMemory={profileMemoryVM}
+                      profileMemoryOnChart={profileMemoryOn}
                       /*
                         The trader's four switches, carried SEPARATELY from the
                         four readings above. Passing `null` for a switched-off

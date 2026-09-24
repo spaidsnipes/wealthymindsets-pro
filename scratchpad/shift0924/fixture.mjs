@@ -24,3 +24,28 @@ export function fixtureBars(n = 240, endSec = Math.floor(Date.UTC(2026, 8, 23, 2
   }
   return out;
 }
+
+// FIXTURE BARS — THREE RTH SESSIONS, deterministic, harness-injected. NOT
+// market data. Day 1 balances ~230; day 2 builds value higher ~236; day 3
+// trades back down through day 2's value and stops above day 1's.
+export function fixtureDays() {
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const out = [];
+  const centres = [230, 236, 233.2];
+  let px = 229.5;
+  for (let d = 0; d < 3; d++) {
+    const open = Math.floor(Date.UTC(2026, 8, 21 + d, 13, 30) / 1000);
+    for (let i = 0; i < 78; i++) {
+      const t = open + i * 300;
+      const drift = (centres[d] - px) * 0.08;
+      const o = px;
+      const c = +(o + drift + (rnd() - 0.5) * 0.9).toFixed(2);
+      const h = +(Math.max(o, c) + rnd() * 0.5).toFixed(2);
+      const l = +(Math.min(o, c) - rnd() * 0.5).toFixed(2);
+      out.push({ time: t, open: o, high: h, low: l, close: c, volume: Math.round(15000 + rnd() * 30000) });
+      px = c;
+    }
+  }
+  return out;
+}

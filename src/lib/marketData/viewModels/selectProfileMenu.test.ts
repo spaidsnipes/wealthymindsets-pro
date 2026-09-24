@@ -42,6 +42,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "PROFILE_DNA",
   // Living Profile's developing value, bar by bar — bars only, no lookahead.
   "VALUE_MIGRATION",
+  // P-110 #4. Prior sessions' value carried forward — bars only.
+  "PROFILE_MEMORY",
   "MARKET_STRUCTURE",
 ];
 

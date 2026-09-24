@@ -56,6 +56,7 @@ export type ProfileId =
   | "STRUCTURE_PROFILE"
   | "PROFILE_DNA"
   | "VALUE_MIGRATION"
+  | "PROFILE_MEMORY"
   | "MARKET_STRUCTURE";
 
 /**
@@ -378,6 +379,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectValueMigration.ts",
     levels: ["Developing POC", "Developing VAH", "Developing VAL"],
+  },
+  {
+    id: "PROFILE_MEMORY",
+    label: "Profile Memory",
+    /*
+      Prior sessions' final value, carried forward onto today's candles with
+      its age and how often the market has been back. Reads the Value
+      Migration engine's own final points — one engine, two readings.
+    */
+    what: "earlier sessions' POC and value, carried forward — naked until the market returns",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectProfileMemory.ts",
+    levels: ["Prior-session POC", "Prior-session VAH", "Prior-session VAL"],
   },
   {
     id: "MARKET_STRUCTURE",

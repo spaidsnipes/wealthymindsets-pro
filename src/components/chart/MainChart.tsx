@@ -195,6 +195,7 @@ import type { TpoProfileVM } from "@/lib/marketData/viewModels/selectTpoProfile"
 import type { StructureProfileVM } from "@/lib/marketData/viewModels/selectStructureProfile";
 import type { ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 import type { ValueMigrationVM } from "@/lib/marketData/viewModels/selectValueMigration";
+import type { ProfileMemoryVM } from "@/lib/marketData/viewModels/selectProfileMemory";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -971,6 +972,8 @@ interface Props {
   profileDna?: ProfileDnaVM | null;
   /** Developing POC/VAH/VAL, painted across the candles they developed with. */
   valueMigration?: ValueMigrationVM | null;
+  /** PROFILE MEMORY — P-110 #4, prior sessions' value drawn forward. */
+  profileMemory?: ProfileMemoryVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -995,6 +998,7 @@ interface Props {
   structureProfileOnChart?: boolean;
   profileDnaOnChart?: boolean;
   valueMigrationOnChart?: boolean;
+  profileMemoryOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1292,6 +1296,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   profileDnaOnChart = false,
   valueMigration = null,
   valueMigrationOnChart = false,
+  profileMemory = null,
+  profileMemoryOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1441,6 +1447,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const valueMigrationRef = useRef<ValueMigrationVM | null>(null);
   useEffect(() => { valueMigrationRef.current = valueMigration ?? null; }, [valueMigration]);
 
+  const profileMemoryRef = useRef<ProfileMemoryVM | null>(null);
+  useEffect(() => { profileMemoryRef.current = profileMemory ?? null; }, [profileMemory]);
+
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
 
@@ -1459,7 +1468,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1474,8 +1483,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       structureProfile: structureProfileOnChart,
       profileDna: profileDnaOnChart,
       valueMigration: valueMigrationOnChart,
+      profileMemory: profileMemoryOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -9033,6 +9043,69 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.structureProfileRows;
             delete ds.structureProfileAnchor;
             delete ds.structureProfileLegBars;
+          }
+        }
+
+        /* ══ P-110 #4 · PROFILE MEMORY — PRIOR SESSIONS' VALUE, FORWARD ════
+           Each completed session's final POC/VAH/VAL starts at the bar its
+           session ended on and runs to the right edge of the candles. Older
+           sessions fade (age is stated, never weighted into a score). POC is
+           brass (solid while NAKED, dashed once tested); VAH/VAL are ivory
+           dashes. POC is always labelled; VAH/VAL only while NAKED, so the
+           glass names the levels the market has not been back to.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const mem = profileMemoryRef.current;
+          const on = layerOnRef.current.profileMemory;
+          ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : "OFF";
+          if (on && mem?.drawn) {
+            ctx.save();
+            const ts = chart.timeScale();
+            const endX = ds.livingProfileLaneLeft ? Number(ds.livingProfileLaneLeft) - 8 : W - 80;
+            let drawn = 0;
+            let naked = 0;
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textBaseline = "middle";
+            const labelYs: number[] = [];
+            for (const l of mem.levels) {
+              const yr = srs.priceToCoordinate(l.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) + 0.5;
+              const xr = ts.timeToCoordinate(l.formedAt as any);
+              const x0 = xr == null ? 0 : Math.max(0, Math.round(+xr));
+              if (x0 >= endX) continue;
+              const fade = Math.max(0.3, 0.9 - (l.sessionsAgo - 1) * 0.15);
+              const isPoc = l.kind === "POC";
+              ctx.strokeStyle = isPoc ? `rgba(201,165,92,${fade})` : `rgba(237,230,211,${fade * 0.6})`;
+              ctx.lineWidth = isPoc ? 1.25 : 1;
+              ctx.setLineDash(isPoc ? (l.naked ? [] : [8, 3]) : [2, 4]);
+              ctx.beginPath();
+              ctx.moveTo(x0, y);
+              ctx.lineTo(endX, y);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              drawn++;
+              if (l.naked) naked++;
+              if (!(isPoc || l.naked)) continue;
+              if (labelYs.some(v => Math.abs(v - y) < 11)) continue; // never stack labels
+              labelYs.push(y);
+              const text = `S-${l.sessionsAgo} ${l.kind} ${l.price.toFixed(2)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
+              const w = Math.ceil(ctx.measureText(text).width) + 8;
+              const lx = endX - w - 4;
+              ctx.fillStyle = "rgba(11,10,8,0.80)";
+              ctx.fillRect(lx, y - 7, w, 14);
+              ctx.fillStyle = isPoc ? `rgba(201,165,92,${Math.max(0.6, fade)})` : `rgba(237,230,211,${Math.max(0.55, fade)})`;
+              ctx.textAlign = "left";
+              ctx.fillText(text, lx + 4, y);
+            }
+            ctx.restore();
+            ds.profileMemoryLevels = String(drawn);
+            ds.profileMemoryNaked = String(naked);
+            ds.profileMemorySessions = String(mem.sessionsRemembered);
+          } else {
+            delete ds.profileMemoryLevels;
+            delete ds.profileMemoryNaked;
+            delete ds.profileMemorySessions;
           }
         }
 
