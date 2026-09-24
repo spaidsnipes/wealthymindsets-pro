@@ -36,6 +36,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "LIVING_PROFILE",
   // P-110 #10. Time at price from bar ranges — no volume, no side.
   "TPO_PROFILE",
+  // P-110 #2. Volume since the last confirmed swing — bars only.
+  "STRUCTURE_PROFILE",
   "MARKET_STRUCTURE",
 ];
 

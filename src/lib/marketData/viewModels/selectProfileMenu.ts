@@ -53,6 +53,7 @@ export type ProfileId =
   | "DELTA_LEVELS"
   | "LIVING_PROFILE"
   | "TPO_PROFILE"
+  | "STRUCTURE_PROFILE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -330,6 +331,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
     // Counts have no price. POC/VAH/VAL and single-print rows are bucket
     // low edges on the grid; nothing else reaches the axis.
     levels: ["TPO POC", "TPO VAH", "TPO VAL", "Single prints"],
+  },
+  {
+    id: "STRUCTURE_PROFILE",
+    label: "Structure Profile",
+    /*
+      Anchored to a MARKET EVENT, not the clock or the camera: the last
+      confirmed swing, read from the same structure compiler that paints the
+      swing marks, so the anchor and the marks cannot disagree.
+    */
+    what: "volume by price since the last confirmed swing, drawn from that swing",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectStructureProfile.ts",
+    levels: ["Leg POC", "Leg VAH", "Leg VAL", "Anchor swing"],
   },
   {
     id: "MARKET_STRUCTURE",

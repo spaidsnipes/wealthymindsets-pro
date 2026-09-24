@@ -192,6 +192,7 @@ import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivin
 import selectSemanticZoom from "@/lib/marketData/viewModels/selectSemanticZoom";
 import type { MarketStructureGlass } from "@/lib/marketData/viewModels/selectMarketStructureGlass";
 import type { TpoProfileVM } from "@/lib/marketData/viewModels/selectTpoProfile";
+import type { StructureProfileVM } from "@/lib/marketData/viewModels/selectStructureProfile";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
 // file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
 // INDICATOR under a different bar-length law. Two pictures, two owners, two
@@ -954,6 +955,8 @@ interface Props {
    * two distributions, two sides, and their disagreement is readable.
    */
   tpoProfile?: TpoProfileVM | null;
+  /** STRUCTURE PROFILE — P-110 #2, drawn FROM the anchoring swing bar. */
+  structureProfile?: StructureProfileVM | null;
   /*
     ── WHETHER THE TRADER WANTS EACH OF THE FOUR ON THE GLASS ────────────────
 
@@ -975,6 +978,7 @@ interface Props {
   livingProfileOnChart?: boolean;
   marketStructureOnChart?: boolean;
   tpoProfileOnChart?: boolean;
+  structureProfileOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
@@ -1265,6 +1269,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   marketStructureOnChart = true,
   tpoProfile = null,
   tpoProfileOnChart = false,
+  structureProfile = null,
+  structureProfileOnChart = false,
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
@@ -1405,6 +1411,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const tpoProfileRef = useRef<TpoProfileVM | null>(null);
   useEffect(() => { tpoProfileRef.current = tpoProfile ?? null; }, [tpoProfile]);
 
+  const structureProfileRef = useRef<StructureProfileVM | null>(null);
+  useEffect(() => { structureProfileRef.current = structureProfile ?? null; }, [structureProfile]);
+
   /**
    * DECISION_ID — one truth per camera. Read through a ref so the chrome
    * word can be painted inside the rAF without tearing the loop down every
@@ -1420,7 +1429,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false });
+  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1432,8 +1441,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       livingProfile: livingProfileOnChart,
       marketStructure: marketStructureOnChart,
       tpo: tpoProfileOnChart,
+      structureProfile: structureProfileOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -8766,6 +8776,135 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.tpoProfilePeriods;
             delete ds.tpoProfileSingles;
             delete ds.tpoProfileAsOf;
+          }
+        }
+
+        /* ══ P-110 #2 · STRUCTURE PROFILE — THE LEG, DRAWN FROM ITS SWING ═══
+           A profile anchored to a market event. It begins at the x of the
+           pivot bar the structure compiler confirmed, and grows RIGHT from
+           there — so the trader sees WHERE the leg started and what value it
+           has built since, on the candles it describes. A vertical hairline
+           marks the anchor; the leg POC extends from the anchor to "now".
+           Muted parchment, no hue: a leg's value is not a side.
+        ═══════════════════════════════════════════════════════════════════ */
+        {
+          const sp = structureProfileRef.current;
+          const on = layerOnRef.current.structureProfile;
+          ds.structureProfile = on ? (sp ? sp.reason : "NO_READING") : "OFF";
+
+          const ax = sp?.anchor ? chart.timeScale().timeToCoordinate(sp.anchor.time as any) : null;
+          if (on && sp?.drawn && sp.anchor && ax != null) {
+            ctx.save();
+            const x0 = Math.round(+ax);
+            /*
+              ROOM, NOT OVERLAP. The Living Profile owns the right-edge column
+              (W - 76, up to 16% wide). A leg that began near "now" gets only
+              the room between its anchor and that column — never less than
+              a legible 24px, never more than 10% of the pane.
+            */
+            const livingCol = layerOnRef.current.livingProfile
+              ? Math.min(160, Math.round(W * 0.16)) + 12 : 0;
+            const room = (W - 76 - livingCol) - (x0 + 2);
+            const colMax = Math.max(24, Math.min(120, Math.round(W * 0.1), room));
+
+            const ys: number[] = [];
+            for (const r of sp.rows) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr != null) ys.push(+yr);
+            }
+            let rowH = 2;
+            if (ys.length >= 2) {
+              const sorted = [...ys].sort((a, b) => a - b);
+              const gaps: number[] = [];
+              for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+              const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2;
+              rowH = Math.max(2, Math.min(10, Math.round(g)));
+            }
+
+            let drawnRows = 0;
+            let top = Infinity;
+            let bot = -Infinity;
+            for (const r of sp.rows) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) - Math.floor(rowH / 2);
+              const w = Math.max(1, Math.round(r.share * colMax));
+              ctx.fillStyle = r.isPoc
+                ? "rgba(201,165,92,0.55)"
+                : r.insideValueArea
+                  ? "rgba(237,230,211,0.26)"
+                  : "rgba(194,184,146,0.14)";
+              ctx.fillRect(x0 + 2, y, w, Math.max(1, rowH - 1));
+              top = Math.min(top, y);
+              bot = Math.max(bot, y + rowH);
+              drawnRows++;
+            }
+
+            // The anchor: a hairline spanning the leg's range at the swing bar.
+            if (drawnRows > 0) {
+              ctx.strokeStyle = "rgba(201,165,92,0.55)";
+              ctx.lineWidth = 1;
+              ctx.setLineDash([2, 3]);
+              ctx.beginPath();
+              ctx.moveTo(x0 + 0.5, top);
+              ctx.lineTo(x0 + 0.5, bot);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+
+            // Leg POC from the anchor to the right edge of the candles: the
+            // level this leg has accepted most, carried forward to "now".
+            if (sp.poc != null) {
+              const yp = srs.priceToCoordinate(sp.poc);
+              if (yp != null) {
+                ctx.strokeStyle = "rgba(201,165,92,0.45)";
+                ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x0, Math.round(+yp) + 0.5);
+                ctx.lineTo(W - 76, Math.round(+yp) + 0.5);
+                ctx.stroke();
+                ctx.setLineDash([]);
+              }
+            }
+
+            // Name the anchor where it is, so the profile says what it is.
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "bottom";
+            const kind = sp.anchor.kind === "HIGH" ? "SWING HIGH" : "SWING LOW";
+            const est = sp.quality === "trade-based" ? "" : " · CANDLE-EST";
+            /*
+              The name sits on a dark chip so it stays legible over candles
+              and the value band. If the anchor is near the right edge the
+              chip slides left so it never runs under the Living Profile.
+            */
+            const chip = (text: string, x: number, y: number) => {
+              const w = Math.ceil(ctx.measureText(text).width) + 8;
+              const maxX = W - 76 - livingCol - w;
+              const cx = Math.max(4, Math.min(x, maxX));
+              ctx.fillStyle = "rgba(11,10,8,0.82)";
+              ctx.fillRect(cx, y - 12, w, 14);
+              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.fillText(text, cx + 4, y);
+            };
+            chip(
+              `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(2)} · ${sp.legBars} BARS${est}`,
+              x0 + 4, Math.max(14, top - 4),
+            );
+            if (sp.poc != null) {
+              const yp = srs.priceToCoordinate(sp.poc);
+              if (yp != null) chip(`LEG POC ${sp.poc.toFixed(2)}`, x0 + 4, Math.round(+yp) + 16);
+            }
+
+            ctx.restore();
+            ds.structureProfileRows = String(drawnRows);
+            ds.structureProfileAnchor = `${sp.anchor.kind}@${sp.anchor.time}`;
+            ds.structureProfileLegBars = String(sp.legBars);
+          } else {
+            if (on && sp?.drawn && ax == null) ds.structureProfile = "ANCHOR_OFF_CAMERA";
+            delete ds.structureProfileRows;
+            delete ds.structureProfileAnchor;
+            delete ds.structureProfileLegBars;
           }
         }
 
