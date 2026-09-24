@@ -66,6 +66,7 @@ export type ProfileId =
   | "SCAFFOLDING"
   | "ANATOMY_CARDS"
   | "MEMORY_GHOST"
+  | "EXPECTED_ENVELOPE"
   | "MARKET_STRUCTURE";
 
 /**
@@ -161,6 +162,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   QUESTION_LENS: "READING",
   SCAFFOLDING: "READING",
   MEMORY_GHOST: "READING",
+  EXPECTED_ENVELOPE: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -599,6 +601,20 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectMemoryGhost.ts",
     levels: ["No level of its own — a re-based path under the live bars"],
+  },
+  {
+    id: "EXPECTED_ENVELOPE",
+    label: "Expected Envelope",
+    /*
+      H-801. How far this market typically reached above and below its open
+      in its own recent completed sessions, laid on today's open — and the
+      surprise as a count: how many of those sessions went as far as today
+      already has. A measurement of the past, never a forecast.
+    */
+    what: "the typical reach from the open in recent sessions, and how many of them went as far as today",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectExpectedEnvelope.ts",
+    levels: ["Typical reach above the open", "Typical reach below the open"],
   },
   {
     id: "MARKET_STRUCTURE",

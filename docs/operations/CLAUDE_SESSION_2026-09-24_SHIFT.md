@@ -1,3 +1,14 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> A session note is a snapshot of 2026-09-24. Its test counts, build state and
+> "still open" list were true that day and are `STALE` by construction. Current
+> runtime proof is a chain: repo HEAD → deploy target → running release →
+> public route → human scene → receipt.
+<!-- END:ath-historical-lineage -->
+
 # Claude session — 2026-09-24 (overnight burst + morning shift)
 
 Branch: `claude/nice-noether-vwt7jl` (local only — every push returned 403; see Blockers).

@@ -206,6 +206,7 @@ import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost";
+import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
@@ -1026,6 +1027,8 @@ interface Props {
   anatomyCardsOnChart?: boolean;
   /** H-201 Memory Ghost — prior analogue under the live bars. */
   memoryGhostOnChart?: boolean;
+  /** H-801 Expected Envelope — typical reach from the open. */
+  expectedEnvelopeOnChart?: boolean;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1344,6 +1347,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
   memoryGhostOnChart = false,
+  expectedEnvelopeOnChart = false,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1544,7 +1548,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -1567,8 +1571,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       questionLens: questionLensOnChart,
       anatomyCards: anatomyCardsOnChart,
       memoryGhost: memoryGhostOnChart,
+      expectedEnvelope: expectedEnvelopeOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -9261,6 +9266,56 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         } else {
           ds.memoryGhost = "OFF";
+        }
+
+        /* ══ H-801 · EXPECTED ENVELOPE — typical reach from today's open ═════
+           Measured from this chart's own completed sessions; the surprise is
+           a count of how many went as far as today already has. */
+        if (layerOnRef.current.expectedEnvelope === true && srs) {
+          const env = selectExpectedEnvelope(
+            (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close })),
+          );
+          ds.expectedEnvelope = env.drawn
+            ? `UP:${env.up!.matchedBy}/${env.sessions}${env.up!.outside ? "!" : ""}|DN:${env.down!.matchedBy}/${env.sessions}${env.down!.outside ? "!" : ""}`
+            : env.reason;
+          ctx.save();
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.textBaseline = "middle";
+          if (env.drawn) {
+            const xs = chart.timeScale().timeToCoordinate(env.sessionStart as never);
+            const x0 = xs == null ? 0 : Math.max(0, +xs);
+            const xEnd = W - 90;
+            for (const side of ["up", "down"] as const) {
+              const price = side === "up" ? env.upper! : env.lower!;
+              const sur = env[side]!;
+              const y = srs.priceToCoordinate(price);
+              if (y == null) continue;
+              const yy = Math.round(+y) + 0.5;
+              ctx.setLineDash([2, 5]);
+              ctx.strokeStyle = sur.outside ? "rgba(240,190,70,0.95)" : "rgba(237,230,211,0.55)";
+              ctx.lineWidth = sur.outside ? 1.5 : 1;
+              ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(xEnd, yy); ctx.stroke();
+              ctx.setLineDash([]);
+              const t = sur.outside
+                ? `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(2)} · SURPRISE · ${sur.matchedBy} of ${env.sessions} sessions went this far`
+                : `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(2)} · median of ${env.sessions} sessions`;
+              const tw = ctx.measureText(t).width;
+              const lx = Math.max(4, xEnd - tw - 8);
+              const ly = side === "up" ? yy - 8 : yy + 8;
+              ctx.fillStyle = "rgba(11,10,8,0.82)";
+              ctx.fillRect(lx - 4, ly - 7, tw + 8, 14);
+              ctx.fillStyle = sur.outside ? "rgba(240,190,70,1)" : "rgba(237,230,211,0.85)";
+              ctx.textAlign = "left";
+              ctx.fillText(t, lx, ly);
+            }
+          } else {
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left";
+            ctx.fillText(`EXPECTED ENVELOPE · needs 3 completed sessions on this chart (${env.sessions} loaded)`, 12, H - 86);
+          }
+          ctx.restore();
+        } else {
+          ds.expectedEnvelope = "OFF";
         }
 
         /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════
