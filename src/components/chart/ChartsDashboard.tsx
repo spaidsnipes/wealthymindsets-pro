@@ -21,6 +21,7 @@ import { MyStackBar } from "./MyStackBar";
 import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
 import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -1921,6 +1922,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     by an explicit press from the SAME decision identity the camera carries,
     written once, and handed back down so the chart can print it.
   */
+  // H-401 — only a change of state or of family lines re-renders the room.
+  const [contradictionVM, setContradictionVM] = useState<ContradictionVM | null>(null);
+  const onContradiction = useCallback((vm: ContradictionVM | null) => {
+    const sig = (v: ContradictionVM | null) => (v ? `${v.state}|${v.up.map(l => l.evidence).join(";")}|${v.down.map(l => l.evidence).join(";")}` : "");
+    setContradictionVM(prev => (sig(prev) === sig(vm) ? prev : vm));
+  }, []);
   const riskVMRef = useRef<RiskOnPriceVM | null>(null);
   const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
   const onRiskOnPrice = useCallback((vm: RiskOnPriceVM) => {
@@ -5172,6 +5179,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       riskOnPriceOnChart={riskOnPriceOn}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
+                      onContradiction={onContradiction}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the
@@ -5208,6 +5216,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         followingLiveBar={inspectFollowingLiveBar}
                         open={inspectOpen}
                         selectedPrint={activeSelectedPrint}
+                        contradiction={contradictionVM}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         profileSliceSymbol={symbol}

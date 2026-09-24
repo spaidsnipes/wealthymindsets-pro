@@ -50,6 +50,7 @@
 
 import React from "react";
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
+import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
@@ -102,6 +103,7 @@ export function ChartInspectTicket({
   profileSliceSymbol = "",
   profileSliceAsOf = null,
   selectedZone = null,
+  contradiction = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -117,6 +119,8 @@ export function ChartInspectTicket({
   profileSliceAsOf?: number | null;
   /** F11 · a selected swing-origin ZONE — its Passport. */
   selectedZone?: StructureZone | null;
+  /** H-401 · "Passport shows both family lines." */
+  contradiction?: ContradictionVM | null;
 }) {
   if (!open) {
     return (
@@ -409,6 +413,24 @@ export function ChartInspectTicket({
           <Row key={row.id} row={row} />
         ))}
       </div>
+
+      {/* H-401 · BOTH FAMILY LINES, never one blended verdict. */}
+      {contradiction && contradiction.state !== "NOT_ENOUGH" && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-contradiction={contradiction.state}>
+          <div className="font-bold tracking-wide text-wm-gold">
+            {contradiction.state === "UNRESOLVED" ? "CONTRADICTION · UNRESOLVED" : "FAMILIES AGREE · STILL YOUR READ"}
+          </div>
+          {[...contradiction.up.map(l => ({ ...l, arrow: "↑" })), ...contradiction.down.map(l => ({ ...l, arrow: "↓" }))].map(l => (
+            <div key={`${l.family}-${l.lean}`} style={{ color: "#C8C0AE" }}>
+              <span className="text-white">{l.arrow} {l.family}</span> · {l.evidence}
+            </div>
+          ))}
+          {contradiction.silent.map(s => (
+            <div key={s.family} style={{ color: "#C8C0AE" }}>· {s.family} silent — {s.why}</div>
+          ))}
+          <div style={{ color: "#C8C0AE" }}>{contradiction.posture} · not blended into one score</div>
+        </div>
+      )}
 
       {/*
         THE TAPE'S REACH, ON THE GLASS AND ALWAYS.

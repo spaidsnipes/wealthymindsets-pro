@@ -208,7 +208,7 @@ import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCar
 import { selectMemoryGhost } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
-import { selectContradiction, type ContradictionInput } from "@/lib/marketData/viewModels/selectContradiction";
+import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
@@ -1043,6 +1043,8 @@ interface Props {
   riskReceipt?: RiskReceipt | null;
   /** H-1001 — the bracket reading, handed up every frame (into a ref). */
   onRiskOnPrice?: (vm: RiskOnPriceVM) => void;
+  /** H-401 — the contradiction reading, handed up so Inspect shows both family lines. */
+  onContradiction?: (vm: ContradictionVM | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
@@ -1367,6 +1369,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   riskOnPriceOnChart = true,
   riskReceipt = null,
   onRiskOnPrice,
+  onContradiction,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1563,6 +1566,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const riskReceiptRef = useRef<RiskReceipt | null>(null);
   useEffect(() => { riskReceiptRef.current = riskReceipt ?? null; }, [riskReceipt]);
   const onRiskOnPriceRef = useRef<typeof onRiskOnPrice>(undefined);
+  const onContradictionRef = useRef<typeof onContradiction>(undefined);
+  useEffect(() => { onContradictionRef.current = onContradiction; }, [onContradiction]);
   useEffect(() => { onRiskOnPriceRef.current = onRiskOnPrice; }, [onRiskOnPrice]);
   useEffect(() => { activeDecisionIdRef.current = activeDecisionId ?? null; }, [activeDecisionId]);
 
@@ -9448,6 +9453,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           });
           if (cv) {
             ds.contradiction = `${cv.state}:${cv.up.length}/${cv.down.length}`;
+            onContradictionRef.current?.(cv);
             ctx.save();
             ctx.textBaseline = "middle";
             const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
@@ -9614,6 +9620,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } else {
           ds.contradiction = "OFF";
           delete ds.contradictionPlaced;
+          onContradictionRef.current?.(null);
         }
 
         /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════

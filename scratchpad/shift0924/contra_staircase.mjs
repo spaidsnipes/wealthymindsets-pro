@@ -15,6 +15,7 @@ await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "dom
 await p.waitForTimeout(22000);
 console.log("contradiction:", await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.contradiction); return c ? JSON.stringify(Object.fromEntries(Object.entries(c.dataset).filter(([k]) => /contradiction|tructure|exhaustion|absorption$/i.test(k)))) : "none"; }));
 await p.screenshot({ path: `scratchpad/shift0924/runtime_contra_staircase${process.env.ABS === "false" ? "_absoff" : ""}.png` });
+if (process.env.INSPECT) { await p.getByRole("button", { name: /inspect/i }).first().click().catch(e => console.log("no inspect btn", e.message.split("\n")[0])); await p.waitForTimeout(1500); console.log("ticket:", (await p.locator('[data-inspect-contradiction]').innerText().catch(() => "none")).replace(/\s+/g, " ")); await p.screenshot({ path: "scratchpad/shift0924/runtime_contra_inspect.png" }); }
 if (process.env.CLIP) { const [x, y, w, h] = process.env.CLIP.split(",").map(Number); await p.screenshot({ path: "scratchpad/shift0924/runtime_contra_detail.png", clip: { x, y, width: w, height: h } }); }
 await b.close();
 process.exit(0);
