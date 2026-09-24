@@ -54,6 +54,7 @@ import { describeAggressorMethod } from "@/lib/bubbleClaim";
 import { Crosshair, X } from "lucide-react";
 
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
+import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -96,6 +97,9 @@ export function ChartInspectTicket({
   onOpenChange,
   onOpenFootprint,
   selectedPrint = null,
+  selectedProfileSlice = null,
+  profileSliceSymbol = "",
+  profileSliceAsOf = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -104,6 +108,11 @@ export function ChartInspectTicket({
   /** Takes the trader to the surface that divides this bar by price level. */
   onOpenFootprint: () => void;
   selectedPrint?: SelectedBigTrade | null;
+  /** H-601 · a clicked Living Profile bucket, resolved by `selectProfileSlice`. */
+  selectedProfileSlice?: ProfileSliceResult | null;
+  profileSliceSymbol?: string;
+  /** Unix seconds of the newest bar the profile was built from. */
+  profileSliceAsOf?: number | null;
 }) {
   if (!open) {
     return (
@@ -117,6 +126,46 @@ export function ChartInspectTicket({
         <Crosshair size={10} />
         INSPECT
       </button>
+    );
+  }
+
+  /*
+    H-601 · SELECTED PROFILE SLICE. The same ticket, the same place, one more
+    kind of selected object. It says only what the profile compiler measured
+    about the bucket, and the profile's fidelity — never an intent, never a
+    call. A click that found no traded bucket says so instead of going quiet.
+  */
+  if (selectedProfileSlice) {
+    const sl = selectedProfileSlice;
+    const fmt = (n: number) => n.toFixed(2);
+    return (
+      <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+        data-testid="chart-inspect-ticket"
+        data-inspect-profile-slice={sl.found ? String(sl.price) : sl.miss}
+        aria-label={sl.found ? `Inspect profile slice at ${fmt(sl.price)}` : "Inspect profile slice: no traded bucket at that price"}>
+        <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
+          <Crosshair size={11} /> PROFILE SLICE · LIVING
+          <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
+        </div>
+        {sl.found ? (
+          <>
+            <div className="mt-2 text-[11px] text-white">{profileSliceSymbol} · {fmt(sl.price)} – {fmt(sl.priceHigh)}{sl.isPoc ? " · POC" : ""}</div>
+            <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
+              <dt>Volume vs POC bucket</dt><dd className="text-white">{Math.round(sl.shareOfPoc * 100)}%</dd>
+              <dt>Location</dt><dd className="text-white">{sl.location === "IN_VALUE" ? "Inside value" : sl.location === "ABOVE_VALUE" ? "Above value" : "Below value"}</dd>
+              <dt>Distance from POC</dt><dd>{sl.distanceFromPoc == null ? "UNKNOWN" : `${sl.distanceFromPoc >= 0 ? "+" : ""}${fmt(sl.distanceFromPoc)}`}</dd>
+              <dt>Node</dt><dd>{sl.node ?? (sl.nodesWithheld ? "WITHHELD — candle-estimated profile" : "none")}</dd>
+              <dt>Fidelity</dt><dd>{sl.estimated ? "CANDLE-ESTIMATED — bar volume spread over each bar's range" : "TRADE-BASED — prints placed at their price"}</dd>
+              <dt>As of · UTC</dt><dd>{profileSliceAsOf != null ? new Date(profileSliceAsOf * 1000).toISOString() : "UNKNOWN"}</dd>
+            </dl>
+            <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>A bucket is where size traded, not who traded it or why. Intent: UNKNOWN.</p>
+          </>
+        ) : (
+          <p className="mt-2 text-[11px]" style={{ color: UNREAD_COLOR }}>
+            {sl.miss === "NO_PROFILE" ? "No Living Profile is drawn, so there is no slice to read." : "No traded bucket at that price. The profile took no volume there."}
+          </p>
+        )}
+      </section>
     );
   }
 

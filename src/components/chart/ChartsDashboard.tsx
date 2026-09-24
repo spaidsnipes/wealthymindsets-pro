@@ -262,6 +262,7 @@ import selectTpoProfile from "@/lib/marketData/viewModels/selectTpoProfile";
 import selectStructureProfile from "@/lib/marketData/viewModels/selectStructureProfile";
 import selectProfileDna from "@/lib/marketData/viewModels/selectProfileDna";
 import selectValueMigration from "@/lib/marketData/viewModels/selectValueMigration";
+import selectProfileSlice from "@/lib/marketData/viewModels/selectProfileSlice";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -1502,6 +1503,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    */
   const [inspectOpen, setInspectOpen] = useState(false);
   const [selectedPrint, setSelectedPrint] = useState<SelectedBigTrade | null>(null);
+  // H-601 · the clicked price inside the Living Profile's lane. Resolved to a
+  // compiler bucket by `selectProfileSlice`; cleared with the symbol/timeframe.
+  const [selectedSlicePrice, setSelectedSlicePrice] = useState<{ symbol: string; timeframe: string; price: number } | null>(null);
   const activeSelectedPrint = selectedPrint?.symbol === symbol && selectedPrint.timeframe === timeframe ? selectedPrint : null;
 
   /* The span comes from the bars the chart DREW, not from a second
@@ -1671,6 +1675,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => selectLivingProfileGlass(livingProfileVM),
     [livingProfileVM],
   );
+
+  /** The selected slice, resolved against the SAME glass the canvas paints. */
+  const activeProfileSlice = React.useMemo(
+    () => selectedSlicePrice && selectedSlicePrice.symbol === symbol && selectedSlicePrice.timeframe === timeframe
+      ? selectProfileSlice(livingProfileGlass, selectedSlicePrice.price)
+      : null,
+    [selectedSlicePrice, symbol, timeframe, livingProfileGlass],
+  );
+  /** asOf of the profile the slice belongs to: the newest bar it was built from. */
+  const livingProfileAsOf = React.useMemo(() => {
+    const last = chartBars[chartBars.length - 1];
+    if (!last) return null;
+    const t = typeof last.time === "number" ? last.time : Number(last.time);
+    return Number.isFinite(t) ? t : null;
+  }, [chartBars]);
 
   const marketStructureGlass = React.useMemo(
     () => selectMarketStructureGlass(chartStructureVM),
@@ -4659,7 +4678,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          compiler above for why this, and not a second click
                          path, is the bar-selection route. */
                       onOHLCAtCursor={setCursorBar}
-                      onSelectBigTrade={print => { setSelectedPrint(print); setInspectOpen(true); }}
+                      onSelectBigTrade={print => { setSelectedPrint(print); setSelectedSlicePrice(null); setInspectOpen(true); }}
+                      onSelectProfileSlice={price => { setSelectedSlicePrice({ symbol, timeframe, price }); setSelectedPrint(null); setInspectOpen(true); }}
+                      selectedProfileSlicePrice={activeProfileSlice?.found ? activeProfileSlice.price : null}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
@@ -4784,7 +4805,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         followingLiveBar={inspectFollowingLiveBar}
                         open={inspectOpen}
                         selectedPrint={activeSelectedPrint}
-                        onOpenChange={open => { setInspectOpen(open); if (!open) setSelectedPrint(null); }}
+                        selectedProfileSlice={activeProfileSlice}
+                        profileSliceSymbol={symbol}
+                        profileSliceAsOf={livingProfileAsOf}
+                        onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); } }}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}

@@ -869,6 +869,14 @@ interface Props {
   compareSymbol?:  string;
   onPriceAtCursor?: (price: number) => void;
   onSelectBigTrade?: (print: SelectedBigTrade) => void;
+  /**
+   * A clean click inside the Living Profile's lane, resolved to a PRICE. The
+   * dashboard resolves the price to the compiler's bucket; this file never
+   * decides what a slice is.
+   */
+  onSelectProfileSlice?: (price: number) => void;
+  /** The selected slice's bucket price, outlined on the glass. */
+  selectedProfileSlicePrice?: number | null;
   onOHLCAtCursor?:  (ohlc: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => void;
   // WM VP indicators
   fixedVPActive?:  boolean;
@@ -1255,6 +1263,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade,
+  onSelectProfileSlice, selectedProfileSlicePrice = null,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
   imbalanceStack = null,
@@ -1431,6 +1440,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const valueMigrationRef = useRef<ValueMigrationVM | null>(null);
   useEffect(() => { valueMigrationRef.current = valueMigration ?? null; }, [valueMigration]);
+
+  const selectedSliceRef = useRef<number | null>(null);
+  useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
 
   /**
    * DECISION_ID — one truth per camera. Read through a ref so the chrome
@@ -8508,6 +8520,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const stacked = lanesTaken > 0;
             ds.livingProfileLane = String(lanesTaken);
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
+            ds.livingProfileLaneRight = String(Math.round(rightEdge));
 
             /*
               VALUE-AREA BAND — across the entire pane, not just the histogram.
@@ -8585,6 +8598,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ? "rgba(237,230,211,0.72)"
                   : "rgba(194,184,146,0.42)";
               ctx.fillRect(rightEdge - width, y, width, Math.max(1, rowH - 1));
+              // The slice Inspect is reading, outlined so the ticket and the
+              // glass visibly agree on WHICH bucket is selected.
+              if (selectedSliceRef.current != null && Math.abs(b.price - selectedSliceRef.current) < 1e-9) {
+                ctx.strokeStyle = "rgba(201,165,92,1)";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(rightEdge - histMax - 2.5, y - 1.5, histMax + 5, Math.max(1, rowH - 1) + 3);
+                ds.livingProfileSelected = String(b.price);
+              }
               drawnBars++;
             }
 
@@ -8749,6 +8770,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           } else {
             delete ds.livingProfileLane;
             delete ds.livingProfileLaneLeft;
+            delete ds.livingProfileLaneRight;
             delete ds.livingProfileFidelity;
             delete ds.livingProfileNodesWithheld;
             // DNA describes the profile on the glass; with none drawn, it says so.
@@ -10154,12 +10176,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     setSelectedIdx(idx >= 0 ? idx : null);
     if (idx >= 0) return;
     const hit = [...bubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
-    if (hit) onSelectBigTrade?.({
-      symbol, timeframe, barTime: hit.anchorBarTime, printKey: hit.spawnKey,
-      timeMs: hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
-      bid: hit.bid, ask: hit.ask, total: hit.bid + hit.ask, aggressorMethod: hit.aggressorMethod,
-    });
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, symbol, timeframe]);
+    if (hit) {
+      onSelectBigTrade?.({
+        symbol, timeframe, barTime: hit.anchorBarTime, printKey: hit.spawnKey,
+        timeMs: hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
+        bid: hit.bid, ask: hit.ask, total: hit.bid + hit.ask, aggressorMethod: hit.aggressorMethod,
+      });
+      return;
+    }
+    /*
+      H-601 · A CLICK ON THE LIVING PROFILE'S LANE SELECTS A SLICE. The lane's
+      x-span is what the paint loop published this frame, so hit-testing and
+      painting cannot disagree about where the profile is. Only the PRICE
+      leaves this file; the dashboard resolves it against the compiler.
+    */
+    const ds = canvasRef.current?.dataset;
+    if (ds?.livingProfile === "DRAWN" && ds.livingProfileLaneLeft && ds.livingProfileLaneRight) {
+      const left = Number(ds.livingProfileLaneLeft) - 4;
+      const right = Number(ds.livingProfileLaneRight) + 4;
+      if (x >= left && x <= right) {
+        const pr = candleRef.current?.coordinateToPrice(y);
+        if (pr != null && Number.isFinite(+pr)) onSelectProfileSlice?.(+pr);
+      }
+    }
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, symbol, timeframe]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking
