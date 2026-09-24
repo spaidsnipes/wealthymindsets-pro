@@ -1447,11 +1447,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
-  const layerOnRef = useRef({ stack: true, value: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
-      value: valueCandleOnChart,
+      valueCandle: valueCandleOnChart,
       divergence: deltaDivergenceOnChart,
       weather: liquidityWeatherOnChart,
       effort: effortMarkOnChart,
@@ -7852,7 +7852,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // the trader closed this layer, the other says the tape could not speak.
         // A single receipt for both would make a switched-off chart and a broken
         // feed read identically to anyone verifying live.
-        const on = layerOnRef.current.value;
+        const on = layerOnRef.current.valueCandle;
         ds.valueCandle = on ? glass.reason : "OFF";
 
         let painted = false;
