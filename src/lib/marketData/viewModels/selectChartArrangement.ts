@@ -180,8 +180,13 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
       the entire arrangement, which is precisely why the readiness count below
       must be shown rather than implied.
     */
+    // The Founder's mockups ARE this desk's picture (2026-09-24): the
+    // absorption-vs-exhaustion anatomy cards and the question-driven lens are
+    // armed with the readings they measure, so choosing ORDER FLOW shows them.
     arms: [
       "ABSORPTION",
+      "ANATOMY_CARDS",
+      "QUESTION_LENS",
       "IMBALANCE_STACK",
       "VALUE_CANDLE",
       "DELTA_DIVERGENCE",
@@ -212,7 +217,8 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
       read, and arming four readings that will be mute by definition would make
       this desk lie every single time it was used.
     */
-    arms: ["SESSION", "ABSORPTION"],
+    // Scaffolding (Foundation → Intermediate → Pro) reads the finished session.
+    arms: ["SESSION", "ABSORPTION", "SCAFFOLDING"],
   },
 ];
 
