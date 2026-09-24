@@ -43,6 +43,35 @@ import type { LivingProfileVM, ProfileNode } from "./selectLivingProfile";
 
 export type ProfileNodeKind = "HVN" | "LVN";
 
+/**
+ * ONE HISTOGRAM BAR — one bucket the tape rested in.
+ *
+ * P-110's blueprint reads a profile as a shape: a horizontal histogram at the
+ * right edge of the market canvas, one bar per price bucket, width proportional
+ * to how much size traded at that price. The mockups draw this without
+ * exception — TSLA_Volume_Profile_Full, F09_Living_Profile_Passport_Doorway,
+ * the Sanctuary profile-source-tick view — and the trader has been asking
+ * why they cannot see it. Until now they could not: the glass compiler was
+ * emitting HVN/LVN dots only, and a dot is a NODE, not a PROFILE.
+ *
+ * `share` is already normalised by the source compiler against the heaviest
+ * bucket — the ONE number a bar's width may be derived from. A canvas that
+ * normalises its own numbers is how two surfaces end up drawing the same
+ * profile at two different scales.
+ */
+export interface ProfileHistogramBar {
+  /** Bucket LOW edge — a real price on the tape's grid. */
+  readonly price: number;
+  /** volume ÷ heaviest bucket's volume, in [0,1]. */
+  readonly share: number;
+  /** True when this bucket is inside the compiler's value area. */
+  readonly insideValueArea: boolean;
+  /** True when this bucket IS the Point of Control. */
+  readonly isPoc: boolean;
+  /** The node classification from the compiler, or null for ordinary buckets. */
+  readonly node: ProfileNodeKind | null;
+}
+
 export interface ProfileNodeMark {
   /** A real price the compiler emitted — the bucket LOW edge. */
   readonly price: number;
@@ -58,6 +87,12 @@ export type LivingProfileGlass =
       readonly drawn: true;
       readonly reason: string;
       readonly marks: readonly ProfileNodeMark[];
+      /**
+       * THE PROFILE ITSELF, as horizontal bars ready to draw at the axis.
+       * Descending by price so a canvas reading them top-to-bottom draws a
+       * profile a trader knows how to read.
+       */
+      readonly bars: readonly ProfileHistogramBar[];
       readonly poc: number | null;
       readonly vah: number | null;
       readonly val: number | null;
@@ -71,6 +106,7 @@ export type LivingProfileGlass =
       readonly drawn: false;
       readonly reason: string;
       readonly marks: readonly [];
+      readonly bars: readonly [];
       readonly poc: null;
       readonly vah: null;
       readonly val: null;
@@ -79,7 +115,7 @@ export type LivingProfileGlass =
 
 const refuse = (reason: string): LivingProfileGlass => ({
   drawn: false, reason,
-  marks: [], poc: null, vah: null, val: null, untradedCount: 0,
+  marks: [], bars: [], poc: null, vah: null, val: null, untradedCount: 0,
 });
 
 const finite = (v: unknown): v is number =>
@@ -128,6 +164,23 @@ export function selectLivingProfileGlass(
 
   if (marks.length === 0) return refuse("NO_LAWFUL_NODES");
 
+  /*
+    THE HISTOGRAM ITSELF. The compiler already normalised `share` against the
+    heaviest bucket, so this is a straight projection — the untraded buckets
+    are the only thing dropped, for the same reason the dots dropped them: a
+    horizontal bar of any length at a price that took no volume reads as
+    "size traded here" and none did.
+  */
+  const bars: ProfileHistogramBar[] = vm.curve
+    .filter(p => finite(p.price) && finite(p.share) && p.volume > 0)
+    .map(p => ({
+      price: p.price,
+      share: Math.min(1, Math.max(0, p.share)),
+      insideValueArea: p.insideValueArea,
+      isPoc: p.isPoc,
+      node: p.node,
+    }));
+
   // Strongest first, then price-sort back to a ladder so a canvas reading them
   // top-to-bottom draws a ladder, not a strength ranking.
   const capped = [...marks]
@@ -138,6 +191,7 @@ export function selectLivingProfileGlass(
   return {
     drawn: true, reason: "DRAWN",
     marks: capped,
+    bars,
     poc: vm.poc,
     vah: vm.vah,
     val: vm.val,

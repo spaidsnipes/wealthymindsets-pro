@@ -162,6 +162,71 @@ describe("the strongest nodes survive the cap, and the ladder is a ladder", () =
   });
 });
 
+describe("H-703 — the histogram itself, not just the dots", () => {
+  it("EMITS ONE BAR PER TRADED BUCKET, with the compiler's own `share`", () => {
+    // The reading a Founder points at when they say "I don't see the profile."
+    // The dots were annotation; this is the invention.
+    const curve = [
+      { price: 100.02, volume: 100, share: 1,   insideValueArea: true,  isPoc: true,  node: "HVN" as const },
+      { price: 100.01, volume: 60,  share: 0.6, insideValueArea: true,  isPoc: false, node: null },
+      { price: 100.00, volume: 30,  share: 0.3, insideValueArea: false, isPoc: false, node: null },
+    ];
+    const v = selectLivingProfileGlass(vm({
+      hvn: [node("HVN", 100.02, 100)],
+      curve: curve as any,
+    }));
+    expect(v.drawn).toBe(true);
+    if (!v.drawn) return;
+    expect(v.bars.length).toBe(3);
+    expect(v.bars[0].price).toBe(100.02);
+    expect(v.bars[0].share).toBe(1);
+    expect(v.bars[0].isPoc).toBe(true);
+  });
+
+  it("DROPS UNTRADED BUCKETS from bars — a bar of any length lies about them", () => {
+    const curve = [
+      { price: 100, volume: 100, share: 1, insideValueArea: true, isPoc: true, node: "HVN" as const },
+      { price: 99,  volume: 0,   share: 0, insideValueArea: false, isPoc: false, node: null },
+    ];
+    const v = selectLivingProfileGlass(vm({
+      hvn: [node("HVN", 100, 100)],
+      curve: curve as any,
+    }));
+    expect(v.drawn && v.bars.map(b => b.price)).toEqual([100]);
+  });
+
+  it("clamps out-of-band `share` to [0,1] so the canvas cannot invent width", () => {
+    const curve = [
+      { price: 100, volume: 100, share: 1.4, insideValueArea: true, isPoc: true, node: "HVN" as const },
+      { price: 99,  volume: 20,  share: -0.1, insideValueArea: false, isPoc: false, node: null },
+    ];
+    const v = selectLivingProfileGlass(vm({
+      hvn: [node("HVN", 100, 100)],
+      curve: curve as any,
+    }));
+    expect(v.drawn).toBe(true);
+    if (!v.drawn) return;
+    for (const b of v.bars) {
+      expect(b.share).toBeGreaterThanOrEqual(0);
+      expect(b.share).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("marks and bars carry the same POC price when both are present", () => {
+    const curve = [
+      { price: 100, volume: 100, share: 1, insideValueArea: true, isPoc: true, node: "HVN" as const },
+    ];
+    const v = selectLivingProfileGlass(vm({
+      poc: 100,
+      hvn: [node("HVN", 100, 100)],
+      curve: curve as any,
+    }));
+    if (!v.drawn) throw new Error("expected drawn");
+    expect(v.poc).toBe(100);
+    expect(v.bars.find(b => b.isPoc)!.price).toBe(100);
+  });
+});
+
 describe("the module ships no permission", () => {
   it("exports nothing that reads as a verdict on whether to act", async () => {
     const mod = await import("./selectLivingProfileGlass");

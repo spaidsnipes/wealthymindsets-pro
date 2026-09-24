@@ -8373,20 +8373,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
-        /* ══ H-703 · LIVING PROFILE NODES ON GLASS ═══════════════════════════
-           HVN and LVN marks at the compiler's bucket-low prices. Rules the
-           compiler already enforced:
+        /* ══ H-703 · LIVING PROFILE — THE HISTOGRAM ON THE CANVAS ══════════
+           P-110's blueprint. The trader looks for a horizontal profile at the
+           right side of the market canvas; every mockup that includes a
+           profile paints one this way (TSLA_Volume_Profile_Full,
+           F09_Living_Profile_Passport_Doorway, Sanctuary profile-source-tick).
+           This block IS that histogram, not a chip about it.
 
-             · NO measured profile → nothing here paints.
-             · NODE IS A PRICE. `weight`, `distanceFromPoc`, `volume` never
-               reach `priceToCoordinate`. Only `mark.price` does.
-             · AN UNTRADED BUCKET IS NOT A NODE. Counted, not rendered — a
-               lane of any length would read as "size traded here" and none
-               did.
+           Compiler-owned rules this file may not decide:
 
-           HVN and LVN are told apart by MARK SHAPE, never by hue. HVN gets a
-           filled tick (size is present), LVN gets a hollow ring (size is
-           absent). This is the same fill/weight law the gate rail uses.
+             · NO measured profile → nothing paints. Silence is named.
+             · A BAR IS A PRICE and a NORMALISED WIDTH. `share` is already
+               against the heaviest bucket, so nothing here re-normalises.
+             · AN UNTRADED BUCKET IS NOT DRAWN. A bar of any length at a
+               price that took no volume reads as "size traded here."
+
+           Placement rides on the RIGHT edge of the pane, inset from the
+           price scale, so the candles keep the frame (§B5). The value area
+           gets a soft ivory backdrop so the compiler's boundaries read as a
+           BAND, not two hairlines. POC gets brass — house hardware, not a
+           market direction. HVN/LVN dots overlay as annotation on top.
         ═══════════════════════════════════════════════════════════════════ */
         {
           const lp = livingProfileRef.current;
@@ -8395,44 +8401,89 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           if (on && lp?.drawn) {
             ctx.save();
-            const leftX = 122;  // Inset from the left chrome; outside price gutter.
-            const laneMax = 30;
-            let drawnMarks = 0;
-            for (const m of lp.marks) {
-              const yr = srs.priceToCoordinate(m.price);
-              if (yr == null) continue;
-              const y = Math.round(+yr) + 0.5;
-              const len = Math.max(3, Math.round(m.weight * laneMax));
-              if (m.kind === "HVN") {
-                // Filled short bar — the market lingered here.
-                ctx.fillStyle = "rgba(237,230,211,0.80)";
-                ctx.fillRect(leftX, y - 1, len, 2);
-              } else {
-                // Hollow ring — a level nobody chose. Same length rules, no
-                // fill: absence rendered as an outline, not as a value.
-                ctx.strokeStyle = "rgba(194,184,146,0.70)";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(leftX + 0.5, y - 1.5, len, 3);
+            /*
+              GEOMETRY. The histogram lives at the right of the pane, inset
+              from the price gutter so the axis labels stay legible. Bars
+              grow LEFT from `rightEdge`, and `histMax` caps how far into the
+              candles they can reach — a profile that eats the whole canvas
+              is not a profile, it is wallpaper.
+            */
+            const rightEdge = W - 76;
+            const histMax = Math.min(160, Math.round(W * 0.16));
+
+            /*
+              VALUE-AREA BACKDROP. Two prices become one band. Draw first, so
+              histogram bars and HVN/LVN dots sit on top of it.
+            */
+            if (lp.vah != null && lp.val != null) {
+              const yh = srs.priceToCoordinate(lp.vah);
+              const yl = srs.priceToCoordinate(lp.val);
+              if (yh != null && yl != null) {
+                const top = Math.min(+yh, +yl);
+                const bot = Math.max(+yh, +yl);
+                ctx.fillStyle = "rgba(237,230,211,0.05)";
+                ctx.fillRect(rightEdge - histMax - 4, top, histMax + 8, Math.max(1, bot - top));
               }
-              drawnMarks++;
+            }
+
+            /*
+              THE HISTOGRAM. One horizontal bar per bucket the compiler
+              published. Bucket height comes from the vertical distance
+              between successive bucket prices on screen — clamped at 1px so
+              a chart zoomed all the way out still paints a shape rather
+              than a line.
+            */
+            let drawnBars = 0;
+            const barYs: number[] = [];
+            for (const b of lp.bars) {
+              const yr = srs.priceToCoordinate(b.price);
+              if (yr == null) continue;
+              barYs.push(+yr);
+            }
+            // Height per row is half the median inter-row spacing, so bars
+            // grow to nearly touching without overlapping. A single-row
+            // profile gets a floor of 2px.
+            let rowH = 2;
+            if (barYs.length >= 2) {
+              const sorted = [...barYs].sort((a, b) => a - b);
+              const gaps: number[] = [];
+              for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+              const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2;
+              rowH = Math.max(2, Math.min(10, Math.round(g)));
+            }
+
+            for (const b of lp.bars) {
+              const yr = srs.priceToCoordinate(b.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) - Math.floor(rowH / 2);
+              const width = Math.max(1, Math.round(b.share * histMax));
+              // POC gets the strongest ink, plus a full-width brass strip so
+              // the trader can see it without hunting. Value area gets ivory.
+              // Outside-value buckets get muted parchment — same reading,
+              // less loud.
+              ctx.fillStyle = b.isPoc
+                ? "rgba(201,165,92,0.90)"
+                : b.insideValueArea
+                  ? "rgba(237,230,211,0.72)"
+                  : "rgba(194,184,146,0.42)";
+              ctx.fillRect(rightEdge - width, y, width, Math.max(1, rowH - 1));
+              drawnBars++;
             }
 
             /*
               POC · VAH · VAL — three reference lines the compiler already
-              chose. Drawn as short dotted horizontals at the same left
-              inset as the node marks, so they read as reference lines and
-              not as levels somebody is defending.
-
-              POC gets the strongest ink; VAH and VAL are the same, weaker
-              ink. No hue: value-area boundaries are BOUNDARIES, not sides —
-              a trader who trades against VAH tomorrow was trading with it
-              yesterday, and colour that spent one meaning on the first is
-              lying to them on the second.
+              chose. Cross the whole width the histogram occupies so they
+              read as levels the profile itself carries, not as separate
+              annotations. POC gets brass; VAH/VAL share a weaker ivory
+              because value-area BOUNDARIES are not sides — a trader who
+              trades against VAH tomorrow was trading with it yesterday, and
+              a colour that spent one meaning on the first is lying to them
+              on the second.
             */
             const drawRef = (
               price: number | null | undefined,
               ink: string,
-              width: number,
+              dashed: boolean,
             ) => {
               if (price == null) return;
               const yr = srs.priceToCoordinate(price);
@@ -8440,23 +8491,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = Math.round(+yr) + 0.5;
               ctx.strokeStyle = ink;
               ctx.lineWidth = 1;
-              ctx.setLineDash([3, 4]);
+              ctx.setLineDash(dashed ? [3, 4] : []);
               ctx.beginPath();
-              ctx.moveTo(leftX, y);
-              ctx.lineTo(leftX + width, y);
+              ctx.moveTo(rightEdge - histMax - 4, y);
+              ctx.lineTo(rightEdge + 2, y);
               ctx.stroke();
             };
-            drawRef(lp.poc, "rgba(201,165,92,0.75)", laneMax + 20);
-            drawRef(lp.vah, "rgba(194,184,146,0.55)", laneMax + 10);
-            drawRef(lp.val, "rgba(194,184,146,0.55)", laneMax + 10);
+            drawRef(lp.poc, "rgba(201,165,92,0.90)", false);
+            drawRef(lp.vah, "rgba(194,184,146,0.55)", true);
+            drawRef(lp.val, "rgba(194,184,146,0.55)", true);
             ctx.setLineDash([]);
 
+            /*
+              HVN / LVN as annotation on the histogram. Not a replacement for
+              the profile — a mark that names the strongest few bars so a
+              trader who is skimming can find them at a glance. Fill/weight
+              tells them apart: HVN filled brass dot (size present), LVN
+              hollow ivory ring (size absent).
+            */
+            let drawnMarks = 0;
+            for (const m of lp.marks) {
+              const yr = srs.priceToCoordinate(m.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) + 0.5;
+              const cx = rightEdge - Math.max(3, Math.round(m.weight * histMax)) - 6;
+              ctx.beginPath();
+              ctx.arc(cx, y, 2.2, 0, Math.PI * 2);
+              if (m.kind === "HVN") {
+                ctx.fillStyle = "rgba(201,165,92,0.90)";
+                ctx.fill();
+              } else {
+                ctx.strokeStyle = "rgba(237,230,211,0.75)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+              }
+              drawnMarks++;
+            }
+
+            /*
+              PRICE LABELS on POC · VAH · VAL, right of the histogram, so the
+              trader can quote the levels without reading them off the axis.
+              Small type, brass on POC and muted ivory on the boundaries.
+            */
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            const label = (
+              price: number | null | undefined,
+              text: string,
+              ink: string,
+            ) => {
+              if (price == null) return;
+              const yr = srs.priceToCoordinate(price);
+              if (yr == null) return;
+              ctx.fillStyle = ink;
+              ctx.fillText(text, rightEdge + 4, +yr);
+            };
+            if (lp.poc != null) label(lp.poc, `POC ${lp.poc.toFixed(2)}`, "rgba(201,165,92,0.95)");
+            if (lp.vah != null) label(lp.vah, `VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
+            if (lp.val != null) label(lp.val, `VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
+
             ctx.restore();
+            if (drawnBars > 0) ds.livingProfileBars = String(drawnBars);
+            else delete ds.livingProfileBars;
             if (drawnMarks > 0) ds.livingProfileMarks = String(drawnMarks);
             else delete ds.livingProfileMarks;
             if (lp.untradedCount > 0) ds.livingProfileUntraded = String(lp.untradedCount);
             else delete ds.livingProfileUntraded;
           } else {
+            delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;
           }

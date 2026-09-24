@@ -61,6 +61,43 @@ describe("the reading reaches the chart", () => {
   });
 });
 
+describe("H-703 — the histogram paints on the canvas, not the dots alone", () => {
+  it("DRAWS ONE HORIZONTAL BAR PER BUCKET the compiler emitted", () => {
+    // The line the Founder pointed at. Without this, the layer paints six
+    // annotation dots and calls it a profile.
+    expect(block).toMatch(/for \(const b of lp\.bars\)/);
+    expect(block).toMatch(/ctx\.fillRect\(rightEdge - width, y,/);
+  });
+
+  it("width comes from `share` — a NORMALISED number, never volume", () => {
+    expect(block).toMatch(/b\.share \* histMax/);
+    expect(block).not.toMatch(/b\.volume/);
+  });
+
+  it("paints the value-area BAND before the bars, so the bars sit on top of it", () => {
+    // Two prices become one band — the compiler's boundaries read as a band
+    // rather than two disconnected hairlines. Order matters: fill first.
+    const bandIdx = block.indexOf("lp.vah != null && lp.val != null");
+    const barsIdx = block.indexOf("for (const b of lp.bars)");
+    expect(bandIdx).toBeGreaterThan(-1);
+    expect(barsIdx).toBeGreaterThan(bandIdx);
+  });
+
+  it("POC bucket gets its own ink — the trader can find it without hunting", () => {
+    expect(block).toMatch(/b\.isPoc/);
+  });
+
+  it("prints POC · VAH · VAL prices at the right of the histogram", () => {
+    expect(block).toMatch(/`POC \$\{lp\.poc\.toFixed\(2\)\}`/);
+    expect(block).toMatch(/`VAH \$\{lp\.vah\.toFixed\(2\)\}`/);
+    expect(block).toMatch(/`VAL \$\{lp\.val\.toFixed\(2\)\}`/);
+  });
+
+  it("caps the histogram width so it cannot eat the whole canvas", () => {
+    expect(block).toMatch(/histMax = Math\.min\(160,/);
+  });
+});
+
 describe("A NODE IS A PRICE, and only a price", () => {
   it("passes only the compiler's own price to a coordinate function", () => {
     expect(block).toMatch(/srs\.priceToCoordinate\(m\.price\)/);
@@ -91,8 +128,13 @@ describe("HVN vs LVN — told apart by mark shape, never by hue", () => {
   it("HVN is filled, LVN is hollow — fill/weight law, not hue", () => {
     // Filled = the market lingered here; hollow = a level nobody chose.
     // Absence rendered as an outline, not as a value.
-    expect(block).toMatch(/ctx\.fillRect/);
-    expect(block).toMatch(/ctx\.strokeRect/);
+    //
+    // The primitive changed with H-703's histogram: annotation dots use
+    // arc + fill (HVN) vs arc + stroke (LVN) rather than rect. The rule is
+    // the same — one is a filled disc, the other is a ring.
+    expect(block).toMatch(/ctx\.arc\(/);
+    expect(block).toMatch(/ctx\.fill\(\)/);
+    expect(block).toMatch(/ctx\.stroke\(\)/);
   });
 
   it("spends no green and no red on the marks", () => {
