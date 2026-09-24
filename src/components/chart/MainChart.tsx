@@ -9826,15 +9826,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // inverts the price order the column exists to show.
           let yy = y;
           for (let guard = 0; guard < 8; guard++) {
-            const hit = stackLabelYs.find(t => Math.abs(t - yy) < 11);
+            const hit = stackLabelYs.find(t => Math.abs(t - yy) < 12);
             if (hit == null) break;
-            yy = y < hit ? hit - 11 : hit + 11;
+            yy = y < hit ? hit - 12 : hit + 12;
           }
           stackLabelYs.push(yy);
           ctx.save();
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
           ctx.textAlign = "right";
           ctx.textBaseline = "middle";
+          // A quiet backing so a label never bleeds into the histogram bars
+          // or a neighbour's label one step away.
+          const lwS = ctx.measureText(text).width;
+          ctx.fillStyle = "rgba(11,10,8,0.72)";
+          ctx.fillRect(stackPlan.labelRight - lwS - 3, yy - 5.5, lwS + 5, 11);
           ctx.fillStyle = ink;
           ctx.fillText(text, stackPlan.labelRight, yy);
           ctx.restore();
