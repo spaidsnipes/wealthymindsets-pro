@@ -9208,8 +9208,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // a line, so agreeing levels (LIVING POC / CMP POC) never overprint.
         const stackLabelYs: number[] = [];
         const stackLabel = (y: number, text: string, ink: string) => {
+          // Step AWAY from the label it collides with, toward its own side:
+          // always stepping down printed a higher VAH beneath the POC, which
+          // inverts the price order the column exists to show.
           let yy = y;
-          while (stackLabelYs.some(t => Math.abs(t - yy) < 11)) yy += 11;
+          for (let guard = 0; guard < 8; guard++) {
+            const hit = stackLabelYs.find(t => Math.abs(t - yy) < 11);
+            if (hit == null) break;
+            yy = y < hit ? hit - 11 : hit + 11;
+          }
           stackLabelYs.push(yy);
           ctx.save();
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
