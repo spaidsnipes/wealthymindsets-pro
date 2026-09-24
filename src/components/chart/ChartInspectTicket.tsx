@@ -274,7 +274,7 @@ export function ChartInspectTicket({
     const sl = selectedProfileSlice;
     const fmt = (n: number) => n.toFixed(2);
     return (
-      <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+      <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
         data-testid="chart-inspect-ticket"
         data-inspect-profile-slice={sl.found ? String(sl.price) : sl.miss}
         aria-label={sl.found ? `Inspect profile slice at ${fmt(sl.price)}` : "Inspect profile slice: no traded bucket at that price"}>
@@ -317,7 +317,7 @@ export function ChartInspectTicket({
       // "executed", no "at", no execution identity (bubbleClaim.ts).
       const net = p.ask - p.bid;
       return (
-        <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+        <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
           data-testid="chart-inspect-ticket" data-inspect-delta-zone={p.printKey}
           aria-label={`Inspect selected delta zone for ${p.symbol}`}>
           <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
@@ -338,7 +338,7 @@ export function ChartInspectTicket({
       );
     }
     return (
-      <section className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+      <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
         data-testid="chart-inspect-ticket" data-inspect-print={p.printKey}
         aria-label={`Inspect selected print for ${p.symbol}`}>
         <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
@@ -374,7 +374,7 @@ export function ChartInspectTicket({
       /* `right-[76px]` clears the price scale; `top-16` clears the chart's own
          top chrome; `max-h` + `overflow-y-auto` is what stops a fully-refused
          ticket from having its last sentences cut off by the pane floor. */
-      className="absolute top-16 right-[76px] z-20 w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-border bg-wm-surface/95 p-2 shadow-2xl backdrop-blur-md"
+      className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-border bg-wm-surface/95 p-2 shadow-2xl backdrop-blur-md"
       data-testid="chart-inspect-ticket"
       // Published so an outside probe can compare the ticket's own verdict
       // against the switches and the tape, without parsing a human sentence.
