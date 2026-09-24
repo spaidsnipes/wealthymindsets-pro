@@ -206,7 +206,7 @@ import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
-import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
+import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
@@ -9749,7 +9749,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             */
             const livingLane = stackPlan.lanes.LIVING ?? soloLane(W);
             const rightEdge = livingLane.right;
-            const histMax = livingLane.width;
+            // The trader's width is a share of the lane, never more (P-110 stack controls).
+            const histMax = livingLane.width * stackWidth("LIVING", stackPrefsRef.current);
             const stacked = stackPlan.stacked;
             ds.livingProfileLane = String(stackOrder.indexOf("LIVING"));
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
@@ -10030,7 +10031,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lane.fits) {
               ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro * stackOpacity("COMPOSITE", stackPrefsRef.current);
               const right = lane.right;
-              const width = lane.width;
+              const width = lane.width * stackWidth("COMPOSITE", stackPrefsRef.current);
               const ys: number[] = [];
               for (const r of cp.rows) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
               let rowH = 2;
@@ -10106,7 +10107,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (vrpVM?.drawn && lane?.fits) {
             ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("VISIBLE_RANGE", stackPrefsRef.current);
             const right = lane.right;
-            const width = lane.width;
+            const width = lane.width * stackWidth("VISIBLE_RANGE", stackPrefsRef.current);
             const ys: number[] = [];
             for (const r of vrpVM.rows) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
             let rowH = 2;

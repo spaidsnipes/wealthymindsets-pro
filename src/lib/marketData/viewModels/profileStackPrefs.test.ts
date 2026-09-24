@@ -42,3 +42,16 @@ describe("H-601A · lane lock", () => {
     expect(parseStackPrefs(JSON.stringify({ ...locked, locked: ["LIVING", "BOGUS"] })).locked).toEqual(["LIVING"]);
   });
 });
+
+describe("P-110 · lane width", () => {
+  it("cycles 100 → 70 → 45 → 100 % of its own lane, never wider, and survives storage", async () => {
+    const { cycleWidth, stackWidth, parseStackPrefs, DEFAULT_STACK_PREFS } = await import("./profileStackPrefs");
+    let p = DEFAULT_STACK_PREFS;
+    expect(stackWidth("LIVING", p)).toBe(1);
+    p = cycleWidth(p, "LIVING"); expect(stackWidth("LIVING", p)).toBe(0.7);
+    p = cycleWidth(p, "LIVING"); expect(stackWidth("LIVING", p)).toBe(0.45);
+    p = cycleWidth(p, "LIVING"); expect(stackWidth("LIVING", p)).toBe(1);
+    expect(stackWidth("COMPOSITE", parseStackPrefs(JSON.stringify({ width: { COMPOSITE: 3 } })))).toBe(1);
+    expect(stackWidth("COMPOSITE", parseStackPrefs(JSON.stringify({ width: { COMPOSITE: 0.7 } })))).toBe(0.7);
+  });
+});

@@ -34,9 +34,28 @@ export interface ProfileStackPrefs {
    * trader's own hand in the Profiles grid moves it.
    */
   readonly locked?: readonly StackSpecies[];
+  /**
+   * WIDTH (stack controls). How much of its OWN lane a histogram may use —
+   * never more than the lane, so a width can never make two lanes overlap.
+   */
+  readonly width?: Readonly<Partial<Record<StackSpecies, number>>>;
 }
 
-export const DEFAULT_STACK_PREFS: ProfileStackPrefs = { order: STACK_SPECIES, opacity: {}, locked: [] };
+/** The share of its lane a histogram may use. Never above 1: the plan owns the lane. */
+export const WIDTH_STEPS = [1, 0.7, 0.45] as const;
+
+export function stackWidth(sp: StackSpecies, prefs: ProfileStackPrefs): number {
+  const v = prefs.width?.[sp];
+  return typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0.45, v)) : 1;
+}
+
+export function cycleWidth(prefs: ProfileStackPrefs, sp: StackSpecies): ProfileStackPrefs {
+  const cur = stackWidth(sp, prefs);
+  const k = WIDTH_STEPS.findIndex(s => Math.abs(s - cur) < 0.01);
+  return { ...prefs, width: { ...(prefs.width ?? {}), [sp]: WIDTH_STEPS[(k + 1) % WIDTH_STEPS.length] } };
+}
+
+export const DEFAULT_STACK_PREFS: ProfileStackPrefs = { order: STACK_SPECIES, opacity: {}, locked: [], width: {} };
 
 /** The Profiles-door switch each stacked lane answers to. */
 export const STACK_PROFILE_ID: Readonly<Record<StackSpecies, ProfileId>> = {
@@ -94,7 +113,7 @@ export function cycleOpacity(prefs: ProfileStackPrefs, sp: StackSpecies): Profil
 export function parseStackPrefs(raw: string | null): ProfileStackPrefs {
   if (!raw) return DEFAULT_STACK_PREFS;
   try {
-    const o = JSON.parse(raw) as { order?: unknown; opacity?: unknown; locked?: unknown };
+    const o = JSON.parse(raw) as { order?: unknown; opacity?: unknown; locked?: unknown; width?: unknown };
     const order = Array.isArray(o.order)
       ? (o.order.filter(s => (STACK_SPECIES as readonly string[]).includes(s as string)) as StackSpecies[])
       : [];
@@ -109,7 +128,14 @@ export function parseStackPrefs(raw: string | null): ProfileStackPrefs {
     const locked = Array.isArray(o.locked)
       ? (o.locked.filter(s => (STACK_SPECIES as readonly string[]).includes(s as string)) as StackSpecies[])
       : [];
-    return { order: full, opacity, locked };
+    const width: Partial<Record<StackSpecies, number>> = {};
+    if (o.width && typeof o.width === "object") {
+      for (const sp of STACK_SPECIES) {
+        const v = (o.width as Record<string, unknown>)[sp];
+        if (typeof v === "number" && Number.isFinite(v)) width[sp] = Math.min(1, Math.max(0.45, v));
+      }
+    }
+    return { order: full, opacity, locked, width };
   } catch {
     return DEFAULT_STACK_PREFS;
   }

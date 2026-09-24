@@ -73,6 +73,7 @@ Playwright and feeds labelled fixture prints through the real parser.
 | H-1001 Risk on Price + Frozen Receipt | Reading lenses › *Risk on Price* (on by default; draws only with a Long/Short Position that has a stop) · *Tear receipt* | Steel rail at the axis: RISK entry→stop, REWARD entry→target; STOP / INVALIDATION, ENTRY (+ what the bars did since the plan), TARGET R, LIVE R + distance to stop. Receipt torn from the camera's DECISION_ID: frozen asOf, write-once, owner-scoped, NO FILL | `71ad3fc` |
 | H-601A Profile presets | Chart tools › Profiles (head) | Clean / Day Trader / Auction / Order Flow / Memory / Research — PROFILE toggles only; lit preset compiled from switches | `6cd756a` |
 | H-701B Click bubble → Inspect | any bubble | Delta bubbles now clickable; SELECTED DELTA ZONE (net, anchor — never "executed"/"at"); both kinds show "#rank of N retained · median" | `272ada5` |
+| Lane width | Arrange the stack › W | 100 / 70 / 45 % of the lane's own width — never wider, so never overlapping | (this commit) |
 | Lane lock | Arrange the stack › LOCK | A locked lane keeps its switch against presets, desks and Restore | (this commit) |
 | H-201 analogue in Inspect | Inspect ticket | Sample window, fit r, mismatch, candidates; or why none | `4cd8e4f` |
 
@@ -86,7 +87,7 @@ Entry·RR chip steps under its zone near the top; the zoom plate is an obstacle 
 
 ## Still OPEN from the Manifestation Map
 
-P-110 stack controls: width, left/right/overlay placement, duplicate (reorder, opacity, lock,
+P-110 stack controls: left/right/overlay placement, duplicate (reorder, opacity, lock, width,
 Auto Arrange, Save My Stack and presets are built). H-701A/B on a LIVE sided tape (proved on a
 fixture tape only). Question lenses named in the correction (continuation healthy? · trap? ·
 permission? · hold? · WHAT CHANGED? · SHOW RAW) — the Question Lens today asks the
