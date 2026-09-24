@@ -17,6 +17,7 @@ import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
+import { MyStackBar } from "./MyStackBar";
 import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot } from "./orderFlowToolsSlot";
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
@@ -4377,6 +4378,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
               />
+              <MyStackBar active={profileMenuActive} onRestore={applyArrangementSwitches} />
               {/* READING LENSES — structure, regime lighting, the question lens and
                   scaffolding re-read the SAME camera; they are not profiles and do
                   not share the profiles' grid. Order-flow tools live behind
