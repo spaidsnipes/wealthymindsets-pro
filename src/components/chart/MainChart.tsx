@@ -8552,8 +8552,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const lw = ctx.measureText(glass.label).width;
             const chipH = 14;
-            const chipX = Math.max(2, right - Math.max(width, lw + 12));
-            const chipY = Math.max(2, Math.min(H - chipH - 2, yCog - chipH - 6));
+            // THE SENTENCE IS CHROME, THE SPINE IS PRICE (2026-09-24). Anchored
+            // at the CoG, this chip sat on price — exactly where the Living
+            // Profile's VAH/POC labels and the delta bubbles live — and on a
+            // fixture tape the three printed through each other. The CoG keeps
+            // its mark on price (the spine above); the words take a fixed slot
+            // under INSPECT, right-aligned to the lane.
+            const chipX = Math.max(2, right - (lw + 12));
+            const chipY = 96;
             ctx.fillStyle = "rgba(14,12,8,0.92)";
             ctx.fillRect(chipX, chipY, lw + 12, chipH);
             ctx.strokeStyle = "rgba(212,175,55,0.65)";
