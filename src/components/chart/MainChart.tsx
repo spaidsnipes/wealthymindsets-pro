@@ -159,7 +159,7 @@ const PRICE_LEGEND_OVERLAY_H = 28;
 /** Every receipt the NEAR geometry block writes — withdrawn together off NEAR. */
 /** The largest held prints per bar the NEAR tape owner keeps (the paint shows as many as the slot has room for). */
 const NEAR_TAPE_MAX_DOTS = 12;
-const NEAR_GLASS_RECEIPTS = ["nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearAnatomy", "nearHatch", "nearAnatomyWords"] as const;
+const NEAR_GLASS_RECEIPTS = ["nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearTapeTop", "nearAnatomy", "nearHatch", "nearAnatomyWords"] as const;
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
 const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
@@ -7852,6 +7852,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           // ── TAPE DOTS: the bar's largest held prints where they traded.
           let dotsN = 0;
+          // The largest dot on the glass, where it was drawn (canvas CSS px) —
+          // the one print a probe can click to prove Inspect's raw tape.
+          let topDot: { x: number; y: number; size: number } | null = null;
           const selKeyN = selectedPrintRef.current?.printKey ?? null;
           const inksN = flowColorsRef.current;
           const rMax = Math.max(3, Math.min(7, bsp * 0.12));
@@ -7883,6 +7886,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               nearTapeHitsRef.current.push({ x: xd, y: +yd, r: Math.max(r, 4), barTime: Number(c.time), dot: d });
               dotsN++;
+              if (!topDot || d.size > topDot.size) topDot = { x: xd, y: +yd, size: d.size };
             }
           }
 
@@ -7923,6 +7927,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (heldInView > 0) { dsN.nearTapeHeld = String(heldInView); dsN.nearTapeSides = sidesN; }
           else { delete dsN.nearTapeHeld; delete dsN.nearTapeSides; }
           if (pathPts > 1) dsN.nearTapePath = String(pathPts); else delete dsN.nearTapePath;
+          if (topDot) dsN.nearTapeTop = `${Math.round(topDot.x)},${Math.round(topDot.y)}`; else delete dsN.nearTapeTop;
           dsN.nearAnatomy = `TICKS:${ticks}`;
           if (hatched + bracketed > 0) dsN.nearHatch = hatched > 0 ? `HATCH:${hatched}` : `BRACKET:${bracketed}`; else delete dsN.nearHatch;
           if (wordsN > 0) dsN.nearAnatomyWords = String(wordsN); else delete dsN.nearAnatomyWords;
