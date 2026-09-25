@@ -275,6 +275,39 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
     ).toEqual([]);
   });
 
+  it("paints the split by HOW the sides were known, and counts bars without tape", () => {
+    // THE DEFECT: tick-rule sides passed the verified-tape gate and painted the
+    // same solid ask/bid as provider sides; bars in the box without tape added
+    // zero silently; the chip said "Delta+VP", naming neither coverage nor
+    // method; the buy/sell inks ignored the trader's own delta colours.
+    const problems: string[] = [];
+    const need = (ok: boolean, why: string) => { if (!ok) problems.push(why); };
+    need(/\bdvpSideStyle\(\s*getRuntimeTapeCapability\(tapeSourceRef\.current/.test(BLOCK),
+      "the paint style is not read from the reviewed tape capability via dvpSideStyle");
+    // Covered = the bar's footprint exists, which is exactly getBarSubProfile != null.
+    need(BLOCK.includes("covered: fp.length > 0"), "a bar's coverage is not read from its own footprint");
+    need(BLOCK.includes("dvpCoverage(bs.length, barTape.filter(b => b.covered).length)"),
+      "coverage is not k covered bars of the N bars in the span");
+    need(BLOCK.includes("dvpSplitChip(coverage, side, dvp.totalDelta)"), "the header chip is not dvpSplitChip");
+    need(!/["'`][^"'`\n]*Delta\+VP/.test(BLOCK), "a 'Delta+VP' literal is back in the draw block");
+    // WITHHOLD must reach the no-levels refusal, never a split painted from bars.
+    need(BLOCK.includes('side === "WITHHOLD" ? 0 : dvp.rows.length'), "WITHHOLD does not zero the lawful rows");
+    need(BLOCK.includes("dvpProfileRefusal(rw, rh, lawfulRows)"), "the refusal does not see the withheld rows");
+    // Inferred sides are outlines: strokeRect, and the words on the glass.
+    const sidedFn = BLOCK.slice(BLOCK.indexOf("const sided = "), BLOCK.indexOf("ctx.clip()"));
+    need(/if \(inferred\) \{[^}]*strokeRect\(/.test(sidedFn), "inferred sides are not drawn outline-only");
+    need(BLOCK.includes('"INFERRED SIDE"'), "inferred sides are not named on the glass");
+    need((BLOCK.match(/\bsided\(paint\./g) ?? []).length >= 3, "ask, bid and delta do not all go through the sided paint");
+    // Missing tape is hatched geometry.
+    need(/dvpUncoveredSpans\(barTape,/.test(BLOCK) && /dvpHatchSegments\(span,/.test(BLOCK),
+      "uncovered bars are not hatched");
+    need(BLOCK.includes("flowColorsRef.current"), "buy/sell inks are not the trader's delta inks");
+    for (const literal of ["rgba(0,192,118", "rgba(255,77,103", "rgba(0,212,170", "rgba(255,77,106", "#25E8BE", "#FF6B82"]) {
+      need(!BLOCK.includes(literal), `hard-coded side ink ${literal} is back`);
+    }
+    expect(problems, `the bid/ask split is not lawful:\n  ${problems.join("\n  ")}`).toEqual([]);
+  });
+
   it("states honestly that the live-render half is still open", () => {
     // If someone deletes this note, they are claiming a proof this file does not
     // provide. The claim and the gate must stay the same size.

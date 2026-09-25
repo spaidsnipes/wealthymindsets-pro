@@ -258,6 +258,11 @@ import {
   dvpRowCulled,
   dvpRowPaint,
   dvpFormatCount,
+  dvpSideStyle,
+  dvpCoverage,
+  dvpSplitChip,
+  dvpUncoveredSpans,
+  dvpHatchSegments,
 } from "@/lib/deltaVPGeometry";
 import {
   computeDeltaBubbleLevels,
@@ -13171,6 +13176,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // per frame and disclose how many drawings it governs. Box-size refusals
     // remain local because each one has a different repair.
     const groupedNoLevels = { count: 0 };
+    // One receipt per split box actually drawn this frame — `k/N:style:hatchSpans`
+    // — so a probe can read coverage and method without parsing the chip.
+    const dvpReceipts: string[] = [];
     // This is capability status for the whole current tape, not a market event
     // at any saved box's price. Keep it on the chart edge where FL-06 places
     // global instrument truth; spatial callouts remain reserved for real bars
@@ -13274,11 +13282,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         }
       }
-      // ── DELTA + VOLUME PROFILE BOX (order flow) ──
+      // ── BID/ASK SPLIT BOX (order flow) ──
       // Left column = per-price DELTA profile (buy−sell), right column = VOLUME
-      // profile (ask=green / bid=red, POC=gold). Aggregated from getBarFootprint —
-      // real executed-trade data where captured; bars without tape stay empty. Numbers
-      // on every row: signed delta at the center gutter, total volume at the edge.
+      // profile split ask/bid in the trader's delta inks, POC in gold. Built
+      // from getBarFootprint — real executed-trade data where captured. How
+      // the sides were known sets the paint (dvpSideStyle), and bars in the
+      // span without sided tape are counted and hatched (dvpCoverage), never
+      // silently summed as zero. Numbers on every row: signed delta at the
+      // centre gutter, total volume at the edge.
       else if (t === "delta-vp") {
         if (A && B) {
           const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y);
@@ -13295,16 +13306,61 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const bs  = (barsRef.current || []).filter((x: LegacyOhlcvTuple) => x.time >= tLo && x.time <= tHi);
           const nBins = dvpBinCount(rh);
           const levels: DeltaVPLevel[] = [];
-          for (const b of bs) for (const l of getBarFootprint(b, 14)) levels.push({ priceLevel: l.priceLevel, bid: l.bid, ask: l.ask });
+          // getBarFootprint returns [] exactly when getBarSubProfile(b) is null
+          // (no captured sided tape for the bar), so one pass both collects the
+          // levels and counts which bars carry tape.
+          const barTape: { x: number | null; covered: boolean }[] = [];
+          for (const b of bs) {
+            const fp = getBarFootprint(b, 14);
+            barTape.push({ x: timeX(b.time), covered: fp.length > 0 });
+            for (const l of fp) levels.push({ priceLevel: l.priceLevel, bid: l.bid, ask: l.ask });
+          }
+          const coverage = dvpCoverage(bs.length, barTape.filter(b => b.covered).length);
+          const side = dvpSideStyle(getRuntimeTapeCapability(tapeSourceRef.current ?? null)?.aggressorMethod);
           const dvp = computeDeltaVP(levels, pLo, pHi, nBins);
           const fmtN = dvpFormatCount;
+          // No aggressor method → no lawful split, whatever the accumulator
+          // holds: the box takes the no-levels refusal.
+          const lawfulRows = side === "WITHHOLD" ? 0 : dvp.rows.length;
 
-          if (dvpBoxAdmitsProfile(rw, rh, dvp.rows.length)) {
+          if (side !== "WITHHOLD" && dvpBoxAdmitsProfile(rw, rh, lawfulRows)) {
             const cols = dvpColumns(rx, rw);
             const { midX, leftW, rightW } = cols;
             const gap = DVP_GUTTER;
+            const inferred = side === "OUTLINE_INFERRED";
+            const fc = flowColorsRef.current;
+            const buyInk = (a: number) => `rgba(${fc.dBuy},${a})`;
+            const sellInk = (a: number) => `rgba(${fc.dSell},${a})`;
+            // Sided ink: filled when the sides were observed, outline-only when
+            // inferred — the same rectangle, a different claim.
+            const sided = (r: { x: number; y: number; w: number; h: number }, ink: string) => {
+              if (inferred) {
+                ctx.strokeStyle = ink; ctx.lineWidth = 1;
+                ctx.strokeRect(r.x + 0.5, r.y + 0.5, Math.max(0, r.w - 1), Math.max(0, r.h - 1));
+              } else {
+                ctx.fillStyle = ink;
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+              }
+            };
             ctx.save();
             ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
+            // Bars in the span with no sided tape: a hatch across their x-span,
+            // so the missing evidence is geometry, not an unexplained gap.
+            let barSpacing = 8;
+            try { barSpacing = chartRef.current?.timeScale().options().barSpacing ?? 8; } catch { /* default spacing */ }
+            const hatch = coverage.state === "PARTIAL" ? dvpUncoveredSpans(barTape, barSpacing, rx, rw) : [];
+            if (hatch.length) {
+              ctx.strokeStyle = "rgba(237,230,211,0.10)"; ctx.lineWidth = 1;
+              for (const span of hatch) {
+                ctx.save();
+                ctx.beginPath(); ctx.rect(span.x0, ry, span.x1 - span.x0, rh); ctx.clip();
+                ctx.beginPath();
+                for (const sg of dvpHatchSegments(span, ry, rh)) { ctx.moveTo(sg.x0, sg.y0); ctx.lineTo(sg.x1, sg.y1); }
+                ctx.stroke();
+                ctx.restore();
+              }
+            }
+            dvpReceipts.push(`${coverage.label}:${side}:${hatch.length}`);
             for (const row of dvp.rows) {
               const yT = priceY(row.hiPrice), yB = priceY(row.loPrice);
               if (yT == null || yB == null) continue;
@@ -13329,24 +13385,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
               // RIGHT — volume profile, grows rightward from the gutter
               if (paint.ask && paint.bid) {
-                ctx.fillStyle = "rgba(0,192,118,0.58)";
-                ctx.fillRect(paint.ask.x, paint.ask.y, paint.ask.w, paint.ask.h);
-                ctx.fillStyle = "rgba(255,77,103,0.58)";
-                ctx.fillRect(paint.bid.x, paint.bid.y, paint.bid.w, paint.bid.h);
+                sided(paint.ask, buyInk(inferred ? 0.85 : 0.58));
+                sided(paint.bid, sellInk(inferred ? 0.85 : 0.58));
               } else {
+                // The POC row is total volume, not a side claim: always solid.
                 ctx.fillStyle = "rgba(240,180,41,0.85)";
                 ctx.fillRect(paint.volume.x, paint.volume.y, paint.volume.w, paint.volume.h);
               }
 
-              // LEFT — delta profile, grows leftward from the gutter
-              ctx.fillStyle = up ? "rgba(0,212,170,0.72)" : "rgba(255,77,106,0.72)";
-              ctx.fillRect(paint.delta.x, paint.delta.y, paint.delta.w, paint.delta.h);
+              // LEFT — delta profile, grows leftward from the gutter. Delta IS
+              // buy − sell, so it carries the same side claim as the split.
+              sided(paint.delta, up ? buyInk(inferred ? 0.9 : 0.72) : sellInk(inferred ? 0.9 : 0.72));
 
               // numbers — signed delta at the gutter, volume at the right edge
               if (rowH >= DVP_MIN_LABEL_ROW_H) {
                 ctx.font = "10px monospace"; ctx.textBaseline = "middle";
                 ctx.shadowColor = "rgba(0,0,0,0.92)"; ctx.shadowBlur = 3;
-                ctx.textAlign = "right"; ctx.fillStyle = up ? "#25E8BE" : "#FF6B82";
+                ctx.textAlign = "right"; ctx.fillStyle = up ? buyInk(1) : sellInk(1);
                 ctx.fillText(`${up ? "+" : "−"}${fmtN(row.delta)}`, midX - gap - 2, midY);
                 ctx.fillStyle = "#EAF0F6";
                 ctx.fillText(fmtN(row.volume), rx + rw - 3, midY);
@@ -13358,12 +13413,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // center gutter divider + column captions + totals header
             ctx.strokeStyle = col + "66"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
             ctx.beginPath(); ctx.moveTo(midX, ry); ctx.lineTo(midX, ry + rh); ctx.stroke(); ctx.setLineDash([]);
-            const netUp = dvp.totalDelta >= 0;
-            chip(`Delta+VP  net ${netUp ? "+" : "−"}${fmtN(dvp.totalDelta)}  vol ${fmtN(dvp.totalVolume)}`, rx + 2, ry - 3, col);
+            chip(dvpSplitChip(coverage, side, dvp.totalDelta), rx + 2, ry - 3, col);
             ctx.font = "9px ui-sans-serif"; ctx.textBaseline = "top";
             ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 2; ctx.fillStyle = "#8B95A5"; ctx.textAlign = "center";
             if (leftW  > DVP_MIN_CAPTION_W) ctx.fillText("DELTA",  (rx + midX) / 2, ry + 2);
             if (rightW > DVP_MIN_CAPTION_W) ctx.fillText("VOLUME", (midX + rx + rw) / 2, ry + 2);
+            if (inferred) {
+              // Said beside the outlines it explains; under the box when the
+              // volume column is too narrow to hold it.
+              ctx.fillStyle = "#EDE6D3";
+              const word = "INFERRED SIDE";
+              if (ctx.measureText(word).width + 4 < rightW) {
+                ctx.textBaseline = "bottom"; ctx.fillText(word, (midX + rx + rw) / 2, ry + rh - 2);
+              } else {
+                ctx.textAlign = "left"; ctx.fillText(word, rx + 2, ry + rh + 2);
+              }
+            }
             ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
           } else {
             // WHY not one sentence: the refusal has three unrelated causes and
@@ -13371,7 +13436,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // 2026-09-15 (TSLA 15m) a ~548x142px box — an order of magnitude past
             // both minimums — telling the trader to "draw a wider box". The cause
             // was no per-level data. Naming the real obstacle is the fix.
-            const refusal = dvpProfileRefusal(rw, rh, dvp.rows.length);
+            const refusal = dvpProfileRefusal(rw, rh, lawfulRows);
             if (refusal === "no-levels") {
               groupedNoLevels.count += 1;
             } else {
@@ -13463,6 +13528,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         groupedNoLevelsAnchor.color,
       );
     }
+    if (dvpReceipts.length) canvas.dataset.bidAskSplit = dvpReceipts.join(",");
+    else delete canvas.dataset.bidAskSplit;
   }, [base, logicalToPixel, drawingStyle, getBarFootprint]);
 
   // Lightweight RAF repaint for drawings ONLY — avoids bumping rangeVer (which

@@ -53,6 +53,8 @@
  *   HUMAN_PROOF_REQUIRED, not green.
  */
 
+import type { AggressorMethod } from "@/lib/marketData/marketEvent";
+
 /** Horizontal separation between the delta column, the gutter, and the volume column. */
 export const DVP_GUTTER = 3;
 
@@ -325,4 +327,122 @@ export function dvpRowPaint(args: {
 export function dvpFormatCount(v: number): string {
   const a = Math.abs(v);
   return a >= 1000 ? `${(a / 1000).toFixed(a >= 10000 ? 0 : 1)}k` : String(Math.round(a));
+}
+
+/**
+ * HOW THE SIDES WERE KNOWN decides how they may be painted.
+ *
+ * A provider-stamped aggressor (or a maker side inverted, which is the same
+ * fact read from the other party) is an observation: solid ask/bid fills. A
+ * side inferred by the tick rule or a quote test is a GUESS about each print,
+ * and painting it in the same solid ink as an observation is how a guess
+ * passes for evidence. So an inferred split is drawn outline-only and says
+ * INFERRED SIDE. With no aggressor method at all there is no lawful split to
+ * draw, and the box takes the no-levels refusal — never a split from bars.
+ */
+export type DVPSideStyle = "SOLID_PROVIDER" | "SOLID_MAKER_SIDE" | "OUTLINE_INFERRED" | "WITHHOLD";
+
+export function dvpSideStyle(method: AggressorMethod | null | undefined): DVPSideStyle {
+  switch (method) {
+    case "PROVIDER":
+      return "SOLID_PROVIDER";
+    case "MAKER_SIDE_INVERTED":
+      return "SOLID_MAKER_SIDE";
+    case "TICK_RULE":
+    case "QUOTE_TEST":
+      return "OUTLINE_INFERRED";
+    default:
+      return "WITHHOLD";
+  }
+}
+
+/**
+ * How many of the box's bars carry sided tape. Tape is captured live only, so
+ * a box usually spans bars that were never watched; those bars add nothing to
+ * the split, and a total that silently omits them reads as the whole span.
+ * The count goes in the chip and the uncovered bars are hatched.
+ */
+export interface DVPCoverage {
+  readonly bars: number;
+  readonly withTape: number;
+  readonly state: "FULL" | "PARTIAL" | "NONE";
+  /** `k/N` — printed verbatim. */
+  readonly label: string;
+}
+
+export function dvpCoverage(barsInSpan: number, barsWithTape: number): DVPCoverage {
+  const n = Math.max(0, Math.floor(barsInSpan));
+  const k = Math.min(n, Math.max(0, Math.floor(barsWithTape)));
+  const state = k === 0 ? "NONE" : k === n ? "FULL" : "PARTIAL";
+  return { bars: n, withTape: k, state, label: `${k}/${n}` };
+}
+
+/**
+ * The box's one header: the split, how much of the span it covers, how the
+ * sides were known, and the net. Never the tool's old name — "Delta+VP" said
+ * nothing about coverage or method.
+ */
+export function dvpSplitChip(
+  coverage: DVPCoverage,
+  style: Exclude<DVPSideStyle, "WITHHOLD">,
+  totalDelta: number,
+): string {
+  const method = style === "SOLID_PROVIDER" ? "PROVIDER" : style === "SOLID_MAKER_SIDE" ? "MAKER-SIDE" : "INFERRED";
+  return `BID/ASK SPLIT · TAPE ${coverage.label} BARS · ${method} · net ${totalDelta >= 0 ? "+" : "−"}${dvpFormatCount(totalDelta)}`;
+}
+
+/** Hatch pitch for bars without sided tape: 1px lines at 45°, this far apart. */
+export const DVP_HATCH_PITCH = 6;
+
+export interface DVPSpan {
+  readonly x0: number;
+  readonly x1: number;
+}
+
+/**
+ * The x-spans of the bars inside the box that carry NO sided tape, each bar
+ * `barSpacing` wide about its centre, clamped to the box and merged where
+ * neighbours touch so the hatch runs without seams. Bars that cannot be
+ * projected are skipped rather than guessed at.
+ */
+export function dvpUncoveredSpans(
+  bars: readonly { readonly x: number | null; readonly covered: boolean }[],
+  barSpacing: number,
+  boxX: number,
+  boxWidth: number,
+): DVPSpan[] {
+  const half = Math.max(1, barSpacing) / 2;
+  const left = boxX;
+  const right = boxX + boxWidth;
+  const spans: { x0: number; x1: number }[] = [];
+  const sorted = bars.filter(b => !b.covered && b.x != null && Number.isFinite(b.x)).map(b => b.x as number).sort((a, z) => a - z);
+  for (const x of sorted) {
+    const x0 = Math.max(left, x - half);
+    const x1 = Math.min(right, x + half);
+    if (!(x1 > x0)) continue;
+    const last = spans[spans.length - 1];
+    if (last && x0 <= last.x1 + 0.5) last.x1 = Math.max(last.x1, x1);
+    else spans.push({ x0, x1 });
+  }
+  return spans;
+}
+
+/**
+ * The 45° hatch segments for one span, bottom-left to top-right, on a pitch
+ * anchored at x = 0 so neighbouring spans and repaints line up. Segments run
+ * past the span's ends; the canvas clips them to the span.
+ */
+export function dvpHatchSegments(
+  span: DVPSpan,
+  boxY: number,
+  boxHeight: number,
+  pitch: number = DVP_HATCH_PITCH,
+): { x0: number; y0: number; x1: number; y1: number }[] {
+  const out: { x0: number; y0: number; x1: number; y1: number }[] = [];
+  if (!(span.x1 > span.x0) || !(boxHeight > 0) || !(pitch > 0)) return out;
+  const bottom = boxY + boxHeight;
+  for (let x = Math.floor((span.x0 - boxHeight) / pitch) * pitch; x <= span.x1; x += pitch) {
+    out.push({ x0: x, y0: bottom, x1: x + boxHeight, y1: boxY });
+  }
+  return out;
 }

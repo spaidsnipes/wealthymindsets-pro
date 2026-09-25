@@ -54,6 +54,12 @@ import {
   dvpAskWidth,
   dvpRowPaint,
   dvpFormatCount,
+  dvpSideStyle,
+  dvpCoverage,
+  dvpSplitChip,
+  dvpUncoveredSpans,
+  dvpHatchSegments,
+  DVP_HATCH_PITCH,
 } from "./deltaVPGeometry";
 
 describe("dvpBinCount — bins come from the box, and are clamped at both ends", () => {
@@ -547,5 +553,109 @@ describe("dvpRowPaint — the rectangles, which no scalar test could reach", () 
     expect(p.volume.w).toBe(dvpBarWidth(0.31, COLS.rightW, 3));
     expect(p.delta.w).toBe(dvpBarWidth(0.77, COLS.leftW, 2));
     expect(p.ask!.w).toBe(dvpAskWidth(p.volume.w, 42, 90));
+  });
+});
+
+describe("dvpSideStyle — how the sides were known decides how they are painted", () => {
+  it("paints observed sides solid, and keeps provider and maker-side apart", () => {
+    expect(dvpSideStyle("PROVIDER")).toBe("SOLID_PROVIDER");
+    expect(dvpSideStyle("MAKER_SIDE_INVERTED")).toBe("SOLID_MAKER_SIDE");
+  });
+
+  it("paints tick-rule and quote-test sides as outlines, never as observations", () => {
+    expect(dvpSideStyle("TICK_RULE")).toBe("OUTLINE_INFERRED");
+    expect(dvpSideStyle("QUOTE_TEST")).toBe("OUTLINE_INFERRED");
+  });
+
+  it("withholds the split when no aggressor method is known", () => {
+    expect(dvpSideStyle("NONE")).toBe("WITHHOLD");
+    expect(dvpSideStyle(null)).toBe("WITHHOLD");
+    expect(dvpSideStyle(undefined)).toBe("WITHHOLD");
+  });
+});
+
+describe("dvpCoverage — bars without sided tape are counted, not summed as zero", () => {
+  it("names a partial span k/N", () => {
+    expect(dvpCoverage(10, 3)).toEqual({ bars: 10, withTape: 3, state: "PARTIAL", label: "3/10" });
+  });
+
+  it("names full and empty coverage", () => {
+    expect(dvpCoverage(10, 10).state).toBe("FULL");
+    expect(dvpCoverage(10, 0).state).toBe("NONE");
+    expect(dvpCoverage(0, 0).state).toBe("NONE");
+  });
+
+  it("never claims more covered bars than the span holds", () => {
+    expect(dvpCoverage(4, 9).label).toBe("4/4");
+    expect(dvpCoverage(4, -2).label).toBe("0/4");
+    expect(dvpCoverage(4.8, 2.9).label).toBe("2/4");
+  });
+});
+
+describe("dvpSplitChip — one header: split, coverage, method, net", () => {
+  it("reads BID/ASK SPLIT · TAPE k/N BARS · METHOD · net ±X", () => {
+    expect(dvpSplitChip(dvpCoverage(10, 3), "SOLID_MAKER_SIDE", 1250)).toBe(
+      "BID/ASK SPLIT · TAPE 3/10 BARS · MAKER-SIDE · net +1.3k",
+    );
+    expect(dvpSplitChip(dvpCoverage(5, 5), "SOLID_PROVIDER", -42)).toBe(
+      "BID/ASK SPLIT · TAPE 5/5 BARS · PROVIDER · net −42",
+    );
+  });
+
+  it("says INFERRED for inferred sides and never the old tool name", () => {
+    const chip = dvpSplitChip(dvpCoverage(8, 8), "OUTLINE_INFERRED", 0);
+    expect(chip).toContain("· INFERRED ·");
+    expect(chip).not.toContain("Delta+VP");
+  });
+});
+
+describe("dvpUncoveredSpans — the missing tape as an x-span", () => {
+  // Ten bars 10px apart, centres at 105..195; the last three carry tape.
+  const bars = Array.from({ length: 10 }, (_, i) => ({ x: 105 + i * 10, covered: i >= 7 }));
+
+  it("merges the first seven uncovered bars into one seamless span", () => {
+    expect(dvpUncoveredSpans(bars, 10, 100, 100)).toEqual([{ x0: 100, x1: 170 }]);
+  });
+
+  it("clamps to the box and skips bars that cannot be projected", () => {
+    const spans = dvpUncoveredSpans([{ x: 95, covered: false }, { x: null, covered: false }, { x: 150, covered: false }], 10, 100, 100);
+    // x=95 ends exactly at the box's left edge: nothing of it is inside.
+    expect(spans).toEqual([{ x0: 145, x1: 155 }]);
+    expect(dvpUncoveredSpans([{ x: 205, covered: false }], 10, 100, 100)).toEqual([]);
+  });
+
+  it("keeps separate runs separate", () => {
+    const gappy = [{ x: 105, covered: false }, { x: 115, covered: true }, { x: 125, covered: false }];
+    expect(dvpUncoveredSpans(gappy, 10, 100, 100)).toEqual([{ x0: 100, x1: 110 }, { x0: 120, x1: 130 }]);
+  });
+
+  it("is empty when every bar carries tape", () => {
+    expect(dvpUncoveredSpans(bars.map(b => ({ ...b, covered: true })), 10, 100, 100)).toEqual([]);
+  });
+});
+
+describe("dvpHatchSegments — 45° hatch on a fixed pitch", () => {
+  it("draws 45° segments DVP_HATCH_PITCH apart that cover the whole span", () => {
+    const segs = dvpHatchSegments({ x0: 100, x1: 170 }, 50, 40);
+    expect(DVP_HATCH_PITCH).toBe(6);
+    for (const s of segs) {
+      expect(s.x1 - s.x0).toBe(40);
+      expect(s.y0 - s.y1).toBe(40);
+    }
+    for (let i = 1; i < segs.length; i++) expect(segs[i].x0 - segs[i - 1].x0).toBe(DVP_HATCH_PITCH);
+    // The first segment reaches the span's left edge at the box top; the last
+    // starts at or before its right edge.
+    expect(segs[0].x1).toBeLessThanOrEqual(100 + DVP_HATCH_PITCH);
+    expect(segs[segs.length - 1].x0).toBeLessThanOrEqual(170);
+    expect(segs[segs.length - 1].x0 + DVP_HATCH_PITCH).toBeGreaterThan(170);
+  });
+
+  it("anchors the pitch at x = 0 so neighbouring spans line up", () => {
+    for (const s of dvpHatchSegments({ x0: 133, x1: 151 }, 0, 20)) expect(((s.x0 % 6) + 6) % 6).toBe(0);
+  });
+
+  it("draws nothing for an empty span or box", () => {
+    expect(dvpHatchSegments({ x0: 10, x1: 10 }, 0, 20)).toEqual([]);
+    expect(dvpHatchSegments({ x0: 10, x1: 20 }, 0, 0)).toEqual([]);
   });
 });
