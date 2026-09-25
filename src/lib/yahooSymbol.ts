@@ -198,8 +198,35 @@ export type YahooSymbolResolution =
  * that ticker. It means no rule HERE stopped the request. Yahoo may still 404,
  * and that 404 is then genuinely Yahoo's answer and belongs to Yahoo.
  */
+/**
+ * Spot precious metals, and the futures contract that is NOT them. Returned so
+ * a refusal can name the lawful alternative; never used to substitute one.
+ */
+const SPOT_METALS: Readonly<Record<string, { readonly name: string; readonly futures: string }>> = {
+  XAUUSD: { name: "Gold", futures: "GC1!" },
+  XAGUSD: { name: "Silver", futures: "SI1!" },
+  XPTUSD: { name: "Platinum", futures: "PL1!" },
+  XPDUSD: { name: "Palladium", futures: "PA1!" },
+};
+
+export function spotMetalFutures(sym: string): { readonly name: string; readonly futures: string } | null {
+  const compact = sym.trim().toUpperCase().replace(/[-/]/g, "");
+  const key = compact === "XAU" ? "XAUUSD" : compact === "XAG" ? "XAGUSD" : compact;
+  return SPOT_METALS[key] ?? null;
+}
+
 export function resolveYahooSymbol(sym: string): YahooSymbolResolution {
   const up = sym.trim().toUpperCase();
+  const metal = spotMetalFutures(up);
+  if (metal) {
+    return {
+      kind: "UNRESOLVED",
+      reason:
+        `No spot ${metal.name} source is connected, and WM does not show ${metal.futures} ` +
+        `futures under a spot name — they are a different market. Open ${metal.futures} for ` +
+        `${metal.name} futures.`,
+    };
+  }
   const compact = up.replace(/[-/]/g, "");
   const unlistedQuote = UNLISTED_CRYPTO_QUOTES.exec(compact)?.[0];
   if (unlistedQuote && !YF_MAP[up] && cryptoBaseTicker(up)) {
@@ -224,7 +251,10 @@ export function toYahooSymbol(sym: string): string {
   if (YF_MAP[up]) return YF_MAP[up];
 
   // Precious-metals spot (XAUUSD = gold, XAGUSD = silver, etc.) — Yahoo has no
-  // spot FX ticker for these, so map to the nearest continuous futures contract.
+  // spot ticker, so this NOTATION maps to the continuous futures contract for
+  // CLASSIFICATION (asset class, playbook routing). It is not a licence to
+  // display futures prices under a spot name: `resolveYahooSymbol` — the gate
+  // every price request passes — refuses spot metals (GP12 §26).
   const metal = up.replace("/", "");
   if (metal === "XAUUSD" || metal === "XAU") return "GC=F"; // gold
   if (metal === "XAGUSD" || metal === "XAG") return "SI=F"; // silver

@@ -357,7 +357,7 @@ describe("a decision of ours never leaves the building dressed as the vendor's",
   it("does NOT refuse the markets Yahoo actually lists", () => {
     // Guards the guard. An over-broad rule would make this module 'honest' by
     // refusing everything, and the suite above would still be green.
-    for (const sym of ["BTC-USD", "BTCUSD", "BTC", "TSLA", "AAPL", "NQ1!", "EUR/USD", "XAUUSD"]) {
+    for (const sym of ["BTC-USD", "BTCUSD", "BTC", "TSLA", "AAPL", "NQ1!", "EUR/USD", "GC1!"]) {
       const r = resolveYahooSymbol(sym);
       expect(r.kind, `${sym} was refused before the wire`).toBe("RESOLVED");
     }
@@ -404,3 +404,26 @@ describe("cash indices resolve to the same instrument under Yahoo's name", () =>
   });
 });
 
+
+describe("GP12 §26 — spot metals are never answered with futures under a spot name", () => {
+  it("refuses XAUUSD in every notation, naming the futures a trader can open", () => {
+    for (const sym of ["XAUUSD", "XAU/USD", "xau-usd", "XAU"]) {
+      const r = resolveYahooSymbol(sym);
+      expect(r.kind, sym).toBe("UNRESOLVED");
+      if (r.kind === "UNRESOLVED") {
+        expect(r.reason).toMatch(/GC1!/);
+        expect(r.reason).toMatch(/different market/);
+      }
+    }
+  });
+
+  it("refuses silver, platinum and palladium spot the same way", () => {
+    expect(resolveYahooSymbol("XAGUSD").kind).toBe("UNRESOLVED");
+    expect(resolveYahooSymbol("XPTUSD").kind).toBe("UNRESOLVED");
+    expect(resolveYahooSymbol("XPDUSD").kind).toBe("UNRESOLVED");
+  });
+
+  it("still resolves the futures themselves — the refusal is about the NAME, not the metal", () => {
+    expect(resolveYahooSymbol("GC1!")).toEqual({ kind: "RESOLVED", ticker: toYahooSymbol("GC1!") });
+  });
+});

@@ -72,7 +72,7 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","6e","eur"] },
   { sym:"GBPUSD", label:"British Pound / USD",      cat:"Forex", aliases:["cable","pound","gbp","sterling"] },
   { sym:"USDJPY", label:"US Dollar / Japanese Yen", cat:"Forex", aliases:["dollar yen","jpy","yen"] },
-  { sym:"XAUUSD", label:"Gold / US Dollar (Spot)",  cat:"Forex", aliases:["gold","xau","spot gold","gc"] },
+  { sym:"XAUUSD", label:"Gold / US Dollar (Spot)",  cat:"Forex", aliases:["xau","spot gold"] },
   { sym:"XAGUSD", label:"Silver / US Dollar (Spot)",cat:"Forex", aliases:["silver","xag","spot silver"] },
   { sym:"US30",   label:"Dow Jones Index (Cash)",   cat:"Forex", aliases:["dow","dji","dow jones","us30","ym"] },
   { sym:"US500",  label:"S&P 500 Index (Cash)",     cat:"Forex", aliases:["sp500","spx","s&p","us500"] },

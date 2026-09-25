@@ -54,6 +54,7 @@ import {
   withSymbol,
   withoutSymbol,
 } from "./storedSymbolList";
+import { spotMetalFutures } from "@/lib/yahooSymbol";
 
 /**
  * The tape a trader who has never customised anything sees.
@@ -138,6 +139,13 @@ export function tapeQuoteBlocker(value: unknown): string | null {
   // Keep the seam. The next genuinely unserveable instrument class gets its
   // reason written HERE, derived from a measured provider answer — never from
   // reading which branches happen to exist.
+  //
+  // SPOT PRECIOUS METALS (GP12 §26, 2026-09-25): no connected feed serves spot
+  // gold/silver, and the only Yahoo price for them is COMEX futures — a
+  // different market. The price gate (`resolveYahooSymbol`) refuses them, so
+  // the tape says why instead of relabelling futures as spot.
+  const metal = spotMetalFutures(symbol);
+  if (metal) return `No spot ${metal.name} feed is connected. Add ${metal.futures} for ${metal.name} futures.`;
   return null;
 }
 
