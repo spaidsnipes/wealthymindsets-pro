@@ -5721,6 +5721,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
       // plot's top band; floating chips and cards stay below this line.
       const HEADER_FLOOR_Y = 90;
+      // THE MARKET'S PRECISION for every price named on the glass this frame
+      // (pricePrecision.ts): "TPO POC 1.15" beside "TPO VAL 1.15" on EURUSD
+      // was two decimals naming two different prices (serving, 2026-09-25).
+      // Read once, before the first layer that names a price (the bubbles).
+      const pxDp = pricePrecisionFromBars(barsRef.current ?? []);
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
@@ -6462,7 +6467,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (b.r >= 7) {
             ctx.globalAlpha = att.textAlpha("bubbles", { selectedItem: selB });
             const p = b.anchorPrice;
-            const lbl = p >= 100 ? p.toFixed(2) : p >= 1 ? p.toFixed(2) : p.toFixed(4);
+            const lbl = p.toFixed(pxDp);
             const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
             ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -8630,10 +8635,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const weatherLines = wds.liquidityWeatherStage ? (wds.liquidityWeatherShelves ? 3 : 2) : 0;
         return { text, y: Math.max(20, pane0Bottom - 22) - weatherLines * 11 };
       };
-      // THE MARKET'S PRECISION for every profile-family level name this frame
-      // (pricePrecision.ts): "TPO POC 1.15" beside "TPO VAL 1.15" on EURUSD
-      // was two decimals naming two different prices (serving, 2026-09-25).
-      const pxDp = pricePrecisionFromBars(barsRef.current ?? []);
       // A slid label never lands in the column an active Question Lens owns.
       const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
       // Every candle body in view, once per frame, for a label that prints on
@@ -9721,7 +9722,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     // Both lines are the lens's numbers; no trend is claimed.
                     const tagCol = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(226,92,92,0.95)";
                     const tagWord = lens.kind === "EXHAUSTION" ? "EXHAUSTION ZONE" : lens.kind === "CONTINUATION" ? "THE LEG" : lens.kind === "TRAP" ? "BROKEN SWING" : lens.kind === "HOLD" ? "LEVEL ASKED" : "ABSORPTION ZONE";
-                    const tag = lens.bandLow === lens.bandHigh ? `${tagWord} · ${lens.bandLow.toFixed(2)}` : `${tagWord} · ${lens.bandLow.toFixed(2)}–${lens.bandHigh.toFixed(2)}`;
+                    const tag = lens.bandLow === lens.bandHigh ? `${tagWord} · ${lens.bandLow.toFixed(pxDp)}` : `${tagWord} · ${lens.bandLow.toFixed(pxDp)}–${lens.bandHigh.toFixed(pxDp)}`;
                     ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
                     const tw = ctx.measureText(tag).width + 16;
                     // The PLOT's right edge, not the container's: the price
@@ -9964,7 +9965,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.beginPath(); ctx.moveTo(0, Math.round(+y) + 0.5); ctx.lineTo(W - 76, Math.round(+y) + 0.5); ctx.stroke();
                   ctx.setLineDash([]);
                   ctx.font = font(700, 8);
-                  const t = `${tag} · ${lvl.toFixed(2)}`;
+                  const t = `${tag} · ${lvl.toFixed(pxDp)}`;
                   const tw = ctx.measureText(t).width;
                   ctx.fillStyle = PANEL;
                   ctx.fillRect(W - 84 - tw - 8, +y - 7, tw + 8, 14);
@@ -13278,7 +13279,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // above the zone on a leader to its middle — what it is, then its
               // side, range and measured state.
               const l1 = "SELECTED ZONE";
-              const l2 = `${z.side} · ${z.object.priceLow.toFixed(2)} – ${z.object.priceHigh.toFixed(2)} · ${z.lifecycle.state}`;
+              const l2 = `${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${z.lifecycle.state}`;
               ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
               const w1 = ctx.measureText(l1).width;
               ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";

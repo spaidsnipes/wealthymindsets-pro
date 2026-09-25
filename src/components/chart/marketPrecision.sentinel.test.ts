@@ -81,3 +81,24 @@ describe("GP12 §27 — calculation precision is not display precision", () => {
     expect(CHART).not.toMatch(/const minTick = symBase > 10_000/);
   });
 });
+
+describe("every other price named on the glass quotes the same precision", () => {
+  // Added 2026-09-25 (NOAH lane): the frame's pxDp is read before the first
+  // layer that names a price (the tape bubbles paint long before the profiles).
+  it("pxDp is read once, ahead of the bubbles", () => {
+    const at = CHART.indexOf("const pxDp = pricePrecisionFromBars(barsRef.current ?? []);");
+    expect(at).toBeGreaterThan(-1);
+    expect(CHART.indexOf("const pxDp =", at + 1)).toBe(-1);
+    expect(at).toBeLessThan(CHART.indexOf("const lbl = p.toFixed(pxDp);"));
+    expect(CHART).not.toContain("const lbl = p >= 100 ? p.toFixed(2)");
+  });
+
+  it("the Question Lens band tag, the scaffolding swings and the selected zone's range", () => {
+    expect(CHART).toContain("`${tagWord} · ${lens.bandLow.toFixed(pxDp)}–${lens.bandHigh.toFixed(pxDp)}`");
+    expect(CHART).toContain("`${tagWord} · ${lens.bandLow.toFixed(pxDp)}`");
+    expect(CHART).toContain("const t = `${tag} · ${lvl.toFixed(pxDp)}`;");
+    expect(CHART).toContain("`${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${z.lifecycle.state}`");
+    expect(CHART).not.toMatch(/lens\.band(Low|High)\.toFixed\(2\)|lvl\.toFixed\(2\)|z\.object\.price(Low|High)\.toFixed\(2\)/);
+  });
+});
+
