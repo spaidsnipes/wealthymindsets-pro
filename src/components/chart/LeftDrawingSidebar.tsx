@@ -5,6 +5,7 @@ import {
   MousePointer2, Move, Minus, TrendingUp, MoveHorizontal, MoveVertical,
   Ruler, Square, Circle, Triangle, Type, Pencil, Eraser, Trash2,
   Magnet, Lock, Eye, EyeOff, ArrowUpRight, Columns2,
+  ArrowBigUp, ArrowBigDown, AlignRight,
 } from "lucide-react";
 import type { DrawingTool, DrawingStyle } from "./DrawingToolsPanel";
 import { DrawingStylePopover, isStyleCapableTool, DRAWING_STYLE_POPOVER_WIDTH_PX } from "./DrawingToolsPanel";
@@ -30,7 +31,15 @@ const GROUPS: { items: Item[] }[] = [
     { id: "ellipse",   label: "Ellipse",         icon: <Circle size={15} /> },
     { id: "triangle",  label: "Triangle",        icon: <Triangle size={15} /> },
   ]},
+  // Risk on price (F24 audit · Risk): entry / stop / target geometry is drawn
+  // from here — it was reachable only through the study row's second tool set.
   { items: [
+    { id: "long-position",  label: "Long Position",  icon: <ArrowBigUp size={15} /> },
+    { id: "short-position", label: "Short Position", icon: <ArrowBigDown size={15} /> },
+  ]},
+  // The user-selected profile (H-601 #8 Fixed Range) and the sided box.
+  { items: [
+    { id: "anchored-vp", label: "Fixed Range Profile", icon: <AlignRight size={15} /> },
     { id: "delta-vp",  label: "Delta + VP Box",  icon: <Columns2 size={15} /> },
   ]},
   { items: [

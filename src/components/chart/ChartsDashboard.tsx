@@ -4565,6 +4565,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             onActiveIndsChange={setActiveInds}
             onIndicatorSettings={(name) => setIndSettingsFor(name)}
             onExtHoursChange={setExtHours}
+            extendedHoursValue={extHours}
             onAlerts={() => setAlertsOpen(o => !o)}
             alertsActive={alertsOpen}
             toolsTriggerRef={toolsTriggerRef}

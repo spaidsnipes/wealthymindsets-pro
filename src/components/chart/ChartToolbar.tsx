@@ -565,6 +565,13 @@ interface ChartToolbarProps {
   onActiveIndsChange?: (inds: Set<string>) => void;
   onIndicatorSettings?: (name: string) => void;
   onExtHoursChange?:   (v: boolean) => void;
+  /**
+   * The room's saved RTH/ETH choice. The select SHOWS it and reports only the
+   * trader's own change — it never pushes a default of its own. (It used to
+   * start at RTH and push that up on every mount, so a saved ETH was
+   * overwritten each time the chart loaded.)
+   */
+  extendedHoursValue?: boolean;
   // New props
   onAlerts?:           () => void;
   alertsActive?:       boolean;
@@ -697,7 +704,7 @@ export function ChartToolbar({
   onConnectBrokers, onCapture, captureOpen, onWatchlist, watchlistOpen, onDraw, drawOpen, onSmartMoney, smartMoneyActive, onJournalStats, journalStatsOpen,
   onDOM, onPineScript, onCommunity,
   pineActive,
-  initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
+  initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange, extendedHoursValue,
   onAlerts, alertsActive, onSettings, onAppearanceToggle, appearanceLabel, toolsTriggerRef,
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
@@ -710,7 +717,13 @@ export function ChartToolbar({
   const [symCat,         setSymCat]        = useState("All");
   const [indicatorOpen,  setIndicatorOpen] = useState(false);
   const [advancedOpen,   setAdvancedOpen]  = useState(false);
-  const [extendedHours,  setExtendedHours] = useState(false);
+  const [extendedHoursLocal, setExtendedHoursLocal] = useState(false);
+  // Controlled by the room when it passes its saved value; local otherwise.
+  const extendedHours = extendedHoursValue ?? extendedHoursLocal;
+  const setExtendedHours = (v: boolean) => {
+    if (extendedHoursValue === undefined) setExtendedHoursLocal(v);
+    onExtHoursChange?.(v);
+  };
   const [activeInds,     setActiveInds]    = useState<Set<string>>(() => initialActiveInds ? new Set(initialActiveInds) : new Set<string>());
   const [indSearch,      setIndSearch]     = useState("");
   const [indCat,         setIndCat]        = useState("All");
@@ -802,7 +815,8 @@ export function ChartToolbar({
 
   /* expose active indicators and ext hours to parent */
   useEffect(() => { onActiveIndsChange?.(activeInds); }, [activeInds]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { onExtHoursChange?.(extendedHours); }, [extendedHours]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Ext hours is reported by setExtendedHours on the trader's own change only —
+  // never on mount (that overwrote the room's saved choice with RTH).
 
   /* close on outside click */
   useEffect(() => {
