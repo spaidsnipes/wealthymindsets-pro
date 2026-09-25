@@ -5471,6 +5471,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         zoneLineage={selectedZoneLineage}
                         selectedLevel={selectedLevelObject}
                         levelLineage={selectedLevelLineage}
+                        timeZone={effChartSettings.displayTimeZone}
                         selectedAnatomy={activeSelectedAnatomy}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}

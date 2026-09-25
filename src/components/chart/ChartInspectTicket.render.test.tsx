@@ -84,11 +84,26 @@ describe("the ticket puts its verdict on the glass", () => {
     expect(html).toContain("86250.125");
     expect(html).toContain("1.17161234");
     expect(html).toContain("event:coinbase:print-42");
-    expect(html).toContain(new Date(BAR_OPEN_MS + 125).toISOString());
+    // Millisecond-exact and zone-named (no display zone passed → UTC).
+    expect(html).toContain("2025-06-15 15:06:40.125 UTC");
     expect(html).toContain("provider maker-side inversion");
     expect(html).toContain("UNKNOWN");
     expect(html).not.toContain("+25");
     expect(html).not.toContain("chart-inspect-footprint-door");
+  });
+
+  it("prints the execution time on the axis's clock, naming the zone", () => {
+    const html = markup(coveringTape(), {
+      timeZone: "America/Chicago",
+      selectedPrint: {
+        symbol: "BTCUSD", timeframe: "1m", barTime: BAR_OPEN_MS / 1000,
+        printKey: "event:coinbase:print-42", timeMs: BAR_OPEN_MS + 125,
+        priceLevel: 86250.125, bid: 0, ask: 1.17161234, total: 1.17161234,
+        aggressorMethod: "MAKER_SIDE_INVERTED",
+      },
+    });
+    expect(html).toContain("2025-06-15 10:06:40.125 CDT");
+    expect(html).not.toContain("UTC");
   });
 
   it("prints a read delta as a signed number", () => {

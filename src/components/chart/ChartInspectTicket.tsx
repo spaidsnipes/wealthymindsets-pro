@@ -71,6 +71,41 @@ import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
 const UNREAD_COLOR = "#F0B429";
+
+/**
+ * ONE CLOCK WITH THE AXIS. Every time Inspect prints is in the chart's display
+ * zone (the same IANA zone the time axis and crosshair use) and names that zone.
+ * Before, the ticket printed labelled UTC beside an axis in the trader's zone —
+ * honest, but the trader converted in their head (measured on serving
+ * 2026-09-25: a push "06:18 – 06:21 UTC" under an axis reading 01:18).
+ */
+function zonedClock(timeZone: string | null | undefined) {
+  let tz = timeZone || "UTC";
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { tz = "UTC"; }
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", timeZoneName: "short",
+  });
+  const parts = (ms: number) => {
+    const o: Record<string, string> = {};
+    for (const p of fmt.formatToParts(new Date(ms))) o[p.type] = p.value;
+    return o;
+  };
+  return {
+    /** "YYYY-MM-DD HH:MM", no zone word (pair with `zone`). */
+    minute: (sec: number) => { const p = parts(sec * 1000); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`; },
+    hhmm: (sec: number) => { const p = parts(sec * 1000); return `${p.hour}:${p.minute}`; },
+    /** The zone's short name at that instant (CDT, EST, UTC …). */
+    zone: (sec: number) => parts(sec * 1000).timeZoneName ?? tz,
+    /** "YYYY-MM-DD HH:MM ZZZ". */
+    stamp: (sec: number) => { const p = parts(sec * 1000); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute} ${p.timeZoneName ?? tz}`; },
+    /** Millisecond-exact, zoned: "YYYY-MM-DD HH:MM:SS.mmm ZZZ". */
+    exact: (ms: number) => {
+      const p = parts(ms);
+      return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}.${String(((ms % 1000) + 1000) % 1000).padStart(3, "0")} ${p.timeZoneName ?? tz}`;
+    },
+  };
+}
 const READ_COLOR = "#E8EAF2";
 
 function Row({ row }: { row: TicketRow }) {
@@ -170,7 +205,7 @@ function AnatomyRow({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => void }) {
+function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClose: () => void; timeZone?: string | null }) {
   const r = sel.reading;
   const absorption = r.target.reading === "ABSORPTION";
   // The body is the CURRENT reading whenever the owners still measure it; only
@@ -178,22 +213,23 @@ function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => 
   // with the window it was measured on.
   const body: AnatomyInspectVM | null = r.card ? r : sel.lastDrawn;
   const bodyIsLast = body !== null && body !== r;
-  const utc = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ");
-  const hhmm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16);
+  const clock = zonedClock(timeZone);
+  const utc = clock.minute;
+  const hhmm = clock.hhmm;
   const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
   const px = (v: number) => String(+v.toPrecision(8));
   const spanOf = (t: AnatomyTarget) => `${utc(t.startTime)} – ${hhmm(t.endTime)}`;
   const windowLine = (w: AnatomyInspectVM["window"]) =>
     w.from == null || w.to == null
       ? `${w.bars} bars in view`
-      : `${w.bars} bars in view · ${utc(w.from)} – ${utc(w.to)} UTC${w.capped ? " · capped: the field keeps the right-hand end of the view" : ""}`;
+      : `${w.bars} bars in view · ${utc(w.from)} – ${utc(w.to)} ${clock.zone(w.to)}${w.capped ? " · capped: the field keeps the right-hand end of the view" : ""}`;
 
   let status: string | null = null;
   if (r.state === "RESHAPED") {
     const now = r.zone
       ? `${utc(r.zone.startTime)} – ${hhmm(r.zone.endTime)}`
       : r.push ? `${utc(r.push.pushStartTime)} – ${hhmm(r.push.pushEndTime)}` : "—";
-    status = `The ${absorption ? "run" : "push"} has changed since you selected it: ${spanOf(r.target)} → ${now} UTC.`;
+    status = `The ${absorption ? "run" : "push"} has changed since you selected it: ${spanOf(r.target)} → ${now} ${clock.zone(r.target.endTime)}.`;
   } else if (r.state === "NOT_GRADED_IN_WINDOW") {
     status = absorption
       ? `This window (${r.window.bars} bars) no longer grades it — every reading here is relative to the bars in view.`
@@ -253,7 +289,7 @@ function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => 
         const z = body.zone;
         return (
           <dl className="mt-1.5 space-y-1 text-[11px] break-words" style={{ color: "#C8C0AE" }}>
-            <Row k="Span · UTC" v={`${utc(z.startTime)} – ${hhmm(z.endTime)} · ${z.barCount} bars`} />
+            <Row k={`Span · ${clock.zone(z.startTime)}`} v={`${utc(z.startTime)} – ${hhmm(z.endTime)} · ${z.barCount} bars`} />
             <Row k="Band" v={`${px(z.priceLo)} – ${px(z.priceHi)}`} />
             <Row k="Effort basis" v={ANATOMY_BASIS[body.window.basis]} />
             <div>
@@ -283,7 +319,7 @@ function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => 
         const effortWord = body.window.basis === "VOLUME" ? "traded volume" : body.window.basis === "UNMEASURED" ? "unmeasured" : "|ask − bid|";
         return (
           <dl className="mt-1.5 space-y-1 text-[11px] break-words" style={{ color: "#C8C0AE" }}>
-            <Row k="Push" v={`${p.direction === "UP" ? "Up" : "Down"} · ${p.pushBars} bars · ${utc(p.pushStartTime)} – ${hhmm(p.pushEndTime)} UTC`} />
+            <Row k="Push" v={`${p.direction === "UP" ? "Up" : "Down"} · ${p.pushBars} bars · ${utc(p.pushStartTime)} – ${hhmm(p.pushEndTime)} ${clock.zone(p.pushEndTime)}`} />
             <Row k="Origin → extreme" v={`${px(p.originPrice)} → ${px(p.price)} · extreme at ${hhmm(p.time)}`} />
             <Row k="Effort 2nd ÷ 1st" v={p.aggressionLevel == null
               ? `NOT MEASURED · ${p.effortUnreportedBars > 0 ? `effort not reported on ${p.effortUnreportedBars} of ${p.pushBars} bars (${effortWord}) — a data gap is not a fade` : "no first-half effort to decline from"}`
@@ -342,6 +378,7 @@ export function ChartInspectTicket({
   fusion = null,
   profileDna = null,
   profileDnaOnGlass = false,
+  timeZone = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -379,7 +416,10 @@ export function ChartInspectTicket({
   profileDna?: ProfileDnaVM | null;
   /** True when the Living Profile DNA sits on is actually drawn this frame. */
   profileDnaOnGlass?: boolean;
+  /** The chart's display zone (IANA) — the axis's clock. Every printed time uses it and names it. */
+  timeZone?: string | null;
 }) {
+  const clock = zonedClock(timeZone);
   if (!open) {
     return (
       <button
@@ -413,7 +453,7 @@ export function ChartInspectTicket({
     const lc = z.lifecycle;
     // Only a lineage compiled for THIS object is printed beside it.
     const lineage = zoneLineage?.objectId === z.object.objectId ? zoneLineage : null;
-    const t = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+    const t = clock.stamp;
     const ageSec = lc.asOf != null ? lc.asOf - z.birthTime : null;
     const age = ageSec == null ? "UNKNOWN" : `${Math.floor(ageSec / 86400)}d ${Math.floor((ageSec % 86400) / 3600)}h ${Math.floor((ageSec % 3600) / 60)}m`;
     const stateNote: Record<string, string> = {
@@ -578,7 +618,7 @@ export function ChartInspectTicket({
   if (selectedLevel) {
     const o = selectedLevel;
     const lineage = levelLineage?.objectId === o.objectId ? levelLineage : null;
-    const t = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+    const t = clock.stamp;
     const price = o.priceLow === o.priceHigh ? o.priceHigh.toFixed(2) : `${o.priceLow.toFixed(2)} – ${o.priceHigh.toFixed(2)}`;
     const side = o.objectId.endsWith(":HIGH") ? "Swing high" : o.objectId.endsWith(":LOW") ? "Swing low" : null;
     const Head = ({ icon: Icon, children }: { icon: typeof Crosshair; children: React.ReactNode }) => (
@@ -655,7 +695,7 @@ export function ChartInspectTicket({
   }
 
   if (selectedAnatomy) {
-    return <AnatomyTicket sel={selectedAnatomy} onClose={() => onOpenChange(false)} />;
+    return <AnatomyTicket sel={selectedAnatomy} onClose={() => onOpenChange(false)} timeZone={timeZone} />;
   }
 
   if (selectedProfileSlice) {
@@ -679,7 +719,7 @@ export function ChartInspectTicket({
               <dt>Distance from POC</dt><dd>{sl.distanceFromPoc == null ? "UNKNOWN" : `${sl.distanceFromPoc >= 0 ? "+" : ""}${fmt(sl.distanceFromPoc)}`}</dd>
               <dt>Node</dt><dd>{sl.node ?? (sl.nodesWithheld ? "WITHHELD — candle-estimated profile" : "none")}</dd>
               <dt>Fidelity</dt><dd>{sl.estimated ? "CANDLE-ESTIMATED — bar volume spread over each bar's range" : "TRADE-BASED — prints placed at their price"}</dd>
-              <dt>As of · UTC</dt><dd>{profileSliceAsOf != null ? new Date(profileSliceAsOf * 1000).toISOString() : "UNKNOWN"}</dd>
+              <dt>As of</dt><dd>{profileSliceAsOf != null ? clock.exact(profileSliceAsOf * 1000) : "UNKNOWN"}</dd>
             </dl>
             <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>A bucket is where size traded, not who traded it or why. Intent: UNKNOWN.</p>
             {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
@@ -718,7 +758,7 @@ export function ChartInspectTicket({
             <dt>Net in this zone (bought − sold)</dt><dd className="text-white">{net >= 0 ? "+" : "−"}{formatBubbleExact(net)}</dd>
             <dt>Bought · sold</dt><dd className="text-white">{formatBubbleVolume(p.ask)} · {formatBubbleVolume(p.bid)}</dd>
             <dt>Anchor · heaviest tick</dt><dd>{formatBubblePrice(p.priceLevel)} — where it is drawn, not where all of it traded</dd>
-            <dt>Bar · UTC</dt><dd>{Number.isFinite(p.barTime) ? new Date(p.barTime * 1000).toISOString() : "UNKNOWN"}</dd>
+            <dt>Bar</dt><dd>{Number.isFinite(p.barTime) ? clock.stamp(p.barTime) : "UNKNOWN"}</dd>
             <dt>Side fidelity</dt><dd>{stamped ? "OBSERVED" : inferred ? "INFERRED" : "UNKNOWN"} · {describeAggressorMethod(p.aggressorMethod)}</dd>
             <dt>Size relation</dt><dd>{relation}</dd>
           </dl>
@@ -738,7 +778,7 @@ export function ChartInspectTicket({
         <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
           <dt>Executed price</dt><dd className="text-white">{String(p.priceLevel)}</dd>
           <dt>Executed size</dt><dd className="text-white">{String(p.total)}</dd>
-          <dt>Execution time · UTC</dt><dd>{p.timeMs != null ? new Date(p.timeMs).toISOString() : "UNKNOWN"}</dd>
+          <dt>Execution time</dt><dd>{p.timeMs != null ? clock.exact(p.timeMs) : "UNKNOWN"}</dd>
           <dt>Side fidelity</dt><dd>{stamped ? "OBSERVED" : inferred ? "INFERRED" : "UNKNOWN"}{stamped || inferred ? ` · ${p.ask >= p.bid ? "buy" : "sell"} classification` : " · classification not verified"}</dd>
           <dd>{describeAggressorMethod(p.aggressorMethod)}</dd>
           <dt>Execution identity</dt><dd>{p.printKey ?? "UNKNOWN"}</dd>
@@ -847,7 +887,7 @@ export function ChartInspectTicket({
           {fusion.sources.map(s => (
             <div key={s.id}>Source {s.species} · own POC {s.poc?.toFixed(2) ?? "—"} · volume {Math.round(s.volume).toLocaleString("en-US")}</div>
           ))}
-          <div>Method {fusion.method} v{fusion.version} · grid {fusion.step} · asOf {fusion.asOf != null ? new Date(fusion.asOf * 1000).toISOString().slice(0, 16).replace("T", " ") : "—"} UTC · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
+          <div>Method {fusion.method} v{fusion.version} · grid {fusion.step} · asOf {fusion.asOf != null ? clock.stamp(fusion.asOf) : "—"} · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
         </div>
       )}
 
@@ -875,7 +915,7 @@ export function ChartInspectTicket({
           <div className="font-bold tracking-wide text-wm-gold">MEMORY GHOST · {memoryGhost.drawn ? "ANALOGUE" : "NO ANALOGUE DRAWN"}</div>
           {memoryGhost.drawn && memoryGhost.analogueStart != null && memoryGhost.analogueEnd != null ? (
             <>
-              <div>Sample · {new Date(memoryGhost.analogueStart * 1000).toISOString().slice(0, 16).replace("T", " ")} → {new Date(memoryGhost.analogueEnd * 1000).toISOString().slice(11, 16)} UTC · {memoryGhost.points.length} bars</div>
+              <div>Sample · {clock.minute(memoryGhost.analogueStart)} → {clock.hhmm(memoryGhost.analogueEnd)} {clock.zone(memoryGhost.analogueEnd)} · {memoryGhost.points.length} bars</div>
               <div>Fit r = {memoryGhost.fit?.toFixed(2)} · mismatch {memoryGhost.mismatchPct?.toFixed(2)} pts of % path</div>
               <div>Best of {memoryGhost.candidates} earlier windows · laid under the live bars only — never projected forward</div>
             </>
