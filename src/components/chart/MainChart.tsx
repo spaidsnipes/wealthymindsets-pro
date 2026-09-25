@@ -5801,7 +5801,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
           const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
-          const levels = getBarFootprint(c, numLevels);
+          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
+          // low upward, and every mode paints row li at yH + li·rowH counting
+          // DOWN from the high — so the rows are taken high-first here, or the
+          // volume traded at the low is painted at the top of the candle.
+          const levels = getBarFootprint(c, numLevels).reverse();
           // No captured executions means no footprint layer for this bar. In
           // particular, do not paint the dark footprint base over a perfectly
           // valid candle and do not turn unavailable evidence into visual zeroes.
@@ -5921,7 +5925,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
           const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
-          const levels = getBarFootprint(c, numLevels);
+          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
+          // low upward, and every mode paints row li at yH + li·rowH counting
+          // DOWN from the high — so the rows are taken high-first here, or the
+          // volume traded at the low is painted at the top of the candle.
+          const levels = getBarFootprint(c, numLevels).reverse();
           // Empty means unavailable, not zero. Skip the whole bar before the
           // background/POC pass so historical candles stay readable and reduce()
           // is never asked to manufacture a winner from an empty collection.
@@ -6199,7 +6207,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
           const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
-          const levels = getBarFootprint(c, numLevels);
+          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
+          // low upward, and every mode paints row li at yH + li·rowH counting
+          // DOWN from the high — so the rows are taken high-first here, or the
+          // volume traded at the low is painted at the top of the candle.
+          const levels = getBarFootprint(c, numLevels).reverse();
           if (levels.length === 0) return;
           const maxTot = Math.max(1, ...levels.map(l => l.total));
           const maxBarW = halfW - 1;
@@ -6272,7 +6284,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const maxLev2 = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
           const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLev);
-          const levels = getBarFootprint(c, numLev);
+          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
+          // low upward, and every mode paints row li at yH + li·rowH counting
+          // DOWN from the high — so the rows are taken high-first here, or the
+          // volume traded at the low is painted at the top of the candle.
+          const levels = getBarFootprint(c, numLev).reverse();
           if (levels.length === 0) return;
           const x      = cx - halfW;
 
@@ -6346,7 +6362,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const maxLev2 = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
           const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLev);
-          const levels = getBarFootprint(c, numLev);
+          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
+          // low upward, and every mode paints row li at yH + li·rowH counting
+          // DOWN from the high — so the rows are taken high-first here, or the
+          // volume traded at the low is painted at the top of the candle.
+          const levels = getBarFootprint(c, numLev).reverse();
           if (levels.length === 0) return;
           const x      = cx - halfW;
 
