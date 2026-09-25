@@ -70,6 +70,13 @@ export interface TapeCvdInput {
   aggressorMethod: string | null | undefined;
   /** False when the active tape source is not a verified aggressor tape. */
   verifiedTape: boolean;
+  /**
+   * The first trade the accumulator actually holds (epoch seconds), or null
+   * when unknown. The horizon is persisted for days; the accumulator is
+   * in-memory and restarts on reload (or refolds from the bounded recent
+   * buffer on a timeframe switch) — so "since" can never be earlier than this.
+   */
+  accumulatorStartedAtSec?: number | null;
 }
 
 export function barTapeDelta(levels: ReadonlyMap<number, TapeCvdLevel>): number {
@@ -109,10 +116,16 @@ export function selectTapeCvd(input: TapeCvdInput): TapeCvdResult {
   }
   if (!points.length) return refuse("NO_TAPE_IN_VIEW");
 
-  const sinceSec = startsAtHorizon && points[0].time === start && input.horizonStartedAtSec != null
-    ? input.horizonStartedAtSec
-    : points[0].time;
-  return { points, sinceSec, startsAtHorizon: startsAtHorizon && points[0].time === start, sidesInferred, refused: null };
+  // Honest "since": the horizon only when the accumulator has held the tape
+  // from the horizon on; otherwise the first trade it actually holds (never a
+  // bar's open time, which can sit hours before the first trade on 1D).
+  const acc = Number.isFinite(input.accumulatorStartedAtSec as number) ? (input.accumulatorStartedAtSec as number) : null;
+  const heldFromHorizon = startsAtHorizon && points[0].time === start && input.horizonStartedAtSec != null
+    && (acc == null || acc <= input.horizonStartedAtSec);
+  const sinceSec = heldFromHorizon
+    ? input.horizonStartedAtSec!
+    : acc != null ? Math.max(acc, points[0].time) : points[0].time;
+  return { points, sinceSec, startsAtHorizon: heldFromHorizon, sidesInferred, refused: null };
 }
 
 /** The pane's one caption. `hhmm` formats epoch seconds in the chart's zone. */

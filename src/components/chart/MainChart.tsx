@@ -2448,6 +2448,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
+  // The first trade the accumulator above actually holds (epoch seconds). The
+  // tape horizon is persisted for days; this map is in-memory and restarts on
+  // reload / refolds on a timeframe switch — the Tape CVD's "since" may never
+  // claim earlier than this.
+  const tickAccStartedAtRef = useRef<number | null>(null);
   // Big Trades is NOT a price-level reading. Keep the individual executions
   // beside (not inside) the footprint accumulator so two prints at one price
   // remain two bubbles with two timestamps and two canonical event ids.
@@ -2519,6 +2524,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // owned intermediate caches — safe to rebuild on any of (symbol, source,
     // timeframe) change. The bounded recent-tick buffer folds back into them.
     tickAccRef.current = new Map();
+    tickAccStartedAtRef.current = null;
     bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
     deltaTickAccRef.current = new Map();
@@ -2569,6 +2575,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         aggressorMethod: tick.marketEvent?.aggressorMethod,
       });
       if (!tickAccRef.current.has(barTime)) tickAccRef.current.set(barTime, new Map());
+      const heardSec = tick.time / 1000;
+      if (tickAccStartedAtRef.current == null || heardSec < tickAccStartedAtRef.current) tickAccStartedAtRef.current = heardSec;
       const lvlMap = tickAccRef.current.get(barTime)!;
       const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
       lvlMap.set(priceLevel, {
@@ -2589,6 +2597,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
       bigTradePrintAccRef.current.delete(oldest);
+      // What is held now begins no earlier than the oldest retained bar.
+      const nextOldest = Math.min(...tickAccRef.current.keys());
+      if (Number.isFinite(nextOldest)) {
+        tickAccStartedAtRef.current = Math.max(tickAccStartedAtRef.current ?? nextOldest, nextOldest);
+      }
     }
     // Throttled render trigger for the Live Session chip. rAF-safe: only bumps
     // state up to ~4x per second so a busy tape does not thrash React.
@@ -2659,6 +2672,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       horizonStartedAtSec: horizonOk ? horizon!.startedAtSec : null,
       aggressorMethod: getRuntimeTapeCapability(src)?.aggressorMethod ?? null,
       verifiedTape: hasRealAggressorTape(src ?? ""),
+      accumulatorStartedAtSec: tickAccStartedAtRef.current,
     });
     tapeCvdRef.current = r;
     const pair = ofColorsRef.current.delta ?? OF_DEFAULT;
@@ -2677,7 +2691,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }));
     } catch { /* series removed mid-flush; the next build refills */ }
   };
-  useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready]);
+  // `candles` too: the new timeframe's bars arrive after the switch commits, and
+  // a quiet tape would otherwise leave the pane computed on the old bars.
+  useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candles]);
 
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
   useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
@@ -13358,7 +13374,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const paneIdx = cvdSeries.getPane().paneIndex();
           let top = 0;
           for (let i = 0; i < paneIdx; i++) top += (chart.paneSize(i)?.height ?? 0) + 1;
-          const text = tapeCvdCaption(cvd, sec => fmtTickMark(sec, 3));
+          // Date AND time: on 1D/1W a bare clock time can name a different day.
+          const text = tapeCvdCaption(cvd, sec => fmtAxisTime(sec));
           ctx.save();
           ctx.font = "700 9.5px ui-sans-serif, system-ui, sans-serif";
           ctx.textAlign = "left"; ctx.textBaseline = "top";

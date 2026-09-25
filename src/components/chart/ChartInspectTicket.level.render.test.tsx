@@ -69,7 +69,7 @@ describe("a selected LEVEL opens its Passport, not the bar ticket", () => {
     expect(html).toContain("MARKET OBJECT PASSPORT");
     expect(html).toContain(`data-inspect-object="${high.objectId}"`);
     expect(html).toContain('data-inspect-kind="LEVEL"');
-    expect(html).toContain("Level · 14.00 · swing high");
+    expect(html).toContain("Level · 14 · swing high");
     expect(html).toContain(">INDICATIVE<");
     expect(html).toContain('data-inspect-lineage="READ"');
     expect(html).toContain("BTC|1h|2000|e0 · coinbase · REST_BACKFILL · INDICATIVE");
@@ -90,5 +90,22 @@ describe("a selected LEVEL opens its Passport, not the bar ticket", () => {
     const other = low ?? { ...high, objectId: "LEVEL:other" };
     const html = passport(high, selectObjectLineage({ object: other, method: METHOD, identities, decisionId: null }));
     expect(html).toContain('data-inspect-lineage="NOT_COMPILED"');
+  });
+
+  it("prints the level at full precision (an FX level is not rounded to 2 dp)", () => {
+    const fx = { ...high, priceLow: 1.08347, priceHigh: 1.08347 };
+    const html = passport(fx, null);
+    expect(html).toContain("Level · 1.08347 · swing high");
+    expect(html).not.toContain("1.08 ");
+  });
+
+  it("a Profile Memory level names itself and its tests, from the same drawer", () => {
+    const mem = { ...high, objectId: "MEMORY:BTC|1h|2000|e0:POC", state: "TESTED" as const,
+      testBarIds: ["BTC|1h|3000|e0"], evidenceIds: ["BTC|1h|2000|e0", "BTC|1h|3000|e0"] };
+    const html = passport(mem, selectObjectLineage({ object: mem, method: "selectProfileMemory", identities, decisionId: null }));
+    expect(html).toContain("Prior-session POC");
+    expect(html).toContain("1 recent — each test bar is in the evidence list (Profile Memory keeps the most recent)");
+    expect(html).toMatch(/BTC\|1h\|3000\|e0<\/span> <span[^>]*>· test/);
+    expect(html).not.toContain("the level owner publishes only untouched levels");
   });
 });

@@ -131,4 +131,42 @@ describe("tape CVD", () => {
     });
     expect(r.points[0].to).toBe(0);
   });
+
+  it("a persisted horizon never outclaims an accumulator that restarted later (reload)", () => {
+    // Horizon 09:05 (persisted), page reloaded at 15:00: the 1D bar holds the
+    // horizon, but the running total only holds trades from 15:00.
+    const r = selectTapeCvd({
+      ...base,
+      bars: bars(0),
+      horizonBarSec: 0,
+      horizonStartedAtSec: 9 * 3600 + 300,
+      accumulatorStartedAtSec: 15 * 3600,
+      accumulator: new Map([[0, lv([[1, 0, 3]])]]),
+    });
+    expect(r.startsAtHorizon).toBe(false);
+    expect(r.sinceSec).toBe(15 * 3600);
+  });
+
+  it("an accumulator that has held the tape since the horizon keeps the horizon's time", () => {
+    const r = selectTapeCvd({
+      ...base,
+      bars: bars(120, 180),
+      horizonBarSec: 120,
+      horizonStartedAtSec: 150,
+      accumulatorStartedAtSec: 150,
+      accumulator: new Map([[120, lv([[1, 0, 2]])], [180, lv([[1, 0, 1]])]]),
+    });
+    expect(r.startsAtHorizon).toBe(true);
+    expect(r.sinceSec).toBe(150);
+  });
+
+  it("falling back to the oldest held bar says the first HELD trade, not the bar's open", () => {
+    const r = selectTapeCvd({
+      ...base,
+      bars: bars(0, 86400),
+      accumulatorStartedAtSec: 50_000,
+      accumulator: new Map([[0, lv([[1, 0, 1]])], [86400, lv([[1, 1, 0]])]]),
+    });
+    expect(r.sinceSec).toBe(50_000);
+  });
 });

@@ -55,6 +55,14 @@ describe("the one CVD is the tape's", () => {
     expect(FILL).toContain("tapeHorizonBarStart(");
     expect(FILL).toContain("aggressorMethod");
     expect(FILL).toContain("hasRealAggressorTape(");
+    // "since" can never outclaim what the in-memory accumulator holds.
+    expect(FILL).toContain("accumulatorStartedAtSec: tickAccStartedAtRef.current,");
+    expect(CHART).toContain("tickAccStartedAtRef.current = null;");
+  });
+
+  it("refills when the bars arrive, and dates its caption", () => {
+    expect(CHART).toContain("useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candles]);");
+    expect(CAPTION).toContain("tapeCvdCaption(cvd, sec => fmtAxisTime(sec))");
   });
 
   it("no bar's open or close signs anything", () => {

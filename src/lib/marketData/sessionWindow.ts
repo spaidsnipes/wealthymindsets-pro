@@ -58,6 +58,18 @@ export interface SessionWindow {
   readonly label: string;
   /** Daily-or-longer only: how many of the latest bars form the window. */
   readonly windowBars: number | null;
+  /** The bar's length in minutes — a bar belongs to RTH/ETH if it OVERLAPS
+   *  the window, not only if it opens inside it (a 09:00 1h bar holds the
+   *  09:30 open; the chart's own isRegularSession keeps it). */
+  readonly barMinutes: number;
+}
+
+/** "5m" → 5, "1h" → 60, "4h" → 240; tick and unknown frames → 1. */
+export function barMinutesOf(timeframe: string): number {
+  const m = /^(\d+)(m|h)$/i.exec(timeframe.trim());
+  if (!m) return 1;
+  const n = Number(m[1]);
+  return m[2].toLowerCase() === "h" ? n * 60 : n;
 }
 
 const DAILY_OR_LONGER = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/;
@@ -68,17 +80,18 @@ const DAILY_WINDOW_BARS: Readonly<Record<string, number>> = {
 export function sessionWindowFor(symbol: string, timeframe: string, extendedHours: boolean): SessionWindow {
   if (DAILY_OR_LONGER.test(timeframe)) {
     const n = DAILY_WINDOW_BARS[timeframe] ?? 5;
-    return { kind: "DAILY_WINDOW", label: `LAST ${n} BARS · each ${timeframe} bar is already a whole session`, windowBars: n };
+    return { kind: "DAILY_WINDOW", label: `LAST ${n} BARS · each ${timeframe} bar is already a whole session`, windowBars: n, barMinutes: 1440 };
   }
+  const barMinutes = barMinutesOf(timeframe);
   const cls = classifySymbol(symbol);
   if (cls === "EQUITY" || cls === "INDEX") {
     return extendedHours
-      ? { kind: "US_EQUITY_ETH", label: "SESSION · ETH 04:00–20:00 ET", windowBars: null }
-      : { kind: "US_EQUITY_RTH", label: "SESSION · RTH 09:30–16:00 ET", windowBars: null };
+      ? { kind: "US_EQUITY_ETH", label: "SESSION · ETH 04:00–20:00 ET", windowBars: null, barMinutes }
+      : { kind: "US_EQUITY_RTH", label: "SESSION · RTH 09:30–16:00 ET", windowBars: null, barMinutes };
   }
-  if (cls === "FUTURES") return { kind: "GLOBEX_DAY", label: "SESSION · GLOBEX 18:00–17:00 ET", windowBars: null };
-  if (cls === "FOREX") return { kind: "FX_DAY", label: "SESSION · FX DAY · 17:00 ET ROLL", windowBars: null };
-  return { kind: "CONTINUOUS_ET_DAY", label: "DAY · ET MIDNIGHT · continuous market, no venue session", windowBars: null };
+  if (cls === "FUTURES") return { kind: "GLOBEX_DAY", label: "SESSION · GLOBEX 18:00–17:00 ET", windowBars: null, barMinutes };
+  if (cls === "FOREX") return { kind: "FX_DAY", label: "SESSION · FX DAY · 17:00 ET ROLL", windowBars: null, barMinutes };
+  return { kind: "CONTINUOUS_ET_DAY", label: "DAY · ET MIDNIGHT · continuous market, no venue session", windowBars: null, barMinutes };
 }
 
 const ET = new Intl.DateTimeFormat("en-CA", {
@@ -100,13 +113,14 @@ function etParts(sec: number): { date: string; minute: number } {
  */
 export function sessionKeyOf(sec: number, win: SessionWindow): string | null {
   switch (win.kind) {
+    // A bar belongs to the window if any part of it is inside it.
     case "US_EQUITY_RTH": {
       const p = etParts(sec);
-      return p.minute >= 570 && p.minute < 960 ? p.date : null;
+      return p.minute + win.barMinutes > 570 && p.minute < 960 ? p.date : null;
     }
     case "US_EQUITY_ETH": {
       const p = etParts(sec);
-      return p.minute >= 240 && p.minute < 1200 ? p.date : null;
+      return p.minute + win.barMinutes > 240 && p.minute < 1200 ? p.date : null;
     }
     case "GLOBEX_DAY": {
       const p = etParts(sec);

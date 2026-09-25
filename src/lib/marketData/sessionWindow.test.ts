@@ -77,4 +77,15 @@ describe("each market gets its own session definition, named", () => {
     const rth = sessionWindowFor("AAPL", "5m", false);
     expect(selectSessionWindowBars([bar(et(13, 3, 0)), bar(et(13, 21, 0))], rth)).toEqual([]);
   });
+
+  it("an hourly bar that holds the 09:30 open is in the RTH session (overlap, not open time)", () => {
+    const rth = sessionWindowFor("AAPL", "1h", false);
+    expect(rth.barMinutes).toBe(60);
+    const bars = [8, 9, 10, 15, 16].map(h => bar(et(13, h)));
+    // 08:00 (08–09) is out; 09:00 (09–10) holds the open; 15:00 is in; 16:00 is out.
+    expect(selectSessionWindowBars(bars, rth).map(b => b.time)).toEqual([et(13, 9), et(13, 10), et(13, 15)]);
+    // 4h bars at 04/08/12/16: 08:00 and 12:00 overlap RTH.
+    const h4 = sessionWindowFor("AAPL", "4h", false);
+    expect([4, 8, 12, 16].map(h => sessionKeyOf(et(13, h), h4))).toEqual([null, "2026-01-13", "2026-01-13", null]);
+  });
 });

@@ -67,6 +67,7 @@ import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfi
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import type { ObjectLineageVM, ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
+import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -336,7 +337,9 @@ function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClo
                   : `${p.followThrough}/${FT_BARS} · ${p.followThrough === 0 ? "LOST" : "HELD"}`}
               </div>
             </div>
-            <Row k="Energy transfer" v={p.energyTransfer == null ? "— (effort zero)" : `${pct(p.energyTransfer)} · displacement per effort, 2nd half ÷ 1st`} />
+            <Row k="Energy transfer" v={p.energyTransfer == null
+              ? (p.aggressionLevel == null ? "— (effort not reported — no ratio to take)" : p.effortSecondHalf === 0 ? "— (effort zero)" : "— (no first-half displacement)")
+              : `${pct(p.energyTransfer)} · displacement per effort, 2nd half ÷ 1st`} />
             <Row k="Outcome" v={body.card?.outcome ?? "—"} />
             <Row k="Effort basis" v={ANATOMY_BASIS[body.window.basis]} />
             <Row k="Method" v={`selectExhaustion v${body.exhaustionVersion} · a push is ≥ ${MIN_PUSH_BARS} same-direction closes · exhausted = declining, extended and no follow-through`} />
@@ -497,7 +500,7 @@ export function ChartInspectTicket({
           <div className="space-y-1 px-4 py-3">
             <Head icon={CalendarDays}>BIRTH</Head>
             <Row k="Created" v={t(z.birthTime)} />
-            <Row k="Origin" v={<><span className="text-wm-gold">{z.side === "DEMAND" ? "Swing low" : "Swing high"}</span> · {z.object.priceLow.toFixed(2)} – {z.object.priceHigh.toFixed(2)}</>} />
+            <Row k="Origin" v={<><span className="text-wm-gold">{z.side === "DEMAND" ? "Swing low" : "Swing high"}</span> · {String(+z.object.priceLow.toPrecision(8))} – {String(+z.object.priceHigh.toPrecision(8))}</>} />
           </div>
           <div className="space-y-1 px-4 py-3">
             <Head icon={Hourglass}>AGE</Head>
@@ -596,7 +599,7 @@ export function ChartInspectTicket({
           <div className="space-y-1 px-4 py-3">
             <Head icon={AlertTriangle}>INVALIDATION CONDITION</Head>
             <div className="text-[12.5px]" style={{ color: "#C8C0AE" }}>
-              Invalidated if a close {z.side === "DEMAND" ? "below" : "above"} <span style={{ color: "#FF4D6A" }}>{lc.invalidationPrice.toFixed(2)}</span>
+              Invalidated if a close {z.side === "DEMAND" ? "below" : "above"} <span style={{ color: "#FF4D6A" }}>{String(+lc.invalidationPrice.toPrecision(8))}</span>
               {lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}
             </div>
             <div className="text-[11px]" style={{ color: "#8B8676" }}>(Bar close beyond the far edge · a wick through is a sweep, not a break)</div>
@@ -619,8 +622,12 @@ export function ChartInspectTicket({
     const o = selectedLevel;
     const lineage = levelLineage?.objectId === o.objectId ? levelLineage : null;
     const t = clock.stamp;
-    const price = o.priceLow === o.priceHigh ? o.priceHigh.toFixed(2) : `${o.priceLow.toFixed(2)} – ${o.priceHigh.toFixed(2)}`;
-    const side = o.objectId.endsWith(":HIGH") ? "Swing high" : o.objectId.endsWith(":LOW") ? "Swing low" : null;
+    // Full precision (a 1.08347 FX level is not "1.08").
+    const px = (v: number) => String(+v.toPrecision(8));
+    const price = o.priceLow === o.priceHigh ? px(o.priceHigh) : `${px(o.priceLow)} – ${px(o.priceHigh)}`;
+    const memoryKind = memoryLevelKindOf(o.objectId);
+    const side = memoryKind ? `Prior-session ${memoryKind}`
+      : o.objectId.endsWith(":HIGH") ? "Swing high" : o.objectId.endsWith(":LOW") ? "Swing low" : null;
     const Head = ({ icon: Icon, children }: { icon: typeof Crosshair; children: React.ReactNode }) => (
       <div className="flex items-center gap-2 text-[12px] font-bold tracking-[0.1em] text-wm-gold">
         <Icon size={15} aria-hidden /> {children}
@@ -653,8 +660,10 @@ export function ChartInspectTicket({
             <Head icon={Hourglass}>AGE · STATE</Head>
             <Row k="Since birth" v={`${o.decay} bars`} />
             <Row k="State" v={o.state} />
-            <Row k="Touches" v={o.testBarIds.length === 0 ? "None since birth — the level owner publishes only untouched levels; a touched level leaves the glass" : `${o.testBarIds.length}`} />
-            <Row k="Invalidation" v={o.invalidationPrice == null ? <span style={{ color: UNREAD_COLOR }}>No rule stated — this level has no lifecycle owner yet</span> : o.invalidationPrice.toFixed(2)} />
+            <Row k="Touches" v={o.testBarIds.length === 0
+              ? (memoryKind ? "None since birth — still naked" : "None since birth — the level owner publishes only untouched levels; a touched level leaves the glass")
+              : `${o.testBarIds.length} recent — each test bar is in the evidence list${memoryKind ? " (Profile Memory keeps the most recent)" : ""}`} />
+            <Row k="Invalidation" v={o.invalidationPrice == null ? <span style={{ color: UNREAD_COLOR }}>No rule stated — this level has no lifecycle owner yet</span> : px(o.invalidationPrice)} />
           </div>
           <div className="space-y-1 px-4 py-3" data-testid="passport-provenance"
             data-inspect-lineage={lineage ? lineage.birth.state : "NOT_COMPILED"}>
