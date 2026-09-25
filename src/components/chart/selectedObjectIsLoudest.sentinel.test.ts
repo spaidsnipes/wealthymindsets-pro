@@ -60,7 +60,10 @@ describe("the selected object is loudest", () => {
 
   it("both bubble loops read the selected print's key, recede the rest, and mark the selected one at full strength", () => {
     const delta = slice("const hoverIdD = bubbleHoverRef.current;", "} else if (deltaBubblesRef.current.length) {");
-    const big = slice("for (const b of [...bubblesRef.current].sort(", "canvas.dataset.bigTradeLabelsStaggered");
+    // 2026-09-25 (footprint canon, F07A): the loop's first receipt after it is
+    // `bigTradesDrawn` — the staggered-label receipt went with the labels that
+    // stepped outside their bubbles.
+    const big = slice("for (const b of [...bubblesRef.current].sort(", "canvas.dataset.bigTradesDrawn");
     for (const [name, loop, key] of [["delta", delta, "bubbles"], ["big-trade", big, "bigTrades"]] as const) {
       expect(loop, name).toMatch(/const selB = selectedBubbleKey != null && b\.spawnKey === selectedBubbleKey;/);
       expect(loop, name).toContain(`ctx.globalAlpha = att.alpha("${key}", { selectedItem: selB });`);

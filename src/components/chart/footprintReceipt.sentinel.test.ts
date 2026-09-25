@@ -17,13 +17,36 @@ import path from "node:path";
 const CHART = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
 
 describe("footprint receipt", () => {
-  it("every footprint mode reads its rows through the one counter", () => {
+  // 2026-09-25 (footprint canon): three modes paint rows (Bid × Ask cells,
+  // the Volume Profile histogram, Imbalance tint); the trail modes (Delta
+  // Bubbles, Agg/Passive) and Big Trades paint rings, and count those instead.
+  it("every ROW mode reads its rows through the one counter", () => {
     expect(CHART).not.toMatch(/const levels = getBarFootprint\(c, (numLevels|numLev)\)/);
-    expect(CHART.match(/const levels = fpLevels\(c, (numLevels|numLev)\)\.reverse\(\);/g)?.length).toBe(5);
+    expect(CHART.match(/const levels = fpLevels\(c, (numLevels|numLev)\)\.reverse\(\);/g)?.length).toBe(3);
   });
 
-  it("counts only bars that returned rows", () => {
-    expect(CHART).toMatch(/if \(rows\.length > 0\) \{ fpBarsPainted\+\+; fpRowsPainted \+= rows\.length; \}/);
+  // 2026-09-25: an untraded row is left BLANK on the glass (M46), so it is not
+  // a painted row — the counter counts rows that traded, and a bar only when
+  // one did.
+  it("counts only bars, and rows, that traded", () => {
+    expect(CHART).toMatch(/const heard = rows\.reduce\(\(k, r\) => k \+ \(r\.total > 0 \? 1 : 0\), 0\);/);
+    expect(CHART).toMatch(/if \(heard > 0\) \{ fpBarsPainted\+\+; fpRowsPainted \+= heard; \}/);
+  });
+
+  it("the ring modes count the bars and rings that reached the glass, and say which form painted", () => {
+    expect(CHART).toContain("fpTrailBars.add(b.anchorBarTime);");
+    expect(CHART).toContain("fpTrailBars.add(r.bar);");
+    expect(CHART).toContain("const fpBars = fpBarsPainted + fpTrailBars.size;");
+    expect(CHART).toContain("dsFp.footprintForm = FOOTPRINT_FORM[effectiveFP];");
+    expect(CHART).toContain("if (fpRings > 0) dsFp.footprintRings = String(fpRings);");
+  });
+
+  it("publishes after Big Trades has painted — never `big-trades:NO_EXECUTIONS` over a glass of bubbles", () => {
+    const receipt = CHART.indexOf("const fpBars = fpBarsPainted + fpTrailBars.size;");
+    const bigOff = CHART.indexOf("// Left big-trades mode");
+    expect(bigOff).toBeGreaterThan(-1);
+    expect(receipt).toBeGreaterThan(bigOff);
+    expect(CHART).toContain("fpRings += bigDrawn + bubblesQuieted;");
   });
 
   it("names OFF, silence, and paint as three different states, withdrawing stale counts", () => {

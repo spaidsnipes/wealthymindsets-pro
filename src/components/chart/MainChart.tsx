@@ -359,9 +359,31 @@ import {
   type BigTradeLevel,
   type SelectedBigTrade,
 } from "@/lib/bigTradeLevels";
-import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleVolume, formatBubblePrice, formatBubbleClock } from "@/lib/bubbleClaim";
+import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleVolume, formatBubbleClock } from "@/lib/bubbleClaim";
 import { bigTradeAnchor, bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
+// FOOTPRINT CANON (2026-09-25): the six per-candle modes' geometry, written
+// down before it was painted — see that module's header.
+import {
+  FOOTPRINT_FORM,
+  FOOTPRINT_MODE_RECEIPTS,
+  aggPassiveRing,
+  barTapeDelta,
+  bigTradeCalloutLines,
+  bigTradeCalloutSlots,
+  bigTradeInscriptionLines,
+  fitBidAskCellText,
+  fitBubbleInscription,
+  footprintHistogramRow,
+  imbalanceRunWord,
+  imbalanceRuns,
+  imbalanceStrength,
+  memoBigTradeResponsePath,
+  pickBigTradeCallout,
+  readImbalanceRows,
+  sessionSizePercentile,
+  signedFlowText,
+} from "@/lib/chart/footprintCanon";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
 // Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
@@ -6127,8 +6149,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       } catch { /* camera mid-transition */ }
 
       /* ═══════════════════════════════════════════════════════
-         FOOTPRINT MODES — all draw at full candle height (high→low)
-         so they're visible at any zoom level
+         FOOTPRINT MODES — ON EACH CANDLE, AS THE CANON DRAWS THEM.
+         The geometry of every mode is written down in
+         src/lib/chart/footprintCanon.ts (2026-09-25) before any of it was
+         painted: Bid × Ask is the M46 cell grid, Delta Bubbles and
+         Agg/Passive are the Founder-preserved Nectar trail, Volume Profile
+         is a per-candle histogram, Imbalance is tint + edge marks, Big
+         Trades are F07A gold bubbles. No mode paints a box chip.
+         Every column and bubble registers its rect in `forceChips` (the
+         seed of `floatingChips`), so later chrome yields to the evidence.
       ═══════════════════════════════════════════════════════ */
 
       // Order Flow Candles forces bid-ask footprint regardless of setting.
@@ -6137,6 +6166,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const effectiveFP: FootprintType = !footprintEnabled
         ? ("__off__" as FootprintType)
         : (candleType === "orderflow-candles" ? "bid-ask" : footprintType);
+      // Per-mode receipts speak only for THIS frame's pixels.
+      for (const k of FOOTPRINT_MODE_RECEIPTS) delete canvas.dataset[k];
 
       // Per-tool order-flow colors: pick the pair for the active footprint tool so
       // each gear stays independent. Falls back to bid-ask, then hardcoded default.
@@ -6147,6 +6178,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // VP bars + bubbles: green/red (independent, gear-controlled)
       const _vpc = vpColorsRef.current;
       const vpUpRgba  = (a: number | string) => `rgba(${_vpc.up[0]},${_vpc.up[1]},${_vpc.up[2]},${a})`;
+      const vpDnRgba  = (a: number | string) => `rgba(${_vpc.dn[0]},${_vpc.dn[1]},${_vpc.dn[2]},${a})`;
       const vpPocRgba = (a: number | string) => `rgba(${_vpc.poc[0]},${_vpc.poc[1]},${_vpc.poc[2]},${a})`;
       const vpVahRgba = (a: number | string) => `rgba(${_vpc.vah[0]},${_vpc.vah[1]},${_vpc.vah[2]},${a})`;
       const vpValRgba = (a: number | string) => `rgba(${_vpc.val[0]},${_vpc.val[1]},${_vpc.val[2]},${a})`;
@@ -6154,12 +6186,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Sites keep their own alphas; this only says what POC, EDGE, VALUE… are.
       const pk = profileInkRef.current;
 
-      // Readable footprint row size + crisp WHITE cell numbers. Every footprint
-      // cell number is drawn pure white with a dark halo so it stays legible on
-      // royal-blue, royal-purple, or dark backgrounds alike. fs scales with row
-      // height but never drops below 10px (was 8px → unreadable).
-      // Font must fit inside the row so numbers never overlap between rows.
-      // With rows now ≥13px (see numLevels divisor) a 9–12px font sits cleanly.
+      // Cell numbers are drawn pure white with a dark halo so they stay legible
+      // on any tint. The font never exceeds the row (9–12px, 8px when a cell is
+      // tight — footprintCanon's CELL_MIN_PX) so rows never overprint.
       const cellFs = (rH: number) => Math.max(9, Math.min(12, Math.floor(rH * 0.6)));
       const cellNum = (txt: string, px: number, py: number, align: CanvasTextAlign, fs: number, color = "#ffffff") => {
         // Leave zero-volume rows BLANK like a pro footprint (TradingView/Bookmap).
@@ -6173,65 +6202,77 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ctx.fillText(txt, px, py);
         ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
       };
-
-      // Helper: draw a rounded-rectangle
-      const rr = (x: number, y: number, w: number, h: number, r: number) => {
-        if (Math.abs(w) < 0.5 || Math.abs(h) < 0.5) return;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
-        else ctx.rect(x, y, w, h);
-        ctx.fill();
+      // The width a cell number will take, in the font cellNum paints it in.
+      const measureCell = (txt: string, px: number) => {
+        ctx.font = `700 ${px}px 'JetBrains Mono',monospace`;
+        return ctx.measureText(txt).width;
       };
+      const chipHits = (r: { x: number; y: number; w: number; h: number }) =>
+        forceChips.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y);
 
-      // O-06 · A FOOTPRINT RECEIPT. Every mode asks for a bar's rows here and
-      // skips a bar with no captured executions, so what came back IS what
-      // painted. Counted so serving can prove the footprint rather than trust it.
-      let fpBarsPainted = 0, fpRowsPainted = 0;
+      // O-06 · A FOOTPRINT RECEIPT. Every cell mode asks for a bar's rows here
+      // and skips a bar with no captured executions, so what came back IS what
+      // painted: a bar counts once, and only the rows that TRADED count (an
+      // untraded row is left blank on the glass, so it is not a painted row).
+      // The trail and bubble modes paint rings, not rows; they count their
+      // bars and rings separately (`fpTrailBars`, `fpRings`).
+      let fpBarsPainted = 0, fpRowsPainted = 0, fpRings = 0;
+      const fpTrailBars = new Set<number>();
       const fpLevels = (c: Parameters<typeof getBarFootprint>[0], n: number) => {
         const rows = getBarFootprint(c, n);
-        if (rows.length > 0) { fpBarsPainted++; fpRowsPainted += rows.length; }
+        const heard = rows.reduce((k, r) => k + (r.total > 0 ? 1 : 0), 0);
+        if (heard > 0) { fpBarsPainted++; fpRowsPainted += heard; }
         return rows;
+      };
+      // One column per bar: the candle's own x and high→low, sliced into the
+      // same display rows for every cell mode (≥ 12px a row).
+      const fpColumn = (c: LegacyOhlcvTuple) => {
+        const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
+        if (rawCx == null || rawCx < -colW || rawCx > W + colW) return null;
+        const rawYH = srs.priceToCoordinate(c.high);
+        const rawYL = srs.priceToCoordinate(c.low);
+        if (rawYH == null || rawYL == null) return null;
+        const yH = Math.round(rawYH), yL = Math.round(rawYL);
+        const fullH = Math.max(2, yL - yH);
+        const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
+        const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
+        return { cx: Math.round(rawCx), yH, yL, fullH, numLevels, rowH: fullH / numLevels };
+      };
+      // The candle stays readable through its cells: a thin wick and body
+      // outline in the tool's side ink over the footprint.
+      const fpCandleOutline = (c: LegacyOhlcvTuple, cx: number, yH: number, yL: number) => {
+        const rawYO = srs.priceToCoordinate(c.open), rawYC = srs.priceToCoordinate(c.close);
+        if (rawYO == null || rawYC == null) return;
+        const yO = Math.round(rawYO), yC = Math.round(rawYC);
+        const bodyY = Math.min(yO, yC), bodyH = Math.max(2, Math.abs(yC - yO));
+        const isBull = c.close >= c.open;
+        ctx.strokeStyle = isBull ? buyRgba(0.5) : sellRgba(0.5); ctx.lineWidth = 1; ctx.setLineDash([]);
+        if (yH < bodyY) { ctx.beginPath(); ctx.moveTo(cx + 0.5, yH); ctx.lineTo(cx + 0.5, bodyY); ctx.stroke(); }
+        if (yL > bodyY + bodyH) { ctx.beginPath(); ctx.moveTo(cx + 0.5, bodyY + bodyH); ctx.lineTo(cx + 0.5, yL); ctx.stroke(); }
+        ctx.strokeStyle = isBull ? buyRgba(0.9) : sellRgba(0.9);
+        ctx.strokeRect(cx - halfW + 0.5, bodyY + 0.5, colW - 1, bodyH - 1);
       };
 
       /* ══════════════════════════════════════════════════════
-         MODE 1: BID × ASK — Deep Charts style
-         • Full-width cells: dark base, colored only when one side dominates
-         • Green = ask dominant (buying pressure)
-         • Purple = bid dominant (selling pressure)
-         • Both bid + ask numbers inside each row
-         • Thin colored candle border (green bull, purple bear) + wicks
-         • Yellow POC border on highest-volume row
-         • Delta badge above/below wick
+         MODE 1: BID × ASK — canon M46 (footprint absorption).
+         • One cell per price row that TRADED, 1px gutter: a grid, not a
+           slab. An untraded row is blank, never a manufactured zero.
+         • Tint = the dominant side's ink (the tool's gear pair), stronger
+           with dominance and with the row's share of the bar's volume.
+         • "bid × ask" centred, only where it fits (fitBidAskCellText):
+           else "bid×ask", else the dominant number, else nothing.
+         • Gold POC border; thin candle wick + body outline over the cells.
+         • The bar's delta, when shown above the column, is halo text read
+           from barTapeDelta — the NEAR volume-band row's own owner.
       ══════════════════════════════════════════════════════ */
       if (effectiveFP === "bid-ask") {
+        let cellText = 0, deltaText = 0;
+        ctx.save();
+        ctx.globalAlpha = att.alpha("footprint");
         visibleBars.forEach(c => {
-          const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
-          if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
-          const cx = Math.round(rawCx);
-
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          const rawYO = srs.priceToCoordinate(c.open);
-          const rawYC = srs.priceToCoordinate(c.close);
-          if (rawYH == null || rawYL == null || rawYO == null || rawYC == null) return;
-          const yH = Math.round(rawYH);
-          const yL = Math.round(rawYL);
-          const yO = Math.round(rawYO);
-          const yC = Math.round(rawYC);
-
-          const fullH  = Math.max(2, yL - yH);
-          const bodyY  = Math.min(yO, yC);
-          const bodyH  = Math.max(2, Math.abs(yC - yO));
-          const x      = cx - halfW;
-          const isBull = c.close >= c.open;
-
-          const borderColor = isBull ? buyRgba(0.90) : sellRgba(0.90);
-          const borderColorDim = isBull ? buyRgba(0.50) : sellRgba(0.50);
-
-          // Min 8px per row ensures every footprint row is clearly readable
-          const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
-          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
-          const rowH   = fullH / Math.max(1, numLevels);
+          const col = fpColumn(c);
+          if (!col) return;
+          const { cx, yH, yL, fullH, numLevels, rowH } = col;
           // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
@@ -6241,198 +6282,71 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // particular, do not paint the dark footprint base over a perfectly
           // valid candle and do not turn unavailable evidence into visual zeroes.
           if (levels.length === 0) return;
-          const maxTot = Math.max(1, ...levels.map(l => l.total));
+          const x = cx - halfW;
+          const maxTot = Math.max(1e-12, ...levels.map(l => l.total));
+          const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
 
-          // ── Dark cell base for entire candle range ──
-          ctx.fillStyle = "rgba(15,20,35,0.55)";
-          ctx.fillRect(x, yH, colW, fullH);
-
-          // ── POC index ──
-          const pocIdx = levels.length > 0
-            ? levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0)
-            : -1;
-
-          // ── Per-row cells ──
           levels.forEach((lv, li) => {
-            const rowY  = Math.round(yH + li * rowH);
-            const rH    = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const askDom = lv.ask > lv.bid;
-            const dom    = Math.max(lv.ask, lv.bid);
-            const pass   = Math.min(lv.ask, lv.bid);
-            const ratio  = dom / Math.max(1, pass);
-            const volFrac = lv.total / maxTot;
-
-            // Only color cells with meaningful dominance (≥1.3×) and volume
-            if (ratio >= 1.3 && lv.total > 0) {
-              const alpha = Math.min(0.72, 0.22 + volFrac * 0.28 + (ratio - 1.3) * 0.06);
-              ctx.fillStyle = askDom
-                ? buyRgba(alpha)
-                : sellRgba(alpha);
-              ctx.fillRect(x, rowY, colW, rH);
-            }
-
-            // Row divider
-            if (li > 0 && rH >= 3) {
-              ctx.fillStyle = "rgba(0,0,0,0.35)";
-              ctx.fillRect(x, rowY, colW, 1);
-            }
-
-            // Numbers: bid left + ask right (split), or dominant centered (narrow)
-            if (showText && rH >= 11) {
-              const fs   = cellFs(rH);
-              const midY = rowY + rH / 2;
-              if (showSplit) {
-                // A missing side is absence of observed executions, not a useful
-                // numeric zero. Leave it blank so sparse live-forward tape does
-                // not recreate the Founder-visible wall of 0.00 labels.
-                if (lv.bid > 0) cellNum(fmtV(lv.bid), x + 3, midY, "left", fs);
-                if (lv.ask > 0) cellNum(fmtV(lv.ask), x + colW - 3, midY, "right", fs);
-              } else {
-                const domVal = askDom ? lv.ask : lv.bid;
-                cellNum(fmtV(domVal), cx, midY, "center", fs);
-              }
+            if (!(lv.total > 0)) return;
+            const rowY = Math.round(yH + li * rowH);
+            const rH   = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
+            const askDom = lv.ask >= lv.bid;
+            const domShare = Math.max(lv.ask, lv.bid) / lv.total;   // 0.5 … 1
+            const tint = 0.10 + (domShare - 0.5) * 0.5 + (lv.total / maxTot) * 0.22;
+            ctx.fillStyle = "rgba(12,16,24,0.62)";
+            ctx.fillRect(x, rowY, colW, rH);
+            ctx.fillStyle = askDom ? buyRgba(tint.toFixed(2)) : sellRgba(tint.toFixed(2));
+            ctx.fillRect(x, rowY, colW, rH);
+            if (rH >= 10) {
+              const t = fitBidAskCellText(lv.bid, lv.ask, fmtV, measureCell, colW - 4, cellFs(rH));
+              if (t.form !== "NONE") { cellNum(t.text, cx, rowY + rH / 2, "center", t.px); cellText++; }
             }
           });
 
-          // ── POC row — yellow border ──
-          if (pocIdx >= 0) {
+          if (pocIdx >= 0 && levels[pocIdx].total > 0) {
             const pocY = Math.round(yH + pocIdx * rowH);
             const pocH = Math.max(1, Math.round(yH + (pocIdx + 1) * rowH) - pocY - 1);
             ctx.strokeStyle = "rgba(240,180,41,0.95)";
             ctx.lineWidth = 1; ctx.setLineDash([]);
             ctx.strokeRect(x + 0.5, pocY + 0.5, colW - 1, pocH);
           }
+          fpCandleOutline(c, cx, yH, yL);
+          forceChips.push({ x, y: yH, w: colW, h: fullH });
 
-          // ── Wicks (above body + below body) ──
-          ctx.strokeStyle = borderColorDim; ctx.lineWidth = 1; ctx.setLineDash([]);
-          if (yH < bodyY) { // upper wick
-            ctx.beginPath(); ctx.moveTo(cx + 0.5, yH); ctx.lineTo(cx + 0.5, bodyY); ctx.stroke();
-          }
-          if (yL > bodyY + bodyH) { // lower wick
-            ctx.beginPath(); ctx.moveTo(cx + 0.5, bodyY + bodyH); ctx.lineTo(cx + 0.5, yL); ctx.stroke();
-          }
-
-          // ── Candle body border ──
-          ctx.strokeStyle = borderColor; ctx.lineWidth = 1;
-          ctx.strokeRect(x + 0.5, bodyY + 0.5, colW - 1, bodyH - 1);
-
-          // ── Delta badge ──
+          // The bar's delta over its column, when the badge gate allows it
+          // (never at NEAR: there the volume-band row carries it). Halo text,
+          // not a box, from the SAME owner as that row.
           if (showBadges) {
-            const netDelta = levels.reduce((s, l) => s + l.ask - l.bid, 0);
-            const isPos    = netDelta >= 0;
-            const dLbl     = (isPos ? "+" : "") + fmtV(netDelta);
-            const bW = Math.max(colW + 2, 28), bH = 13;
-            const bY = yH - bH - 3;
-            ctx.fillStyle = isPos ? buyRgba(0.92) : sellRgba(0.92);
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(cx - bW/2, bY, bW, bH, 2);
-            else ctx.rect(cx - bW/2, bY, bW, bH);
-            ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = "bold 9px 'JetBrains Mono',monospace";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(dLbl, cx, bY + bH / 2);
-          }
-        });
-      }
-
-      /* ══════════════════════════════════════════════════════
-         MODE 2: DELTA — rows across full candle height,
-         green/red fill intensity proportional to net delta,
-         bid/ask numbers per row when zoomed, badge below wick
-      ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "delta") {
-        visibleBars.forEach(c => {
-          const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
-          if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
-          const cx = Math.round(rawCx);
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          if (rawYH == null || rawYL == null) return;
-          const yH = Math.round(rawYH);
-          const yL = Math.round(rawYL);
-
-          const fullH = Math.max(2, yL - yH);
-          // Min 8px per row ensures every footprint row is clearly readable
-          const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
-          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
-          const rowH   = fullH / Math.max(1, numLevels);
-          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
-          // low upward, and every mode paints row li at yH + li·rowH counting
-          // DOWN from the high — so the rows are taken high-first here, or the
-          // volume traded at the low is painted at the top of the candle.
-          const levels = fpLevels(c, numLevels).reverse();
-          // Empty means unavailable, not zero. Skip the whole bar before the
-          // background/POC pass so historical candles stay readable and reduce()
-          // is never asked to manufacture a winner from an empty collection.
-          if (levels.length === 0) return;
-
-          // Dark base
-          ctx.fillStyle = "rgba(15,20,35,0.55)";
-          ctx.fillRect(cx - halfW, yH, colW, fullH);
-
-          const maxTotD = Math.max(1, ...levels.map(l => l.total));
-          const pocIdxD = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
-
-          levels.forEach((lv, li) => {
-            const rowY  = Math.round(yH + li * rowH);
-            const rH    = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const delta = lv.ask - lv.bid;
-            const volFrac = lv.total / maxTotD;
-            // Blue for positive delta (ask dominant), red for negative (bid dominant)
-            const intensity = Math.min(0.75, 0.20 + volFrac * 0.30 + Math.abs(delta) / Math.max(1, lv.total) * 0.40);
-            if (lv.total > 0) {
-              ctx.fillStyle = delta >= 0
-                ? buyRgba(intensity)   // royal blue — buying pressure
-                : sellRgba(intensity); // royal purple — selling pressure
-              ctx.fillRect(cx - halfW, rowY, colW, rH);
-            }
-
-            // Row divider
-            if (li > 0 && rH >= 3) {
-              ctx.fillStyle = "rgba(0,0,0,0.30)";
-              ctx.fillRect(cx - halfW, rowY, colW, 1);
-            }
-
-            if (showText && rH >= 11) {
-              const fs = cellFs(rH);
-              const midY = rowY + rH / 2;
-              if (showSplit) {
-                if (lv.bid > 0) cellNum(fmtV(lv.bid), cx - halfW + 3, midY, "left", fs);
-                if (lv.ask > 0) cellNum(fmtV(lv.ask), cx + halfW - 3, midY, "right", fs);
-              } else {
-                const dVal = lv.ask - lv.bid;
-                cellNum((dVal >= 0 ? "+" : "") + fmtV(Math.abs(dVal)), cx, midY, "center", fs);
+            const bd = barTapeDelta(getBarSubProfile(c));
+            if (bd) {
+              const text = signedFlowText(bd.delta, fmtV);
+              ctx.font = "700 10px 'JetBrains Mono',monospace";
+              const tw = ctx.measureText(text).width + 4;
+              const rect = { x: cx - tw / 2, y: yH - 17, w: tw, h: 14 };
+              if (rect.y >= HEADER_FLOOR_Y && !chipHits(rect)) {
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+                ctx.fillStyle = `rgba(${bd.delta >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
+                ctx.fillText(text, cx, rect.y + rect.h / 2);
+                ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+                forceChips.push(rect);
+                deltaText++;
               }
             }
-
-            // POC yellow border
-            if (li === pocIdxD) {
-              ctx.strokeStyle = "rgba(240,180,41,0.95)"; ctx.lineWidth = 1; ctx.setLineDash([]);
-              ctx.strokeRect(cx - halfW + 0.5, rowY + 0.5, colW - 1, rH);
-            }
-          });
-
-          if (showBadges) {
-            const netDelta = levels.reduce((s, l) => s + l.ask - l.bid, 0);
-            const isPos = netDelta >= 0;
-            const dLbl = (isPos ? "Δ+" : "Δ") + fmtV(Math.abs(netDelta));
-            const bColor = isPos ? buyRgba(0.92) : sellRgba(0.92);
-            const bW = Math.max(colW + 2, 26), bH = 13;
-            ctx.fillStyle = bColor;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(cx - bW/2, yH - bH - 3, bW, bH, 2);
-            else ctx.rect(cx - bW/2, yH - bH - 3, bW, bH);
-            ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = "bold 9px 'JetBrains Mono',monospace";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(dLbl, cx, yH - bH - 3 + bH / 2);
           }
         });
+        ctx.restore();
+        canvas.dataset.fpCellText = String(cellText);
+        canvas.dataset.fpDeltaText = String(deltaText);
       }
 
       /* ══════════════════════════════════════════════════════
-         WM DELTA BUBBLES — separate from Big Trades.
-         Net aggressive delta per price zone; only in delta footprint mode.
+         MODE 2: WM DELTA BUBBLES — the Founder-preserved Nectar trail.
+         Net aggressive delta per price zone, one glassy bubble at the zone's
+         heaviest REAL tick, the price written inside, riding the price path.
+         Nothing else: no cells and no Δ chips under the trail (2026-09-25 —
+         serving showed tiny rings sitting on a full cell grid). Separate
+         from Big Trades; only in delta footprint mode.
       ══════════════════════════════════════════════════════ */
       if (effectiveFP === "delta") {
         const realTapeD = hasRealAggressorTape(tapeSourceRef.current ?? "");
@@ -6571,6 +6485,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
 
         const hoverIdD = bubbleHoverRef.current;
+        let deltaDrawn = 0;
         for (const b of deltaBubblesRef.current) {
           const buy = b.side === "buy";
           const core = buy ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
@@ -6614,367 +6529,229 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(lbl, b.x, b.y);
           }
           ctx.restore();
+          // On the glass: an obstacle for later chrome, and a ring the
+          // footprint receipt may count.
+          if (b.x + Rx >= 0 && b.x - Rx <= plotRight) {
+            forceChips.push({ x: b.x - Rx - 4, y: b.y - Ry - 4, w: 2 * Rx + 8, h: 2 * Ry + 8 });
+            fpTrailBars.add(b.anchorBarTime);
+            deltaDrawn++;
+          }
           if (selB) markSelectedBubble(b, Rx, Ry);
         }
+        fpRings += deltaDrawn;
+        canvas.dataset.deltaBubblesDrawn = String(deltaDrawn);
       } else if (deltaBubblesRef.current.length) {
         deltaBubblesRef.current = [];
         deltaBubbleSpawnRef.current = new Set();
       }
 
       /* ══════════════════════════════════════════════════════
-         MODE 3: VOLUME PROFILE — horizontal VP bars per bar
-         Full candle height, bid left / ask right split bars,
-         bid/ask numbers at each row, gold POC line
+         MODE 3: VOLUME PROFILE — a per-candle horizontal histogram.
+         Each traded row is a bar growing right from the column's left
+         edge, length ∝ its volume against the bar's heaviest row
+         (vpBarWidth), split into its buy-initiated and sell-initiated
+         shares (vpBarSplit) in the VP gear's inks; the POC row in the
+         profile family's POC ink. Numbers only at NEAR, only where the
+         row is tall enough and the number ends before the next column.
       ══════════════════════════════════════════════════════ */
       if (effectiveFP === "volume-profile") {
+        let rowNumbers = 0;
+        const vpDepth = semanticDensity.depth;
+        const vpNumbers = vpDepth === "NEAR";
+        ctx.save();
+        ctx.globalAlpha = att.alpha("footprint");
         visibleBars.forEach(c => {
-          const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
-          if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
-          const cx = Math.round(rawCx);
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          if (rawYH == null || rawYL == null) return;
-          const yH = Math.round(rawYH);
-          const yL = Math.round(rawYL);
-
-          const fullH     = Math.max(4, yL - yH);
-          // Min 8px per row ensures every footprint row is clearly readable
-          const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
-          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
-          const rowH   = fullH / Math.max(1, numLevels);
+          const col = fpColumn(c);
+          if (!col) return;
+          const { cx, yH, yL, fullH, numLevels, rowH } = col;
           // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
           const levels = fpLevels(c, numLevels).reverse();
           if (levels.length === 0) return;
-          const maxTot = Math.max(1, ...levels.map(l => l.total));
-          const maxBarW = halfW - 1;
-
-          // Dark base
-          ctx.fillStyle = "rgba(15,20,35,0.50)";
-          ctx.fillRect(cx - halfW, yH, colW, fullH);
-
-          // Draw VP bars — ask left (green), bid right (purple)
+          const x = cx - halfW;
+          const maxTot = Math.max(...levels.map(l => l.total));
+          const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
+          let right = x + colW;
           levels.forEach((lv, li) => {
-            const rowY   = Math.round(yH + li * rowH);
-            const rH     = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const frac   = lv.total / maxTot;
-            const alpha  = 0.18 + frac * 0.42; // 0.18–0.60
-            const askW   = Math.round((lv.ask / maxTot) * maxBarW);
-            const bidW   = Math.round((lv.bid / maxTot) * maxBarW);
-
-            // Ask bars grow left from center (green)
-            ctx.fillStyle = buyRgba(alpha.toFixed(2));
-            ctx.fillRect(cx - askW, rowY, askW, rH);
-            // Bid bars grow right from center (purple)
-            ctx.fillStyle = sellRgba(alpha.toFixed(2));
-            ctx.fillRect(cx, rowY, bidW, rH);
-
-            // Row divider
-            if (li > 0 && rH >= 3) {
-              ctx.fillStyle = "rgba(0,0,0,0.30)";
-              ctx.fillRect(cx - halfW, rowY, colW, 1);
+            if (!(lv.total > 0)) return;
+            const rowY = Math.round(yH + li * rowH);
+            const rH   = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
+            const hr = footprintHistogramRow(lv, maxTot, colW);
+            if (li === pocIdx) {
+              ctx.fillStyle = pk.rgba("POC", 0.9);
+              ctx.fillRect(x, rowY, hr.width, rH);
+            } else {
+              ctx.fillStyle = vpUpRgba(0.7); ctx.fillRect(x, rowY, hr.buyWidth, rH);
+              ctx.fillStyle = vpDnRgba(0.7); ctx.fillRect(x + hr.buyWidth, rowY, hr.sellWidth, rH);
             }
-
-            if (showText && rH >= 11) {
-              const fs = cellFs(rH);
-              const midY = rowY + rH / 2;
-              if (showSplit) {
-                if (lv.ask > 0) cellNum(fmtV(lv.ask), cx - 3, midY, "right", fs);
-                if (lv.bid > 0) cellNum(fmtV(lv.bid), cx + 3, midY, "left", fs);
-              } else {
-                cellNum(fmtV(lv.total), cx, midY, "center", fs);
+            if (vpNumbers && rH >= 11) {
+              const fs = cellFs(rH), txt = fmtV(lv.total);
+              const tx = x + hr.width + 3, tw = measureCell(txt, fs);
+              // The number ends before the next candle's column begins.
+              if (tx + tw <= x + bsp - 2) {
+                cellNum(txt, tx, rowY + rH / 2, "left", fs);
+                right = Math.max(right, tx + tw);
+                rowNumbers++;
               }
             }
           });
-
-          // POC — thin gold horizontal line only (no label unless very zoomed)
-          const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
-          const pocY   = Math.round(yH + pocIdx * rowH + rowH / 2);
-          ctx.strokeStyle = "rgba(240,180,41,0.70)"; ctx.lineWidth = 1;
-          ctx.setLineDash([2, 2]);
-          ctx.beginPath(); ctx.moveTo(cx - halfW, pocY); ctx.lineTo(cx + halfW, pocY); ctx.stroke();
-          ctx.setLineDash([]);
+          fpCandleOutline(c, cx, yH, yL);
+          forceChips.push({ x, y: yH, w: right - x, h: fullH });
         });
+        ctx.restore();
+        canvas.dataset.vpRowNumbers = vpNumbers ? String(rowNumbers) : "NOT_NEAR";
       }
 
       /* ══════════════════════════════════════════════════════
-         MODE 4: IMBALANCE — full candle height rows,
-         highlight cells where bid/ask ratio ≥ 2.5×,
-         show ratio text, badge above wick when notable
+         MODE 4: IMBALANCE — tint + edge marks.
+         A row leans when its dominant side out-trades the other by the
+         stacked-imbalance owner's 3:1 and it carries real weight (its
+         MIN_LEVEL_SHARE floor) — readImbalanceRows. A leaning row is
+         tinted in the dominant side's ink with a 3px mark on that side's
+         edge (ask/buy right, bid/sell left). Ratio WORDS only for a run of
+         ≥ MIN_STACK_LEVELS adjacent rows leaning one way: a bracket on that
+         edge and the run's weakest ratio, in formatImbalanceRatio's words.
       ══════════════════════════════════════════════════════ */
       if (effectiveFP === "imbalance") {
+        let rowsTinted = 0, runsFound = 0, runWords = 0;
+        const words: { word: string; buy: boolean; bx: number; yMid: number; yTop: number; yBot: number; cx: number }[] = [];
+        ctx.save();
+        ctx.globalAlpha = att.alpha("footprint");
         visibleBars.forEach(c => {
-          const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
-          if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
-          const cx = Math.round(rawCx);
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          if (rawYH == null || rawYL == null) return;
-          const yH = Math.round(rawYH);
-          const yL = Math.round(rawYL);
-
-          const fullH  = Math.max(2, yL - yH);
-          const maxLev2 = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
-          const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
-          const rowH   = fullH / Math.max(1, numLev);
+          const col = fpColumn(c);
+          if (!col) return;
+          const { cx, yH, fullH, numLevels: numLev, rowH } = col;
           // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
           const levels = fpLevels(c, numLev).reverse();
           if (levels.length === 0) return;
-          const x      = cx - halfW;
-
-          levels.forEach((lv, li) => {
-            const rowY   = Math.round(yH + li * rowH);
-            const rH     = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const ratio  = lv.ask > 0 && lv.bid > 0
-              ? Math.max(lv.ask, lv.bid) / Math.min(lv.ask, lv.bid)
-              : (lv.ask > 0 || lv.bid > 0 ? 8 : 1);
-
-            if (ratio < 2.5) return; // only draw imbalanced cells
-
-            const askDom = lv.ask > lv.bid;
-            const alpha  = Math.min(0.88, 0.45 + (ratio - 2.5) * 0.08);
-            ctx.fillStyle = askDom ? buyRgba(alpha) : sellRgba(alpha);
+          const x = cx - halfW;
+          const reads = readImbalanceRows(levels);
+          reads.forEach((rd, li) => {
+            if (!rd.side) return;
+            const rowY = Math.round(yH + li * rowH);
+            const rH   = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
+            const buy = rd.side === "buy";
+            const ink = buy ? buyRgba : sellRgba;
+            ctx.fillStyle = ink((0.22 + imbalanceStrength(rd) * 0.3).toFixed(2));
             ctx.fillRect(x, rowY, colW, rH);
-
-            if (showText && rH >= 11) {
-              const fs = cellFs(rH);
-              const midY = rowY + rH / 2;
-              if (showSplit) {
-                if (lv.ask > 0) cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);
-                if (lv.bid > 0) cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);
-              } else {
-                cellNum(`${ratio.toFixed(1)}×`, cx, midY, "center", fs);
-              }
-            }
+            ctx.fillStyle = ink(0.95);
+            ctx.fillRect(buy ? x + colW - 3 : x, rowY, 3, rH);
+            rowsTinted++;
           });
-
-          // Imbalance badge — only when zoomed in enough
-          if (showBadges) {
-            const totAsk  = levels.reduce((s, l) => s + l.ask, 0);
-            const totBid  = levels.reduce((s, l) => s + l.bid, 0);
-            const totRatio = totAsk > 0 && totBid > 0
-              ? Math.max(totAsk, totBid) / Math.min(totAsk, totBid) : 1;
-            if (totRatio >= 2.0) {
-              const bW = Math.max(colW + 4, 28), bH = 13;
-              const bY = yH - bH - 2;
-              ctx.fillStyle = totAsk > totBid ? buyRgba(0.90) : sellRgba(0.90);
-              ctx.beginPath();
-              if (ctx.roundRect) ctx.roundRect(cx - bW/2, bY, bW, bH, 2);
-              else ctx.rect(cx - bW/2, bY, bW, bH);
-              ctx.fill();
-              ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace";
-              ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.fillText(`${totRatio.toFixed(1)}×`, cx, bY + bH / 2);
-            }
+          for (const run of imbalanceRuns(reads)) {
+            const y0 = Math.round(yH + run.from * rowH);
+            const y1 = Math.round(yH + (run.to + 1) * rowH) - 1;
+            const buy = run.side === "buy";
+            const bx = buy ? x + colW + 2.5 : x - 2.5;
+            ctx.strokeStyle = (buy ? buyRgba : sellRgba)(0.95); ctx.lineWidth = 1.5; ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(buy ? bx - 2 : bx + 2, y0 + 0.5); ctx.lineTo(bx, y0 + 0.5);
+            ctx.lineTo(bx, y1 - 0.5); ctx.lineTo(buy ? bx - 2 : bx + 2, y1 - 0.5);
+            ctx.stroke();
+            runsFound++;
+            words.push({ word: imbalanceRunWord(run), buy, bx, yMid: (y0 + y1) / 2, yTop: yH, yBot: yH + fullH, cx });
           }
+          forceChips.push({ x: x - 4, y: yH, w: colW + 8, h: fullH });
         });
+        // The ratio words go on after EVERY column is on the glass, so a word
+        // steps off its neighbours' cells instead of printing through them.
+        // A word with no clear slot is not printed — its bracket still says
+        // a run is there, and Inspect carries the rest.
+        ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+        ctx.textBaseline = "middle";
+        for (const w of words) {
+          const tw = ctx.measureText(w.word).width + 4, th = 12;
+          const beside = (y: number) => ({ x: w.buy ? w.bx + 3 : w.bx - 3 - tw, y: y - th / 2, w: tw, h: th });
+          const slots = [
+            beside(w.yMid), beside(w.yMid - th), beside(w.yMid + th),
+            { x: w.cx - tw / 2, y: w.yTop - th - 3, w: tw, h: th },
+            { x: w.cx - tw / 2, y: w.yBot + 3, w: tw, h: th },
+          ];
+          const spot = slots.find(s => s.y >= HEADER_FLOOR_Y && s.x >= 4 && s.x + s.w <= plotRight - 4
+            && s.y + s.h <= pane0Bottom - 4 && !chipHits(s));
+          if (!spot) continue;
+          ctx.save();
+          ctx.globalAlpha = att.textAlpha("footprint");
+          ctx.textAlign = "left";
+          ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+          ctx.fillStyle = (w.buy ? buyRgba : sellRgba)(1);
+          ctx.fillText(w.word, spot.x + 2, spot.y + th / 2);
+          ctx.restore();
+          forceChips.push(spot);
+          runWords++;
+        }
+        ctx.restore();
+        canvas.dataset.imbalanceRows = String(rowsTinted);
+        canvas.dataset.imbalanceRuns = String(runsFound);
+        canvas.dataset.imbalanceRunWords = String(runWords);
       }
 
       /* ══════════════════════════════════════════════════════
-         MODE 5: AGGRESSIVE / PASSIVE
-         Green = aggressive buying (market orders lifting the ask)
-         Red   = aggressive selling (market orders hitting the bid)
-         Only highlights rows with clear aggression (ratio ≥ 1.5×).
-         Neutral rows show a faint background only.
+         MODE 5: AGG / PASSIVE PROXY — the Nectar trail.
+         One ring per price zone (the delta-zone owner's zones, each at its
+         heaviest REAL tick) for the side that initiated more there, in
+         Appearance's aggressor inks, area ∝ that side's volume against the
+         frame's peak (bubbleDrawGeometry). SOLID = it traded inside the
+         bar; DASHED = it traded into the bar's own extreme fifth (buys into
+         the high, sells into the low) — location only, never a claim about
+         who defended (Garden 12). The zone's price is written inside.
+         No pills, no 2×2 grid, no cells: aggressor rings on price.
       ══════════════════════════════════════════════════════ */
       if (effectiveFP === "aggressive-passive") {
+        const ringsAP: { x: number; y: number; side: "buy" | "sell"; volume: number; dashed: boolean; price: number; bar: number }[] = [];
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
-          const cx = Math.round(rawCx);
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          if (rawYH == null || rawYL == null) return;
-          const yH = Math.round(rawYH);
-          const yL = Math.round(rawYL);
-
-          const fullH  = Math.max(2, yL - yH);
-          const maxLev2 = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
-          const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
-          const rowH   = fullH / Math.max(1, numLev);
-          // TOP ROW = HIGHEST PRICE. getBarFootprint lists rows from the bar's
-          // low upward, and every mode paints row li at yH + li·rowH counting
-          // DOWN from the high — so the rows are taken high-first here, or the
-          // volume traded at the low is painted at the top of the candle.
-          const levels = fpLevels(c, numLev).reverse();
-          if (levels.length === 0) return;
-          const x      = cx - halfW;
-
-          // Faint neutral background for the entire candle range
-          ctx.fillStyle = "rgba(100,120,160,0.07)";
-          ctx.fillRect(x, yH, colW, fullH);
-
-          levels.forEach((lv, li) => {
-            const rowY   = Math.round(yH + li * rowH);
-            const rH     = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const tot    = lv.ask + lv.bid;
-            if (tot === 0) return;
-
-            // ── ROLE-COLORED CELL BOXES (numbers stay crisp white) ──────────
-            // Each level splits into a LEFT half (ask / buyer-initiated) and a
-            // RIGHT half (bid / seller-initiated). Each half is tinted by its LIVE
-            // role at this price level:
-            //   ask near the HIGH → BUYS INTO HIGH (orange), else AGG BUYS (blue)
-            //   bid near the LOW  → SELLS INTO LOW (gray),   else AGG SELLS (purple)
-            //   (location only — never a claim about who defended; Garden 12)
-            // Alpha is scaled by that side's share of the level so the dominant
-            // side reads stronger — but capped soft (~0.56) so it's clean and easy
-            // on the eyes, never harsh neon. The number rides on top in white with
-            // a dark shadow for maximum legibility. Every level with volume paints
-            // (the old ≥1.5× gate that left rows blank is gone).
-            const askShare = lv.ask / tot, bidShare = lv.bid / tot;
-            const askAlpha = 0.14 + askShare * 0.42;
-            const bidAlpha = 0.14 + bidShare * 0.42;
-            const askFill  = lv.relPos > 0.80 ? `rgba(255,149,0,${askAlpha.toFixed(2)})`   : buyRgba(askAlpha.toFixed(2));
-            const bidFill  = lv.relPos < 0.20 ? `rgba(148,163,184,${bidAlpha.toFixed(2)})` : sellRgba(bidAlpha.toFixed(2));
-            const halfW2   = Math.round(colW / 2);
-            ctx.fillStyle = askFill; ctx.fillRect(x, rowY, halfW2, rH);
-            ctx.fillStyle = bidFill; ctx.fillRect(x + halfW2, rowY, colW - halfW2, rH);
-
-            if (showText && rH >= 11) {
-              const fs  = cellFs(rH);
-              const midY = rowY + rH / 2;
-              if (showSplit) {
-                if (lv.ask > 0) cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);          // white
-                if (lv.bid > 0) cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);  // white
-              } else {
-                cellNum(fmtV(Math.max(lv.ask, lv.bid)), cx, midY, "center", fs);
-              }
-            }
+          const zones = getDeltaBubbleLevels(c);
+          const n = zones.length;
+          zones.forEach((z, i) => {
+            const ring = aggPassiveRing(z.priceLevel, c.low, c.high, z.bid, z.ask);
+            const yz = srs.priceToCoordinate(z.priceLevel);
+            if (!ring || yz == null) return;
+            // Siblings fan across the bar's own slot, never into a neighbour's.
+            const offX = n > 1 ? (i - (n - 1) / 2) * Math.min(18, (bsp * 0.9) / n) : 0;
+            ringsAP.push({ x: +rawCx + offX, y: +yz, side: ring.side, volume: ring.volume, dashed: ring.role !== "AGGRESSIVE", price: z.priceLevel, bar: Number(c.time) });
           });
-
-          // Row dividers — only when zoomed in enough
-          if (bsp >= 16) {
-            ctx.strokeStyle = "rgba(0,0,0,0.20)"; ctx.lineWidth = 1; ctx.setLineDash([]);
-            for (let li = 1; li < numLev; li++) {
-              const ly = Math.round(yH + li * rowH);
-              ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x + colW, ly); ctx.stroke();
-            }
-          }
-
-          if (showWinner) {
-            // ── PER-CANDLE ORDER-FLOW SUMMARY ──────────────────────────────
-            // Four REAL numbers, computed live from THIS candle's captured
-            // executed-trade footprint. Nothing is reconstructed or hardcoded.
-            //
-            //   ask = buyer-initiated (market buy lifting the offer)
-            //   bid = seller-initiated (market sell hitting the bid)
-            //   relPos: 0 = candle LOW, 1 = candle HIGH
-            //
-            //   AGG BUYS       (blue)   = buyer-initiated volume below the top fifth
-            //   BUYS INTO HIGH (orange) = buyer-initiated volume in the top fifth
-            //   AGG SELLS      (purple) = seller-initiated volume above the bottom fifth
-            //   SELLS INTO LOW (gray)   = seller-initiated volume in the bottom fifth
-            // GARDEN 12 (H-701 "do not invent a defender"): these used to be
-            // named PSV SELLS / PSV BUYS — "absorbed" — but every aggressive buy
-            // has a passive seller; WHERE in the bar it traded does not tell us
-            // who defended. The numbers are unchanged; the names now say only
-            // what was measured: which side initiated, and where in the bar.
-            // Read the roles from the FIXED sub-profile, never from the display
-            // bins: `numLev` changes with zoom, so a relPos>0.80 test against
-            // display bins would re-slice (and re-total) these four numbers every
-            // time the user zoomed. getBarRoles integrates the same fixed grid.
-            const { aggBuy, aggSell, pasBuy, pasSell } = getBarRoles(c);
-            const BLUE = buyRgba(0.98), PURPLE = sellRgba(0.98);
-            const GRAY = "rgba(148,163,184,0.98)", ORANGE = "rgba(255,149,0,0.98)";
-
-            // ── DOMINANT WINNER ───────────────────────────────────────────
-            // The single biggest of the four real roles decides the headline
-            // label + its total volume (e.g. "AGG BUYS 113.2k").
-            const roles: Array<{ v: number; lbl: string; col: string; txt: string }> = [
-              { v: aggBuy,  lbl: "AGG BUYS",  col: BLUE,   txt: "#fff"    },
-              { v: aggSell, lbl: "AGG SELLS", col: PURPLE, txt: "#fff"    },
-              { v: pasBuy,  lbl: "SELLS INTO LOW",  col: GRAY,   txt: "#0b1220" },
-              { v: pasSell, lbl: "BUYS INTO HIGH", col: ORANGE, txt: "#fff"    },
-            ];
-            const win = roles.reduce((a, b) => (b.v > a.v ? b : a));
-
-            // ── COMPACT WINNER PILL: "AGG BUYS 113.2k" ─────────────────────
-            // Single prominent pill above the candle high — readable at normal
-            // zoom (label text + volume value on one line). Skip flat/empty
-            // candles (win.v === 0) so we never paint a meaningless "AGG BUYS 0".
-            const pillH  = 15;
-            const pillY  = yH - pillH - 3;                       // just above candle high
-            if (win.v > 0) {
-              const pillTxt = `${win.lbl} ${fmtV(win.v)}`;
-              ctx.font = "bold 11px monospace";
-              const pillW  = Math.max(colW + 6, ctx.measureText(pillTxt).width + 12);
-              ctx.fillStyle = win.col;
-              ctx.beginPath();
-              if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY, pillW, pillH, 3);
-              else ctx.rect(cx - pillW / 2, pillY, pillW, pillH);
-              ctx.fill();
-              ctx.fillStyle = win.txt;
-              ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.fillText(pillTxt, cx, pillY + pillH / 2 + 0.5);
-            }
-
-            if (showBadges) {
-              // ── DETAILED 2×2 GRID (only when zoomed in) ──────────────────
-              // The four short values (e.g. 33k / 40k / 10k / 7k) sit cleanly
-              // above the winner pill. Grid ≈ colW wide; only at bsp≥70.
-              const cells: Array<[number, string]> = [
-                [aggBuy,  BLUE],    // blue   top-left
-                [aggSell, PURPLE],  // purple top-right
-                [pasBuy,  GRAY],    // gray   bottom-left
-                [pasSell, ORANGE],  // orange bottom-right
-              ];
-              const rowH_s = 13;
-              const colW_s = Math.max(34, Math.round(colW / 2) + 2);
-              const totalW = colW_s * 2;
-              const left   = cx - totalW / 2;
-              const gridTop = pillY - (rowH_s * 2) - 6;          // grid above the winner pill
-
-              ctx.fillStyle = "rgba(11,18,32,0.68)";
-              ctx.beginPath();
-              if (ctx.roundRect) ctx.roundRect(left - 2, gridTop - 2, totalW + 4, rowH_s * 2 + 4, 3);
-              else ctx.rect(left - 2, gridTop - 2, totalW + 4, rowH_s * 2 + 4);
-              ctx.fill();
-
-              ctx.font = "bold 11px monospace";
-              ctx.textBaseline = "middle";
-              cells.forEach(([val, col], idx) => {
-                const colIdx = idx % 2, rowIdx = Math.floor(idx / 2);
-                const cxCell = left + colIdx * colW_s + colW_s / 2;
-                const cyCell = gridTop + rowIdx * rowH_s + rowH_s / 2;
-                ctx.fillStyle = col;
-                ctx.textAlign = "center";
-                ctx.fillText(fmtV(val), cxCell, cyCell);
-              });
-            }
-          }
         });
-
-        // (Per-tool "?" popover carries the deep explanation; the shared 4-way
-        // legend below stamps the live numbers for every order-flow mode.)
-      }
-
-      {
-        const dsFp = canvas.dataset;
-        if (effectiveFP === ("__off__" as FootprintType)) {
-          dsFp.footprint = "OFF";
-          delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
-        } else if (fpBarsPainted === 0) {
-          // On, and nothing was heard for any bar in view: silence, named.
-          dsFp.footprint = `${effectiveFP}:NO_EXECUTIONS`;
-          delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
-        } else {
-          dsFp.footprint = effectiveFP;
-          dsFp.footprintBars = String(fpBarsPainted);
-          dsFp.footprintRows = String(fpRowsPainted);
-          // Every mode paints the rows it received high-first (see MODE 1).
-          dsFp.footprintOrder = "HIGH_FIRST";
-          // Where the numbers stood: in the rows only (NEAR), or with the
-          // badges above the bars as well.
-          dsFp.footprintBadges = fpRowsOnly ? "ROWS_ONLY" : "ABOVE_BARS";
+        const apPeak = bubbleFramePeak(ringsAP.map(r => r.volume));
+        let apDrawn = 0, apInto = 0;
+        ctx.save();
+        for (const r of ringsAP) {
+          if (r.x < -40 || r.x > plotRight + 40) continue;
+          const rad = deltaBubbleRadius(r.volume, apPeak);
+          const core = r.side === "buy" ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
+          ctx.globalAlpha = att.alpha("bubbles");
+          ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${core},0.10)`; ctx.fill();
+          ctx.setLineDash(r.dashed ? [3, 2] : []);
+          ctx.lineWidth = 1.6; ctx.strokeStyle = `rgba(${core},0.95)`; ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(r.x, r.y, Math.max(0.1, rad - 1.6), 0, Math.PI * 2);
+          ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.stroke();
+          if (rad >= 7) {
+            ctx.globalAlpha = att.textAlpha("bubbles");
+            const fontPx = Math.max(8, Math.min(12, rad * 0.46));
+            ctx.font = `bold ${fontPx}px Inter, monospace`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.lineWidth = Math.max(2, fontPx * 0.22); ctx.strokeStyle = "rgba(0,0,0,0.88)";
+            const lbl = r.price.toFixed(pxDp);
+            ctx.strokeText(lbl, r.x, r.y);
+            ctx.fillStyle = "rgba(255,255,255,0.99)"; ctx.fillText(lbl, r.x, r.y);
+          }
+          forceChips.push({ x: r.x - rad - 2, y: r.y - rad - 2, w: 2 * rad + 4, h: 2 * rad + 4 });
+          fpTrailBars.add(r.bar);
+          apDrawn++;
+          if (r.dashed) apInto++;
         }
-        // Painted nothing → no claim about where the numbers stood.
-        if (fpBarsPainted === 0) delete dsFp.footprintBadges;
+        ctx.restore();
+        fpRings += apDrawn;
+        canvas.dataset.aggPassiveRings = String(apDrawn);
+        canvas.dataset.aggPassiveIntoExtreme = String(apInto);
       }
 
       /* ══════════════════════════════════════════════════════
@@ -6988,12 +6765,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       ══════════════════════════════════════════════════════ */
 
       /* ══════════════════════════════════════════════════════
-         MODE 6: BIG TRADES — Deep Charts style
-         Standard green/purple candle bodies + wicks.
-         Circles drawn at the highest-volume price level when
-         that level is ≥2× the average level volume.
-         Circle size ∝ relative volume. Green = ask dominant,
-         pink/magenta = bid dominant.
+         MODE 6: BIG TRADES — canon F07A · G04 · F06/H-701 · F07B.
+         Individual large executions at their EXACT time and price, as
+         luminous gold discs, area ∝ the size each print claims (the
+         bubbleDrawGeometry owner, against the frame's peak), SIZE / TIME /
+         ↑PRICE written inside. A dashed response path to where price went
+         over the next closed bars. At most ONE gold leader callout, in
+         percentile language, placed through the keep-out owner.
       ══════════════════════════════════════════════════════ */
       // Big Trades draws when it's the active exclusive mode OR when Simultaneous
       // Mode is on (bigTradesOverlay) — in the latter case the primary order-flow
@@ -7188,9 +6966,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // hide the bubbles behind the profile. Guarded → won't double-draw later.
         runWMVP();
 
-        // Draw bubbles — real water-bubble look: transparent glassy body,
-        // bright iridescent rim, specular highlights, gentle wobble. Fully
-        // opaque and always present (no fade, no pop).
+        // F07A · Big Trades are MARKS ON THE MARKET: luminous gold discs at the
+        // execution's own time and price, area ∝ size, the size / time / price
+        // written INSIDE. No ticket boxes and no labels stepped outside a
+        // bubble (serving 2026-09-25: "02:16:06 PM · 84,000 / 0.25 @ ASK"
+        // tickets overlapped each other, the candles and the bubbles).
         canvas.dataset.bigTradeBubbleCount = String(bubblesRef.current.length);
         canvas.dataset.bigTradeBubbleIdentity = "INDIVIDUAL_EXECUTION";
         canvas.dataset.bigTradeBubbleStatus = bubblesRef.current.length ? "DRAWN" : "WAITING_FOR_PRINTS";
@@ -7203,25 +6983,62 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           else delete canvas.dataset.bigTradeBubbleOldest;
         }
         const hoverId = bubbleHoverRef.current;
-        // STAGGERING (Garden 12 collision governor): bubbles never move — they
-        // are at the execution's time and price. Largest paint first so a
-        // smaller execution on top stays visible, and a label that would land
-        // on an earlier one steps OUT on a leader instead of overprinting.
-        const bubbleLabelRects: { x: number; y: number; w: number; h: number }[] = [];
-        let bubbleLabelsStaggered = 0;
         // CANON F07A (Big Trades are marks on the market): a FEW large marks,
         // not a swarm. Visibility governor — the five largest executions get
         // the full bubble and inscription; the rest stay at their true time
         // and price as quiet rings (still hit-testable, still Inspectable).
         const BIG_TRADE_FULL = 5;
-        // CANON F13 Micro: at NEAR the three largest prints carry an
-        // "important print" ticket on a leader — time · price, size @ ASK/BID
-        // (buyer-initiated lifts the ask; seller-initiated hits the bid), and
-        // SIDE INFERRED when the venue did not stamp the aggressor.
-        const ticketDepth = semanticDensity.depth;
-        const printTickets: { x: number; y: number; w: number; h: number }[] = [];
         let bubbleRank = 0;
         let bubblesQuieted = 0;
+        let bigDrawn = 0, bigInscribed = 0;
+
+        // ── F07A · THE RESPONSE PATH ─────────────────────────────────────
+        // Painted first, under the discs: a dashed gold path from each full
+        // bubble through the closes of the next response bars to where price
+        // went. Which bars count is selectPrintResponse's rule (CLOSED bars
+        // only — the forming bar is named by the header's close proof); until
+        // the last of them has closed there is no path, never a partial one.
+        const btBars = barsRef.current ?? [];
+        const btNewest = btBars[btBars.length - 1];
+        const btForming = btNewest && selectChartCloseLabel(Number(btNewest.time), timeframe, Date.now()).forming
+          ? Number(btNewest.time) : null;
+        const byClaim = [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value));
+        let responsePaths = 0;
+        byClaim.forEach((b, i) => {
+          const selP = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+          if (i >= BIG_TRADE_FULL && hoverId !== b.id && !selP) return;
+          const pts = memoBigTradeResponsePath(b.spawnKey, { timeSec: b.anchorTime, price: b.anchorPrice, side: b.side }, btBars, btForming);
+          if (!pts) return;
+          const xy: { x: number; y: number }[] = [{ x: b.x, y: b.y }];
+          for (const p of pts.slice(1)) {
+            const xp = chart.timeScale().timeToCoordinate(p.time as never), yp = srs.priceToCoordinate(p.price);
+            if (xp == null || yp == null) return;
+            xy.push({ x: +xp, y: +yp });
+          }
+          const ang = Math.atan2(xy[1].y - b.y, xy[1].x - b.x);
+          const start = { x: b.x + Math.cos(ang) * (b.r + 2), y: b.y + Math.sin(ang) * (b.r + 2) };
+          const end = xy[xy.length - 1];
+          ctx.save();
+          ctx.globalAlpha = att.alpha("bigTrades", { selectedItem: selP });
+          ctx.strokeStyle = "rgba(232,184,92,0.85)"; ctx.lineWidth = 1.3; ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(start.x, start.y);
+          for (let k = 1; k < xy.length - 1; k++) {
+            const mx = (xy[k].x + xy[k + 1].x) / 2, my = (xy[k].y + xy[k + 1].y) / 2;
+            ctx.quadraticCurveTo(xy[k].x, xy[k].y, mx, my);
+          }
+          ctx.lineTo(end.x, end.y); ctx.stroke(); ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(end.x, end.y, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(240,200,110,0.95)"; ctx.fill();
+          ctx.restore();
+          responsePaths++;
+        });
+
+        // The inscription's own font, so what is measured is what is painted.
+        const inscriptionFont = (px: number, weight: 600 | 700) => `${weight} ${px}px Inter, ui-sans-serif, system-ui, sans-serif`;
+        const measureInscription = (text: string, px: number, weight: 600 | 700) => {
+          ctx.font = inscriptionFont(px, weight);
+          return ctx.measureText(text).width;
+        };
         // Ranked by the size each print claims (|value|, the headline's
         // number), never by the animated radius: `r` starts at 0.35 of
         // its target on every spawn and pan-back, so ranking by it demoted
@@ -7231,177 +7048,159 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const buy = b.side === "buy";
           const selB = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
           if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id && !selB) {
-            const coreQ = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
             ctx.save();
             ctx.globalAlpha = att.alpha("bigTrades");
-            ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(2.5, Math.min(5, b.r * 0.3)), 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(${coreQ},0.7)`; ctx.lineWidth = 1.2; ctx.stroke();
+            const rq = Math.max(2.5, Math.min(5, b.r * 0.3));
+            ctx.beginPath(); ctx.arc(b.x, b.y, rq, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1.2; ctx.stroke();
             ctx.restore();
+            forceChips.push({ x: b.x - rq - 2, y: b.y - rq - 2, w: 2 * rq + 4, h: 2 * rq + 4 });
             bubblesQuieted++;
             continue;
           }
-          // Green = aggressive buy, red = aggressive sell — boosted contrast so both
-          // are unmistakable when several bubbles share one candle.
+          // Side is the print's own truth: a thin inner ring in Appearance's
+          // aggressor ink, and the ↑ / ↓ before its price.
           const core = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
           const isHover = hoverId === b.id;
-
-          // gentle squash/stretch wobble so they feel alive like real bubbles
+          // Only the membrane breathes; the centre stays on the evidence.
           const t = nowMs / 520 + b.phase;
-          const wob = 1 + Math.sin(t) * 0.05;
+          const wob = 1 + Math.sin(t) * 0.03;
           const Rx = Math.max(0.1, b.r * wob);
           const Ry = Math.max(0.1, b.r / wob);
 
           ctx.save();
           ctx.globalAlpha = att.alpha("bigTrades", { selectedItem: selB });
-
-          // Visuals Canon: Big Trades are market objects in the same underwater
-          // world as Liquidity Weather. Keep the teal/red core as side truth,
-          // then add a brass caustic corona around the individual execution.
-          // The corona communicates object class, never participant or intent.
-          if (b.kind === "big-trade") {
-            ctx.save();
-            ctx.shadowColor = "rgba(232,184,92,0.72)";
-            ctx.shadowBlur = Math.max(7, b.r * 0.55);
-            ctx.beginPath();
-            ctx.ellipse(b.x, b.y, Rx + 3.5, Ry + 3.5, 0, 0, Math.PI * 2);
-            ctx.lineWidth = isHover ? 2.4 : 1.25;
-            ctx.strokeStyle = `rgba(232,184,92,${isHover ? 0.94 : 0.68})`;
-            ctx.stroke();
-            ctx.restore();
-          }
-
-          // outer halo (soft tinted glow)
-          ctx.beginPath();
-          ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${core},0.10)`;
-          ctx.fill();
-
-          // glassy body: transparent center → faint tint → brighter near the rim
-          const g = ctx.createRadialGradient(b.x, b.y, Rx * 0.2, b.x, b.y, Rx);
-          g.addColorStop(0,    `rgba(${core},0.04)`);   // see-through middle
-          g.addColorStop(0.72, `rgba(${core},0.08)`);
-          g.addColorStop(0.93, `rgba(${core},0.26)`);   // tint gathers at edge
-          g.addColorStop(1,    `rgba(255,255,255,0.32)`); // bright rim light
-          ctx.beginPath();
-          ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
-          ctx.fillStyle = g;
-          ctx.fill();
-
-          // bright thin membrane rim (the signature of a water bubble)
-          ctx.beginPath();
-          ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 0.6), Math.max(0.1, Ry - 0.6), 0, 0, Math.PI * 2);
-          ctx.lineWidth = isHover ? 2.6 : 1.7;
-          ctx.strokeStyle = `rgba(255,255,255,${isHover ? 0.98 : 0.82})`;
+          // Luminous gold body: a lit glass disc, brighter at the rim.
+          ctx.save();
+          ctx.shadowColor = "rgba(232,184,92,0.8)";
+          ctx.shadowBlur = Math.max(8, b.r * 0.7);
+          const g = ctx.createRadialGradient(b.x - Rx * 0.25, b.y - Ry * 0.3, Rx * 0.1, b.x, b.y, Rx);
+          g.addColorStop(0, "rgba(255,226,160,0.30)");
+          g.addColorStop(0.65, "rgba(232,184,92,0.16)");
+          g.addColorStop(1, "rgba(232,184,92,0.42)");
+          ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
+          ctx.fillStyle = g; ctx.fill();
+          ctx.restore();
+          ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
+          ctx.lineWidth = isHover ? 2.4 : 1.6;
+          ctx.strokeStyle = `rgba(240,200,110,${isHover ? 1 : 0.92})`;
           ctx.stroke();
-          // faint colored inner ring for iridescence
-          ctx.beginPath();
-          ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.4), Math.max(0.1, Ry - 2.4), 0, 0, Math.PI * 2);
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = `rgba(${core},0.55)`;
-          ctx.stroke();
+          ctx.beginPath(); ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.6), Math.max(0.1, Ry - 2.6), 0, 0, Math.PI * 2);
+          ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${core},0.6)`; ctx.stroke();
 
-          // big specular highlight (top-left) — crescent-ish bright spot
-          ctx.beginPath();
-          ctx.ellipse(b.x - Rx * 0.34, b.y - Ry * 0.38, Rx * 0.22, Ry * 0.16, -0.5, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255,255,255,0.85)";
-          ctx.fill();
-          // small secondary highlight (bottom-right)
-          ctx.beginPath();
-          ctx.ellipse(b.x + Rx * 0.4, b.y + Ry * 0.42, Rx * 0.08, Ry * 0.08, 0, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255,255,255,0.4)";
-          ctx.fill();
-
-          // F07A: magnitude is the primary inscription, matching the area.
-          // Time and price are subordinate; exact values remain in Inspect.
-          if (b.r >= 7) {
+          // F07A: SIZE / TIME / ↑PRICE inside the disc — only the lines the
+          // circle's chord can hold at their height; else fewer, else none.
+          const inscription = fitBubbleInscription(b.r, bigTradeInscriptionLines(b.r,
+            formatBubbleVolume(Math.abs(b.value)),
+            formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current),
+            `${buy ? "↑" : "↓"} ${b.anchorPrice.toFixed(pxDp)}`), measureInscription);
+          if (inscription.length) {
             ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
-            const lbl = formatBubbleVolume(Math.abs(b.value));
-            const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
-            ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.lineWidth = Math.max(2, fontPx * 0.22);
-            ctx.strokeStyle = "rgba(0,0,0,0.88)";
-            let labelX = b.x;
-            let labelY = b.r >= 24 ? b.y - 7 : b.y;
-            const lw = ctx.measureText(lbl).width + 4, lh = fontPx + 4;
-            const hitL = (x: number, y: number) => bubbleLabelRects.some(r => x - lw / 2 < r.x + r.w && x + lw / 2 > r.x && y - lh / 2 < r.y + r.h && y + lh / 2 > r.y);
-            let outside = false;
-            if (hitL(labelX, labelY)) {
-              outside = true;
-              labelX = b.x + b.r + 8 + lw / 2;
-              labelY = b.y;
-              // The price axis paints over the overlay: flip left when the
-              // right side has no plot to print in.
-              let axisWB = 70; try { axisWB = chart.priceScale("right").width(); } catch { /* default */ }
-              if (labelX + lw / 2 > W - axisWB - 4) labelX = b.x - b.r - 8 - lw / 2;
-              for (let k = 0; k < 6 && hitL(labelX, labelY); k++) labelY += lh;
-              ctx.save(); ctx.strokeStyle = `rgba(${core},0.7)`; ctx.lineWidth = 1;
-              const leftSide = labelX < b.x;
-              ctx.beginPath(); ctx.moveTo(leftSide ? b.x - b.r : b.x + b.r, b.y); ctx.lineTo(leftSide ? labelX + lw / 2 : labelX - lw / 2, labelY); ctx.stroke(); ctx.restore();
-              ctx.lineWidth = Math.max(2, fontPx * 0.22); ctx.strokeStyle = "rgba(0,0,0,0.88)";
-              bubbleLabelsStaggered++;
-            }
-            bubbleLabelRects.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });
-            // A label stepped out of its bubble sits on open glass; later
-            // chips (absorption, exhaustion, structure) seed from forceChips
-            // and would otherwise print over the magnitude it moved to keep.
-            if (outside) forceChips.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });
-            ctx.strokeText(lbl, labelX, labelY);
-            ctx.fillStyle = "rgba(246,224,176,0.99)";
-            ctx.fillText(lbl, labelX, labelY);
-            if (b.r >= 24 && !outside) {
-              ctx.font = "8px Inter, monospace";
-              const timeLabel = formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current);
-              ctx.fillStyle = "rgba(232,226,212,0.92)";
-              ctx.fillText(timeLabel, b.x, b.y + 5);
-              ctx.fillText(`${buy ? "↑" : "↓"} ${formatBubblePrice(b.anchorPrice)}`, b.x, b.y + 15);
-            }
-          }
-          // At NEAR a print's words (time · price, size @ side) are a ticket
-          // for the SELECTED or HOVERED print only. Three at rest were the
-          // knot of boxed numbers by the price axis (Founder, 2026-09-25:
-          // "just cards"); the dot or bubble IS the print, and its raw tape
-          // is Inspect's (F06B).
-          if (ticketDepth === "NEAR" && (selB || isHover) && b.kind === "big-trade") {
-            ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
-            const size = buy ? b.ask : b.bid;
-            const provT = aggressorProvenanceOf(b.aggressorMethod);
-            const sideNote = provT === "INFERRED" ? aggressorProvenanceNote(provT)?.chip : null;
-            // The provenance word leads the line: if a narrow plot ever cuts
-            // the ticket, it cuts the size, never the word that says the
-            // side was a guess.
-            const lines = [
-              `${formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current)} · ${formatBubblePrice(b.anchorPrice)}`,
-              `${sideNote ? `${sideNote} · ` : ""}${formatBubbleVolume(size)} @ ${buy ? "ASK" : "BID"}`,
-            ];
-            ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
-            const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, th = 34;
-            // Inside the plot: the price axis and the pane-0 clip would
-            // otherwise cut a right-placed ticket on a 390px phone.
-            const maxTX = plotRight - tw - 4, maxTY = pane0Bottom - th - 4;
-            let tx = b.x - b.r - 24 - tw, ty = b.y - b.r - 20 - th;
-            if (tx < 4) tx = b.x + b.r + 24;
-            tx = Math.max(4, Math.min(maxTX, tx));
-            if (ty < 96) ty = b.y + b.r + 20;
-            const ticketBusy = (y: number) => printTickets.some(r => tx < r.x + r.w && tx + tw > r.x && y < r.y + r.h + 4 && y + th + 4 > r.y);
-            for (let k = 0; k < 4 && ticketBusy(ty); k++) ty += th + 6;
-            if (ty > maxTY) { ty = maxTY; for (let k = 0; k < 4 && ticketBusy(ty); k++) ty -= th + 6; }
-            printTickets.push({ x: tx, y: ty, w: tw, h: th });
-            forceChips.push({ x: tx, y: ty, w: tw, h: th });
-            ctx.strokeStyle = "rgba(232,184,92,0.8)"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(tx + tw / 2, ty + (ty < b.y ? th : 0)); ctx.lineTo(b.x, b.y); ctx.stroke();
-            ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(tx, ty, tw, th);
-            ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
-            ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillStyle = "rgba(240,200,110,1)"; ctx.fillText(lines[0], tx + 8, ty + 11);
-            ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(lines[1], tx + 8, ty + 24);
+            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
+            inscription.forEach((l, k) => {
+              ctx.font = inscriptionFont(l.px, l.weight);
+              ctx.fillStyle = k === 0 ? "rgba(255,236,190,1)" : "rgba(246,224,176,0.95)";
+              ctx.fillText(l.text, b.x, b.y + l.dy);
+            });
+            bigInscribed++;
           }
           ctx.restore();
+          // The disc is an obstacle for every later chip on the glass.
+          forceChips.push({ x: b.x - b.r - 4, y: b.y - b.r - 4, w: 2 * b.r + 8, h: 2 * b.r + 8 });
+          bigDrawn++;
           if (selB) markSelectedBubble(b, Rx, Ry);
         }
-        canvas.dataset.bigTradeLabelsStaggered = String(bubbleLabelsStaggered);
-        canvas.dataset.importantPrintTickets = String(printTickets.length);
+        canvas.dataset.bigTradesDrawn = String(bigDrawn);
+        canvas.dataset.bigTradeInscribed = String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
+        canvas.dataset.responsePaths = String(responsePaths);
+
+        // ── G04 · AT MOST ONE LEADER CALLOUT ────────────────────────────
+        // For the one print that earns it (pickBigTradeCallout: the selected,
+        // else the hovered, else — at MID — the dominant print on camera), in
+        // percentile language against every print this chart captured this
+        // session. Placed by the keep-out owner: clear of every candle body
+        // in view, of the header band, and of every chip and disc already on
+        // the glass. Nowhere clear → no callout, said so; the rest lives in
+        // Inspect.
+        let calloutReceipt: string;
+        let calloutSlot: string | null = null;
+        {
+          // Depth from the frame's one owner: FAR speaks macro, NEAR waits to
+          // be asked (selected / hovered), MID names the dominant print.
+          const calloutDepth = semanticDensity.depth;
+          const hoveredKey = hoverId != null ? bubblesRef.current.find(b => b.id === hoverId)?.spawnKey ?? null : null;
+          const pick = pickBigTradeCallout(
+            bubblesRef.current.map(b => ({ key: b.spawnKey, magnitude: Math.abs(b.value), onCamera: b.x >= 0 && b.x <= plotRight && b.y >= 0 && b.y <= pane0Bottom, b })),
+            { depth: calloutDepth, selectedKey: selectedBubbleKey, hoveredKey },
+          );
+          calloutReceipt = `NONE:${pick.reason}`;
+          if (pick.target) {
+            const b = pick.target.b;
+            const rank = sessionSizePercentile(Math.abs(b.value), bigTradePrintAccRef.current.values());
+            const words = bigTradeCalloutLines({
+              bid: b.bid, ask: b.ask, price: b.anchorPrice, priceText: b.anchorPrice.toFixed(pxDp),
+              aggressorMethod: b.aggressorMethod, pct: rank.pct, prints: rank.prints,
+            });
+            if (words) {
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              const cw = Math.ceil(Math.max(...words.lines.map(l => ctx.measureText(l).width))) + 16;
+              const chh = 8 + words.lines.length * 13;
+              const tsC = chart.timeScale();
+              const vrC = tsC.getVisibleLogicalRange();
+              const bodies = spanCandleKeepOut(barsRef.current ?? [], {
+                visible: vrC ? { from: +vrC.from, to: +vrC.to } : null,
+                barSpacing: bsp,
+                timeToX: tm => { const xk = tsC.timeToCoordinate(tm as never); return xk == null ? null : +xk; },
+                priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+              }, 0, plotRight);
+              const spot = pickSlotClearOfKeepOut(
+                bigTradeCalloutSlots(b, { w: cw, h: chh }),
+                bodies,
+                s => s.x < 4 || s.x + s.w > plotRight - 4 || s.y < HEADER_FLOOR_Y || s.y + s.h > pane0Bottom - 4 || rectHits(s, forceChips) > 0,
+              );
+              if (!spot) {
+                calloutReceipt = "NONE:NO_ROOM";
+              } else {
+                const r = spot.rect;
+                const selC = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+                ctx.save();
+                ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selC });
+                // The leader: from the disc's rim to the nearest point of the box.
+                const lx = Math.max(r.x, Math.min(r.x + r.w, b.x)), ly = Math.max(r.y, Math.min(r.y + r.h, b.y));
+                const ang = Math.atan2(ly - b.y, lx - b.x);
+                const rimX = b.x + Math.cos(ang) * (b.r + 2), rimY = b.y + Math.sin(ang) * (b.r + 2);
+                ctx.strokeStyle = "rgba(232,184,92,0.9)"; ctx.lineWidth = 1; ctx.setLineDash([]);
+                ctx.beginPath(); ctx.moveTo(rimX, rimY); ctx.lineTo(lx, ly); ctx.stroke();
+                ctx.beginPath(); ctx.arc(rimX, rimY, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(240,200,110,1)"; ctx.fill();
+                // A backing on a protected body yields (keepOutBackingAlpha).
+                ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.92)})`;
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+                ctx.strokeStyle = "rgba(232,184,92,0.95)";
+                ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                words.lines.forEach((l, k) => {
+                  ctx.font = k === 1 ? "600 10px ui-sans-serif, system-ui, sans-serif" : "700 10px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = k === 1 ? "rgba(237,230,211,0.95)" : "rgba(240,200,110,1)";
+                  ctx.fillText(l, r.x + 8, r.y + 10.5 + k * 13);
+                });
+                ctx.restore();
+                forceChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+                calloutReceipt = words.receipt;
+                calloutSlot = spot.mode;
+              }
+            }
+          }
+        }
+        canvas.dataset.bigTradeCallout = calloutReceipt;
+        if (calloutSlot) canvas.dataset.bigTradeCalloutSlot = calloutSlot;
+        else delete canvas.dataset.bigTradeCalloutSlot;
+        if (effectiveFP === "big-trades") {
+          for (const b of bubblesRef.current) if (b.x >= 0 && b.x <= plotRight) fpTrailBars.add(b.anchorBarTime);
+          fpRings += bigDrawn + bubblesQuieted;
+        }
       } else {
         // Left big-trades mode → clear bubbles + tooltip
         bubblesRef.current = [];
@@ -7412,7 +7211,44 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // The count and status speak for an OFF layer; every other receipt
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
-          "bigTradeLabelsStaggered", "importantPrintTickets", "bigTradeQuieted"] as const) delete canvas.dataset[k];
+          "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
+          "bigTradeCallout", "bigTradeCalloutSlot"] as const) delete canvas.dataset[k];
+      }
+
+      // O-06 · THE FOOTPRINT RECEIPT, after every mode has painted (Big
+      // Trades included — it used to publish before the bubbles and said
+      // `big-trades:NO_EXECUTIONS` over a glass full of them). OFF, silence
+      // and paint are three different states; the form says WHAT painted
+      // (cells, histogram, tint, trail, bubbles), rows are counted only where
+      // rows painted, rings only where rings did.
+      {
+        const dsFp = canvas.dataset;
+        const fpBars = fpBarsPainted + fpTrailBars.size;
+        if (effectiveFP === ("__off__" as FootprintType)) {
+          dsFp.footprint = "OFF";
+          delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
+        } else if (fpBars === 0) {
+          // On, and nothing was heard for any bar in view: silence, named.
+          dsFp.footprint = `${effectiveFP}:NO_EXECUTIONS`;
+          delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
+        } else {
+          dsFp.footprint = effectiveFP;
+          dsFp.footprintForm = FOOTPRINT_FORM[effectiveFP];
+          dsFp.footprintBars = String(fpBars);
+          if (fpRowsPainted > 0) {
+            dsFp.footprintRows = String(fpRowsPainted);
+            // Every cell mode paints the rows it received high-first (see MODE 1).
+            dsFp.footprintOrder = "HIGH_FIRST";
+          } else {
+            delete dsFp.footprintRows; delete dsFp.footprintOrder;
+          }
+          if (fpRings > 0) dsFp.footprintRings = String(fpRings);
+          // Where the numbers stood: in the rows only (NEAR), or with the
+          // badges above the bars as well.
+          dsFp.footprintBadges = fpRowsOnly ? "ROWS_ONLY" : "ABOVE_BARS";
+        }
+        // Painted nothing → no claim about where the numbers stood.
+        if (effectiveFP === ("__off__" as FootprintType) || fpBars === 0) delete dsFp.footprintBadges;
       }
 
       /* ── CANON F13 · MICRO: PER-BAR DELTA ON THE SAME CAMERA ────────────
@@ -7441,17 +7277,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           for (let i = 0; i < visibleBars.length; i++) {
             const c = visibleBars[i];
             if (i > 0) { const d = Number(c.time) - Number(visibleBars[i - 1].time); if (d > 0 && (stepD === 0 || d < stepD)) stepD = d; }
-            const sub = getBarSubProfile(c);
-            if (!sub) continue;
-            let buy = 0, sell = 0;
-            for (const r of sub) { buy += r.ask; sell += r.bid; }
-            if (buy + sell <= 0) continue;
+            // The bar's delta from its ONE owner — the Bid × Ask column
+            // reads the same function, so the two can never disagree.
+            const bd = barTapeDelta(getBarSubProfile(c));
+            if (!bd) continue;
             const xr = chart.timeScale().timeToCoordinate(c.time as never);
             // visibleBars carries two padding bars each side; a label off the
             // plot is not on the glass and is not counted.
             if (xr == null || +xr < 0 || +xr > plotRight) continue;
-            const dlt = buy - sell;
-            const text = `${dlt >= 0 ? "+" : "−"}${fmtV(Math.abs(dlt))}`;
+            const dlt = bd.delta;
+            const text = signedFlowText(dlt, fmtV);
             rowsD.push({ t: Number(c.time), x: +xr, dlt, text, w: ctx.measureText(text).width });
           }
           // A signed number needs its own width plus a gap. Where bars sit

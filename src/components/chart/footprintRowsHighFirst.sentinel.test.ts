@@ -31,9 +31,13 @@ describe("footprint rows are drawn high-first", () => {
   });
 
   it("every footprint draw mode takes them high-first, and places row li down from the high", () => {
+    // 2026-09-25 (footprint canon): three modes paint ROWS now — Bid × Ask
+    // cells, the Volume Profile histogram and Imbalance tint. Delta Bubbles
+    // and Agg/Passive are the Nectar trail (rings on price) and Big Trades are
+    // F07A discs; none of those reads display rows.
     const calls = [...CHART.matchAll(/const levels = fpLevels\(c, (numLevels|numLev)\)(\.reverse\(\))?;/g)];
-    expect(calls.length).toBeGreaterThanOrEqual(5);
+    expect(calls.length).toBeGreaterThanOrEqual(3);
     for (const c of calls) expect(c[2], c[0]).toBe(".reverse()");
-    expect((CHART.match(/Math\.round\(yH \+ li \* rowH\)/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect((CHART.match(/Math\.round\(yH \+ li \* rowH\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -177,8 +177,11 @@ describe("NEAR words yield to the footprint's cells (serving, 2026-09-25 14:17 C
     expect(cells).toMatch(/if \(!getBarSubProfile\(b\.c\)\) continue;/);
     expect(cells).toMatch(/const yHc = srs\.priceToCoordinate\(b\.c\.high\), yLc = srs\.priceToCoordinate\(b\.c\.low\);/);
     expect(cells).toMatch(/fpCells\.push\(\{ x: b\.cx - halfW, y: Math\.min\(\+yHc, \+yLc\), w: colW, h: Math\.max\(2, Math\.abs\(\+yLc - \+yHc\)\) \}\);/);
-    // The same geometry every row mode paints its cells on.
-    expect(CHART).toMatch(/ctx\.fillRect\(x, yH, colW, fullH\);/);
+    // The same geometry every row mode paints its cells on. 2026-09-25
+    // (footprint canon, M46): Bid × Ask no longer lays a full-column slab
+    // under its cells (one tile per TRADED row, a grid, not a slab); the
+    // column it occupies is REGISTERED at exactly this geometry instead.
+    expect(CHART).toMatch(/forceChips\.push\(\{ x, y: yH, w: colW, h: fullH \}\);/);
   });
 });
 
@@ -187,9 +190,13 @@ describe("M46 · at NEAR the footprint's numbers stay in the bars' rows", () => 
     expect(CHART).toMatch(/const fpRowsOnly = semanticDensity\.depth === "NEAR";/);
     expect(CHART).toMatch(/const showBadges = bsp >= 70 && !fpRowsOnly;/);
     expect(CHART).toMatch(/const showWinner = bsp >= 22 && !fpRowsOnly;/);
-    // Every above-the-bar number box is behind one of those two gates.
-    expect(CHART.match(/if \(showBadges\) \{/g)?.length).toBe(4);
-    expect(CHART.match(/if \(showWinner\) \{/g)?.length).toBe(1);
+    // Every above-the-bar number is behind the badge gate. 2026-09-25
+    // (footprint canon): the per-mode delta chips, ratio chips, AGG BUYS
+    // pills and 2×2 grids are gone at EVERY depth; the one number left above
+    // a bar — Bid × Ask's delta, halo text from barTapeDelta — is behind
+    // `showBadges`, and nothing reads `showWinner` any more.
+    expect(CHART.match(/if \(showBadges\) \{/g)?.length).toBe(1);
+    expect(CHART.match(/if \(showWinner\) \{/g)?.length ?? 0).toBe(0);
     expect(CHART).toMatch(/dsFp\.footprintBadges = fpRowsOnly \? "ROWS_ONLY" : "ABOVE_BARS";/);
   });
 });

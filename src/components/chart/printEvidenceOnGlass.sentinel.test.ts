@@ -34,11 +34,13 @@ const slice = (from: string, to: string): string => {
 const bigTrades = () => slice("const BIG_TRADE_FULL = 5;", 'canvas.dataset.bigTradeBubbleStatus = "OFF";');
 
 describe("a print's time is stated in the axis's zone", () => {
-  it("the inscription and the ticket format through the zone-aware owner", () => {
+  it("the inscription formats through the zone-aware owner", () => {
     const b = bigTrades();
     const uses = b.match(/formatBubbleClock\(b\.anchorTime, tzRef\.current, clock24hRef\.current\)/g) ?? [];
-    // Positive control: both the in-bubble time and the NEAR ticket's first line.
-    expect(uses.length).toBe(2);
+    // Positive control: the in-bubble TIME line (F07A). 2026-09-25: the NEAR
+    // ticket that carried the second use is gone — the time lives inside the
+    // disc, the G04 callout names side / size / rank, never a second clock.
+    expect(uses.length).toBe(1);
   });
 
   it("no unlabelled UTC clock is printed from the execution time", () => {
@@ -49,37 +51,63 @@ describe("a print's time is stated in the axis's zone", () => {
 });
 
 /**
- * The NEAR important-print ticket. UPDATED 2026-09-25: it prints for the
- * SELECTED or HOVERED print only — three tickets at rest were the knot of
- * boxed numbers by the price axis the Founder called "just cards"; the raw
- * rows are Inspect's (F06B).
+ * THE ONE G04 CALLOUT. 2026-09-25 (footprint canon): the NEAR "important
+ * print" tickets — up to three boxed "time · price / size @ ASK" cards per
+ * frame — overlapped each other, the candles and the bubbles on serving. They
+ * are replaced by at most ONE gold leader callout (G04), the rest living inside
+ * the discs (F07A) and in Inspect. What these pins held for the tickets — on
+ * the plot, inside pane 0, the side in its owner's words — they hold for it.
  */
-const ticket = () => slice('if (ticketDepth === "NEAR" && (selB || isHover)', "ctx.fillText(lines[1], tx + 8, ty + 24);");
+const callout = () => slice("const calloutDepth = semanticDensity.depth;", "canvas.dataset.bigTradeCallout = calloutReceipt;");
 
-describe("the NEAR print ticket is words on selection or hover, never at rest", () => {
-  it("is gated on the selected or hovered bubble, not on rank", () => {
+describe("the one G04 callout stays on the plot, clear of the candles, in its owners' words", () => {
+  it("is chosen once, by the callout owner, from the frame's one depth", () => {
     const b = bigTrades();
-    expect(b).toContain('if (ticketDepth === "NEAR" && (selB || isHover) && b.kind === "big-trade") {');
-    expect(b).not.toMatch(/ticketDepth === "NEAR" && bubbleRank/);
-  });
-});
-
-describe("the important-print ticket stays on the plot and leads with its provenance", () => {
-  it("clamps x to the plot and y to pane 0 after choosing a side", () => {
-    const b = ticket();
-    expect(b).toContain("const maxTX = plotRight - tw - 4, maxTY = pane0Bottom - th - 4;");
-    const flip = b.indexOf("if (tx < 4) tx = b.x + b.r + 24;");
-    const clampX = b.indexOf("tx = Math.max(4, Math.min(maxTX, tx));");
-    expect(flip).toBeGreaterThan(-1);
-    expect(clampX).toBeGreaterThan(flip);
-    expect(b).toMatch(/if \(ty > maxTY\) \{ ty = maxTY; for \(let k = 0; k < 4 && ticketBusy\(ty\); k\+\+\) ty -= th \+ 6; \}/);
+    expect(b.match(/pickBigTradeCallout\(/g) ?? []).toHaveLength(1);
+    expect(callout()).toContain("{ depth: calloutDepth, selectedKey: selectedBubbleKey, hoveredKey },");
   });
 
-  it("puts the side's provenance before the size, in the owner's words", () => {
-    const b = ticket();
-    expect(b).toContain('const sideNote = provT === "INFERRED" ? aggressorProvenanceNote(provT)?.chip : null;');
-    expect(b).toContain("`${sideNote ? `${sideNote} · ` : \"\"}${formatBubbleVolume(size)} @ ${buy ? \"ASK\" : \"BID\"}`");
-    expect(b).not.toContain("SIDE INFERRED");
+  // Carried from the NEAR builder's ticket gate (2026-09-25: "three tickets
+  // at rest were the knot of boxed numbers by the price axis"): at NEAR the
+  // print's words come ONLY for the selected or hovered print. The owner says
+  // NEAR_QUIET otherwise (footprintCanon.test.ts), and the canvas hands it
+  // exactly those two keys — never a rank.
+  it("at NEAR the callout is words on selection or hover, never at rest", () => {
+    const b = callout();
+    expect(b).toContain("const hoveredKey = hoverId != null ? bubblesRef.current.find(b => b.id === hoverId)?.spawnKey ?? null : null;");
+    expect(b).not.toMatch(/bubbleRank|BIG_TRADE_FULL/);
+  });
+
+  it("is placed by the keep-out owner: clear of every body in view, the header band, the plot, pane 0 and every chip", () => {
+    const b = callout();
+    expect(b).toMatch(/const bodies = spanCandleKeepOut\(barsRef\.current \?\? \[\], \{/);
+    expect(b).toMatch(/const spot = pickSlotClearOfKeepOut\(\s*bigTradeCalloutSlots\(b, \{ w: cw, h: chh \}\),\s*bodies,/);
+    expect(b).toContain("s => s.x < 4 || s.x + s.w > plotRight - 4 || s.y < HEADER_FLOOR_Y || s.y + s.h > pane0Bottom - 4 || rectHits(s, forceChips) > 0,");
+    // Nowhere clear is said, never forced.
+    expect(b).toContain('calloutReceipt = "NONE:NO_ROOM";');
+    // A backing that still sits on a protected body yields.
+    expect(b).toContain("keepOutBackingAlpha(spot, 0.92)");
+  });
+
+  it("registers itself as an obstacle after it paints", () => {
+    const b = callout();
+    const paint = b.indexOf("ctx.fillRect(r.x, r.y, r.w, r.h);");
+    const push = b.indexOf("forceChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });");
+    expect(paint).toBeGreaterThan(-1);
+    expect(push).toBeGreaterThan(paint);
+  });
+
+  it("says side, size and rank in the owners' words — never its own", () => {
+    const b = callout();
+    expect(b).toMatch(/const rank = sessionSizePercentile\(Math\.abs\(b\.value\), bigTradePrintAccRef\.current\.values\(\)\);/);
+    expect(b).toContain("const words = bigTradeCalloutLines({");
+    expect(b).toContain("priceText: b.anchorPrice.toFixed(pxDp)");
+    expect(b).not.toMatch(/AGGRESSIVE|SIDE INFERRED|PERCENTILE/);
+  });
+
+  it("no boxed print tickets remain", () => {
+    const b = bigTrades();
+    expect(b).not.toMatch(/printTickets|ticketBusy|importantPrintTickets/);
   });
 });
 
@@ -178,15 +206,22 @@ describe("the five full bubbles are the five largest prints, not the five grown 
   });
 });
 
-describe("a stepped-out bubble label is an obstacle for later chips", () => {
-  it("registers the label's rectangle in forceChips when it left its bubble", () => {
+/**
+ * 2026-09-25 (footprint canon, F07A): a bubble's words live INSIDE the bubble.
+ * The label that stepped OUT on a leader when it would overprint (and its
+ * `bigTradeLabelsStaggered` receipt) is gone: what the chord cannot hold is
+ * not written — the rest lives in Inspect. The disc itself is the obstacle.
+ */
+describe("a bubble's words never leave the bubble; the disc is an obstacle for later chips", () => {
+  it("writes only the lines the chord holds, and registers the disc after painting it", () => {
     const b = bigTrades();
-    const stepped = b.indexOf("outside = true;");
-    const reg = b.indexOf("if (outside) forceChips.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });");
-    const draw = b.indexOf("ctx.strokeText(lbl, labelX, labelY);");
-    expect(stepped).toBeGreaterThan(-1);
-    expect(reg).toBeGreaterThan(stepped);
-    expect(draw).toBeGreaterThan(reg);
+    expect(b).not.toMatch(/outside = true|bubbleLabelRects|labelX/);
+    const fit = b.indexOf("const inscription = fitBubbleInscription(b.r, bigTradeInscriptionLines(b.r,");
+    const write = b.indexOf("ctx.fillText(l.text, b.x, b.y + l.dy);");
+    const reg = b.indexOf("forceChips.push({ x: b.x - b.r - 4, y: b.y - b.r - 4, w: 2 * b.r + 8, h: 2 * b.r + 8 });");
+    expect(fit).toBeGreaterThan(-1);
+    expect(write).toBeGreaterThan(fit);
+    expect(reg).toBeGreaterThan(write);
   });
 });
 
@@ -194,7 +229,9 @@ describe("Big Trades receipts are withdrawn when the layer stops", () => {
   it("the OFF branch withdraws every receipt the ON pass writes, beyond its count and status", () => {
     const onStart = RAW.indexOf('if (effectiveFP === "big-trades" || bigTradesOverlay) {');
     const offStart = RAW.indexOf("// Left big-trades mode", onStart);
-    const offEnd = RAW.indexOf("CANON F13 · MICRO: PER-BAR DELTA", offStart);
+    // 2026-09-25: the footprint receipt now publishes right after this branch
+    // (so it can count the bubbles); the OFF slice ends where it begins.
+    const offEnd = RAW.indexOf("O-06 · THE FOOTPRINT RECEIPT", offStart);
     expect(onStart).toBeGreaterThan(-1);
     expect(offStart).toBeGreaterThan(onStart);
     expect(offEnd).toBeGreaterThan(offStart);
@@ -203,7 +240,9 @@ describe("Big Trades receipts are withdrawn when the layer stops", () => {
     const written = new Set([...on.matchAll(/canvas\.dataset\.([A-Za-z0-9_]+)\s*=(?!=)/g)].map(m => m[1]));
     // Positive control: the ON pass's own receipts were found.
     expect(written.size).toBeGreaterThanOrEqual(8);
-    for (const k of ["bigTradeLabelsStaggered", "importantPrintTickets", "bigTradeQuieted"]) expect(written.has(k), k).toBe(true);
+    // 2026-09-25: the canon's receipts (F07A discs, inscriptions, response
+    // paths, the one G04 callout) replace the ticket / staggered-label ones.
+    for (const k of ["bigTradesDrawn", "bigTradeInscribed", "responsePaths", "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeQuieted"]) expect(written.has(k), k).toBe(true);
     expect(off).toContain("delete canvas.dataset[k];");
     const stated = new Set([...off.matchAll(/canvas\.dataset\.([A-Za-z0-9_]+)\s*=(?!=)/g)].map(m => m[1]));
     const listed = new Set([...off.matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]));

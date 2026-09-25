@@ -33,7 +33,10 @@ describe("semantic zoom glass", () => {
     expect(word - counts[1]).toBeLessThan(200);
     // Each depth-shaped layer reads the owner, after it.
     for (const reader of [
-      "const ticketDepth = semanticDensity.depth;",
+      // 2026-09-25 (footprint canon): the NEAR print tickets are gone (F07A
+      // writes the print INSIDE its disc); the one G04 callout reads depth.
+      "const calloutDepth = semanticDensity.depth;",
+      "const vpDepth = semanticDensity.depth;",
       "const depthD = semanticDensity.depth;",
       "const nearDepth = semanticDensity.depth;",
       "const shelfDepth = semanticDensity.depth;",

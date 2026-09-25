@@ -127,8 +127,18 @@ export const BUBBLE_MIN_R = 6;
 /** Radius of the bubble carrying the bar's peak value. */
 export const DELTA_BUBBLE_MAX_R = 25;
 
-/** Big trades get a slightly larger ceiling — they are the louder event. */
-export const BIG_TRADE_MAX_R = 28;
+/**
+ * Big trades get a larger ceiling — they are the louder event.
+ *
+ * 2026-09-25 (canon F07A, "Big Trades are marks on the market"): 28 → 34.
+ * F07A writes SIZE / TIME / ↑PRICE INSIDE the disc. At 28px the chord at the
+ * price line (≈ 40px) could not hold a five-digit price at two decimals
+ * ("↑ 84000.00"), so the frame's loudest print — the one that must carry the
+ * whole inscription — dropped its time. At 34 the peak disc holds all three
+ * lines (footprintCanon.test.ts measures it); smaller prints keep the same
+ * area law (r ∝ √share) and simply carry fewer lines.
+ */
+export const BIG_TRADE_MAX_R = 34;
 
 export interface BubbleRadiusOpts {
   /** Radius the PEAK value paints at. */
