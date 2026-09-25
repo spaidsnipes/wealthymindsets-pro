@@ -6650,8 +6650,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // on an earlier one steps OUT on a leader instead of overprinting.
         const bubbleLabelRects: { x: number; y: number; w: number; h: number }[] = [];
         let bubbleLabelsStaggered = 0;
+        // CANON F07A (Big Trades are marks on the market): a FEW large marks,
+        // not a swarm. Visibility governor — the five largest executions get
+        // the full bubble and inscription; the rest stay at their true time
+        // and price as quiet rings (still hit-testable, still Inspectable).
+        const BIG_TRADE_FULL = 5;
+        let bubbleRank = 0;
+        let bubblesQuieted = 0;
         for (const b of [...bubblesRef.current].sort((a, z) => z.r - a.r)) {
           const buy = b.side === "buy";
+          if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id) {
+            const coreQ = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
+            ctx.save();
+            ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(2.5, Math.min(5, b.r * 0.3)), 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${coreQ},0.7)`; ctx.lineWidth = 1.2; ctx.stroke();
+            ctx.restore();
+            bubblesQuieted++;
+            continue;
+          }
           // Green = aggressive buy, red = aggressive sell — boosted contrast so both
           // are unmistakable when several bubbles share one candle.
           const core = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
@@ -6760,12 +6776,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const timeLabel = new Date(b.anchorTime * 1000).toISOString().slice(11, 19);
               ctx.fillStyle = "rgba(232,226,212,0.92)";
               ctx.fillText(timeLabel, b.x, b.y + 5);
-              ctx.fillText(formatBubblePrice(b.anchorPrice), b.x, b.y + 15);
+              ctx.fillText(`${buy ? "↑" : "↓"} ${formatBubblePrice(b.anchorPrice)}`, b.x, b.y + 15);
             }
           }
           ctx.restore();
         }
         canvas.dataset.bigTradeLabelsStaggered = String(bubbleLabelsStaggered);
+        canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
       } else {
         // Left big-trades mode → clear bubbles + tooltip
         bubblesRef.current = [];
