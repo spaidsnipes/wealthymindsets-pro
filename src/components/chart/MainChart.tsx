@@ -193,6 +193,7 @@ import {
   type AnatomyBarInput,
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
+import { stackAnchor } from "@/lib/chart/stackedImbalanceAnchor";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueCandleGlass";
 import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
@@ -1359,25 +1360,9 @@ const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.618
 const FIB_COLORS = ["#8892b0", "#4FA3E0", "#00C076", "#F0B429", "#F0B429", "#00C076", "#4FA3E0", "#EC4899", "#FF4D67", "#8B5CF6"];
 
 /* ── Component ──────────────────────────────────────────── */
-/* ── H-701 stacked-imbalance anchoring (Garden 12) — module scope so the
-   paint block stays a readable, sentinel-checked unit. ─────────────────── */
-function stackAnchor(
-  chart: { timeScale(): { timeToCoordinate(t: never): unknown; options(): { barSpacing: number } } },
-  bars: readonly { time: unknown }[], fromSec: number | null, toSec: number | null, plotRight: number,
-): { x0: number; x1: number; key: string } | null {
-  const barAt = (t: number | null) => {
-    if (t == null) return null;
-    let hit: number | null = null;
-    for (const b of bars) { const bt = Number(b.time); if (bt <= t) hit = bt; else break; }
-    return hit;
-  };
-  const bf = barAt(fromSec), bt = barAt(toSec);
-  if (bf == null || bt == null) return null;
-  const xf = chart.timeScale().timeToCoordinate(bf as never), xt = chart.timeScale().timeToCoordinate(bt as never);
-  if (xf == null || xt == null) return null;
-  let sp = 6; try { sp = Math.max(4, chart.timeScale().options().barSpacing); } catch { /* default */ }
-  return { x0: Math.max(0, Number(xf) - sp / 2), x1: Math.min(plotRight, Number(xt) + sp / 2), key: `${bf}-${bt}` };
-}
+/* ── H-701 stacked-imbalance cells (Garden 12) — module scope so the paint
+   block stays a readable, sentinel-checked unit. Placement in time is
+   `stackAnchor` (src/lib/chart/stackedImbalanceAnchor.ts). ─────────────── */
 function stackCellHeight(ys: readonly (unknown | null)[], bandH: number): number {
   const v = ys.filter(y => y != null).map(Number).sort((a, b) => a - b);
   return v.length >= 2 ? Math.max(3, v[1] - v[0]) : Math.max(3, bandH);
@@ -9419,24 +9404,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (on && glass.drawn && glass.priceLow != null && glass.priceHigh != null) {
           const yHiR = srs.priceToCoordinate(glass.priceHigh);
           const yLoR = srs.priceToCoordinate(glass.priceLow);
-          if (yHiR != null && yLoR != null) {
+
+          // The right price scale is painted OVER this overlay, so the edge
+          // that actually clips is the plot's, not the container's — the same
+          // lesson the absorption chip block records after shipping a clamp
+          // that was arithmetically correct against the wrong boundary. The
+          // axis width is queried, never guessed: 29,731.00 is wider than
+          // 12.40.
+          const axisW = (() => {
+            try {
+              const w = chart.priceScale("right").width();
+              if (Number.isFinite(w) && w > 0) return Math.ceil(w);
+            } catch {}
+            return 90;
+          })();
+          const plotRight = Math.max(8, W - axisW);
+          // GARDEN 12 · H-701 — the stack belongs to the bars that built it:
+          // cells ON those bars in the level loop below; only the edges carry
+          // on to now. A formation wholly off the left of the view leaves the
+          // full band (every bar in view came after it); one wholly off the
+          // right draws nothing, because every bar in view came before it.
+          const placement = stackAnchor(chart, barsRef.current ?? [], glass.formedFrom, glass.formedTo, plotRight);
+          ds.imbalanceStackAnchor = placement.kind === "ON_BARS" ? placement.key : placement.kind;
+          if (yHiR != null && yLoR != null && placement.kind !== "FORMED_AFTER_VIEW") {
             const yHi = Math.min(+yHiR, +yLoR);
             const yLo = Math.max(+yHiR, +yLoR);
-
-            // The right price scale is painted OVER this overlay, so the edge
-            // that actually clips is the plot's, not the container's — the same
-            // lesson the absorption chip block records after shipping a clamp
-            // that was arithmetically correct against the wrong boundary. The
-            // axis width is queried, never guessed: 29,731.00 is wider than
-            // 12.40.
-            const axisW = (() => {
-              try {
-                const w = chart.priceScale("right").width();
-                if (Number.isFinite(w) && w > 0) return Math.ceil(w);
-              } catch {}
-              return 90;
-            })();
-            const plotRight = Math.max(8, W - axisW);
 
             ctx.save(); ctx.globalAlpha = semanticDensity.micro;
 
@@ -9445,13 +9437,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // height without moving the edges: the strokes below still land on
             // the true prices.
             const bandH = Math.max(1, yLo - yHi);
-            // GARDEN 12 · H-701 — the stack belongs to the bars that built it
-            // (stackAnchor, module scope): cells ON those bars in the level
-            // loop below; only the edges carry on to now. No times → full band.
-            const anchor = stackAnchor(chart, barsRef.current ?? [], glass.formedFrom, glass.formedTo, plotRight);
+            const anchor = placement.kind === "ON_BARS" ? placement : null;
             const anchored = anchor != null;
             const bandX0 = anchor?.x1 ?? 0;
-            ds.imbalanceStackAnchor = anchor?.key ?? "TIME_UNKNOWN";
             ctx.fillStyle = anchored ? "rgba(212,175,55,0.035)" : "rgba(212,175,55,0.07)";
             ctx.fillRect(bandX0, yHi, plotRight - bandX0, bandH);
 
@@ -9533,6 +9521,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
             ds.imbalanceStackLevels = String(glass.levels.length);
             ds.imbalanceStackEdge = glass.edgeStyle;
+          } else {
+            // Formed after every bar in view, or off the price scale: nothing
+            // is on the glass, so no band receipt. FORMED_AFTER_VIEW keeps its
+            // anchor word because it is the reason nothing is drawn.
+            delete ds.imbalanceStackLevels;
+            delete ds.imbalanceStackEdge;
+            if (placement.kind !== "FORMED_AFTER_VIEW") delete ds.imbalanceStackAnchor;
           }
         } else {
           // Nothing is drawn, so nothing is claimed — and the two receipt
