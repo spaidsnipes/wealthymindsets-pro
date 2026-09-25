@@ -329,6 +329,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "EDGE_RUNTIME",
     note: "Consumed by src/middleware.ts, which answers the legacy aliases with a real 308 before any screen exists. Correct that no route renders it — a route that rendered it would mean the redirect had already shipped the app.",
   },
+  "src/lib/broker/adapters/webullOrders.ts": {
+    reason: "AWAITING_SURFACE",
+    note: "GP12 Mission B order spine: SDK-cited v3 preview/place/exact-lookup, a ledger that writes SUBMITTING before the request leaves, SUBMISSION_UNKNOWN on a lost answer, and a re-place only after the exact lookup by client_order_id proves absence (same id). Live place is gated off until the Founder says RUN THE LIVE TEST NOW. Awaiting the preview route + order-ticket surface on /charts.",
+  },
   "src/lib/broker/adapters/__fixtures__/webullResponses.ts": {
     reason: "TEST_FIXTURE",
     note: "Offline shape lock for the Webull MCP. Correct that it never ships.",

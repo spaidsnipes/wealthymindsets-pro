@@ -247,6 +247,64 @@ export const WEBULL_SDK_CONTRACT = {
     needsMarketData: true,
     sdkSource: "webull/data/request/unsubscribe_request.py",
   },
+  /**
+   * ── THE ORDER LANE (GP12 Mission B) ────────────────────────────────────────
+   *
+   * Transcribed 2026-09-25 from webull-openapi-python-sdk 3.0.2 (PyPI sdist),
+   * the `order_v3` family (`webull/trade/trade/v3/order_operation_v3.py`) that
+   * `samples/trade/trade_client_v3.py` drives. Every order carries a
+   * caller-minted `client_order_id`; Webull's own sample reads an order back by
+   * that id (`get_order_detail(account_id, client_order_id)`), which is what
+   * makes an ambiguous submission reconcilable instead of retryable.
+   *
+   * The body sent is `{account_id, new_orders:[…]}` (preview/place) and
+   * `{account_id, client_order_id}` (cancel), per the `set_*` methods of each
+   * request class. Place also sets a `category` header of
+   * `<market>_<instrument_type>` (`add_custom_headers_from_order`).
+   */
+  ORDER_PREVIEW: {
+    path: "/trading/orders/preview",
+    apiVersion: "v3",
+    method: "POST",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v3/preview_order_request.py",
+  },
+  ORDER_PLACE: {
+    path: "/trading/orders/place",
+    apiVersion: "v3",
+    method: "POST",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v3/place_order_request.py",
+  },
+  /** Primary reconciliation for an ambiguous submission: exact order by
+   *  `client_order_id` (query params account_id, client_order_id). */
+  ORDER_DETAIL: {
+    path: "/trading/orders/get",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v3/get_order_detail_request.py",
+  },
+  /** Supporting evidence only — list views can lag the exact read. */
+  ORDER_OPEN_LIST: {
+    path: "/trading/orders/open-orders/list",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v3/get_order_open_request_v2.py",
+  },
+  ORDER_CANCEL: {
+    path: "/trading/orders/cancel",
+    apiVersion: "v3",
+    method: "POST",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v3/cancel_order_request.py",
+  },
+  /** Balance read in the same account_v2 family as the proven account list. */
+  ACCOUNT_BALANCE: {
+    path: "/trading/assets/balances/get",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v2/get_account_balance_request.py",
+  },
 } as const satisfies Readonly<Record<string, WebullEndpointContract>>;
 
 export type WebullEndpointName = keyof typeof WEBULL_SDK_CONTRACT;
