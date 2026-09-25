@@ -7079,12 +7079,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       } catch { /* camera mid-transition */ }
 
       /* ── FIDELITY · DATA GAPS ON THE GLASS (canon "Fidelity Five, Not A
-         Rainbow"): where the feed dropped bars inside a session, the hole is
-         bridged by a dashed line from the last close to the next open and
-         says "‑ ‑ GAP · n missing ‑" — two candles never sit side by side
-         as if nothing were missing. Session breaks are not gaps. */
+         Rainbow"): where no bar arrived inside a session, the hole is bridged
+         by a dashed line from the last close to the next open and carries the
+         owner's words ("NO BAR · n intervals"), so two candles never sit side
+         by side as if they were consecutive. Which holes are inside a session,
+         and why the words never say "missing", is selectDataGaps' reading;
+         this block only projects it. */
       try {
-        const dg = selectDataGaps((barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, close: b.close })));
+        const dg = selectDataGaps({
+          bars: barsRef.current,
+          identities: barIdentitiesRef.current,
+          continuous: canonicalAssetClass(symbol) === "crypto",
+        });
         let painted = 0;
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
@@ -7095,7 +7101,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(237,230,211,0.7)"; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(+x0 + 3, +y0); ctx.lineTo(+x1 - 3, +y1); ctx.stroke(); ctx.setLineDash([]);
           const mx = (+x0 + +x1) / 2, my = Math.min(+y0, +y1) - 10;
-          const t = `‑ ‑ GAP · ${g.missing} missing ‑`;
+          const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
           ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
@@ -7103,7 +7109,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           painted++;
         }
         ctx.restore();
-        canvas.dataset.dataGaps = `${dg.gaps.length}:${painted}`;
+        // A chart that cannot tell a close from a hole says so, rather than "0:0".
+        canvas.dataset.dataGaps = dg.reason === "MEASURED" ? `${dg.gaps.length}:${painted}` : dg.reason;
       } catch { /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════
