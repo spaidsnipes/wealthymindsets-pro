@@ -45,15 +45,18 @@ export const PROFILE_CANON_GLASS_VERSION = 1;
  * and the POC as a dashed one. These are INK STRENGTHS (the alpha of a role's
  * rgba); the layer's loudness stays the attention governor's globalAlpha.
  * The candles are never under this ink: the body paints inside the one candle
- * cut-out, so a solid body cannot tint a candle.
+ * cut-out, so a solid body cannot tint a candle. It stops short of opaque on
+ * purpose: the chart's own series lines (a moving average, a VWAP) are drawn
+ * UNDER the overlay and must still read through the mass (the plate is a
+ * picture; the glass carries real lines the plate does not).
  */
 export const LIVING_BODY_CANON = Object.freeze({
   /** Outside value, at the lane (base) → at the tips. */
-  tailBase: 0.5,
-  tailTip: 0.62,
+  tailBase: 0.46,
+  tailTip: 0.58,
   /** Inside value (VAL…VAH), at the lane (base) → at the tips. */
-  valueBase: 0.8,
-  valueTip: 0.92,
+  valueBase: 0.76,
+  valueTip: 0.88,
   /** The lit rim traced along the silhouette's edge. */
   rimAlpha: 0.95,
   rimWidth: 1.4,
@@ -79,7 +82,13 @@ export const LIVING_BODY_CANON = Object.freeze({
  * keep-out, so a chip moves off a candle before it may print; the rule itself
  * is the leader back to the price.
  */
-export const LEVEL_CHIP_H = 13;
+export const LEVEL_CHIP_H = 15;
+/**
+ * The chip's type: the house's 11px readable floor (PHRASE_MIN_PX), bold — on
+ * serving the levels were 9px grey words the Founder could not read ("tiny
+ * grey 'TPO VAH 372.00'"); the plates print them large and gold.
+ */
+export const LEVEL_CHIP_FONT = "700 11px ui-sans-serif, system-ui, sans-serif";
 /** Horizontal padding inside a chip (both sides together). */
 export const LEVEL_CHIP_PAD = 10;
 /** Air between a chip and the plot's right edge (the price axis). */

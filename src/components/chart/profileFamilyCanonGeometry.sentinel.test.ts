@@ -124,6 +124,11 @@ describe("1 · ONE candle cut-out for the whole profile family", () => {
 describe("2 · ONE level grammar: the chip, placed clear of every candle body and wick", () => {
   const chip = slice("const levelChip = (y: number, text: string, ink: string, opts:", "const quietWords = (text: string, pref: WordsAt,", 1500);
 
+  it("both chip sites print in the owner's readable chip type, not the old 9px words", () => {
+    expect(chip).toContain("ctx.font = LEVEL_CHIP_FONT;");
+    expect(VP).toMatch(/ctx\.font = LEVEL_CHIP_FONT;\s*const chipTxt = vpPrice\(p\);/);
+  });
+
   it("the chip's slots are the pure owner's, and its keep-out is bodies + wicks + every chip, strict", () => {
     expect(chip).toContain("const slots = levelChipSlots({ y: yy, w: cw, rightX, floorY, footY: pane0Bottom - 2 });");
     expect(chip).toMatch(/\[\.\.\.keepOut\(\), \.\.\.profileCandlesAt\(slots\.top, slots\.bottom\)\]/);
@@ -173,9 +178,12 @@ describe("3 · the P-110 body: solid, in the family's ink, with rules across the
     expect(LIVING).toContain("ds.livingProfileBodyInk = `SOLID:${C.valueBase}-${C.valueTip}`;");
   });
 
-  it("the solid body yields to every word already on the glass in its room (one clip per chip)", () => {
+  it("the solid body yields to every word already on the glass in its room, and to the live price line (one clip per hole)", () => {
     between(LIVING, "const bodyYields = floatingChips.filter(c => c.x < rightEdge + 2 && c.x + c.w > rightEdge - bodyW - 2);", 'ctx.clip(hole, "evenodd");', "ctx.fillStyle = g; ctx.fill(bodyPath);");
-    expect(LIVING).toContain("ds.livingProfileBodyYields = String(bodyYields.length);");
+    expect(LIVING).toContain("const yLastL = lastBarL ? srs.priceToCoordinate(lastBarL.close) : null;");
+    expect(LIVING).toContain("const holes = [...bodyYields, ...(yLastL != null ? [{ x: rightEdge - bodyW - 4, y: +yLastL - 1.5, w: bodyW + 8, h: 3 }] : [])];");
+    expect(LIVING).toContain("for (const c of holes) {");
+    expect(LIVING).toContain('ds.livingProfileBodyYields = `${bodyYields.length}${yLastL != null ? "+PRICE_LINE" : ""}`;');
   });
 
   it("VAH / VAL are solid rules from the plot's left edge to its right edge; POC is dashed across it with a dot on the body", () => {

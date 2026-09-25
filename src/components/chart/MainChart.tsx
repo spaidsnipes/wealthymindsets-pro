@@ -253,6 +253,7 @@ import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangePro
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import {
   LEVEL_CHIP_EDGE_GAP,
+  LEVEL_CHIP_FONT,
   LEVEL_CHIP_H,
   LEVEL_CHIP_PAD,
   LIVING_BODY_CANON,
@@ -8387,7 +8388,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(word, wordSpot.rect.x + 2, wordSpot.rect.y + 6);
           }
           // The gold price chip at the axis edge, on the level's own row.
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = LEVEL_CHIP_FONT;
           const chipTxt = vpPrice(p);
           const cw = Math.ceil(ctx.measureText(chipTxt).width) + LEVEL_CHIP_PAD;
           const slots = levelChipSlots({ y: midY, w: cw, rightX: vpChipRight, floorY: HEADER_FLOOR_Y, footY: pane0H - 2 });
@@ -12615,7 +12616,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           levelChipYs.push(yy);
           ctx.save();
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = LEVEL_CHIP_FONT;
           const cw = Math.ceil(ctx.measureText(text).width) + LEVEL_CHIP_PAD;
           const rightX = opts.leftX != null ? opts.leftX + cw : opts.rightX ?? plotRight - LEVEL_CHIP_EDGE_GAP;
           // Where the level's own line ends — the point a leader ties back to.
@@ -13024,7 +13025,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 P-110 · THE BODY IS ONE SOLID LUMINOUS GOLD MASS. Serving (TSLA
                 15m, 2026-09-25) showed a 4–40% wash under a thin outline — "far
                 below P110". The body is now filled solid (LIVING_BODY_CANON):
-                the tails at ~0.5–0.6, value (VAL…VAH) at ~0.8–0.9 — the same
+                the tails at ~0.46–0.58, value (VAL…VAH) at ~0.76–0.88 — the same
                 body, lit where the auction accepted — with row seams so it still
                 reads as rows, and a lit rim with a soft glow along its edge.
                 CANDLE PRESERVATION (Defect 4): all of it inside the one candle
@@ -13038,13 +13039,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // a solid body must not bury another reading's words. One clip
               // per chip, so overlapping chips never re-fill under even-odd.
               const bodyYields = floatingChips.filter(c => c.x < rightEdge + 2 && c.x + c.w > rightEdge - bodyW - 2);
-              for (const c of bodyYields) {
+              // The live price line is the market's, like the candles (the
+              // governor may never dim it): the body parts round it too.
+              const lastBarL = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
+              const yLastL = lastBarL ? srs.priceToCoordinate(lastBarL.close) : null;
+              const holes = [...bodyYields, ...(yLastL != null ? [{ x: rightEdge - bodyW - 4, y: +yLastL - 1.5, w: bodyW + 8, h: 3 }] : [])];
+              for (const c of holes) {
                 const hole = new Path2D();
                 hole.rect(0, 0, W, H);
                 hole.rect(c.x - 2, c.y - 1, c.w + 4, c.h + 2);
                 ctx.clip(hole, "evenodd");
               }
-              ds.livingProfileBodyYields = String(bodyYields.length);
+              ds.livingProfileBodyYields = `${bodyYields.length}${yLastL != null ? "+PRICE_LINE" : ""}`;
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
               g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", C.tailBase));
               g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", C.tailTip));

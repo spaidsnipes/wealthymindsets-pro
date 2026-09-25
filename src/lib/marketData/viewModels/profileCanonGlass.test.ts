@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LEVEL_CHIP_FONT,
   LEVEL_CHIP_H,
   LIVING_BODY_CANON,
   MEMORY_LEVEL_CAP,
@@ -46,6 +47,12 @@ describe("the level chip's slots (P-110 / M47)", () => {
     expect(spot.mode).not.toBe("CLEAR");
     expect(spot.onCandles).toBe(false);
     expect(rectHits(spot.rect, [candle])).toBe(0);
+  });
+
+  it("prints at the house's 11px readable floor, in a box taller than its glyphs", () => {
+    const px = Number(/(\d+(?:\.\d+)?)px/.exec(LEVEL_CHIP_FONT)?.[1]);
+    expect(px).toBeGreaterThanOrEqual(11);
+    expect(LEVEL_CHIP_H).toBeGreaterThanOrEqual(px + 3);
   });
 
   it("names when a leader is owed", () => {
