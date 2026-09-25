@@ -1152,7 +1152,9 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     expect(rest).toContain(">72%<");
     expect(rest).toContain(">28%<");
     expect(rest).toContain("width:72%");
-    expect(rest).toContain("TICK-RULE SIDES · INFERRED");
+    // PRINTED, not only spoken: the visible line itself carries the method
+    // (the owner's contract — a tick-rule guess may not wear venue chrome).
+    expect(rest).toContain(">TICK-RULE SIDES · INFERRED<");
     // F06A's BOOK words are not this reading's words.
     expect(rest).not.toMatch(/STACK/i);
     // No reading → no panel; a replay camera → withheld like the clock.
