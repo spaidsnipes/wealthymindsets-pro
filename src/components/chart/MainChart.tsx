@@ -1363,7 +1363,10 @@ function stackCellHeight(ys: readonly (unknown | null)[], bandH: number): number
   return v.length >= 2 ? Math.max(3, v[1] - v[0]) : Math.max(3, bandH);
 }
 function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: number }, y: number, h: number, weight: number) {
-  const w = Math.max(2, a.x1 - a.x0);
+  // Canon F06A (Order Flow Lives on Price): stacked imbalance is a run of
+  // SLABS grown out of the bars that built it, each slab's length its row's
+  // dominance — a small horizontal histogram on price, not equal boxes.
+  const w = Math.max(a.x1 - a.x0, 18 + 70 * weight);
   ctx.fillStyle = `rgba(212,175,55,${(0.16 + 0.5 * weight).toFixed(3)})`;
   ctx.fillRect(a.x0, y - h / 2 + 0.5, w, h - 1);
   ctx.strokeStyle = "rgba(212,175,55,0.9)"; ctx.lineWidth = 1;
