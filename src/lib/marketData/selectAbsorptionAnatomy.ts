@@ -140,7 +140,33 @@ export interface AbsorptionZone {
   /** The run displaced price not at all; the ratio has no finite value. */
   readonly unbounded: boolean;
   readonly strength: AbsorptionStrength;
+  /** The run's first open and last close: the displacement actually achieved. */
+  readonly travelFrom: number;
+  readonly travelTo: number;
+  /**
+   * Σ(askVol − bidVol) over the run. Null unless EVERY bar of the run carried
+   * a side split — a net figure over a partly-heard run would be a guess.
+   */
+  readonly netDelta: number | null;
+  /**
+   * H-701A · PASSIVE OPPOSITION HOLDING. The edge the aggression pushed toward
+   * and price did not go through: net selling → LOW held, net buying → HIGH
+   * held. Read from SIGNED aggression, never from where a candle closed. Null
+   * on a VOLUME basis (no side is known), without a full split, or when the
+   * net push is too small against the gross to name a direction
+   * (`HOLDING_DOMINANCE`).
+   */
+  readonly holdingEdge: "LOW" | "HIGH" | null;
+  /** How the sides behind `holdingEdge` were known. Null when no edge is named. */
+  readonly holdingBasis: "PROVIDER" | "INFERRED" | null;
 }
+
+/**
+ * The net push must be at least this share of the run's gross aggression
+ * before an edge is named. Below it, buyers and sellers traded blows and
+ * there was no one direction for passive interest to hold against.
+ */
+export const HOLDING_DOMINANCE = 0.25;
 
 export interface AbsorptionAnatomyVM {
   readonly basis: EffortBasis;
@@ -344,6 +370,13 @@ export function selectAbsorptionAnatomy(
       const displacementNormSum = run.reduce((s, b) => s + b.displacementNorm, 0);
       const unbounded = displacementNormSum === 0;
       const efficiencyRatio = unbounded ? null : effortNormSum / displacementNormSum;
+      const fullySplit = useDelta && run.every(b => finite(b.delta));
+      const netDelta = fullySplit ? run.reduce((s, b) => s + (b.delta as number), 0) : null;
+      const grossDelta = fullySplit ? run.reduce((s, b) => s + Math.abs(b.delta as number), 0) : 0;
+      const holdingEdge: AbsorptionZone["holdingEdge"] =
+        netDelta == null || grossDelta <= 0 || Math.abs(netDelta) < HOLDING_DOMINANCE * grossDelta
+          ? null
+          : netDelta < 0 ? "LOW" : "HIGH";
       zones.push({
         startTime: run[0]!.time,
         endTime: run[run.length - 1]!.time,
@@ -353,6 +386,11 @@ export function selectAbsorptionAnatomy(
         efficiencyRatio,
         unbounded,
         strength: strengthOfRatio(efficiencyRatio, unbounded),
+        travelFrom: run[0]!.open,
+        travelTo: run[run.length - 1]!.close,
+        netDelta,
+        holdingEdge,
+        holdingBasis: holdingEdge == null ? null : basis === "SIGNED_DELTA" ? "PROVIDER" : "INFERRED",
       });
     }
     run = [];

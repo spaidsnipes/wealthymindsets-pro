@@ -45,6 +45,21 @@ describe("the absorption shelf", () => {
     expect(CHART).not.toMatch(/ds\.absorptionWall = (fromBelow|"TOP"|"BOTTOM"|"UNKNOWN_APPROACH")/);
   });
 
+  it("H-701A: a holding wall is drawn ONLY from the owner's signed-aggression edge", () => {
+    // GP12 (2026-09-25): the anatomy owner now publishes `holdingEdge` from
+    // Σ(askVol − bidVol) over the run, with its provenance. The chart may draw
+    // a wall only inside `if (zone.holdingEdge)`, place it from that field,
+    // and dash it when the sides were inferred. Still never from a close.
+    expect(loop).toMatch(/if \(zone\.holdingEdge\) \{/);
+    expect(loop).toMatch(/const yWall = zone\.holdingEdge === "LOW" \? yLo : yHi;/);
+    expect(loop).toMatch(/const inferred = zone\.holdingBasis === "INFERRED";/);
+    expect(loop).toMatch(/ctx\.setLineDash\(inferred \? \[5, 3\] : \[\]\);/);
+    expect(loop).not.toMatch(/\.close\b/);
+    // The displacement path is the owner's travel, not a candle read.
+    expect(loop).toMatch(/srs\.priceToCoordinate\(zone\.travelFrom\)/);
+    expect(loop).toMatch(/srs\.priceToCoordinate\(zone\.travelTo\)/);
+  });
+
   it("draws one effort tick per shelf bar whatever the approach, and counts it", () => {
     const farSkip = loop.indexOf('if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }');
     const ticks = loop.indexOf("const tickMax = shelfDepth === \"NEAR\" ? 14 : 8;");
@@ -67,6 +82,6 @@ describe("the absorption shelf", () => {
     expect(CHART).not.toMatch(/shelfDepth === "NEAR" \? "SHELF\+EFFORT_TICKS"/);
     expect(receipts).toMatch(/if \(shelvesEdged === 0\) \{\s*delete ds\.absorptionDepthForm;\s*delete ds\.absorptionWall;/);
     expect(receipts).toMatch(/ds\.absorptionDepthForm = shelvesFilled === 0 \? "EDGES" : effortTicksDrawn > 0 \? "SHELF\+EFFORT_TICKS" : "SHELF";/);
-    expect(receipts).toMatch(/ds\.absorptionWall = "NOT_CLAIMED";/);
+    expect(receipts).toMatch(/ds\.absorptionWall = wallsDrawn\.length > 0 \? wallsDrawn\.join\(","\) : "NOT_CLAIMED";/);
   });
 });

@@ -181,7 +181,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionWall", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionTravel", "absorptionWall", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry",
   "questionCallout", "questionChoice", "questionLensForm", "scaffoldingScale",
@@ -8888,7 +8888,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const shelfDepth = semanticDensity.depth;
             // Counted as they are drawn, so the depth receipt below describes
             // the glass rather than the zoom word.
-            let shelvesEdged = 0, shelvesFilled = 0, effortTicksDrawn = 0;
+            let shelvesEdged = 0, shelvesFilled = 0, effortTicksDrawn = 0, travelsDrawn = 0;
+            const wallsDrawn: string[] = [];
             for (const zone of anatomy.zones) {
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
@@ -9016,6 +9017,60 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 shelfRects.push({ x: x0, y: yLo, w: bw, h: 6 + Math.max(tickMax, maxDots * 4.5) });
               }
 
+              // H-701A · DISPLACEMENT SUPPRESSED, drawn as the path price
+              // actually took across the run — the owner's first open to its
+              // last close. Against a tall effort column that near-flat line
+              // IS the inefficiency; with the label hidden it still reads as
+              // "all that effort, and it went nowhere".
+              {
+                const xa = ts.timeToCoordinate(zone.startTime as never);
+                const xz = ts.timeToCoordinate(zone.endTime as never);
+                const ya = srs.priceToCoordinate(zone.travelFrom);
+                const yz = srs.priceToCoordinate(zone.travelTo);
+                if (xa != null && xz != null && ya != null && yz != null) {
+                  ctx.strokeStyle = `rgba(237,230,211,${shelfSelected ? 0.95 : 0.8})`;
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath();
+                  ctx.moveTo(+xa, +ya);
+                  ctx.lineTo(+xz, +yz);
+                  ctx.stroke();
+                  ctx.beginPath();
+                  ctx.arc(+xz, +yz, 2, 0, Math.PI * 2);
+                  ctx.fillStyle = `rgba(237,230,211,${shelfSelected ? 0.95 : 0.8})`;
+                  ctx.fill();
+                  ctx.lineWidth = 1;
+                  travelsDrawn++;
+                }
+              }
+
+              // H-701A · PASSIVE OPPOSITION HOLDING — only where the anatomy
+              // owner names it from SIGNED aggression (`holdingEdge`), never
+              // from where a candle closed. A solid wall on the held edge with
+              // teeth facing the push: aggression came from the inside of the
+              // shelf and stopped here. Provider-stated sides draw it solid;
+              // tick-rule sides draw it dashed. On a VOLUME basis nothing is
+              // known about sides and both edges stay alike (drawn above).
+              if (zone.holdingEdge) {
+                const yWall = zone.holdingEdge === "LOW" ? yLo : yHi;
+                const inward = zone.holdingEdge === "LOW" ? -1 : 1;
+                const inferred = zone.holdingBasis === "INFERRED";
+                ctx.strokeStyle = `rgba(${flowColorsRef.current.absorb},${shelfSelected ? 1 : 0.9})`;
+                ctx.lineWidth = 3;
+                ctx.setLineDash(inferred ? [5, 3] : []);
+                ctx.beginPath();
+                ctx.moveTo(x0, yWall); ctx.lineTo(x1, yWall);
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                ctx.setLineDash([]);
+                for (let tx = x0 + 3; tx < x1 - 1; tx += 6) {
+                  ctx.beginPath();
+                  ctx.moveTo(tx, yWall);
+                  ctx.lineTo(tx, yWall + inward * 4);
+                  ctx.stroke();
+                }
+                wallsDrawn.push(`${zone.holdingEdge}:${zone.holdingBasis}`);
+              }
+
               // Compact chip. The ratio is the mockup's own reading; when the
               // run displaced price not at all the ratio is unbounded and we
               // print that rather than inventing a ceiling.
@@ -9120,8 +9175,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               delete ds.absorptionWall;
             } else {
               ds.absorptionDepthForm = shelvesFilled === 0 ? "EDGES" : effortTicksDrawn > 0 ? "SHELF+EFFORT_TICKS" : "SHELF";
-              ds.absorptionWall = "NOT_CLAIMED";
+              // A wall is claimed only for shelves the owner named an edge for.
+              ds.absorptionWall = wallsDrawn.length > 0 ? wallsDrawn.join(",") : "NOT_CLAIMED";
             }
+            if (travelsDrawn > 0) ds.absorptionTravel = String(travelsDrawn);
+            else delete ds.absorptionTravel;
 
             // ── BASIS. Compact, always visible, never a vendor name.
             const basisTxt = BASIS_LABEL[anatomy.basis];
@@ -9936,6 +9994,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // frame that had them.
             delete ds.absorptionDepthForm;
             delete ds.absorptionWall;
+            delete ds.absorptionTravel;
             delete ds.exhaustionGeometry;
             ctx.save();
             const txt = BASIS_LABEL.UNMEASURED;

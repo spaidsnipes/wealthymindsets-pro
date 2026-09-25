@@ -9,7 +9,8 @@ const b = (time: number, effortNorm: number, displacementNorm: number): AnatomyB
   displacement: 0.5, displacementNorm, absorbing: effortNorm >= 0.6 && displacementNorm <= 0.35,
 });
 const zone: AbsorptionZone = { startTime: 60, endTime: 120, priceLo: 99, priceHi: 101, barCount: 2,
-  efficiencyRatio: 4, unbounded: false, strength: "MODERATE" };
+  efficiencyRatio: 4, unbounded: false, strength: "MODERATE",
+  travelFrom: 100, travelTo: 100.5, netDelta: null, holdingEdge: null, holdingBasis: null };
 const anatomy = (over: Partial<AbsorptionAnatomyVM> = {}) => ({
   basis: "VOLUME", measured: true, bars: [b(0, 0.3, 0.8), b(60, 0.9, 0.2), b(120, 0.8, 0.2), b(180, 0.4, 0.6)],
   zones: [zone], windowBars: 4, effortConcentration: null, effortQualifyingBars: 2,

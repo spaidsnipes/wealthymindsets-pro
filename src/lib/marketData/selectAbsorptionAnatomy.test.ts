@@ -332,3 +332,60 @@ describe("selectAbsorptionAnatomy — a window that CANNOT answer says so", () =
     expect(vm.effortConcentration).toBeLessThanOrEqual(1);
   });
 });
+
+describe("selectAbsorptionAnatomy — H-701A: the holding edge comes from SIGNED aggression only", () => {
+  const P = { aggressorProvenance: "PROVIDER" as const };
+  /** Heavy net SELLING, price flat: passive buyers held the low. */
+  const sold = { open: 100, close: 100.1, high: 100.4, low: 99.6, askVol: 100, bidVol: 900, ...P };
+  /** Heavy net BUYING, price flat: passive sellers held the high. */
+  const bought = { open: 100, close: 99.9, high: 100.4, low: 99.6, askVol: 900, bidVol: 100, ...P };
+  /** Price travelled; balanced sides, so no effort by the delta basis. */
+  const moved = { open: 100, close: 104, high: 104, low: 100, askVol: 450, bidVol: 450, ...P };
+
+  it("net selling into a flat run names the LOW edge held, from provider sides", () => {
+    const vm = selectAbsorptionAnatomy(series([moved, sold, sold, moved]));
+    expect(vm.basis).toBe("SIGNED_DELTA");
+    const z = vm.zones[0]!;
+    expect(z.netDelta).toBe(-1600);
+    expect(z.holdingEdge).toBe("LOW");
+    expect(z.holdingBasis).toBe("PROVIDER");
+  });
+
+  it("net buying names the HIGH edge held", () => {
+    const vm = selectAbsorptionAnatomy(series([moved, bought, bought, moved]));
+    expect(vm.zones[0]!.holdingEdge).toBe("HIGH");
+  });
+
+  it("tick-rule sides name the edge as INFERRED", () => {
+    const inf = { aggressorProvenance: "INFERRED" as const };
+    const vm = selectAbsorptionAnatomy(series([{ ...moved, ...inf }, { ...sold, ...inf }, { ...sold, ...inf }, { ...moved, ...inf }]));
+    expect(vm.basis).toBe("INFERRED_DELTA");
+    expect(vm.zones[0]!.holdingBasis).toBe("INFERRED");
+  });
+
+  it("names NO edge on a VOLUME basis — nothing is known about sides", () => {
+    const vol = (b: Record<string, unknown>) => ({ ...b, askVol: undefined, bidVol: undefined, volume: 1000 });
+    const vm = selectAbsorptionAnatomy(series([
+      { ...vol(moved), volume: 1000 }, vol(sold), vol(sold), { ...vol(moved), volume: 1000 },
+    ]));
+    expect(vm.basis).toBe("VOLUME");
+    for (const z of vm.zones) {
+      expect(z.holdingEdge).toBeNull();
+      expect(z.holdingBasis).toBeNull();
+      expect(z.netDelta).toBeNull();
+    }
+  });
+
+  it("names NO edge when buyers and sellers traded blows (net below HOLDING_DOMINANCE of gross)", () => {
+    const vm = selectAbsorptionAnatomy(series([moved, sold, bought, moved]));
+    const z = vm.zones[0]!;
+    expect(z.netDelta).toBe(0);
+    expect(z.holdingEdge).toBeNull();
+  });
+
+  it("publishes the run's actual travel — first open to last close", () => {
+    const vm = selectAbsorptionAnatomy(series([moved, sold, { ...sold, close: 100.3 }, moved]));
+    expect(vm.zones[0]!.travelFrom).toBe(100);
+    expect(vm.zones[0]!.travelTo).toBe(100.3);
+  });
+});

@@ -9,7 +9,8 @@ const b = (time: number, low: number, high: number, effortNorm = 0.5, delta: num
   displacement: high - low, displacementNorm: 0.5, absorbing: false,
 });
 const zone: AbsorptionZone = { startTime: 60, endTime: 120, priceLo: 100, priceHi: 101, barCount: 2,
-  efficiencyRatio: 3, unbounded: false, strength: "MODERATE" };
+  efficiencyRatio: 3, unbounded: false, strength: "MODERATE",
+  travelFrom: 100, travelTo: 101, netDelta: null, holdingEdge: null, holdingBasis: null };
 const anatomy = (bars: AnatomyBar[], over: Partial<AbsorptionAnatomyVM> = {}) => ({
   basis: "VOLUME", measured: true, bars, zones: [zone], windowBars: bars.length,
   effortConcentration: null, effortQualifyingBars: 0, zoneQualificationPossible: true, effortSpreadNote: null, ...over,
