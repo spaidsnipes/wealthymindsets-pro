@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import selectExhaustion, { FT_BARS, MIN_PUSH_BARS } from "./selectExhaustion";
+import selectExhaustion, { effortReported, FT_BARS, MIN_PUSH_BARS } from "./selectExhaustion";
 import type { AbsorptionAnatomyVM, AnatomyBar } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 const b = (time: number, close: number, effortNorm: number, range = 1): AnatomyBar => ({
@@ -114,7 +114,7 @@ describe("the anatomy", () => {
   it("publishes the halves, the origin and the follow bars it already measured, and they agree with the metrics", () => {
     const v = selectExhaustion(vm(fadingPush([105, 104.5, 107])));
     const p = v.latestPush!;
-    expect(p.effortSecondHalf / p.effortFirstHalf).toBeCloseTo(p.aggressionLevel, 12);
+    expect(p.effortSecondHalf / p.effortFirstHalf).toBeCloseTo(p.aggressionLevel!, 12);
     expect(p.effortFirstHalf).toBeCloseTo((1 + 0.95 + 0.9) / 3, 12);
     // UP: the origin is the prior bar's LOW, and extension runs origin → extreme.
     expect(p.originPrice).toBe(99.5);
@@ -138,5 +138,47 @@ describe("the anatomy", () => {
     const v = selectExhaustion(vm(fadingPush([105, 104.5, 104])));
     expect(v.basis).toBe("VOLUME");
     expect(Object.keys(v.marks[0]).some(k => /prob|score|confidence/i.test(k))).toBe(false);
+  });
+});
+
+describe("a data gap is not a fade (measured on serving, BTC 1m, 2026-09-25)", () => {
+  // The same geometry as fadingPush — extended, no follow-through — but the
+  // feed reported no volume on some bars. A bar that moved price traded.
+  const withUnreported = (zeroAt: number[]) =>
+    fadingPush([105, 104.5, 104]).map((bar, k) =>
+      zeroAt.includes(k) ? { ...bar, effort: 0, effortNorm: 0 } : bar);
+
+  it("second-half volume unreported → not declining, not exhausted, and it says how many bars", () => {
+    const v = selectExhaustion(vm(withUnreported([4, 5, 6])));
+    expect(v.marks).toEqual([]);
+    const p = v.latestPush!;
+    expect(p.aggressionLevel).toBeNull();
+    expect(p.effortUnreportedBars).toBe(3);
+    expect(p.energyTransfer).toBeNull();
+    expect(p.exhausted).toBe(false);
+    // Extension and follow-through are still published: only the effort claim is withheld.
+    expect(p.extension).toBeGreaterThanOrEqual(3);
+    expect(p.followThrough).toBe(0);
+  });
+
+  it("every bar unreported (the serving case: 0% ÷ 0%) → never EXHAUSTED", () => {
+    const v = selectExhaustion(vm(withUnreported([1, 2, 3, 4, 5, 6])));
+    expect(v.marks).toEqual([]);
+    expect(v.latestPush!.aggressionLevel).toBeNull();
+    expect(v.latestPush!.effortUnreportedBars).toBe(6);
+  });
+
+  it("a fully reported push still exhausts exactly as before", () => {
+    const p = selectExhaustion(vm(fadingPush([105, 104.5, 104]))).marks[0];
+    expect(p.effortUnreportedBars).toBe(0);
+    expect(p.aggressionLevel).not.toBeNull();
+  });
+
+  it("on a delta basis a balanced split (delta 0) IS reported effort; a missing split is not", () => {
+    expect(effortReported({ effort: 0, delta: 0 }, "SIGNED_DELTA")).toBe(true);
+    expect(effortReported({ effort: 0, delta: null }, "INFERRED_DELTA")).toBe(false);
+    expect(effortReported({ effort: 0, delta: null }, "VOLUME")).toBe(false);
+    expect(effortReported({ effort: 12, delta: null }, "VOLUME")).toBe(true);
+    expect(effortReported({ effort: 12, delta: 3 }, "UNMEASURED")).toBe(false);
   });
 });

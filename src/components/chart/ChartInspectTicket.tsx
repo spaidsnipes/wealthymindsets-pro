@@ -284,7 +284,9 @@ function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => 
           <dl className="mt-1.5 space-y-1 text-[11px] break-words" style={{ color: "#C8C0AE" }}>
             <Row k="Push" v={`${p.direction === "UP" ? "Up" : "Down"} · ${p.pushBars} bars · ${utc(p.pushStartTime)} – ${hhmm(p.pushEndTime)} UTC`} />
             <Row k="Origin → extreme" v={`${px(p.originPrice)} → ${px(p.price)} · extreme at ${hhmm(p.time)}`} />
-            <Row k="Effort 2nd ÷ 1st" v={`${pct(p.aggressionLevel)} · first half ${pct(p.effortFirstHalf)} · second half ${pct(p.effortSecondHalf)} of the window's peak (${effortWord}) · declining below ${pct(DECLINING_AT)}`} />
+            <Row k="Effort 2nd ÷ 1st" v={p.aggressionLevel == null
+              ? `NOT MEASURED · ${p.effortUnreportedBars > 0 ? `effort not reported on ${p.effortUnreportedBars} of ${p.pushBars} bars (${effortWord}) — a data gap is not a fade` : "no first-half effort to decline from"}`
+              : `${pct(p.aggressionLevel)} · first half ${pct(p.effortFirstHalf)} · second half ${pct(p.effortSecondHalf)} of the window's peak (${effortWord}) · declining below ${pct(DECLINING_AT)}`} />
             <Row k="Extension" v={`${p.extension.toFixed(1)}× the window's median bar range · extended at ${EXTENDED_AT}×`} />
             <div>
               <div style={{ color: "#8B8676" }}>Follow-through · the {FT_BARS} bars after the push</div>

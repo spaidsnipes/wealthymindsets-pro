@@ -252,8 +252,10 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
   const debt: DebtItem[] = [
     { label: "FOLLOW-THROUGH LOST", paid: m.followThrough === 0,
       evidence: m.followThrough == null ? "fewer than 3 bars since the extreme" : `${m.followThrough}/3 bars made a new extreme` },
-    { label: input.exhaustion?.basis === "SIGNED_DELTA" || input.exhaustion?.basis === "INFERRED_DELTA" ? "AGGRESSION DECLINE" : "EFFORT DECLINE", paid: m.aggressionLevel < 0.75,
-      evidence: `second-half effort ${Math.round(m.aggressionLevel * 100)}% of first half` },
+    { label: input.exhaustion?.basis === "SIGNED_DELTA" || input.exhaustion?.basis === "INFERRED_DELTA" ? "AGGRESSION DECLINE" : "EFFORT DECLINE", paid: m.aggressionLevel != null && m.aggressionLevel < 0.75,
+      evidence: m.aggressionLevel == null
+        ? `effort not reported on ${m.effortUnreportedBars} bar${m.effortUnreportedBars === 1 ? "" : "s"} of the push`
+        : `second-half effort ${Math.round(m.aggressionLevel * 100)}% of first half` },
     { label: "STRUCTURE BREAK", paid: broke,
       evidence: origin == null ? "push origin unknown" : broke ? `closed back beyond the push origin ${f2(origin)}` : `no close back beyond the push origin ${f2(origin)}` },
   ];

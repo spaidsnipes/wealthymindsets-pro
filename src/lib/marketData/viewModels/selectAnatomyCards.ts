@@ -148,14 +148,18 @@ export function selectAnatomyCards(
   if (!exhaustion || !exhaustion.measured || !push) {
     ex = emptyCard(EX_HEAD, "no push of 4+ same-direction closes in the window");
   } else {
-    const declining = push.aggressionLevel < DECLINING_AT;
+    // null = effort not reported on some bar of the push: not declining, and
+    // the card says so instead of printing a 0% fade.
+    const declining = push.aggressionLevel != null && push.aggressionLevel < DECLINING_AT;
     const extended = push.extension >= EXTENDED_AT;
     const lost = push.followThrough === 0;
     const met = [declining, extended, lost].filter(Boolean).length;
     ex = {
       ...EX_HEAD,
       metrics: [
-        { label: "EFFORT 2ND ÷ 1ST", value: pct(push.aggressionLevel), word: declining ? "DECLINING" : "HELD" },
+        push.aggressionLevel == null
+          ? { label: "EFFORT 2ND ÷ 1ST", value: "—", word: push.effortUnreportedBars > 0 ? `UNREPORTED ON ${push.effortUnreportedBars} BAR${push.effortUnreportedBars === 1 ? "" : "S"}` : "NO FIRST-HALF EFFORT" }
+          : { label: "EFFORT 2ND ÷ 1ST", value: pct(push.aggressionLevel), word: declining ? "DECLINING" : "HELD" },
         { label: "EXTENSION", value: `${push.extension.toFixed(1)}×`, word: extended ? "EXTENDED" : "CONTAINED" },
         { label: "FOLLOW-THROUGH", value: push.followThrough == null ? "—" : `${push.followThrough}/${FT_BARS}`, word: push.followThrough == null ? "PENDING" : lost ? "LOST" : "HELD" },
         { label: "ENERGY TRANSFER", value: push.energyTransfer == null ? "—" : pct(push.energyTransfer), word: push.energyTransfer == null ? "UNKNOWN" : push.energyTransfer < 1 ? "INEFFICIENT" : "EFFICIENT" },

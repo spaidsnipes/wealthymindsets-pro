@@ -16,7 +16,7 @@ const anatomy = (over: Partial<AbsorptionAnatomyVM> = {}) => ({
   zoneQualificationPossible: true, effortSpreadNote: null, ...over,
 } as AbsorptionAnatomyVM);
 const push = (over: Partial<ExhaustionReading> = {}): ExhaustionReading => ({
-  direction: "UP", time: 180, price: 105, pushBars: 6, aggressionLevel: 0.4, extension: 7.7,
+  direction: "UP", time: 180, price: 105, pushBars: 6, aggressionLevel: 0.4, effortUnreportedBars: 0, extension: 7.7,
   pushStartTime: -120, pushEndTime: 180, followThroughTimes: [240, 300, 360],
   followBars: [{ time: 240, reach: 104, beyond: false }, { time: 300, reach: 104.5, beyond: false }, { time: 360, reach: 103, beyond: false }],
   originPrice: 99, effortFirstHalf: 0.9, effortSecondHalf: 0.36,
@@ -41,6 +41,14 @@ describe("the plate's two KEY METRICS columns, from the owners on the chart", ()
       "EFFORT 2ND ÷ 1ST:40%:DECLINING", "EXTENSION:7.7×:EXTENDED", "FOLLOW-THROUGH:0/3:LOST", "ENERGY TRANSFER:381%:EFFICIENT",
     ]);
     expect(v.exhaustion.outcome).toBe("EXHAUSTED");
+  });
+
+  it("effort the feed did not report prints as UNREPORTED, not a 0% decline", () => {
+    const gap = push({ exhausted: false, aggressionLevel: null, effortUnreportedBars: 3, energyTransfer: null });
+    const v = selectAnatomyCards(anatomy(), exVM([], gap));
+    expect(v.exhaustion.metrics[0]).toMatchObject({ label: "EFFORT 2ND ÷ 1ST", value: "—", word: "UNREPORTED ON 3 BARS" });
+    // Extended + lost still count; the effort leg does not.
+    expect(v.exhaustion.outcome).toBe("NOT EXHAUSTED · 2 OF 3");
   });
 
   it("a near miss is shown as NOT EXHAUSTED with the conditions it met", () => {

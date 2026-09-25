@@ -30,7 +30,10 @@
  *                      than FT_BARS bars exist after it.
  *   ENERGY TRANSFER  — displacement per unit effort, second half ÷ first half.
  *
- * EXHAUSTION = declining AND extended AND follow-through lost. All four are
+ * EXHAUSTION = declining AND extended AND follow-through lost. Declining needs
+ * effort REPORTED on every bar of the push (see `effortReported`): a data gap
+ * is not a fade, so such a push publishes aggressionLevel null and never
+ * exhausts. All four are
  * published whether or not the verdict fires, so Inspect can show a near
  * miss honestly. No probability; no "strength score"; no direction call —
  * an exhausted up-push is a fact about the push, not a forecast of a fall.
@@ -47,7 +50,7 @@
  * PURE. DETERMINISTIC.
  */
 
-import type { AbsorptionAnatomyVM, EffortBasis } from "@/lib/marketData/selectAbsorptionAnatomy";
+import type { AbsorptionAnatomyVM, AnatomyBar, EffortBasis } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 export const EXHAUSTION_VERSION = 1;
 export const MIN_PUSH_BARS = 4;
@@ -83,8 +86,14 @@ export interface ExhaustionReading {
    *  the window's peak effort. `aggressionLevel` is second ÷ first. */
   readonly effortFirstHalf: number;
   readonly effortSecondHalf: number;
-  /** second-half effort ÷ first-half effort. */
-  readonly aggressionLevel: number;
+  /** second-half effort ÷ first-half effort. null when the comparison has
+   *  nothing to stand on: a bar of the push carried no reported effort, or the
+   *  first half's effort is zero — "declining" from nothing is not a decline. */
+  readonly aggressionLevel: number | null;
+  /** Bars of the push whose effort was not reported: on a VOLUME basis a bar
+   *  with no volume (price moved, so trades happened — the feed just did not
+   *  say how many); on a delta basis a bar without an observed split. */
+  readonly effortUnreportedBars: number;
   /** push travel ÷ median bar range. */
   readonly extension: number;
   /** bars (of FT_BARS) that exceeded the extreme; null while PENDING. */
@@ -110,6 +119,15 @@ export interface ExhaustionVM {
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/** Did the feed report this bar's effort? VOLUME: a positive volume (a bar
+ *  that exists traded something, so 0 means "not reported"). Delta bases: an
+ *  observed aggressor split — a balanced split (delta 0) IS reported effort. */
+export function effortReported(bar: Pick<AnatomyBar, "effort" | "delta">, basis: EffortBasis): boolean {
+  if (basis === "VOLUME") return bar.effort > 0;
+  if (basis === "SIGNED_DELTA" || basis === "INFERRED_DELTA") return bar.delta != null;
+  return false;
+}
 
 export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined): ExhaustionVM {
   const basis: EffortBasis = anatomy?.basis ?? "UNMEASURED";
@@ -152,11 +170,17 @@ export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined
       const followThrough = after.length < FT_BARS
         ? null
         : after.filter(b => (up ? b.high > extremePrice : b.low < extremePrice)).length;
-      const aggressionLevel = effFirst > 0 ? effSecond / effFirst : 0;
-      const energyTransfer = effFirst > 0 && effSecond > 0 && dispFirst > 0
+      // Effort the feed did not report is not zero effort. A zero-volume bar
+      // that moved price still traded; grading its "fade" would mint an
+      // exhaustion out of a data gap (measured on serving, 2026-09-25: BTC 1m
+      // marks EXHAUSTED at EFFORT 2ND÷1ST 0% on bars whose volume was 0).
+      const effortUnreportedBars = push.filter(b => !effortReported(b, basis)).length;
+      const aggressionLevel = effortUnreportedBars === 0 && effFirst > 0 ? effSecond / effFirst : null;
+      const energyTransfer = aggressionLevel != null && effSecond > 0 && dispFirst > 0
         ? (dispSecond / effSecond) / (dispFirst / effFirst)
         : null;
-      const exhausted = aggressionLevel < DECLINING_AT && extension >= EXTENDED_AT && followThrough === 0;
+      const exhausted = aggressionLevel != null && aggressionLevel < DECLINING_AT
+        && extension >= EXTENDED_AT && followThrough === 0;
       readings.push({
         direction: up ? "UP" : "DOWN",
         time: extreme.time,
@@ -173,6 +197,7 @@ export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined
         effortFirstHalf: effFirst,
         effortSecondHalf: effSecond,
         aggressionLevel,
+        effortUnreportedBars,
         extension,
         followThrough,
         energyTransfer,
