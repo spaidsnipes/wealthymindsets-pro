@@ -70,4 +70,18 @@ describe("profile family glass honesty", () => {
       expect(write, k).toBeGreaterThan(at);
     }
   });
+
+  it("Fusion is parents → derived knot, not a full-width band with a caption (Defect 1)", () => {
+    const a = CHART.indexOf("P-110 #3 · PROFILE FUSION — WHERE THE SPECIES AGREE");
+    const b = CHART.indexOf("P-110 #4 · PROFILE MEMORY", a);
+    const fusion = CHART.slice(a, b);
+    expect(fusion.length).toBeGreaterThan(1400);
+    // No band across the camera, no boxed provenance caption.
+    expect(fusion).not.toMatch(/ctx\.fillRect\(0, top, endX, h\);/);
+    expect(fusion).not.toMatch(/FUSION ×\$\{z\.speciesCount\} · /);
+    // One thread per parent, at its own price, in its species' ink.
+    expect(fusion).toMatch(/const srcs = \[\.\.\.z\.sources\]/);
+    expect(fusion).toMatch(/ctx\.strokeStyle = threadInk\(src\.species, 0\.85\);/);
+    expect(fusion).toMatch(/ds\.profileFusionForm = painted > 0 \? "KNOT" : "NONE";/);
+  });
 });

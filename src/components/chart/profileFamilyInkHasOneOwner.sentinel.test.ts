@@ -114,7 +114,8 @@ const FAMILY: Species[] = [
     from: "P-110 #3 · PROFILE FUSION — WHERE THE SPECIES AGREE",
     to: "P-110 #4 · PROFILE MEMORY",
     min: 1400,
-    must: ["profileFusionRef.current", "FUSION ×"],
+    // The zone is now a knot of threads (Defect 1), tagged "×N" — no caption.
+    must: ["profileFusionRef.current", "const tag = `×${z.speciesCount}`;"],
     readsOwner: true,
   },
   {

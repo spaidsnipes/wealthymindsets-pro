@@ -12362,11 +12362,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
 
         /* ══ P-110 #3 · PROFILE FUSION — WHERE THE SPECIES AGREE ═══════════
-           A thin brass band across the camera from the lowest to the highest
-           contributing price (never smoothed), with its provenance printed at
-           the left: which species, which level. "×3" is a count of species,
-           not a score. Painted under the other profile layers so it reads as
-           ground, not as another line.
+           PARENT A + PARENT B → DERIVED OBJECT, as geometry (Garden 12,
+           Defect 1: "Fusion should not need the word FUSION"). It used to be
+           a full-width brass band with a boxed caption naming its sources —
+           a rectangle and a sentence. Now each parent level arrives as a
+           THREAD at its own price, in its own species' ink (Living's gold,
+           Structure's brass, Memory's grey, TPO's ivory), and the threads
+           converge into ONE knot: the fused zone, bracketed at its true
+           low…high, carried a short way toward the profiles. The parents
+           keep drawing themselves; turning Fusion off removes only the knots.
+           "×N" is a count of species, not a score; which levels fused is
+           Inspect's to say, not the glass's.
         ═══════════════════════════════════════════════════════════════════ */
         {
           const fu = profileFusionRef.current;
@@ -12375,6 +12381,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && fu?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
+            // The knot stands just left of the Living body when it is drawn,
+            // so the derived object never sits inside a parent's shape.
+            const bodyLeft = ds.livingProfileBodyWidth && ds.livingProfileLaneRight
+              ? Number(ds.livingProfileLaneRight) - Number(ds.livingProfileBodyWidth)
+              : endX;
+            const knotX = Math.max(180, Math.min(endX, bodyLeft - 14));
+            const threadInk = (sp: string, a: number) =>
+              sp === "LIVING" ? pk.chosenOr("POC", a, `rgba(233,196,106,${a})`)
+                : sp === "MEMORY" ? `rgba(176,172,164,${a})`
+                  : sp === "TPO" ? pk.rgbaAs("VALUE", "ANCHOR", a)
+                    : pk.rgba("ANCHOR", a);
             let painted = 0;
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "middle";
@@ -12383,35 +12400,57 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yl = srs.priceToCoordinate(z.low);
               if (yh == null || yl == null) continue;
               const top = Math.min(+yh, +yl) - 2;
-              const h = Math.max(4, Math.abs(+yl - +yh) + 4);
-              // The agreement zone is territory resting in brass; its rules
-              // and chip are the house's hardware.
-              ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", 0.13);
-              ctx.fillRect(0, top, endX, h);
-              ctx.strokeStyle = pk.rgba("ANCHOR", 0.55);
-              ctx.lineWidth = 1;
+              const h = Math.max(6, Math.abs(+yl - +yh) + 4);
+              const yMid = top + h / 2;
+              // Faint ground only where the threads converge — never across the camera.
+              ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", 0.08);
+              ctx.fillRect(knotX - 96, top, 96, h);
+              // THE PARENTS: one thread per source level, at its own price.
+              const srcs = [...z.sources].sort((a, b) => b.price - a.price);
+              srcs.forEach((src, i) => {
+                const ys = srs.priceToCoordinate(src.price);
+                if (ys == null) return;
+                const sx = knotX - 92 - 10 * i;
+                ctx.strokeStyle = threadInk(src.species, 0.85);
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(sx, +ys);
+                ctx.lineTo(knotX - 34, +ys);
+                ctx.quadraticCurveTo(knotX - 10, +ys, knotX - 2, yMid);
+                ctx.stroke();
+                ctx.fillStyle = threadInk(src.species, 0.95);
+                ctx.beginPath(); ctx.arc(sx, +ys, 2.2, 0, Math.PI * 2); ctx.fill();
+              });
+              // THE DERIVED OBJECT: the fused zone bracketed at its true
+              // low…high, a knot at its centre, carried toward the profiles.
+              ctx.strokeStyle = pk.rgba("ANCHOR", 0.95);
+              ctx.lineWidth = 2;
               ctx.beginPath();
-              ctx.moveTo(0, Math.round(top) + 0.5); ctx.lineTo(endX, Math.round(top) + 0.5);
-              ctx.moveTo(0, Math.round(top + h) - 0.5); ctx.lineTo(endX, Math.round(top + h) - 0.5);
+              ctx.moveTo(knotX + 4, top); ctx.lineTo(knotX, top); ctx.lineTo(knotX, top + h); ctx.lineTo(knotX + 4, top + h);
               ctx.stroke();
-              const text = `FUSION ×${z.speciesCount} · ${z.low.toFixed(2)}${z.high !== z.low ? `–${z.high.toFixed(2)}` : ""} · ${z.provenance}`;
-              const w = Math.ceil(ctx.measureText(text).width) + 10;
-              const x = 44;
-              const y = Math.round(top + h / 2);
-              ctx.fillStyle = "rgba(11,10,8,0.86)";
-              ctx.fillRect(x, y - 8, w, 16);
-              ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
-              ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
               ctx.fillStyle = pk.rgba("ANCHOR", 1);
+              ctx.beginPath();
+              ctx.moveTo(knotX, yMid - 4); ctx.lineTo(knotX + 4, yMid); ctx.lineTo(knotX, yMid + 4); ctx.lineTo(knotX - 4, yMid);
+              ctx.closePath(); ctx.fill();
+              if (endX - knotX > 20) {
+                ctx.setLineDash([3, 3]); ctx.strokeStyle = pk.rgba("ANCHOR", 0.5); ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(knotX + 6, Math.round(yMid) + 0.5); ctx.lineTo(endX, Math.round(yMid) + 0.5); ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              const tag = `×${z.speciesCount}`;
               ctx.textAlign = "left";
-              ctx.fillText(text, x + 5, y);
+              ctx.fillStyle = pk.rgba("ANCHOR", 1);
+              ctx.fillText(tag, knotX + 7, yMid - 8);
+              floatingChips.push({ x: knotX - 96, y: top, w: 110, h });
               painted++;
             }
             ctx.restore();
             ds.profileFusionZones = String(painted);
+            ds.profileFusionForm = painted > 0 ? "KNOT" : "NONE";
             ds.profileFusionMaxSpecies = String(Math.max(0, ...fu.zones.map(z => z.speciesCount)));
           } else {
             delete ds.profileFusionZones;
+            delete ds.profileFusionForm;
             delete ds.profileFusionMaxSpecies;
           }
         }
