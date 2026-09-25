@@ -1168,6 +1168,13 @@ interface Props {
   continuationOnChart?: { health: "COHERENT" | "CONTESTED" | "ROTATING" | "UNREADABLE"; reason: string } | null;
   /** PERMISSION? — the decision compiler's reading, quoted verbatim by the lens. */
   permissionOnChart?: import("@/lib/marketData/viewModels/selectQuestionLens").QuestionLensInput["permission"];
+  /**
+   * H-101 · THE DEBT TAG — the compiled WAIT, attached by a leader to the bar
+   * the ledger was read at. Compiled by `selectDebtTag` in the room; null when
+   * there is no open debt, no event bar, or a replay camera is walking. This
+   * chart only places it (keep-out owner) and draws it — it decides nothing.
+   */
+  debtTagOnChart?: import("@/lib/marketData/viewModels/selectWaitPlaque").DebtTagVM | null;
   /** Absorption vs Exhaustion key-metric cards (MOCK 1). */
   anatomyCardsOnChart?: boolean;
   /** H-201 Memory Ghost — prior analogue under the live bars. */
@@ -1538,6 +1545,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   rawOnChart = false,
   continuationOnChart = null,
   permissionOnChart = null,
+  debtTagOnChart = null,
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
   memoryGhostOnChart = false,
@@ -1842,6 +1850,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   continuationRef.current = continuationOnChart;
   const permissionRef = useRef<typeof permissionOnChart>(null);
   permissionRef.current = permissionOnChart;
+  const debtTagRef = useRef<typeof debtTagOnChart>(null);
+  debtTagRef.current = debtTagOnChart;
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false });
   useEffect(() => {
     layerOnRef.current = {
@@ -15388,6 +15398,109 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.riskReceiptHits;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
+
+      /* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT ═══════════════════════════
+         Sheet H-101 ("EVIDENCE DEBT — WAIT IS A FINISHED ORGANISM") hangs a
+         brass WAIT tag on the event candle by a leader while the market stays
+         alive. The tag is COMPILED in the room (`selectDebtTag`): its word is
+         the decision compiler's, its bar is `canonicalState.lastBar` — the bar
+         the ledger was read at. This block decides nothing; it finds that bar
+         on this camera, places the plate through the keep-out owner, and draws.
+         Its own block, after every claimed layer, so it only steps AROUND what
+         they already put on the glass (`floatingChips`).
+         Receipt, in every state: DRAWN · OFF_CAMERA (bar not in view) · NONE. */
+      {
+        const tagT = debtTagRef.current;
+        let tagState: "NONE" | "OFF_CAMERA" | "DRAWN" = "NONE";
+        let tagMode: string | null = null;
+        try {
+          if (tagT) {
+            tagState = "OFF_CAMERA";
+            const bsT = barsRef.current ?? [];
+            let evT: (typeof bsT)[number] | null = null;
+            for (let i = bsT.length - 1; i >= 0; i--) {
+              const tb = Math.round(bsT[i].time);
+              if (tb === tagT.barTimeSec) { evT = bsT[i]; break; }
+              if (tb < tagT.barTimeSec) break;
+            }
+            const tsT = chart.timeScale();
+            let axisWT = 60;
+            try { axisWT = chart.priceScale("right").width(); } catch { /* keep default */ }
+            const plotRightT = Math.max(8, W - axisWT);
+            const xT = evT ? tsT.timeToCoordinate(evT.time as never) : null;
+            const yHiT = evT ? srs.priceToCoordinate(evT.high) : null;
+            const yLoT = evT ? srs.priceToCoordinate(evT.low) : null;
+            if (evT && xT != null && yHiT != null && yLoT != null && +xT >= 0 && +xT <= plotRightT) {
+              const x = +xT, yHi = +yHiT, yLo = +yLoT;
+              ctx.save();
+              ctx.font = "700 12px Georgia, 'Times New Roman', serif";
+              const wT = Math.ceil(ctx.measureText(tagT.word).width) + 20;
+              const hT = 20;
+              const floorT = Math.max(HEADER_FLOOR_Y + hT, pane0Bottom - hT - 6);
+              const clampY = (y: number) => Math.min(Math.max(y, HEADER_FLOOR_Y), floorT);
+              const leftT = Math.min(Math.max(x - wT / 2, keepOutMinX()), plotRightT - wT - 4);
+              // H-101 hangs the plate BELOW the event; above it is the one
+              // alternate, then the keep-out owner slides it left on its row.
+              const below = { x: leftT, y: clampY(yLo + 26), w: wT, h: hT };
+              const above = { x: leftT, y: clampY(yHi - 26 - hT), w: wT, h: hT };
+              const spotT = placeClearOfKeepOut(below, keepOut(), {
+                minX: keepOutMinX(),
+                blockers: floatingChips,
+                strict: true,
+                alternates: [above],
+              });
+              recordKeepOut(keepOutLedger, spotT);
+              floatingChips.push({ x: spotT.rect.x, y: spotT.rect.y, w: spotT.rect.w, h: spotT.rect.h });
+              const r = spotT.rect;
+              const plateAbove = r.y + r.h / 2 < (yHi + yLo) / 2;
+              // The leader: from the event candle's wick end to the plate's
+              // nearest edge, with a pin on the candle — "lives on the event".
+              const pinY = plateAbove ? yHi - 2 : yLo + 2;
+              const endY = plateAbove ? r.y + r.h : r.y;
+              ctx.strokeStyle = "rgba(201,165,92,0.85)";
+              ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(x, pinY); ctx.lineTo(r.x + r.w / 2, endY); ctx.stroke();
+              ctx.fillStyle = "#d4af37";
+              ctx.beginPath(); ctx.arc(x, pinY, 2, 0, Math.PI * 2); ctx.fill();
+              // The plate. Solid brass when it is clear of the newest bodies;
+              // when the keep-out owner could not clear them it yields to an
+              // outline so the candle reads through (Garden 12, Defect 4).
+              if (!spotT.onCandles) {
+                const gT = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+                // Two brasses this file already paints with (the rail's verdict
+                // gold and the chart's GOLD) — never the candle material's
+                // owned hex, which follows the trader's Appearance choice.
+                gT.addColorStop(0, "#d4af37");
+                gT.addColorStop(1, "rgba(201,165,92,0.95)");
+                ctx.fillStyle = gT;
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+                ctx.strokeStyle = "rgba(14,12,9,0.55)";
+                ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3);
+                ctx.fillStyle = "rgba(14,12,9,0.92)";
+              } else {
+                ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotT, 0.9)})`;
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+                ctx.strokeStyle = "rgba(201,165,92,0.85)";
+                ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+                ctx.fillStyle = "#d4af37";
+              }
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillText(tagT.word, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
+              ctx.restore();
+              tagState = "DRAWN";
+              tagMode = spotT.mode;
+            }
+          }
+        } catch { /* camera mid-transition: the receipt below still names the state */ }
+        canvas.dataset.debtTag = tagState;
+        if (tagState === "DRAWN" && tagT) {
+          canvas.dataset.debtTagBar = String(tagT.barTimeSec);
+          canvas.dataset.debtTagPlacement = tagMode ?? "";
+        } else {
+          delete canvas.dataset.debtTagBar;
+          delete canvas.dataset.debtTagPlacement;
+        }
+      }
 
       // ATTENTION RECEIPT — every layer that painted through the governor
       // this frame, with the tier and alpha it was given. Published at the

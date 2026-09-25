@@ -232,12 +232,18 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
       src.match(/replayEngaged: replayActive\b/g) ?? [],
       "a fidelity surface is answering the panel's open/closed state again",
     ).toHaveLength(0);
-    // All three fidelity consumers on one owner: the OS masthead standing, the
+    // All fidelity consumers on one owner: the OS masthead standing, the
     // decision spine, and MainChart's strip + live-tape overlays.
+    //
+    // RE-PINNED 2026-09-25 from 2 to 3 — a THIRD reader of the SAME owner, not
+    // a new owner: H-101's debt tag (`selectDebtTag`) withholds the live WAIT
+    // tag while a camera walks history, and it asks `cameraWalksHistory`, the
+    // one lawful answer. The ban above on `replayEngaged: replayActive` is
+    // untouched, so the count can only grow by readers of the right owner.
     expect(
       src.match(/replayEngaged: cameraWalksHistory/g) ?? [],
-      "the masthead standing and the decision spine must read the same owner",
-    ).toHaveLength(2);
+      "the masthead standing, the decision spine and the H-101 debt tag must read the same owner",
+    ).toHaveLength(3);
     expect(src).toContain("replayActive={cameraWalksHistory}");
     // And the panel's own disclosure is fed from that owner rather than being a
     // second literal that can drift away from it. RE-PINNED 2026-09-25: it

@@ -151,6 +151,7 @@ import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { memoryLevelKindOf, selectMemoryMarketObjects } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { selectLivingBiography } from "@/lib/marketData/viewModels/selectLivingBiography";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
+import { selectDebtTag } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
@@ -3723,6 +3724,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     );
   }
 
+  /* H-101 · THE DEBT TAG — "lives on the event". Composed, never computed
+     here: the word and the open debt are `chartCanvasVM.oneStory`'s (the
+     compiler the rail's plaque reads), and the event is `chartCanvasState
+     .lastBar` — the newest provably-closed LIVE bar, in the same snapshot, from
+     the same store and identity the ledger was compiled from. The replay
+     camera gets no live tag: `cameraWalksHistory` is the one owner of that. */
+  const debtTagOnChart = selectDebtTag({
+    decision: chartCanvasVM.oneStory?.decision ?? null,
+    debt: chartCanvasVM.oneStory?.debt ?? null,
+    eventBarOpenedAtMs: chartCanvasState?.lastBar?.barOpenedAtMs ?? null,
+    capturedAt: chartCanvasState?.capturedAt ?? null,
+    replayEngaged: cameraWalksHistory,
+  });
+
   // One compiled decision spine, projected in two responsive placements.
   // Desktop attaches it directly to MARKET as a right rail; narrow viewports
   // keep the proven horizontal, scrollable band below the chart. The
@@ -5508,6 +5523,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                           warnLabels: chartCanvasVM.oneStory.debt.warnLabels,
                         },
                       } : null}
+                      debtTagOnChart={debtTagOnChart}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}
