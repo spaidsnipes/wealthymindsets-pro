@@ -15,7 +15,7 @@
 import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import type { ChangeWindow } from "@/lib/marketData/changeWindow";
-import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { classifySymbol, equityVendorSkipNoun } from "@/lib/marketData/symbolAssetClass";
 // M8: THE ARTERY'S THIRD PRODUCTION CONSUMER. A RUNTIME (value) import — a
 // type-only edge is erased by the compiler, appears in no bundle, and is
 // exactly the vacuous "adoption" the M8 ratchet was rewritten to stop counting.
@@ -155,7 +155,6 @@ function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
  * an owner does.
  */
 function isCryptoSym(sym: string) { return classifySymbol(sym) === "CRYPTO"; }
-function isFuturesSym(sym: string) { return classifySymbol(sym) === "FUTURES"; }
 
 /**
  * Is this a reference price we can honestly measure a day-change against?
@@ -189,9 +188,13 @@ export async function GET(request: Request) {
   // (500 capped Daily to <2y — the user could never see their full 5 years).
   const bars   = Math.min(5000, parseInt(searchParams.get("bars") ?? "300", 10));
 
-  // Futures → not supported
-  if (rawSym && isFuturesSym(rawSym)) {
-    return NextResponse.json({ error: "Futures not supported by Alpaca — use /api/yahoo" }, { status: 404 });
+  // Futures, forex and spot metals → not carried. Named by the instrument's
+  // own class: when spot metals stopped classifying as futures (GP12 §26),
+  // XAUUSD would otherwise have fallen through to the STOCK lane here.
+  const notCarried = rawSym ? equityVendorSkipNoun(rawSym) : null;
+  if (notCarried) {
+    const noun = notCarried.charAt(0).toUpperCase() + notCarried.slice(1);
+    return NextResponse.json({ error: `${noun} not supported by Alpaca` }, { status: 404 });
   }
 
   const crypto  = isCryptoSym(rawSym);

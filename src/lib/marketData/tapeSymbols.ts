@@ -54,7 +54,7 @@ import {
   withSymbol,
   withoutSymbol,
 } from "./storedSymbolList";
-import { spotMetalFutures } from "@/lib/yahooSymbol";
+import { futuresCashStandIn, spotMetalFutures } from "@/lib/yahooSymbol";
 
 /**
  * The tape a trader who has never customised anything sees.
@@ -146,6 +146,9 @@ export function tapeQuoteBlocker(value: unknown): string | null {
   // the tape says why instead of relabelling futures as spot.
   const metal = spotMetalFutures(symbol);
   if (metal) return `No spot ${metal.name} feed is connected. Add ${metal.futures} for ${metal.name} futures.`;
+  // VIX FUTURES (GP12 §26, same day): the only Yahoo price was the CASH index.
+  const standIn = futuresCashStandIn(symbol);
+  if (standIn) return `No ${standIn.name} futures feed is connected. Add ${standIn.cash} for the cash ${standIn.name} index.`;
   return null;
 }
 

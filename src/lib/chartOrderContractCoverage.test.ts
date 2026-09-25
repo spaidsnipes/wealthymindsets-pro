@@ -161,11 +161,13 @@ describe("chart order path — contract coverage", () => {
       "6E1! (Euro Futures)",
       "6J1! (Yen Futures)",
       "6B1! (British Pound Futures)",
-      // `VX1! (VIX Futures)` was here until 2026-09-11 and is GONE for a good
-      // reason, not a covered one: it never was a contract in this app. It
-      // resolves to `^VIX`, the cash index, so there is no CME specification
-      // to look up. It was listed here only because its picker label said
-      // "Futures" while the data said otherwise.
+      // PIN UPDATED 2026-09-25 (GP12 §26). `VX1! (VIX Futures)` left this list
+      // on 2026-09-11 because the app served the ^VIX CASH index under its
+      // name. That substitution is refused now: VX1! is VIX futures again (no
+      // feed serves it yet, and the chart says so), so it is a real contract
+      // with a real CFE multiplier ($1,000/pt) that nobody has entered — which
+      // is exactly what this list exists to keep visible.
+      "VX1! (VIX Futures)",
       "NG1! (Natural Gas Futures)",
     ]);
   });

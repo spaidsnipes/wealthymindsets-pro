@@ -24,6 +24,7 @@ import {
   toYahooSymbol,
   type AssetClass,
 } from "@/lib/marketData/symbolAssetClass";
+import { spotMetalFutures } from "@/lib/yahooSymbol";
 
 export const FABIO_CONTENT_IS_PLACEHOLDER = true;
 
@@ -234,6 +235,13 @@ export function inferAssetClass(symbol?: string): FabioAssetClass {
   if (!symbol) return "any";
 
   const klass = classifySymbol(symbol);
+
+  // Spot metals (XAUUSD…) are metal, and the class owner now answers FOREX for
+  // them rather than the futures contract the notation table borrows (GP12
+  // §26, 2026-09-25). The gold-and-real-yields playbook is about the metal,
+  // so it still applies — asked of the notation owner's own spot-metal set,
+  // never guessed from a prefix (see SIRI/GCT above).
+  if (spotMetalFutures(symbol)) return "metals";
 
   // The metals overlay is a SUBSET of futures, not a rival classification, so
   // it is applied only where the owner already said futures. That ordering is

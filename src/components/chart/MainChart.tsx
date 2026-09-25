@@ -69,7 +69,7 @@ import { aggressorProvenanceOf, weakestAggressorProvenance } from "@/lib/marketD
 import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNote";
 import {
   classifySymbol,
-  isUnsupportedByEquityVendors,
+  equityVendorSkipNoun,
   observesUsEquitySession,
 } from "@/lib/marketData/symbolAssetClass";
 import { overlayFrameBudgetMs, overlayFrameVerdict } from "@/lib/chartOverlayGovernor";
@@ -674,10 +674,13 @@ async function edgeOf(res: Response): Promise<string | null> {
 
 async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
   const upper = sym.toUpperCase();
-  if (isUnsupportedByEquityVendors(upper)) {
+  // The noun is the INSTRUMENT's class (equityVendorSkipNoun), never a fixed
+  // "futures" — XAUUSD is spot metal and was being called a future here.
+  const skipped = equityVendorSkipNoun(upper);
+  if (skipped) {
     note(log, { vendor: "Finnhub", outcome: "NOT_ASKED",
-      rule: "this product does not route futures or forex to its equity vendors." });
-    return null; // futures/forex unsupported by the proxy
+      rule: `this product does not route ${skipped} to its equity vendors.` });
+    return null; // futures/forex/spot metals unsupported by the proxy
   }
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(upper)}&type=candles&tf=${encodeURIComponent(tf)}&bars=${count}`;
@@ -793,9 +796,12 @@ function filterSession(bars: LegacyOhlcvTuple[], sym: string, intervalSec: numbe
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
 async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
   const up = sym.toUpperCase();
-  if (classifySymbol(up) === "FUTURES") {
-    note(log, { vendor: "Alpaca", outcome: "NOT_ASKED", rule: "it does not carry futures." });
-    return null; // Alpaca doesn't support futures
+  // Named by the instrument's OWN class: XAUUSD is spot metal, and "it does
+  // not carry futures" was said about it (serving, 2026-09-25, GP12 §26).
+  const skipped = equityVendorSkipNoun(up);
+  if (skipped) {
+    note(log, { vendor: "Alpaca", outcome: "NOT_ASKED", rule: `it does not carry ${skipped}.` });
+    return null; // Alpaca's data lane carries US equities and crypto only
   }
   try {
     const url = `/api/alpaca?sym=${encodeURIComponent(up)}&type=candles&tf=${tf}&bars=${count}`;
@@ -821,10 +827,10 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number,
   // Only for stocks/ETFs — futures/crypto fall back to Yahoo
   // The crypto list here named eleven coins and none of the `-USD` forms the
   // app's own pickers emit, so BTC-USD was being asked of an equity vendor.
-  const klass = classifySymbol(sym);
-  if (klass === "FUTURES" || klass === "CRYPTO") {
+  const skipped = equityVendorSkipNoun(sym) ?? (classifySymbol(sym) === "CRYPTO" ? "crypto" : null);
+  if (skipped) {
     note(log, { vendor: "Finnhub REST", outcome: "NOT_ASKED",
-      rule: `this product does not route ${klass.toLowerCase()} to its equity vendors.` });
+      rule: `this product does not route ${skipped} to its equity vendors.` });
     return null;
   }
   try {

@@ -63,7 +63,29 @@ export const YF_MAP: Record<string, string> = {
   "ZW1!":  "ZW=F",
   "ZS1!":  "ZS=F",
   "LE1!":  "LE=F",
-  "VX1!":  "^VIX",
+  /**
+   * Offered by the pickers, and named by the spot-metal refusal below as the
+   * lawful alternative ("Open PL1! for Platinum futures"), but absent from this
+   * table — so they reached Yahoo verbatim as "PL1!" and 404'd. MEASURED
+   * 2026-09-25: Yahoo lists each `=F` below as instrumentType FUTURE on the
+   * named exchange (PL/PA NY Mercantile; 6E/6J/6B CME). Same contract, Yahoo's
+   * name — an identity, like every other row here.
+   */
+  "PL1!":  "PL=F",
+  "PA1!":  "PA=F",
+  "6E1!":  "6E=F",
+  "6J1!":  "6J=F",
+  "6B1!":  "6B=F",
+  /**
+   * "VX1!" → "^VIX" WAS HERE, and it is GONE (GP12 §26, 2026-09-25). VX1! is
+   * VIX FUTURES (CFE); ^VIX is the CASH index — Yahoo's own meta calls it
+   * instrumentType INDEX, "Cboe Indices". Serving it under a futures symbol is
+   * the XAUUSD defect in the other direction: a different market (no term
+   * structure, no roll, not tradable) wearing a contract's name. MEASURED the
+   * same day: Yahoo lists no VIX futures (`VX=F` → "No data found"), so there is
+   * no lawful mapping to write. `resolveYahooSymbol` refuses VX1! and names the
+   * index a trader can open instead.
+   */
 
   /**
    * CASH INDICES — the SAME instrument under Yahoo's name, not a proxy.
@@ -215,8 +237,32 @@ export function spotMetalFutures(sym: string): { readonly name: string; readonly
   return SPOT_METALS[key] ?? null;
 }
 
+/**
+ * Futures contracts no connected feed serves, and the cash index that is NOT
+ * them. The mirror of SPOT_METALS: there the only price was a future under a
+ * spot name, here the only price is a cash index under a futures name. Returned
+ * so a refusal can name the lawful alternative; never used to substitute one.
+ */
+const FUTURES_WITHOUT_A_SOURCE: Readonly<Record<string, { readonly name: string; readonly cash: string }>> = {
+  "VX1!": { name: "VIX", cash: "^VIX" },
+};
+
+export function futuresCashStandIn(sym: string): { readonly name: string; readonly cash: string } | null {
+  return FUTURES_WITHOUT_A_SOURCE[sym.trim().toUpperCase()] ?? null;
+}
+
 export function resolveYahooSymbol(sym: string): YahooSymbolResolution {
   const up = sym.trim().toUpperCase();
+  const standIn = futuresCashStandIn(up);
+  if (standIn) {
+    return {
+      kind: "UNRESOLVED",
+      reason:
+        `No ${standIn.name} futures source is connected, and WM does not show the cash ` +
+        `${standIn.name} index under a futures name — they are a different market. Open ` +
+        `${standIn.cash} for the cash index.`,
+    };
+  }
   const metal = spotMetalFutures(up);
   if (metal) {
     return {

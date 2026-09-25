@@ -285,7 +285,10 @@ describe("nothing that used to resolve stopped resolving", () => {
   it("futures still come from the explicit table", () => {
     expect(toYahooSymbol("NQ1!")).toBe("NQ=F");
     expect(toYahooSymbol("MES1!")).toBe("MES=F");
-    expect(toYahooSymbol("VX1!")).toBe("^VIX");
+    // PIN UPDATED 2026-09-25 (GP12 §26): was `toBe("^VIX")` — the CASH index
+    // under a futures symbol. VX1! now has no notation here at all; the price
+    // gate refuses it (see the §26 VIX block at the end of this file).
+    expect(toYahooSymbol("VX1!")).not.toBe("^VIX");
   });
 
   it("metals spot still maps to the continuous contract", () => {
@@ -425,5 +428,37 @@ describe("GP12 §26 — spot metals are never answered with futures under a spot
 
   it("still resolves the futures themselves — the refusal is about the NAME, not the metal", () => {
     expect(resolveYahooSymbol("GC1!")).toEqual({ kind: "RESOLVED", ticker: toYahooSymbol("GC1!") });
+  });
+});
+
+describe("GP12 §26 — VIX futures are never answered with the cash index under a futures name", () => {
+  it("refuses VX1! before the wire, naming the cash index a trader can open", () => {
+    const r = resolveYahooSymbol("VX1!");
+    expect(r.kind).toBe("UNRESOLVED");
+    if (r.kind === "UNRESOLVED") {
+      expect(r.reason).toMatch(/No VIX futures source is connected/);
+      expect(r.reason).toMatch(/different market/);
+      expect(r.reason).toMatch(/\^VIX/);
+    }
+    // The table may never carry the substitution again: only the index's own
+    // names may point at ^VIX.
+    for (const [k, t] of Object.entries(YF_MAP)) {
+      if (t === "^VIX") expect(k, `${k} → ^VIX`).toBe("VIX");
+    }
+  });
+
+  it("NEGATIVE CONTROL — the cash index itself still resolves, under its own names", () => {
+    // The refusal is about the NAME. A trader who asks for the index gets it.
+    expect(resolveYahooSymbol("VIX")).toEqual({ kind: "RESOLVED", ticker: "^VIX" });
+    expect(resolveYahooSymbol("^VIX")).toEqual({ kind: "RESOLVED", ticker: "^VIX" });
+  });
+
+  it("the futures the spot-metal refusal names as the way out actually resolve", () => {
+    // cc3808cd's sentence says "Open PL1! for Platinum futures". A named way
+    // out that 404s is a second dead end. Measured on Yahoo 2026-09-25.
+    expect(resolveYahooSymbol("PL1!")).toEqual({ kind: "RESOLVED", ticker: "PL=F" });
+    expect(resolveYahooSymbol("PA1!")).toEqual({ kind: "RESOLVED", ticker: "PA=F" });
+    expect(resolveYahooSymbol("SI1!")).toEqual({ kind: "RESOLVED", ticker: "SI=F" });
+    expect(resolveYahooSymbol("6E1!")).toEqual({ kind: "RESOLVED", ticker: "6E=F" });
   });
 });

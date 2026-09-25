@@ -63,10 +63,14 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"6E1!",  label:"Euro Futures",              cat:"Futures", aliases:["euro","eurusd futures","6e"] },
   { sym:"6J1!",  label:"Yen Futures",               cat:"Futures", aliases:["yen","usdjpy futures","6j"] },
   { sym:"6B1!",  label:"British Pound Futures",     cat:"Futures", aliases:["pound","gbpusd futures","6b"] },
-  // Labelled for what LOADS, not for what the ticker looks like: this app
-  // resolves `VX1!` to the `^VIX` cash index (yahooSymbol.ts), so a trader who
-  // picked "VIX Futures" here was handed the index and told it was a contract.
-  { sym:"VX1!",  label:"VIX Index (via VX1!)",      cat:"Index",   aliases:["vix","volatility","fear"] },
+  // GP12 §26 (2026-09-25). This row read "VIX Index (via VX1!)" / Index,
+  // because the app loaded the CASH index ^VIX under this FUTURES symbol and the
+  // label was bent to match the substitution. The substitution is the defect:
+  // VX1! is VIX futures, and the price gate now refuses it (no VIX futures feed
+  // is connected) and names ^VIX. The row says what the symbol IS; the cash
+  // index has its own row below, and "vix" searches find it, not this one.
+  { sym:"VX1!",  label:"VIX Futures",               cat:"Futures", aliases:["vx","vix futures"] },
+  { sym:"^VIX",  label:"CBOE Volatility Index",     cat:"Index",   aliases:["vix","volatility","fear"] },
   { sym:"NG1!",  label:"Natural Gas Futures",       cat:"Futures", aliases:["natgas","natural gas"] },
   // ── Forex / FX ───────────────────────────────────────────
   { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","6e","eur"] },

@@ -67,8 +67,13 @@ describe("Fabio playbook routing follows the class owner", () => {
   it("agrees with the class owner for every symbol it is given", () => {
     // The mapping is allowed to be COARSER than the owner (metals is a subset
     // of futures; index has no member here) but never to CONTRADICT it.
+    // PIN UPDATED 2026-09-25 (GP12 §26): FOREX may also map to "metals" — the
+    // owner now classifies spot metals (XAUUSD) as FOREX, not as the GC
+    // futures the notation table borrows, and the metals playbook is about
+    // the metal. Every other FOREX symbol must still read "forex" (asserted
+    // above for EUR/USD and EURUSD=X).
     const coarser: Record<string, string[]> = {
-      CRYPTO: ["crypto"], FUTURES: ["futures", "metals"], FOREX: ["forex"],
+      CRYPTO: ["crypto"], FUTURES: ["futures", "metals"], FOREX: ["forex", "metals"],
       EQUITY: ["stocks"], INDEX: ["stocks"], UNKNOWN: ["any"],
     };
     for (const symbol of [

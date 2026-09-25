@@ -20,6 +20,7 @@ import { stripComments } from "@/lib/sourceScan";
 import { YF_MAP, YF_CRYPTO_PINS } from "@/lib/yahooSymbol";
 import {
   classifySymbol,
+  equityVendorSkipNoun,
   toYahooSymbol,
   isUnsupportedByEquityVendors,
   unsupportedAssetClassReason,
@@ -71,12 +72,35 @@ describe("classifySymbol — one answer per instrument, in every notation", () =
     expect(classifySymbol("EUR/USD")).toBe("FOREX");
   });
 
-  it("classifies indices, including the VIX that VX1! actually points at", () => {
+  it("classifies indices as indices, and VIX FUTURES as futures (GP12 §26)", () => {
     expect(classifySymbol("^VIX")).toBe("INDEX");
     expect(classifySymbol("^GSPC")).toBe("INDEX");
-    // VX1! resolves to ^VIX, an index — NOT a tradable futures contract. The
-    // old private map knew the mapping but nothing read the consequence.
-    expect(classifySymbol("VX1!")).toBe("INDEX");
+    // PIN UPDATED 2026-09-25. Was `VX1! → INDEX`, read off the ^VIX the
+    // notation table used to substitute. VX1! is VIX futures on CFE; the
+    // substitution is refused at the price gate and the class names the
+    // instrument, not its stand-in.
+    expect(classifySymbol("VX1!")).toBe("FUTURES");
+  });
+
+  it("classifies spot metals as spot (forex), never as the futures Yahoo lists instead", () => {
+    for (const s of ["XAUUSD", "XAU/USD", "XAGUSD", "XPTUSD", "XPDUSD"]) {
+      expect(classifySymbol(s), s).toBe("FOREX");
+    }
+    // NEGATIVE CONTROL — the futures themselves are still futures.
+    expect(classifySymbol("GC1!")).toBe("FUTURES");
+    expect(classifySymbol("GC=F")).toBe("FUTURES");
+  });
+
+  it("names the skipped class by the instrument's own class (the refusal receipt's noun)", () => {
+    expect(equityVendorSkipNoun("XAUUSD")).toBe("spot metals");
+    expect(equityVendorSkipNoun("GC1!")).toBe("futures");
+    expect(equityVendorSkipNoun("VX1!")).toBe("futures");
+    expect(equityVendorSkipNoun("EURUSD")).toBe("forex");
+    // Negative controls: what equity vendors DO carry is never skipped.
+    expect(equityVendorSkipNoun("AAPL")).toBeNull();
+    expect(equityVendorSkipNoun("BTC-USD")).toBeNull();
+    expect(unsupportedAssetClassReason("XAUUSD")).toMatch(/spot metal/);
+    expect(unsupportedAssetClassReason("XAUUSD")).not.toMatch(/futures/);
   });
 
   it("classifies crypto in every notation the pickers actually offer", () => {
@@ -300,7 +324,15 @@ describe("MainChart asks the owner instead of retyping the predicate", () => {
   it("no longer carries its own futures, forex or crypto tests", () => {
     const src = readCode("src/components/chart/MainChart.tsx");
     expect(src).toContain("observesUsEquitySession(");
-    expect(src).toContain("isUnsupportedByEquityVendors(");
+    // PIN UPDATED 2026-09-25: was `isUnsupportedByEquityVendors(`. The chart's
+    // vendor skips now ask the owner for the instrument's own class NOUN
+    // (`equityVendorSkipNoun`), so the receipt stops calling spot gold a
+    // future. Still the owner; still no private predicate.
+    expect(src).toContain("equityVendorSkipNoun(");
+    // The literal that called spot gold a future on the refusal receipt
+    // (serving, XAUUSD 15m) may not come back as a fixed string.
+    expect(src).not.toContain('"it does not carry futures."');
+    expect(src).not.toContain('"this product does not route futures or forex to its equity vendors."');
     expect(src).not.toMatch(/endsWith\("1!"\)/);
     expect(src).not.toMatch(/includes\("1!"\)/);
     expect(src).not.toMatch(/includes\("=F"\)/);

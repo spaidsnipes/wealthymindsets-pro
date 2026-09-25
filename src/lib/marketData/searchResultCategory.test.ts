@@ -53,7 +53,11 @@ describe("search result category", () => {
     // badge would promise a contract the chart does not load — `VX1!`
     // resolves to `^VIX` in this app.
     expect(reconcileSearchCategory("^VIX", "Futures")).toBe("Index");
-    expect(reconcileSearchCategory("VX1!", "Futures")).toBe("Index");
+    // PIN UPDATED 2026-09-25 (GP12 §26): was `VX1! → Index`, because the app
+    // served the cash index under the futures symbol. That substitution is
+    // refused now; VX1! is futures, and a vendor calling it an index is
+    // overruled the same way.
+    expect(reconcileSearchCategory("VX1!", "Index")).toBe("Futures");
     expect(reconcileSearchCategory("BTC-USD", "Stock")).toBe("Crypto");
     expect(reconcileSearchCategory("EURUSD=X", "Stock")).toBe("Forex");
     // A vendor may not promote a futures contract to a fund either — the
@@ -192,15 +196,22 @@ describe("the picker does not turn an app failure into a claim about the market"
     expect(raw.size, "the catalog row parser matched nothing").toBeGreaterThan(50);
     expect(raw.has("VX1!"), "VX1! is the row this test exists for").toBe(true);
 
-    // Contradictions the owner must overrule.
-    expect(reconcileSearchCategory("VX1!", raw.get("VX1!") as SearchCategory)).toBe("Index");
-    expect(reconcileSearchCategory("XAUUSD", raw.get("XAUUSD") as SearchCategory)).toBe("Futures");
-    expect(reconcileSearchCategory("XAGUSD", raw.get("XAGUSD") as SearchCategory)).toBe("Futures");
+    // PINS UPDATED 2026-09-25 (GP12 §26 canonical instrument identity).
+    // These read VX1! → Index and XAUUSD/XAGUSD → Futures: the badge followed
+    // the SUBSTITUTE the app used to serve (the ^VIX cash index; GC/SI
+    // futures), not the instrument the row names. Both substitutions are now
+    // refused at the price gate, and the badge says what the symbol IS.
+    expect(reconcileSearchCategory("VX1!", raw.get("VX1!") as SearchCategory)).toBe("Futures");
+    expect(reconcileSearchCategory("XAUUSD", raw.get("XAUUSD") as SearchCategory)).toBe("Forex");
+    expect(reconcileSearchCategory("XAGUSD", raw.get("XAGUSD") as SearchCategory)).toBe("Forex");
+    // The spot row may never be badged as the futures it is not.
+    expect(reconcileSearchCategory("XAUUSD", "Futures")).toBe("Forex");
 
-    // A row may not promise a contract the app will not load. `VX1!` charts
-    // the cash index, so its label may not call itself futures.
+    // The label bent to match the substitution ("VIX Index (via VX1!)") is
+    // retired; the cash index has its own row.
     const vixLabel = [...catalog.matchAll(re)].find((x) => x[1] === "VX1!")?.[2] ?? "";
-    expect(vixLabel, "VX1! loads ^VIX; the label must not say 'Futures'").not.toMatch(/futures/i);
+    expect(vixLabel).toBe("VIX Futures");
+    expect(raw.get("^VIX"), "the cash index keeps its own row").toBe("Index");
   });
 
   it("KEEPS the curator where it is legitimately better informed", () => {

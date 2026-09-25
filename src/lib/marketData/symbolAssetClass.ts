@@ -72,7 +72,7 @@
  */
 
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
-import { toYahooSymbol as toCanonicalYahooNotation } from "@/lib/yahooSymbol";
+import { spotMetalFutures, toYahooSymbol as toCanonicalYahooNotation } from "@/lib/yahooSymbol";
 
 export type AssetClass =
   | "EQUITY"
@@ -111,14 +111,31 @@ export function classifySymbol(symbol: string): AssetClass {
   // to ask it first.
   if (s.startsWith("/")) return "FUTURES";
 
+  // SPOT METALS ARE SPOT (GP12 §26, 2026-09-25). XAUUSD is gold quoted against
+  // the dollar — an FX-style spot pair, which is what `canonicalAssetClass`
+  // answers (forex). It was classified FUTURES because the notation owner maps
+  // it to GC=F for lack of a spot ticker, and the class was read off that
+  // borrowed notation: the chart's own refusal receipt then said "Alpaca was
+  // not asked — it does not carry futures" about spot gold (serving, XAUUSD
+  // 15m). The price gate already refuses to show GC futures under a spot name;
+  // the class may not call the spot instrument a future either.
+  if (spotMetalFutures(s)) return "FOREX";
+
+  // A TradingView continuous-contract marker IS a futures contract, read from
+  // the RAW symbol for the same reason the leading slash is: the notation owner
+  // answers which Yahoo ticker to ask, not what the instrument is.
+  //
+  // This used to be read off the resolved form, and that is how "VX1!" — VIX
+  // FUTURES on CFE — was classified INDEX: the notation table pointed it at the
+  // CASH index ^VIX, and the class followed the substitution instead of the
+  // instrument. That substitution is gone (GP12 §26 — yahooSymbol.ts refuses
+  // VX1! at the price gate), and the class says what the symbol names.
+  if (s.endsWith("1!")) return "FUTURES";
+
   // Resolve to the canonical Yahoo notation, through the module that
   // owns notation, so "NQ1!" and "NQ=F" cannot land in different classes. That
   // resolution is the whole reason this function is reliable, and it is
   // borrowed rather than restated: see the header.
-  //
-  // Reading the resolved form is also what keeps "VX1!" honest. It resolves to
-  // the INDEX "^VIX", not to a futures notation, so it lands in INDEX where it
-  // belongs instead of being miscounted as a tradable futures contract.
   const canonical = toCanonicalYahooNotation(s);
 
   // Index notation, e.g. ^VIX, ^GSPC, ^DJI.
@@ -175,6 +192,25 @@ export function isUnsupportedByEquityVendors(symbol: string): boolean {
 }
 
 /**
+ * The words for WHAT an equity vendor was not asked to carry, or `null` when
+ * the symbol is one they do carry.
+ *
+ * One owner for the noun, because the noun was a per-call-site literal and it
+ * lied: the bar-history receipt for XAUUSD — spot gold — read "Alpaca was not
+ * asked — it does not carry futures." (serving, 2026-09-25). The rule was right
+ * (no equity vendor carries spot gold); the class in its sentence was the
+ * futures contract the notation table borrows, not the instrument on the chart.
+ * Every skip sentence now names the instrument's own class.
+ */
+export function equityVendorSkipNoun(symbol: string): "spot metals" | "futures" | "forex" | null {
+  if (spotMetalFutures(normalize(symbol))) return "spot metals";
+  const k = classifySymbol(symbol);
+  if (k === "FUTURES") return "futures";
+  if (k === "FOREX") return "forex";
+  return null;
+}
+
+/**
  * Does this instrument trade on the US equity session clock — pre 04:00 ET,
  * regular 09:30–16:00 ET, post 16:00–20:00 ET?
  *
@@ -207,6 +243,9 @@ export function observesUsEquitySession(symbol: string): boolean {
  * caller; coverage is the caller's own fact and belongs in the caller.
  */
 export function unsupportedAssetClassReason(symbol: string): string | null {
+  if (spotMetalFutures(normalize(symbol))) {
+    return `${normalize(symbol)} is a spot metal. Free equity vendors do not carry spot metals — this is not absent right now, it is not carried on an equity lane at all.`;
+  }
   const k = classifySymbol(symbol);
   if (k === "FUTURES") {
     return `${normalize(symbol)} is a futures contract. Free equity vendors do not carry futures — this is not absent right now, it is not carried on an equity lane at all.`;

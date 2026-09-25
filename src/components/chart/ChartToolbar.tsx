@@ -92,10 +92,11 @@ const RAW_CHART_SYMBOLS: SymbolEntry[] = [
   { sym:"MYM1!",   name:"Micro Dow Futures",        cat:"Futures" },
   { sym:"MGC1!",   name:"Micro Gold Futures",       cat:"Futures" },
   { sym:"MCL1!",   name:"Micro Crude Oil Futures",  cat:"Futures" },
-  // Label matched to `curatedSymbolCatalog`, which corrected it first: this
-  // app resolves `VX1!` to `^VIX`, the CASH INDEX. Two catalogues naming one
-  // ticker differently is the defect this whole file is being repaired for.
-  { sym:"VX1!",    name:"VIX Index (via VX1!)",     cat:"Futures" },
+  // GP12 §26 (2026-09-25): was "VIX Index (via VX1!)" — a label bent to match
+  // the app serving the CASH index ^VIX under this futures symbol. That
+  // substitution is refused now (yahooSymbol.ts); the row names the contract,
+  // matches `curatedSymbolCatalog`, and the cash index keeps its own `^VIX` row.
+  { sym:"VX1!",    name:"VIX Futures",              cat:"Futures" },
   { sym:"SR3M4",   name:"SOFR 3-Month Futures",    cat:"Futures" },
   // ── Mega-cap Stocks ──────────────────────────────────────
   { sym:"AAPL",    name:"Apple Inc",               cat:"Stocks" },

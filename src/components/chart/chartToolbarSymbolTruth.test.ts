@@ -60,9 +60,12 @@ describe("the chart toolbar's badges answer to the class owner", () => {
 
   it("OVERRULES the two badges that were MEASURED wrong on the live app", () => {
     const raw = rawRows();
-    // A badge may not promise an instrument the chart will not load. `VX1!`
-    // charts `^VIX`, so it is not a contract.
-    expect(reconcileSearchCategory("VX1!", vocab(raw.get("VX1!")))).toBe("Index");
+    // PIN UPDATED 2026-09-25 (GP12 §26). Was `toBe("Index")`, on the reading
+    // that `VX1!` charts `^VIX`. That was the substitution, not the instrument:
+    // VX1! is VIX FUTURES, the price gate now refuses to serve the cash index
+    // under its name, and the badge says what the symbol IS.
+    expect(reconcileSearchCategory("VX1!", vocab(raw.get("VX1!")))).toBe("Futures");
+    expect(toolbar, "the row names the contract, not the index it used to load").toMatch(/sym:"VX1!",\s*name:"VIX Futures"/);
     // The second row could NOT be fixed by reconciliation, and that is worth
     // writing down. `classifySymbol("VIX")` answers EQUITY — the bare-ticker
     // heuristic cannot know that one is a cash index — so the curator's "ETFs"
