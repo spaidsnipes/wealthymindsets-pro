@@ -33,17 +33,28 @@ export type StackPlacement =
   | { readonly kind: "ON_BARS"; readonly x0: number; readonly x1: number; readonly key: string }
   | { readonly kind: "FORMED_BEFORE_VIEW" | "FORMED_AFTER_VIEW" | "TIME_UNKNOWN" };
 
+/**
+ * The time of the last bar at or before `t`, by binary search over bars in
+ * ascending time. This runs every animation frame and formation times sit at
+ * the recent end, so a forward walk would read almost the whole history on
+ * every call.
+ */
+export function barTimeAtOrBefore(bars: readonly { time: unknown }[], t: number | null): number | null {
+  if (t == null) return null;
+  let lo = 0, hi = bars.length - 1, hit: number | null = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const bt = Number(bars[mid]!.time);
+    if (bt <= t) { hit = bt; lo = mid + 1; } else hi = mid - 1;
+  }
+  return hit;
+}
+
 export function stackAnchor(
   chart: StackAnchorChart,
   bars: readonly { time: unknown }[], fromSec: number | null, toSec: number | null, plotRight: number,
 ): StackPlacement {
-  const barAt = (t: number | null) => {
-    if (t == null) return null;
-    let hit: number | null = null;
-    for (const b of bars) { const bt = Number(b.time); if (bt <= t) hit = bt; else break; }
-    return hit;
-  };
-  const bf = barAt(fromSec), bt = barAt(toSec);
+  const bf = barTimeAtOrBefore(bars, fromSec), bt = barTimeAtOrBefore(bars, toSec);
   if (bf == null || bt == null) return { kind: "TIME_UNKNOWN" };
   const xf = chart.timeScale().timeToCoordinate(bf as never), xt = chart.timeScale().timeToCoordinate(bt as never);
   if (xf == null || xt == null) return { kind: "TIME_UNKNOWN" };

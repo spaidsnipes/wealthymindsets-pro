@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stackAnchor, type StackAnchorChart } from "./stackedImbalanceAnchor";
+import { barTimeAtOrBefore, stackAnchor, type StackAnchorChart } from "./stackedImbalanceAnchor";
 
 /** One bar a minute from t=0; bar k sits at x = x0 + k·spacing, on screen or not. */
 function camera(x0: number, spacing: number): StackAnchorChart {
@@ -43,5 +43,27 @@ describe("the stack sits on the bars that built it, or says why it cannot", () =
   it("no formation time → TIME_UNKNOWN, the full band that claims no bar", () => {
     expect(stackAnchor(camera(0, 10), bars, null, 60, PLOT_RIGHT)).toEqual({ kind: "TIME_UNKNOWN" });
     expect(stackAnchor(camera(0, 10), bars, -120, -60, PLOT_RIGHT)).toEqual({ kind: "TIME_UNKNOWN" });
+  });
+});
+
+describe("finding the formation bars costs a search, not a walk of the history", () => {
+  it("returns the last bar at or before the time, as a forward walk would", () => {
+    expect(barTimeAtOrBefore(bars, null)).toBeNull();
+    expect(barTimeAtOrBefore(bars, -1)).toBeNull();
+    expect(barTimeAtOrBefore(bars, 0)).toBe(0);
+    expect(barTimeAtOrBefore(bars, 125)).toBe(120);
+    expect(barTimeAtOrBefore(bars, 120)).toBe(120);
+    expect(barTimeAtOrBefore(bars, 1e9)).toBe(199 * 60);
+    expect(barTimeAtOrBefore([], 60)).toBeNull();
+  });
+
+  it("reads a logarithmic number of bars on a 3000-bar history, every frame", () => {
+    let reads = 0;
+    const counted = Array.from({ length: 3000 }, (_, k) => ({ get time() { reads++; return k * 60; } }));
+    const p = stackAnchor(camera(-29500, 10), counted, 2990 * 60, 2992 * 60, PLOT_RIGHT);
+    expect(p.kind).toBe("ON_BARS");
+    // Two searches of at most ⌈log2 3000⌉ + 1 = 13 reads each; a forward walk
+    // reads about 6000.
+    expect(reads).toBeLessThanOrEqual(26);
   });
 });
