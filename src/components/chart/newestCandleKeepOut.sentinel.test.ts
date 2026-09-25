@@ -4,8 +4,9 @@
  *     Candle-preservation zones … the market remains dominant.
  *
  * The profile stack's label column, the Profile Memory labels, the selected
- * zone's callout and the narrow absorption chip all print opaque backings, and
- * all of them land at the live edge, because that is where "now" is. Each one
+ * zone's callout, the Value Migration dPOC name and the narrow absorption chip
+ * all print opaque backings, and all of them land at the live edge, because
+ * that is where "now" is. Each one
  * now asks the ONE keep-out owner (src/lib/chartKeepOut.ts) where it may
  * print: it slides off the newest 3 bodies, and when nothing is clear its
  * backing yields — the words are never deleted.
