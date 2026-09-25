@@ -23,6 +23,7 @@ import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
+import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -3432,6 +3433,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         try { chart.timeScale().fitContent(); } catch {}
       }
 
+      // The axis, last-price tag and crosshair quote the market's own
+      // precision, not the library default of two decimals (EURUSD 1h read
+      // 1.15 / 1.14 / 1.13). Read from the raw bars, not Heikin-Ashi averages.
+      try { cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data)) }); } catch { /* series type without a price scale */ }
       chartRef.current  = chart;
       candleRef.current = cs;
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
@@ -13918,7 +13923,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // is flat, never "up"), and a second copy of either would agree with it only
   // until someone edited one of them.
   const last      = candles[candles.length - 1];
-  const dp        = base < 10 ? 4 : 2;
+  // THE MARKET'S OWN PRECISION, read from the bars (pricePrecision.ts). The
+  // static base rule put EURUSD at two decimals: "1.14 +0.00 (+0.20%)" with
+  // O/H/L all "1.14" (serving, EURUSD 1h, 2026-09-25). The base rule stays
+  // only as the answer before any bar has arrived.
+  const dp        = candles.length ? pricePrecisionFromBars(candles) : (base < 10 ? 4 : 2);
   /**
    * WHICH OF THE TWO PLACES RENDERS THE TRADED QUANTITY — decided once, here.
    *
