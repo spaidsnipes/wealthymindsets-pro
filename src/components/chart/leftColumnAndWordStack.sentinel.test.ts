@@ -49,4 +49,13 @@ describe("left column and word stack", () => {
     expect(CHART).toMatch(/x0 \+ 4, Math\.max\(HEADER_FLOOR_Y \+ 12, top - 4\),/);
     expect(CHART).toMatch(/const ly = Math\.max\(HEADER_FLOOR_Y \+ 7, lastXY\.y - 16\);/);
   });
+
+  it("the profile stack's words join the chip ledger, and the Structure chips step clear of them", () => {
+    expect(CHART).toMatch(/recordKeepOut\(keepOutLedger, spotS\);\s*floatingChips\.push\(\{ x: spotS\.rect\.x, y: spotS\.rect\.y, w: spotS\.rect\.w, h: spotS\.rect\.h \}\);/);
+    const chipFn = CHART.slice(CHART.indexOf("const chip = (text: string, x: number, y: number) => {"), CHART.indexOf("`STRUCTURE · FROM ${kind}"));
+    expect(chipFn.length).toBeGreaterThan(200);
+    expect(chipFn).toContain("const taken = (yy: number) => floatingChips.some(");
+    expect(chipFn).toContain("floatingChips.push({ x: cx, y: cy - 12, w, h: 14 });");
+    expect(chipFn).toMatch(/ctx\.fillRect\(cx, cy - 12, w, 14\);/);
+  });
 });

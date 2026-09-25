@@ -11064,6 +11064,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             { minX: keepOutMinX(), blockers: floatingChips },
           );
           recordKeepOut(keepOutLedger, spotS);
+          // The column's words join the chip ledger, so a later reading's chip
+          // (the Structure Profile's name / LEG POC) cannot print over them.
+          floatingChips.push({ x: spotS.rect.x, y: spotS.rect.y, w: spotS.rect.w, h: spotS.rect.h });
           const rightS = spotS.rect.x + lwS + 3;
           if (spotS.mode === "SLID") {
             ctx.save();
@@ -12181,14 +12184,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               and the value band. If the anchor is near the right edge the
               chip slides left so it never runs under the Living Profile.
             */
+            // A chip that would land on a word already on the glass (the
+            // profile stack's VRP/LIVING labels, another reading's chip) steps
+            // a row away until it is clear, and then joins the ledger itself —
+            // measured on serving: "LEG POC 84425" printed over "VRP POC 84420".
             const chip = (text: string, x: number, y: number) => {
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const maxX = W - 76 - livingCol - w;
               const cx = Math.max(4, Math.min(x, maxX));
+              const taken = (yy: number) => floatingChips.some(r =>
+                cx < r.x + r.w + 2 && cx + w + 2 > r.x && yy - 12 < r.y + r.h + 1 && yy + 2 + 1 > r.y);
+              let cy = y;
+              for (let step = 1; step <= 6 && taken(cy); step++) {
+                const down = y + step * 15, up = y - step * 15;
+                cy = !taken(down) && down + 2 <= pane0Bottom ? down
+                  : !taken(up) && up - 12 >= HEADER_FLOOR_Y ? up
+                  : cy;
+              }
               ctx.fillStyle = "rgba(11,10,8,0.82)";
-              ctx.fillRect(cx, y - 12, w, 14);
+              ctx.fillRect(cx, cy - 12, w, 14);
               ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
-              ctx.fillText(text, cx + 4, y);
+              ctx.fillText(text, cx + 4, cy);
+              floatingChips.push({ x: cx, y: cy - 12, w, h: 14 });
             };
             chip(
               `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(2)} · ${sp.legBars} BARS${est}`,
