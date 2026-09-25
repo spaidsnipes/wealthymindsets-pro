@@ -22,13 +22,30 @@ import type { MarketStructureVM, StructurePoint, StructureBias } from "./selectM
 
 export type StructurePivotKind = "HIGH" | "LOW";
 
+/**
+ * The swing's name against the confirmed swing of the same kind before it —
+ * the letters a trader writes on a chart (canon M32 "structure levels" /
+ * H-704, 2026-09-25). EQH / EQL when the two print at the same price. Null
+ * for the first swing of its kind: with no earlier swing there is nothing to
+ * be higher or lower than, and no letter is invented.
+ */
+export type SwingLabel = "HH" | "LH" | "EQH" | "HL" | "LL" | "EQL";
+
 export interface StructurePivotMark {
   readonly kind: StructurePivotKind;
   readonly time: number;
   readonly price: number;
   /** True for the most recent confirmed pivot of this kind. */
   readonly isLast: boolean;
+  /** Against the previous confirmed swing of this kind (read before the cap). */
+  readonly label: SwingLabel | null;
 }
+
+const swingLabel = (kind: StructurePivotKind, price: number, prev: number | null): SwingLabel | null => {
+  if (prev == null) return null;
+  if (kind === "HIGH") return price > prev ? "HH" : price < prev ? "LH" : "EQH";
+  return price > prev ? "HL" : price < prev ? "LL" : "EQL";
+};
 
 export type MarketStructureGlass =
   | {
@@ -80,8 +97,11 @@ export function selectMarketStructureGlass(
   if (!vm) return refuse(null, "NO_READING");
   if (!vm.measured) return refuse(vm, vm.insufficientNote ? "INSUFFICIENT" : "UNMEASURED");
 
-  const highs = [...vm.swingHighs];
-  const lows = [...vm.swingLows];
+  // Oldest first, so each swing is named against the one before it — over
+  // the WHOLE sequence, so the oldest pivot kept by the cap still carries
+  // its true letters.
+  const highs = [...vm.swingHighs].sort((a, b) => a.time - b.time);
+  const lows = [...vm.swingLows].sort((a, b) => a.time - b.time);
 
   if (highs.length === 0 && lows.length === 0) return refuse(vm, "NO_PIVOTS");
 
@@ -89,18 +109,20 @@ export function selectMarketStructureGlass(
   const lastLow = vm.lastSwingLow;
 
   const pivots: StructurePivotMark[] = [];
-  for (const p of highs) {
+  highs.forEach((p, i) => {
     pivots.push({
       kind: "HIGH", time: p.time, price: p.price,
       isLast: !!lastHigh && p.time === lastHigh.time && p.price === lastHigh.price,
+      label: swingLabel("HIGH", p.price, i > 0 ? highs[i - 1].price : null),
     });
-  }
-  for (const p of lows) {
+  });
+  lows.forEach((p, i) => {
     pivots.push({
       kind: "LOW", time: p.time, price: p.price,
       isLast: !!lastLow && p.time === lastLow.time && p.price === lastLow.price,
+      label: swingLabel("LOW", p.price, i > 0 ? lows[i - 1].price : null),
     });
-  }
+  });
 
   // Newest first, then cap. Sorting by time keeps recency; the cap keeps the
   // canvas from becoming texture.

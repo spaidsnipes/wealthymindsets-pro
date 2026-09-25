@@ -292,6 +292,16 @@ import type { SelectedAnatomy } from "@/lib/marketData/viewModels/chartSelection
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import {
+  arrowOutline,
+  contradictionGlyph,
+  contradictionLabelRow,
+  contradictionZoneBox,
+  crackStrokes,
+  fanBandPolygon,
+  rewardRTicks,
+  smoothSegments,
+} from "@/lib/chart/lensGlassGeometry";
 import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
@@ -12113,13 +12123,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           onMemoryGhostRef.current?.(null);
         }
 
-        /* ══ H-801 · EXPECTED ENVELOPE — typical reach from today's open ═════
-           Measured from this chart's own completed sessions; the surprise is
-           a count of how many went as far as today already has. */
+        /* ══ H-801 · EXPECTED ENVELOPE — the analogue fan from today's open ═══
+           CANON F03 / H-801 (2026-09-25): "plan of current session candles
+           inside a dashed expected-path envelope". A gold dashed percentile
+           FAN — p10 · p25 · p50 · p75 · p90 of this chart's own prior
+           sessions, bar by bar from their open (selectExpectedEnvelope owns
+           every price) — laid on today's open, through the candles already
+           printed and projected right of NOW. A small caption names the
+           sample; MARKET SURPRISE is a flag on the live event when price
+           leaves the fan. The candles are cut out of every fill and edge.
+
+           CAMERA STAYS ON NOW: this block READS the price and time scales and
+           never writes them — no series, no autoscale, no scroll, no range.
+           Replaces the two "TYPICAL REACH" name chips, which printed at the
+           top edge over the bar clock and floated for a reach off the axis. */
+        delete ds.expectedEnvelopeFan;
+        delete ds.expectedEnvelopeSurprise;
+        delete ds.expectedEnvelopeCaption;
         if (layerOnRef.current.expectedEnvelope === true && srs) {
-          const env = selectExpectedEnvelope(
-            (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close })),
-          );
+          const barsE = (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
+          const env = selectExpectedEnvelope(barsE);
           ds.expectedEnvelope = env.drawn
             ? `UP:${env.up!.matchedBy}/${env.sessions}${env.up!.outside ? "!" : ""}|DN:${env.down!.matchedBy}/${env.sessions}${env.down!.outside ? "!" : ""}`
             : env.reason;
@@ -12130,51 +12153,178 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.globalAlpha = att.textAlpha("expectedEnvelope");
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "middle";
-          if (env.drawn) {
-            const xs = chart.timeScale().timeToCoordinate(env.sessionStart as never);
-            const x0 = xs == null ? 0 : Math.max(0, +xs);
-            const xEnd = W - 90;
-            for (const side of ["up", "down"] as const) {
-              const price = side === "up" ? env.upper! : env.lower!;
-              const sur = env[side]!;
-              const y = srs.priceToCoordinate(price);
-              if (y == null) continue;
-              const yy = Math.round(+y) + 0.5;
-              ctx.setLineDash([2, 5]);
-              ctx.strokeStyle = sur.outside ? "rgba(240,190,70,0.95)" : "rgba(237,230,211,0.55)";
-              ctx.lineWidth = sur.outside ? 1.5 : 1;
-              ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(xEnd, yy); ctx.stroke();
-              ctx.setLineDash([]);
-              const t = sur.outside
-                ? `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(pxDp)} · SURPRISE · ${sur.matchedBy} of ${env.sessions} sessions went this far`
-                : `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(pxDp)} · median of ${env.sessions} sessions`;
-              const tw = ctx.measureText(t).width;
-              const lx = Math.max(4, xEnd - tw - 8);
-              // COLLISION GOVERNOR (serving NQ1! 5m, 2026-09-25): this name had
-              // no keep-out at all — a 0.82 backing at the live edge over the
-              // newest candles, and an upper reach near the top printed inside
-              // the header band under the bar clock and zoom plate. It stays
-              // below the band, takes a strict slot test against the bodies on
-              // its row and the chips, slides back along its own line, and
-              // joins the chip ledger.
-              const ly = side === "up" ? Math.max(yy - 8, HEADER_FLOOR_Y + 7) : yy + 8;
-              const spotE = placeClearOfKeepOut(
-                { x: lx - 4, y: ly - 7, w: tw + 8, h: 14 },
-                [...keepOut(), ...rowBodiesAt(ly - 7, ly + 7)],
-                { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips, strict: true },
-              );
-              recordKeepOut(keepOutLedger, spotE);
-              floatingChips.push({ x: spotE.rect.x, y: spotE.rect.y, w: spotE.rect.w, h: 14 });
-              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotE, 0.82)})`;
-              ctx.fillRect(spotE.rect.x, spotE.rect.y, spotE.rect.w, 14);
-              ctx.fillStyle = sur.outside ? "rgba(240,190,70,1)" : "rgba(237,230,211,0.85)";
-              ctx.textAlign = "left";
-              ctx.fillText(t, spotE.rect.x + 4, ly);
+          const fan = env.drawn ? env.fan : null;
+          let refusal: string | null = env.drawn
+            ? null
+            : `EXPECTED ENVELOPE · needs 3 completed sessions on this chart (${env.sessions} loaded)`;
+          if (env.drawn && !fan) refusal = "EXPECTED ENVELOPE · the prior sessions are too short to fan past the open";
+          if (fan && env.sessionStart != null) {
+            const tsE = chart.timeScale();
+            let axisWE = 60;
+            try { axisWE = chart.priceScale("right").width(); } catch { /* keep default */ }
+            const plotRightE = Math.max(8, W - axisWE);
+            const lastIdxE = barsE.length - 1;
+            // Today's bars by their step from the open; a step with no bar
+            // (and every step right of NOW) is placed by its logical index.
+            const todayAt = new Map<number, number>();
+            for (let i = lastIdxE; i >= 0 && barsE[i].time >= env.sessionStart; i--) {
+              todayAt.set(Math.round((barsE[i].time - env.sessionStart) / fan.stepSeconds), barsE[i].time);
             }
-          } else {
+            const xAtK = (k: number): number | null => {
+              const t = todayAt.get(k);
+              if (t != null) { const xt = tsE.timeToCoordinate(t as never); if (xt != null) return +xt; }
+              const xl = tsE.logicalToCoordinate((lastIdxE + (k - fan.nowK)) as never);
+              return xl == null ? null : +xl;
+            };
+            const cols: { k: number; x: number; y10: number; y25: number; y50: number; y75: number; y90: number }[] = [];
+            for (const s of fan.steps) {
+              const x = xAtK(s.k);
+              const y10 = srs.priceToCoordinate(s.p10), y25 = srs.priceToCoordinate(s.p25), y50 = srs.priceToCoordinate(s.p50);
+              const y75 = srs.priceToCoordinate(s.p75), y90 = srs.priceToCoordinate(s.p90);
+              if (x == null || y10 == null || y25 == null || y50 == null || y75 == null || y90 == null) continue;
+              cols.push({ k: s.k, x, y10: +y10, y25: +y25, y50: +y50, y75: +y75, y90: +y90 });
+            }
+            const inView = cols.filter(c => c.x >= 0 && c.x <= plotRightE);
+            const fwd = inView.filter(c => c.k > fan.nowK).length;
+            const nNow = fan.steps[Math.min(fan.nowK, fan.steps.length - 1)].n;
+            if (cols.length >= 2 && inView.length >= 1) {
+              ds.expectedEnvelopeFan = `STEPS:${cols.length}|IN_VIEW:${inView.length}|NOW:${fan.nowK}|FWD:${fwd}|N:${nNow}`;
+              // THE FAN — behind the market: every candle in its span is cut
+              // out, and nothing crosses under the price axis.
+              const vrE = tsE.getVisibleLogicalRange();
+              const cutE = new Path2D();
+              cutE.rect(0, 0, W, H);
+              for (const r of candleCutOutRects(barsE, {
+                visible: vrE ? { from: +vrE.from, to: +vrE.to } : null,
+                barSpacing: bsp,
+                timeToX: t => { const xk = tsE.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+              }, Math.max(0, cols[0].x) - bsp, Math.min(plotRightE, cols[cols.length - 1].x) + bsp)) cutE.rect(r.x, r.y, r.w, r.h);
+              ctx.save();
+              ctx.globalAlpha = att.alpha("expectedEnvelope");
+              ctx.beginPath();
+              ctx.rect(0, 0, plotRightE, H);
+              ctx.clip();
+              ctx.clip(cutE, "evenodd");
+              const GOLD = (a: number) => `rgba(201,165,92,${a})`;
+              // Curves through the measured columns (smoothSegments rounds
+              // the corners between them; no value is moved or invented).
+              const trace = (pts: readonly { x: number; y: number }[], cont: boolean) => {
+                if (!pts.length) return;
+                if (cont) ctx.lineTo(pts[0].x, pts[0].y); else ctx.moveTo(pts[0].x, pts[0].y);
+                for (const s of smoothSegments(pts)) ctx.quadraticCurveTo(s.cx, s.cy, s.x, s.y);
+              };
+              const band = (lo: "y10" | "y25", hi: "y90" | "y75", a: number) => {
+                const poly = fanBandPolygon(cols.map(c => ({ x: c.x, lo: c[lo], hi: c[hi] })));
+                ctx.beginPath();
+                trace(poly.slice(0, cols.length), false);
+                trace(poly.slice(cols.length), true);
+                ctx.closePath();
+                ctx.fillStyle = GOLD(a);
+                ctx.fill();
+              };
+              band("y10", "y90", 0.07);
+              band("y25", "y75", 0.08);
+              const edge = (key: "y10" | "y25" | "y50" | "y75" | "y90", dash: number[], a: number, lw: number) => {
+                ctx.setLineDash(dash);
+                ctx.strokeStyle = GOLD(a);
+                ctx.lineWidth = lw;
+                ctx.beginPath();
+                trace(cols.map(c => ({ x: c.x, y: c[key] })), false);
+                ctx.stroke();
+              };
+              edge("y90", [5, 4], 0.85, 1.2);
+              edge("y10", [5, 4], 0.85, 1.2);
+              edge("y75", [3, 4], 0.55, 1);
+              edge("y25", [3, 4], 0.55, 1);
+              edge("y50", [2, 4], 0.6, 1);
+              ctx.setLineDash([]);
+              ctx.lineWidth = 1;
+              ctx.restore();
+
+              // THE CAPTION — the sample, in the plate's small boxed words, at
+              // the fan's right end; below the header band, clear of candles.
+              const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open`;
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              const capW = ctx.measureText(capT).width + 12, capH = 16;
+              const endC = inView[inView.length - 1];
+              const capX = Math.min(plotRightE - 6, endC.x) - capW;
+              const capAbove = { x: capX, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(endC.y90, endC.y10) - capH - 6), w: capW, h: capH };
+              const capBelow = { x: capX, y: Math.min(H * 0.78 - capH, Math.max(endC.y90, endC.y10) + 6), w: capW, h: capH };
+              const spotCap = placeClearOfKeepOut(
+                capAbove,
+                [...keepOut(), ...rowBodiesAt(Math.min(capAbove.y, capBelow.y), Math.max(capAbove.y, capBelow.y) + capH)],
+                { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [capBelow] },
+              );
+              recordKeepOut(keepOutLedger, spotCap);
+              floatingChips.push({ x: spotCap.rect.x, y: spotCap.rect.y, w: spotCap.rect.w, h: capH });
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotCap, 0.85)})`;
+              ctx.fillRect(spotCap.rect.x, spotCap.rect.y, capW, capH);
+              ctx.strokeStyle = GOLD(0.55);
+              ctx.strokeRect(spotCap.rect.x + 0.5, spotCap.rect.y + 0.5, capW - 1, capH - 1);
+              ctx.fillStyle = "rgba(237,230,211,0.9)";
+              ctx.textAlign = "left";
+              ctx.fillText(capT, spotCap.rect.x + 6, spotCap.rect.y + capH / 2 + 0.5);
+              ds.expectedEnvelopeCaption = spotCap.mode;
+
+              // MARKET SURPRISE — a flag on the live event, only when the
+              // newest close has left the fan at its own step. The count is
+              // how many prior sessions stood at least that far there.
+              const sp = fan.surprise;
+              if (sp) {
+                const xEv = tsE.timeToCoordinate(sp.time as never), yEv = srs.priceToCoordinate(sp.price);
+                if (xEv != null && yEv != null) {
+                  const flagT = `MARKET SURPRISE · ${sp.matchedBy} of ${sp.n} went this far`;
+                  ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                  const fw = ctx.measureText(flagT).width + 14, fh = 18;
+                  const clampY = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(H * 0.78 - fh, y));
+                  const off = sp.side === "ABOVE" ? -30 - fh / 2 : 30 - fh / 2;
+                  const flagPref = { x: +xEv - 44 - fw, y: clampY(+yEv + off), w: fw, h: fh };
+                  const flagAlt = { x: flagPref.x, y: clampY(+yEv - off - fh), w: fw, h: fh };
+                  const spotF = placeClearOfKeepOut(
+                    flagPref,
+                    [...keepOut(), ...rowBodiesAt(Math.min(flagPref.y, flagAlt.y), Math.max(flagPref.y, flagAlt.y) + fh)],
+                    { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [flagAlt] },
+                  );
+                  recordKeepOut(keepOutLedger, spotF);
+                  floatingChips.push({ x: spotF.rect.x, y: spotF.rect.y, w: fw, h: fh });
+                  // The arrow from the flag to the live event, and a ring on it.
+                  const ax0 = spotF.rect.x + fw, ay0 = spotF.rect.y + fh / 2;
+                  const ang = Math.atan2(+yEv - ay0, +xEv - 7 - ax0);
+                  const tipX = +xEv - 7 * Math.cos(ang), tipY = +yEv - 7 * Math.sin(ang);
+                  ctx.strokeStyle = "rgba(240,190,70,0.95)";
+                  ctx.fillStyle = "rgba(240,190,70,0.95)";
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(tipX, tipY); ctx.stroke();
+                  ctx.beginPath();
+                  ctx.moveTo(tipX, tipY);
+                  ctx.lineTo(tipX - 7 * Math.cos(ang - 0.4), tipY - 7 * Math.sin(ang - 0.4));
+                  ctx.lineTo(tipX - 7 * Math.cos(ang + 0.4), tipY - 7 * Math.sin(ang + 0.4));
+                  ctx.closePath(); ctx.fill();
+                  ctx.beginPath(); ctx.arc(+xEv, +yEv, 5, 0, Math.PI * 2); ctx.stroke();
+                  ctx.lineWidth = 1;
+                  ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotF, 0.9)})`;
+                  ctx.fillRect(spotF.rect.x, spotF.rect.y, fw, fh);
+                  ctx.strokeStyle = "rgba(240,190,70,0.85)";
+                  ctx.strokeRect(spotF.rect.x + 0.5, spotF.rect.y + 0.5, fw - 1, fh - 1);
+                  ctx.fillStyle = "rgba(240,190,70,1)";
+                  ctx.textAlign = "left";
+                  ctx.fillText(flagT, spotF.rect.x + 7, spotF.rect.y + fh / 2 + 0.5);
+                  ds.expectedEnvelopeSurprise = `${sp.side}:${sp.matchedBy}/${sp.n}:${spotF.mode}`;
+                } else {
+                  ds.expectedEnvelopeSurprise = `${sp.side}:${sp.matchedBy}/${sp.n}:OFF_CAMERA`;
+                }
+              } else {
+                ds.expectedEnvelopeSurprise = fan.nowK < fan.steps.length ? "INSIDE" : "PAST_SAMPLE";
+              }
+            } else {
+              refusal = "EXPECTED ENVELOPE · today's session is off camera";
+            }
+          }
+          if (refusal) {
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
-            const refusal = `EXPECTED ENVELOPE · needs 3 completed sessions on this chart (${env.sessions} loaded)`;
             ctx.fillText(refusal, 12, H - 86);
             // A chip, so TPO letters painted later yield to these words.
             floatingChips.push({ x: 12, y: H - 86 - 7, w: ctx.measureText(refusal).width, h: 14 });
@@ -12187,8 +12337,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
         /* ══ H-401 · CONTRADICTION NOT AVERAGED — both truths paint ══════════
            Each family's own lean at the current price, from its own owner.
-           Opposite leans → the contested band, UP column, DOWN column and
-           UNRESOLVED at the crack. Nothing is weighted into one score. */
+           Nothing is weighted into one score.
+
+           CANON H-401 / F14 (2026-09-25): "DETAIL: ONE PRICE ZONE". Opposite
+           leans are drawn AT the zone, on price — a dashed box at the zone's
+           real prices (its depth) from where the zone began to NOW (its
+           width), a tall UP arrow at its left, a tall DOWN arrow at its
+           right, the crack between them. Words are minimal: the family names
+           under each arrow, UNRESOLVED under the crack. The evidence lines,
+           the silent families and the posture live in Inspect ("Passport
+           shows both family lines"). Replaces the two boxed LEANS UP / LEANS
+           DOWN text cards that printed over the candles at the top-left while
+           the zone sat far away on the right. */
+        delete ds.contradictionGeometry;
+        delete ds.contradictionWords;
         if (layerOnRef.current.contradiction === true && srs) {
           const bsC = barsRef.current ?? [];
           const lastC = bsC[bsC.length - 1];
@@ -12214,12 +12376,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             lastClose: lastC ? lastC.close : null,
             lastBarLow: lastC ? lastC.low : null,
             lastBarHigh: lastC ? lastC.high : null,
+            lastBarTime: lastC ? Number(lastC.time) : null,
+            dp: pxDp,
             structureBias: st?.measured ? st.bias : null,
             structureNote: st?.measured ? st.biasNote : null,
             structurePivots: hsC.length >= 2 && lsC.length >= 2
               ? { h1: hsC[hsC.length - 2].price, h2: hsC[hsC.length - 1].price, l1: lsC[lsC.length - 2].price, l2: lsC[lsC.length - 1].price }
               : null,
-            zones: structureZonesRef.current.map(z => ({ side: z.side, low: z.object.priceLow, high: z.object.priceHigh, state: z.lifecycle.state })),
+            zones: structureZonesRef.current.map(z => ({ side: z.side, low: z.object.priceLow, high: z.object.priceHigh, state: z.lifecycle.state, birthTime: z.birthTime })),
             ...evC,
           });
           if (cv) {
@@ -12229,158 +12393,148 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.globalAlpha = att.textAlpha("contradiction");
             ctx.textBaseline = "middle";
             const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
-            const silentNote = cv.silent.length ? ` · silent: ${cv.silent.map(x => x.family.toLowerCase()).join(", ")}` : "";
             let placed = "CHIP";
-            if (cv.state === "UNRESOLVED" && cv.bandLow != null && cv.bandHigh != null) {
+            if (cv.state === "UNRESOLVED" && cv.bandLow != null && cv.bandHigh != null && lastC) {
+              const tsC = chart.timeScale();
               const yA = srs.priceToCoordinate(cv.bandHigh), yB = srs.priceToCoordinate(cv.bandLow);
-              if (yA != null && yB != null) {
-                const bandTop = Math.min(+yA, +yB) - 4, bandH = Math.max(10, Math.abs(+yB - +yA) + 8);
-                const bandBot = bandTop + bandH;
-                const x1 = Math.round(W * 0.34), x2 = W - 90;
-                // The contested zone — dashed, like the sheet's detail box. It
-                // is clipped around chips already painted this frame, so its
-                // edge never prints through their words.
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(0, 0, W, H);
-                for (const r of floatingChips) ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
-                ctx.clip("evenodd");
-                ctx.setLineDash([5, 4]);
-                ctx.strokeStyle = "rgba(237,230,211,0.7)";
-                ctx.strokeRect(x1 + 0.5, Math.round(bandTop) + 0.5, x2 - x1, Math.round(bandH));
-                ctx.setLineDash([]);
-                ctx.fillStyle = "rgba(237,230,211,0.06)";
-                ctx.fillRect(x1, bandTop, x2 - x1, bandH);
-                ctx.restore();
-
-                // THE SHEET'S ORDER — UP column · the crack · DOWN column, with
-                // UNRESOLVED under the crack. The group goes where it covers no
-                // candle and no floating chip: above or below the band (inside
-                // it when the band is deep enough to hold it, as on the sheet),
-                // slid along it, never into the header chrome or the volume pane.
-                const colW = 270, gap = 110, lineH = 12;
-                // Each family: its name, then its evidence in up to two lines —
-                // wrapped, never cut, so the measured fact is read whole.
-                ctx.font = font(500, 9);
-                const wrap = (t: string, w: number): string[] => {
-                  const out: string[] = [];
-                  let cur = "";
-                  for (const word of t.split(" ")) {
-                    const nx = cur ? `${cur} ${word}` : word;
-                    if (cur && ctx.measureText(nx).width > w) { out.push(cur); cur = word; } else cur = nx;
-                  }
-                  if (cur) out.push(cur);
-                  return out.slice(0, 2);
-                };
-                const textW = colW - 46;
-                const famH = (ls: typeof cv.up) => ls.reduce((h, l) => h + lineH * (1 + wrap(l.evidence, textW).length) + 4, 0);
-                const colH = 30 + Math.max(famH(cv.up), famH(cv.down)) + 6;
-                const gW = colW * 2 + gap, gH = colH + 20;
-                const SAFE_TOP = HEADER_FLOOR_Y, SAFE_BOT = H * 0.76;
-                const covers = (x: number, y: number, w: number, h: number) => {
-                  let n = candleHits(x, y, w, h);
-                  for (const r of floatingChips) if (r.x < x + w && r.x + r.w > x && r.y < y + h && r.y + r.h > y) n++;
-                  return n;
-                };
-                const bandMidX = (x1 + x2) / 2;
-                const rowsY: { gy: number; where: string }[] = [
-                  { gy: bandTop - gH - 12, where: "ABOVE" },
-                  { gy: bandBot + 12, where: "BELOW" },
-                ];
-                if (bandH >= gH + 16) rowsY.push({ gy: bandTop + (bandH - gH) / 2, where: "INSIDE" });
-                let best: { gx: number; gy: number; where: string; hit: number; cost: number } | null = null;
-                for (const r of rowsY) {
-                  if (r.gy < SAFE_TOP || r.gy + gH > SAFE_BOT) continue;
-                  for (let gx = 12; gx + gW <= x2; gx += 16) {
-                    const hit = covers(gx, r.gy, gW, gH);
-                    const cost = hit * 1000 + Math.abs(gx + gW / 2 - bandMidX) * 0.05 + (r.where === "BELOW" ? 1 : 0);
-                    if (!best || cost < best.cost) best = { gx, gy: r.gy, where: r.where, hit, cost };
-                  }
-                }
-                if (best) {
-                  placed = `${best.where}:${best.hit}`;
-                  const { gx, gy } = best;
-                  const mid = gx + colW + gap / 2;
-                  // One dashed leader from the crack to the band it is about.
-                  const lx = Math.min(x2 - 6, Math.max(x1 + 6, mid));
-                  ctx.setLineDash([3, 3]);
-                  ctx.strokeStyle = "rgba(237,230,211,0.55)";
-                  ctx.beginPath();
-                  if (best.where === "ABOVE") { ctx.moveTo(mid, gy + gH); ctx.lineTo(lx, bandTop); }
-                  else if (best.where === "BELOW") { ctx.moveTo(mid, gy); ctx.lineTo(lx, bandBot); }
-                  ctx.stroke();
+              const xN = tsC.timeToCoordinate(lastC.time as never);
+              const xF = cv.bandFrom != null ? tsC.timeToCoordinate(cv.bandFrom as never) : null;
+              let axisWC = 60;
+              try { axisWC = chart.priceScale("right").width(); } catch { /* keep default */ }
+              const plotRightC = Math.max(8, W - axisWC);
+              const SAFE_BOT = H * 0.76;
+              if (yA != null && yB != null && xN != null) {
+                // ONE PRICE ZONE: depth = the zone's prices; width = its birth → NOW.
+                const box = contradictionZoneBox({
+                  xNow: +xN + bsp * 0.5 + 2,
+                  xFrom: xF == null ? null : +xF - bsp * 0.5,
+                  yA: +yA, yB: +yB,
+                  minX: keepOutMinX(),
+                });
+                const g = contradictionGlyph(box);
+                if (box.x1 <= 0 || box.x0 >= plotRightC || g.yBot <= 0 || g.yTop >= SAFE_BOT) {
+                  placed = "OFF_CAMERA";
+                } else {
+                  // The zone, the arrows and the crack sit BEHIND the market:
+                  // every candle under the box is cut out of them.
+                  const vrC = tsC.getVisibleLogicalRange();
+                  const cutC = new Path2D();
+                  cutC.rect(0, 0, W, H);
+                  for (const r of candleCutOutRects(bsC, {
+                    visible: vrC ? { from: +vrC.from, to: +vrC.to } : null,
+                    barSpacing: bsp,
+                    timeToX: t => { const xk = tsC.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                    priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+                  }, box.x0, box.x1)) cutC.rect(r.x, r.y, r.w, r.h);
+                  ctx.save();
+                  ctx.globalAlpha = att.alpha("contradiction");
+                  ctx.clip(cutC, "evenodd");
+                  const bw = box.x1 - box.x0, bh = Math.max(1, Math.round(box.yBot - box.yTop));
+                  ctx.fillStyle = "rgba(237,230,211,0.05)";
+                  ctx.fillRect(box.x0, box.yTop, bw, bh);
+                  ctx.setLineDash([5, 4]);
+                  ctx.strokeStyle = "rgba(237,230,211,0.7)";
+                  ctx.strokeRect(Math.round(box.x0) + 0.5, Math.round(box.yTop) + 0.5, Math.round(bw), bh);
                   ctx.setLineDash([]);
-                  const draw = (lines: typeof cv.up, x: number, lean: "UP" | "DOWN") => {
-                    ctx.fillStyle = "rgba(11,10,8,0.92)";
-                    ctx.fillRect(x, gy, colW, colH);
-                    ctx.strokeStyle = "rgba(237,230,211,0.45)";
-                    ctx.strokeRect(x + 0.5, gy + 0.5, colW - 1, colH - 1);
-                    // The sheet's arrow, drawn as geometry.
-                    const ax = x + 18, ay0 = gy + 10, ay1 = gy + colH - 10;
-                    ctx.strokeStyle = "rgba(237,230,211,0.9)"; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.moveTo(ax, lean === "UP" ? ay1 : ay0); ctx.lineTo(ax, lean === "UP" ? ay0 + 6 : ay1 - 6); ctx.stroke();
-                    ctx.fillStyle = "rgba(237,230,211,0.9)";
+                  // The sheet's two arrows — the same ink for both sides: a lean
+                  // is not a promise, and neither side is coloured as the winner.
+                  for (const a of [g.up, g.down]) {
+                    const pts = arrowOutline(a);
                     ctx.beginPath();
-                    if (lean === "UP") { ctx.moveTo(ax - 7, ay0 + 8); ctx.lineTo(ax + 7, ay0 + 8); ctx.lineTo(ax, ay0 - 2); }
-                    else { ctx.moveTo(ax - 7, ay1 - 8); ctx.lineTo(ax + 7, ay1 - 8); ctx.lineTo(ax, ay1 + 2); }
-                    ctx.fill(); ctx.lineWidth = 1;
-                    ctx.textAlign = "left";
-                    ctx.font = font(800, 11); ctx.fillStyle = "rgba(247,241,223,1)";
-                    ctx.fillText(lean === "UP" ? "LEANS UP" : "LEANS DOWN", x + 36, gy + 14);
-                    let ly = gy + 32;
-                    for (const l of lines) {
-                      ctx.font = font(700, 9); ctx.fillStyle = "rgba(201,165,92,1)";
-                      ctx.fillText(l.family, x + 36, ly);
-                      ctx.font = font(500, 9); ctx.fillStyle = "rgba(214,206,188,0.95)";
-                      const evl = wrap(l.evidence, textW);
-                      evl.forEach((t, k) => ctx.fillText(t, x + 36, ly + lineH * (k + 1)));
-                      ly += lineH * (1 + evl.length) + 4;
-                    }
-                  };
-                  draw(cv.up, gx, "UP");
-                  draw(cv.down, gx + colW + gap, "DOWN");
-                  // The crack, and UNRESOLVED under it.
-                  // The sheet's split X: two jagged fractures crossing, with a
-                  // few short branches — a crack, not a divider.
-                  ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 1.3;
-                  const ckTop = gy + 5, ckBot = gy + colH - 24, ckH = ckBot - ckTop, hw = Math.min(26, gap / 2 - 10);
-                  const jag = (sx: number, dx: number) => {
-                    ctx.moveTo(mid + sx * hw, ckTop);
-                    [0.22, 0.45, 0.68, 1].forEach((t, k) => ctx.lineTo(mid + sx * hw + dx * hw * 2 * t + (k % 2 ? 3 : -3), ckTop + ckH * t));
-                  };
-                  ctx.beginPath();
-                  jag(-1, 1); jag(1, -1);
-                  ctx.stroke();
-                  ctx.lineWidth = 0.9;
-                  ctx.beginPath();
-                  for (const [bx0, by0, bx1, by1] of [[-0.5, 0.25, -0.95, 0.12], [0.55, 0.3, 0.95, 0.2], [-0.45, 0.72, -0.9, 0.86], [0.5, 0.75, 0.92, 0.9]]) {
-                    ctx.moveTo(mid + bx0 * hw, ckTop + ckH * by0); ctx.lineTo(mid + bx1 * hw, ckTop + ckH * by1);
+                    pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+                    ctx.closePath();
+                    ctx.fillStyle = "rgba(237,230,211,0.24)";
+                    ctx.fill();
+                    ctx.strokeStyle = "rgba(237,230,211,0.9)";
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
                   }
-                  ctx.stroke(); ctx.lineWidth = 1;
-                  ctx.textAlign = "center";
-                  ctx.font = font(800, 12);
-                  const uw = ctx.measureText("UNRESOLVED").width + 10;
-                  ctx.fillStyle = "rgba(11,10,8,0.92)";
-                  ctx.fillRect(mid - uw / 2, gy + colH - 18, uw, 16);
-                  ctx.fillStyle = "rgba(247,241,223,1)";
-                  ctx.fillText("UNRESOLVED", mid, gy + colH - 10);
-                  const pt = `${cv.posture} · not blended into one score${silentNote}`;
-                  ctx.font = font(600, 9);
-                  const pw = ctx.measureText(pt).width + 12;
-                  ctx.fillStyle = "rgba(11,10,8,0.88)";
-                  ctx.fillRect(gx + gW / 2 - pw / 2, gy + colH + 2, pw, 15);
-                  ctx.fillStyle = "rgba(214,206,188,0.95)";
-                  ctx.fillText(pt, gx + gW / 2, gy + colH + 10);
+                  // The crack: two jagged fractures crossing, a few branches.
+                  ctx.strokeStyle = "rgba(237,230,211,0.9)";
+                  crackStrokes(g.crack).forEach((line, i) => {
+                    ctx.lineWidth = i < 2 ? 1.6 : 0.9;
+                    ctx.beginPath();
+                    line.forEach((p, j) => (j ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+                    ctx.stroke();
+                  });
+                  ctx.lineWidth = 1;
+                  ctx.restore();
+
+                  // THE WORDS — one row, under the glyph (or over it when the
+                  // row below is taken), through the keep-out owner: no word
+                  // on a candle, none in the header band, none on a chip.
+                  type Group = { lines: { t: string; f: string; c: string }[]; w: number; h: number };
+                  const group = (names: string[], lean: string | null): Group => {
+                    const lines = [
+                      ...names.map(t => ({ t, f: font(800, 10), c: "rgba(247,241,223,1)" })),
+                      ...(lean ? [{ t: lean, f: font(700, 9), c: "rgba(200,192,174,0.95)" }] : []),
+                    ];
+                    let w = 0;
+                    for (const l of lines) { ctx.font = l.f; w = Math.max(w, ctx.measureText(l.t).width); }
+                    return { lines, w: Math.ceil(w) + 10, h: lines.length * 12 + 4 };
+                  };
+                  const gUp = group(cv.up.map(l => l.family), "(UP)");
+                  const gDown = group(cv.down.map(l => l.family), "(DOWN)");
+                  const gCrack = group([], null);
+                  gCrack.lines.push({ t: "UNRESOLVED", f: font(800, 11), c: "rgba(247,241,223,1)" });
+                  ctx.font = font(800, 11);
+                  gCrack.w = Math.ceil(ctx.measureText("UNRESOLVED").width) + 10;
+                  gCrack.h = 16;
+                  const sizes = { up: gUp, crack: gCrack, down: gDown };
+                  const tallest = Math.max(gUp.h, gDown.h, gCrack.h);
+                  const belowY = Math.max(box.yBot, g.yBot) + 5;
+                  const aboveY = Math.min(box.yTop, g.yTop) - 5 - tallest;
+                  const rowBelow = contradictionLabelRow(g, sizes, belowY);
+                  const rowAbove = contradictionLabelRow(g, sizes, aboveY);
+                  const koC = [...keepOut(), ...rowBodiesAt(aboveY, belowY + tallest)];
+                  const fits = (y: number) => y >= HEADER_FLOOR_Y + 2 && y + tallest <= SAFE_BOT;
+                  const rowHits = (r: typeof rowBelow) => [r.up, r.crack, r.down].reduce((n, q) => n + rectHits(q, [...koC, ...floatingChips]), 0);
+                  const useBelow = fits(belowY) && (!fits(aboveY) || rowHits(rowBelow) <= rowHits(rowAbove));
+                  const row = useBelow ? rowBelow : rowAbove;
+                  const modes: string[] = [];
+                  // Right to left, each one joining the chip ledger, so a group
+                  // that has to slide steps around the one already placed.
+                  for (const [key, grp, anchorX] of [["down", gDown, g.down.x], ["crack", gCrack, g.crack.cx], ["up", gUp, g.up.x]] as const) {
+                    const pref = row[key];
+                    const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+                    recordKeepOut(keepOutLedger, spot);
+                    floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: grp.w, h: grp.h });
+                    modes.push(`${key.toUpperCase()}:${spot.mode}`);
+                    const r = spot.rect;
+                    // A group that had to slide keeps a hairline to its mark.
+                    if (Math.abs(r.x + grp.w / 2 - anchorX) > 12) {
+                      ctx.setLineDash([2, 3]);
+                      ctx.strokeStyle = "rgba(237,230,211,0.5)";
+                      ctx.beginPath();
+                      ctx.moveTo(r.x + grp.w / 2, useBelow ? r.y : r.y + grp.h);
+                      ctx.lineTo(anchorX, useBelow ? Math.max(box.yBot, g.yBot) : Math.min(box.yTop, g.yTop));
+                      ctx.stroke();
+                      ctx.setLineDash([]);
+                    }
+                    ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.85)})`;
+                    ctx.fillRect(r.x, r.y, grp.w, grp.h);
+                    ctx.textAlign = "center";
+                    grp.lines.forEach((l, i) => {
+                      ctx.font = l.f;
+                      ctx.fillStyle = l.c;
+                      ctx.fillText(l.t, r.x + grp.w / 2, r.y + 8 + i * 12);
+                    });
+                  }
                   ctx.textAlign = "left";
+                  placed = `ZONE:${useBelow ? "BELOW" : "ABOVE"}`;
+                  ds.contradictionGeometry =
+                    `BOX:${Math.round(box.x0)},${Math.round(box.yTop)},${Math.round(bw)}x${bh}` +
+                    `|UP:${Math.round(g.up.x)}|X:${Math.round(g.crack.cx)}|DOWN:${Math.round(g.down.x)}|ARROW_H:${Math.round(g.yBot - g.yTop)}`;
+                  ds.contradictionWords = modes.join(",");
                 }
               }
             }
-            if (placed === "CHIP") {
+            if (placed === "CHIP" || placed === "OFF_CAMERA") {
               ctx.font = font(700, 9);
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left";
               const t = cv.state === "UNRESOLVED"
-                ? `CONTRADICTION · UNRESOLVED — up: ${cv.up.map(l => l.family.toLowerCase()).join(", ")} · down: ${cv.down.map(l => l.family.toLowerCase()).join(", ")} · ${cv.posture}`
+                ? `CONTRADICTION · UNRESOLVED at ${cv.bandLow?.toFixed(pxDp) ?? "—"}–${cv.bandHigh?.toFixed(pxDp) ?? "—"} — the zone is off camera · ${cv.posture}`
                 : cv.state === "AGREE"
                 ? `CONTRADICTION · none at price — ${cv.up.length + cv.down.length} families lean ${cv.up.length ? "up" : "down"} · still your read`
                 : `CONTRADICTION · not enough families lean (${cv.silent.map(x => x.family.toLowerCase()).join(", ")} silent)`;
@@ -14417,11 +14571,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
-        /* ══ H-704 · MARKET STRUCTURE — swing highs and lows on the axis ═══
+        /* ══ H-704 · MARKET STRUCTURE — swing highs and lows on price ═══════
            P-110's #2 organism. Each pivot is a real price the compiler
-           picked; the LAST pivot of each kind is drawn a step louder.
-           Bias word top-right, near (but not colliding with) the semantic
-           zoom tag.
+           picked (selectMarketStructureGlass owns the marks and their letters).
+
+           CANON M32 "structure & levels as living objects" + UI_14's level
+           geometry (2026-09-25): structure is ON-PRICE GEOMETRY a trader can
+           read at a glance, not faint ticks —
+             · a chevron at every swing on camera, pointing at its price
+               (▼ over a high, ▲ under a low), the newest of each kind louder
+             · the trader's letters beside it (HH · LH · EQH / HL · LL · EQL),
+               through the keep-out owner — a letter that would land on a
+               candle or slide off its swing is not printed at all
+             · the LAST swing high and low as dashed level rules from the swing
+               to the price axis (candles cut out), each named at its right end
+             · the bias word beside those names, not in the header band.
+           The receipt counts only what reached the glass: a pivot left or
+           right of the camera, or above/below the pane, is not "drawn".
         ═══════════════════════════════════════════════════════════════════ */
         {
           const ms = marketStructureRef.current;
@@ -14431,66 +14597,164 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Withdrawn every frame and re-stamped only where it is painted, so
           // a closed layer or UNCLEAR bias never leaves a stale verdict behind.
           delete ds.auctionVerdict;
+          delete ds.marketStructureLabels;
+          delete ds.marketStructureLevels;
+          delete ds.marketStructureBiasPlaced;
 
           if (on && ms?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("marketStructure");
-            let painted = 0;
+            let axisWS = 60;
+            try { axisWS = chart.priceScale("right").width(); } catch { /* keep default */ }
+            const plotRightS = Math.max(8, W - axisWS);
+            let paneBotS = H;
+            try {
+              const ps = (chart as any).paneSize?.(0);
+              if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotS = ps.height;
+            } catch { /* keep the canvas height */ }
+            const tsS = chart.timeScale();
+            const INK = "rgba(237,230,211,0.95)", INK_SOFT = "rgba(214,206,188,0.8)";
+            let painted = 0, lettered = 0, onCamera = 0;
+            const marks: { kind: "HIGH" | "LOW"; x: number; y: number; isLast: boolean; label: string | null; price: number }[] = [];
             for (const p of ms.pivots) {
-              const xr = chart.timeScale().timeToCoordinate(p.time as any);
+              const xr = tsS.timeToCoordinate(p.time as any);
               const yr = srs.priceToCoordinate(p.price);
               if (xr == null || yr == null) continue;
-              const x = Math.round(+xr) + 0.5;
-              const y = Math.round(+yr) + 0.5;
-              // Highs get an upward tick, lows a downward tick — a shape
-              // reads before a colour would, and this reading has no side.
-              const dir = p.kind === "HIGH" ? -1 : 1;
-              const len = p.isLast ? 10 : 6;
-              ctx.strokeStyle = p.isLast
-                ? "rgba(237,230,211,0.90)"
-                : "rgba(194,184,146,0.55)";
-              ctx.lineWidth = p.isLast ? 1.5 : 1;
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(x, y + dir * len);
-              ctx.stroke();
-              // Small cap so the tick reads as a marker, not a wick tail.
-              ctx.beginPath();
-              ctx.arc(x, y, p.isLast ? 2.2 : 1.6, 0, Math.PI * 2);
-              if (p.isLast) {
-                ctx.fillStyle = "rgba(237,230,211,0.90)";
-                ctx.fill();
-              } else {
-                ctx.stroke();
+              const x = +xr, y = +yr;
+              if (x < 0 || x > plotRightS || y < 0 || y > paneBotS) continue;
+              onCamera++;
+              marks.push({ kind: p.kind, x, y, isLast: p.isLast, label: p.label, price: p.price });
+            }
+
+            // THE LEVEL RULES — the last swing high and low, from the swing to
+            // the axis, behind the candles.
+            const lastMarks = marks.filter(m => m.isLast);
+            const levels: string[] = [];
+            if (lastMarks.length) {
+              const vrS = tsS.getVisibleLogicalRange();
+              const cutS = new Path2D();
+              cutS.rect(0, 0, W, H);
+              for (const r of candleCutOutRects(barsRef.current ?? [], {
+                visible: vrS ? { from: +vrS.from, to: +vrS.to } : null,
+                barSpacing: bsp,
+                timeToX: t => { const xk = tsS.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+              }, Math.min(...lastMarks.map(m => m.x)) - bsp, plotRightS)) cutS.rect(r.x, r.y, r.w, r.h);
+              ctx.save();
+              ctx.clip(cutS, "evenodd");
+              ctx.setLineDash([6, 4]);
+              ctx.strokeStyle = "rgba(237,230,211,0.55)";
+              ctx.lineWidth = 1;
+              for (const m of lastMarks) {
+                const yy = Math.round(m.y) + 0.5;
+                ctx.beginPath(); ctx.moveTo(m.x, yy); ctx.lineTo(plotRightS - 2, yy); ctx.stroke();
               }
+              ctx.setLineDash([]);
+              ctx.restore();
+            }
+
+            // THE SWINGS — a chevron pointing at each swing's price.
+            for (const m of marks) {
+              const s = m.isLast ? 6 : 4.5;
+              const dir = m.kind === "HIGH" ? -1 : 1;
+              const tipY = m.y + dir * 3;
+              ctx.beginPath();
+              ctx.moveTo(m.x, tipY);
+              ctx.lineTo(m.x - s, tipY + dir * s * 1.3);
+              ctx.lineTo(m.x + s, tipY + dir * s * 1.3);
+              ctx.closePath();
+              ctx.fillStyle = m.isLast ? INK : "rgba(214,206,188,0.75)";
+              ctx.fill();
               painted++;
             }
 
-            // Bias word above the pane, right side but LEFT of the semantic
-            // zoom tag so the two chrome words never overlap.
+            // THE LETTERS — beyond the chevron, clear of every candle body on
+            // their row; a letter that cannot sit by its own swing is dropped.
+            ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            for (const m of marks) {
+              if (!m.label) continue;
+              const tw = ctx.measureText(m.label).width + 6, th = 12;
+              const dir = m.kind === "HIGH" ? -1 : 1;
+              const cy = m.y + dir * (3 + (m.isLast ? 6 : 4.5) * 1.3 + 8);
+              const pref = { x: m.x - tw / 2, y: cy - th / 2, w: tw, h: th };
+              if (pref.y < HEADER_FLOOR_Y || pref.y + th > paneBotS) continue;
+              const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+              if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) continue;
+              recordKeepOut(keepOutLedger, spot);
+              floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
+              ctx.fillStyle = m.isLast ? INK : INK_SOFT;
+              ctx.fillText(m.label, spot.rect.x + tw / 2, spot.rect.y + th / 2 + 0.5);
+              lettered++;
+            }
+
+            // THE NAMES — each level rule named at its right end, just off its
+            // line, and the bias word stacked with them.
+            ctx.textAlign = "left";
+            const named: { x: number; y: number; w: number; h: number }[] = [];
+            for (const m of lastMarks) {
+              const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${m.price.toFixed(pxDp)}`;
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              const tw = ctx.measureText(t).width + 10, th = 14;
+              const y = m.kind === "HIGH" ? m.y - th - 2 : m.y + 2;
+              const pref = { x: plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
+              const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: Math.max(keepOutMinX(), m.x), blockers: floatingChips, strict: true });
+              recordKeepOut(keepOutLedger, spot);
+              floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
+              named.push(spot.rect);
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.82)})`;
+              ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+              ctx.fillStyle = INK;
+              ctx.fillText(t, spot.rect.x + 5, spot.rect.y + th / 2 + 0.5);
+              levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:${spot.mode}`);
+            }
+
             if (ms.bias !== "UNCLEAR") {
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-              ctx.textAlign = "right";
-              ctx.textBaseline = "top";
-              ctx.fillStyle = "rgba(194,184,146,0.85)";
-              const label =
-                ms.bias === "HIGHER_HIGHS" ? "HH · HL"
-                : ms.bias === "LOWER_LOWS" ? "LL · LH"
-                : "RANGE";
-              ctx.fillText(label, W - 168, 6);
-              ctx.fillStyle = "rgba(138,130,113,0.75)";
-              ctx.fillText(`+${ms.unconfirmedBars} unconfirmed`, W - 168, 18);
-              // Auction verdict beneath structure bias — same chrome column.
+              const word =
+                ms.bias === "HIGHER_HIGHS" ? "STRUCTURE · HIGHER HIGHS · HH · HL"
+                : ms.bias === "LOWER_LOWS" ? "STRUCTURE · LOWER LOWS · LH · LL"
+                : "STRUCTURE · RANGE";
+              const lag = `${ms.unconfirmedBars} newest bars not yet confirmable`;
+              // Auction verdict beneath the bias — the same plate.
               const av = auctionVerdictRef.current;
-              if (av && av !== "UNKNOWN") {
-                ctx.fillStyle = "rgba(201,165,92,0.75)";
-                ctx.fillText(av, W - 168, 32);
-                ds.auctionVerdict = av;
-              }
+              const lines: { t: string; f: string; c: string }[] = [
+                { t: word, f: "800 9px ui-sans-serif, system-ui, sans-serif", c: INK },
+                { t: lag, f: "600 8.5px ui-sans-serif, system-ui, sans-serif", c: "rgba(160,152,134,0.9)" },
+              ];
+              if (av && av !== "UNKNOWN") lines.push({ t: `AUCTION · ${av}`, f: "700 9px ui-sans-serif, system-ui, sans-serif", c: "rgba(201,165,92,0.9)" });
+              let tw = 0;
+              for (const l of lines) { ctx.font = l.f; tw = Math.max(tw, ctx.measureText(l.t).width); }
+              tw += 10;
+              const th = lines.length * 12 + 4;
+              // Beside the level names when there are any (the side the bias
+              // is about), else under the header band at the right.
+              const anchor = ms.bias === "HIGHER_HIGHS" ? named[0] : named[named.length - 1];
+              const up = ms.bias === "HIGHER_HIGHS";
+              const prefY = anchor ? (up ? anchor.y - th - 3 : anchor.y + anchor.h + 3) : HEADER_FLOOR_Y + 4;
+              const pref = { x: plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, prefY)), w: tw, h: th };
+              const alt = anchor ? { ...pref, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, up ? anchor.y + anchor.h + 3 : anchor.y - th - 3)) } : null;
+              const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(pref.y, alt?.y ?? pref.y), Math.max(pref.y, alt?.y ?? pref.y) + th)], {
+                minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alt ? [alt] : [],
+              });
+              recordKeepOut(keepOutLedger, spot);
+              floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.82)})`;
+              ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+              lines.forEach((l, i) => {
+                ctx.font = l.f;
+                ctx.fillStyle = l.c;
+                ctx.fillText(l.t, spot.rect.x + 5, spot.rect.y + 8 + i * 12);
+              });
+              if (av && av !== "UNKNOWN") ds.auctionVerdict = av;
+              ds.marketStructureBiasPlaced = spot.mode;
             }
 
             ctx.restore();
             if (painted > 0) ds.marketStructurePivots = String(painted);
             else delete ds.marketStructurePivots;
+            ds.marketStructureLabels = `${lettered}/${marks.filter(m => m.label).length}`;
+            if (levels.length) ds.marketStructureLevels = levels.join("|");
+            if (onCamera === 0) ds.marketStructure = "OFF_CAMERA";
           } else {
             delete ds.marketStructurePivots;
           }
@@ -15366,6 +15630,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            DECISION_ID) prints beside the brackets and never updates. Painted
            last — after the profile lanes and the heat lens — so the hardware
            sits on top of them; the header chrome is clipped out of the rail. */
+        delete ds.riskOnPriceTicks;
+        delete ds.riskOnPriceSilence;
         if (layerOnRef.current.riskOnPrice === true) {
           const bsR = barsRef.current ?? [];
           const plansR = drawingsRef.current.map(planFromDrawing).filter((p): p is PositionPlanInput => p != null);
@@ -15395,26 +15661,27 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const zx0 = Math.min(...xs), zx1 = Math.max(...xs) + 40;
             zoneRects.push({ x: zx0 - 4, y: Math.min(...ys) - 9, w: zx1 - zx0 + 8, h: Math.max(...ys) - Math.min(...ys) + 18 });
           }
-          // A label slides LEFT along its own price until it covers no candle,
-          // no chip and no drawn zone, then a thin leader ties it to the rail.
+          // A label slides LEFT along its own price (the keep-out owner) until
+          // it covers no candle body, no chip and no drawn zone, then the
+          // price's own dashed rule ties it to the rail. CANON F17A / G15
+          // (2026-09-25): the level is named in words on its rule — a colour
+          // key at the rule's end, no bordered card.
           const callout = (y: number, text: string, color: string, bold = true, sub?: string) => {
             ctx.font = fontR(600, 9);
             const subW = sub ? ctx.measureText(sub).width : 0;
             ctx.font = fontR(bold ? 800 : 600, 10);
             const w = Math.max(ctx.measureText(text).width, subW) + 12, h = sub ? 28 : 16;
-            let x = railX - 18 - w;
-            for (let k = 0; k < 40 && x > 8; k++) {
-              const hit = candleHits(x, y - h / 2, w, h)
-                + [...floatingChips, ...zoneRects].filter(r => r.x < x + w && r.x + r.w > x && r.y < y + h / 2 && r.y + r.h > y - h / 2).length;
-              if (!hit) break;
-              x -= 24;
-            }
-            x = Math.max(8, x);
+            const prefR = { x: railX - 18 - w, y: y - h / 2, w, h };
+            const spotR = placeClearOfKeepOut(prefR, [...keepOut(), ...rowBodiesAt(prefR.y, prefR.y + h)], {
+              minX: Math.max(8, keepOutMinX()), blockers: [...floatingChips, ...zoneRects], strict: true,
+            });
+            recordKeepOut(keepOutLedger, spotR);
+            const x = spotR.rect.x;
             ctx.strokeStyle = color; ctx.globalAlpha = 0.55; ctx.setLineDash([2, 3]);
             ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(railX - 6, y); ctx.stroke();
             ctx.setLineDash([]); ctx.globalAlpha = 1;
-            ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(x, y - h / 2, w, h);
-            ctx.strokeStyle = color; ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, w - 1, h - 1);
+            ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotR, 0.88)})`; ctx.fillRect(x, y - h / 2, w, h);
+            ctx.fillStyle = color; ctx.fillRect(x, y - h / 2, 2, h);
             ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "middle";
             ctx.fillText(text, x + 6, sub ? y - 5.5 : y + 0.5);
             if (sub) {
@@ -15449,6 +15716,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               };
               if (yT != null) bracket(+yE, +yT, REWARD);
               bracket(+yE, +yS, RISK);
+              // F17A's R ticks: 1R, 2R, 3R on the reward bracket, only where the
+              // plan's own target reaches (rewardRTicks owns the prices).
+              const ticksR: string[] = [];
+              for (const tk of rewardRTicks(rv.side === "SHORT" ? "SHORT" : "LONG", rv.entry, rv.riskPerUnit, rv.rr)) {
+                const yk = srs.priceToCoordinate(tk.price);
+                if (yk == null) continue;
+                const yy = Math.round(+yk) + 0.5;
+                ctx.strokeStyle = REWARD; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(railX - 7, yy); ctx.lineTo(railX + 3, yy); ctx.stroke();
+                ctx.lineWidth = 1;
+                ctx.font = fontR(800, 9);
+                const lbl = `${tk.r}R`;
+                const lw = ctx.measureText(lbl).width + 4;
+                const prefK = { x: railX - 9 - lw, y: yy - 6, w: lw, h: 12 };
+                const spotK = placeClearOfKeepOut(prefK, [...keepOut(), ...rowBodiesAt(prefK.y, prefK.y + 12)], { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+                if (spotK.mode !== "CLEAR") continue;
+                recordKeepOut(keepOutLedger, spotK);
+                floatingChips.push(spotK.rect);
+                ctx.fillStyle = REWARD; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillText(lbl, prefK.x + 2, yy + 0.5);
+                ticksR.push(lbl);
+              }
+              if (ticksR.length) ds.riskOnPriceTicks = ticksR.join(",");
               // Entry is the hinge both brackets hang from.
               ctx.strokeStyle = STEEL; ctx.lineWidth = 2;
               ctx.beginPath(); ctx.moveTo(railX - 14, +yE); ctx.lineTo(railX + 5, +yE); ctx.stroke(); ctx.lineWidth = 1;
@@ -15478,15 +15768,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               ctx.restore();
             }
-          } else if (plansR.length) {
+          } else {
+            // THE SILENCE IS NAMED (2026-09-25): with the layer on and nothing
+            // bracketed, the glass says why — including when no position is
+            // drawn at all, which used to leave the layer indistinguishable
+            // from a broken one.
+            const silentR = !plansR.length
+              ? "RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk"
+              : rv.reason === "NO_STOP_ON_DRAWING"
+              ? "RISK ON PRICE · the position drawing has no stop — nothing to bracket"
+              : "RISK ON PRICE · the stop sits on the reward side — not bracketed";
             ctx.save();
+            ctx.globalAlpha = att.alpha("riskOnPrice");
             ctx.font = fontR(700, 9);
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillText(rv.reason === "NO_STOP_ON_DRAWING"
-              ? "RISK ON PRICE · the position drawing has no stop — nothing to bracket"
-              : "RISK ON PRICE · the stop sits on the reward side — not bracketed", 12, H - 114);
+            ctx.fillText(silentR, 12, H - 114);
+            // A chip, so later words step around it.
+            floatingChips.push({ x: 12, y: H - 114 - 7, w: ctx.measureText(silentR).width, h: 14 });
             ctx.restore();
+            ds.riskOnPriceSilence = rv.reason;
           }
 
           /* THE RECEIPT — torn from the same DECISION_ID, frozen at asOf. It

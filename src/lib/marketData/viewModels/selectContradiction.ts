@@ -53,6 +53,12 @@ export interface ContradictionVM {
   /** Price band the contradiction is about (the zone, or the newest bar's range). */
   readonly bandLow: number | null;
   readonly bandHigh: number | null;
+  /**
+   * When the band began (unix s): the earliest defended zone's birth, or the
+   * newest bar's time when the band is that bar's range. Null when unknown.
+   * H-401's "price zone width" is drawn from here to NOW (2026-09-25).
+   */
+  readonly bandFrom: number | null;
 }
 
 export interface ContradictionInput {
@@ -69,16 +75,22 @@ export interface ContradictionInput {
     readonly low: number;
     readonly high: number;
     readonly state: string;
+    /** The zone's birth (unix s), when its owner knows it. */
+    readonly birthTime?: number;
   }[];
   /** Median bar range — how near a zone must be to count as "at price". */
   readonly medianRange: number;
   /** Per-bar signed delta of the newest bars, or null when the tape is unsided. */
   readonly recentDelta: readonly number[] | null;
+  /** The newest bar's time (unix s) — the band's origin when no zone speaks. */
+  readonly lastBarTime?: number | null;
+  /** The market's own price decimals (pricePrecision owner). Defaults to 2. */
+  readonly dp?: number;
 }
 
-const f2 = (n: number) => n.toFixed(2);
-
 export function selectContradiction(input: ContradictionInput): ContradictionVM {
+  const dp = input.dp != null && Number.isInteger(input.dp) && input.dp >= 0 ? input.dp : 2;
+  const f2 = (n: number) => n.toFixed(dp);
   const up: FamilyLine[] = [];
   const down: FamilyLine[] = [];
   const silent: { family: FamilyId; why: string }[] = [];
@@ -103,6 +115,7 @@ export function selectContradiction(input: ContradictionInput): ContradictionVM 
 
   // ZONE — defended zone at or within one median range of price
   let band: { lo: number; hi: number } | null = null;
+  let bandFrom: number | null = null;
   const p = input.lastClose;
   const reach = Math.max(0, input.medianRange);
   const near = p == null ? [] : input.zones.filter(z => p >= z.low - reach && p <= z.high + reach && z.state === "DEFENDED");
@@ -110,6 +123,7 @@ export function selectContradiction(input: ContradictionInput): ContradictionVM 
     for (const z of near) {
       push({ family: "ZONE", lean: z.side === "DEMAND" ? "UP" : "DOWN", evidence: `${z.side.toLowerCase()} zone ${f2(z.low)}–${f2(z.high)} defended` });
       band = band ? { lo: Math.min(band.lo, z.low), hi: Math.max(band.hi, z.high) } : { lo: z.low, hi: z.high };
+      if (z.birthTime != null && Number.isFinite(z.birthTime)) bandFrom = bandFrom == null ? z.birthTime : Math.min(bandFrom, z.birthTime);
     }
   } else silent.push({ family: "ZONE", why: "no defended zone at price" });
 
@@ -121,7 +135,10 @@ export function selectContradiction(input: ContradictionInput): ContradictionVM 
     else silent.push({ family: "EFFORT", why: "net delta flat" });
   } else silent.push({ family: "EFFORT", why: "tape states no aggressor side — effort has no lean" });
 
-  if (!band && input.lastBarLow != null && input.lastBarHigh != null) band = { lo: input.lastBarLow, hi: input.lastBarHigh };
+  if (!band && input.lastBarLow != null && input.lastBarHigh != null) {
+    band = { lo: input.lastBarLow, hi: input.lastBarHigh };
+    bandFrom = input.lastBarTime ?? null;
+  }
 
   const state: ContradictionVM["state"] =
     up.length && down.length ? "UNRESOLVED" : up.length + down.length >= 2 ? "AGREE" : "NOT_ENOUGH";
@@ -134,6 +151,7 @@ export function selectContradiction(input: ContradictionInput): ContradictionVM 
     posture: state === "UNRESOLVED" ? "WAIT · BOTH TRUTHS PAINT" : state === "AGREE" ? "FAMILIES AGREE · STILL YOUR READ" : "NOT ENOUGH FAMILIES LEAN",
     bandLow: band?.lo ?? null,
     bandHigh: band?.hi ?? null,
+    bandFrom,
   };
 }
 

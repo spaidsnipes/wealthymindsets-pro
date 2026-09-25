@@ -78,6 +78,26 @@ describe("H-704 · structure glass", () => {
     expect(v.drawn && v.pivots[0].time).toBe(29);
   });
 
+  // 2026-09-25 — canon M32 / H-704: each swing carries the trader's letters.
+  it("names each swing against the previous swing of its kind — HH/LH/EQH, HL/LL/EQL, none for the first", () => {
+    const v = selectMarketStructureGlass(vm({
+      swingHighs: [{ time: 100, price: 105 }, { time: 300, price: 103 }, { time: 500, price: 103 }, { time: 700, price: 108 }],
+      swingLows: [{ time: 200, price: 99 }, { time: 400, price: 97 }, { time: 600, price: 98 }, { time: 800, price: 98 }],
+      lastSwingHigh: { time: 700, price: 108 }, lastSwingLow: { time: 800, price: 98 },
+    }));
+    if (!v.drawn) throw new Error("expected drawn");
+    const at = (t: number) => v.pivots.find(p => p.time === t)!.label;
+    expect([at(100), at(300), at(500), at(700)]).toEqual([null, "LH", "EQH", "HH"]);
+    expect([at(200), at(400), at(600), at(800)]).toEqual([null, "LL", "HL", "EQL"]);
+  });
+
+  it("the letters are read over the whole sequence, so the cap never renames its oldest kept swing", () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ time: i, price: 100 + i }));
+    const v = selectMarketStructureGlass(vm({ swingHighs: many, swingLows: [], lastSwingHigh: many[29], lastSwingLow: null }));
+    if (!v.drawn) throw new Error("expected drawn");
+    expect(v.pivots.every(p => p.label === "HH")).toBe(true);
+  });
+
   it("carries bias, biasNote, and the unconfirmed count verbatim", () => {
     const v = selectMarketStructureGlass(vm());
     if (!v.drawn) throw new Error("expected drawn");

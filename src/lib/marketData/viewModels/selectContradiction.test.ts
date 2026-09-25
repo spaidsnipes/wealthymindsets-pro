@@ -56,4 +56,29 @@ describe("H-401 · contradiction not averaged", () => {
     const noPivots = selectContradiction({ ...base, structureBias: "HIGHER_HIGHS", structureNote: "owner note" });
     expect(noPivots.up[0].evidence).toBe("owner note");
   });
+
+  // 2026-09-25 — H-401 draws the zone box from where the band began to NOW.
+  it("the band knows when it began: the earliest defended zone's birth, else the newest bar", () => {
+    const v = selectContradiction({
+      ...base, structureBias: "LOWER_LOWS", lastBarTime: 5000,
+      zones: [
+        { side: "DEMAND", low: 99, high: 99.8, state: "DEFENDED", birthTime: 3000 },
+        { side: "DEMAND", low: 99.6, high: 100.2, state: "DEFENDED", birthTime: 2000 },
+      ],
+    });
+    expect(v.bandFrom).toBe(2000);
+    const bar = selectContradiction({ ...base, structureBias: "LOWER_LOWS", lastBarTime: 5000 });
+    expect([bar.bandLow, bar.bandHigh, bar.bandFrom]).toEqual([99.5, 100.5, 5000]);
+    expect(selectContradiction(base).bandFrom).toBeNull();
+  });
+
+  it("prices in the evidence speak the market's own decimals", () => {
+    const v = selectContradiction({
+      ...base, dp: 4, structureBias: "HIGHER_HIGHS",
+      structurePivots: { h1: 1.08527, h2: 1.0862, l1: 1.0848, l2: 1.0851 },
+      exhaustion: { direction: "UP", price: 1.08619, followThrough: 1 },
+    });
+    expect(v.up[0].evidence).toBe("highs 1.0853 → 1.0862 · lows 1.0848 → 1.0851");
+    expect(v.down[0].evidence).toBe("up-push exhausted at 1.0862 · follow-through 1/3");
+  });
 });

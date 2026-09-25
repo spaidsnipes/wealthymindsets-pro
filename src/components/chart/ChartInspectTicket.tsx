@@ -972,6 +972,14 @@ export function ChartInspectTicket({
               <div>Open {envelope.open.toFixed(2)} · typical reach {envelope.upper?.toFixed(2)} / {envelope.lower?.toFixed(2)} (median of each session&apos;s reach)</div>
               <div>Up so far {envelope.up.reach.toFixed(2)} — {envelope.up.matchedBy} of {envelope.sessions} sessions went this far{envelope.up.outside ? " · outside" : ""}</div>
               <div>Down so far {envelope.down.reach.toFixed(2)} — {envelope.down.matchedBy} of {envelope.sessions} sessions went this far{envelope.down.outside ? " · outside" : ""}</div>
+              {/* 2026-09-25 · the analogue fan on the glass (H-801 / F03), read out. */}
+              {envelope.fan && (
+                <div data-inspect-envelope-fan={envelope.fan.surprise ? envelope.fan.surprise.side : "INSIDE"}>
+                  Analogue fan p10–p90 · bar {envelope.fan.nowK} of the session · {envelope.fan.surprise
+                    ? `MARKET SURPRISE ${envelope.fan.surprise.side.toLowerCase()} the fan — ${envelope.fan.surprise.matchedBy} of ${envelope.fan.surprise.n} sessions stood this far at this bar`
+                    : envelope.fan.nowK < envelope.fan.steps.length ? "the newest close rides inside it" : "past the bars the prior sessions reached"}
+                </div>
+              )}
             </>
           ) : (
             <div>Needs 3 completed sessions on this chart ({envelope.sessions} loaded) — a count, not a guess.</div>
