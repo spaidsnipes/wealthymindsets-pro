@@ -146,6 +146,7 @@ import type {
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { selectObjectLineage, selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
 import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { memoryLevelKindOf, selectMemoryMarketObjects } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
@@ -1505,6 +1506,30 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       : null,
     [liquidityLifecycleOn, chartBars],
   );
+  // Hoisted above the market objects (they depend only on the bars): Profile
+  // Memory's remembered levels are canonical LEVEL objects while its layer is on.
+  const valueMigrationVM = React.useMemo(
+    () => selectValueMigration(
+      chartBars.map(b => ({
+        time: typeof b.time === "number" ? b.time : Number(b.time),
+        open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+      })),
+    ),
+    [chartBars],
+  );
+
+  /** P-110 #4 — prior sessions' FINAL migration value, carried forward. */
+  const profileMemoryVM = React.useMemo(
+    () => selectProfileMemory(
+      valueMigrationVM,
+      chartBars.map(b => ({
+        time: typeof b.time === "number" ? b.time : Number(b.time),
+        open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+      })),
+    ),
+    [valueMigrationVM, chartBars],
+  );
+
   const chartMarketObjects = React.useMemo(() => [
     ...selectStructureMarketObjects({
       structure: chartStructureVM,
@@ -1512,7 +1537,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       identities: chartBarIdentities,
     }),
     ...chartStructureZones.map(z => z.object),
-  ], [chartStructureVM, chartBars, chartBarIdentities, chartStructureZones]);
+    // Profile Memory's remembered POC / VAH / VAL — selectable, so their
+    // biography (birth, tests, naked) reaches the Passport. Only while the
+    // Memory layer is on: pins for a layer the trader switched off are noise.
+    ...(profileMemoryOn ? selectMemoryMarketObjects({ memory: profileMemoryVM, identities: chartBarIdentities }) : []),
+  ], [chartStructureVM, chartBars, chartBarIdentities, chartStructureZones, profileMemoryOn, profileMemoryVM]);
   const chartMarketObjectTargets = React.useMemo(() => chartMarketObjects.flatMap(object => {
     const birth = chartBarIdentities.find(identity => identity.barId === object.birthBarId);
     return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
@@ -1912,27 +1941,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   );
 
   /** Living Profile's developing value — the SAME chartBars, no lookahead. */
-  const valueMigrationVM = React.useMemo(
-    () => selectValueMigration(
-      chartBars.map(b => ({
-        time: typeof b.time === "number" ? b.time : Number(b.time),
-        open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
-      })),
-    ),
-    [chartBars],
-  );
-
-  /** P-110 #4 — prior sessions' FINAL migration value, carried forward. */
-  const profileMemoryVM = React.useMemo(
-    () => selectProfileMemory(
-      valueMigrationVM,
-      chartBars.map(b => ({
-        time: typeof b.time === "number" ? b.time : Number(b.time),
-        open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
-      })),
-    ),
-    [valueMigrationVM, chartBars],
-  );
 
   /** P-110 #9 — completed sessions only, from the shared session splitter. */
   const compositeProfileVM = React.useMemo(
@@ -2127,7 +2135,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => selectedLevelObject
       ? selectObjectLineage({
           object: selectedLevelObject,
-          method: "selectMarketStructure → selectStructureMarketObjects (confirmed, untouched swing levels)",
+          method: memoryLevelKindOf(selectedLevelObject.objectId)
+            ? "selectValueMigration → selectProfileMemory (a prior session's final POC / VAH / VAL) → selectMemoryMarketObjects"
+            : "selectMarketStructure → selectStructureMarketObjects (confirmed, untouched swing levels)",
           identities: chartBarIdentities,
           decisionId: currentSceneDecision?.decisionId ?? null,
         })
