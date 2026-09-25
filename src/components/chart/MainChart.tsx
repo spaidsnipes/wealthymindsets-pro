@@ -20,6 +20,7 @@ import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker } from "@/
 import { DataVersionGuard } from "@/lib/chartContext";
 import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
+import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -1525,6 +1526,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const pineSeriesRef = useRef<Map<string, any>>(new Map());
   const pineCodeRef   = useRef<string | undefined>(undefined);
   const indSeriesRef  = useRef<any[]>([]);
+  // Tape CVD pane (H-701): the one lawful cumulative delta. Its series, and
+  // the selector's last verdict the overlay captions and receipts from.
+  const tapeCvdSeriesRef = useRef<any>(null);
+  const tapeCvdRef = useRef<TapeCvdResult | null>(null);
   // Open paper-trade position lines (native IPriceLine on the candle series) +
   // the position each line represents, so we can refresh the live-P&L title on tick.
   const paperLinesRef = useRef<Array<{ line: any; qty: number; avgPx: number }>>([]);
@@ -2558,6 +2563,45 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       deltaTickAccRef.current.delete(oldest);
     }
   }, [recentTicks, timeframe, base, tapeSource]);
+
+  // ── Tape CVD (H-701) — cumulative signed tape, only where it was heard ──
+  // One candle per bar the accumulator holds executions for: open = prior
+  // cumulative, close = cumulative, in the delta ink pair (never candle
+  // green/red). Before the horizon, evicted, or unheard → whitespace. The
+  // first bar is hollow (PARTIAL). Refilled on every accumulator flush.
+  const fillTapeCvdRef = useRef<() => void>(() => {});
+  fillTapeCvdRef.current = () => {
+    const s = tapeCvdSeriesRef.current;
+    if (!s) { tapeCvdRef.current = null; return; }
+    const horizon = tapeHorizonRef.current;
+    const horizonOk = !!horizon && horizon.sym === canonicalSym && Number.isFinite(horizon.startedAtSec);
+    const src = tapeSourceRef.current ?? null;
+    const r = selectTapeCvd({
+      bars: barsRef.current ?? [],
+      accumulator: tickAccRef.current,
+      horizonBarSec: horizonOk ? tapeHorizonBarStart(horizon!.startedAtSec, getIntervalSec(timeframe)) : null,
+      horizonStartedAtSec: horizonOk ? horizon!.startedAtSec : null,
+      aggressorMethod: getRuntimeTapeCapability(src)?.aggressorMethod ?? null,
+      verifiedTape: hasRealAggressorTape(src ?? ""),
+    });
+    tapeCvdRef.current = r;
+    const pair = ofColorsRef.current.delta ?? OF_DEFAULT;
+    const up = `rgb(${pair.buy.join(",")})`, dn = `rgb(${pair.sell.join(",")})`;
+    try {
+      s.applyOptions({ upColor: up, downColor: dn, borderUpColor: up, borderDownColor: dn, wickUpColor: up, wickDownColor: dn });
+      s.setData(r.points.map(p => {
+        const d: Record<string, unknown> = {
+          time: p.time, open: p.from, close: p.to, high: Math.max(p.from, p.to), low: Math.min(p.from, p.to),
+        };
+        if (p.partial) {
+          const ink = p.to >= p.from ? up : dn;
+          d.color = "rgba(0,0,0,0)"; d.borderColor = ink; d.wickColor = ink;
+        }
+        return d;
+      }));
+    } catch { /* series removed mid-flush; the next build refills */ }
+  };
+  useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready]);
 
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
   useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
@@ -3814,6 +3858,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     indSeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
     indSeriesRef.current = [];
     oscLiveRef.current = [];
+    tapeCvdSeriesRef.current = null;
     // Register a series for live tick updates: recompute pulls fresh values from
     // the current bars and returns the LAST point to update.
     const regLive = (series: any, recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null) => {
@@ -4313,6 +4358,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const volVals = bars.map(b => b.volume);
       const s = addOscHist(volVals, bars.map(b => b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)"), "vol_hist");
       regLive(s, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.volume, color: b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)" } : null; });
+    }
+
+    // ── Tape CVD (H-701) — the lawful cumulative delta pane ──────
+    // Data, inks and the hollow PARTIAL first bar come from fillTapeCvdRef;
+    // this only gives the series its own pane and the 1px zero hairline.
+    if (inds.has("Tape CVD")) {
+      try {
+        const s = chart.addSeries(LW.CandlestickSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor("tapecvd"));
+        s.createPriceLine({ price: 0, color: "rgba(139,146,172,0.45)", lineWidth: 1, lineStyle: LW.LineStyle.Solid, axisLabelVisible: false });
+        indSeriesRef.current.push(s);
+        tapeCvdSeriesRef.current = s;
+        fillTapeCvdRef.current();
+      } catch { tapeCvdSeriesRef.current = null; }
     }
 
     // ── Stop Run Alert (price breach then reversal) ───────────
@@ -12963,6 +13021,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
+
+      // ── Tape CVD caption (H-701): the pane names its source and its start ──
+      const cvdSeries = tapeCvdSeriesRef.current;
+      const cvd = tapeCvdRef.current;
+      if (cvdSeries && cvd) {
+        canvas.dataset.cvdSource = cvd.refused ? "REFUSED" : "TAPE";
+        canvas.dataset.cvdBars = String(cvd.points.length);
+        canvas.dataset.cvdSides = cvd.sidesInferred ? "INFERRED" : "LABELLED";
+        try {
+          const paneIdx = cvdSeries.getPane().paneIndex();
+          let top = 0;
+          for (let i = 0; i < paneIdx; i++) top += (chart.paneSize(i)?.height ?? 0) + 1;
+          const text = tapeCvdCaption(cvd, sec => fmtTickMark(sec, 3));
+          ctx.save();
+          ctx.font = "700 9.5px ui-sans-serif, system-ui, sans-serif";
+          ctx.textAlign = "left"; ctx.textBaseline = "top";
+          ctx.fillStyle = cvd.refused ? "rgba(240,180,41,0.9)" : "rgba(200,192,174,0.85)";
+          ctx.fillText(text, 8, top + 4);
+          ctx.restore();
+        } catch { /* pane mid-rebuild: caption returns next frame */ }
+      } else {
+        canvas.dataset.cvdSource = "OFF";
+        delete canvas.dataset.cvdBars;
+        delete canvas.dataset.cvdSides;
+      }
     };
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom

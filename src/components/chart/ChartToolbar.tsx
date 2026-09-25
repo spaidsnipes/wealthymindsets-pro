@@ -469,6 +469,7 @@ const INDICATORS = [
   // ─── Order Flow ────────────────────────────────────────
   { cat:"Order Flow", name:"Supply/Demand Zones",     desc:"Boxes at confirmed swing highs (supply) and swing lows (demand) — price structure only, no side is read" },
   { cat:"Order Flow", name:"Stop Run Alert",          desc:"Failed breakout momentum reversal" },
+  { cat:"Order Flow", name:"Tape CVD",                desc:"Cumulative signed tape — only bars the tape was heard on, sides as the feed labelled them; hollow first bar, never candle colour" },
   // ─── Smart Money ──────────────────────────────────────
   { cat:"Smart Money", name:"Order Block Finder",    desc:"Institutional demand/supply zones" },
   { cat:"Smart Money", name:"Fair Value Gaps",       desc:"Imbalanced price inefficiency zones" },
