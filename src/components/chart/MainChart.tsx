@@ -6792,6 +6792,40 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         canvas.dataset.bigTradeBubbleStatus = "OFF";
       }
 
+      /* ── CANON F13 · MICRO: PER-BAR DELTA ON THE SAME CAMERA ────────────
+         At NEAR only (the zoom word's own count), each bar that holds CAPTURED
+         real tape prints its delta (buyer-initiated − seller-initiated) just
+         above the volume pane, signed, in the Appearance owner's delta inks.
+         A bar with no captured tape prints nothing — never an OHLC guess. */
+      try {
+        const vrD = chart.timeScale().getVisibleLogicalRange();
+        const nD = vrD ? Math.max(0, Math.floor(vrD.to) - Math.ceil(vrD.from) + 1) : null;
+        const depthD = semanticDensityForBarCount(nD).depth;
+        let printed = 0;
+        if (depthD === "NEAR") {
+          let axisHD = 28; try { const h = chart.timeScale().height(); if (Number.isFinite(h) && h > 0) axisHD = Math.ceil(h); } catch { /* default */ }
+          const yD = Math.max(20, H - axisHD) - 62; // above the session-tape pill
+          ctx.save();
+          ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+          for (const c of visibleBars) {
+            const sub = getBarSubProfile(c);
+            if (!sub) continue;
+            let buy = 0, sell = 0;
+            for (const r of sub) { buy += r.ask; sell += r.bid; }
+            if (buy + sell <= 0) continue;
+            const xr = chart.timeScale().timeToCoordinate(c.time as never);
+            if (xr == null) continue;
+            const dlt = buy - sell;
+            ctx.fillStyle = `rgba(${dlt >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
+            ctx.fillText(`${dlt >= 0 ? "+" : "−"}${fmtV(Math.abs(dlt))}`, +xr, yD);
+            printed++;
+          }
+          ctx.restore();
+        }
+        canvas.dataset.nearBarDelta = depthD === "NEAR" ? String(printed) : "NOT_NEAR";
+      } catch { /* camera mid-transition */ }
+
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
       ══════════════════════════════════════════════════════ */
