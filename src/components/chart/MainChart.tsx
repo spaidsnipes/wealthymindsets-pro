@@ -8175,10 +8175,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // at the foot of the plot — same numbers, nothing dropped.
               const sDepth = scaffoldingDepthRef.current;
               let compact = false;
+              let scaffoldBox: { x: number; y: number; w: number; h: number } | null = null;
               if (sDepth !== "OFF") {
                 const sx = cardsLeft, sy = 176;
                 const sw = sDepth === "FOUNDATION" ? 470 : 300;
                 const sh = 12 + (sDepth === "FOUNDATION" ? 250 : sDepth === "INTERMEDIATE" ? 234 : 266);
+                scaffoldBox = { x: sx, y: sy, w: sw, h: sh };
                 const need = 2 * cw + gap;
                 if (sx + sw + 12 + need <= W - 90) {
                   cardsLeft = sx + sw + 12;
@@ -8188,6 +8190,34 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   compact = true;
                 }
               }
+              // CANDLE PRESERVATION. The pair used to be placed by fixed
+              // coordinates alone; on the Founder's live BTC 1m camera
+              // (2026-09-24) it sat on roughly the left half of the candles it
+              // was describing. The market outranks its own commentary: the
+              // cards take a spot only where they cover no candle body or wick
+              // and no chip already painted this frame, else they fold into the
+              // two measured lines below — same numbers, nothing dropped.
+              let axisW = 90;
+              try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) axisW = Math.ceil(w0); } catch {}
+              const pairW = 2 * cw + gap;
+              const overlaps = (a: { x: number; y: number; w: number; h: number }, x: number, y: number, w: number, h: number) =>
+                a.x < x + w && a.x + a.w > x && a.y < y + h && a.y + a.h > y;
+              if (!compact) {
+                const rightX = W - axisW - 12 - pairW;
+                const upperY = layerOnRef.current.questionLens === true ? 176 : HEADER_FLOOR_Y + 8;
+                const spot = [
+                  { x: cardsLeft, y: cardsTop },
+                  { x: rightX, y: cardsTop },
+                  { x: cardsLeft, y: upperY },
+                  { x: rightX, y: upperY },
+                ].filter(s =>
+                  s.x >= cardsLeft && s.x + pairW <= W - axisW - 12 &&
+                  s.y >= HEADER_FLOOR_Y && s.y + ch <= H - 40 &&
+                  !(scaffoldBox && overlaps(scaffoldBox, s.x, s.y, pairW, ch)) &&
+                  !floatingChips.some(c => overlaps(c, s.x, s.y, pairW, ch)),
+                ).find(s => candleHits(s.x, s.y, pairW, ch) === 0);
+                if (spot) { cardsLeft = spot.x; cardsTop = spot.y; } else compact = true;
+              }
               if (compact) {
                 const lines = [cards.absorption, cards.exhaustion].map(c =>
                   c.empty
@@ -8195,7 +8225,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     : `${c.kind} · ${c.metrics.map(m => `${m.label.toLowerCase()} ${m.value}`).join(" · ")} · ${c.outcome}`);
                 ctx.font = font(700, 9);
                 const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 16;
-                const ly = H - 58;
+                const footY = H - 58;
+                const headY = layerOnRef.current.questionLens === true ? 160 : HEADER_FLOOR_Y + 8;
+                const ly = candleHits(cardsLeft, headY, lw, 34) < candleHits(cardsLeft, footY, lw, 34) ? headY : footY;
+                ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, 34));
                 ctx.fillStyle = "rgba(11,10,8,0.92)";
                 ctx.fillRect(cardsLeft, ly, lw, 34);
                 ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1;
@@ -8216,12 +8249,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // drawn unscaled, so they still land on their own candles.
               let cardK = 1;
               if (!compact && sDepth === "OFF" && W >= 1280 && H >= 820) {
-                let aw = 90;
-                try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) aw = Math.ceil(w0); } catch {}
-                cardK = Math.max(1, Math.min(1.28, (W - aw - 12 - cardsLeft) / (2 * cw + gap), (cardsTop + ch - 240) / ch));
+                cardK = Math.max(1, Math.min(1.28, (W - axisW - 12 - cardsLeft) / pairW, (cardsTop + ch - 240) / ch));
+                // Magnified cards grow up from the same floor; if the larger
+                // footprint would reach a candle, they stay at plate scale.
+                if (cardK > 1 && candleHits(cardsLeft, cardsTop + ch - ch * cardK, pairW * cardK, ch * cardK) > 0) cardK = 1;
               }
               if (cardK > 1) cardsTop = cardsTop + ch - ch * cardK;
               ds.anatomyCardsScale = cardK.toFixed(2);
+              if (!compact) ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, cardsTop, pairW * cardK, ch * cardK));
               if (!compact) [cards.absorption, cards.exhaustion].forEach((c, k) => {
                 // Scaled space: origin at (cardsLeft, cardsTop).
                 ctx.save();
@@ -8287,6 +8322,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.restore();
             } else {
               ds.anatomyCards = "OFF";
+              delete ds.anatomyCardsCandleHits;
             }
 
             /* ── QUESTION LENS — the plate's "Is buyer effort being absorbed?" ──
