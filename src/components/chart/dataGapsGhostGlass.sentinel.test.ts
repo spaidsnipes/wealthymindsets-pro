@@ -54,6 +54,17 @@ describe("data gap marks", () => {
   it("the receipt names the refusal instead of reporting an empty measurement", () => {
     expect(CHART).toMatch(/canvas\.dataset\.dataGaps = dg\.reason === "MEASURED" \? `\$\{dg\.gaps\.length\}:\$\{painted\}` : dg\.reason;/);
   });
+
+  it("FAR keeps every bridge but words only an outage of ≥ 3 intervals (H-501: FAR speaks macro)", () => {
+    const b = block();
+    const bridge = b.indexOf("ctx.lineTo(+x1 - 3, +y1); ctx.stroke();");
+    const quiet = b.indexOf('if (semanticDensity.depth === "FAR" && g.emptyIntervals < 3) continue;');
+    const words = b.indexOf("fillText(t, mx, my)");
+    expect(bridge).toBeGreaterThan(-1);
+    expect(quiet).toBeGreaterThan(bridge);
+    expect(words).toBeGreaterThan(quiet);
+    expect(CHART).toContain("canvas.dataset.dataGapsWorded = String(worded);");
+  });
 });
 
 describe("memory ghost candles", () => {

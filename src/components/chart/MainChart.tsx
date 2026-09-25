@@ -7608,7 +7608,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }),
         };
         const dg = dataGapsCache.vm;
-        let painted = 0;
+        let painted = 0, worded = 0;
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
         for (const g of dg.gaps) {
@@ -7617,17 +7617,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (x0 == null || x1 == null || y0 == null || y1 == null) continue;
           ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(237,230,211,0.7)"; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(+x0 + 3, +y0); ctx.lineTo(+x1 - 3, +y1); ctx.stroke(); ctx.setLineDash([]);
+          painted++;
+          // FAR speaks macro (H-501). A one- or two-interval hole keeps its
+          // dashed bridge — the fidelity fact stays on the glass — but its
+          // words and their opaque backing wait for MID/NEAR (serving, BTC 1m
+          // FAR: three "NO BAR · 1 interval" chips across the regime picture).
+          // An outage of ≥ 3 intervals is named at every depth.
+          if (semanticDensity.depth === "FAR" && g.emptyIntervals < 3) continue;
           const mx = (+x0 + +x1) / 2, my = Math.min(+y0, +y1) - 10;
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
           ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
           forceChips.push({ x: mx - tw / 2, y: my - 12, w: tw, h: 13 });
-          painted++;
+          worded++;
         }
         ctx.restore();
         // A chart that cannot tell a close from a hole says so, rather than "0:0".
         canvas.dataset.dataGaps = dg.reason === "MEASURED" ? `${dg.gaps.length}:${painted}` : dg.reason;
+        // How many bridges carried their words this frame (FAR withholds short holes' words).
+        canvas.dataset.dataGapsWorded = String(worded);
       } catch { /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════
