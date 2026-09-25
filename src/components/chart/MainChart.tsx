@@ -2030,6 +2030,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const deltaBubbleSpawnRef = useRef<Set<string>>(new Set());
   const bubbleIdRef    = useRef(0);
   const bubbleHoverRef = useRef<number | null>(null);     // hovered bubble id
+  /** Where the crosshair is on the pane (null off the chart) — read by marks
+   *  whose explanation is revealed on hover (delta divergence). */
+  const crosshairPointRef = useRef<{ x: number; y: number } | null>(null);
   // Big-Trades Pause / Refresh + max-visible controls (toolbar gear dropdown).
   const bubblePausedRef  = useRef<boolean>(
     typeof window !== "undefined" && localStorage.getItem("wm_bubble_paused") === "1"
@@ -3528,6 +3531,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // is it published.
         chart.subscribeCrosshairMove((param: any) => {
           if (!chartRef.current) return;
+          crosshairPointRef.current = param?.point && Number.isFinite(+param.point.x) && Number.isFinite(+param.point.y)
+            ? { x: +param.point.x, y: +param.point.y }
+            : null;
           if (!param || !param.time) {
             if (lastCursorKeyRef.current !== null) {
               lastCursorKeyRef.current = null;
@@ -11455,26 +11461,91 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // ── THE WORDS. The headline always; the engine's own sentence only
-            // when it found something; the aggressor-side disclosure whenever
-            // the venue did not assert the sides, because a chart has no fine
-            // print and cumulative delta is a claim about who initiated.
+            // ── THE WORDS — FL-06: "NO ESSAY DRAWER AS PRIMARY TRUTH".
+            // Serving BTC-USD 1m, 14:46 CDT: the headline and the engine's
+            // whole sentence printed at the upper left, over the candles at
+            // MID and straight across the docked scaffold card at NEAR — never
+            // placed, never yielding.
+            // AT REST only the compiler's compact tag is on the glass (finding,
+            // swing, and the side disclosure as one word — a chart has no fine
+            // print), placed strictly through the keep-out owner against every
+            // body under its rows and every chip already on the glass (the
+            // scaffold card registers itself there), and HELD when no spot is
+            // clear. The headline, the engine's own sentence and the full
+            // disclosure are revealed only while the trader points at the mark
+            // (the lane or its tag). Still no bar is claimed: the engine
+            // indexes pivots by segment, so everything stays in the lane.
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
             const topY = Math.min(yPrior, yRecent);
-            let ty = topY - 8 >= 10 ? topY - 8 : Math.min(H - 10, Math.max(yPrior, yRecent) + 12);
-            ctx.fillStyle = "#d4af37";
-            ctx.fillText(glass.label, laneL, ty);
-            if (glass.findingLabel) {
-              ty += 11;
-              ctx.fillStyle = "rgba(237,230,211,0.80)";
-              ctx.fillText(glass.findingLabel, laneL, ty);
+            const botY = Math.max(yPrior, yRecent);
+            let dvAxisW = 90;
+            try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) dvAxisW = Math.ceil(w0); } catch {}
+            const dvInPane = (r: { x: number; y: number; w: number; h: number }) =>
+              r.x >= 4 && r.x + r.w <= W - dvAxisW - 2 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom;
+            const dvTagH = 12;
+            const dvTagW = ctx.measureText(glass.tag).width + 6;
+            const dvTagSlots = [
+              { x: laneL, y: topY - 8 - dvTagH / 2, w: dvTagW, h: dvTagH },
+              { x: laneL, y: botY + 6, w: dvTagW, h: dvTagH },
+              { x: laneR + 6, y: yRecent - dvTagH / 2, w: dvTagW, h: dvTagH },
+              { x: laneL, y: topY - 22 - dvTagH / 2, w: dvTagW, h: dvTagH },
+            ].filter(dvInPane);
+            let dvTagRect: { x: number; y: number; w: number; h: number } | null = null;
+            if (dvTagSlots.length === 0) {
+              ds.deltaDivergenceTag = "HELD";
+            } else {
+              const dvTagSpot = placeClearOfKeepOut(
+                dvTagSlots[0]!,
+                [...keepOut(), ...rowBodiesAt(Math.min(...dvTagSlots.map(r => r.y)), Math.max(...dvTagSlots.map(r => r.y + r.h)))],
+                { minX: 4, blockers: floatingChips, strict: true, alternates: dvTagSlots.slice(1) },
+              );
+              if (dvTagSpot.mode === "BLOCKED") {
+                ds.deltaDivergenceTag = "HELD";
+              } else {
+                recordKeepOut(keepOutLedger, dvTagSpot);
+                dvTagRect = { ...dvTagSpot.rect };
+                floatingChips.push(dvTagRect);
+                ctx.save();
+                ctx.fillStyle = "#d4af37";
+                ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+                ctx.fillText(glass.tag, dvTagRect.x + 3, dvTagRect.y + dvTagH / 2 + 0.5);
+                ctx.restore();
+                ds.deltaDivergenceTag = dvTagSpot.mode === "CLEAR" ? "CLEAR" : "MOVED";
+              }
             }
-            if (glass.disclosure) {
-              ty += 11;
-              ctx.fillStyle = "rgba(237,230,211,0.55)";
-              ctx.fillText(glass.disclosure, laneL, ty);
+            // POINTING AT THE MARK reveals what it is about: the headline, the
+            // engine's own sentence (only when it found something), the full
+            // disclosure. Placed through the same owner; asked for, so it is
+            // painted even when every spot is taken, its backing yielding.
+            const hp = crosshairPointRef.current;
+            const dvHit = (r: { x: number; y: number; w: number; h: number } | null) =>
+              r != null && hp != null && hp.x >= r.x && hp.x <= r.x + r.w && hp.y >= r.y && hp.y <= r.y + r.h;
+            const dvLaneBox = { x: laneL - 4, y: topY - 6, w: laneR - laneL + 8, h: botY - topY + 12 };
+            if (dvHit(dvLaneBox) || dvHit(dvTagRect)) {
+              const dvLines = [glass.label, glass.findingLabel, glass.disclosure].filter((t): t is string => !!t);
+              const dvLw = Math.max(...dvLines.map(t => ctx.measureText(t).width)) + 12;
+              const dvLh = 4 + 11 * dvLines.length;
+              const dvBelow = { x: laneL, y: (dvTagRect ? dvTagRect.y + dvTagRect.h : botY + 6) + 2, w: dvLw, h: dvLh };
+              const dvAbove = { x: laneL, y: topY - 10 - dvLh, w: dvLw, h: dvLh };
+              const dvSpot = placeClearOfKeepOut(
+                dvBelow,
+                [...keepOut(), ...rowBodiesAt(Math.min(dvBelow.y, dvAbove.y), Math.max(dvBelow.y, dvAbove.y) + dvLh)],
+                { minX: 4, blockers: floatingChips, strict: true, alternates: [dvAbove] },
+              );
+              recordKeepOut(keepOutLedger, dvSpot);
+              const s = dvSpot.rect;
+              floatingChips.push({ ...s });
+              ctx.fillStyle = `rgba(14,12,8,${keepOutBackingAlpha(dvSpot, 0.9)})`;
+              ctx.fillRect(s.x, s.y, s.w, s.h);
+              dvLines.forEach((t, i) => {
+                ctx.fillStyle = i === 0 ? "#d4af37" : t === glass.disclosure ? "rgba(237,230,211,0.55)" : "rgba(237,230,211,0.80)";
+                ctx.fillText(t, s.x + 6, s.y + 2 + 11 * i + 5.5);
+              });
+              ds.deltaDivergenceWords = "SELECTED";
+            } else {
+              ds.deltaDivergenceWords = "AT_REST";
             }
             ctx.restore();
 
@@ -11483,8 +11554,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
         if (!painted) {
-          // A stale lean keeps asserting a swing that is no longer on screen.
+          // A stale lean keeps asserting a swing that is no longer on screen;
+          // the same for the words and the tag's placement.
           delete ds.deltaDivergenceLean;
+          delete ds.deltaDivergenceWords;
+          delete ds.deltaDivergenceTag;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 

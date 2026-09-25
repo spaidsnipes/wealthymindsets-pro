@@ -129,6 +129,21 @@ describe("a finding is announced only when one was found", () => {
   });
 });
 
+describe("the at-rest tag (FL-06: no essay on the glass)", () => {
+  it("is the finding and the swing, compact, with the side disclosure as one word", () => {
+    expect(selectDeltaDivergenceGlass(vm({ swingInSpread: 0.8 })).tag).toBe("Δ DID NOT FOLLOW · 0.8σ · INFERRED");
+    expect(selectDeltaDivergenceGlass(vm({ verdict: "CONFIRMED", swingInSpread: 1.4, requiresDisclosure: false })).tag).toBe("Δ FOLLOWED · 1.4σ");
+    expect(selectDeltaDivergenceGlass(vm({ swingInSpread: null })).tag).toContain("SWING UNMEASURED");
+  });
+
+  it("never carries the engine's sentence, and is empty when nothing is drawn", () => {
+    const g = selectDeltaDivergenceGlass(vm({ swingInSpread: 0.8 }));
+    expect(g.findingLabel).not.toBeNull();
+    expect(g.tag).not.toContain(g.findingLabel!);
+    expect(selectDeltaDivergenceGlass(vm({ verdict: "NO_SWING" })).tag).toBe("");
+  });
+});
+
 describe("the headline is the swing in the window's own spread", () => {
   it("prints the swing in sigma, the unit the whole family measures travel in", () => {
     expect(selectDeltaDivergenceGlass(vm({ swingInSpread: 1.4 })).label).toContain("1.4σ");

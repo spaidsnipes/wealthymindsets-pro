@@ -83,6 +83,14 @@ export interface DivergenceGlassVM {
   readonly timeKnown: boolean;
   /** The headline. Carries the swing in spreads, the honest scale. */
   readonly label: string;
+  /**
+   * The AT-REST words (canon FL-06: "NO ESSAY DRAWER AS PRIMARY TRUTH"): the
+   * finding and the swing, compact — "Δ DID NOT FOLLOW · 0.8σ" — with the
+   * aggressor-side disclosure kept as one word ("INFERRED"), because a chart
+   * has no fine print. The engine's sentence is not in it; that is revealed
+   * only when the trader points at the mark.
+   */
+  readonly tag: string;
   /** The finding, or null when there is none to announce. */
   readonly findingLabel: string | null;
   /**
@@ -103,6 +111,7 @@ function empty(reason: DivergenceGlassReason): DivergenceGlassVM {
     diverged: false,
     timeKnown: false,
     label: "",
+    tag: "",
     findingLabel: null,
     disclosure: null,
   };
@@ -159,6 +168,11 @@ export function selectDeltaDivergenceGlass(
     // place a mark with, and a mark at the wrong bar is a specific false claim.
     timeKnown: false,
     label: parts.join(" · "),
+    tag: [
+      `Δ ${diverged ? "DID NOT FOLLOW" : "FOLLOWED"}`,
+      num(vm.swingInSpread) ? `${Math.abs(vm.swingInSpread).toFixed(1)}σ` : "SWING UNMEASURED",
+      ...(vm.requiresDisclosure ? ["INFERRED"] : []),
+    ].join(" · "),
     // The engine's own sentence, unedited, and only when it found something.
     // CONFIRMED is silent — "the move was paid for" printed on the glass is a
     // safety claim the house did not earn and cannot withdraw in time.
