@@ -13,11 +13,21 @@
  *   MUTED     neither — the force bought no clear response
  *   PENDING   fewer than RESPONSE_BARS bars after the print so far
  *
+ * The yardstick (the median range) is taken from the YARDSTICK_BARS bars
+ * BEFORE the event bar and never from the bars after it. Bars after the print
+ * are the response being graded: letting them set the bar they are graded
+ * against widens the envelope exactly when the response was large, and grades
+ * one print differently depending on how much later history is loaded. The
+ * event bar itself is excluded because its range includes what happened after
+ * the print inside that bar. With no ranged bar before the print there is no
+ * yardstick, and the response is refused rather than called MUTED.
+ *
  * PURE. DETERMINISTIC.
  */
 
-export const PRINT_RESPONSE_VERSION = 1;
+export const PRINT_RESPONSE_VERSION = 2;
 export const RESPONSE_BARS = 3;
+export const YARDSTICK_BARS = 50;
 
 export interface ResponseBar { readonly time: number; readonly high: number; readonly low: number; readonly close: number }
 export interface PrintForce { readonly timeSec: number; readonly price: number; readonly side: "buy" | "sell" }
@@ -25,7 +35,7 @@ export interface PrintForce { readonly timeSec: number; readonly price: number; 
 export interface PrintResponseVM {
   readonly version: number;
   readonly drawn: boolean;
-  readonly reason: "DRAWN" | "NO_BARS" | "PRINT_OUTSIDE_BARS";
+  readonly reason: "DRAWN" | "NO_BARS" | "PRINT_OUTSIDE_BARS" | "NO_PRIOR_RANGE";
   readonly eventBarTime: number | null;
   readonly dir: 1 | -1;
   readonly responseBars: number;
@@ -52,8 +62,9 @@ export function selectPrintResponse(force: PrintForce | null | undefined, input:
   for (let i = 0; i < bars.length; i++) { if (bars[i].time <= force.timeSec) idx = i; else break; }
   if (idx < 0) return none("PRINT_OUTSIDE_BARS");
   const after = bars.slice(idx + 1, idx + 1 + RESPONSE_BARS);
-  const ranges = bars.map(b => b.high - b.low).filter(r => r > 0).sort((a, z) => a - z);
-  const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+  const ranges = bars.slice(Math.max(0, idx - YARDSTICK_BARS), idx).map(b => b.high - b.low).filter(r => r > 0).sort((a, z) => a - z);
+  if (!ranges.length) return none("NO_PRIOR_RANGE");
+  const med = ranges[Math.floor(ranges.length / 2)];
   let withF = 0, against = 0;
   for (const b of after) {
     withF = Math.max(withF, dir > 0 ? b.high - force.price : force.price - b.low);
@@ -62,8 +73,8 @@ export function selectPrintResponse(force: PrintForce | null | undefined, input:
   withF = Math.max(0, withF); against = Math.max(0, against);
   const verdict: PrintResponseVM["verdict"] = after.length < RESPONSE_BARS
     ? "PENDING"
-    : med > 0 && withF >= med && withF > against ? "FOLLOWED"
-    : med > 0 && against >= med && against > withF ? "FADED"
+    : withF >= med && withF > against ? "FOLLOWED"
+    : against >= med && against > withF ? "FADED"
     : "MUTED";
   return {
     version: PRINT_RESPONSE_VERSION, drawn: true, reason: "DRAWN", eventBarTime: bars[idx].time, dir,
