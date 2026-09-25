@@ -46,6 +46,9 @@ export interface VisibleRangeProfileVM {
   readonly barsInView: number;
   readonly from: number | null;
   readonly to: number | null;
+  /** The highest high / lowest low traded by the bars in view — where the viewfinder rails sit. */
+  readonly high: number | null;
+  readonly low: number | null;
   readonly rows: readonly VisibleRangeRow[];
   readonly poc: number | null;
   readonly vah: number | null;
@@ -55,7 +58,7 @@ export interface VisibleRangeProfileVM {
 
 const none = (reason: Exclude<VisibleRangeReason, "DRAWN">, barsInView = 0, from: number | null = null, to: number | null = null): VisibleRangeProfileVM => ({
   version: VISIBLE_RANGE_PROFILE_VERSION, drawn: false, reason, barsInView, from, to,
-  rows: [], poc: null, vah: null, val: null, quality: null,
+  high: null, low: null, rows: [], poc: null, vah: null, val: null, quality: null,
 });
 
 export function selectVisibleRangeProfile(
@@ -91,6 +94,8 @@ export function selectVisibleRangeProfile(
     barsInView: inView.length,
     from,
     to,
+    high: hi,
+    low: lo,
     rows: snap.rows.map(r => ({
       price: r.price,
       volume: r.total,

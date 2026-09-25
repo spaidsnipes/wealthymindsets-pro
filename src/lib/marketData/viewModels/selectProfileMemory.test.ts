@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import selectProfileMemory, { MAX_MEMORY_SESSIONS } from "./selectProfileMemory";
+import selectProfileMemory, { MAX_MEMORY_SESSIONS, RECENT_TEST_TIMES } from "./selectProfileMemory";
 import selectValueMigration from "./selectValueMigration";
 
 const bar = (time: number, low: number, high: number, volume = 100) => ({
@@ -65,5 +65,15 @@ describe("what it remembers", () => {
     // Day 1 trades the same range, so every day-1 bar tests it — and no
     // day-0 bar may count as a test of its own session's value.
     expect(poc.tests).toBe(10);
+  });
+
+  it("publishes the most recent test times for the glass — the same tests, newest kept, oldest first", () => {
+    const v = memory(days(2, () => 100));
+    const poc = v.levels.find(l => l.kind === "POC")!;
+    // Ten day-1 bars test it; the glass notches only the newest eight.
+    expect(poc.recentTestTimes).toHaveLength(RECENT_TEST_TIMES);
+    expect(poc.recentTestTimes).toEqual(Array.from({ length: 8 }, (_, i) => 100_000 + (i + 2) * 60));
+    const naked = memory(days(3, d => (d === 1 ? 102 : 100))).levels.find(l => l.kind === "POC" && l.sessionsAgo === 1)!;
+    expect(naked.recentTestTimes).toEqual([]);
   });
 });

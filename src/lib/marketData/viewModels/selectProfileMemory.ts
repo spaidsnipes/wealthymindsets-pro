@@ -29,6 +29,8 @@ import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import type { ValueMigrationVM } from "./selectValueMigration";
 
 export const PROFILE_MEMORY_VERSION = 1;
+/** How many of a level's most recent tests the glass notches (the full count is `tests`). */
+export const RECENT_TEST_TIMES = 8;
 /** Sessions remembered, newest first. Older value is lineage, not glass. */
 export const MAX_MEMORY_SESSIONS = 5;
 
@@ -48,6 +50,8 @@ export interface MemoryLevel {
   readonly naked: boolean;
   /** Time of the first later bar that traded through it, or null. */
   readonly firstTestAt: number | null;
+  /** Times of the most recent tests (at most RECENT_TEST_TIMES), oldest first — what the glass notches. */
+  readonly recentTestTimes: readonly number[];
 }
 
 export interface ProfileMemoryVM {
@@ -86,16 +90,19 @@ export function selectProfileMemory(
       const price = kind === "POC" ? f.poc : kind === "VAH" ? f.vah : f.val;
       let tests = 0;
       let firstTestAt: number | null = null;
+      const recentTestTimes: number[] = [];
       for (const b of sorted) {
         if (b.time <= f.time) continue;
         if (b.low <= price && b.high >= price) {
           tests++;
           if (firstTestAt === null) firstTestAt = b.time;
+          recentTestTimes.push(b.time);
+          if (recentTestTimes.length > RECENT_TEST_TIMES) recentTestTimes.shift();
         }
       }
       levels.push({
         kind, price, sessionsAgo: current - s, formedAt: f.time,
-        tests, naked: tests === 0, firstTestAt,
+        tests, naked: tests === 0, firstTestAt, recentTestTimes,
       });
     }
   }

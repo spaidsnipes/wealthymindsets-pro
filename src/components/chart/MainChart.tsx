@@ -164,6 +164,13 @@ const DATA_WINDOW_TOGGLE_PX = 22;
 const BASIS_CAPTION_X =
   PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + PANE_TOP_LEFT_INSET;
 
+/** Profile species geometry receipts: withdrawn each frame before the stack paints, re-published by whatever paints. */
+const PROFILE_GEOMETRY_RECEIPTS = [
+  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie",
+  "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
+  "visibleRangeGeometry", "profileFusionGeometry",
+] as const;
+
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionWall", "absorptionZones",
@@ -5445,6 +5452,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
      */
     let paintLedger = emptyPaintLedger(overlayFrameBudgetMs(fixedVPActive || sessionVPActive));
     let sessionBarsCache: { source: LegacyOhlcvTuple[]; key: string; bars: LegacyOhlcvTuple[] } | null = null;
+    // Session ghost profiles change only when the bars do; the paint runs ~30×/s.
+    let ghostCache: { source: LegacyOhlcvTuple[]; vm: ReturnType<typeof selectSessionGhostProfiles> } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -10341,6 +10350,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         });
         if (stackOrder.length > 0) ds.profileStackLeft = String(stackPlan.stackLeft);
         else delete ds.profileStackLeft;
+        // Every profile species' geometry receipt is withdrawn here and
+        // re-published below only by a layer that actually paints this frame —
+        // so an OFF, NO_ROOM or FAR layer cannot leave a receipt describing
+        // geometry that is no longer on the glass.
+        for (const k of PROFILE_GEOMETRY_RECEIPTS) delete ds[k];
         ds.profileStackLanes = stackOrder.join(",");
         // The ONE label column. A label that would land on another steps down
         // a line, so agreeing levels (LIVING POC / CMP POC) never overprint.
@@ -10510,12 +10524,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // GREY silhouettes at their own prices (bar-distributed — the
             // tape of a finished session is gone; the receipt says so).
             if (layerOnRef.current.profileMemory && livingDepth !== "FAR") {
-              const gvm = selectSessionGhostProfiles(barsRef.current ?? []);
+              const ghostSrc = barsRef.current ?? [];
+              if (ghostCache?.source !== ghostSrc) ghostCache = { source: ghostSrc, vm: selectSessionGhostProfiles(ghostSrc) };
+              const gvm = ghostCache.vm;
               ds.sessionGhosts = gvm.drawn ? `${gvm.ghosts.map(g => `-${g.sessionsAgo}`).join(",")}:${gvm.fidelity}` : gvm.reason;
               for (const g of [...gvm.ghosts].reverse()) {
                 const k = g.sessionsAgo;
                 const gRight = rightEdge - histMax * (k === 1 ? 0.38 : 0.66);
-                const gW = histMax * (k === 1 ? 0.72 : 0.6);
+                // Never wider than the Living lane leaves room for: a ghost that
+                // ran past it would print into the neighbour lane or the candles.
+                const gW = Math.min(histMax * (k === 1 ? 0.72 : 0.6), gRight - (rightEdge - histMax));
                 const ys = g.rows.map(r => srs.priceToCoordinate(r.price));
                 const pitch = ys.length >= 2 && ys[0] != null && ys[1] != null ? Math.abs(+ys[0] - +ys[1]) : 2;
                 const rh = Math.max(1, Math.ceil(pitch));
@@ -10613,14 +10631,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.lineTo(rightEdge + 2, y);
               ctx.stroke();
             };
-            // The silhouette's edge, traced once through the row tips.
+            // The silhouette's edge, traced through the row tips ONE CONTIGUOUS
+            // RUN AT A TIME. An untraded bucket is not drawn, so a gap between
+            // rows is a price where nothing traded; one continuous edge across
+            // it would draw a shape there. Each run closes back to the lane.
             if (silhouette.length >= 3) {
               const pts = [...silhouette].sort((a, z) => a.y - z.y);
-              ctx.beginPath(); ctx.moveTo(rightEdge, pts[0].y);
-              for (const q of pts) ctx.lineTo(q.x, q.y);
+              const gapPx = Math.max(2, rowH) * 1.5 + 1;
+              ctx.beginPath();
+              let runs = 0;
+              for (let i = 0; i < pts.length; i++) {
+                const q = pts[i];
+                const startsRun = i === 0 || q.y - pts[i - 1].y > gapPx;
+                if (startsRun) {
+                  if (i > 0) ctx.lineTo(rightEdge, pts[i - 1].y);
+                  ctx.moveTo(rightEdge, q.y);
+                  runs++;
+                }
+                ctx.lineTo(q.x, q.y);
+              }
               ctx.lineTo(rightEdge, pts[pts.length - 1].y);
               ctx.strokeStyle = "rgba(233,196,106,0.85)"; ctx.lineWidth = 1.2; ctx.stroke();
-              ds.livingProfileForm = "SILHOUETTE";
+              ds.livingProfileForm = `SILHOUETTE:${runs}`;
+            } else if (livingDepth === "FAR") {
+              ds.livingProfileForm = "SKELETON";
+            } else {
+              delete ds.livingProfileForm;
             }
             drawRef(lp.poc, "rgba(201,165,92,0.90)", false);
             // Canon: VAH/VAL are solid gold lines, not ivory dashes.
@@ -10650,7 +10686,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               hollow ivory ring (size absent).
             */
             let drawnMarks = 0;
-            for (const m of lp.marks) {
+            // At FAR the rows are withheld (skeleton only), so marks placed at
+            // row tips would imply lengths the FAR form deliberately hides.
+            for (const m of (livingDepth === "FAR" ? [] : lp.marks)) {
               const yr = srs.priceToCoordinate(m.price);
               if (yr == null) continue;
               const y = Math.round(+yr) + 0.5;
@@ -10804,7 +10842,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // from each tick. N sessions → one profile, without the word.
               {
                 const tsC = chart.timeScale();
-                const yB = Math.round(H * 0.72) + 0.5;
+                // At the FOOT OF THE CANDLE PANE, measured — not a fraction of
+                // the container, which includes the time axis and any stacked
+                // indicator panes and put this line through the candle field
+                // where it read as a support level.
+                let paneFoot = H - 28;
+                try { const ph = chart.panes()[0]?.getHeight(); if (Number.isFinite(ph) && (ph as number) > 40) paneFoot = ph as number; } catch { /* keep default */ }
+                const yB = Math.round(paneFoot - 6) + 0.5;
                 const xs = cp.sessionStarts.map(t => tsC.timeToCoordinate(t as never)).filter((x): x is NonNullable<typeof x> => x != null).map(Number);
                 const laneLeft = right - lane.width;
                 const x0c = xs.length ? Math.max(2, xs[0]) : 2;
@@ -10904,7 +10948,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // corners at the camera's first bar and at the profile, joined by
             // rails along the range's high and low. Pan and they move with it.
             {
-              const hiP = Math.max(...vrpVM.rows.map(r => r.price)), loP = Math.min(...vrpVM.rows.map(r => r.price));
+              // The rails are the camera's traded extremes, not the row keys
+              // (bucket floors), which sat up to a tick under the top wick.
+              const hiP = vrpVM.high ?? Math.max(...vrpVM.rows.map(r => r.price)), loP = vrpVM.low ?? Math.min(...vrpVM.rows.map(r => r.price));
               const yH = srs.priceToCoordinate(hiP), yL = srs.priceToCoordinate(loP);
               const xF = vrpVM.from != null ? chart.timeScale().timeToCoordinate(vrpVM.from as never) : null;
               if (yH != null && yL != null) {
@@ -11025,19 +11071,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.lineWidth = 1;
               // THE DERIVED BODY: a filled object in its own right (value area
               // denser), outlined — not a tint laid over the parents.
+              // The derived object answers to the same governors as every
+              // profile (magnet light, semantic density), so it can never be
+              // louder than the candles it sits beside.
+              const fuseA = magnetLight * semanticDensity.mid;
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
                 if (y0 == null || y1 == null) continue;
                 const h = Math.max(1, Math.abs(+y1 - +y0) - 1);
                 const w = (r.volume / maxV) * spanW;
                 const inVa = r.price >= f.val && r.price < f.vah;
-                ctx.globalAlpha = 1;
+                ctx.globalAlpha = fuseA;
                 ctx.fillStyle = `rgba(${FU},${inVa ? 0.2 : 0.07})`; // candles stay dominant
                 ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);
-                ctx.globalAlpha = inVa ? 0.95 : 0.55;
+                ctx.globalAlpha = fuseA * (inVa ? 0.95 : 0.55);
                 ctx.strokeRect(spanR - w + 0.5, Math.min(+y0, +y1) + 0.5, w - 1, h);
               }
-              ctx.globalAlpha = 1;
+              ctx.globalAlpha = fuseA;
               // PARENT A + PARENT B → DERIVED. Each parent's OWN POC (hollow
               // ring, at its own lane) sends a tributary that converges on the
               // fused POC (filled diamond). The shape says "made from these
@@ -11045,7 +11095,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               {
                 const yF = srs.priceToCoordinate(f.poc);
                 if (yF != null) {
-                  const cx = spanL - 16, cy = +yF;
+                  // On the derived body itself (its POC row is its widest, so
+                  // the tip sits at spanL) — never in the label column, where
+                  // the FUSED POC label's backing is painted over it.
+                  const cx = spanL + 8, cy = +yF;
                   pair.forEach(sp => {
                     const src = source(sp);
                     const ln = stackPlan.lanes[sp];
@@ -11145,11 +11198,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // letters themselves. Rows too thin for type become one block per
             // letter. POC row brass, value area parchment, outside quieter.
             const maxLetters = Math.max(1, ...tpo.rows.map(r => r.letters.length));
-            const cellW = Math.max(3, Math.min(8, Math.floor(colMax / Math.max(1, maxLetters))));
-            const asText = rowH >= 7;
-            ds.tpoGeometry = `${asText ? "LETTERS" : "BLOCKS"}:${maxLetters}:${tpo.barsPerLetter}BPL`;
+            // A row never runs past the column: the cell is the column divided
+            // by the busiest row, not a floor that let 26 letters × 3px spill
+            // into the TPO labels on a phone.
+            const cellW = Math.min(8, colMax / maxLetters);
             ctx.font = `700 ${Math.min(10, rowH)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+            // Letters only where a glyph fits its own cell; otherwise blocks.
+            const asText = rowH >= 7 && cellW >= ctx.measureText("M").width;
+            // Brightness runs early → late across THIS window's brackets (the
+            // newest one is full weight even when there are fewer than 26).
+            const lastL = Math.max(1, ...tpo.rows.map(r => r.letters.length ? r.letters.charCodeAt(r.letters.length - 1) - 65 : 0));
+            ds.tpoGeometry = `${asText ? "LETTERS" : "BLOCKS"}:${maxLetters}:${tpo.barsPerLetter}BPL`;
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            const inkCache = new Map<string, string>();
+            const ink = (rgb: string, a: number) => {
+              const key = `${rgb}|${a.toFixed(2)}`;
+              let v = inkCache.get(key);
+              if (!v) { v = `rgba(${rgb},${a.toFixed(2)})`; inkCache.set(key, v); }
+              return v;
+            };
             for (const r of tpo.rows) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
@@ -11157,18 +11224,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const h = Math.max(1, rowH - 1);
               const rgb = r.isPoc ? "201,165,92" : r.insideValueArea ? "237,230,211" : "194,184,146";
               const base = r.isPoc ? 1 : r.insideValueArea ? 0.9 : 0.55;
-              [...r.letters].forEach((ch, k) => {
-                const L = ch.charCodeAt(0) - 65;
-                const a = base * (0.35 + 0.65 * (L / 25));
+              for (let k = 0; k < r.letters.length; k++) {
+                const L = r.letters.charCodeAt(k) - 65;
+                const late = Math.min(1, L / lastL);
                 const x = leftEdge + k * cellW;
                 if (asText) {
-                  ctx.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
-                  ctx.fillText(ch, x, y + h / 2 + 0.5);
+                  ctx.fillStyle = ink(rgb, base * (0.35 + 0.65 * late));
+                  ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);
                 } else {
-                  ctx.fillStyle = `rgba(${rgb},${(a * 0.8).toFixed(3)})`;
-                  ctx.fillRect(x, y, cellW - 1, h);
+                  // Blocks sit over the oldest candles at the left edge, so
+                  // they stay a tint (≤ 0.25), the way the old row fills did.
+                  ctx.fillStyle = ink(rgb, base * (0.08 + 0.17 * late));
+                  ctx.fillRect(x, y, Math.max(0.5, cellW - (cellW >= 3 ? 1 : 0)), h);
                 }
-              });
+              }
               drawnRows++;
               // SINGLE PRINT — the auction passed through once and never
               // returned. A short brass tick OUTSIDE the column, so it reads
@@ -11324,12 +11393,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (low) { ctx.moveTo(x0, gy - 4); ctx.lineTo(x0 + 5, gy + 4); ctx.lineTo(x0 - 5, gy + 4); }
                 else { ctx.moveTo(x0, gy + 4); ctx.lineTo(x0 + 5, gy - 4); ctx.lineTo(x0 - 5, gy - 4); }
                 ctx.closePath(); ctx.fill();
-                if (histX > x0 + 8) {
+                // histX is at most x0 + 2, so the histogram can only be pinned
+                // LEFT of its swing (when the swing sits near the stack). That is
+                // when a tether is needed: from the glyph back to the spine.
+                let tethered = false;
+                if (x0 - histX > 8) {
                   const yT = Math.min(Math.max(yA, top), bot);
                   ctx.strokeStyle = "rgba(201,165,92,0.6)";
-                  ctx.beginPath(); ctx.moveTo(x0 + 6, yA + 0.5); ctx.lineTo(histX - 6, yT + 0.5); ctx.lineTo(histX - 0.5, yT + 0.5); ctx.stroke();
+                  ctx.beginPath(); ctx.moveTo(x0 - 6, yA + 0.5); ctx.lineTo(histX + 6, yT + 0.5); ctx.lineTo(histX - 0.5, yT + 0.5); ctx.stroke();
+                  tethered = true;
                 }
-                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}+TETHER+TERRITORY`;
+                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}${tethered ? "+TETHER" : ""}+TERRITORY`;
               }
             }
 
@@ -11486,7 +11560,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = `rgba(201,165,92,${Math.max(0.02, 0.07 - (ago - 1) * 0.015)})`;
               ctx.fillRect(x0, Math.min(+yh, +yl), endX - x0, Math.abs(+yl - +yh));
             }
-            const memBars = barsRef.current ?? [];
             let notches = 0;
             for (const l of mem.levels) {
               if (l.kind !== "POC") continue;
@@ -11509,8 +11582,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.strokeStyle = "rgba(237,230,211,0.75)"; ctx.lineWidth = 1;
               // Memory stays QUIET (visibility governor): the 8 most recent
               // tests leave notches; the exact count stays in the label.
-              const testTimes = memBars.map(b => Number(b.time)).filter((t, i) => t > l.formedAt && memBars[i].low <= l.price && memBars[i].high >= l.price).slice(-8);
-              for (const t of testTimes) {
+              for (const t of l.recentTestTimes) {
                 const xb = ts.timeToCoordinate(t as any);
                 if (xb == null || +xb > endX) continue;
                 ctx.beginPath(); ctx.moveTo(Math.round(+xb) + 0.5, y - thick - 2); ctx.lineTo(Math.round(+xb) + 0.5, y + thick + 2); ctx.stroke();
@@ -11572,8 +11644,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            CURRENT session's development is drawn on its candles from the same
            owner: the developing value area as a faint ribbon — its widening,
            narrowing and drift ARE expansion, contraction, translation — and
-           the developing POC as a thin brass trail ending in a "now" dot tied
-           to the histogram's POC. Candle-estimated, same as the histogram. */
+           the developing POC as a thin brass trail ending in a "now" dot.
+           The trail is per SESSION; the histogram beside it may cover every
+           loaded bar or the tape, on another grid — so the "now" dot is tied
+           to the histogram's POC only when the two agree on the level. A
+           tether between two different POCs would draw a relationship that
+           no owner computed. */
         {
           const vmL = valueMigrationRef.current;
           const lp = livingProfileRef.current;
@@ -11601,7 +11677,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.beginPath(); ctx.arc(lastX, lastY, 3, 0, Math.PI * 2); ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.fill();
               const pocY = srs.priceToCoordinate(lp.poc);
               const laneL = stackPlan.lanes.LIVING ?? soloLane(W);
-              if (pocY != null) {
+              if (pocY != null && Math.abs(+pocY - lastY) <= 4) {
                 ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(201,165,92,0.45)"; ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(lastX + 4, lastY); ctx.lineTo(laneL.right - laneL.width, +pocY); ctx.stroke(); ctx.setLineDash([]);
               }
