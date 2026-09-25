@@ -2269,6 +2269,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    */
   const [barRefusal, setBarRefusal] = useState<BarHistoryRefusalVM | null>(null);
   const lastTickAtRef = useRef<number>(0);
+  // The ONE feed verdict (candleDataStatus, below) as the attention governor
+  // reads it: STALE demotes the present to the STALE ceiling; LIVE is LIVE;
+  // anything else (delayed, closed, awaiting) is not a claim about freshness.
+  const feedStateRef = useRef<"LIVE" | "STALE" | null>(null);
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
   // Delta Bubble level cap. The legal values, the key, the event name and the
@@ -5826,7 +5830,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         regimeLight: layerOnRef.current.regimeLighting === true ? regimeLightingRef.current : null,
         stackPrefs: stackPrefsRef.current,
         fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? []) : [],
-        feedState: null,
+        feedState: feedStateRef.current,
         selection: attSelection,
       });
       canvas.dataset.attentionSelection = att.selectionReceipt;
@@ -14554,6 +14558,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // trip into the function.
     candleSource !== "",
   );
+
+  // The same verdict, handed to the canvas's attention governor (read per frame).
+  feedStateRef.current = candleStatus.state === "STALE" ? "STALE" : candleStatus.state === "LIVE" ? "LIVE" : null;
 
   /* The countdown's wording AND its claim about the feed, from one owner.
      AWAITING is not a reading — there is no certified tape, so the number

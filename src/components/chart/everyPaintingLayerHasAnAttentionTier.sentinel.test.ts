@@ -115,4 +115,10 @@ describe("every painting layer has an attention tier", () => {
       expect(CHART, key).toContain(`ctx.globalAlpha = att.alpha("${key}");`);
     }
   });
+
+  it("(f) the governor hears the ONE feed verdict — a stale tape demotes the present", () => {
+    expect(CHART).toContain("feedState: feedStateRef.current,");
+    expect(CHART).not.toContain("feedState: null,");
+    expect(CHART).toMatch(/feedStateRef\.current = candleStatus\.state === "STALE" \? "STALE" : candleStatus\.state === "LIVE" \? "LIVE" : null;/);
+  });
 });
