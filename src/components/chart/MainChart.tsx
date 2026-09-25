@@ -4162,13 +4162,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
     // ── Volume indicators ─────────────────────────────────────
     if (inds.has("OBV"))              { setupScale("obv"); addOsc(IND.obv(bars), "#F97316", "obv"); }
-    // CVD: cumulative delta is unbounded and drifts far from 0 on long/24h
-    // series (BTC etc.). A constant refLine(0) would force 0 into the pane's
-    // autoscale range every frame, pinning the candles to one edge. Rebase the
-    // series to its visible-window start so 0 is meaningful, and let the candles
-    // autoscale to their own range — no forced reference line.
-    if (inds.has("CVD"))              { setupScale("cvd"); addCumCandles(IND.cvd(bars), "cvd"); refLine(0, "cvd", "rgba(255,255,255,0.22)"); }
-    if (inds.has("CVD Oscillator"))   { setupScale("cvdosc"); addOsc(IND.cvdOscillator(bars), "#F0B429", "cvdosc"); refLine(0, "cvdosc", "rgba(255,255,255,0.1)"); }
     if (inds.has("MFI") || inds.has("Money Flow Index")) {
       setupScale("mfi", 0.78);
       addOsc(IND.mfi(bars), "#10B981", "mfi");
@@ -4238,175 +4231,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       addLine(pdhl.high, "rgba(139,92,246,0.5)", 1, 2); addLine(pdhl.low, "rgba(139,92,246,0.5)", 1, 2);
     }
 
-    // ── Speed of Tape (tape aggression velocity) ──────────────
-    // Measures ask−bid ratio per bar as a fast/slow proxy for HFT tape speed.
-    // Green bars = aggressive buying tape, purple = aggressive selling tape.
-    if (inds.has("Speed of Tape")) {
-      setupScale("sot", 0.75);
-      const sotCompute = (bs: LegacyOhlcvTuple[]) => {
-        const bodies = bs.map(b => Math.abs(b.close - b.open)).filter(r => r > 0).sort((a, b) => a - b);
-        const scale = Math.max(bodies.length ? bodies[Math.floor(bodies.length / 2)] : 1, 1e-9);
-        return bs.map(b => 100 * Math.tanh(((b.close - b.open) / scale) * 0.75));
-      };
-      const normalized = sotCompute(bars);
-      const s = addOscHist(normalized, normalized.map(v => v >= 0 ? "rgba(0,229,204,0.75)" : "rgba(123,108,247,0.75)"), "sot");
-      refLine(0, "sot", "rgba(255,255,255,0.10)");
-      regLive(s, (bs) => { const a = sotCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(0,229,204,0.75)" : "rgba(123,108,247,0.75)" } : null; });
-    }
-
-    // ── Absorption Detector ────────────────────────────────────
-    // Detects when price has high volume but tiny range — large orders
-    // absorbing the opposing side. Shown as a histogram where high = strong absorption.
-    if (inds.has("Absorption Detector")) {
-      setupScale("abs", 0.75);
-      const absCompute = (bs: LegacyOhlcvTuple[]) => {
-        const avgVol = bs.reduce((s, b) => s + b.volume, 0) / Math.max(1, bs.length);
-        return bs.map(b => {
-          const range = b.high - b.low;
-          if (range === 0) return 0;
-          const volRatio = b.volume / Math.max(1, avgVol);
-          const priceDev = range / Math.max(0.01, b.close * 0.001);
-          const score = volRatio / Math.max(1, priceDev);
-          return Math.min(100, score * 30);
-        });
-      };
-      const absVals = absCompute(bars);
-      const absColor = (b: LegacyOhlcvTuple, v: number) => v > 50 ? (b.close >= b.open ? "rgba(0,229,204,0.85)" : "rgba(123,108,247,0.85)") : "rgba(100,120,160,0.35)";
-      const s = addOscHist(absVals, bars.map((b, i) => absColor(b, absVals[i])), "abs");
-      refLine(50, "abs", "rgba(240,180,41,0.30)");
-      regLive(s, (bs) => { const a = absCompute(bs); const v = a[a.length - 1]; const b = bs[bs.length - 1]; return (isFinite(v) && b) ? { value: v, color: absColor(b, v) } : null; });
-    }
-
-    // ── Delta Bars (order flow coloring via existing footprint) ─
-    if (inds.has("Delta Bars")) {
-      setupScale("deltabars", 0.75);
-      const dbCompute = (bs: LegacyOhlcvTuple[]) => {
-        const deltas = bs.map(b => {
-          const dir = b.close >= b.open ? 1 : -1;
-          return b.volume * dir * (Math.abs(b.close - b.open) / Math.max(0.01, b.high - b.low));
-        });
-        const absMaxD = Math.max(...deltas.map(Math.abs), 1);
-        return deltas.map(v => (v / absMaxD) * 100);
-      };
-      const norm = dbCompute(bars);
-      const s = addOscHist(norm, norm.map(v => v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)"), "deltabars");
-      refLine(0, "deltabars", "rgba(255,255,255,0.10)");
-      regLive(s, (bs) => { const a = dbCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)" } : null; });
-    }
-
     // ── Volume Histogram ─────────────────────────────────────
     if (inds.has("Volume")) {
       setupScale("vol_hist", 0.80);
       const volVals = bars.map(b => b.volume);
       const s = addOscHist(volVals, bars.map(b => b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)"), "vol_hist");
       regLive(s, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.volume, color: b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)" } : null; });
-    }
-
-    // ── Volume Delta (alias to Delta Bars) ───────────────────
-    if (inds.has("Volume Delta")) {
-      setupScale("voldelta", 0.75);
-      const vdCompute = (bs: LegacyOhlcvTuple[]) => {
-        // Net buying/selling pressure. The feed streams PRICE, not per-tick volume,
-        // so the forming bar's volume is static — a pure volume metric freezes.
-        // Drive the live magnitude from bar-to-bar price velocity (moves every tick),
-        // signed by direction, and weight by relative volume so genuine high-volume
-        // moves read stronger. Bounded via tanh so it can never pin.
-        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
-        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
-        // p85 scale (not median): a median scale saturates because half of all
-        // moves exceed it; p85 keeps typical live swings inside tanh's linear region.
-        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
-        return deltas.map(d => 100 * Math.tanh((d / scale) * 0.9));
-      };
-      const norm = vdCompute(bars);
-      const s = addOscHist(norm, norm.map(v => v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)"), "voldelta");
-      refLine(0, "voldelta", "rgba(255,255,255,0.10)");
-      regLive(s, (bs) => { const a = vdCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)" } : null; });
-    }
-
-    // ── Trade Flow (directional volume flow) ─────────────────
-    if (inds.has("Trade Flow")) {
-      setupScale("tradeflow", 0.75);
-      const tfCompute = (bs: LegacyOhlcvTuple[]) => {
-        // Directional flow: sign from the bar body (close vs open), magnitude from
-        // bar-to-bar price velocity (live-responsive), volume-weighted. Bounded.
-        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
-        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
-        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
-        return bs.map((b, i) => {
-          const dir = b.close >= b.open ? 1 : -1;
-          return 100 * Math.tanh((Math.abs(deltas[i]) / scale) * 0.9) * dir;
-        });
-      };
-      const normFlow = tfCompute(bars);
-      const s = addOscHist(normFlow, normFlow.map(v => v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)"), "tradeflow");
-      refLine(0, "tradeflow", "rgba(255,255,255,0.10)");
-      regLive(s, (bs) => { const a = tfCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)" } : null; });
-    }
-
-    // ── Tape Speed (alias to Speed of Tape calculation) ──────
-    if (inds.has("Tape Speed")) {
-      setupScale("tapespeed", 0.75);
-      // Price-velocity tape speed: driven by the live bar's body (close−open),
-      // scaled by the MEDIAN bar range (stable — a freshly-formed bar with a tiny
-      // range can no longer saturate the scale), lightly weighted by volume.
-      const tsCompute = (bs: LegacyOhlcvTuple[]) => {
-        // Tape speed = rate of price change bar-to-bar (bounded, moves every tick,
-        // never pins like an unbounded forming-bar body would).
-        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
-        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
-        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
-        return deltas.map(d => 100 * Math.tanh((d / scale) * 0.9));
-      };
-      const normT = tsCompute(bars);
-      const s = addOscHist(normT, normT.map(v => v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)"), "tapespeed");
-      refLine(0, "tapespeed", "rgba(255,255,255,0.10)");
-      regLive(s, (bs) => { const a = tsCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)" } : null; });
-    }
-
-    // ── Buy/Sell Volume Columns ──────────────────────────────
-    if (inds.has("Buy/Sell Volume Columns")) {
-      setupScale("bsvol", 0.80);
-      const buyVol  = bars.map(b => b.close >= b.open ? b.volume : 0);
-      const sellVol = bars.map(b => b.close < b.open ? -b.volume : 0);
-      const sb = addOscHist(buyVol, "rgba(0,229,204,0.65)", "bsvol");
-      const ss = addOscHist(sellVol, "rgba(206,147,216,0.65)", "bsvol");
-      refLine(0, "bsvol", "rgba(255,255,255,0.10)");
-      regLive(sb, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.close >= b.open ? b.volume : 0 } : null; });
-      regLive(ss, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.close < b.open ? -b.volume : 0 } : null; });
-    }
-
-    // ── Exhaustion Detector ──────────────────────────────────
-    // High volume + small price move = buying/selling exhaustion
-    if (inds.has("Exhaustion Detector")) {
-      setupScale("exhaust", 0.78);
-      const exCompute = (bs: LegacyOhlcvTuple[]) => {
-        // The feed streams PRICE, not per-tick volume, so a volume-vs-move ratio
-        // freezes on the forming bar. Derive exhaustion from PRICE ACTION instead:
-        // a strong recent trend (momentum over the last N bars) whose latest bar
-        // velocity has collapsed = the move is running out of steam. Signed by the
-        // trend direction so up-exhaustion vs down-exhaustion is distinguishable.
-        const N = 8;
-        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
-        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
-        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
-        return bs.map((b, i) => {
-          if (i < N) return 0;
-          const window = bs.slice(i - N, i + 1);
-          const trend = window[window.length - 1].close - window[0].close; // net move
-          const trendMag = Math.min(1, Math.abs(trend) / (scale * N)); // 0..1 strength
-          const curVel = Math.abs(deltas[i]) / scale;                   // latest velocity
-          // Exhaustion rises when the trend was strong but current velocity is low.
-          const score = trendMag * Math.max(0, 1 - Math.min(1, curVel));
-          const dir = trend >= 0 ? 1 : -1;
-          return 100 * Math.tanh(score * 2.0) * dir;
-        });
-      };
-      const exVals = exCompute(bars);
-      const exColor = (_b: LegacyOhlcvTuple, v: number) => Math.abs(v) > 5 ? (v >= 0 ? "rgba(0,229,204,0.80)" : "rgba(206,147,216,0.80)") : "rgba(100,100,120,0.20)";
-      const s = addOscHist(exVals, bars.map((b, i) => exColor(b, exVals[i])), "exhaust");
-      refLine(30, "exhaust", "rgba(240,180,41,0.25)");
-      regLive(s, (bs) => { const a = exCompute(bs); const v = a[a.length - 1]; const b = bs[bs.length - 1]; return (isFinite(v) && b) ? { value: v, color: exColor(b, v) } : null; });
     }
 
     // ── Stop Run Alert (price breach then reversal) ───────────
@@ -4518,10 +4348,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Collect all patterns into a single markers array then apply once
     {
       const patternMarkers: { time: any; position: "aboveBar" | "belowBar"; color: string; shape: "circle" | "arrowUp" | "arrowDown"; text: string; size: number }[] = [];
-      // Large Trade Filter threshold: 2.5× the average bar volume across loaded bars.
-      const volsForThresh = bars.map(b => b.volume || 0).filter(v => v > 0);
-      const avgVolForThresh = volsForThresh.length ? volsForThresh.reduce((s, v) => s + v, 0) / volsForThresh.length : 0;
-      const largeVolThresh = avgVolForThresh * 2.5;
       bars.forEach((b, i) => {
         const range = b.high - b.low;
         const body  = Math.abs(b.close - b.open);
@@ -4615,13 +4441,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
-        // Large Trade Filter — flag bars whose volume ≥ largeVolThresh (2.5× the
-        // rolling-20 average), the "print only large trades" view. Dot sized by how
-        // far above threshold the bar traded.
-        if (inds.has("Large Trade Filter") && b.volume && largeVolThresh > 0 && b.volume >= largeVolThresh) {
-          const mult = Math.min(1.4, 0.7 + (b.volume / largeVolThresh - 2.5) * 0.15);
-          patternMarkers.push({ time: b.time as any, position: up ? "belowBar" : "aboveBar", color: up ? "#2563EB" : "#6A0DAD", shape: "circle", text: "L", size: Math.max(0.7, mult) });
-        }
       });
       // v5: markers live on a plugin (createSeriesMarkers), not ISeriesApi.setMarkers.
       // Create the plugin once per series, then update it — and clear (empty array)

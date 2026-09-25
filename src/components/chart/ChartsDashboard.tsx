@@ -456,7 +456,7 @@ const DEFAULT_STRATEGIES: Strategy[] = [
     indicators: ["VWAP", "Bollinger Bands", "Pivot Points Standard", "Volume"],
     alerts: ["Price at POI", "Liquidity grab"] },
   { id: "orderflow", name: "Order Flow Setup", color: "#00D4AA",
-    indicators: ["VWAP", "Volume", "Delta Divergence", "CVD"],
+    indicators: ["VWAP", "Volume", "Delta Divergence"],
     alerts: ["Large delta spike", "Absorption detected"] },
 ];
 export type CandleType =
