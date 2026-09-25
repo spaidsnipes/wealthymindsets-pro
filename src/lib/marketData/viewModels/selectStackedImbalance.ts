@@ -103,6 +103,13 @@ export interface StackedImbalanceVM {
   /** Furthest the response reached into or through the stack. Null if untested. */
   readonly retestedTo: number | null;
   /**
+   * WHEN the stack formed: the first and last formation prints that traded at
+   * the stacked levels (ms). Null when no stack, or the tape carried no times.
+   * The glass anchors the stack to the bars that built it with these.
+   */
+  readonly formedFrom: number | null;
+  readonly formedTo: number | null;
+  /**
    * How far past the stack's far edge the response travelled, in units of the
    * window's own volume-weighted spread. Negative means it came into the stack
    * and stopped short of the far side. Null when the stack was never revisited.
@@ -146,6 +153,8 @@ function unmeasured(detail: string, provenance: AggressorProvenance): StackedImb
     formationPrints: 0,
     responsePrints: 0,
     retestedTo: null,
+    formedFrom: null,
+    formedTo: null,
     beyondInSpreads: null,
     spread: null,
     provenance,
@@ -378,6 +387,8 @@ export function selectStackedImbalance(
       stackLow: null,
       stackHigh: null,
       retestedTo: null,
+      formedFrom: null,
+      formedTo: null,
       beyondInSpreads: null,
       detail:
         `${ladder.length} price levels traded in the formation window and no ${MIN_STACK_LEVELS} ` +
@@ -388,6 +399,14 @@ export function selectStackedImbalance(
 
   const stackLow = Math.min(...run.levels.map((l) => l.price));
   const stackHigh = Math.max(...run.levels.map((l) => l.price));
+  const half = tickSize / 2;
+  const builtTimes = formation
+    .filter((p) => p.price >= stackLow - half && p.price <= stackHigh + half)
+    .map((p) => (p as { time?: number | null }).time)
+    .filter((t): t is number => typeof t === "number" && Number.isFinite(t));
+  const formedAt = builtTimes.length
+    ? { formedFrom: Math.min(...builtTimes), formedTo: Math.max(...builtTimes) }
+    : { formedFrom: null, formedTo: null };
   const isBuy = run.direction === "BUY";
   // The FAR edge is the side price has to get through to disprove the stack.
   // For support that is the bottom; for resistance, the top.
@@ -420,6 +439,7 @@ export function selectStackedImbalance(
       verdict: "UNTESTED",
       direction: run.direction,
       levels: run.levels,
+      ...formedAt,
       stackLow,
       stackHigh,
       retestedTo: null,
@@ -448,6 +468,7 @@ export function selectStackedImbalance(
       verdict: "BROKEN",
       direction: run.direction,
       levels: run.levels,
+      ...formedAt,
       stackLow,
       stackHigh,
       retestedTo: roundSig(reached!, 10),
@@ -466,6 +487,7 @@ export function selectStackedImbalance(
     verdict: "DEFENDED",
     direction: run.direction,
     levels: run.levels,
+      ...formedAt,
     stackLow,
     stackHigh,
     retestedTo: roundSig(reached!, 10),

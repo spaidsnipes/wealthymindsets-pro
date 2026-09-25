@@ -1339,6 +1339,37 @@ const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.618
 const FIB_COLORS = ["#8892b0", "#4FA3E0", "#00C076", "#F0B429", "#F0B429", "#00C076", "#4FA3E0", "#EC4899", "#FF4D67", "#8B5CF6"];
 
 /* ── Component ──────────────────────────────────────────── */
+/* ── H-701 stacked-imbalance anchoring (Garden 12) — module scope so the
+   paint block stays a readable, sentinel-checked unit. ─────────────────── */
+function stackAnchor(
+  chart: { timeScale(): { timeToCoordinate(t: never): unknown; options(): { barSpacing: number } } },
+  bars: readonly { time: unknown }[], fromSec: number | null, toSec: number | null, plotRight: number,
+): { x0: number; x1: number; key: string } | null {
+  const barAt = (t: number | null) => {
+    if (t == null) return null;
+    let hit: number | null = null;
+    for (const b of bars) { const bt = Number(b.time); if (bt <= t) hit = bt; else break; }
+    return hit;
+  };
+  const bf = barAt(fromSec), bt = barAt(toSec);
+  if (bf == null || bt == null) return null;
+  const xf = chart.timeScale().timeToCoordinate(bf as never), xt = chart.timeScale().timeToCoordinate(bt as never);
+  if (xf == null || xt == null) return null;
+  let sp = 6; try { sp = Math.max(4, chart.timeScale().options().barSpacing); } catch { /* default */ }
+  return { x0: Math.max(0, Number(xf) - sp / 2), x1: Math.min(plotRight, Number(xt) + sp / 2), key: `${bf}-${bt}` };
+}
+function stackCellHeight(ys: readonly (unknown | null)[], bandH: number): number {
+  const v = ys.filter(y => y != null).map(Number).sort((a, b) => a - b);
+  return v.length >= 2 ? Math.max(3, v[1] - v[0]) : Math.max(3, bandH);
+}
+function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: number }, y: number, h: number, weight: number) {
+  const w = Math.max(2, a.x1 - a.x0);
+  ctx.fillStyle = `rgba(212,175,55,${(0.16 + 0.5 * weight).toFixed(3)})`;
+  ctx.fillRect(a.x0, y - h / 2 + 0.5, w, h - 1);
+  ctx.strokeStyle = "rgba(212,175,55,0.9)"; ctx.lineWidth = 1;
+  ctx.strokeRect(a.x0 + 0.5, y - h / 2 + 0.5, w - 1, h - 1);
+}
+
 export function MainChart({ symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
@@ -8948,8 +8979,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // height without moving the edges: the strokes below still land on
             // the true prices.
             const bandH = Math.max(1, yLo - yHi);
-            ctx.fillStyle = "rgba(212,175,55,0.07)";
-            ctx.fillRect(0, yHi, plotRight, bandH);
+            // GARDEN 12 · H-701 — the stack belongs to the bars that built it
+            // (stackAnchor, module scope): cells ON those bars in the level
+            // loop below; only the edges carry on to now. No times → full band.
+            const anchor = stackAnchor(chart, barsRef.current ?? [], glass.formedFrom, glass.formedTo, plotRight);
+            const anchored = anchor != null;
+            const bandX0 = anchor?.x1 ?? 0;
+            ds.imbalanceStackAnchor = anchor?.key ?? "TIME_UNKNOWN";
+            ctx.fillStyle = anchored ? "rgba(212,175,55,0.035)" : "rgba(212,175,55,0.07)";
+            ctx.fillRect(bandX0, yHi, plotRight - bandX0, bandH);
 
             const DASH: Record<typeof glass.edgeStyle, number[]> = {
               SOLID: [],
@@ -8960,8 +8998,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.strokeStyle = "rgba(212,175,55,0.70)";
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(0, yHi + 0.5); ctx.lineTo(plotRight, yHi + 0.5);
-            ctx.moveTo(0, yLo - 0.5); ctx.lineTo(plotRight, yLo - 0.5);
+            ctx.moveTo(bandX0, yHi + 0.5); ctx.lineTo(plotRight, yHi + 0.5);
+            ctx.moveTo(bandX0, yLo - 0.5); ctx.lineTo(plotRight, yLo - 0.5);
             ctx.stroke();
 
             // ── EVERY LEVEL IN THE RUN, AT ITS OWN PRICE.
@@ -8974,9 +9012,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // competing with it.
             ctx.setLineDash([]);
             ctx.strokeStyle = "rgba(212,175,55,0.45)";
+            const cellH = anchored ? stackCellHeight(glass.levels.map(l => srs.priceToCoordinate(l.price)), bandH) : 0;
             for (const lvl of glass.levels) {
               const yr = srs.priceToCoordinate(lvl.price);
               if (yr == null) continue;
+              if (anchor) { paintStackCell(ctx, anchor, +yr, cellH, lvl.weight); continue; }
               const y = Math.round(+yr) + 0.5;
               ctx.beginPath();
               ctx.moveTo(0, y);
@@ -9009,7 +9049,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const lw = ctx.measureText(glass.label).width;
             const chipH = 14;
             const chipW = lw + 12;
-            const chipX = 2;
+            const chipX = anchored ? Math.max(2, Math.min(plotRight - chipW - 2, bandX0 - chipW / 2)) : 2;
             // Above the band by preference; below it when the band is already
             // near the top of the pane, so the chip is never pushed off-plot.
             const chipY = yHi - chipH - 2 >= 2 ? yHi - chipH - 2 : Math.min(H - chipH - 2, yLo + 2);

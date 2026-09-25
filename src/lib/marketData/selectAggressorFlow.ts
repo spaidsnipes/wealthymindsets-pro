@@ -94,6 +94,12 @@ export interface AggressorTick {
   readonly price?: number | null | undefined;
   readonly trade?: boolean;
   /**
+   * Print time (ms), when the adapter stamps one. Read ONLY by readings that
+   * must say WHERE IN TIME they formed (the stacked-imbalance geometry);
+   * never by the flow arithmetic here.
+   */
+  readonly time?: number | null;
+  /**
    * Canonical provenance, when the producing adapter has migrated to the
    * Nectar event contract. Read for `aggressorMethod` only — this selector
    * stays pure and never inspects identity or timestamps.

@@ -84,6 +84,8 @@ export interface StackGlassLevel {
   readonly ratioLabel: string;
   /** True when the opposing side was empty and the ratio is the sentinel. */
   readonly oneSided: boolean;
+  /** Dominance weight 0..1 for the cell's ink (one-sided = 1). Never a score on screen. */
+  readonly weight: number;
 }
 
 export interface StackGlassVM {
@@ -111,6 +113,9 @@ export interface StackGlassVM {
   readonly retestPrice: number | null;
   /** True when the sides feeding this reading were inferred, not asserted. */
   readonly inferredSides: boolean;
+  /** When the stack formed (unix SECONDS), from the owner; null when unknown. */
+  readonly formedFrom: number | null;
+  readonly formedTo: number | null;
 }
 
 const EDGE_BY_VERDICT: Record<"UNTESTED" | "DEFENDED" | "BROKEN", StackEdgeStyle> = {
@@ -131,6 +136,8 @@ function empty(reason: StackGlassReason): StackGlassVM {
     label: "",
     retestPrice: null,
     inferredSides: false,
+    formedFrom: null,
+    formedTo: null,
   };
 }
 
@@ -170,6 +177,8 @@ export function selectStackedImbalanceGlass(
       price: l.price,
       ratioLabel: formatImbalanceRatio(l.ratio, l.oneSided),
       oneSided: l.oneSided,
+      // 3:1 is the qualifying floor (weight ~0.3); 10:1 and one-sided read full.
+      weight: l.oneSided ? 1 : Math.max(0.3, Math.min(1, l.ratio / 1000)), // ratio is ×100: 300 = 3:1 floor, 10:1 reads full
     }));
 
   if (levels.length === 0) return empty("NO_STACK");
@@ -204,6 +213,8 @@ export function selectStackedImbalanceGlass(
         ? vm.retestedTo
         : null,
     inferredSides,
+    formedFrom: vm.formedFrom == null ? null : Math.floor(vm.formedFrom / 1000),
+    formedTo: vm.formedTo == null ? null : Math.floor(vm.formedTo / 1000),
   };
 }
 

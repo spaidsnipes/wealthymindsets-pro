@@ -353,3 +353,21 @@ describe("selectStackedImbalance — shape", () => {
     expect(vm.stackHigh).toBeCloseTo(Math.max(...lows), 10);
   });
 });
+
+describe("formedFrom / formedTo — WHEN the stack formed, for the glass to anchor it", () => {
+  it("spans the formation prints that traded at the stacked levels", () => {
+    const t = tape(100, 0.25, CAME_BACK_AND_HELD).map((p, i) => ({ ...p, time: 1_000_000 + i * 1000 }));
+    const vm = selectStackedImbalance(t);
+    expect(vm.levels.length).toBeGreaterThanOrEqual(MIN_STACK_LEVELS);
+    // Stack prints (offsets 3–5) are formation indexes 14..41 in the fixture
+    // (p3: 14–23, p4: 24–33, p5: 34–41).
+    expect(vm.formedFrom).toBe(1_000_000 + 14 * 1000);
+    expect(vm.formedTo).toBe(1_000_000 + 41 * 1000);
+  });
+  it("a tape without times says null, never a guessed time", () => {
+    const vm = selectStackedImbalance(tape(100, 0.25, CAME_BACK_AND_HELD));
+    expect(vm.levels.length).toBeGreaterThan(0);
+    expect(vm.formedFrom).toBeNull();
+    expect(vm.formedTo).toBeNull();
+  });
+});
