@@ -39,8 +39,25 @@
  * fix is to add the name here.
  */
 import { connect } from "cloudflare:sockets";
+import openNextWorker from "./.open-next/worker.js";
+import { runWebullSessionKeeper } from "./src/lib/marketData/webullSessionKeeperJob.ts";
 
 globalThis.__wmCloudflareConnect = connect;
 
 export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./.open-next/worker.js";
-export { default } from "./.open-next/worker.js";
+
+/**
+ * OpenNext's handler, unchanged, plus ONE scheduled handler.
+ *
+ * `triggers.crons` in wrangler.jsonc fires `scheduled` every fifteen minutes.
+ * Its only job is the Webull session keeper: extend a living session, observe
+ * a pending 2FA approval, and NEVER start a new session (each start pages a
+ * human). This is what lets the Founder's phone be off overnight without the
+ * next visitor's market data waiting for him — Garden Pass 12 §14.
+ */
+export default {
+  ...openNextWorker,
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(runWebullSessionKeeper(env));
+  },
+};

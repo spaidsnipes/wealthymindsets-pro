@@ -23,6 +23,17 @@ export interface WebullStatus {
    * capability exists; those are separate implementation and provider gates.
    */
   readonly connectOAuth: WebullConnectOAuthReadiness;
+  /**
+   * The last scheduled keeper run: whether the Webull session was kept alive
+   * with nobody on the site. Null when no run is recorded (not yet deployed,
+   * or no durable store) — never a guess.
+   */
+  readonly sessionKeeper: {
+    readonly outcome: string;
+    readonly note: string;
+    readonly atMs: number;
+    readonly expiresInMs?: number;
+  } | null;
 }
 
 export interface WebullConnectOAuthReadiness {

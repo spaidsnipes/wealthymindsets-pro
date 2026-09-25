@@ -12,6 +12,7 @@ import {
   type WebullStatus,
 } from "@/lib/broker/webullStatus";
 import { webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
+import { readWebullKeeperRecord } from "@/lib/marketData/webullSessionKeeperJob";
 
 /**
  * /api/broker/webull/status
@@ -31,12 +32,14 @@ export async function GET(request: Request): Promise<Response> {
   if (!auth.ok) return auth.response;
   const adapter = getAdapter("webull");
   const h = adapter?.health();
+  const workerEnv = await webullWorkerEnv();
   const live = await probeWebullBrokerConnection(fetch, {
     ...webullBrokerConfigFromEnv(process.env),
     // Same runtime session the data lane uses, so one 2FA approval serves
     // both lanes instead of one prompt per lane.
-    tokenStore: webullSessionStore(await webullWorkerEnv()),
+    tokenStore: webullSessionStore(workerEnv),
   });
+  const keeper = await readWebullKeeperRecord(workerEnv);
   const body: WebullStatus = {
     provider: "webull",
     authMode: "SIGNED_OPENAPI",
@@ -51,6 +54,9 @@ export async function GET(request: Request): Promise<Response> {
     missing: missingSecretsForState(live.state, process.env),
     credentialPresence: webullCredentialPresence(process.env),
     connectOAuth: webullConnectOAuthReadiness(process.env),
+    sessionKeeper: keeper
+      ? { outcome: keeper.outcome, note: keeper.note, atMs: keeper.atMs, expiresInMs: keeper.expiresInMs }
+      : null,
   };
   return NextResponse.json(body, {
     status: 200,

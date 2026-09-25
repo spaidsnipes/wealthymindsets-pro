@@ -99,6 +99,18 @@
    * readiness, which CAN express the real condition. Listing them here would
    * fail a deployment that can safely serve an honest degraded state.
    */
+  /**
+   * THE WEBULL SESSION KEEPER — every fifteen minutes.
+   *
+   * Fires `scheduled()` in cloudflare-worker-entry.js, which extends a living
+   * Webull session and observes a pending 2FA approval without anyone on the
+   * site. It never STARTS a session (that pages a human). Interval mirrored by
+   * KEEPER_INTERVAL_MS in src/lib/marketData/webullSessionKeeper.ts.
+   */
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+
   "secrets": {
     "required": [
       "JWT_SECRET"
