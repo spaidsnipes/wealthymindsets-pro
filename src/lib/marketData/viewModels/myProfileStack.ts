@@ -10,6 +10,15 @@
  * Restoring goes through the SAME switch door the Workspace desks use
  * (`applyArrangementSwitches`), so a saved stack can never set a switch the
  * desks could not. PURE.
+ *
+ * ── NOW THE LEGACY FORMAT, 2026-09-25 ──────────────────────────────────────
+ * The one "My stack" slot in Tools became the first entry of WORKSPACE ›
+ * Saved layouts (F24 "Layout"; see `src/lib/workspace/savedLayouts.ts`). The
+ * Save/Restore bar is gone; nothing writes `wm_ofMyStack` any more. This file
+ * stays the ONE reader of that key (`parseMyStack`, used by the migration)
+ * and the one definition of what the old button wrote (`captureMyStack`, the
+ * migration tests' fixture), so the old slot remains readable forever and is
+ * never deleted.
  */
 
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId } from "./selectProfileMenu";
@@ -44,6 +53,3 @@ export function parseMyStack(raw: string | null): Partial<Record<ProfileId, bool
     return null;
   }
 }
-
-export const countOn = (stack: Partial<Record<ProfileId, boolean>> | null) =>
-  stack ? Object.values(stack).filter(Boolean).length : 0;

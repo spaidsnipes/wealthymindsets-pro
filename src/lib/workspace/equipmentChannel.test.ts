@@ -8,6 +8,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  announceArrangementCapture,
+  announcedArrangementCapture,
+  requestSavedLayout,
+  subscribeArrangementCapture,
+  subscribeSavedLayoutRequests,
   announceEquipmentArrangement,
   announceEquipmentStage,
   arrangedEquipmentId,
@@ -398,5 +403,52 @@ describe("readJourneyFromUrl — a shared link opens where it says", () => {
   it("no equip means closed, whatever the stage says", () => {
     expect(readJourneyFromUrl("?stage=drawer")).toEqual({ equipmentId: null, stage: "closed" });
     expect(readJourneyFromUrl("")).toEqual({ equipmentId: null, stage: "closed" });
+  });
+});
+
+describe("saved layouts ride the same two-way wire (F24 Layout)", () => {
+  afterEach(() => announceArrangementCapture(null));
+
+  it("CAPTURE: the room announces, a late-mounting door reads the memory, null retracts", () => {
+    const seen: unknown[] = [];
+    const off = subscribeArrangementCapture((c) => seen.push(c));
+    announceArrangementCapture({ SESSION: true, FIXED_RANGE: false });
+    expect(announcedArrangementCapture()).toEqual({ SESSION: true, FIXED_RANGE: false });
+    announceArrangementCapture(null);
+    expect(announcedArrangementCapture()).toBeNull();
+    off();
+    expect(seen).toEqual([{ SESSION: true, FIXED_RANGE: false }, null]);
+  });
+
+  it("CAPTURE: a foreign dispatch with a non-object detail reads as NOT MEASURED", () => {
+    const seen: unknown[] = [];
+    const off = subscribeArrangementCapture((c) => seen.push(c));
+    (globalThis as unknown as { document: EventTarget }).document.dispatchEvent(
+      new CustomEvent("wm:arrangement-capture", { detail: ["SESSION"] }),
+    );
+    off();
+    expect(seen).toEqual([null]);
+  });
+
+  it("APPLY: the request reaches the room with only boolean switches — normalised at the door", () => {
+    const seen: unknown[] = [];
+    const off = subscribeSavedLayoutRequests((r) => seen.push(r));
+    requestSavedLayout({
+      layoutId: "open",
+      switches: { SESSION: true, FIXED_RANGE: "yes" as unknown as boolean, LIVING_PROFILE: false },
+    });
+    off();
+    requestSavedLayout({ layoutId: "after-unsubscribe", switches: { SESSION: true } });
+    expect(seen).toEqual([{ layoutId: "open", switches: { SESSION: true, LIVING_PROFILE: false } }]);
+  });
+
+  it("APPLY: a request with no id or no switch map is dropped, not half-applied", () => {
+    const seen: unknown[] = [];
+    const off = subscribeSavedLayoutRequests((r) => seen.push(r));
+    const doc = (globalThis as unknown as { document: EventTarget }).document;
+    doc.dispatchEvent(new CustomEvent("wm:saved-layout", { detail: { switches: { SESSION: true } } }));
+    doc.dispatchEvent(new CustomEvent("wm:saved-layout", { detail: { layoutId: "x", switches: null } }));
+    off();
+    expect(seen).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { captureMyStack, countOn, parseMyStack, stackableProfileIds } from "./myProfileStack";
+import { captureMyStack, parseMyStack, stackableProfileIds } from "./myProfileStack";
 
 describe("Save My Stack (P-110 family lock)", () => {
   it("only PROFILE-family switches are stackable — never a drawn range, never an order-flow tool", () => {
@@ -19,7 +19,7 @@ describe("Save My Stack (P-110 family lock)", () => {
     expect(saved.SESSION).toBe(false);
     expect("ABSORPTION" in saved).toBe(false);
     expect(parseMyStack(JSON.stringify(saved))).toEqual(saved);
-    expect(countOn(saved)).toBe(2);
+    expect(Object.values(saved).filter(Boolean)).toHaveLength(2);
   });
 
   it("drops junk and foreign keys instead of trusting them", () => {

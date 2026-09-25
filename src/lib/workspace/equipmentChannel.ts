@@ -347,6 +347,102 @@ export function subscribeEquipmentShortfalls(
 }
 
 /**
+ * SAVED LAYOUTS — the trader's own desks, over the SAME two-way wire.
+ *
+ * The Workspace door lists the trader's saved layouts beside Clean / Order
+ * Flow / Regime / Review (F24 "Layout"; Garden 11: "Approved saved layouts").
+ * It needs two things only the ROOM has, and gets each the way the four desks
+ * already get theirs:
+ *
+ *   CAPTURE — "what is the chart arranged as right now", so Save has
+ *   something to keep and a saved tile can light when it is in force. The
+ *   room publishes the compiler's `captureArrangement(menu)` — the same
+ *   reading `activeId` is compiled from — and the door is TOLD it, exactly as
+ *   `announceEquipmentArrangement` tells the rail which desk is in force. The
+ *   door never infers a switch position.
+ *
+ *   APPLY — "arrange the chart as this layout". The door sends the layout's
+ *   switch set; the room runs it through `savedArrangementSwitches(…, menu)`
+ *   and the SAME `arrangementDeskRef` → `applyRespectingLocks` door the four
+ *   desks walk, so a saved layout can never set a switch a desk could not, and
+ *   a locked lane holds against it as it holds against a desk.
+ *
+ * `null` capture is NOT MEASURED (no chart room is answering), never "all
+ * off": the door disables Save rather than saving an empty desk.
+ */
+export const ARRANGEMENT_CAPTURE_EVENT = "wm:arrangement-capture";
+
+export type ArrangementCapture = Readonly<Partial<Record<string, boolean>>>;
+
+let arrangementCapture: ArrangementCapture | null = null;
+
+/** Door side, on MOUNT — see `heldEquipmentIds` for why a first reading exists. */
+export function announcedArrangementCapture(): ArrangementCapture | null {
+  return arrangementCapture;
+}
+
+/** Room side: "these are my switch positions now" — or `null` when leaving. */
+export function announceArrangementCapture(capture: ArrangementCapture | null): void {
+  arrangementCapture = capture;
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(
+    new CustomEvent<ArrangementCapture | null>(ARRANGEMENT_CAPTURE_EVENT, { detail: capture }),
+  );
+}
+
+/** Door side. Returns the unsubscribe — a listener per remount is a leak. */
+export function subscribeArrangementCapture(
+  handler: (capture: ArrangementCapture | null) => void,
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<ArrangementCapture | null>).detail;
+    handler(detail && typeof detail === "object" && !Array.isArray(detail) ? detail : null);
+  };
+  document.addEventListener(ARRANGEMENT_CAPTURE_EVENT, listener);
+  return () => document.removeEventListener(ARRANGEMENT_CAPTURE_EVENT, listener);
+}
+
+export const SAVED_LAYOUT_REQUEST_EVENT = "wm:saved-layout";
+
+export interface SavedLayoutRequest {
+  /** The layout's id in the door's list — for the room's own bookkeeping only. */
+  readonly layoutId: string;
+  /** The switch set to apply. The room re-validates it through the compiler. */
+  readonly switches: Readonly<Partial<Record<string, boolean>>>;
+}
+
+/** Door side: "arrange the chart as this saved layout." */
+export function requestSavedLayout(request: SavedLayoutRequest): void {
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(
+    new CustomEvent<SavedLayoutRequest>(SAVED_LAYOUT_REQUEST_EVENT, { detail: request }),
+  );
+}
+
+/**
+ * Room side. NORMALISED AT THE DOOR, like `subscribeEquipment`: a DOM event
+ * anything can dispatch, so only boolean switch values survive to the handler.
+ * The compiler then keeps only the TOGGLE rows the chart actually has.
+ */
+export function subscribeSavedLayoutRequests(
+  handler: (request: SavedLayoutRequest) => void,
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<SavedLayoutRequest>).detail;
+    if (!detail || typeof detail.layoutId !== "string") return;
+    const raw = detail.switches;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+    const switches: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(raw)) if (typeof v === "boolean") switches[k] = v;
+    handler({ layoutId: detail.layoutId, switches });
+  };
+  document.addEventListener(SAVED_LAYOUT_REQUEST_EVENT, listener);
+  return () => document.removeEventListener(SAVED_LAYOUT_REQUEST_EVENT, listener);
+}
+
+/**
  * Reflect the journey into the address bar WITHOUT a navigation.
  *
  * `history.replaceState` so the browser Back button still means "the previous

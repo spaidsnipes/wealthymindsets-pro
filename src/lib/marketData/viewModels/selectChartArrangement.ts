@@ -258,6 +258,76 @@ export function arrangementSwitches(
   return out;
 }
 
+/*
+  ── THE TRADER'S OWN DESKS GO THROUGH THIS COMPILER TOO ────────────────────
+
+  F24 "Layout" (Garden 11): "WORKSPACE = arrangements of the same Market room:
+  Clean. Order Flow. Regime. Review. Approved saved layouts." A saved layout is
+  the fifth kind of desk — one the trader named — and it is the SAME OBJECT as
+  the four above: a set of TOGGLE switch positions. It is not a second
+  arrangement brain; these three functions are the only places a saved layout
+  is captured, applied or recognised, and each applies the rule the named
+  desks already obey:
+
+    · TOGGLE rows only. A dragged range (Delta + VP, Anchored Range) is a
+      drawing, not a switch — no layout can arm a cursor or erase a range the
+      trader drew, exactly as `arrangementSwitches` omits DRAW gestures.
+    · Rows the saved set does not name are LEFT ALONE. A reading added to the
+      catalogue after a layout was saved — or the profile-only legacy "My
+      stack" slot — never switches something off that it did not know about.
+*/
+
+/** The chart's CURRENT arrangement, as a saved layout stores it: every TOGGLE row, on or off. */
+export function captureArrangement(menu: ProfileMenuVM): Partial<Record<ProfileId, boolean>> {
+  const out: Partial<Record<ProfileId, boolean>> = {};
+  for (const entry of menu.entries) {
+    if (entry.gesture !== "TOGGLE") continue;
+    out[entry.id] = entry.active;
+  }
+  return out;
+}
+
+/**
+ * Switch positions a SAVED layout would leave: only the TOGGLE rows this menu
+ * publishes AND the layout names. Unknown ids, DRAW gestures and non-boolean
+ * values are dropped — the request that carries a layout arrives over a DOM
+ * event, and anything on the page can dispatch one.
+ */
+export function savedArrangementSwitches(
+  saved: Readonly<Partial<Record<string, unknown>>>,
+  menu: ProfileMenuVM,
+): Readonly<Partial<Record<ProfileId, boolean>>> {
+  const out: Partial<Record<ProfileId, boolean>> = {};
+  for (const entry of menu.entries) {
+    if (entry.gesture !== "TOGGLE") continue;
+    const v = saved[entry.id];
+    if (typeof v === "boolean") out[entry.id] = v;
+  }
+  return out;
+}
+
+/**
+ * Is the chart arranged as this saved layout right now? Compared against the
+ * room's CAPTURE (`captureArrangement`), switch by switch, over the rows the
+ * layout names. A layout naming nothing the chart has is never "in force" —
+ * an empty match is not a match.
+ */
+export function savedArrangementInForce(
+  saved: Readonly<Partial<Record<string, unknown>>>,
+  captured: Readonly<Partial<Record<string, boolean>>> | null,
+): boolean {
+  if (!captured) return false;
+  let compared = 0;
+  for (const [id, v] of Object.entries(saved)) {
+    if (typeof v !== "boolean") continue;
+    const now = captured[id];
+    if (typeof now !== "boolean") continue;
+    if (now !== v) return false;
+    compared++;
+  }
+  return compared > 0;
+}
+
 /** Does the chart's current TOGGLE state match this desk exactly? */
 function matches(spec: ArrangementSpec, toggles: readonly ProfileMenuEntry[]): boolean {
   for (const entry of toggles) {

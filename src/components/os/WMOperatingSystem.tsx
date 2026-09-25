@@ -77,6 +77,7 @@ import {
 // WORKSPACE is not a fourth list of destinations — it is what the room the
 // trader is ALREADY standing in can hand them. See roomEquipment's header.
 import {
+  ARRANGEMENT_EQUIPMENT_ID,
   roomEquipment,
   roomEquipmentOfKind,
   type RoomEquipmentKind,
@@ -92,6 +93,7 @@ import {
 } from "@/lib/workspace/equipmentChannel";
 import type { EquipmentShortfall } from "@/lib/workspace/equipmentChannel";
 import { announceOpenDoorEdge } from "@/lib/os/openDoorEdge";
+import { SavedLayoutsDoor } from "./SavedLayoutsDoor";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
 import { ACTIVATOR_GLYPHS, equipmentGlyph } from "./equipmentGlyphs";
@@ -376,6 +378,27 @@ interface RoomWorkspaceRailProps {
    * twenty-one doors it sits beneath.
    */
   readonly presentation?: "list" | "tile";
+  /**
+   * Drawn IMMEDIATELY AFTER the room's last arrangement desk (Clean / Order
+   * Flow / Regime / Review) and nowhere else — the trader's own SAVED layouts
+   * (F24 "Layout"; Garden 11: "Clean. Order Flow. Regime. Review. Approved
+   * saved layouts."). Beside the desks because they ARE desks; before Draw and
+   * Replay because those are instruments, not arrangements. A room with no
+   * arrangement desk never draws it, so no other room grows a layout list.
+   */
+  readonly arrangementTail?: React.ReactNode;
+}
+
+/** The rail ids of the arrangement desks, from the registry's one map. */
+const ARRANGEMENT_DOOR_IDS: ReadonlySet<string> = new Set(Object.values(ARRANGEMENT_EQUIPMENT_ID));
+
+/** Index of the LAST arrangement desk in a room's list, or -1 when it has none. */
+function lastArrangementIndex(list: readonly { readonly id: string }[]): number {
+  let at = -1;
+  list.forEach((e, i) => {
+    if (ARRANGEMENT_DOOR_IDS.has(e.id)) at = i;
+  });
+  return at;
 }
 
 // ONE LINE, DELIBERATELY. `roomAdoptsEquipment.sentinel.test.ts` reads this
@@ -387,7 +410,7 @@ interface RoomWorkspaceRailProps {
 // room, that it announces `aria-pressed`, and that an equipment-less room
 // renders nothing. A formatting choice that silently disarms four guards is
 // the guards' failure to state this, and it is stated here.
-function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentation = "list" }: RoomWorkspaceRailProps): React.ReactElement | null {
+function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentation = "list", arrangementTail }: RoomWorkspaceRailProps): React.ReactElement | null {
   const equipment = kind ? roomEquipmentOfKind(activeHref, kind) : roomEquipment(activeHref);
 
   // WHAT IS CURRENTLY IN THE TRADER'S HAND.
@@ -475,6 +498,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
 
   if (equipment.length === 0) return null;
   const tiled = presentation === "tile";
+  const tailAfter = arrangementTail === undefined ? -1 : lastArrangementIndex(equipment);
   return (
     <div data-testid="os-rail-workspace">
       <div
@@ -490,7 +514,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
       >
         {heading}
       </div>
-      {equipment.map((item) => {
+      {equipment.map((item, index) => {
         // A MOMENTARY entry is a command, not a holdable: the room never
         // announces a stage for it (the Sentinel forbids one), so `openIds`
         // can never contain it — but the flag is read here rather than relied
@@ -521,8 +545,8 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
         const lit = open || inForce;
         const glyph = equipmentGlyph(item.id);
         return (
+        <React.Fragment key={item.id}>
         <button
-          key={item.id}
           type="button"
           data-equipment={item.id}
           data-equipment-open={open ? "true" : undefined}
@@ -713,6 +737,8 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
             ) : null}
           </span>
         </button>
+        {index === tailAfter ? arrangementTail : null}
+        </React.Fragment>
         );
       })}
     </div>
@@ -1954,7 +1980,16 @@ export function WMOperatingSystem({
                     {workspaceLead}
                   </div>
                 )}
-                <RoomWorkspaceRail activeHref={activeHref} kind="workspace" presentation="tile" />
+                <RoomWorkspaceRail
+                  activeHref={activeHref}
+                  kind="workspace"
+                  presentation="tile"
+                  arrangementTail={
+                    <SavedLayoutsDoor
+                      ink={{ gold: GOLD, rule: RULE, pearl: PEARL, muted: MUTED, hint: HINT_INK, warn: WM.state.warn }}
+                    />
+                  }
+                />
               </>
             ) : null
           ) : (

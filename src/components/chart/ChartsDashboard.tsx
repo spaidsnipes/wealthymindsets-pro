@@ -18,7 +18,6 @@ import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { ProfilesMenu } from "./ProfilesMenu";
-import { MyStackBar } from "./MyStackBar";
 import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
@@ -36,6 +35,8 @@ import { ChartArrangementBar } from "./ChartArrangementBar";
 import { selectProfileMenu, profileSpeciesRefusals, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
 import {
   arrangementSwitches,
+  captureArrangement,
+  savedArrangementSwitches,
   selectChartArrangement,
   type ArrangementId,
 } from "@/lib/marketData/viewModels/selectChartArrangement";
@@ -199,6 +200,9 @@ import {
   announceEquipmentStage,
   announceEquipmentArrangement,
   announceEquipmentShortfalls,
+  announceArrangementCapture,
+  subscribeSavedLayoutRequests,
+  type SavedLayoutRequest,
 } from "@/lib/workspace/equipmentChannel";
 // THE ONE OWNER of "is a companion camera actually driving the bars". Read
 // here, read by the equipment registry's own disclosure. See its note.
@@ -3045,9 +3049,25 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Locked profile lanes hold their switch against desks, presets and Restore.
   const applyRespectingLocks = (s: Readonly<Partial<Record<ProfileId, boolean>>>) =>
     applyArrangementSwitches(withoutLocked(s, profileStackPrefs));
-  const arrangementDeskRef = useRef<(id: ArrangementId) => void>(() => {});
-  arrangementDeskRef.current = (id: ArrangementId) =>
-    applyRespectingLocks(arrangementSwitches(id, arrangementMenu));
+  // ONE DESK DOOR, FIVE KINDS OF DESK. A named desk arrives as its id; a
+  // trader's SAVED layout (Workspace › Saved layouts) arrives as its switch set
+  // and is re-validated by the SAME compiler. Both leave through
+  // `applyRespectingLocks` — a saved layout cannot set a switch a desk could
+  // not, and a locked lane holds against it exactly as it holds against a desk.
+  const arrangementDeskRef = useRef<(desk: ArrangementId | SavedLayoutRequest) => void>(() => {});
+  arrangementDeskRef.current = (desk: ArrangementId | SavedLayoutRequest) =>
+    applyRespectingLocks(
+      typeof desk === "string"
+        ? arrangementSwitches(desk, arrangementMenu)
+        : savedArrangementSwitches(desk.switches, arrangementMenu),
+    );
+  useEffect(() => subscribeSavedLayoutRequests((req) => arrangementDeskRef.current(req)), []);
+  // …and the room TELLS the door what it is arranged as, so Save keeps the
+  // chart's real switch positions and a saved tile lights when in force.
+  const arrangementCaptureKey = JSON.stringify(captureArrangement(arrangementMenu));
+  useEffect(() => {
+    announceArrangementCapture(JSON.parse(arrangementCaptureKey));
+  }, [arrangementCaptureKey]);
 
   /*
     WHERE THE TRADER IS SITTING, PUBLISHED — NOT REMEMBERED.
@@ -3125,6 +3145,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => () => {
     announceEquipmentArrangement(null);
     announceEquipmentShortfalls([]);
+    announceArrangementCapture(null);
   }, []);
 
   /*
@@ -4687,7 +4708,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
               />
-              <MyStackBar active={profileMenuActive} onRestore={applyRespectingLocks} />
               <StackArrangeBar prefs={profileStackPrefs} onChange={onStackPrefsChange}
                 fusionNote={fusion.fused ? `POC ${fusion.fused.poc.toFixed(2)} recomputed` : fusion.refusal ? `refused · ${fusion.refusal.replace(/_/g, " ").toLowerCase()}` : null} />
               {/* READING LENSES — structure, regime lighting, the question lens and
