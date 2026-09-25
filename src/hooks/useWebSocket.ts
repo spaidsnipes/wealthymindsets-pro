@@ -31,7 +31,7 @@ import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/market
 import { selectFreshLongbridgeObservedEvents } from "@/lib/marketData/adapters/longbridgeTicksBrowser";
 import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
-import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
+import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
@@ -327,7 +327,10 @@ function fetchProviderTickSelection(symbol: string, signal: AbortSignal) {
       source: "webull" as const,
       read: async () => selectFreshWebullObservedEvents(await read("webull"), symbol, Date.now()),
     },
-  ]);
+  // Garden 11: Moomoo is NON-BLOCKING. A lane silent past the hedge (an
+  // unreachable OpenD bridge answers only at its 5 s timeout) no longer holds
+  // Webull's prints back; priority still holds for every lane that answers.
+  ], { hedgeMs: OBSERVED_LANE_HEDGE_MS });
 }
 
 /**
