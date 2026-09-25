@@ -35,7 +35,7 @@ describe("the plate's two KEY METRICS columns, from the owners on the chart", ()
   it("exhaustion card carries the plate's four metrics", () => {
     const v = selectAnatomyCards(anatomy(), exVM([push()], push()));
     expect(v.exhaustion.metrics.map(m => `${m.label}:${m.value}:${m.word}`)).toEqual([
-      "AGGRESSION LEVEL:40%:DECLINING", "EXTENSION:7.7×:EXTENDED", "FOLLOW-THROUGH:0/3:LOST", "ENERGY TRANSFER:381%:EFFICIENT",
+      "EFFORT 2ND ÷ 1ST:40%:DECLINING", "EXTENSION:7.7×:EXTENDED", "FOLLOW-THROUGH:0/3:LOST", "ENERGY TRANSFER:381%:EFFICIENT",
     ]);
     expect(v.exhaustion.outcome).toBe("EXHAUSTED");
   });

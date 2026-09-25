@@ -20,6 +20,8 @@
  * For a push = a run of ≥ MIN_PUSH_BARS consecutive closes in one direction:
  *
  *   AGGRESSION LEVEL — mean effort of the push's second half ÷ first half.
+ *                      Printed as EFFORT 2ND ÷ 1ST: effort is unsigned, so it
+ *                      is not an aggressor-side reading.
  *                      "Declining" below DECLINING_AT.
  *   EXTENSION        — how far the push travelled, in multiples of the
  *                      window's median bar range. "Extended" at EXTENDED_AT.

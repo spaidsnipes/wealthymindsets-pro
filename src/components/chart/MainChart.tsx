@@ -7898,6 +7898,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
       // plot's top band; floating chips and cards stay below this line.
       const HEADER_FLOOR_Y = 90;
+      // An active Question Lens owns the plot's left column (strip, debt card,
+      // control card, Ask chooser) up to this x. Anything that must stay
+      // readable steps right of it rather than printing where the lens paints.
+      const QUESTION_LENS_COLUMN_RIGHT = 324;
       // Screen boxes of the candles in view — what floating chrome must not
       // cover. Built at most once per frame, only when something asks.
       let candleBoxes: { x: number; y0: number; y1: number }[] | null = null;
@@ -8452,7 +8456,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   }
                 }
                 const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
-                const chipTxt = `EXHAUSTION · AGG ${pct(m.aggressionLevel)} · EXT ${m.extension.toFixed(1)}× · FT ${m.followThrough ?? "—"}/3 · ET ${pct(m.energyTransfer)}`;
+                // EFFORT, never AGG: the ratio is unsigned effort (volume or
+                // |ask − bid|), second half of the push over the first.
+                const chipTxt = `EXHAUSTION · EFFORT 2ND÷1ST ${pct(m.aggressionLevel)} · EXT ${m.extension.toFixed(1)}× · FT ${m.followThrough ?? "—"}/3 · ET ${pct(m.energyTransfer)}`;
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
                 const cw = ctx.measureText(chipTxt).width + 12;
                 const cx = Math.max(4, Math.min(x - cw / 2, W - 96 - cw));
@@ -8477,6 +8483,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const pick = opts.map(o => ({ ...o, hit: candleHits(o.x, o.y, cw, 14) })).sort((a, b) => a.hit - b.hit)[0];
                   if (pick) { cxx = pick.x; cy = pick.y; } else cy = Math.max(HEADER_FLOOR_Y, y0 + 16);
                 }
+                // The Question Lens owns the whole left column below the strip
+                // (debt card, control card, Ask), and paints AFTER this chip —
+                // so a chip left in that column is printed and then buried.
+                // It steps to the column's right edge instead.
+                // (Below 640px the lens is two lines with no column, so nothing moves.)
+                if (lensBand && W >= 640 && cy + 14 > 96 && cxx < QUESTION_LENS_COLUMN_RIGHT) cxx = Math.min(QUESTION_LENS_COLUMN_RIGHT, W - 96 - cw);
                 ctx.fillStyle = "rgba(20,8,8,0.88)";
                 ctx.fillRect(cxx, cy, cw, 14);
                 floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });
@@ -8772,7 +8784,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // 390 LAW: on narrow glass the lens must not murder the chart.
                 // One line for the question, one for the debt; the full card,
                 // control and Ask live on wider glass (same owner, same facts).
-                const narrowLens = W < 640;
+                const narrowLens = W < 640; // keep in step with the exhaustion chip's column rule
                 ds.questionLensForm = narrowLens ? "COMPACT" : "FULL";
                 if (narrowLens) {
                   const bx = 8, by = 96, bw = W - 16;

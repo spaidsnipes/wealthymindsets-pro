@@ -8,6 +8,11 @@
  * integrity, energy transfer + outcome) beside an EXHAUSTION ANATOMY card
  * (aggression level, extension, follow-through, energy transfer + outcome).
  *
+ * The plate's "AGGRESSION LEVEL" is printed as EFFORT 2ND ÷ 1ST: the number
+ * is the push's effort in its second half over its first, and effort here is
+ * unsigned (bar volume, or |ask − bid|). Naming it aggression would claim an
+ * initiating side the reading never measured.
+ *
  * The on-candle marks already say WHERE each happened. These cards say HOW
  * MUCH, in the plate's own four-metric shape, for the newest reading of each
  * — and every number is read from the two owners already on the chart:
@@ -131,7 +136,7 @@ export function selectAnatomyCards(
     ex = {
       ...EX_HEAD,
       metrics: [
-        { label: "AGGRESSION LEVEL", value: pct(push.aggressionLevel), word: declining ? "DECLINING" : "HELD" },
+        { label: "EFFORT 2ND ÷ 1ST", value: pct(push.aggressionLevel), word: declining ? "DECLINING" : "HELD" },
         { label: "EXTENSION", value: `${push.extension.toFixed(1)}×`, word: extended ? "EXTENDED" : "CONTAINED" },
         { label: "FOLLOW-THROUGH", value: push.followThrough == null ? "—" : `${push.followThrough}/${FT_BARS}`, word: push.followThrough == null ? "PENDING" : lost ? "LOST" : "HELD" },
         { label: "ENERGY TRANSFER", value: push.energyTransfer == null ? "—" : pct(push.energyTransfer), word: push.energyTransfer == null ? "UNKNOWN" : push.energyTransfer < 1 ? "INEFFICIENT" : "EFFICIENT" },
