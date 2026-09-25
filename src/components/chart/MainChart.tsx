@@ -5369,6 +5369,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Data gaps are a whole-history scan whose answer moves only with the bars
     // or their identities; the frame only projects it.
     let dataGapsCache: { source: LegacyOhlcvTuple[]; ids: readonly CanonicalBarIdentity[]; vm: ReturnType<typeof selectDataGaps> } | null = null;
+    // The selected print's response changes only when the bars, the selection
+    // or the forming bar change; the paint runs every frame.
+    let printResponseCache: {
+      bars: readonly LegacyOhlcvTuple[]; sp: SelectedBigTrade; formingBarTime: number | null;
+      vm: ReturnType<typeof selectPrintResponse>;
+    } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -6896,8 +6902,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const newestBar = respBars[respBars.length - 1];
           const formingBarTime = newestBar && selectChartCloseLabel(Number(newestBar.time), timeframe, Date.now()).forming
             ? Number(newestBar.time) : null;
-          const pr = selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side },
-            respBars.map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close })), { formingBarTime });
+          const cachedPr = printResponseCache && printResponseCache.bars === respBars && printResponseCache.sp === sp
+            && printResponseCache.formingBarTime === formingBarTime ? printResponseCache.vm : null;
+          const pr = cachedPr ?? selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side }, respBars, { formingBarTime });
+          if (!cachedPr) printResponseCache = { bars: respBars, sp, formingBarTime, vm: pr };
           canvas.dataset.printResponse = pr.drawn ? `${pr.verdict}:${pr.responseBars}` : pr.reason;
           const xe = pr.eventBarTime != null ? chart.timeScale().timeToCoordinate(pr.eventBarTime as never) : null;
           const yp = srs.priceToCoordinate(sp.priceLevel);

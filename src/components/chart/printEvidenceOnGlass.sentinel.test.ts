@@ -83,6 +83,16 @@ describe("the RESPONSE is graded on closed bars only", () => {
     expect(b).toMatch(/selectPrintResponse\([\s\S]{0,300}\{ formingBarTime \}\)/);
   });
 
+  it("the response is recomputed only when the bars, the selection or the forming bar change", () => {
+    const b = forceResponse();
+    expect(b).toContain("const pr = cachedPr ?? selectPrintResponse(");
+    expect(b).toMatch(/printResponseCache\.bars === respBars && printResponseCache\.sp === sp\s*&& printResponseCache\.formingBarTime === formingBarTime/);
+    expect(b).toContain("if (!cachedPr) printResponseCache = { bars: respBars, sp, formingBarTime, vm: pr };");
+    // No per-frame copy of the history to feed it.
+    expect(b).toContain("respBars");
+    expect(b).not.toMatch(/respBars\.map\(|barsRef\.current \?\? \[\]\)\.map\(/);
+  });
+
   it("the RESPONSE arrow is drawn only on a final verdict with a published close", () => {
     const b = forceResponse();
     expect(b).toContain('if (pr.verdict !== "PENDING" && pr.endClose != null) {');

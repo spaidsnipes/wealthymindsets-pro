@@ -62,6 +62,9 @@ export interface PrintResponseOptions {
   readonly formingBarTime?: number | null;
 }
 
+const usable = (b: ResponseBar): boolean =>
+  Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && Number.isFinite(b.close) && b.high >= b.low;
+
 export function selectPrintResponse(
   force: PrintForce | null | undefined,
   input: readonly ResponseBar[] | null | undefined,
@@ -72,19 +75,36 @@ export function selectPrintResponse(
     version: PRINT_RESPONSE_VERSION, drawn: false, reason, eventBarTime: null, dir, responseBars: 0,
     withForce: 0, againstForce: 0, medianRange: 0, endTime: null, endClose: null, verdict: "PENDING",
   });
-  const bars = (input ?? []).filter(b => [b.time, b.high, b.low, b.close].every(Number.isFinite) && b.high >= b.low);
-  if (!force || bars.length === 0) return none("NO_BARS");
-  let idx = -1;
-  for (let i = 0; i < bars.length; i++) { if (bars[i].time <= force.timeSec) idx = i; else break; }
+  const bars = input ?? [];
+  if (!force) return none("NO_BARS");
+  // The event bar is the newest usable bar that opened at or before the print.
+  // Walked from the newest end: a selected print is recent, so the walk is
+  // short, and the history is never copied or scanned whole.
+  let idx = -1, anyUsable = false;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    if (!usable(bars[i])) continue;
+    anyUsable = true;
+    if (bars[i].time <= force.timeSec) { idx = i; break; }
+  }
+  if (!anyUsable) return none("NO_BARS");
   if (idx < 0) return none("PRINT_OUTSIDE_BARS");
   const forming = opts?.formingBarTime;
   const after: ResponseBar[] = [];
   for (let i = idx + 1; i < bars.length && after.length < RESPONSE_BARS; i++) {
-    if (forming != null && bars[i].time >= forming) break;
-    after.push(bars[i]);
+    const b = bars[i];
+    if (!usable(b)) continue;
+    if (forming != null && b.time >= forming) break;
+    after.push(b);
   }
-  const ranges = bars.slice(Math.max(0, idx - YARDSTICK_BARS), idx).map(b => b.high - b.low).filter(r => r > 0).sort((a, z) => a - z);
+  const ranges: number[] = [];
+  for (let i = idx - 1, seen = 0; i >= 0 && seen < YARDSTICK_BARS; i--) {
+    const b = bars[i];
+    if (!usable(b)) continue;
+    seen++;
+    if (b.high - b.low > 0) ranges.push(b.high - b.low);
+  }
   if (!ranges.length) return none("NO_PRIOR_RANGE");
+  ranges.sort((a, z) => a - z);
   const med = ranges[Math.floor(ranges.length / 2)];
   let withF = 0, against = 0;
   for (const b of after) {

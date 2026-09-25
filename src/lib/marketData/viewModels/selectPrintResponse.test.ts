@@ -73,6 +73,31 @@ describe("a response bar counts only once it has closed", () => {
   });
 });
 
+describe("the paint loop can afford it", () => {
+  it("reads only the bars near a recent print, never the whole history", () => {
+    const long = Array.from({ length: 10_000 }, (_, i) => bar(i, 100, 101 + (i % 3) * 0.1));
+    let reads = 0;
+    const counted = new Proxy(long, {
+      get(target, key, recv) {
+        if (typeof key === "string" && /^\d+$/.test(key)) reads++;
+        return Reflect.get(target, key, recv);
+      },
+    });
+    const v = selectPrintResponse({ timeSec: 9_990 * 60, price: 101, side: "buy" }, counted);
+    expect(v.drawn).toBe(true);
+    expect(v.responseBars).toBe(RESPONSE_BARS);
+    expect(reads).toBeLessThan(4 * (YARDSTICK_BARS + RESPONSE_BARS + 10));
+  });
+
+  it("an unusable bar is skipped, not counted as a response bar", () => {
+    const broken = { time: 11 * 60, high: Number.NaN, low: 100, close: 100 };
+    const bars = [...flat, bar(10, 101, 102), broken, bar(12, 101.5, 102.8), bar(13, 102, 103)];
+    const v = selectPrintResponse({ timeSec: 9 * 60 + 30, price: 101, side: "buy" }, bars);
+    expect(v.responseBars).toBe(3);
+    expect(v.endTime).toBe(13 * 60);
+  });
+});
+
 describe("the yardstick is measured before the print — no lookahead", () => {
   const response = [bar(10, 101, 102), bar(11, 101.5, 102.8), bar(12, 102, 103)];
   const force = { timeSec: 9 * 60 + 30, price: 101, side: "buy" as const };
