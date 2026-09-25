@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
+import { acceptOrderSubmit } from "@/lib/orderSubmitGuard";
 import Link from "next/link";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useWMS } from "@/contexts/WMSContext";
@@ -700,6 +701,7 @@ function OrderTicket({
    * not a claim.
    */
   const [reachNote, setReachNote] = useState<string | null>(null);
+  const lastSubmitRef = useRef(0);
 
   /**
    * The decision the notice above is allowed to speak for.
@@ -727,6 +729,12 @@ function OrderTicket({
     });
     if (!levels.ok) { setLevelIssues(levels.issues); return; }
     setLevelIssues([]);
+    // One intended press, one order: a second tap inside the gap is the same
+    // press, so it spends no DECISION_ID and cannot clear a notice the first
+    // one already painted.
+    const now = Date.now();
+    if (!acceptOrderSubmit(lastSubmitRef.current, now)) return;
+    lastSubmitRef.current = now;
     // A new decision is being made. The previous decision's reach is no
     // longer what this notice is about, so it is cleared before the new
     // answer arrives rather than left to look like it describes this one.
@@ -737,9 +745,9 @@ function OrderTicket({
      * explicit intent." This press is that intent — the first moment a human
      * has said what he wants, on a surface he can actually reach.
      *
-     * IT IS MINTED HERE AND NOT ONE LINE EARLIER, on purpose. Both guards
-     * above decline the ticket: an unactionable quote, and a price level the
-     * trader left blank. Minting before them would burn an identity on a
+     * IT IS MINTED HERE AND NOT ONE LINE EARLIER, on purpose. The guards
+     * above decline the ticket: an unactionable quote, a price level the
+     * trader left blank, and a second tap of the same press. Minting before them would burn an identity on a
      * decision that was never made, and the blotter would carry decision ids
      * belonging to nothing.
      *
