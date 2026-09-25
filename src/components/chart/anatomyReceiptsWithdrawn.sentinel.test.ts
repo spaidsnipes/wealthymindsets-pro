@@ -40,6 +40,19 @@ describe("anatomy receipts are withdrawn when the block stops", () => {
     expect(missing).toEqual([]);
   });
 
+  it("the refusal render withdraws the shelf and exhaustion geometry receipts", () => {
+    // With the block running but nothing measurable, no shelf and no mark is
+    // drawn; a receipt left from the last measured frame names one anyway.
+    const code = anatomyBlock().replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+    const at = code.indexOf("const txt = BASIS_LABEL.UNMEASURED;");
+    expect(at).toBeGreaterThan(-1);
+    const refusal = code.slice(code.lastIndexOf("} else {", at), at);
+    expect(refusal.length).toBeGreaterThan(0);
+    for (const k of ["absorptionDepthForm", "absorptionWall", "exhaustionGeometry"]) {
+      expect(refusal, k).toContain(`delete ds.${k};`);
+    }
+  });
+
   it("the OFF branch runs the list and states the lens is off", () => {
     const off = SRC.slice(SRC.indexOf("if (!absorptionAnatomyActive) {"), SRC.indexOf("if (absorptionAnatomyActive) {"));
     expect(off).toContain("for (const k of ANATOMY_BLOCK_RECEIPTS) delete ds[k];");

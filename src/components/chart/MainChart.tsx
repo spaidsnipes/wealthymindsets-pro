@@ -9125,6 +9125,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // REFUSAL IS A FIRST-CLASS RENDER. No field, no band, no implied
             // calm — just the statement that nothing was measurable, in the
             // same slot the basis would have occupied.
+            // No shelf and no exhaustion mark is drawn here, so their geometry
+            // receipts are withdrawn rather than left describing the last
+            // frame that had them.
+            delete ds.absorptionDepthForm;
+            delete ds.absorptionWall;
+            delete ds.exhaustionGeometry;
             ctx.save();
             const txt = BASIS_LABEL.UNMEASURED;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
