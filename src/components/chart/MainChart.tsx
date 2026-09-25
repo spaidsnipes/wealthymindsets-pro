@@ -8043,10 +8043,35 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const y0 = up ? +yr - 8 : +yr + 8;
                 ctx.save();
                 ctx.fillStyle = "rgba(226,92,92,0.95)";
-                [9, 6, 3].forEach((h, k) => {
-                  const bxk = x - 6 + k * 5;
-                  ctx.fillRect(bxk, up ? y0 - h : y0, 3, h);
-                });
+                // GARDEN 12 · MEASURED, NOT DECORATIVE (was three fixed bars
+                // 9/6/3). THE FUEL: one tick per bar of the push, on the push's
+                // own bars, sized by that bar's measured effort — the fade is
+                // the real series. FAILED TO CONTINUE: three slots on the three
+                // bars after the extreme; filled only as many as made a new
+                // extreme (followThrough), hollow otherwise; none drawn before
+                // those bars exist.
+                {
+                  const iEx = anatomy.bars.findIndex(ab => ab.time === m.time);
+                  if (iEx >= 0) {
+                    const push = anatomy.bars.slice(Math.max(0, iEx - m.pushBars + 1), iEx + 1);
+                    for (const ab of push) {
+                      const xb = ts.timeToCoordinate(ab.time as never);
+                      const yb = srs.priceToCoordinate(up ? ab.high : ab.low);
+                      if (xb == null || yb == null) continue;
+                      const h = 2 + ab.effortNorm * 12;
+                      ctx.fillRect(Math.round(+xb) - 1.5, up ? +yb - 4 - h : +yb + 4, 3, h);
+                    }
+                    const after = anatomy.bars.slice(iEx + 1, iEx + 4);
+                    after.forEach((ab, k) => {
+                      const xb = ts.timeToCoordinate(ab.time as never);
+                      if (xb == null) return;
+                      ctx.beginPath(); ctx.arc(+xb, y0, 3, 0, Math.PI * 2);
+                      if (m.followThrough != null && k < m.followThrough) ctx.fill();
+                      else { ctx.strokeStyle = "rgba(226,92,92,0.9)"; ctx.lineWidth = 1.2; ctx.stroke(); }
+                    });
+                    ds.exhaustionGeometry = `FUEL:${push.length}+SLOTS:${after.length}`;
+                  }
+                }
                 const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
                 const chipTxt = `EXHAUSTION · AGG ${pct(m.aggressionLevel)} · EXT ${m.extension.toFixed(1)}× · FT ${m.followThrough ?? "—"}/3 · ET ${pct(m.energyTransfer)}`;
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
