@@ -29,6 +29,9 @@ describe("left column and word stack", () => {
 
   it("an exhaustion chip whose mark is in the strip band goes below the strip", () => {
     expect(CHART).toMatch(/cy = up \? Math\.max\(160, y0 \+ 16\) : Math\.max\(160, y0 \+ 12\);/);
+    // …including when stepping off the header lands it back in the band
+    // (serving, BTC 1m, 2026-09-25 03:21 CDT: a top-of-pane push).
+    expect(CHART).toMatch(/else cy = Math\.max\(HEADER_FLOOR_Y, y0 \+ 16\);\s*if \(lensBand && cy < 158 && cy \+ 14 > 96\) cy = 160;/);
   });
 
   it("the bottom-left word stack starts above the window count at the candle pane's foot", () => {

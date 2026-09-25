@@ -8470,6 +8470,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ].filter(o => o.x >= 4 && o.x + cw <= W - 96);
                   const pick = opts.map(o => ({ ...o, hit: candleHits(o.x, o.y, cw, 14) })).sort((a, b) => a.hit - b.hit)[0];
                   if (pick) { cxx = pick.x; cy = pick.y; } else cy = Math.max(HEADER_FLOOR_Y, y0 + 16);
+                  // Stepping off the header can land it straight back in the
+                  // lens strip's band (the strip paints later, over it). Below.
+                  if (lensBand && cy < 158 && cy + 14 > 96) cy = 160;
                 }
                 // The Question Lens owns the whole left column below the strip
                 // (debt card, control card, Ask), and paints AFTER this chip —
