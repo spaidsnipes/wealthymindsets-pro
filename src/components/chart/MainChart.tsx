@@ -11774,17 +11774,39 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               let drawn = 0;
               let top = Infinity;
+              let strataDrawn = 0;
               for (const r of cp.rows) {
                 const yr = srs.priceToCoordinate(r.price);
                 if (yr == null) continue;
                 const y = Math.round(+yr) - Math.floor(rowH / 2);
                 const w = Math.max(1, Math.round(r.share * width));
-                // The body keeps Composite's settled steel (its identity, told
-                // apart from live value); its POC is the family's POC.
-                ctx.fillStyle = r.isPoc
-                  ? pk.rgba("POC", 0.85)
-                  : r.insideValueArea ? "rgba(184,190,196,0.55)" : "rgba(160,166,172,0.28)";
-                ctx.fillRect(right - w, y, w, Math.max(1, rowH - 1));
+                // SEDIMENT STRATA (Defect 2 · Composite = one broader aggregate):
+                // each row is laid down session by session — the oldest at the
+                // base, each newer session's volume on top, firmer with recency,
+                // a hairline seam between strata. N sessions → one profile,
+                // visible in the shape without the word. Settled steel keeps
+                // Composite apart from live value; the POC row is the family's POC.
+                const hRow = Math.max(1, rowH - 1);
+                const total = r.volume > 0 ? r.volume : 1;
+                const nS = r.bySession.length;
+                let xs = right;
+                r.bySession.forEach((v, k) => {
+                  if (!(v > 0)) return;
+                  const segW = w * (v / total);
+                  const age = nS > 1 ? k / (nS - 1) : 1;
+                  ctx.fillStyle = r.isPoc
+                    ? pk.rgba("POC", +(0.55 + 0.3 * age).toFixed(2))
+                    : r.insideValueArea
+                      ? `rgba(184,190,196,${(0.30 + 0.30 * age).toFixed(2)})`
+                      : `rgba(160,166,172,${(0.14 + 0.16 * age).toFixed(2)})`;
+                  ctx.fillRect(xs - segW, y, segW, hRow);
+                  if (segW >= 3 && xs < right) {
+                    ctx.fillStyle = "rgba(11,10,8,0.55)";
+                    ctx.fillRect(Math.round(xs) - 0.5, y, 1, hRow);
+                  }
+                  xs -= segW;
+                });
+                strataDrawn = Math.max(strataDrawn, r.bySession.filter(v => v > 0).length);
                 top = Math.min(top, y);
                 drawn++;
               }
@@ -11818,14 +11840,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.restore();
               ds.compositeProfileRows = String(drawn);
               ds.compositeProfileSessions = String(cp.sessions);
+              ds.compositeProfileStrata = String(strataDrawn);
             } else {
               ds.compositeProfile = "NO_ROOM";
               delete ds.compositeProfileRows;
               delete ds.compositeProfileSessions;
+              delete ds.compositeProfileStrata;
             }
           } else {
             delete ds.compositeProfileRows;
             delete ds.compositeProfileSessions;
+            delete ds.compositeProfileStrata;
           }
         }
 

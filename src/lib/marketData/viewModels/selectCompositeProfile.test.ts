@@ -60,3 +60,20 @@ describe("sessionStarts — what went into the composite, stated", () => {
     expect(vm.sessionStarts.length).toBe(vm.sessions);
   });
 });
+
+describe("the strata — what the composite is made of", () => {
+  it("each row carries its volume from each aggregated session, oldest first, summing to the row", () => {
+    // Sessions at 100, 101, 102 (each 1 wide) and the developing one at 150.
+    const v = selectCompositeProfile(days(4, d => (d === 3 ? 150 : 100 + d)));
+    expect(v.drawn).toBe(true);
+    for (const r of v.rows) {
+      expect(r.bySession).toHaveLength(v.sessions);
+      const sum = r.bySession.reduce((a, b) => a + b, 0);
+      expect(sum).toBeCloseTo(r.volume, 6);
+    }
+    // A price only the oldest session traded carries only the oldest stratum.
+    const low = v.rows.find(r => r.price < 101)!;
+    expect(low.bySession[0]).toBeGreaterThan(0);
+    expect(low.bySession.slice(1).every(x => x === 0)).toBe(true);
+  });
+});

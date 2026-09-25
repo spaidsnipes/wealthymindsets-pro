@@ -39,6 +39,12 @@ export interface CompositeRow {
   readonly share: number;
   readonly insideValueArea: boolean;
   readonly isPoc: boolean;
+  /**
+   * This row's volume from EACH aggregated session, oldest first — what the
+   * composite is made of. Sums to `volume`. The glass draws it as sediment
+   * strata inside the row: N sessions → one profile, visible in its shape.
+   */
+  readonly bySession: readonly number[];
 }
 
 export interface CompositeProfileVM {
@@ -84,10 +90,17 @@ export function selectCompositeProfile(
   let lo = Infinity;
   for (const b of kept) { if (b.high > hi) hi = b.high; if (b.low < lo) lo = b.low; }
   const range = hi - lo;
-  const snap = computeProfileFromBars(kept, {
-    tickSize: chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, COMPOSITE_TARGET_ROWS),
-  });
+  const tickSize = chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, COMPOSITE_TARGET_ROWS);
+  const snap = computeProfileFromBars(kept, { tickSize });
   if (snap.rows.length === 0 || !(snap.totalVolume > 0)) return none("NO_VOLUME");
+  // Each aggregated session's own profile on the SAME grid (the engine's
+  // buckets are origin-anchored, so the keys line up) — the strata.
+  const perSession: Map<number, number>[] = [];
+  for (let s = firstKept; s < current; s++) {
+    const own = bars.filter((_, i) => sessionOf[i] === s);
+    const snapS = computeProfileFromBars(own, { tickSize });
+    perSession.push(new Map(snapS.rows.map(r => [r.price, r.total])));
+  }
 
   let heaviest = 0;
   for (const r of snap.rows) if (r.total > heaviest) heaviest = r.total;
@@ -104,6 +117,7 @@ export function selectCompositeProfile(
       share: r.total / heaviest,
       insideValueArea: r.price >= snap.val && r.price <= snap.vah,
       isPoc: r.price === snap.poc,
+      bySession: perSession.map(m => m.get(r.price) ?? 0),
     })),
     poc: snap.poc,
     vah: snap.vah,

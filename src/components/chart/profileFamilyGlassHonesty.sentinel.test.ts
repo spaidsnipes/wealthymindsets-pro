@@ -86,4 +86,12 @@ describe("profile family glass honesty", () => {
     expect(fusion).toMatch(/ctx\.strokeStyle = threadInk\(src\.species, 0\.85\);/);
     expect(fusion).toMatch(/ds\.profileFusionForm = painted > 0 \? "KNOT" : "NONE";/);
   });
+
+  it("Composite rows are laid down as sediment strata from the owner's per-session volume (Defect 2)", () => {
+    expect(CHART).toMatch(/r\.bySession\.forEach\(\(v, k\) => \{/);
+    expect(CHART).toMatch(/const segW = w \* \(v \/ total\);/);
+    expect(CHART).toMatch(/ds\.compositeProfileStrata = String\(strataDrawn\);/);
+    // One flat steel bar per row is gone.
+    expect(CHART).not.toMatch(/ctx\.fillRect\(right - w, y, w, Math\.max\(1, rowH - 1\)\);/);
+  });
 });
