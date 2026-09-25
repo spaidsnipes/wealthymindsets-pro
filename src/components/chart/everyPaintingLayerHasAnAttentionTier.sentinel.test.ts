@@ -101,10 +101,18 @@ describe("every painting layer has an attention tier", () => {
   });
 
   it("the tiers receipt is published after the last governed site", () => {
-    const receipt = CHART.indexOf("ds.attentionTiers = att.tiersReceipt();");
+    // Moved to the frame's end when the SUPPORTING layers (liquidity
+    // lifecycle paints last) began asking the governor.
+    const receipt = CHART.indexOf("canvas.dataset.attentionTiers = att.tiersReceipt();");
     expect(receipt).toBeGreaterThan(-1);
     const lastAsk = Math.max(...ASKED.map(m => m.index ?? -1));
     expect(receipt).toBeGreaterThan(lastAsk);
     expect(CHART).toMatch(/canvas\.dataset\.attention = att\.receipt;/);
+  });
+
+  it("(e) the SUPPORTING layers ask the governor — context sits under the present", () => {
+    for (const key of ["expectedEnvelope", "contradiction", "liquidityLifecycle", "anatomyCards"]) {
+      expect(CHART, key).toContain(`ctx.globalAlpha = att.alpha("${key}");`);
+    }
   });
 });

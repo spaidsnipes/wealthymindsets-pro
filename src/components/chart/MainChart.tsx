@@ -9111,6 +9111,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const cards = selectAnatomyCards(anatomy, selectExhaustion(anatomy));
               ds.anatomyCards = `${cards.absorption.empty ? "NONE" : cards.absorption.outcome}|${cards.exhaustion.empty ? "NONE" : cards.exhaustion.outcome}`;
               ctx.save();
+              ctx.globalAlpha = att.alpha("anatomyCards");
               const cw = 292, ch = 188, gap = 12;
               const top = Math.max(200, H - 190 - ch);
               const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
@@ -10691,6 +10692,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             : env.reason;
           onExpectedEnvelopeRef.current?.(env);
           ctx.save();
+          // SUPPORTING: context drawn about the present sits under it (≤ 0.85)
+          // and recedes with everything else while Inspect reads a selection.
+          ctx.globalAlpha = att.alpha("expectedEnvelope");
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "middle";
           if (env.drawn) {
@@ -10772,6 +10776,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.contradiction = `${cv.state}:${cv.up.length}/${cv.down.length}`;
             onContradictionRef.current?.(cv);
             ctx.save();
+            ctx.globalAlpha = att.alpha("contradiction");
             ctx.textBaseline = "middle";
             const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
             const silentNote = cv.silent.length ? ` · silent: ${cv.silent.map(x => x.family.toLowerCase()).join(", ")}` : "";
@@ -12693,11 +12698,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
 
-        // ATTENTION RECEIPT — every layer that painted through the governor
-        // this frame, with the tier and alpha it was given. A layer that is
-        // OFF never asked and is not listed; its own silence receipt speaks.
-        ds.attentionTiers = att.tiersReceipt();
-
         /* ══ F13 · SEMANTIC ZOOM TAG ═════════════════════════════════════════
            FAR · MID · NEAR on the SAME camera. One word top-right, telling
            the trader which resolution the picture in front of them is at.
@@ -12960,6 +12960,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const maxVolL = Math.max(1e-12, ...lc.pools.map(p => p.volume));
             let painted = 0;
             ctx.save();
+            ctx.globalAlpha = att.alpha("liquidityLifecycle");
             for (const pool of lc.pools) {
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
               if (yT == null || yB == null) continue;
@@ -13267,6 +13268,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.riskReceiptHits;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
+
+      // ATTENTION RECEIPT — every layer that painted through the governor
+      // this frame, with the tier and alpha it was given. Published at the
+      // frame's end, after the last governed site (liquidity lifecycle paints
+      // late). A layer that is OFF never asked and is not listed; its own
+      // silence receipt speaks.
+      canvas.dataset.attentionTiers = att.tiersReceipt();
 
       // Published only when a placer with an opaque backing consulted the
       // keep-out this frame; otherwise it stays withdrawn (cleared above).
