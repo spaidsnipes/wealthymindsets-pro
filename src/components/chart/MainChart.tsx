@@ -9614,6 +9614,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 pivots: marketStructureRef.current?.drawn ? marketStructureRef.current.pivots : [],
                 choice: questionChoiceRef.current,
                 continuation: continuationRef.current,
+                priceDp: pricePrecisionFromBars(barsRef.current ?? []),
               });
               ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
               ds.questionChoice = lens.choice;

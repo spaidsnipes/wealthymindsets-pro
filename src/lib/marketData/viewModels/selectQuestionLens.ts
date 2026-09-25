@@ -153,6 +153,8 @@ export interface QuestionLensInput {
    * its first item, word for word; the lens only adds the leg's own facts.
    */
   readonly continuation?: { readonly health: "COHERENT" | "CONTESTED" | "ROTATING" | "UNREADABLE"; readonly reason: string } | null;
+  /** The market's own decimals (pricePrecision.ts). Omitted → 2. */
+  readonly priceDp?: number;
 }
 
 const NONE: QuestionLensVM = {
@@ -161,11 +163,19 @@ const NONE: QuestionLensVM = {
   control: null,
 };
 
-const f2 = (n: number) => n.toFixed(2);
+/**
+ * Prices print at the MARKET's decimals (GP12 §27), set per call from
+ * `priceDp` — 2 was the old fixed rule, and it read USDJPY 150.123 as 150.12.
+ * Module-scoped because every helper formats prices; `selectQuestionLens` is
+ * synchronous and sets it on entry, so no call can see another's value.
+ */
+let PRICE_DP = 2;
+const f2 = (n: number) => n.toFixed(PRICE_DP);
 
 const refuse = (choice: QuestionChoice, why: string): QuestionLensVM => ({ ...NONE, choice, refusal: why });
 
 export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
+  PRICE_DP = Number.isInteger(input.priceDp) && (input.priceDp as number) >= 0 && (input.priceDp as number) <= 10 ? (input.priceDp as number) : 2;
   const choice = input.choice ?? "AUTO";
   const a = input.absorption;
   const bars = a?.measured ? a.bars : [];

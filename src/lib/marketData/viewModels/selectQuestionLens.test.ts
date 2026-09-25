@@ -110,3 +110,13 @@ describe("MOCK 3 · aggression vs displacement — who is in control", () => {
     expect(selectQuestionLens({ absorption: null, exhaustion: null, livingPoc: null, pivots: [] }).control).toBeNull();
   });
 });
+
+describe("GP12 §27 — the lens prints prices at the market's decimals", () => {
+  it("USDJPY-style 3-dp prices keep their third decimal in the question", () => {
+    const bars = [b(60, 0.9, 0.2), b(120, 0.8, 0.2)];
+    const at3 = selectQuestionLens({ absorption: anatomy(bars), exhaustion: null, livingPoc: null, pivots: [], choice: "ABSORPTION", priceDp: 3 });
+    const at2 = selectQuestionLens({ absorption: anatomy(bars), exhaustion: null, livingPoc: null, pivots: [], choice: "ABSORPTION" });
+    expect(JSON.stringify(at3)).toMatch(/\d+\.\d{3}\b/);
+    expect(JSON.stringify(at2)).not.toMatch(/100\.000/);
+  });
+});
