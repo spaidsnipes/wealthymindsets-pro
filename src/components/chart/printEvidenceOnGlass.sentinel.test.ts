@@ -159,7 +159,9 @@ describe("the five full bubbles are the five largest prints, not the five grown 
     const loops = b.match(/for \(const b of \[\.\.\.bubblesRef\.current\]\.sort\(\(a, z\) => .*\) \{/g) ?? [];
     expect(loops.length, "the ranking loop was renamed or removed").toBe(1);
     expect(loops[0]).toBe("for (const b of [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {");
-    expect(b).toContain("if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id) {");
+    // The hovered and the SELECTED print are never demoted to a quiet ring —
+    // the selected object is loudest — and neither takes a rank from the five.
+    expect(b).toContain("if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id && !selB) {");
   });
 });
 

@@ -5204,6 +5204,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       selectedPrintOnChart={activeSelectedPrint}
                       onSelectProfileSlice={price => actOnChartSelection({ type: "select", selection: { kind: "SLICE", symbol, timeframe, price } })}
                       selectedProfileSlicePrice={activeProfileSlice?.found ? activeProfileSlice.price : null}
+                      /* The selected item is loudest only while Inspect reads it:
+                         the rest of the glass recedes; a restored selection with
+                         Inspect closed arrives calm. */
+                      selectionInspected={inspectOpen}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}

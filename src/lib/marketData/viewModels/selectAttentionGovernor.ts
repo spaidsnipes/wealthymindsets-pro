@@ -35,6 +35,14 @@
  * Candles and the price line are outside this owner's authority — nothing
  * here can dim them.
  *
+ * THE SELECTED OBJECT IS LOUDEST. While the trader is inspecting a selection
+ * (a zone or level, a Living slice, a bubble) and it is ON CAMERA, every
+ * governed layer that is not the selected item recedes by SELECTION_RECEDE
+ * (floor still 0.12); the item itself paints at 1. A selection off camera, or
+ * one restored after a refresh with Inspect still closed, recedes nothing —
+ * the chart is never dimmed for a focus the trader cannot see or did not ask
+ * to read. Words keep a legibility floor (`textAlpha`, 0.5).
+ *
  * The VM remembers which layers asked it for an alpha this frame, so the
  * `attentionTiers` receipt lists exactly the layers that painted through it:
  * a layer that is OFF never asks and is never listed (its own silence
@@ -75,6 +83,10 @@ export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
 export const ATTENTION_FLOOR = 0.12;
 /** A fused object's two parents step back so the derived object reads as the subject. */
 export const FUSION_PARENT_FADE = 0.45;
+/** Everything that is not the selected item, while a selection is inspected on camera. */
+export const SELECTION_RECEDE = 0.45;
+/** A receding layer's words stay legible. */
+export const TEXT_ALPHA_FLOOR = 0.5;
 
 /**
  * EVERY PAINTING LAYER, ONCE. Keys are the `layerOnRef` switch keys plus the
@@ -142,6 +154,24 @@ export interface AttentionGovernorInput {
   readonly fusedParents?: readonly StackSpecies[];
   /** STALE demotes the present (LIVE) to the STALE ceiling. null = unknown. */
   readonly feedState: "LIVE" | "STALE" | null;
+  /** The room's ONE selection, as the canvas found it this frame. null = nothing selected. */
+  readonly selection?: AttentionSelection | null;
+}
+
+/**
+ * ZONE = a structure zone; LEVEL = any other market object (a pin);
+ * SLICE = a Living Profile bucket; BUBBLE = a big-trade or delta print.
+ */
+export type AttentionSelectionKind = "ZONE" | "LEVEL" | "SLICE" | "BUBBLE";
+
+export interface AttentionSelection {
+  readonly kind: AttentionSelectionKind;
+  /** The object id, the slice price or the bubble's print key. */
+  readonly key: string;
+  /** Painted inside the plot this frame — measured by the canvas, never assumed. */
+  readonly onCamera: boolean;
+  /** Inspect is open on it. A restored selection arrives calm (closed). */
+  readonly inspecting: boolean;
 }
 
 export interface AttentionAlphaOpts {
@@ -153,8 +183,14 @@ export interface AttentionGovernorVM {
   readonly version: number;
   /** `D:<depth>|Q:<quiet>|SEL:<kind>|STALE:<0/1>` */
   readonly receipt: string;
+  /** `ZONE:<id>` · `LEVEL:<id>` · `SLICE:<price>` · `BUBBLE:<key>` · `OFF_CAMERA:<kind>` · `AT_REST:<kind>` · `NONE` */
+  readonly selectionReceipt: string;
+  /** True while everything but the selected item recedes. */
+  readonly receding: boolean;
   tierOf(key: AttentionLayerKey, opts?: AttentionAlphaOpts): AttentionTier;
   alpha(key: AttentionLayerKey, opts?: AttentionAlphaOpts): number;
+  /** The alpha for a layer's WORDS: its alpha, never below the legibility floor. */
+  textAlpha(key: AttentionLayerKey, opts?: AttentionAlphaOpts): number;
   /** The same governor with the frame's Question Lens quiet folded in. */
   withQuestionQuiet(q: number): AttentionGovernorVM;
   /** `key:TIER:alpha,…` for every layer that asked this frame, in first-ask order. */
@@ -179,6 +215,13 @@ export function selectAttentionGovernor(
   const trend = fin(input.regimeLight?.trend ?? 1, 1);
   const stale = input.feedState === "STALE";
   const fused = input.fusedParents ?? [];
+  const sel = input.selection ?? null;
+  const receding = sel != null && sel.onCamera && sel.inspecting;
+  const selWord = sel == null ? "NONE" : !sel.inspecting ? "AT_REST" : !sel.onCamera ? "OFF_CAMERA" : sel.kind;
+  const selectionReceipt = sel == null ? "NONE"
+    : !sel.inspecting ? `AT_REST:${sel.kind}`
+    : !sel.onCamera ? `OFF_CAMERA:${sel.kind}`
+    : `${sel.kind}:${sel.key}`;
 
   const tierOf = (key: AttentionLayerKey, opts?: AttentionAlphaOpts): AttentionTier => {
     const spec: LayerAttention = LAYER_ATTENTION[key];
@@ -198,7 +241,8 @@ export function selectAttentionGovernor(
       const lane = spec.lane
         ? stackOpacity(spec.lane, input.stackPrefs) * (fused.includes(spec.lane) ? FUSION_PARENT_FADE : 1)
         : 1;
-      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[tier], depth * quiet * light * lane));
+      const recede = receding ? SELECTION_RECEDE : 1;
+      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[tier], depth * quiet * light * lane) * recede);
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.
@@ -208,9 +252,12 @@ export function selectAttentionGovernor(
 
   return {
     version: ATTENTION_GOVERNOR_VERSION,
-    receipt: `D:${input.density.depth}|Q:${r2(quiet)}|SEL:NONE|STALE:${stale ? 1 : 0}`,
+    receipt: `D:${input.density.depth}|Q:${r2(quiet)}|SEL:${selWord}|STALE:${stale ? 1 : 0}`,
+    selectionReceipt,
+    receding,
     tierOf,
     alpha,
+    textAlpha: (key: AttentionLayerKey, opts?: AttentionAlphaOpts) => Math.max(TEXT_ALPHA_FLOOR, alpha(key, opts)),
     withQuestionQuiet: (q: number) => selectAttentionGovernor({ ...input, questionQuiet: q }, asked),
     tiersReceipt: () => [...asked].map(([k, v]) => `${k}:${v.tier}:${r2(v.alpha)}`).join(","),
   };

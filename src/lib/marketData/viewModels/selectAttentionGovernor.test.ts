@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   ATTENTION_FLOOR,
   LAYER_ATTENTION,
+  SELECTION_RECEDE,
+  TEXT_ALPHA_FLOOR,
   TIER_CEILING,
   selectAttentionGovernor,
   type AttentionGovernorInput,
   type AttentionLayerKey,
+  type AttentionSelection,
 } from "./selectAttentionGovernor";
 import { selectSemanticDensity } from "./selectSemanticDensity";
 import { DEFAULT_STACK_PREFS, stackOpacity, type ProfileStackPrefs } from "./profileStackPrefs";
@@ -198,5 +201,89 @@ describe("attention governor — one owner for every governed layer's alpha", ()
     expect(g.tiersReceipt()).toBe("bubbles:LIVE:1,livingProfile:LIVE:0.35,marketZones:LIVE:0.35,profileMemory:MEMORY:0.21");
     // A layer that never asked (switched OFF) is not listed.
     expect(g.tiersReceipt()).not.toContain("compositeProfile");
+  });
+});
+
+describe("selection focus — the selected object is loudest and everything else recedes", () => {
+  const zone: AttentionSelection = { kind: "ZONE", key: "zone:abc", onCamera: true, inspecting: true };
+
+  it("a ZONE inspected on camera: other layers × 0.45, the selected zone at 1", () => {
+    const base = selectAttentionGovernor(input());
+    const g = selectAttentionGovernor(input({ selection: zone }));
+    expect(g.receding).toBe(true);
+    expect(g.alpha("livingProfile")).toBeCloseTo(SELECTION_RECEDE * base.alpha("livingProfile"), 10);
+    expect(g.alpha("livingProfile")).toBeCloseTo(0.45, 10);
+    expect(g.alpha("marketZones", { selectedItem: true })).toBe(1);
+    // Unselected zones of the same layer recede with everything else.
+    expect(g.alpha("marketZones")).toBeCloseTo(0.45, 10);
+    // Memory recedes from its own ceiling, so it stays below the receded present.
+    expect(g.alpha("profileMemory")).toBeCloseTo(0.5 * SELECTION_RECEDE, 10);
+    expect(g.receipt).toBe("D:UNMEASURED|Q:1|SEL:ZONE|STALE:0");
+    expect(g.selectionReceipt).toBe("ZONE:zone:abc");
+  });
+
+  it("every governed layer recedes at every depth — but never below the floor, and CHROME never", () => {
+    for (const depth of DEPTHS) {
+      const i = input({ density: selectSemanticDensity(depth), questionQuiet: 0.35, regimeLight: { magnets: 0.3, trend: 0.3 } });
+      const at = selectAttentionGovernor(i);
+      const g = selectAttentionGovernor({ ...i, selection: zone });
+      for (const k of KEYS) {
+        if (LAYER_ATTENTION[k].tier === "CHROME") { expect(g.alpha(k), k).toBe(1); continue; }
+        expect(g.alpha(k), k).toBeGreaterThanOrEqual(ATTENTION_FLOOR);
+        expect(g.alpha(k), k).toBeLessThanOrEqual(at.alpha(k));
+        expect(g.alpha(k), k).toBeCloseTo(Math.max(ATTENTION_FLOOR, at.alpha(k) * SELECTION_RECEDE), 10);
+        expect(g.alpha(k, { selectedItem: true }), k).toBe(1);
+      }
+    }
+  });
+
+  it("a selection OFF CAMERA recedes nothing, and says so", () => {
+    const g = selectAttentionGovernor(input({ selection: { ...zone, onCamera: false } }));
+    expect(g.receding).toBe(false);
+    for (const k of KEYS) expect(g.alpha(k), k).toBe(selectAttentionGovernor(input()).alpha(k));
+    expect(g.selectionReceipt).toBe("OFF_CAMERA:ZONE");
+    expect(g.receipt).toContain("SEL:OFF_CAMERA");
+  });
+
+  it("a selection restored with Inspect closed arrives calm: nothing recedes", () => {
+    const g = selectAttentionGovernor(input({ selection: { ...zone, inspecting: false } }));
+    expect(g.receding).toBe(false);
+    expect(g.alpha("livingProfile")).toBe(1);
+    expect(g.selectionReceipt).toBe("AT_REST:ZONE");
+    expect(g.receipt).toContain("SEL:AT_REST");
+  });
+
+  it("names each kind of selection by its own key", () => {
+    const rc = (sel: AttentionSelection | null) => selectAttentionGovernor(input({ selection: sel })).selectionReceipt;
+    expect(rc(null)).toBe("NONE");
+    expect(rc({ kind: "SLICE", key: "101.25", onCamera: true, inspecting: true })).toBe("SLICE:101.25");
+    expect(rc({ kind: "BUBBLE", key: "bt:1700000000:101.25", onCamera: true, inspecting: true })).toBe("BUBBLE:bt:1700000000:101.25");
+    expect(rc({ kind: "LEVEL", key: "lvl:9", onCamera: true, inspecting: true })).toBe("LEVEL:lvl:9");
+    expect(rc({ kind: "BUBBLE", key: "k", onCamera: false, inspecting: true })).toBe("OFF_CAMERA:BUBBLE");
+  });
+
+  it("the Question Lens quiet keeps the focus", () => {
+    const g = selectAttentionGovernor(input({ selection: zone })).withQuestionQuiet(0.35);
+    expect(g.receding).toBe(true);
+    expect(g.alpha("livingProfile")).toBeCloseTo(Math.max(ATTENTION_FLOOR, 0.35 * SELECTION_RECEDE), 10);
+    expect(g.selectionReceipt).toBe("ZONE:zone:abc");
+  });
+
+  it("words of a receding layer stay legible (≥ 0.5); a louder layer's words are not dimmed", () => {
+    const g = selectAttentionGovernor(input({ selection: zone }));
+    expect(g.alpha("bigTrades")).toBeCloseTo(0.45, 10);
+    expect(g.textAlpha("bigTrades")).toBe(TEXT_ALPHA_FLOOR);
+    expect(g.textAlpha("bigTrades", { selectedItem: true })).toBe(1);
+    const rest = selectAttentionGovernor(input());
+    expect(rest.textAlpha("bigTrades")).toBe(1);
+    expect(rest.textAlpha("riskOnPrice")).toBe(1);
+  });
+
+  it("the receipt records the receded alpha the layer was given", () => {
+    const g = selectAttentionGovernor(input({ selection: zone }));
+    g.alpha("livingProfile");
+    g.alpha("bubbles", { selectedItem: true });
+    g.alpha("bubbles");
+    expect(g.tiersReceipt()).toBe("livingProfile:LIVE:0.45,bubbles:LIVE:0.45");
   });
 });

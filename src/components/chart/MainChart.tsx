@@ -169,7 +169,7 @@ const BASIS_CAPTION_X =
 
 /** Profile species geometry receipts: withdrawn each frame before the stack paints, re-published by whatever paints. */
 const PROFILE_GEOMETRY_RECEIPTS = [
-  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie",
+  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected",
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
 ] as const;
@@ -231,7 +231,7 @@ import {
 } from "@/lib/chartKeepOut";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
-import { selectAttentionGovernor } from "@/lib/marketData/viewModels/selectAttentionGovernor";
+import { selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
@@ -945,6 +945,12 @@ interface Props {
   onSelectProfileSlice?: (price: number) => void;
   /** The selected slice's bucket price, outlined on the glass. */
   selectedProfileSlicePrice?: number | null;
+  /**
+   * Inspect is open on the room's selection. While it is, everything on the
+   * glass that is not the selected item recedes (attention governor); a
+   * selection restored with Inspect closed arrives calm and recedes nothing.
+   */
+  selectionInspected?: boolean;
   onOHLCAtCursor?:  (ohlc: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => void;
   // WM VP indicators
   fixedVPActive?:  boolean;
@@ -1409,7 +1415,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, selectedPrintOnChart = null,
-  onSelectProfileSlice, selectedProfileSlicePrice = null,
+  onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
   imbalanceStack = null,
@@ -1693,6 +1699,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   */
   const selectedPrintRef = useRef<SelectedBigTrade | null>(null);
   selectedPrintRef.current = selectedPrintOnChart;
+  const selectionInspectedRef = useRef(false);
+  selectionInspectedRef.current = selectionInspected;
+  const marketObjectTargetsRef = useRef(marketObjectTargets);
+  marketObjectTargetsRef.current = marketObjectTargets;
   const questionChoiceRef = useRef<QuestionChoice>("AUTO");
   questionChoiceRef.current = questionChoiceOnChart;
   const rawRef = useRef(false);
@@ -5708,6 +5718,43 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          spoken (`withQuestionQuiet`, below). Candles and the price line are
          outside its authority.
       ══════════════════════════════════════════════════════════════════════ */
+      // THE SELECTION is the room's one selection (selected object, print or
+      // slice — never a second state here), located on THIS camera: a focus
+      // the trader cannot see recedes nothing (OFF_CAMERA).
+      const selectedBubbleKey = selectedPrintRef.current?.printKey ?? null;
+      let attSelection: AttentionSelection | null = null;
+      try {
+        const inPlot = (x: number | null, y: number | null) =>
+          x != null && y != null && x >= 0 && x <= plotRight && y >= 0 && y <= pane0Bottom;
+        const inspecting = selectionInspectedRef.current;
+        const selId = selectedObjectIdRef.current;
+        const selSlice = selectedSliceRef.current;
+        if (selId) {
+          const zone = structureZonesRef.current.find(z => z.object.objectId === selId);
+          if (zone) {
+            const yh = srs.priceToCoordinate(zone.object.priceHigh), yl = srs.priceToCoordinate(zone.object.priceLow);
+            const xb = chart.timeScale().timeToCoordinate(zone.birthTime as never);
+            const onCamera = yh != null && yl != null && Math.min(+yh, +yl) <= pane0Bottom && Math.max(+yh, +yl) >= 0
+              && (xb == null ? 0 : +xb) < plotRight;
+            attSelection = { kind: "ZONE", key: selId, onCamera, inspecting };
+          } else {
+            const pin = marketObjectTargetsRef.current.find(t => t.object.objectId === selId);
+            const xp = pin ? chart.timeScale().timeToCoordinate(pin.birthTime as never) : null;
+            const yp = pin ? srs.priceToCoordinate(pin.object.priceHigh) : null;
+            attSelection = { kind: "LEVEL", key: selId, onCamera: inPlot(xp == null ? null : +xp, yp == null ? null : +yp), inspecting };
+          }
+        } else if (selSlice != null) {
+          // The outline exists only where Living paints rows (never at FAR).
+          const ys = srs.priceToCoordinate(selSlice);
+          const onCamera = layerOnRef.current.livingProfile === true && livingProfileRef.current?.drawn === true
+            && semanticDensity.depth !== "FAR" && ys != null && +ys >= 0 && +ys <= pane0Bottom;
+          attSelection = { kind: "SLICE", key: String(selSlice), onCamera, inspecting };
+        } else if (selectedBubbleKey) {
+          const bub = bubblesRef.current.find(b => b.spawnKey === selectedBubbleKey)
+            ?? deltaBubblesRef.current.find(b => b.spawnKey === selectedBubbleKey);
+          attSelection = { kind: "BUBBLE", key: selectedBubbleKey, onCamera: bub != null && inPlot(bub.x, bub.y), inspecting };
+        }
+      } catch { /* camera mid-transition: no focus this frame */ }
       let att = selectAttentionGovernor({
         density: semanticDensity,
         questionQuiet: 1,
@@ -5715,7 +5762,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         stackPrefs: stackPrefsRef.current,
         fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? []) : [],
         feedState: null,
+        selection: attSelection,
       });
+      canvas.dataset.attentionSelection = att.selectionReceipt;
+      // The selected bubble, marked at full strength outside its layer's
+      // alpha: a 2px ivory ring at r+6 and a dotted hairline from the disc to
+      // the price axis at the print's own price.
+      const markSelectedBubble = (b: Bubble, rx: number, ry: number) => {
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "rgba(237,230,211,1)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(b.x, b.y, rx + 6, ry + 6, 0, 0, Math.PI * 2); ctx.stroke();
+        const ya = srs.priceToCoordinate(b.anchorPrice);
+        if (ya != null && b.x + rx + 8 < plotRight) {
+          ctx.lineWidth = 1; ctx.setLineDash([1, 3]); ctx.strokeStyle = "rgba(237,230,211,0.9)";
+          ctx.beginPath(); ctx.moveTo(b.x + rx + 8, Math.round(+ya) + 0.5); ctx.lineTo(plotRight, Math.round(+ya) + 0.5); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.restore();
+      };
 
       /* ── H-501 · FAR IS A DIFFERENT PICTURE (canon plate
          WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
@@ -6229,7 +6294,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const wob = 1 + Math.sin(t) * 0.05;
           const Rx = Math.max(0.1, b.r * wob);
           const Ry = Math.max(0.1, b.r / wob);
+          const selB = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
           ctx.save();
+          ctx.globalAlpha = att.alpha("bubbles", { selectedItem: selB });
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(${core},0.10)`;
@@ -6249,6 +6316,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.strokeStyle = `rgba(255,255,255,${isHover ? 0.98 : 0.82})`;
           ctx.stroke();
           if (b.r >= 7) {
+            ctx.globalAlpha = att.textAlpha("bubbles", { selectedItem: selB });
             const p = b.anchorPrice;
             const lbl = p >= 100 ? p.toFixed(2) : p >= 1 ? p.toFixed(2) : p.toFixed(4);
             const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
@@ -6261,6 +6329,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(lbl, b.x, b.y);
           }
           ctx.restore();
+          if (selB) markSelectedBubble(b, Rx, Ry);
         }
       } else if (deltaBubblesRef.current.length) {
         deltaBubblesRef.current = [];
@@ -6852,9 +6921,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // popped it and demoted another.
         for (const b of [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
-          if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id) {
+          const selB = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+          if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id && !selB) {
             const coreQ = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
             ctx.save();
+            ctx.globalAlpha = att.alpha("bigTrades");
             ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(2.5, Math.min(5, b.r * 0.3)), 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(${coreQ},0.7)`; ctx.lineWidth = 1.2; ctx.stroke();
             ctx.restore();
@@ -6873,6 +6944,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const Ry = Math.max(0.1, b.r / wob);
 
           ctx.save();
+          ctx.globalAlpha = att.alpha("bigTrades", { selectedItem: selB });
 
           // Visuals Canon: Big Trades are market objects in the same underwater
           // world as Liquidity Weather. Keep the teal/red core as side truth,
@@ -6934,6 +7006,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // F07A: magnitude is the primary inscription, matching the area.
           // Time and price are subordinate; exact values remain in Inspect.
           if (b.r >= 7) {
+            ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
             const lbl = formatBubbleVolume(Math.abs(b.value));
             const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
             ctx.font = `bold ${fontPx}px Inter, monospace`;
@@ -6977,6 +7050,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
           if (ticketDepth === "NEAR" && bubbleRank <= 3 && b.kind === "big-trade") {
+            ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
             const size = buy ? b.ask : b.bid;
             const provT = aggressorProvenanceOf(b.aggressorMethod);
             const sideNote = provT === "INFERRED" ? aggressorProvenanceNote(provT)?.chip : null;
@@ -7010,6 +7084,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(lines[1], tx + 8, ty + 24);
           }
           ctx.restore();
+          if (selB) markSelectedBubble(b, Rx, Ry);
         }
         canvas.dataset.bigTradeLabelsStaggered = String(bubbleLabelsStaggered);
         canvas.dataset.importantPrintTickets = String(printTickets.length);
@@ -11021,6 +11096,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             const silhouette: { x: number; y: number }[] = [];
+            let sliceOutline: { x: number; y: number; w: number; h: number } | null = null;
             for (const b of (livingDepth === "FAR" ? [] : lp.bars)) {
               const yr = srs.priceToCoordinate(b.price);
               if (yr == null) continue;
@@ -11045,9 +11121,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // The slice Inspect is reading, outlined so the ticket and the
               // glass visibly agree on WHICH bucket is selected.
               if (selectedSliceRef.current != null && Math.abs(b.price - selectedSliceRef.current) < 1e-9) {
-                ctx.strokeStyle = "rgba(201,165,92,1)";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(rightEdge - histMax - 2.5, y - 1.5, histMax + 5, Math.max(1, rowH - 1) + 3);
+                sliceOutline = { x: rightEdge - histMax - 2.5, y: y - 1.5, w: histMax + 5, h: Math.max(1, rowH - 1) + 3 };
                 ds.livingProfileSelected = String(b.price);
               }
               drawnBars++;
@@ -11207,6 +11281,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             ctx.restore();
+            // The selected slice is the loudest thing on the lane: its outline
+            // is stroked after Living's alpha is restored, at full strength.
+            if (sliceOutline) {
+              ctx.save(); ctx.globalAlpha = 1;
+              ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 1.5;
+              ctx.strokeRect(sliceOutline.x, sliceOutline.y, sliceOutline.w, sliceOutline.h);
+              ctx.restore();
+            }
             if (drawnBars > 0) ds.livingProfileBars = String(drawnBars);
             else delete ds.livingProfileBars;
             if (drawnMarks > 0) ds.livingProfileMarks = String(drawnMarks);
