@@ -40,7 +40,11 @@ const between = (src: string, from: string, to: string) => {
 
 describe("the glass publishes what a click can select", () => {
   it("the hit list is cleared with the glass, before the anatomy block runs", () => {
-    const clear = CHART.search(/ctx\.clearRect\(0, 0, W, H\);\s*anatomyHitsRef\.current = \[\];/);
+    // The keep-out receipt withdrawal shares the clear (newestCandleKeepOut
+    // pins it there too); nothing else may sit between the clear and the reset.
+    const clear = CHART.search(
+      /ctx\.clearRect\(0, 0, W, H\);\s*(?:for \(const k of KEEP_OUT_RECEIPTS\) delete canvas\.dataset\[k\];\s*)?anatomyHitsRef\.current = \[\];/,
+    );
     expect(clear).toBeGreaterThan(-1);
     expect(CHART.indexOf("if (!absorptionAnatomyActive) {")).toBeGreaterThan(clear);
     // Exactly one reset: a second would drop the hits of the frame on screen.
@@ -52,7 +56,9 @@ describe("the glass publishes what a click can select", () => {
     const push = loop.indexOf("anatomyHitsRef.current.push({ target: zoneTarget(zone), rects: shelfRects });");
     expect(push).toBeGreaterThan(-1);
     const farSkip = loop.indexOf('if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }');
-    const slotSkip = loop.indexOf("if (freeY == null) { absorbChipsHidden++; continue; }");
+    // The chip slot is the candle keep-out's placement (chipSpot) since the
+    // keep-out landed; the rule — the hit is pushed before it can skip — holds.
+    const slotSkip = loop.indexOf("if (chipSpot == null) { absorbChipsHidden++; continue; }");
     expect(farSkip).toBeGreaterThan(push);
     expect(slotSkip).toBeGreaterThan(push);
     // Nothing between the geometry and the push can skip the shelf.
@@ -72,16 +78,18 @@ describe("the glass publishes what a click can select", () => {
 describe("selected is loudest, and never a slab over the candles", () => {
   const loop = between(CHART, "for (const zone of anatomy.zones) {", "ds.absorptionChips =");
 
-  it("the selected shelf's fill stays a veil (≤ 0.16) and its peers quiet to ×0.4", () => {
+  it("the selected shelf's fill stays a veil (≤ 0.16) and its peers' loudness is the attention governor's", () => {
     const fill = loop.match(/const shelfFillA = shelfSelected \? ([0-9.]+) : ([0-9.]+);/);
     expect(fill).not.toBeNull();
     expect(Number(fill![1])).toBeLessThanOrEqual(0.16);
     expect(Number(fill![1])).toBeGreaterThan(Number(fill![2]));
-    expect(loop).toContain("ctx.globalAlpha = anatomyPeersQuiet && !shelfSelected ? 0.4 : 1;");
+    // Peers recede through the ONE attention owner (selectedObjectIsLoudest
+    // pins the same lines), not a private ×0.4 inside this layer.
+    expect(loop).toContain('ctx.globalAlpha = att.alpha("absorption", { selectedItem: shelfSelected });');
     // Reset before anything else in the block paints.
     expect(CHART).toMatch(/ctx\.globalAlpha = 1;\s*ds\.absorptionChips =/);
     expect(between(CHART, "for (const m of ex.marks) {", "if (exhaustionDrawn.length > 0)"))
-      .toContain("ctx.globalAlpha = anatomyPeersQuiet && !markSelected ? 0.4 : 1;");
+      .toContain('ctx.globalAlpha = att.alpha("exhaustion", { selectedItem: markSelected });');
   });
 
   it("the selected shelf's edges are drawn alike (no defended side) with a halo, in the Appearance owner's ink", () => {
@@ -99,7 +107,7 @@ describe("selected is loudest, and never a slab over the candles", () => {
     );
     expect(loop).toContain("const shelfSelected = anatomySelReading?.currentId === anatomyTargetId(zoneTarget(zone));");
     expect(CHART).toContain("const markSelected = anatomySelReading?.currentId === anatomyTargetId(markTarget(m));");
-    expect(CHART).toContain("const anatomyPeersQuiet = anatomyReadingDrawn(anatomySelReading);");
+    expect(CHART).not.toContain("anatomyPeersQuiet");
   });
 });
 

@@ -42,7 +42,11 @@ describe("the selected object is loudest", () => {
     for (const ref of ["selectedObjectIdRef.current", "selectedSliceRef.current", "selectionInspectedRef.current"]) {
       expect(sel, ref).toContain(ref);
     }
-    for (const kind of ["ZONE", "LEVEL", "SLICE", "BUBBLE"]) expect(sel).toContain(`kind: "${kind}"`);
+    for (const kind of ["ZONE", "LEVEL", "SLICE", "BUBBLE", "ANATOMY"]) expect(sel).toContain(`kind: "${kind}"`);
+    // An absorption shelf / exhaustion mark is on camera only while the window
+    // still draws it — the reducer's last resolution, never assumed.
+    expect(sel).toContain("selectedAnatomyRef.current");
+    expect(sel).toContain("onCamera: anatomyReadingDrawn(picked.reading),");
     // Every kind is measured against the plot, not assumed visible.
     expect(sel.match(/onCamera/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
     expect(sel).toMatch(/pane0Bottom/);
@@ -94,6 +98,12 @@ describe("the selected object is loudest", () => {
 
   it("the selected zone asks for SELECTED; the other zones ask for the layer's alpha", () => {
     expect(CHART).toMatch(/ctx\.globalAlpha = att\.alpha\("marketZones", \{ selectedItem: selected \}\);/);
+  });
+
+  it("the selected shelf or mark asks for SELECTED; its peers ask the governor — no second dimmer", () => {
+    expect(CHART).toContain('ctx.globalAlpha = att.alpha("absorption", { selectedItem: shelfSelected });');
+    expect(CHART).toContain('ctx.globalAlpha = att.alpha("exhaustion", { selectedItem: markSelected });');
+    expect(CHART).not.toMatch(/anatomyPeersQuiet/);
   });
 
   it("the room hands the canvas its selection and whether Inspect is reading it", () => {

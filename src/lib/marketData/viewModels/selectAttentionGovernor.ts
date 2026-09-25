@@ -36,7 +36,8 @@
  * here can dim them.
  *
  * THE SELECTED OBJECT IS LOUDEST. While the trader is inspecting a selection
- * (a zone or level, a Living slice, a bubble) and it is ON CAMERA, every
+ * (a zone or level, a Living slice, a bubble, an absorption shelf or an
+ * exhaustion mark) and it is ON CAMERA, every
  * governed layer that is not the selected item recedes by SELECTION_RECEDE
  * (floor still 0.12); the item itself paints at 1. A selection off camera, or
  * one restored after a refresh with Inspect still closed, recedes nothing —
@@ -160,9 +161,10 @@ export interface AttentionGovernorInput {
 
 /**
  * ZONE = a structure zone; LEVEL = any other market object (a pin);
- * SLICE = a Living Profile bucket; BUBBLE = a big-trade or delta print.
+ * SLICE = a Living Profile bucket; BUBBLE = a big-trade or delta print;
+ * ANATOMY = an absorption shelf or exhaustion mark (the reducer's ANATOMY kind).
  */
-export type AttentionSelectionKind = "ZONE" | "LEVEL" | "SLICE" | "BUBBLE";
+export type AttentionSelectionKind = "ZONE" | "LEVEL" | "SLICE" | "BUBBLE" | "ANATOMY";
 
 export interface AttentionSelection {
   readonly kind: AttentionSelectionKind;

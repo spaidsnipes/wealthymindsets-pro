@@ -260,6 +260,23 @@ describe("selection focus — the selected object is loudest and everything else
     expect(rc({ kind: "BUBBLE", key: "bt:1700000000:101.25", onCamera: true, inspecting: true })).toBe("BUBBLE:bt:1700000000:101.25");
     expect(rc({ kind: "LEVEL", key: "lvl:9", onCamera: true, inspecting: true })).toBe("LEVEL:lvl:9");
     expect(rc({ kind: "BUBBLE", key: "k", onCamera: false, inspecting: true })).toBe("OFF_CAMERA:BUBBLE");
+    expect(rc({ kind: "ANATOMY", key: "abs:1700000000", onCamera: true, inspecting: true })).toBe("ANATOMY:abs:1700000000");
+  });
+
+  it("an inspected absorption shelf is loudest: its peers and every other layer recede, it paints at 1", () => {
+    const g = selectAttentionGovernor(input({
+      selection: { kind: "ANATOMY", key: "abs:1700000000", onCamera: true, inspecting: true },
+    }));
+    expect(g.receding).toBe(true);
+    expect(g.alpha("absorption", { selectedItem: true })).toBe(1);
+    expect(g.alpha("absorption")).toBeCloseTo(SELECTION_RECEDE, 10);
+    expect(g.alpha("exhaustion")).toBeCloseTo(SELECTION_RECEDE, 10);
+    // A shelf the window no longer draws recedes nothing.
+    const gone = selectAttentionGovernor(input({
+      selection: { kind: "ANATOMY", key: "abs:1700000000", onCamera: false, inspecting: true },
+    }));
+    expect(gone.receding).toBe(false);
+    expect(gone.alpha("absorption")).toBe(1);
   });
 
   it("the Question Lens quiet keeps the focus", () => {

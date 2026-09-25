@@ -5798,6 +5798,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const onCamera = layerOnRef.current.livingProfile === true && livingProfileRef.current?.drawn === true
             && semanticDensity.depth !== "FAR" && ys != null && +ys >= 0 && +ys <= pane0Bottom;
           attSelection = { kind: "SLICE", key: String(selSlice), onCamera, inspecting };
+        } else if (selectedAnatomyRef.current) {
+          // A shelf or mark is on camera while the window still draws it — the
+          // resolution the glass last handed up (SAME / RESHAPED), not a guess.
+          const picked = selectedAnatomyRef.current;
+          attSelection = {
+            kind: "ANATOMY",
+            key: anatomyTargetId(picked.reading.target),
+            onCamera: anatomyReadingDrawn(picked.reading),
+            inspecting,
+          };
         } else if (selectedBubbleKey) {
           const bub = bubblesRef.current.find(b => b.spawnKey === selectedBubbleKey)
             ?? deltaBubblesRef.current.find(b => b.spawnKey === selectedBubbleKey);
@@ -8525,7 +8535,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const anatomySelReading = anatomySel
             ? selectAnatomyInspect(anatomySel.reading.target, anatomy, selectExhaustion(anatomy), windowCapped)
             : null;
-          const anatomyPeersQuiet = anatomyReadingDrawn(anatomySelReading);
           let anatomySelectedPainted = false;
 
           // Screen positions for every bar that is actually on screen.
@@ -8720,11 +8729,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const bh = Math.max(2, yLo - yHi);
 
               // SELECTED IS LOUDEST. The selected shelf keeps full ink and gains
-              // solid edges and a halo; while it is drawn every other shelf
-              // steps down to ×0.4. The fill stays a veil (≤ 0.16): the shelf
-              // sits on the candles it measures. Candles are never touched.
+              // solid edges and a halo; how loud its peers are is the attention
+              // governor's call (they recede while Inspect reads the selection
+              // on camera). The fill stays a veil (≤ 0.16): the shelf sits on
+              // the candles it measures. Candles are never touched.
               const shelfSelected = anatomySelReading?.currentId === anatomyTargetId(zoneTarget(zone));
-              ctx.globalAlpha = anatomyPeersQuiet && !shelfSelected ? 0.4 : 1;
+              ctx.globalAlpha = att.alpha("absorption", { selectedItem: shelfSelected });
               // What a click can select is what was painted: the shelf's body (a
               // thin one padded to a finger target), pushed BEFORE the chip slots
               // can hide its words — a shelf without words is still selectable,
@@ -8978,7 +8988,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const x = +xr;
                 const up = m.direction === "UP";
                 const y0 = up ? +yr - 8 : +yr + 8;
-                // Selected is loudest; its peers quiet to ×0.4 while it is drawn.
+                // Selected is loudest; its peers' loudness is the governor's.
                 const markSelected = anatomySelReading?.currentId === anatomyTargetId(markTarget(m));
                 // The box of what this mark drew (fuel + rings) — its hit body and halo.
                 let mx0 = x - 6, my0 = y0 - 9, mx1 = x + 7, my1 = y0 + 9;
@@ -8988,7 +8998,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   mx0 = Math.min(mx0, ax); my0 = Math.min(my0, ay); mx1 = Math.max(mx1, bx); my1 = Math.max(my1, by);
                 };
                 ctx.save();
-                ctx.globalAlpha = anatomyPeersQuiet && !markSelected ? 0.4 : 1;
+                ctx.globalAlpha = att.alpha("exhaustion", { selectedItem: markSelected });
                 ctx.fillStyle = "rgba(226,92,92,0.95)";
                 // GARDEN 12 · MEASURED, NOT DECORATIVE. The push's span and its
                 // follow-through bars come from the owner: the extreme the mark
