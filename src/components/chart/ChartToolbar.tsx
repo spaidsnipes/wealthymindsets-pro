@@ -467,10 +467,8 @@ const INDICATORS = [
   { cat:"Volatility", name:"Ulcer Index",            desc:"Downside volatility depth measure" },
   { cat:"Volatility", name:"Parkinson Volatility",   desc:"High-low Parkinson estimator" },
   // ─── Order Flow ────────────────────────────────────────
-  { cat:"Order Flow", name:"Imbalance Tracker",       desc:"Live captured executed-trade imbalances only; historical OHLCV is never reconstructed" },
-  { cat:"Order Flow", name:"Supply/Demand Zones",     desc:"Teal demand boxes + red supply boxes at swing highs/lows — Deep-M Effort style" },
+  { cat:"Order Flow", name:"Supply/Demand Zones",     desc:"Boxes at confirmed swing highs (supply) and swing lows (demand) — price structure only, no side is read" },
   { cat:"Order Flow", name:"Stop Run Alert",          desc:"Failed breakout momentum reversal" },
-  { cat:"Order Flow", name:"Stacked Imbalances",      desc:"Consecutive imbalances from captured live executed trades only" },
   // ─── Smart Money ──────────────────────────────────────
   { cat:"Smart Money", name:"Order Block Finder",    desc:"Institutional demand/supply zones" },
   { cat:"Smart Money", name:"Fair Value Gaps",       desc:"Imbalanced price inefficiency zones" },
