@@ -43,14 +43,16 @@ const cards = slice("if (layerOnRef.current.anatomyCards === true) {", 'ds.anato
 
 describe("exhaustion at rest: the arrow pair, no words", () => {
   it("draws the EFFORT arrow in the push's direction beyond the fuel, sized by the owner's opening effort", () => {
-    expect(exhaustion).toContain("const eFrac = Math.max(0, Math.min(1, m.effortFirstHalf));");
+    // The pair is decided by the pure owner (src/lib/chart/exhaustionEffortResult.ts, unit-tested).
+    expect(exhaustion).toContain("const pair = exhaustionEffortResult(m);");
+    expect(exhaustion).toContain("const eFrac = pair.effortFrac;");
     expect(exhaustion).toContain("const eBase = +yr + s * (fuelOut + 4);");
     expect(exhaustion).toContain("const eTip = eBase + s * (10 + 16 * eFrac);");
     expect(exhaustion).toMatch(/exArrow\(x, eBase, eTip, /);
   });
 
   it("draws the RESULT arrow back from the stop line to the furthest follow-through reach, on that bar", () => {
-    expect(exhaustion).toContain("for (const f of m.followBars) {");
+    expect(exhaustion).toContain("const best = pair.resultBar;");
     expect(exhaustion).toContain("const rxR = best ? ts.timeToCoordinate(best.time as never) : null;");
     expect(exhaustion).toContain("const ryR = best ? srs.priceToCoordinate(best.reach) : null;");
     expect(exhaustion).toContain("resultPx = Math.abs(+ryR - +yr);");

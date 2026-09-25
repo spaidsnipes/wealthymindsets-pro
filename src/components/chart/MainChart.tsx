@@ -209,6 +209,7 @@ const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT
 const REGIME_FIELD_PEAK = 0.07;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
+import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
@@ -9732,15 +9733,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const s = up ? -1 : 1;
                     const fuelOut = rib.length > 0 ? Math.max(...rib.map(p => 3 + p.t)) : 3;
                     const eBase = +yr + s * (fuelOut + 4);
-                    const eFrac = Math.max(0, Math.min(1, m.effortFirstHalf));
+                    const pair = exhaustionEffortResult(m);
+                    const eFrac = pair.effortFrac;
                     const eTip = eBase + s * (10 + 16 * eFrac);
                     exArrow(x, eBase, eTip, "rgba(212,175,55,0.95)");
                     grow(x - 4, Math.min(eBase, eTip), x + 4, Math.max(eBase, eTip));
                     let resultPx: number | null = null;
-                    let best: { time: number; reach: number } | null = null;
-                    for (const f of m.followBars) {
-                      if (!best || (up ? f.reach > best.reach : f.reach < best.reach)) best = f;
-                    }
+                    const best = pair.resultBar;
                     const rxR = best ? ts.timeToCoordinate(best.time as never) : null;
                     const ryR = best ? srs.priceToCoordinate(best.reach) : null;
                     if (rxR != null && ryR != null) {
