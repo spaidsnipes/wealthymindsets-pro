@@ -21,3 +21,30 @@ describe("the Workspace Draw sheet", () => {
     expect(SHEET).toContain(`id: "${id}"`);
   });
 });
+
+/**
+ * …AND ON THE GLASS THE FIXED RANGE IS ITS ANCHORS, NOT A BOX (GP12 Defect 1:
+ * "Fixed Range — the visual must have lawful handles/anchors"). Serving drew a
+ * washed rectangle whose edges were not where hitHandle grabs.
+ */
+const CHART = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+
+describe("the Fixed Range drawing on the glass", () => {
+  const from = CHART.indexOf('else if (t === "anchored-vp")');
+  const block = CHART.slice(from, CHART.indexOf('else if (t === "delta-vp")', from));
+
+  it("paints anchor rails and knobs at the grab points, and no washed box", () => {
+    expect(block.length).toBeGreaterThan(1200);
+    expect(block).toContain("for (const rx of [x0, x1])");
+    expect(block).toContain("for (const P of [A, B])");
+    expect(block).toContain("ctx.arc(kx, P.y, 3.5, 0, Math.PI * 2)");
+    const drawnArm = block.slice(block.indexOf("if (vm.drawn) {"), block.indexOf("} else {", block.indexOf("if (vm.drawn) {")));
+    expect(drawnArm).not.toContain("strokeRect(");
+    expect(drawnArm).not.toContain('pk.rgbaAs("WASH"');
+  });
+
+  it("the knobs sit where the handles are grabbed", () => {
+    expect(CHART).toContain("for (let k = 0; k < d.pts.length; k++) { const q = logicalToPixel(d.pts[k]); if (q && Math.hypot(q.x - x, q.y - y) <= tol) return k; }");
+  });
+});

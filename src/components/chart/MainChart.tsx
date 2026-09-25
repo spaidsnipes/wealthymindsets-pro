@@ -14063,16 +14063,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.save();
           ctx.setLineDash([]);
           if (vm.drawn) {
-            // The box spans the bars' own price range, not the drag's y: a
+            // The rails span the bars' own price range, not the drag's y: a
             // fixed range is a span of TIME, and its prices are what traded.
             const ys = vm.rows.map(r => priceY(r.price)).filter((v): v is number => v != null);
             const yTop = Math.min(...ys) - 4;
             const yBot = Math.max(...ys) + 4;
-            ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", 0.05);
-            ctx.fillRect(x0, yTop, rw, yBot - yTop);
-            ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x0 + 0.5, yTop + 0.5, rw - 1, yBot - yTop - 1);
+            // THE RANGE IS ITS ANCHORS (GP12 Defect 1: "Fixed Range — the
+            // visual must have lawful handles/anchors"). No washed box: two
+            // anchor rails at the chosen times, and a knob on each rail at the
+            // exact point hitHandle grabs (the drag's own price), joined to
+            // the rail by a leader when it sits outside the traded span. What
+            // the trader sees is what the trader can move.
+            ctx.strokeStyle = pk.rgba("ANCHOR", 0.8);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (const rx of [x0, x1]) { ctx.moveTo(Math.round(rx) + 0.5, yTop); ctx.lineTo(Math.round(rx) + 0.5, yBot); }
+            ctx.stroke();
+            for (const P of [A, B]) {
+              const kx = Math.round(P.x) + 0.5;
+              if (P.y < yTop || P.y > yBot) {
+                ctx.strokeStyle = pk.rgba("ANCHOR", 0.45);
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 3]);
+                ctx.beginPath(); ctx.moveTo(kx, P.y < yTop ? yTop : yBot); ctx.lineTo(kx, P.y); ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
+              ctx.strokeStyle = "rgba(11,10,8,0.9)";
+              ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.arc(kx, P.y, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            }
             const sorted = [...ys].sort((a, b) => a - b);
             let rowH = 2;
             if (sorted.length >= 2) {
