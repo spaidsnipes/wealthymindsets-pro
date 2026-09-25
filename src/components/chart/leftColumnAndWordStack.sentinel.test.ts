@@ -58,8 +58,11 @@ describe("left column and word stack", () => {
     const chipFn = CHART.slice(CHART.indexOf("const chip = (text: string, x: number, y: number) => {"), CHART.indexOf("`STRUCTURE · FROM ${kind}"));
     expect(chipFn.length).toBeGreaterThan(200);
     expect(chipFn).toContain("const taken = (yy: number) => floatingChips.some(");
-    expect(chipFn).toContain("floatingChips.push({ x: cx, y: cy - 12, w, h: 14 });");
-    expect(chipFn).toMatch(/ctx\.fillRect\(cx, cy - 12, w, 14\);/);
+    // Pin updated 2026-09-25 (keep-out completion): the row the chips leave
+    // is then a keep-out slot test, so the chip paints and joins the ledger
+    // where that placement says (see newestCandleKeepOut.sentinel.test.ts).
+    expect(chipFn).toContain("floatingChips.push({ x: spotP.rect.x, y: spotP.rect.y, w, h: 14 });");
+    expect(chipFn).toMatch(/ctx\.fillRect\(spotP\.rect\.x, spotP\.rect\.y, w, 14\);/);
   });
 
   it("the stack column places each label on the nearest free row (no oscillating step)", () => {

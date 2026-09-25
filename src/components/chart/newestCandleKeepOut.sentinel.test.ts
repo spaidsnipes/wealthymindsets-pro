@@ -184,3 +184,24 @@ describe("the exhaustion chip clears every body under its row and the chips on t
     expect(ex).not.toContain('ctx.fillStyle = "rgba(20,8,8,0.88)"');
   });
 });
+
+describe("the Structure Profile's name and LEG POC chip clear every body under their rows", () => {
+  // Added 2026-09-25 (keep-out completion): both chips (0.82 backing) print
+  // right of the swing over the leg's own candles, with no keep-out at all.
+  const chipFn = slice("const chip = (text: string, x: number, y: number) => {", "`STRUCTURE · FROM ${kind}");
+
+  it("tests the chip-free row strictly, then the rows a step away, then a slide that stops at the anchor", () => {
+    expect(chipFn).toMatch(/const rowsS: number\[\] = \[y\];\s*for \(let step = 1; step <= 6; step\+\+\) \{/);
+    expect(chipFn).toContain("if (down + 2 <= pane0Bottom) rowsS.push(down);");
+    expect(chipFn).toContain("if (up - 12 >= HEADER_FLOOR_Y) rowsS.push(up);");
+    expect(chipFn).toContain("const altsS = rowsS.filter(r => r !== cy).map(r => ({ x: cx, y: r - 12, w, h: 14 }));");
+    expect(chipFn).toMatch(/placeClearOfKeepOut\(\s*\{ x: cx, y: cy - 12, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(Math\.min\(cy, \.\.\.rowsS\) - 12, Math\.max\(cy, \.\.\.rowsS\) \+ 2\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), Math\.min\(cx, x0 - w - 6\)\), blockers: floatingChips, strict: true, alternates: altsS \},?\s*\)/);
+    expect(chipFn).toMatch(/recordKeepOut\(keepOutLedger, spotP\)/);
+  });
+
+  it("paints backing and words where the placement says, at an alpha it allows", () => {
+    expect(chipFn).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotP, 0\.82\)\}\)`;\s*ctx\.fillRect\(spotP\.rect\.x, spotP\.rect\.y, w, 14\);/);
+    expect(chipFn).toContain("ctx.fillText(text, spotP.rect.x + 4, spotP.rect.y + 12);");
+    expect(chipFn).not.toContain('ctx.fillStyle = "rgba(11,10,8,0.82)"');
+  });
+});

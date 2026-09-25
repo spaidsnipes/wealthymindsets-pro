@@ -12735,11 +12735,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   : !taken(up) && up - 12 >= HEADER_FLOOR_Y ? up
                   : cy;
               }
-              ctx.fillStyle = "rgba(11,10,8,0.82)";
-              ctx.fillRect(cx, cy - 12, w, 14);
+              // CANDLE PRESERVATION. The name prints right of its swing, over
+              // the leg's own candles. The row the chips left it is a strict
+              // slot test against every body under it and the chips on the
+              // glass; then the other rows a step away; then a slide left that
+              // stops just past the anchor hairline, so the name still stands
+              // at its swing. No clear spot: it stays and its backing yields.
+              const rowsS: number[] = [y];
+              for (let step = 1; step <= 6; step++) {
+                const down = y + step * 15, up = y - step * 15;
+                if (down + 2 <= pane0Bottom) rowsS.push(down);
+                if (up - 12 >= HEADER_FLOOR_Y) rowsS.push(up);
+              }
+              const altsS = rowsS.filter(r => r !== cy).map(r => ({ x: cx, y: r - 12, w, h: 14 }));
+              const spotP = placeClearOfKeepOut(
+                { x: cx, y: cy - 12, w, h: 14 },
+                [...keepOut(), ...rowBodiesAt(Math.min(cy, ...rowsS) - 12, Math.max(cy, ...rowsS) + 2)],
+                { minX: Math.max(keepOutMinX(), Math.min(cx, x0 - w - 6)), blockers: floatingChips, strict: true, alternates: altsS },
+              );
+              recordKeepOut(keepOutLedger, spotP);
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotP, 0.82)})`;
+              ctx.fillRect(spotP.rect.x, spotP.rect.y, w, 14);
               ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
-              ctx.fillText(text, cx + 4, cy);
-              floatingChips.push({ x: cx, y: cy - 12, w, h: 14 });
+              ctx.fillText(text, spotP.rect.x + 4, spotP.rect.y + 12);
+              floatingChips.push({ x: spotP.rect.x, y: spotP.rect.y, w, h: 14 });
             };
             chip(
               `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(pxDp)} · ${sp.legBars} BARS${est}`,
