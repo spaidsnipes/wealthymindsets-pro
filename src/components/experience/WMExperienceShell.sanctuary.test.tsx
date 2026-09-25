@@ -280,3 +280,15 @@ describe("WMExperienceShell · sanctuary — accessibility survives the room", (
     expect(HTML).not.toContain("NaN");
   });
 });
+
+describe("the breathing layer never overhangs the sanctuary", () => {
+  // Serving /charts, 2026-09-25: focusing the chart's INSPECT button scrolled
+  // the overflow:hidden sanctuary 20px sideways (scrollWidth 1947 > 1920),
+  // because the drifting water-breath layer overhung it. Its inset must cover
+  // the animation's full travel.
+  const src = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/components/experience/WMExperienceShell.tsx"), "utf8") as string;
+  it("insets the layer by the keyframes' scale and translate", () => {
+    expect(src).toMatch(/50%\s+\{ transform: translate3d\(8px, 4px, 0\) scale\(1\.02\);/);
+    expect(src).toContain("inset: 1% calc(1% + 8px) calc(1% + 4px) 1%;");
+  });
+});

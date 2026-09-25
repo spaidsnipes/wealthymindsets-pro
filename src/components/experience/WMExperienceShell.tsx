@@ -445,6 +445,12 @@ function SanctuaryRoom({
             transparent 60%
           );
           opacity: 0.9;
+          /* Inset by exactly the breath's travel (wm-breathe: scale 1.02 about
+             the centre = 1% each side, then 8px right / 4px down), so the
+             drifting layer never overhangs the sanctuary. It did, by ~27px:
+             overflow:hidden still lets focus / scroll-into-view scroll the
+             sanctuary, and the whole OS slid 20px left, clipping the symbol. */
+          inset: 1% calc(1% + 8px) calc(1% + 4px) 1%;
         }
         /* MODE-KEYED (not market-keyed) atmosphere intensity.
            The audit's law is that market truth cannot drive atmosphere.
