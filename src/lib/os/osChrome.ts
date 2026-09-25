@@ -456,6 +456,36 @@ function observedInstant(lastObservedAtMs: number | null): number | null {
  * standing. Rooms report what the market DID; the frame supplies when it is
  * being read. One clock, owned where the reading is rendered.
  */
+/**
+ * THE FRESHNESS JOIN, WITH ONE OWNER — `lastObservedAtMs` × the sampled clock
+ * → the `fresh` evidence `priceSourceBadge` takes and never derives.
+ *
+ * The masthead made this join inside `compileFeedStanding`; the chart room's
+ * own badge (the decision rail's Honesty Plaque and CHART INTEGRITY word) was
+ * handed `{ present }` alone. For a streaming provider the grader's rule is
+ * `fresh !== true → ACTIVE DEGRADED`, so on BTC with a ticking Coinbase socket
+ * the masthead read LIVE — CERTIFIED QUOTE while the rail beside it read
+ * DEGRADED / WOUNDED — two answers to one question (serving, 2026-09-25). Both
+ * readers now ask here.
+ *
+ *   · REST sources → undefined ("not established"): a minutes-cadence
+ *     provider measured against a seconds-scale budget is not stale.
+ *   · No stamp, or a stamp materially in the future → undefined: a bad clock
+ *     is never rounded into `true`.
+ *   · Otherwise → age ≤ LIVE_STALENESS_BUDGET_MS.
+ */
+export function quoteFreshness(
+  source: FeedObservation["source"],
+  lastObservedAtMs: number | null | undefined,
+  evaluatedAtMs: number,
+): boolean | undefined {
+  if (source == null || REST_QUOTE_SOURCES.has(source)) return undefined;
+  if (typeof lastObservedAtMs !== "number" || !Number.isFinite(lastObservedAtMs)) return undefined;
+  const rawAgeMs = evaluatedAtMs - lastObservedAtMs;
+  if (rawAgeMs < -FEED_CLOCK_SAMPLE_INTERVAL_MS) return undefined;
+  return Math.max(0, rawAgeMs) <= LIVE_STALENESS_BUDGET_MS;
+}
+
 export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number): FeedStanding {
   // ── THE CAMERA IS ASKED BEFORE THE PROVIDER ────────────────────────────────
   //
@@ -635,9 +665,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
   // short-circuits the delegate to STALE PIPELINE and slanders a provider
   // behaving exactly as specified. Canon law 3: the absence of a per-trade tape
   // is a MISSING CAPABILITY, not a stalled pipeline.
-  const fresh = REST_QUOTE_SOURCES.has(obs.source)
-    ? undefined
-    : ageMs <= LIVE_STALENESS_BUDGET_MS;
+  const fresh = quoteFreshness(obs.source, obs.lastObservedAtMs, evaluatedAtMs);
 
   // `connected !== false` rather than `connected ?? false`. A `null` transport
   // means the room did not report one, which is not the same as reporting a

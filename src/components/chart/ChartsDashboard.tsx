@@ -133,7 +133,8 @@ import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgeb
 // which accept-site stamp the plaque names, and refuses rather than defaults.
 // The decision rail's Honesty Plaque is fed from here and from nowhere else.
 import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
-import { useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { useFeedEvaluationClock, useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { quoteFreshness } from "@/lib/os/osChrome";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -3518,9 +3519,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
      So the grading is hoisted here, above the hydration gate (both readers are
      below it), and the IIFE becomes a reader like every other. */
+  // …and the freshness join the masthead makes, from the SAME owner on the
+  // same sampled clock. Handed `{ present }` alone, a streaming provider could
+  // never grade above ACTIVE DEGRADED here: the rail read DEGRADED / WOUNDED
+  // under a masthead reading LIVE — CERTIFIED QUOTE (serving, BTC 1m, 2026-09-25).
+  const quoteClockMs = useFeedEvaluationClock();
   const chartQuoteObservation = React.useMemo(
-    () => ({ present: Number.isFinite(ticker.price) && ticker.price > 0 }),
-    [ticker.price],
+    () => ({
+      present: Number.isFinite(ticker.price) && ticker.price > 0,
+      fresh: quoteFreshness(source === "unavailable" ? null : source, lastObservedAtMs, quoteClockMs),
+    }),
+    [ticker.price, source, lastObservedAtMs, quoteClockMs],
   );
   const chartSurfaceBadge = React.useMemo(
     () => resolveChartSurfaceBadge(
