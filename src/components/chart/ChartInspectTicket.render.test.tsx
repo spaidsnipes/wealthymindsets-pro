@@ -30,6 +30,7 @@ import { describe, expect, it } from "vitest";
 
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
 import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
+import selectProfileDna, { MIN_DNA_ROWS } from "@/lib/marketData/viewModels/selectProfileDna";
 import {
   selectInspectTicket,
   type InspectPrint,
@@ -150,6 +151,43 @@ describe("the ticket puts its verdict on the glass", () => {
     expect(markup(coveringTape())).toContain(vmFor(coveringTape()).reachNote);
   });
 });
+describe("P-110 #5 · the DNA numbers live in Inspect, with the reason when there are none", () => {
+  const rows = (n: number, peak: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      price: +(100 + i * 0.1).toFixed(2),
+      volume: 10 + Math.max(0, 100 - Math.abs(i - peak) * 50),
+    }));
+  const measured = selectProfileDna({ curve: rows(20, 17), poc: 101.7, vah: 101.8, val: 101.5, bars: 78, estimated: true, rowStep: 0.1 });
+
+  it("prints shape, value, POC, mass centre, moments, sample, resolution and fidelity", () => {
+    const html = markup([], { profileDna: measured, profileDnaOnGlass: true });
+    expect(html).toContain('data-inspect-profile-dna="MEASURED"');
+    expect(html).toContain("PROFILE DNA · LIVING · P");
+    expect(html).toMatch(/Value \d+% of range · POC at \d+%/);
+    expect(html).toMatch(/Mass centre \d+% · 10\d\.\d+/);
+    expect(html).toMatch(/Skew −\d\.\d\d · excess kurtosis [+−]\d\.\d\d/);
+    expect(html).toContain("Sample 20 rows · 78 bars · row step 0.1");
+    expect(html).toContain("CANDLE-ESTIMATED");
+  });
+
+  it("names THIN SAMPLE with its row count against the floor", () => {
+    const thin = selectProfileDna({ curve: rows(MIN_DNA_ROWS - 1, 3), poc: 100.3, vah: 100.4, val: 100.2, bars: 9, estimated: true });
+    const html = markup([], { profileDna: thin, profileDnaOnGlass: true });
+    expect(html).toContain(`THIN SAMPLE · ${MIN_DNA_ROWS - 1} ROWS &lt; ${MIN_DNA_ROWS}`);
+  });
+
+  it("names NO PROFILE, and NOT DRAWN when the Living Profile is off the glass", () => {
+    expect(markup([], { profileDna: selectProfileDna(null), profileDnaOnGlass: true })).toContain("PROFILE DNA · NO PROFILE");
+    const off = markup([], { profileDna: measured, profileDnaOnGlass: false });
+    expect(off).toContain('data-inspect-profile-dna="NOT_DRAWN"');
+    expect(off).not.toContain("Skew");
+  });
+
+  it("stays silent when the DNA layer is off", () => {
+    expect(markup([])).not.toContain("data-inspect-profile-dna");
+  });
+});
+
 
 describe("the bar ticket prints the canonical identity the room holds", () => {
   const BAR_ID = `BTC|15m|${BAR_OPEN_MS}|e2`;

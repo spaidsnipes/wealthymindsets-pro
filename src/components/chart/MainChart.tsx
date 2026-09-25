@@ -11058,39 +11058,70 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.livingProfileFidelity = lp.estimated ? "CANDLE_ESTIMATED" : "TRADE_BASED";
 
             /*
-              P-110 #5 · PROFILE DNA — the fingerprint printed ABOVE the
-              histogram it describes (anchored at VAH), so shape, sample and
-              fidelity are read in the same glance as the profile. Only ever
-              drawn with the Living Profile: DNA of an unseen profile is a
-              card, and a card is not the invention.
+              P-110 #5 · PROFILE DNA — drawn AS GEOMETRY in the profile's own
+              lane, 6px left of it, so nothing covers price:
+                spine    profile low → high, 1px ivory; DASHED when the profile
+                         is candle-estimated, which is how its uncertainty shows
+                bracket  VAL → VAH, 3px — its length against the spine IS the
+                         value width, readable without a number
+                notch    6px brass at the POC
+                diamond  hollow, at the mass-centre price — the gap between
+                         notch and diamond is the skew
+              A THIN_SAMPLE is its range alone, faint: a range is a fact, a
+              shape from too few rows is not. Every number lives in Inspect.
+              Only ever drawn with the Living Profile: DNA of an unseen profile
+              is a card, and a card is not the invention.
             */
             {
               const dna = profileDnaRef.current;
               const dnaOn = layerOnRef.current.profileDna;
               ds.profileDna = dnaOn ? (dna ? dna.reason : "NO_READING") : "OFF";
-              if (dnaOn && dna?.measured && lp.vah != null) {
-                const yv = srs.priceToCoordinate(lp.vah);
-                if (yv != null) {
-                  ctx.save();
-                  ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-                  ctx.textBaseline = "middle";
-                  const text = dna.strip;
-                  const w = Math.ceil(ctx.measureText(text).width) + 10;
-                  const x = Math.max(4, rightEdge - w);
-                  const y = Math.max(10, Math.round(+yv) - 16);
-                  ctx.fillStyle = "rgba(11,10,8,0.85)";
-                  ctx.fillRect(x, y - 8, w, 16);
-                  ctx.strokeStyle = "rgba(201,165,92,0.45)";
-                  ctx.lineWidth = 1;
-                  ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
-                  ctx.fillStyle = "rgba(237,230,211,0.92)";
-                  ctx.textAlign = "left";
-                  ctx.fillText(text, x + 5, y);
-                  ctx.restore();
-                  ds.profileDnaShape = dna.shape ?? "";
-                } else delete ds.profileDnaShape;
+              const spineOwned = dnaOn && dna != null && (dna.measured || dna.reason === "THIN_SAMPLE");
+              const yLo = spineOwned && dna.lo != null ? srs.priceToCoordinate(dna.lo) : null;
+              const yHi = spineOwned && dna.hi != null ? srs.priceToCoordinate(dna.hi) : null;
+              if (dna && spineOwned && yLo != null && yHi != null) {
+                const sx = Math.round(rightEdge - histMax - 6) + 0.5;
+                ctx.save();
+                ctx.lineCap = "butt";
+                ctx.strokeStyle = dna.measured ? "rgba(237,230,211,0.45)" : "rgba(237,230,211,0.25)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash(dna.estimated ? [2, 2] : []);
+                ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
+                ctx.setLineDash([]);
+                ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
+                let yMass: number | null = null;
+                if (dna.measured) {
+                  const yVal = dna.val != null ? srs.priceToCoordinate(dna.val) : null;
+                  const yVah = dna.vah != null ? srs.priceToCoordinate(dna.vah) : null;
+                  if (yVal != null && yVah != null) {
+                    ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
+                  }
+                  const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
+                  if (yPoc != null) {
+                    const yn = Math.round(+yPoc);
+                    ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(sx - 3, yn); ctx.lineTo(sx + 3, yn); ctx.stroke();
+                  }
+                  const ym = dna.massCentrePrice != null ? srs.priceToCoordinate(dna.massCentrePrice) : null;
+                  if (ym != null) {
+                    yMass = +ym;
+                    // Hollow: the bracket stays visible through it, and no dark
+                    // fill lands on the candles beside the lane.
+                    ctx.strokeStyle = "rgba(233,196,106,0.95)"; ctx.lineWidth = 1.25;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, yMass - 4); ctx.lineTo(sx + 4, yMass); ctx.lineTo(sx, yMass + 4); ctx.lineTo(sx - 4, yMass);
+                    ctx.closePath(); ctx.stroke();
+                  }
+                }
+                ctx.restore();
+                if (yMass != null) ds.profileDnaDiamond = String(Math.round(yMass));
+                else delete ds.profileDnaDiamond;
+                if (dna.measured) ds.profileDnaShape = dna.shape ?? "";
+                else delete ds.profileDnaShape;
               } else {
-                if (dnaOn && dna?.measured) ds.profileDna = "LIVING_PROFILE_NOT_DRAWN";
+                delete ds.profileDnaSpine;
+                delete ds.profileDnaDiamond;
                 delete ds.profileDnaShape;
               }
             }
@@ -11105,6 +11136,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // DNA describes the profile on the glass; with none drawn, it says so.
             ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
             delete ds.profileDnaShape;
+            delete ds.profileDnaSpine;
+            delete ds.profileDnaDiamond;
             delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;

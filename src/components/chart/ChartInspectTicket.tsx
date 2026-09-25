@@ -58,6 +58,7 @@ import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBu
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
+import { MIN_DNA_ROWS, type ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 
@@ -94,6 +95,49 @@ function Row({ row }: { row: TicketRow }) {
   );
 }
 
+/**
+ * P-110 #5 · PROFILE DNA — the numbers behind the spine on the Living lane.
+ * The glass carries only geometry (range, value bracket, POC notch, mass-centre
+ * diamond); every figure that geometry stands for lives here, with the sample
+ * and resolution it was measured at, or the reason nothing was measured.
+ */
+function ProfileDnaBlock({ dna, onGlass }: { dna: ProfileDnaVM; onGlass: boolean }) {
+  const pct = (x: number | null) => (x == null ? "—" : `${Math.round(x * 100)}%`);
+  const signed = (x: number | null) => (x == null ? "—" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(2)}`);
+  const px = (x: number | null) => (x == null ? "—" : String(+x.toPrecision(8)));
+  const state = !onGlass ? "NOT_DRAWN" : dna.reason;
+  const head =
+    !onGlass ? "NOT DRAWN"
+      : dna.reason === "MEASURED" ? `LIVING · ${dna.shape}`
+        : dna.reason === "THIN_SAMPLE" ? `THIN SAMPLE · ${dna.rows} ROWS < ${MIN_DNA_ROWS}`
+          : dna.reason === "FLAT_RANGE" ? "FLAT RANGE"
+            : "NO PROFILE";
+  return (
+    <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-profile-dna={state}
+      aria-label={dna.measured ? dna.strip : `Profile DNA: ${head}`} style={{ color: "#C8C0AE" }}>
+      <div className="font-bold tracking-wide text-wm-gold">PROFILE DNA · {head}</div>
+      {!onGlass ? (
+        <div>The Living Profile is not on the glass, so DNA has nothing to sit on.</div>
+      ) : dna.measured ? (
+        <>
+          <div>Value {pct(dna.valueWidth)} of range · POC at {pct(dna.pocPosition)}</div>
+          <div>Mass centre {pct(dna.massCentre)} · {px(dna.massCentrePrice)}</div>
+          <div>Skew {signed(dna.skew)} · excess kurtosis {signed(dna.excessKurtosis)}</div>
+          <div>Sample {dna.rows} rows · {dna.bars} bars · row step {px(dna.rowStep)}</div>
+          <div>Fidelity {dna.estimated ? "CANDLE-ESTIMATED — spine dashed" : "TRADE-BASED"} · v{dna.version}</div>
+          <div>Where volume sat — never a forecast.</div>
+        </>
+      ) : dna.reason === "THIN_SAMPLE" ? (
+        <div>Only the range is drawn (faint spine); too few traded rows for a shape.</div>
+      ) : dna.reason === "FLAT_RANGE" ? (
+        <div>Every traded row sits at one price — there is no shape to read.</div>
+      ) : (
+        <div>No measured Living Profile to describe — nothing is drawn.</div>
+      )}
+    </div>
+  );
+}
+
 export function ChartInspectTicket({
   vm,
   /** True when the bar shown is the live one because the cursor is nowhere. */
@@ -111,6 +155,8 @@ export function ChartInspectTicket({
   memoryGhost = null,
   envelope = null,
   fusion = null,
+  profileDna = null,
+  profileDnaOnGlass = false,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -136,6 +182,10 @@ export function ChartInspectTicket({
   envelope?: ExpectedEnvelopeVM | null;
   /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
   fusion?: FusedProfileObject | null;
+  /** P-110 #5 · the DNA reading when the layer is on; null when it is off. */
+  profileDna?: ProfileDnaVM | null;
+  /** True when the Living Profile DNA sits on is actually drawn this frame. */
+  profileDnaOnGlass?: boolean;
 }) {
   if (!open) {
     return (
@@ -318,6 +368,7 @@ export function ChartInspectTicket({
               <dt>As of · UTC</dt><dd>{profileSliceAsOf != null ? new Date(profileSliceAsOf * 1000).toISOString() : "UNKNOWN"}</dd>
             </dl>
             <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>A bucket is where size traded, not who traded it or why. Intent: UNKNOWN.</p>
+            {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
           </>
         ) : (
           <p className="mt-2 text-[11px]" style={{ color: UNREAD_COLOR }}>
@@ -485,6 +536,8 @@ export function ChartInspectTicket({
           <div>Method {fusion.method} v{fusion.version} · grid {fusion.step} · asOf {fusion.asOf != null ? new Date(fusion.asOf * 1000).toISOString().slice(0, 16).replace("T", " ") : "—"} UTC · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
         </div>
       )}
+
+      {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
 
       {/* H-801 · where a typical session of THIS market reached — never a forecast. */}
       {envelope && (

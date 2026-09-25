@@ -1888,6 +1888,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           val: livingProfileVM.val,
           bars: chartBars.length,
           estimated: livingProfileVM.quality !== "trade-based",
+          rowStep: livingProfileVM.tickSize,
         })
       : selectProfileDna(null),
     [livingProfileVM, chartBars.length],
@@ -5404,6 +5405,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         memoryGhost={memoryGhostVM}
                         envelope={envelopeVM}
                         fusion={fusion.fused}
+                        profileDna={profileDnaOn ? profileDnaVM : null}
+                        profileDnaOnGlass={livingProfileOn && livingProfileGlass.drawn}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}

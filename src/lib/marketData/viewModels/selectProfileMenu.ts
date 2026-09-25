@@ -464,15 +464,14 @@ const CATALOGUE: readonly ProfileSpec[] = [
     id: "PROFILE_DNA",
     label: "Profile DNA",
     /*
-      Describes the Living Profile's SHAPE in stated numbers, printed on the
-      glass above the histogram it describes. Description, never prophecy.
+      Describes the Living Profile's SHAPE as geometry on its own lane; the
+      stated numbers live in Inspect. Description, never prophecy.
     */
-    what: "the Living Profile's shape and sample, printed above it — never a forecast",
+    what: "the Living Profile's shape as a spine beside it — numbers in Inspect, never a forecast",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectProfileDna.ts",
-    // A ratio has no price. The only coordinate is the Living Profile's VAH,
-    // which it borrows as an anchor for the strip.
-    levels: ["Anchored to the Living Profile's VAH"],
+    // Every mark sits at a price the DNA owner measured on the same profile.
+    levels: ["Range spine", "Value bracket", "POC notch", "Mass-centre diamond"],
   },
   {
     id: "VALUE_MIGRATION",
