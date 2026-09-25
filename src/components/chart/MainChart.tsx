@@ -10004,7 +10004,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               ctx.stroke();
               ctx.setLineDash([]);
-              ds.memoryGhostForm = "PATH";
+              if (started) ds.memoryGhostForm = "PATH";
+              else delete ds.memoryGhostForm;
             }
             ctx.globalAlpha = 0.85;
             if (lastXY) {
@@ -10025,10 +10026,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.globalAlpha = 0.85;
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.fillText(t, 12, H - 72);
+            // The form receipt names what is on the glass; a silence has none.
+            delete ds.memoryGhostForm;
           }
           ctx.restore();
         } else {
           ds.memoryGhost = "OFF";
+          delete ds.memoryGhostForm;
           onMemoryGhostRef.current?.(null);
         }
 

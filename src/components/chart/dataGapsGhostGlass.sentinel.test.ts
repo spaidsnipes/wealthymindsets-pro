@@ -89,4 +89,13 @@ describe("memory ghost candles", () => {
   it("falls back to the path where a hollow body cannot be read", () => {
     expect(CHART).toMatch(/const GHOST_CANDLE_MIN_SPACING = 8;/);
   });
+
+  it("the form receipt is withdrawn when the ghost is silent or switched off, and says PATH only when a path was drawn", () => {
+    expect(CHART.match(/ds\.memoryGhost = "OFF";/g) ?? []).toHaveLength(1);
+    const silent = slice('"MEMORY · not enough history on this chart for an analogue"', "ctx.restore();");
+    expect(silent).toMatch(/delete ds\.memoryGhostForm;/);
+    const off = slice('ds.memoryGhost = "OFF";', "onMemoryGhostRef.current?.(null);");
+    expect(off).toMatch(/delete ds\.memoryGhostForm;/);
+    expect(CHART).toMatch(/if \(started\) ds\.memoryGhostForm = "PATH";\s*else delete ds\.memoryGhostForm;/);
+  });
 });
