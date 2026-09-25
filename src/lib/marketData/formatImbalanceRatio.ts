@@ -60,4 +60,24 @@ export function formatImbalanceRatio(ratio: number, oneSided = false): string {
   return `${ratio.toFixed(0)}:100`;
 }
 
+/**
+ * The same ratio as canon FL-06 ② tags a block ON THE GLASS: "×2.1" — the
+ * dominant side as a multiple of the weaker. Same traps, same owner:
+ *
+ *   · one-sided (or +∞) is a WORD, never the 300 sentinel as "×3.0";
+ *   · the unbounded tail is capped in words ("×1k+"), never printed raw;
+ *   · NaN, non-finite or ≤ 1:1 returns null — a tag nobody measured is not
+ *     painted (LIVING-PIXEL LAW), and a stacked level never qualifies at 1:1.
+ *
+ * @param ratio     dominant/weaker × 100, straight from the selector.
+ * @param oneSided  the selector's own flag that `ratio` is a sentinel.
+ */
+export function formatImbalanceMultiple(ratio: number, oneSided = false): string | null {
+  if (oneSided || ratio === Number.POSITIVE_INFINITY) return "1-SIDED";
+  if (!Number.isFinite(ratio) || ratio <= 100) return null;
+  if (ratio >= 1e5) return "×1k+";
+  const m = ratio / 100;
+  return m >= 10 ? `×${m.toFixed(0)}` : `×${m.toFixed(1)}`;
+}
+
 export default formatImbalanceRatio;

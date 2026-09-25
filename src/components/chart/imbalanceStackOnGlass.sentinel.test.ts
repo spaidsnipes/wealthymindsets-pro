@@ -34,6 +34,18 @@ const strip = (s: string) =>
 const CHART = strip(read("src/components/chart/MainChart.tsx"));
 const ROOM = strip(read("src/components/chart/ChartsDashboard.tsx"));
 
+/**
+ * The stack block runs to its last receipt withdrawal. This was a fixed
+ * 5,200-character window from the glass call; the FL-06 ② ratio tag
+ * (2026-09-25) grew the block past it, so the window now ends where the block
+ * does — the same end marker stackCellsOnTheirBars uses.
+ */
+const stackBlockEnd = (at: number) => {
+  const end = CHART.indexOf("delete ds.imbalanceStackAnchor;\n        }", at);
+  expect(end, "the stack block's last withdrawal moved").toBeGreaterThan(at);
+  return end + "delete ds.imbalanceStackAnchor;".length;
+};
+
 describe("the reading reaches the chart", () => {
   it("the room hands the SAME reading it gives the drawer to the glass", () => {
     // One reading, two renderings. If the chart ever computed its own, the
@@ -65,7 +77,7 @@ describe("what is drawn is drawn AT THE PRICE", () => {
   const block = (() => {
     const at = CHART.indexOf("selectStackedImbalanceGlass(imbalanceStackRef.current)");
     expect(at, "the glass call was renamed or removed").toBeGreaterThan(-1);
-    return CHART.slice(at, at + 5200);
+    return CHART.slice(at, stackBlockEnd(at));
   })();
 
   it("places the band with the price scale the candles use", () => {
@@ -91,7 +103,7 @@ describe("what is drawn is drawn AT THE PRICE", () => {
 describe("§9 — no verdict is graded in colour on the glass either", () => {
   const block = (() => {
     const at = CHART.indexOf("selectStackedImbalanceGlass(imbalanceStackRef.current)");
-    return CHART.slice(at, at + 5200);
+    return CHART.slice(at, stackBlockEnd(at));
   })();
 
   it("carries the verdict in the EDGE STYLE, and the three are distinguishable", () => {
@@ -121,7 +133,7 @@ describe("§9 — no verdict is graded in colour on the glass either", () => {
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   const block = (() => {
     const at = CHART.indexOf("selectStackedImbalanceGlass(imbalanceStackRef.current)");
-    return CHART.slice(at, at + 5200);
+    return CHART.slice(at, stackBlockEnd(at));
   })();
 
   it("stamps the reason even when nothing is painted", () => {

@@ -107,6 +107,12 @@ describe("THE PRICES REACH THE GLASS — the entire reason this module exists", 
     expect(g.levels[2]!.oneSided).toBe(true);
   });
 
+  it("carries FL-06 ②'s glass tag from the same owner — ×4.5, and a word for one-sided", () => {
+    const g = selectStackedImbalanceGlass(vm());
+    expect(g.levels[0]!.multipleLabel).toBe("×4.5");
+    expect(g.levels[2]!.multipleLabel).toBe("1-SIDED");
+  });
+
   it("passes the retest price through, so DEFENDED can show HOW CLOSE it came", () => {
     // A level that held with room to spare and a level that nearly went are the
     // same word and very different information.

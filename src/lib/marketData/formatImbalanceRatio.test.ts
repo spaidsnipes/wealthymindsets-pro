@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { formatImbalanceRatio } from "./formatImbalanceRatio";
+import { formatImbalanceMultiple, formatImbalanceRatio } from "./formatImbalanceRatio";
 import { selectAggressorFlow, type AggressorTick } from "./selectAggressorFlow";
 
 const REPO_ROOT = resolve(__dirname, "..", "..", "..");
@@ -135,5 +135,28 @@ describe("§24 / H21 — ONE OWNER for the aggressor rule and its display", () =
     );
     const owner = readFileSync(join(SRC, "lib/marketData/formatImbalanceRatio.ts"), "utf8");
     expect(owner).toMatch(/export\s+function\s+formatImbalanceRatio/);
+  });
+});
+
+describe("formatImbalanceMultiple — FL-06 ② glass tag, same owner, same traps", () => {
+  it("speaks the ratio as a multiple: 210 → ×2.1, 1000 → ×10", () => {
+    expect(formatImbalanceMultiple(210)).toBe("×2.1");
+    expect(formatImbalanceMultiple(280)).toBe("×2.8");
+    expect(formatImbalanceMultiple(1000)).toBe("×10");
+  });
+
+  it("never paints the 300 sentinel as a number", () => {
+    expect(formatImbalanceMultiple(300, true)).toBe("1-SIDED");
+    expect(formatImbalanceMultiple(Number.POSITIVE_INFINITY)).toBe("1-SIDED");
+  });
+
+  it("caps the unbounded tail in words", () => {
+    expect(formatImbalanceMultiple(27_261_700)).toBe("×1k+");
+  });
+
+  it("returns null — paints nothing — for a ratio nobody measured or no imbalance", () => {
+    expect(formatImbalanceMultiple(Number.NaN)).toBeNull();
+    expect(formatImbalanceMultiple(100)).toBeNull();
+    expect(formatImbalanceMultiple(Number.NEGATIVE_INFINITY)).toBeNull();
   });
 });

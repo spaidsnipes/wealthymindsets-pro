@@ -189,7 +189,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionTravel", "absorptionWall", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTravel", "absorptionWall", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm",
@@ -208,6 +208,7 @@ const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT
 /** The field's brightest point, at the live edge — it tints the glass, never the candles (cut out). */
 const REGIME_FIELD_PEAK = 0.07;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
+import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
@@ -1474,6 +1475,15 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
   const { x, w } = stackSlab(a, weight);
   ctx.fillStyle = `rgba(212,175,55,${(0.16 + 0.5 * weight).toFixed(3)})`;
   ctx.fillRect(x, y - h / 2 + 0.5, w, h - 1);
+  // Canon FL-06 ② draws each imbalance as a HATCHED block at its row. The
+  // hatch is clipped to the slab, so it never reaches a bar outside the span.
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y - h / 2 + 0.5, w, h - 1); ctx.clip();
+  ctx.strokeStyle = "rgba(14,12,8,0.55)"; ctx.lineWidth = 1;
+  for (let hx = x - h; hx < x + w + h; hx += 4) {
+    ctx.beginPath(); ctx.moveTo(hx, y + h / 2); ctx.lineTo(hx + h, y - h / 2); ctx.stroke();
+  }
+  ctx.restore();
   ctx.strokeStyle = "rgba(212,175,55,0.9)"; ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, Math.max(0, w - 1), h - 1);
 }
@@ -9170,6 +9180,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // the glass rather than the zoom word.
             let shelvesEdged = 0, shelvesFilled = 0, effortTicksDrawn = 0, travelsDrawn = 0;
             const wallsDrawn: string[] = [];
+            // Per shelf drawn as rows: `<rows>R:<side evidence>`.
+            const shelfRowsDrawn: string[] = [];
             for (const zone of anatomy.zones) {
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
@@ -9210,21 +9222,73 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // extension beyond the bars that produced the zone.
               const desktopShelfInstrument = W >= 960;
 
+              // FL-06 ① / F06A · THE SHELF IS ROWS ON ITS OWN PRICES. Not one
+              // box: stacked row blocks cut from the owner's priceLo..priceHi,
+              // each running across the shelf bars whose traded range reached
+              // that row (absorptionShelfRows — time at price, no volume, no
+              // side). Ragged ends are the bars that never got there.
+              const shelfRowsOnPrice = desktopShelfInstrument && shelfDepth !== "FAR"
+                ? absorptionShelfRows(zone, anatomy.bars, shelfRowCount(bh))
+                : [];
+              const rowRects: { x: number; y: number; w: number; h: number }[] = [];
+              let rowsWithRuns = 0;
+              for (const row of shelfRowsOnPrice) {
+                const ryA = srs.priceToCoordinate(row.hi);
+                const ryB = srs.priceToCoordinate(row.lo);
+                if (ryA == null || ryB == null) continue;
+                const rTop = Math.min(+ryA, +ryB), rBot = Math.max(+ryA, +ryB);
+                const rowGap = shelfRowsOnPrice.length > 1 ? 1 : 0;
+                let drew = false;
+                for (const run of row.runs) {
+                  const xa = ts.timeToCoordinate(run.fromTime as never);
+                  const xz = ts.timeToCoordinate(run.toTime as never);
+                  if (xa == null || xz == null) continue;
+                  const rx0 = Math.max(x0, +xa - spacing / 2);
+                  const rx1 = Math.min(x1, +xz + spacing / 2);
+                  if (rx1 - rx0 < 1) continue;
+                  rowRects.push({ x: rx0, y: rTop + rowGap / 2, w: rx1 - rx0, h: Math.max(1, rBot - rTop - rowGap) });
+                  drew = true;
+                }
+                if (drew) rowsWithRuns++;
+              }
+              // SIDE INK ONLY WHERE THE OWNER NAMES A SIDE (H-701: FULL /
+              // PARTIAL / DEGRADED / SILENCE). `holdingEdge` comes from signed
+              // aggression: LOW held = net selling absorbed (F06A "supply
+              // absorbed", the sell ink); HIGH held = net buying absorbed.
+              // Provider sides tint fully, tick-rule sides faintly with dashed
+              // row edges; no named side (a VOLUME basis, a partial split, a
+              // balanced run) stays FL-06's neutral grey. Never a candle colour.
+              const rowSideInk = zone.holdingEdge == null
+                ? null
+                : zone.holdingEdge === "LOW" ? flowColorsRef.current.dSell : flowColorsRef.current.dBuy;
+              const rowSideInferred = zone.holdingBasis === "INFERRED";
+              const rowInk = rowSideInk ?? "210,214,219";
+              if (rowRects.length > 0) {
+                shelfRowsDrawn.push(`${rowsWithRuns}R:${zone.holdingBasis == null ? "NO_SIDE" : `${zone.holdingEdge}_${zone.holdingBasis}`}`);
+              }
+
               if (shelfDepth !== "FAR") {
                 const shelfFillA = shelfSelected ? 0.14 : 0.10;
-                ctx.fillStyle = desktopShelfInstrument
-                  ? `rgba(210,214,219,${shelfFillA})`
-                  : `rgba(212,175,55,${shelfFillA})`;
-                ctx.fillRect(x0, yHi, bw, bh);
+                if (rowRects.length > 0) {
+                  const rowFillA = rowSideInk == null ? shelfFillA + 0.02 : rowSideInferred ? shelfFillA + 0.04 : shelfFillA + 0.10;
+                  ctx.fillStyle = `rgba(${rowInk},${rowFillA.toFixed(2)})`;
+                  for (const r of rowRects) ctx.fillRect(r.x, r.y, r.w, r.h);
+                } else {
+                  ctx.fillStyle = desktopShelfInstrument
+                    ? `rgba(210,214,219,${shelfFillA})`
+                    : `rgba(212,175,55,${shelfFillA})`;
+                  ctx.fillRect(x0, yHi, bw, bh);
+                }
                 shelvesFilled++;
               }
 
               if (desktopShelfInstrument && shelfDepth !== "FAR") {
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(x0, yHi, bw, bh);
+                if (rowRects.length > 0) for (const r of rowRects) ctx.rect(r.x, r.y, r.w, r.h);
+                else ctx.rect(x0, yHi, bw, bh);
                 ctx.clip();
-                ctx.strokeStyle = `rgba(210,214,219,${shelfSelected ? 0.36 : 0.24})`;
+                ctx.strokeStyle = `rgba(${rowInk},${shelfSelected ? 0.36 : 0.24})`;
                 ctx.lineWidth = 1;
                 const hatchStep = 7;
                 for (let hx = x0 - bh; hx < x1 + bh; hx += hatchStep) {
@@ -9234,6 +9298,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.stroke();
                 }
                 ctx.restore();
+                if (rowRects.length > 0) {
+                  // Each row's own edge, so the stack reads as rows.
+                  ctx.strokeStyle = `rgba(${rowInk},${shelfSelected ? 0.6 : 0.42})`;
+                  ctx.setLineDash(rowSideInk != null && rowSideInferred ? [3, 2] : []);
+                  for (const r of rowRects) ctx.strokeRect(r.x + 0.5, r.y + 0.5, Math.max(0, r.w - 1), Math.max(0, r.h - 1));
+                  ctx.setLineDash([]);
+                }
               }
 
               ctx.setLineDash([4, 3]);
@@ -9467,6 +9538,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
             if (travelsDrawn > 0) ds.absorptionTravel = String(travelsDrawn);
             else delete ds.absorptionTravel;
+            // FL-06 ① rows: which shelves were drawn as row blocks, how many
+            // rows, and what side evidence tinted them (NO_SIDE = grey).
+            if (shelfRowsDrawn.length > 0) ds.absorptionRows = shelfRowsDrawn.join(",");
+            else delete ds.absorptionRows;
 
             // ── BASIS. Compact, always visible, never a vendor name.
             const basisTxt = BASIS_LABEL[anatomy.basis];
@@ -10745,6 +10820,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.absorptionDepthForm;
             delete ds.absorptionWall;
             delete ds.absorptionTravel;
+            delete ds.absorptionRows;
             delete ds.exhaustionGeometry;
             delete ds.exhaustionEffortResult;
             delete ds.exhaustionWords;
@@ -11122,6 +11198,53 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.stroke();
             }
 
+            // ── FL-06 ② · THE RATIO TAG. "×2.1" beside the block it measures:
+            // the run's strongest level, at that level's own row, spoken by
+            // the ratio owner (`multipleLabel`, null when unmeasured → no
+            // tag). Only for cells on their own bars. It goes through the
+            // keep-out owner strictly — right of its slab, else left of the
+            // span, else just above/below the band — and when every spot sits
+            // on a candle or another chip the tag is HELD, never overprinted.
+            let stackTag = "NONE";
+            if (anchor) {
+              let lead: (typeof glass.levels)[number] | null = null;
+              for (const l of glass.levels) if (l.multipleLabel != null && (!lead || l.weight > lead.weight)) lead = l;
+              const lyR = lead ? srs.priceToCoordinate(lead.price) : null;
+              if (lead && lead.multipleLabel && lyR != null) {
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                const tagW = ctx.measureText(lead.multipleLabel).width + 4;
+                const tagH = 12;
+                const slab = stackSlab(anchor, lead.weight);
+                const tagY = +lyR - tagH / 2;
+                const tagPref = { x: slab.x + slab.w + 3, y: tagY, w: tagW, h: tagH };
+                const tagAlts = [
+                  { x: anchor.x0 - tagW - 3, y: tagY, w: tagW, h: tagH },
+                  { x: anchor.x0, y: yHi - tagH - 2, w: tagW, h: tagH },
+                  { x: anchor.x0, y: yLo + 2, w: tagW, h: tagH },
+                ].filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom);
+                const tagRows = [tagPref, ...tagAlts];
+                const tagSpot = placeClearOfKeepOut(
+                  tagPref,
+                  [...keepOut(), ...rowBodiesAt(Math.min(...tagRows.map(r => r.y)), Math.max(...tagRows.map(r => r.y + r.h)))],
+                  { minX: anchor.x0, blockers: floatingChips, strict: true, alternates: tagAlts },
+                );
+                if (tagSpot.mode === "BLOCKED" || tagSpot.rect.x + tagW > plotRight - 2) {
+                  stackTag = "HELD";
+                } else {
+                  recordKeepOut(keepOutLedger, tagSpot);
+                  floatingChips.push({ ...tagSpot.rect });
+                  ctx.save();
+                  ctx.fillStyle = "rgba(240,205,110,1)";
+                  ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  ctx.fillText(lead.multipleLabel, tagSpot.rect.x + 2, tagSpot.rect.y + tagH / 2 + 0.5);
+                  ctx.restore();
+                  stackTag = `${lead.multipleLabel}@${lead.price}`;
+                }
+              }
+            }
+            ds.imbalanceStackTag = stackTag;
+
             // ── THE RETEST MARK — the difference between a level that held
             // comfortably and one that nearly went. Both are the word
             // DEFENDED, and they are not the same information. Drawn at the
@@ -11181,6 +11304,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // anchor word because it is the reason nothing is drawn.
             delete ds.imbalanceStackLevels;
             delete ds.imbalanceStackEdge;
+            delete ds.imbalanceStackTag;
             if (placement.kind !== "FORMED_AFTER_VIEW") delete ds.imbalanceStackAnchor;
           }
         } else {
@@ -11190,6 +11314,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // longer on the screen.
           delete ds.imbalanceStackLevels;
           delete ds.imbalanceStackEdge;
+          delete ds.imbalanceStackTag;
           delete ds.imbalanceStackAnchor;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }

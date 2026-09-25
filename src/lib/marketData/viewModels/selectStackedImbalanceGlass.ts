@@ -66,7 +66,7 @@
  * PURE — no React, no canvas, no clock.
  */
 
-import formatImbalanceRatio from "../formatImbalanceRatio";
+import formatImbalanceRatio, { formatImbalanceMultiple } from "../formatImbalanceRatio";
 import type { StackedImbalanceVM } from "./selectStackedImbalance";
 
 export const STACK_GLASS_VERSION = "wm.stacked-imbalance-glass.v1" as const;
@@ -82,6 +82,11 @@ export interface StackGlassLevel {
   readonly price: number;
   /** Spoken by `formatImbalanceRatio`, the one owner of that vocabulary. */
   readonly ratioLabel: string;
+  /**
+   * The glass tag (canon FL-06 ②, "×2.1"), from the same owner's compact
+   * form. Null when the ratio was not measured — then no tag is painted.
+   */
+  readonly multipleLabel: string | null;
   /** True when the opposing side was empty and the ratio is the sentinel. */
   readonly oneSided: boolean;
   /** Dominance weight 0..1 for the cell's ink (one-sided = 1). Never a score on screen. */
@@ -176,6 +181,7 @@ export function selectStackedImbalanceGlass(
     .map((l) => ({
       price: l.price,
       ratioLabel: formatImbalanceRatio(l.ratio, l.oneSided),
+      multipleLabel: formatImbalanceMultiple(l.ratio, l.oneSided),
       oneSided: l.oneSided,
       // 3:1 is the qualifying floor (weight ~0.3); 10:1 and one-sided read full.
       weight: l.oneSided ? 1 : Math.max(0.3, Math.min(1, l.ratio / 1000)), // ratio is ×100: 300 = 3:1 floor, 10:1 reads full
