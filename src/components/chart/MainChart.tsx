@@ -14272,6 +14272,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     ctx.clearRect(0, 0, W, H);
 
     const toPx  = (p: LogicalPt): Pt | null => logicalToPixel(p);
+    // P-08 · what each Fixed Range drawing put on the glass, for the receipt.
+    const fixedRangeReceipts: string[] = [];
     const priceY = (pr: number): number | null => { const y = candleRef.current?.priceToCoordinate(pr); return y == null ? null : +y; };
     const timeX  = (tm: number): number | null => { const x = chartRef.current?.timeScale().timeToCoordinate(tm as any); return x == null ? null : +x; };
     // Drawing chips quote the market's own decimals (pricePrecision.ts), read
@@ -14422,6 +14424,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             hline(vm.val, pk.rgba("EDGE_LOW", 0.5), [3, 4]);
             const est = vm.quality === "trade-based" ? "" : " · CANDLE-EST";
             chip(`FIXED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(dec)}${est}`, x0 + 2, yTop - 3, pk.rgba("ANCHOR", 1));
+            fixedRangeReceipts.push(`ANCHORS:2+BARS:${vm.barsInView}+POC:${vm.poc?.toFixed(dec)}`);
           } else {
             // Named refusal, where the trader dragged — never an empty box.
             ctx.strokeStyle = "rgba(240,180,41,0.6)";
@@ -14433,6 +14436,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ? `${vm.barsInView} bars in the span — drag across at least 5`
               : vm.reason === "NO_VOLUME" ? "the bars in this span carry no volume" : "no span";
             chip(`FIXED RANGE · ${why}`, x0 + 2, ry - 3, "#F0B429");
+            fixedRangeReceipts.push(`REFUSED:${vm.reason}`);
           }
           ctx.restore();
         }
@@ -14685,6 +14689,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     }
     if (dvpReceipts.length) canvas.dataset.bidAskSplit = dvpReceipts.join(",");
     else delete canvas.dataset.bidAskSplit;
+    // Serving probes read the OVERLAY canvas; mirror both drawing receipts
+    // there so Bid/Ask (P-11) and Fixed Range (P-08) are provable where the
+    // rest of the chart's receipts are.
+    const ovDs = canvasRef.current?.dataset;
+    if (ovDs) {
+      if (dvpReceipts.length) ovDs.bidAskSplit = dvpReceipts.join(","); else delete ovDs.bidAskSplit;
+      if (fixedRangeReceipts.length) ovDs.fixedRange = fixedRangeReceipts.join(","); else delete ovDs.fixedRange;
+    }
   }, [base, logicalToPixel, drawingStyle, getBarFootprint]);
 
   // Lightweight RAF repaint for drawings ONLY — avoids bumping rangeVer (which
