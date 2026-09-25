@@ -7863,15 +7863,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const r = 1.5 + (rMax - 1.5) * Math.sqrt(d.size / Math.max(maxSize, 1e-12));
               const ink = sidesLawful ? dotSideInk(d.fidelity) : "NEUTRAL";
               const rgb = d.buy ? inksN.btBuy : inksN.btSell;
+              // A dot over a footprint cell column lets the row's numbers read
+              // through (M46 owns the rows); the side stays in its outline.
+              const onCell = fpCells.some(q => xd >= q.x && xd <= q.x + q.w && +yd >= q.y && +yd <= q.y + q.h);
+              const fillA = onCell ? 0.5 : 0.92;
               ctx.beginPath(); ctx.arc(xd, +yd, r, 0, Math.PI * 2);
               if (ink === "SOLID") {
-                ctx.fillStyle = `rgba(${rgb},0.92)`; ctx.fill();
-                ctx.strokeStyle = "rgba(11,10,8,0.85)"; ctx.lineWidth = 1; ctx.stroke();
+                ctx.fillStyle = `rgba(${rgb},${fillA})`; ctx.fill();
+                ctx.strokeStyle = onCell ? `rgba(${rgb},0.95)` : "rgba(11,10,8,0.85)"; ctx.lineWidth = 1; ctx.stroke();
               } else if (ink === "RING") {
-                ctx.fillStyle = "rgba(11,10,8,0.55)"; ctx.fill();
+                if (!onCell) { ctx.fillStyle = "rgba(11,10,8,0.55)"; ctx.fill(); }
                 ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 1.5; ctx.stroke();
               } else {
-                ctx.fillStyle = "rgba(200,192,174,0.7)"; ctx.fill();
+                ctx.fillStyle = `rgba(200,192,174,${onCell ? 0.4 : 0.7})`; ctx.fill();
               }
               if (selKeyN != null && d.printKey === selKeyN) {
                 ctx.beginPath(); ctx.arc(xd, +yd, r + 4, 0, Math.PI * 2);
