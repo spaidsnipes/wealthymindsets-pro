@@ -13232,14 +13232,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // slot under the zone, then left along its own row. With no clear
               // slot it keeps its spot, and yields its backing only to candles.
               const byBelow = top + h + 34;
+              // A zone born in history puts it over older candles just the
+              // same: every body under the callout's rows is a keep-out. It
+              // may step one box further out on either side (the leader still
+              // lands on the zone), and a slide stops once its right edge
+              // meets the zone's left — further, and it names nothing.
+              const byHigher = byAbove - bh2 - 6, byLower = byBelow + bh2 + 6;
+              const zoneAlternates = [
+                ...(byBelow + bh2 <= pane0Bottom - 4 ? [{ x: cxAbove, y: byBelow, w, h: bh2 }] : []),
+                ...(byHigher >= HEADER_FLOOR_Y ? [{ x: cxAbove, y: byHigher, w, h: bh2 }] : []),
+                ...(byLower + bh2 <= pane0Bottom - 4 ? [{ x: cxAbove, y: byLower, w, h: bh2 }] : []),
+              ];
               const spotZ = placeClearOfKeepOut(
                 { x: cxAbove, y: byAbove, w, h: bh2 },
-                keepOut(),
+                [...keepOut(), ...rowBodiesAt(Math.min(byAbove, byHigher), Math.max(byAbove, byLower) + bh2)],
                 {
-                  minX: keepOutMinX(),
+                  minX: Math.max(keepOutMinX(), Math.min(cxAbove, x0 - w)),
                   blockers: floatingChips,
                   strict: true,
-                  alternates: byBelow + bh2 <= pane0Bottom - 4 ? [{ x: cxAbove, y: byBelow, w, h: bh2 }] : [],
+                  alternates: zoneAlternates,
                 },
               );
               recordKeepOut(keepOutLedger, spotZ);

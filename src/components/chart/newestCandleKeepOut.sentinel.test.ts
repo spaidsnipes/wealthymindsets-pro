@@ -98,9 +98,18 @@ describe("the selected-zone callout clears the newest bodies and the chips on th
   const callout = slice('const l1 = "SELECTED ZONE";', "selectedPainted = z.object.objectId;");
 
   it("is a slot test against keep-out ∪ floatingChips, with the mirror slot under the zone", () => {
-    expect(callout).toMatch(/placeClearOfKeepOut\(\s*\{ x: cxAbove, y: byAbove, w, h: bh2 \},\s*keepOut\(\),/);
+    // Pin updated 2026-09-25 (keep-out completion): a zone born in history
+    // hangs its callout over older candles, so every body under the rows it
+    // may take is a keep-out; it may step one box further out either side,
+    // and its slide stops where its right edge meets the zone's left.
+    expect(callout).toMatch(/placeClearOfKeepOut\(\s*\{ x: cxAbove, y: byAbove, w, h: bh2 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(Math\.min\(byAbove, byHigher\), Math\.max\(byAbove, byLower\) \+ bh2\)\],/);
+    expect(callout).toMatch(/minX: Math\.max\(keepOutMinX\(\), Math\.min\(cxAbove, x0 - w\)\),/);
     expect(callout).toMatch(/blockers: floatingChips,\s*strict: true,/);
-    expect(callout).toMatch(/alternates: byBelow \+ bh2 <= pane0Bottom - 4 \? \[\{ x: cxAbove, y: byBelow, w, h: bh2 \}\] : \[\]/);
+    expect(callout).toContain("const byHigher = byAbove - bh2 - 6, byLower = byBelow + bh2 + 6;");
+    expect(callout).toContain("...(byBelow + bh2 <= pane0Bottom - 4 ? [{ x: cxAbove, y: byBelow, w, h: bh2 }] : []),");
+    expect(callout).toContain("...(byHigher >= HEADER_FLOOR_Y ? [{ x: cxAbove, y: byHigher, w, h: bh2 }] : []),");
+    expect(callout).toContain("...(byLower + bh2 <= pane0Bottom - 4 ? [{ x: cxAbove, y: byLower, w, h: bh2 }] : []),");
+    expect(callout).toMatch(/alternates: zoneAlternates,/);
     expect(callout).toMatch(/recordKeepOut\(keepOutLedger, spotZ\)/);
     expect(callout).toMatch(/const cx = spotZ\.rect\.x, by = spotZ\.rect\.y;/);
   });
