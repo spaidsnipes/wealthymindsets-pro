@@ -9260,16 +9260,55 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // bar that failed; none is drawn for a bar that does not exist.
                 {
                   let fuel = 0, rings = 0;
+                  // H-701A · FUEL THAT RUNS OUT. Not a column per bar (that is
+                  // absorption's grammar) but ONE ribbon riding the push's own
+                  // extremes, as thick at each bar as that bar's measured
+                  // effort. A fading push reads as a flame burning down to a
+                  // thread — with the label hidden, it is not absorption.
+                  const rib: { x: number; y: number; t: number }[] = [];
                   for (const ab of anatomy.bars) {
                     if (ab.time < m.pushStartTime) continue;
                     if (ab.time > m.pushEndTime) break;
                     const xb = ts.timeToCoordinate(ab.time as never);
                     const yb = srs.priceToCoordinate(up ? ab.high : ab.low);
                     if (xb == null || yb == null) continue;
-                    const h = 2 + ab.effortNorm * 12;
-                    ctx.fillRect(Math.round(+xb) - 1.5, up ? +yb - 4 - h : +yb + 4, 3, h);
-                    grow(+xb - 1.5, up ? +yb - 4 - h : +yb + 4, +xb + 1.5, up ? +yb - 4 : +yb + 4 + h);
+                    rib.push({ x: +xb, y: +yb, t: 1 + ab.effortNorm * 10 });
                     fuel++;
+                  }
+                  if (rib.length >= 2) {
+                    const s = up ? -1 : 1;
+                    ctx.beginPath();
+                    rib.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y + s * 3) : ctx.lineTo(p.x, p.y + s * 3)));
+                    for (let i = rib.length - 1; i >= 0; i--) ctx.lineTo(rib[i]!.x, rib[i]!.y + s * (3 + rib[i]!.t));
+                    ctx.closePath();
+                    ctx.fillStyle = "rgba(226,92,92,0.55)";
+                    ctx.fill();
+                    ctx.strokeStyle = "rgba(226,92,92,0.9)"; ctx.lineWidth = 1;
+                    ctx.stroke();
+                    for (const p of rib) grow(p.x - 1, Math.min(p.y + s * 3, p.y + s * (3 + p.t)), p.x + 1, Math.max(p.y + s * 3, p.y + s * (3 + p.t)));
+                  } else if (rib.length === 1) {
+                    const p = rib[0]!;
+                    ctx.fillRect(Math.round(p.x) - 1.5, up ? p.y - 3 - p.t : p.y + 3, 3, p.t);
+                    grow(p.x - 1.5, up ? p.y - 3 - p.t : p.y + 3, p.x + 1.5, up ? p.y - 3 : p.y + 3 + p.t);
+                  }
+                  // FAILED TO CONTINUE: the extreme the push made is a ceiling
+                  // (UP) or floor (DOWN) its follow-through bars never beat. A
+                  // dashed stop line at that price across them, capped with a
+                  // bar — "it went this far and no further" — and one hollow ring
+                  // on each bar that failed.
+                  const xs = m.followThroughTimes
+                    .map(t => ts.timeToCoordinate(t as never))
+                    .filter((v): v is NonNullable<typeof v> => v != null)
+                    .map(v => +v);
+                  if (xs.length > 0) {
+                    const xFrom = rib.length > 0 ? rib[rib.length - 1]!.x : Math.min(...xs) - 6;
+                    const xTo = Math.max(...xs) + 6;
+                    ctx.strokeStyle = "rgba(226,92,92,0.85)"; ctx.lineWidth = 1.2;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath(); ctx.moveTo(xFrom, +yr); ctx.lineTo(xTo, +yr); ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.beginPath(); ctx.moveTo(xTo, +yr - 5); ctx.lineTo(xTo, +yr + 5); ctx.stroke();
+                    grow(xFrom, +yr - 5, xTo, +yr + 5);
                   }
                   ctx.strokeStyle = "rgba(226,92,92,0.9)"; ctx.lineWidth = 1.2;
                   for (const t of m.followThroughTimes) {

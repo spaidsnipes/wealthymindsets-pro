@@ -35,8 +35,13 @@ describe("exhaustion geometry", () => {
   it("draws the fuel on the push's own span, from the owner", () => {
     expect(block).toMatch(/if \(ab\.time < m\.pushStartTime\) continue;/);
     expect(block).toMatch(/if \(ab\.time > m\.pushEndTime\) break;/);
-    // The scan found the fuel tick it is about before asserting absences.
-    expect(block).toMatch(/ctx\.fillRect\(Math\.round\(\+xb\) - 1\.5, up \? \+yb - 4 - h : \+yb \+ 4, 3, h\);/);
+    // The scan found the fuel it is about before asserting absences: ONE
+    // ribbon on the push's own extremes, thick where that bar's effort was
+    // (GP12 H-701A — a column per bar is absorption's grammar, not this).
+    expect(block).toMatch(/rib\.push\(\{ x: \+xb, y: \+yb, t: 1 \+ ab\.effortNorm \* 10 \}\);/);
+    expect(block).toMatch(/for \(let i = rib\.length - 1; i >= 0; i--\) ctx\.lineTo/);
+    // The failure is a stop line at the push's own extreme (the mark price).
+    expect(block).toMatch(/ctx\.moveTo\(xFrom, \+yr\); ctx\.lineTo\(xTo, \+yr\);/);
     expect(block).not.toMatch(/m\.pushBars/);
     expect(block).not.toMatch(/ab\.time === m\.time/);
   });
