@@ -44,6 +44,35 @@ describe("force → response on the same print", () => {
   });
 });
 
+describe("a response bar counts only once it has closed", () => {
+  const response = [bar(10, 101, 102), bar(11, 101.5, 102.8), bar(12, 102, 103)];
+  const force = { timeSec: 9 * 60 + 30, price: 101, side: "buy" as const };
+
+  it("while the third response bar is forming the verdict stays PENDING and no close is published", () => {
+    const v = selectPrintResponse(force, [...flat, ...response], { formingBarTime: 12 * 60 });
+    expect(v.verdict).toBe("PENDING");
+    expect(v.responseBars).toBe(2);
+    // The forming bar's running price is not a close; the arrow has nowhere to land.
+    expect(v.endClose).toBeNull();
+    // What the closed bars did is still reported — and only them.
+    expect(v.endTime).toBe(11 * 60);
+    expect(v.withForce).toBeCloseTo(1.8, 6);
+  });
+
+  it("once that bar has closed the same bars grade FOLLOWED and land on its close", () => {
+    const v = selectPrintResponse(force, [...flat, ...response], { formingBarTime: null });
+    expect(v.verdict).toBe("FOLLOWED");
+    expect(v.endClose).toBe(102.5);
+  });
+
+  it("a print inside the forming bar has no response yet", () => {
+    const v = selectPrintResponse({ timeSec: 12 * 60 + 5, price: 102, side: "buy" }, [...flat, ...response], { formingBarTime: 12 * 60 });
+    expect(v.verdict).toBe("PENDING");
+    expect(v.responseBars).toBe(0);
+    expect(v.endTime).toBeNull();
+  });
+});
+
 describe("the yardstick is measured before the print — no lookahead", () => {
   const response = [bar(10, 101, 102), bar(11, 101.5, 102.8), bar(12, 102, 103)];
   const force = { timeSec: 9 * 60 + 30, price: 101, side: "buy" as const };

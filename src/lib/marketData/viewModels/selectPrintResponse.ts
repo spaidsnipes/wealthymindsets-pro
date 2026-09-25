@@ -11,7 +11,14 @@
  *   FOLLOWED  moved ≥ 1 median range with the force, and more than against it
  *   FADED     moved ≥ 1 median range against the force, and more than with it
  *   MUTED     neither — the force bought no clear response
- *   PENDING   fewer than RESPONSE_BARS bars after the print so far
+ *   PENDING   fewer than RESPONSE_BARS CLOSED bars after the print so far
+ *
+ * A response bar counts only once it has closed. The newest bar is updated on
+ * every tick until its interval ends: its high, low and close can still move,
+ * so a verdict taken from it could flip on the next trade and its running
+ * price is not a close. The caller names the still-forming bar
+ * (`formingBarTime`); that bar and anything after it are not response bars,
+ * and `endClose` is published only with a final verdict.
  *
  * The yardstick (the median range) is taken from the YARDSTICK_BARS bars
  * BEFORE the event bar and never from the bars after it. Bars after the print
@@ -25,7 +32,7 @@
  * PURE. DETERMINISTIC.
  */
 
-export const PRINT_RESPONSE_VERSION = 2;
+export const PRINT_RESPONSE_VERSION = 3;
 export const RESPONSE_BARS = 3;
 export const YARDSTICK_BARS = 50;
 
@@ -45,12 +52,21 @@ export interface PrintResponseVM {
   readonly againstForce: number;
   readonly medianRange: number;
   readonly endTime: number | null;
-  /** Close of the last response bar — where the RESPONSE arrow lands. */
+  /** Close of the last response bar — where the RESPONSE arrow lands. Null until the verdict is final. */
   readonly endClose: number | null;
   readonly verdict: "FOLLOWED" | "FADED" | "MUTED" | "PENDING";
 }
 
-export function selectPrintResponse(force: PrintForce | null | undefined, input: readonly ResponseBar[] | null | undefined): PrintResponseVM {
+export interface PrintResponseOptions {
+  /** Open time of the bar still forming, or null when every bar has closed. */
+  readonly formingBarTime?: number | null;
+}
+
+export function selectPrintResponse(
+  force: PrintForce | null | undefined,
+  input: readonly ResponseBar[] | null | undefined,
+  opts?: PrintResponseOptions,
+): PrintResponseVM {
   const dir: 1 | -1 = force?.side === "sell" ? -1 : 1;
   const none = (reason: PrintResponseVM["reason"]): PrintResponseVM => ({
     version: PRINT_RESPONSE_VERSION, drawn: false, reason, eventBarTime: null, dir, responseBars: 0,
@@ -61,7 +77,12 @@ export function selectPrintResponse(force: PrintForce | null | undefined, input:
   let idx = -1;
   for (let i = 0; i < bars.length; i++) { if (bars[i].time <= force.timeSec) idx = i; else break; }
   if (idx < 0) return none("PRINT_OUTSIDE_BARS");
-  const after = bars.slice(idx + 1, idx + 1 + RESPONSE_BARS);
+  const forming = opts?.formingBarTime;
+  const after: ResponseBar[] = [];
+  for (let i = idx + 1; i < bars.length && after.length < RESPONSE_BARS; i++) {
+    if (forming != null && bars[i].time >= forming) break;
+    after.push(bars[i]);
+  }
   const ranges = bars.slice(Math.max(0, idx - YARDSTICK_BARS), idx).map(b => b.high - b.low).filter(r => r > 0).sort((a, z) => a - z);
   if (!ranges.length) return none("NO_PRIOR_RANGE");
   const med = ranges[Math.floor(ranges.length / 2)];
@@ -80,7 +101,7 @@ export function selectPrintResponse(force: PrintForce | null | undefined, input:
     version: PRINT_RESPONSE_VERSION, drawn: true, reason: "DRAWN", eventBarTime: bars[idx].time, dir,
     responseBars: after.length, withForce: withF, againstForce: against, medianRange: med,
     endTime: after.length ? after[after.length - 1].time : null,
-    endClose: after.length ? after[after.length - 1].close : null, verdict,
+    endClose: verdict !== "PENDING" ? after[after.length - 1].close : null, verdict,
   };
 }
 

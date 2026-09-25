@@ -75,3 +75,17 @@ describe("the FORCE states the print's side as its claim owner does", () => {
     expect(b).toMatch(/sideInferred \? \["vs an INFERRED side"\]/);
   });
 });
+
+describe("the RESPONSE is graded on closed bars only", () => {
+  it("names the still-forming bar by the header's close proof and hands it to the selector", () => {
+    const b = forceResponse();
+    expect(b).toMatch(/selectChartCloseLabel\(Number\(newestBar\.time\), timeframe, Date\.now\(\)\)\.forming/);
+    expect(b).toMatch(/selectPrintResponse\([\s\S]{0,300}\{ formingBarTime \}\)/);
+  });
+
+  it("the RESPONSE arrow is drawn only on a final verdict with a published close", () => {
+    const b = forceResponse();
+    expect(b).toContain('if (pr.verdict !== "PENDING" && pr.endClose != null) {');
+    expect(b).toContain("response bars closed");
+  });
+});

@@ -6889,8 +6889,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (sp && claim && sp.timeMs != null) {
           const side = claim.side;
           const sideInferred = aggressorProvenanceOf(sp.aggressorMethod) === "INFERRED";
+          // The newest bar is a response bar only once its interval has
+          // elapsed — the same clock proof the header uses before it says C.
+          // Until then its price moves with every tick and is not a close.
+          const respBars = barsRef.current ?? [];
+          const newestBar = respBars[respBars.length - 1];
+          const formingBarTime = newestBar && selectChartCloseLabel(Number(newestBar.time), timeframe, Date.now()).forming
+            ? Number(newestBar.time) : null;
           const pr = selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side },
-            (barsRef.current ?? []).map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close })));
+            respBars.map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close })), { formingBarTime });
           canvas.dataset.printResponse = pr.drawn ? `${pr.verdict}:${pr.responseBars}` : pr.reason;
           const xe = pr.eventBarTime != null ? chart.timeScale().timeToCoordinate(pr.eventBarTime as never) : null;
           const yp = srs.priceToCoordinate(sp.priceLevel);
@@ -6944,7 +6951,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const py0 = up ? ey + 30 : ey - 50;
               ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(232,184,92,0.7)"; ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(px0 + 180, py0 + 16); ctx.lineTo(ex - 5, ey); ctx.stroke(); ctx.setLineDash([]);
-              plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars printed`], px0, py0, true);
+              plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars closed`], px0, py0, true);
             }
             if (xEnd != null) {
               // EXPECTED ENVELOPE (ghost): ±1 median bar range around the
