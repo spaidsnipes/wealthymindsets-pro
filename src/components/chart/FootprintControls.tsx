@@ -452,8 +452,8 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
               {([
                 [buy,       "Aggressive Buyers",  "MARKET buy orders lifting the ask — active demand pushing price UP (blue)", 1],
                 [sell,      "Aggressive Sellers", "MARKET sell orders hitting the bid — active supply pushing price DOWN (purple)", 1],
-                ["#94A3B8", "Passive Buyer Proxy",  "Location-based inference near the candle low; resting orders are not directly observed (gray)", 1],
-                ["#FF9500", "Passive Seller Proxy", "Location-based inference near the candle high; resting orders are not directly observed (orange)", 1],
+                ["#94A3B8", "Sells into low",  "Seller-initiated volume in the bottom fifth of the bar. Where it traded, not who defended — resting orders are not observed (gray)", 1],
+                ["#FF9500", "Buys into high", "Buyer-initiated volume in the top fifth of the bar. Where it traded, not who defended — resting orders are not observed (orange)", 1],
               ] as [string, string, string, number][]).map(([c, label, desc, op]) => (
                 <div key={label} className="flex items-start gap-2">
                   <span className="mt-0.5 w-3 h-3 rounded-sm shrink-0" style={{ background: c, opacity: op }} />

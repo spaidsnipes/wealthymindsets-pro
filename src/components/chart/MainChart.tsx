@@ -6283,8 +6283,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // Each level splits into a LEFT half (ask / buyer-initiated) and a
             // RIGHT half (bid / seller-initiated). Each half is tinted by its LIVE
             // role at this price level:
-            //   ask near the HIGH → Passive Sellers (orange), else Aggressive Buyers (blue)
-            //   bid near the LOW  → Passive Buyers (gray),   else Aggressive Sellers (purple)
+            //   ask near the HIGH → BUYS INTO HIGH (orange), else AGG BUYS (blue)
+            //   bid near the LOW  → SELLS INTO LOW (gray),   else AGG SELLS (purple)
+            //   (location only — never a claim about who defended; Garden 12)
             // Alpha is scaled by that side's share of the level so the dominant
             // side reads stronger — but capped soft (~0.56) so it's clean and easy
             // on the eyes, never harsh neon. The number rides on top in white with
@@ -6329,10 +6330,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             //   bid = seller-initiated (market sell hitting the bid)
             //   relPos: 0 = candle LOW, 1 = candle HIGH
             //
-            //   Aggressive Buyers  (blue)   = ask volume that DROVE price
-            //   Passive  Sellers   (orange) = ask volume ABSORBED at the high wick
-            //   Aggressive Sellers (purple) = bid volume that DROVE price
-            //   Passive  Buyers    (gray)   = bid volume ABSORBED at the low wick
+            //   AGG BUYS       (blue)   = buyer-initiated volume below the top fifth
+            //   BUYS INTO HIGH (orange) = buyer-initiated volume in the top fifth
+            //   AGG SELLS      (purple) = seller-initiated volume above the bottom fifth
+            //   SELLS INTO LOW (gray)   = seller-initiated volume in the bottom fifth
+            // GARDEN 12 (H-701 "do not invent a defender"): these used to be
+            // named PSV SELLS / PSV BUYS — "absorbed" — but every aggressive buy
+            // has a passive seller; WHERE in the bar it traded does not tell us
+            // who defended. The numbers are unchanged; the names now say only
+            // what was measured: which side initiated, and where in the bar.
             // Read the roles from the FIXED sub-profile, never from the display
             // bins: `numLev` changes with zoom, so a relPos>0.80 test against
             // display bins would re-slice (and re-total) these four numbers every
@@ -6347,8 +6353,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const roles: Array<{ v: number; lbl: string; col: string; txt: string }> = [
               { v: aggBuy,  lbl: "AGG BUYS",  col: BLUE,   txt: "#fff"    },
               { v: aggSell, lbl: "AGG SELLS", col: PURPLE, txt: "#fff"    },
-              { v: pasBuy,  lbl: "PSV BUYS",  col: GRAY,   txt: "#0b1220" },
-              { v: pasSell, lbl: "PSV SELLS", col: ORANGE, txt: "#fff"    },
+              { v: pasBuy,  lbl: "SELLS INTO LOW",  col: GRAY,   txt: "#0b1220" },
+              { v: pasSell, lbl: "BUYS INTO HIGH", col: ORANGE, txt: "#fff"    },
             ];
             const win = roles.reduce((a, b) => (b.v > a.v ? b : a));
 
