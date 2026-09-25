@@ -464,3 +464,28 @@ describe("selectLiquidityWeather — shape", () => {
     expect(b.stage).not.toBe("THINNING");
   });
 });
+
+describe("selectLiquidityWeather — each segment says when it traded", () => {
+  it("publishes the first and last stamped print time of every segment, in tape order", () => {
+    const T0 = 1_700_000_000_000;
+    const prints = [...leg(100, 2, 60, 10), ...leg(102, 2, 60, 30)].map((t, i) => ({ ...t, time: T0 + i * 1000 }));
+    const w = selectLiquidityWeather(prints);
+    expect(w.segments.length).toBeGreaterThan(1);
+    for (const s of w.segments) {
+      expect(s.fromTime).not.toBeNull();
+      expect(s.toTime!).toBeGreaterThanOrEqual(s.fromTime!);
+    }
+    for (let i = 1; i < w.segments.length; i++) expect(w.segments[i].fromTime!).toBeGreaterThan(w.segments[i - 1].toTime!);
+    expect(w.segments[0].fromTime).toBe(T0);
+    expect(w.segments.at(-1)!.toTime).toBe(T0 + 119_000);
+  });
+
+  it("says null — never a guessed time — when the prints carry none", () => {
+    const w = selectLiquidityWeather([...leg(100, 2, 60, 10), ...leg(102, 2, 60, 30)]);
+    expect(w.segments.length).toBeGreaterThan(1);
+    for (const s of w.segments) {
+      expect(s.fromTime).toBeNull();
+      expect(s.toTime).toBeNull();
+    }
+  });
+});

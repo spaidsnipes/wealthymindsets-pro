@@ -12490,6 +12490,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctxHeat.setTransform(mainCtx.getTransform());
           let painted = 0;
           let contours = 0;
+          let untimed = 0;
+          // WHEN THE COST WAS PAID. A cell spans the bars its segment's prints
+          // traded on (first print's bar to last print's bar), not the whole
+          // camera: a band across every bar claimed the cost held over time
+          // the tape never measured. A cell whose prints carry no time falls
+          // back to full width and is counted in ds.heatLensUntimed.
+          const heatBars = barsRef.current ?? [];
+          let heatSpacing = 6;
+          try { const sp = chart.timeScale().options().barSpacing; if (Number.isFinite(sp) && sp > 0) heatSpacing = sp; } catch { /* keep default */ }
+          const barXAt = (ms: number): number | null => {
+            const tSec = Math.floor(ms / 1000);
+            let lo = 0, hi = heatBars.length - 1, at = -1;
+            while (lo <= hi) {
+              const mid = (lo + hi) >> 1;
+              if (Number(heatBars[mid].time) <= tSec) { at = mid; lo = mid + 1; } else hi = mid - 1;
+            }
+            if (at < 0) return null;
+            const x = chart.timeScale().timeToCoordinate(heatBars[at].time as never);
+            return x == null ? null : +x;
+          };
           // No offscreen context → paint nothing rather than paint unregulated.
           const orderedCells = hctx ? [...heat.cells].sort((a, b) => a.intensity - b.intensity) : [];
           for (const cell of orderedCells) {
@@ -12501,6 +12521,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const band = Math.max(1, Math.abs(+yl - +yh));
             const alpha = Math.min(cell.opacity, heat.maxOpacity);
             const tone = heatRampColor(cell.intensity);
+            const xFrom = cell.fromTime != null ? barXAt(cell.fromTime) : null;
+            const xTo = cell.toTime != null ? barXAt(cell.toTime) : null;
+            const timed = xFrom != null && xTo != null;
+            if (!timed) untimed++;
+            const cx0 = timed ? Math.max(0, Math.min(xFrom!, xTo!) - heatSpacing / 2) : 0;
+            const cx1 = timed ? Math.min(W, Math.max(xFrom!, xTo!) + heatSpacing / 2) : W;
+            const cw = Math.max(1, cx1 - cx0);
 
             /* THE TIDE IS A TEXTURE OF THE SAME CELL, NOT ANOTHER READING.
                The old renderer filled the whole price band with a flat slab.
@@ -12521,7 +12548,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             wash.addColorStop(1, "rgba(0,0,0,0)");
             ctxHeat.globalAlpha = heat.maxOpacity > 0 ? alpha / heat.maxOpacity : 0;
             ctxHeat.fillStyle = wash;
-            ctxHeat.fillRect(0, top, W, band);
+            ctxHeat.fillRect(cx0, top, cw, band);
 
             // One to three contour lines: a quiet, deterministic expression
             // of intensity. More expensive travel earns denser texture. The
@@ -12529,7 +12556,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const contourCount = 1 + Math.round(cell.intensity * 2);
             ctxHeat.save();
             ctxHeat.beginPath();
-            ctxHeat.rect(0, top, W, band);
+            ctxHeat.rect(cx0, top, cw, band);
             ctxHeat.clip();
             ctxHeat.strokeStyle = tone;
             ctxHeat.lineWidth = 0.7;
@@ -12538,9 +12565,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = top + (band * ci) / (contourCount + 1);
               const swell = Math.min(3.5, Math.max(0.7, band * 0.12)) * cell.intensity;
               ctxHeat.beginPath();
-              ctxHeat.moveTo(0, y);
-              ctxHeat.bezierCurveTo(W * 0.24, y - swell, W * 0.42, y + swell, W * 0.58, y);
-              ctxHeat.bezierCurveTo(W * 0.74, y - swell, W * 0.88, y + swell, W, y);
+              ctxHeat.moveTo(cx0, y);
+              ctxHeat.bezierCurveTo(cx0 + cw * 0.24, y - swell, cx0 + cw * 0.42, y + swell, cx0 + cw * 0.58, y);
+              ctxHeat.bezierCurveTo(cx0 + cw * 0.74, y - swell, cx0 + cw * 0.88, y + swell, cx1, y);
               ctxHeat.stroke();
               contours++;
             }
@@ -12558,13 +12585,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (painted > 0) {
             ds.heatLensCells = String(painted);
             ds.heatLensContours = String(contours);
+            ds.heatLensUntimed = String(untimed);
           } else {
             delete ds.heatLensCells;
             delete ds.heatLensContours;
+            delete ds.heatLensUntimed;
           }
         } else {
           delete ds.heatLensCells;
           delete ds.heatLensContours;
+          delete ds.heatLensUntimed;
         }
         /* ══ LIQUIDITY LIFECYCLE — the Founder's Liquidity Weather mockup ════
            Each pool (a volume-at-price node, candle-estimated) is a band on

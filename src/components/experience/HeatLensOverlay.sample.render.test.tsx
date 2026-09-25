@@ -65,6 +65,8 @@ function seg(
     rangeInSpread: (high - low) / 0.5,
     cost,
     stalled: cost === null,
+    fromTime: null,
+    toTime: null,
   };
 }
 

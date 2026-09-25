@@ -78,6 +78,13 @@ export interface LiquiditySegment {
   readonly cost: number | null;
   /** True when the segment traded without moving at all. */
   readonly stalled: boolean;
+  /**
+   * When this segment's prints traded: the earliest and latest stamped print
+   * time (ms), or null when its prints carry no time. What lets a reader of the
+   * segment place it over the bars it happened on instead of across the camera.
+   */
+  readonly fromTime: number | null;
+  readonly toTime: number | null;
 }
 
 export interface LiquidityWeatherVM {
@@ -136,6 +143,8 @@ export const ERRATIC_DISPERSION = 0.4;
 interface Print {
   readonly price: number;
   readonly size: number;
+  /** Print time (ms) when the adapter stamped one. */
+  readonly time: number | null;
 }
 
 /**
@@ -150,7 +159,7 @@ function tradePrints(ticks: readonly AggressorTick[]): Print[] {
     const price = typeof t.price === "number" ? t.price : NaN;
     const size = typeof t.size === "number" ? t.size : NaN;
     if (!Number.isFinite(price) || !Number.isFinite(size) || size <= 0) continue;
-    out.push({ price, size });
+    out.push({ price, size, time: typeof t.time === "number" && Number.isFinite(t.time) ? t.time : null });
   }
   return out;
 }
@@ -263,10 +272,16 @@ export function selectLiquidityWeather(
     let volume = 0;
     let high = -Infinity;
     let low = Infinity;
+    let fromTime: number | null = null;
+    let toTime: number | null = null;
     for (const p of slice) {
       volume += p.size;
       if (p.price > high) high = p.price;
       if (p.price < low) low = p.price;
+      if (p.time != null) {
+        if (fromTime == null || p.time < fromTime) fromTime = p.time;
+        if (toTime == null || p.time > toTime) toTime = p.time;
+      }
     }
     const range = high - low;
     const rangeInSpread = range > 0 ? roundSig(range / spread) : null;
@@ -280,6 +295,8 @@ export function selectLiquidityWeather(
       rangeInSpread,
       cost: rangeInSpread != null && rangeInSpread > 0 ? roundSig(volume / rangeInSpread) : null,
       stalled: range <= 0,
+      fromTime,
+      toTime,
     });
   }
 

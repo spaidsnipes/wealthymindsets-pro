@@ -155,7 +155,9 @@ describe("the heat lens reads as a tide without inventing another market fact", 
   });
 
   it("clips every contour to the segment's measured high and low", () => {
-    expect(CHART).toMatch(/ctxHeat\.rect\(0, top, W, band\)/);
+    // Price-wise the clip is the segment's measured high..low; time-wise it is
+    // the cell's own span (heatLensOnItsBars.sentinel.test.ts), not the camera.
+    expect(CHART).toMatch(/ctxHeat\.rect\(cx0, top, cw, band\)/);
     expect(CHART).toMatch(/ctxHeat\.clip\(\)/);
     expect(CHART).toMatch(/const y = top \+ \(band \* ci\) \/ \(contourCount \+ 1\)/);
   });

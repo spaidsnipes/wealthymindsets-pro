@@ -27,6 +27,8 @@ function segment(p: Partial<LiquiditySegment> & { index: number }): LiquiditySeg
     rangeInSpread: 2,
     cost: 500,
     stalled: false,
+    fromTime: null,
+    toTime: null,
     ...p,
   };
 }

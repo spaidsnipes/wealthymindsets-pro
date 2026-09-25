@@ -128,6 +128,13 @@ export interface HeatCell {
    */
   readonly low: number;
   readonly high: number;
+  /**
+   * WHEN the cost was paid: the segment's first and last print time (ms), or
+   * null when its prints carried no time. The renderer spans these bars only;
+   * a cell with no time falls back to the whole camera and says so.
+   */
+  readonly fromTime: number | null;
+  readonly toTime: number | null;
 }
 
 export interface HeatGauge {
@@ -253,6 +260,8 @@ export function selectHeatLens(
       paintable: intensity >= HEAT_PAINT_FLOOR,
       low: s.low,
       high: s.high,
+      fromTime: s.fromTime ?? null,
+      toTime: s.toTime ?? null,
     };
   });
 
