@@ -49,3 +49,14 @@ describe("the composite", () => {
     expect(v.quality).toBe("candle-estimated");
   });
 });
+
+describe("sessionStarts — what went into the composite, stated", () => {
+  it("one start per aggregated session, oldest first, the current session excluded", async () => {
+    const { default: sel } = await import("./selectCompositeProfile");
+    const day = (d: number) => Array.from({ length: 6 }, (_, k) => ({ time: d * 86400 + k * 300, open: 100, high: 101 + k * 0.1, low: 99, close: 100.5, volume: 10 }));
+    const vm = sel([...day(1), ...day(2), ...day(3)] as never);
+    expect(vm.drawn).toBe(true);
+    expect(vm.sessionStarts).toEqual([86400, 2 * 86400]);
+    expect(vm.sessionStarts.length).toBe(vm.sessions);
+  });
+});

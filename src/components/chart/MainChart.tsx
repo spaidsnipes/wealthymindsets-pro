@@ -10096,6 +10096,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lane.fits) {
               ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro * stackOpacity("COMPOSITE", stackPrefsRef.current) * parentFade("COMPOSITE");
               const right = lane.right;
+              // GARDEN 12 · WHAT WENT IN, drawn: a sediment bracket along the
+              // foot of the price pane — one tick per aggregated session start —
+              // running into the composite's lane, with faint dividers rising
+              // from each tick. N sessions → one profile, without the word.
+              {
+                const tsC = chart.timeScale();
+                const yB = Math.round(H * 0.72) + 0.5;
+                const xs = cp.sessionStarts.map(t => tsC.timeToCoordinate(t as never)).filter((x): x is NonNullable<typeof x> => x != null).map(Number);
+                const laneLeft = right - lane.width;
+                const x0c = xs.length ? Math.max(2, xs[0]) : 2;
+                ctx.strokeStyle = "rgba(194,184,146,0.55)"; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x0c, yB); ctx.lineTo(laneLeft, yB); ctx.lineTo(laneLeft, yB - 6); ctx.stroke();
+                for (const x of xs) {
+                  if (x < 2 || x > laneLeft) continue;
+                  ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, yB - 5); ctx.lineTo(Math.round(x) + 0.5, yB + 5); ctx.stroke();
+                  ctx.save(); ctx.strokeStyle = "rgba(194,184,146,0.07)"; ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 90); ctx.lineTo(Math.round(x) + 0.5, yB - 5); ctx.stroke(); ctx.restore();
+                }
+                const offLeft = cp.sessionStarts.length > 0 && (xs.length < cp.sessionStarts.length || xs[0] < 2);
+                if (offLeft) {
+                  // It began before this camera: a chevron says "continues from further back".
+                  ctx.beginPath(); ctx.moveTo(10, yB - 5); ctx.lineTo(4, yB); ctx.lineTo(10, yB + 5);
+                  ctx.moveTo(16, yB - 5); ctx.lineTo(10, yB); ctx.lineTo(16, yB + 5); ctx.stroke();
+                }
+                ds.compositeGeometry = `SEDIMENT:${cp.sessionStarts.length}sessions:${xs.length}onscreen`;
+              }
               const width = lane.width * stackWidth("COMPOSITE", stackPrefsRef.current);
               const ys: number[] = [];
               for (const r of cp.rows) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
@@ -10173,6 +10198,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("VISIBLE_RANGE", stackPrefsRef.current) * parentFade("VISIBLE_RANGE");
             const right = lane.right;
             const width = lane.width * stackWidth("VISIBLE_RANGE", stackPrefsRef.current);
+            // GARDEN 12 · "MEASURED ACROSS WHAT YOU SEE", drawn: viewfinder
+            // corners at the camera's first bar and at the profile, joined by
+            // rails along the range's high and low. Pan and they move with it.
+            {
+              const hiP = Math.max(...vrpVM.rows.map(r => r.price)), loP = Math.min(...vrpVM.rows.map(r => r.price));
+              const yH = srs.priceToCoordinate(hiP), yL = srs.priceToCoordinate(loP);
+              const xF = vrpVM.from != null ? chart.timeScale().timeToCoordinate(vrpVM.from as never) : null;
+              if (yH != null && yL != null) {
+                const x0v = Math.max(2, xF == null ? 2 : +xF), x1v = right - width - 4, c = 10;
+                ctx.strokeStyle = "rgba(237,230,211,0.8)"; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(x0v, +yH + c); ctx.lineTo(x0v, +yH); ctx.lineTo(x0v + c, +yH);
+                ctx.moveTo(x0v, +yL - c); ctx.lineTo(x0v, +yL); ctx.lineTo(x0v + c, +yL);
+                ctx.moveTo(x1v - c, +yH); ctx.lineTo(x1v, +yH); ctx.lineTo(x1v, +yH + c);
+                ctx.moveTo(x1v - c, +yL); ctx.lineTo(x1v, +yL); ctx.lineTo(x1v, +yL - c);
+                ctx.stroke();
+                ctx.setLineDash([1, 5]); ctx.strokeStyle = "rgba(237,230,211,0.22)"; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x0v + c + 2, Math.round(+yH) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yH) + 0.5);
+                ctx.moveTo(x0v + c + 2, Math.round(+yL) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yL) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                ds.visibleRangeGeometry = `VIEWFINDER:${Math.round(x0v)}-${Math.round(x1v)}`;
+              }
+            }
             const ys: number[] = [];
             for (const r of vrpVM.rows) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
             let rowH = 2;

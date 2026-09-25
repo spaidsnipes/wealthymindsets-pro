@@ -54,11 +54,13 @@ export interface CompositeProfileVM {
   readonly quality: ProfileQuality | null;
   /** Time of the last bar included — the end of the last completed session. */
   readonly asOf: number | null;
+  /** First bar time of each session aggregated, oldest first — what went in. */
+  readonly sessionStarts: readonly number[];
 }
 
 const none = (reason: Exclude<CompositeReason, "DRAWN">): CompositeProfileVM => ({
   version: COMPOSITE_PROFILE_VERSION, drawn: false, reason, sessions: 0, bars: 0,
-  rows: [], poc: null, vah: null, val: null, quality: null, asOf: null,
+  rows: [], poc: null, vah: null, val: null, quality: null, asOf: null, sessionStarts: [],
 });
 
 export function selectCompositeProfile(
@@ -108,6 +110,7 @@ export function selectCompositeProfile(
     val: snap.val,
     quality: snap.quality,
     asOf: kept[kept.length - 1].time,
+    sessionStarts: bars.filter((_, i) => sessionOf[i] < current && sessionOf[i] >= firstKept && (i === 0 || sessionOf[i - 1] !== sessionOf[i])).map(b => b.time),
   };
 }
 
