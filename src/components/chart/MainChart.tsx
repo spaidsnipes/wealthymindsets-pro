@@ -7032,10 +7032,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // FORCE (who initiated), EVENT (the print), RESPONSE (what price
             // did next, measured), and — until the bars exist — the plate
             // UNPAID EVIDENCE DEBT instead of a guess.
+            // Each plate stays inside pane 0 below the header band, and steps
+            // off any chip already on the glass (print tickets, the plate
+            // painted before it). Unchecked, the DEBT plate landed on the
+            // FORCE caption near the pane top, and a buy print near the
+            // bottom pushed FORCE over the time axis.
             const plate = (lines: string[], x: number, y: number, gold: boolean) => {
               ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 12, th = 6 + lines.length * 13;
-              const tx = Math.max(4, Math.min(W - 100 - tw, x)), ty = Math.max(96, y);
+              const tx = Math.max(4, Math.min(Math.min(W - 100, plotRight - 4) - tw, x));
+              const hiY = Math.max(96, pane0Bottom - th - 4);
+              const clampY = (v: number) => Math.max(96, Math.min(hiY, v));
+              const busy = (v: number) => forceChips.some(r => tx < r.x + r.w && tx + tw > r.x && v < r.y + r.h + 2 && v + th + 2 > r.y);
+              let ty = clampY(y);
+              for (let k = 1; k <= 3 && busy(ty); k++) {
+                const down = clampY(y + k * (th + 4)), upY = clampY(y - k * (th + 4));
+                if (!busy(down)) { ty = down; break; }
+                if (!busy(upY)) { ty = upY; break; }
+              }
               ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(tx, ty, tw, th);
               forceChips.push({ x: tx, y: ty, w: tw, h: th });
               lines.forEach((l, i) => {
@@ -7043,6 +7057,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.font = i === 0 ? "700 10px ui-sans-serif, system-ui, sans-serif" : "600 9px ui-sans-serif, system-ui, sans-serif";
                 ctx.fillText(l, tx + 6, ty + 9.5 + i * 13);
               });
+              return { x: tx, y: ty, w: tw, h: th };
             };
             // EVENT: a gold point on the print.
             ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2); ctx.fillStyle = "rgba(240,200,100,1)"; ctx.fill();
@@ -7054,9 +7069,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // ticket's column; the debt plate stands clear of it on a leader.
               const px0 = ex > W - 560 ? W - 560 - 190 : ex - 190;
               const py0 = up ? ey + 30 : ey - 50;
+              const debt = plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars closed`], px0, py0, true);
+              // The leader leaves the plate where it actually landed.
               ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(232,184,92,0.7)"; ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(px0 + 180, py0 + 16); ctx.lineTo(ex - 5, ey); ctx.stroke(); ctx.setLineDash([]);
-              plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars closed`], px0, py0, true);
+              ctx.beginPath(); ctx.moveTo(ex < debt.x ? debt.x : debt.x + debt.w, debt.y + debt.h / 2); ctx.lineTo(ex - 5, ey); ctx.stroke(); ctx.setLineDash([]);
             }
             if (xEnd != null) {
               // EXPECTED ENVELOPE (ghost): ±1 median bar range around the

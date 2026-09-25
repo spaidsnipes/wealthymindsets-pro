@@ -180,6 +180,42 @@ describe("the FORCE states the print's side as its claim owner does", () => {
   });
 });
 
+describe("causal-mark plates stay in pane 0 and step off earlier chips", () => {
+  const plateFn = () => {
+    const b = forceResponse();
+    const a = b.indexOf("const plate = (lines: string[], x: number, y: number, gold: boolean) => {");
+    expect(a).toBeGreaterThan(-1);
+    const z = b.indexOf("return { x: tx, y: ty, w: tw, h: th };", a);
+    expect(z).toBeGreaterThan(a);
+    return b.slice(a, z);
+  };
+
+  it("bounds the plate by the plot and pane 0, not the container", () => {
+    const p = plateFn();
+    expect(p).toContain("const tx = Math.max(4, Math.min(Math.min(W - 100, plotRight - 4) - tw, x));");
+    expect(p).toContain("const hiY = Math.max(96, pane0Bottom - th - 4);");
+  });
+
+  it("searches for a free slot against forceChips before it paints, then registers itself", () => {
+    const p = plateFn();
+    expect(p).toMatch(/const busy = \(v: number\) => forceChips\.some\(/);
+    const search = p.indexOf("for (let k = 1; k <= 3 && busy(ty); k++) {");
+    const paint = p.indexOf("ctx.fillRect(tx, ty, tw, th);");
+    const push = p.indexOf("forceChips.push({ x: tx, y: ty, w: tw, h: th });");
+    expect(search).toBeGreaterThan(-1);
+    expect(paint).toBeGreaterThan(search);
+    expect(push).toBeGreaterThan(paint);
+  });
+
+  it("the DEBT leader starts from where its plate actually landed", () => {
+    const b = forceResponse();
+    const placed = b.indexOf("const debt = plate([\"UNPAID EVIDENCE DEBT\"");
+    const leader = b.indexOf("ctx.moveTo(ex < debt.x ? debt.x : debt.x + debt.w, debt.y + debt.h / 2);");
+    expect(placed).toBeGreaterThan(-1);
+    expect(leader).toBeGreaterThan(placed);
+  });
+});
+
 describe("the RESPONSE is graded on closed bars only", () => {
   it("names the still-forming bar by the header's close proof and hands it to the selector", () => {
     const b = forceResponse();
