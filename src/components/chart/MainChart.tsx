@@ -171,7 +171,7 @@ const BASIS_CAPTION_X =
 
 /** Profile species geometry receipts: withdrawn each frame before the stack paints, re-published by whatever paints. */
 const PROFILE_GEOMETRY_RECEIPTS = [
-  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected", "livingProfileBodyWidth", "livingProfileCandlesKept",
+  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected", "livingProfileBodyWidth", "livingProfileCandlesKept", "livingProfileLabels",
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
 ] as const;
@@ -11621,18 +11621,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (yr == null) return;
               ctx.fillStyle = ink;
               // Stacked: the lane to the right belongs to another profile, so
-              // the labels sit on the LEFT of this histogram instead.
-              if (stacked) {
-                // Stacked: labels go to the ONE column left of the whole stack.
+              // the labels sit on the LEFT of this histogram instead. Solo, a
+              // label goes right of the lane only when it ENDS before the price
+              // axis — the solo lane sits at a fixed W − 76, and on a wide axis
+              // the words ran under it and read "VA" / "PO" (serving, TSLA 1h
+              // desktop, 2026-09-25). Otherwise it joins the one column too.
+              if (stacked || rightEdge + 4 + ctx.measureText(text).width > plotRight - 2) {
                 stackLabel(+yr, text, ink);
+                livingLabelsInColumn++;
               } else {
                 ctx.fillText(text, rightEdge + 4, +yr);
               }
             };
             const tag = stacked ? "LIVING " : "";
+            let livingLabelsInColumn = 0;
             if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, pk.rgba("POC", 0.95));
             if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.80));
             if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.80));
+            ds.livingProfileLabels = livingLabelsInColumn > 0 ? `COLUMN:${livingLabelsInColumn}` : "RIGHT";
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful

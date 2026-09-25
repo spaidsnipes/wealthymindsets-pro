@@ -203,3 +203,14 @@ describe("the layer publishes a receipt in every state", () => {
     expect(block.match(/delete ds\.livingProfileUntraded/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("the Living level names never run under the price axis", () => {
+  // Serving TSLA 1h desktop, 2026-09-25: solo, "VAH / POC / VAL" printed right
+  // of the lane and the axis cut them to "VA" / "PO".
+  it("a solo label goes right of the lane only when it ends before the plot edge", () => {
+    expect(block).toContain("if (stacked || rightEdge + 4 + ctx.measureText(text).width > plotRight - 2) {");
+    expect(block).toMatch(/stackLabel\(\+yr, text, ink\);\s*livingLabelsInColumn\+\+;/);
+    expect(block).toContain('ds.livingProfileLabels = livingLabelsInColumn > 0 ? `COLUMN:${livingLabelsInColumn}` : "RIGHT";');
+    expect(CHART).toMatch(/"livingProfileCandlesKept", "livingProfileLabels",/);
+  });
+});
