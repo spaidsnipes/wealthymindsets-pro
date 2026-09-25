@@ -36,4 +36,8 @@ describe("left column and word stack", () => {
     expect(CHART).toMatch(/let wy = Math\.max\(20, pane0Bottom - 22\);/);
     expect(CHART).toMatch(/const cy = Math\.max\(20, pane0Bottom - 22\) - weatherLines \* 11;/);
   });
+
+  it("the VP POC tag never prints inside the header band (REGIME desk, 2026-09-25)", () => {
+    expect(CHART).toMatch(/const pocTagY = rowY \+ Math\.round\(rowH\/2\);\s*if \(pocTagY >= 90\) \{/);
+  });
 });

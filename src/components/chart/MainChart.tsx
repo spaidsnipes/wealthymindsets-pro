@@ -7431,11 +7431,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.lineTo(vpRight - 2, rowY + Math.round(rowH/2) + 0.5);
             ctx.stroke();
             ctx.setLineDash([]);
-            // POC price tag so the stationary histogram still has a price anchor.
-            ctx.fillStyle = vpPocRgba(0.95);
-            ctx.font = "bold 11px monospace";
-            ctx.textAlign = "right"; ctx.textBaseline = "middle";
-            ctx.fillText(pocPrice.toFixed(2), pocLineLeft - 2, rowY + Math.round(rowH/2));
+            // POC price tag so the stationary histogram still has a price anchor —
+            // except inside the header band (bar clock, zoom plate, INSPECT),
+            // where it printed under the chrome. 90 is the frame's
+            // HEADER_FLOOR_Y; this runs before that const is declared in the
+            // frame, so the value is restated rather than read. The POC line
+            // itself still draws.
+            const pocTagY = rowY + Math.round(rowH/2);
+            if (pocTagY >= 90) {
+              ctx.fillStyle = vpPocRgba(0.95);
+              ctx.font = "bold 11px monospace";
+              ctx.textAlign = "right"; ctx.textBaseline = "middle";
+              ctx.fillText(pocPrice.toFixed(2), pocLineLeft - 2, pocTagY);
+            }
           }
           // Volume numbers — label ONLY the POC and other MAJOR nodes (≥30% of the
           // POC volume), NEVER every level. Printing a number on all ~46 rows turned
