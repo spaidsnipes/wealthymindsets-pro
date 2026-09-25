@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BigTradeTick } from "@/lib/bigTradeLevels";
-import { selectNearTape, type NearTapeCache } from "./selectNearTape";
+import { selectNearTape, sideFidelity, type NearTapeCache } from "./selectNearTape";
 
 const tick = (timeMs: number | undefined, price = 100, buy = true): BigTradeTick =>
   ({ price, bid: buy ? 0 : 1, ask: buy ? 1 : 0, timeMs });
@@ -75,6 +75,32 @@ describe("selectNearTape — the newest captured prints, exactly", () => {
     expect(grown.vm.rows[0].timeMs).toBe(900_002);
     // Exact: the incremental answer equals a cold recompute.
     expect(grown.vm.rows).toEqual(selectNearTape(acc, null).vm.rows);
+  });
+
+  it("a side guessed by tick rule or quote test is marked INFERRED, never shown as an observed initiator", () => {
+    const acc = new Map<number, BigTradeTick[]>([[60, [
+      { ...tick(61_000, 10, true), aggressorMethod: "TICK_RULE" },
+      { ...tick(61_100, 10, false), aggressorMethod: "QUOTE_TEST" },
+    ]]]);
+    const vm = selectNearTape(acc, null).vm;
+    expect(vm.rows.map(r => [r.fidelity, r.glyph])).toEqual([["INFERRED", "~−"], ["INFERRED", "~+"]]);
+    expect(vm.fidelityNote).toBe("~ = SIDE INFERRED");
+  });
+
+  it("only a venue stamp is OBSERVED; an undisclosed method is UNKNOWN; the legend names every kind present", () => {
+    const acc = new Map<number, BigTradeTick[]>([[60, [
+      { ...tick(61_000), aggressorMethod: "PROVIDER" },
+      { ...tick(61_100, 10, false), aggressorMethod: "MAKER_SIDE_INVERTED" },
+    ]]]);
+    const observed = selectNearTape(acc, null).vm;
+    expect(observed.rows.map(r => r.glyph)).toEqual(["−", "+"]);
+    expect(observed.fidelityNote).toBeNull();
+
+    acc.get(60)!.push(tick(61_200), { ...tick(61_300), aggressorMethod: "NONE" }, { ...tick(61_400), aggressorMethod: "TICK_RULE" });
+    const mixed = selectNearTape(acc, null).vm;
+    expect(mixed.rows.slice(0, 3).map(r => [r.fidelity, r.glyph])).toEqual([["INFERRED", "~+"], ["UNKNOWN", "?+"], ["UNKNOWN", "?+"]]);
+    expect(mixed.fidelityNote).toBe("~ INFERRED · ? UNKNOWN");
+    expect(sideFidelity(undefined)).toBe("UNKNOWN");
   });
 
   it("recomputes cold when a new bar starts or the tape is reset", () => {

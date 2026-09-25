@@ -105,6 +105,17 @@ describe("semantic zoom glass", () => {
     expect(tape).not.toMatch(/\.keys\(\)|flatMap\(|\.sort\(/);
   });
 
+  it("the TAPE column prints each row's side at its fidelity and the legend whenever a side is not observed", () => {
+    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+    const anatomyEnd = CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near);
+    const tape = CHART.slice(anatomyEnd, CHART.indexOf("delete canvas.dataset.nearTape;", near));
+    expect(tape).toMatch(/const tapeNote = nearTapeCache\.vm\.fidelityNote;/);
+    expect(tape).toMatch(/ctx\.fillText\(tapeNote, /);
+    expect(tape).toMatch(/ctx\.fillText\(t\.glyph, /);
+    // The painter never mints a bare initiator sign of its own.
+    expect(tape).not.toMatch(/\? "\+" : "−"/);
+  });
+
   it("NEAR anatomy words are halo text on leaders that start outside the live body — no boxes over the candles", () => {
     const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
     const anatomy = CHART.slice(near, CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near));

@@ -3,6 +3,15 @@
  * "TAPE TICKS". At NEAR the last executions this chart captured stand beside
  * the live candle: price and which side initiated.
  *
+ * WHO INITIATED IS ONLY AS TRUE AS ITS METHOD. A venue stamp (PROVIDER, or the
+ * maker side inverted) is OBSERVED. A tick-rule or quote-test guess is
+ * INFERRED — the equity relay tape is TICK_RULE for every print — and a print
+ * with no disclosed method is UNKNOWN. Each row carries its fidelity and a
+ * glyph that says it (`+` / `~+` / `?+`), and the column carries a legend
+ * whenever any row is not observed: the same OBSERVED / INFERRED / UNKNOWN
+ * vocabulary the Inspect ticket and the print tickets use, so one frame never
+ * shows a guessed side as a fact beside a ticket that says SIDE INFERRED.
+ *
  * NEVER A PER-FRAME HISTORY SORT. The accumulator keeps every print of every
  * bar (no per-bar cap), and a busy tape holds tens of thousands in the last
  * two bars. Prints are appended but NOT in time order (each flush pushes a
@@ -16,19 +25,27 @@
 
 import type { BigTradeTick } from "@/lib/bigTradeLevels";
 import { formatBubblePrice } from "@/lib/bubbleClaim";
+import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 
 export const NEAR_TAPE_ROWS = 10;
+
+export type SideFidelity = "OBSERVED" | "INFERRED" | "UNKNOWN";
 
 export interface NearTapeRow {
   readonly timeMs: number;
   /** Formatted with the house price formatter (sub-dollar keeps its digits). */
   readonly price: string;
   readonly buy: boolean;
+  readonly fidelity: SideFidelity;
+  /** `+`/`−` observed · `~+`/`~−` inferred · `?+`/`?−` method undisclosed. */
+  readonly glyph: string;
 }
 
 export interface NearTapeVM {
   /** Newest first. */
   readonly rows: readonly NearTapeRow[];
+  /** The legend the column must print; null only when every side is observed. */
+  readonly fidelityNote: string | null;
 }
 
 export type TapeAccumulator = ReadonlyMap<number, readonly BigTradeTick[]>;
@@ -44,6 +61,14 @@ export interface NearTapeCache {
   readonly top: readonly BigTradeTick[];
   readonly vm: NearTapeVM;
 }
+
+export function sideFidelity(method: AggressorMethod | undefined): SideFidelity {
+  if (method === "PROVIDER" || method === "MAKER_SIDE_INVERTED") return "OBSERVED";
+  if (method === "TICK_RULE" || method === "QUOTE_TEST") return "INFERRED";
+  return "UNKNOWN";
+}
+
+const GLYPH_PREFIX: Readonly<Record<SideFidelity, string>> = { OBSERVED: "", INFERRED: "~", UNKNOWN: "?" };
 
 /** Insert arr[from..to) into `top` (newest first, at most `limit`). */
 function mergeNewest(top: BigTradeTick[], arr: readonly BigTradeTick[] | undefined, from: number, to: number, limit: number): void {
@@ -61,9 +86,19 @@ function mergeNewest(top: BigTradeTick[], arr: readonly BigTradeTick[] | undefin
 }
 
 function project(top: readonly BigTradeTick[]): NearTapeVM {
-  return {
-    rows: top.map((t): NearTapeRow => ({ timeMs: t.timeMs as number, price: formatBubblePrice(t.price), buy: t.ask > t.bid })),
-  };
+  let inferred = 0, unknown = 0;
+  const rows = top.map((t): NearTapeRow => {
+    const fidelity = sideFidelity(t.aggressorMethod);
+    if (fidelity === "INFERRED") inferred++;
+    if (fidelity === "UNKNOWN") unknown++;
+    const buy = t.ask > t.bid;
+    return { timeMs: t.timeMs as number, price: formatBubblePrice(t.price), buy, fidelity, glyph: `${GLYPH_PREFIX[fidelity]}${buy ? "+" : "−"}` };
+  });
+  const fidelityNote = inferred > 0 && unknown > 0 ? "~ INFERRED · ? UNKNOWN"
+    : inferred > 0 ? "~ = SIDE INFERRED"
+    : unknown > 0 ? "? = SIDE UNKNOWN"
+    : null;
+  return { rows, fidelityNote };
 }
 
 /**

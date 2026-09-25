@@ -7251,8 +7251,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // that arrived since; the paint never spreads or sorts the tape.
           nearTapeCache = selectNearTape(bigTradePrintAccRef.current, nearTapeCache);
           const prints = nearTapeCache.vm.rows;
+          // Who initiated is only as true as its method: an inferred side
+          // carries "~" (undisclosed "?") on its row and the column prints the
+          // legend, as the print ticket beside it says SIDE INFERRED.
+          const tapeNote = nearTapeCache.vm.fidelityNote;
           if (prints.length > 0) {
-            const colW = 124, rowH2 = 13, colH = 20 + prints.length * rowH2;
+            const noteH = tapeNote ? 11 : 0;
+            const colW = 124, rowH2 = 13, colH = 20 + noteH + prints.length * rowH2;
             // Docked top-left, clear of the right edge where the live candle,
             // its profile lane and the print tickets already live.
             const yNow = srs.priceToCoordinate(lastBar.close);
@@ -7264,13 +7269,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(colX + 0.5, colY + 0.5, colW - 1, colH - 1);
             ctx.textAlign = "center"; ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
             ctx.fillText("TAPE · LAST " + prints.length + " PRINTS", colX + colW / 2, colY + 10);
+            if (tapeNote) {
+              ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.8)";
+              ctx.fillText(tapeNote, colX + colW / 2, colY + 21);
+            }
             ctx.font = "600 10px ui-monospace, SFMono-Regular, monospace";
             prints.forEach((t, i) => {
-              const y = colY + 22 + i * rowH2;
+              const y = colY + 22 + noteH + i * rowH2;
               ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
               ctx.fillText(t.price, colX + colW - 30, y);
               ctx.textAlign = "center"; ctx.fillStyle = t.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
-              ctx.fillText(t.buy ? "+" : "−", colX + colW - 14, y);
+              ctx.fillText(t.glyph, colX + colW - 14, y);
             });
             forceChips.push({ x: colX, y: colY, w: colW, h: colH });
             canvas.dataset.nearTape = String(prints.length);
