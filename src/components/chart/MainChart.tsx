@@ -189,7 +189,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTravel", "absorptionWall", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm",
@@ -9182,6 +9182,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const wallsDrawn: string[] = [];
             // Per shelf drawn as rows: `<rows>R:<side evidence>`.
             const shelfRowsDrawn: string[] = [];
+            // Desktop shelf words: names painted at rest, numbers on the selected one.
+            let shelfNamesShown = 0;
+            let shelfNumbersShown = false;
             for (const zone of anatomy.zones) {
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
@@ -9431,8 +9434,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ? "—"
                   : zone.efficiencyRatio.toFixed(2);
               const chip = `ABSORPTION ${ratioTxt} ${zone.strength}`;
+              // FL-06 ① names the shelf on the glass — "Absorption Shelf (Sell
+              // Side)" — and keeps its numbers for Inspect. So at rest the
+              // desktop shelf carries its NAME and, only where the owner named
+              // one from signed aggression, its SIDE (LOW held = the sell side
+              // was absorbed); INFERRED when the sides came from a tick rule.
+              // The ratio and strength print only on the SELECTED shelf. The
+              // narrow chip keeps its numbers (no rows, no room to select).
+              const shelfName = zone.holdingEdge == null
+                ? "ABSORPTION SHELF"
+                : `ABSORPTION SHELF · ${zone.holdingEdge === "LOW" ? "SELL" : "BUY"} SIDE${zone.holdingBasis === "INFERRED" ? " · INFERRED" : ""}`;
+              const shelfWords = desktopShelfInstrument && !shelfSelected ? shelfName : chip;
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-              const cw2 = ctx.measureText(chip).width;
+              const cw2 = ctx.measureText(shelfWords).width;
               const chipH = 14;
               const chipW = cw2 + 12;
               // Clamp BOTH edges. The left was already held off the frame; the
@@ -9507,8 +9521,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.shadowBlur = 3;
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
-                ctx.fillText(chip, chipX, chipY + chipH / 2 + 0.5);
+                ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);
                 ctx.restore();
+                if (shelfSelected) shelfNumbersShown = true;
+                else shelfNamesShown++;
               } else {
                 ctx.fillStyle = `rgba(14,12,8,${keepOutBackingAlpha(chipSpot, 0.92)})`;
                 ctx.fillRect(chipX, chipY, chipW, chipH);
@@ -9524,6 +9540,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
             ctx.globalAlpha = 1;
             ds.absorptionChips = `${absorbChipRects.length}/${absorbChipRects.length + absorbChipsHidden}`;
+            // What the desktop shelf words say: names at rest, the selected
+            // shelf's numbers when one is selected. None painted, no receipt.
+            if (shelfNumbersShown) ds.absorptionWords = shelfNamesShown > 0 ? `SELECTED+${shelfNamesShown}_NAMES` : "SELECTED";
+            else if (shelfNamesShown > 0) ds.absorptionWords = `${shelfNamesShown}_NAMES`;
+            else delete ds.absorptionWords;
             // The depth form is what the loop drew, not what the zoom word
             // promised: a zone off the scale draws nothing, and a MID shelf
             // carries ticks too. No shelf on the glass → no form and no wall
@@ -10821,6 +10842,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.absorptionWall;
             delete ds.absorptionTravel;
             delete ds.absorptionRows;
+            delete ds.absorptionWords;
             delete ds.exhaustionGeometry;
             delete ds.exhaustionEffortResult;
             delete ds.exhaustionWords;

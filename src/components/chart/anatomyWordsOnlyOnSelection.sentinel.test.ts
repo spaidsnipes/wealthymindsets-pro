@@ -82,6 +82,25 @@ describe("exhaustion at rest: the arrow pair, no words", () => {
   });
 });
 
+describe("absorption shelf words: FL-06 ①'s name at rest, the numbers on selection", () => {
+  const loop = slice("for (const zone of anatomy.zones) {", "ds.absorptionChips =");
+
+  it("the desktop shelf at rest says its name and, only where the owner named one, its side", () => {
+    expect(loop).toMatch(/const shelfName = zone\.holdingEdge == null\s*\? "ABSORPTION SHELF"\s*: `ABSORPTION SHELF · \$\{zone\.holdingEdge === "LOW" \? "SELL" : "BUY"\} SIDE\$\{zone\.holdingBasis === "INFERRED" \? " · INFERRED" : ""\}`;/);
+    expect(loop).toContain("const shelfWords = desktopShelfInstrument && !shelfSelected ? shelfName : chip;");
+    // The desktop annotation paints shelfWords; the numeric `chip` survives
+    // only in the narrow backed chip.
+    expect(loop).toContain("ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);");
+    expect([...loop.matchAll(/ctx\.fillText\(chip,/g)].length).toBe(1);
+    expect(loop).toContain("const cw2 = ctx.measureText(shelfWords).width;");
+  });
+
+  it("publishes which words are on the glass, withdrawn with the block", () => {
+    expect(CHART).toMatch(/if \(shelfNumbersShown\) ds\.absorptionWords = [^;]+;\s*else if \(shelfNamesShown > 0\) ds\.absorptionWords = `\$\{shelfNamesShown\}_NAMES`;\s*else delete ds\.absorptionWords;/);
+    expect(CHART).toMatch(/const ANATOMY_BLOCK_RECEIPTS = \[[\s\S]*"absorptionWords"/);
+  });
+});
+
 describe("anatomy cards: only the selected object's card", () => {
   it("reads the selected, drawn reading's card — never the newest-reading pair", () => {
     expect(cards).toContain("const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) ? anatomySelReading.card : null;");

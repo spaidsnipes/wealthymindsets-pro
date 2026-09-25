@@ -27,7 +27,11 @@ describe("the FL-06 absorption shelf stays attached to measured price geometry",
 
   it("uses a direct desktop annotation while preserving the narrow backed label", () => {
     expect(chart).toContain("if (desktopShelfInstrument)");
-    expect(chart).toContain("ctx.fillText(chip, chipX, chipY + chipH / 2 + 0.5)");
+    // Updated 2026-09-25 (FL-06 ① "Absorption Shelf (Sell Side)"): the desktop
+    // annotation paints `shelfWords` — the shelf's NAME (+ owner-named side)
+    // at rest, the numeric `chip` only on the selected shelf. Same placement.
+    expect(chart).toContain("const shelfWords = desktopShelfInstrument && !shelfSelected ? shelfName : chip;");
+    expect(chart).toContain("ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5)");
     expect(chart).toContain("ctx.fillRect(chipX, chipY, chipW, chipH)");
     expect(chart).toContain("ctx.fillText(chip, chipX + 6, chipY + chipH / 2 + 0.5)");
   });
