@@ -9172,9 +9172,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // newest candle bodies; when only a slot on a body is free it
               // keeps that slot and its backing yields. The desktop annotation
               // has no backing, so it is not held to the keep-out.
+              // Every body under its slots counts, not only the newest three:
+              // a shelf formed back in history hangs its chip over the older
+              // candles that made it.
+              const slotRects = slots.map(y => ({ x: chipX, y: Math.max(2, y), w: chipW, h: chipH }));
               const chipSpot = pickSlotClearOfKeepOut(
-                slots.map(y => ({ x: chipX, y: Math.max(2, y), w: chipW, h: chipH })),
-                desktopShelfInstrument ? [] : keepOut(),
+                slotRects,
+                desktopShelfInstrument ? [] : [
+                  ...keepOut(),
+                  ...rowBodiesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h))),
+                ],
                 s => hit(s.y),
               );
               if (chipSpot == null) { absorbChipsHidden++; continue; }
