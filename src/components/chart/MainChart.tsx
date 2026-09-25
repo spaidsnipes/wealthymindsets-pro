@@ -6854,8 +6854,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const depthD = semanticDensityForBarCount(nD).depth;
         let printed = 0;
         if (depthD === "NEAR") {
-          let axisHD = 28; try { const h = chart.timeScale().height(); if (Number.isFinite(h) && h > 0) axisHD = Math.ceil(h); } catch { /* default */ }
-          const yD = Math.max(20, H - axisHD) - 62; // above the session-tape pill
+          // On the volume band's top edge, inside pane 0. Measured from the
+          // container height the row fell into the bottom oscillator pane
+          // (and was clipped away) whenever one was open, and into the volume
+          // bars on any pane taller than about 280px.
+          let volTop = 0.78;
+          try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTop = t as number; } catch { /* default */ }
+          const yD = Math.max(20, pane0Bottom * volTop - 8);
           ctx.save();
           ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
@@ -6866,7 +6871,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             for (const r of sub) { buy += r.ask; sell += r.bid; }
             if (buy + sell <= 0) continue;
             const xr = chart.timeScale().timeToCoordinate(c.time as never);
-            if (xr == null) continue;
+            // visibleBars carries two padding bars each side; a label off the
+            // plot is not on the glass and is not counted.
+            if (xr == null || +xr < 0 || +xr > plotRight) continue;
             const dlt = buy - sell;
             ctx.fillStyle = `rgba(${dlt >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
             ctx.fillText(`${dlt >= 0 ? "+" : "−"}${fmtV(Math.abs(dlt))}`, +xr, yD);

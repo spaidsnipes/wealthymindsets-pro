@@ -48,6 +48,25 @@ describe("a print's time is stated in the axis's zone", () => {
   });
 });
 
+/** The NEAR per-bar delta row. */
+const deltaRow = () => slice("const depthD = semanticDensityForBarCount(nD).depth;", "/* camera mid-transition */");
+
+describe("the NEAR delta row sits in pane 0, on the volume band's edge", () => {
+  it("is anchored to pane0Bottom and the volume scale's top margin, not the container height", () => {
+    const b = deltaRow();
+    expect(b).toContain('chart.priceScale("vol").options().scaleMargins?.top');
+    expect(b).toMatch(/const yD = Math\.max\(20, pane0Bottom \* volTop - 8\);/);
+    expect(b).not.toMatch(/\bH\s*-\s*axisHD\b/);
+    expect(b).not.toMatch(/\bH\b/);
+  });
+
+  it("counts only labels on the plot", () => {
+    const b = deltaRow();
+    expect(b).toMatch(/if \(xr == null \|\| \+xr < 0 \|\| \+xr > plotRight\) continue;/);
+    expect(b).toContain("printed++");
+  });
+});
+
 /** The FORCE → RESPONSE pass on the selected print, through its no-selection branch. */
 const forceResponse = () => slice("const sp = selectedPrintRef.current;", "delete canvas.dataset.printEnvelope;");
 
