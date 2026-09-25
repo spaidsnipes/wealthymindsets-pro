@@ -214,6 +214,7 @@ permanently. Fixed in `5c0f7000`: one freshness join (`quoteFreshness`) read by 
 | Inspect precision (Defect 6) | Ticket read Volume 0.01 beside a data window reading 0.012, and rounded any quantity ≥ 1 to a whole unit → venue precision (6 significant figures for fractions) | `03cad1a3` |
 | Market precision (EURUSD) | Series had no `priceFormat` (library default 2 dp), legend precision from a static base → axis 1.15/1.14/1.13, "1.14 +0.00 (+0.20%)", O/H/L all 1.14, "TPO POC 1.15" beside "TPO VAL 1.15" → one owner `pricePrecision.ts` reads the bars; series, legend and every profile-family level name use it | `1e4f1add` `a6b79915` |
 | Day change pip (EURUSD) | Transport and `resolveRollingChange` rounded the change to 2 dp → "+0.0000 (+0.16%)"; now 8 dp (float noise only) | `38dcd634` |
+| Classic VP tags precision | POC / VAH / VAL tags hard-coded 2 dp → the column's own precision from the bars it measured | `d40282e3` |
 
 Continuity on serving: Inspect open on a 1m bar → timeframe 1m → 5m: the ticket let go of the stale
 selection and re-bound to the forming 5m bar, saying so. (Founder's `wm_timeframe` restored to 1h.)
@@ -270,8 +271,7 @@ Added by the browser shift (desktop):
   published CME point values. **Replay OPEN**: no frozen-bar replay engine (honest "not wired" panel).
   **Layout OPEN**: saved layouts are one "My stack" slot in Tools.
 - **Precision, remaining sites**: drawing-tool chips (Fixed Range "POC …", info-line/price-range
-  deltas use a static base rule), the risk callout (STOP / INVALIDATION), classic VP value-area tags
-  (`p.toFixed(2)` / grouped integers) and indicator math (`computeBB` / VWAP round by a `> 100` rule)
+  deltas use a static base rule), the risk callout (STOP / INVALIDATION) and indicator math (`computeBB` / VWAP round by a `> 100` rule)
   still format outside `pricePrecision.ts`. Visible on FX; route them through the owner.
 - **Keep-out law scope**: the owner protects the newest 3 bodies; this shift added row-span bodies
   for the dPOC name, the stack label column and the envelope name. Zone callouts, the absorption chip
