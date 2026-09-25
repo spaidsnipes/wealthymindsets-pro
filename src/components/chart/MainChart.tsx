@@ -6814,17 +6814,27 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           if (ticketDepth === "NEAR" && bubbleRank <= 3 && b.kind === "big-trade") {
             const size = buy ? b.ask : b.bid;
-            const inferred = b.aggressorMethod === "TICK_RULE" || b.aggressorMethod === "QUOTE_TEST";
+            const provT = aggressorProvenanceOf(b.aggressorMethod);
+            const sideNote = provT === "INFERRED" ? aggressorProvenanceNote(provT)?.chip : null;
+            // The provenance word leads the line: if a narrow plot ever cuts
+            // the ticket, it cuts the size, never the word that says the
+            // side was a guess.
             const lines = [
               `${formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current)} · ${formatBubblePrice(b.anchorPrice)}`,
-              `${formatBubbleVolume(size)} @ ${buy ? "ASK" : "BID"}${inferred ? " · SIDE INFERRED" : ""}`,
+              `${sideNote ? `${sideNote} · ` : ""}${formatBubbleVolume(size)} @ ${buy ? "ASK" : "BID"}`,
             ];
             ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
             const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, th = 34;
+            // Inside the plot: the price axis and the pane-0 clip would
+            // otherwise cut a right-placed ticket on a 390px phone.
+            const maxTX = plotRight - tw - 4, maxTY = pane0Bottom - th - 4;
             let tx = b.x - b.r - 24 - tw, ty = b.y - b.r - 20 - th;
             if (tx < 4) tx = b.x + b.r + 24;
+            tx = Math.max(4, Math.min(maxTX, tx));
             if (ty < 96) ty = b.y + b.r + 20;
-            for (let k = 0; k < 4 && printTickets.some(r => tx < r.x + r.w && tx + tw > r.x && ty < r.y + r.h + 4 && ty + th + 4 > r.y); k++) ty += th + 6;
+            const ticketBusy = (y: number) => printTickets.some(r => tx < r.x + r.w && tx + tw > r.x && y < r.y + r.h + 4 && y + th + 4 > r.y);
+            for (let k = 0; k < 4 && ticketBusy(ty); k++) ty += th + 6;
+            if (ty > maxTY) { ty = maxTY; for (let k = 0; k < 4 && ticketBusy(ty); k++) ty -= th + 6; }
             printTickets.push({ x: tx, y: ty, w: tw, h: th });
             forceChips.push({ x: tx, y: ty, w: tw, h: th });
             ctx.strokeStyle = "rgba(232,184,92,0.8)"; ctx.lineWidth = 1;

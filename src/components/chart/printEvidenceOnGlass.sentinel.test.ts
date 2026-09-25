@@ -48,6 +48,28 @@ describe("a print's time is stated in the axis's zone", () => {
   });
 });
 
+/** The NEAR important-print ticket. */
+const ticket = () => slice('if (ticketDepth === "NEAR" && bubbleRank <= 3', "ctx.fillText(lines[1], tx + 8, ty + 24);");
+
+describe("the important-print ticket stays on the plot and leads with its provenance", () => {
+  it("clamps x to the plot and y to pane 0 after choosing a side", () => {
+    const b = ticket();
+    expect(b).toContain("const maxTX = plotRight - tw - 4, maxTY = pane0Bottom - th - 4;");
+    const flip = b.indexOf("if (tx < 4) tx = b.x + b.r + 24;");
+    const clampX = b.indexOf("tx = Math.max(4, Math.min(maxTX, tx));");
+    expect(flip).toBeGreaterThan(-1);
+    expect(clampX).toBeGreaterThan(flip);
+    expect(b).toMatch(/if \(ty > maxTY\) \{ ty = maxTY; for \(let k = 0; k < 4 && ticketBusy\(ty\); k\+\+\) ty -= th \+ 6; \}/);
+  });
+
+  it("puts the side's provenance before the size, in the owner's words", () => {
+    const b = ticket();
+    expect(b).toContain('const sideNote = provT === "INFERRED" ? aggressorProvenanceNote(provT)?.chip : null;');
+    expect(b).toContain("`${sideNote ? `${sideNote} · ` : \"\"}${formatBubbleVolume(size)} @ ${buy ? \"ASK\" : \"BID\"}`");
+    expect(b).not.toContain("SIDE INFERRED");
+  });
+});
+
 /** The NEAR per-bar delta row. */
 const deltaRow = () => slice("const depthD = semanticDensityForBarCount(nD).depth;", "/* camera mid-transition */");
 
