@@ -50,7 +50,10 @@ describe("the profile stack's label column yields to the newest bodies", () => {
   const stackLabel = slice("const stackLabel = (y: number, text: string, ink: string) => {", "ctx.restore();\n        };");
 
   it("never prints inside the price legend's band", () => {
-    expect(stackLabel).toContain("const yy = nearestFreeLabelY(Math.max(y, PRICE_LEGEND_OVERLAY_H + 7), stackLabelYs, 12);");
+    expect(stackLabel).toContain("const legendFloor = PRICE_LEGEND_OVERLAY_H + 7;");
+    expect(stackLabel).toContain("let yy = nearestFreeLabelY(Math.max(y, legendFloor), stackLabelYs, 12);");
+    // …and a second name floored onto the same row steps DOWN, never back up.
+    expect(stackLabel).toMatch(/if \(yy < legendFloor\) \{\s*yy = legendFloor;\s*while \(stackLabelYs\.some\(t => Math\.abs\(t - yy\) < 12\)\) yy \+= 12;\s*\}/);
   });
 
   it("asks the keep-out where the label may print, stepping around chips too", () => {

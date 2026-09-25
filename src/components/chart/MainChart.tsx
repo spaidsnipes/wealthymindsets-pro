@@ -11183,7 +11183,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Never inside the price legend's band (serving NQ1! 5m, every
           // species on: "LIVING VAH …" printed over "+0.12% today"). The
           // words carry the price, so a row just below the band still quotes it.
-          const yy = nearestFreeLabelY(Math.max(y, PRICE_LEGEND_OVERLAY_H + 7), stackLabelYs, 12);
+          const legendFloor = PRICE_LEGEND_OVERLAY_H + 7;
+          let yy = nearestFreeLabelY(Math.max(y, legendFloor), stackLabelYs, 12);
+          // Two names floored onto one row: the free-row picker keeps the
+          // upper one above — back into the band. Below the band, it steps down.
+          if (yy < legendFloor) {
+            yy = legendFloor;
+            while (stackLabelYs.some(t => Math.abs(t - yy) < 12)) yy += 12;
+          }
           stackLabelYs.push(yy);
           ctx.save();
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
