@@ -7719,12 +7719,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             timeToX: t => { const xk = tsN.timeToCoordinate(t as never); return xk == null ? null : +xk; },
             priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
           }, -1e9, 1e9);
-          const bodiesOnRow = (y0: number, y1: number) => nearBodies.filter(b => b.y < y1 && b.y + b.h > y0);
           // A lens that owns the left column keeps it.
           const nearMinX = layerOnRef.current.questionLens === true && W >= 640 ? 324 : 4;
           const nearFloorY = Math.max(HEADER_FLOOR_Y, BELOW_PRICE_LEGEND) + 4;
-          const placeNear = (pref: { x: number; y: number; w: number; h: number }, alternates: { x: number; y: number; w: number; h: number }[] = []) => {
-            const spot = placeClearOfKeepOut(pref, bodiesOnRow(pref.y, pref.y + pref.h), { minX: nearMinX, blockers: forceChips, strict: true, alternates });
+          type NearRect = { x: number; y: number; w: number; h: number };
+          const placeNear = (candidates: NearRect[]) => {
+            // Only slots inside pane 0's body band (below the header and the
+            // price legend, above the pane floor) are candidates at all.
+            const inBand = candidates.filter(r => r.y >= nearFloorY && r.y + r.h <= pane0Bottom - 2);
+            if (inBand.length === 0) return null;
+            const [pref, ...alternates] = inBand;
+            const spot = placeClearOfKeepOut(pref, nearBodies, { minX: nearMinX, blockers: forceChips, strict: true, alternates });
             // Text never prints over another chip's text; over a candle body
             // it is halo text on the owner's BLOCKED slot, never a backing.
             const onChip = rectHits(spot.rect, forceChips) > 0 || spot.rect.y < nearFloorY || spot.rect.y + spot.rect.h > pane0Bottom - 2;
@@ -7812,8 +7817,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               yHiN != null ? { x: ax, y: +yHiN - 22 - lh, w: lw, h: lh } : null,
               yLoN != null ? { x: ax, y: +yLoN + 22, w: lw, h: lh } : null,
               { x: nearMinX + 4, y: nearFloorY + 2, w: lw, h: lh },
-            ].filter((r): r is { x: number; y: number; w: number; h: number } => r != null);
-            const legendAt = placeNear(prefs[0], prefs.slice(1));
+            ].filter((r): r is NearRect => r != null);
+            const legendAt = placeNear(prefs);
             if (legendAt) {
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
@@ -7875,7 +7880,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yw = srs.priceToCoordinate(p.price);
               if (yw == null) continue;
               const tw = ctx.measureText(p.word).width + 6;
-              const at = placeNear({ x: bodyEdge - 8 - tw, y: +yw - 7, w: tw, h: 14 });
+              const at = placeNear([{ x: bodyEdge - 8 - tw, y: +yw - 7, w: tw, h: 14 }]);
               if (!at) continue;
               ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(bodyEdge, Math.round(+yw) + 0.5); ctx.lineTo(at.x + at.w, at.y + 7.5); ctx.stroke(); ctx.setLineDash([]);

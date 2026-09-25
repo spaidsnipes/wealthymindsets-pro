@@ -79,7 +79,7 @@ describe("NEAR carries no at-rest anatomy word knot", () => {
     expect(gate).toBeGreaterThan(-1);
     expect(word).toBeGreaterThan(gate);
     // Every part name is placed by the keep-out owner, or not printed.
-    expect(b.slice(gate, word)).toMatch(/const at = placeNear\(\{ x: bodyEdge - 8 - tw, y: \+yw - 7, w: tw, h: 14 \}\);\s*if \(!at\) continue;/);
+    expect(b.slice(gate, word)).toMatch(/const at = placeNear\(\[\{ x: bodyEdge - 8 - tw, y: \+yw - 7, w: tw, h: 14 \}\]\);\s*if \(!at\) continue;/);
   });
 
   it("the components are geometry on every bar: open tick left, close tick right, value hatch inside the body", () => {
@@ -137,7 +137,7 @@ describe("the sides are inked only where lawful", () => {
   it("OBSERVED solid, INFERRED ring, UNKNOWN grey — and with no room for the legend, no dot carries a side", () => {
     const b = near();
     expect(b).toMatch(/const legendN = tapeDotLegend\(sawInferredN, sawUnknownN\);/);
-    expect(b).toMatch(/const legendAt = placeNear\(prefs\[0\], prefs\.slice\(1\)\);/);
+    expect(b).toMatch(/const legendAt = placeNear\(prefs\);/);
     expect(b).toMatch(/sidesN = "SILENCED:NO_LEGEND_ROOM";/);
     expect(b).toMatch(/const sidesLawful = sidesN === "OBSERVED" \|\| sidesN\.startsWith\("LEGEND:"\);/);
     expect(b).toMatch(/const ink = sidesLawful \? dotSideInk\(d\.fidelity\) : "NEUTRAL";/);
@@ -147,10 +147,17 @@ describe("the sides are inked only where lawful", () => {
 describe("collision goes through the keep-out owner", () => {
   it("every word and the legend are placed strictly against candle bodies and earlier chips, below the header and the price legend", () => {
     const b = near();
-    expect(b).toMatch(/const spot = placeClearOfKeepOut\(pref, bodiesOnRow\(pref\.y, pref\.y \+ pref\.h\), \{ minX: nearMinX, blockers: forceChips, strict: true, alternates \}\);/);
+    expect(b).toMatch(/const spot = placeClearOfKeepOut\(pref, nearBodies, \{ minX: nearMinX, blockers: forceChips, strict: true, alternates \}\);/);
+    // Candidates outside pane 0's body band are dropped before placement, so an alternate can still win.
+    expect(b).toMatch(/const inBand = candidates\.filter\(r => r\.y >= nearFloorY && r\.y \+ r\.h <= pane0Bottom - 2\);/);
     expect(b).toMatch(/const nearBodies = spanCandleKeepOut\(nearAll, /);
     expect(b).toMatch(/const nearFloorY = Math\.max\(HEADER_FLOOR_Y, BELOW_PRICE_LEGEND\) \+ 4;/);
     expect(b).toMatch(/const onChip = rectHits\(spot\.rect, forceChips\) > 0 \|\| spot\.rect\.y < nearFloorY \|\| spot\.rect\.y \+ spot\.rect\.h > pane0Bottom - 2;/);
+    // The spot the OWNER chose is what prints — or nothing does. Returning the
+    // caller's preferred rect would overprint the chip it collided with.
+    const helper = b.slice(b.indexOf("const placeNear = ("), b.indexOf("ctx.save();", b.indexOf("const placeNear = (")));
+    const returns = [...helper.matchAll(/return ([^;]+);/g)].map(m => m[1]);
+    expect(returns).toEqual(["null", "onChip ? null : spot.rect"]);
     expect(b).toMatch(/forceChips\.push\(legendAt\);/);
     expect(b).toMatch(/forceChips\.push\(at\);/);
   });
