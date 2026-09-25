@@ -56,3 +56,28 @@ describe("drawing chips quote the same precision", () => {
     expect(CHART).toContain("POC ${vm.poc?.toFixed(dec)}${est}`");
   });
 });
+
+describe("GP12 §27 — calculation precision is not display precision", () => {
+  it("indicator math never rounds by a price-level rule", () => {
+    // `> 100 ? 2 : 5` cut USDJPY (≈150, quoted to 3 dp) to cents inside the math.
+    expect(CHART).not.toMatch(/\.toFixed\(closes\[0\] > 100 \? 2 : 5\)/);
+    expect(CHART).not.toMatch(/\.toFixed\(b\.close > 100 \? 2 : 5\)/);
+    expect(CHART).toContain("return slice.reduce((a, b) => a + b, 0) / period;");
+  });
+
+  it("overlay indicator lines speak the market's own decimals", () => {
+    expect(CHART).toContain("const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars));");
+    expect(CHART).toMatch(/crosshairMarkerVisible: false, priceFormat: overlayPriceFormat \}/);
+  });
+
+  it("the risk callout prints prices at the market's precision (R and % stay 2 dp)", () => {
+    expect(CHART).toContain("STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)}");
+    expect(CHART).toContain("`ENTRY ${rv.entry.toFixed(pxDp)}");
+    expect(CHART).toContain("`TARGET ${rv.target.toFixed(pxDp)}");
+  });
+
+  it("the drawing magnet snaps to the market's grid, not a guessed tick", () => {
+    expect(CHART).toContain("const minTick = 10 ** -dp;");
+    expect(CHART).not.toMatch(/const minTick = symBase > 10_000/);
+  });
+});

@@ -1227,12 +1227,16 @@ function toHeikinAshi(bars: LegacyOhlcvTuple[]): LegacyOhlcvTuple[] {
   return ha;
 }
 
-/* ── Indicator computations ─────────────────────────────── */
+/* ── Indicator computations ───────────────────────────────
+   Full precision, never rounded here (GP12 §27: calculation precision is not
+   display precision). The old "> 100 → 2 dp" rule cut USDJPY (≈150, quoted to
+   3 dp) to cents; the series' priceFormat, owned by pricePrecision.ts, decides
+   what is shown. */
 function computeSMA(closes: number[], period: number): number[] {
   return closes.map((_, i) => {
     if (i < period - 1) return closes[i];
     const slice = closes.slice(i - period + 1, i + 1);
-    return +(slice.reduce((a, b) => a + b, 0) / period).toFixed(closes[0] > 100 ? 2 : 5);
+    return slice.reduce((a, b) => a + b, 0) / period;
   });
 }
 
@@ -1242,7 +1246,7 @@ function computeEMA(closes: number[], period: number): number[] {
   let ema = closes[0];
   for (let i = 0; i < closes.length; i++) {
     ema = closes[i] * k + ema * (1 - k);
-    out.push(+ema.toFixed(closes[0] > 100 ? 2 : 5));
+    out.push(ema);
   }
   return out;
 }
@@ -1253,19 +1257,18 @@ function computeVWAP(bars: LegacyOhlcvTuple[]): number[] {
     const tp = (b.high + b.low + b.close) / 3;
     cumPV += tp * b.volume;
     cumV  += b.volume;
-    return cumV > 0 ? +(cumPV / cumV).toFixed(b.close > 100 ? 2 : 5) : tp;
+    return cumV > 0 ? cumPV / cumV : tp;
   });
 }
 
 function computeBB(bars: LegacyOhlcvTuple[], period = 20, mult = 2): { time: number; upper: number; middle: number; lower: number }[] {
   const closes = bars.map(b => b.close);
-  const dp = closes[0] > 100 ? 2 : 5;
   return bars.map((b, i) => {
     if (i < period - 1) return { time: b.time, upper: b.close, middle: b.close, lower: b.close };
     const slice = closes.slice(i - period + 1, i + 1);
     const mean  = slice.reduce((s, v) => s + v, 0) / period;
     const std   = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / period);
-    return { time: b.time, upper: +(mean + mult * std).toFixed(dp), middle: +mean.toFixed(dp), lower: +(mean - mult * std).toFixed(dp) };
+    return { time: b.time, upper: mean + mult * std, middle: mean, lower: mean - mult * std };
   });
 }
 
@@ -1275,7 +1278,7 @@ function computeWMA(closes: number[], period: number): number[] {
     if (i < period - 1) return closes[i];
     let s = 0;
     for (let j = 0; j < period; j++) s += closes[i - j] * (period - j);
-    return +(s / denom).toFixed(closes[0] > 100 ? 2 : 5);
+    return s / denom;
   });
 }
 function computeHMA(closes: number[], period: number): number[] {
@@ -2107,10 +2110,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const snapLogical = useCallback((price: number, time: number): { price: number; time: number } => {
     if (!magnetActive) return { price, time };
-    const symBase = getBase(symbol);
-    const dp = symBase > 100 ? 2 : 4;
-    const minTick = symBase > 10_000 ? 0.25 : symBase > 1_000 ? 0.25 : symBase > 100 ? 0.01 : 0.0001;
+    // The magnet snaps to the market's OWN grid (pricePrecision.ts reads it
+    // from the bars), not to a tick guessed from the price level — that rule
+    // snapped USDJPY (3 dp) to 0.01 and BTC (0.01) to 0.25 (GP12 §27).
     const bars = barsRef.current || [];
+    const dp = pricePrecisionFromBars(bars);
+    const minTick = 10 ** -dp;
     const iv = barInterval();
     const candidates: number[] = [+(Math.round(price / minTick) * minTick).toFixed(dp)];
 
@@ -3984,10 +3989,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Per-indicator custom params (length / mult / color) merged with defaults
     const ip = (name: string) => resolveParams(name, indSettings);
 
-    // Helper: overlay line on main price scale
+    // Helper: overlay line on main price scale. It lives on the PRICE scale,
+    // so it speaks the market's own decimals (pricePrecision.ts) — not the
+    // library's 2-dp default, which read USDJPY 150.123 as 150.12.
+    const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars));
     const addLine = (vals: number[], color: string, width = 1, style = 0, lastVal = false) => {
       try {
-        const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false });
+        const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false, priceFormat: overlayPriceFormat });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
         return s;
@@ -13779,18 +13787,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 : rv.state === "STOP_TOUCHED" ? `stop touched ${tfmt(rv.stopAt)} · invalidated on price`
                 : rv.state === "TARGET_TOUCHED" ? `target touched ${tfmt(rv.targetAt)}`
                 : "stop and target in one bar — this timeframe cannot order them";
-              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(2)} · risk ${rv.riskPerUnit.toFixed(2)} (${rv.riskPct?.toFixed(2)}%)`, RISK);
+              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)} (${rv.riskPct?.toFixed(2)}%)`, RISK);
               // The refusals ride under the entry, in words: the chart holds no
               // size, no account and no fill, so none of them is estimated.
-              callout(+yE, `ENTRY ${rv.entry.toFixed(2)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
-              if (yT != null && rv.target != null) callout(+yT, `TARGET ${rv.target.toFixed(2)} · ${rv.rr?.toFixed(2)} R`, REWARD);
+              callout(+yE, `ENTRY ${rv.entry.toFixed(pxDp)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
+              if (yT != null && rv.target != null) callout(+yT, `TARGET ${rv.target.toFixed(pxDp)} · ${rv.rr?.toFixed(2)} R`, REWARD);
               // LIVE: the chart's last price on the rail, in R.
               if (rv.live) {
                 const yL = srs.priceToCoordinate(rv.live.price);
                 if (yL != null) {
                   ctx.fillStyle = "rgba(240,190,70,1)";
                   ctx.beginPath(); ctx.moveTo(railX + 4, +yL); ctx.lineTo(railX + 12, +yL - 5); ctx.lineTo(railX + 12, +yL + 5); ctx.fill();
-                  const lt = `LIVE ${rv.live.r >= 0 ? "+" : ""}${rv.live.r.toFixed(2)} R · ${rv.live.toStop.toFixed(2)} to stop`;
+                  const lt = `LIVE ${rv.live.r >= 0 ? "+" : ""}${rv.live.r.toFixed(2)} R · ${rv.live.toStop.toFixed(pxDp)} to stop`;
                   const ly = Math.abs(+yL - +yE) < 18 ? +yE + (+yL >= +yE ? 18 : -18) : +yL;
                   callout(ly, lt, "rgba(240,190,70,1)", false);
                 }
