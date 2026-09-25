@@ -413,11 +413,12 @@ function VPColorGear() {
             style={{ position: "fixed", top: coords.top, right: coords.right }}
             className="z-[60] w-56 rounded-lg border border-wm-border bg-wm-surface p-3 shadow-2xl flex flex-col gap-3">
             <div className="text-[11px] font-bold text-wm-text">Volume Profile bars</div>
-            <div className="text-[10px] text-wm-text-dim -mt-1">Colors only the VP bars — candle colors live in Settings.</div>
+            <div className="text-[10px] text-wm-text-dim -mt-1">The shelf ink colors only these VP bars — candle colors live in Settings.</div>
             <SchemePresets onApply={(up, dn) => applyVp(up, dn)} />
             <div className="h-px bg-wm-border" />
-            {/* One shelf ink. The bars carry no aggressor side (they are split
-                only by candle direction), so there is no Ask or Bid to colour. */}
+            {/* One shelf ink. A VP row is volume at a price with no aggressor
+                side (never split by candle direction), so there is no Ask or
+                Bid to colour. */}
             {field("Shelf", vpUp, v => applyVp(v, vpDn))}
             <div className="h-px bg-wm-border" />
             <div className="text-[11px] font-bold text-wm-text">Bar numbers</div>
@@ -436,7 +437,10 @@ function VPColorGear() {
             </div>
             <div className="h-px bg-wm-border" />
             <div className="text-[11px] font-bold text-wm-text">Value-area levels</div>
-            <div className="text-[10px] text-wm-text-dim -mt-1">POC line, VAH box & VAL box colors.</div>
+            {/* The profile family's ink owner (profileFamilyInk) follows these
+                three: a choice here restyles every profile species, so the gear
+                says so instead of promising "only the VP". */}
+            <div className="text-[10px] text-wm-text-dim -mt-1" data-testid="vp-level-ink-scope">POC, VAH &amp; VAL colors — a choice here restyles every profile on the chart (Living, Structure, Memory, TPO…), not only this VP.</div>
             {field("POC (Point of Control)", poc, v => applyLevel("poc", v))}
             {field("VAH box (Value Area High)", vah, v => applyLevel("vah", v))}
             {field("VAL box (Value Area Low)", val, v => applyLevel("val", v))}

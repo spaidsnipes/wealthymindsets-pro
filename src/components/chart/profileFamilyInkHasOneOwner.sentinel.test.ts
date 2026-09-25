@@ -297,3 +297,12 @@ describe("the owner derives its baseline from the Appearance owner", () => {
     expect(OWNER).not.toMatch(/localStorage|sessionStorage|addEventListener|window\./);
   });
 });
+
+describe("the gear tells the trader where the choice reaches", () => {
+  it("the VP gear's level inks say they restyle every profile, not only the VP", () => {
+    const room = strip(read("src/components/chart/ChartsDashboard.tsx"));
+    expect(room).toContain('data-testid="vp-level-ink-scope"');
+    expect(room).toMatch(/restyles every profile on the chart/);
+    expect(room).not.toContain("POC line, VAH box & VAL box colors.");
+  });
+});
