@@ -557,12 +557,16 @@ const CATALOGUE: readonly ProfileSpec[] = [
       H-901. A dimmer over the geometry above, not a reading of its own:
       TREND dims value magnets, RANGE caps trend fixtures, TRANSITION dims
       both. Reads the one regime owner; UNKNOWN leaves every light on.
+      v2 (Founder, 2026-09-25): the plate's canvas fixtures are drawn on the
+      bars in view — the mean/σ magnets and the trend channel — each at the
+      light its breaker gives it (selectRegimeFixtures measures them; the
+      regime owner never does). No breaker panel on the glass.
     */
-    what: "dims the geometry the current regime says should stay quiet — a dimmer, not a room",
+    what: "lights the plate's fixtures on the bars in view — trend channel or mean/σ magnets — by the regime's one breaker; a dimmer, not a room",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectRegimeLighting.ts",
-    // A dimmer has no price. It borrows none.
-    levels: ["No level of its own — relights the profiles above"],
+    // Statistics of the closes on camera — prices, never a regime.
+    levels: ["Mean, ±σ, ±2σ of the closes in view", "Trend channel — least-squares line ±2σ"],
   },
   {
     id: "QUESTION_LENS",

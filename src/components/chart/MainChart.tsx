@@ -188,6 +188,16 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded",
   "questionCallout", "questionChoice", "questionLensForm", "scaffoldingScale",
 ] as const;
+
+/** H-901 · what the regime block painted this frame; withdrawn together before it paints. */
+const REGIME_LIGHTING_RECEIPTS = [
+  "regimeLightingFixtures", "regimeLightingChannel", "regimeLightingMagnets",
+  "regimeLightingField", "regimeLightingMark", "regimeLightingCandlesKept",
+] as const;
+/** F15A's state light, as an ambient wash (olive BALANCE, amber TRANSITION, oxblood WAIT). */
+const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT: "170,62,50" } as const;
+/** The field's brightest point, at the live edge — it tints the glass, never the candles (cut out). */
+const REGIME_FIELD_PEAK = 0.07;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
@@ -240,6 +250,7 @@ import {
   recordKeepOut,
 } from "@/lib/chartKeepOut";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
+import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFixtures";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
@@ -10979,59 +10990,262 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            (LAYER_ATTENTION names the class): MAGNETS (Living, TPO, Composite,
            Visible Range, Memory, Fusion) or TREND (Structure leg, Value
            Migration, swing marks). Switched off, or UNKNOWN, every light
-           stays at 1. The breaker is named on the glass.
+           stays at 1.
+
+           THE PLATE'S MARKET CANVAS, NOT ITS LEGEND (Founder, 2026-09-25
+           13:58 — "look at the actual screen … just cards"). This block used
+           to paint the sheet's circuit-breaker panel — three boxes and a
+           footer — over the candles. That panel is the drawing's legend.
+           The canvas carries the fixtures themselves, measured from the bars
+           on camera (selectRegimeFixtures):
+             △ the trend channel — least-squares centre + two parallel
+               boundaries, hatched between, first bar → newest bar;
+             ☆ the mean-reversion magnets — MEAN, ±σ, ±2σ of the closes;
+           each lit by the breaker through the governor (regimeChannel /
+           regimeMagnets): TREND lights the channel and dims the magnets,
+           RANGE lights the magnets and caps the channel, TRANSITION dims
+           both, and with NO breaker both sit at the pilot light — never
+           blazing together. F15A lights the room by state (regimeField): a
+           soft field from the live edge, BALANCE / TRANSITION / WAIT, cut
+           out of every candle. A breaker earns ONE compact title in the top
+           band; no breaker earns ONE gold UNRESOLVED coin on the live price.
+           Both are placed by the keep-out owner — never on a candle body.
         ═══════════════════════════════════════════════════════════════════ */
         const lightOn = layerOnRef.current.regimeLighting === true;
         const regimeLight = lightOn ? regimeLightingRef.current : null;
         ds.regimeLighting = lightOn ? (regimeLight?.breaker ?? "NO_BREAKER") : "OFF";
         ds.regimeLightingVerdict = regimeLight?.verdict ?? "";
+        // What this block painted, withdrawn every frame and re-published
+        // only for what reached the glass.
+        for (const k of REGIME_LIGHTING_RECEIPTS) delete ds[k];
         if (lightOn && regimeLight) {
-          // THE PLATE'S BREAKER PANEL — three breakers, only one ON. UNKNOWN
-          // leaves all three OFF and says so; nothing is switched by guess.
+          const tsR = chart.timeScale();
+          const vrR = tsR.getVisibleLogicalRange();
+          const barsR = barsRef.current ?? [];
+          // The bars on camera (a slot half in view is in view), as the
+          // keep-out reads them.
+          const iLo = vrR ? Math.max(0, Math.ceil(+vrR.from - 0.5)) : 0;
+          const iHi = vrR ? Math.min(barsR.length - 1, Math.floor(+vrR.to + 0.5)) : barsR.length - 1;
+          const xOfR = (t: number) => { const x = tsR.timeToCoordinate(t as never); return x == null ? null : +x; };
+          const yOfR = (p: number) => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; };
+          const fx = selectRegimeFixtures(barsR.slice(iLo, iHi + 1).map(b => ({ time: Number(b.time), close: Number(b.close) })));
+          ds.regimeLightingFixtures = fx.drawn ? `DRAWN:${fx.bars}` : fx.reason;
+
+          // THE CANDLE CUT-OUT: every body and wick in view is cut out of
+          // the glass before a fixture or the field paints, so the market
+          // reads through untouched (the Living block's rule, full width).
+          const cutR = new Path2D();
+          cutR.rect(0, 0, W, H);
+          let keptR = 0;
+          for (let i = iLo; i <= iHi; i++) {
+            const b = barsR[i];
+            if (!b) continue;
+            const xb = xOfR(Number(b.time));
+            const yo = yOfR(Number(b.open)), yc = yOfR(Number(b.close));
+            if (xb == null || yo == null || yc == null) continue;
+            const yhB = yOfR(Number(b.high)), ylB = yOfR(Number(b.low));
+            const top = Math.min(yo, yc) - 1, bot = Math.max(yo, yc) + 1;
+            cutR.rect(xb - bsp * 0.42, top, bsp * 0.84, bot - top);
+            if (yhB != null && yhB < top) cutR.rect(xb - 1, yhB - 1, 2, top - yhB + 1);
+            if (ylB != null && ylB > bot) cutR.rect(xb - 1, bot, 2, ylB - bot + 1);
+            keptR++;
+          }
+          ds.regimeLightingCandlesKept = String(keptR);
+          // The live edge: the newest bar's slot, and its close.
+          const newestR = barsR[barsR.length - 1];
+          const xLiveR = newestR ? xOfR(Number(newestR.time)) : null;
           ctx.save();
-          const BRK: { id: "TREND" | "RANGE" | "TRANSITION"; note: string }[] = [
-            { id: "TREND", note: "mean-reversion magnets dim" },
-            { id: "RANGE", note: "trend fixtures capped" },
-            { id: "TRANSITION", note: "all fixtures dimmed" },
-          ];
-          const bw = 138, gap = 6, ph = 62;
-          const pw = bw * 3 + gap * 2 + 16;
-          const x0 = Math.round(W / 2 - pw / 2);
-          const y0 = 100;
-          ctx.fillStyle = "rgba(11,10,8,0.9)";
-          ctx.fillRect(x0, y0, pw, ph + 32);
-          ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1;
-          ctx.strokeRect(x0 + 0.5, y0 + 0.5, pw - 1, ph + 31);
+          ctx.clip(cutR, "evenodd");
+          // A throw mid-paint must not leave the cut-out clipping every later layer.
+          try {
+            // F15A · THE STATE FIELD — the room's light by regime state, rising
+            // toward the live edge. Faint by construction; the governor may
+            // only lower it.
+            if (regimeLight.field) {
+              const rgb = REGIME_FIELD_RGB[regimeLight.field];
+              const xEdge = Math.min(plotRight, xLiveR ?? plotRight);
+              const reach = plotRight * 0.45;
+              const aF = att.alpha("regimeField");
+              const grad = ctx.createLinearGradient(xEdge - reach, 0, xEdge, 0);
+              grad.addColorStop(0, `rgba(${rgb},0)`);
+              grad.addColorStop(1, `rgba(${rgb},${REGIME_FIELD_PEAK})`);
+              ctx.globalAlpha = aF;
+              ctx.fillStyle = grad;
+              ctx.fillRect(xEdge - reach, 0, reach, pane0Bottom);
+              if (plotRight > xEdge) {
+                ctx.fillStyle = `rgba(${rgb},${REGIME_FIELD_PEAK})`;
+                ctx.fillRect(xEdge, 0, plotRight - xEdge, pane0Bottom);
+              }
+              ds.regimeLightingField = `${regimeLight.field}|a=${aF.toFixed(2)}`;
+            } else {
+              ds.regimeLightingField = "NONE";
+            }
+
+            // THE FIXTURES, on the real bars: first measured bar → newest.
+            const xA = fx.fromTime != null ? xOfR(fx.fromTime) : null;
+            const xB = fx.toTime != null ? xOfR(fx.toTime) : null;
+            const wordsTaken: number[] = [];
+            const nameAt = (text: string, y: number, color: string, key: "regimeChannel" | "regimeMagnets") => {
+              if (xA == null || y < HEADER_FLOOR_Y || y > pane0Bottom - 6 || wordsTaken.some(t => Math.abs(t - y) < 11)) return;
+              ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
+              const w = ctx.measureText(text).width + 4;
+              const x0 = Math.max(xA, keepOutMinX()) + 4;
+              const pref = { x: x0, y: y - 5, w, h: 10 };
+              // Words take the first slot along their own row that clears the
+              // candle bodies; otherwise the cut-out keeps the candle on top.
+              const spot = placeClearOfKeepOut(pref, rowBodiesAt(y - 5, y + 5), {
+                minX: keepOutMinX(),
+                blockers: floatingChips,
+                alternates: [1, 2, 3, 4, 5, 6].map(i => ({ ...pref, x: x0 + i * 34 })),
+              });
+              ctx.fillStyle = color;
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              // A dimmed fixture's NAME keeps the governor's legibility floor.
+              const prevA = ctx.globalAlpha;
+              ctx.globalAlpha = att.textAlpha(key);
+              ctx.fillText(text, spot.rect.x + 2, y);
+              ctx.globalAlpha = prevA;
+              wordsTaken.push(y);
+            };
+            if (fx.drawn && fx.channel && fx.magnets && xA != null && xB != null && xB > xA) {
+              // △ TREND-CHANNEL FIXTURE
+              const aC = att.alpha("regimeChannel");
+              const [lower, centre, upper] = fx.channel.lines;
+              const yLA = yOfR(lower.fromPrice), yLB = yOfR(lower.toPrice);
+              const yCA = yOfR(centre.fromPrice), yCB = yOfR(centre.toPrice);
+              const yUA = yOfR(upper.fromPrice), yUB = yOfR(upper.toPrice);
+              let channelLines = 0;
+              if (yLA != null && yLB != null && yCA != null && yCB != null && yUA != null && yUB != null) {
+                ctx.globalAlpha = aC;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(xA, yUA); ctx.lineTo(xB, yUB); ctx.lineTo(xB, yLB); ctx.lineTo(xA, yLA); ctx.closePath();
+                ctx.fillStyle = "rgba(237,230,211,0.03)";
+                ctx.fill();
+                ctx.clip();
+                // The plate's hatch: 45° strokes inside the channel only.
+                const hTop = Math.min(yUA, yUB), hBot = Math.max(yLA, yLB), span = hBot - hTop;
+                ctx.strokeStyle = "rgba(237,230,211,0.14)"; ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let hx = xA - span; hx < xB; hx += 9) { ctx.moveTo(hx, hBot); ctx.lineTo(hx + span, hTop); }
+                ctx.stroke();
+                ctx.restore();
+                ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 1;
+                for (const [ya, yb, dash] of [[yLA, yLB, [6, 4]], [yCA, yCB, [2, 4]], [yUA, yUB, [6, 4]]] as [number, number, number[]][]) {
+                  ctx.setLineDash(dash);
+                  ctx.beginPath(); ctx.moveTo(xA, ya); ctx.lineTo(xB, yb); ctx.stroke();
+                  channelLines++;
+                }
+                ctx.setLineDash([]);
+                nameAt("△ CHANNEL", yUA, "rgba(237,230,211,0.9)", "regimeChannel");
+              }
+              const sl = fx.channel.slopePerBar;
+              ds.regimeLightingChannel = `${regimeLight.fixtureState.channel}|a=${aC.toFixed(2)}|lines=${channelLines}|slope=${sl >= 0 ? "+" : ""}${sl.toFixed(pxDp + 2)}/bar|sigma=${fx.channel.sigma.toFixed(pxDp)}`;
+
+              // ☆ MEAN-REVERSION MAGNETS
+              const aM = att.alpha("regimeMagnets");
+              ctx.globalAlpha = aM;
+              ctx.strokeStyle = "rgba(201,165,92,0.9)";
+              let magnetLines = 0;
+              for (const lv of [...fx.magnets.levels].sort((a, b) => Math.abs(a.k) - Math.abs(b.k))) {
+                const y = yOfR(lv.price);
+                if (y == null || y < 0 || y > pane0Bottom) continue;
+                const yy = Math.round(y) + 0.5;
+                ctx.setLineDash(lv.k === 0 ? [8, 3] : Math.abs(lv.k) === 1 ? [4, 4] : [2, 4]);
+                ctx.lineWidth = lv.k === 0 ? 1.25 : 1;
+                ctx.beginPath(); ctx.moveTo(xA, yy); ctx.lineTo(xB, yy); ctx.stroke();
+                magnetLines++;
+                nameAt(lv.k === 0 ? `☆ MEAN ${lv.price.toFixed(pxDp)}` : `☆ ${lv.label}`, yy, "rgba(201,165,92,1)", "regimeMagnets");
+              }
+              ctx.setLineDash([]); ctx.lineWidth = 1;
+              ds.regimeLightingMagnets = `${regimeLight.fixtureState.magnets}|a=${aM.toFixed(2)}|lines=${magnetLines}|mean=${fx.magnets.mean.toFixed(pxDp)}|sigma=${fx.magnets.sigma.toFixed(pxDp)}`;
+            }
+          } finally {
+            ctx.restore(); // releases the candle cut-out
+          }
+
+          // ONE MARK, placed by the keep-out owner. A breaker earns the
+          // compact title (F15A "REGIME · COMPACT") in the top band; no
+          // breaker earns the gold UNRESOLVED coin on the live price.
+          ctx.save();
+          ctx.globalAlpha = att.alpha("regimeLighting");
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
-          ctx.fillStyle = "rgba(237,230,211,0.95)";
-          ctx.fillText("REGIME CIRCUIT BREAKERS · ONLY ONE ON", x0 + 8, y0 + 11);
-          BRK.forEach((b, i) => {
-            const on = regimeLight.breaker === b.id;
-            const bx = x0 + 8 + i * (bw + gap), by = y0 + 20;
-            ctx.strokeStyle = on ? "rgba(240,190,70,1)" : "rgba(139,143,168,0.45)";
-            ctx.lineWidth = on ? 1.5 : 1;
-            ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, ph - 22);
-            ctx.lineWidth = 1;
-            ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
-            ctx.fillStyle = on ? "rgba(240,190,70,1)" : "rgba(200,204,218,0.75)";
-            ctx.fillText(b.id, bx + 7, by + 11);
-            ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
-            ctx.fillStyle = "rgba(200,192,174,0.8)";
-            ctx.fillText(b.note, bx + 7, by + 24);
-            // Status tab: ON filled, OFF hollow.
-            const sx = bx + bw - 30, sy = by + 5;
-            if (on) { ctx.fillStyle = "rgba(240,190,70,1)"; ctx.fillRect(sx, sy, 24, 12); }
-            else { ctx.strokeStyle = "rgba(139,143,168,0.6)"; ctx.strokeRect(sx + 0.5, sy + 0.5, 23, 11); }
-            ctx.font = "800 7.5px ui-sans-serif, system-ui, sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillStyle = on ? "rgba(11,10,8,1)" : "rgba(200,204,218,0.75)";
-            ctx.fillText(on ? "ON" : "OFF", sx + 12, sy + 6.5);
-            ctx.textAlign = "left";
-          });
-          ctx.font = "700 8.5px ui-sans-serif, system-ui, sans-serif";
-          ctx.fillStyle = regimeLight.breaker ? "rgba(201,165,92,1)" : "rgba(200,204,218,0.9)";
-          ctx.fillText(regimeLight.chip, x0 + 8, y0 + ph + 20);
+          if (regimeLight.title) {
+            ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+            const tw = Math.ceil(ctx.measureText(regimeLight.title).width) + 22, th = 16;
+            const yT = HEADER_FLOOR_Y + 4;
+            const prefT = { x: Math.round(plotRight / 2 - tw / 2), y: yT, w: tw, h: th };
+            const spotT = placeClearOfKeepOut(prefT, [...keepOut(), ...rowBodiesAt(yT, yT + th)], {
+              minX: keepOutMinX(),
+              blockers: floatingChips,
+              strict: true,
+              alternates: [
+                { ...prefT, x: Math.max(keepOutMinX(), 12) },
+                { ...prefT, x: Math.max(keepOutMinX(), plotRight - tw - 12) },
+                { ...prefT, y: yT + th + 4 },
+              ],
+            });
+            recordKeepOut(keepOutLedger, spotT);
+            floatingChips.push(spotT.rect);
+            const r = spotT.rect;
+            ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotT, 0.82)})`;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+            ctx.strokeStyle = "rgba(201,165,92,0.6)"; ctx.lineWidth = 1;
+            ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+            ctx.fillStyle = "rgba(201,165,92,1)";
+            ctx.beginPath();
+            ctx.moveTo(r.x + 8, r.y + r.h / 2 - 3); ctx.lineTo(r.x + 11, r.y + r.h / 2);
+            ctx.lineTo(r.x + 8, r.y + r.h / 2 + 3); ctx.lineTo(r.x + 5, r.y + r.h / 2);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = "rgba(237,230,211,0.95)";
+            ctx.fillText(regimeLight.title, r.x + 15, r.y + r.h / 2 + 0.5);
+            ds.regimeLightingMark = `TITLE:${regimeLight.breaker}:${spotT.mode}`;
+          } else if (newestR && xLiveR != null) {
+            const yP = yOfR(Number(newestR.close));
+            if (yP != null && yP >= HEADER_FLOOR_Y && yP <= pane0Bottom - 10) {
+              ctx.font = "800 8px ui-sans-serif, system-ui, sans-serif";
+              const R = 6;
+              const word = "UNRESOLVED";
+              const cw = Math.ceil(R * 2 + 6 + ctx.measureText(word).width + 8), chh = 18;
+              const x0 = Math.min(xLiveR + Math.max(4, bsp * 0.6) + 4, plotRight - cw - 2);
+              const prefC = { x: x0, y: yP - chh / 2, w: cw, h: chh };
+              const spotC = placeClearOfKeepOut(prefC, [...keepOut(), ...rowBodiesAt(prefC.y, prefC.y + chh)], {
+                minX: keepOutMinX(),
+                blockers: floatingChips,
+                strict: true,
+                alternates: [{ ...prefC, y: prefC.y - chh - 4 }, { ...prefC, y: prefC.y + chh + 4 }],
+              });
+              recordKeepOut(keepOutLedger, spotC);
+              floatingChips.push(spotC.rect);
+              const r = spotC.rect;
+              const cx = r.x + 3 + R, cy = r.y + r.h / 2;
+              // Off its row → a dotted leader back to the live price.
+              if (Math.abs(cy - yP) > 1) {
+                ctx.strokeStyle = "rgba(201,165,92,0.7)"; ctx.setLineDash([1, 3]);
+                ctx.beginPath(); ctx.moveTo(cx, cy + (yP > cy ? R : -R)); ctx.lineTo(xLiveR, yP); ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.82)})`;
+              ctx.beginPath();
+              if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, r.h / 2); else ctx.rect(r.x, r.y, r.w, r.h);
+              ctx.fill();
+              // The coin: a gold ring on a dark face, glowing (F15A).
+              ctx.shadowColor = "rgba(240,190,70,0.7)"; ctx.shadowBlur = 6;
+              ctx.fillStyle = "rgba(34,26,12,1)";
+              ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = "rgba(240,190,70,1)"; ctx.lineWidth = 1.5;
+              ctx.stroke();
+              ctx.lineWidth = 1;
+              ctx.fillStyle = "rgba(240,190,70,1)";
+              ctx.fillText(word, cx + R + 5, cy + 0.5);
+              ds.regimeLightingMark = `UNRESOLVED_COIN:${spotC.mode}`;
+            } else {
+              ds.regimeLightingMark = "UNRESOLVED_COIN:PRICE_OFF_CAMERA";
+            }
+          } else {
+            ds.regimeLightingMark = "UNRESOLVED_COIN:NO_BARS";
+          }
           ctx.restore();
         }
 

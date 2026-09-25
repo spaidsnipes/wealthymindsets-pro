@@ -15,6 +15,8 @@ import {
 import { selectSemanticDensity } from "./selectSemanticDensity";
 import { DEFAULT_STACK_PREFS, stackOpacity, type ProfileStackPrefs } from "./profileStackPrefs";
 import type { StackSpecies } from "./profileStackPlan";
+import selectRegimeLighting from "./selectRegimeLighting";
+import type { RegimeVerdict } from "./selectRegime";
 
 const DEPTHS = ["FAR", "MID", "NEAR", "UNMEASURED"] as const;
 const KEYS = Object.keys(LAYER_ATTENTION) as AttentionLayerKey[];
@@ -307,5 +309,48 @@ describe("selection focus — the selected object is loudest and everything else
     g.alpha("bubbles", { selectedItem: true });
     g.alpha("bubbles");
     expect(g.tiersReceipt()).toBe("livingProfile:LIVE:0.45,bubbles:LIVE:0.45");
+  });
+});
+
+describe("H-901 v2 — the regime's own fixtures are dimmed by the governor, not at the paint site", () => {
+  // The VM MainChart hands the governor, per verdict.
+  const vm = (verdict: RegimeVerdict | null) => selectRegimeLighting(verdict ? { verdict } : null);
+
+  it("each fixture class takes its breaker's fixture light under the SUPPORTING ceiling", () => {
+    for (const verdict of ["TREND", "BALANCE", "TRANSITION", "UNKNOWN", null] as const) {
+      const light = vm(verdict);
+      const g = selectAttentionGovernor(input({ regimeLight: light }));
+      expect(g.alpha("regimeChannel"), String(verdict)).toBeCloseTo(Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING.SUPPORTING, light.fixtures.trend)), 10);
+      expect(g.alpha("regimeMagnets"), String(verdict)).toBeCloseTo(Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING.SUPPORTING, light.fixtures.magnets)), 10);
+    }
+  });
+
+  it("TREND: channel louder than magnets; RANGE: magnets louder than channel; TRANSITION: both below lit", () => {
+    const t = selectAttentionGovernor(input({ regimeLight: vm("TREND") }));
+    expect(t.alpha("regimeChannel")).toBeGreaterThan(t.alpha("regimeMagnets"));
+    const r = selectAttentionGovernor(input({ regimeLight: vm("BALANCE") }));
+    expect(r.alpha("regimeMagnets")).toBeGreaterThan(r.alpha("regimeChannel"));
+    const x = selectAttentionGovernor(input({ regimeLight: vm("TRANSITION") }));
+    expect(x.alpha("regimeChannel")).toBeLessThan(t.alpha("regimeChannel"));
+    expect(x.alpha("regimeMagnets")).toBeLessThan(r.alpha("regimeMagnets"));
+  });
+
+  it("NO breaker: the profile family keeps full light while the plate's fixtures stay at pilot — never both blazing", () => {
+    const g = selectAttentionGovernor(input({ regimeLight: vm("UNKNOWN") }));
+    expect(g.alpha("livingProfile")).toBe(1);
+    expect(g.alpha("structureProfile")).toBe(1);
+    const lit = selectAttentionGovernor(input({ regimeLight: vm("TREND") })).alpha("regimeChannel");
+    expect(g.alpha("regimeChannel")).toBeLessThan(lit);
+    expect(g.alpha("regimeMagnets")).toBeLessThan(lit);
+  });
+
+  it("a selection recedes the fixtures and the field like any other context", () => {
+    const zone: AttentionSelection = { kind: "ZONE", key: "z", onCamera: true, inspecting: true };
+    const at = selectAttentionGovernor(input({ regimeLight: vm("TREND") }));
+    const g = selectAttentionGovernor(input({ regimeLight: vm("TREND"), selection: zone }));
+    for (const k of ["regimeChannel", "regimeMagnets", "regimeField"] as const) {
+      expect(LAYER_ATTENTION[k].tier).toBe("SUPPORTING");
+      expect(g.alpha(k), k).toBeCloseTo(Math.max(ATTENTION_FLOOR, at.alpha(k) * SELECTION_RECEDE), 10);
+    }
   });
 });

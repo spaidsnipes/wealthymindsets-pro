@@ -22,7 +22,11 @@
  *            layer is put in, not a standing a layer is born with.
  *   depth  — which density tier it speaks at (MACRO / MID / MICRO), or null
  *            when depth does not govern it.
- *   light  — which regime breaker dims it (MAGNETS / TREND), or null.
+ *   light  — which regime breaker dims it (MAGNETS / TREND), or null. The
+ *            regime's OWN fixtures (H-901's mean/σ magnets and trend channel,
+ *            painted by the regime layer) answer to MAGNET_FIXTURES /
+ *            CHANNEL_FIXTURES: the same light while a breaker is on, the
+ *            pilot light with none on (they never blaze together).
  *   lane   — the profile-stack lane whose opacity preference it answers to.
  *
  * and the ONE alpha rule:
@@ -62,7 +66,7 @@ export const ATTENTION_GOVERNOR_VERSION = 1;
 export type AttentionTier = "SELECTED" | "LIVE" | "SUPPORTING" | "MEMORY" | "STALE" | "CHROME";
 /** The standing a layer is born with; SELECTED and STALE are states it is put in. */
 export type LayerStanding = "LIVE" | "SUPPORTING" | "MEMORY" | "CHROME";
-export type LightClass = "MAGNETS" | "TREND";
+export type LightClass = "MAGNETS" | "TREND" | "MAGNET_FIXTURES" | "CHANNEL_FIXTURES";
 
 export interface LayerAttention {
   readonly tier: LayerStanding;
@@ -134,6 +138,12 @@ export const LAYER_ATTENTION = {
   expectedEnvelope: { tier: "SUPPORTING", depth: null, light: null },
   contradiction: { tier: "SUPPORTING", depth: null, light: null },
   liquidityLifecycle: { tier: "SUPPORTING", depth: null, light: null },
+  // H-901's own fixtures, measured from the bars on camera: context drawn
+  // about the regime reading, lit by its breaker.
+  regimeMagnets: { tier: "SUPPORTING", depth: null, light: "MAGNET_FIXTURES" },
+  regimeChannel: { tier: "SUPPORTING", depth: null, light: "CHANNEL_FIXTURES" },
+  // F15A's ambient state field: recedes with everything else, never above context.
+  regimeField: { tier: "SUPPORTING", depth: null, light: null },
   // ── Memory: what the market did before sits below the present ───────────
   profileMemory: { tier: "MEMORY", depth: "MACRO", light: "MAGNETS" },
   sessionGhosts: { tier: "MEMORY", depth: "MID", light: "MAGNETS", lane: "LIVING" },
@@ -154,8 +164,12 @@ export interface AttentionGovernorInput {
   readonly density: SemanticDensityVM;
   /** Question Lens quiet: 1 = no lens, < 1 while a question is asked. */
   readonly questionQuiet: number;
-  /** The regime breaker's lights, or null when switched off (every light 1). */
-  readonly regimeLight: Pick<RegimeLightingVM, "magnets" | "trend"> | null;
+  /**
+   * The regime breaker's lights, or null when switched off (every light 1).
+   * `fixtures` lights the regime's own fixtures; absent, they take the
+   * breaker's `magnets` / `trend`.
+   */
+  readonly regimeLight: (Pick<RegimeLightingVM, "magnets" | "trend"> & Partial<Pick<RegimeLightingVM, "fixtures">>) | null;
   /** The trader's stack preferences — lane opacity. */
   readonly stackPrefs: ProfileStackPrefs;
   /** The two lanes a standing fused object was made from; they step back. */
@@ -222,6 +236,8 @@ export function selectAttentionGovernor(
   const quiet = Math.min(1, Math.max(0, fin(input.questionQuiet, 1)));
   const magnets = fin(input.regimeLight?.magnets ?? 1, 1);
   const trend = fin(input.regimeLight?.trend ?? 1, 1);
+  const magnetFixtures = fin(input.regimeLight?.fixtures?.magnets ?? magnets, magnets);
+  const channelFixtures = fin(input.regimeLight?.fixtures?.trend ?? trend, trend);
   const stale = input.feedState === "STALE";
   const fused = input.fusedParents ?? [];
   const sel = input.selection ?? null;
@@ -246,7 +262,11 @@ export function selectAttentionGovernor(
     let a = 1;
     if (tier !== "CHROME" && tier !== "SELECTED") {
       const depth = spec.depth ? fin(input.density[DEPTH_FIELD[spec.depth]], 1) : 1;
-      const light = spec.light === "MAGNETS" ? magnets : spec.light === "TREND" ? trend : 1;
+      const light = spec.light === "MAGNETS" ? magnets
+        : spec.light === "TREND" ? trend
+        : spec.light === "MAGNET_FIXTURES" ? magnetFixtures
+        : spec.light === "CHANNEL_FIXTURES" ? channelFixtures
+        : 1;
       const lane = spec.lane
         ? stackOpacity(spec.lane, input.stackPrefs) * (fused.includes(spec.lane) ? FUSION_PARENT_FADE : 1)
         : 1;
