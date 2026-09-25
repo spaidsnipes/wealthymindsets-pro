@@ -304,6 +304,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     }}
                     data-testid="saved-layout-apply"
                     aria-label={`Apply layout ${layout.name}`}
+                    aria-describedby={`${idBase}-hint-${layout.id}`}
                     aria-current={inForce ? "true" : undefined}
                     disabled={!chartAnswering}
                     title={chartAnswering ? `Arrange the chart as “${layout.name}”` : "The chart is not answering yet"}
@@ -327,7 +328,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     <span style={{ display: "block", fontSize: 12, fontWeight: 500, letterSpacing: 0.3, color: inForce ? ink.gold : ink.pearl, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {layout.name}
                     </span>
-                    <span style={{ display: "block", fontSize: 10, color: ink.hint, marginTop: 1 }}>
+                    <span id={`${idBase}-hint-${layout.id}`} style={{ display: "block", fontSize: 10, color: ink.hint, marginTop: 1 }}>
                       {inForce ? "The chart is arranged this way now" : `${on} reading${on === 1 ? "" : "s"} on`}
                     </span>
                   </button>
