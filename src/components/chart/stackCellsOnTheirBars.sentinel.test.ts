@@ -59,4 +59,14 @@ describe("stack placement on the glass", () => {
     expect(body).not.toMatch(/Math\.max\(a\.x1 - a\.x0/);
     expect(body).not.toMatch(/a\.x0/);
   });
+
+  it("the stack chip steps around chips already on the glass and registers its own", () => {
+    const chip = block.slice(block.indexOf("const chipX = anchored"), block.indexOf("ctx.fillText(glass.label"));
+    expect(chip.length).toBeGreaterThan(0);
+    expect(chip).toMatch(/const stackChipHit = \(y: number\) => floatingChips\.some\(/);
+    expect(chip).toMatch(/const chipY = stackChipSlots\.find\(y => !stackChipHit\(y\)\)/);
+    expect(chip).toMatch(/floatingChips\.push\(\{ x: chipX, y: chipY, w: chipW, h: chipH \}\);/);
+    // The chip is registered before anything paints after it.
+    expect(chip.indexOf("floatingChips.push(")).toBeLessThan(chip.indexOf("ctx.fillRect(chipX, chipY"));
+  });
 });

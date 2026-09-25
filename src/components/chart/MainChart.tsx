@@ -9505,9 +9505,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const chipH = 14;
             const chipW = lw + 12;
             const chipX = anchored ? Math.max(2, Math.min(plotRight - chipW - 2, bandX0 - chipW / 2)) : 2;
-            // Above the band by preference; below it when the band is already
-            // near the top of the pane, so the chip is never pushed off-plot.
-            const chipY = yHi - chipH - 2 >= 2 ? yHi - chipH - 2 : Math.min(H - chipH - 2, yLo + 2);
+            // Above the band by preference, then below it, then stepped further
+            // out; never off the plot. The chip sits at the formation bar, often
+            // the live edge where tickets and absorption/exhaustion chips
+            // gather, so it steps around the chips already on the glass and
+            // registers its own for the chrome painted after it. Its words carry
+            // the SIDES INFERRED disclosure, so when every slot is taken it
+            // keeps the first one rather than leaving the band without them.
+            const stackChipHit = (y: number) => floatingChips.some(r =>
+              chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
+            const stackChipSlots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
+              .filter(y => y >= 2 && y + chipH <= H - 2);
+            const chipY = stackChipSlots.find(y => !stackChipHit(y)) ?? stackChipSlots[0] ?? Math.min(H - chipH - 2, yLo + 2);
+            floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
             ctx.fillStyle = "rgba(14,12,8,0.92)";
             ctx.fillRect(chipX, chipY, chipW, chipH);
             ctx.strokeStyle = "rgba(212,175,55,0.65)";
