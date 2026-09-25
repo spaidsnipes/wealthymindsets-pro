@@ -73,6 +73,21 @@ describe("exhaustion wins when it is newer", () => {
   });
 });
 
+describe("the push origin has one owner", () => {
+  it("STRUCTURE BREAK is judged against selectExhaustion's originPrice, never a rebuild from the extreme", () => {
+    // The extreme (time 240) is NOT the push's last bar (300): rebuilding
+    // backwards from the extreme by pushBars lands on the wrong bar.
+    const bars = [b(0, 97, 98), b(60, 99, 100), b(120, 100, 101), b(180, 101, 102), b(240, 102, 105), b(300, 103, 104), b(360, 103.5, 104.5)];
+    const ex: ExhaustionVM = { ...noEx, marks: [{ direction: "UP", time: 240, price: 105, pushBars: 4,
+      pushStartTime: 120, pushEndTime: 300, followThroughTimes: [360],
+      followBars: [{ time: 360, reach: 104.5, beyond: false }], originPrice: 99.25, effortFirstHalf: 0.8, effortSecondHalf: 0.32,
+      aggressionLevel: 0.4, effortUnreportedBars: 0, extension: 5, followThrough: 0, energyTransfer: 1, exhausted: true }] };
+    const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: ex, livingPoc: null, pivots: [] });
+    expect(v.kind).toBe("EXHAUSTION");
+    expect(v.debt.find(d => d.label === "STRUCTURE BREAK")!.evidence).toBe("no close back beyond the push origin 99.25");
+  });
+});
+
 describe("MOCK 3 · aggression vs displacement — who is in control", () => {
   it("reads the zone's own effort and displacement and prints the plate's verdict", () => {
     const bars = [b(0, 99, 100), b(60, 100, 101, 0.9), b(120, 100.2, 100.9, 0.9), b(180, 100.5, 101.2, 0.3)]

@@ -245,8 +245,10 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
 
   // EXHAUSTION question
   const m = ex!;
-  const pushStartIdx = Math.max(0, bars.findIndex(b => b.time === m.time) - m.pushBars);
-  const origin = m.direction === "UP" ? bars[pushStartIdx]?.low : bars[pushStartIdx]?.high;
+  // The push's origin is the exhaustion owner's own (the bar before the push:
+  // its low UP, its high DOWN). Rebuilding it backwards from the extreme was a
+  // second owner that disagreed whenever the extreme was not the push's last bar.
+  const origin: number | null = Number.isFinite(m.originPrice) ? m.originPrice : null;
   const after = bars.filter(b => b.time > m.time);
   const broke = origin != null && after.some(b => (m.direction === "UP" ? b.close < origin : b.close > origin));
   const debt: DebtItem[] = [
