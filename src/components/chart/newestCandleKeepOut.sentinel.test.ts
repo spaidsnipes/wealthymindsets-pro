@@ -62,3 +62,18 @@ describe("the profile stack's label column yields to the newest bodies", () => {
     expect(stackLabel).toMatch(/if \(spotS\.mode === "SLID"\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(stackPlan\.stackLeft, y\)/);
   });
 });
+
+describe("Profile Memory labels yield to the newest bodies", () => {
+  const memory = slice("const text = `S-${l.sessionsAgo} ${l.kind}", "ds.profileMemoryLevels = String(drawn);");
+
+  it("asks the keep-out, sliding only along the level's own line and never left of its birth", () => {
+    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*keepOut\(\),\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips \},?\s*\)/);
+    expect(memory).toMatch(/recordKeepOut\(keepOutLedger, spotM\)/);
+  });
+
+  it("paints backing and words where the placement says, at an alpha it allows", () => {
+    expect(memory).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotM, 0\.80\)\}\)`;\s*ctx\.fillRect\(spotM\.rect\.x, spotM\.rect\.y, w, 14\);/);
+    expect(memory).toMatch(/ctx\.fillText\(text, spotM\.rect\.x \+ 4, y\);/);
+    expect(memory).not.toMatch(/fillRect\(lx,/);
+  });
+});

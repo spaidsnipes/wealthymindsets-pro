@@ -11994,11 +11994,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const text = `S-${l.sessionsAgo} ${l.kind} ${l.price.toFixed(2)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const lx = endX - w - 4;
-              ctx.fillStyle = "rgba(11,10,8,0.80)";
-              ctx.fillRect(lx, y - 7, w, 14);
+              // The label ends where its line ends — at the live edge. It
+              // slides back along its OWN level line (the line is its leader)
+              // off the newest bodies, never left of where the level formed;
+              // with no room it stays and its backing yields.
+              const spotM = placeClearOfKeepOut(
+                { x: lx, y: y - 7, w, h: 14 },
+                keepOut(),
+                { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips },
+              );
+              recordKeepOut(keepOutLedger, spotM);
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
+              ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);
               ctx.fillStyle = isPoc ? `rgba(201,165,92,${Math.max(0.6, fade)})` : `rgba(237,230,211,${Math.max(0.55, fade)})`;
               ctx.textAlign = "left";
-              ctx.fillText(text, lx + 4, y);
+              ctx.fillText(text, spotM.rect.x + 4, y);
             }
             ctx.restore();
             ds.profileMemoryLevels = String(drawn);
