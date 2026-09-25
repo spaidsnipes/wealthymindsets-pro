@@ -91,7 +91,8 @@ describe("(b) the chart places and draws — it decides nothing", () => {
   it("names its state in every frame — silence is a receipt, not a gap", () => {
     const block = tagBlock();
     expect(block).toContain('let tagState: "NONE" | "OFF_CAMERA" | "DRAWN" = "NONE";');
-    expect(block).toContain("canvas.dataset.debtTag = tagState;");
+    // Unconditional: a statement of its own, not the tail of an `if`.
+    expect(block).toMatch(/\n[ \t]*canvas\.dataset\.debtTag = tagState;/);
     // Published OUTSIDE the try, so a thrown frame still says what it is.
     expect(block.indexOf("canvas.dataset.debtTag = tagState;")).toBeGreaterThan(block.lastIndexOf("catch"));
   });

@@ -203,6 +203,10 @@ describe("selectDebtTag — H-101: the tag lives on the event, or nowhere", () =
     expect(selectDebtTag({ ...paid, eventBarOpenedAtMs: EVENT, capturedAt: AS_OF, replayEngaged: false })).toBeNull();
     expect(selectDebtTag({ decision: { value: "NO TRADE", detail: "d", tone: "warn" }, debt, eventBarOpenedAtMs: EVENT, capturedAt: AS_OF, replayEngaged: false })).toBeNull();
     expect(selectDebtTag({ decision, debt: null, eventBarOpenedAtMs: EVENT, capturedAt: AS_OF, replayEngaged: false })).toBeNull();
+    // A WAIT over a CLOSED ledger (permission withheld for another reason)
+    // has no debt to tag: "GO circuit is dark while debt is OPEN".
+    const closed = { ...debt, missing: 0, missingPayable: 0, missingLabels: [], missingPayableLabels: [], venueBlocked: 0, venueBlockedLabels: [] };
+    expect(selectDebtTag({ decision, debt: closed, eventBarOpenedAtMs: EVENT, capturedAt: AS_OF, replayEngaged: false })).toBeNull();
   });
 
   it("a replay camera walking history gets no live tag", () => {
