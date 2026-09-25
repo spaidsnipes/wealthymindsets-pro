@@ -205,6 +205,7 @@ import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketD
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
+import { selectSessionGhostProfiles } from "@/lib/marketData/viewModels/selectSessionGhostProfiles";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -10239,6 +10240,54 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (yp != null) { ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(rightEdge - histMax, +yp); ctx.lineTo(rightEdge, +yp); ctx.stroke(); }
                 ctx.lineWidth = 1;
               }
+            }
+
+            // CANON P-110 · MEMORY AS SHAPE. With Profile Memory on, the
+            // sessions before this one stand behind the gold silhouette as
+            // GREY silhouettes at their own prices (bar-distributed — the
+            // tape of a finished session is gone; the receipt says so).
+            if (layerOnRef.current.profileMemory && livingDepth !== "FAR") {
+              const gvm = selectSessionGhostProfiles(barsRef.current ?? []);
+              ds.sessionGhosts = gvm.drawn ? `${gvm.ghosts.map(g => `-${g.sessionsAgo}`).join(",")}:${gvm.fidelity}` : gvm.reason;
+              for (const g of [...gvm.ghosts].reverse()) {
+                const k = g.sessionsAgo;
+                const gRight = rightEdge - histMax * (k === 1 ? 0.38 : 0.66);
+                const gW = histMax * (k === 1 ? 0.72 : 0.6);
+                const ys = g.rows.map(r => srs.priceToCoordinate(r.price));
+                const pitch = ys.length >= 2 && ys[0] != null && ys[1] != null ? Math.abs(+ys[0] - +ys[1]) : 2;
+                const rh = Math.max(1, Math.ceil(pitch));
+                const edge: { x: number; y: number }[] = [];
+                // One traced edge per contiguous run of rows — a thin tail is
+                // dropped, never bridged by a hairline across empty prices.
+                const runs: { x: number; y: number }[][] = [];
+                let run: { x: number; y: number }[] | null = null;
+                ctx.fillStyle = k === 1 ? "rgba(176,172,164,0.30)" : "rgba(176,172,164,0.18)";
+                g.rows.forEach((r, i) => {
+                  const y = ys[i];
+                  if (y == null || r.share < 0.04) { run = null; return; }
+                  const w = Math.max(1, Math.round(r.share * gW));
+                  ctx.fillRect(gRight - w, Math.round(+y - rh / 2), w, rh);
+                  const q = { x: gRight - w, y: +y };
+                  edge.push(q);
+                  if (!run) { run = []; runs.push(run); }
+                  run.push(q);
+                });
+                if (edge.length >= 3) {
+                  edge.sort((a, z) => a.y - z.y);
+                  ctx.beginPath();
+                  for (const rn of runs) {
+                    ctx.moveTo(gRight, rn[0].y);
+                    for (const q of rn) ctx.lineTo(q.x, q.y);
+                    ctx.lineTo(gRight, rn[rn.length - 1].y);
+                  }
+                  ctx.strokeStyle = k === 1 ? "rgba(214,210,200,0.55)" : "rgba(214,210,200,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+                  ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+                  ctx.fillStyle = "rgba(214,210,200,0.6)";
+                  ctx.fillText(`−${k}`, gRight - gW * 0.25, edge[edge.length - 1].y + 4);
+                }
+              }
+            } else {
+              delete ds.sessionGhosts;
             }
 
             const silhouette: { x: number; y: number }[] = [];
