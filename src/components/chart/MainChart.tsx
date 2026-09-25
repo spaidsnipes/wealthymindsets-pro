@@ -9852,7 +9852,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            matched (≤ 0.18). Nothing right of the newest bar: a comparison, not
            a forecast. Weak fit / short history → a named silence. */
         if (layerOnRef.current.memoryGhost === true && srs) {
-          const ghostBars = (barsRef.current ?? []).map(b => ({ time: Number(b.time), close: Number(b.close) }));
+          const ghostBars = (barsRef.current ?? []).map(b => ({ time: Number(b.time), close: Number(b.close), open: Number(b.open), high: Number(b.high), low: Number(b.low) }));
           ds.memoryGhostBars = String(ghostBars.length);
           const ghost = selectMemoryGhost(ghostBars);
           ds.memoryGhost = ghost.drawn ? `DRAWN:${ghost.fit!.toFixed(2)}` : ghost.reason;
@@ -9863,21 +9863,49 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           if (ghost.drawn) {
             ctx.globalAlpha = ghost.opacity;
-            ctx.strokeStyle = "rgba(237,230,211,1)";
-            ctx.lineWidth = 3;
-            ctx.setLineDash([6, 4]);
-            ctx.beginPath();
-            let started = false;
             let lastXY: { x: number; y: number } | null = null;
-            for (const pt of ghost.points) {
-              const x = tsG.timeToCoordinate(pt.time as never);
-              const y = srs.priceToCoordinate(pt.price);
-              if (x == null || y == null) continue;
-              if (!started) { ctx.moveTo(+x, +y); started = true; } else ctx.lineTo(+x, +y);
-              lastXY = { x: +x, y: +y };
+            if (ghost.candles.length > 1) {
+              // CANON F03A — memory as ghost CANDLES on the canvas: the
+              // analogue's own bars, re-based, laid under the live ones.
+              const xs = ghost.candles.map(c => tsG.timeToCoordinate(c.time as never));
+              const spacing = xs[0] != null && xs[1] != null ? Math.abs(+xs[1] - +xs[0]) : 6;
+              // Hollow shadow candles in the GAPS between live candles (half a
+              // bar right): the analogue is re-based, not time-true, and a
+              // ghost exactly behind a live candle is invisible.
+              const bw = Math.max(1, Math.round(spacing * 0.34));
+              const off = spacing / 2;
+              ctx.globalAlpha = Math.min(1, ghost.opacity * 3);
+              ghost.candles.forEach((c, k) => {
+                const x = xs[k];
+                const yh = srs.priceToCoordinate(c.high), yl = srs.priceToCoordinate(c.low);
+                const yo = srs.priceToCoordinate(c.open), yc = srs.priceToCoordinate(c.close);
+                if (x == null || yh == null || yl == null || yo == null || yc == null) return;
+                const cxg = Math.round(+x + off) + 0.5;
+                ctx.strokeStyle = "rgba(200,194,180,0.9)"; ctx.lineWidth = 1;
+                const top = Math.min(+yo, +yc), hB = Math.max(1, Math.abs(+yc - +yo));
+                ctx.beginPath(); ctx.moveTo(cxg, +yh); ctx.lineTo(cxg, top); ctx.moveTo(cxg, top + hB); ctx.lineTo(cxg, +yl); ctx.stroke();
+                ctx.fillStyle = "rgba(11,10,8,0.6)"; ctx.fillRect(cxg - bw / 2, top, bw, hB);
+                ctx.strokeRect(Math.round(cxg - bw / 2) + 0.5, Math.round(top) + 0.5, bw, Math.max(1, Math.round(hB)));
+                lastXY = { x: +x, y: +yc };
+              });
+              ds.memoryGhostForm = `CANDLES:${ghost.candles.length}`;
+            } else {
+              ctx.strokeStyle = "rgba(237,230,211,1)";
+              ctx.lineWidth = 3;
+              ctx.setLineDash([6, 4]);
+              ctx.beginPath();
+              let started = false;
+              for (const pt of ghost.points) {
+                const x = tsG.timeToCoordinate(pt.time as never);
+                const y = srs.priceToCoordinate(pt.price);
+                if (x == null || y == null) continue;
+                if (!started) { ctx.moveTo(+x, +y); started = true; } else ctx.lineTo(+x, +y);
+                lastXY = { x: +x, y: +y };
+              }
+              ctx.stroke();
+              ctx.setLineDash([]);
+              ds.memoryGhostForm = "PATH";
             }
-            ctx.stroke();
-            ctx.setLineDash([]);
             ctx.globalAlpha = 0.85;
             if (lastXY) {
               const when = new Date(ghost.analogueStart! * 1000).toISOString().slice(5, 16).replace("T", " ");

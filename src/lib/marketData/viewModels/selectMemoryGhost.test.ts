@@ -40,3 +40,31 @@ describe("H-201 · memory ghost", () => {
     expect(Object.keys(v).some(k => /prob|score|confidence|forecast/i.test(k))).toBe(false);
   });
 });
+
+describe("F03A · ghost candles", () => {
+  it("carries the analogue's own candles, re-based like its closes, on the live times", async () => {
+    const { selectMemoryGhost } = await import("./selectMemoryGhost");
+    const shape = [0, 1, 2, 3, 2, 1, 2, 3, 4, 5, 4, 3, 4, 5, 6, 7, 6, 5, 6, 7];
+    const bars: { time: number; open: number; high: number; low: number; close: number }[] = [];
+    let t = 0;
+    const push = (c: number) => bars.push({ time: (t += 60), open: c - 0.2, high: c + 0.5, low: c - 0.5, close: c });
+    for (const v of shape) push(100 + v);
+    for (let i = 0; i < 25; i++) push(130 + ((i * 7) % 5));
+    for (const v of shape) push(200 + 2 * v);
+    const vm = selectMemoryGhost(bars);
+    expect(vm.drawn).toBe(true);
+    expect(vm.candles).toHaveLength(20);
+    const live = bars.slice(-20);
+    expect(vm.candles.map(c => c.time)).toEqual(live.map(b => b.time));
+    // Close of each ghost candle is on the ghost path.
+    vm.candles.forEach((c, i) => expect(c.close).toBeCloseTo(vm.points[i].price, 6));
+    expect(vm.candles.every(c => c.high >= c.close && c.low <= c.close)).toBe(true);
+  });
+
+  it("stays a path (no candles) when only closes were given", async () => {
+    const { selectMemoryGhost } = await import("./selectMemoryGhost");
+    const bars = Array.from({ length: 90 }, (_, i) => ({ time: i * 60, close: 100 + Math.sin(i / 3) * 5 }));
+    const vm = selectMemoryGhost(bars);
+    expect(vm.candles).toEqual([]);
+  });
+});

@@ -26,16 +26,22 @@
  * PURE. DETERMINISTIC.
  */
 
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+
 export const MEMORY_GHOST_VERSION = 1;
 export const GHOST_WINDOW = 20;
 export const MIN_FIT = 0.8;
 /** The Manifestation Map's opacity ceiling for the ghost. */
 export const GHOST_MAX_OPACITY = 0.18;
 
-export interface GhostBar {
-  readonly time: number;
-  readonly close: number;
-}
+export type GhostBar = Pick<LegacyOhlcvTuple, "time" | "close">
+  /* Optional — when present the ghost carries the analogue's own candles
+     (canon F03A: memory as ghost CANDLES on the canvas). */
+  & Partial<Pick<LegacyOhlcvTuple, "open" | "high" | "low">>;
+
+/** One analogue candle, re-based by the same factor as its close — the
+ *  artery's own bar shape, not a private one. */
+export type GhostCandle = Pick<LegacyOhlcvTuple, "time" | "open" | "high" | "low" | "close">;
 
 export interface MemoryGhostVM {
   readonly version: number;
@@ -43,6 +49,9 @@ export interface MemoryGhostVM {
   readonly reason: "DRAWN" | "INSUFFICIENT_HISTORY" | "NO_ANALOGUE";
   /** Ghost points on the live bars' times, re-based to the live window. */
   readonly points: readonly { readonly time: number; readonly price: number }[];
+  /** The analogue's candles on the live bars' times; empty when the input
+   *  had no open/high/low. */
+  readonly candles: readonly GhostCandle[];
   /** Where the analogue lived (unix seconds of its first and last bar). */
   readonly analogueStart: number | null;
   readonly analogueEnd: number | null;
@@ -80,7 +89,7 @@ export function selectMemoryGhost(
   const bars = (input ?? []).filter(b => Number.isFinite(b.time) && Number.isFinite(b.close) && b.close > 0);
   const base = { version: MEMORY_GHOST_VERSION, opacity: GHOST_MAX_OPACITY };
   const none = (reason: MemoryGhostVM["reason"], candidates = 0): MemoryGhostVM => ({
-    ...base, drawn: false, reason, points: [], analogueStart: null, analogueEnd: null,
+    ...base, drawn: false, reason, points: [], candles: [], analogueStart: null, analogueEnd: null,
     fit: null, mismatchPct: null, candidates,
   });
   if (bars.length < window * 3) return none("INSUFFICIENT_HISTORY");
@@ -103,11 +112,16 @@ export function selectMemoryGhost(
   const analogue = bars.slice(best.i, best.i + window);
   const ap = path(analogue);
   const start = live[0].close;
+  const k0 = start / analogue[0].close;
+  const candles: GhostCandle[] = analogue.every(b => Number.isFinite(b.open) && Number.isFinite(b.high) && Number.isFinite(b.low))
+    ? analogue.map((b, k) => ({ time: live[k].time, open: b.open! * k0, high: b.high! * k0, low: b.low! * k0, close: b.close * k0 }))
+    : [];
   return {
     ...base,
     drawn: true,
     reason: "DRAWN",
     points: live.map((b, k) => ({ time: b.time, price: start * (1 + ap[k] / 100) })),
+    candles,
     analogueStart: analogue[0].time,
     analogueEnd: analogue[analogue.length - 1].time,
     fit: best.fit,
