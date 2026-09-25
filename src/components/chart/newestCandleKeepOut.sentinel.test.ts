@@ -112,6 +112,9 @@ describe("the Value Migration name, printed at its newest point, yields to the n
     expect(dpoc).toMatch(/const rowBodies = spanCandleKeepOut\(barsRef\.current \?\? \[\], \{/);
     expect(dpoc).toContain("}, x, x + w);");
     expect(dpoc).toContain("const rowAlternates = [{ x, y: y + 24 - 7, w, h: 14 }];");
+    // Stepping up never enters the header band (serving TSLA 1h FAR: the
+    // name touched the DOM evidence chip).
+    expect(dpoc).toContain("if (above >= HEADER_FLOOR_Y) rowAlternates.push({ x, y: above, w, h: 14 });");
     expect(dpoc).toMatch(/placeClearOfKeepOut\(\s*\{ x, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodies\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, alternates: rowAlternates \},?\s*\)/);
     expect(dpoc).toMatch(/recordKeepOut\(keepOutLedger, spotV\)/);
     expect(dpoc).toContain("ds.valueMigrationLabel = `${spotV.mode}${spotV.onCandles ? \":YIELDED\" : \"\"}`;");

@@ -12848,7 +12848,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (rowBodies.length) {
                 const above = Math.min(...rowBodies.map(b => b.y)) - 3 - 14;
                 const below = Math.max(...rowBodies.map(b => b.y + b.h)) + 3;
-                if (above >= BELOW_PRICE_LEGEND) rowAlternates.push({ x, y: above, w, h: 14 });
+                // Never up into the header band (OHLC line, bar clock, zoom plate,
+                // INSPECT, the evidence chip — DOM the canvas cannot see).
+                if (above >= HEADER_FLOOR_Y) rowAlternates.push({ x, y: above, w, h: 14 });
                 if (below + 14 <= H - 24) rowAlternates.push({ x, y: below, w, h: 14 });
               }
               const spotV = placeClearOfKeepOut(
