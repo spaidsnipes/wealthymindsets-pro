@@ -18,11 +18,11 @@ await p.waitForTimeout(25000);
 // Through the ONE door: Tools → the Profiles menu row.
 await p.getByRole("button", { name: /^Tools/ }).first().click();
 await p.waitForTimeout(1500);
-let row = p.locator('[aria-label^="Anchored Range VP."]').first();
+let row = p.locator('[aria-label^="Fixed Range Profile."]').first();
 if (!(await row.count())) {
   const ct = p.getByText("Chart tools", { exact: false }).first();
   if (await ct.count()) { await ct.click(); await p.waitForTimeout(1500); }
-  row = p.locator('[aria-label^="Anchored Range VP."]').first();
+  row = p.locator('[aria-label^="Fixed Range Profile."]').first();
 }
 console.log("row found:", await row.count());
 await p.screenshot({ path: "scratchpad/shift0924/anchored_menu.png" });

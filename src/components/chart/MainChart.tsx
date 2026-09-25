@@ -12153,7 +12153,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             hline(vm.vah, "rgba(237,230,211,0.5)", [3, 4]);
             hline(vm.val, "rgba(237,230,211,0.5)", [3, 4]);
             const est = vm.quality === "trade-based" ? "" : " · CANDLE-EST";
-            chip(`ANCHORED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(2)}${est}`, x0 + 2, yTop - 3, "#C9A55C");
+            chip(`FIXED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(2)}${est}`, x0 + 2, yTop - 3, "#C9A55C");
           } else {
             // Named refusal, where the trader dragged — never an empty box.
             ctx.strokeStyle = "rgba(240,180,41,0.6)";
@@ -12164,7 +12164,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const why = vm.reason === "TOO_FEW_BARS_IN_VIEW"
               ? `${vm.barsInView} bars in the span — drag across at least 5`
               : vm.reason === "NO_VOLUME" ? "the bars in this span carry no volume" : "no span";
-            chip(`ANCHORED RANGE · ${why}`, x0 + 2, ry - 3, "#F0B429");
+            chip(`FIXED RANGE · ${why}`, x0 + 2, ry - 3, "#F0B429");
           }
           ctx.restore();
         }
