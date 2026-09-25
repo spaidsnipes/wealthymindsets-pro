@@ -61,12 +61,38 @@ export function useFeedEvaluationClock(intervalMs = FEED_CLOCK_SAMPLE_INTERVAL_M
   const [now, setNow] = useState(0);
 
   useEffect(() => {
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), Math.max(1_000, intervalMs));
-    return () => clearInterval(timer);
+    // ONE SAMPLED INSTANT PER INTERVAL, SHARED. The masthead (OS frame) and the
+    // chart room's rail each ran their own timer with its own phase, so one
+    // could sample at T+89s (LIVE) and the other at T+91s (STALE) about the
+    // same print (Sentinel, 2026-09-25). Every reader now subscribes to the
+    // same ticker, so every badge grades against the same "now".
+    return subscribeFeedClock(Math.max(1_000, intervalMs), setNow);
   }, [intervalMs]);
 
   return now;
+}
+
+type ClockListener = (now: number) => void;
+const feedClocks = new Map<number, { now: number; listeners: Set<ClockListener>; timer: ReturnType<typeof setInterval> }>();
+
+/** Exported for tests: one timer per interval, shared by every subscriber. */
+export function subscribeFeedClock(intervalMs: number, listener: ClockListener): () => void {
+  let clock = feedClocks.get(intervalMs);
+  if (!clock) {
+    const created = { now: Date.now(), listeners: new Set<ClockListener>(), timer: setInterval(() => {
+      created.now = Date.now();
+      for (const l of created.listeners) l(created.now);
+    }, intervalMs) };
+    clock = created;
+    feedClocks.set(intervalMs, clock);
+  }
+  clock.listeners.add(listener);
+  listener(clock.now);
+  const c = clock;
+  return () => {
+    c.listeners.delete(listener);
+    if (c.listeners.size === 0) { clearInterval(c.timer); feedClocks.delete(intervalMs); }
+  };
 }
 
 export function useSessionClockDate(): Date | null {
