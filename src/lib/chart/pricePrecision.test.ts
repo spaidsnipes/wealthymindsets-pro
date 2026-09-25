@@ -45,6 +45,20 @@ describe("pricePrecisionFromBars", () => {
     expect(pricePrecisionFromBars(pips)).toBe(5);
   });
 
+  it("half-cent midpoint prints stay on the cents grid (TSLA axis read 388.000 on serving)", () => {
+    // Measured shape: a quarter of the prices land exactly half a cent off.
+    const bars = Array.from({ length: 40 }, (_, i) => i % 4 === 0
+      ? bar(366.565 + i * 0.01, 366.9 + i * 0.01, 365.095 + i * 0.01, 366.525 + i * 0.01)
+      : bar(366.56 + i * 0.01, 366.9 + i * 0.01, 365.09 + i * 0.01, 366.52 + i * 0.01));
+    expect(pricePrecisionFromBars(bars)).toBe(2);
+    // A genuine pipette feed does not hide behind the allowance.
+    const pipettes = Array.from({ length: 40 }, (_, i) => bar(1.14235 + i * 1e-5, 1.14311 + i * 1e-5, 1.14187 + i * 1e-5, 1.14262 + i * 1e-5));
+    expect(pricePrecisionFromBars(pipettes)).toBe(5);
+    // Below $1 there is no cents grid to sit on.
+    const sub = Array.from({ length: 40 }, (_, i) => bar(0.125 + i * 0.01, 0.135 + i * 0.01, 0.115 + i * 0.01, 0.125 + i * 0.01));
+    expect(pricePrecisionFromBars(sub)).toBe(3);
+  });
+
   it("float32 futures quote their own grid (Sentinel: CL1! read 91.730, ZN1! lost its 1/64ths)", () => {
     const f32 = (v: number) => Math.fround(v);
     const cl = Array.from({ length: 30 }, (_, i) => bar(f32(91.7 + i * 0.01), f32(91.75 + i * 0.01), f32(91.6 + i * 0.01), f32(91.73 + i * 0.01)));

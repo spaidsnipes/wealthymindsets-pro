@@ -60,9 +60,18 @@ export function pricePrecisionFromBars(bars: readonly PrecisionBar[]): number {
   // decimals — "377.000" (serving, 2026-09-25). The grid is the smallest count
   // that states nearly every recent price exactly.
   const need = Math.ceil(values.length * GRID_SHARE);
+  // MIDPOINT PRINTS ARE NOT A GRID. Alpaca's stock bars carry midpoint fills
+  // exactly half a cent off the quote (366.565): 17–30% of every price on
+  // TSLA / AAPL / SPY / NVDA at 1m–1h, and every sub-penny price measured was
+  // a half-cent (serving, 2026-09-25 — the TSLA axis read 388.000 again). At
+  // and above $1 the market quotes in cents, so a half-cent sits ON the cents
+  // grid, between two ticks. Only the cents grid, only at $1 and up: a pip,
+  // a 1/64th and a sub-dollar coin keep their own decimals.
+  const centsMarket = maxAbs >= 1;
   for (let d = MIN_PRICE_PRECISION; d <= cap; d++) {
+    const midpointsCount = centsMarket && d === MIN_PRICE_PRECISION;
     let exact = 0;
-    for (const v of values) if (exactAt(v, d)) exact++;
+    for (const v of values) if (exactAt(v, d) || (midpointsCount && exactAt(v * 2, d))) exact++;
     if (exact >= need) return d;
   }
   // Noise: no count under the cap is exact. Four significant figures below
