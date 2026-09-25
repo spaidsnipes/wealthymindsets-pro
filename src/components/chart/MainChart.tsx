@@ -1108,6 +1108,8 @@ interface Props {
   onExpectedEnvelope?: (vm: ExpectedEnvelopeVM | null) => void;
   /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
+  /** The Visible Range species' own refusal (null when drawn or off), reported on change only. */
+  onVisibleRangeRefusal?: (reason: string | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps and the FAR envelope's pivots. */
@@ -1460,6 +1462,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onMemoryGhost,
   onExpectedEnvelope,
   onProfileFusion,
+  onVisibleRangeRefusal,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1661,6 +1664,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onExpectedEnvelopeRef = useRef<typeof onExpectedEnvelope>(undefined);
   const onProfileFusionRef = useRef<typeof onProfileFusion>(undefined);
   useEffect(() => { onProfileFusionRef.current = onProfileFusion; }, [onProfileFusion]);
+  const onVisibleRangeRefusalRef = useRef<typeof onVisibleRangeRefusal>(undefined);
+  useEffect(() => { onVisibleRangeRefusalRef.current = onVisibleRangeRefusal; }, [onVisibleRangeRefusal]);
+  // Last value reported, so the paint loop tells the room only when it changes.
+  const lastVrpRefusalRef = useRef<string | null>(null);
   const fusionObjectRef = useRef<FusedProfileObject | null>(null);
   useEffect(() => { onExpectedEnvelopeRef.current = onExpectedEnvelope; }, [onExpectedEnvelope]);
   useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
@@ -10673,6 +10680,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
         ds.visibleRangeProfile = vrpOn ? (vrpVM?.reason ?? "NO_READING") : "OFF";
+        {
+          // Only the camera knows this species' refusal; hand it to the room's
+          // Profiles door (READY over an empty lane was the defect), on change.
+          const vrpRefusal = vrpOn && vrpVM && !vrpVM.drawn ? vrpVM.reason : null;
+          if (vrpRefusal !== lastVrpRefusalRef.current) {
+            lastVrpRefusalRef.current = vrpRefusal;
+            onVisibleRangeRefusalRef.current?.(vrpRefusal);
+          }
+        }
         const stackOrder: StackSpecies[] = [];
         if (layerOnRef.current.livingProfile && livingProfileRef.current?.drawn) stackOrder.push("LIVING");
         if (layerOnRef.current.compositeProfile && compositeProfileRef.current?.drawn) stackOrder.push("COMPOSITE");

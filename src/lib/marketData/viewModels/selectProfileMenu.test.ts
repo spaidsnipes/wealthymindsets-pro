@@ -516,4 +516,9 @@ describe("a species whose own selector refused is not READY", () => {
     expect(r.PROFILE_MEMORY).toMatch(/no completed prior session/);
     expect(profileSpeciesRefusals({ structure: { reason: "DRAWN" } })).toEqual({});
   });
+
+  it("names a Visible Range refusal the camera reported", () => {
+    expect(profileSpeciesRefusals({ visibleRange: { reason: "TOO_FEW_BARS_IN_VIEW" } }).VISIBLE_RANGE_PROFILE).toMatch(/too few bars in view/);
+    expect(profileSpeciesRefusals({ visibleRange: null })).toEqual({});
+  });
 });

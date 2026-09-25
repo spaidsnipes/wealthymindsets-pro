@@ -859,6 +859,7 @@ export function profileSpeciesRefusals(vms: {
   tpo?: { readonly reason: string } | null;
   structure?: { readonly reason: string; readonly note?: string } | null;
   memory?: { readonly reason: string } | null;
+  visibleRange?: { readonly reason: string } | null;
 }): Partial<Record<ProfileId, string>> {
   const out: Partial<Record<ProfileId, string>> = {};
   const c = vms.composite?.reason;
@@ -872,5 +873,9 @@ export function profileSpeciesRefusals(vms: {
   const m = vms.memory?.reason;
   if (m === "NO_PRIOR_SESSION") out.PROFILE_MEMORY = "no completed prior session to remember";
   else if (m === "NO_MIGRATION") out.PROFILE_MEMORY = "no developing value yet to remember";
+  const v = vms.visibleRange?.reason;
+  if (v === "TOO_FEW_BARS_IN_VIEW") out.VISIBLE_RANGE_PROFILE = "too few bars in view to profile — zoom out";
+  else if (v === "NO_VOLUME") out.VISIBLE_RANGE_PROFILE = "the bars in view carry no volume";
+  else if (v === "NO_RANGE") out.VISIBLE_RANGE_PROFILE = "the camera has no time range yet";
   return out;
 }
