@@ -9541,10 +9541,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 16;
                 const footY = H - 58;
                 const headY = layerOnRef.current.questionLens === true ? 160 : HEADER_FLOOR_Y + 8;
-                const ly = candleHits(cardsLeft, headY, lw, 34) < candleHits(cardsLeft, footY, lw, 34) ? headY : footY;
+                // The folded lines carry a 0.92 backing too. Foot and head are
+                // tried fewest-candles first (a tie keeps the foot); a slot must
+                // clear every body under it and the chips on the glass. When
+                // only slots on bodies are left the first is kept and its
+                // backing yields — the numbers stay, the candles read through.
+                const slotsC = [{ x: cardsLeft, y: footY, w: lw, h: 34 }, { x: cardsLeft, y: headY, w: lw, h: 34 }]
+                  .sort((a, b) => candleHits(a.x, a.y, a.w, a.h) - candleHits(b.x, b.y, b.w, b.h));
+                const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + 34)];
+                const takenC = (s: { x: number; y: number; w: number; h: number }) => floatingChips.some(r => overlaps(r, s.x, s.y, s.w, s.h));
+                const spotC = pickSlotClearOfKeepOut(slotsC, koC, takenC) ?? pickSlotClearOfKeepOut(slotsC, koC, () => false)!;
+                recordKeepOut(keepOutLedger, spotC);
+                const ly = spotC.rect.y;
                 ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, 34));
-                ctx.fillStyle = "rgba(11,10,8,0.92)";
+                ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.92)})`;
                 ctx.fillRect(cardsLeft, ly, lw, 34);
+                floatingChips.push({ x: cardsLeft, y: ly, w: lw, h: 34 });
                 ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1;
                 ctx.strokeRect(cardsLeft + 0.5, ly + 0.5, lw - 1, 33);
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -9571,6 +9583,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (cardK > 1) cardsTop = cardsTop + ch - ch * cardK;
               ds.anatomyCardsScale = cardK.toFixed(2);
               if (!compact) ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, cardsTop, pairW * cardK, ch * cardK));
+              // The pair is chrome on the glass: later chips step around it
+              // instead of printing over its numbers.
+              if (!compact) floatingChips.push({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK });
               if (!compact) [cards.absorption, cards.exhaustion].forEach((c, k) => {
                 // Scaled space: origin at (cardsLeft, cardsTop).
                 ctx.save();

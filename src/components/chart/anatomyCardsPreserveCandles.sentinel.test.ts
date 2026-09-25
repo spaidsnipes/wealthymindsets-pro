@@ -48,6 +48,21 @@ describe("anatomy cards preserve the candles", () => {
     expect(block).toMatch(/!floatingChips\.some\(c => overlaps\(c, s\.x, s\.y, pairW, ch\)\)/);
   });
 
+  it("the folded lines clear every body under their slot and the chips, or yield their backing", () => {
+    // Added 2026-09-25 (keep-out completion): the compact form kept a 0.92
+    // backing on whichever of head/foot covered fewer candles, even when both
+    // covered some, and never joined the chip ledger.
+    expect(block).toMatch(/const slotsC = \[\{ x: cardsLeft, y: footY, w: lw, h: 34 \}, \{ x: cardsLeft, y: headY, w: lw, h: 34 \}\]\s*\.sort\(\(a, b\) => candleHits\(a\.x, a\.y, a\.w, a\.h\) - candleHits\(b\.x, b\.y, b\.w, b\.h\)\);/);
+    expect(block).toContain("const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + 34)];");
+    expect(block).toContain("const spotC = pickSlotClearOfKeepOut(slotsC, koC, takenC) ?? pickSlotClearOfKeepOut(slotsC, koC, () => false)!;");
+    expect(block).toMatch(/recordKeepOut\(keepOutLedger, spotC\);\s*const ly = spotC\.rect\.y;/);
+    expect(block).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotC, 0\.92\)\}\)`;\s*ctx\.fillRect\(cardsLeft, ly, lw, 34\);\s*floatingChips\.push\(\{ x: cardsLeft, y: ly, w: lw, h: 34 \}\);/);
+  });
+
+  it("the placed pair joins the chip ledger, so later chips step around it", () => {
+    expect(block).toContain("if (!compact) floatingChips.push({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK });");
+  });
+
   it("publishes how many candles the final placement covers, so the glass can be measured", () => {
     expect(block).toContain("ds.anatomyCardsCandleHits = String(candleHits(");
     expect(CHART).toMatch(/ds\.anatomyCards = "OFF";\s*delete ds\.anatomyCardsCandleHits;/);
