@@ -11219,10 +11219,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               floatingChips.push(spotC.rect);
               const r = spotC.rect;
               const cx = r.x + 3 + R, cy = r.y + r.h / 2;
-              // Off its row → a dotted leader back to the live price.
-              if (Math.abs(cy - yP) > 1) {
+              // Moved off its spot (up, down, or slid left past the bodies on
+              // the price row) → a dotted leader back to the live price.
+              if (spotC.mode !== "CLEAR") {
+                const off = Math.abs(cy - yP) > 1;
                 ctx.strokeStyle = "rgba(201,165,92,0.7)"; ctx.setLineDash([1, 3]);
-                ctx.beginPath(); ctx.moveTo(cx, cy + (yP > cy ? R : -R)); ctx.lineTo(xLiveR, yP); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(off ? cx : r.x + r.w, off ? cy + (yP > cy ? R : -R) : cy);
+                ctx.lineTo(xLiveR, yP); ctx.stroke();
                 ctx.setLineDash([]);
               }
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.82)})`;
