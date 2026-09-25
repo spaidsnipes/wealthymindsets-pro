@@ -5151,10 +5151,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
                       onSelectMarketObject={id => {
-                        setSelectedMarketObjectId(current => { if (current === id) { forgetSelection(); return null; } return id; });
+                        const isZone = chartStructureZones.some(z => z.object.objectId === id);
+                        // A zone restored after a refresh is selected with its
+                        // Passport closed. Clicking it asks to READ it, so that
+                        // click opens the Passport and keeps the selection; only
+                        // a click while its Passport is already open lets go.
+                        const readRestoredZone = isZone && id === selectedMarketObjectId && !inspectOpen;
+                        if (!readRestoredZone) {
+                          setSelectedMarketObjectId(current => { if (current === id) { forgetSelection(); return null; } return id; });
+                        }
                         // A selected zone opens the ONE Inspect ticket as its
                         // Passport; any other selection gives way.
-                        if (chartStructureZones.some(z => z.object.objectId === id)) {
+                        // Letting go of a zone closes its Passport with it, rather
+                        // than leaving the ticket open on nothing.
+                        if (isZone && id === selectedMarketObjectId && inspectOpen) setInspectOpen(false);
+                        if (isZone && (readRestoredZone || id !== selectedMarketObjectId)) {
                           setSelectedPrint(null);
                           setSelectedSlicePrice(null);
                           setInspectOpen(true);
@@ -5315,8 +5326,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         role="radiogroup"
                         aria-label="Ask the chart a question"
                         data-testid="question-lens-chooser"
-                        className="absolute z-[60] hidden flex-wrap items-center gap-1 rounded-md border border-wm-gold/40 px-1.5 py-1 sm:flex"
-                        style={{ left: 12, top: 532, width: 300, background: "rgba(11,10,8,0.92)" }}
+                        className="absolute z-[60] flex flex-wrap items-center gap-1 rounded-md border border-wm-gold/40 px-1.5 py-1"
+                        // Under the lens column where the pane is tall enough, but
+                        // never below the pane's floor: the pane clips overflow, and
+                        // this row holds the only way to change the question and the
+                        // only Show raw. It renders on phones too (the compact lens
+                        // keeps its answer on two lines; the trader still needs to
+                        // be able to ask something else or see the raw tape).
+                        style={{ left: 12, top: "min(532px, calc(100% - 96px))", width: "min(300px, calc(100% - 24px))", background: "rgba(11,10,8,0.92)" }}
                       >
                         <span className="px-1 text-[9px] font-bold uppercase tracking-[0.12em] text-wm-text-dim">Ask</span>
                         {QUESTION_CHOICES.map(c => (

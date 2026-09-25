@@ -7921,6 +7921,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // control card, Ask chooser) up to this x. Anything that must stay
       // readable steps right of it rather than printing where the lens paints.
       const QUESTION_LENS_COLUMN_RIGHT = 324;
+      // Set only when the lens actually painted its full column this frame —
+      // not merely when the layer is switched on with nothing to ask.
+      let lensColumnActive = false;
+      let lensFormPainted = false;
       // Screen boxes of the candles in view — what floating chrome must not
       // cover. Built at most once per frame, only when something asks.
       let candleBoxes: { x: number; y0: number; y1: number }[] | null = null;
@@ -8720,18 +8724,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const stripW = Math.max(420, Math.min(W - 440, 900));
               if (!lens.active && lens.refusal) {
                 // ASKED, BUT NOTHING TO ASK IT OF — said on the strip, nothing quieted.
+                // On narrow glass the strip is the width the canvas has, so the
+                // refusal ends in an ellipsis instead of running off the edge.
                 ctx.save();
                 const bx = 12, by = 100, bh = 44;
-                ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(bx, by, stripW, bh);
-                floatingChips.push({ x: bx, y: by, w: stripW, h: bh });
-                ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, stripW - 1, bh - 1);
+                const refuseW = W < 640 ? Math.max(120, W - 24) : stripW;
+                ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(bx, by, refuseW, bh);
+                floatingChips.push({ x: bx, y: by, w: refuseW, h: bh });
+                ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, refuseW - 1, bh - 1);
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const fit = (text: string) => {
+                  if (ctx.measureText(text).width <= refuseW - 28) return text;
+                  let u = text;
+                  while (u.length > 4 && ctx.measureText(u + "…").width > refuseW - 28) u = u.slice(0, -1);
+                  return u + "…";
+                };
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(201,165,92,0.9)";
-                ctx.fillText(`ASKED · ${lens.choice} · NOT ASKABLE ON THIS CAMERA · NOTHING QUIETED`, bx + 14, by + 14);
+                ctx.fillText(fit(`ASKED · ${lens.choice} · NOT ASKABLE ON THIS CAMERA · NOTHING QUIETED`), bx + 14, by + 14);
                 ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.95)";
-                let t = lens.refusal.charAt(0).toUpperCase() + lens.refusal.slice(1);
-                while (t.length > 4 && ctx.measureText(t).width > stripW - 28) t = t.slice(0, -2);
-                ctx.fillText(t, bx + 14, by + 31);
+                ctx.fillText(fit(lens.refusal.charAt(0).toUpperCase() + lens.refusal.slice(1)), bx + 14, by + 31);
                 ctx.restore();
               }
               if (lens.active && lens.question) {
@@ -8810,6 +8821,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // control and Ask live on wider glass (same owner, same facts).
                 const narrowLens = W < 640; // keep in step with the exhaustion chip's column rule
                 ds.questionLensForm = narrowLens ? "COMPACT" : "FULL";
+                lensFormPainted = true;
+                lensColumnActive = !narrowLens;
                 if (narrowLens) {
                   const bx = 8, by = 96, bw = W - 16;
                   ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(bx, by, bw, 34);
@@ -8954,6 +8967,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ds.questionLens = "OFF";
               ds.questionCallout = "OFF";
             }
+            // The form receipt describes a lens that painted this frame.
+            if (!lensFormPainted) delete ds.questionLensForm;
 
             /* ── SCAFFOLDING — "SAME SKILL. DEEPER MASTERY. LESS HAND-HOLDING." ──
                One read of THIS camera (structure owner + this anatomy + its
@@ -11169,7 +11184,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // VISIBILITY GOVERNOR: an active question owns the left column
             // (strip, debt, control, Ask); the TPO letters step right of it
             // instead of printing through it.
-            const leftEdge = layerOnRef.current.questionLens === true && W >= 640 ? 324 : 10;
+            const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 10;
             const colMax = Math.min(140, Math.round(W * 0.14));
 
             // Row height from on-screen spacing between successive grid rows,
