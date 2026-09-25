@@ -1165,6 +1165,22 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     expect(render({ flowContext: flow })).not.toContain('data-testid="spine-flow-context"');
   });
 
+  it("the word fits the plate: F05A's 44px for WAIT, solved down for longer verdicts, never broken", () => {
+    const sizeOf = (html: string) => {
+      const at = html.indexOf('data-testid="spine-now-state"');
+      const tag = html.slice(at, html.indexOf(">", at));
+      expect(tag).toContain("white-space:nowrap");
+      return Number(/font-size:(\d+)px/.exec(tag)?.[1]);
+    };
+    expect(sizeOf(railHtml())).toBe(44);
+    const noTrade = sizeOf(
+      railHtml({ oneStory: oneStory({ decision: { value: "NO TRADE", detail: "hard rule", tone: "warn" }, debt: null }) }),
+    );
+    // 8 glyphs × ~0.8em must fit the ~184px inside the narrowest 232px rail.
+    expect(noTrade).toBeLessThan(44);
+    expect(noTrade * 8 * 0.8).toBeLessThanOrEqual(184);
+  });
+
   it("the phone band is not the 1440 frame — it draws no plaque and keeps every cell inline", () => {
     const band = render({ oneStory: waitingOn() });
     expect(band).not.toContain('data-testid="spine-wait-plaque"');

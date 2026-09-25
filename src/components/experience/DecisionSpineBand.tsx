@@ -653,6 +653,17 @@ const PLAQUE_WORD: React.CSSProperties = {
   textShadow: "0 1px 0 rgba(0,0,0,0.65), 0 0 18px rgba(212,175,55,0.14)",
 };
 
+/**
+ * THE WORD FITS THE PLATE, IT IS NEVER CUT. 44px serif is F05A's WAIT on the
+ * narrowest rail (232px → ~184px inside the frame), but NO TRADE at 44px is
+ * ~270px wide and would break mid-letter or overflow the frame. Georgia caps
+ * with 0.10em tracking advance ≈ 0.8em each, so the size is solved from the
+ * word's own length against the narrowest inner width and capped at 44.
+ */
+function plaqueWordSize(word: string): number {
+  return Math.max(24, Math.min(44, Math.floor(176 / (Math.max(1, word.length) * 0.8))));
+}
+
 const PLAQUE_GLYPH: React.CSSProperties = {
   color: "#c4a574",
   fontSize: 20,
@@ -1388,7 +1399,13 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             <span
               data-testid="spine-now-state"
               data-state={nowDecision.value}
-              style={{ ...PLAQUE_WORD, color: nowDecision.tone === "resolved" ? "#c9c2a7" : "#d4af37" }}
+              style={{
+                ...PLAQUE_WORD,
+                fontSize: plaqueWordSize(nowDecision.value),
+                lineHeight: `${plaqueWordSize(nowDecision.value) + 4}px`,
+                whiteSpace: "nowrap",
+                color: nowDecision.tone === "resolved" ? "#c9c2a7" : "#d4af37",
+              }}
             >
               {nowDecision.value}
             </span>
