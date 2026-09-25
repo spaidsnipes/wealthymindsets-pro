@@ -332,7 +332,7 @@ function VPColorGear() {
   const [poc, setPoc]   = useState(VP_POC_DEFAULT);
   const [vah, setVah]   = useState(VP_VALUE_AREA_DEFAULT);
   const [val, setVal]   = useState(VP_VALUE_AREA_DEFAULT);
-  const [labelMode, setLabelMode] = useState<"all" | "key">("all");
+  const [labelMode, setLabelMode] = useState<"all" | "key">("key");
   useEffect(() => {
     try {
       // Migrate BEFORE reading, so a trader who once hit "Reset all VP colors"
@@ -344,7 +344,8 @@ function VPColorGear() {
       setPoc(localStorage.getItem("wm_vp_poc") || VP_POC_DEFAULT);
       setVah(localStorage.getItem("wm_vp_vah") || VP_VALUE_AREA_DEFAULT);
       setVal(localStorage.getItem("wm_vp_val") || VP_VALUE_AREA_DEFAULT);
-      setLabelMode(localStorage.getItem("wm_vp_labels") === "key" ? "key" : "all");
+      // Unset reads as "key", the same default the renderer applies.
+      setLabelMode(localStorage.getItem("wm_vp_labels") === "all" ? "all" : "key");
     } catch {}
   }, [open]);
   const applyLabelMode = (m: "all" | "key") => {

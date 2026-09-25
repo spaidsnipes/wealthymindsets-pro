@@ -163,6 +163,14 @@ const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
 const DATA_WINDOW_TOGGLE_PX = 22;
 const BASIS_CAPTION_X =
   PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + PANE_TOP_LEFT_INSET;
+
+/** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
+const ANATOMY_BLOCK_RECEIPTS = [
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionWall", "absorptionZones",
+  "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale",
+  "exhaustion", "exhaustionGeometry",
+  "questionCallout", "questionChoice", "questionLensForm", "scaffoldingScale",
+] as const;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
@@ -7275,10 +7283,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         );
         // Label mode (VP gear toggle, persisted): "all" = a number in every bar that
         // has room (de-overlapped); "key" = only the ~6 highest-volume levels. Default
-        // "all". This is the single knob for the top-6-vs-every-bar preference so it
-        // never has to be re-decided in code.
-        let vpLabelAll = true;
-        try { vpLabelAll = localStorage.getItem("wm_vp_labels") !== "key"; } catch {}
+        // "key": the market stays dominant, and a trader who never opened the gear
+        // is not handed the wall of 0.0x values described below. "all" is still one
+        // click away and, once chosen, persists. This is the single knob for the
+        // preference so it never has to be re-decided in code.
+        let vpLabelAll = false;
+        try { vpLabelAll = localStorage.getItem("wm_vp_labels") === "all"; } catch {}
 
         // ── Value Area (70% of volume) → VAH / VAL ──────────────────────
         // Expand outward from the POC, each step absorbing whichever adjacent
@@ -8010,6 +8020,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ds.absorption = "OFF";
         delete ds.absorptionBasis;
         delete ds.absorptionZones;
+        // Everything the anatomy block publishes is withdrawn with it. On the
+        // REGIME desk the Question Lens receipt kept saying ABSORPTION:3 after
+        // the block stopped running — a receipt for a lens nobody could see.
+        for (const k of ANATOMY_BLOCK_RECEIPTS) delete ds[k];
+        ds.questionLens = "OFF";
       }
       if (absorptionAnatomyActive) {
         try {
