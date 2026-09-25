@@ -183,7 +183,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionTravel", "absorptionWall", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
-  "exhaustion", "exhaustionGeometry",
+  "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded",
   "questionCallout", "questionChoice", "questionLensForm", "scaffoldingScale",
 ] as const;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
@@ -234,6 +234,7 @@ import {
   spanCandleKeepOut,
   pickSlotClearOfKeepOut,
   placeClearOfKeepOut,
+  rectHits,
   recordKeepOut,
 } from "@/lib/chartKeepOut";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
@@ -9283,6 +9284,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ds.exhaustion = ex.reason === "MEASURED" ? String(ex.marks.length) : ex.reason;
               // What each mark actually put on the glass, for the receipt below.
               const exhaustionDrawn: string[] = [];
+              let exhaustionChipsYielded = 0;
               for (const m of ex.marks) {
                 const xr = ts.timeToCoordinate(m.time as never);
                 const yr = srs.priceToCoordinate(m.price);
@@ -9445,28 +9447,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 );
                 recordKeepOut(keepOutLedger, spotX);
                 cxx = spotX.rect.x; cy = spotX.rect.y;
-                ctx.fillStyle = `rgba(20,8,8,${keepOutBackingAlpha(spotX, 0.88)})`;
-                ctx.fillRect(cxx, cy, cw, 14);
-                floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });
-                // Painted after the shelves, so a mark wins a click where they
-                // overlap; its body is padded to a finger target, its chip is its own.
+                // CHIP ON CHIP IS NOT A READING (serving TSLA 5m, 2026-09-25:
+                // "EXHAUSTION · EFFORT 2ND÷1ST…" printed over the absorption
+                // shelf's own name). When no slot within reach of the mark is
+                // clear of the words already on the glass, this long line holds
+                // its words: the mark and its fuel ribbon stay on the push, a
+                // click on the mark still opens Inspect, and the receipt says so.
+                const chipOnChip = spotX.mode === "BLOCKED" && rectHits(spotX.rect, floatingChips) > 0;
                 anatomyHitsRef.current.push({
                   target: markTarget(m),
-                  rects: [padHitRect({ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 }), { x: cxx, y: cy, w: cw, h: 14 }],
+                  rects: chipOnChip
+                    ? [padHitRect({ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 })]
+                    : [padHitRect({ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 }), { x: cxx, y: cy, w: cw, h: 14 }],
                 });
-                ctx.strokeStyle = "rgba(226,92,92,0.85)";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(cxx + 0.5, cy + 0.5, cw - 1, 13);
-                ctx.fillStyle = "rgba(255,170,170,1)";
-                ctx.textAlign = "left";
-                ctx.textBaseline = "middle";
-                ctx.fillText(chipTxt, cxx + 6, cy + 7.5);
+                if (chipOnChip) {
+                  exhaustionChipsYielded++;
+                } else {
+                  ctx.fillStyle = `rgba(20,8,8,${keepOutBackingAlpha(spotX, 0.88)})`;
+                  ctx.fillRect(cxx, cy, cw, 14);
+                  floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });
+                  ctx.strokeStyle = "rgba(226,92,92,0.85)";
+                  ctx.lineWidth = 1;
+                  ctx.strokeRect(cxx + 0.5, cy + 0.5, cw - 1, 13);
+                  ctx.fillStyle = "rgba(255,170,170,1)";
+                  ctx.textAlign = "left";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText(chipTxt, cxx + 6, cy + 7.5);
+                }
                 ctx.restore();
               }
               // One entry per mark on the glass; no mark on the glass, no
               // geometry receipt.
               if (exhaustionDrawn.length > 0) ds.exhaustionGeometry = exhaustionDrawn.join("|");
               else delete ds.exhaustionGeometry;
+              if (exhaustionChipsYielded > 0) ds.exhaustionChipsYielded = String(exhaustionChipsYielded);
+              else delete ds.exhaustionChipsYielded;
             }
 
             /* ── ANATOMY CARDS — the plate's two KEY METRICS columns ─────────

@@ -71,7 +71,10 @@ describe("the glass publishes what a click can select", () => {
 
   it("every drawn mark pushes its body and its chip", () => {
     const marks = between(CHART, "for (const m of ex.marks) {", "if (exhaustionDrawn.length > 0)");
-    expect(marks).toMatch(/anatomyHitsRef\.current\.push\(\{\s*target: markTarget\(m\),\s*rects: \[padHitRect\(\{ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 \}\), \{ x: cxx, y: cy, w: cw, h: 14 \}\],/);
+    // Pin updated 2026-09-25: a chip that yields (it could only print over
+    // another chip) has no words on the glass, so only the mark's body is a
+    // click target; a drawn chip is still its own target.
+    expect(marks).toMatch(/anatomyHitsRef\.current\.push\(\{\s*target: markTarget\(m\),\s*rects: chipOnChip\s*\? \[padHitRect\(\{ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 \}\)\]\s*: \[padHitRect\(\{ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 \}\), \{ x: cxx, y: cy, w: cw, h: 14 \}\],/);
   });
 });
 

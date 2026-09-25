@@ -59,4 +59,18 @@ describe("exhaustion geometry", () => {
     expect(block).toMatch(/exhaustionDrawn\.push\(`FUEL:\$\{fuel\}\+SLOTS:\$\{rings\}`\);/);
     expect(block).toMatch(/if \(exhaustionDrawn\.length > 0\) ds\.exhaustionGeometry = exhaustionDrawn\.join\("\|"\);\s*else delete ds\.exhaustionGeometry;/);
   });
+
+  it("a chip that could only print over another chip holds its words, and says so", () => {
+    // Serving TSLA 5m, 2026-09-25: the EXHAUSTION chip printed over the
+    // absorption shelf's own name when no slot within reach was clear.
+    expect(block).toContain('const chipOnChip = spotX.mode === "BLOCKED" && rectHits(spotX.rect, floatingChips) > 0;');
+    const drawArm = block.slice(block.indexOf("if (chipOnChip) {"), block.indexOf("ctx.restore();", block.indexOf("if (chipOnChip) {")));
+    expect(drawArm).toContain("exhaustionChipsYielded++;");
+    // The words, backing and ledger entry live only in the not-yielded arm.
+    const elseArm = drawArm.slice(drawArm.indexOf("} else {"));
+    expect(elseArm).toContain("ctx.fillText(chipTxt, cxx + 6, cy + 7.5);");
+    expect(elseArm).toContain("floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });");
+    expect(block).toMatch(/if \(exhaustionChipsYielded > 0\) ds\.exhaustionChipsYielded = String\(exhaustionChipsYielded\);\s*else delete ds\.exhaustionChipsYielded;/);
+  });
 });
+
