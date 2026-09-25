@@ -9037,6 +9037,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.textBaseline = "middle";
               ctx.fillText(basisTxt, bx, by + 7.5);
               ctx.restore();
+              // Reserved chrome: layers painted later (TPO letters) yield to it.
+              floatingChips.push({ x: bx, y: by, w: bwTxt + 6, h: 15 });
             } else {
               ctx.fillStyle = "rgba(14,12,8,0.86)";
               ctx.fillRect(bx, by, bwTxt + 12, 14);
@@ -12102,6 +12104,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // chips (serving, NQ1! 5m desktop, 2026-09-25).
             const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 64;
             const colMax = Math.min(140, Math.round(W * 0.14));
+            // COLLISION GOVERNOR · TPO YIELDS TO RESERVED CHROME. The price
+            // legend (a transparent DOM band, PRICE_LEGEND_OVERLAY_H) and any
+            // floating chip already placed in the column (the BASIS caption)
+            // are cut out of the TPO's paint region, so no letter prints under
+            // a word. At rest the top rows ran under "NQ1! · 5m 30857.75" and
+            // beside EFFORT (serving, NQ1! 5m desktop, 2026-09-25).
+            const tpoYields = [
+              { x: 0, y: 0, w: W, h: PRICE_LEGEND_OVERLAY_H },
+              ...floatingChips.filter(c => c.x < leftEdge + colMax + 4 && c.x + c.w > leftEdge - 6),
+            ];
+            ctx.beginPath();
+            ctx.rect(0, 0, W, H);
+            for (const c of tpoYields) ctx.rect(c.x - 2, c.y - 1, c.w + 4, c.h + 2);
+            ctx.clip("evenodd");
+            ds.tpoYields = String(tpoYields.length);
 
             // Row height from on-screen spacing between successive grid rows,
             // same rule as the volume histogram so the two read at one scale.
@@ -12212,6 +12229,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (tpo.asOf != null) ds.tpoProfileAsOf = String(tpo.asOf);
             else delete ds.tpoProfileAsOf;
           } else {
+            delete ds.tpoYields;
             delete ds.tpoProfileRows;
             delete ds.tpoProfilePeriods;
             delete ds.tpoProfileSingles;

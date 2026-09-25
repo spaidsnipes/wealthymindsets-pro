@@ -48,6 +48,20 @@ describe("question lens and restored selection", () => {
     expect(CHART).toMatch(/if \(!lensFormPainted\) delete ds\.questionLensForm;/);
   });
 
+  it("TPO letters yield to the price legend and to chips already in their column", () => {
+    // Serving, NQ1! 5m desktop, 2026-09-25: the top rows printed under the
+    // transparent legend band and beside the BASIS caption.
+    const at = CHART.indexOf("const tpoYields = [");
+    expect(at).toBeGreaterThan(-1);
+    const block = CHART.slice(at, at + 700);
+    expect(block).toContain("{ x: 0, y: 0, w: W, h: PRICE_LEGEND_OVERLAY_H }");
+    expect(block).toContain("...floatingChips.filter(");
+    expect(block).toContain('ctx.clip("evenodd")');
+    expect(block).toContain("ds.tpoYields = String(tpoYields.length)");
+    // The BASIS caption announces itself so later layers can yield to it.
+    expect(CHART).toMatch(/floatingChips\.push\(\{ x: bx, y: by, w: bwTxt \+ 6, h: 15 \}\)/);
+  });
+
   it("clicking a restored zone opens its Passport and keeps it selected", () => {
     // The click semantics moved into the one selection reducer; the room
     // routes every pin click to it and restores through it.
