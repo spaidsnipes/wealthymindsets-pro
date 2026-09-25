@@ -67,6 +67,42 @@ describe("the NEAR delta row sits in pane 0, on the volume band's edge", () => {
   });
 });
 
+describe("the NEAR delta row never overprints itself or an earlier chip", () => {
+  it("measures every label and thins to one bar in k when the bars are closer than a label", () => {
+    const b = deltaRow();
+    expect(b).toContain("w: ctx.measureText(text).width");
+    expect(b).toMatch(/const strideD = Math\.max\(1, Math\.ceil\(\(maxWD \+ 6\) \/ Math\.max\(1, bsp\)\)\);/);
+    // A cadence fixed to bar time, not to the newest visible bar.
+    expect(b).toMatch(/Math\.round\(r\.t \/ stepD\) % strideD !== 0\) continue;/);
+  });
+
+  it("skips a label that touches its neighbour or a chip, and registers what it draws", () => {
+    const b = deltaRow();
+    const guard = b.indexOf("if (lx < lastRightD || hitD(lx, ly, lw, lh)) continue;");
+    const draw = b.indexOf("ctx.fillText(r.text, r.x, yD);");
+    const push = b.indexOf("forceChips.push({ x: lx, y: ly, w: lw, h: lh });");
+    expect(guard).toBeGreaterThan(-1);
+    expect(draw).toBeGreaterThan(guard);
+    expect(push).toBeGreaterThan(draw);
+    expect(b).toMatch(/const hitD = [^;]*forceChips\.some\(/);
+  });
+
+  it("says when bars were left out, and does not print the row without saying so", () => {
+    const b = deltaRow();
+    expect(b).toContain("1 IN ${strideD} BARS");
+    expect(b).toContain("if (tagX != null && rowsD.length) {");
+    expect(b).toContain("forceChips.push({ x: tagX, y: tagY, w: tagW, h: 12 });");
+  });
+
+  it("the stride receipt is withdrawn when no row is drawn", () => {
+    const b = deltaRow();
+    const sets = b.match(/canvas\.dataset\.nearBarDeltaStride = /g) ?? [];
+    const dels = b.match(/delete canvas\.dataset\.nearBarDeltaStride;/g) ?? [];
+    expect(sets.length).toBe(1);
+    expect(dels.length).toBe(2);
+  });
+});
+
 /** The FORCE → RESPONSE pass on the selected print, through its no-selection branch. */
 const forceResponse = () => slice("const sp = selectedPrintRef.current;", "delete canvas.dataset.printEnvelope;");
 

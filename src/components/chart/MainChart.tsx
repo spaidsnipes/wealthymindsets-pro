@@ -6864,7 +6864,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.save();
           ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
-          for (const c of visibleBars) {
+          const rowsD: { t: number; x: number; dlt: number; text: string; w: number }[] = [];
+          let stepD = 0;
+          for (let i = 0; i < visibleBars.length; i++) {
+            const c = visibleBars[i];
+            if (i > 0) { const d = Number(c.time) - Number(visibleBars[i - 1].time); if (d > 0 && (stepD === 0 || d < stepD)) stepD = d; }
             const sub = getBarSubProfile(c);
             if (!sub) continue;
             let buy = 0, sell = 0;
@@ -6875,11 +6879,47 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // plot is not on the glass and is not counted.
             if (xr == null || +xr < 0 || +xr > plotRight) continue;
             const dlt = buy - sell;
-            ctx.fillStyle = `rgba(${dlt >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
-            ctx.fillText(`${dlt >= 0 ? "+" : "−"}${fmtV(Math.abs(dlt))}`, +xr, yD);
-            printed++;
+            const text = `${dlt >= 0 ? "+" : "−"}${fmtV(Math.abs(dlt))}`;
+            rowsD.push({ t: Number(c.time), x: +xr, dlt, text, w: ctx.measureText(text).width });
+          }
+          // A signed number needs its own width plus a gap. Where bars sit
+          // closer than that (every phone at NEAR, an iPad above ~23 bars)
+          // the row prints one bar in `strideD`, on a cadence fixed to bar
+          // time so the chosen bars do not hop while the chart pans, and the
+          // tag says so. A label that would still touch its neighbour or an
+          // earlier chip (a print ticket) is skipped, never overprinted.
+          const maxWD = rowsD.reduce((m, r) => Math.max(m, r.w), 0);
+          const strideD = Math.max(1, Math.ceil((maxWD + 6) / Math.max(1, bsp)));
+          const tagD = `Δ${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
+          const hitD = (x: number, y: number, w: number, h: number) =>
+            forceChips.some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y);
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
+          const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
+          // The row does not print without its tag: the tag is what says
+          // which bars were left out.
+          if (tagX != null && rowsD.length) {
+            ctx.textAlign = "left"; ctx.fillStyle = "rgba(237,230,211,0.8)";
+            ctx.fillText(tagD, tagX + 2, tagY + 6);
+            forceChips.push({ x: tagX, y: tagY, w: tagW, h: 12 });
+            ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
+            let lastRightD = -Infinity;
+            for (const r of rowsD) {
+              if (strideD > 1 && stepD > 0 && Math.round(r.t / stepD) % strideD !== 0) continue;
+              const lx = r.x - r.w / 2 - 3, ly = yD - 8, lw = r.w + 6, lh = 16;
+              if (lx < lastRightD || hitD(lx, ly, lw, lh)) continue;
+              ctx.fillStyle = `rgba(${r.dlt >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
+              ctx.fillText(r.text, r.x, yD);
+              forceChips.push({ x: lx, y: ly, w: lw, h: lh });
+              lastRightD = lx + lw;
+              printed++;
+            }
           }
           ctx.restore();
+          if (printed > 0) canvas.dataset.nearBarDeltaStride = String(strideD);
+          else delete canvas.dataset.nearBarDeltaStride;
+        } else {
+          delete canvas.dataset.nearBarDeltaStride;
         }
         canvas.dataset.nearBarDelta = depthD === "NEAR" ? String(printed) : "NOT_NEAR";
       } catch { /* camera mid-transition */ }
