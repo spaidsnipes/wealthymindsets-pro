@@ -137,6 +137,34 @@ Webull on the live site: the code path is signed OpenAPI + one KV session (`WEBU
 Signed in, `/api/broker/webull/status` names the state: UNCONFIGURED lists the missing Worker
 secret names; AWAITING_2FA means one tap in the Webull phone app; CONNECTED lists account types.
 
+## Garden Pass 12 (2026-09-25 03:07– UTC) — canonical chart-native geometry
+
+Sheriff test per invention: hide the label, can you still tell what it is? All proofs LOCAL DEV,
+FIXTURE bars/tape (harness-injected, NOT market data), desktop 1600 unless stated; BEFORE | AFTER in
+`scratchpad/garden12/`. Status words: BUILT / PROVED / PARTIAL — never CLOSED (Sheriff's call).
+
+| Invention | Label-hidden failure | After | Commit | Status |
+|---|---|---|---|---|
+| P-110 #3 Fusion | gold outline only | parents dim 45% · derived body · parent POC → fused POC tributaries | `69d7644` | PROVED |
+| Structure Profile | nothing showed its source | ▲/▼ on the real swing bar · leg territory · spine/tether | `7de79b0` | PROVED |
+| P-110 #4 Memory | identical dashed lines | aging VA strata · POC shelf thins with age · birth dot · test notches (8 newest) | `c963850` | PROVED |
+| P-110 #10 TPO | another volume bar | A–Z bracket letters in time order (owner states barsPerLetter) | `0998bd6` | PROVED |
+| Living Profile | a still | developing VA ribbon + dPOC trail to the histogram (same owner) | `b58f3c4` | PROVED |
+| Visible Range / Composite | identical histograms | viewfinder to the camera's first bar / sediment bracket of aggregated sessions (owner states sessionStarts) | `c424c73` | PROVED |
+| Fixed Range | chip said ANCHORED RANGE | FIXED RANGE; handles re-proved | `da361a4` | PROVED |
+| H-501 semantic zoom | opacity only | absorption EDGES / SHELF / SHELF+EFFORT_TICKS; Living SKELETON at FAR — one depth count | `eb5ee89` `b338e0b` | PROVED |
+| Continuity (Defect 7) | refresh dropped the selection | gauntlet: select → drawer → 4 desks → FAR → Inspect → pan → refresh — same id throughout | `29b0acc` | PROVED |
+| Collision governor | TPO through lens column; Ask over profile labels | question owns left column; market owns top right | `35d3fbf` | PROVED |
+| 390 law | lens covered the chart | two-line lens < 640px | `d764d1f` | PROVED (390) |
+| H-701 stacked imbalance | band across the pane | cells ON the bars that built it (owner states formedFrom/To) | `7eeb768` `6923f2a` | PROVED (fixture tape) |
+| H-701B big trades | labels overprinted | words stagger on leaders; bubbles never move | `1a73040` | PROVED (fixture tape) |
+
+Still OPEN (Garden 12): absorption at MID still a hatched shelf (effort/displacement/holding side not yet
+geometry); exhaustion form; footprint rows at NEAR; Inspect truth-microscope audit per object; Session VP
+needs a session source on these feeds (honestly withheld); Bid/Ask split withheld without side; live
+Webull tape (needs the Founder's credentials + 2FA tap); serving proof on wealthymindsetspro.com (egress
+blocked here — Founder glass).
+
 ## Still OPEN from the Manifestation Map
 
 P-110 stack controls: left/right/overlay placement, duplicate (reorder, opacity, lock, width,
