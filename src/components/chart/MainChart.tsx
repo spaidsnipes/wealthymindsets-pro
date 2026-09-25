@@ -12143,11 +12143,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // VISIBILITY GOVERNOR: an active question owns the left column
             // (strip, debt, control, Ask); the TPO letters step right of it
             // instead of printing through it.
-            // …and at rest it starts right of the left chrome (the depth chip,
-            // EFFORT, the live countdown pill) — the same 64px gutter the
-            // divergence lane keeps. At 10 the letters ran under those DOM
-            // chips (serving, NQ1! 5m desktop, 2026-09-25).
-            const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 64;
+            // …and at rest it starts right of the left chrome (the D toggle,
+            // the EFFORT reopen button, the live countdown pill). At 10 the
+            // letters ran under those DOM chips; at 64 the EFFORT button's
+            // opaque box (left-3, 64px wide → x 12–76) still hid the first
+            // letters of two rows — measured by its box, not its word
+            // (serving, NQ1! 5m desktop, 2026-09-25). 76 + 8.
+            const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 84;
             const colMax = Math.min(140, Math.round(W * 0.14));
             // COLLISION GOVERNOR · TPO YIELDS TO RESERVED CHROME. The price
             // legend (a transparent DOM band, PRICE_LEGEND_OVERLAY_H) and any
