@@ -60,7 +60,8 @@ describe("left column and word stack", () => {
   });
 
   it("the stack column places each label on the nearest free row (no oscillating step)", () => {
-    expect(CHART).toContain("const yy = nearestFreeLabelY(y, stackLabelYs, 12);");
+    // Pin updated 2026-09-25: the row is floored below the price legend band first.
+    expect(CHART).toContain("const yy = nearestFreeLabelY(Math.max(y, PRICE_LEGEND_OVERLAY_H + 7), stackLabelYs, 12);");
     expect(CHART).not.toMatch(/yy = y < hit \? hit - 12 : hit \+ 12;/);
   });
 });
