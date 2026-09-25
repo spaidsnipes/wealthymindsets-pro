@@ -52,4 +52,12 @@ describe("semantic zoom glass", () => {
     // Nothing in the FAR block measures the container: H spans every pane.
     expect(block).not.toMatch(/\bH\s*-/);
   });
+
+  it("FAR structure comes from the ONE structure owner, and the FAR block prints no sequence word of its own", () => {
+    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
+    expect(block).toMatch(/selectFarRegimeEnvelope\(\{\s*structure: scaffoldingStructureRef\.current,/);
+    expect(block).toMatch(/ctx\.fillText\(n\.word,/);
+    expect(block).not.toMatch(/HIGHER|LOWER/);
+  });
 });

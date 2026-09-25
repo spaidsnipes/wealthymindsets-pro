@@ -4,21 +4,52 @@
  *
  * At regime scale the trader weighs direction and width, not candles. The
  * envelope is two least-squares lines in (time, price): one through the
- * MAJOR swing highs in view, one through the major swing lows. "Major" is
- * measured, not chosen: a zigzag over the visible bars that only turns after
- * price travels REVERSAL_FRACTION of the visible high–low range. Each of the
- * last few pivots is named against the previous pivot of its own kind
- * (HIGHER HIGH, LOWER LOW, …). Nothing is extrapolated past the last pivot.
+ * MAJOR swing highs in view, one through the major swing lows. Nothing is
+ * extrapolated past the last pivot.
+ *
+ * ONE SWING DETECTOR. The pivots are the Market Structure owner's confirmed
+ * pivots (`selectMarketStructure`), never a detector of this file's own. That
+ * owner's header states why: re-implementing pivot detection gives "two
+ * detectors, two answers, one chart", and the owner already prints the
+ * sequence verdict (HH · HL / LL · LH) on the same glass at FAR.
+ *
+ * "Major" is a filter over the owner's pivots, measured, not chosen: a pivot
+ * survives only when price reached the next surviving pivot of the other kind
+ * REVERSAL_FRACTION of the visible high–low range away — a zigzag walked over
+ * the owner's points, so every major pivot is a pivot the owner confirmed.
+ *
+ * NO SECOND VERDICT. A label names a pivot's SCALE (MAJOR HIGH / MAJOR LOW),
+ * never its SEQUENCE (higher high, lower low): that word is the owner's, and
+ * a sequence read over a filtered subset can contradict it on the same swing.
+ *
+ * PURE. DETERMINISTIC. No copy or sort of the bar history.
  */
 
-export const FAR_ENVELOPE_VERSION = 1;
+import type { StructurePoint } from "./selectMarketStructure";
+
+export const FAR_ENVELOPE_VERSION = 2;
 export const FAR_NAMED_PIVOTS = 4;
 export const REVERSAL_FRACTION = 0.2;
 
 export interface FarBar { readonly time: number; readonly high: number; readonly low: number }
 
-export type FarEnvelopeReason = "DRAWN" | "TOO_FEW_PIVOTS";
-export type PivotWord = "HIGHER HIGH" | "LOWER HIGH" | "EQUAL HIGH" | "HIGHER LOW" | "LOWER LOW" | "EQUAL LOW";
+/** The part of the structure owner's reading this envelope may use. */
+export interface FarStructureSource {
+  readonly swingHighs: readonly StructurePoint[];
+  readonly swingLows: readonly StructurePoint[];
+}
+
+export interface FarEnvelopeInput {
+  /** The ONE structure owner's reading. Absent → the envelope refuses. */
+  readonly structure: FarStructureSource | null | undefined;
+  /** Bars in time order. Only those inside the visible range set the scale. */
+  readonly bars: readonly FarBar[] | null | undefined;
+  readonly visibleFrom: number;
+  readonly visibleTo: number;
+}
+
+export type FarEnvelopeReason = "DRAWN" | "NO_STRUCTURE" | "TOO_FEW_PIVOTS";
+export type PivotWord = "MAJOR HIGH" | "MAJOR LOW";
 
 export interface EnvelopeLine {
   /** price = slope * time + intercept (time in seconds). */
@@ -26,10 +57,13 @@ export interface EnvelopeLine {
   readonly intercept: number;
 }
 
-export interface NamedPivot {
+export interface FarPivot {
+  readonly kind: "HIGH" | "LOW";
   readonly time: number;
   readonly price: number;
-  readonly kind: "HIGH" | "LOW";
+}
+
+export interface NamedPivot extends FarPivot {
   readonly word: PivotWord;
 }
 
@@ -46,8 +80,8 @@ export interface FarEnvelopeVM {
   readonly named: readonly NamedPivot[];
 }
 
-const refuse = (): FarEnvelopeVM => ({
-  version: FAR_ENVELOPE_VERSION, drawn: false, reason: "TOO_FEW_PIVOTS",
+const refuse = (reason: Exclude<FarEnvelopeReason, "DRAWN">): FarEnvelopeVM => ({
+  version: FAR_ENVELOPE_VERSION, drawn: false, reason,
   upper: null, lower: null, fromTime: null, toTime: null, lean: "SIDEWAYS", named: [],
 });
 
@@ -63,64 +97,70 @@ function fit(pts: readonly { time: number; price: number }[]): EnvelopeLine | nu
   return { slope, intercept: my - slope * mx };
 }
 
-/** Alternating major swing pivots: a turn is confirmed only once price has
- *  travelled `threshold` back from the running extreme. */
-export function majorSwings(bars: readonly FarBar[], threshold: number): { kind: "HIGH" | "LOW"; time: number; price: number }[] {
-  const out: { kind: "HIGH" | "LOW"; time: number; price: number }[] = [];
-  if (bars.length < 3 || !(threshold > 0)) return out;
+/**
+ * The owner's pivots (time order) that survive a `threshold` zigzag. A running
+ * extreme is confirmed only by a later pivot of the other kind at least
+ * `threshold` away, so the newest extreme — with nothing after it yet — is
+ * never published. Output alternates HIGH / LOW.
+ */
+export function majorPivots(pivots: readonly FarPivot[], threshold: number): FarPivot[] {
+  const out: FarPivot[] = [];
+  if (pivots.length < 2 || !(threshold > 0)) return out;
   let dir: 1 | -1 | 0 = 0;
-  let hi = bars[0], lo = bars[0];
-  for (const b of bars) {
+  let hi: FarPivot | null = null, lo: FarPivot | null = null;
+  for (const p of pivots) {
     if (dir === 0) {
-      if (b.high > hi.high) hi = b;
-      if (b.low < lo.low) lo = b;
-      if (hi.high - lo.low >= threshold) {
-        if (hi.time < lo.time) { out.push({ kind: "HIGH", time: hi.time, price: hi.high }); dir = -1; }
-        else { out.push({ kind: "LOW", time: lo.time, price: lo.low }); dir = 1; }
+      if (p.kind === "HIGH" && (!hi || p.price > hi.price)) hi = p;
+      if (p.kind === "LOW" && (!lo || p.price < lo.price)) lo = p;
+      if (hi && lo && hi.price - lo.price >= threshold) {
+        if (hi.time < lo.time) { out.push(hi); dir = -1; }
+        else { out.push(lo); dir = 1; }
       }
     } else if (dir === 1) {
-      if (b.high > hi.high) hi = b;
-      else if (hi.high - b.low >= threshold) { out.push({ kind: "HIGH", time: hi.time, price: hi.high }); dir = -1; lo = b; }
+      if (p.kind === "HIGH") { if (!hi || p.price > hi.price) hi = p; }
+      else if (hi && hi.price - p.price >= threshold) { out.push(hi); dir = -1; lo = p; }
     } else {
-      if (b.low < lo.low) lo = b;
-      else if (b.high - lo.low >= threshold) { out.push({ kind: "LOW", time: lo.time, price: lo.low }); dir = 1; hi = b; }
+      if (p.kind === "LOW") { if (!lo || p.price < lo.price) lo = p; }
+      else if (lo && p.price - lo.price >= threshold) { out.push(lo); dir = 1; hi = p; }
     }
   }
   return out;
 }
 
-export function selectFarRegimeEnvelope(
-  bars: readonly FarBar[] | null | undefined,
-  visibleFrom: number,
-  visibleTo: number,
-): FarEnvelopeVM {
-  const vis = [...(bars ?? [])]
-    .filter(b => Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && b.time >= visibleFrom && b.time <= visibleTo)
-    .sort((a, b) => a.time - b.time);
-  if (vis.length < 3) return refuse();
-  let top = -Infinity, bot = Infinity;
-  for (const b of vis) { top = Math.max(top, b.high); bot = Math.min(bot, b.low); }
-  const inView = majorSwings(vis, (top - bot) * REVERSAL_FRACTION);
+export function selectFarRegimeEnvelope(input: FarEnvelopeInput): FarEnvelopeVM {
+  const { structure, bars, visibleFrom, visibleTo } = input;
+  if (!structure) return refuse("NO_STRUCTURE");
+  const inRange = (t: number) => Number.isFinite(t) && t >= visibleFrom && t <= visibleTo;
+
+  // One pass, no copy: the visible high–low range sets the scale of "major".
+  let top = -Infinity, bot = Infinity, n = 0;
+  for (const b of bars ?? []) {
+    if (!inRange(b.time) || !Number.isFinite(b.high) || !Number.isFinite(b.low)) continue;
+    if (b.high > top) top = b.high;
+    if (b.low < bot) bot = b.low;
+    n++;
+  }
+  if (n < 3 || !(top > bot)) return refuse("TOO_FEW_PIVOTS");
+
+  const pts: FarPivot[] = [];
+  for (const p of structure.swingHighs) if (inRange(p.time) && Number.isFinite(p.price)) pts.push({ kind: "HIGH", time: p.time, price: p.price });
+  for (const p of structure.swingLows) if (inRange(p.time) && Number.isFinite(p.price)) pts.push({ kind: "LOW", time: p.time, price: p.price });
+  pts.sort((a, b) => a.time - b.time);
+
+  const inView = majorPivots(pts, (top - bot) * REVERSAL_FRACTION);
   const highs = inView.filter(p => p.kind === "HIGH");
   const lows = inView.filter(p => p.kind === "LOW");
   const upper = fit(highs), lower = fit(lows);
-  if (!upper || !lower) return refuse();
+  if (!upper || !lower) return refuse("TOO_FEW_PIVOTS");
 
-  const named: NamedPivot[] = [];
-  for (const group of [highs, lows]) {
-    for (let i = 1; i < group.length; i++) {
-      const p = group[i], prev = group[i - 1];
-      const tol = Math.abs(prev.price) * 1e-4;
-      const cmp = p.price > prev.price + tol ? "HIGHER" : p.price < prev.price - tol ? "LOWER" : "EQUAL";
-      named.push({ time: p.time, price: p.price, kind: p.kind, word: `${cmp} ${p.kind}` as PivotWord });
-    }
-  }
-  named.sort((a, b) => a.time - b.time);
+  const named: NamedPivot[] = inView
+    .slice(-FAR_NAMED_PIVOTS)
+    .map(p => ({ ...p, word: p.kind === "HIGH" ? "MAJOR HIGH" : "MAJOR LOW" }));
 
   const lean = upper.slope > 0 && lower.slope > 0 ? "UP" : upper.slope < 0 && lower.slope < 0 ? "DOWN" : "SIDEWAYS";
   return {
     version: FAR_ENVELOPE_VERSION, drawn: true, reason: "DRAWN", upper, lower,
     fromTime: inView[0].time, toTime: inView[inView.length - 1].time, lean,
-    named: named.slice(-FAR_NAMED_PIVOTS),
+    named,
   };
 }

@@ -1093,7 +1093,7 @@ interface Props {
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
-  /** The ONE structure owner's reading, for the scaffolding's bias + location steps. */
+  /** The ONE structure owner's reading, for the scaffolding's bias + location steps and the FAR envelope's pivots. */
   scaffoldingStructure?: MarketStructureVM | null;
   /** H-901 — the regime dimmer, compiled from the one regime owner. */
   regimeLighting?: RegimeLightingVM | null;
@@ -5605,8 +5605,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
          MAJOR STRUCTURE ONLY). Painted first so every later reading sits on
          top: a veil dims the candles, the envelope is fit through the
-         confirmed swing pivots in view (selectFarRegimeEnvelope), and the
-         last few pivots are named against their own kind.
+         structure owner's MAJOR pivots in view (selectFarRegimeEnvelope), and
+         the last few are named by scale only — the sequence word (HH · HL)
+         is Market Structure's, printed once.
          Inside the pane-0 clip and sized to pane 0: the plate dims the
          CANDLES. The container also holds the oscillator panes (RSI, MACD,
          CVD), and a veil sized from the container darkened their readings. */
@@ -5614,8 +5615,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (semanticDensity.depth === "FAR") {
           ctx.fillStyle = "rgba(11,10,8,0.56)"; ctx.fillRect(0, 0, plotRight, pane0Bottom);
           const tr = chart.timeScale().getVisibleRange();
-          const env = selectFarRegimeEnvelope((barsRef.current ?? []).map(b => ({ time: Number(b.time), high: b.high, low: b.low })),
-            tr ? Number(tr.from) : 0, tr ? Number(tr.to) : 0);
+          const env = selectFarRegimeEnvelope({
+            structure: scaffoldingStructureRef.current,
+            bars: barsRef.current,
+            visibleFrom: tr ? Number(tr.from) : 0,
+            visibleTo: tr ? Number(tr.to) : 0,
+          });
           canvas.dataset.farForm = env.drawn ? `DIM+ENVELOPE:${env.lean}+NAMED:${env.named.length}` : `DIM:${env.reason}`;
           if (env.drawn && env.upper && env.lower && env.fromTime != null && env.toTime != null) {
             const at = (l: { slope: number; intercept: number }, t: number) => srs.priceToCoordinate(l.slope * t + l.intercept);
