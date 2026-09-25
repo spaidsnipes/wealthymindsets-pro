@@ -7781,6 +7781,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          * candle direction, same 70% value area — only the geometry is corrected.
          */
         const snap = computeProfileFromBars(barsToUse, { targetRows: rows, valueAreaPct: 0.7 });
+        // The market's own decimals for this column's price tags (pricePrecision.ts);
+        // computed here, not read from the frame, because this can run first.
+        const vpDp = pricePrecisionFromBars(barsToUse);
         if (snap.rows.length === 0 || snap.totalVolume <= 0) return { declined: "NO_VOLUME", rows: 0 };
         const tickSz = snap.tickSize;
 
@@ -8018,7 +8021,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = vpPocRgba(0.95);
               ctx.font = "bold 11px monospace";
               ctx.textAlign = "right"; ctx.textBaseline = "middle";
-              ctx.fillText(pocPrice.toFixed(2), pocLineLeft - 2, pocTagY);
+              ctx.fillText(pocPrice.toFixed(vpDp), pocLineLeft - 2, pocTagY);
             }
           }
           // Volume numbers — label ONLY the POC and other MAJOR nodes (≥30% of the
@@ -8084,7 +8087,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.setLineDash([]);
             ctx.font = "bold 9px monospace";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            const edgeTxt = `${tag} ${above ? "↑" : "↓"} ${p.toFixed(2)}`;
+            const edgeTxt = `${tag} ${above ? "↑" : "↓"} ${p.toFixed(vpDp)}`;
             ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
             ctx.strokeText(edgeTxt, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
             ctx.fillStyle = rgba;
@@ -8115,7 +8118,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const tagBelow = midY - 12 < HEADER_FLOOR_Y;
           const tagY = tagBelow ? Math.max(midY + 2, HEADER_FLOOR_Y) : midY - 1;
           ctx.textAlign = "left"; ctx.textBaseline = tagBelow ? "top" : "bottom";
-          const tagTxt = `${tag} ${p >= 10000 ? Math.round(p).toLocaleString("en-US") : p.toFixed(2)}`;
+          const tagTxt = `${tag} ${p >= 10000 ? Math.round(p).toLocaleString("en-US") : p.toFixed(vpDp)}`;
           ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
           ctx.strokeText(tagTxt, vpRight - vpW - 2, tagY);
           ctx.fillStyle = rgba;

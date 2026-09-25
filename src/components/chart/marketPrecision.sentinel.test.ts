@@ -40,3 +40,12 @@ describe("profile-family level names quote the same precision", () => {
     expect(CHART).not.toMatch(/`TPO (POC|VAH|VAL) \$\{tpo\.\w+\?\.toFixed\(2\)/);
   });
 });
+
+describe("the classic VP column's price tags quote the same precision", () => {
+  it("computes its own precision from the bars it measured (it can run before the frame's pxDp)", () => {
+    expect(CHART).toContain("const vpDp = pricePrecisionFromBars(barsToUse);");
+    expect(CHART).toContain("ctx.fillText(pocPrice.toFixed(vpDp), pocLineLeft - 2, pocTagY);");
+    expect(CHART).toContain('p.toFixed(vpDp)}`;');
+    expect(CHART).not.toContain("ctx.fillText(pocPrice.toFixed(2)");
+  });
+});
