@@ -27,6 +27,18 @@
  *   daily and longer each bar already IS a session, so the "session" is a
  *                    short window of the latest bars, and is named a window.
  *
+ * ── THE OTHER SESSION RULE IN THE FAMILY, NAMED ────────────────────────────
+ *
+ * `viewModels/sessionsByGap` is the profile family's EMPIRICAL splitter
+ * (developing value, Profile Memory, Composite): a long gap starts a session,
+ * and a 24/7 feed is one session, so those readings refuse rather than cut at
+ * a clock. This owner is the DEFINED clock the Session Profile needs — the
+ * Founder required a Session VP on continuous markets (2026-08-09), and a
+ * Globex or FX day is a published definition, not a gap. On clean sessioned
+ * data the two agree (the Globex maintenance hour and the equity overnight
+ * ARE the gaps). They can disagree where a feed fills those gaps; the named
+ * follow-up is for sessionsByGap to consult this owner for sessioned classes.
+ *
  * PURE. DETERMINISTIC. America/New_York via Intl (DST-correct).
  */
 
