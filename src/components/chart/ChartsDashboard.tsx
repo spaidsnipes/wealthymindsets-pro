@@ -4710,6 +4710,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               />
               <RiskReceiptBar
                 risk={riskPlan}
+                symbol={symbol}
                 decisionId={currentSceneDecision?.decisionId ?? null}
                 receipt={riskReceipt}
                 note={riskTearNote}

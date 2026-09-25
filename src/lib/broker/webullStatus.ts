@@ -23,6 +23,8 @@ export interface WebullStatus {
    * capability exists; those are separate implementation and provider gates.
    */
   readonly connectOAuth: WebullConnectOAuthReadiness;
+  /** GP12 §15 — OWNER when the caller is the named owner; NOT_CONFIGURED while no owner is named. */
+  readonly ownerGate: "OWNER" | "NOT_CONFIGURED";
   /**
    * The last scheduled keeper run: whether the Webull session was kept alive
    * with nobody on the site. Null when no run is recorded (not yet deployed,

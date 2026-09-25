@@ -242,6 +242,41 @@ function firstString(...values: unknown[]): string | null {
   return null;
 }
 
+// ── accounts (for choosing where a preview is priced) ───────────────────────
+
+export interface WebullAccountRef {
+  readonly accountId: string;
+  /** Webull's own account type word, verbatim (e.g. CASH, MARGIN). */
+  readonly accountType: string | null;
+}
+
+export type WebullAccountsResult =
+  | { readonly state: "OK"; readonly accounts: readonly WebullAccountRef[] }
+  | { readonly state: "REJECTED"; readonly status: number; readonly reason: string }
+  | { readonly state: "NO_ANSWER"; readonly reason: string };
+
+export async function listWebullAccounts(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+): Promise<WebullAccountsResult> {
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ACCOUNT_LIST, {});
+  if (t.kind === "NO_ANSWER") return { state: "NO_ANSWER", reason: t.reason };
+  if (t.status < 200 || t.status >= 300) return { state: "REJECTED", status: t.status, reason: providerWords(t.payload) || `HTTP ${t.status}` };
+  const p = t.payload as unknown;
+  const rows = Array.isArray(p) ? p
+    : Array.isArray((p as { data?: unknown })?.data) ? (p as { data: unknown[] }).data
+    : Array.isArray((p as { result?: unknown })?.result) ? (p as { result: unknown[] }).result
+    : [];
+  const accounts = rows
+    .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
+    .map((r) => ({
+      accountId: firstString(r.account_id, r.accountId) ?? "",
+      accountType: firstString(r.account_type, r.accountType, r.account_class),
+    }))
+    .filter((a) => a.accountId.length > 0);
+  return { state: "OK", accounts };
+}
+
 // ── preview (non-money) ──────────────────────────────────────────────────────
 
 export type WebullPreviewResult =

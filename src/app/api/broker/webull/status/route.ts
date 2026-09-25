@@ -13,6 +13,7 @@ import {
 } from "@/lib/broker/webullStatus";
 import { webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 import { readWebullKeeperRecord } from "@/lib/marketData/webullSessionKeeperJob";
+import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 
 /**
  * /api/broker/webull/status
@@ -30,6 +31,9 @@ export async function GET(request: Request): Promise<Response> {
   // /api/broker/{status,certification,readiness} routes.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // GP12 §15: account state belongs to the owner of these credentials.
+  const owner = webullOwnerGate(auth.user.sub, process.env, "TRANSITIONAL");
+  if (!owner.allowed) return NextResponse.json(webullOwnerRefusal(owner), { status: 403 });
   const adapter = getAdapter("webull");
   const h = adapter?.health();
   const workerEnv = await webullWorkerEnv();
@@ -54,6 +58,7 @@ export async function GET(request: Request): Promise<Response> {
     missing: missingSecretsForState(live.state, process.env),
     credentialPresence: webullCredentialPresence(process.env),
     connectOAuth: webullConnectOAuthReadiness(process.env),
+    ownerGate: owner.state,
     sessionKeeper: keeper
       ? { outcome: keeper.outcome, note: keeper.note, atMs: keeper.atMs, expiresInMs: keeper.expiresInMs }
       : null,

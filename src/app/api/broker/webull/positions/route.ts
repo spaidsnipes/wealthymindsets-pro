@@ -6,6 +6,7 @@ import {
 } from "@/lib/broker/adapters/webullPositions";
 import { webullBrokerConfigFromEnv } from "@/lib/broker/adapters/webullBrokerConnection";
 import { webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
+import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 
 /**
  * /api/broker/webull/positions — the wire behind the BROKER COST LINE
@@ -28,6 +29,9 @@ import { webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSess
 export async function GET(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // GP12 §15: these are the owner's positions, not every signed-in user's.
+  const owner = webullOwnerGate(auth.user.sub, process.env, "TRANSITIONAL");
+  if (!owner.allowed) return NextResponse.json(webullOwnerRefusal(owner), { status: 403 });
 
   const receipt = await probeWebullPositions(fetch, {
     ...webullBrokerConfigFromEnv(process.env),
@@ -38,9 +42,11 @@ export async function GET(request: Request): Promise<Response> {
 
   const url = new URL(request.url);
   const symbol = url.searchParams.get("symbol")?.trim().toUpperCase() || null;
-  const body: WebullPositionsReceipt = symbol
+  const narrowed: WebullPositionsReceipt = symbol
     ? { ...receipt, positions: receipt.positions.filter((position) => position.symbol === symbol) }
     : receipt;
+  // Stated, not silent, until the owner is named on this deployment.
+  const body = { ...narrowed, ownerGate: owner.state };
 
   return NextResponse.json(body, {
     status: 200,

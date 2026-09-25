@@ -9,6 +9,7 @@
 import React from "react";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
+import { WebullOrderPreviewRow } from "./WebullOrderPreviewRow";
 
 export function RiskReceiptBar({
   risk,
@@ -16,12 +17,15 @@ export function RiskReceiptBar({
   receipt,
   note,
   onTear,
+  symbol,
 }: {
   risk: Pick<RiskOnPriceVM, "drawn" | "reason" | "side" | "entry" | "stop"> | null;
   decisionId: string | null;
   receipt: RiskReceipt | null;
   note: string | null;
   onTear: () => void;
+  /** The chart's symbol. When given, the plan can be priced at Webull (preview only). */
+  symbol?: string;
 }) {
   const why = receipt
     ? `Torn ${new Date(receipt.asOf).toISOString()} · frozen`
@@ -47,6 +51,14 @@ export function RiskReceiptBar({
         </button>
       </div>
       {note ? <p className="mt-1 text-[11px] text-wm-text-dim">{note}</p> : null}
+      {symbol ? (
+        <WebullOrderPreviewRow
+          symbol={symbol}
+          side={risk?.drawn ? risk.side ?? null : null}
+          entry={risk?.drawn ? risk.entry ?? null : null}
+          decisionId={decisionId}
+        />
+      ) : null}
     </div>
   );
 }
