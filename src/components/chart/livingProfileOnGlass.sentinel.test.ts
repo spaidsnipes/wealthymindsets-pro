@@ -84,8 +84,9 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
   it("width comes from `share` — a NORMALISED number, never volume — on the body's scale", () => {
     expect(block).toMatch(/b\.share \* bodyW/);
     expect(block).not.toMatch(/b\.volume/);
-    // The body is bounded: ~28% of the plot, never over 360px, never into the left column.
-    expect(block).toMatch(/Math\.round\(plotRight \* 0\.28 \* stackWidth\("LIVING", stackPrefsRef\.current\)\),\s*360,\s*Math\.max\(0, rightEdge - 140\),/);
+    // The body's room is the stack plan's (planProfileStack: ≤ its target,
+    // never into the left 140px, neighbours moved left of it).
+    expect(block).toMatch(/const bodyW = Math\.max\(histMax, stackPlan\.livingBodyWidth \?\? histMax\);/);
   });
 
   it("paints the value-area BAND before the bars, so the bars sit on top of it", () => {

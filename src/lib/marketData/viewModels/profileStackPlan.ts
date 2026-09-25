@@ -31,6 +31,13 @@ export interface ProfileStackInput {
   readonly fixedLanes: number;
   /** Species that WILL draw this frame, innermost (rightmost) first. */
   readonly order: readonly StackSpecies[];
+  /**
+   * How far the Living Profile's auction BODY wants to reach left of its lane
+   * (canon P110 — "fused to price, not a side widget"). The plan owns the
+   * room: species drawn left of Living move left by the body's extra reach,
+   * so the body never sits over a neighbour lane.
+   */
+  readonly livingBodyTarget?: number;
 }
 
 export interface ProfileStackPlan {
@@ -41,6 +48,8 @@ export interface ProfileStackPlan {
   readonly stackLeft: number;
   /** The one column every stacked lane prints its labels into (right-aligned). */
   readonly labelRight: number;
+  /** The Living body's reach from its lane's right edge, or null when Living is absent. */
+  readonly livingBodyWidth: number | null;
 }
 
 /** Solo geometry: the lane a single profile gets when nothing shares the edge. */
@@ -62,15 +71,38 @@ export function planProfileStack(input: ProfileStackInput): ProfileStackPlan {
     });
   }
 
+  // THE LIVING BODY'S ROOM. Never narrower than its lane, never into the
+  // left 140px; the species drawn LEFT of Living (after it in `order`) step
+  // left by the body's extra reach, and give up their lane if that pushes
+  // them off the glass.
+  let livingBodyWidth: number | null = null;
+  const lv = lanes.LIVING;
+  if (lv?.fits) {
+    const target = input.livingBodyTarget ?? lv.width;
+    livingBodyWidth = Math.max(lv.width, Math.min(target, Math.max(0, lv.right - 140)));
+    const extra = livingBodyWidth - lv.width;
+    if (extra > 0) {
+      for (const sp of order.slice(order.indexOf("LIVING") + 1)) {
+        const l = lanes[sp];
+        if (!l) continue;
+        const right = l.right - extra;
+        lanes[sp] = { ...l, right, fits: l.fits && right - l.width >= 60 };
+      }
+    }
+  }
+
   let stackLeft = W - 76;
   for (const sp of order) {
     const l = lanes[sp];
-    if (l?.fits) stackLeft = Math.min(stackLeft, Math.round(l.right - l.width));
+    if (!l?.fits) continue;
+    const reach = sp === "LIVING" && livingBodyWidth != null ? livingBodyWidth : l.width;
+    stackLeft = Math.min(stackLeft, Math.round(l.right - reach));
   }
   return {
     lanes,
     stacked: total > 1,
     stackLeft,
     labelRight: stackLeft - 8,
+    livingBodyWidth,
   };
 }

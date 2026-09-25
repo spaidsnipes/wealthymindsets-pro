@@ -11074,6 +11074,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           axisWidth: stackAxisW,
           fixedLanes: (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0) + (ds.valueCandleRungs ? 1 : 0),
           order: stackOrder,
+          // P110: the Living body's reach (~28% of the plot, ≤360px), scaled
+          // by the trader's width step. The plan owns the room it takes.
+          livingBodyTarget: Math.min(Math.round(plotRight * 0.28 * stackWidth("LIVING", stackPrefsRef.current)), 360),
         });
         if (stackOrder.length > 0) ds.profileStackLeft = String(stackPlan.stackLeft);
         else delete ds.profileStackLeft;
@@ -11187,11 +11190,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               lane keeps the click target and its receipts; the body is the
               shape. The trader's width preference scales it like the lane.
             */
-            const bodyW = Math.max(histMax, Math.min(
-              Math.round(plotRight * 0.28 * stackWidth("LIVING", stackPrefsRef.current)),
-              360,
-              Math.max(0, rightEdge - 140),
-            ));
+            // The plan owns the body's room (planProfileStack), so no
+            // neighbour lane sits under it.
+            const bodyW = Math.max(histMax, stackPlan.livingBodyWidth ?? histMax);
             ds.livingProfileBodyWidth = String(Math.round(bodyW));
             const stacked = stackPlan.stacked;
             ds.livingProfileLane = String(stackOrder.indexOf("LIVING"));
@@ -11634,7 +11635,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yLo = spineOwned && dna.lo != null ? srs.priceToCoordinate(dna.lo) : null;
               const yHi = spineOwned && dna.hi != null ? srs.priceToCoordinate(dna.hi) : null;
               if (dna && spineOwned && yLo != null && yHi != null) {
-                const sx = Math.round(rightEdge - histMax - 6) + 0.5;
+                // Beside the auction BODY, not through it: the spine stands 6px
+                // left of the body's widest reach (it used to sit at the old
+                // lane edge, which now cuts through the middle of the body).
+                const sx = Math.round(rightEdge - bodyW - 6) + 0.5;
                 ctx.save();
                 ctx.lineCap = "butt";
                 ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25);

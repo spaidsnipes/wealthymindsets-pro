@@ -45,4 +45,31 @@ describe("planProfileStack", () => {
     expect(p.lanes.LIVING).not.toEqual(soloLane(W));
     expect(p.stacked).toBe(true);
   });
+
+  it("P110 · the Living body takes its room: no neighbour lane sits under it", () => {
+    for (const fixed of [0, 2]) {
+      const p = planProfileStack({
+        canvasWidth: W, axisWidth: AX, fixedLanes: fixed, order: ["LIVING", "COMPOSITE", "VISIBLE_RANGE"], livingBodyTarget: 300,
+      });
+      const lv = p.lanes.LIVING!;
+      const body = { right: lv.right, width: p.livingBodyWidth! };
+      expect(p.livingBodyWidth!).toBeGreaterThan(lv.width);
+      for (const sp of ["COMPOSITE", "VISIBLE_RANGE"] as const) {
+        const l = p.lanes[sp]!;
+        if (l.fits) expect(overlaps(body, l)).toBe(false);
+      }
+      // The stack's left edge includes the body's reach; labels print left of it.
+      expect(p.stackLeft).toBeLessThanOrEqual(Math.round(lv.right - p.livingBodyWidth!));
+      expect(p.labelRight).toBeLessThan(p.stackLeft);
+    }
+  });
+
+  it("the body is never narrower than its lane, never into the left 140px, null without Living", () => {
+    const small = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["LIVING"], livingBodyTarget: 10 });
+    expect(small.livingBodyWidth).toBe(small.lanes.LIVING!.width);
+    const huge = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["LIVING"], livingBodyTarget: 5000 });
+    expect(huge.lanes.LIVING!.right - huge.livingBodyWidth!).toBeGreaterThanOrEqual(140);
+    const none = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["COMPOSITE"] });
+    expect(none.livingBodyWidth).toBeNull();
+  });
 });
