@@ -43,4 +43,10 @@ describe("left column and word stack", () => {
   it("the VP POC tag never prints inside the header band (REGIME desk, 2026-09-25)", () => {
     expect(CHART).toMatch(/const pocTagY = rowY \+ Math\.round\(rowH\/2\);\s*if \(pocTagY >= HEADER_FLOOR_Y\) \{/);
   });
+
+  it("the Structure Profile name and the memory-ghost caption stay below the header chrome", () => {
+    expect(CHART).not.toMatch(/x0 \+ 4, Math\.max\(14, top - 4\)/);
+    expect(CHART).toMatch(/x0 \+ 4, Math\.max\(HEADER_FLOOR_Y \+ 12, top - 4\),/);
+    expect(CHART).toMatch(/const ly = Math\.max\(HEADER_FLOOR_Y \+ 7, lastXY\.y - 16\);/);
+  });
 });

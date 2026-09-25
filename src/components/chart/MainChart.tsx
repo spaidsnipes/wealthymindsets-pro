@@ -10655,7 +10655,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const t = `MEMORY · ${when} UTC · fit ${ghost.fit!.toFixed(2)} · off ${ghost.mismatchPct!.toFixed(2)}%`;
               const tw = ctx.measureText(t).width;
               const lx = Math.max(4, Math.min(lastXY.x - tw - 14, W - 90 - tw));
-              const ly = Math.max(12, lastXY.y - 16);
+              // Box is ly−7…ly+7: below the header chrome, like every floating chip.
+              const ly = Math.max(HEADER_FLOOR_Y + 7, lastXY.y - 16);
               ctx.fillStyle = "rgba(11,10,8,0.85)";
               ctx.fillRect(lx - 4, ly - 7, tw + 8, 14);
               ctx.fillStyle = "rgba(237,230,211,0.9)";
@@ -12154,7 +12155,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             };
             chip(
               `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(2)} · ${sp.legBars} BARS${est}`,
-              x0 + 4, Math.max(14, top - 4),
+              // The chip's box is y−12…y+2: its top never rises into the header chrome.
+              x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
             );
             if (sp.poc != null) {
               const yp = srs.priceToCoordinate(sp.poc);
