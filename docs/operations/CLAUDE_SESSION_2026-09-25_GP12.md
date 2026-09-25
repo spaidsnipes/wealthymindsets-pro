@@ -124,6 +124,8 @@ whole OS 20px sideways (`549dbfe6`).
 | Tour: chip collision | Structure "LEG POC" chip printed over the stack column's "VRP POC"; stack words now join the chip ledger and Structure chips step clear | `76f280f7` |
 | Tour: label smear | The stack column's one-row step oscillated between two neighbours and printed on both; nearest free row (`labelSlot.ts`) | `bc960113` |
 | Tour: FAR gap words | Three "NO BAR · 1 interval" chips across the FAR picture; FAR keeps bridges, words only outages ≥ 3 intervals | `0ff1fd7a` |
+| Review fixes (read-only reviewer, 5 confirmed) | Session window dropped the equity opening bar on 1h/4h (overlap rule now); CVD "since" could outclaim a restarted accumulator; CVD refill on bar load + dated caption; "effort zero" beside "not reported"; Passports rounded prices to 2 dp | `1510e313` |
+| Profile Memory biography | Remembered POC/VAH/VAL become selectable LEVEL MarketObjects (while Memory is on) → pins, one selection, governor focus, the same Passport with tests and lineage | `82ecebb9` |
 
 Intermediate integration commits `1b365799` and `97ca91db` carry two anatomy-sentinel pins that
 only `bd5134a1` updated to the landed keep-out — bisect from `bd5134a1`, not between them.
