@@ -172,10 +172,13 @@ describe("alpha is never the owner's", () => {
   });
 
   it("a palette entry that smuggles an alpha channel is not an ink, so it is not a choice", () => {
-    const withAlpha = [0, 170, 187, 0.5] as unknown as Rgb;
-    const k = resolveProfileInk({ poc: withAlpha });
-    expect(k.chosen.POC).toBe(false);
-    expect(k.rgba("POC", 0.9)).toBe("rgba(201,165,92,0.9)");
+    // Both spellings of a fourth channel: a CSS-style fraction and a byte.
+    for (const a of [0.5, 255]) {
+      const withAlpha = [0, 170, 187, a] as unknown as Rgb;
+      const k = resolveProfileInk({ poc: withAlpha });
+      expect(k.chosen.POC, `alpha ${a}`).toBe(false);
+      expect(k.rgba("POC", 0.9)).toBe("rgba(201,165,92,0.9)");
+    }
   });
 
   it("nonsense channels are not a choice either — the family keeps its defaults", () => {

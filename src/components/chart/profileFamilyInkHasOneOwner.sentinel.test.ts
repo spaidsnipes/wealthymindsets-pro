@@ -220,6 +220,17 @@ describe("the profile family's ink has one owner (Sentinel)", () => {
     expect(new Set(calls.map(c => c.species)).size).toBeGreaterThanOrEqual(6);
     const wrong = calls.filter(c => !c.line.includes(ROLE[c.level])).map(c => `${c.species}: ${c.line.trim()}`);
     expect(wrong, "a level is painted in a role that is not its own").toEqual([]);
+
+    // The two boundary sites that do not go through a level helper. Memory
+    // picks the side from the level's own kind; Living strokes both hairlines
+    // in one path at rest and must split once VAH and VAL were given two inks,
+    // or the VAL hairline would silently wear the VAH choice.
+    const memory = BLOCKS.find(b => b.name === "Profile Memory")!.code;
+    expect(memory).toContain('const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";');
+    const living = BLOCKS.find(b => b.name.startsWith("Living Profile"))!.code;
+    expect(living).toContain('const edgeHi = pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.5);');
+    expect(living).toContain('const edgeLo = pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.5);');
+    expect(living).toMatch(/ctx\.moveTo\(0, \+yh \+ 0\.5\); ctx\.lineTo\(W, \+yh \+ 0\.5\);\s*if \(edgeLo !== edgeHi\) \{ ctx\.stroke\(\); ctx\.strokeStyle = edgeLo; ctx\.beginPath\(\); \}\s*ctx\.moveTo\(0, \+yl \+ 0\.5\);/);
   });
 
   it("no species reads the classic VP palette around the owner — the chosen-vs-default rule cannot be bypassed", () => {
