@@ -45,6 +45,16 @@ describe("pricePrecisionFromBars", () => {
     expect(pricePrecisionFromBars(pips)).toBe(5);
   });
 
+  it("float32 futures quote their own grid (Sentinel: CL1! read 91.730, ZN1! lost its 1/64ths)", () => {
+    const f32 = (v: number) => Math.fround(v);
+    const cl = Array.from({ length: 30 }, (_, i) => bar(f32(91.7 + i * 0.01), f32(91.75 + i * 0.01), f32(91.6 + i * 0.01), f32(91.73 + i * 0.01)));
+    expect(pricePrecisionFromBars(cl)).toBe(2);
+    const gc = Array.from({ length: 30 }, (_, i) => bar(f32(4331.4 + i * 0.1), f32(4332 + i * 0.1), f32(4330.1 + i * 0.1), f32(4331.5 + i * 0.1)));
+    expect(pricePrecisionFromBars(gc)).toBe(2);
+    const zn = Array.from({ length: 30 }, (_, i) => bar(104.9375 + (i % 4) * 0.015625, 105, 104.90625, 104.953125));
+    expect(pricePrecisionFromBars(zn)).toBeGreaterThanOrEqual(4);
+  });
+
   it("no bars → the floor", () => {
     expect(pricePrecisionFromBars([])).toBe(2);
   });

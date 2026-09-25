@@ -40,7 +40,11 @@ export function pricePrecisionFromBars(bars: readonly PrecisionBar[]): number {
   const values: number[] = [];
   for (let i = bars.length - 1; i >= 0 && values.length < PRECISION_SAMPLE_BARS * 4; i--) {
     const b = bars[i];
-    for (const v of [b.open, b.high, b.low, b.close]) if (Number.isFinite(v) && v !== 0) values.push(v);
+    // Normalised to SIGNIFICANT_FIGURES first: a float32 feed ships 91.73 as
+    // 91.7300033569336, which no decimal count states exactly (CL1! read
+    // 91.730; GC1! read 4333.29980469 before the cap). What the venue quoted
+    // is what survives at seven significant figures.
+    for (const v of [b.open, b.high, b.low, b.close]) if (Number.isFinite(v) && v !== 0) values.push(Number(v.toPrecision(SIGNIFICANT_FIGURES)));
   }
   if (values.length === 0) return MIN_PRICE_PRECISION;
   // SIGNIFICANT-FIGURE CAP. A feed that ships float32 prices (the BTC
