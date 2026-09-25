@@ -52,11 +52,16 @@ describe("anatomy cards preserve the candles", () => {
     // Added 2026-09-25 (keep-out completion): the compact form kept a 0.92
     // backing on whichever of head/foot covered fewer candles, even when both
     // covered some, and never joined the chip ledger.
-    expect(block).toMatch(/const slotsC = \[\{ x: cardsLeft, y: footY, w: lw, h: 34 \}, \{ x: cardsLeft, y: headY, w: lw, h: 34 \}\]\s*\.sort\(\(a, b\) => candleHits\(a\.x, a\.y, a\.w, a\.h\) - candleHits\(b\.x, b\.y, b\.w, b\.h\)\);/);
-    expect(block).toContain("const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + 34)];");
+    // Updated 2026-09-25 (FL-06 "NO ESSAY DRAWER AS PRIMARY TRUTH"): only the
+    // SELECTED object's card is on the glass now, so the folded form is one
+    // line per card shown (`lineBoxH`), not a fixed two-line 34px box. The
+    // keep-out law is unchanged.
+    expect(block).toContain("const lineBoxH = 6 + 14 * lines.length;");
+    expect(block).toMatch(/const slotsC = \[\{ x: cardsLeft, y: footY, w: lw, h: lineBoxH \}, \{ x: cardsLeft, y: headY, w: lw, h: lineBoxH \}\]\s*\.sort\(\(a, b\) => candleHits\(a\.x, a\.y, a\.w, a\.h\) - candleHits\(b\.x, b\.y, b\.w, b\.h\)\);/);
+    expect(block).toContain("const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + lineBoxH)];");
     expect(block).toContain("const spotC = pickSlotClearOfKeepOut(slotsC, koC, takenC) ?? pickSlotClearOfKeepOut(slotsC, koC, () => false)!;");
     expect(block).toMatch(/recordKeepOut\(keepOutLedger, spotC\);\s*const ly = spotC\.rect\.y;/);
-    expect(block).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotC, 0\.92\)\}\)`;\s*ctx\.fillRect\(cardsLeft, ly, lw, 34\);\s*floatingChips\.push\(\{ x: cardsLeft, y: ly, w: lw, h: 34 \}\);/);
+    expect(block).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotC, 0\.92\)\}\)`;\s*ctx\.fillRect\(cardsLeft, ly, lw, lineBoxH\);\s*floatingChips\.push\(\{ x: cardsLeft, y: ly, w: lw, h: lineBoxH \}\);/);
   });
 
   it("the placed pair joins the chip ledger, so later chips step around it", () => {

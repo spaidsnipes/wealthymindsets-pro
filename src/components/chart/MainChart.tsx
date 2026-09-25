@@ -191,7 +191,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionTravel", "absorptionWall", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
-  "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded",
+  "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
@@ -272,7 +272,6 @@ import { selectFarRegimeEnvelope } from "@/lib/marketData/viewModels/selectFarRe
 import { nearCandleAnatomyParts } from "@/lib/marketData/viewModels/selectNearCandleAnatomy";
 import { selectBarTape, selectPrintRawTape, dotSideInk, tapeDotLegend, type BarTapeCache, type BarTapeVM, type NearTapeDot } from "@/lib/marketData/viewModels/selectNearTape";
 import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
-import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import {
   anatomyReadingDrawn,
   anatomyReadingKey,
@@ -9518,6 +9517,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // What each mark actually put on the glass, for the receipt below.
               const exhaustionDrawn: string[] = [];
               let exhaustionChipsYielded = 0;
+              // FL-06 ④ EFFORT vs RESULT, as the plate draws it: two arrows at
+              // the push and no words. What each arrow measured is published.
+              const effortResultDrawn: string[] = [];
+              let exhaustionChipPainted = false;
+              const exArrow = (ax: number, yFrom: number, yTo: number, ink: string) => {
+                const dir = Math.sign(yTo - yFrom) || -1;
+                ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = 1.6;
+                ctx.beginPath(); ctx.moveTo(ax, yFrom); ctx.lineTo(ax, yTo - dir * 4); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(ax, yTo); ctx.lineTo(ax - 4, yTo - dir * 5); ctx.lineTo(ax + 4, yTo - dir * 5);
+                ctx.closePath(); ctx.fill();
+                ctx.lineWidth = 1;
+              };
               for (const m of ex.marks) {
                 const xr = ts.timeToCoordinate(m.time as never);
                 const yr = srs.priceToCoordinate(m.price);
@@ -9608,12 +9620,58 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     rings++;
                   }
                   exhaustionDrawn.push(`FUEL:${fuel}+SLOTS:${rings}`);
+                  // FL-06 ④ · EFFORT vs RESULT — the plate's arrow pair, and
+                  // no words at rest ("NO ESSAY DRAWER AS PRIMARY TRUTH"; the
+                  // numbers live in Inspect and on the selected mark).
+                  // EFFORT points the way the push went, standing just past
+                  // the fuel at the extreme; its shaft is the push's opening
+                  // effort (`effortFirstHalf`, a share of the window's peak —
+                  // the owner's own scale). RESULT points back, on the
+                  // follow-through bar that reached furthest (`followBars`):
+                  // its shaft runs from the stop line to that reach, the
+                  // measured shortfall — a stub when the push nearly went on,
+                  // long when it was turned away. No follow-through bars on
+                  // screen, no RESULT arrow.
+                  {
+                    const s = up ? -1 : 1;
+                    const fuelOut = rib.length > 0 ? Math.max(...rib.map(p => 3 + p.t)) : 3;
+                    const eBase = +yr + s * (fuelOut + 4);
+                    const eFrac = Math.max(0, Math.min(1, m.effortFirstHalf));
+                    const eTip = eBase + s * (10 + 16 * eFrac);
+                    exArrow(x, eBase, eTip, "rgba(212,175,55,0.95)");
+                    grow(x - 4, Math.min(eBase, eTip), x + 4, Math.max(eBase, eTip));
+                    let resultPx: number | null = null;
+                    let best: { time: number; reach: number } | null = null;
+                    for (const f of m.followBars) {
+                      if (!best || (up ? f.reach > best.reach : f.reach < best.reach)) best = f;
+                    }
+                    const rxR = best ? ts.timeToCoordinate(best.time as never) : null;
+                    const ryR = best ? srs.priceToCoordinate(best.reach) : null;
+                    if (rxR != null && ryR != null) {
+                      resultPx = Math.abs(+ryR - +yr);
+                      const rTip = +yr - s * Math.max(6, resultPx);
+                      exArrow(+rxR, +yr, rTip, "rgba(226,92,92,0.95)");
+                      grow(+rxR - 4, Math.min(+yr, rTip), +rxR + 4, Math.max(+yr, rTip));
+                    }
+                    effortResultDrawn.push(`${m.direction}:EFFORT_${Math.round(eFrac * 100)}%+RESULT_${resultPx == null ? "NONE" : `${Math.round(resultPx)}PX`}`);
+                  }
                 }
                 if (markSelected) {
                   // A 1px halo around what the mark drew, in its own crimson.
                   ctx.strokeStyle = "rgba(226,92,92,0.95)"; ctx.lineWidth = 1;
                   ctx.strokeRect(mx0 - 3.5, my0 - 3.5, mx1 - mx0 + 7, my1 - my0 + 7);
                   anatomySelectedPainted = true;
+                }
+                // AT REST THE MARK IS GEOMETRY ONLY (FL-06: "NO ESSAY DRAWER
+                // AS PRIMARY TRUTH"). The four-metric line used to print on
+                // every mark over the candles; now it prints only for the mark
+                // the ONE selection owner holds — the same numbers Inspect
+                // reads. An unselected mark keeps its hit body, so a click on
+                // the fuel, the stop line or either arrow still selects it.
+                if (!markSelected) {
+                  anatomyHitsRef.current.push({ target: markTarget(m), rects: [padHitRect({ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 })] });
+                  ctx.restore();
+                  continue;
                 }
                 const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
                 // EFFORT, never AGG: the ratio is unsigned effort (volume or
@@ -9706,6 +9764,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.textAlign = "left";
                   ctx.textBaseline = "middle";
                   ctx.fillText(chipTxt, cxx + 6, cy + 7.5);
+                  exhaustionChipPainted = true;
                 }
                 ctx.restore();
               }
@@ -9713,18 +9772,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // geometry receipt.
               if (exhaustionDrawn.length > 0) ds.exhaustionGeometry = exhaustionDrawn.join("|");
               else delete ds.exhaustionGeometry;
+              // The arrow pair each mark drew, and whether any words are on the
+              // glass: AT_REST (geometry only) or SELECTED (the selected mark's
+              // numbers). No mark on the glass, neither receipt.
+              if (effortResultDrawn.length > 0) {
+                ds.exhaustionEffortResult = effortResultDrawn.join("|");
+                ds.exhaustionWords = exhaustionChipPainted ? "SELECTED" : "AT_REST";
+              } else {
+                delete ds.exhaustionEffortResult;
+                delete ds.exhaustionWords;
+              }
               if (exhaustionChipsYielded > 0) ds.exhaustionChipsYielded = String(exhaustionChipsYielded);
               else delete ds.exhaustionChipsYielded;
             }
 
-            /* ── ANATOMY CARDS — the plate's two KEY METRICS columns ─────────
-               ABSORPTION ANATOMY (gold) beside EXHAUSTION ANATOMY (crimson),
-               four big numbers each, the outcome under them, and a dotted
-               leader from each card to the candles it measured — so the card
-               can never float free of the price it is a claim about. */
+            /* ── ANATOMY CARDS — the plate's KEY METRICS, for the SELECTED object ──
+               FL-06 is stamped "NO ESSAY DRAWER AS PRIMARY TRUTH": at rest the
+               shelf and the mark ARE the reading, and the numbers live in
+               Inspect. So with this layer on, a card is painted only for the
+               shelf or mark the ONE selection owner holds (and only while it
+               is drawn) — the same `selectAnatomyCards` arithmetic Inspect
+               reads, asked about that one object. Nothing selected → nothing
+               on the glass, and the receipt says AT_REST. The card keeps its
+               dotted leader to the candles it measured, and takes a spot only
+               where it covers no candle; else it folds to one measured line
+               docked through the keep-out owner. */
             if (layerOnRef.current.anatomyCards === true) {
-              const cards = selectAnatomyCards(anatomy, selectExhaustion(anatomy));
-              ds.anatomyCards = `${cards.absorption.empty ? "NONE" : cards.absorption.outcome}|${cards.exhaustion.empty ? "NONE" : cards.exhaustion.outcome}`;
+              const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) ? anatomySelReading.card : null;
+              if (!selCard) {
+                ds.anatomyCards = "AT_REST";
+                delete ds.anatomyCardsCandleHits;
+                delete ds.anatomyCardsLayout;
+                delete ds.anatomyCardsScale;
+              } else {
+              const shown = [selCard];
+              ds.anatomyCards = `SELECTED:${selCard.kind}:${selCard.empty ? "NONE" : selCard.outcome}`;
               ctx.save();
               ctx.globalAlpha = att.textAlpha("anatomyCards");
               const cw = 292, ch = 188, gap = 12;
@@ -9747,7 +9829,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const sx = cardsLeft, sy = 176 - 9;
                 const { w: sw, h: sh } = SCAFFOLD_CARD_BOX[sDepth];
                 scaffoldBox = { x: sx, y: sy, w: sw, h: sh };
-                const need = 2 * cw + gap;
+                const need = shown.length * cw + (shown.length - 1) * gap;
                 if (sx + sw + 12 + need <= W - 90) {
                   cardsLeft = sx + sw + 12;
                 } else if (sy + sh + 8 + ch <= H - 40) {
@@ -9765,7 +9847,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // two measured lines below — same numbers, nothing dropped.
               let axisW = 90;
               try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) axisW = Math.ceil(w0); } catch {}
-              const pairW = 2 * cw + gap;
+              const pairW = shown.length * cw + (shown.length - 1) * gap;
               const overlaps = (a: { x: number; y: number; w: number; h: number }, x: number, y: number, w: number, h: number) =>
                 a.x < x + w && a.x + a.w > x && a.y < y + h && a.y + a.h > y;
               if (!compact) {
@@ -9785,12 +9867,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (spot) { cardsLeft = spot.x; cardsTop = spot.y; } else compact = true;
               }
               if (compact) {
-                const lines = [cards.absorption, cards.exhaustion].map(c =>
+                const lines = shown.map(c =>
                   c.empty
                     ? `${c.title} · ${c.empty}`
                     : `${c.kind} · ${c.metrics.map(m => `${m.label.toLowerCase()} ${m.value}`).join(" · ")} · ${c.outcome}`);
                 ctx.font = font(700, 9);
                 const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 16;
+                // One line per card shown: 6px of air plus 14px a line.
+                const lineBoxH = 6 + 14 * lines.length;
                 const footY = H - 58;
                 const headY = layerOnRef.current.questionLens === true ? 160 : HEADER_FLOOR_Y + 8;
                 // The folded lines carry a 0.92 backing too. Foot and head are
@@ -9798,24 +9882,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // clear every body under it and the chips on the glass. When
                 // only slots on bodies are left the first is kept and its
                 // backing yields — the numbers stay, the candles read through.
-                const slotsC = [{ x: cardsLeft, y: footY, w: lw, h: 34 }, { x: cardsLeft, y: headY, w: lw, h: 34 }]
+                const slotsC = [{ x: cardsLeft, y: footY, w: lw, h: lineBoxH }, { x: cardsLeft, y: headY, w: lw, h: lineBoxH }]
                   .sort((a, b) => candleHits(a.x, a.y, a.w, a.h) - candleHits(b.x, b.y, b.w, b.h));
-                const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + 34)];
+                const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + lineBoxH)];
                 const takenC = (s: { x: number; y: number; w: number; h: number }) => floatingChips.some(r => overlaps(r, s.x, s.y, s.w, s.h));
                 const spotC = pickSlotClearOfKeepOut(slotsC, koC, takenC) ?? pickSlotClearOfKeepOut(slotsC, koC, () => false)!;
                 recordKeepOut(keepOutLedger, spotC);
                 const ly = spotC.rect.y;
-                ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, 34));
+                ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, lineBoxH));
                 ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.92)})`;
-                ctx.fillRect(cardsLeft, ly, lw, 34);
-                floatingChips.push({ x: cardsLeft, y: ly, w: lw, h: 34 });
+                ctx.fillRect(cardsLeft, ly, lw, lineBoxH);
+                floatingChips.push({ x: cardsLeft, y: ly, w: lw, h: lineBoxH });
                 ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1;
-                ctx.strokeRect(cardsLeft + 0.5, ly + 0.5, lw - 1, 33);
+                ctx.strokeRect(cardsLeft + 0.5, ly + 0.5, lw - 1, lineBoxH - 1);
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                ctx.fillStyle = "rgba(240,190,70,1)";
-                ctx.fillText(lines[0], cardsLeft + 8, ly + 10);
-                ctx.fillStyle = "rgba(226,92,92,1)";
-                ctx.fillText(lines[1], cardsLeft + 8, ly + 24);
+                lines.forEach((t, i) => {
+                  ctx.fillStyle = shown[i]!.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
+                  ctx.fillText(t, cardsLeft + 8, ly + 10 + 14 * i);
+                });
                 ds.anatomyCardsLayout = "COMPACT";
               } else {
                 ds.anatomyCardsLayout = "CARDS";
@@ -9838,7 +9922,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // The pair is chrome on the glass: later chips step around it
               // instead of printing over its numbers.
               if (!compact) floatingChips.push({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK });
-              if (!compact) [cards.absorption, cards.exhaustion].forEach((c, k) => {
+              if (!compact) shown.forEach((c, k) => {
                 // Scaled space: origin at (cardsLeft, cardsTop).
                 ctx.save();
                 if (cardK > 1) { ctx.translate(cardsLeft, cardsTop); ctx.scale(cardK, cardK); ctx.translate(-cardsLeft, -cardsTop); }
@@ -9901,9 +9985,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 }
               });
               ctx.restore();
+              }
             } else {
               ds.anatomyCards = "OFF";
               delete ds.anatomyCardsCandleHits;
+              delete ds.anatomyCardsLayout;
+              delete ds.anatomyCardsScale;
             }
 
             /* ── QUESTION LENS — the plate's "Is buyer effort being absorbed?" ──
@@ -10659,6 +10746,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.absorptionWall;
             delete ds.absorptionTravel;
             delete ds.exhaustionGeometry;
+            delete ds.exhaustionEffortResult;
+            delete ds.exhaustionWords;
             ctx.save();
             const txt = BASIS_LABEL.UNMEASURED;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
