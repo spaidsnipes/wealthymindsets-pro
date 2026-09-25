@@ -6690,7 +6690,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const printTickets: { x: number; y: number; w: number; h: number }[] = [];
         let bubbleRank = 0;
         let bubblesQuieted = 0;
-        for (const b of [...bubblesRef.current].sort((a, z) => z.r - a.r)) {
+        // Ranked by the size each print claims (|value|, the headline's
+        // number), never by the animated radius: `r` starts at 0.35 of
+        // its target on every spawn and pan-back, so ranking by it demoted
+        // the newest largest print to a quiet ring until it grew, then
+        // popped it and demoted another.
+        for (const b of [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
           if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id) {
             const coreQ = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;

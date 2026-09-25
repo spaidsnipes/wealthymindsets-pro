@@ -152,6 +152,16 @@ describe("the NEAR delta row states how its sides were known", () => {
   });
 });
 
+describe("the five full bubbles are the five largest prints, not the five grown furthest", () => {
+  it("ranks by the claimed magnitude, never by the animated radius", () => {
+    const b = bigTrades();
+    const loops = b.match(/for \(const b of \[\.\.\.bubblesRef\.current\]\.sort\(\(a, z\) => .*\) \{/g) ?? [];
+    expect(loops.length, "the ranking loop was renamed or removed").toBe(1);
+    expect(loops[0]).toBe("for (const b of [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {");
+    expect(b).toContain("if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id) {");
+  });
+});
+
 /** The FORCE → RESPONSE pass on the selected print, through its no-selection branch. */
 const forceResponse = () => slice("const sp = selectedPrintRef.current;", "delete canvas.dataset.printEnvelope;");
 
