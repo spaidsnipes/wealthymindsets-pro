@@ -7764,6 +7764,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             bars: gapSrc,
             identities: gapIds,
             continuous: canonicalAssetClass(symbol) === "crypto",
+            // The market's published clock (the Session Profile's own owner)
+            // for bars whose ingress minted SESSION_UNKNOWN — every non-crypto
+            // feed today. Without it no equity/futures/FX hole was ever read.
+            sessionClock: sessionWin,
           }),
         };
         const dg = dataGapsCache.vm;
@@ -7796,6 +7800,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         canvas.dataset.dataGaps = dg.reason === "MEASURED" ? `${dg.gaps.length}:${painted}` : dg.reason;
         // How many bridges carried their words this frame (FAR withholds short holes' words).
         canvas.dataset.dataGapsWorded = String(worded);
+        // Which owner said two bars share a session (CONTINUOUS / BAR_IDENTITY / MARKET_CLOCK).
+        canvas.dataset.dataGapsSession = dg.sessionSource ?? "NONE";
       } catch { /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════

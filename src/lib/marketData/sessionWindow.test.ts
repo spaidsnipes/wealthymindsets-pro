@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "./sessionWindow";
+import { futuresRootOf, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "./sessionWindow";
 
 // January: New York is on EST (UTC−5), so ET hh:mm = UTC hh:mm − 5h.
 const et = (day: number, hh: number, mm = 0) => Date.UTC(2026, 0, day, hh + 5, mm) / 1000;
@@ -87,5 +87,42 @@ describe("each market gets its own session definition, named", () => {
     // 4h bars at 04/08/12/16: 08:00 and 12:00 overlap RTH.
     const h4 = sessionWindowFor("AAPL", "4h", false);
     expect([4, 8, 12, 16].map(h => sessionKeyOf(et(13, h), h4))).toEqual([null, "2026-01-13", "2026-01-13", null]);
+  });
+});
+
+describe("not every future keeps the Globex day (2026-09-25)", () => {
+  it("reads the futures root from every notation", () => {
+    expect(futuresRootOf("ZW1!")).toBe("ZW");
+    expect(futuresRootOf("ZW=F")).toBe("ZW");
+    expect(futuresRootOf("/ZW")).toBe("ZW");
+    expect(futuresRootOf("MNQ1!")).toBe("MNQ");
+    expect(futuresRootOf("AAPL")).toBeNull();
+  });
+
+  it("CBOT grains: night 20:00→08:45 + day 09:30→14:20 ET; the pause and the close are no session", () => {
+    const w = sessionWindowFor("ZW1!", "5m", false);
+    expect(w.kind).toBe("CBOT_GRAINS_DAY");
+    expect(w.label).toBe("SESSION · CBOT GRAINS 20:00–08:45 + 09:30–14:20 ET");
+    // Monday 12 Jan 20:00 ET opens Tuesday's trading day, which ends 14:20.
+    const day = [et(12, 20, 0), et(13, 2, 0), et(13, 8, 40), et(13, 9, 30), et(13, 14, 15)].map(t => sessionKeyOf(t, w));
+    expect(new Set(day)).toEqual(new Set(["2026-01-13"]));
+    expect(sessionKeyOf(et(13, 9, 0), w), "the 08:45–09:30 pause").toBeNull();
+    expect(sessionKeyOf(et(13, 16, 0), w), "after the 14:20 close").toBeNull();
+    for (const s of ["ZC1!", "ZS1!"]) expect(sessionWindowFor(s, "5m", false).kind, s).toBe("CBOT_GRAINS_DAY");
+  });
+
+  it("CME livestock: 09:30→14:05 ET only", () => {
+    const w = sessionWindowFor("LE1!", "5m", false);
+    expect(w.kind).toBe("CME_LIVESTOCK_DAY");
+    expect(sessionKeyOf(et(13, 9, 30), w)).toBe("2026-01-13");
+    expect(sessionKeyOf(et(13, 14, 0), w)).toBe("2026-01-13");
+    expect(sessionKeyOf(et(13, 14, 10), w)).toBeNull();
+    expect(sessionKeyOf(et(13, 3, 0), w)).toBeNull();
+  });
+
+  it("NEGATIVE CONTROL — index, energy, metals, rates and VIX futures keep the Globex day", () => {
+    for (const s of ["ES1!", "NQ1!", "CL1!", "GC1!", "ZN1!", "ZB1!", "VX1!", "/ES"]) {
+      expect(sessionWindowFor(s, "5m", false).kind, s).toBe("GLOBEX_DAY");
+    }
   });
 });

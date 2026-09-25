@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { stripComments } from "@/lib/sourceScan";
 import { SESSION_CONTINUOUS, SESSION_UNKNOWN } from "@/lib/marketData/canonicalBar";
 import { selectDataGaps } from "./selectDataGaps";
+import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
 
 const bar = (time: number, p = 100) => ({ time, open: p, close: p + 1 });
 const run = (from: number, n: number, step = 300) => Array.from({ length: n }, (_, i) => bar(from + i * step));
@@ -87,5 +91,114 @@ describe("selectDataGaps", () => {
     const bars = [...run(0, 20), ...run(20 * 300 + 2 * 300, 20)];
     const known = ids(bars, () => "S1").filter(i => i.asOf !== 22 * 300 * 1000); // the bar after the hole has none
     expect(selectDataGaps({ bars, identities: known, continuous: false }).gaps).toEqual([]);
+  });
+});
+
+/**
+ * THE MARKET CLOCK (2026-09-25). Measured on serving: AAPL, SPY, ES1!, CL1!,
+ * GC1!, NQ1!, USDJPY all read NO_SESSION_IDENTITY — every non-crypto ingress
+ * mints SESSION_UNKNOWN, so no in-session hole was ever marked on them. The
+ * instrument's published session clock (sessionWindowFor) now answers for
+ * bars that do not know their session. Each class below proves BOTH halves:
+ * a real hole inside the session is marked, and the market being shut is not.
+ */
+describe("selectDataGaps — the market clock names the session the bars could not", () => {
+  // September 2026: New York is on EDT (UTC−4). 2026-09-24 is a Thursday.
+  const et = (day: number, hh: number, mm = 0) => Date.UTC(2026, 8, day, hh + 4, mm) / 1000;
+  /** Bars every `stepMin` from start to end (inclusive), minus any listed ET times. */
+  const span = (from: number, to: number, stepMin = 5, skip: readonly number[] = []) => {
+    const out: ReturnType<typeof bar>[] = [];
+    for (let t = from; t <= to; t += stepMin * 60) if (!skip.includes(t)) out.push(bar(t));
+    return out;
+  };
+  const unknownIds = (bars: readonly { time: number }[]) => ids(bars, () => SESSION_UNKNOWN);
+  const gapsOf = (symbol: string, bars: ReturnType<typeof bar>[], tf = "5m", ext = false) =>
+    selectDataGaps({ bars, identities: unknownIds(bars), continuous: false, sessionClock: sessionWindowFor(symbol, tf, ext) });
+
+  it("AAPL (RTH): a mid-session hole is marked; the overnight and the weekend are not", () => {
+    const bars = [
+      ...span(et(24, 9, 30), et(24, 15, 55), 5, [et(24, 11, 0), et(24, 11, 5), et(24, 11, 10)]), // Thu, 3-interval hole
+      ...span(et(25, 9, 30), et(25, 15, 55)), // Fri
+      ...span(et(28, 9, 30), et(28, 15, 55)), // Mon
+    ];
+    const vm = gapsOf("AAPL", bars);
+    expect(vm.reason).toBe("MEASURED");
+    expect(vm.sessionSource).toBe("MARKET_CLOCK");
+    expect(vm.gaps.map(g => [g.fromTime, g.toTime, g.emptyIntervals])).toEqual([[et(24, 10, 55), et(24, 11, 15), 3]]);
+    expect(vm.gaps[0].label).toBe("NO BAR · 3 intervals");
+    // WITHOUT the clock the same chart could mark nothing — the serving receipt.
+    expect(selectDataGaps({ bars, identities: unknownIds(bars), continuous: false }).reason).toBe("NO_SESSION_IDENTITY");
+  });
+
+  it("SPY (ETH mode): a pre-market hole is marked; 20:00 → 04:00 is the market shut", () => {
+    const bars = [
+      ...span(et(24, 4, 0), et(24, 19, 55), 5, [et(24, 6, 0), et(24, 6, 5)]),
+      ...span(et(25, 4, 0), et(25, 19, 55)),
+    ];
+    const vm = gapsOf("SPY", bars, "5m", true);
+    expect(vm.gaps.map(g => g.emptyIntervals)).toEqual([2]);
+    expect(vm.gaps[0].fromTime).toBe(et(24, 5, 55));
+  });
+
+  it("ES1! / NQ1! / CL1! / GC1! (Globex): an overnight hole is marked; the 17:00 halt and the weekend are not", () => {
+    for (const sym of ["ES1!", "NQ1!", "CL1!", "GC1!"]) {
+      const bars = [
+        ...span(et(23, 18, 0), et(24, 16, 55), 5, [et(24, 3, 0), et(24, 3, 5), et(24, 3, 10)]), // Thu session
+        ...span(et(24, 18, 0), et(25, 16, 55)), // Fri session — 17:00–18:00 halt between
+        ...span(et(27, 18, 0), et(28, 16, 55)), // Sun 18:00 opens Monday
+      ];
+      const vm = gapsOf(sym, bars);
+      expect(vm.sessionSource, sym).toBe("MARKET_CLOCK");
+      expect(vm.gaps.map(g => [g.fromTime, g.emptyIntervals]), sym).toEqual([[et(24, 2, 55), 3]]);
+    }
+  });
+
+  it("USDJPY (FX day): an in-day hole is marked; Friday 17:00 → Sunday 17:00 is not", () => {
+    const bars = [
+      ...span(et(24, 17, 0), et(25, 16, 55), 5, [et(25, 10, 0)]),
+      ...span(et(27, 17, 0), et(28, 16, 55)),
+    ];
+    const vm = gapsOf("USDJPY", bars);
+    expect(vm.gaps.map(g => [g.fromTime, g.emptyIntervals])).toEqual([[et(25, 9, 55), 1]]);
+  });
+
+  it("ZW1! (CBOT grains): the 08:45–09:30 ET pause is the pit's schedule, not a hole", () => {
+    const night = span(et(23, 20, 0), et(24, 8, 40));
+    const day = span(et(24, 9, 30), et(24, 14, 15), 5, [et(24, 12, 0), et(24, 12, 5)]);
+    const bars = [...night, ...day, ...span(et(24, 20, 0), et(25, 8, 40))];
+    const vm = gapsOf("ZW1!", bars);
+    expect(vm.gaps.map(g => [g.fromTime, g.emptyIntervals])).toEqual([[et(24, 11, 55), 2]]);
+    // Negative control: read on the Globex clock, the pause WOULD be called a hole.
+    const globex = selectDataGaps({ bars, identities: unknownIds(bars), continuous: false, sessionClock: sessionWindowFor("ES1!", "5m", false) });
+    expect(globex.gaps.some(g => g.fromTime === et(24, 8, 40))).toBe(true);
+  });
+
+  it("daily bars and unclassifiable symbols still say why they mark nothing", () => {
+    const daily = span(et(1, 0, 0), et(28, 0, 0), 24 * 60);
+    expect(gapsOf("AAPL", daily, "1D").reason).toBe("NO_SESSION_IDENTITY");
+    const bars = span(et(24, 9, 30), et(24, 15, 55), 5, [et(24, 11, 0)]);
+    expect(gapsOf("NOTATICKERATALL", bars).reason).toBe("NO_SESSION_IDENTITY");
+    expect(gapsOf("NOTATICKERATALL", bars).sessionSource).toBeNull();
+  });
+
+  it("a bar's own known session outranks the clock", () => {
+    const bars = span(et(24, 9, 30), et(24, 15, 55), 5, [et(24, 11, 0)]);
+    const vm = selectDataGaps({
+      bars, identities: ids(bars, t => (t < et(24, 11, 0) ? "A" : "B")), continuous: false,
+      sessionClock: sessionWindowFor("AAPL", "5m", false),
+    });
+    expect(vm.sessionSource).toBe("BAR_IDENTITY");
+    expect(vm.gaps).toEqual([]); // the bars say two sessions; the clock does not overrule them
+  });
+
+  it("the chart hands the reader the SAME clock its Session Profile draws by", () => {
+    // A selector that can read a clock nobody passes reads nothing: the serving
+    // receipt stays NO_SESSION_IDENTITY. Read what MainChart RUNS.
+    const code = stripComments(readFileSync(resolve(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8"));
+    expect(code.length, "the scan read the real chart").toBeGreaterThan(100_000);
+    const call = /selectDataGaps\(\{[\s\S]{0,400}?\}\)/.exec(code)?.[0] ?? "";
+    expect(call, "the selectDataGaps call site was not found").not.toBe("");
+    expect(call).toMatch(/sessionClock:\s*sessionWin\b/);
+    expect(code).toMatch(/const sessionWin = sessionWindowFor\(symbol, timeframe, !!extendedHours\)/);
   });
 });

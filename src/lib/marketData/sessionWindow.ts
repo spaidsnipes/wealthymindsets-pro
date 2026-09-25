@@ -19,7 +19,9 @@
  *   EQUITY / INDEX   RTH 09:30–16:00 ET, or ETH 04:00–20:00 ET when the chart
  *                    shows extended hours; one ET trading date per session.
  *   FUTURES          CME Globex day 18:00 ET → 17:00 ET; the 17:00–18:00 ET
- *                    maintenance hour belongs to no session.
+ *                    maintenance hour belongs to no session. Except the CBOT
+ *                    grains and CME livestock, which keep their own published
+ *                    hours (see CBOT_GRAIN_ROOTS below).
  *   FOREX            the FX day, rolling at 17:00 ET.
  *   CRYPTO/UNKNOWN   the venue has NO session (canonicalBar SESSION_CONTINUOUS);
  *                    the chart's day is the ET calendar day, and the label says
@@ -42,15 +44,39 @@
  * PURE. DETERMINISTIC. America/New_York via Intl (DST-correct).
  */
 
-import { classifySymbol } from "./symbolAssetClass";
+import { classifySymbol, futuresRootOf } from "./symbolAssetClass";
 
 export type SessionWindowKind =
   | "US_EQUITY_RTH"
   | "US_EQUITY_ETH"
   | "GLOBEX_DAY"
+  | "CBOT_GRAINS_DAY"
+  | "CME_LIVESTOCK_DAY"
   | "FX_DAY"
   | "CONTINUOUS_ET_DAY"
   | "DAILY_WINDOW";
+
+/**
+ * NOT EVERY FUTURE TRADES THE GLOBEX DAY (added 2026-09-25, GP12 truth pass).
+ *
+ * Every futures symbol used to get "GLOBEX 18:00–17:00 ET". That is the
+ * published day for equity-index, energy, metals, rates and CFE VIX futures.
+ * It is NOT the day for the CBOT grains or the CME livestock pits, whose
+ * published hours (CT, one hour behind ET all year) are:
+ *
+ *   grains  (ZC ZW ZS ZM ZL KE)  19:00–07:45 and 08:30–13:20 CT
+ *                                = 20:00–08:45 and 09:30–14:20 ET
+ *   livestock (LE HE GF)         08:30–13:05 CT = 09:30–14:05 ET
+ *
+ * Under the Globex label, wheat's 08:45–09:30 ET break sat inside one
+ * "session", so a gap reader would have called the pit's scheduled pause a
+ * hole in the feed, and the Session Profile named a clock wheat does not keep.
+ */
+const CBOT_GRAIN_ROOTS = new Set(["ZC", "ZW", "ZS", "ZM", "ZL", "KE"]);
+const CME_LIVESTOCK_ROOTS = new Set(["LE", "HE", "GF"]);
+
+// The root is read by the notation owner, not by a predicate typed here.
+export { futuresRootOf };
 
 export interface SessionWindow {
   readonly kind: SessionWindowKind;
@@ -89,7 +115,16 @@ export function sessionWindowFor(symbol: string, timeframe: string, extendedHour
       ? { kind: "US_EQUITY_ETH", label: "SESSION · ETH 04:00–20:00 ET", windowBars: null, barMinutes }
       : { kind: "US_EQUITY_RTH", label: "SESSION · RTH 09:30–16:00 ET", windowBars: null, barMinutes };
   }
-  if (cls === "FUTURES") return { kind: "GLOBEX_DAY", label: "SESSION · GLOBEX 18:00–17:00 ET", windowBars: null, barMinutes };
+  if (cls === "FUTURES") {
+    const root = futuresRootOf(symbol);
+    if (root && CBOT_GRAIN_ROOTS.has(root)) {
+      return { kind: "CBOT_GRAINS_DAY", label: "SESSION · CBOT GRAINS 20:00–08:45 + 09:30–14:20 ET", windowBars: null, barMinutes };
+    }
+    if (root && CME_LIVESTOCK_ROOTS.has(root)) {
+      return { kind: "CME_LIVESTOCK_DAY", label: "SESSION · CME LIVESTOCK 09:30–14:05 ET", windowBars: null, barMinutes };
+    }
+    return { kind: "GLOBEX_DAY", label: "SESSION · GLOBEX 18:00–17:00 ET", windowBars: null, barMinutes };
+  }
   if (cls === "FOREX") return { kind: "FX_DAY", label: "SESSION · FX DAY · 17:00 ET ROLL", windowBars: null, barMinutes };
   return { kind: "CONTINUOUS_ET_DAY", label: "DAY · ET MIDNIGHT · continuous market, no venue session", windowBars: null, barMinutes };
 }
@@ -126,6 +161,19 @@ export function sessionKeyOf(sec: number, win: SessionWindow): string | null {
       const p = etParts(sec);
       if (p.minute >= 1020 && p.minute < 1080) return null; // 17:00–18:00 ET maintenance
       return p.minute >= 1080 ? etParts(sec + 6 * 3600).date : p.date;
+    }
+    case "CBOT_GRAINS_DAY": {
+      // Night 20:00→08:45 (keyed by the date it ENDS on) + day 09:30→14:20.
+      // The 08:45–09:30 break and the 14:20–20:00 close belong to no session.
+      const p = etParts(sec);
+      if (p.minute >= 1200 || p.minute + win.barMinutes > 1200) return etParts(sec + 5 * 3600).date;
+      if (p.minute < 525) return p.date;
+      if (p.minute + win.barMinutes > 570 && p.minute < 860) return p.date;
+      return null;
+    }
+    case "CME_LIVESTOCK_DAY": {
+      const p = etParts(sec);
+      return p.minute + win.barMinutes > 570 && p.minute < 845 ? p.date : null;
     }
     case "FX_DAY": {
       const p = etParts(sec);

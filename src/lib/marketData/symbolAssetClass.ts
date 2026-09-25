@@ -192,6 +192,22 @@ export function isUnsupportedByEquityVendors(symbol: string): boolean {
 }
 
 /**
+ * The futures contract ROOT a symbol names — "ZW1!" / "ZW=F" / "/ZW" → "ZW" —
+ * or `null` when the class owner does not call it futures. Lives here, with
+ * the other notation rules, so a consumer that needs the root (the session
+ * clock: wheat does not keep the Globex day) asks rather than retyping `=F`.
+ */
+export function futuresRootOf(symbol: string): string | null {
+  const s = normalize(symbol);
+  if (classifySymbol(s) !== "FUTURES") return null;
+  if (s.startsWith("/")) return s.slice(1).replace(/[^A-Z].*$/, "") || null;
+  const canonical = toCanonicalYahooNotation(s);
+  if (canonical.endsWith("=F")) return canonical.slice(0, -2);
+  if (s.endsWith("1!")) return s.slice(0, -2);
+  return null;
+}
+
+/**
  * The words for WHAT an equity vendor was not asked to carry, or `null` when
  * the symbol is one they do carry.
  *
