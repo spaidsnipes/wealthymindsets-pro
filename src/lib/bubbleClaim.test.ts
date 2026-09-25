@@ -39,6 +39,7 @@ import {
   aggressorSide,
   bubbleClaimMagnitude,
   describeBubbleClaim,
+  formatBubbleClock,
   formatBubbleExact,
   formatBubblePrice,
   formatBubbleVolume,
@@ -456,5 +457,29 @@ describe("H-701B · bubble size relation", () => {
     expect(bubbleRelation([300, 300, 100], 300)?.rank).toBe(1);
     expect(bubbleRelation([], 10)).toBeNull();
     expect(bubbleRelation([10, 20], 0)).toBeNull();
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────
+describe("a print's clock time is read in the axis's zone, not UTC", () => {
+  // 2026-09-25 14:31:05 UTC — 10:31:05 in New York (EDT).
+  const SEC = Date.UTC(2026, 8, 25, 14, 31, 5) / 1000;
+
+  it("formats in the display zone the time axis uses", () => {
+    expect(formatBubbleClock(SEC, "America/New_York", true)).toBe("10:31:05");
+    expect(formatBubbleClock(SEC, "UTC", true)).toBe("14:31:05");
+  });
+
+  it("honours the 12-hour clock setting", () => {
+    expect(formatBubbleClock(SEC, "America/New_York", false)).toMatch(/^10:31:05\sAM$/);
+  });
+
+  it("midnight on a 24-hour clock reads 00, never 24", () => {
+    expect(formatBubbleClock(Date.UTC(2026, 8, 25, 4, 0, 7) / 1000, "America/New_York", true)).toBe("00:00:07");
+  });
+
+  it("a zone it cannot format falls back to UTC and says so", () => {
+    expect(formatBubbleClock(SEC, "Not/AZone", true)).toBe("14:31:05 UTC");
+    expect(formatBubbleClock(Number.NaN, "UTC", true)).toBe("—");
   });
 });

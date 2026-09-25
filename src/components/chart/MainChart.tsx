@@ -269,7 +269,7 @@ import {
   type BigTradeLevel,
   type SelectedBigTrade,
 } from "@/lib/bigTradeLevels";
-import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleVolume, formatBubblePrice } from "@/lib/bubbleClaim";
+import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleVolume, formatBubblePrice, formatBubbleClock } from "@/lib/bubbleClaim";
 import { bigTradeAnchor, bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
 import { computeProfileFromBars } from "@/lib/vpEngine";
@@ -6793,7 +6793,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(lbl, labelX, labelY);
             if (b.r >= 24 && !outside) {
               ctx.font = "8px Inter, monospace";
-              const timeLabel = new Date(b.anchorTime * 1000).toISOString().slice(11, 19);
+              const timeLabel = formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current);
               ctx.fillStyle = "rgba(232,226,212,0.92)";
               ctx.fillText(timeLabel, b.x, b.y + 5);
               ctx.fillText(`${buy ? "↑" : "↓"} ${formatBubblePrice(b.anchorPrice)}`, b.x, b.y + 15);
@@ -6803,7 +6803,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const size = buy ? b.ask : b.bid;
             const inferred = b.aggressorMethod === "TICK_RULE" || b.aggressorMethod === "QUOTE_TEST";
             const lines = [
-              `${new Date(b.anchorTime * 1000).toISOString().slice(11, 19)} · ${formatBubblePrice(b.anchorPrice)}`,
+              `${formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current)} · ${formatBubblePrice(b.anchorPrice)}`,
               `${formatBubbleVolume(size)} @ ${buy ? "ASK" : "BID"}${inferred ? " · SIDE INFERRED" : ""}`,
             ];
             ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";

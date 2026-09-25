@@ -211,6 +211,39 @@ export function formatBubblePrice(p: number): string {
   return p.toFixed(4);
 }
 
+/**
+ * The execution's clock time, in the zone and clock the chart's own time axis
+ * uses (`displayTimeZone` / `clock24h`).
+ *
+ * A print inscription sits directly above that axis. Written in UTC it stated
+ * a different hour than the axis under it — 14:31:05 over a 10:31 tick for a
+ * New York viewer — on the one object whose job is to say exactly when the
+ * print happened. When the zone cannot be formatted the fallback is UTC and
+ * SAYS so, never an unlabelled UTC time.
+ *
+ * Formatters are cached per (zone, clock): the inscription is painted every
+ * animation frame and constructing an Intl.DateTimeFormat is not free.
+ */
+const clockFormatters = new Map<string, Intl.DateTimeFormat>();
+export function formatBubbleClock(sec: number, timeZone: string, clock24h: boolean): string {
+  if (!Number.isFinite(sec)) return "—";
+  const d = new Date(sec * 1000);
+  const key = `${timeZone}|${clock24h ? 24 : 12}`;
+  try {
+    let f = clockFormatters.get(key);
+    if (!f) {
+      f = new Intl.DateTimeFormat("en-US", {
+        timeZone, hourCycle: clock24h ? "h23" : "h12",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+      });
+      clockFormatters.set(key, f);
+    }
+    return f.format(d);
+  } catch {
+    return `${d.toISOString().slice(11, 19)} UTC`;
+  }
+}
+
 const clean = (n: number): number => (Number.isFinite(n) && n > 0 ? n : 0);
 
 export function describeAggressorMethod(method: AggressorMethod | undefined): string {
