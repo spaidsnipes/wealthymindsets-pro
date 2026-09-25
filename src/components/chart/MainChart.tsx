@@ -21,6 +21,7 @@ import { DataVersionGuard } from "@/lib/chartContext";
 import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
+import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -5544,37 +5545,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // allocated three new arrays even when neither the bars nor session changed.
     // Cache by immutable bar-array identity + session inputs; live updates replace
     // the array and naturally invalidate the cache.
+    // THE SESSION IS THE MARKET'S, NOT THE CHART'S (H-601 · Session Profile):
+    // one owner names which bars are "the session" per asset class — RTH/ETH
+    // for US equities (following the chart's own Extended Hours mode), the
+    // Globex day for futures, the FX day for forex, and for a continuous
+    // market the ET day, named as the chart's day. The old ET-midnight cut
+    // split every Globex session in two.
+    const sessionWin = sessionWindowFor(symbol, timeframe, !!extendedHours);
     const selectSessionBars = (allBars: LegacyOhlcvTuple[]): LegacyOhlcvTuple[] => {
       const key = `${symbol}|${timeframe}|${extendedHours ? "ETH" : "RTH"}`;
       if (sessionBarsCache?.source === allBars && sessionBarsCache.key === key) {
         return sessionBarsCache.bars;
       }
-      const formatter = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/New_York",
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-      });
-      const dailyOrLonger = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/.test(timeframe);
-      const applyRTH = isEquitySymbol(symbol) && !dailyOrLonger;
-      const sessionWindowBars: Record<string, number> = {
-        "1D": 5, "1W": 4, "1M": 3,
-        "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3,
-      };
-      const annotated = allBars
-        .map(bar => {
-          const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
-          const part = (type: Intl.DateTimeFormatPartTypes) =>
-            Number(parts.find(value => value.type === type)?.value ?? 0);
-          const date = `${part("year")}-${String(part("month")).padStart(2, "0")}-${String(part("day")).padStart(2, "0")}`;
-          return { bar, date, minute: part("hour") * 60 + part("minute") };
-        })
-        .filter(item => (applyRTH ? item.minute >= 570 && item.minute < 960 : true));
-      const latestSession = annotated.at(-1)?.date;
-      const bars = dailyOrLonger
-        ? annotated.slice(-(sessionWindowBars[timeframe] ?? 5)).map(item => item.bar)
-        : latestSession
-          ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
-          : [];
+      const bars = selectSessionWindowBars(allBars, sessionWin);
       sessionBarsCache = { source: allBars, key, bars };
       return bars;
     };
@@ -8115,12 +8098,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Founder sees "one VP" and thinks Session VP disappeared. Only
           // apply the RTH filter for equities on intraday timeframes; for
           // 24-hour assets and for daily+ timeframes, "session" = latest
-          // calendar day, no minute filter.
+          // calendar day, no minute filter. (Superseded 2026-09-25: the
+          // session owner, sessionWindowFor, now names each class's own day —
+          // Globex, FX, RTH/ETH, or the ET day for a continuous market.)
           const allBars = barsRef.current;
           const sessionBars = selectSessionBars(allBars);
+          // Which definition was drawn, on the glass that holds the pixels.
+          if (canvasRef.current) canvasRef.current.dataset.vpSessionWindow = sessionWin.kind;
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
           attempts.push({ profile: "SESSION", ...drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6) });
+        } else if (canvasRef.current) {
+          delete canvasRef.current.dataset.vpSessionWindow;
         }
 
         /*

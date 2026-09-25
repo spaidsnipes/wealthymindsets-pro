@@ -145,6 +145,7 @@ import type {
 } from "@/lib/marketData/canonicalBar";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { selectObjectLineage, selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
+import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
@@ -4644,6 +4645,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 families={["PROFILE"]}
                 speciesRefusal={profileSpeciesRefusalVM}
+                /* The Session row names WHICH session it profiles — the same
+                   owner and inputs the canvas uses (sessionWindowFor). */
+                stateDetail={{ SESSION: sessionWindowFor(symbol, timeframe, !!extHours).label }}
                 heading="Profiles"
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
