@@ -183,6 +183,48 @@ Stack, H-701 Force/Response + Big Trade contractor sheet, UI-04 Question-Driven 
 | F24 audit (Garden 11 task) | Session: saved RTH/ETH overwritten with RTH on every load → controlled select. Draw: Long/Short Position + Fixed Range added to the Workspace Draw sheet | `0108ac0c` |
 | Continuity (tour) | Rooms panel stayed open over Journal and back on /charts → a new address puts held equipment down | `051402e6` |
 | Inspect (H-601) | Living slice ticket gains the session BIOGRAPHY: start, every POC move with times, value EXPANDED/CONTRACTED + TRANSLATED | `130b060d` |
+| TPO / DNA (collision) | TPO letters ran under the left DOM chrome → start right of it (84 px: the EFFORT button's box ends at x 76); DNA bracket is a fingerprint (VALUE 0.5, 3 px), not a beacon | `700cea7d` `74fe1002` |
+| TPO vs legend (Defect 4) | Top TPO rows printed under the transparent price legend → TPO paint region excludes the legend band and any floating chip in its column (`ds.tpoYields`) | `14347d72` |
+| Session profile (Defect 1/2) | Session and Fixed VP were one histogram in two inks → the Session column is framed by its session: "[" wall at the opening bar + dotted high/low hairlines to the column (`ds.vpSpan` = `OPEN:x` / `OPENED_BEFORE_VIEW`) | `bf782f3b` |
+| Fixed Range (Defect 1) | Washed box whose edges were not where the handles grab → two anchor rails at the chosen times, a knob at each exact grab point (dotted leader when the drag price is outside the traded span) | `400694c0` |
+| dPOC name (Defect 4) | Value Migration caption's 0.82 backing hid the ten bodies before "now" (keep-out protected only the newest 3) → keep-out owner gains `spanCandleKeepOut`; the name places against every body under its row (mirror row, then just above/below them, dotted leader), else its backing yields (`ds.valueMigrationLabel`) | `ce055956` |
+| Living labels | Solo lane at fixed W−76: "VAH/POC/VAL" ran under the price axis and read "VA"/"PO" (TSLA 1h) → a name that would not end before the plot edge joins the one label column (`ds.livingProfileLabels`) | `e882248a` |
+| Label column (Defect 4) | The one label column sits left of the Living body, over older candles, but was checked only against the newest 3 bodies → every body on its own row (measured once per frame) | `2ec9f491` |
+| dPOC / header | Stepping above its row's bodies put the dPOC name against the DOM evidence chip → never above `HEADER_FLOOR_Y` | `579dc26e` |
+| Sheriff frame (all 10 species on) | Memory names printed under stack names at equal prices ("S-2 POC 30760 · 36 TESTS" under "CMP POC 30760") — non-strict slot test → strict + join the chip ledger; "LIVING VAH …" printed inside the price legend over "+0.12% today" → stack/Memory names floored below the legend band; classic VP "VAH 31,020" printed on "BAR OPENED …" and its off-screen marker sat at y 9 → tags floored at the header band | `3d8e8daf` `242b3a1f` `3eb2a967` |
+
+Process slip (owned): `3d8e8daf` was pushed by a chained command although the full suite reported
+one failing sentinel (a second pin on the stack-label call). Fixed 2 minutes later in `242b3a1f`
+(pin updated to the new truth; suite 12,643/12,643). `3d8e8daf`'s own GitHub sentinel job is red;
+the next commits are green. Commits are now gated on the suite result, never chained after it.
+
+Integrity rail — CORRECTED at 09:36. On NQ "CHART INTEGRITY · WOUNDED" is honest (delayed Yahoo quote:
+ACTIVE DEGRADED → DEGRADED → WOUNDED; the rail says "2 BARS BEHIND"). On BTC it was a FALSE ALARM: the
+masthead read LIVE — CERTIFIED QUOTE while the plaque read DEGRADED, because the chart room handed the
+grader `{ present }` with no `fresh`, and for a streaming provider `fresh !== true` is ACTIVE DEGRADED —
+permanently. Fixed in `5c0f7000`: one freshness join (`quoteFreshness`) read by the masthead and the chart.
+
+| Slice | Canon vs serving → change | Commit |
+|---|---|---|
+| Envelope name (Defect 4) | "TYPICAL REACH …" had no keep-out (0.82 backing at the live edge) and printed inside the header band → below the band, strict slot test vs its row's bodies + chips, joins the ledger | `95232caa` |
+| Word stack vs TPO | CONTRADICTION / LIQUIDITY LIFECYCLE words printed across the TPO letters → weather + contradiction words register as chips; the lifecycle caption's words and row get one owner, reserved before TPO paints | `5a2e0ec8` |
+| One truth on the rail | BTC: masthead LIVE CERTIFIED vs plaque DEGRADED → one freshness join for both | `5c0f7000` |
+
+| Envelope refusal line | the last bottom-left word TPO could not see → a chip | `47383da2` |
+| Inspect precision (Defect 6) | Ticket read Volume 0.01 beside a data window reading 0.012, and rounded any quantity ≥ 1 to a whole unit → venue precision (6 significant figures for fractions) | `03cad1a3` |
+| Market precision (EURUSD) | Series had no `priceFormat` (library default 2 dp), legend precision from a static base → axis 1.15/1.14/1.13, "1.14 +0.00 (+0.20%)", O/H/L all 1.14, "TPO POC 1.15" beside "TPO VAL 1.15" → one owner `pricePrecision.ts` reads the bars; series, legend and every profile-family level name use it | `1e4f1add` `a6b79915` |
+| Day change pip (EURUSD) | Transport and `resolveRollingChange` rounded the change to 2 dp → "+0.0000 (+0.16%)"; now 8 dp (float noise only) | `38dcd634` |
+
+Continuity on serving: Inspect open on a 1m bar → timeframe 1m → 5m: the ticket let go of the stale
+selection and re-bound to the forming 5m bar, saying so. (Founder's `wm_timeframe` restored to 1h.)
+
+H-701 on serving (order-flow set on, desktop): NQ (candle-only, delayed) — Imbalance / Divergence /
+Weather / Value Candle `UNMEASURED`, Delta Levels `NO_MEASURED_GRID`, Effort `UNREAD`: SILENCE, nothing
+invented from OHLC. BTC 1m (Coinbase tape) — Delta Levels, Value Candle (24 rungs), Weather DRAWN from
+tape; Imbalance `NO_STACK`, Divergence `NO_SWING` (measured, nothing to claim). Paint budget MET both.
+Sheriff frame (all ten profile species at once, NQ 5m): every species drew (Living BODY, Structure
+SWING_LOW+TETHER+TERRITORY, Fusion KNOT, Memory 4 shelves + 17 notches, DNA MEASURED, Composite 4 strata,
+VRP, TPO, Session + Fixed VP), budget MET (mean 20 ms), 0 labels yielded onto candles.
 
 F24 labels: Draw ✓ (now carries risk + Fixed Range) · Layout ✓ Workspace desks (saved layouts: one
 "My stack" slot in Tools — OPEN) · Session ✓ (fixed) · Risk ✓ geometry, no execution on /charts ·
@@ -218,6 +260,26 @@ items: sample pages no longer deploy as routes (`03b4ce83`), paper double-submit
   this shift's orchestrator commits were audited hunk by hunk — clean. Use in-worktree unique names.
 
 ## Still OPEN (named, not closed)
+
+Added by the browser shift (desktop):
+- **EURUSD live quote reads 1.1400 flat (OPEN, located to the client).** `/api/yahoo?type=quote`
+  returns price 1.13986…, change 0.0017 (measured from the page, 10:13 CDT), yet the forming 1h bar
+  and NOW read 1.1400 (O/H/L all 1.1400). Not in `useWebSocket` tick/change code nor `liveBarPolicy`;
+  the rounding sits between the quote and the forming bar. Next: trace the FX quote → live-bar path.
+- **Flatten BLOCKED** (human decision): `placeChartMarketOrder` stays pinned until ten futures carry
+  published CME point values. **Replay OPEN**: no frozen-bar replay engine (honest "not wired" panel).
+  **Layout OPEN**: saved layouts are one "My stack" slot in Tools.
+- **Precision, remaining sites**: drawing-tool chips (Fixed Range "POC …", info-line/price-range
+  deltas use a static base rule), the risk callout (STOP / INVALIDATION), classic VP value-area tags
+  (`p.toFixed(2)` / grouped integers) and indicator math (`computeBB` / VWAP round by a `> 100` rule)
+  still format outside `pricePrecision.ts`. Visible on FX; route them through the owner.
+- **Keep-out law scope**: the owner protects the newest 3 bodies; this shift added row-span bodies
+  for the dPOC name, the stack label column and the envelope name. Zone callouts, the absorption chip
+  and anatomy cards still use newest-3 only — widen deliberately (they may then slide far).
+- **"WM Fixed VP" naming vs canon**: canon's Fixed Range is user-selected (the Draw tool, now anchor
+  rails + knobs). The classic "WM Fixed VP" measures the whole loaded history — a naming decision.
+- **Living VAH/VAL hairlines + POC dash run edge to edge** (canon-directed, P110). Whether the value
+  wash should stop at the profile's first bar is a Canon call.
 
 - **Fusion sample overlap — Founder decision.** `fuseProfiles` sums two parents' row VOLUMES
   on a shared grid. The fusable parents overlap in TIME (Visible Range lies inside Living's session;
