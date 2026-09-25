@@ -162,6 +162,18 @@ describe("the five full bubbles are the five largest prints, not the five grown 
   });
 });
 
+describe("a stepped-out bubble label is an obstacle for later chips", () => {
+  it("registers the label's rectangle in forceChips when it left its bubble", () => {
+    const b = bigTrades();
+    const stepped = b.indexOf("outside = true;");
+    const reg = b.indexOf("if (outside) forceChips.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });");
+    const draw = b.indexOf("ctx.strokeText(lbl, labelX, labelY);");
+    expect(stepped).toBeGreaterThan(-1);
+    expect(reg).toBeGreaterThan(stepped);
+    expect(draw).toBeGreaterThan(reg);
+  });
+});
+
 /** The FORCE → RESPONSE pass on the selected print, through its no-selection branch. */
 const forceResponse = () => slice("const sp = selectedPrintRef.current;", "delete canvas.dataset.printEnvelope;");
 

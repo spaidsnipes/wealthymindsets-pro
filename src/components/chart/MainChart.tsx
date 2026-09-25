@@ -6806,6 +6806,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               bubbleLabelsStaggered++;
             }
             bubbleLabelRects.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });
+            // A label stepped out of its bubble sits on open glass; later
+            // chips (absorption, exhaustion, structure) seed from forceChips
+            // and would otherwise print over the magnitude it moved to keep.
+            if (outside) forceChips.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });
             ctx.strokeText(lbl, labelX, labelY);
             ctx.fillStyle = "rgba(246,224,176,0.99)";
             ctx.fillText(lbl, labelX, labelY);
