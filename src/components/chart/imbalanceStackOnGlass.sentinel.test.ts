@@ -157,5 +157,8 @@ describe("the layer publishes a receipt in every state, including the silent one
     // on the screen.
     expect(block).toMatch(/delete ds\.imbalanceStackLevels/);
     expect(block).toMatch(/delete ds\.imbalanceStackEdge/);
+    // Garden 12: the anchor receipt too — a stale anchor would place a stack
+    // on bars when no stack is drawn at all.
+    expect(CHART).toMatch(/delete ds\.imbalanceStackAnchor/);
   });
 });

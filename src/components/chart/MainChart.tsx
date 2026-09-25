@@ -9075,6 +9075,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // longer on the screen.
           delete ds.imbalanceStackLevels;
           delete ds.imbalanceStackEdge;
+          delete ds.imbalanceStackAnchor;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
 
