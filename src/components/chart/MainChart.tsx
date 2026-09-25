@@ -8885,16 +8885,27 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // from the anatomy owner, which publishes none. A heavier edge
               // here would name a defender from OHLC position.
               {
+                // EFFORT HIGH, visible (canon UI-04: a dotted effort column on
+                // each bar that paid it). A stack of dots under each shelf bar:
+                // count and size from that bar's measured effort, in the
+                // Appearance owner's absorb ink. Longer at NEAR.
                 const tickMax = shelfDepth === "NEAR" ? 14 : 8;
-                ctx.fillStyle = "rgba(237,230,211,0.8)";
+                const maxDots = shelfDepth === "NEAR" ? 6 : 4;
+                ctx.fillStyle = `rgba(${flowColorsRef.current.absorb},0.85)`;
                 for (const ab of anatomy.bars) {
                   if (ab.time < zone.startTime || ab.time > zone.endTime) continue;
                   const xb = ts.timeToCoordinate(ab.time as never);
                   if (xb == null) continue;
-                  ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, 3 + ab.effortNorm * tickMax);
+                  const dots = 1 + Math.round(ab.effortNorm * (maxDots - 1));
+                  const r = 1.2 + ab.effortNorm * 1.3;
+                  for (let d = 0; d < dots; d++) {
+                    ctx.beginPath();
+                    ctx.arc(Math.round(+xb), yLo + 5 + d * 4.5, r, 0, Math.PI * 2);
+                    ctx.fill();
+                  }
                   effortTicksDrawn++;
                 }
-                shelfRects.push({ x: x0, y: yLo, w: bw, h: 6 + tickMax });
+                shelfRects.push({ x: x0, y: yLo, w: bw, h: 6 + Math.max(tickMax, maxDots * 4.5) });
               }
 
               // Compact chip. The ratio is the mockup's own reading; when the

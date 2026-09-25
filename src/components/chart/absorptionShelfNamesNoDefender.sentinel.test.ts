@@ -53,7 +53,12 @@ describe("the absorption shelf", () => {
     // Nothing but the block opener sits between the FAR skip and the ticks:
     // no condition can gate them on a direction.
     expect(loop.slice(farSkip, ticks).replace('if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }', "").replace(/\s/g, "")).toBe("{");
-    expect(loop).toMatch(/ctx\.fillRect\(Math\.round\(\+xb\) - 1\.5, yLo \+ 3, 3, 3 \+ ab\.effortNorm \* tickMax\);\s*effortTicksDrawn\+\+;/);
+    // The tick is a dotted effort column now (canon UI-04): dots stacked
+    // under the bar, count and size from ITS effort — still one per bar,
+    // still counted, still whatever direction price came from.
+    expect(loop).toMatch(/const dots = 1 \+ Math\.round\(ab\.effortNorm \* \(maxDots - 1\)\);/);
+    expect(loop).toMatch(/ctx\.arc\(Math\.round\(\+xb\), yLo \+ 5 \+ d \* 4\.5, r, 0, Math\.PI \* 2\);/);
+    expect(loop).toMatch(/\}\s*effortTicksDrawn\+\+;/);
   });
 
   it("the depth receipt is derived from what was drawn and withdrawn when nothing was", () => {
