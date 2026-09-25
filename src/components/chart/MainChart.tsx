@@ -7870,14 +7870,38 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.stroke();
               ctx.setLineDash([]);
               if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }
-              if (shelfDepth === "NEAR") {
-                ctx.fillStyle = "rgba(237,230,211,0.8)";
-                for (const ab of anatomy.bars) {
-                  if (ab.time < zone.startTime || ab.time > zone.endTime) continue;
-                  const xb = ts.timeToCoordinate(ab.time as never);
-                  if (xb == null) continue;
-                  const len = 4 + ab.effortNorm * 14;
-                  ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, len);
+              // GARDEN 12 · THE THREE FACTS AS GEOMETRY. The shelf (hatched,
+              // clipped to its real bounds) is DISPLACEMENT SUPPRESSED — how
+              // little price travelled. OPPOSING INTEREST HOLDS: the edge price
+              // pushed INTO — measured from where it approached from (the close
+              // before the shelf began, vs the shelf's middle) — is drawn as a
+              // solid wall; the other edge stays faint. EFFORT HIGH: one tick
+              // per bar on the approach side, sized by that bar's effort
+              // (larger at NEAR). No approach bar on screen → no wall claimed.
+              {
+                const iStart = anatomy.bars.findIndex(ab => ab.time >= zone.startTime);
+                const before = iStart > 0 ? anatomy.bars[iStart - 1] : null;
+                const mid = (zone.priceHi + zone.priceLo) / 2;
+                const fromBelow = before ? before.close < mid : null;
+                if (fromBelow != null) {
+                  const wy = fromBelow ? yHi : yLo;
+                  ctx.strokeStyle = "rgba(237,230,211,0.95)"; ctx.lineWidth = 2.5;
+                  ctx.beginPath(); ctx.moveTo(x0, Math.round(wy) + 0.5); ctx.lineTo(x1, Math.round(wy) + 0.5); ctx.stroke();
+                  ctx.lineWidth = 1;
+                  const tickMax = shelfDepth === "NEAR" ? 14 : 8;
+                  ctx.fillStyle = "rgba(237,230,211,0.8)";
+                  for (const ab of anatomy.bars) {
+                    if (ab.time < zone.startTime || ab.time > zone.endTime) continue;
+                    const xb = ts.timeToCoordinate(ab.time as never);
+                    if (xb == null) continue;
+                    const len = 3 + ab.effortNorm * tickMax;
+                    // Ticks stand on the approach side, pointing at the wall.
+                    if (fromBelow) ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, len);
+                    else ctx.fillRect(Math.round(+xb) - 1.5, yHi - 3 - len, 3, len);
+                  }
+                  ds.absorptionWall = fromBelow ? "TOP" : "BOTTOM";
+                } else {
+                  ds.absorptionWall = "UNKNOWN_APPROACH";
                 }
               }
 
