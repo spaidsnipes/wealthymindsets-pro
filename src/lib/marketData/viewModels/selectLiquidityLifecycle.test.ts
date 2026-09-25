@@ -18,9 +18,10 @@ describe("Liquidity lifecycle — measured stages, PULLED refused", () => {
   it("walks a pool through appeared → persisted → touched → refilled → consumed", () => {
     const v = selectLiquidityLifecycle(bars());
     expect(v.drawn).toBe(true);
-    const pool = v.pools[0];
-    expect(pool.low).toBeGreaterThan(99.8);
-    expect(pool.high).toBeLessThan(100.2);
+    // Found by its price, not its rank: live pools now rank first, and the
+    // one this walk follows ends CONSUMED.
+    const pool = v.pools.find(p => p.low > 99.8 && p.high < 100.2)!;
+    expect(pool).toBeDefined();
     const stages = pool.events.map(e => e.stage);
     expect(stages[0]).toBe("APPEARED");
     expect(stages).toContain("PERSISTED");
@@ -37,5 +38,28 @@ describe("Liquidity lifecycle — measured stages, PULLED refused", () => {
   it("refuses on too few bars or no volume", () => {
     expect(selectLiquidityLifecycle(bars().slice(0, 5)).reason).toBe("TOO_FEW_BARS");
     expect(selectLiquidityLifecycle(bars().map(b => ({ ...b, volume: 0 }))).reason).toBe("NO_VOLUME");
+  });
+
+  it("a pool still standing outranks heavier consumed ones (the glass shows live liquidity)", () => {
+    // Six heavy pools built and consumed early, then one light pool that is
+    // still standing at the end. Ranked by volume alone the live one was cut.
+    const out: { time: number; high: number; low: number; close: number; volume: number }[] = [];
+    let t = 0;
+    const push = (lo: number, hi: number, c: number, v: number) => out.push({ time: (t += 60), low: lo, high: hi, close: c, volume: v });
+    for (let k = 0; k < 7; k++) {
+      const base = 100 + k * 10;
+      for (let i = 0; i < 16; i++) push(base - 0.1, base + 0.1, base, 9000 - k * 100); // build
+      for (let i = 0; i < 6; i++) push(base + 1, base + 1.3, base + 1.2, 500);       // leave up
+      for (let i = 0; i < 6; i++) push(base - 0.1, base + 0.1, base, 9000);          // touch
+      for (let i = 0; i < 6; i++) push(base - 2.1, base - 1.8, base - 2, 300);       // break below
+    }
+    const live = 300;
+    for (let i = 0; i < 24; i++) push(live - 0.1, live + 0.1, live, 5000);          // lighter than every consumed pool, still standing
+    const v = selectLiquidityLifecycle(out);
+    expect(v.drawn).toBe(true);
+    const standing = v.pools.filter(p => p.stage !== "CONSUMED");
+    expect(standing.length).toBeGreaterThan(0);
+    expect(v.pools[0].stage).not.toBe("CONSUMED");
+    expect(v.pools.some(p => Math.abs(p.price - live) < 1)).toBe(true);
   });
 });

@@ -107,8 +107,16 @@ export function selectLiquidityLifecycle(input: readonly LifecycleBar[] | null |
 
     if ((i + 1) % STEP_BARS !== 0) return;
     const s = (i + 1) / STEP_BARS;
-    const rows = [...vol.entries()];
-    // A node is a local peak carrying at least half the heaviest row's volume.
+    // A CONSUMED pool is history: its rows no longer compete for the node
+    // slots or set the bar a new pool must clear. They did — the heaviest
+    // rows the loaded history ever built filled every slot and set the
+    // peak, so no pool near today's price could be born (serving, NQ1! 5m:
+    // six consumed pools, 0 painted, nothing live).
+    const consumedRows = [...tracks.values()].filter(t => t.consumed).map(t => t.row);
+    const isHistory = (r: number) => consumedRows.some(cr => Math.abs(cr - r) <= 2);
+    const rows = [...vol.entries()].filter(([r]) => !isHistory(r));
+    if (rows.length === 0) return;
+    // A node is a local peak carrying at least half the heaviest live row's volume.
     const peak = Math.max(...rows.map(([, v]) => v));
     const nodes = rows
       .filter(([r, v]) => v >= peak * 0.5 && v >= (vol.get(r - 1) ?? 0) && v >= (vol.get(r + 1) ?? 0))
@@ -135,7 +143,21 @@ export function selectLiquidityLifecycle(input: readonly LifecycleBar[] | null |
       const events = [...t.events].sort((a, z) => a.time - z.time);
       return { price: (t.row + 0.5) * step, low: t.row * step, high: (t.row + 1) * step, stage: events[events.length - 1].stage, events, volume: vol.get(t.row) ?? 0 };
     })
-    .sort((a, z) => z.volume - a.volume)
+    // LIVE LIQUIDITY FIRST. Ranked by volume alone, the heaviest pools the
+    // loaded history ever built — long since consumed, off camera — filled
+    // every slot, and the glass painted 0 of 6 while the caption said "6
+    // pools" (serving, NQ1! 5m, 2026-09-25). A pool still standing outranks
+    // any consumed one; among consumed, the most recently consumed; volume
+    // breaks ties.
+    .sort((a, z) => {
+      const la = a.stage !== "CONSUMED" ? 1 : 0, lz = z.stage !== "CONSUMED" ? 1 : 0;
+      if (la !== lz) return lz - la;
+      if (!la) {
+        const ta = a.events[a.events.length - 1]?.time ?? 0, tz = z.events[z.events.length - 1]?.time ?? 0;
+        if (ta !== tz) return tz - ta;
+      }
+      return z.volume - a.volume;
+    })
     .slice(0, MAX_POOLS);
   return { ...base, drawn: pools.length > 0, reason: pools.length ? "DRAWN" : "NO_POOLS", pools, step };
 }
