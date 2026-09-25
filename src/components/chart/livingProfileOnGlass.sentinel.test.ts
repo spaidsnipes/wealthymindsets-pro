@@ -72,6 +72,15 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
     expect(block).toMatch(/ds\.livingProfileForm = `BODY:\$\{runPts\.length\}`;/);
   });
 
+  it("the body never tints a candle: every candle under it is cut out of the fill (Defect 4)", () => {
+    const cut = block.indexOf('ctx.clip("evenodd");');
+    const fill = block.indexOf("ctx.fillStyle = g; ctx.fill(bodyPath);");
+    expect(cut).toBeGreaterThan(-1);
+    expect(fill).toBeGreaterThan(cut);
+    expect(block).toMatch(/ctx\.rect\(\+xb - bsp \* 0\.42, top, bsp \* 0\.84, bot - top\);/);
+    expect(block).toMatch(/ctx\.restore\(\); \/\/ releases the candle cut-out/);
+  });
+
   it("width comes from `share` — a NORMALISED number, never volume — on the body's scale", () => {
     expect(block).toMatch(/b\.share \* bodyW/);
     expect(block).not.toMatch(/b\.volume/);

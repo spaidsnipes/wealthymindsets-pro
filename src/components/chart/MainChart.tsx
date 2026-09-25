@@ -171,7 +171,7 @@ const BASIS_CAPTION_X =
 
 /** Profile species geometry receipts: withdrawn each frame before the stack paints, re-published by whatever paints. */
 const PROFILE_GEOMETRY_RECEIPTS = [
-  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected", "livingProfileBodyWidth",
+  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected", "livingProfileBodyWidth", "livingProfileCandlesKept",
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
 ] as const;
@@ -11427,6 +11427,37 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 bodyPath.lineTo(rightEdge, last.y);
                 bodyPath.closePath();
               }
+              // CANDLE PRESERVATION (Defect 4): the body is the auction BEHIND
+              // the candles — every candle under it (body and wick) is cut out
+              // of the fill, so the newest bars stay crisp where the body is
+              // brightest. Wicks are cut above/below the body only (an
+              // overlapping cut would re-fill the body under even-odd).
+              ctx.save();
+              ctx.beginPath(); ctx.rect(0, 0, W, H);
+              let candlesKept = 0;
+              {
+                const tsB = chart.timeScale();
+                const vrB = tsB.getVisibleLogicalRange();
+                const barsB = barsRef.current ?? [];
+                if (vrB) {
+                  const lo = Math.max(0, Math.floor(vrB.from)), hi = Math.min(barsB.length - 1, Math.ceil(vrB.to));
+                  for (let i = lo; i <= hi; i++) {
+                    const b = barsB[i];
+                    const xb = tsB.timeToCoordinate(b.time as never);
+                    if (xb == null || +xb < rightEdge - bodyW - bsp || +xb > rightEdge + bsp) continue;
+                    const yo = srs.priceToCoordinate(b.open), yc = srs.priceToCoordinate(b.close);
+                    const yhB = srs.priceToCoordinate(b.high), ylB = srs.priceToCoordinate(b.low);
+                    if (yo == null || yc == null) continue;
+                    const top = Math.min(+yo, +yc) - 1, bot = Math.max(+yo, +yc) + 1;
+                    ctx.rect(+xb - bsp * 0.42, top, bsp * 0.84, bot - top);
+                    if (yhB != null && +yhB < top) ctx.rect(+xb - 1, +yhB - 1, 2, top - +yhB + 1);
+                    if (ylB != null && +ylB > bot) ctx.rect(+xb - 1, bot, 2, +ylB - bot + 1);
+                    candlesKept++;
+                  }
+                }
+              }
+              ctx.clip("evenodd");
+              ds.livingProfileCandlesKept = String(candlesKept);
               // The body: brightest at its base by the newest bars, fading
               // toward the tips so the candles under it stay readable.
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
@@ -11448,6 +11479,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.restore();
                 }
               }
+              ctx.restore(); // releases the candle cut-out
               // The edge: Living's lit gold at rest, the trader's POC ink once chosen.
               ctx.strokeStyle = pk.chosenOr("POC", 0.85, "rgba(233,196,106,0.85)");
               ctx.lineWidth = 1.2; ctx.stroke(edgePath);
