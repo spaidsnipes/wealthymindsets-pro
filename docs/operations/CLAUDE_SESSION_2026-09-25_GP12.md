@@ -165,6 +165,43 @@ Not proved on serving: 390 (window resize does not change `innerWidth` in the au
 browser), the full DEFECT 7 continuity gauntlet (a zone click landed on the bar ticket instead;
 not repeated to avoid moving more of the Founder's persisted state).
 
+## Browser transformation shift (07:45–11:00 CDT) — DESKTOP ONLY
+
+Founder correction: Phase 1 is the full serving DESKTOP browser (Garden 11 device gate). Phone,
+tablet and 390 work waits for desktop ZERO OPEN, human Sheriff acceptance and explicit Founder
+opening. Authority read first: Garden 11 front door, the Manifestation Map, the Browser trade set
+(B-101…B-801). Canon plates were opened in Drive beside serving /charts (P110 Living Profile
+Stack, H-701 Force/Response + Big Trade contractor sheet, UI-04 Question-Driven Absorption).
+
+| Slice | Canon vs serving → change | Commit |
+|---|---|---|
+| Living Profile body (P110) | Serving: hairline rows in an ~84px side lane. Canon: one gold auction body fused to price. → one smooth gradient body per traded run, value lit, POC glow, ghosts/levels/DNA on its scale; every candle under it cut out of the fill; the stack plan owns its room (Composite/VRP step left of it) | `ee2f7671` `7d50f0ed` `11ffd01f` |
+| Fusion (Defect 1) | Serving: full-width band + caption "FUSION ×2 · … · STRUCTURE VAL · MEMORY S-3 POC". → parents arrive as threads at their own prices in species inks, converging into one bracketed knot "×N" | `1ed6b3a2` `f2ca1b80` |
+| Absorption effort (UI-04) | 3px ticks invisible at MID → dotted effort column per shelf bar, sized by that bar's effort, in the absorb ink | `9f6a8531` |
+| Composite (Defect 2) | Three identical steel/gold histograms side by side → Composite rows laid down as session strata (owner publishes per-session volume) | `a727f064` |
+| Liquidity lifecycle | NQ 5m: "6 pools", 0 painted, all long-consumed → consumed pools stop starving new births and live pools rank first; serving now 6/6 live pools painted | `b329cf11` |
+| F24 audit (Garden 11 task) | Session: saved RTH/ETH overwritten with RTH on every load → controlled select. Draw: Long/Short Position + Fixed Range added to the Workspace Draw sheet | `0108ac0c` |
+| Continuity (tour) | Rooms panel stayed open over Journal and back on /charts → a new address puts held equipment down | `051402e6` |
+| Inspect (H-601) | Living slice ticket gains the session BIOGRAPHY: start, every POC move with times, value EXPANDED/CONTRACTED + TRANSLATED | `130b060d` |
+
+F24 labels: Draw ✓ (now carries risk + Fixed Range) · Layout ✓ Workspace desks (saved layouts: one
+"My stack" slot in Tools — OPEN) · Session ✓ (fixed) · Risk ✓ geometry, no execution on /charts ·
+**Flatten BLOCKED** — the only chart order path (`placeChartMarketOrder`) is pinned by
+`chartOrderContractCoverage` until ten futures carry published CME point values; a guessed
+multiplier would book money wrong (Founder/human decision) · **Replay OPEN** — the Workspace tile
+opens an honest "not wired" panel; no frozen-bar replay engine exists.
+
+PROVED on serving this block (NQ1! 5m desktop, my own tab; the Founder's live tab untouched): P110
+body with crisp candles; Fusion knots; Composite strata; effort columns; 6/6 live liquidity pools;
+Visible Range recomputes on zoom (150 bars POC 30875 → 117 bars 30880 → 204 bars 30760); Rooms →
+Journal → Back keeps the camera and profiles; Living slice Inspect biography (184 bars, POC
+migrated 8×, value EXPANDED 30 → 190, TRANSLATED UP 160).
+
+Settings incident (owned): an old snapshot restore turned the Founder's newly enabled Composite,
+Structure, Fusion and DNA off in storage mid-shift; re-derived from his live tab's receipts and
+restored within minutes (his live tab never changed). Method corrected: flip-and-restore only the
+touched keys, read immediately before.
+
 ## Local work from the previous team
 
 Audited every local branch, stash, untracked file and worktree (28 agents). Landed the two valid
