@@ -14140,6 +14140,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             timeToX: t => { const xk = tsW.timeToCoordinate(t as never); return xk == null ? null : +xk; },
             priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
           }, weatherLens.cx - weatherLens.rx - 8, weatherLens.cx + weatherLens.rx + 8)) cut.rect(r.x, r.y, r.w, r.h);
+          // THE LENS'S GLASS — a faint slate tint darkening toward the rim,
+          // painted HERE so it sits UNDER the field (composited below) and
+          // behind the candles. Lens material, not data: blue-grey, never
+          // green (§9), and no market fact rides on it.
+          const Lg = weatherLens;
+          ctx.save();
+          ctx.globalAlpha = att.alpha("weather");
+          ctx.clip(cut, "evenodd");
+          ctx.beginPath();
+          ctx.ellipse(Lg.cx, Lg.cy, Lg.rx, Lg.ry, 0, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.translate(Lg.cx, Lg.cy);
+          ctx.scale(1, Lg.ry / Lg.rx);
+          const tint = ctx.createRadialGradient(0, 0, 0, 0, 0, Lg.rx);
+          tint.addColorStop(0, "rgba(40,52,72,0.08)");
+          tint.addColorStop(0.78, "rgba(30,38,54,0.14)");
+          tint.addColorStop(1, "rgba(8,10,14,0.36)");
+          ctx.fillStyle = tint;
+          ctx.fillRect(-Lg.rx, -Lg.rx, Lg.rx * 2, Lg.rx * 2);
+          ctx.restore();
           weatherLensCut = cut;
         }
 
@@ -14328,16 +14348,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.beginPath();
             ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
             ctx.clip();
-            ctx.save();
-            ctx.translate(L.cx, L.cy);
-            ctx.scale(1, L.ry / L.rx);
-            const tint = ctx.createRadialGradient(0, 0, 0, 0, 0, L.rx);
-            tint.addColorStop(0, "rgba(40,52,72,0.08)");
-            tint.addColorStop(0.78, "rgba(30,38,54,0.14)");
-            tint.addColorStop(1, "rgba(8,10,14,0.36)");
-            ctx.fillStyle = tint;
-            ctx.fillRect(-L.rx, -L.rx, L.rx * 2, L.rx * 2);
-            ctx.restore();
             let shelves = 0;
             ctx.setLineDash([1, 3]);
             ctx.strokeStyle = "rgba(237,230,211,0.60)";
@@ -14625,7 +14635,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const age = Math.max(0.35, Math.min(1, 1 - (lastEv ? barsSince(lastEv.time) : 0) / 240)) * (span.consumed ? 0.5 : 1);
               const weight = pool.volume / maxVolL;
               // GLOW — a soft halo around the ladder, its volume's weight.
-              const halo = 7;
+              const halo = 10;
               const glow = ctx.createLinearGradient(0, top - halo, 0, top + h + halo);
               glow.addColorStop(0, `rgba(${INK},0)`);
               glow.addColorStop(0.5, `rgba(${INK},${(0.05 + 0.11 * weight) * age})`);

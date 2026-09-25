@@ -44,10 +44,10 @@ describe("F08A — a pool is BOUNDED IN TIME by its lifecycle", () => {
     expect(Object.keys(PHASE_WORD)).not.toContain("PULLED");
   });
 
-  it("rungs spread over the pool's band, or keep a 2px pitch centred on a thin one", () => {
+  it("rungs spread over the pool's band, or keep a 3px pitch centred on a thin one", () => {
     expect(ladderRungYs(100, 30, 2)).toEqual([110, 120]);
     const thin = ladderRungYs(100, 3, 4);
-    expect(thin[1] - thin[0]).toBeCloseTo(2);
+    expect(thin[1] - thin[0]).toBeCloseTo(3);
     expect((thin[0] + thin[3]) / 2).toBeCloseTo(101.5);
   });
 });

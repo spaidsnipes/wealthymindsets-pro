@@ -96,13 +96,15 @@ export function poolSpan(events: readonly { readonly stage: LifecycleStage; read
 /**
  * The rung rows of a ladder inside a pool's price band [top, top + h] (screen
  * px). Evenly spaced across the band; when the band is thinner than the rungs
- * need, the ladder keeps a 2px pitch centred on the band so its lines stay
- * distinguishable — it never grows past 2px per rung.
+ * need, the ladder keeps a 3px pitch centred on the band so its lines stay
+ * distinguishable (F08A's ladders read as separate fine lines, not a smear) —
+ * it never grows past 3px per rung.
  */
+export const LADDER_MIN_PITCH = 3;
 export function ladderRungYs(top: number, h: number, rungs: number): number[] {
   const n = Math.max(1, Math.round(rungs));
   if (n === 1) return [top + h / 2];
-  const pitch = Math.max(2, h / (n + 1));
+  const pitch = Math.max(LADDER_MIN_PITCH, h / (n + 1));
   const span = pitch * (n - 1);
   const y0 = top + h / 2 - span / 2;
   return Array.from({ length: n }, (_, i) => y0 + i * pitch);
