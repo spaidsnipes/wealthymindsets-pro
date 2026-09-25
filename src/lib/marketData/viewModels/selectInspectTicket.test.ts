@@ -10,8 +10,11 @@
 
 import { describe, expect, it } from "vitest";
 
+import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
 import {
   selectInspectTicket,
+  identityForBar,
+  indexBarIdentitiesBySecond,
   MIN_PRINTS_FOR_DELTA,
   INSPECT_TICKET_VERSION,
   type InspectPrint,
@@ -20,6 +23,14 @@ import {
 
 const BAR_OPEN_MS = 1_750_000_000_000;
 const SPAN_15M = 900_000;
+const BAR_ID = `BTC|15m|${BAR_OPEN_MS}|e2`;
+
+const identity = (over: Partial<CanonicalBarIdentity> = {}): CanonicalBarIdentity => ({
+  barId: BAR_ID, symbolId: "BTC", sessionId: "RTH-2025-06-15", timeframe: "15m",
+  asOf: BAR_OPEN_MS, receivedAt: BAR_OPEN_MS + 1250,
+  fidelity: "INDICATIVE", source: "coinbase", provenance: "REST_BACKFILL", truthEpoch: 2,
+  ...over,
+});
 
 const print = (over: Partial<InspectPrint> = {}): InspectPrint => ({
   price: 100,
@@ -175,16 +186,112 @@ describe("quotes are not prints", () => {
   });
 });
 
-describe("fidelity is an owed debt, printed as one", () => {
-  it("the row exists and always reads UNREAD, naming the absent owner", () => {
+describe("fidelity is the admitted identity's class word, or named as missing", () => {
+  it("reads the identity's class, with a basis naming its source and provenance", () => {
+    const f = rowOf(base({ identity: identity() }), "FIDELITY");
+    expect(f.state).toBe("READ");
+    expect(f.value).toBe("INDICATIVE");
+    expect(f.basis).toContain("coinbase");
+    expect(f.basis).toContain("REST_BACKFILL");
+  });
+
+  it("without an identity the row is UNREAD and names the missing identity", () => {
     // The plate prints `98.7%`. Dropping the row would hide the debt; filling
     // it would be a confidence score for a measurement nobody took.
-    for (const vm of [base(), base({ prints: [] }), base({ barOpenMs: null })]) {
+    for (const vm of [base(), base({ prints: [] }), base({ identity: null })]) {
       const f = rowOf(vm, "FIDELITY");
       expect(f.state).toBe("UNREAD");
       expect(f.value).toBeNull();
-      expect(f.absence).toMatch(/CanonicalBar/);
+      expect(f.absence).toMatch(/no canonical identity was admitted for this bar/i);
+      expect(vm.lineage.state).toBe("UNREAD");
     }
+  });
+
+  it("a seconds-vs-milliseconds mismatch refuses rather than reading", () => {
+    // Identity stamped in SECONDS against a bar in milliseconds, and the bar
+    // passed in SECONDS against an identity in milliseconds. Both must refuse.
+    const secondsIdentity = base({ identity: identity({ asOf: BAR_OPEN_MS / 1000 }) });
+    const secondsBar = base({ barOpenMs: BAR_OPEN_MS / 1000, identity: identity() });
+    for (const vm of [secondsIdentity, secondsBar]) {
+      expect(rowOf(vm, "FIDELITY").state).toBe("UNREAD");
+      expect(rowOf(vm, "FIDELITY").absence).toMatch(/different second/i);
+      expect(vm.lineage.state).toBe("UNREAD");
+      expect(vm.chain.state).toBe("UNREAD");
+    }
+  });
+
+  it("the forming bar withholds its admitted identity and says why", () => {
+    const vm = base({ identity: identity(), barIsForming: true });
+    expect(rowOf(vm, "FIDELITY").state).toBe("UNREAD");
+    expect(rowOf(vm, "FIDELITY").absence).toMatch(/may still be forming/i);
+    expect(vm.lineage).toEqual({ state: "UNREAD", barId: null, absence: expect.stringMatching(/forming/i) });
+  });
+
+  it("is never a percentage, and a class this OS does not define is refused", () => {
+    for (const fidelity of ["INDICATIVE", "EXECUTABLE", "PARTIAL", "DEGRADED", "STALE"] as const) {
+      expect(rowOf(base({ identity: identity({ fidelity }) }), "FIDELITY").value).toBe(fidelity);
+    }
+    const forged = base({ identity: identity({ fidelity: "98.7%" as never }) });
+    expect(rowOf(forged, "FIDELITY").state).toBe("UNREAD");
+    expect(JSON.stringify(forged)).not.toContain("98.7");
+  });
+});
+
+describe("lineage and the chain come from the same identity", () => {
+  it("prints BAR · source · provenance · session · epoch · heard, and the barId", () => {
+    const vm = base({ identity: identity() });
+    expect(vm.lineage).toEqual({
+      state: "READ",
+      barId: BAR_ID,
+      line: `BAR ${BAR_ID} · coinbase · REST_BACKFILL · session RTH-2025-06-15 · epoch 2 · heard +1,250ms`,
+    });
+    expect(vm.method).toBe(`selectInspectTicket v${INSPECT_TICKET_VERSION}`);
+  });
+
+  it("BAR → the object born on this bar → the camera's decision", () => {
+    const vm = base({
+      identity: identity(),
+      chain: {
+        objects: [{ objectId: "LEVEL-9", birthBarId: "other-bar" }, { objectId: `ZONE:${BAR_ID}:DEMAND`, birthBarId: BAR_ID }],
+        decisionId: "D-1842",
+      },
+    });
+    expect(vm.chain).toMatchObject({ state: "READ", line: `BAR → OBJECT ZONE:${BAR_ID}:DEMAND → DECISION D-1842`, moreObjects: 0 });
+  });
+
+  it("no object born here ends the chain early: the decision does not ride on nothing", () => {
+    const vm = base({ identity: identity(), chain: { objects: [{ objectId: "LEVEL-9", birthBarId: "other-bar" }], decisionId: "D-1842" } });
+    expect(vm.chain).toMatchObject({ state: "READ", line: "BAR → OBJECT none → DECISION none taken", objectId: null, decisionId: null });
+  });
+
+  it("prefers the selected object when it was born here, and counts the rest", () => {
+    const vm = base({
+      identity: identity(),
+      chain: {
+        objects: [{ objectId: "A", birthBarId: BAR_ID }, { objectId: "B", birthBarId: BAR_ID }],
+        selectedObjectId: "B",
+        decisionId: null,
+      },
+    });
+    expect(vm.chain).toMatchObject({ state: "READ", line: "BAR → OBJECT B (+1 more born here) → DECISION none taken", moreObjects: 1 });
+  });
+
+  it("without an identity the chain has no first link", () => {
+    expect(base().chain).toEqual({ state: "UNREAD", absence: expect.stringMatching(/starts at the bar/i) });
+  });
+});
+
+describe("the room's join: identity by the bar's open second", () => {
+  it("indexes each identity at floor(asOf / 1000) and looks bars up by their SECONDS time", () => {
+    const index = indexBarIdentitiesBySecond([identity(), identity({ barId: "next", asOf: BAR_OPEN_MS + SPAN_15M })]);
+    expect(identityForBar(index, BAR_OPEN_MS / 1000)?.barId).toBe(BAR_ID);
+    expect(identityForBar(index, (BAR_OPEN_MS + SPAN_15M) / 1000)?.barId).toBe("next");
+    expect(identityForBar(index, null)).toBeNull();
+  });
+
+  it("a seconds-stamped identity is not found at the bar's second", () => {
+    const index = indexBarIdentitiesBySecond([identity({ asOf: BAR_OPEN_MS / 1000 })]);
+    expect(identityForBar(index, BAR_OPEN_MS / 1000)).toBeNull();
   });
 });
 
@@ -225,6 +332,10 @@ describe("every sentence this compiler can emit is well formed", () => {
       base({ barVolume: null }),
       base({ prints: coveringTape().map(p => ({ ...p, side: "buy" as const })) }),
       selectInspectTicket({}),
+      base({ identity: identity() }),
+      base({ identity: identity(), barIsForming: true }),
+      base({ identity: identity({ asOf: 1 }) }),
+      base({ identity: identity({ fidelity: "?" as never }) }),
     ];
     let sentencesChecked = 0;
     for (const vm of states) {
@@ -232,6 +343,8 @@ describe("every sentence this compiler can emit is well formed", () => {
         vm.reachNote,
         vm.footprintDoorNote,
         ...vm.rows.flatMap(r => [r.basis, r.absence].filter((s): s is string => s !== null)),
+        ...(vm.lineage.state === "UNREAD" ? [vm.lineage.absence] : []),
+        ...(vm.chain.state === "UNREAD" ? [vm.chain.absence] : []),
       ];
       for (const s of sentences) {
         sentencesChecked++;

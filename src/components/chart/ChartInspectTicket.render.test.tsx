@@ -29,6 +29,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
+import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
 import {
   selectInspectTicket,
   type InspectPrint,
@@ -150,6 +151,50 @@ describe("the ticket puts its verdict on the glass", () => {
   });
 });
 
+describe("the bar ticket prints the canonical identity the room holds", () => {
+  const BAR_ID = `BTC|15m|${BAR_OPEN_MS}|e2`;
+  const identity: CanonicalBarIdentity = {
+    barId: BAR_ID, symbolId: "BTC", sessionId: "CONTINUOUS", timeframe: "15m",
+    asOf: BAR_OPEN_MS, receivedAt: BAR_OPEN_MS + 40,
+    fidelity: "INDICATIVE", source: "coinbase", provenance: "REST_BACKFILL", truthEpoch: 0,
+  };
+  const render = (over: Partial<Parameters<typeof selectInspectTicket>[0]>) =>
+    renderToStaticMarkup(
+      <ChartInspectTicket
+        vm={selectInspectTicket({ barOpenMs: BAR_OPEN_MS, barSpanMs: SPAN_15M, price: 1, barVolume: 7, prints: [], ...over })}
+        followingLiveBar={false}
+        open
+        onOpenChange={() => {}}
+        onOpenFootprint={() => {}}
+      />,
+    );
+
+  it("stamps the barId and prints FIDELITY as a class word, the lineage line and the CHAIN line", () => {
+    const html = render({
+      identity,
+      chain: { objects: [{ objectId: `ZONE:${BAR_ID}:DEMAND`, birthBarId: BAR_ID }], decisionId: "D-1842" },
+    });
+    expect(html).toContain(`data-inspect-bar-id="${BAR_ID}"`);
+    expect(html).toContain('data-inspect-row="FIDELITY" data-inspect-state="READ"');
+    expect(html).toContain(">INDICATIVE<");
+    expect(html).toContain(`BAR ${BAR_ID} · coinbase · REST_BACKFILL · session CONTINUOUS · epoch 0 · heard +40ms`);
+    expect(html).toContain(`CHAIN BAR → OBJECT ZONE:${BAR_ID}:DEMAND → DECISION D-1842`);
+    expect(html).toContain("method selectInspectTicket v1");
+    const fidelityRow = html.slice(html.indexOf('data-inspect-row="FIDELITY"'), html.indexOf('data-inspect-lineage='));
+    expect(fidelityRow).toContain("INDICATIVE");
+    expect(fidelityRow, "fidelity is a class word, never a percentage").not.toMatch(/\d\s*%/);
+  });
+
+  it("a bar with no admitted identity names the missing identity and stamps no barId", () => {
+    const html = render({ identity: null });
+    expect(html).not.toContain("data-inspect-bar-id");
+    expect(html).toContain('data-inspect-lineage="UNREAD"');
+    expect(html).toMatch(/No canonical identity was admitted for this bar/);
+    expect(html).toContain('data-inspect-chain="UNREAD"');
+    expect(html).toContain("CHAIN UNREAD");
+  });
+});
+
 describe("the ticket is rendered by the charts room, not merely imported", () => {
   const DASHBOARD = readFileSync(
     join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
@@ -181,5 +226,22 @@ describe("the ticket is rendered by the charts room, not merely imported", () =>
   it("feeds the compiler from the room's own tape", () => {
     expect(DASHBOARD).toMatch(/selectInspectTicket\(/);
     expect(DASHBOARD).toMatch(/timeMs:\s*t\.time/);
+  });
+
+  it("feeds the compiler the admitted identity, the forming rule and the chain the room already holds", () => {
+    expect(DASHBOARD).toContain("indexBarIdentitiesBySecond(chartBarIdentities)");
+    expect(DASHBOARD).toContain("identity: identityForBar(chartBarIdentityIndex, inspectBar?.time),");
+    expect(DASHBOARD).toContain("barIsForming: effortSubjectIsForming,");
+    expect(DASHBOARD).toContain(
+      "chain: { objects: chartMarketObjects, selectedObjectId: selectedMarketObjectId, decisionId: inspectDecisionId },",
+    );
+    expect(DASHBOARD).toContain("const inspectDecisionId = currentSceneDecision?.decisionId ?? null;");
+    // The memo reads the decision during render: declared before it, it would
+    // throw in the temporal dead zone on first paint.
+    const decisionAt = DASHBOARD.indexOf("const currentSceneDecision =");
+    const ticketAt = DASHBOARD.indexOf("const inspectTicketVM = React.useMemo(");
+    expect(decisionAt).toBeGreaterThan(-1);
+    expect(ticketAt).toBeGreaterThan(decisionAt);
+    expect(ticketAt).toBeGreaterThan(DASHBOARD.indexOf("const effortSubjectIsForming ="));
   });
 });

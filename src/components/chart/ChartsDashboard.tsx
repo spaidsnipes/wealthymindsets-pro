@@ -264,7 +264,7 @@ import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivis
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
 import { QUESTION_CHOICES, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
-import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
+import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
@@ -1696,21 +1696,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [cursorBar, chartBars]);
   const inspectFollowingLiveBar = cursorBar === null && inspectBar !== null;
 
-  const inspectTicketVM = React.useMemo(
-    () => selectInspectTicket({
-      barOpenMs: inspectBar ? inspectBar.time * 1000 : null,
-      barSpanMs: chartBarSpanMs,
-      price: inspectBar ? inspectBar.c : null,
-      barVolume: inspectBar ? inspectBar.v : null,
-      // `Tick.time` is already epoch ms; the field name carries the unit so
-      // this mapping is checkable at the call site rather than in a comment.
-      prints: recentTicks.map(t => ({
-        price: t.price, size: t.size, side: t.side, timeMs: t.time, trade: t.trade === true,
-      })),
-    }),
-    [inspectBar, chartBarSpanMs, recentTicks],
-  );
-
   /**
    * FL-06 object ④ — Effort vs Result, weighed against the bars BEFORE it.
    *
@@ -2101,6 +2086,36 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     selectedObjectChain?.ok && chartCanvasVM.oneStory
       ? selectWaitStanding(chartCanvasVM.oneStory.decision, chartCanvasVM.oneStory.debt)
       : null;
+
+  /* The Inspect Ticket's bar, read with the identity the room already holds
+   * for it: fidelity as a class word, the bar's lineage, and the chain from
+   * this bar to the object born on it and the camera's decision. Declared
+   * after `currentSceneDecision` because the chain's last link is that id.
+   * The index is built once per identity list; a cursor move is a lookup. */
+  const chartBarIdentityIndex = React.useMemo(
+    () => indexBarIdentitiesBySecond(chartBarIdentities),
+    [chartBarIdentities],
+  );
+  const inspectDecisionId = currentSceneDecision?.decisionId ?? null;
+  const inspectTicketVM = React.useMemo(
+    () => selectInspectTicket({
+      barOpenMs: inspectBar ? inspectBar.time * 1000 : null,
+      barSpanMs: chartBarSpanMs,
+      price: inspectBar ? inspectBar.c : null,
+      barVolume: inspectBar ? inspectBar.v : null,
+      // `Tick.time` is already epoch ms; the field name carries the unit so
+      // this mapping is checkable at the call site rather than in a comment.
+      prints: recentTicks.map(t => ({
+        price: t.price, size: t.size, side: t.side, timeMs: t.time, trade: t.trade === true,
+      })),
+      identity: identityForBar(chartBarIdentityIndex, inspectBar?.time),
+      // The same successor-existence rule Effort vs Result uses for "forming".
+      barIsForming: effortSubjectIsForming,
+      chain: { objects: chartMarketObjects, selectedObjectId: selectedMarketObjectId, decisionId: inspectDecisionId },
+    }),
+    [inspectBar, chartBarSpanMs, recentTicks, chartBarIdentityIndex, effortSubjectIsForming,
+      chartMarketObjects, selectedMarketObjectId, inspectDecisionId],
+  );
 
   /*
     WORKSPACE — the equipment journey for THIS room.

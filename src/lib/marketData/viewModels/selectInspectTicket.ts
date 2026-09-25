@@ -62,13 +62,14 @@
  *
  * ── REFUSED FROM THE PLATE, WITH REASONS ───────────────────────────────────
  *
- *  · `fidelity 98.7%` — this room has no per-bar fidelity owner on the live
- *    path. `canonicalBar.ts` declares `fidelity` on `CanonicalBar`, but the
- *    bars the chart actually draws are `LegacyOhlcvTuple` and carry no such
- *    field; that file says so itself ("Identity on the live path is still
- *    owed"). A percentage invented here would be a confidence score for a
- *    measurement nobody took. The row is offered, and reads UNREAD naming the
- *    absent owner, until the live path carries identity.
+ *  · `fidelity 98.7%` — fidelity is a CLASS, not a percentage. The bars the
+ *    chart draws are `LegacyOhlcvTuple`s, but each admitted bar arrives with a
+ *    `CanonicalBarIdentity` beside it (MainChart `onBarsReady` → the room's
+ *    `chartBarIdentities`), and that identity carries `fidelity` as one of the
+ *    five class words in `marketFidelityAlgebra`. The row prints that word. A
+ *    percentage would be a confidence score for a measurement nobody took, so
+ *    none is printed; a bar with no admitted identity reads UNREAD and names
+ *    the missing identity.
  *  · `09:41:25.217 CT` — the millisecond and the exchange timezone are the
  *    picture's. This compiler emits epoch milliseconds and lets the renderer
  *    format in the viewer's own locale. Printing `CT` on a clock this room did
@@ -77,9 +78,21 @@
  *  · `5297.75`, `+132`, `623`, `2.1:1` — the plate's figures. No owner. They
  *    belong to the same illustrative set as the rest of the mockup's numbers.
  *
+ * ── LINEAGE AND THE CHAIN ──────────────────────────────────────────────────
+ *
+ * The same identity names the bar: its barId, where it came from, how it
+ * arrived, its session, its truth epoch, and how long after the bar opened it
+ * was heard. From the barId the chain follows `inspectChain`'s law — BAR →
+ * the OBJECT born on it → the DECISION on this camera — ending early rather
+ * than skipping a link. Provenance lives here, in Inspect, not on the glass.
+ *
  * Nothing here decides anything and nothing here renders. It reads a bar, reads
  * the held tape, and compiles what can honestly be said about the two together.
  */
+
+import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
+import { buildInspectChain } from "@/lib/marketData/inspectChain";
+import { ALL_MARKET_FIDELITIES } from "@/lib/marketData/marketFidelityAlgebra";
 
 export const INSPECT_TICKET_VERSION = 1;
 
@@ -147,6 +160,36 @@ export interface InspectTicketVM {
   readonly footprintDoorAvailable: boolean;
   /** Why the door is or is not offered. Never empty. */
   readonly footprintDoorNote: string;
+  /** The bar's canonical identity, as one line — or why there is none. */
+  readonly lineage: InspectLineage;
+  /** BAR → OBJECT → DECISION through this bar — or why the chain cannot start. */
+  readonly chain: InspectChainLine;
+  /** Which compiler, at which version, wrote this ticket. */
+  readonly method: string;
+}
+
+export type InspectLineage =
+  | { readonly state: "READ"; readonly barId: string; readonly line: string }
+  | { readonly state: "UNREAD"; readonly barId: null; readonly absence: string };
+
+export type InspectChainLine =
+  | {
+      readonly state: "READ";
+      readonly line: string;
+      readonly objectId: string | null;
+      readonly decisionId: string | null;
+      /** Further objects born on the same bar, beyond the one the chain names. */
+      readonly moreObjects: number;
+    }
+  | { readonly state: "UNREAD"; readonly absence: string };
+
+/** What the chain needs beyond the bar: the objects on this chart and the camera's decision. */
+export interface InspectChainInput {
+  readonly objects: readonly { readonly objectId: string; readonly birthBarId: string }[];
+  /** Named by the chain when it was born on this bar. */
+  readonly selectedObjectId?: string | null;
+  /** The DECISION_ID born on this camera, if any. */
+  readonly decisionId?: string | null;
 }
 
 export interface InspectPrint {
@@ -171,6 +214,20 @@ export interface InspectTicketInput {
   readonly barVolume?: number | null;
   /** The per-trade tape this room is holding. */
   readonly prints?: readonly InspectPrint[] | null;
+  /**
+   * The admitted bar's canonical identity, joined by the caller on the bar's
+   * open second (`identityForBar`). Re-checked here against `barOpenMs`: an
+   * identity from another second — a seconds/milliseconds slip — is refused.
+   */
+  readonly identity?: CanonicalBarIdentity | null;
+  /**
+   * True when this is the newest bar held. A bar is proven finished only by a
+   * later bar existing (the rule Effort vs Result uses); until then live ticks
+   * repaint it after admission, so its admitted identity no longer describes
+   * what is drawn and is withheld.
+   */
+  readonly barIsForming?: boolean;
+  readonly chain?: InspectChainInput | null;
 }
 
 /**
@@ -202,19 +259,95 @@ const row = (
     : { id, label, state: "UNREAD", value: null, basis: null, absence, owner: OWNER };
 
 /**
- * FIDELITY IS ALWAYS UNREAD, AND THAT IS NOT A STUB.
- *
- * The plate prints `98.7%`. `CanonicalBar` declares a `fidelity` field, but the
- * bars this chart draws are legacy tuples that carry none — a fact
- * `canonicalBar.ts` states about itself. Rather than drop the row (which would
- * hide the debt) or invent a number (which would be the lie), the row is
- * present and names the absent owner. The day the live path carries identity,
- * this is the one place to change.
+ * The join the room uses to find a bar's identity: the identity's `asOf`
+ * (epoch MILLISECONDS) floored to the bar's open SECOND, the same join
+ * `selectStructureZoneObjects` uses. Built once per identity list so a cursor
+ * move is a lookup, not a scan of the whole history.
  */
-const FIDELITY_ABSENCE =
-  "No per-bar fidelity is carried on this chart's bars. CanonicalBar declares " +
-  "the field; the legacy tuples the chart draws do not fill it, so there is no " +
-  "measurement here to report a percentage of.";
+export function indexBarIdentitiesBySecond(
+  identities: readonly CanonicalBarIdentity[],
+): ReadonlyMap<number, CanonicalBarIdentity> {
+  const index = new Map<number, CanonicalBarIdentity>();
+  for (const identity of identities) {
+    if (isFiniteNumber(identity.asOf)) index.set(Math.floor(identity.asOf / 1000), identity);
+  }
+  return index;
+}
+
+/** The identity admitted for the bar opening at `barTimeSec` (epoch SECONDS), or null. */
+export function identityForBar(
+  index: ReadonlyMap<number, CanonicalBarIdentity>,
+  barTimeSec: number | null | undefined,
+): CanonicalBarIdentity | null {
+  return isFiniteNumber(barTimeSec) ? index.get(barTimeSec) ?? null : null;
+}
+
+type IdentityVerdict =
+  | { readonly ok: true; readonly identity: CanonicalBarIdentity }
+  /** `absence` is the Fidelity row's full reason; `short` names it once more, compactly, for the lineage line. */
+  | { readonly ok: false; readonly absence: string; readonly short: string };
+
+/**
+ * FIDELITY IS READ FROM THE ADMITTED IDENTITY, OR NAMED AS MISSING.
+ *
+ * The plate prints `98.7%`. The identity carries a class word instead, and
+ * the row prints that word or refuses. Dropping the row would hide the debt;
+ * a number would be the lie.
+ */
+function admitIdentity(
+  identity: CanonicalBarIdentity | null | undefined,
+  barOpenMs: number | null,
+  barIsForming: boolean,
+): IdentityVerdict {
+  if (barOpenMs === null) {
+    return { ok: false, absence: "No bar is selected, so there is no identity to read.", short: "No bar is selected." };
+  }
+  if (!identity) {
+    return {
+      ok: false,
+      absence:
+        "No canonical identity was admitted for this bar. A bar that arrived " +
+        "live or from a fallback series carries none, so no fidelity class is " +
+        "reported and no percentage is invented in its place.",
+      short: "No canonical identity was admitted for this bar.",
+    };
+  }
+  if (!isFiniteNumber(identity.asOf) || Math.floor(identity.asOf / 1000) !== Math.floor(barOpenMs / 1000)) {
+    return {
+      ok: false,
+      absence:
+        "The identity offered opens at a different second than this bar, so it " +
+        "is refused rather than read. Seconds passed where milliseconds belong " +
+        "look exactly like this.",
+      short: "The identity offered is for a different second, so it is refused.",
+    };
+  }
+  if (barIsForming) {
+    return {
+      ok: false,
+      absence:
+        "This is the newest bar held, and it may still be forming. Its admitted " +
+        "identity describes the bar as the feed first delivered it, not the live " +
+        "ticks painted onto it since, so it is withheld until a later bar opens.",
+      short: "The newest bar may still be forming, so its identity is withheld.",
+    };
+  }
+  if (!(ALL_MARKET_FIDELITIES as readonly string[]).includes(identity.fidelity)) {
+    return {
+      ok: false,
+      absence: "The identity carries a fidelity this OS does not define, so it is refused rather than printed.",
+      short: "The identity's fidelity is not one this OS defines.",
+    };
+  }
+  return { ok: true, identity };
+}
+
+/** receivedAt − asOf, both epoch ms: how long after the bar opened it was heard. */
+function heardAfter(identity: CanonicalBarIdentity): string {
+  const d = identity.receivedAt - identity.asOf;
+  if (!Number.isFinite(d)) return "heard UNKNOWN";
+  return `heard ${d < 0 ? "−" : "+"}${Math.round(Math.abs(d)).toLocaleString("en-US")}ms`;
+}
 
 export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM {
   const barOpenMs = isFiniteNumber(input.barOpenMs) ? input.barOpenMs : null;
@@ -357,7 +490,37 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
       : perTradeAbsence,
   );
 
-  const fidelityRow = row("FIDELITY", "Fidelity", null, FIDELITY_ABSENCE);
+  /* ── FIDELITY, LINEAGE, CHAIN — FROM THE ADMITTED IDENTITY ─────────────── */
+
+  const admitted = admitIdentity(input.identity, barOpenMs, input.barIsForming === true);
+
+  const fidelityRow = row(
+    "FIDELITY",
+    "Fidelity",
+    admitted.ok
+      ? {
+          value: admitted.identity.fidelity,
+          basis:
+            `The class on this bar's canonical identity, admitted from ` +
+            `${admitted.identity.source} as ${admitted.identity.provenance}. ` +
+            "A class word, never a percentage.",
+        }
+      : null,
+    admitted.ok ? "" : admitted.absence,
+  );
+
+  const lineage: InspectLineage = admitted.ok
+    ? {
+        state: "READ",
+        barId: admitted.identity.barId,
+        line:
+          `BAR ${admitted.identity.barId} · ${admitted.identity.source} · ` +
+          `${admitted.identity.provenance} · session ${admitted.identity.sessionId} · ` +
+          `epoch ${admitted.identity.truthEpoch} · ${heardAfter(admitted.identity)}`,
+      }
+    : { state: "UNREAD", barId: null, absence: admitted.short };
+
+  const chain = compileChain(admitted, input.chain ?? null);
 
   const rows: readonly TicketRow[] = [volumeRow, deltaRow, imbalanceRow, fidelityRow];
 
@@ -396,6 +559,41 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
     reachNote,
     footprintDoorAvailable,
     footprintDoorNote,
+    lineage,
+    chain,
+    method: `${OWNER} v${INSPECT_TICKET_VERSION}`,
+  };
+}
+
+/**
+ * BAR → OBJECT → DECISION, through `buildInspectChain` so its law holds here:
+ * it may end early, never skip a link. The object is one born on THIS bar (the
+ * selected one when it was); the camera's decision rides only on an object,
+ * because a decision with no object is a stance about nothing.
+ */
+function compileChain(admitted: IdentityVerdict, input: InspectChainInput | null): InspectChainLine {
+  if (!admitted.ok) {
+    return { state: "UNREAD", absence: "The chain starts at the bar, and this bar has no admitted identity to start it." };
+  }
+  const barId = admitted.identity.barId;
+  const born = (input?.objects ?? []).filter(o => o.birthBarId === barId).map(o => o.objectId);
+  const selected = input?.selectedObjectId ?? null;
+  const objectId = selected !== null && born.includes(selected) ? selected : born[0] ?? null;
+  const verdict = buildInspectChain({
+    barId,
+    objectId,
+    decisionId: objectId !== null ? input?.decisionId ?? null : null,
+  });
+  if (!verdict.ok) return { state: "UNREAD", absence: verdict.reason };
+  const moreObjects = Math.max(0, born.length - 1);
+  return {
+    state: "READ",
+    line:
+      `BAR → OBJECT ${verdict.chain.objectId ?? "none"}${moreObjects > 0 ? ` (+${moreObjects} more born here)` : ""}` +
+      ` → DECISION ${verdict.chain.decisionId ?? "none taken"}`,
+    objectId: verdict.chain.objectId,
+    decisionId: verdict.chain.decisionId,
+    moreObjects,
   };
 }
 

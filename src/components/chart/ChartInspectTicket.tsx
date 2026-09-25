@@ -442,6 +442,39 @@ export function ChartInspectTicket({
         ))}
       </div>
 
+      {/*
+        LINEAGE — the bar's canonical identity and the chain it starts, from
+        the compiler verbatim. Provenance lives here, in Inspect, and nowhere
+        on the glass. A bar with no admitted identity says so in one line.
+      */}
+      <div
+        className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug"
+        data-inspect-lineage={vm.lineage.state}
+        data-inspect-bar-id={vm.lineage.state === "READ" ? vm.lineage.barId : undefined}
+        style={{ color: "#C8C0AE" }}
+      >
+        <div className="flex items-baseline gap-2">
+          <span className="font-bold tracking-wide text-wm-muted">LINEAGE</span>
+          {vm.lineage.state === "UNREAD" && (
+            <span className="ml-auto font-bold" style={{ color: UNREAD_COLOR }}>UNREAD</span>
+          )}
+        </div>
+        {vm.lineage.state === "READ" ? (
+          <div className="break-all font-mono">{vm.lineage.line}</div>
+        ) : (
+          <div style={{ color: UNREAD_COLOR }}>{vm.lineage.absence}</div>
+        )}
+        <div className="break-all" data-inspect-chain={vm.chain.state}>
+          {vm.chain.state === "READ" ? (
+            <>CHAIN {vm.chain.line}</>
+          ) : (
+            // With no lineage the line above already names why; say it once.
+            <span style={{ color: UNREAD_COLOR }}>CHAIN UNREAD{vm.lineage.state === "READ" ? ` · ${vm.chain.absence}` : ""}</span>
+          )}
+        </div>
+        <div className="text-wm-muted">method {vm.method}</div>
+      </div>
+
       {fusion && (
         <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-fusion={fusion.id} style={{ color: "#C8C0AE" }}>
           <div className="font-bold tracking-wide text-wm-gold">PROFILE FUSION · {fusion.id}</div>
