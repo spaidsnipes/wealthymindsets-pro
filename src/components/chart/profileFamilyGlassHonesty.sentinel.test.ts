@@ -18,8 +18,11 @@ const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/
 
 describe("profile family glass honesty", () => {
   it("Living silhouette is traced one contiguous run at a time — never across an untraded gap", () => {
-    expect(CHART).toMatch(/const startsRun = i === 0 \|\| q\.y - pts\[i - 1\]\.y > gapPx;/);
-    expect(CHART).toMatch(/ds\.livingProfileForm = `SILHOUETTE:\$\{runs\}`;/);
+    // The body is split into contiguous runs first; each run is its own
+    // closed path back to the base — an untraded gap is never body.
+    expect(CHART).toMatch(/if \(i === 0 \|\| pts\[i\]\.y - pts\[i - 1\]\.y > gapPx\) runPts\.push\(\[\]\);/);
+    expect(CHART).toMatch(/bodyPath\.lineTo\(rightEdge, last\.y\);\s*bodyPath\.closePath\(\);/);
+    expect(CHART).toMatch(/ds\.livingProfileForm = `BODY:\$\{runPts\.length\}`;/);
   });
 
   it("the developing-POC tether is drawn only when the session trail and the histogram agree on the level", () => {

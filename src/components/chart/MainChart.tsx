@@ -171,7 +171,7 @@ const BASIS_CAPTION_X =
 
 /** Profile species geometry receipts: withdrawn each frame before the stack paints, re-published by whatever paints. */
 const PROFILE_GEOMETRY_RECEIPTS = [
-  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected",
+  "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected", "livingProfileBodyWidth",
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
 ] as const;
@@ -11178,6 +11178,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const rightEdge = livingLane.right;
             // The trader's width is a share of the lane, never more (P-110 stack controls).
             const histMax = livingLane.width * stackWidth("LIVING", stackPrefsRef.current);
+            /*
+              CANON P110 · THE AUCTION BODY. "Living Profile fused to price
+              rather than treated as a side widget" (Manifestation Map §6). The
+              silhouette grows LEFT from the lane over the session's own bars —
+              up to ~28% of the plot — as ONE translucent gold body the candles
+              read through, not a column of hairline rows in an 84px lane. The
+              lane keeps the click target and its receipts; the body is the
+              shape. The trader's width preference scales it like the lane.
+            */
+            const bodyW = Math.max(histMax, Math.min(
+              Math.round(plotRight * 0.28 * stackWidth("LIVING", stackPrefsRef.current)),
+              360,
+              Math.max(0, rightEdge - 140),
+            ));
+            ds.livingProfileBodyWidth = String(Math.round(bodyW));
             const stacked = stackPlan.stacked;
             ds.livingProfileLane = String(stackOrder.indexOf("LIVING"));
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
@@ -11204,7 +11219,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // meanings — value area, and where the histogram itself
                 // sits — read together instead of one washing out the other.
                 ctx.fillStyle = pk.rgba("WASH", 0.06);
-                ctx.fillRect(rightEdge - histMax - 4, top, histMax + 8, band);
+                ctx.fillRect(rightEdge - bodyW - 4, top, bodyW + 8, band);
                 // Hairlines at VAH/VAL across the pane so the boundaries
                 // register even where the fill is faint. EDGE, resting in
                 // Living's brass; one path while both sides share an ink (the
@@ -11281,10 +11296,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ds.sessionGhosts = gvm.drawn ? `${gvm.ghosts.map(g => `-${g.sessionsAgo}`).join(",")}:${gvm.fidelity}` : gvm.reason;
               for (const g of [...gvm.ghosts].reverse()) {
                 const k = g.sessionsAgo;
-                const gRight = rightEdge - histMax * (k === 1 ? 0.38 : 0.66);
-                // Never wider than the Living lane leaves room for: a ghost that
-                // ran past it would print into the neighbour lane or the candles.
-                const gW = Math.min(histMax * (k === 1 ? 0.72 : 0.6), gRight - (rightEdge - histMax));
+                const gRight = rightEdge - bodyW * (k === 1 ? 0.38 : 0.66);
+                // Never wider than the Living body leaves room for: memory
+                // stands BEHIND the present's shape, never past it.
+                const gW = Math.min(bodyW * (k === 1 ? 0.72 : 0.6), gRight - (rightEdge - bodyW));
                 const ys = g.rows.map(r => srs.priceToCoordinate(r.price));
                 const pitch = ys.length >= 2 && ys[0] != null && ys[1] != null ? Math.abs(+ys[0] - +ys[1]) : 2;
                 const rh = Math.max(1, Math.ceil(pitch));
@@ -11329,7 +11344,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yr = srs.priceToCoordinate(b.price);
               if (yr == null) continue;
               const y = Math.round(+yr) - Math.floor(rowH / 2);
-              const width = Math.max(1, Math.round(b.share * histMax));
+              const width = Math.max(1, Math.round(b.share * bodyW));
               // POC gets the strongest ink, plus a full-width brass strip so
               // the trader can see it without hunting. Value area gets ivory.
               // Outside-value buckets get muted parchment — same reading,
@@ -11341,17 +11356,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // the silhouette edge is traced after the loop. VALUE and TAIL
               // rest in that gold (ANCHOR's brass); the POC row keeps Living's
               // own lit gold until the trader chooses a POC ink.
-              ctx.fillStyle = b.isPoc
-                ? pk.chosenOr("POC", 0.92, "rgba(214,176,92,0.92)")
-                : b.insideValueArea
-                  ? pk.rgbaAs("VALUE", "ANCHOR", 0.74)
-                  : pk.rgbaAs("TAIL", "ANCHOR", 0.34);
-              ctx.fillRect(rightEdge - width, y, width, Math.max(1, rowH));
+              // The rows are no longer painted one by one: they are the
+              // points of ONE body, filled once below (P110 · THE AUCTION BODY).
               silhouette.push({ x: rightEdge - width, y: y + rowH / 2 });
               // The slice Inspect is reading, outlined so the ticket and the
               // glass visibly agree on WHICH bucket is selected.
               if (selectedSliceRef.current != null && Math.abs(b.price - selectedSliceRef.current) < 1e-9) {
-                sliceOutline = { x: rightEdge - histMax - 2.5, y: y - 1.5, w: histMax + 5, h: Math.max(1, rowH - 1) + 3 };
+                sliceOutline = { x: rightEdge - width - 2.5, y: y - 1.5, w: width + 5, h: Math.max(1, rowH - 1) + 3 };
                 ds.livingProfileSelected = String(b.price);
               }
               drawnBars++;
@@ -11380,7 +11391,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.lineWidth = 1;
               ctx.setLineDash(dashed ? [3, 4] : []);
               ctx.beginPath();
-              ctx.moveTo(rightEdge - histMax - 4, y);
+              ctx.moveTo(rightEdge - bodyW - 4, y);
               ctx.lineTo(rightEdge + 2, y);
               ctx.stroke();
             };
@@ -11391,21 +11402,56 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (silhouette.length >= 3) {
               const pts = [...silhouette].sort((a, z) => a.y - z.y);
               const gapPx = Math.max(2, rowH) * 1.5 + 1;
-              ctx.beginPath();
-              let runs = 0;
+              // Split into contiguous runs first: an untraded gap is not body.
+              const runPts: { x: number; y: number }[][] = [];
               for (let i = 0; i < pts.length; i++) {
-                const q = pts[i];
-                const startsRun = i === 0 || q.y - pts[i - 1].y > gapPx;
-                if (startsRun) {
-                  if (i > 0) ctx.lineTo(rightEdge, pts[i - 1].y);
-                  ctx.moveTo(rightEdge, q.y);
-                  runs++;
-                }
-                ctx.lineTo(q.x, q.y);
+                if (i === 0 || pts[i].y - pts[i - 1].y > gapPx) runPts.push([]);
+                runPts[runPts.length - 1].push(pts[i]);
               }
-              ctx.lineTo(rightEdge, pts[pts.length - 1].y);
-              ctx.strokeStyle = "rgba(233,196,106,0.85)"; ctx.lineWidth = 1.2; ctx.stroke();
-              ds.livingProfileForm = `SILHOUETTE:${runs}`;
+              // One path per run: base → tips (smoothed through midpoints, so
+              // the edge reads as a shape, never a staircase) → base.
+              const bodyPath = new Path2D();
+              const edgePath = new Path2D();
+              for (const rn of runPts) {
+                bodyPath.moveTo(rightEdge, rn[0].y);
+                bodyPath.lineTo(rn[0].x, rn[0].y);
+                edgePath.moveTo(rn[0].x, rn[0].y);
+                for (let k = 1; k < rn.length; k++) {
+                  const mx = (rn[k - 1].x + rn[k].x) / 2, my = (rn[k - 1].y + rn[k].y) / 2;
+                  bodyPath.quadraticCurveTo(rn[k - 1].x, rn[k - 1].y, mx, my);
+                  edgePath.quadraticCurveTo(rn[k - 1].x, rn[k - 1].y, mx, my);
+                }
+                const last = rn[rn.length - 1];
+                bodyPath.lineTo(last.x, last.y);
+                edgePath.lineTo(last.x, last.y);
+                bodyPath.lineTo(rightEdge, last.y);
+                bodyPath.closePath();
+              }
+              // The body: brightest at its base by the newest bars, fading
+              // toward the tips so the candles under it stay readable.
+              const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
+              g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", 0.40));
+              g.addColorStop(0.55, pk.rgbaAs("VALUE", "ANCHOR", 0.16));
+              g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", 0.04));
+              ctx.fillStyle = g; ctx.fill(bodyPath);
+              // Value is where the auction accepted: lit brighter inside
+              // VAL…VAH, the same body — not a second shape.
+              if (lp.vah != null && lp.val != null) {
+                const yh = srs.priceToCoordinate(lp.vah), yl = srs.priceToCoordinate(lp.val);
+                if (yh != null && yl != null) {
+                  ctx.save();
+                  ctx.beginPath(); ctx.rect(rightEdge - bodyW - 2, Math.min(+yh, +yl), bodyW + 4, Math.abs(+yl - +yh)); ctx.clip();
+                  const gv = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
+                  gv.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", 0.34));
+                  gv.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", 0.06));
+                  ctx.fillStyle = gv; ctx.fill(bodyPath);
+                  ctx.restore();
+                }
+              }
+              // The edge: Living's lit gold at rest, the trader's POC ink once chosen.
+              ctx.strokeStyle = pk.chosenOr("POC", 0.85, "rgba(233,196,106,0.85)");
+              ctx.lineWidth = 1.2; ctx.stroke(edgePath);
+              ds.livingProfileForm = `BODY:${runPts.length}`;
             } else if (livingDepth === "FAR") {
               ds.livingProfileForm = "SKELETON";
             } else {
@@ -11423,9 +11469,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yp = srs.priceToCoordinate(lp.poc);
               const pocBar = lp.bars.find(b => b.isPoc);
               if (yp != null && pocBar) {
-                const px = rightEdge - Math.max(1, Math.round(pocBar.share * histMax));
+                const px = rightEdge - Math.max(1, Math.round(pocBar.share * bodyW));
                 ctx.setLineDash([4, 4]); ctx.strokeStyle = pk.rgba("POC", 0.55); ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(0, Math.round(+yp) + 0.5); ctx.lineTo(px - 8, Math.round(+yp) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                // The auction's heaviest price glows at the body's peak (P110).
+                const glow = ctx.createRadialGradient(px, +yp, 0, px, +yp, 16);
+                glow.addColorStop(0, pk.chosenOr("POC", 0.55, "rgba(240,200,100,0.55)"));
+                glow.addColorStop(1, pk.chosenOr("POC", 0, "rgba(240,200,100,0)"));
+                ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, +yp, 16, 0, Math.PI * 2); ctx.fill();
                 ctx.beginPath(); ctx.arc(px, +yp, 5, 0, Math.PI * 2);
                 ctx.fillStyle = pk.chosenOr("POC", 1, "rgba(240,200,100,1)"); ctx.fill();
                 ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
@@ -11446,7 +11497,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yr = srs.priceToCoordinate(m.price);
               if (yr == null) continue;
               const y = Math.round(+yr) + 0.5;
-              const cx = rightEdge - Math.max(3, Math.round(m.weight * histMax)) - 6;
+              const cx = rightEdge - Math.max(3, Math.round(m.weight * bodyW)) - 6;
               ctx.beginPath();
               ctx.arc(cx, y, 2.2, 0, Math.PI * 2);
               if (m.kind === "HVN") {

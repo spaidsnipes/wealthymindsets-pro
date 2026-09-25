@@ -62,16 +62,21 @@ describe("the reading reaches the chart", () => {
 });
 
 describe("H-703 — the histogram paints on the canvas, not the dots alone", () => {
-  it("DRAWS ONE HORIZONTAL BAR PER BUCKET the compiler emitted", () => {
-    // The line the Founder pointed at. Without this, the layer paints six
-    // annotation dots and calls it a profile.
+  it("EVERY BUCKET the compiler emitted is a point of ONE filled body (P110 · the auction body)", () => {
+    // The line the Founder pointed at was "six annotation dots called a
+    // profile". Then it was hairline rows in an 84px lane. Canon P110: one
+    // gold body fused to price — every bucket a point of it, filled once.
     expect(block).toMatch(/for \(const b of lp\.bars\)/);
-    expect(block).toMatch(/ctx\.fillRect\(rightEdge - width, y,/);
+    expect(block).toMatch(/silhouette\.push\(\{ x: rightEdge - width, y: y \+ rowH \/ 2 \}\);/);
+    expect(block).toMatch(/ctx\.fillStyle = g; ctx\.fill\(bodyPath\);/);
+    expect(block).toMatch(/ds\.livingProfileForm = `BODY:\$\{runPts\.length\}`;/);
   });
 
-  it("width comes from `share` — a NORMALISED number, never volume", () => {
-    expect(block).toMatch(/b\.share \* histMax/);
+  it("width comes from `share` — a NORMALISED number, never volume — on the body's scale", () => {
+    expect(block).toMatch(/b\.share \* bodyW/);
     expect(block).not.toMatch(/b\.volume/);
+    // The body is bounded: ~28% of the plot, never over 360px, never into the left column.
+    expect(block).toMatch(/Math\.round\(plotRight \* 0\.28 \* stackWidth\("LIVING", stackPrefsRef\.current\)\),\s*360,\s*Math\.max\(0, rightEdge - 140\),/);
   });
 
   it("paints the value-area BAND before the bars, so the bars sit on top of it", () => {

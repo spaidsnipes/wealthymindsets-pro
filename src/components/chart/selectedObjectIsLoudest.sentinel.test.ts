@@ -92,8 +92,9 @@ describe("the selected object is loudest", () => {
     expect(living.slice(rowsEnd, stroke)).toMatch(/^ctx\.restore\(\);\s*if \(sliceOutline\) \{\s*ctx\.save\(\); ctx\.globalAlpha = 1;\s*ctx\.strokeStyle = pk\.rgba\("ANCHOR", 1\); ctx\.lineWidth = 1\.5;\s*$/);
     // Inside the rows loop the slice is only located, never stroked.
     const rows = living.slice(0, rowsEnd);
-    expect(rows).toMatch(/sliceOutline = \{ x: rightEdge - histMax - 2\.5,/);
-    expect(rows).not.toMatch(/strokeRect\(rightEdge - histMax - 2\.5/);
+    // The outline hugs the selected bucket's own length on the body.
+    expect(rows).toMatch(/sliceOutline = \{ x: rightEdge - width - 2\.5, y: y - 1\.5, w: width \+ 5,/);
+    expect(rows).not.toMatch(/strokeRect\(rightEdge - width - 2\.5/);
     // Its receipt is profile geometry: withdrawn every frame with the rest.
     expect(read("src/components/chart/MainChart.tsx")).toMatch(/const PROFILE_GEOMETRY_RECEIPTS = \[[^\]]*"livingProfileSelected"/);
   });
