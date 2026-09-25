@@ -165,3 +165,22 @@ describe("the narrow absorption chip's backing yields to the newest bodies", () 
     expect(chip).toMatch(/ctx\.fillStyle = `rgba\(14,12,8,\$\{keepOutBackingAlpha\(chipSpot, 0\.92\)\}\)`;\s*ctx\.fillRect\(chipX, chipY, chipW, chipH\);/);
   });
 });
+
+describe("the exhaustion chip clears every body under its row and the chips on the glass", () => {
+  // Added 2026-09-25 (keep-out completion): the chip (0.88 backing) is centred
+  // on its mark, so it spanned the push's own candles with no keep-out at all.
+  const ex = slice("const chipTxt = `EXHAUSTION · EFFORT 2ND÷1ST", "exhaustionDrawn.length > 0");
+
+  it("takes a strict slot test: a step further out, the mirror side, then a slide that still reaches its mark", () => {
+    expect(ex).toContain("const exAlternates = [up ? cy - 16 : cy + 16, up ? y0 + 12 : y0 - 26]");
+    expect(ex).toMatch(/ay >= HEADER_FLOOR_Y && ay \+ 14 <= pane0Bottom &&\s*!\(lensBand && ay < 158 && ay \+ 14 > 96\) && !\(lensCol\(ay\) && cxx < QUESTION_LENS_COLUMN_RIGHT\)/);
+    expect(ex).toMatch(/placeClearOfKeepOut\(\s*\{ x: cxx, y: cy, w: cw, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(Math\.min\(\.\.\.exRows\), Math\.max\(\.\.\.exRows\) \+ 14\)\],/);
+    expect(ex).toMatch(/minX: Math\.max\(4, x - cw - 16, lensCol\(cy\) \? QUESTION_LENS_COLUMN_RIGHT : 4\),\s*blockers: floatingChips,\s*strict: true,\s*alternates: exAlternates,/);
+    expect(ex).toMatch(/recordKeepOut\(keepOutLedger, spotX\);\s*cxx = spotX\.rect\.x; cy = spotX\.rect\.y;/);
+  });
+
+  it("paints, publishes and hit-tests where the placement says, at an alpha it allows", () => {
+    expect(ex).toMatch(/ctx\.fillStyle = `rgba\(20,8,8,\$\{keepOutBackingAlpha\(spotX, 0\.88\)\}\)`;\s*ctx\.fillRect\(cxx, cy, cw, 14\);\s*floatingChips\.push\(\{ x: cxx, y: cy, w: cw, h: 14 \}\);/);
+    expect(ex).not.toContain('ctx.fillStyle = "rgba(20,8,8,0.88)"');
+  });
+});

@@ -9416,7 +9416,33 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // It steps to the column's right edge instead.
                 // (Below 640px the lens is two lines with no column, so nothing moves.)
                 if (lensBand && W >= 640 && cy + 14 > 96 && cxx < QUESTION_LENS_COLUMN_RIGHT) cxx = Math.min(QUESTION_LENS_COLUMN_RIGHT, W - 96 - cw);
-                ctx.fillStyle = "rgba(20,8,8,0.88)";
+                // CANDLE PRESERVATION. The chip is centred on its mark, so it
+                // spans the push's own candles and their neighbours. It clears
+                // every body under its row and the chips on the glass: first a
+                // step further out from the mark, then the mirror side, then
+                // left along its row — never so far that it stops reaching its
+                // mark. With no clear spot it stays and its backing yields.
+                const lensCol = (ay: number) => lensBand && W >= 640 && ay + 14 > 96;
+                const exFits = (ay: number) =>
+                  ay >= HEADER_FLOOR_Y && ay + 14 <= pane0Bottom &&
+                  !(lensBand && ay < 158 && ay + 14 > 96) && !(lensCol(ay) && cxx < QUESTION_LENS_COLUMN_RIGHT);
+                const exAlternates = [up ? cy - 16 : cy + 16, up ? y0 + 12 : y0 - 26]
+                  .filter(exFits)
+                  .map(ay => ({ x: cxx, y: ay, w: cw, h: 14 }));
+                const exRows = [cy, ...exAlternates.map(a => a.y)];
+                const spotX = placeClearOfKeepOut(
+                  { x: cxx, y: cy, w: cw, h: 14 },
+                  [...keepOut(), ...rowBodiesAt(Math.min(...exRows), Math.max(...exRows) + 14)],
+                  {
+                    minX: Math.max(4, x - cw - 16, lensCol(cy) ? QUESTION_LENS_COLUMN_RIGHT : 4),
+                    blockers: floatingChips,
+                    strict: true,
+                    alternates: exAlternates,
+                  },
+                );
+                recordKeepOut(keepOutLedger, spotX);
+                cxx = spotX.rect.x; cy = spotX.rect.y;
+                ctx.fillStyle = `rgba(20,8,8,${keepOutBackingAlpha(spotX, 0.88)})`;
                 ctx.fillRect(cxx, cy, cw, 14);
                 floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });
                 // Painted after the shelves, so a mark wins a click where they
