@@ -103,9 +103,10 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
   });
 
   it("prints POC · VAH · VAL prices beside the histogram (tagged LIVING when stacked)", () => {
-    expect(block).toMatch(/`(?:\$\{tag\})?POC \$\{lp\.poc\.toFixed\(2\)\}`/);
-    expect(block).toMatch(/`(?:\$\{tag\})?VAH \$\{lp\.vah\.toFixed\(2\)\}`/);
-    expect(block).toMatch(/`(?:\$\{tag\})?VAL \$\{lp\.val\.toFixed\(2\)\}`/);
+    // Pin updated 2026-09-25: prices at the market's own precision (pxDp, pricePrecision.ts).
+    expect(block).toMatch(/`(?:\$\{tag\})?POC \$\{lp\.poc\.toFixed\(pxDp\)\}`/);
+    expect(block).toMatch(/`(?:\$\{tag\})?VAH \$\{lp\.vah\.toFixed\(pxDp\)\}`/);
+    expect(block).toMatch(/`(?:\$\{tag\})?VAL \$\{lp\.val\.toFixed\(pxDp\)\}`/);
   });
 
   it("joins the shared profile lane system instead of painting over the VP columns", () => {

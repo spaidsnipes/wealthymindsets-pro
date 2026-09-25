@@ -113,7 +113,7 @@ describe("the selected-zone callout clears the newest bodies and the chips on th
 });
 
 describe("the Value Migration name, printed at its newest point, yields to the newest bodies", () => {
-  const dpoc = slice("const text = `dPOC ${last.poc.toFixed(2)}", "ds.valueMigrationPoints = String(drawn);");
+  const dpoc = slice("const text = `dPOC ${last.poc.toFixed(pxDp)}", "ds.valueMigrationPoints = String(drawn);");
 
   it("asks the keep-out, with the mirror row under the line before a slide", () => {
     // Pin updated 2026-09-25 (serving NQ1! 5m: the 0.82 backing hid the ten

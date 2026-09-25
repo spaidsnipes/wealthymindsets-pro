@@ -8575,6 +8575,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const weatherLines = wds.liquidityWeatherStage ? (wds.liquidityWeatherShelves ? 3 : 2) : 0;
         return { text, y: Math.max(20, pane0Bottom - 22) - weatherLines * 11 };
       };
+      // THE MARKET'S PRECISION for every profile-family level name this frame
+      // (pricePrecision.ts): "TPO POC 1.15" beside "TPO VAL 1.15" on EURUSD
+      // was two decimals naming two different prices (serving, 2026-09-25).
+      const pxDp = pricePrecisionFromBars(barsRef.current ?? []);
       // A slid label never lands in the column an active Question Lens owns.
       const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
       // Every candle body in view, once per frame, for a label that prints on
@@ -10894,8 +10898,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(xEnd, yy); ctx.stroke();
               ctx.setLineDash([]);
               const t = sur.outside
-                ? `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(2)} · SURPRISE · ${sur.matchedBy} of ${env.sessions} sessions went this far`
-                : `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(2)} · median of ${env.sessions} sessions`;
+                ? `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(pxDp)} · SURPRISE · ${sur.matchedBy} of ${env.sessions} sessions went this far`
+                : `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(pxDp)} · median of ${env.sessions} sessions`;
               const tw = ctx.measureText(t).width;
               const lx = Math.max(4, xEnd - tw - 8);
               // COLLISION GOVERNOR (serving NQ1! 5m, 2026-09-25): this name had
@@ -11719,9 +11723,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             };
             const tag = stacked ? "LIVING " : "";
             let livingLabelsInColumn = 0;
-            if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, pk.rgba("POC", 0.95));
-            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.80));
-            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.80));
+            if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.80));
+            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.80));
             ds.livingProfileLabels = livingLabelsInColumn > 0 ? `COLUMN:${livingLabelsInColumn}` : "RIGHT";
 
             /*
@@ -11963,9 +11967,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillStyle = ink;
                 ctx.fillText(text, right - width - 8, +yr);
               };
-              lab(cp.poc, `CMP POC ${cp.poc?.toFixed(2)}`, pk.rgba("POC", 0.95));
-              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(2)}`, pk.chosenOr("EDGE_HIGH", 0.85, "rgba(184,190,196,0.85)"));
-              lab(cp.val, `CMP VAL ${cp.val?.toFixed(2)}`, pk.chosenOr("EDGE_LOW", 0.85, "rgba(184,190,196,0.85)"));
+              lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.chosenOr("EDGE_HIGH", 0.85, "rgba(184,190,196,0.85)"));
+              lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.chosenOr("EDGE_LOW", 0.85, "rgba(184,190,196,0.85)"));
               if (Number.isFinite(top)) {
                 const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED`;
                 const tw = Math.ceil(ctx.measureText(text).width) + 8;
@@ -12070,9 +12074,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = ink;
               ctx.fillText(text, right - width - 8, +yr);
             };
-            lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(2)}`, pk.rgba("POC", 0.95));
-            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(2)}`, pk.rgba("EDGE_HIGH", 0.75));
-            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(2)}`, pk.rgba("EDGE_LOW", 0.75));
+            lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.75));
+            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.75));
             if (Number.isFinite(top)) {
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW`;
@@ -12195,10 +12199,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 stackLabel(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
               };
               ctx.lineWidth = 2;
-              line(f.poc, `FUSED POC ${f.poc.toFixed(2)}`, []);
+              line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, []);
               ctx.lineWidth = 1;
-              line(f.vah, `FUSED VAH ${f.vah.toFixed(2)}`, [4, 3]);
-              line(f.val, `FUSED VAL ${f.val.toFixed(2)}`, [4, 3]);
+              line(f.vah, `FUSED VAH ${f.vah.toFixed(pxDp)}`, [4, 3]);
+              line(f.val, `FUSED VAL ${f.val.toFixed(pxDp)}`, [4, 3]);
               ctx.restore();
             }
           } else {
@@ -12361,9 +12365,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = ink;
               ctx.fillText(text, leftEdge + colMax + 8, y);
             };
-            ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(2) ?? ""}`, pk.rgba("POC", 0.95), false);
-            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(2) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.75), true);
-            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(2) ?? ""}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.75), true);
+            ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(pxDp) ?? ""}`, pk.rgba("POC", 0.95), false);
+            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.75), true);
+            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.75), true);
 
             ctx.restore();
             ds.tpoProfileRows = String(drawnRows);
@@ -12550,13 +12554,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               floatingChips.push({ x: cx, y: cy - 12, w, h: 14 });
             };
             chip(
-              `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(2)} · ${sp.legBars} BARS${est}`,
+              `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(pxDp)} · ${sp.legBars} BARS${est}`,
               // The chip's box is y−12…y+2: its top never rises into the header chrome.
               x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
             );
             if (sp.poc != null) {
               const yp = srs.priceToCoordinate(sp.poc);
-              if (yp != null) chip(`LEG POC ${sp.poc.toFixed(2)}`, x0 + 4, Math.round(+yp) + 16);
+              if (yp != null) chip(`LEG POC ${sp.poc.toFixed(pxDp)}`, x0 + 4, Math.round(+yp) + 16);
             }
 
             ctx.restore();
@@ -12767,7 +12771,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // would print over the legend, and its line is their leader.
               if (y < PRICE_LEGEND_OVERLAY_H + 7) continue;
               labelYs.push(y);
-              const text = `S-${l.sessionsAgo} ${l.kind} ${l.price.toFixed(2)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
+              const text = `S-${l.sessionsAgo} ${l.kind} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const lx = endX - w - 4;
               // The label ends where its line ends — at the live edge. It
@@ -12902,7 +12906,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.valueMigrationLabel;
             if (lx != null && ly != null && vm.latestPocTravel != null) {
               const t = vm.latestPocTravel;
-              const text = `dPOC ${last.poc.toFixed(2)} · ${t >= 0 ? "+" : ""}${t.toFixed(2)} THIS SESSION · EST`;
+              const text = `dPOC ${last.poc.toFixed(pxDp)} · ${t >= 0 ? "+" : ""}${t.toFixed(pxDp)} THIS SESSION · EST`;
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const x = Math.max(4, Math.round(+lx) - w - 6);

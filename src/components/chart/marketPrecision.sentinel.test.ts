@@ -30,3 +30,13 @@ describe("market precision (Sentinel)", () => {
     expect(CHART).not.toContain("const dp        = base < 10 ? 4 : 2;");
   });
 });
+
+describe("profile-family level names quote the same precision", () => {
+  it("one per-frame precision from the owner, used by every level name", () => {
+    expect(CHART).toContain("const pxDp = pricePrecisionFromBars(barsRef.current ?? []);");
+    for (const s of ["`TPO POC ${tpo.poc?.toFixed(pxDp)", "`CMP POC ${cp.poc?.toFixed(pxDp)}`", "`VRP POC ${vrpVM.poc?.toFixed(pxDp)}`", "`FUSED POC ${f.poc.toFixed(pxDp)}`", "`LEG POC ${sp.poc.toFixed(pxDp)}`", "`dPOC ${last.poc.toFixed(pxDp)}"]) {
+      expect(CHART, s).toContain(s);
+    }
+    expect(CHART).not.toMatch(/`TPO (POC|VAH|VAL) \$\{tpo\.\w+\?\.toFixed\(2\)/);
+  });
+});
