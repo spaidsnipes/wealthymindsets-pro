@@ -82,7 +82,9 @@ describe("Profile Memory labels yield to the newest bodies", () => {
   it("asks the keep-out, sliding only along the level's own line and never left of its birth", () => {
     // Pin updated 2026-09-25 (serving NQ1! 5m, every species on): strict —
     // the label column's names are chips too — and it joins the chip ledger.
-    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*keepOut\(\),\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips, strict: true \},?\s*\)/);
+    // Pin updated again 2026-09-25 (keep-out completion): the name's row runs
+    // back over older candles, so every body under that row counts too.
+    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(y - 7, y \+ 7\)\],\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips, strict: true \},?\s*\)/);
     expect(memory).toContain("floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });");
     expect(memory).toMatch(/recordKeepOut\(keepOutLedger, spotM\)/);
   });

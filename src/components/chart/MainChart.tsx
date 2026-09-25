@@ -12943,9 +12943,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // STRICT: the column's names are chips too. Non-strict, a memory
               // name was checked only against the newest bodies and printed
               // over "CMP POC 30760.00" at the same price (serving NQ1! 5m).
+              // Its row runs back over older candles, so every body under the
+              // row is a keep-out too, not only the newest three.
               const spotM = placeClearOfKeepOut(
                 { x: lx, y: y - 7, w, h: 14 },
-                keepOut(),
+                [...keepOut(), ...rowBodiesAt(y - 7, y + 7)],
                 { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips, strict: true },
               );
               recordKeepOut(keepOutLedger, spotM);
