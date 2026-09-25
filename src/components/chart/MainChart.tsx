@@ -7255,36 +7255,92 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // carries "~" (undisclosed "?") on its row and the column prints the
           // legend, as the print ticket beside it says SIDE INFERRED.
           const tapeNote = nearTapeCache.vm.fidelityNote;
-          if (prints.length > 0) {
-            const noteH = tapeNote ? 11 : 0;
-            const colW = 124, rowH2 = 13, colH = 20 + noteH + prints.length * rowH2;
-            // Docked top-left, clear of the right edge where the live candle,
-            // its profile lane and the print tickets already live.
-            const yNow = srs.priceToCoordinate(lastBar.close);
-            let colY = 176;
-            // The current-price line carries its countdown chip at the left edge.
-            if (yNow != null && +yNow + 12 > colY && +yNow - 12 < colY + colH) colY = Math.round(+yNow) + 16;
-            const colX = 12;
-            ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(colX, colY, colW, colH);
-            ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(colX + 0.5, colY + 0.5, colW - 1, colH - 1);
-            ctx.textAlign = "center"; ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-            ctx.fillText("TAPE · LAST " + prints.length + " PRINTS", colX + colW / 2, colY + 10);
-            if (tapeNote) {
-              ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.8)";
-              ctx.fillText(tapeNote, colX + colW / 2, colY + 21);
-            }
-            ctx.font = "600 10px ui-monospace, SFMono-Regular, monospace";
-            prints.forEach((t, i) => {
-              const y = colY + 22 + noteH + i * rowH2;
-              ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
-              ctx.fillText(t.price, colX + colW - 30, y);
-              ctx.textAlign = "center"; ctx.fillStyle = t.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
-              ctx.fillText(t.glyph, colX + colW - 14, y);
-            });
-            forceChips.push({ x: colX, y: colY, w: colW, h: colH });
-            canvas.dataset.nearTape = String(prints.length);
-          } else {
+          // The left column at y≈176 belongs to the Scaffolding plate (at any
+          // width) and, on wide glass, to the Question Lens's debt card and
+          // control column — both painted later this frame at that spot, as
+          // near-opaque plates that do not look for the tape. The tape yields
+          // to them and says so, rather than reporting rows no one can see.
+          const tapeYieldsTo = scaffoldingDepthRef.current !== "OFF" ? "SCAFFOLDING"
+            : layerOnRef.current.questionLens === true && W >= 640 ? "QUESTION_LENS"
+            : null;
+          if (prints.length === 0) {
             canvas.dataset.nearTape = "NO_TAPE";
+          } else if (tapeYieldsTo) {
+            canvas.dataset.nearTape = `YIELDED:${tapeYieldsTo}`;
+          } else {
+            // Phones get one measured line of the newest prints that fit; a
+            // 124px column is over a third of a 390px plot.
+            const compactTape = W < 640;
+            const mono = "600 10px ui-monospace, SFMono-Regular, monospace";
+            const noteFont = "700 8px ui-sans-serif, system-ui, sans-serif";
+            const noteH = tapeNote ? 11 : 0;
+            const colX = 12, rowH2 = 13;
+            let colW = 124, colH = 20 + noteH + prints.length * rowH2, shown = prints.length;
+            if (compactTape) {
+              ctx.font = mono;
+              const maxW = Math.min(240, plotRight - 24);
+              let w = ctx.measureText("TAPE").width;
+              shown = 0;
+              for (const r of prints) {
+                const add = ctx.measureText(` ${r.glyph}${r.price}`).width;
+                if (w + add + 12 > maxW) break;
+                w += add; shown++;
+              }
+              if (tapeNote) { ctx.font = noteFont; w = Math.max(w, ctx.measureText(tapeNote).width); }
+              colW = Math.ceil(w) + 12; colH = 16 + noteH;
+            }
+            // Docked on the left edge, clear of the right edge where the live
+            // candle, its profile lane and the print tickets live: the first
+            // slot down from 176 that misses every chip painted so far (print
+            // tickets, FORCE plates, anatomy words, FAR names) and the
+            // current-price line's countdown chip, above the volume band.
+            const yNow = srs.priceToCoordinate(lastBar.close);
+            let colY: number | null = null;
+            for (let y = 176; shown > 0 && y + colH <= pane0Bottom * 0.78; y += 12) {
+              if (yNow != null && +yNow + 12 > y && +yNow - 12 < y + colH) continue;
+              if (forceChips.some(r => colX < r.x + r.w && colX + colW > r.x && y < r.y + r.h && y + colH > r.y)) continue;
+              colY = y;
+              break;
+            }
+            if (colY == null) {
+              canvas.dataset.nearTape = "NO_ROOM";
+            } else {
+              ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(colX, colY, colW, colH);
+              ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(colX + 0.5, colY + 0.5, colW - 1, colH - 1);
+              if (compactTape) {
+                ctx.font = mono; ctx.textAlign = "left";
+                let x = colX + 6;
+                const y = colY + 8;
+                ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.fillText("TAPE", x, y); x += ctx.measureText("TAPE").width;
+                for (const r of prints.slice(0, shown)) {
+                  const g = ` ${r.glyph}`;
+                  ctx.fillStyle = r.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)"; ctx.fillText(g, x, y); x += ctx.measureText(g).width;
+                  ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(r.price, x, y); x += ctx.measureText(r.price).width;
+                }
+                if (tapeNote) {
+                  ctx.font = noteFont; ctx.fillStyle = "rgba(237,230,211,0.8)";
+                  ctx.fillText(tapeNote, colX + 6, colY + 21);
+                }
+              } else {
+                ctx.textAlign = "center"; ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillText("TAPE · LAST " + prints.length + " PRINTS", colX + colW / 2, colY + 10);
+                if (tapeNote) {
+                  ctx.font = noteFont; ctx.fillStyle = "rgba(237,230,211,0.8)";
+                  ctx.fillText(tapeNote, colX + colW / 2, colY + 21);
+                }
+                ctx.font = mono;
+                prints.forEach((t, i) => {
+                  const y = colY + 22 + noteH + i * rowH2;
+                  ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
+                  ctx.fillText(t.price, colX + colW - 30, y);
+                  ctx.textAlign = "center"; ctx.fillStyle = t.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
+                  ctx.fillText(t.glyph, colX + colW - 14, y);
+                });
+              }
+              forceChips.push({ x: colX, y: colY, w: colW, h: colH });
+              // The count is published only for rows that reached the glass.
+              canvas.dataset.nearTape = compactTape ? `COMPACT:${shown}` : String(shown);
+            }
           }
           ctx.restore();
         } else {

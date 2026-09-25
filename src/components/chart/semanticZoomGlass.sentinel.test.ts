@@ -129,6 +129,23 @@ describe("semantic zoom glass", () => {
     expect(anatomy).toMatch(/forceChips\.push\(\{ x: lxw - tw - 2, y: ly - 7, w: tw, h: 14 \}\);/);
   });
 
+  it("the TAPE column yields the left column to Scaffolding and the Question Lens, steps around earlier chips, and reports only rows on the glass", () => {
+    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+    const anatomyEnd = CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near);
+    const tape = CHART.slice(anatomyEnd, CHART.indexOf("delete canvas.dataset.nearTape;", near));
+    expect(tape).toMatch(/const tapeYieldsTo = scaffoldingDepthRef\.current !== "OFF" \? "SCAFFOLDING"\s*: layerOnRef\.current\.questionLens === true && W >= 640 \? "QUESTION_LENS"/);
+    expect(tape).toMatch(/\} else if \(tapeYieldsTo\) \{\s*canvas\.dataset\.nearTape = `YIELDED:\$\{tapeYieldsTo\}`;/);
+    expect(tape).toMatch(/forceChips\.some\(r => colX < r\.x \+ r\.w && colX \+ colW > r\.x && y < r\.y \+ r\.h && y \+ colH > r\.y\)/);
+    expect(tape).toMatch(/const compactTape = W < 640;/);
+    // Every write of the receipt, and the count only after the pixels.
+    const writes = [...tape.matchAll(/canvas\.dataset\.nearTape = ([^;]+);/g)].map(m => m[1]);
+    expect(writes).toEqual(['"NO_TAPE"', "`YIELDED:${tapeYieldsTo}`", '"NO_ROOM"', "compactTape ? `COMPACT:${shown}` : String(shown)"]);
+    expect(tape.indexOf("canvas.dataset.nearTape = compactTape")).toBeGreaterThan(tape.indexOf("ctx.fillRect(colX, colY, colW, colH);"));
+    expect(tape.indexOf("ctx.fillRect(colX, colY, colW, colH);")).toBeGreaterThan(tape.indexOf("if (colY == null) {"));
+    // The plates it yields to still paint at that spot (the reason for the yield).
+    expect(CHART).toMatch(/const y0 = 176;/);
+  });
+
   it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {
     const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
