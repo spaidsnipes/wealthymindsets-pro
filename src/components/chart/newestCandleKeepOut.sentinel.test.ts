@@ -49,6 +49,10 @@ describe("one keep-out owner per frame", () => {
 describe("the profile stack's label column yields to the newest bodies", () => {
   const stackLabel = slice("const stackLabel = (y: number, text: string, ink: string) => {", "ctx.restore();\n        };");
 
+  it("never prints inside the price legend's band", () => {
+    expect(stackLabel).toContain("const yy = nearestFreeLabelY(Math.max(y, PRICE_LEGEND_OVERLAY_H + 7), stackLabelYs, 12);");
+  });
+
   it("asks the keep-out where the label may print, stepping around chips too", () => {
     // Pin updated 2026-09-25 (serving TSLA 1h): the column sits left of the
     // Living body over older candles, so every body on its own row counts too.
@@ -73,7 +77,10 @@ describe("Profile Memory labels yield to the newest bodies", () => {
   const memory = slice("const text = `S-${l.sessionsAgo} ${l.kind}", "ds.profileMemoryLevels = String(drawn);");
 
   it("asks the keep-out, sliding only along the level's own line and never left of its birth", () => {
-    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*keepOut\(\),\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips \},?\s*\)/);
+    // Pin updated 2026-09-25 (serving NQ1! 5m, every species on): strict —
+    // the label column's names are chips too — and it joins the chip ledger.
+    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*keepOut\(\),\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips, strict: true \},?\s*\)/);
+    expect(memory).toContain("floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });");
     expect(memory).toMatch(/recordKeepOut\(keepOutLedger, spotM\)/);
   });
 

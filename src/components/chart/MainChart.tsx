@@ -11173,7 +11173,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // old one-row step oscillated between two neighbours and, after eight
           // tries, printed on both (serving, BTC 1m FAR: LIVING POC / VRP POC /
           // LIVING VAL as one smear).
-          const yy = nearestFreeLabelY(y, stackLabelYs, 12);
+          // Never inside the price legend's band (serving NQ1! 5m, every
+          // species on: "LIVING VAH …" printed over "+0.12% today"). The
+          // words carry the price, so a row just below the band still quotes it.
+          const yy = nearestFreeLabelY(Math.max(y, PRICE_LEGEND_OVERLAY_H + 7), stackLabelYs, 12);
           stackLabelYs.push(yy);
           ctx.save();
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
@@ -12692,6 +12695,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (l.naked) naked++;
               if (!(isPoc || l.naked)) continue;
               if (labelYs.some(v => Math.abs(v - y) < 11)) continue; // never stack labels
+              // A level in the price legend's band keeps its line; its words
+              // would print over the legend, and its line is their leader.
+              if (y < PRICE_LEGEND_OVERLAY_H + 7) continue;
               labelYs.push(y);
               const text = `S-${l.sessionsAgo} ${l.kind} ${l.price.toFixed(2)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
               const w = Math.ceil(ctx.measureText(text).width) + 8;
@@ -12700,12 +12706,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // slides back along its OWN level line (the line is its leader)
               // off the newest bodies, never left of where the level formed;
               // with no room it stays and its backing yields.
+              // STRICT: the column's names are chips too. Non-strict, a memory
+              // name was checked only against the newest bodies and printed
+              // over "CMP POC 30760.00" at the same price (serving NQ1! 5m).
               const spotM = placeClearOfKeepOut(
                 { x: lx, y: y - 7, w, h: 14 },
                 keepOut(),
-                { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips },
+                { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips, strict: true },
               );
               recordKeepOut(keepOutLedger, spotM);
+              floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
               ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);
               ctx.fillStyle = isPoc ? pk.rgba("POC", Math.max(0.6, fade)) : pk.rgba(edge, Math.max(0.55, fade));
