@@ -19,6 +19,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { CHART_SELECTION_AT_REST, selectChartSelection } from "@/lib/marketData/viewModels/chartSelection";
 
 const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
@@ -48,7 +49,15 @@ describe("question lens and restored selection", () => {
   });
 
   it("clicking a restored zone opens its Passport and keeps it selected", () => {
-    expect(ROOM).toMatch(/const readRestoredZone = isZone && id === selectedMarketObjectId && !inspectOpen;/);
-    expect(ROOM).toMatch(/if \(!readRestoredZone\) \{\s*setSelectedMarketObjectId\(/);
+    // The click semantics moved into the one selection reducer; the room
+    // routes every pin click to it and restores through it.
+    expect(ROOM).toMatch(/onSelectMarketObject=\{id => actOnChartSelection\(\{ type: "toggleObject", objectId: id \}\)\}/);
+    expect(ROOM).toMatch(/type: "reconcile",/);
+    const restored = selectChartSelection(CHART_SELECTION_AT_REST, {
+      type: "reconcile", symbol: "AAPL", timeframe: "5m", compiledObjectIds: ["ZONE-1"], savedObjectId: "ZONE-1",
+    });
+    expect(restored).toEqual({ selection: { kind: "OBJECT", objectId: "ZONE-1" }, inspectOpen: false });
+    expect(selectChartSelection(restored, { type: "toggleObject", objectId: "ZONE-1" }))
+      .toEqual({ selection: { kind: "OBJECT", objectId: "ZONE-1" }, inspectOpen: true });
   });
 });

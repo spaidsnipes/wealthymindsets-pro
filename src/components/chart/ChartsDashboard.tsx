@@ -264,7 +264,6 @@ import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivis
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
 import { QUESTION_CHOICES, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
-import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
@@ -277,6 +276,15 @@ import selectStructureProfile from "@/lib/marketData/viewModels/selectStructureP
 import selectProfileDna from "@/lib/marketData/viewModels/selectProfileDna";
 import selectValueMigration from "@/lib/marketData/viewModels/selectValueMigration";
 import selectProfileSlice from "@/lib/marketData/viewModels/selectProfileSlice";
+import {
+  CHART_SELECTION_AT_REST,
+  releasesObject,
+  selectChartSelection,
+  selectedObjectIdOf,
+  selectedPrintOf,
+  selectedSliceOf,
+  type ChartSelectionAction,
+} from "@/lib/marketData/viewModels/chartSelection";
 import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory";
 import selectProfileFusion, { type FusionSourceLevel } from "@/lib/marketData/viewModels/selectProfileFusion";
 import selectCompositeProfile from "@/lib/marketData/viewModels/selectCompositeProfile";
@@ -1502,29 +1510,45 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const birth = chartBarIdentities.find(identity => identity.barId === object.birthBarId);
     return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
   }), [chartMarketObjects, chartBarIdentities]);
-  const [selectedMarketObjectId, setSelectedMarketObjectId] = useState<string | null>(null);
+  // ONE SELECTION AT A TIME. The selected object, the selected print (a
+  // bubble) and the selected Living slice are three views of ONE union owned
+  // by `selectChartSelection`, together with whether Inspect is open on it.
+  // Selecting anything replaces the rest, so the glass never paints two
+  // selected things while Inspect describes one of them.
+  const [chartSelection, dispatchChartSelection] = React.useReducer(selectChartSelection, CHART_SELECTION_AT_REST);
+  const selectedMarketObjectId = selectedObjectIdOf(chartSelection);
+  const selectedPrint = selectedPrintOf(chartSelection);
+  const selectedSlicePrice = selectedSliceOf(chartSelection);
+  const inspectOpen = chartSelection.inspectOpen;
   // CONTINUITY (Garden 12 · Defect 7): the selected object survives a refresh
   // in this browser session — keyed by symbol:timeframe, restored only when
   // the SAME object id is compiled again (never guessed, never carried to
   // another instrument). Session storage: a new session starts calm.
   const selectionKey = `wm:selectedObject:${symbol}:${timeframe}`;
   useEffect(() => {
-    setSelectedMarketObjectId(current => {
-      if (current && chartMarketObjects.some(object => object.objectId === current)) return current;
-      let saved: string | null = null;
-      try { saved = sessionStorage.getItem(selectionKey); } catch { /* storage refused */ }
-      return saved && chartMarketObjects.some(object => object.objectId === saved) ? saved : null;
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem(selectionKey); } catch { /* storage refused */ }
+    dispatchChartSelection({
+      type: "reconcile",
+      symbol,
+      timeframe,
+      compiledObjectIds: chartMarketObjects.map(object => object.objectId),
+      savedObjectId: saved,
     });
-  }, [chartMarketObjects, selectionKey]);
-  // Written on select; cleared ONLY by an explicit deselect (below) — an
-  // early compile that has not produced the object yet must not erase it.
+  }, [chartMarketObjects, selectionKey, symbol, timeframe]);
+  // Written on select; cleared ONLY by an explicit let-go (`releasesObject`) —
+  // an early compile that has not produced the object yet must not erase it.
   useEffect(() => {
     try { if (selectedMarketObjectId) sessionStorage.setItem(selectionKey, selectedMarketObjectId); }
     catch { /* storage refused: selection simply does not survive */ }
   }, [selectedMarketObjectId, selectionKey]);
-  const forgetSelection = React.useCallback(() => {
-    try { sessionStorage.removeItem(selectionKey); } catch { /* storage refused */ }
-  }, [selectionKey]);
+  /** Every trader-driven selection change goes through here: one reducer, one memory rule. */
+  const actOnChartSelection = (action: ChartSelectionAction) => {
+    if (releasesObject(chartSelection, action)) {
+      try { sessionStorage.removeItem(selectionKey); } catch { /* storage refused */ }
+    }
+    dispatchChartSelection(action);
+  };
   const continuationHealthVM = React.useMemo(() =>
     selectContinuationHealth({ structure: chartStructureVM, regime: chartRegimeVM }),
   [chartStructureVM, chartRegimeVM]);
@@ -1641,11 +1665,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * make the desktop disagree with F24 forever, and would plant a second rule
    * about what the camera is owed. G-001: 1440 and 390 are the SAME ORGANISM.
    */
-  const [inspectOpen, setInspectOpen] = useState(false);
-  const [selectedPrint, setSelectedPrint] = useState<SelectedBigTrade | null>(null);
-  // H-601 · the clicked price inside the Living Profile's lane. Resolved to a
-  // compiler bucket by `selectProfileSlice`; cleared with the symbol/timeframe.
-  const [selectedSlicePrice, setSelectedSlicePrice] = useState<{ symbol: string; timeframe: string; price: number } | null>(null);
+  // `inspectOpen`, `selectedPrint` and `selectedSlicePrice` (H-601 · the
+  // clicked price inside the Living Profile's lane, resolved to a compiler
+  // bucket by `selectProfileSlice`) are read from `chartSelection` above; the
+  // reducer's rest state is Inspect CLOSED, for the reasons given here.
   const activeSelectedPrint = selectedPrint?.symbol === symbol && selectedPrint.timeframe === timeframe ? selectedPrint : null;
 
   /* The span comes from the bars the chart DREW, not from a second
@@ -2826,10 +2849,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               data-testid={`passport-pick-${z.side}`}
               aria-pressed={selected}
               onClick={() => {
-                setSelectedMarketObjectId(z.object.objectId);
-                setSelectedPrint(null);
-                setSelectedSlicePrice(null);
-                setInspectOpen(true);
+                actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: z.object.objectId } });
                 // Hand the glass back: the object is read ON price now.
                 onChartEquipmentClose();
               }}
@@ -5159,34 +5179,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          compiler above for why this, and not a second click
                          path, is the bar-selection route. */
                       onOHLCAtCursor={setCursorBar}
-                      onSelectBigTrade={print => { setSelectedPrint(print); setSelectedSlicePrice(null); setInspectOpen(true); }}
+                      onSelectBigTrade={print => actOnChartSelection({ type: "select", selection: { kind: "PRINT", print } })}
                       selectedPrintOnChart={activeSelectedPrint}
-                      onSelectProfileSlice={price => { setSelectedSlicePrice({ symbol, timeframe, price }); setSelectedPrint(null); setInspectOpen(true); }}
+                      onSelectProfileSlice={price => actOnChartSelection({ type: "select", selection: { kind: "SLICE", symbol, timeframe, price } })}
                       selectedProfileSlicePrice={activeProfileSlice?.found ? activeProfileSlice.price : null}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
-                      onSelectMarketObject={id => {
-                        const isZone = chartStructureZones.some(z => z.object.objectId === id);
-                        // A zone restored after a refresh is selected with its
-                        // Passport closed. Clicking it asks to READ it, so that
-                        // click opens the Passport and keeps the selection; only
-                        // a click while its Passport is already open lets go.
-                        const readRestoredZone = isZone && id === selectedMarketObjectId && !inspectOpen;
-                        if (!readRestoredZone) {
-                          setSelectedMarketObjectId(current => { if (current === id) { forgetSelection(); return null; } return id; });
-                        }
-                        // A selected zone opens the ONE Inspect ticket as its
-                        // Passport; any other selection gives way.
-                        // Letting go of a zone closes its Passport with it, rather
-                        // than leaving the ticket open on nothing.
-                        if (isZone && id === selectedMarketObjectId && inspectOpen) setInspectOpen(false);
-                        if (isZone && (readRestoredZone || id !== selectedMarketObjectId)) {
-                          setSelectedPrint(null);
-                          setSelectedSlicePrice(null);
-                          setInspectOpen(true);
-                        }
-                      }}
+                      /* A zone or LEVEL pin. A restored selection (Inspect
+                         closed) is opened on the first click, not deselected;
+                         see `toggleObject`. */
+                      onSelectMarketObject={id => actOnChartSelection({ type: "toggleObject", objectId: id })}
                       structureZones={chartStructureZones}
                       selectedMarketObjectWait={selectedMarketObjectWait}
                       marketStanding={marketStanding}
@@ -5391,7 +5394,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}
                         profileSliceAsOf={livingProfileAsOf}
-                        onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); if (chartStructureZones.some(z => z.object.objectId === selectedMarketObjectId)) { forgetSelection(); setSelectedMarketObjectId(null); } } }}
+                        onOpenChange={open => actOnChartSelection({ type: open ? "openInspect" : "closeInspect" })}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}
