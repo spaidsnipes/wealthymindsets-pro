@@ -61,6 +61,7 @@ import {
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { aggressorProvenanceOf } from "@/lib/marketData/selectAggressorFlow";
 import {
   classifySymbol,
   isUnsupportedByEquityVendors,
@@ -6878,8 +6879,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          — measured, PENDING until the bars exist; never a forecast). */
       try {
         const sp = selectedPrintRef.current;
-        if (sp && sp.kind !== "delta" && sp.timeMs != null) {
-          const side = sp.ask >= sp.bid ? "buy" as const : "sell" as const;
+        // The FORCE's side and the words for it belong to the claim owner —
+        // the same heading the hover tip reads for this print. An equity relay
+        // print's side is a tick-rule guess, and the owner says INFERRED where
+        // a caption typed here said AGGRESSIVE.
+        const claim = sp && sp.kind !== "delta"
+          ? describeBubbleClaim({ kind: "big-trade", bid: sp.bid, ask: sp.ask, price: sp.priceLevel, aggressorMethod: sp.aggressorMethod })
+          : null;
+        if (sp && claim && sp.timeMs != null) {
+          const side = claim.side;
+          const sideInferred = aggressorProvenanceOf(sp.aggressorMethod) === "INFERRED";
           const pr = selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side },
             (barsRef.current ?? []).map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close })));
           canvas.dataset.printResponse = pr.drawn ? `${pr.verdict}:${pr.responseBars}` : pr.reason;
@@ -6891,9 +6900,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(Math.round(ex) + 0.5, 92); ctx.lineTo(Math.round(ex) + 0.5, H - 40); ctx.stroke(); ctx.setLineDash([]);
             // FORCE: an arrow from below (buy) / above (sell) into the print.
+            // Dashed when the side was inferred, as the ticket qualifies it:
+            // a solid shaft reads as a venue-stamped initiator.
             const ax0 = ex - 70, ay0 = up ? ey + 60 : ey - 60;
             const g = ctx.createLinearGradient(ax0, ay0, ex, ey); g.addColorStop(0, "rgba(232,184,92,0)"); g.addColorStop(1, "rgba(232,184,92,0.95)");
+            ctx.setLineDash(sideInferred ? [6, 4] : []);
             ctx.strokeStyle = g; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(ex - 8, up ? ey + 6 : ey - 6); ctx.stroke();
+            ctx.setLineDash([]);
             const ang = Math.atan2((up ? ey + 6 : ey - 6) - ay0, ex - 8 - ax0);
             ctx.fillStyle = "rgba(232,184,92,0.95)"; ctx.beginPath();
             ctx.moveTo(ex - 6, up ? ey + 5 : ey - 5);
@@ -6923,7 +6936,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2); ctx.fillStyle = "rgba(240,200,100,1)"; ctx.fill();
             ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
             // FORCE caption at the arrow's tail.
-            plate(["FORCE", `(AGGRESSIVE ${up ? "BUY" : "SELL"})`], ax0 - 70, up ? ay0 + 4 : ay0 - 34, true);
+            plate(["FORCE", `(${claim.heading})`], ax0 - 70, up ? ay0 + 4 : ay0 - 34, true);
             if (pr.verdict === "PENDING") {
               // A live-bar print sits at the right edge, under the Inspect
               // ticket's column; the debt plate stands clear of it on a leader.
@@ -6967,7 +6980,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.lineTo(rx - 8 * Math.cos(ra - 0.5), ry - 8 * Math.sin(ra - 0.5));
                   ctx.lineTo(rx - 8 * Math.cos(ra + 0.5), ry - 8 * Math.sin(ra + 0.5)); ctx.closePath(); ctx.fill();
                   const word = pr.verdict === "FOLLOWED" ? "(FOLLOWED THROUGH)" : pr.verdict === "FADED" ? "(FADED · REVERSED)" : "(WEAK DISPLACEMENT)";
-                  plate(["RESPONSE", word, `with ${pr.withForce.toFixed(2)} · against ${pr.againstForce.toFixed(2)}`], rx + 16, ry - 20, pr.verdict === "FOLLOWED");
+                  // WITH and AGAINST are measured along the FORCE's side, so
+                  // the verdict is only as certain as that side.
+                  plate(["RESPONSE", word, `with ${pr.withForce.toFixed(2)} · against ${pr.againstForce.toFixed(2)}`,
+                    ...(sideInferred ? ["vs an INFERRED side"] : [])], rx + 16, ry - 20, pr.verdict === "FOLLOWED");
                 }
               }
             }

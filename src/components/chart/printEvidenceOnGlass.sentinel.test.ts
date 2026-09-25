@@ -47,3 +47,31 @@ describe("a print's time is stated in the axis's zone", () => {
     expect(b).not.toMatch(/toISOString\(\)\.slice\(11/);
   });
 });
+
+/** The FORCE → RESPONSE pass on the selected print, through its no-selection branch. */
+const forceResponse = () => slice("const sp = selectedPrintRef.current;", "delete canvas.dataset.printEnvelope;");
+
+describe("the FORCE states the print's side as its claim owner does", () => {
+  it("the side and its caption come from describeBubbleClaim, with the print's aggressorMethod", () => {
+    const b = forceResponse();
+    expect(b).toMatch(/describeBubbleClaim\(\{ kind: "big-trade", bid: sp\.bid, ask: sp\.ask, price: sp\.priceLevel, aggressorMethod: sp\.aggressorMethod \}\)/);
+    expect(b).toContain("const side = claim.side;");
+    expect(b).toMatch(/plate\(\["FORCE", `\(\$\{claim\.heading\}\)`\]/);
+  });
+
+  it("no caption in the block hard-codes AGGRESSIVE", () => {
+    const b = forceResponse();
+    expect(b).toContain('plate(["FORCE"');
+    expect(b).not.toMatch(/AGGRESSIVE/);
+  });
+
+  it("an inferred side dashes the FORCE arrow and qualifies the RESPONSE", () => {
+    const b = forceResponse();
+    expect(b).toContain('const sideInferred = aggressorProvenanceOf(sp.aggressorMethod) === "INFERRED";');
+    const dash = b.indexOf("ctx.setLineDash(sideInferred ? [6, 4] : []);");
+    const shaft = b.indexOf("ctx.moveTo(ax0, ay0);");
+    expect(dash).toBeGreaterThan(-1);
+    expect(shaft).toBeGreaterThan(dash);
+    expect(b).toMatch(/sideInferred \? \["vs an INFERRED side"\]/);
+  });
+});

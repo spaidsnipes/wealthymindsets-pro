@@ -7,9 +7,21 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  aggressorProvenanceOf,
   selectAggressorFlow,
   type AggressorTick,
 } from "./selectAggressorFlow";
+
+describe("aggressorProvenanceOf — one print's method, by the flow's own rule", () => {
+  it("venue assertions are PROVIDER, heuristics INFERRED, anything else UNDISCLOSED", () => {
+    expect(aggressorProvenanceOf("PROVIDER")).toBe("PROVIDER");
+    expect(aggressorProvenanceOf("MAKER_SIDE_INVERTED")).toBe("PROVIDER");
+    expect(aggressorProvenanceOf("TICK_RULE")).toBe("INFERRED");
+    expect(aggressorProvenanceOf("QUOTE_TEST")).toBe("INFERRED");
+    expect(aggressorProvenanceOf("NONE")).toBe("UNDISCLOSED");
+    expect(aggressorProvenanceOf(undefined)).toBe("UNDISCLOSED");
+  });
+});
 
 function tick(over: Partial<AggressorTick>): AggressorTick {
   return { trade: true, size: 1, price: 100, side: "buy", ...over };

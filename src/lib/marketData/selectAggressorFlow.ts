@@ -81,8 +81,11 @@ export type AggressorProvenance = "PROVIDER" | "INFERRED" | "MIXED" | "UNDISCLOS
  * MAKER_SIDE_INVERTED counts as PROVIDER on purpose: the venue states which
  * party was the maker, and the aggressor is the other one BY DEFINITION. That
  * is a deterministic restatement of provider data, not a guess about it.
+ *
+ * Exported so a single print's paint (the FORCE arrow on the chart) classifies
+ * its method by this rule rather than by its own copy of the method list.
  */
-function provenanceOf(method: AggressorMethod | undefined): AggressorProvenance {
+export function aggressorProvenanceOf(method: AggressorMethod | undefined): AggressorProvenance {
   if (method === "PROVIDER" || method === "MAKER_SIDE_INVERTED") return "PROVIDER";
   if (method === "TICK_RULE" || method === "QUOTE_TEST") return "INFERRED";
   return "UNDISCLOSED";
@@ -179,7 +182,7 @@ export function selectAggressorFlow(
     }
     if (t.side === "buy") askVol += size;
     else bidVol += size;
-    const p = provenanceOf(t.marketEvent?.aggressorMethod);
+    const p = aggressorProvenanceOf(t.marketEvent?.aggressorMethod);
     if (p === "PROVIDER") sawProvider = true;
     else if (p === "INFERRED") sawInferred = true;
     else sawUndisclosed = true;
