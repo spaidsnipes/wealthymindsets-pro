@@ -666,8 +666,11 @@ function plaqueWordSize(word: string): number {
 
 const PLAQUE_GLYPH: React.CSSProperties = {
   color: "#c4a574",
-  fontSize: 20,
-  lineHeight: "22px",
+  // Measured in the geometry gate's Chrome screenshot: at 20px the ⚖ drew
+  // about 12px tall, a speck under a 44px word. F05A draws it a third the
+  // word's height.
+  fontSize: 26,
+  lineHeight: "28px",
   opacity: 0.9,
 };
 
@@ -689,10 +692,19 @@ const PLAQUE_RULE: React.CSSProperties = {
   background: "linear-gradient(90deg, rgba(196,165,116,0) 0%, rgba(196,165,116,0.55) 50%, rgba(196,165,116,0) 100%)",
 };
 
+/**
+ * THE STAMP IS SMALL, NOT FINE PRINT. 11px is the readable floor the interior
+ * geometry gate enforces (measure-experience-geometry.mjs, TINY law,
+ * PHRASE_MIN_PX). Shipped at 9.5px it failed CI on main (829a3a37, run
+ * 36181652895): "SESSION UNKNOWN" and "asOf 14:46:05Z" measured 10px against
+ * an 11px floor. "Small" on the plate means quiet colour and tracking, never a
+ * size a trader cannot read out of the corner of an eye. The line box is set
+ * above the glyph height so the stamp is never vertically crushed either.
+ */
 const PLAQUE_STAMP: React.CSSProperties = {
-  fontSize: 9.5,
-  lineHeight: "13px",
-  letterSpacing: "0.12em",
+  fontSize: 11,
+  lineHeight: "16px",
+  letterSpacing: "0.08em",
   textTransform: "uppercase",
   color: "#8a8271",
   fontVariantNumeric: "tabular-nums",
@@ -1245,9 +1257,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             margin: "4px 0 0",
             borderRadius: 2,
             border: "1px solid",
-            fontSize: 10.5,
-            lineHeight: "15px",
-            letterSpacing: "0.13em",
+            // The 11px readable floor (geometry gate, TINY law). 10.5px failed
+            // CI on main as "PERMISSION WITHHELD" — the one line that says
+            // whether the trader may act cannot be the smallest in the fold.
+            fontSize: 11,
+            lineHeight: "16px",
+            letterSpacing: "0.12em",
             textTransform: "uppercase",
             whiteSpace: "nowrap",
             ...INTERLOCK_TONE[interlock.state],
@@ -1459,7 +1474,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           <span
             data-testid="spine-plaque-asof"
             data-replay-camera={replayEngaged ? "engaged" : undefined}
-            style={PLAQUE_STAMP}
+            // H-101 spells the stamp "asOf"; the plate's small caps printed
+            // it as "ASOF" (seen in the gate's Chrome screenshot).
+            style={{ ...PLAQUE_STAMP, textTransform: "none" }}
           >
             {replayEngaged ? "BAR REPLAY · NO LIVE CLOCK" : asOfText(market.capturedAt)}
           </span>
@@ -1493,7 +1510,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             borderRadius: 2,
           }}
         >
-          <span aria-hidden="true" style={{ ...LABEL, fontSize: 9.5, letterSpacing: "0.16em", textAlign: "center" }}>
+          {/* Every line here is aria-hidden (the panel speaks once, through its
+              aria-label), which also hides it from the geometry gate's TINY
+              law. Humans still read it, so it keeps the same 11px floor the
+              gate enforces on the plaque — a floor held, not merely unprobed. */}
+          <span aria-hidden="true" style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>
             Order flow context
           </span>
           {([
@@ -1514,7 +1535,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
               </span>
             </span>
           ))}
-          <span aria-hidden="true" style={{ ...PLAQUE_STAMP, fontSize: 8.5, textAlign: "center" }}>
+          <span aria-hidden="true" data-testid="spine-flow-basis" style={{ ...PLAQUE_STAMP, textAlign: "center" }}>
             {flowContext.basis}
           </span>
         </div>
@@ -1617,11 +1638,15 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
                     border: "1px solid rgba(139,106,41,0.45)",
                     color: "#c2b892",
                     background: "rgba(139,106,41,0.10)",
-                    fontSize: 10,
-                    lineHeight: "14px",
-                    letterSpacing: "0.12em",
+                    // The 11px readable floor it shipped with before the plaque
+                    // pass shrank it; the chip may wrap rather than overflow a
+                    // 232px handle, because a wound that is cut off is mute.
+                    fontSize: 11,
+                    lineHeight: "16px",
+                    letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    whiteSpace: "nowrap",
+                    whiteSpace: "normal",
+                    maxWidth: "100%",
                     fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
                     fontWeight: 600,
                   }}

@@ -1181,6 +1181,34 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     expect(noTrade * 8 * 0.8).toBeLessThanOrEqual(184);
   });
 
+  /* THE 11px READABLE FLOOR. The plaque pass shipped its stamp at 9.5px and
+     the interlock at 10.5px, and main's CI went red on the interior geometry
+     gate (829a3a37, run 36181652895, spine-rail-bar-close @1440, TINY law):
+     "SESSION UNKNOWN", "asOf 14:46:05Z", "PERMISSION WITHHELD" under 11px.
+     The browser gate stays the real proof (scripts/measure-experience-
+     geometry.mjs); this pins the same floor in the fast suite, and ALSO on
+     the lines that gate cannot see (the aria-hidden flow panel, the integrity
+     chip its fixture does not render) — a floor held, not merely unprobed. */
+  it("every line the plaque pass added reads at the 11px floor, in a line box taller than the glyphs", () => {
+    const flow = { buyPct: 72, sellPct: 28, provenance: "INFERRED" as const, basis: "TICK-RULE SIDES · INFERRED" };
+    const html = railHtml({ flowContext: flow });
+    for (const id of ["spine-plaque-stamp", "spine-plaque-asof", "go-interlock", "spine-fold-integrity", "spine-flow-basis"]) {
+      const at = html.indexOf(`data-testid="${id}"`);
+      expect(at, `${id} not rendered`).toBeGreaterThan(-1);
+      const open = html.lastIndexOf("<", at);
+      const tag = html.slice(open, html.indexOf(">", at));
+      const size = Number(/font-size:([\d.]+)px/.exec(tag)?.[1]);
+      const line = Number(/line-height:([\d.]+)px/.exec(tag)?.[1]);
+      expect(size, `${id} font-size`).toBeGreaterThanOrEqual(11);
+      expect(line, `${id} line box`).toBeGreaterThan(size);
+    }
+    // The flow panel's rows and heading too — every font-size inside it.
+    const panel = html.slice(html.indexOf('data-testid="spine-flow-context"'), html.indexOf('data-testid="spine-detail-drawer"'));
+    const sizes = [...panel.matchAll(/font-size:([\d.]+)px/g)].map((m) => Number(m[1]));
+    expect(sizes.length).toBeGreaterThan(3);
+    for (const s of sizes) expect(s).toBeGreaterThanOrEqual(11);
+  });
+
   it("the phone band is not the 1440 frame — it draws no plaque and keeps every cell inline", () => {
     const band = render({ oneStory: waitingOn() });
     expect(band).not.toContain('data-testid="spine-wait-plaque"');
