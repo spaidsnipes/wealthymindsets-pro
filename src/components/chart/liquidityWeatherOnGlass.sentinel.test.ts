@@ -220,9 +220,11 @@ describe("the heat lens reads as a tide without inventing another market fact", 
 });
 
 describe("F08B — the field exists only INSIDE the lens, behind the candles", () => {
-  it("the field meets the glass through the lens ellipse and the candle cut-out", () => {
+  it("the field meets the glass through the lens ellipse, the candle cut-out and the chip cut-out", () => {
+    // Pin extended 2026-09-25 (serving 14:48): the lens also passes BEHIND
+    // chips already placed (value band, SWING labels).
     expect(CHART).toMatch(
-      /mainCtx\.ellipse\(weatherLens\.cx, weatherLens\.cy, weatherLens\.rx, weatherLens\.ry, 0, 0, Math\.PI \* 2\);\s*mainCtx\.clip\(\);\s*if \(weatherLensCut\) mainCtx\.clip\(weatherLensCut, "evenodd"\);\s*mainCtx\.setTransform\(1, 0, 0, 1, 0, 0\);/,
+      /mainCtx\.ellipse\(weatherLens\.cx, weatherLens\.cy, weatherLens\.rx, weatherLens\.ry, 0, 0, Math\.PI \* 2\);\s*mainCtx\.clip\(\);\s*if \(weatherLensCut\) mainCtx\.clip\(weatherLensCut, "evenodd"\);\s*if \(weatherLensChipCut\) mainCtx\.clip\(weatherLensChipCut, "evenodd"\);\s*mainCtx\.setTransform\(1, 0, 0, 1, 0, 0\);/,
     );
   });
 
@@ -254,6 +256,67 @@ describe("F08B — the field exists only INSIDE the lens, behind the candles", (
     expect(lensBlock).toMatch(/keepOutBackingAlpha\(spot, 0\.86\)/);
     // The leader: plate edge → ring.
     expect(lensBlock).toMatch(/const onRing = ringPoint\(L, tl, 5\);/);
+  });
+});
+
+describe("the lens speaks only where it can be read — serving BTC-USD 1m, 2026-09-25 14:48 CDT", () => {
+  // Measured on serving: the tape starts at page load, so the window was a few
+  // minutes at the live edge and the lens was a ~150×130 knot over the newest
+  // candles — through the NEAR footprint cells, the SWING labels and the
+  // value-band chip, with a field too small to read.
+
+  it("H-501: at NEAR the lens and its readout yield, and the receipt says YIELDED_NEAR", () => {
+    // The gate is consulted with the frame's depth before any lens is fitted.
+    expect(geoBlock).toMatch(/const gate = weatherLensGate\(\{\s*depth: semanticDensity\.depth,/);
+    expect(geoBlock).toMatch(/if \(gate\.kind !== "DRAW"\) \{\s*weatherLensWhy = gate\.state;/);
+    // Only a DRAW verdict fits a lens.
+    expect(geoBlock).toMatch(/\} else if \(region\) \{\s*weatherLens = fitWeatherLens\(/);
+    expect(geoBlock.match(/fitWeatherLens\(/g)?.length).toBe(1);
+  });
+
+  it("GATHERING draws no mini lens: one line of words, placed through the keep-out, by its region", () => {
+    expect(geoBlock).toMatch(/if \(gate\.kind === "GATHERING" && region\) weatherGathering = \{ region, words: gate\.words \};/);
+    const gather = between("const gw = on && glass.drawn ? weatherGathering : null;", "delete ds.liquidityWeatherGathering;");
+    expect(gather).toMatch(/const gSpot = placeClearOfKeepOut\(aboveG, keepOut\(\), \{/);
+    expect(gather).toMatch(/blockers: \[\.\.\.floatingChips,/);
+    expect(gather).toMatch(/recordKeepOut\(keepOutLedger, gSpot\);/);
+    expect(gather).toMatch(/ctx\.fillText\(gw\.words, gSpot\.rect\.x, gSpot\.rect\.y\);/);
+    expect(gather).toMatch(/floatingChips\.push\(\{ \.\.\.gSpot\.rect \}\);/);
+    expect(gather).toMatch(/ds\.liquidityWeatherGathering = gSpot\.mode;/);
+    // Not in a corner stack: its rows are the region's own.
+    expect(gather).not.toMatch(/fillText\(gw\.words, 8,/);
+  });
+
+  it("the lens state is published in every state (DRAWN / YIELDED_NEAR / GATHERING:<bars> / OFF_CAMERA / UNTIMED / OFF)", () => {
+    expect(lensBlock).toMatch(/ds\.liquidityWeatherLensState = weatherLensWhy;/);
+    expect(geoBlock).toMatch(/let weatherLensWhy: string = on \? "UNMEASURED" : "OFF";/);
+  });
+
+  it("the lens passes BEHIND the chips already placed — tint, field and ring", () => {
+    expect(geoBlock).toMatch(/for \(const c of floatingChips\) \{/);
+    expect(geoBlock).toMatch(/chipCut\.rect\(c\.x - 1, c\.y - 1, c\.w \+ 2, c\.h \+ 2\);/);
+    expect(geoBlock).toMatch(/ctx\.clip\(chipCut, "evenodd"\);/);
+    expect(lensBlock).toMatch(/if \(weatherLensChipCut\) ctx\.clip\(weatherLensChipCut, "evenodd"\);/);
+  });
+
+  it("the title yields to a chip it would print through; the readout then names the lens", () => {
+    expect(lensBlock).toMatch(/const titleYields = titleBox != null && floatingChips\.some\(/);
+    expect(lensBlock).toMatch(/if \(!titleYields\) glyphs\.forEach\(/);
+    expect(lensBlock).toMatch(/ctx\.fillText\(titleYields \? "WEATHER LENS" : "LENS STATUS"/);
+    expect(lensBlock).toMatch(/ds\.liquidityWeatherRing = titleYields \? "YIELDED" : "LIQUIDITY WEATHER";/);
+  });
+
+  it("registers the title arc, the readout and the ring in the chip ledger", () => {
+    expect(lensBlock).toMatch(/if \(titleBox && !titleYields\) floatingChips\.push\(titleBox\);/);
+    expect(lensBlock).toMatch(/floatingChips\.push\(\{ x: R\.x, y: R\.y, w: R\.w, h: R\.h \}\);/);
+    expect(lensBlock).toMatch(/floatingChips\.push\(\{ x: L\.cx - L\.rx - 6, y: L\.cy - L\.ry - 6, w: L\.rx \* 2 \+ 12, h: L\.ry \* 2 \+ 20 \}\);/);
+    // The ring is registered AFTER the readout is placed (its own slots would
+    // otherwise be refused by the ring's box).
+    expect(lensBlock.indexOf("w: L.rx * 2 + 12")).toBeGreaterThan(lensBlock.indexOf("ds.liquidityWeatherReadout = spot.mode;"));
+  });
+
+  it("the value-band chip it collided with is on the ledger", () => {
+    expect(CHART).toMatch(/ctx\.fillText\(glass\.migrationLabel, chipX \+ lw \+ 6, chipY \+ chipH \+ 8\);[\s\S]{0,120}\}\s*floatingChips\.push\(\{ x: chipX, y: chipY, w: lw \+ 12, h: blockH \}\);/);
   });
 });
 

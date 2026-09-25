@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fitWeatherLens, ladderRungYs, lensDistance, LENS_MIN_RX, LENS_MIN_RY, poolSpan,
   scaleAngle, SCALE_HEAVY_T, SCALE_THIN_T, wordOnTopArc, PHASE_WORD,
+  weatherLensGate, LENS_MIN_BARS, LENS_MIN_REGION_W,
 } from "./liquidityGlassGeometry";
 import { candleCutOutRects } from "@/lib/chartKeepOut";
 
@@ -107,6 +108,37 @@ describe("F08B — the weather is a lens over the region it measured", () => {
     expect(Math.cos(SCALE_HEAVY_T)).toBeLessThan(0);
     expect(Math.sin(SCALE_HEAVY_T)).toBeGreaterThan(0);
     expect(Math.cos(SCALE_THIN_T)).toBeGreaterThan(0);
+  });
+});
+
+describe("the lens speaks only where it can be read (serving BTC-USD 1m, 14:48 CDT)", () => {
+  const broad = { depth: "MID", spanBars: 20, regionWidth: 200, spanMs: 20 * 60_000 };
+
+  it("H-501: at NEAR only tape and candle anatomy speak — the lens yields, whatever the window", () => {
+    expect(weatherLensGate({ ...broad, depth: "NEAR" })).toEqual({ kind: "YIELDED_NEAR", state: "YIELDED_NEAR" });
+    expect(weatherLensGate({ ...broad, depth: "NEAR", regionWidth: null }).kind).toBe("YIELDED_NEAR");
+  });
+
+  it("a broad measured window at MID or FAR draws", () => {
+    expect(weatherLensGate(broad).kind).toBe("DRAW");
+    expect(weatherLensGate({ ...broad, depth: "FAR" }).kind).toBe("DRAW");
+  });
+
+  it("fewer than LENS_MIN_BARS bars is GATHERING, named once with the minutes of tape held", () => {
+    const g = weatherLensGate({ ...broad, spanBars: 3, spanMs: 3.4 * 60_000 });
+    expect(g).toEqual({ kind: "GATHERING", state: "GATHERING:3", bars: 3, words: "WEATHER · gathering — 3 min of tape" });
+    expect(weatherLensGate({ ...broad, spanBars: LENS_MIN_BARS - 1 }).kind).toBe("GATHERING");
+    expect(weatherLensGate({ ...broad, spanBars: LENS_MIN_BARS }).kind).toBe("DRAW");
+  });
+
+  it("a region too narrow for the field to read is GATHERING even with enough bars", () => {
+    expect(weatherLensGate({ ...broad, regionWidth: LENS_MIN_REGION_W - 1 }).kind).toBe("GATHERING");
+  });
+
+  it("under a minute of tape says so; off camera is its own silence", () => {
+    const g = weatherLensGate({ ...broad, spanBars: 1, spanMs: 20_000 });
+    expect(g.kind === "GATHERING" && g.words).toBe("WEATHER · gathering — <1 min of tape");
+    expect(weatherLensGate({ ...broad, regionWidth: null })).toEqual({ kind: "OFF_CAMERA", state: "OFF_CAMERA" });
   });
 });
 

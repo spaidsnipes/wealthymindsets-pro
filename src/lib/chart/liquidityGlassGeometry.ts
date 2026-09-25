@@ -166,6 +166,53 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
   return { cx, cy, rx: rx * grow, ry: ry * grow };
 }
 
+/**
+ * WHEN THE LENS MAY SPEAK AT ALL (serving, BTC-USD 1m desktop, 2026-09-25
+ * 14:48 CDT). The tape starts at page load, so for the first minutes the
+ * measured window is two to four bars at the live edge, and the fitted lens
+ * was a ~150px knot over the newest candles — through the NEAR footprint
+ * cells, the SWING labels and the value-band chip — with a field too small to
+ * read. F08B draws the opposite: a large lens over a broad region.
+ *
+ *   NEAR          H-501: only tape and candle anatomy speak at NEAR (the
+ *                 badge itself says so). The lens and its readout yield;
+ *                 nothing is printed, the receipt says YIELDED_NEAR.
+ *   no region     the window is off the camera: OFF_CAMERA, nothing printed.
+ *   GATHERING     fewer than LENS_MIN_BARS bars measured, or a region
+ *                 narrower than LENS_MIN_REGION_W px: no mini lens. The
+ *                 silence is named ONCE in words (`words`), with the minutes
+ *                 of tape actually held, and the receipt GATHERING:<bars>.
+ *   DRAW          otherwise.
+ */
+export const LENS_MIN_BARS = 6;
+export const LENS_MIN_REGION_W = 48;
+
+export type WeatherLensGate =
+  | { readonly kind: "DRAW" }
+  | { readonly kind: "YIELDED_NEAR"; readonly state: "YIELDED_NEAR" }
+  | { readonly kind: "OFF_CAMERA"; readonly state: "OFF_CAMERA" }
+  | { readonly kind: "GATHERING"; readonly state: `GATHERING:${number}`; readonly bars: number; readonly words: string };
+
+export function weatherLensGate(g: {
+  readonly depth: string;
+  /** Bars from the window's first print's bar to its last, inclusive (0 = unknown). */
+  readonly spanBars: number;
+  /** The window's screen width, or null when it has no place on the camera. */
+  readonly regionWidth: number | null;
+  /** First → last print, ms. */
+  readonly spanMs: number;
+}): WeatherLensGate {
+  if (g.depth === "NEAR") return { kind: "YIELDED_NEAR", state: "YIELDED_NEAR" };
+  if (g.regionWidth == null || !Number.isFinite(g.regionWidth)) return { kind: "OFF_CAMERA", state: "OFF_CAMERA" };
+  const bars = Math.max(0, Math.floor(Number.isFinite(g.spanBars) ? g.spanBars : 0));
+  if (bars < LENS_MIN_BARS || g.regionWidth < LENS_MIN_REGION_W) {
+    const min = Number.isFinite(g.spanMs) ? g.spanMs / 60_000 : 0;
+    const held = min < 1 ? "<1 min" : `${Math.round(min)} min`;
+    return { kind: "GATHERING", state: `GATHERING:${bars}`, bars, words: `WEATHER · gathering — ${held} of tape` };
+  }
+  return { kind: "DRAW" };
+}
+
 /** A point on the ellipse `offset` px outside the lens (param angle t, canvas y-down). */
 export function ringPoint(lens: WeatherLens, t: number, offset = 0): { x: number; y: number } {
   return { x: lens.cx + (lens.rx + offset) * Math.cos(t), y: lens.cy + (lens.ry + offset) * Math.sin(t) };

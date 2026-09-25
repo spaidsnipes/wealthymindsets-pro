@@ -24,8 +24,8 @@ import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketD
 import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
-  PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderRungYs, poolSpan, ringPoint, scaleAngle, wordOnTopArc,
-  type WeatherLens,
+  PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderRungYs, poolSpan, ringPoint, scaleAngle, weatherLensGate,
+  wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
@@ -11090,6 +11090,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(glass.migrationLabel, chipX + lw + 6, chipY + chipH + 8);
               ctx.textAlign = "left";
             }
+            // The chip joins the ledger so layers painted later step around it
+            // (serving, BTC-USD 1m, 14:48 CDT: the weather lens's title printed
+            // through "VALUE · BAND 62% OF RANGE · 242 PRINTS").
+            floatingChips.push({ x: chipX, y: chipY, w: lw + 12, h: blockH });
 
             ctx.restore();
 
@@ -14604,19 +14608,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            the shelves and the ring. */
         let weatherLens: WeatherLens | null = null;
         let weatherLensCut: Path2D | null = null;
+        /** Chips already on the glass that the lens passes BEHIND (value band, SWING labels, …). */
+        let weatherLensChipCut: Path2D | null = null;
+        /** The measured region while the lens is still GATHERING — where its one line of words attaches. */
+        let weatherGathering: { region: { x0: number; y0: number; x1: number; y1: number }; words: string } | null = null;
         /** The field's composite alpha as actually painted (0 = no field) — the readout's VEIL. */
         let weatherVeil = 0;
-        let weatherLensWhy: "OFF" | "UNMEASURED" | "UNTIMED" | "OFF_CAMERA" | "DRAWN" = on ? "UNMEASURED" : "OFF";
+        let weatherLensWhy: string = on ? "UNMEASURED" : "OFF";
         let weatherPlotRight = W - 60;
         try { weatherPlotRight = W - chart.priceScale("right").width(); } catch { /* keep default */ }
         const lensBars = barsRef.current ?? [];
-        const lensBarX = (ms: number): number | null => {
+        /** The bar a print (ms) landed in: the last bar opening at or before it; -1 before the first. */
+        const lensBarAt = (ms: number): number => {
           const tSec = Math.floor(ms / 1000);
           let lo = 0, hi = lensBars.length - 1, at = -1;
           while (lo <= hi) {
             const mid = (lo + hi) >> 1;
             if (Number(lensBars[mid].time) <= tSec) { at = mid; lo = mid + 1; } else hi = mid - 1;
           }
+          return at;
+        };
+        const lensBarX = (ms: number): number | null => {
+          const at = lensBarAt(ms);
           if (at < 0) return null;
           const x = chart.timeScale().timeToCoordinate(lensBars[at].time as never);
           return x == null ? null : +x;
@@ -14627,12 +14640,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           else {
             const xa = lensBarX(wnd.fromTime), xb = lensBarX(wnd.toTime);
             const ya = srs.priceToCoordinate(wnd.high), yb = srs.priceToCoordinate(wnd.low);
-            weatherLens = xa == null || xb == null || ya == null || yb == null ? null : fitWeatherLens(
-              { x0: Math.min(xa, xb) - bsp / 2, x1: Math.max(xa, xb) + bsp / 2, y0: +ya, y1: +yb },
-              // Room above for the ring's title and below for HELD / MOVED.
-              { x0: 0, y0: HEADER_FLOOR_Y + 16, x1: weatherPlotRight, y1: pane0Bottom - 16 },
-            );
-            weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
+            const region = xa == null || xb == null || ya == null || yb == null
+              ? null
+              : { x0: Math.min(xa, xb) - bsp / 2, x1: Math.max(xa, xb) + bsp / 2, y0: +ya, y1: +yb };
+            const ia = lensBarAt(wnd.fromTime), ib = lensBarAt(wnd.toTime);
+            // H-501 first (NEAR yields whatever the window), then the camera,
+            // then whether enough tape is held for a lens to be read at all.
+            const gate = weatherLensGate({
+              depth: semanticDensity.depth,
+              spanBars: ia < 0 || ib < 0 ? 0 : ib - ia + 1,
+              regionWidth: region ? region.x1 - region.x0 : null,
+              spanMs: wnd.toTime - wnd.fromTime,
+            });
+            if (gate.kind !== "DRAW") {
+              weatherLensWhy = gate.state;
+              if (gate.kind === "GATHERING" && region) weatherGathering = { region, words: gate.words };
+            } else if (region) {
+              weatherLens = fitWeatherLens(
+                region,
+                // Room above for the ring's title and below for HELD / MOVED.
+                { x0: 0, y0: HEADER_FLOOR_Y + 16, x1: weatherPlotRight, y1: pane0Bottom - 16 },
+              );
+              weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
+            }
           }
         }
         if (weatherLens) {
@@ -14646,6 +14676,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             timeToX: t => { const xk = tsW.timeToCoordinate(t as never); return xk == null ? null : +xk; },
             priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
           }, weatherLens.cx - weatherLens.rx - 8, weatherLens.cx + weatherLens.rx + 8)) cut.rect(r.x, r.y, r.w, r.h);
+          // THE LENS YIELDS TO THE CHIPS ALREADY PLACED (serving, 14:48 CDT:
+          // the value-band chip and the SWING labels sat under the ring). Every
+          // chip the lens reaches is cut out of the tint, the field and the
+          // ring, exactly like a candle — the lens passes behind it. A second
+          // path, intersected with the candle cut, so a chip over a candle is
+          // not re-filled by the even-odd rule.
+          const Lc = weatherLens;
+          const chipCut = new Path2D();
+          chipCut.rect(0, 0, W, H);
+          let chipsYielded = 0;
+          for (const c of floatingChips) {
+            if (c.x > Lc.cx + Lc.rx + 8 || c.x + c.w < Lc.cx - Lc.rx - 8 || c.y > Lc.cy + Lc.ry + 8 || c.y + c.h < Lc.cy - Lc.ry - 8) continue;
+            chipCut.rect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
+            chipsYielded++;
+          }
+          weatherLensChipCut = chipCut;
+          ds.liquidityWeatherChipsYielded = String(chipsYielded);
           // THE LENS'S GLASS — a faint slate tint darkening toward the rim,
           // painted HERE so it sits UNDER the field (composited below) and
           // behind the candles. Lens material, not data: blue-grey, never
@@ -14654,6 +14701,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.save();
           ctx.globalAlpha = att.alpha("weather");
           ctx.clip(cut, "evenodd");
+          ctx.clip(chipCut, "evenodd");
           ctx.beginPath();
           ctx.ellipse(Lg.cx, Lg.cy, Lg.rx, Lg.ry, 0, 0, Math.PI * 2);
           ctx.clip();
@@ -14667,6 +14715,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillRect(-Lg.rx, -Lg.rx, Lg.rx * 2, Lg.rx * 2);
           ctx.restore();
           weatherLensCut = cut;
+        } else {
+          delete ds.liquidityWeatherChipsYielded;
         }
 
         ds.heatLens = !on ? "OFF" : heat.drawable ? "DRAWN" : "REFUSED";
@@ -14756,8 +14806,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // F08B's field is weather, not a table row: the cell's edges are
             // softened by a few px. A blur only spreads and lowers alpha — the
             // regulator below still caps the composite — and the lens clip
-            // keeps it inside the ring.
-            ctxHeat.filter = "blur(3px)";
+            // keeps it inside the ring. Never more than a sixth of the band:
+            // a flat 3px blur erased thin bands (serving 14:48, "barely
+            // visible").
+            ctxHeat.filter = `blur(${Math.min(3, band / 6).toFixed(1)}px)`;
             ctxHeat.fillRect(cx0, top, cw, band);
             ctxHeat.filter = "none";
 
@@ -14795,6 +14847,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             mainCtx.ellipse(weatherLens.cx, weatherLens.cy, weatherLens.rx, weatherLens.ry, 0, 0, Math.PI * 2);
             mainCtx.clip();
             if (weatherLensCut) mainCtx.clip(weatherLensCut, "evenodd");
+            if (weatherLensChipCut) mainCtx.clip(weatherLensChipCut, "evenodd");
             mainCtx.setTransform(1, 0, 0, 1, 0, 0);
             mainCtx.globalAlpha = glassAlpha;
             mainCtx.drawImage(hc, 0, 0);
@@ -14850,6 +14903,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // ── Behind the candles: tint, shelves, ring, legend arc.
             ctx.save();
             if (weatherLensCut) ctx.clip(weatherLensCut, "evenodd");
+            if (weatherLensChipCut) ctx.clip(weatherLensChipCut, "evenodd");
             ctx.save();
             ctx.beginPath();
             ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
@@ -14929,17 +14983,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = "rgba(226,196,128,0.95)";
             const ringTitle = [..."LIQUIDITY WEATHER"];
             const glyphs = wordOnTopArc(L, ringTitle.map(c => ctx.measureText(c).width + 1.4), 11);
-            glyphs.forEach((gph, i) => {
+            // THE TITLE YIELDS to a chip already on the glass (serving 14:48:
+            // it printed through "VALUE · BAND 62% OF RANGE · 242 PRINTS").
+            // Yielded, the lens is still named — by the readout's first row.
+            const gx = glyphs.map(p => p.x), gy = glyphs.map(p => p.y);
+            const titleBox = glyphs.length > 0
+              ? { x: Math.min(...gx) - 5, y: Math.min(...gy) - 6, w: Math.max(...gx) - Math.min(...gx) + 10, h: Math.max(...gy) - Math.min(...gy) + 12 }
+              : null;
+            const titleYields = titleBox != null && floatingChips.some(c =>
+              titleBox.x < c.x + c.w && titleBox.x + titleBox.w > c.x && titleBox.y < c.y + c.h && titleBox.y + titleBox.h > c.y);
+            if (!titleYields) glyphs.forEach((gph, i) => {
               ctx.save();
               ctx.translate(gph.x, gph.y);
               ctx.rotate(gph.rot);
               ctx.fillText(ringTitle[i], 0, 0);
               ctx.restore();
             });
-            if (glyphs.length > 0) {
-              const gx = glyphs.map(p => p.x), gy = glyphs.map(p => p.y);
-              floatingChips.push({ x: Math.min(...gx) - 5, y: Math.min(...gy) - 6, w: Math.max(...gx) - Math.min(...gx) + 10, h: Math.max(...gy) - Math.min(...gy) + 12 });
-            }
+            if (titleBox && !titleYields) floatingChips.push(titleBox);
             ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "top";
             const heldAt = ringPoint(L, SCALE_HEAVY_T, 9), movedAt = ringPoint(L, SCALE_THIN_T, 9);
@@ -15005,7 +15065,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.textAlign = "left";
               const rowY = (i: number) => R.y + 6 + i * 11 + 5;
               ctx.fillStyle = "rgba(237,230,211,0.70)";
-              ctx.fillText("LENS STATUS", R.x + 6, rowY(0));
+              ctx.fillText(titleYields ? "WEATHER LENS" : "LENS STATUS", R.x + 6, rowY(0));
               ctx.fillStyle = "rgba(201,165,92,0.95)";
               ctx.fillText(`● ${glass.stage}`, R.x + 72, rowY(0));
               readRows.forEach((row, i) => {
@@ -15034,12 +15094,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ds.liquidityWeatherReadout = "NO_ROOM";
             }
             ctx.restore();
+            // THE RING ITSELF IS REGISTERED (after its readout was placed, so
+            // the readout's own slots are not refused by the ring's box): later
+            // layers step around the lens, HELD / MOVED included.
+            floatingChips.push({ x: L.cx - L.rx - 6, y: L.cy - L.ry - 6, w: L.rx * 2 + 12, h: L.ry * 2 + 20 });
 
             ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}`;
-            ds.liquidityWeatherRing = "LIQUIDITY WEATHER";
+            ds.liquidityWeatherRing = titleYields ? "YIELDED" : "LIQUIDITY WEATHER";
             ds.liquidityWeatherStage = glass.stage;
             if (shelves > 0) ds.liquidityWeatherShelves = String(shelves);
             else delete ds.liquidityWeatherShelves;
+            delete ds.liquidityWeatherGathering;
           } else {
             // A stale stage keeps describing weather that is no longer measured.
             delete ds.liquidityWeatherStage;
@@ -15047,6 +15112,40 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.liquidityWeatherLens;
             delete ds.liquidityWeatherRing;
             delete ds.liquidityWeatherReadout;
+            // GATHERING — too little tape for a lens to be read. No mini lens;
+            // the silence is named ONCE, in the weather's old word style, by
+            // its region (above it, else below, sliding left along the row),
+            // clear of the newest candles and every chip already placed. At
+            // NEAR (YIELDED_NEAR) not even this line prints: H-501.
+            const gw = on && glass.drawn ? weatherGathering : null;
+            if (gw) {
+              ctx.save();
+              ctx.globalAlpha = att.alpha("weather");
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "top";
+              const tw = ctx.measureText(gw.words).width;
+              const top = Math.min(gw.region.y0, gw.region.y1), bot = Math.max(gw.region.y0, gw.region.y1);
+              const xr = Math.min(weatherPlotRight - 4, gw.region.x1) - tw;
+              const aboveG = { x: xr, y: Math.max(HEADER_FLOOR_Y + 2, top - 16), w: tw, h: 11 };
+              const belowG = { x: xr, y: Math.min(pane0Bottom - 13, bot + 5), w: tw, h: 11 };
+              const gSpot = placeClearOfKeepOut(aboveG, keepOut(), {
+                minX: keepOutMinX(),
+                blockers: [...floatingChips, ...rowBodiesAt(aboveG.y, aboveG.y + aboveG.h), ...rowBodiesAt(belowG.y, belowG.y + belowG.h)],
+                strict: true,
+                alternates: [belowG],
+              });
+              recordKeepOut(keepOutLedger, gSpot);
+              if (gSpot.mode !== "BLOCKED") {
+                ctx.fillStyle = "rgba(237,230,211,0.65)";
+                ctx.fillText(gw.words, gSpot.rect.x, gSpot.rect.y);
+                floatingChips.push({ ...gSpot.rect });
+              }
+              ctx.restore();
+              ds.liquidityWeatherGathering = gSpot.mode;
+            } else {
+              delete ds.liquidityWeatherGathering;
+            }
           }
         }
 
