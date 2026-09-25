@@ -22,9 +22,15 @@ describe("semantic zoom glass", () => {
   it("depth has ONE per-frame owner, set before the first layer paints; every reader takes .depth from it", () => {
     const owner = CHART.indexOf("semanticDensity = semanticDensityForBarCount(visibleBarCount);");
     expect(owner).toBeGreaterThan(CHART.indexOf("const srs = candleRef.current;"));
-    // Exactly one call site and one copy of the visible-count formula.
+    // Exactly one density call. The visible-count formula lives in the owner
+    // and in the zoom WORD's own block only (semanticZoomOnGlass requires the
+    // word to read the camera itself); no depth-shaped layer carries a copy.
     expect(CHART.match(/semanticDensityForBarCount\(/g)).toHaveLength(1);
-    expect(CHART.match(/Math\.ceil\(\w+\.from\) \+ 1/g)).toHaveLength(1);
+    const counts = [...CHART.matchAll(/Math\.ceil\(\w+\.from\) \+ 1/g)].map(m => m.index ?? -1);
+    expect(counts).toHaveLength(2);
+    const word = CHART.indexOf("const zoom = selectSemanticZoom({ visibleBarCount: count });");
+    expect(word).toBeGreaterThan(counts[1]);
+    expect(word - counts[1]).toBeLessThan(200);
     // Each depth-shaped layer reads the owner, after it.
     for (const reader of [
       "const ticketDepth = semanticDensity.depth;",
@@ -36,8 +42,6 @@ describe("semantic zoom glass", () => {
     ]) {
       expect(CHART.indexOf(reader), reader).toBeGreaterThan(owner);
     }
-    // The zoom word prints the same count the owner read.
-    expect(CHART).toMatch(/selectSemanticZoom\(\{ visibleBarCount: visibleBarCount \}\)/);
     // The question lens still scales the tiers later — depth is untouched by it.
     expect(CHART.indexOf("macro: semanticDensity.macro * questionQuiet,")).toBeGreaterThan(owner);
   });

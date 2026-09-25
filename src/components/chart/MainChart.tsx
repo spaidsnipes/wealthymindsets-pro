@@ -12257,8 +12257,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            anatomy of nothing," which is absence as a value.
         ═══════════════════════════════════════════════════════════════════ */
         {
-          // The frame's one count — the same number the density owner read.
-          const zoom = selectSemanticZoom({ visibleBarCount: visibleBarCount });
+          const vr = chart.timeScale().getVisibleLogicalRange();
+          const count = vr
+            ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1)
+            : null;
+          const zoom = selectSemanticZoom({ visibleBarCount: count });
           ds.semanticZoom = zoom.tag ?? `UNMEASURED:${zoom.reason ?? ""}`;
           ds.semanticDensity = `${semanticDensity.macro}/${semanticDensity.mid}/${semanticDensity.micro}`;
           if (zoom.visibleBarCount != null) ds.semanticZoomBars = String(zoom.visibleBarCount);
