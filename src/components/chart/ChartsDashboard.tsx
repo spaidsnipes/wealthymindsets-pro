@@ -147,6 +147,7 @@ import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { selectObjectLineage, selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
 import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { memoryLevelKindOf, selectMemoryMarketObjects } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
+import { selectLivingBiography } from "@/lib/marketData/viewModels/selectLivingBiography";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
@@ -1530,6 +1531,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [valueMigrationVM, chartBars],
   );
 
+  // H-601 · the Living Profile's session lineage for Inspect (same owner the movie draws).
+  const livingBiographyVM = React.useMemo(() => selectLivingBiography(valueMigrationVM), [valueMigrationVM]);
   const chartMarketObjects = React.useMemo(() => [
     ...selectStructureMarketObjects({
       structure: chartStructureVM,
@@ -5491,6 +5494,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         selectedLevel={selectedLevelObject}
                         levelLineage={selectedLevelLineage}
                         timeZone={effChartSettings.displayTimeZone}
+                        livingBiography={livingBiographyVM}
                         selectedAnatomy={activeSelectedAnatomy}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}

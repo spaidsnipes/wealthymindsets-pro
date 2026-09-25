@@ -67,6 +67,7 @@ import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfi
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import type { ObjectLineageVM, ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
+import type { LivingBiographyVM } from "@/lib/marketData/viewModels/selectLivingBiography";
 import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
@@ -382,6 +383,7 @@ export function ChartInspectTicket({
   profileDna = null,
   profileDnaOnGlass = false,
   timeZone = null,
+  livingBiography = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -421,6 +423,8 @@ export function ChartInspectTicket({
   profileDnaOnGlass?: boolean;
   /** The chart's display zone (IANA) — the axis's clock. Every printed time uses it and names it. */
   timeZone?: string | null;
+  /** H-601 · the Living Profile's session lineage (selectLivingBiography), for the slice ticket. */
+  livingBiography?: LivingBiographyVM | null;
 }) {
   const clock = zonedClock(timeZone);
   if (!open) {
@@ -731,6 +735,22 @@ export function ChartInspectTicket({
               <dt>As of</dt><dd>{profileSliceAsOf != null ? clock.exact(profileSliceAsOf * 1000) : "UNKNOWN"}</dd>
             </dl>
             <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>A bucket is where size traded, not who traded it or why. Intent: UNKNOWN.</p>
+            {livingBiography && (
+              // H-601 · the auction's biography — the same owner the glass's
+              // movie draws from (selectValueMigration), current session only.
+              <div className="mt-2 border-t border-wm-border pt-2" data-testid="living-biography">
+                <div className="text-[10px] font-bold tracking-wide text-wm-gold">BIOGRAPHY · THIS SESSION</div>
+                <dl className="mt-1 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
+                  <dt>Session</dt><dd className="text-white">from {clock.stamp(livingBiography.sessionStart)} · {livingBiography.bars} bars</dd>
+                  <dt>POC</dt><dd className="text-white">{fmt(livingBiography.firstPoc)} → {fmt(livingBiography.currentPoc)} · {livingBiography.migrations === 0 ? "never moved" : `migrated ${livingBiography.migrations}×`}</dd>
+                  {livingBiography.migrations > 0 && (
+                    <dd data-testid="living-poc-path">{livingBiography.pocPath.slice(-5).map(p => `${clock.hhmm(p.time)} ${fmt(p.poc)}`).join(" → ")}</dd>
+                  )}
+                  <dt>Value</dt><dd className="text-white">{livingBiography.width} · width {fmt(livingBiography.valueWidthFirst)} → {fmt(livingBiography.valueWidthNow)} · {livingBiography.drift}{livingBiography.drift !== "HELD" ? ` ${fmt(Math.abs(livingBiography.midpointShift))}` : ""}</dd>
+                  <dt>Method</dt><dd>selectValueMigration · developing POC/VA after every bar · {livingBiography.quality}</dd>
+                </dl>
+              </div>
+            )}
             {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
           </>
         ) : (
