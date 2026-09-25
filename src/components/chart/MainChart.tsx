@@ -218,6 +218,15 @@ import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileF
 import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompositeProfile";
 import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
+import {
+  KEEP_OUT_RECEIPTS,
+  emptyKeepOutLedger,
+  keepOutBackingAlpha,
+  keepOutReceipt,
+  newestCandleKeepOut,
+  placeClearOfKeepOut,
+  recordKeepOut,
+} from "@/lib/chartKeepOut";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
@@ -5464,6 +5473,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
+      // The keep-out receipt describes labels on THIS glass; it goes with the
+      // clear and only the end of a full frame re-publishes it.
+      for (const k of KEEP_OUT_RECEIPTS) delete canvas.dataset[k];
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
@@ -8180,6 +8192,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         for (const c of candleBoxes) if (c.x >= x - 5 && c.x <= x + w + 5 && c.y1 >= y - 5 && c.y0 <= y + h + 5) n++;
         return n;
       };
+      // CANDLE PRESERVATION (Garden 12, Defect 4). The newest 3 bodies in view
+      // are what the trader is reading; no opaque backing may sit on one.
+      // Built at most once per frame, only when a placer with a backing asks;
+      // the ledger is what the frame's receipt is published from.
+      const keepOutLedger = emptyKeepOutLedger();
+      const keepOut = () => {
+        if (!keepOutLedger.boxes) {
+          const tsK = chart.timeScale();
+          const vrK = tsK.getVisibleLogicalRange();
+          keepOutLedger.boxes = newestCandleKeepOut(barsRef.current ?? [], {
+            visible: vrK ? { from: +vrK.from, to: +vrK.to } : null,
+            barSpacing: bsp,
+            timeToX: t => { const xk = tsK.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+            priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+          });
+        }
+        return keepOutLedger.boxes;
+      };
+      // A slid label never lands in the column an active Question Lens owns.
+      const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
       // ONE visible-window anatomy per frame (M8: one mapping per room). The
       // absorption layer paints it; H-401 reads its exhaustion off the SAME
       // measurement even when the Absorption tool is off. Built at most once.
@@ -10678,10 +10710,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // A quiet backing so a label never bleeds into the histogram bars
           // or a neighbour's label one step away.
           const lwS = ctx.measureText(text).width;
-          ctx.fillStyle = "rgba(11,10,8,0.72)";
-          ctx.fillRect(stackPlan.labelRight - lwS - 3, yy - 5.5, lwS + 5, 11);
+          // The column sits where "now" is, so its backing would land on the
+          // forming candle. It slides left along its own row past the newest
+          // bodies, and a dotted leader ties it back to the lane at the true
+          // price; with no room it stays and its backing yields instead.
+          const spotS = placeClearOfKeepOut(
+            { x: stackPlan.labelRight - lwS - 3, y: yy - 5.5, w: lwS + 5, h: 11 },
+            keepOut(),
+            { minX: keepOutMinX(), blockers: floatingChips },
+          );
+          recordKeepOut(keepOutLedger, spotS);
+          const rightS = spotS.rect.x + lwS + 3;
+          if (spotS.mode === "SLID") {
+            ctx.save();
+            ctx.globalAlpha *= 0.55;
+            ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
+            ctx.beginPath(); ctx.moveTo(spotS.rect.x + spotS.rect.w + 1, yy); ctx.lineTo(stackPlan.stackLeft, y); ctx.stroke();
+            ctx.restore();
+          }
+          ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotS, 0.72)})`;
+          ctx.fillRect(spotS.rect.x, spotS.rect.y, spotS.rect.w, spotS.rect.h);
           ctx.fillStyle = ink;
-          ctx.fillText(text, stackPlan.labelRight, yy);
+          ctx.fillText(text, rightS, yy);
           ctx.restore();
         };
 
@@ -12810,6 +12860,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.riskReceiptHits;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
+
+      // Published only when a placer with an opaque backing consulted the
+      // keep-out this frame; otherwise it stays withdrawn (cleared above).
+      const keepOutNow = keepOutReceipt(keepOutLedger);
+      if (keepOutNow) Object.assign(canvas.dataset, keepOutNow);
 
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
