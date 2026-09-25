@@ -405,8 +405,9 @@ function VPColorGear() {
             <div className="text-[10px] text-wm-text-dim -mt-1">Colors only the VP bars — candle colors live in Settings.</div>
             <SchemePresets onApply={(up, dn) => applyVp(up, dn)} />
             <div className="h-px bg-wm-border" />
-            {field("Up / Ask", vpUp, v => applyVp(v, vpDn))}
-            {field("Down / Bid", vpDn, v => applyVp(vpUp, v))}
+            {/* One shelf ink. The bars carry no aggressor side (they are split
+                only by candle direction), so there is no Ask or Bid to colour. */}
+            {field("Shelf", vpUp, v => applyVp(v, vpDn))}
             <div className="h-px bg-wm-border" />
             <div className="text-[11px] font-bold text-wm-text">Bar numbers</div>
             <div className="flex gap-1">

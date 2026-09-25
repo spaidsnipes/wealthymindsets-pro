@@ -158,9 +158,13 @@ export const VOLUME_DOWN_DEFAULT = "rgba(110,90,60,0.62)";
  * than restating its value.
  */
 
-/** A buy-dominant shelf is the same material an up candle is. */
+/**
+ * The VP shelf ink — the up-candle material. A shelf is volume at a price with
+ * no aggressor side, so the bars are ONE ink (value area denser); nothing here
+ * is "buy-dominant" or "sell-dominant".
+ */
 export const VP_UP_DEFAULT = CANDLE_UP_DEFAULT;
-/** A sell-dominant shelf is the same material a down candle is. */
+/** Kept for stored palettes and scheme presets; no VP bar is painted in it. */
 export const VP_DOWN_DEFAULT = CANDLE_DOWN_DEFAULT;
 /**
  * The Point of Control — the room's `PEARL`. POC is NOT a direction claim, it

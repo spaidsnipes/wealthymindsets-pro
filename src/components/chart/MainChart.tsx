@@ -275,7 +275,6 @@ import { computeProfileFromBars } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
 // Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
 import {
-  vpBarSplit,
   vpBarWidth,
   vpColumnLayout,
   vpLabelFits,
@@ -5728,7 +5727,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // VP bars + bubbles: green/red (independent, gear-controlled)
       const _vpc = vpColorsRef.current;
       const vpUpRgba  = (a: number | string) => `rgba(${_vpc.up[0]},${_vpc.up[1]},${_vpc.up[2]},${a})`;
-      const vpDnRgba  = (a: number | string) => `rgba(${_vpc.dn[0]},${_vpc.dn[1]},${_vpc.dn[2]},${a})`;
       const vpPocRgba = (a: number | string) => `rgba(${_vpc.poc[0]},${_vpc.poc[1]},${_vpc.poc[2]},${a})`;
       const vpVahRgba = (a: number | string) => `rgba(${_vpc.vah[0]},${_vpc.vah[1]},${_vpc.vah[2]},${a})`;
       const vpValRgba = (a: number | string) => `rgba(${_vpc.val[0]},${_vpc.val[1]},${_vpc.val[2]},${a})`;
@@ -7477,7 +7475,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // only guarantees a genuinely-traded level is not invisible. The result
           // is an honest histogram: POC full width, everything else in true ratio.
           const barW = vpBarWidth(tot, maxBucket, vpW);
-          const upRatio = volume ? volume.up / tot : 0.5;
+          const inValue = price >= valPrice && price <= vahPrice;
           // Separation gap (owner) so each price row stays individually visible:
           // many thin rows → smooth OUTER silhouette, not a solid painted slab.
           const rh = rect.drawHeight;
@@ -7486,18 +7484,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = vpPocRgba((0.68 * alphaScale).toFixed(2));
             ctx.fillRect(vpRight - barW, rowY, barW, rh);
           } else {
-            // One thin rect per real price level: green (up-vol) left, red
-            // (down-vol) right — the lively bid/ask look. Nothing is drawn into
-            // empty price levels (no interpolation). alphaScale gives Session VP
-            // a distinct translucent identity vs the solid Fixed VP.
-            // The down half is the REMAINDER, never a second rounding — the two
-            // pieces must sum to exactly the bar, or the level is drawn a pixel
-            // wider or narrower than its own volume. Owned by vpDrawGeometry.
-            const { upWidth: upW, downWidth: dnW } = vpBarSplit(barW, upRatio);
-            ctx.fillStyle = vpUpRgba(((0.42 + upRatio * 0.13) * alphaScale).toFixed(2));
-            ctx.fillRect(vpRight - barW, rowY, upW, rh);
-            ctx.fillStyle = vpDnRgba(((0.42 + (1 - upRatio) * 0.13) * alphaScale).toFixed(2));
-            ctx.fillRect(vpRight - barW + upW, rowY, dnW, rh);
+            // ONE rect per real price level, in one shelf ink: value area
+            // denser, outside it quieter. These bars carry no aggressor side —
+            // the engine splits them only by whether each CANDLE closed up or
+            // down — so they may not be painted as bid against ask. (They were:
+            // green "up-vol" beside red "down-vol", and the gear called the two
+            // inks "Up / Ask" and "Down / Bid".) Nothing is drawn into empty
+            // price levels. alphaScale keeps Session VP translucent beside the
+            // solid Fixed VP.
+            ctx.fillStyle = vpUpRgba(((inValue ? 0.55 : 0.30) * alphaScale).toFixed(2));
+            ctx.fillRect(vpRight - barW, rowY, barW, rh);
           }
           if (isPOC) {
             ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;

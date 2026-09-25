@@ -351,9 +351,13 @@ describe("MainChart delegates the draw geometry instead of re-typing it", () => 
     );
   });
 
-  it("gets its bar length and split from the owner", () => {
+  it("gets its bar length from the owner, and splits no bar by candle direction", () => {
     expect(code).toMatch(/vpBarWidth\(/);
-    expect(code).toMatch(/vpBarSplit\(/);
+    // The up/down split was candle direction painted as bid against ask
+    // (sessionVpNoCandleSplit.sentinel.test.ts). A row is one shelf now, so
+    // there is no split for the owner to own and none may be re-typed here.
+    expect(code).not.toMatch(/vpBarSplit\(/);
+    expect(code).not.toMatch(/upWidth|downWidth/);
     expect(
       code,
       "a power curve or baseline here is a picture of the shaping function",
