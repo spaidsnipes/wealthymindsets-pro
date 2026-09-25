@@ -9,12 +9,17 @@ import {
   type WebullCategory,
   type WebullSubType,
 } from "@/lib/marketData/webullQuotesSubscribe";
-import { streamWebullQuotes, type WebullStreamEvent } from "@/lib/marketData/webullQuotesStream";
+import {
+  streamWebullQuotes,
+  type WebullStreamGate,
+  type WebullStreamRouteEvent,
+} from "@/lib/marketData/webullQuotesStream";
 import {
   resolveWebullSessionToken,
   webullSessionStore,
   webullWorkerEnv,
 } from "@/lib/marketData/webullSessionStore";
+import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
 
 export const dynamic = "force-dynamic";
 
@@ -49,8 +54,37 @@ function parseSymbols(raw: string | null): readonly string[] {
     .slice(0, MAX_SYMBOLS);
 }
 
-function sse(event: WebullStreamEvent): string {
+function sse(event: WebullStreamRouteEvent): string {
   return `event: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`;
+}
+
+/**
+ * A GATE THE STREAM OWNER CAN READ.
+ *
+ * These three answers used to be JSON bodies only. An EventSource cannot read
+ * a JSON body — it sees an error — so the one stream owner reconnected into
+ * the same wall, and a 2FA wait (one tap on the Founder's phone) rendered as
+ * "Reconnecting…". A caller that asked for an event stream now gets one: the
+ * gate, then the close. Every other caller keeps the JSON it had.
+ */
+function gateResponse(
+  request: NextRequest,
+  gate: WebullStreamGate,
+  json: Record<string, unknown>,
+): Response {
+  const wantsEventStream = (request.headers.get("accept") ?? "").includes("text/event-stream");
+  if (!wantsEventStream) {
+    return NextResponse.json(json, { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
+  const note = typeof json.note === "string" ? json.note : "";
+  return new Response(
+    sse({ kind: "gate", gate, note }) +
+      sse({ kind: "closed", reason: "Webull's real-time host was not contacted." }),
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store, no-transform" },
+    },
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -82,26 +116,20 @@ export async function GET(request: NextRequest) {
 
   const env = webullDataConfigFromEnv(process.env);
   if (!env.appKey || !env.appSecret) {
-    return NextResponse.json(
-      {
-        provider: "webull",
-        lane: "REAL_TIME",
-        note: "Webull signing credentials are not configured on this deployment, so nothing was asked. That is a fact about our configuration and about nothing else.",
-      },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
-    );
+    return gateResponse(request, "UNCONFIGURED", {
+      provider: "webull",
+      lane: "REAL_TIME",
+      note: "Webull signing credentials are not configured on this deployment, so nothing was asked. That is a fact about our configuration and about nothing else.",
+    });
   }
 
   const sockets = rawSocketSupport();
   if (!sockets.available) {
-    return NextResponse.json(
-      {
-        provider: "webull",
-        lane: "REAL_TIME",
-        note: `${sockets.reason} Webull's real-time host was never contacted.`,
-      },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
-    );
+    return gateResponse(request, "NO_SOCKETS", {
+      provider: "webull",
+      lane: "REAL_TIME",
+      note: `${sockets.reason} Webull's real-time host was never contacted.`,
+    });
   }
 
   const appKey = env.appKey;
@@ -120,25 +148,23 @@ export async function GET(request: NextRequest) {
    * signing. So it is a transport credential, not a signed term, and it belongs
    * here rather than inside the signer.
    */
+  const store = webullSessionStore(await webullWorkerEnv());
   const session = await resolveWebullSessionToken(
     fetch,
     { appKey, appSecret, apiHost: env.apiHost },
-    webullSessionStore(await webullWorkerEnv()),
+    store,
   );
 
   // Waiting on the Founder's tap in the Webull app is not a failure. It is a
   // named state with exactly one human step, and flattening it into an auth
   // error is how a one-tap fix becomes another week of guessing.
   if (session.awaiting2fa) {
-    return NextResponse.json(
-      {
-        provider: "webull",
-        lane: "REAL_TIME",
-        awaiting2fa: true,
-        note: session.note,
-      },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
-    );
+    return gateResponse(request, "AWAITING_2FA", {
+      provider: "webull",
+      lane: "REAL_TIME",
+      awaiting2fa: true,
+      note: session.note,
+    });
   }
 
   const events = streamWebullQuotes(
@@ -189,6 +215,21 @@ export async function GET(request: NextRequest) {
       try {
         for await (const event of events) {
           controller.enqueue(encoder.encode(sse(event)));
+          // A subscribe refused ON THE SESSION retires that session, so the
+          // owner's reconnect carries a fresh one instead of re-sending the
+          // dead one. Emitted BEFORE the close that follows, so the owner
+          // knows which kind of "next" it is deciding. Never carries a value.
+          if (event.kind === "subscribe" && !event.subscribed) {
+            const verdict = await settleWebullRefusal(store, {
+              httpStatus: event.status,
+              providerCode: event.providerCode,
+              sessionToken: session.accessToken,
+              nowMs: Date.now(),
+            });
+            if (verdict.kind !== "NOT_SESSION") {
+              controller.enqueue(encoder.encode(sse({ kind: "session", verdict: verdict.kind, note: verdict.note })));
+            }
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

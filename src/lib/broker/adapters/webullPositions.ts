@@ -36,7 +36,8 @@
  */
 
 import { randomUUID } from "crypto";
-import { buildWebullSignedHeaders } from "@/lib/marketData/adapters/webullMarketData";
+import { buildWebullSignedHeaders, readWebullErrorCode } from "@/lib/marketData/adapters/webullMarketData";
+import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
 import { WEBULL_SDK_CONTRACT } from "@/lib/marketData/webullSdkContract";
 import {
   TOKEN_DISPOSITIONS,
@@ -253,12 +254,25 @@ export async function probeWebullPositions(
       clearTimeout(timer);
     }
     if (response.status === 401) {
+      // If Webull NAMED the session (INVALID_TOKEN), retire it so the next
+      // read mints instead of re-sending it — see webullSessionRejection.ts.
+      let retirement = "";
+      if (config.mintSession !== false && sessionToken) {
+        const providerCode = await readWebullErrorCode(response).catch(() => null);
+        const verdict = await settleWebullRefusal(config.tokenStore ?? defaultTokenStore, {
+          httpStatus: 401,
+          providerCode,
+          sessionToken,
+          nowMs: (config.now || (() => new Date()))().getTime(),
+        });
+        if (verdict.kind !== "NOT_SESSION") retirement = ` ${verdict.note}`;
+      }
       return {
         failure: receipt(
           "BLOCKED_AUTH",
-          sessionNote
+          (sessionNote
             ? `Webull rejected the signed request with HTTP 401. ${sessionNote}`
-            : "Webull rejected the signed request with HTTP 401, and WM Pro minted no session for it to reject.",
+            : "Webull rejected the signed request with HTTP 401, and WM Pro minted no session for it to reject.") + retirement,
         ),
       };
     }

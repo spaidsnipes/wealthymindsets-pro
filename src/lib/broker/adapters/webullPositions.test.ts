@@ -204,3 +204,32 @@ describe("probeWebullPositions — the signed aggregate read", () => {
     expect(receipt.state).toBe("PROVIDER_ERROR");
   });
 });
+
+describe("positions lane — a refused session is retired, not re-sent (Garden 11)", () => {
+  // The one test here that exercises the minting lane, on purpose: it pins
+  // that a 401 NAMING the session retires it in the shared store.
+  it("retires the held session on 401 INVALID_TOKEN and keeps it on an uncoded 401", async () => {
+    const { inMemoryTokenStore, WEBULL_TOKEN_STATUSES, EXPIRY_INTERPRETATIONS } = await import("@/lib/marketData/webullAccessToken");
+    const now = new Date("2026-09-25T16:00:00.000Z");
+    const held = () => inMemoryTokenStore({
+      token: "held-positions-session",
+      status: WEBULL_TOKEN_STATUSES.NORMAL,
+      expiresAtMs: now.getTime() + 3_600_000,
+      expiryInterpretation: EXPIRY_INTERPRETATIONS.EPOCH_MILLIS,
+      observedAtMs: now.getTime(),
+    });
+    const minting = { appKey: "k", appSecret: "s", apiHost: "api.webull.test", now: () => now, nonce: () => "n" };
+
+    const named = held();
+    const refused = vi.fn(async () => new Response(JSON.stringify({ code: "INVALID_TOKEN" }), { status: 401 }));
+    const receipt = await probeWebullPositions(refused as unknown as typeof fetch, { ...minting, tokenStore: named });
+    expect(receipt.state).toBe("BLOCKED_AUTH");
+    expect((await named.read())?.status).toBe(WEBULL_TOKEN_STATUSES.INVALID);
+    expect(JSON.stringify(receipt)).not.toContain("held-positions-session");
+
+    const uncoded = held();
+    const bare = vi.fn(async () => new Response("{}", { status: 401 }));
+    await probeWebullPositions(bare as unknown as typeof fetch, { ...minting, tokenStore: uncoded });
+    expect((await uncoded.read())?.status).toBe(WEBULL_TOKEN_STATUSES.NORMAL);
+  });
+});

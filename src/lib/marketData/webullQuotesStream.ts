@@ -84,6 +84,32 @@ export type WebullStreamEvent =
       readonly reason: string;
     };
 
+/**
+ * What the SSE ROUTE may say around the generator — never from the socket.
+ *
+ *   · `gate`    — the route stopped BEFORE Webull was contacted, and says why.
+ *                 These used to be JSON bodies an EventSource cannot read, so
+ *                 the one stream owner saw only an error and reconnected into
+ *                 the same wall — including while Webull was simply waiting
+ *                 on the Founder's 2FA tap.
+ *   · `session` — what happened to the session after Webull REFUSED it on the
+ *                 subscribe leg (see webullSessionRejection.ts). REMINT means
+ *                 the next attempt carries a fresh one; REAUTHORIZE means a
+ *                 freshly minted one was refused too.
+ *
+ * Neither ever carries a token, a key, a secret or a session id.
+ */
+export type WebullStreamGate = "UNCONFIGURED" | "NO_SOCKETS" | "AWAITING_2FA";
+
+export type WebullStreamRouteEvent =
+  | WebullStreamEvent
+  | { readonly kind: "gate"; readonly gate: WebullStreamGate; readonly note: string }
+  | {
+      readonly kind: "session";
+      readonly verdict: "REMINT" | "ALREADY_REPLACED" | "REAUTHORIZE";
+      readonly note: string;
+    };
+
 /** The HTTP leg, injected so the whole flow is provable without a network. */
 export type SignedRequestSender = (
   request: WebullSignedRequest,

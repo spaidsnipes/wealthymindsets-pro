@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/requireAuth";
 import { fetchWebullTickSnapshot, webullDataConfigFromEnv, type WebullSigningProfile } from "@/lib/marketData/adapters/webullMarketData";
 import { classifyWebullTickSnapshot } from "@/lib/marketData/adapters/webullTicksWireStatus";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
+import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
 
 export const dynamic = "force-dynamic";
 
@@ -54,10 +55,11 @@ export async function GET(request: NextRequest) {
    * instead of to its own request. The entitlement probe mints; so must this.
    */
   const env = webullDataConfigFromEnv(process.env);
+  const store = webullSessionStore(await webullWorkerEnv());
   const session = await resolveWebullSessionToken(
     fetch,
     { appKey: env.appKey, appSecret: env.appSecret, apiHost: env.apiHost },
-    webullSessionStore(await webullWorkerEnv()),
+    store,
   );
 
   // Not an error — a named state with exactly one human step. Reporting it as
@@ -103,13 +105,34 @@ export async function GET(request: NextRequest) {
     canarySymbol: symbol,
     signingProfile,
   });
+  /**
+   * A REFUSED SESSION IS RETIRED, NOT RE-SENT.
+   *
+   * Without this, a session Webull retired early stays NORMAL-and-unexpired
+   * in the store, and every poll re-sends it into the same 401 until its
+   * stored expiry passes. Only an answer that names the session
+   * (INVALID_TOKEN) retires it — see webullSessionRejection.ts for what is
+   * refused and why. Additive: `session` is present only on a refusal.
+   */
+  const sessionVerdict = body.state === "BLOCKED_AUTH" && typeof body.httpStatus === "number"
+    ? await settleWebullRefusal(store, {
+        httpStatus: body.httpStatus,
+        providerCode: body.providerCode,
+        sessionToken: session.accessToken,
+        nowMs: Date.now(),
+      })
+    : null;
+  const sessionReceipt = sessionVerdict && sessionVerdict.kind !== "NOT_SESSION"
+    ? { session: { verdict: sessionVerdict.kind, note: sessionVerdict.note } }
+    : {};
+
   // The classified receipt is ADDITIVE. `state`, `fidelity`, `ticks` and
   // `note` are unchanged, so the tape consumers (`selectFreshWebullObservedEvents`,
   // `selectFreshWebullTapeEvents`) read exactly what they read before. The new
   // `label`/`receiving`/`eventCount` fields exist so the Founder-visible
   // provider strip can prove this wire at the same depth it already proves
   // moomoo and longbridge — see webullTicksWireStatus for the asymmetry.
-  return NextResponse.json({ ...body, ...classifyWebullTickSnapshot(body) }, {
+  return NextResponse.json({ ...body, ...classifyWebullTickSnapshot(body), ...sessionReceipt }, {
     status: 200,
     headers: { "Cache-Control": "no-store" },
   });

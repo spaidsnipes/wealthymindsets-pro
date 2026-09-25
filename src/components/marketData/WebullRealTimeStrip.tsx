@@ -17,7 +17,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Radio, Square } from "lucide-react";
 import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
-import type { WebullStreamEvent } from "@/lib/marketData/webullQuotesStream";
+import type { WebullStreamRouteEvent } from "@/lib/marketData/webullQuotesStream";
 import {
   describeSilence,
   initialWebullStreamState,
@@ -31,6 +31,7 @@ import {
   nextStep,
   observe,
   recordAttempt,
+  schedulesReopen,
   type NextStep,
   type ReconnectState,
 } from "@/lib/marketData/webullReconnectPolicy";
@@ -38,6 +39,8 @@ import {
 const PHASE_COLOR: Record<WebullStreamPhase, string> = {
   IDLE: "#9ca3af",
   OPENING: "#facc15",
+  AWAITING_APPROVAL: "#facc15",
+  NOT_AVAILABLE_HERE: "#9ca3af",
   CONNECTION_REFUSED: "#f87171",
   SUBSCRIBE_REFUSED: "#f87171",
   SUBSCRIBED: "#60a5fa",
@@ -45,8 +48,13 @@ const PHASE_COLOR: Record<WebullStreamPhase, string> = {
   ENDED: "#9ca3af",
 };
 
-/** Only the four event names the server actually emits are listened for. */
-const EVENT_KINDS = ["handshake", "subscribe", "quote", "closed"] as const;
+/**
+ * Only the event names the server actually emits are listened for: the four
+ * the socket choreography produces, plus the route's own `gate` (it stopped
+ * before Webull was contacted) and `session` (what happened to a refused
+ * session). See WebullStreamRouteEvent.
+ */
+const EVENT_KINDS = ["handshake", "subscribe", "quote", "closed", "gate", "session"] as const;
 
 export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoStart = false }: {
   symbol?: string;
@@ -91,7 +99,7 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
     reconnectRef.current = observe(reconnectRef.current, { kind: "ended", upMs: Date.now() - openedAtRef.current });
     const n = nextStep(reconnectRef.current, userStoppedRef.current);
     setStep(n);
-    if (n.kind === "RETRY") {
+    if (schedulesReopen(n)) {
       reconnectRef.current = recordAttempt(reconnectRef.current);
       retryTimerRef.current = setTimeout(() => openRef.current(), n.delayMs);
     } else {
@@ -103,6 +111,8 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
     // Each open is a NEW stream: the server repeats handshake AND subscribe.
     setState(openingWebullStreamState);
     openedAtRef.current = Date.now();
+    // A new connection is judged on its own answers, not the last one's.
+    reconnectRef.current = observe(reconnectRef.current, { kind: "opening" });
     const source = new EventSource(
       `/api/market-data/webull/stream?symbols=${encodeURIComponent(symbol)}&subTypes=QUOTE`,
     );
@@ -111,10 +121,16 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
     for (const kind of EVENT_KINDS) {
       source.addEventListener(kind, (message) => {
         try {
-          const event = JSON.parse((message as MessageEvent<string>).data) as WebullStreamEvent;
+          const event = JSON.parse((message as MessageEvent<string>).data) as WebullStreamRouteEvent;
           setState((previous) => reduceWebullStream(previous, event));
           if (event.kind === "handshake") {
             reconnectRef.current = observe(reconnectRef.current, { kind: "handshake", accepted: event.accepted, credentialRejected: event.credentialRejected });
+          } else if (event.kind === "subscribe") {
+            reconnectRef.current = observe(reconnectRef.current, { kind: "subscribe", subscribed: event.subscribed, status: event.status, providerCode: event.providerCode });
+          } else if (event.kind === "gate") {
+            reconnectRef.current = observe(reconnectRef.current, { kind: "gate", gate: event.gate });
+          } else if (event.kind === "session") {
+            reconnectRef.current = observe(reconnectRef.current, { kind: "session", verdict: event.verdict });
           } else if (event.kind === "quote") {
             reconnectRef.current = observe(reconnectRef.current, { kind: "quote", receivedAt: event.receivedAt });
             setGaps(reconnectRef.current.gaps);
@@ -214,6 +230,7 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
           <p className="mt-1 text-[10px] font-bold leading-snug" data-webull-continuity={step.kind}
             style={{ color: step.kind === "REAUTHORIZE" ? "#facc15" : "#C8C0AE" }}>
             {step.kind === "RETRY" ? `Reconnecting in ${Math.round(step.delayMs / 1000)} s · attempt ${step.attempt} — handshake and subscribe will be repeated`
+              : step.kind === "AWAITING_APPROVAL" ? `${step.note} Checking again in ${Math.round(step.delayMs / 1000)} s.`
               : step.kind === "REAUTHORIZE" ? `REAUTHORIZE · ${step.note}` : step.note}
           </p>
         )}

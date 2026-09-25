@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   fetchWebullTickSnapshot: vi.fn(),
   resolveWebullSessionToken: vi.fn(),
+  // The shared session store the route resolves through. Null by default;
+  // the retirement test below seats a held session in it.
+  held: null as null | Record<string, unknown>,
 }));
 
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
@@ -20,7 +23,10 @@ vi.mock("@/lib/marketData/adapters/webullMarketData", () => ({
 
 vi.mock("@/lib/marketData/webullSessionStore", () => ({
   resolveWebullSessionToken: mocks.resolveWebullSessionToken,
-  webullSessionStore: () => ({ read: async () => null, write: async () => {} }),
+  webullSessionStore: () => ({
+    read: async () => mocks.held,
+    write: async (token: Record<string, unknown>) => { mocks.held = token; },
+  }),
   webullWorkerEnv: async () => undefined,
 }));
 
@@ -29,6 +35,7 @@ import { GET } from "./route";
 describe("GET /api/market-data/webull/ticks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.held = null;
     mocks.requireAuth.mockResolvedValue({ ok: true });
     mocks.resolveWebullSessionToken.mockResolvedValue({
       accessToken: "minted-session-value", awaiting2fa: false, note: "live",
@@ -120,6 +127,43 @@ describe("GET /api/market-data/webull/ticks", () => {
     // The pre-existing contract is untouched — the receipt is ADDITIVE.
     expect(body).toMatchObject({ state: "BLOCKED_AUTH", fidelity: "NONE", awaiting2fa: true });
     expect(body.note).toBe("Approve the Webull session in the Webull app.");
+  });
+
+  /**
+   * GARDEN 11 — reuse valid authorization; never re-send a refused one.
+   *
+   * Before this, a session Webull refused with INVALID_TOKEN stayed NORMAL in
+   * the store and every poll re-sent it into the same 401 until its stored
+   * expiry passed. Now the route retires exactly that session so the next
+   * request mints — and says so, without ever printing the value.
+   */
+  it("retires the session Webull refused with INVALID_TOKEN, and never prints it", async () => {
+    mocks.held = { token: "minted-session-value", status: "NORMAL", expiresAtMs: Date.now() + 3_600_000, expiryInterpretation: "EPOCH_MILLIS", observedAtMs: Date.now() };
+    mocks.fetchWebullTickSnapshot.mockResolvedValue({
+      source: "webull", state: "BLOCKED_AUTH", fidelity: "NONE", symbol: "TSLA",
+      requestedAt: "2026-09-25T16:00:00Z", signingProfile: "legacy-sha1", ticks: [],
+      note: "Webull Data API returned HTTP 401 … INVALID_TOKEN.", httpStatus: 401, providerCode: "INVALID_TOKEN",
+    });
+    const response = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA"));
+    const body = await response.json();
+    expect(body.state).toBe("BLOCKED_AUTH");
+    // First refusal in this runtime: retired, re-minted next time, no human step.
+    expect(body.session.verdict).toBe("REMINT");
+    expect(mocks.held?.status).toBe("INVALID");
+    expect(JSON.stringify(body)).not.toContain("minted-session-value");
+  });
+
+  it("keeps the session on a refusal that does not name it (403 entitlement)", async () => {
+    mocks.held = { token: "minted-session-value", status: "NORMAL", expiresAtMs: Date.now() + 3_600_000, expiryInterpretation: "EPOCH_MILLIS", observedAtMs: Date.now() };
+    mocks.fetchWebullTickSnapshot.mockResolvedValue({
+      source: "webull", state: "BLOCKED_ENTITLEMENT", fidelity: "NONE", symbol: "TSLA",
+      requestedAt: "2026-09-25T16:00:00Z", signingProfile: "legacy-sha1", ticks: [],
+      note: "Webull answered MARKET_DATA_NOT_SUBSCRIBED to this signed request.",
+    });
+    const response = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA"));
+    const body = await response.json();
+    expect(body.session).toBeUndefined();
+    expect(mocks.held?.status).toBe("NORMAL");
   });
 
   it("rejects malformed symbols without calling Webull", async () => {

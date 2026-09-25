@@ -6,9 +6,9 @@ import {
   reduceWebullStream,
   type WebullLiveStreamState,
 } from "./webullStreamState";
-import type { WebullStreamEvent } from "./webullQuotesStream";
+import type { WebullStreamEvent, WebullStreamRouteEvent } from "./webullQuotesStream";
 
-function play(events: readonly WebullStreamEvent[]): WebullLiveStreamState {
+function play(events: readonly WebullStreamRouteEvent[]): WebullLiveStreamState {
   return events.reduce(reduceWebullStream, openingWebullStreamState);
 }
 
@@ -97,6 +97,32 @@ describe("reduceWebullStream", () => {
     expect(state.phase).toBe("CONNECTION_REFUSED");
     expect(state.headline).toBe("Connection refused");
     expect(state.detail).toBe("nothing was subscribed");
+  });
+
+  it("names a 2FA wait as its own calm phase, and a close does not bury it", () => {
+    const state = play([
+      { kind: "gate", gate: "AWAITING_2FA", note: "Approve the Webull session in the Webull app." },
+      { kind: "closed", reason: "Nothing was asked of Webull's real-time host." },
+    ]);
+    expect(state.phase).toBe("AWAITING_APPROVAL");
+    expect(state.headline).toBe("Approve in the Webull app");
+    expect(state.detail).toBe("Approve the Webull session in the Webull app.");
+    expect(state.headline).not.toMatch(/refused|fail|error|reauthori/i);
+  });
+
+  it("keeps a deployment gate distinct from a broker refusal", () => {
+    const gated = play([{ kind: "gate", gate: "NO_SOCKETS", note: "This runtime cannot open raw sockets." }]);
+    expect(gated.phase).toBe("NOT_AVAILABLE_HERE");
+    expect(gated.headline).not.toMatch(/refused/i);
+  });
+
+  it("says REAUTHORIZE only when the route says a freshly minted session was refused too", () => {
+    const refused = play([
+      ACCEPTED,
+      { kind: "subscribe", subscribed: false, status: 401, providerCode: "INVALID_TOKEN", note: "session" },
+    ]);
+    expect(reduceWebullStream(refused, { kind: "session", verdict: "REMINT", note: "retired" }).headline).not.toMatch(/reauthori/i);
+    expect(reduceWebullStream(refused, { kind: "session", verdict: "REAUTHORIZE", note: "again" }).headline).toBe("Reauthorize needed");
   });
 
   it("starts from a state that claims nothing", () => {

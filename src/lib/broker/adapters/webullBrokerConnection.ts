@@ -1,6 +1,7 @@
 /** Bounded, read-only proof of the founder's Webull Trading API connection. */
 import { randomUUID } from "crypto";
-import { buildWebullSignedHeaders } from "@/lib/marketData/adapters/webullMarketData";
+import { buildWebullSignedHeaders, readWebullErrorCode } from "@/lib/marketData/adapters/webullMarketData";
+import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
 import { WEBULL_SDK_CONTRACT } from "@/lib/marketData/webullSdkContract";
 import {
   TOKEN_DISPOSITIONS,
@@ -223,11 +224,26 @@ export async function probeWebullBrokerConnection(
     // this endpoint needs none. Report the session we actually sent, because
     // "verify your key pair" is the sentence that sent the Founder shopping
     // for a subscription he already owned.
+    //
+    // And if Webull NAMED the session (INVALID_TOKEN), retire it, so the next
+    // probe mints instead of re-sending a dead session until its stored
+    // expiry passes. See webullSessionRejection.ts.
+    let retirement = "";
+    if (config.mintSession !== false && sessionToken) {
+      const providerCode = await Promise.race([readWebullErrorCode(response), deadline]).catch(() => null);
+      const verdict = await settleWebullRefusal(config.tokenStore ?? defaultTokenStore, {
+        httpStatus: 401,
+        providerCode,
+        sessionToken,
+        nowMs: (config.now || (() => new Date()))().getTime(),
+      });
+      if (verdict.kind !== "NOT_SESSION") retirement = ` ${verdict.note}`;
+    }
     return receipt(
       "BLOCKED_AUTH",
-      sessionNote
+      (sessionNote
         ? `Webull rejected the signed account request with HTTP 401. ${sessionNote}`
-        : "Webull rejected the signed account request with HTTP 401, and WM Pro minted no session for it to reject.",
+        : "Webull rejected the signed account request with HTTP 401, and WM Pro minted no session for it to reject.") + retirement,
     );
   }
   if (response.status === 403 || response.status === 417) {

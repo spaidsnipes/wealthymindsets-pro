@@ -18,16 +18,28 @@
  * A single "not working" state would flatten all four into the one sentence
  * that is easiest to write and was wrong every time it was written.
  */
-import type { WebullStreamEvent } from "./webullQuotesStream";
+import type { WebullStreamRouteEvent } from "./webullQuotesStream";
 
 export type WebullStreamPhase =
   | "IDLE"
   | "OPENING"
+  /** Webull minted a session and is waiting on one tap in the Webull app. Not a fault. */
+  | "AWAITING_APPROVAL"
+  /** This deployment cannot open the lane at all (no key pair, no raw sockets). Ours. */
+  | "NOT_AVAILABLE_HERE"
   | "CONNECTION_REFUSED"
   | "SUBSCRIBE_REFUSED"
   | "SUBSCRIBED"
   | "FLOWING"
   | "ENDED";
+
+/** Phases a later `closed` must not repaint — the reason already on screen is the truer one. */
+const STICKY_PHASES: ReadonlySet<WebullStreamPhase> = new Set([
+  "CONNECTION_REFUSED",
+  "SUBSCRIBE_REFUSED",
+  "AWAITING_APPROVAL",
+  "NOT_AVAILABLE_HERE",
+]);
 
 export interface WebullLiveStreamState {
   readonly phase: WebullStreamPhase;
@@ -58,9 +70,28 @@ export const openingWebullStreamState: WebullLiveStreamState = {
 
 export function reduceWebullStream(
   state: WebullLiveStreamState,
-  event: WebullStreamEvent,
+  event: WebullStreamRouteEvent,
 ): WebullLiveStreamState {
   switch (event.kind) {
+    case "gate":
+      return event.gate === "AWAITING_2FA"
+        ? {
+            ...state,
+            phase: "AWAITING_APPROVAL",
+            // One human step, named as itself — never folded into an auth
+            // fault, which is how a one-tap fix became weeks of re-pasting.
+            headline: "Approve in the Webull app",
+            detail: event.note,
+          }
+        : { ...state, phase: "NOT_AVAILABLE_HERE", headline: "Not available on this deployment", detail: event.note };
+
+    case "session":
+      return {
+        ...state,
+        headline: event.verdict === "REAUTHORIZE" ? "Reauthorize needed" : state.headline,
+        detail: event.note,
+      };
+
     case "handshake":
       return event.accepted
         ? { ...state, phase: "OPENING", headline: "Connected", detail: event.note }
@@ -102,16 +133,19 @@ export function reduceWebullStream(
         ...state,
         // A stream that carried prints and then ended is not a failure, and
         // must not be repainted as one on the way out.
-        phase: state.phase === "CONNECTION_REFUSED" || state.phase === "SUBSCRIBE_REFUSED"
-          ? state.phase
-          : "ENDED",
+        phase: STICKY_PHASES.has(state.phase) ? state.phase : "ENDED",
         headline:
-          state.phase === "CONNECTION_REFUSED" || state.phase === "SUBSCRIBE_REFUSED"
+          STICKY_PHASES.has(state.phase)
             ? state.headline
             : state.quoteCount > 0
               ? "Stream ended"
               : "Stream ended with no prints",
-        detail: event.reason,
+        // A gate's own sentence (the 2FA wait, the missing key pair) is the
+        // actionable one; the close that follows it adds nothing and must not
+        // replace it.
+        detail: state.phase === "AWAITING_APPROVAL" || state.phase === "NOT_AVAILABLE_HERE"
+          ? state.detail
+          : event.reason,
       };
   }
 }

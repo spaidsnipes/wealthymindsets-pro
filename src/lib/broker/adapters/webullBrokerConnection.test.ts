@@ -244,6 +244,38 @@ describe("the account lane carries a LIVING session, not a pasted one", () => {
     expect(JSON.stringify(receipt)).not.toContain("test-app-secret");
   });
 
+  /**
+   * GARDEN 11 — the account lane must not re-send a session Webull refused.
+   * Measured shape: every rung 401 INVALID_TOKEN while the store still held
+   * the session as NORMAL-and-unexpired. The next probe must MINT.
+   */
+  it("retires a session Webull refused with INVALID_TOKEN, so the next probe mints instead of re-sending it", async () => {
+    const store = inMemoryTokenStore(storedToken());
+    const refused = vi.fn(async () => new Response(JSON.stringify({ code: "INVALID_TOKEN" }), { status: 401 }));
+    const first = await probeWebullBrokerConnection(refused as unknown as typeof fetch, { ...minting, tokenStore: store });
+    expect(first.state).toBe("BLOCKED_AUTH");
+    expect((await store.read())?.status).toBe(WEBULL_TOKEN_STATUSES.INVALID);
+    expect(JSON.stringify(first)).not.toContain("minted-session-value");
+
+    const urls: string[] = [];
+    const healthy = vi.fn(async (url: RequestInfo | URL) => {
+      urls.push(String(url));
+      return String(url).includes("/auth/tokens/create")
+        ? new Response(JSON.stringify({ token: "fresh-session", expires: nowMs + 3_600_000, status: "NORMAL" }), { status: 200 })
+        : new Response(JSON.stringify([{ account_id: "private-1", account_type: "MARGIN" }]), { status: 200 });
+    });
+    const second = await probeWebullBrokerConnection(healthy as unknown as typeof fetch, { ...minting, tokenStore: store });
+    expect(urls[0]).toContain("/auth/tokens/create");
+    expect(second.state).toBe("CONNECTED");
+  });
+
+  it("keeps the session on a 401 that does not name it", async () => {
+    const store = inMemoryTokenStore(storedToken());
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 401 }));
+    await probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, { ...minting, tokenStore: store });
+    expect((await store.read())?.status).toBe(WEBULL_TOKEN_STATUSES.NORMAL);
+  });
+
   it("mints when the store is empty rather than asking anyone for a value", async () => {
     const fetchImpl = vi.fn(async (url: RequestInfo | URL) =>
       String(url).includes("/auth/tokens/create")
