@@ -87,69 +87,48 @@ describe("semantic zoom glass", () => {
     expect(CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far))).toMatch(/canvas\.dataset\.farForm = farPainted;/);
   });
 
-  it("NEAR anatomy words come from prices, not pixels; tape prices use the house formatter", () => {
+  // UPDATED 2026-09-25 (Founder: "STOP BUILDING FROM MEMORY … I STILL HAVE A
+  // LOT OF JUST CARDS"). NEAR used to paint a TAPE · LAST 10 PRINTS list box
+  // and name the live candle's parts in words at rest. The pins below hold the
+  // new truth: tape as geometry on the bars, words only on hover/selection.
+  // The full NEAR geometry law is nearGeometry.sentinel.test.ts.
+  const nearBlock = () => {
     const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
     expect(near).toBeGreaterThan(-1);
-    const block = CHART.slice(near, CHART.indexOf("delete canvas.dataset.nearTape;", near));
-    expect(block).toMatch(/for \(const p of nearCandleAnatomyParts\(lastBar\)\) \{/);
+    const end = CHART.indexOf("for (const k of NEAR_GLASS_RECEIPTS) delete canvas.dataset[k];", near);
+    expect(end).toBeGreaterThan(near);
+    return CHART.slice(near, end);
+  };
+
+  it("NEAR anatomy words come from prices, not pixels", () => {
+    const block = nearBlock();
+    expect(block).toMatch(/for \(const p of nearCandleAnatomyParts\(wb\.c\)\) \{/);
     // No pixel-distance equality and no hard-coded wick words in the painter.
     expect(block).not.toMatch(/Math\.abs\(\+yO - \+yC\)/);
     expect(block).not.toMatch(/"OPEN = CLOSE"|"HIGH \(WICK\)"|"LOW \(WICK\)"/);
-    // Sub-dollar prints keep their digits: the tape owner formats with
-    // formatBubblePrice (unit-tested there); the painter prints its string.
-    expect(block).toMatch(/ctx\.fillText\(t\.price, /);
-    expect(block).not.toMatch(/\.price\.toFixed\(2\)/);
   });
 
-  it("the TAPE column reads a cached owner — no per-frame spread, flatMap or sort of the captured prints", () => {
-    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
-    const anatomyEnd = CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near);
-    expect(anatomyEnd).toBeGreaterThan(near);
-    const tape = CHART.slice(anatomyEnd, CHART.indexOf("delete canvas.dataset.nearTape;", near));
-    expect(tape).toMatch(/nearTapeCache = selectNearTape\(bigTradePrintAccRef\.current, nearTapeCache\);/);
-    expect(tape).toMatch(/const prints = nearTapeCache\.vm\.rows;/);
-    expect(tape).not.toMatch(/\.keys\(\)|flatMap\(|\.sort\(/);
+  it("the NEAR tape reads a cached per-bar owner — no per-frame spread, flatMap or sort of the captured prints", () => {
+    const block = nearBlock();
+    expect(block).toMatch(/const next = selectBarTape\(prints, prev, \{ barTime: bt, intervalSec: intervalN, maxDots: NEAR_TAPE_MAX_DOTS, withPath: bt === Number\(lastBar\.time\) \}\);/);
+    expect(block).toMatch(/if \(next !== prev\) nearBarTapeCache\.bars\.set\(bt, next\);/);
+    expect(block).not.toMatch(/accN\.keys\(\)|\[\.\.\.accN|flatMap\(|\.sort\(/);
+    // The list owner is no longer read by the glass.
+    expect(CHART).not.toMatch(/selectNearTape\(/);
   });
 
-  it("the TAPE column prints each row's side at its fidelity and the legend whenever a side is not observed", () => {
-    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
-    const anatomyEnd = CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near);
-    const tape = CHART.slice(anatomyEnd, CHART.indexOf("delete canvas.dataset.nearTape;", near));
-    expect(tape).toMatch(/const tapeNote = nearTapeCache\.vm\.fidelityNote;/);
-    expect(tape).toMatch(/ctx\.fillText\(tapeNote, /);
-    expect(tape).toMatch(/ctx\.fillText\(t\.glyph, /);
-    // The painter never mints a bare initiator sign of its own.
-    expect(tape).not.toMatch(/\? "\+" : "−"/);
-  });
-
-  it("NEAR anatomy words are halo text on leaders that start outside the live body — no boxes over the candles", () => {
-    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
-    const anatomy = CHART.slice(near, CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near));
-    expect(anatomy).toMatch(/ctx\.fillText\(w\.word, lxw - 4, ly\);/);
-    expect(anatomy).toMatch(/ctx\.shadowBlur = 3;/);
-    expect(anatomy).not.toMatch(/fillRect/);
-    expect(anatomy).toMatch(/const bodyEdge = cx - halfW - 2;/);
-    expect(anatomy).toMatch(/ctx\.moveTo\(bodyEdge, /);
-    expect(anatomy).not.toMatch(/moveTo\(cx - 6,/);
+  it("NEAR words are halo text on leaders that start outside the body, placed by the keep-out owner — no boxes over the candles", () => {
+    const block = nearBlock();
+    const from = block.indexOf("let wordsN = 0;");
+    expect(from).toBeGreaterThan(-1);
+    const w = block.slice(from, block.indexOf("ctx.restore();\n", block.indexOf("forceChips.push(at);", from)));
+    expect(w).toMatch(/const bodyEdge = wb\.cx - halfW - 2;/);
+    expect(w).toMatch(/ctx\.moveTo\(bodyEdge, /);
+    expect(w).toMatch(/const at = placeNear\(/);
+    expect(w).toMatch(/ctx\.shadowBlur = 3;/);
+    expect(w).not.toMatch(/fillRect/);
     // Still obstacles for everything painted after.
-    expect(anatomy).toMatch(/forceChips\.push\(\{ x: lxw - tw - 2, y: ly - 7, w: tw, h: 14 \}\);/);
-  });
-
-  it("the TAPE column yields the left column to Scaffolding and the Question Lens, steps around earlier chips, and reports only rows on the glass", () => {
-    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
-    const anatomyEnd = CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near);
-    const tape = CHART.slice(anatomyEnd, CHART.indexOf("delete canvas.dataset.nearTape;", near));
-    expect(tape).toMatch(/const tapeYieldsTo = scaffoldingDepthRef\.current !== "OFF" \? "SCAFFOLDING"\s*: layerOnRef\.current\.questionLens === true && W >= 640 \? "QUESTION_LENS"/);
-    expect(tape).toMatch(/\} else if \(tapeYieldsTo\) \{\s*canvas\.dataset\.nearTape = `YIELDED:\$\{tapeYieldsTo\}`;/);
-    expect(tape).toMatch(/forceChips\.some\(r => colX < r\.x \+ r\.w && colX \+ colW > r\.x && y < r\.y \+ r\.h && y \+ colH > r\.y\)/);
-    expect(tape).toMatch(/const compactTape = W < 640;/);
-    // Every write of the receipt, and the count only after the pixels.
-    const writes = [...tape.matchAll(/canvas\.dataset\.nearTape = ([^;]+);/g)].map(m => m[1]);
-    expect(writes).toEqual(['"NO_TAPE"', "`YIELDED:${tapeYieldsTo}`", '"NO_ROOM"', "compactTape ? `COMPACT:${shown}` : String(shown)"]);
-    expect(tape.indexOf("canvas.dataset.nearTape = compactTape")).toBeGreaterThan(tape.indexOf("ctx.fillRect(colX, colY, colW, colH);"));
-    expect(tape.indexOf("ctx.fillRect(colX, colY, colW, colH);")).toBeGreaterThan(tape.indexOf("if (colY == null) {"));
-    // The plates it yields to still paint at that spot (the reason for the yield).
-    expect(CHART).toMatch(/const y0 = 176;/);
+    expect(w).toMatch(/forceChips\.push\(at\);/);
   });
 
   it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {

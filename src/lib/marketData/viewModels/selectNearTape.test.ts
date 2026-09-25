@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BigTradeTick } from "@/lib/bigTradeLevels";
-import { selectNearTape, sideFidelity, type NearTapeCache } from "./selectNearTape";
+import { selectBarTape, selectNearTape, selectPrintRawTape, sideFidelity, type NearTapeCache } from "./selectNearTape";
 
 const tick = (timeMs: number | undefined, price = 100, buy = true): BigTradeTick =>
   ({ price, bid: buy ? 0 : 1, ask: buy ? 1 : 0, timeMs });
@@ -113,5 +113,59 @@ describe("selectNearTape — the newest captured prints, exactly", () => {
     const c3 = selectNearTape(reset, c2);
     expect(c3.vm.rows).toEqual([]);
     expect((c3 as NearTapeCache).acc).toBe(reset);
+  });
+});
+
+describe("selectBarTape — one bar's held tape as geometry (H-501 NEAR · H-701)", () => {
+  const pt = (timeMs: number, price: number, size: number, buy = true, method?: BigTradeTick["aggressorMethod"]): BigTradeTick =>
+    ({ price, bid: buy ? 0 : size, ask: buy ? size : 0, timeMs, printKey: `k${timeMs}`, aggressorMethod: method });
+  const opts = { barTime: 60, intervalSec: 60, maxDots: 3, withPath: true };
+
+  it("growing the bar incrementally gives exactly the from-scratch answer, reading only the new prints", () => {
+    const arr: BigTradeTick[] = [pt(60_500, 100, 1), pt(61_000, 101, 4), pt(62_000, 99, 2)];
+    const c1 = selectBarTape(arr, null, opts);
+    expect(selectBarTape(arr, c1, opts)).toBe(c1);
+    arr.push(pt(63_000, 102, 9), pt(62_500, 98, 0.5));
+    const { proxy, box } = counted(arr);
+    const c2 = selectBarTape(proxy, { ...c1, arr: proxy }, opts);
+    expect(box.reads).toBe(2);
+    const cold = selectBarTape(arr, null, opts);
+    expect(c2.vm).toEqual(cold.vm);
+    expect(cold.vm.dots.map(d => d.size)).toEqual([9, 4, 2]);
+  });
+
+  it("the value area is 70% of the bar's held volume around its POC, by exact price", () => {
+    const arr = [pt(60_100, 100, 10), pt(60_200, 101, 50), pt(60_300, 102, 20), pt(60_400, 103, 15), pt(60_500, 104, 5)];
+    const va = selectBarTape(arr, null, opts).vm.valueArea;
+    // POC 101 (50) → +102 (20) = 70/100 → 70%.
+    expect(va).toEqual({ low: 101, high: 102, poc: 101 });
+  });
+
+  it("holds nothing it cannot place: no time, no price or no size is not a print", () => {
+    const arr: BigTradeTick[] = [{ price: 100, bid: 0, ask: 1 }, pt(60_100, NaN, 1), pt(60_200, 100, 0), pt(60_300, 100, 1)];
+    const vm = selectBarTape(arr, null, opts).vm;
+    expect(vm.held).toBe(1);
+    expect(vm.dots).toHaveLength(1);
+  });
+
+  it("no path unless asked (only the forming bar draws one)", () => {
+    expect(selectBarTape([pt(60_100, 100, 1)], null, { ...opts, withPath: false }).vm.path).toBeNull();
+  });
+});
+
+describe("selectPrintRawTape — F06B raw rows for the selected object only", () => {
+  it("a print it cannot find marks nothing and lists the bar's newest", () => {
+    const arr: BigTradeTick[] = Array.from({ length: 4 }, (_, i) => ({ price: 100 + i, bid: 0, ask: 1, timeMs: 60_000 + i, printKey: `p${i}` }));
+    const vm = selectPrintRawTape(arr, { barTime: 60, printKey: "nope", timeMs: 1, price: 1 }, 3);
+    expect(vm.rows.map(r => r.printKey)).toEqual(["p3", "p2", "p1"]);
+    expect(vm.rows.some(r => r.selected)).toBe(false);
+    expect(vm.sizeRank).toBeNull();
+  });
+
+  it("finds a print by time and price when it has no identity", () => {
+    const arr: BigTradeTick[] = [{ price: 100, bid: 0, ask: 1, timeMs: 60_001 }, { price: 101, bid: 2, ask: 0, timeMs: 60_002 }];
+    const vm = selectPrintRawTape(arr, { barTime: 60, timeMs: 60_002, price: 101 });
+    expect(vm.rows[0]).toMatchObject({ selected: true, glyph: "?−", size: 2 });
+    expect(vm.fidelityNote).toBe("? = SIDE UNKNOWN");
   });
 });

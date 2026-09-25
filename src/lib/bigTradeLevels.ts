@@ -46,6 +46,7 @@
  */
 
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
+import type { RawTapeVM } from "@/lib/marketData/viewModels/selectNearTape";
 
 export interface BigTradeTick {
   price: number;
@@ -70,6 +71,12 @@ export interface SelectedBigTrade extends BigTradeLevel {
   kind?: "big-trade" | "delta";
   /** Size relative to the other retained bubbles of the same kind on this chart. */
   relation?: BubbleRelation | null;
+  /**
+   * F06B · the raw tape of THIS object — the print and its neighbours in its
+   * own bar (selectPrintRawTape), captured at the click. Inspect prints it;
+   * the glass never lists rows. Absent when the tape held nothing for the bar.
+   */
+  rawTape?: RawTapeVM | null;
 }
 
 /** "#rank of N, median M" — a count, never a percentile dressed as a score. */

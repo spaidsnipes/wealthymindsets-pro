@@ -156,6 +156,10 @@ const LIQUIDITY_SWEEP_LOOKBACK = 4;
  * the legend actually reserves, and the inset both had all along.
  */
 const PRICE_LEGEND_OVERLAY_H = 28;
+/** Every receipt the NEAR geometry block writes — withdrawn together off NEAR. */
+/** The largest held prints per bar the NEAR tape owner keeps (the paint shows as many as the slot has room for). */
+const NEAR_TAPE_MAX_DOTS = 12;
+const NEAR_GLASS_RECEIPTS = ["nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearAnatomy", "nearHatch", "nearAnatomyWords"] as const;
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
 const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
@@ -266,7 +270,7 @@ import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResp
 import { selectSessionGhostProfiles } from "@/lib/marketData/viewModels/selectSessionGhostProfiles";
 import { selectFarRegimeEnvelope } from "@/lib/marketData/viewModels/selectFarRegimeEnvelope";
 import { nearCandleAnatomyParts } from "@/lib/marketData/viewModels/selectNearCandleAnatomy";
-import { selectNearTape, type NearTapeCache } from "@/lib/marketData/viewModels/selectNearTape";
+import { selectBarTape, selectPrintRawTape, dotSideInk, tapeDotLegend, type BarTapeCache, type BarTapeVM, type NearTapeDot } from "@/lib/marketData/viewModels/selectNearTape";
 import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import {
@@ -1766,6 +1770,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { onAnatomyReadingRef.current = onAnatomyReading; }, [onAnatomyReading]);
   /** What the anatomy block painted on the frame on screen — the click path hit-tests exactly this. */
   const anatomyHitsRef = useRef<AnatomyHit[]>([]);
+  // NEAR tape dots on the frame on screen (cleared with the glass): a click on
+  // one selects that print, exactly where it was painted.
+  const nearTapeHitsRef = useRef<{ x: number; y: number; r: number; barTime: number; dot: NearTapeDot }[]>([]);
   /** R-19 · structure-zone bands painted this frame, for band clicks. */
   const zoneHitsRef = useRef<{ objectId: string; x: number; y: number; w: number; h: number }[]>([]);
   /** The frame those hits were painted from, so a click reads the reading that was on screen. */
@@ -5687,8 +5694,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       bars: LegacyOhlcvTuple[]; structure: MarketStructureVM | null; from: number; to: number;
       vm: ReturnType<typeof selectFarRegimeEnvelope>;
     } | null = null;
-    // The NEAR tape rows, carried between frames (see selectNearTape).
-    let nearTapeCache: NearTapeCache | null = null;
+    // Each bar's held tape as geometry, carried between frames (selectBarTape
+    // reads only prints that arrived since; a closed bar is computed once).
+    let nearBarTapeCache: { acc: Map<number, BigTradeTick[]> | null; bars: Map<number, BarTapeCache> } = { acc: null, bars: new Map() };
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -5746,6 +5754,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // cleared with it and refilled only by the anatomy paint below.
       anatomyHitsRef.current = [];
       zoneHitsRef.current = [];
+      nearTapeHitsRef.current = [];
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
@@ -5834,14 +5843,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       //   per-row bid/ask numbers below keep data on screen at all other zooms.
       const showText   = colW >= 11;
       const showSplit  = colW >= 22;
-      const showBadges = bsp >= 70;
+      // M46 · AT NEAR THE FOOTPRINT'S NUMBERS LIVE IN THE BARS' PRICE ROWS.
+      // The badges, winner pills and 2×2 grids float ABOVE each bar's high;
+      // at NEAR's spacing every bar earns one, and by the live candle they
+      // stacked into free-floating number boxes against the price axis
+      // (serving, 2026-09-25). NEAR shows the rows with room; the per-bar
+      // delta is the NEAR delta row's, on the bars' own x.
+      const fpRowsOnly = semanticDensity.depth === "NEAR";
+      const showBadges = bsp >= 70 && !fpRowsOnly;
       // showWinner = the compact per-candle WINNER PILL (dominant side + its total
       //   volume, e.g. "AGG BUYS 113.2k"). Only ~54px wide, so it stays readable at
       //   NORMAL zoom — the old code only showed labels at bsp≥70 (extremely close),
       //   which is exactly the complaint. Draw the pill whenever a bar is ≥22px so
       //   the label is visible during ordinary trading, and stack the detailed 2×2
       //   grid on top only when genuinely zoomed in (showBadges).
-      const showWinner = bsp >= 22;
+      const showWinner = bsp >= 22 && !fpRowsOnly;
       const fmtV  = (v: number) => {
         if (!isFinite(v) || v <= 0) return "0";
         // Preserve evidence below the two-decimal display floor. Printing 0.00
@@ -6917,7 +6933,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           dsFp.footprintRows = String(fpRowsPainted);
           // Every mode paints the rows it received high-first (see MODE 1).
           dsFp.footprintOrder = "HIGH_FIRST";
+          // Where the numbers stood: in the rows only (NEAR), or with the
+          // badges above the bars as well.
+          dsFp.footprintBadges = fpRowsOnly ? "ROWS_ONLY" : "ABOVE_BARS";
         }
+        // Painted nothing → no claim about where the numbers stood.
+        if (fpBarsPainted === 0) delete dsFp.footprintBadges;
       }
 
       /* ══════════════════════════════════════════════════════
@@ -7300,7 +7321,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(`${buy ? "↑" : "↓"} ${formatBubblePrice(b.anchorPrice)}`, b.x, b.y + 15);
             }
           }
-          if (ticketDepth === "NEAR" && bubbleRank <= 3 && b.kind === "big-trade") {
+          // At NEAR a print's words (time · price, size @ side) are a ticket
+          // for the SELECTED or HOVERED print only. Three at rest were the
+          // knot of boxed numbers by the price axis (Founder, 2026-09-25:
+          // "just cards"); the dot or bubble IS the print, and its raw tape
+          // is Inspect's (F06B).
+          if (ticketDepth === "NEAR" && (selB || isHover) && b.kind === "big-trade") {
             ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
             const size = buy ? b.ask : b.bid;
             const provT = aggressorProvenanceOf(b.aggressorMethod);
@@ -7370,7 +7396,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTop = t as number; } catch { /* default */ }
           const yD = Math.max(20, pane0Bottom * volTop - 8);
           ctx.save();
-          ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          // 9px, not 11: the row is a line of small signed numbers on the
+          // bars' own x above the volume band — never slabs over the volume.
+          ctx.font = "600 9px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
           const rowsD: { t: number; x: number; dlt: number; text: string; w: number }[] = [];
           let stepD = 0;
@@ -7404,7 +7432,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           let lastRightD = -Infinity;
           for (const r of rowsD) {
             if (strideD > 1 && stepD > 0 && Math.round(r.t / stepD) % strideD !== 0) continue;
-            const lx = r.x - r.w / 2 - 3, ly = yD - 8, lw = r.w + 6, lh = 16;
+            const lx = r.x - r.w / 2 - 3, ly = yD - 6, lw = r.w + 6, lh = 12;
             if (lx < lastRightD || hitD(lx, ly, lw, lh)) continue;
             pickD.push({ r, lx, ly, lw, lh });
             lastRightD = lx + lw;
@@ -7443,7 +7471,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textAlign = "left"; ctx.fillStyle = "rgba(237,230,211,0.8)";
             ctx.fillText(tagD, tagX + 2, tagY + 6);
             forceChips.push({ x: tagX, y: tagY, w: tagW, h: 12 });
-            ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
+            ctx.font = "600 9px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
             for (const { r, lx, ly, lw, lh } of pickD) {
               ctx.fillStyle = `rgba(${r.dlt >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
               ctx.fillText(r.text, r.x, yD);
@@ -7620,161 +7648,259 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
       } catch { /* camera mid-transition */ }
 
-      /* ── H-501 · NEAR IS A DIFFERENT PICTURE (canon plate
-         WM_A_H501_SEMANTIC_ZOOM, right panel: CANDLE ANATOMY · TAPE TICKS).
-         At NEAR the live candle names its own parts — HIGH (wick), OPEN,
-         CLOSE, LOW (wick) — on leaders, and when real tape was captured the
-         last 10 executions stand beside it: price and who initiated
-         (+ buyer / − seller). No tape → no column, never a guess. */
+      /* ── H-501 · NEAR SPEAKS IN GEOMETRY (canon plates H-501 NEAR "tape
+         paths, candle components, local anchors"; H-701 "one candle — one
+         event": the big-trade cluster ON THE WICK as dots sized by size, the
+         response hatch INSIDE the bar; F06B raw tape in Inspect, camera
+         alive; M46 numbers in the bars' own price rows).
+         Founder, 2026-09-25: "I STILL HAVE A LOT OF JUST CARDS, NOT THE ACTUAL
+         DESIGNS WITHIN THE CANON." This block used to put a TAPE · LAST 10
+         PRINTS list box on the glass and name the live candle's four parts in
+         words on leaders at rest — a knot of text by the price axis. Now, on
+         every bar in view, projected from the tape owner (selectBarTape):
+           · TAPE DOTS — the bar's largest held prints at their own execution
+             time (x across the bar's slot) and price, sized by size. Side ink
+             only where the side is lawful: OBSERVED solid, INFERRED a ring,
+             UNKNOWN neutral grey — and one legend says so, or the side is
+             silenced (every dot grey) rather than shown unqualified.
+           · TAPE PATH — the forming bar's held prints, time-ordered, one line.
+           · ANATOMY — an open tick on the left, a close tick on the right, and
+             the bar's own held-tape value area hatched INSIDE the body (a
+             bracket where the footprint's rows already fill the bar).
+           · WORDS — the parts' names only for the hovered bar or the selected
+             print's bar, each placed by the keep-out owner. Never at rest.
+         Raw rows never paint here: a click on a dot selects that print, and
+         Inspect lists its raw tape (selectPrintRawTape). */
       try {
         const nearDepth = semanticDensity.depth;
-        const lastBar = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
-        const xl = lastBar ? chart.timeScale().timeToCoordinate(lastBar.time as never) : null;
-        if (nearDepth === "NEAR" && lastBar && xl != null) {
-          const cx = +xl;
-          let parts = 0;
-          ctx.save();
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.textBaseline = "middle";
-          // All four parts name themselves on the LEFT — the live candle's
-          // right is the profile lane's. The words come from the prices
-          // (nearCandleAnatomyParts); close words are fanned apart on a 15px
-          // pitch here, never merged, and the leader bends to its true price.
-          const want: { y: number; word: string }[] = [];
-          for (const p of nearCandleAnatomyParts(lastBar)) {
-            const y = srs.priceToCoordinate(p.price);
-            if (y != null) want.push({ y: +y, word: p.word });
+        const nearAll = barsRef.current ?? [];
+        const lastBar = nearAll[nearAll.length - 1];
+        if (nearDepth === "NEAR" && lastBar) {
+          const tsN = chart.timeScale();
+          const accN = bigTradePrintAccRef.current;
+          const intervalN = getIntervalSec(timeframe);
+          if (nearBarTapeCache.acc !== accN) nearBarTapeCache = { acc: accN, bars: new Map() };
+          // A print's x is its time across the bar's own slot; the dots a bar
+          // may carry scale with the room the slot gives them.
+          const slotW = Math.max(6, bsp * 0.9);
+          // The owner keeps a fixed dozen per bar (a zoom step never
+          // recomputes the tape); the slot's room decides how many paint.
+          const maxDots = Math.max(3, Math.min(NEAR_TAPE_MAX_DOTS, Math.floor(slotW / 7)));
+          const nearBars: { c: LegacyOhlcvTuple; cx: number; tape: BarTapeVM | null; dots: readonly NearTapeDot[] }[] = [];
+          let maxSize = 0, heldInView = 0;
+          for (const c of visibleBars) {
+            const xr = tsN.timeToCoordinate(c.time as never);
+            // visibleBars carries padding bars; a bar off the plot is not on the glass.
+            if (xr == null || +xr < 0 || +xr > plotRight) continue;
+            const bt = Number(c.time);
+            const prints = accN.get(bt);
+            let tape: BarTapeVM | null = null;
+            if (prints && prints.length > 0) {
+              const prev = nearBarTapeCache.bars.get(bt) ?? null;
+              const next = selectBarTape(prints, prev, { barTime: bt, intervalSec: intervalN, maxDots: NEAR_TAPE_MAX_DOTS, withPath: bt === Number(lastBar.time) });
+              if (next !== prev) nearBarTapeCache.bars.set(bt, next);
+              tape = next.vm.held > 0 ? next.vm : null;
+            }
+            const dots = tape ? tape.dots.slice(0, maxDots) : [];
+            if (tape) { heldInView += tape.held; for (const d of dots) if (d.size > maxSize) maxSize = d.size; }
+            nearBars.push({ c, cx: +xr, tape, dots });
           }
-          want.sort((p1, p2) => p1.y - p2.y);
-          const placed: number[] = [];
-          for (const w of want) placed.push(Math.max(w.y, (placed[placed.length - 1] ?? -Infinity) + 15));
-          // The words sit at the live candle's own prices, which the previous
-          // candles almost always overlap, so they are halo text, never
-          // backing boxes: a box at those prices hides the bodies the words
-          // are meant to be read against. Leaders start outside the live
-          // body (its half-width from bar spacing), not inside it.
-          const bodyEdge = cx - halfW - 2;
-          const bend = Math.min(bodyEdge - 4, cx - 24);
-          const lx = Math.min(cx - 58, bend - 30);
-          want.forEach((w, i) => {
-            const ly = placed[i];
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-            const tw = ctx.measureText(w.word).width + 4;
-            let lxw = lx;
-            for (let k = 0; k < 4; k++) {
-              const hit = forceChips.find(r => lxw - tw - 2 < r.x + r.w && lxw - 2 > r.x && ly - 7 < r.y + r.h && ly + 7 > r.y);
-              if (!hit) break;
-              lxw = hit.x - 4;
-            }
-            ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(bodyEdge, Math.round(w.y) + 0.5); ctx.lineTo(bend, Math.round(w.y) + 0.5); ctx.lineTo(lxw, Math.round(ly) + 0.5); ctx.stroke(); ctx.setLineDash([]);
-            ctx.textAlign = "right";
-            ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
-            ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(w.word, lxw - 4, ly);
-            ctx.restore();
-            forceChips.push({ x: lxw - tw - 2, y: ly - 7, w: tw, h: 14 });
-            parts++;
-          });
-          canvas.dataset.nearAnatomy = String(parts);
-          // TAPE · LAST 10 — the executions this chart actually captured.
-          // The owner keeps its answer between frames and reads only prints
-          // that arrived since; the paint never spreads or sorts the tape.
-          nearTapeCache = selectNearTape(bigTradePrintAccRef.current, nearTapeCache);
-          const prints = nearTapeCache.vm.rows;
-          // Who initiated is only as true as its method: an inferred side
-          // carries "~" (undisclosed "?") on its row and the column prints the
-          // legend, as the print ticket beside it says SIDE INFERRED.
-          const tapeNote = nearTapeCache.vm.fidelityNote;
-          // The left column at y≈176 belongs to the Scaffolding plate (at any
-          // width) and, on wide glass, to the Question Lens's debt card and
-          // control column — both painted later this frame at that spot, as
-          // near-opaque plates that do not look for the tape. The tape yields
-          // to them and says so, rather than reporting rows no one can see.
-          const tapeYieldsTo = scaffoldingDepthRef.current !== "OFF" ? "SCAFFOLDING"
-            : layerOnRef.current.questionLens === true && W >= 640 ? "QUESTION_LENS"
-            : null;
-          if (prints.length === 0) {
-            canvas.dataset.nearTape = "NO_TAPE";
-          } else if (tapeYieldsTo) {
-            canvas.dataset.nearTape = `YIELDED:${tapeYieldsTo}`;
-          } else {
-            // Phones get one measured line of the newest prints that fit; a
-            // 124px column is over a third of a 390px plot.
-            const compactTape = W < 640;
-            const mono = "600 10px ui-monospace, SFMono-Regular, monospace";
-            const noteFont = "700 8px ui-sans-serif, system-ui, sans-serif";
-            const noteH = tapeNote ? 11 : 0;
-            const colX = 12, rowH2 = 13;
-            let colW = 124, colH = 20 + noteH + prints.length * rowH2, shown = prints.length;
-            if (compactTape) {
-              ctx.font = mono;
-              const maxW = Math.min(240, plotRight - 24);
-              let w = ctx.measureText("TAPE").width;
-              shown = 0;
-              for (const r of prints) {
-                const add = ctx.measureText(` ${r.glyph}${r.price}`).width;
-                if (w + add + 12 > maxW) break;
-                w += add; shown++;
-              }
-              if (tapeNote) { ctx.font = noteFont; w = Math.max(w, ctx.measureText(tapeNote).width); }
-              colW = Math.ceil(w) + 12; colH = 16 + noteH;
-            }
-            // Docked on the left edge, clear of the right edge where the live
-            // candle, its profile lane and the print tickets live: the first
-            // slot down from 176 that misses every chip painted so far (print
-            // tickets, FORCE plates, anatomy words, FAR names) and the
-            // current-price line's countdown chip, above the volume band.
-            const yNow = srs.priceToCoordinate(lastBar.close);
-            let colY: number | null = null;
-            for (let y = 176; shown > 0 && y + colH <= pane0Bottom * 0.78; y += 12) {
-              if (yNow != null && +yNow + 12 > y && +yNow - 12 < y + colH) continue;
-              if (forceChips.some(r => colX < r.x + r.w && colX + colW > r.x && y < r.y + r.h && y + colH > r.y)) continue;
-              colY = y;
-              break;
-            }
-            if (colY == null) {
-              canvas.dataset.nearTape = "NO_ROOM";
+          // Bars the accumulator dropped leave the cache with them.
+          if (nearBarTapeCache.bars.size > 420) for (const k of nearBarTapeCache.bars.keys()) if (!accN.has(k)) nearBarTapeCache.bars.delete(k);
+          const xOfPrint = (barCx: number, barTime: number, tMs: number) =>
+            barCx - slotW / 2 + Math.max(0, Math.min(1, (tMs / 1000 - barTime) / Math.max(1, intervalN))) * slotW;
+          // THE KEEP-OUT OWNER. Words and the one legend print on rows of
+          // history, so every candle body in view is a keep-out (rowBodiesAt's
+          // rule), and every chip already on the glass is a blocker (strict).
+          const vrN = tsN.getVisibleLogicalRange();
+          const nearBodies = spanCandleKeepOut(nearAll, {
+            visible: vrN ? { from: +vrN.from, to: +vrN.to } : null,
+            barSpacing: bsp,
+            timeToX: t => { const xk = tsN.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+            priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+          }, -1e9, 1e9);
+          const bodiesOnRow = (y0: number, y1: number) => nearBodies.filter(b => b.y < y1 && b.y + b.h > y0);
+          // A lens that owns the left column keeps it.
+          const nearMinX = layerOnRef.current.questionLens === true && W >= 640 ? 324 : 4;
+          const nearFloorY = Math.max(HEADER_FLOOR_Y, BELOW_PRICE_LEGEND) + 4;
+          const placeNear = (pref: { x: number; y: number; w: number; h: number }, alternates: { x: number; y: number; w: number; h: number }[] = []) => {
+            const spot = placeClearOfKeepOut(pref, bodiesOnRow(pref.y, pref.y + pref.h), { minX: nearMinX, blockers: forceChips, strict: true, alternates });
+            // Text never prints over another chip's text; over a candle body
+            // it is halo text on the owner's BLOCKED slot, never a backing.
+            const onChip = rectHits(spot.rect, forceChips) > 0 || spot.rect.y < nearFloorY || spot.rect.y + spot.rect.h > pane0Bottom - 2;
+            return onChip ? null : spot.rect;
+          };
+
+          ctx.save();
+          ctx.setLineDash([]);
+          // ── CANDLE ANATOMY AS GEOMETRY: open tick left, close tick right,
+          //    and the bar's own value area INSIDE the body (H-701 hatch).
+          const fpRowModes: readonly string[] = ["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive"];
+          const fpRowsFill = fpRowModes.includes(effectiveFP) && fpBarsPainted > 0;
+          let ticks = 0, hatched = 0, bracketed = 0;
+          for (const { c, cx, tape } of nearBars) {
+            const yO = srs.priceToCoordinate(c.open), yC = srs.priceToCoordinate(c.close);
+            if (yO == null || yC == null) continue;
+            const tick = Math.max(3, Math.min(6, Math.round(bsp * 0.08)));
+            ctx.strokeStyle = "rgba(237,230,211,0.8)"; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx - halfW - tick, Math.round(+yO) + 0.5); ctx.lineTo(cx - halfW, Math.round(+yO) + 0.5);
+            ctx.moveTo(cx + halfW, Math.round(+yC) + 0.5); ctx.lineTo(cx + halfW + tick, Math.round(+yC) + 0.5);
+            ctx.stroke();
+            ticks++;
+            const va = tape?.valueArea;
+            if (!va) continue;
+            const yVh = srs.priceToCoordinate(va.high), yVl = srs.priceToCoordinate(va.low);
+            if (yVh == null || yVl == null) continue;
+            const vTop = Math.min(+yVh, +yVl) - 1, vH = Math.max(2, Math.abs(+yVl - +yVh) + 2);
+            const vx = cx - halfW + 1, vw = Math.max(2, colW - 2);
+            if (fpRowsFill) {
+              // The footprint's rows already fill the bar with numbers: the
+              // value area stands as a bracket on the body's edges instead of
+              // a hatch across the numbers.
+              ctx.strokeStyle = "rgba(232,184,92,0.9)"; ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(vx + 3, vTop); ctx.lineTo(vx, vTop); ctx.lineTo(vx, vTop + vH); ctx.lineTo(vx + 3, vTop + vH);
+              ctx.moveTo(vx + vw - 3, vTop); ctx.lineTo(vx + vw, vTop); ctx.lineTo(vx + vw, vTop + vH); ctx.lineTo(vx + vw - 3, vTop + vH);
+              ctx.stroke();
+              bracketed++;
             } else {
-              ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(colX, colY, colW, colH);
-              ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(colX + 0.5, colY + 0.5, colW - 1, colH - 1);
-              if (compactTape) {
-                ctx.font = mono; ctx.textAlign = "left";
-                let x = colX + 6;
-                const y = colY + 8;
-                ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.fillText("TAPE", x, y); x += ctx.measureText("TAPE").width;
-                for (const r of prints.slice(0, shown)) {
-                  const g = ` ${r.glyph}`;
-                  ctx.fillStyle = r.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)"; ctx.fillText(g, x, y); x += ctx.measureText(g).width;
-                  ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(r.price, x, y); x += ctx.measureText(r.price).width;
-                }
-                if (tapeNote) {
-                  ctx.font = noteFont; ctx.fillStyle = "rgba(237,230,211,0.8)";
-                  ctx.fillText(tapeNote, colX + 6, colY + 21);
-                }
+              ctx.save();
+              ctx.beginPath(); ctx.rect(vx, vTop, vw, vH); ctx.clip();
+              ctx.strokeStyle = "rgba(232,184,92,0.42)"; ctx.lineWidth = 1;
+              ctx.beginPath();
+              for (let d = -vH; d < vw; d += 5) { ctx.moveTo(vx + d, vTop + vH); ctx.lineTo(vx + d + vH, vTop); }
+              ctx.stroke();
+              ctx.restore();
+              ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1;
+              ctx.strokeRect(vx + 0.5, Math.round(vTop) + 0.5, vw - 1, Math.round(vH) - 1);
+              hatched++;
+            }
+          }
+
+          // ── TAPE PATH: the forming bar's held prints in time order.
+          let pathPts = 0;
+          const liveN = nearBars.find(b => Number(b.c.time) === Number(lastBar.time));
+          if (liveN?.tape?.path && liveN.tape.path.length > 1) {
+            ctx.beginPath();
+            for (const p of liveN.tape.path) {
+              const yp = srs.priceToCoordinate(p.price);
+              if (yp == null) continue;
+              const xp = xOfPrint(liveN.cx, Number(liveN.c.time), p.timeMs);
+              if (pathPts === 0) ctx.moveTo(xp, +yp); else ctx.lineTo(xp, +yp);
+              pathPts++;
+            }
+            ctx.strokeStyle = "rgba(237,230,211,0.72)"; ctx.lineWidth = 1; ctx.lineJoin = "round";
+            if (pathPts > 1) ctx.stroke(); else pathPts = 0;
+          }
+
+          // ── THE SIDES' ONE LEGEND. A ring or a grey dot means nothing
+          //    unstated: the legend prints once, by the keep-out owner, or no
+          //    dot carries a side at all this frame.
+          let sawInferredN = false, sawUnknownN = false;
+          for (const b of nearBars) for (const d of b.dots) {
+            if (d.fidelity === "INFERRED") sawInferredN = true; else if (d.fidelity === "UNKNOWN") sawUnknownN = true;
+          }
+          const legendN = tapeDotLegend(sawInferredN, sawUnknownN);
+          let sidesN: string = "OBSERVED";
+          if (legendN && maxSize > 0) {
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            const lw = ctx.measureText(legendN).width + 6, lh = 13;
+            const yHiN = srs.priceToCoordinate(lastBar.high), yLoN = srs.priceToCoordinate(lastBar.low);
+            const ax = (liveN?.cx ?? plotRight - 40) - halfW - 10 - lw;
+            const prefs = [
+              yHiN != null ? { x: ax, y: +yHiN - 22 - lh, w: lw, h: lh } : null,
+              yLoN != null ? { x: ax, y: +yLoN + 22, w: lw, h: lh } : null,
+              { x: nearMinX + 4, y: nearFloorY + 2, w: lw, h: lh },
+            ].filter((r): r is { x: number; y: number; w: number; h: number } => r != null);
+            const legendAt = placeNear(prefs[0], prefs.slice(1));
+            if (legendAt) {
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+              ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(legendN, legendAt.x + 3, legendAt.y + lh / 2);
+              ctx.restore();
+              forceChips.push(legendAt);
+              sidesN = `LEGEND:${sawInferredN && sawUnknownN ? "MIXED" : sawInferredN ? "INFERRED" : "UNKNOWN"}`;
+            } else {
+              sidesN = "SILENCED:NO_LEGEND_ROOM";
+            }
+          }
+          const sidesLawful = sidesN === "OBSERVED" || sidesN.startsWith("LEGEND:");
+
+          // ── TAPE DOTS: the bar's largest held prints where they traded.
+          let dotsN = 0;
+          const selKeyN = selectedPrintRef.current?.printKey ?? null;
+          const inksN = flowColorsRef.current;
+          const rMax = Math.max(3, Math.min(7, bsp * 0.12));
+          for (const { c, cx, dots } of nearBars) {
+            for (const d of dots) {
+              const yd = srs.priceToCoordinate(d.price);
+              if (yd == null) continue;
+              const xd = xOfPrint(cx, Number(c.time), d.timeMs);
+              const r = 1.5 + (rMax - 1.5) * Math.sqrt(d.size / Math.max(maxSize, 1e-12));
+              const ink = sidesLawful ? dotSideInk(d.fidelity) : "NEUTRAL";
+              const rgb = d.buy ? inksN.btBuy : inksN.btSell;
+              ctx.beginPath(); ctx.arc(xd, +yd, r, 0, Math.PI * 2);
+              if (ink === "SOLID") {
+                ctx.fillStyle = `rgba(${rgb},0.92)`; ctx.fill();
+                ctx.strokeStyle = "rgba(11,10,8,0.85)"; ctx.lineWidth = 1; ctx.stroke();
+              } else if (ink === "RING") {
+                ctx.fillStyle = "rgba(11,10,8,0.55)"; ctx.fill();
+                ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 1.5; ctx.stroke();
               } else {
-                ctx.textAlign = "center"; ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillText("TAPE · LAST " + prints.length + " PRINTS", colX + colW / 2, colY + 10);
-                if (tapeNote) {
-                  ctx.font = noteFont; ctx.fillStyle = "rgba(237,230,211,0.8)";
-                  ctx.fillText(tapeNote, colX + colW / 2, colY + 21);
-                }
-                ctx.font = mono;
-                prints.forEach((t, i) => {
-                  const y = colY + 22 + noteH + i * rowH2;
-                  ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
-                  ctx.fillText(t.price, colX + colW - 30, y);
-                  ctx.textAlign = "center"; ctx.fillStyle = t.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
-                  ctx.fillText(t.glyph, colX + colW - 14, y);
-                });
+                ctx.fillStyle = "rgba(200,192,174,0.7)"; ctx.fill();
               }
-              forceChips.push({ x: colX, y: colY, w: colW, h: colH });
-              // The count is published only for rows that reached the glass.
-              canvas.dataset.nearTape = compactTape ? `COMPACT:${shown}` : String(shown);
+              if (selKeyN != null && d.printKey === selKeyN) {
+                ctx.beginPath(); ctx.arc(xd, +yd, r + 4, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(237,230,211,1)"; ctx.lineWidth = 2; ctx.stroke();
+              }
+              nearTapeHitsRef.current.push({ x: xd, y: +yd, r: Math.max(r, 4), barTime: Number(c.time), dot: d });
+              dotsN++;
+            }
+          }
+
+          // ── WORDS ON HOVER OR SELECTION ONLY. The hovered bar (the
+          //    crosshair's bar) or the selected print's bar names its parts;
+          //    at rest the glass carries no anatomy word.
+          const hoverKeyN = lastCursorKeyRef.current;
+          const hoverTN = hoverKeyN ? Number(hoverKeyN.split("|")[0]) : NaN;
+          const spN = selectedPrintRef.current;
+          const wordsT = Number.isFinite(hoverTN) ? hoverTN : spN ? spN.barTime : null;
+          const wb = wordsT != null ? nearBars.find(b => Number(b.c.time) === wordsT) : undefined;
+          let wordsN = 0;
+          if (wb) {
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+            const bodyEdge = wb.cx - halfW - 2;
+            for (const p of nearCandleAnatomyParts(wb.c)) {
+              const yw = srs.priceToCoordinate(p.price);
+              if (yw == null) continue;
+              const tw = ctx.measureText(p.word).width + 6;
+              const at = placeNear({ x: bodyEdge - 8 - tw, y: +yw - 7, w: tw, h: 14 });
+              if (!at) continue;
+              ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(bodyEdge, Math.round(+yw) + 0.5); ctx.lineTo(at.x + at.w, at.y + 7.5); ctx.stroke(); ctx.setLineDash([]);
+              ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+              ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(p.word, at.x + at.w - 3, at.y + 7);
+              ctx.restore();
+              forceChips.push(at);
+              wordsN++;
             }
           }
           ctx.restore();
+
+          // RECEIPTS — each names what reached the glass, and is withdrawn
+          // when nothing of its kind did.
+          const dsN = canvas.dataset;
+          dsN.nearTapeForm = "ON_BARS";
+          dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}`;
+          if (heldInView > 0) { dsN.nearTapeHeld = String(heldInView); dsN.nearTapeSides = sidesN; }
+          else { delete dsN.nearTapeHeld; delete dsN.nearTapeSides; }
+          if (pathPts > 1) dsN.nearTapePath = String(pathPts); else delete dsN.nearTapePath;
+          dsN.nearAnatomy = `TICKS:${ticks}`;
+          if (hatched + bracketed > 0) dsN.nearHatch = hatched > 0 ? `HATCH:${hatched}` : `BRACKET:${bracketed}`; else delete dsN.nearHatch;
+          if (wordsN > 0) dsN.nearAnatomyWords = String(wordsN); else delete dsN.nearAnatomyWords;
         } else {
-          delete canvas.dataset.nearAnatomy;
-          delete canvas.dataset.nearTape;
+          for (const k of NEAR_GLASS_RECEIPTS) delete canvas.dataset[k];
         }
       } catch { /* camera mid-transition */ }
 
@@ -16035,6 +16161,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         timeMs: hit.kind === "delta" ? undefined : hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
         bid: hit.bid, ask: hit.ask, total: hit.bid + hit.ask, aggressorMethod: hit.aggressorMethod,
         kind: hit.kind, relation,
+        // F06B · a print's raw tape goes to Inspect with it; a delta zone is
+        // a net, not a print, and carries none.
+        rawTape: hit.kind === "delta" ? null : selectPrintRawTape(bigTradePrintAccRef.current.get(hit.anchorBarTime), {
+          barTime: hit.anchorBarTime, printKey: hit.spawnKey, timeMs: hit.anchorTime * 1000, price: hit.anchorPrice,
+        }),
+      });
+      return;
+    }
+    /*
+      H-501 NEAR · A CLICK ON A TAPE DOT SELECTS THAT PRINT — the one
+      selection the bubbles use, so Inspect opens on it (F06B: its raw tape,
+      camera alive) and the H-701 FORCE → RESPONSE marks draw on its bar. The
+      hit list is what the NEAR block painted on the frame on screen.
+    */
+    const tapeHit = nearTapeHitsRef.current.slice().reverse().find(h => Math.hypot(x - h.x, y - h.y) <= h.r + 3);
+    if (tapeHit) {
+      const d = tapeHit.dot;
+      onSelectBigTrade?.({
+        symbol, timeframe, barTime: tapeHit.barTime, printKey: d.printKey,
+        timeMs: d.timeMs, priceLevel: d.price,
+        bid: d.buy ? 0 : d.size, ask: d.buy ? d.size : 0, total: d.size, aggressorMethod: d.aggressorMethod,
+        kind: "big-trade", relation: null,
+        rawTape: selectPrintRawTape(bigTradePrintAccRef.current.get(tapeHit.barTime), {
+          barTime: tapeHit.barTime, printKey: d.printKey, timeMs: d.timeMs, price: d.price,
+        }),
       });
       return;
     }

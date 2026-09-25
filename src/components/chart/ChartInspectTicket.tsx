@@ -101,6 +101,11 @@ function zonedClock(timeZone: string | null | undefined) {
     zone: (sec: number) => parts(sec * 1000).timeZoneName ?? tz,
     /** "YYYY-MM-DD HH:MM ZZZ". */
     stamp: (sec: number) => { const p = parts(sec * 1000); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute} ${p.timeZoneName ?? tz}`; },
+    /** A tape row's clock, millisecond-exact: "HH:MM:SS.mmm" (pair with `zone`). */
+    tick: (ms: number) => {
+      const p = parts(ms);
+      return `${p.hour}:${p.minute}:${p.second}.${String(((ms % 1000) + 1000) % 1000).padStart(3, "0")}`;
+    },
     /** Millisecond-exact, zoned: "YYYY-MM-DD HH:MM:SS.mmm ZZZ". */
     exact: (ms: number) => {
       const p = parts(ms);
@@ -767,9 +772,13 @@ export function ChartInspectTicket({
     const stamped = p.aggressorMethod === "PROVIDER" || p.aggressorMethod === "MAKER_SIDE_INVERTED";
     const inferred = p.aggressorMethod === "TICK_RULE" || p.aggressorMethod === "QUOTE_TEST";
     // H-701B · the size relation, as a count among what this chart retained.
+    // A print picked from the NEAR tape is not a bubble: its relation is its
+    // size rank among the held prints of its own bar.
     const relation = p.relation
       ? `#${p.relation.rank} of ${p.relation.of} retained ${p.kind === "delta" ? "delta zones" : "big prints"} on this chart · median ${formatBubbleVolume(p.relation.median)}`
-      : "not ranked — no other bubble of this kind is retained";
+      : p.rawTape?.sizeRank != null
+        ? `#${p.rawTape.sizeRank} by size of ${p.rawTape.held} held prints in its bar`
+        : "not ranked — no other bubble of this kind is retained";
     if (p.kind === "delta") {
       // A DELTA ZONE is a net across a price bucket, not a print: no
       // "executed", no "at", no execution identity (bubbleClaim.ts).
@@ -813,6 +822,38 @@ export function ChartInspectTicket({
           <dt>Execution identity</dt><dd>{p.printKey ?? "UNKNOWN"}</dd>
           <dt>Size relation</dt><dd>{relation}</dd>
         </dl>
+        {/*
+          F06B · RAW TAPE FOR THIS OBJECT ONLY, camera alive. The glass shows
+          the print as a dot or bubble at its time and price; the rows live
+          here — the print and its neighbours in its own bar, newest first,
+          each side at its fidelity (~ inferred · ? undisclosed).
+        */}
+        {p.rawTape && p.rawTape.rows.length > 0 && (
+          <div className="mt-2 border-t border-wm-border pt-2" data-testid="inspect-raw-tape" data-raw-tape-held={p.rawTape.held}>
+            <div className="text-[10px] font-bold tracking-wide text-wm-gold">RAW TAPE · THIS PRINT&apos;S BAR</div>
+            <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
+              {p.rawTape.rows.length} of {p.rawTape.held} held prints · newest first · {clock.zone(p.rawTape.barTime)}
+            </div>
+            <table className="mt-1 w-full text-[10px] tabular-nums" style={{ color: "#C8C0AE" }}>
+              <thead>
+                <tr className="text-left text-wm-muted"><th className="font-bold">TIME</th><th className="font-bold">PRICE</th><th className="font-bold text-right">SIZE</th><th className="font-bold text-right">SIDE</th></tr>
+              </thead>
+              <tbody>
+                {p.rawTape.rows.map(r => (
+                  <tr key={`${r.printKey ?? ""}${r.timeMs}:${r.price}`} data-raw-tape-row={r.printKey ?? String(r.timeMs)}
+                    data-raw-tape-selected={r.selected ? "true" : undefined}
+                    className={r.selected ? "text-wm-gold font-bold" : undefined}>
+                    <td>{clock.tick(r.timeMs)}</td>
+                    <td>{String(r.price)}</td>
+                    <td className="text-right">{formatBubbleVolume(r.size)}</td>
+                    <td className="text-right">{r.glyph}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {p.rawTape.fidelityNote && <div className="text-[10px]" style={{ color: UNREAD_COLOR }}>{p.rawTape.fidelityNote}</div>}
+          </div>
+        )}
         <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>Participant and intent: UNKNOWN. This retained print is not a live quote. Raw tape is session-only; refresh may remove it.</p>
       </section>
     );

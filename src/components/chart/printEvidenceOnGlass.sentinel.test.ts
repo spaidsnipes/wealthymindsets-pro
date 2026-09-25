@@ -48,8 +48,21 @@ describe("a print's time is stated in the axis's zone", () => {
   });
 });
 
-/** The NEAR important-print ticket. */
-const ticket = () => slice('if (ticketDepth === "NEAR" && bubbleRank <= 3', "ctx.fillText(lines[1], tx + 8, ty + 24);");
+/**
+ * The NEAR important-print ticket. UPDATED 2026-09-25: it prints for the
+ * SELECTED or HOVERED print only — three tickets at rest were the knot of
+ * boxed numbers by the price axis the Founder called "just cards"; the raw
+ * rows are Inspect's (F06B).
+ */
+const ticket = () => slice('if (ticketDepth === "NEAR" && (selB || isHover)', "ctx.fillText(lines[1], tx + 8, ty + 24);");
+
+describe("the NEAR print ticket is words on selection or hover, never at rest", () => {
+  it("is gated on the selected or hovered bubble, not on rank", () => {
+    const b = bigTrades();
+    expect(b).toContain('if (ticketDepth === "NEAR" && (selB || isHover) && b.kind === "big-trade") {');
+    expect(b).not.toMatch(/ticketDepth === "NEAR" && bubbleRank/);
+  });
+});
 
 describe("the important-print ticket stays on the plot and leads with its provenance", () => {
   it("clamps x to the plot and y to pane 0 after choosing a side", () => {
