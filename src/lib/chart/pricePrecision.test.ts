@@ -26,6 +26,15 @@ describe("pricePrecisionFromBars", () => {
     expect(pricePrecisionFromBars([bar(noisyBtc, noisyBtc, noisyBtc, noisyBtc)])).toBe(2);
   });
 
+  it("float32 feed prices do not mint decimals (BTC read 83896.2600000 on serving)", () => {
+    const f32 = (v: number) => Math.fround(v);
+    expect(pricePrecisionFromBars([bar(f32(83947.24), f32(83947.24), f32(83874.62), f32(83896.26))])).toBe(2);
+    expect(pricePrecisionFromBars([bar(83947.2421875, 83947.2421875, 83874.6200000, 83896.26)])).toBe(2);
+    // EURUSD keeps its pips under the cap; a micro-priced coin keeps 8.
+    expect(pricePrecisionFromBars([bar(f32(1.14235), f32(1.1431), f32(1.1418), f32(1.14262))])).toBeLessThanOrEqual(6);
+    expect(pricePrecisionFromBars([bar(f32(1.14235), f32(1.1431), f32(1.1418), f32(1.14262))])).toBeGreaterThanOrEqual(4);
+  });
+
   it("no bars → the floor", () => {
     expect(pricePrecisionFromBars([])).toBe(2);
   });

@@ -23,6 +23,8 @@ export const MIN_PRICE_PRECISION = 2;
 export const MAX_PRICE_PRECISION = 8;
 /** How many of the newest bars are read — enough to see the quoting grid. */
 export const PRECISION_SAMPLE_BARS = 300;
+/** Beyond this many significant figures a price digit is float noise, not a quote. */
+export const SIGNIFICANT_FIGURES = 7;
 
 /** Only the four prices of the one bar shape (M8: no private bar shapes). */
 export type PrecisionBar = Pick<CanonicalBar, "open" | "high" | "low" | "close">;
@@ -39,13 +41,21 @@ export function pricePrecisionFromBars(bars: readonly PrecisionBar[]): number {
     for (const v of [b.open, b.high, b.low, b.close]) if (Number.isFinite(v) && v !== 0) values.push(v);
   }
   if (values.length === 0) return MIN_PRICE_PRECISION;
-  for (let d = MIN_PRICE_PRECISION; d <= MAX_PRICE_PRECISION; d++) {
+  // SIGNIFICANT-FIGURE CAP. A feed that ships float32 prices (the BTC
+  // backfill: 83947.2421875 is an exact binary fraction) is "exact" at 7
+  // decimals, and the chart read 83896.2600000 (serving, 2026-09-25). No
+  // venue quotes past ~7 significant figures, so the decimals stop there:
+  // 5 integer digits → 2, EURUSD's 1 → up to 6, a sub-penny coin → 8.
+  const maxAbs = Math.max(...values.map(v => Math.abs(v)));
+  const intDigits = Math.floor(Math.log10(maxAbs)) + 1;
+  const cap = Math.min(MAX_PRICE_PRECISION, Math.max(MIN_PRICE_PRECISION, SIGNIFICANT_FIGURES - intDigits));
+  for (let d = MIN_PRICE_PRECISION; d <= cap; d++) {
     if (values.every(v => exactAt(v, d))) return d;
   }
-  // Noise: no count is exact. Four significant figures below the point.
-  const mag = Math.abs(values[0]);
-  const byMagnitude = 4 - Math.floor(Math.log10(mag));
-  return Math.min(MAX_PRICE_PRECISION, Math.max(MIN_PRICE_PRECISION, byMagnitude));
+  // Noise: no count under the cap is exact. Four significant figures below
+  // the point, never past the cap.
+  const byMagnitude = 4 - Math.floor(Math.log10(maxAbs));
+  return Math.min(cap, Math.max(MIN_PRICE_PRECISION, byMagnitude));
 }
 
 /** The series' `priceFormat` for that precision: the axis, last-price tag and crosshair read it. */
