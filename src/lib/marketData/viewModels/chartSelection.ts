@@ -2,11 +2,19 @@
  * ONE SELECTION AT A TIME — what the chart has selected, and whether Inspect
  * is open on it.
  *
- * The chart offers three things to select: a market OBJECT (a swing zone or a
- * structure LEVEL, by objectId), a big-trade or delta PRINT (a bubble), and a
- * Living Profile SLICE (a clicked price in the lane). Each has its own selected
+ * The chart offers four things to select: a market OBJECT (a swing zone or a
+ * structure LEVEL, by objectId), a big-trade or delta PRINT (a bubble), a
+ * Living Profile SLICE (a clicked price in the lane), and an ANATOMY object
+ * (an absorption shelf or an exhaustion mark). Each has its own selected
  * treatment on the glass — zone fill plus callout, LEVEL diamond, slice
- * outline, bubble — and the ONE Inspect ticket reads whichever is selected.
+ * outline, bubble, shelf or mark halo — and the ONE Inspect ticket reads
+ * whichever is selected.
+ *
+ * An ANATOMY object is measured over the bars in view, so it can grow, stop
+ * grading or leave the camera while it stays selected. The glass re-resolves
+ * it every frame (`selectAnatomyInspect`) and hands the reading back here
+ * (`resolveAnatomy`), so Inspect describes what the window says NOW and keeps
+ * the last reading in which it was drawn beside it.
  *
  * Held as three independent states, every select path had to remember to clear
  * the other two, and the ones that forgot left two objects painted as selected
@@ -25,11 +33,25 @@
  */
 
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
+import { anatomyReadingDrawn, type AnatomyInspectVM } from "./anatomySelection";
+
+export interface SelectedAnatomy {
+  readonly kind: "ANATOMY";
+  readonly symbol: string;
+  readonly timeframe: string;
+  /** The wall Inspect stands on — away from the object, so its candles stay in view. */
+  readonly wall: "LEFT" | "RIGHT";
+  /** What the window in view says about it now. `reading.id` is the selection's identity. */
+  readonly reading: AnatomyInspectVM;
+  /** The newest reading in which it was drawn — what Inspect shows once it is not. */
+  readonly lastDrawn: AnatomyInspectVM | null;
+}
 
 export type ChartSelection =
   | { readonly kind: "OBJECT"; readonly objectId: string }
   | { readonly kind: "PRINT"; readonly print: SelectedBigTrade }
-  | { readonly kind: "SLICE"; readonly symbol: string; readonly timeframe: string; readonly price: number };
+  | { readonly kind: "SLICE"; readonly symbol: string; readonly timeframe: string; readonly price: number }
+  | SelectedAnatomy;
 
 export type ChartSelectionKind = ChartSelection["kind"];
 
@@ -54,8 +76,8 @@ export type ChartSelectionAction =
   | { readonly type: "toggleObject"; readonly objectId: string }
   /**
    * The objects were compiled again. A selected object that is no longer
-   * compiled is dropped (never guessed at); a print or slice made on another
-   * symbol/timeframe describes another chart and is dropped too. Only then may
+   * compiled is dropped (never guessed at); a print, slice or anatomy object
+   * made on another symbol/timeframe describes another chart and is dropped too. Only then may
    * the remembered object for THIS chart come back, and only if it is compiled.
    * Inspect is not opened: a restored selection arrives calm.
    */
@@ -66,6 +88,12 @@ export type ChartSelectionAction =
       readonly compiledObjectIds: readonly string[];
       readonly savedObjectId: string | null;
     }
+  /**
+   * The glass re-resolved the selected anatomy object in this frame's window.
+   * Applied only to the selection it describes (same id); Inspect is neither
+   * opened nor closed by it — the camera moving is not the trader asking.
+   */
+  | { readonly type: "resolveAnatomy"; readonly reading: AnatomyInspectVM }
   /** Drop the selection (only of these kinds, when given). Inspect is untouched. */
   | { readonly type: "clear"; readonly kinds?: readonly ChartSelectionKind[] }
   | { readonly type: "openInspect" }
@@ -77,8 +105,27 @@ export function selectChartSelection(
   action: ChartSelectionAction,
 ): ChartSelectionState {
   switch (action.type) {
-    case "select":
-      return { selection: action.selection, inspectOpen: true };
+    case "select": {
+      const sel = action.selection;
+      if (sel.kind !== "ANATOMY") return { selection: sel, inspectOpen: true };
+      return {
+        selection: { ...sel, lastDrawn: anatomyReadingDrawn(sel.reading) ? sel.reading : sel.lastDrawn },
+        inspectOpen: true,
+      };
+    }
+
+    case "resolveAnatomy": {
+      const current = state.selection;
+      if (current?.kind !== "ANATOMY" || current.reading.id !== action.reading.id) return state;
+      return {
+        selection: {
+          ...current,
+          reading: action.reading,
+          lastDrawn: anatomyReadingDrawn(action.reading) ? action.reading : current.lastDrawn,
+        },
+        inspectOpen: state.inspectOpen,
+      };
+    }
 
     case "toggleObject": {
       const current = state.selection;
@@ -94,7 +141,7 @@ export function selectChartSelection(
       if (current?.kind === "OBJECT" && compiled(current.objectId)) return state;
       if (current?.kind === "PRINT"
         && current.print.symbol === action.symbol && current.print.timeframe === action.timeframe) return state;
-      if (current?.kind === "SLICE"
+      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY")
         && current.symbol === action.symbol && current.timeframe === action.timeframe) return state;
       const restored: ChartSelection | null = compiled(action.savedObjectId)
         ? { kind: "OBJECT", objectId: action.savedObjectId }
@@ -132,6 +179,11 @@ export function selectedSliceOf(
   state: ChartSelectionState,
 ): { readonly symbol: string; readonly timeframe: string; readonly price: number } | null {
   return state.selection?.kind === "SLICE" ? state.selection : null;
+}
+
+/** The selected anatomy object, or null when the selection is not one. */
+export function selectedAnatomyOf(state: ChartSelectionState): SelectedAnatomy | null {
+  return state.selection?.kind === "ANATOMY" ? state.selection : null;
 }
 
 /**
