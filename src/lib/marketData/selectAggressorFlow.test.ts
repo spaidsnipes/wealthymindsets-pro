@@ -8,6 +8,7 @@
 import { describe, it, expect } from "vitest";
 import {
   aggressorProvenanceOf,
+  weakestAggressorProvenance,
   selectAggressorFlow,
   type AggressorTick,
 } from "./selectAggressorFlow";
@@ -20,6 +21,15 @@ describe("aggressorProvenanceOf — one print's method, by the flow's own rule",
     expect(aggressorProvenanceOf("QUOTE_TEST")).toBe("INFERRED");
     expect(aggressorProvenanceOf("NONE")).toBe("UNDISCLOSED");
     expect(aggressorProvenanceOf(undefined)).toBe("UNDISCLOSED");
+  });
+
+  it("combines kinds weakest-link: any mix is MIXED, nothing is UNDISCLOSED", () => {
+    expect(weakestAggressorProvenance(true, false, false)).toBe("PROVIDER");
+    expect(weakestAggressorProvenance(false, true, false)).toBe("INFERRED");
+    expect(weakestAggressorProvenance(false, false, true)).toBe("UNDISCLOSED");
+    expect(weakestAggressorProvenance(true, true, false)).toBe("MIXED");
+    expect(weakestAggressorProvenance(true, false, true)).toBe("MIXED");
+    expect(weakestAggressorProvenance(false, false, false)).toBe("UNDISCLOSED");
   });
 });
 

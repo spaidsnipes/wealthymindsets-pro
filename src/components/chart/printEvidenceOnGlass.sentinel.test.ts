@@ -90,16 +90,43 @@ describe("the NEAR delta row never overprints itself or an earlier chip", () => 
   it("says when bars were left out, and does not print the row without saying so", () => {
     const b = deltaRow();
     expect(b).toContain("1 IN ${strideD} BARS");
-    expect(b).toContain("if (tagX != null && rowsD.length) {");
+    expect(b).toContain("if (tagX != null && pickD.length) {");
     expect(b).toContain("forceChips.push({ x: tagX, y: tagY, w: tagW, h: 12 });");
   });
 
-  it("the stride receipt is withdrawn when no row is drawn", () => {
+  it("the row's receipts are withdrawn when no row is drawn", () => {
     const b = deltaRow();
-    const sets = b.match(/canvas\.dataset\.nearBarDeltaStride = /g) ?? [];
-    const dels = b.match(/delete canvas\.dataset\.nearBarDeltaStride;/g) ?? [];
-    expect(sets.length).toBe(1);
-    expect(dels.length).toBe(2);
+    for (const k of ["nearBarDeltaStride", "nearBarDeltaBasis"]) {
+      const sets = b.match(new RegExp(`canvas\\.dataset\\.${k} = `, "g")) ?? [];
+      const dels = b.match(new RegExp(`delete canvas\\.dataset\\.${k};`, "g")) ?? [];
+      expect(sets.length, k).toBe(1);
+      expect(dels.length, k).toBe(2);
+    }
+  });
+});
+
+describe("the NEAR delta row states how its sides were known", () => {
+  it("classifies each contributing print by the flow owner's rule and combines weakest-link", () => {
+    const b = deltaRow();
+    expect(b).toContain("const accD = bigTradePrintAccRef.current;");
+    expect(b).toContain("const p = aggressorProvenanceOf(pr.aggressorMethod);");
+    expect(b).toContain("const basisD = weakestAggressorProvenance(sawP, sawI, sawU);");
+    // Only prints that moved the sums count toward the basis.
+    expect(b).toContain("if (!(pr.bid > 0 || pr.ask > 0)) continue;");
+  });
+
+  it("prints the provenance owner's chip in the row's tag, never its own words", () => {
+    const b = deltaRow();
+    expect(b).toContain("const chipD = aggressorProvenanceNote(basisD)?.chip;");
+    expect(b).toMatch(/const tagD = `Δ\$\{chipD \? ` · \$\{chipD\}` : ""\}/);
+    expect(b).not.toContain("SIDE INFERRED");
+  });
+
+  it("reads only the prints that arrived since the last frame", () => {
+    const b = deltaRow();
+    expect(b).toContain("for (; e.n < prints.length; e.n++) {");
+    expect(b).toMatch(/deltaBasisCache\?\.acc !== accD/);
+    expect(b).not.toMatch(/\.flatMap\(|\.sort\(/);
   });
 });
 

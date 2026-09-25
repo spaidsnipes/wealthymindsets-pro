@@ -61,7 +61,8 @@ import {
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
-import { aggressorProvenanceOf } from "@/lib/marketData/selectAggressorFlow";
+import { aggressorProvenanceOf, weakestAggressorProvenance } from "@/lib/marketData/selectAggressorFlow";
+import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNote";
 import {
   classifySymbol,
   isUnsupportedByEquityVendors,
@@ -5375,6 +5376,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       bars: readonly LegacyOhlcvTuple[]; sp: SelectedBigTrade; formingBarTime: number | null;
       vm: ReturnType<typeof selectPrintResponse>;
     } | null = null;
+    // How each captured print's side was established, tallied per bar for the
+    // NEAR delta row's basis. A bar's print list only grows (and is dropped
+    // whole), so a frame reads only the prints that arrived since the last.
+    type SideBasisTally = { n: number; provider: boolean; inferred: boolean; undisclosed: boolean };
+    let deltaBasisCache: { acc: Map<number, BigTradeTick[]>; perBar: Map<number, SideBasisTally> } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -6890,36 +6896,70 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // earlier chip (a print ticket) is skipped, never overprinted.
           const maxWD = rowsD.reduce((m, r) => Math.max(m, r.w), 0);
           const strideD = Math.max(1, Math.ceil((maxWD + 6) / Math.max(1, bsp)));
-          const tagD = `Δ${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
           const hitD = (x: number, y: number, w: number, h: number) =>
             forceChips.some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y);
+          const pickD: { r: (typeof rowsD)[number]; lx: number; ly: number; lw: number; lh: number }[] = [];
+          let lastRightD = -Infinity;
+          for (const r of rowsD) {
+            if (strideD > 1 && stepD > 0 && Math.round(r.t / stepD) % strideD !== 0) continue;
+            const lx = r.x - r.w / 2 - 3, ly = yD - 8, lw = r.w + 6, lh = 16;
+            if (lx < lastRightD || hitD(lx, ly, lw, lh)) continue;
+            pickD.push({ r, lx, ly, lw, lh });
+            lastRightD = lx + lw;
+          }
+          // BASIS. The sums above split each bar's prints by initiator, and
+          // on a tick-rule tape (the Alpaca equity relay) every one of those
+          // sides is inferred. The row says how the sides behind the numbers
+          // it prints were established — weakest-link over those bars, in the
+          // provenance owner's words — read from the same prints the sums
+          // came from (both accumulators are filled in one pass). A print
+          // with no side adds nothing to the sums and nothing to the basis.
+          const accD = bigTradePrintAccRef.current;
+          if (deltaBasisCache?.acc !== accD || deltaBasisCache.perBar.size > 600) deltaBasisCache = { acc: accD, perBar: new Map() };
+          let sawP = false, sawI = false, sawU = false;
+          for (const { r } of pickD) {
+            const prints = accD.get(r.t) ?? [];
+            let e = deltaBasisCache.perBar.get(r.t);
+            if (!e || e.n > prints.length) { e = { n: 0, provider: false, inferred: false, undisclosed: false }; deltaBasisCache.perBar.set(r.t, e); }
+            for (; e.n < prints.length; e.n++) {
+              const pr = prints[e.n];
+              if (!(pr.bid > 0 || pr.ask > 0)) continue;
+              const p = aggressorProvenanceOf(pr.aggressorMethod);
+              if (p === "PROVIDER") e.provider = true; else if (p === "INFERRED") e.inferred = true; else e.undisclosed = true;
+            }
+            sawP ||= e.provider; sawI ||= e.inferred; sawU ||= e.undisclosed;
+          }
+          const basisD = weakestAggressorProvenance(sawP, sawI, sawU);
+          const chipD = aggressorProvenanceNote(basisD)?.chip;
+          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
           const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
-          // The row does not print without its tag: the tag is what says
-          // which bars were left out.
-          if (tagX != null && rowsD.length) {
+          // The row does not print without its tag: the tag is what says how
+          // the sides were known and which bars were left out.
+          if (tagX != null && pickD.length) {
             ctx.textAlign = "left"; ctx.fillStyle = "rgba(237,230,211,0.8)";
             ctx.fillText(tagD, tagX + 2, tagY + 6);
             forceChips.push({ x: tagX, y: tagY, w: tagW, h: 12 });
             ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
-            let lastRightD = -Infinity;
-            for (const r of rowsD) {
-              if (strideD > 1 && stepD > 0 && Math.round(r.t / stepD) % strideD !== 0) continue;
-              const lx = r.x - r.w / 2 - 3, ly = yD - 8, lw = r.w + 6, lh = 16;
-              if (lx < lastRightD || hitD(lx, ly, lw, lh)) continue;
+            for (const { r, lx, ly, lw, lh } of pickD) {
               ctx.fillStyle = `rgba(${r.dlt >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
               ctx.fillText(r.text, r.x, yD);
               forceChips.push({ x: lx, y: ly, w: lw, h: lh });
-              lastRightD = lx + lw;
               printed++;
             }
           }
           ctx.restore();
-          if (printed > 0) canvas.dataset.nearBarDeltaStride = String(strideD);
-          else delete canvas.dataset.nearBarDeltaStride;
+          if (printed > 0) {
+            canvas.dataset.nearBarDeltaStride = String(strideD);
+            canvas.dataset.nearBarDeltaBasis = basisD;
+          } else {
+            delete canvas.dataset.nearBarDeltaStride;
+            delete canvas.dataset.nearBarDeltaBasis;
+          }
         } else {
           delete canvas.dataset.nearBarDeltaStride;
+          delete canvas.dataset.nearBarDeltaBasis;
         }
         canvas.dataset.nearBarDelta = depthD === "NEAR" ? String(printed) : "NOT_NEAR";
       } catch { /* camera mid-transition */ }

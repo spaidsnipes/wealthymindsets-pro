@@ -91,6 +91,27 @@ export function aggressorProvenanceOf(method: AggressorMethod | undefined): Aggr
   return "UNDISCLOSED";
 }
 
+/**
+ * The provenance a figure built from these kinds of print can claim.
+ *
+ * Weakest-link, and deliberately not a majority vote: "most of these prints
+ * came from the venue" is not a claim the weakest print supports. Exported so
+ * a surface that tallies its own prints (the chart's per-bar delta row)
+ * combines them by this rule rather than a restatement of it.
+ */
+export function weakestAggressorProvenance(
+  sawProvider: boolean,
+  sawInferred: boolean,
+  sawUndisclosed: boolean,
+): AggressorProvenance {
+  const kinds = (sawProvider ? 1 : 0) + (sawInferred ? 1 : 0) + (sawUndisclosed ? 1 : 0);
+  return kinds === 0 ? "UNDISCLOSED"
+    : kinds > 1 ? "MIXED"
+    : sawProvider ? "PROVIDER"
+    : sawInferred ? "INFERRED"
+    : "UNDISCLOSED";
+}
+
 export interface AggressorTick {
   readonly side?: "buy" | "sell" | null | undefined;
   readonly size?: number | null | undefined;
@@ -188,15 +209,7 @@ export function selectAggressorFlow(
     else sawUndisclosed = true;
   }
 
-  // Weakest-link, and deliberately not a majority vote: "most of these prints
-  // came from the venue" is not a claim the weakest print supports.
-  const kinds = (sawProvider ? 1 : 0) + (sawInferred ? 1 : 0) + (sawUndisclosed ? 1 : 0);
-  const provenance: AggressorProvenance =
-    kinds === 0 ? "UNDISCLOSED"
-    : kinds > 1 ? "MIXED"
-    : sawProvider ? "PROVIDER"
-    : sawInferred ? "INFERRED"
-    : "UNDISCLOSED";
+  const provenance = weakestAggressorProvenance(sawProvider, sawInferred, sawUndisclosed);
 
   const cvd = askVol - bidVol;
   const vwap = vol > 0 ? pv / vol : livePrice > 0 ? livePrice : 0;
