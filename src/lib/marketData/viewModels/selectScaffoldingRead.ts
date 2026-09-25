@@ -15,6 +15,9 @@
  *                  RESULT, LOCATION) and one posture.
  *   PRO          — geometry only: the effort curve against the result curve
  *                  over the window, and result-per-effort as a plain ratio.
+ *                  The window's own bars and its per-segment conversion are
+ *                  carried so the glass can draw that geometry ON THE REAL
+ *                  CANDLES (scaffoldingGlass.ts) instead of on a toy chart.
  *
  * Every verdict reads an owner that already exists — `selectMarketStructure`
  * (bias, swings), `selectAbsorptionAnatomy` (effort, displacement, zones),
@@ -37,7 +40,7 @@
  * PURE. DETERMINISTIC.
  */
 
-import type { AbsorptionAnatomyVM } from "@/lib/marketData/selectAbsorptionAnatomy";
+import type { AbsorptionAnatomyVM, AnatomyBar } from "@/lib/marketData/selectAbsorptionAnatomy";
 import type { ExhaustionVM } from "./selectExhaustion";
 import type { MarketStructureVM } from "./selectMarketStructure";
 
@@ -47,6 +50,8 @@ export const SCAFFOLDING_WINDOW = 20;
 export const NEAR_RANGES = 2;
 /** Recent-half vs earlier-half change that counts as rising / fading. */
 export const CHANGE_AT = 0.15;
+/** PRO: the window is read in segments of this many bars (the plate's cells). */
+export const SEGMENT_BARS = 4;
 
 export type ScaffoldingDepth = "FOUNDATION" | "INTERMEDIATE" | "PRO";
 export const SCAFFOLDING_DEPTHS: readonly ScaffoldingDepth[] = ["FOUNDATION", "INTERMEDIATE", "PRO"];
@@ -69,6 +74,20 @@ export interface ScaffoldDynamic {
   readonly line: string;
 }
 
+export type Conversion = "CONVERTING" | "EVEN" | "NOT CONVERTING";
+
+/** PRO: a run of SEGMENT_BARS window bars and whether its effort was paid for. */
+export interface ScaffoldSegment {
+  /** Inclusive indices into `window`. */
+  readonly from: number;
+  readonly to: number;
+  /** Share of the window's effort / result that traded in this segment. */
+  readonly effortShare: number;
+  readonly resultShare: number;
+  /** resultShare ÷ effortShare against CHANGE_AT — the window ratio's own rule, per segment. Null with no effort. */
+  readonly conversion: Conversion | null;
+}
+
 export interface ScaffoldingReadVM {
   readonly version: number;
   readonly measured: boolean;
@@ -85,10 +104,23 @@ export interface ScaffoldingReadVM {
   readonly resultCurve: readonly number[];
   /** Result share ÷ effort share over the window's second half. Null when effort is zero. */
   readonly resultPerEffort: number | null;
-  readonly conversion: "CONVERTING" | "EVEN" | "NOT CONVERTING" | null;
+  readonly conversion: Conversion | null;
   /** The nearest swing above and below the last close, for the geometry's ceiling/floor. */
   readonly swingAbove: number | null;
   readonly swingBelow: number | null;
+  /** The bar each of those swings was confirmed on (its pivot), for the □ mark on price. */
+  readonly swingAboveTime: number | null;
+  readonly swingBelowTime: number | null;
+  /** Whether each was a swing HIGH or a swing LOW — which side of its bar the □ sits. */
+  readonly swingAboveKind: "HIGH" | "LOW" | null;
+  readonly swingBelowKind: "HIGH" | "LOW" | null;
+  /**
+   * PRO: the read window's bars, oldest first — the anatomy's OWN bars (no
+   * second bar shape, M8), so the glass maps them with the chart's own
+   * transforms — and its segments.
+   */
+  readonly window: readonly AnatomyBar[];
+  readonly segments: readonly ScaffoldSegment[];
 }
 
 export interface ScaffoldingInput {
@@ -111,7 +143,8 @@ function empty(reason: ScaffoldingReadVM["reason"], basis: ScaffoldingReadVM["ba
   return {
     version: SCAFFOLDING_VERSION, measured: false, reason, basis, steps: [], conclusion: "", dynamics: [],
     caution: false, cautionFlags: [], posture: "", effortCurve: [], resultCurve: [], resultPerEffort: null,
-    conversion: null, swingAbove: null, swingBelow: null,
+    conversion: null, swingAbove: null, swingBelow: null, swingAboveTime: null, swingBelowTime: null,
+    swingAboveKind: null, swingBelowKind: null, window: [], segments: [],
   };
 }
 
@@ -163,8 +196,10 @@ export function selectScaffoldingRead(input: ScaffoldingInput): ScaffoldingReadV
   // 4 · LOCATION — nearest confirmed swing on THIS timeframe
   const highs = s?.measured ? s.swingHighs : [];
   const lows = s?.measured ? s.swingLows : [];
-  const above = [...highs, ...lows].map(p => p.price).filter(p => p >= last.close).sort((x, y) => x - y)[0] ?? null;
-  const below = [...highs, ...lows].map(p => p.price).filter(p => p < last.close).sort((x, y) => y - x)[0] ?? null;
+  const abovePt = [...highs, ...lows].filter(p => p.price >= last.close).sort((x, y) => x.price - y.price)[0] ?? null;
+  const belowPt = [...highs, ...lows].filter(p => p.price < last.close).sort((x, y) => y.price - x.price)[0] ?? null;
+  const above = abovePt?.price ?? null;
+  const below = belowPt?.price ?? null;
   const dAbove = above != null && med > 0 ? (above - last.close) / med : null;
   const dBelow = below != null && med > 0 ? (last.close - below) / med : null;
   const nearAbove = dAbove != null && dAbove <= NEAR_RANGES;
@@ -228,9 +263,19 @@ export function selectScaffoldingRead(input: ScaffoldingInput): ScaffoldingReadV
   const effShare = effTot > 0 ? recent.reduce((t, b) => t + b.effortNorm, 0) / effTot : 0;
   const dispShare = dispTot > 0 ? recent.reduce((t, b) => t + b.displacementNorm, 0) / dispTot : 0;
   const resultPerEffort = effShare > 0 ? dispShare / effShare : null;
-  const conversion = resultPerEffort == null ? null
-    : resultPerEffort < 1 - CHANGE_AT ? "NOT CONVERTING"
-    : resultPerEffort > 1 + CHANGE_AT ? "CONVERTING" : "EVEN";
+  const convert = (ratio: number | null): Conversion | null => ratio == null ? null
+    : ratio < 1 - CHANGE_AT ? "NOT CONVERTING"
+    : ratio > 1 + CHANGE_AT ? "CONVERTING" : "EVEN";
+  const conversion = convert(resultPerEffort);
+  // The same ratio, segment by segment, oldest first — the plate's cells.
+  const segments: ScaffoldSegment[] = [];
+  for (let from = 0; from < bars.length; from += SEGMENT_BARS) {
+    const to = Math.min(bars.length - 1, from + SEGMENT_BARS - 1);
+    const seg = bars.slice(from, to + 1);
+    const es = effTot > 0 ? seg.reduce((t, b) => t + b.effortNorm, 0) / effTot : 0;
+    const rs = dispTot > 0 ? seg.reduce((t, b) => t + b.displacementNorm, 0) / dispTot : 0;
+    segments.push({ from, to, effortShare: es, resultShare: rs, conversion: convert(es > 0 ? rs / es : null) });
+  }
 
   return {
     version: SCAFFOLDING_VERSION,
@@ -249,6 +294,12 @@ export function selectScaffoldingRead(input: ScaffoldingInput): ScaffoldingReadV
     conversion,
     swingAbove: above,
     swingBelow: below,
+    swingAboveTime: abovePt?.time ?? null,
+    swingBelowTime: belowPt?.time ?? null,
+    swingAboveKind: abovePt ? (highs.includes(abovePt) ? "HIGH" : "LOW") : null,
+    swingBelowKind: belowPt ? (highs.includes(belowPt) ? "HIGH" : "LOW") : null,
+    window: bars,
+    segments,
   };
 }
 

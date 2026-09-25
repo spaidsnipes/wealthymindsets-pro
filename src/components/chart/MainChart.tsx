@@ -186,7 +186,10 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionTravel", "absorptionWall", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded",
-  "questionCallout", "questionChoice", "questionLensForm", "scaffoldingScale",
+  "questionCallout", "questionChoice", "questionLensForm",
+  // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
+  "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
+  "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
 ] as const;
 
 /** H-901 · what the regime block painted this frame; withdrawn together before it paints. */
@@ -286,6 +289,17 @@ import { selectContradiction, type ContradictionInput, type ContradictionVM } fr
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
+import {
+  PRO_PLAQUE,
+  SCAFFOLD_CARD_BOX,
+  SCAFFOLDING_GLASS_RECEIPTS,
+  countRectHits,
+  dockClearOfCandles,
+  planProSleeve,
+  proPlaqueSlots,
+  sleeveBoxes,
+  type GlassRect,
+} from "@/lib/marketData/viewModels/scaffoldingGlass";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 // The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
@@ -9570,17 +9584,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // the cards step right of it rather than printing over it.
               let cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
               let cardsTop = top;
-              // SCAFFOLDING owns its card (painted later this frame at the
-              // same left column). Find room beside it, then below it; if the
+              // SCAFFOLDING's card (painted later this frame) prefers the same
+              // left column. Find room beside it, then below it; if the
               // camera has neither, the two cards fold into two measured lines
               // at the foot of the plot — same numbers, nothing dropped.
+              // PRO has no card (its geometry is on the candles), so it
+              // reserves nothing; the other depths dock clear of these cards.
               const sDepth = scaffoldingDepthRef.current;
               let compact = false;
               let scaffoldBox: { x: number; y: number; w: number; h: number } | null = null;
-              if (sDepth !== "OFF") {
-                const sx = cardsLeft, sy = 176;
-                const sw = sDepth === "FOUNDATION" ? 470 : 300;
-                const sh = 12 + (sDepth === "FOUNDATION" ? 250 : sDepth === "INTERMEDIATE" ? 234 : 266);
+              if (sDepth === "FOUNDATION" || sDepth === "INTERMEDIATE") {
+                const sx = cardsLeft, sy = 176 - 9;
+                const { w: sw, h: sh } = SCAFFOLD_CARD_BOX[sDepth];
                 scaffoldBox = { x: sx, y: sy, w: sw, h: sh };
                 const need = 2 * cw + gap;
                 if (sx + sw + 12 + need <= W - 90) {
@@ -10012,10 +10027,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (!lensFormPainted) delete ds.questionLensForm;
 
             /* ── SCAFFOLDING — "SAME SKILL. DEEPER MASTERY. LESS HAND-HOLDING." ──
-               One read of THIS camera (structure owner + this anatomy + its
-               exhaustion) shown at the trader's chosen depth. The nearest
-               confirmed swings go ON PRICE at every depth; the card only
-               changes how much of the reasoning is spelled out. */
+               Plates: UI-12 Progressive Scaffolding (Foundation / Intermediate
+               / Advanced-Pro), UI-13 Mastery Path, F05A "clarity is the
+               default language of the room" — the Drive visual canon, opened
+               side by side with the live glass (2026-09-25). One read of THIS
+               camera (structure owner + this anatomy + its exhaustion) at the
+               trader's chosen depth, and THE MARKET STAYS DOMINANT:
+
+                 FOUNDATION   the six-step student card, docked where it covers
+                              no candle (dockClearOfCandles), with the read
+                              window bracketed under its own bars.
+                 INTERMEDIATE three icon lines + the posture plaque, compact,
+                              docked the same way.
+                 ADVANCED/PRO NO CARD, NO SECOND CHART. The geometry is drawn
+                              ON the real candles: the pressure mass around the
+                              read window's own bars (candles cut out), split
+                              into the read's conversion cells; the effort and
+                              result arrows at the window's right edge; ONE
+                              plaque, keep-out placed, with a leader to the
+                              window's last bar.
+
+               The nearest confirmed swings go ON PRICE at every depth — dashed
+               from the bar that made them, with a □ on that bar (F05A). */
+            for (const k of SCAFFOLDING_GLASS_RECEIPTS) delete ds[k];
             const depth = scaffoldingDepthRef.current;
             if (depth !== "OFF") {
               const sc = selectScaffoldingRead({
@@ -10026,11 +10060,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               scaffoldPainted = sc.measured ? `${depth}:${sc.posture}:${sc.cautionFlags.length}` : `${depth}:${sc.reason}`;
               if (sc.measured) {
                 ctx.save();
+                ctx.globalAlpha = att.alpha("scaffolding");
                 const GOLD = "rgba(201,165,92,0.95)";
                 const CREAM = "rgba(237,230,211,0.95)";
                 const DIM = "rgba(200,192,174,0.8)";
-                const PANEL = "rgba(11,10,8,0.97)";
                 const HAIR = "rgba(201,165,92,0.6)";
+                const panel = (a: number) => `rgba(11,10,8,${a})`;
                 const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
                 const clip = (t: string, max: number) => {
                   if (ctx.measureText(t).width <= max) return t;
@@ -10039,171 +10074,429 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   return u + "…";
                 };
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const tsS = chart.timeScale();
+                const xOf = (t: number) => { const v = tsS.timeToCoordinate(t as never); return v == null ? null : +v; };
+                const yOf = (p: number) => { const v = srs.priceToCoordinate(p); return v == null ? null : +v; };
+                const lastW = sc.window[sc.window.length - 1];
+                const firstW = sc.window[0];
 
-                // Location on price: the nearest confirmed swings, dashed.
-                for (const [lvl, tag] of [[sc.swingAbove, "SWING ABOVE"], [sc.swingBelow, "SWING BELOW"]] as const) {
+                // Location on price: the nearest confirmed swings, dashed from
+                // the bar that made them, a □ on that bar (F05A).
+                let swingMarks = 0;
+                for (const [lvl, t0, kind, tag] of [
+                  [sc.swingAbove, sc.swingAboveTime, sc.swingAboveKind, "SWING ABOVE"],
+                  [sc.swingBelow, sc.swingBelowTime, sc.swingBelowKind, "SWING BELOW"],
+                ] as const) {
                   if (lvl == null) continue;
-                  const y = srs.priceToCoordinate(lvl);
+                  const y = yOf(lvl);
                   if (y == null) continue;
+                  const xp = t0 == null ? null : xOf(t0);
+                  const yy = Math.round(y) + 0.5;
                   ctx.setLineDash([6, 4]);
                   ctx.strokeStyle = "rgba(237,230,211,0.55)";
                   ctx.lineWidth = 1;
-                  ctx.beginPath(); ctx.moveTo(0, Math.round(+y) + 0.5); ctx.lineTo(W - 76, Math.round(+y) + 0.5); ctx.stroke();
+                  ctx.beginPath(); ctx.moveTo(xp != null && xp > 0 ? xp : 0, yy); ctx.lineTo(W - 76, yy); ctx.stroke();
                   ctx.setLineDash([]);
+                  if (xp != null && xp >= 0 && xp <= plotRight) {
+                    ctx.strokeStyle = CREAM;
+                    ctx.strokeRect(Math.round(xp) - 4.5, kind === "LOW" ? yy + 4 : yy - 13, 9, 9);
+                    swingMarks++;
+                  }
                   ctx.font = font(700, 8);
                   const t = `${tag} · ${lvl.toFixed(pxDp)}`;
                   const tw = ctx.measureText(t).width;
-                  ctx.fillStyle = PANEL;
-                  ctx.fillRect(W - 84 - tw - 8, +y - 7, tw + 8, 14);
+                  ctx.fillStyle = panel(0.97);
+                  ctx.fillRect(W - 84 - tw - 8, y - 7, tw + 8, 14);
                   ctx.fillStyle = CREAM;
-                  ctx.fillText(t, W - 84 - tw - 4, +y);
+                  ctx.fillText(t, W - 84 - tw - 4, y);
+                  floatingChips.push({ x: W - 84 - tw - 8, y: y - 7, w: tw + 8, h: 14 });
                 }
+                ds.scaffoldingSwingMarks = String(swingMarks);
 
-                const x0 = layerOnRef.current.questionLens === true && questionQuiet < 1 ? 322 : 12;
-                const y0 = 176;
-                // MOCKUP SCALE. At desktop size the Founder's plate reads its
-                // tiers at ~1.3× what the 8–11px chrome gave; the whole plate
-                // is magnified as one piece so its geometry never drifts. Held
-                // to 1 where the enlarged Foundation plate would leave the pane.
-                const scafK = W >= 1280 && H >= 820 ? Math.min(1.32, (H - y0 - 40) / 300, (W - x0 - 120) / 470) : 1;
-                if (scafK > 1) { ctx.translate(x0, y0); ctx.scale(scafK, scafK); ctx.translate(-x0, -y0); }
-                ds.scaffoldingScale = scafK.toFixed(2);
-                // The removal path: where this depth sits.
-                ctx.font = font(700, 9);
-                ctx.fillStyle = PANEL;
-                ctx.fillRect(x0, y0 - 9, 290, 18);
-                let px = x0 + 8;
-                const path: ScaffoldingDepth[] = ["FOUNDATION", "INTERMEDIATE", "PRO"];
-                for (const d of path) {
-                  const t = d === "PRO" ? "ADVANCED / PRO" : d;
-                  ctx.fillStyle = d === depth ? GOLD : "rgba(200,192,174,0.45)";
-                  ctx.fillText(t, px, y0);
-                  px += ctx.measureText(t).width + 8;
-                  if (d !== "PRO") { ctx.fillStyle = "rgba(200,192,174,0.45)"; ctx.fillText("›", px, y0); px += 12; }
-                }
-                const top = y0 + 12;
+                // The removal path — where this depth sits. Drawn inside the
+                // card (F/I) or the plaque (PRO), never as a strip of its own.
+                const crumb = (x: number, y: number, px: number) => {
+                  ctx.font = font(700, px);
+                  let cx = x;
+                  for (const d of ["FOUNDATION", "INTERMEDIATE", "PRO"] as const) {
+                    const t = d === "PRO" ? "ADVANCED / PRO" : d;
+                    ctx.fillStyle = d === depth ? GOLD : "rgba(200,192,174,0.45)";
+                    ctx.fillText(t, cx, y);
+                    cx += ctx.measureText(t).width + px * 0.8;
+                    if (d !== "PRO") { ctx.fillStyle = "rgba(200,192,174,0.45)"; ctx.fillText("›", cx, y); cx += px * 1.3; }
+                  }
+                };
+                // The column an active Question Lens holds, the header band
+                // and the pane floor bound every scaffolding box.
+                const minX = Math.max(12, keepOutMinX() + (lensColumnActive ? 2 : 8));
+                const floorY = pane0Bottom - 8;
 
-                if (depth === "FOUNDATION") {
-                  const w = 470, rowH = 30, h = 40 + sc.steps.length * rowH + 30;
-                  ctx.fillStyle = PANEL; ctx.fillRect(x0, top, w, h);
-                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, top + 0.5, w - 1, h - 1);
-                  ctx.font = font(700, 11); ctx.fillStyle = GOLD;
-                  ctx.fillText("FOUNDATION VIEW", x0 + 12, top + 14);
-                  ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                  ctx.fillText("Full scaffolding · six steps fully expanded · every verdict measured", x0 + 12, top + 28);
-                  let ry = top + 40;
-                  for (const st of sc.steps) {
-                    ctx.strokeStyle = "rgba(201,165,92,0.18)";
-                    ctx.beginPath(); ctx.moveTo(x0 + 8, ry + 0.5); ctx.lineTo(x0 + w - 8, ry + 0.5); ctx.stroke();
-                    ctx.font = font(700, 13); ctx.fillStyle = GOLD;
-                    ctx.fillText(String(st.n), x0 + 12, ry + rowH / 2);
-                    ctx.font = font(700, 9); ctx.fillStyle = CREAM;
-                    ctx.fillText(clip(st.title, 230), x0 + 30, ry + 10);
-                    ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                    ctx.fillText(clip(st.evidence, 262), x0 + 30, ry + 22);
-                    const cw = 160, cx = x0 + w - cw - 10;
-                    ctx.strokeStyle = HAIR; ctx.strokeRect(cx + 0.5, ry + 4.5, cw, rowH - 9);
-                    ctx.font = font(700, 8); ctx.fillStyle = CREAM;
-                    ctx.textAlign = "center";
-                    ctx.fillText(clip(st.verdict, cw - 8), cx + cw / 2, ry + rowH / 2);
-                    ctx.textAlign = "left";
-                    ry += rowH;
+                if (depth === "PRO") {
+                  /* ADVANCED / PRO — "Geometry & Efficiency Only". */
+                  const sleeve = planProSleeve(sc, { timeToX: xOf, priceToY: yOf }, bsp);
+                  ds.scaffoldingForm = "GEOMETRY";
+                  const convWord = (c: string | null) => (c === "CONVERTING" ? "C" : c === "EVEN" ? "E" : c === "NOT CONVERTING" ? "N" : "-");
+                  let plaque: GlassRect | null = null;
+                  if (sleeve.drawn) {
+                    const pts = sleeve.points;
+                    const hb = sleeve.halfBar;
+                    const first = pts[0], last = pts[pts.length - 1];
+                    // CANDLE CUT-OUT: every candle under the mass (body and
+                    // wick) is cut out before it fills, so the mass sits AROUND
+                    // the market, never on it. Wicks are cut above/below the
+                    // body only (an overlapping cut would re-fill under even-odd).
+                    const cut = new Path2D();
+                    cut.rect(0, 0, W, H);
+                    let kept = 0;
+                    const barsC = barsRef.current ?? [];
+                    const vrC = tsS.getVisibleLogicalRange();
+                    if (vrC) {
+                      const lo = Math.max(0, Math.floor(vrC.from)), hi = Math.min(barsC.length - 1, Math.ceil(vrC.to));
+                      for (let i = lo; i <= hi; i++) {
+                        const b = barsC[i];
+                        if (!b) continue;
+                        const xb = xOf(b.time);
+                        if (xb == null || xb < first.x - hb - bsp || xb > last.x + hb + bsp) continue;
+                        const yo = yOf(b.open), yc = yOf(b.close), yhB = yOf(b.high), ylB = yOf(b.low);
+                        if (yo == null || yc == null) continue;
+                        const top = Math.min(yo, yc) - 1, bot = Math.max(yo, yc) + 1;
+                        cut.rect(xb - bsp * 0.42, top, bsp * 0.84, bot - top);
+                        if (yhB != null && yhB < top) cut.rect(xb - 1, yhB - 1, 2, top - yhB + 1);
+                        if (ylB != null && ylB > bot) cut.rect(xb - 1, bot, 2, ylB - bot + 1);
+                        kept++;
+                      }
+                    }
+                    ds.scaffoldingCandlesKept = String(kept);
+                    // One smoothed outline: along the tops, back along the bottoms.
+                    const edge = (key: "top" | "bottom", reverse: boolean) => {
+                      const seq = reverse ? [...pts].reverse() : pts;
+                      const endX = (p: typeof pts[number]) => p.x + (reverse ? -hb : hb);
+                      const startX = (p: typeof pts[number]) => p.x + (reverse ? hb : -hb);
+                      if (!reverse) ctx.moveTo(startX(seq[0]), seq[0][key]); else ctx.lineTo(startX(seq[0]), seq[0][key]);
+                      ctx.lineTo(seq[0].x, seq[0][key]);
+                      for (let k = 1; k < seq.length - 1; k++) {
+                        ctx.quadraticCurveTo(seq[k].x, seq[k][key], (seq[k].x + seq[k + 1].x) / 2, (seq[k][key] + seq[k + 1][key]) / 2);
+                      }
+                      ctx.lineTo(seq[seq.length - 1].x, seq[seq.length - 1][key]);
+                      ctx.lineTo(endX(seq[seq.length - 1]), seq[seq.length - 1][key]);
+                    };
+                    const traceMass = () => { ctx.beginPath(); edge("top", false); edge("bottom", true); ctx.closePath(); };
+                    ctx.save();
+                    ctx.clip(cut, "evenodd");
+                    // The plate's cells: slate where the effort was paid for
+                    // (CONVERTING), gold where it broke even, maroon where it
+                    // was not (NOT CONVERTING) — the read's own ratio per cell.
+                    const CELL: Record<string, string> = {
+                      CONVERTING: "rgba(140,165,190,0.3)",
+                      EVEN: "rgba(201,165,92,0.3)",
+                      "NOT CONVERTING": "rgba(168,72,56,0.34)",
+                      NONE: "rgba(200,192,174,0.08)",
+                    };
+                    for (const sg of sleeve.segments) {
+                      ctx.save();
+                      ctx.beginPath(); ctx.rect(sg.x0, 0, sg.x1 - sg.x0, H); ctx.clip();
+                      ctx.fillStyle = CELL[sg.conversion ?? "NONE"];
+                      traceMass(); ctx.fill();
+                      ctx.restore();
+                    }
+                    // Edges and cell walls, hairline, as the plate draws them.
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = "rgba(237,230,211,0.5)";
+                    ctx.beginPath(); edge("top", false); ctx.stroke();
+                    ctx.strokeStyle = "rgba(237,230,211,0.3)";
+                    ctx.beginPath(); edge("bottom", false); ctx.stroke();
+                    ctx.strokeStyle = "rgba(237,230,211,0.16)";
+                    for (const sg of sleeve.segments.slice(1)) {
+                      const p = pts[sg.from];
+                      const xw = Math.round(sg.x0) + 0.5;
+                      ctx.beginPath(); ctx.moveTo(xw, p.top); ctx.lineTo(xw, p.bottom); ctx.stroke();
+                    }
+                    ctx.restore(); // releases the mass's candle cut-out
+
+                    // The two pressures at the window's right edge: the effort
+                    // dynamic under the mass, the result dynamic over it, each
+                    // pointing its measured trend (the plate's ↑ BUYING
+                    // PRESSURE / ↓ SELLING PRESSURE; a side is named only on a
+                    // delta basis — the read's label says which).
+                    const ax = Math.min(plotRight - 6, last.x + hb + 9);
+                    const arrow = (yA: number, yB: number, trend: string) => {
+                      const x = Math.round(ax) + 0.5;
+                      if (trend === "FLAT") {
+                        ctx.beginPath(); ctx.arc(x, (yA + yB) / 2, 2, 0, Math.PI * 2); ctx.fill();
+                        return;
+                      }
+                      const up = trend === "UP";
+                      const head = up ? Math.min(yA, yB) : Math.max(yA, yB);
+                      const tail = up ? Math.max(yA, yB) : Math.min(yA, yB);
+                      const d = up ? 1 : -1;
+                      ctx.beginPath(); ctx.moveTo(x, tail); ctx.lineTo(x, head); ctx.stroke();
+                      ctx.beginPath(); ctx.moveTo(x - 3.5, head + d * 4.5); ctx.lineTo(x, head); ctx.lineTo(x + 3.5, head + d * 4.5); ctx.stroke();
+                    };
+                    const [effDyn, resDyn] = sc.dynamics;
+                    ctx.strokeStyle = CREAM; ctx.fillStyle = CREAM; ctx.lineWidth = 1.25;
+                    const arrowRows: { yA: number; yB: number; trend: string; word: string }[] = [
+                      { yA: last.bottom + 4, yB: last.bottom + 22, trend: effDyn.trend, word: effDyn.label },
+                      { yA: last.top - 22, yB: last.top - 4, trend: resDyn.trend, word: resDyn.label },
+                    ];
+                    let arrowWords = 0;
+                    ctx.font = font(700, 8);
+                    for (const r of arrowRows) {
+                      arrow(r.yA, r.yB, r.trend);
+                      const mid = (r.yA + r.yB) / 2;
+                      const tw = ctx.measureText(r.word).width + 2;
+                      const pref = { x: ax + 7, y: mid - 6, w: tw, h: 12 };
+                      const placed = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(mid - 6, mid + 6)], {
+                        minX, blockers: floatingChips, strict: true,
+                        alternates: [{ x: ax - 7 - tw, y: mid - 6, w: tw, h: 12 }],
+                      });
+                      // A word goes only where it reads beside its arrow.
+                      if (placed.mode === "CLEAR" || placed.mode === "MOVED") {
+                        ctx.fillStyle = DIM;
+                        ctx.fillText(r.word, placed.rect.x + 1, mid);
+                        floatingChips.push(placed.rect);
+                        arrowWords++;
+                      }
+                      ctx.fillStyle = CREAM;
+                    }
+                    ds.scaffoldingGeometry = `ON_PRICE:${pts.length}:${sleeve.segments.map(sg => convWord(sg.conversion)).join("")}:${effDyn.trend}/${resDyn.trend}:WORDS_${arrowWords}`;
+
+                    // ONE plaque, tied by a leader to the window's last bar,
+                    // placed by the keep-out owner (strict: clear of bodies and
+                    // of every chip already on the glass).
+                    const slots = proPlaqueSlots(sleeve, PRO_PLAQUE, { x0: minX, y0: HEADER_FLOOR_Y + 4, x1: plotRight - 6, y1: floorY });
+                    if (slots) {
+                      const all = [slots.preferred, ...slots.alternates];
+                      const yLo = Math.min(...all.map(r => r.y)), yHi = Math.max(...all.map(r => r.y + r.h));
+                      // The plaque never covers the geometry it describes.
+                      const spot = placeClearOfKeepOut(slots.preferred, [...keepOut(), ...rowBodiesAt(yLo, yHi)], {
+                        minX, blockers: [...floatingChips, ...sleeveBoxes(sleeve)], strict: true, alternates: slots.alternates,
+                      });
+                      recordKeepOut(keepOutLedger, spot);
+                      plaque = spot.rect;
+                      ds.scaffoldingPlaque = `${spot.mode}:${Math.round(plaque.x)},${Math.round(plaque.y)}`;
+                      // The leader: plaque edge → ONE candle's wick tip — the
+                      // window's last bar, or its first when the plaque had
+                      // to sit beside the window's start.
+                      const pc = plaque.x + plaque.w / 2;
+                      const bar = Math.abs(pc - first.x) < Math.abs(pc - last.x) ? first : last;
+                      const above = plaque.y + plaque.h <= bar.yHigh;
+                      const below = plaque.y >= bar.yLow;
+                      const beside = !above && !below;
+                      const tipY = above ? bar.yHigh - 3 : below ? bar.yLow + 3 : (bar.yHigh + bar.yLow) / 2;
+                      const fromX = beside
+                        ? (plaque.x > bar.x ? plaque.x : plaque.x + plaque.w)
+                        : Math.max(plaque.x, Math.min(plaque.x + plaque.w, bar.x));
+                      const fromY = above ? plaque.y + plaque.h : below ? plaque.y : Math.max(plaque.y, Math.min(plaque.y + plaque.h, tipY));
+                      const tipX = beside ? bar.x + (fromX < bar.x ? -hb : hb) : bar.x;
+                      ctx.save();
+                      ctx.setLineDash([2, 3]);
+                      ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
+                      ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(tipX, tipY); ctx.stroke();
+                      ctx.restore();
+                      ds.scaffoldingPlaque += bar === last ? ":LEADER_LAST_BAR" : ":LEADER_FIRST_BAR";
+                      ctx.fillStyle = panel(keepOutBackingAlpha(spot, 0.94));
+                      ctx.fillRect(plaque.x, plaque.y, plaque.w, plaque.h);
+                    }
+                  } else {
+                    ds.scaffoldingGeometry = sleeve.reason;
                   }
-                  ctx.strokeStyle = HAIR; ctx.strokeRect(x0 + 8.5, ry + 4.5, w - 17, 20);
-                  ctx.font = font(700, 8.5); ctx.fillStyle = GOLD;
-                  ctx.textAlign = "center";
-                  ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 30), x0 + w / 2, ry + 14.5);
-                  floatingChips.push({ x: x0, y: y0 - 9, w: w * scafK, h: (top + h - (y0 - 9)) * scafK });
-                  ctx.textAlign = "left";
-                } else if (depth === "INTERMEDIATE") {
-                  const w = 300, rowH = 40, h = 40 + sc.dynamics.length * rowH + 56 + 18;
-                  ctx.fillStyle = PANEL; ctx.fillRect(x0, top, w, h);
-                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, top + 0.5, w - 1, h - 1);
-                  ctx.font = font(700, 11); ctx.fillStyle = GOLD;
-                  ctx.fillText("INTERMEDIATE VIEW", x0 + 12, top + 14);
-                  ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                  ctx.fillText("Compressed to core dynamics", x0 + 12, top + 28);
-                  let ry = top + 40;
-                  for (const d of sc.dynamics) {
-                    ctx.strokeStyle = "rgba(201,165,92,0.18)";
-                    ctx.beginPath(); ctx.moveTo(x0 + 8, ry + 0.5); ctx.lineTo(x0 + w - 8, ry + 0.5); ctx.stroke();
-                    ctx.font = font(700, 18); ctx.fillStyle = GOLD;
-                    ctx.fillText(d.trend === "UP" ? "↑" : d.trend === "DOWN" ? "↓" : "•", x0 + 14, ry + rowH / 2);
-                    ctx.font = font(700, 11); ctx.fillStyle = CREAM;
-                    ctx.fillText(d.label, x0 + 40, ry + 13);
-                    ctx.font = font(500, 9); ctx.fillStyle = DIM;
-                    ctx.fillText(d.line, x0 + 40, ry + 28);
-                    ry += rowH;
+                  if (!plaque) {
+                    // No mass on this camera: the plaque still states the
+                    // ratio, top-left, clear of the candles — and no leader.
+                    const spot = placeClearOfKeepOut({ x: minX, y: HEADER_FLOOR_Y + 8, ...PRO_PLAQUE }, [...keepOut(), ...rowBodiesAt(HEADER_FLOOR_Y + 8, HEADER_FLOOR_Y + 8 + PRO_PLAQUE.h)], {
+                      minX, blockers: floatingChips, strict: true,
+                    });
+                    recordKeepOut(keepOutLedger, spot);
+                    plaque = spot.rect;
+                    ds.scaffoldingPlaque = `${spot.mode}:${Math.round(plaque.x)},${Math.round(plaque.y)}`;
+                    ctx.fillStyle = panel(keepOutBackingAlpha(spot, 0.94));
+                    ctx.fillRect(plaque.x, plaque.y, plaque.w, plaque.h);
                   }
-                  ctx.strokeStyle = sc.caution ? GOLD : HAIR;
-                  ctx.strokeRect(x0 + 8.5, ry + 6.5, w - 17, 46);
-                  ctx.font = font(700, 16); ctx.fillStyle = GOLD;
-                  ctx.fillText(sc.posture, x0 + 20, ry + 22);
-                  ctx.font = font(500, 8); ctx.fillStyle = CREAM;
-                  ctx.fillText(clip(sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired — the read is yours", w - 40), x0 + 20, ry + 40);
-                  ctx.font = font(700, 8); ctx.fillStyle = DIM;
-                  ctx.textAlign = "center";
-                  ctx.fillText("SAME READ. FEWER STEPS. HIGHER OWNERSHIP.", x0 + w / 2, ry + 64);
-                  floatingChips.push({ x: x0, y: y0 - 9, w: w * scafK, h: (top + h - (y0 - 9)) * scafK });
-                  ctx.textAlign = "left";
+                  // The plaque's words: path, the one number, what it means.
+                  const { x: qx, y: qy, w: qw, h: qh } = plaque;
+                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
+                  ctx.strokeRect(qx + 0.5, qy + 0.5, qw - 1, qh - 1);
+                  crumb(qx + 8, qy + 9, 6.5);
+                  ctx.font = font(700, 7.5); ctx.fillStyle = GOLD;
+                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", qx + 8, qy + 21);
+                  ctx.font = font(800, 16); ctx.fillStyle = CREAM;
+                  const ratio = sc.resultPerEffort == null ? "—" : `${sc.resultPerEffort.toFixed(2)}×`;
+                  ctx.fillText(ratio, qx + 8, qy + 36);
+                  const rw = ctx.measureText(ratio).width;
+                  ctx.font = font(700, 8); ctx.fillStyle = GOLD;
+                  ctx.fillText(clip(`${sc.conversion ?? "NO EFFORT"} · ${sc.posture}`, qw - rw - 22), qx + 14 + rw, qy + 37);
+                  ctx.font = font(500, 7); ctx.fillStyle = DIM;
+                  ctx.fillText(clip(`${sc.window.length} bars · ${sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired"}`, qw - 16), qx + 8, qy + 50);
+                  floatingChips.push(plaque);
                 } else {
-                  const w = 300, gh = 130, h = 40 + gh + 96;
-                  ctx.fillStyle = PANEL; ctx.fillRect(x0, top, w, h);
-                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, top + 0.5, w - 1, h - 1);
-                  ctx.font = font(700, 11); ctx.fillStyle = GOLD;
-                  ctx.fillText("ADVANCED / PRO", x0 + 12, top + 14);
-                  ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                  ctx.fillText("Geometry & efficiency only · effort vs result, cumulative", x0 + 12, top + 28);
-                  const gx = x0 + 34, gy = top + 40, gw = w - 48;
-                  ctx.strokeStyle = "rgba(237,230,211,0.12)";
-                  for (let k = 0; k <= 4; k++) {
-                    const yy = Math.round(gy + (gh * k) / 4) + 0.5;
-                    ctx.beginPath(); ctx.moveTo(gx, yy); ctx.lineTo(gx + gw, yy); ctx.stroke();
+                  /* FOUNDATION / INTERMEDIATE — the plate's student and
+                     compressed views, as ONE docked card that covers no
+                     candle. Candidates are tried plate-first: the full card
+                     magnified, at plate scale, then (Foundation) the six steps
+                     as six lines. The card's first choice is still the left
+                     column at y≈176; the dock moves it only when that spot
+                     would hide price. */
+                  const candleRects: GlassRect[] = [];
+                  {
+                    const barsD = barsRef.current ?? [];
+                    const vrD = tsS.getVisibleLogicalRange();
+                    const half = Math.max(3, bsp * 0.5);
+                    if (vrD) {
+                      const lo = Math.max(0, Math.floor(vrD.from)), hi = Math.min(barsD.length - 1, Math.ceil(vrD.to));
+                      for (let i = lo; i <= hi; i++) {
+                        const b = barsD[i];
+                        if (!b) continue;
+                        const xb = xOf(b.time), yh = yOf(b.high), yl = yOf(b.low);
+                        if (xb == null || yh == null || yl == null) continue;
+                        candleRects.push({ x: xb - half, y: Math.min(yh, yl) - 3, w: half * 2, h: Math.abs(yl - yh) + 6 });
+                      }
+                    }
                   }
-                  const n = sc.effortCurve.length;
-                  const X = (i: number) => gx + (n > 1 ? (gw * i) / (n - 1) : 0);
-                  const Y = (v: number) => gy + gh - v * gh;
-                  // Where effort ran ahead of result, the unpaid effort is filled.
-                  for (let i = 1; i < n; i++) {
-                    const e0 = sc.effortCurve[i - 1], e1 = sc.effortCurve[i];
-                    const r0 = sc.resultCurve[i - 1], r1 = sc.resultCurve[i];
-                    ctx.fillStyle = e1 >= r1 ? "rgba(240,180,41,0.28)" : "rgba(140,165,190,0.28)";
-                    ctx.beginPath();
-                    ctx.moveTo(X(i - 1), Y(e0)); ctx.lineTo(X(i), Y(e1)); ctx.lineTo(X(i), Y(r1)); ctx.lineTo(X(i - 1), Y(r0));
-                    ctx.closePath(); ctx.fill();
+                  // The card lives over history, never over "now": its room
+                  // ends a bar short of the newest candle in view.
+                  const newestX = candleRects.length ? Math.max(...candleRects.map(r => r.x + r.w)) : plotRight;
+                  const bounds = { x0: minX, y0: HEADER_FLOOR_Y + 4, x1: Math.min(plotRight - 8, newestX + bsp), y1: floorY };
+                  const x0 = minX;
+                  const y0 = 176;
+                  // MOCKUP SCALE. At desktop size the Founder's plate reads its
+                  // tiers at ~1.3× what the 8–11px chrome gave; the whole plate
+                  // is magnified as one piece so its geometry never drifts.
+                  const scafK = depth === "FOUNDATION" && W >= 1280 && H >= 820
+                    ? Math.max(1, Math.min(1.32, (H - y0 - 40) / 300, (W - x0 - 120) / 470)) : 1;
+                  const forms: { form: "FULL" | "COMPACT"; w: number; h: number; k: number }[] = depth === "FOUNDATION"
+                    ? [
+                        ...(scafK > 1 ? [{ form: "FULL" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION, k: scafK }] : []),
+                        { form: "FULL" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION, k: 1 },
+                        { form: "COMPACT" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION_COMPACT, k: 1 },
+                      ]
+                    : [{ form: "COMPACT" as const, ...SCAFFOLD_CARD_BOX.INTERMEDIATE, k: 1 }];
+                  let pick: { form: "FULL" | "COMPACT"; w: number; h: number; k: number; dock: ReturnType<typeof dockClearOfCandles> } | null = null;
+                  for (const f of forms) {
+                    const dock = dockClearOfCandles({
+                      size: { w: f.w * f.k, h: f.h * f.k },
+                      bounds, candles: candleRects, blockers: floatingChips,
+                      preferred: { x: x0, y: y0 - 9 },
+                    });
+                    if (dock.mode !== "NONE") { pick = { ...f, dock }; break; }
                   }
-                  ctx.lineWidth = 1.5;
-                  ctx.strokeStyle = "rgba(240,190,70,1)";
-                  ctx.beginPath(); sc.effortCurve.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
-                  ctx.strokeStyle = "rgba(180,200,220,1)";
-                  ctx.beginPath(); sc.resultCurve.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
-                  ctx.lineWidth = 1;
-                  const mid = X(Math.floor(n / 2));
-                  ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(237,230,211,0.35)";
-                  ctx.beginPath(); ctx.moveTo(Math.round(mid) + 0.5, gy); ctx.lineTo(Math.round(mid) + 0.5, gy + gh); ctx.stroke();
-                  ctx.setLineDash([]);
-                  ctx.font = font(700, 8);
-                  ctx.fillStyle = "rgba(240,190,70,1)"; ctx.fillText("EFFORT", gx + 4, gy + 8);
-                  ctx.fillStyle = "rgba(180,200,220,1)"; ctx.fillText("RESULT", gx + 48, gy + 8);
-                  ctx.fillStyle = DIM; ctx.fillText(`${n} BARS`, gx + gw - 40, gy + gh + 9);
-                  const by = gy + gh + 18;
-                  ctx.strokeStyle = HAIR; ctx.strokeRect(x0 + 40.5, by + 0.5, w - 80, 50);
-                  ctx.textAlign = "center";
-                  ctx.font = font(700, 8); ctx.fillStyle = GOLD;
-                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", x0 + w / 2, by + 10);
-                  ctx.font = font(700, 15); ctx.fillStyle = CREAM;
-                  ctx.fillText(sc.resultPerEffort == null ? "—" : `${sc.resultPerEffort.toFixed(2)}×`, x0 + w / 2, by + 26);
-                  ctx.font = font(700, 8); ctx.fillStyle = GOLD;
-                  ctx.fillText(sc.conversion ?? "NO EFFORT", x0 + w / 2, by + 42);
-                  ctx.font = font(700, 8); ctx.fillStyle = DIM;
-                  ctx.fillText("PURE SIGNAL. MAXIMUM DISCRETION.", x0 + w / 2, top + h - 9);
-                  floatingChips.push({ x: x0, y: y0 - 9, w: w * scafK, h: (top + h - (y0 - 9)) * scafK });
-                  ctx.textAlign = "left";
+                  // Nowhere clear on this camera: the smallest form keeps its
+                  // preferred spot and its backing YIELDS — the words stay, the
+                  // candles read through, and the receipt counts what it covers.
+                  if (!pick) {
+                    const f = forms[forms.length - 1];
+                    pick = { ...f, dock: dockClearOfCandles({ size: { w: f.w, h: f.h }, bounds, candles: candleRects, blockers: floatingChips, preferred: { x: x0, y: y0 - 9 } }) };
+                  }
+                  const { x: cx0, y: cy0 } = pick.dock.rect;
+                  const k = pick.k, w = pick.w, h = pick.h;
+                  const yielded = pick.dock.mode === "NONE";
+                  ds.scaffoldingForm = depth === "FOUNDATION" ? `CARD:${pick.form}` : "LINES";
+                  ds.scaffoldingDock = yielded ? "YIELDED" : pick.dock.mode;
+                  ds.scaffoldingCardCandleHits = String(countRectHits(pick.dock.rect, candleRects));
+                  ds.scaffoldingScale = k.toFixed(2);
+                  floatingChips.push({ x: cx0, y: cy0, w: w * k, h: h * k });
+
+                  // The read window, bracketed under its own bars: which
+                  // candles this card is about (a hairline may cross wicks).
+                  {
+                    const xa = firstW ? xOf(firstW.time) : null, xb = lastW ? xOf(lastW.time) : null;
+                    const lowY = Math.max(...sc.window.map(b => yOf(b.low) ?? -1e9));
+                    if (xa != null && xb != null && lowY > -1e9) {
+                      const by = Math.min(floorY, Math.round(lowY + 10)) + 0.5;
+                      ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
+                      ctx.beginPath();
+                      ctx.moveTo(xa - bsp / 2, by - 4); ctx.lineTo(xa - bsp / 2, by); ctx.lineTo(xb + bsp / 2, by); ctx.lineTo(xb + bsp / 2, by - 4);
+                      ctx.stroke();
+                      ctx.font = font(700, 7); ctx.fillStyle = DIM;
+                      ctx.textAlign = "right";
+                      ctx.fillText(`${sc.window.length} BARS READ`, xb + bsp / 2, by + 7);
+                      ctx.textAlign = "left";
+                    }
+                  }
+
+                  ctx.save();
+                  ctx.translate(cx0, cy0);
+                  if (k !== 1) ctx.scale(k, k);
+                  ctx.fillStyle = panel(yielded ? 0.3 : 0.97);
+                  ctx.fillRect(0, 0, w, h);
+                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+                  crumb(10, 10, depth === "FOUNDATION" && pick.form === "FULL" ? 9 : 7.5);
+                  const top = 21;
+                  ctx.strokeStyle = "rgba(201,165,92,0.25)";
+                  ctx.beginPath(); ctx.moveTo(6, top - 1.5); ctx.lineTo(w - 6, top - 1.5); ctx.stroke();
+                  if (depth === "FOUNDATION" && pick.form === "FULL") {
+                    // The plate's student view, all six steps fully expanded.
+                    const rowH = 30;
+                    ctx.font = font(700, 11); ctx.fillStyle = GOLD;
+                    ctx.fillText("FOUNDATION VIEW", 12, top + 14);
+                    ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                    ctx.fillText("Full scaffolding · six steps fully expanded · every verdict measured", 12, top + 28);
+                    let ry = top + 40;
+                    for (const st of sc.steps) {
+                      ctx.strokeStyle = "rgba(201,165,92,0.18)";
+                      ctx.beginPath(); ctx.moveTo(8, ry + 0.5); ctx.lineTo(w - 8, ry + 0.5); ctx.stroke();
+                      ctx.font = font(700, 13); ctx.fillStyle = GOLD;
+                      ctx.fillText(String(st.n), 12, ry + rowH / 2);
+                      ctx.font = font(700, 9); ctx.fillStyle = CREAM;
+                      ctx.fillText(clip(st.title, 230), 30, ry + 10);
+                      ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                      ctx.fillText(clip(st.evidence, 262), 30, ry + 22);
+                      const cw = 160, cx = w - cw - 10;
+                      ctx.strokeStyle = HAIR; ctx.strokeRect(cx + 0.5, ry + 4.5, cw, rowH - 9);
+                      ctx.font = font(700, 8); ctx.fillStyle = CREAM;
+                      ctx.textAlign = "center";
+                      ctx.fillText(clip(st.verdict, cw - 8), cx + cw / 2, ry + rowH / 2);
+                      ctx.textAlign = "left";
+                      ry += rowH;
+                    }
+                    ctx.strokeStyle = HAIR; ctx.strokeRect(8.5, ry + 4.5, w - 17, 20);
+                    ctx.font = font(700, 8.5); ctx.fillStyle = GOLD;
+                    ctx.textAlign = "center";
+                    ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 30), w / 2, ry + 14.5);
+                    ctx.textAlign = "left";
+                  } else if (depth === "FOUNDATION") {
+                    // Same six steps, one line each: the number, the step, its verdict.
+                    const rowH = 15;
+                    ctx.font = font(700, 9); ctx.fillStyle = GOLD;
+                    ctx.fillText("FOUNDATION VIEW · SIX STEPS", 10, top + 9);
+                    let ry = top + 18;
+                    for (const st of sc.steps) {
+                      ctx.font = font(700, 9); ctx.fillStyle = GOLD;
+                      ctx.fillText(String(st.n), 10, ry + rowH / 2);
+                      ctx.font = font(700, 8); ctx.fillStyle = CREAM;
+                      ctx.fillText(clip(st.title, 140), 24, ry + rowH / 2);
+                      ctx.textAlign = "right"; ctx.fillStyle = GOLD;
+                      ctx.fillText(clip(st.verdict, w - 180), w - 10, ry + rowH / 2);
+                      ctx.textAlign = "left";
+                      ry += rowH;
+                    }
+                    ctx.font = font(700, 7.5); ctx.fillStyle = GOLD;
+                    ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 20), 10, ry + 9);
+                  } else {
+                    // The plate's compressed view: three dynamics, one posture.
+                    let ry = top + 3;
+                    for (const d of sc.dynamics) {
+                      ctx.font = font(700, 13); ctx.fillStyle = GOLD;
+                      ctx.fillText(d.trend === "UP" ? "↑" : d.trend === "DOWN" ? "↓" : "•", 10, ry + 8);
+                      ctx.font = font(700, 9); ctx.fillStyle = CREAM;
+                      ctx.fillText(d.label, 26, ry + 8);
+                      const lw = ctx.measureText(d.label).width;
+                      ctx.font = font(500, 8); ctx.fillStyle = DIM;
+                      ctx.fillText(clip(d.line, w - 40 - lw), 32 + lw, ry + 8);
+                      ry += 17;
+                    }
+                    ctx.strokeStyle = sc.caution ? GOLD : HAIR;
+                    ctx.strokeRect(6.5, ry + 3.5, w - 13, 32);
+                    ctx.font = font(800, 13); ctx.fillStyle = GOLD;
+                    ctx.fillText(sc.posture, 14, ry + 19.5);
+                    const pw = ctx.measureText(sc.posture).width;
+                    ctx.font = font(500, 7.5); ctx.fillStyle = CREAM;
+                    ctx.fillText(clip(sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired — the read is yours", w - pw - 34), 22 + pw, ry + 20);
+                  }
+                  ctx.restore();
                 }
                 ctx.restore();
               }
             }
-
             ctx.restore();
           } else {
             // REFUSAL IS A FIRST-CLASS RENDER. No field, no band, no implied
@@ -10261,6 +10554,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       {
         const depth = scaffoldingDepthRef.current;
         canvas.dataset.scaffolding = depth === "OFF" ? "OFF" : (scaffoldPainted ?? `${depth}:NEEDS_ABSORPTION`);
+        // The glass receipts describe geometry on THIS frame: when no measured
+        // read painted (refusal, anatomy off or unmeasured), none stands.
+        if (depth === "OFF" || scaffoldPainted == null || (!scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
+          for (const k of SCAFFOLDING_GLASS_RECEIPTS) delete canvas.dataset[k];
+        }
         if (depth !== "OFF" && (scaffoldPainted == null || !scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
           // Refusal is a render: the lens reads effort, and effort is not being read.
           ctx.save();

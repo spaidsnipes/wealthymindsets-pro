@@ -76,6 +76,30 @@ describe("one read, three depths", () => {
     expect(JSON.stringify(v)).not.toMatch(/HTF/);
   });
 
+  // Added 2026-09-25 (canon geometry): the Pro depth is drawn ON the real
+  // candles, so the read carries the window's own bars and its segments.
+  it("PRO carries the window's REAL bars and the per-segment conversion the glass paints", () => {
+    const v = selectScaffoldingRead({ structure: structure(), absorption: anatomy(story), exhaustion: null });
+    expect(v.window.map(b => b.time)).toEqual(story.map(b => b.time));
+    expect(v.window[5]).toMatchObject({ high: story[5].high, low: story[5].low, effortNorm: story[5].effortNorm });
+    expect(v.segments.map(s => [s.from, s.to])).toEqual([[0, 3], [4, 7], [8, 11], [12, 15], [16, 19]]);
+    // Same rule as the window ratio: result share ÷ effort share against CHANGE_AT.
+    expect(v.segments[0].conversion).toBe("CONVERTING");
+    expect(v.segments[4].conversion).toBe("NOT CONVERTING");
+    const s = v.segments[4];
+    expect(s.resultShare / s.effortShare).toBeCloseTo((4 * 0.3 / 11) / (4 * 0.8 / 11));
+    expect(v.segments.reduce((t, g) => t + g.effortShare, 0)).toBeCloseTo(1);
+  });
+
+  it("the swings carry the bar that made them and whether each was a high or a low", () => {
+    const v = selectScaffoldingRead({
+      structure: structure({ swingHighs: [{ time: 120, price: 120 }], swingLows: [{ time: 60, price: 101 }] }),
+      absorption: anatomy(story), exhaustion: null,
+    });
+    expect(v).toMatchObject({ swingAbove: 120, swingAboveTime: 120, swingAboveKind: "HIGH" });
+    expect(v).toMatchObject({ swingBelow: 101, swingBelowTime: 60, swingBelowKind: "LOW" });
+  });
+
   it("carries no probability, star or score field — and says so in step 6", () => {
     const v = selectScaffoldingRead({ structure: structure(), absorption: anatomy(story), exhaustion: null });
     expect(Object.keys(v).some(k => /prob|star|score|confidence/i.test(k))).toBe(false);
