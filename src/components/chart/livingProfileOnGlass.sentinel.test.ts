@@ -73,12 +73,44 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
   });
 
   it("the body never tints a candle: every candle under it is cut out of the fill (Defect 4)", () => {
-    const cut = block.indexOf('ctx.clip("evenodd");');
+    // Pin updated 2026-09-25 (Sentinel P1-1): the cut-out is ONE Path2D built
+    // once per frame and shared by everything the body paints in its room.
+    const cutAt = block.indexOf("const clipToCandleCutOut = () => {");
+    const cutFn = block.slice(cutAt, block.indexOf('ctx.clip(livingCut, "evenodd");', cutAt) + 40);
+    expect(cutFn.length).toBeGreaterThan(200);
+    expect(cutFn).toContain("cut.rect(0, 0, W, H);");
+    expect(cutFn).toMatch(/cut\.rect\(\+xb - bsp \* 0\.42, top, bsp \* 0\.84, bot - top\);/);
+    expect(cutFn).toContain("if (xb == null || +xb < rightEdge - bodyW - 16 - bsp || +xb > rightEdge + bsp) continue;");
+    expect(cutFn).toContain("ds.livingProfileCandlesKept = String(candlesKept);");
+    expect(cutFn).toContain('ctx.clip(livingCut, "evenodd");');
+    const cut = block.search(/ctx\.save\(\); clipToCandleCutOut\(\);\s*const g = ctx\.createLinearGradient\(rightEdge, 0, rightEdge - bodyW, 0\);/);
     const fill = block.indexOf("ctx.fillStyle = g; ctx.fill(bodyPath);");
     expect(cut).toBeGreaterThan(-1);
     expect(fill).toBeGreaterThan(cut);
-    expect(block).toMatch(/ctx\.rect\(\+xb - bsp \* 0\.42, top, bsp \* 0\.84, bot - top\);/);
     expect(block).toMatch(/ctx\.restore\(\); \/\/ releases the candle cut-out/);
+  });
+
+  it("the column wash, the memory ghosts and the POC glow and dot paint inside the same cut-out", () => {
+    // Added 2026-09-25 (Sentinel P1-1): with the body sized from bodyW (up to
+    // 360px) these reached across ~25 older candles while only the body fill
+    // was cut round them.
+    expect(block).toMatch(/ctx\.save\(\); clipToCandleCutOut\(\);\s*ctx\.fillStyle = pk\.rgba\("WASH", 0\.06\);\s*ctx\.fillRect\(rightEdge - bodyW - 4, top, bodyW \+ 8, band\);\s*ctx\.restore\(\);/);
+    const ghosts = block.slice(block.indexOf('ctx.globalAlpha = att.alpha("sessionGhosts");'), block.indexOf("ctx.globalAlpha = livingAlpha;"));
+    const open = ghosts.indexOf("ctx.save(); clipToCandleCutOut();");
+    const close = ghosts.indexOf("ctx.restore(); // releases the ghosts' candle cut-out");
+    expect(open).toBeGreaterThan(-1);
+    expect(close).toBeGreaterThan(open);
+    // Every ghost fill and edge stroke sits between the two; the names are words and print after.
+    for (const draw of ["ctx.fillRect(gRight - w, Math.round(+y - rh / 2), w, rh);", "ctx.lineWidth = 1; ctx.stroke();"]) {
+      const at = ghosts.indexOf(draw);
+      expect(at, draw).toBeGreaterThan(open);
+      expect(at, draw).toBeLessThan(close);
+    }
+    expect(ghosts.indexOf("for (const n of ghostNames) ctx.fillText(n.text, n.x, n.y);")).toBeGreaterThan(close);
+    const glowAt = block.indexOf("const glow = ctx.createRadialGradient(");
+    const poc = block.slice(glowAt - 60, block.indexOf("releases the POC mark's candle cut-out", glowAt));
+    expect(poc).toMatch(/ctx\.save\(\); clipToCandleCutOut\(\);\s*const glow = ctx\.createRadialGradient\(px, \+yp, 0, px, \+yp, 16\);/);
+    expect(poc).toContain("ctx.arc(px, +yp, 5, 0, Math.PI * 2);");
   });
 
   it("width comes from `share` — a NORMALISED number, never volume — on the body's scale", () => {

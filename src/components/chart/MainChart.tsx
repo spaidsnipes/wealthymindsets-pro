@@ -11552,6 +11552,44 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
             ds.livingProfileLaneRight = String(Math.round(rightEdge));
 
+            // CANDLE PRESERVATION (Defect 4): ONE candle cut-out for everything
+            // the body paints in its room — the value column's wash, the memory
+            // ghosts, the body, the POC glow and dot. Every candle under that
+            // room (body and wick) is cut out, so the auction sits BEHIND the
+            // market. Wicks are cut above/below the body only (an overlapping
+            // cut would re-fill the body under even-odd). The room reaches the
+            // glow's 16px radius left of the body. Built once, when first asked.
+            let livingCut: Path2D | null = null;
+            const clipToCandleCutOut = () => {
+              if (!livingCut) {
+                const cut = new Path2D();
+                cut.rect(0, 0, W, H);
+                let candlesKept = 0;
+                const tsB = chart.timeScale();
+                const vrB = tsB.getVisibleLogicalRange();
+                const barsB = barsRef.current ?? [];
+                if (vrB) {
+                  const lo = Math.max(0, Math.floor(vrB.from)), hi = Math.min(barsB.length - 1, Math.ceil(vrB.to));
+                  for (let i = lo; i <= hi; i++) {
+                    const b = barsB[i];
+                    const xb = tsB.timeToCoordinate(b.time as never);
+                    if (xb == null || +xb < rightEdge - bodyW - 16 - bsp || +xb > rightEdge + bsp) continue;
+                    const yo = srs.priceToCoordinate(b.open), yc = srs.priceToCoordinate(b.close);
+                    const yhB = srs.priceToCoordinate(b.high), ylB = srs.priceToCoordinate(b.low);
+                    if (yo == null || yc == null) continue;
+                    const top = Math.min(+yo, +yc) - 1, bot = Math.max(+yo, +yc) + 1;
+                    cut.rect(+xb - bsp * 0.42, top, bsp * 0.84, bot - top);
+                    if (yhB != null && +yhB < top) cut.rect(+xb - 1, +yhB - 1, 2, top - +yhB + 1);
+                    if (ylB != null && +ylB > bot) cut.rect(+xb - 1, bot, 2, +ylB - bot + 1);
+                    candlesKept++;
+                  }
+                }
+                ds.livingProfileCandlesKept = String(candlesKept);
+                livingCut = cut;
+              }
+              ctx.clip(livingCut, "evenodd");
+            };
+
             /*
               VALUE-AREA BAND — across the entire pane, not just the histogram.
               §B5 said no full-width paint that eats candles; this obeys it
@@ -11572,8 +11610,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // Denser fill only inside the histogram column so the two
                 // meanings — value area, and where the histogram itself
                 // sits — read together instead of one washing out the other.
+                // The column spans the body's room, so it is cut round the candles.
+                ctx.save(); clipToCandleCutOut();
                 ctx.fillStyle = pk.rgba("WASH", 0.06);
                 ctx.fillRect(rightEdge - bodyW - 4, top, bodyW + 8, band);
+                ctx.restore();
                 // Hairlines at VAH/VAL across the pane so the boundaries
                 // register even where the fill is faint. EDGE, resting in
                 // Living's brass; one path while both sides share an ink (the
@@ -11648,6 +11689,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const livingAlpha = ctx.globalAlpha;
               ctx.globalAlpha = att.alpha("sessionGhosts");
               ds.sessionGhosts = gvm.drawn ? `${gvm.ghosts.map(g => `-${g.sessionsAgo}`).join(",")}:${gvm.fidelity}` : gvm.reason;
+              // The ghosts span the body's room over the older candles, so
+              // their rows and edges paint inside the candle cut-out; their
+              // session names are words, kept whole and printed after.
+              const ghostNames: { text: string; x: number; y: number }[] = [];
+              ctx.save(); clipToCandleCutOut();
               for (const g of [...gvm.ghosts].reverse()) {
                 const k = g.sessionsAgo;
                 const gRight = rightEdge - bodyW * (k === 1 ? 0.38 : 0.66);
@@ -11682,11 +11728,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.lineTo(gRight, rn[rn.length - 1].y);
                   }
                   ctx.strokeStyle = k === 1 ? "rgba(214,210,200,0.55)" : "rgba(214,210,200,0.35)"; ctx.lineWidth = 1; ctx.stroke();
-                  ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-                  ctx.fillStyle = "rgba(214,210,200,0.6)";
-                  ctx.fillText(`−${k}`, gRight - gW * 0.25, edge[edge.length - 1].y + 4);
+                  ghostNames.push({ text: `−${k}`, x: gRight - gW * 0.25, y: edge[edge.length - 1].y + 4 });
                 }
               }
+              ctx.restore(); // releases the ghosts' candle cut-out
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+              ctx.fillStyle = "rgba(214,210,200,0.6)";
+              for (const n of ghostNames) ctx.fillText(n.text, n.x, n.y);
               ctx.globalAlpha = livingAlpha;
             } else {
               delete ds.sessionGhosts;
@@ -11782,36 +11830,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 bodyPath.closePath();
               }
               // CANDLE PRESERVATION (Defect 4): the body is the auction BEHIND
-              // the candles — every candle under it (body and wick) is cut out
-              // of the fill, so the newest bars stay crisp where the body is
-              // brightest. Wicks are cut above/below the body only (an
-              // overlapping cut would re-fill the body under even-odd).
-              ctx.save();
-              ctx.beginPath(); ctx.rect(0, 0, W, H);
-              let candlesKept = 0;
-              {
-                const tsB = chart.timeScale();
-                const vrB = tsB.getVisibleLogicalRange();
-                const barsB = barsRef.current ?? [];
-                if (vrB) {
-                  const lo = Math.max(0, Math.floor(vrB.from)), hi = Math.min(barsB.length - 1, Math.ceil(vrB.to));
-                  for (let i = lo; i <= hi; i++) {
-                    const b = barsB[i];
-                    const xb = tsB.timeToCoordinate(b.time as never);
-                    if (xb == null || +xb < rightEdge - bodyW - bsp || +xb > rightEdge + bsp) continue;
-                    const yo = srs.priceToCoordinate(b.open), yc = srs.priceToCoordinate(b.close);
-                    const yhB = srs.priceToCoordinate(b.high), ylB = srs.priceToCoordinate(b.low);
-                    if (yo == null || yc == null) continue;
-                    const top = Math.min(+yo, +yc) - 1, bot = Math.max(+yo, +yc) + 1;
-                    ctx.rect(+xb - bsp * 0.42, top, bsp * 0.84, bot - top);
-                    if (yhB != null && +yhB < top) ctx.rect(+xb - 1, +yhB - 1, 2, top - +yhB + 1);
-                    if (ylB != null && +ylB > bot) ctx.rect(+xb - 1, bot, 2, +ylB - bot + 1);
-                    candlesKept++;
-                  }
-                }
-              }
-              ctx.clip("evenodd");
-              ds.livingProfileCandlesKept = String(candlesKept);
+              // the candles, filled inside the one candle cut-out, so the
+              // newest bars stay crisp where the body is brightest.
+              ctx.save(); clipToCandleCutOut();
               // The body: brightest at its base by the newest bars, fading
               // toward the tips so the candles under it stay readable.
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
@@ -11858,7 +11879,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const px = rightEdge - Math.max(1, Math.round(pocBar.share * bodyW));
                 ctx.setLineDash([4, 4]); ctx.strokeStyle = pk.rgba("POC", 0.55); ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(0, Math.round(+yp) + 0.5); ctx.lineTo(px - 8, Math.round(+yp) + 0.5); ctx.stroke(); ctx.setLineDash([]);
-                // The auction's heaviest price glows at the body's peak (P110).
+                // The auction's heaviest price glows at the body's peak (P110),
+                // which sits over older candles: glow and dot are cut round them.
+                ctx.save(); clipToCandleCutOut();
                 const glow = ctx.createRadialGradient(px, +yp, 0, px, +yp, 16);
                 glow.addColorStop(0, pk.chosenOr("POC", 0.55, "rgba(240,200,100,0.55)"));
                 glow.addColorStop(1, pk.chosenOr("POC", 0, "rgba(240,200,100,0)"));
@@ -11866,6 +11889,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.beginPath(); ctx.arc(px, +yp, 5, 0, Math.PI * 2);
                 ctx.fillStyle = pk.chosenOr("POC", 1, "rgba(240,200,100,1)"); ctx.fill();
                 ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore(); // releases the POC mark's candle cut-out
               }
             }
 
