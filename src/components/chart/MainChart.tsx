@@ -207,6 +207,7 @@ import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewMo
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
 import { selectSessionGhostProfiles } from "@/lib/marketData/viewModels/selectSessionGhostProfiles";
 import { selectFarRegimeEnvelope } from "@/lib/marketData/viewModels/selectFarRegimeEnvelope";
+import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -7114,6 +7115,34 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.nearAnatomy;
           delete canvas.dataset.nearTape;
         }
+      } catch { /* camera mid-transition */ }
+
+      /* ── FIDELITY · DATA GAPS ON THE GLASS (canon "Fidelity Five, Not A
+         Rainbow"): where the feed dropped bars inside a session, the hole is
+         bridged by a dashed line from the last close to the next open and
+         says "‑ ‑ GAP · n missing ‑" — two candles never sit side by side
+         as if nothing were missing. Session breaks are not gaps. */
+      try {
+        const dg = selectDataGaps((barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, close: b.close })));
+        let painted = 0;
+        ctx.save();
+        ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+        for (const g of dg.gaps) {
+          const x0 = chart.timeScale().timeToCoordinate(g.fromTime as never), x1 = chart.timeScale().timeToCoordinate(g.toTime as never);
+          const y0 = srs.priceToCoordinate(g.fromClose), y1 = srs.priceToCoordinate(g.toOpen);
+          if (x0 == null || x1 == null || y0 == null || y1 == null) continue;
+          ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(237,230,211,0.7)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(+x0 + 3, +y0); ctx.lineTo(+x1 - 3, +y1); ctx.stroke(); ctx.setLineDash([]);
+          const mx = (+x0 + +x1) / 2, my = Math.min(+y0, +y1) - 10;
+          const t = `‑ ‑ GAP · ${g.missing} missing ‑`;
+          const tw = ctx.measureText(t).width + 8;
+          ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
+          ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
+          forceChips.push({ x: mx - tw / 2, y: my - 12, w: tw, h: 13 });
+          painted++;
+        }
+        ctx.restore();
+        canvas.dataset.dataGaps = `${dg.gaps.length}:${painted}`;
       } catch { /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════
