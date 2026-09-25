@@ -14587,10 +14587,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    */
   const projectedMarketObjects = React.useMemo(() => {
     void rangeVer;
+    // A ZONE pins at its middle, anything else at its price. A supply zone
+    // born on a swing high shares that high with the swing's own LEVEL: both
+    // pins landed on ONE pixel and the lower object could not be selected
+    // (measured on serving, BTC 1m, 2026-09-25). The middle is inside the
+    // zone and never on the level.
+    const pinPrice = (o: (typeof marketObjectTargets)[number]["object"]) =>
+      o.kind === "ZONE" ? (o.priceLow + o.priceHigh) / 2 : o.priceHigh;
     return marketObjectTargets.flatMap(target => {
       const point = logicalToPixel({
         time: target.birthTime,
-        price: target.object.priceHigh,
+        price: pinPrice(target.object),
       });
       const width = containerRef.current?.clientWidth ?? 0;
       const height = containerRef.current?.clientHeight ?? 0;

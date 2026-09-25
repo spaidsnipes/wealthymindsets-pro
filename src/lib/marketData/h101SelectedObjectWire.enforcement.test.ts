@@ -24,7 +24,10 @@ describe("H-101 selected-object wire", () => {
 
   it("projects from birth time and object price without a latest-bar or cursor fallback", () => {
     expect(chart).toContain("time: target.birthTime");
-    expect(chart).toContain("price: target.object.priceHigh");
+    // The object's own price: a LEVEL's price, a ZONE's middle (a supply
+    // zone's high is its swing LEVEL's price — one pixel, two objects).
+    expect(chart).toContain("price: pinPrice(target.object)");
+    expect(chart).toContain('o.kind === "ZONE" ? (o.priceLow + o.priceHigh) / 2 : o.priceHigh;');
     expect(chart).not.toMatch(/selectedMarketObjectTarget[\s\S]{0,500}(latestBar|cursor)/);
   });
 });
