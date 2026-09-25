@@ -6655,6 +6655,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // the full bubble and inscription; the rest stay at their true time
         // and price as quiet rings (still hit-testable, still Inspectable).
         const BIG_TRADE_FULL = 5;
+        // CANON F13 Micro: at NEAR the three largest prints carry an
+        // "important print" ticket on a leader — time · price, size @ ASK/BID
+        // (buyer-initiated lifts the ask; seller-initiated hits the bid), and
+        // SIDE INFERRED when the venue did not stamp the aggressor.
+        const ticketDepth = (() => { try { const vr = chart.timeScale().getVisibleLogicalRange(); return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth; } catch { return "UNMEASURED" as const; } })();
+        const printTickets: { x: number; y: number; w: number; h: number }[] = [];
         let bubbleRank = 0;
         let bubblesQuieted = 0;
         for (const b of [...bubblesRef.current].sort((a, z) => z.r - a.r)) {
@@ -6779,9 +6785,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(`${buy ? "↑" : "↓"} ${formatBubblePrice(b.anchorPrice)}`, b.x, b.y + 15);
             }
           }
+          if (ticketDepth === "NEAR" && bubbleRank <= 3 && b.kind === "big-trade") {
+            const size = buy ? b.ask : b.bid;
+            const inferred = b.aggressorMethod === "TICK_RULE" || b.aggressorMethod === "QUOTE_TEST";
+            const lines = [
+              `${new Date(b.anchorTime * 1000).toISOString().slice(11, 19)} · ${formatBubblePrice(b.anchorPrice)}`,
+              `${formatBubbleVolume(size)} @ ${buy ? "ASK" : "BID"}${inferred ? " · SIDE INFERRED" : ""}`,
+            ];
+            ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
+            const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, th = 34;
+            let tx = b.x - b.r - 24 - tw, ty = b.y - b.r - 20 - th;
+            if (tx < 4) tx = b.x + b.r + 24;
+            if (ty < 96) ty = b.y + b.r + 20;
+            for (let k = 0; k < 4 && printTickets.some(r => tx < r.x + r.w && tx + tw > r.x && ty < r.y + r.h + 4 && ty + th + 4 > r.y); k++) ty += th + 6;
+            printTickets.push({ x: tx, y: ty, w: tw, h: th });
+            ctx.strokeStyle = "rgba(232,184,92,0.8)"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(tx + tw / 2, ty + (ty < b.y ? th : 0)); ctx.lineTo(b.x, b.y); ctx.stroke();
+            ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(tx, ty, tw, th);
+            ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "rgba(240,200,110,1)"; ctx.fillText(lines[0], tx + 8, ty + 11);
+            ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(lines[1], tx + 8, ty + 24);
+          }
           ctx.restore();
         }
         canvas.dataset.bigTradeLabelsStaggered = String(bubbleLabelsStaggered);
+        canvas.dataset.importantPrintTickets = String(printTickets.length);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
       } else {
         // Left big-trades mode → clear bubbles + tooltip
