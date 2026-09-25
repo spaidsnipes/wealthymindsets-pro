@@ -71,7 +71,8 @@ describe("the important-print ticket stays on the plot and leads with its proven
 });
 
 /** The NEAR per-bar delta row. */
-const deltaRow = () => slice("const depthD = semanticDensityForBarCount(nD).depth;", "/* camera mid-transition */");
+// Landmark is the row's depth read — the frame's one semantic-zoom owner.
+const deltaRow = () => slice("const depthD = semanticDensity.depth;", "/* camera mid-transition */");
 
 describe("the NEAR delta row sits in pane 0, on the volume band's edge", () => {
   it("is anchored to pane0Bottom and the volume scale's top margin, not the container height", () => {

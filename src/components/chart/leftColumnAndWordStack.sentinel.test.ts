@@ -41,6 +41,6 @@ describe("left column and word stack", () => {
   });
 
   it("the VP POC tag never prints inside the header band (REGIME desk, 2026-09-25)", () => {
-    expect(CHART).toMatch(/const pocTagY = rowY \+ Math\.round\(rowH\/2\);\s*if \(pocTagY >= 90\) \{/);
+    expect(CHART).toMatch(/const pocTagY = rowY \+ Math\.round\(rowH\/2\);\s*if \(pocTagY >= HEADER_FLOOR_Y\) \{/);
   });
 });

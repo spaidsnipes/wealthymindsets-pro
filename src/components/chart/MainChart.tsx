@@ -7715,12 +7715,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.setLineDash([]);
             // POC price tag so the stationary histogram still has a price anchor —
             // except inside the header band (bar clock, zoom plate, INSPECT),
-            // where it printed under the chrome. 90 is the frame's
-            // HEADER_FLOOR_Y; this runs before that const is declared in the
-            // frame, so the value is restated rather than read. The POC line
-            // itself still draws.
+            // where it printed under the chrome. The POC line itself still draws.
             const pocTagY = rowY + Math.round(rowH/2);
-            if (pocTagY >= 90) {
+            if (pocTagY >= HEADER_FLOOR_Y) {
               ctx.fillStyle = vpPocRgba(0.95);
               ctx.font = "bold 11px monospace";
               ctx.textAlign = "right"; ctx.textBaseline = "middle";
