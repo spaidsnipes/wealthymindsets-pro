@@ -209,7 +209,7 @@ import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewMode
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
-import { selectLiquidityLifecycle, STAGE_ORDER } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
+import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
@@ -1054,6 +1054,8 @@ interface Props {
   riskOnPriceOnChart?: boolean;
   /** Founder mockup · Liquidity Weather lifecycle on price. */
   liquidityLifecycleOnChart?: boolean;
+  /** The room's ONE lifecycle compilation; the canvas draws it and never recomputes it. */
+  liquidityLifecycle?: LiquidityLifecycleVM | null;
   /** H-1001 — the receipt torn from this camera's decision, frozen. */
   riskReceipt?: RiskReceipt | null;
   /** H-1001 — the bracket reading, handed up every frame (into a ref). */
@@ -1392,6 +1394,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   contradictionOnChart = false,
   riskOnPriceOnChart = true,
   liquidityLifecycleOnChart = false,
+  liquidityLifecycle = null,
   riskReceipt = null,
   onRiskOnPrice,
   onContradiction,
@@ -1605,6 +1608,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { onContradictionRef.current = onContradiction; }, [onContradiction]);
   useEffect(() => { onRiskOnPriceRef.current = onRiskOnPrice; }, [onRiskOnPrice]);
   useEffect(() => { activeDecisionIdRef.current = activeDecisionId ?? null; }, [activeDecisionId]);
+
+  const liquidityLifecycleRef = useRef<LiquidityLifecycleVM | null>(null);
+  useEffect(() => { liquidityLifecycleRef.current = liquidityLifecycle ?? null; }, [liquidityLifecycle]);
 
   /*
     The four switches, read the same way as the readings they gate. They change
@@ -11125,161 +11131,131 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         /* ══ LIQUIDITY LIFECYCLE — the Founder's Liquidity Weather mockup ════
            Each pool (a volume-at-price node, candle-estimated) is a band on
-           price, coloured by the stage it was in over time, with a numbered
-           marker where each stage began: 1 APPEARED · 2 GREW · 3 PERSISTED ·
-           4 TOUCHED · 5 REFILLED · 6 CONSUMED. PULLED (7) needs book depth and
-           is shown in the legend as a named refusal, never on a pool. */
+           price whose BIOGRAPHY is told by form on one ink, so it reads with
+           every label hidden:
+             body     how much traded there (fill weight), never its stage
+             edges    dashed while forming → solid once it grew → heavier as
+                      it persisted → heaviest once it refilled after a touch
+             notch    a thin ivory cut through the band where price came back
+             hatch    the stretch from the last touch to the close-through,
+                      then an end cap — a consumed pool stops there
+           Age quiets a pool the longer nothing has happened at it; a consumed
+           pool is memory, so it sits at half weight. PULLED needs book depth
+           and is refused in the caption, never drawn on a pool. The reading
+           is compiled ONCE by the room; this canvas only draws it. */
         if (layerOnRef.current.liquidityLifecycle === true) {
-          const bsL = barsRef.current ?? [];
-          const lc = selectLiquidityLifecycle(bsL.map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close, volume: Number.isFinite(b.volume) ? b.volume : 0 })));
-          ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
-          const STAGE_RGB: Record<string, string> = {
-            APPEARED: "110,200,90", GREW: "190,210,70", PERSISTED: "235,190,60",
-            TOUCHED: "245,160,50", REFILLED: "240,120,40", CONSUMED: "215,60,50", PULLED: "150,90,200",
-          };
-          const tsLc = chart.timeScale();
-          let axisWL = 60;
-          try { axisWL = chart.priceScale("right").width(); } catch { /* keep default */ }
-          const rightL = W - axisWL - 2;
-          ctx.save();
-          if (lc.drawn) {
+          const lc = liquidityLifecycleRef.current;
+          if (!lc) {
+            ds.liquidityLifecycle = "NO_READING";
+            delete ds.liquidityLifecyclePainted;
+          } else {
+            ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
+            const INK = "201,165,92";
+            const tsLc = chart.timeScale();
+            let axisWL = 60;
+            try { axisWL = chart.priceScale("right").width(); } catch { /* keep default */ }
+            // Pools end short of the profile stack rather than crossing it.
+            const stackEdge = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : Infinity;
+            const rightL = Math.min(W - axisWL - 2, stackEdge);
+            let spacingL = 6;
+            try { const s = tsLc.options().barSpacing; if (Number.isFinite(s) && s > 0) spacingL = s; } catch { /* keep default */ }
+            const bsL = barsRef.current ?? [];
+            const barsSince = (t: number) => { let n = 0; for (let i = bsL.length - 1; i >= 0 && Number(bsL[i].time) > t; i--) n++; return n; };
+            const xOf = (t: number) => { const x = tsLc.timeToCoordinate(t as never); return x == null ? null : +x; };
+            const maxVolL = Math.max(1e-12, ...lc.pools.map(p => p.volume));
+            let painted = 0;
+            ctx.save();
             for (const pool of lc.pools) {
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
               if (yT == null || yB == null) continue;
-              const top = Math.min(+yT, +yB) - 2, h = Math.max(4, Math.abs(+yB - +yT) + 4);
+              const top = Math.min(+yT, +yB), h = Math.max(1, Math.abs(+yB - +yT));
+              const xFirst = pool.events.length ? xOf(pool.events[0].time) : null;
+              const openLeft = xFirst == null || xFirst < 0;
+              const x0 = openLeft ? 0 : xFirst!;
+              const consume = pool.events.find(e => e.stage === "CONSUMED");
+              const xConsume = consume ? xOf(consume.time) : null;
+              const xEnd = Math.min(rightL, consume ? (xConsume == null ? -1 : xConsume + spacingL) : rightL);
+              if (xEnd <= x0) continue;
+              const lastEv = pool.events[pool.events.length - 1];
+              const age = Math.max(0.35, Math.min(1, 1 - (lastEv ? barsSince(lastEv.time) : 0) / 240)) * (consume ? 0.5 : 1);
+              ctx.fillStyle = `rgba(${INK},${Math.min(0.2, 0.05 + 0.15 * (pool.volume / maxVolL)) * age})`;
+              ctx.fillRect(x0, top, xEnd - x0, h);
+              let form: { dash: number[]; w: number } = { dash: [2, 3], w: 1 };
               pool.events.forEach((ev, k) => {
-                const xs = tsLc.timeToCoordinate(ev.time as never);
-                const next = pool.events[k + 1];
-                const xe = next ? tsLc.timeToCoordinate(next.time as never) : null;
-                const x0 = xs == null ? 0 : +xs;
-                // A consumed pool is gone: its band stops just past the consume mark.
-                const x1 = xe == null ? (ev.stage === "CONSUMED" ? x0 + 24 : rightL) : +xe;
-                if (x1 <= x0) return;
-                const g = ctx.createLinearGradient(0, top, 0, top + h);
-                g.addColorStop(0, `rgba(${STAGE_RGB[ev.stage]},0.05)`);
-                g.addColorStop(0.5, `rgba(${STAGE_RGB[ev.stage]},0.30)`);
-                g.addColorStop(1, `rgba(${STAGE_RGB[ev.stage]},0.05)`);
-                ctx.fillStyle = g;
-                ctx.fillRect(x0, top, x1 - x0, h);
+                if (ev.stage === "APPEARED") form = { dash: [2, 3], w: 1 };
+                else if (ev.stage === "GREW") form = { dash: [], w: 1 };
+                else if (ev.stage === "PERSISTED") form = { dash: [], w: 1.5 };
+                else if (ev.stage === "REFILLED") form = { dash: [], w: 2 };
+                if (ev.stage === "CONSUMED") return;
+                const xs = Math.max(x0, xOf(ev.time) ?? x0);
+                const nxt = pool.events[k + 1];
+                const xe = Math.min(xEnd, nxt ? (xOf(nxt.time) ?? xEnd) : xEnd);
+                if (xe <= xs) return;
+                ctx.setLineDash(form.dash);
+                ctx.lineWidth = form.w;
+                ctx.strokeStyle = `rgba(${INK},${0.85 * age})`;
+                ctx.beginPath();
+                ctx.moveTo(xs, top + 0.5); ctx.lineTo(xe, top + 0.5);
+                ctx.moveTo(xs, top + h - 0.5); ctx.lineTo(xe, top + h - 0.5);
+                ctx.stroke();
               });
-              // Numbered stage markers, the mockup's ①–⑥, at the moment each began.
+              ctx.setLineDash([]);
+              if (openLeft) {
+                // Its history continues off camera to the left.
+                ctx.setLineDash([2, 3]); ctx.lineWidth = 1;
+                ctx.strokeStyle = `rgba(${INK},${0.6 * age})`;
+                ctx.beginPath(); ctx.moveTo(0.5, top); ctx.lineTo(0.5, top + h); ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              ctx.fillStyle = `rgba(237,230,211,${0.9 * age})`;
               for (const ev of pool.events) {
-                const xr = tsLc.timeToCoordinate(ev.time as never);
-                if (xr == null) continue;
-                const n = STAGE_ORDER.indexOf(ev.stage) + 1;
-                const cx = +xr, cy = top - 11;
-                ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fill();
-                ctx.strokeStyle = `rgba(${STAGE_RGB[ev.stage]},1)`; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1;
-                ctx.fillStyle = `rgba(${STAGE_RGB[ev.stage]},1)`;
-                ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText(String(n), cx, cy + 0.5);
+                if (ev.stage !== "TOUCHED") continue;
+                const xt = xOf(ev.time);
+                if (xt != null && xt >= x0 && xt <= xEnd) ctx.fillRect(xt - 1, top, 2, h);
               }
-              // Current stage, printed at the right end of the band — stepped
-              // off any chip already on the glass (absorption words, panels).
-              ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
-              ctx.textBaseline = "middle";
-              ctx.fillStyle = `rgba(${STAGE_RGB[pool.stage]},1)`;
-              const stageTxt = `${pool.stage} · ${pool.price.toFixed(2)}`;
-              const stw = ctx.measureText(stageTxt).width;
-              let sx: number | null = null;
-              if (pool.stage !== "CONSUMED") sx = rightL - 6 - stw;
-              else {
-                const last = pool.events[pool.events.length - 1];
-                const xc = tsLc.timeToCoordinate(last.time as never);
-                if (xc != null) sx = +xc + 28;
-              }
-              if (sx != null) {
-                const clash = (yy: number) => floatingChips.some(r => sx! < r.x + r.w && sx! + stw > r.x && yy - 6 < r.y + r.h && yy + 6 > r.y);
-                const ym = top + h / 2;
-                const sy = [ym, ym - 12, ym + 12, ym - 24].find(yy => !clash(yy));
-                if (sy != null) {
-                  ctx.textAlign = "left";
-                  ctx.fillText(stageTxt, sx, sy);
-                  floatingChips.push({ x: sx, y: sy - 6, w: stw, h: 12 });
+              if (consume && xConsume != null && xConsume > x0) {
+                const touches = pool.events.filter(e => e.stage === "TOUCHED" && e.time <= consume.time);
+                const xLastTouch = touches.length ? xOf(touches[touches.length - 1].time) : null;
+                const hx0 = Math.max(x0, xLastTouch ?? x0);
+                if (xConsume > hx0) {
+                  ctx.save();
+                  ctx.beginPath(); ctx.rect(hx0, top, xConsume - hx0, h); ctx.clip();
+                  ctx.strokeStyle = `rgba(${INK},${0.6 * age})`; ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  for (let hx = hx0 - h; hx < xConsume; hx += 6) { ctx.moveTo(hx, top + h); ctx.lineTo(hx + h, top); }
+                  ctx.stroke();
+                  ctx.restore();
                 }
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = `rgba(${INK},${0.9 * age})`;
+                ctx.beginPath(); ctx.moveTo(xConsume + 0.5, top - 2); ctx.lineTo(xConsume + 0.5, top + h + 2); ctx.stroke();
               }
+              painted++;
             }
+            ctx.restore();
+            ds.liquidityLifecyclePainted = `${painted}/${lc.pools.length}`;
           }
-          // The ramp legend, the mockup's header strip.
-          const lx = 12, ly = H - 128, segW = 84;
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-          ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.fillStyle = "rgba(11,10,8,0.88)";
-          ctx.fillRect(lx - 4, ly - 20, segW * 7 + 8, 38);
-          ctx.fillStyle = "rgba(201,165,92,1)";
-          ctx.fillText(lc.drawn ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · volume-at-price, candle-estimated` : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`, lx, ly - 11);
-          STAGE_ORDER.forEach((st, k) => {
-            const x = lx + k * segW;
-            ctx.fillStyle = `rgba(${STAGE_RGB[st]},${st === "PULLED" ? 0.35 : 0.9})`;
-            ctx.fillRect(x, ly, segW - 2, 4);
-            ctx.fillStyle = st === "PULLED" ? "rgba(200,192,174,0.55)" : "rgba(237,230,211,0.9)";
-            ctx.fillText(`${k + 1} ${st}`, x, ly + 11);
-          });
-          // LIFECYCLE STATUS — the plate's right column, one row per stage:
-          // how many pools stand at it now and when it last happened, counted
-          // in bars. PULLED keeps its row and says why it is never called.
-          // (The plate's 0–100 "Liquidity Weather Index" is not drawn: no
-          // measurement here produces such a score.)
-          if (lc.drawn && W >= 960) {
-            const lastT = bsL.length ? Number(bsL[bsL.length - 1].time) : null;
-            const barsAgo = (t: number) => { let n = 0; for (let i = bsL.length - 1; i >= 0 && Number(bsL[i].time) > t; i--) n++; return n; };
-            const NOTE: Record<string, string> = {
-              APPEARED: "new volume node", GREW: "volume at price rising", PERSISTED: "held 3+ steps",
-              TOUCHED: "price traded back in", REFILLED: "rebuilt after a touch", CONSUMED: "closed through, held",
-              PULLED: "refused · needs book depth",
-            };
-            const pw = 236, rowH = 27, ph = 44 + STAGE_ORDER.length * rowH + 8;
-            const hitP = (x: number, y: number) => floatingChips.some(r => r.h >= 30 && x < r.x + r.w + 6 && x + pw + 6 > r.x && y < r.y + r.h + 6 && y + ph + 6 > r.y);
-            const cands = [{ x: 12, y: 176 }, ...floatingChips.filter(r => r.y < 260 && r.h > 150).map(r => ({ x: r.x + r.w + 12, y: 176 }))]
-              .filter(o => o.x + pw <= rightL - 8 && o.y + ph <= H - 150);
-            const at = cands.find(o => !hitP(o.x, o.y));
-            ds.liquidityLifecycleStatus = at ? "PANEL" : "NO_ROOM";
-            if (at) {
-              const { x: px, y: py } = at;
-              ctx.fillStyle = "rgba(11,10,8,0.95)"; ctx.fillRect(px, py, pw, ph);
-              ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
-              ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              ctx.font = "800 11px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,1)";
-              ctx.fillText("LIFECYCLE STATUS", px + 12, py + 15);
-              ctx.font = "600 8.5px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(200,192,174,0.8)";
-              ctx.fillText(`KEY LIQUIDITY POOLS · ${lc.pools.length} ON THIS CAMERA`, px + 12, py + 30);
-              STAGE_ORDER.forEach((st, k) => {
-                const ry = py + 44 + k * rowH;
-                const col = STAGE_RGB[st];
-                const pulled = st === "PULLED";
-                const now = lc.pools.filter(pl => pl.stage === st).length;
-                const evTimes = lc.pools.flatMap(pl => pl.events.filter(e => e.stage === st).map(e => e.time));
-                const lastEv = evTimes.length ? Math.max(...evTimes) : null;
-                ctx.strokeStyle = "rgba(201,165,92,0.15)";
-                ctx.beginPath(); ctx.moveTo(px + 8, ry + 0.5); ctx.lineTo(px + pw - 8, ry + 0.5); ctx.stroke();
-                ctx.beginPath(); ctx.arc(px + 20, ry + rowH / 2, 8, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(${col},${pulled ? 0.4 : 1})`; ctx.lineWidth = 1.3; ctx.stroke(); ctx.lineWidth = 1;
-                ctx.textAlign = "center"; ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillStyle = `rgba(${col},${pulled ? 0.5 : 1})`; ctx.fillText(String(k + 1), px + 20, ry + rowH / 2 + 0.5);
-                ctx.textAlign = "left";
-                ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
-                ctx.fillStyle = pulled ? "rgba(200,192,174,0.55)" : `rgba(${col},1)`;
-                ctx.fillText(st, px + 36, ry + 9);
-                ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(200,192,174,0.85)";
-                ctx.fillText(NOTE[st], px + 36, ry + 20);
-                ctx.textAlign = "right";
-                if (!pulled) {
-                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.95)";
-                  ctx.fillText(`${now} now`, px + pw - 10, ry + 9);
-                  ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(200,192,174,0.8)";
-                  ctx.fillText(lastEv == null || lastT == null ? "never" : barsAgo(lastEv) === 0 ? "this bar" : `${barsAgo(lastEv)} bars ago`, px + pw - 10, ry + 20);
-                }
-                ctx.textAlign = "left";
-              });
-              floatingChips.push({ x: px, y: py, w: pw, h: ph });
-            }
-          } else ds.liquidityLifecycleStatus = lc.drawn ? "NARROW" : "NONE";
-          ctx.restore();
-          if (lc.drawn) floatingChips.push({ x: lx - 4, y: ly - 20, w: segW * 7 + 8, h: 38 });
+          // ONE caption line in the bottom-left word stack, above the weather
+          // words when they speak. No box: the pools are the reading.
+          {
+            const caption = !lc
+              ? "LIQUIDITY LIFECYCLE · no reading"
+              : lc.drawn
+                ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · loaded history · candle-estimated · PULLED refused (no book)`
+                : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`;
+            const weatherLines = ds.liquidityWeatherStage ? (ds.liquidityWeatherShelves ? 3 : 2) : 0;
+            const cy = Math.max(20, H - 6) - weatherLines * 11;
+            ctx.save();
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+            ctx.fillStyle = "rgba(237,230,211,0.65)";
+            ctx.fillText(caption, 8, cy);
+            floatingChips.push({ x: 8, y: cy - 11, w: ctx.measureText(caption).width, h: 11 });
+            ctx.restore();
+          }
         } else {
           ds.liquidityLifecycle = "OFF";
+          delete ds.liquidityLifecyclePainted;
         }
 
         /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════

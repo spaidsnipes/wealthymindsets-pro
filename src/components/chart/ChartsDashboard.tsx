@@ -283,6 +283,7 @@ import selectCompositeProfile from "@/lib/marketData/viewModels/selectCompositeP
 import selectRegimeLighting from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
+import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -1475,6 +1476,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     })),
     identities: chartBarIdentities,
   }), [chartStructureVM, chartBars, chartBarIdentities]);
+  // Compiled once per bar change here, never per animation frame in the
+  // canvas, so Inspect and selection can later read the same reading.
+  const chartLiquidityLifecycle = React.useMemo(
+    () => liquidityLifecycleOn
+      ? selectLiquidityLifecycle(chartBars.map(b => ({
+          time: typeof b.time === "number" ? b.time : Number(b.time),
+          high: b.high, low: b.low, close: b.close,
+          volume: Number.isFinite(b.volume) ? b.volume : 0,
+        })))
+      : null,
+    [liquidityLifecycleOn, chartBars],
+  );
   const chartMarketObjects = React.useMemo(() => [
     ...selectStructureMarketObjects({
       structure: chartStructureVM,
@@ -5237,6 +5250,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       contradictionOnChart={contradictionOn}
                       riskOnPriceOnChart={riskOnPriceOn}
                       liquidityLifecycleOnChart={liquidityLifecycleOn}
+                      liquidityLifecycle={chartLiquidityLifecycle}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
                       onContradiction={onContradiction}
