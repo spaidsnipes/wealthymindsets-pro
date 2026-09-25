@@ -25,6 +25,8 @@ export const MAX_PRICE_PRECISION = 8;
 export const PRECISION_SAMPLE_BARS = 300;
 /** Beyond this many significant figures a price digit is float noise, not a quote. */
 export const SIGNIFICANT_FIGURES = 7;
+/** Share of recent prices a precision must state exactly — the grid, not the odd print. */
+export const GRID_SHARE = 0.9;
 
 /** Only the four prices of the one bar shape (M8: no private bar shapes). */
 export type PrecisionBar = Pick<CanonicalBar, "open" | "high" | "low" | "close">;
@@ -49,8 +51,15 @@ export function pricePrecisionFromBars(bars: readonly PrecisionBar[]): number {
   const maxAbs = Math.max(...values.map(v => Math.abs(v)));
   const intDigits = Math.floor(Math.log10(maxAbs)) + 1;
   const cap = Math.min(MAX_PRICE_PRECISION, Math.max(MIN_PRICE_PRECISION, SIGNIFICANT_FIGURES - intDigits));
+  // THE QUOTING GRID, NOT THE ODD PRINT. A handful of sub-penny fills
+  // (midpoint / dark-pool prints on TSLA: 373.805) put the whole axis on three
+  // decimals — "377.000" (serving, 2026-09-25). The grid is the smallest count
+  // that states nearly every recent price exactly.
+  const need = Math.ceil(values.length * GRID_SHARE);
   for (let d = MIN_PRICE_PRECISION; d <= cap; d++) {
-    if (values.every(v => exactAt(v, d))) return d;
+    let exact = 0;
+    for (const v of values) if (exactAt(v, d)) exact++;
+    if (exact >= need) return d;
   }
   // Noise: no count under the cap is exact. Four significant figures below
   // the point, never past the cap.

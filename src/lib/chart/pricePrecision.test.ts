@@ -35,6 +35,16 @@ describe("pricePrecisionFromBars", () => {
     expect(pricePrecisionFromBars([bar(f32(1.14235), f32(1.1431), f32(1.1418), f32(1.14262))])).toBeGreaterThanOrEqual(4);
   });
 
+  it("a few sub-penny prints do not move a stock off cents (TSLA read 377.000)", () => {
+    const bars = Array.from({ length: 40 }, (_, i) => bar(373 + i * 0.01, 373.5 + i * 0.01, 372.9 + i * 0.01, 373.2 + i * 0.01));
+    bars[7] = bar(373.805, 373.9, 373.7, 373.805);
+    bars[21] = bar(374.115, 374.2, 374.0, 374.115);
+    expect(pricePrecisionFromBars(bars)).toBe(2);
+    // …but a market that genuinely quotes finer still gets its grid.
+    const pips = Array.from({ length: 40 }, (_, i) => bar(1.14235 + i * 1e-5, 1.1431, 1.1418, 1.14262 + i * 1e-5));
+    expect(pricePrecisionFromBars(pips)).toBe(5);
+  });
+
   it("no bars → the floor", () => {
     expect(pricePrecisionFromBars([])).toBe(2);
   });
