@@ -5379,6 +5379,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     let sessionBarsCache: { source: LegacyOhlcvTuple[]; key: string; bars: LegacyOhlcvTuple[] } | null = null;
     // Session ghost profiles change only when the bars do; the paint runs ~30×/s.
     let ghostCache: { source: LegacyOhlcvTuple[]; vm: ReturnType<typeof selectSessionGhostProfiles> } | null = null;
+    // Data gaps are a whole-history scan whose answer moves only with the bars
+    // or their identities; the frame only projects it.
+    let dataGapsCache: { source: LegacyOhlcvTuple[]; ids: readonly CanonicalBarIdentity[]; vm: ReturnType<typeof selectDataGaps> } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -7086,11 +7089,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          and why the words never say "missing", is selectDataGaps' reading;
          this block only projects it. */
       try {
-        const dg = selectDataGaps({
-          bars: barsRef.current,
-          identities: barIdentitiesRef.current,
-          continuous: canonicalAssetClass(symbol) === "crypto",
-        });
+        const gapSrc = barsRef.current, gapIds = barIdentitiesRef.current;
+        if (dataGapsCache?.source !== gapSrc || dataGapsCache.ids !== gapIds) dataGapsCache = {
+          source: gapSrc, ids: gapIds,
+          vm: selectDataGaps({
+            bars: gapSrc,
+            identities: gapIds,
+            continuous: canonicalAssetClass(symbol) === "crypto",
+          }),
+        };
+        const dg = dataGapsCache.vm;
         let painted = 0;
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";

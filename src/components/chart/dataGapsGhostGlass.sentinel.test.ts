@@ -27,11 +27,12 @@ const slice = (from: string, to: string) => {
 };
 
 describe("data gap marks", () => {
-  const block = () => slice("selectDataGaps(", "canvas.dataset.dataGaps");
+  const block = () => slice("const gapSrc = ", "canvas.dataset.dataGaps");
 
   it("the session question goes to the owner with the bars' own session identity and the instrument's continuity", () => {
     const b = block();
-    expect(b).toMatch(/identities: barIdentitiesRef\.current/);
+    expect(b).toMatch(/const gapSrc = barsRef\.current, gapIds = barIdentitiesRef\.current;/);
+    expect(b).toMatch(/bars: gapSrc,\s*identities: gapIds,/);
     expect(b).toMatch(/continuous: canonicalAssetClass\(symbol\) === "crypto"/);
   });
 
@@ -41,6 +42,13 @@ describe("data gap marks", () => {
     expect(b).toMatch(/fillText\(t, mx, my\)/);
     expect(b).not.toMatch(/missing/i);
     expect(b).not.toMatch(/GAP ·/);
+  });
+
+  it("the whole-history scan runs when the bars or their identities change, not every frame", () => {
+    expect(CHART.match(/selectDataGaps\(/g) ?? []).toHaveLength(1);
+    expect(CHART).toMatch(/let dataGapsCache: \{[^}]*\} \| null = null;/);
+    expect(CHART).toMatch(/if \(dataGapsCache\?\.source !== gapSrc \|\| dataGapsCache\.ids !== gapIds\) dataGapsCache = \{\s*source: gapSrc, ids: gapIds,\s*vm: selectDataGaps\(/);
+    expect(CHART).toMatch(/const dg = dataGapsCache\.vm;/);
   });
 
   it("the receipt names the refusal instead of reporting an empty measurement", () => {
