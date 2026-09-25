@@ -72,8 +72,10 @@ describe("profile family glass honesty", () => {
   });
 
   it("Fusion is parents → derived knot, not a full-width band with a caption (Defect 1)", () => {
-    const a = CHART.indexOf("P-110 #3 · PROFILE FUSION — WHERE THE SPECIES AGREE");
-    const b = CHART.indexOf("P-110 #4 · PROFILE MEMORY", a);
+    // Code landmarks (the section header is a comment, stripped here).
+    const a = CHART.indexOf("const fu = profileFusionRef.current;");
+    const b = CHART.indexOf("ds.profileFusionMaxSpecies = String(", a);
+    expect(a).toBeGreaterThan(-1);
     const fusion = CHART.slice(a, b);
     expect(fusion.length).toBeGreaterThan(1400);
     // No band across the camera, no boxed provenance caption.
