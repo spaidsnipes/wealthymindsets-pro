@@ -6866,6 +6866,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         bubbleHoverRef.current = null;
         canvas.dataset.bigTradeBubbleCount = "0";
         canvas.dataset.bigTradeBubbleStatus = "OFF";
+        // The count and status speak for an OFF layer; every other receipt
+        // described pixels that are no longer on the glass.
+        for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
+          "bigTradeLabelsStaggered", "importantPrintTickets", "bigTradeQuieted"] as const) delete canvas.dataset[k];
       }
 
       /* ── CANON F13 · MICRO: PER-BAR DELTA ON THE SAME CAMERA ────────────
@@ -7013,6 +7017,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const pr = cachedPr ?? selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side }, respBars, { formingBarTime });
           if (!cachedPr) printResponseCache = { bars: respBars, sp, formingBarTime, vm: pr };
           canvas.dataset.printResponse = pr.drawn ? `${pr.verdict}:${pr.responseBars}` : pr.reason;
+          let envelopeDrawn = false;
           const xe = pr.eventBarTime != null ? chart.timeScale().timeToCoordinate(pr.eventBarTime as never) : null;
           const yp = srs.priceToCoordinate(sp.priceLevel);
           if (pr.drawn && xe != null && yp != null) {
@@ -7097,6 +7102,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.beginPath(); ctx.moveTo(ex, Math.round(+yEh) + 0.5); ctx.lineTo(+xEnd, Math.round(+yEh) + 0.5);
                 ctx.moveTo(ex, Math.round(+yEl) + 0.5); ctx.lineTo(+xEnd, Math.round(+yEl) + 0.5); ctx.stroke(); ctx.setLineDash([]);
                 canvas.dataset.printEnvelope = pr.medianRange.toFixed(2);
+                envelopeDrawn = true;
               }
               const by = up ? ey + 26 : ey - 26;
               ctx.strokeStyle = "rgba(237,230,211,0.9)"; ctx.lineWidth = 1.5;
@@ -7126,6 +7132,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
             ctx.restore();
           }
+          // A selection that draws no envelope (no response bar closed yet,
+          // off camera, refused) must not keep the previous selection's.
+          if (!envelopeDrawn) canvas.dataset.printEnvelope = "NONE";
         } else {
           delete canvas.dataset.printResponse;
           delete canvas.dataset.printEnvelope;

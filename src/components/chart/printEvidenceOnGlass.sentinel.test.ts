@@ -174,6 +174,39 @@ describe("a stepped-out bubble label is an obstacle for later chips", () => {
   });
 });
 
+describe("Big Trades receipts are withdrawn when the layer stops", () => {
+  it("the OFF branch withdraws every receipt the ON pass writes, beyond its count and status", () => {
+    const onStart = RAW.indexOf('if (effectiveFP === "big-trades" || bigTradesOverlay) {');
+    const offStart = RAW.indexOf("// Left big-trades mode", onStart);
+    const offEnd = RAW.indexOf("CANON F13 · MICRO: PER-BAR DELTA", offStart);
+    expect(onStart).toBeGreaterThan(-1);
+    expect(offStart).toBeGreaterThan(onStart);
+    expect(offEnd).toBeGreaterThan(offStart);
+    const on = strip(RAW.slice(onStart, offStart));
+    const off = strip(RAW.slice(offStart, offEnd));
+    const written = new Set([...on.matchAll(/canvas\.dataset\.([A-Za-z0-9_]+)\s*=(?!=)/g)].map(m => m[1]));
+    // Positive control: the ON pass's own receipts were found.
+    expect(written.size).toBeGreaterThanOrEqual(8);
+    for (const k of ["bigTradeLabelsStaggered", "importantPrintTickets", "bigTradeQuieted"]) expect(written.has(k), k).toBe(true);
+    expect(off).toContain("delete canvas.dataset[k];");
+    const stated = new Set([...off.matchAll(/canvas\.dataset\.([A-Za-z0-9_]+)\s*=(?!=)/g)].map(m => m[1]));
+    const listed = new Set([...off.matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]));
+    const missing = [...written].filter(k => !stated.has(k) && !listed.has(k));
+    expect(missing).toEqual([]);
+  });
+
+  it("a selection that draws no envelope says NONE instead of keeping the last one", () => {
+    const b = forceResponse();
+    expect(b).toContain("let envelopeDrawn = false;");
+    const set = b.indexOf("canvas.dataset.printEnvelope = pr.medianRange.toFixed(2);");
+    const flag = b.indexOf("envelopeDrawn = true;");
+    const none = b.indexOf('if (!envelopeDrawn) canvas.dataset.printEnvelope = "NONE";');
+    expect(set).toBeGreaterThan(-1);
+    expect(flag).toBeGreaterThan(set);
+    expect(none).toBeGreaterThan(flag);
+  });
+});
+
 /** The FORCE → RESPONSE pass on the selected print, through its no-selection branch. */
 const forceResponse = () => slice("const sp = selectedPrintRef.current;", "delete canvas.dataset.printEnvelope;");
 
