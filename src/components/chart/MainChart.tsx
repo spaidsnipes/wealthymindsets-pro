@@ -7739,6 +7739,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             const absorbChipRects: { x: number; y: number; w: number; h: number }[] = [];
             let absorbChipsHidden = 0;
+            // H-501 · SEMANTIC ZOOM CHANGES THE REPRESENTATION, not just its
+            // opacity. Same owner, same count the zoom word uses. FAR: a shelf
+            // is only its two edges, no hatch, no words. MID: the shelf and its
+            // reading. NEAR: the shelf opens — one effort tick per bar it is
+            // made of, sized by that bar's measured effort.
+            const shelfDepth = (() => {
+              try {
+                const vr = chartRef.current?.timeScale().getVisibleLogicalRange();
+                return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth;
+              } catch { return "UNMEASURED" as const; }
+            })();
+            ds.absorptionDepthForm = shelfDepth === "FAR" ? "EDGES" : shelfDepth === "NEAR" ? "SHELF+EFFORT_TICKS" : "SHELF";
             for (const zone of anatomy.zones) {
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
@@ -7765,12 +7777,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // extension beyond the bars that produced the zone.
               const desktopShelfInstrument = W >= 960;
 
-              ctx.fillStyle = desktopShelfInstrument
-                ? "rgba(210,214,219,0.10)"
-                : "rgba(212,175,55,0.10)";
-              ctx.fillRect(x0, yHi, bw, bh);
+              if (shelfDepth !== "FAR") {
+                ctx.fillStyle = desktopShelfInstrument
+                  ? "rgba(210,214,219,0.10)"
+                  : "rgba(212,175,55,0.10)";
+                ctx.fillRect(x0, yHi, bw, bh);
+              }
 
-              if (desktopShelfInstrument) {
+              if (desktopShelfInstrument && shelfDepth !== "FAR") {
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(x0, yHi, bw, bh);
@@ -7797,6 +7811,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.moveTo(x0, yLo - 0.5); ctx.lineTo(x1, yLo - 0.5);
               ctx.stroke();
               ctx.setLineDash([]);
+              if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }
+              if (shelfDepth === "NEAR") {
+                ctx.fillStyle = "rgba(237,230,211,0.8)";
+                for (const ab of anatomy.bars) {
+                  if (ab.time < zone.startTime || ab.time > zone.endTime) continue;
+                  const xb = ts.timeToCoordinate(ab.time as never);
+                  if (xb == null) continue;
+                  const len = 4 + ab.effortNorm * 14;
+                  ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, len);
+                }
+              }
 
               // Compact chip. The ratio is the mockup's own reading; when the
               // run displaced price not at all the ratio is unbounded and we
