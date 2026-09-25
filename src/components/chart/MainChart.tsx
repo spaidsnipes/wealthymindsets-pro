@@ -388,6 +388,7 @@ import {
   VP_VALUE_AREA_DEFAULT,
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
+import { PROFILE_INK_AT_REST, resolveProfileInk } from "@/lib/chart/profileFamilyInk";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -2407,6 +2408,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // two brass conversions. Derived from the owning hex so the triplet cannot
   // drift from the swatch a trader sees in the gear.
   const vpColorsRef = useRef(VP_DEFAULT_TRIPLETS);
+  // The rest of the profile family — Living, Composite, Visible Range, TPO,
+  // Structure, Fusion, Memory, Migration, DNA, Fixed Range — resolves its inks
+  // from the SAME triplets in the SAME load, so a POC or VAH/VAL chosen in the
+  // gear restyles every species together. See `lib/chart/profileFamilyInk.ts`.
+  const profileInkRef = useRef(PROFILE_INK_AT_REST);
   useEffect(() => {
     const load = () => {
       try {
@@ -2423,6 +2429,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           poc: poc ?? VP_DEFAULT_TRIPLETS.poc, vah: vah ?? VP_DEFAULT_TRIPLETS.vah,
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
+        profileInkRef.current = resolveProfileInk(vpColorsRef.current);
       } catch {}
       setRangeVer(v => v + 1);
     };
@@ -5930,6 +5937,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const vpPocRgba = (a: number | string) => `rgba(${_vpc.poc[0]},${_vpc.poc[1]},${_vpc.poc[2]},${a})`;
       const vpVahRgba = (a: number | string) => `rgba(${_vpc.vah[0]},${_vpc.vah[1]},${_vpc.vah[2]},${a})`;
       const vpValRgba = (a: number | string) => `rgba(${_vpc.val[0]},${_vpc.val[1]},${_vpc.val[2]},${a})`;
+      // The profile family's inks, by ROLE, from the same palette this frame.
+      // Sites keep their own alphas; this only says what POC, EDGE, VALUE… are.
+      const pk = profileInkRef.current;
 
       // Readable footprint row size + crisp WHITE cell numbers. Every footprint
       // cell number is drawn pure white with a dark halo so it stays legible on
@@ -11136,20 +11146,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const top = Math.min(+yh, +yl);
                 const bot = Math.max(+yh, +yl);
                 const band = Math.max(1, bot - top);
-                ctx.fillStyle = "rgba(237,230,211,0.04)";
+                ctx.fillStyle = pk.rgba("WASH", 0.04);
                 ctx.fillRect(0, top, W, band);
                 // Denser fill only inside the histogram column so the two
                 // meanings — value area, and where the histogram itself
                 // sits — read together instead of one washing out the other.
-                ctx.fillStyle = "rgba(237,230,211,0.06)";
+                ctx.fillStyle = pk.rgba("WASH", 0.06);
                 ctx.fillRect(rightEdge - histMax - 4, top, histMax + 8, band);
                 // Hairlines at VAH/VAL across the pane so the boundaries
-                // register even where the fill is faint.
-                ctx.strokeStyle = "rgba(201,165,92,0.5)";
+                // register even where the fill is faint. EDGE, resting in
+                // Living's brass; one path while both sides share an ink (the
+                // glass at rest), two only once VAH and VAL were given two.
+                const edgeHi = pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.5);
+                const edgeLo = pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.5);
+                ctx.strokeStyle = edgeHi;
                 ctx.lineWidth = 1;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(0, +yh + 0.5); ctx.lineTo(W, +yh + 0.5);
+                if (edgeLo !== edgeHi) { ctx.stroke(); ctx.strokeStyle = edgeLo; ctx.beginPath(); }
                 ctx.moveTo(0, +yl + 0.5); ctx.lineTo(W, +yl + 0.5);
                 ctx.stroke();
                 ctx.setLineDash([]);
@@ -11191,10 +11206,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yh = srs.priceToCoordinate(lp.vah), yl = srs.priceToCoordinate(lp.val), yp = srs.priceToCoordinate(lp.poc);
               if (yh != null && yl != null) {
                 const sx = Math.round(rightEdge - histMax * 0.5) + 0.5;
-                ctx.strokeStyle = "rgba(237,230,211,0.75)"; ctx.lineWidth = 2;
+                ctx.strokeStyle = pk.rgba("VALUE", 0.75); ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(sx, +yh); ctx.lineTo(sx, +yl);
                 ctx.moveTo(sx - 8, +yh); ctx.lineTo(sx + 8, +yh); ctx.moveTo(sx - 8, +yl); ctx.lineTo(sx + 8, +yl); ctx.stroke();
-                if (yp != null) { ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(rightEdge - histMax, +yp); ctx.lineTo(rightEdge, +yp); ctx.stroke(); }
+                if (yp != null) { ctx.strokeStyle = pk.rgba("POC", 1); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(rightEdge - histMax, +yp); ctx.lineTo(rightEdge, +yp); ctx.stroke(); }
                 ctx.lineWidth = 1;
               }
             }
@@ -11271,12 +11286,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Profile is ONE gold silhouette, not a stack of hairline bars.
               // Rows are laid gapless in the plate's gold (value area full,
               // outside value quieter) so they fuse into a continuous shape;
-              // the silhouette edge is traced after the loop.
+              // the silhouette edge is traced after the loop. VALUE and TAIL
+              // rest in that gold (ANCHOR's brass); the POC row keeps Living's
+              // own lit gold until the trader chooses a POC ink.
               ctx.fillStyle = b.isPoc
-                ? "rgba(214,176,92,0.92)"
+                ? pk.chosenOr("POC", 0.92, "rgba(214,176,92,0.92)")
                 : b.insideValueArea
-                  ? "rgba(201,165,92,0.74)"
-                  : "rgba(201,165,92,0.34)";
+                  ? pk.rgbaAs("VALUE", "ANCHOR", 0.74)
+                  : pk.rgbaAs("TAIL", "ANCHOR", 0.34);
               ctx.fillRect(rightEdge - width, y, width, Math.max(1, rowH));
               silhouette.push({ x: rightEdge - width, y: y + rowH / 2 });
               // The slice Inspect is reading, outlined so the ticket and the
@@ -11342,10 +11359,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             } else {
               delete ds.livingProfileForm;
             }
-            drawRef(lp.poc, "rgba(201,165,92,0.90)", false);
-            // Canon: VAH/VAL are solid gold lines, not ivory dashes.
-            drawRef(lp.vah, "rgba(201,165,92,0.80)", false);
-            drawRef(lp.val, "rgba(201,165,92,0.80)", false);
+            drawRef(lp.poc, pk.rgba("POC", 0.90), false);
+            // Canon: VAH/VAL are solid gold lines, not ivory dashes — EDGE,
+            // resting in ANCHOR's brass until the trader picks VAH/VAL inks.
+            drawRef(lp.vah, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.80), false);
+            drawRef(lp.val, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.80), false);
             ctx.setLineDash([]);
             // Canon: the POC is a gold point ON the profile, with a dashed
             // line carried across the market.
@@ -11354,10 +11372,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const pocBar = lp.bars.find(b => b.isPoc);
               if (yp != null && pocBar) {
                 const px = rightEdge - Math.max(1, Math.round(pocBar.share * histMax));
-                ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]); ctx.strokeStyle = pk.rgba("POC", 0.55); ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(0, Math.round(+yp) + 0.5); ctx.lineTo(px - 8, Math.round(+yp) + 0.5); ctx.stroke(); ctx.setLineDash([]);
                 ctx.beginPath(); ctx.arc(px, +yp, 5, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(240,200,100,1)"; ctx.fill();
+                ctx.fillStyle = pk.chosenOr("POC", 1, "rgba(240,200,100,1)"); ctx.fill();
                 ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
               }
             }
@@ -11380,10 +11398,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.beginPath();
               ctx.arc(cx, y, 2.2, 0, Math.PI * 2);
               if (m.kind === "HVN") {
-                ctx.fillStyle = "rgba(201,165,92,0.90)";
+                ctx.fillStyle = pk.rgba("ANCHOR", 0.90);
                 ctx.fill();
               } else {
-                ctx.strokeStyle = "rgba(237,230,211,0.75)";
+                ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.75);
                 ctx.lineWidth = 1;
                 ctx.stroke();
               }
@@ -11417,9 +11435,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             };
             const tag = stacked ? "LIVING " : "";
-            if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, "rgba(201,165,92,0.95)");
-            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, "rgba(194,184,146,0.80)");
-            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, "rgba(194,184,146,0.80)");
+            if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(2)}`, pk.rgba("POC", 0.95));
+            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(2)}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.80));
+            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(2)}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.80));
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
@@ -11433,7 +11451,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (ya != null) {
                 ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
                 ctx.textAlign = "right";
-                ctx.fillStyle = "rgba(194,184,146,0.70)";
+                ctx.fillStyle = pk.rgba("TAIL", 0.70);
                 const words = [lp.estimated ? "CANDLE-ESTIMATED" : null, lp.nodesWithheld ? "NODES WITHHELD" : null]
                   .filter(Boolean).join(" · ");
                 ctx.fillText(words, rightEdge, +ya + 14);
@@ -11446,7 +11464,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // is stroked after Living's alpha is restored, at full strength.
             if (sliceOutline) {
               ctx.save(); ctx.globalAlpha = 1;
-              ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 1.5;
+              ctx.strokeStyle = pk.rgba("ANCHOR", 1); ctx.lineWidth = 1.5;
               ctx.strokeRect(sliceOutline.x, sliceOutline.y, sliceOutline.w, sliceOutline.h);
               ctx.restore();
             }
@@ -11484,7 +11502,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const sx = Math.round(rightEdge - histMax - 6) + 0.5;
                 ctx.save();
                 ctx.lineCap = "butt";
-                ctx.strokeStyle = dna.measured ? "rgba(237,230,211,0.45)" : "rgba(237,230,211,0.25)";
+                ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25);
                 ctx.lineWidth = 1;
                 ctx.setLineDash(dna.estimated ? [2, 2] : []);
                 ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
@@ -11495,13 +11513,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const yVal = dna.val != null ? srs.priceToCoordinate(dna.val) : null;
                   const yVah = dna.vah != null ? srs.priceToCoordinate(dna.vah) : null;
                   if (yVal != null && yVah != null) {
-                    ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 3;
+                    ctx.strokeStyle = pk.rgba("VALUE", 0.85); ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
                   }
                   const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
                   if (yPoc != null) {
                     const yn = Math.round(+yPoc);
-                    ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 2;
+                    ctx.strokeStyle = pk.rgba("POC", 1); ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.moveTo(sx - 3, yn); ctx.lineTo(sx + 3, yn); ctx.stroke();
                   }
                   const ym = dna.massCentrePrice != null ? srs.priceToCoordinate(dna.massCentrePrice) : null;
@@ -11577,12 +11595,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const xs = cp.sessionStarts.map(t => tsC.timeToCoordinate(t as never)).filter((x): x is NonNullable<typeof x> => x != null).map(Number);
                 const laneLeft = right - lane.width;
                 const x0c = xs.length ? Math.max(2, xs[0]) : 2;
-                ctx.strokeStyle = "rgba(194,184,146,0.55)"; ctx.lineWidth = 1;
+                // Sediment is hardware (what went in), in the recessed voice.
+                ctx.strokeStyle = pk.rgbaAs("ANCHOR", "TAIL", 0.55); ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(x0c, yB); ctx.lineTo(laneLeft, yB); ctx.lineTo(laneLeft, yB - 6); ctx.stroke();
                 for (const x of xs) {
                   if (x < 2 || x > laneLeft) continue;
                   ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, yB - 5); ctx.lineTo(Math.round(x) + 0.5, yB + 5); ctx.stroke();
-                  ctx.save(); ctx.strokeStyle = "rgba(194,184,146,0.07)"; ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 90); ctx.lineTo(Math.round(x) + 0.5, yB - 5); ctx.stroke(); ctx.restore();
+                  ctx.save(); ctx.strokeStyle = pk.rgbaAs("ANCHOR", "TAIL", 0.07); ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 90); ctx.lineTo(Math.round(x) + 0.5, yB - 5); ctx.stroke(); ctx.restore();
                 }
                 const offLeft = cp.sessionStarts.length > 0 && (xs.length < cp.sessionStarts.length || xs[0] < 2);
                 if (offLeft) {
@@ -11610,8 +11629,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (yr == null) continue;
                 const y = Math.round(+yr) - Math.floor(rowH / 2);
                 const w = Math.max(1, Math.round(r.share * width));
+                // The body keeps Composite's settled steel (its identity, told
+                // apart from live value); its POC is the family's POC.
                 ctx.fillStyle = r.isPoc
-                  ? "rgba(201,165,92,0.85)"
+                  ? pk.rgba("POC", 0.85)
                   : r.insideValueArea ? "rgba(184,190,196,0.55)" : "rgba(160,166,172,0.28)";
                 ctx.fillRect(right - w, y, w, Math.max(1, rowH - 1));
                 top = Math.min(top, y);
@@ -11628,9 +11649,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillStyle = ink;
                 ctx.fillText(text, right - width - 8, +yr);
               };
-              lab(cp.poc, `CMP POC ${cp.poc?.toFixed(2)}`, "rgba(201,165,92,0.95)");
-              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(2)}`, "rgba(184,190,196,0.85)");
-              lab(cp.val, `CMP VAL ${cp.val?.toFixed(2)}`, "rgba(184,190,196,0.85)");
+              lab(cp.poc, `CMP POC ${cp.poc?.toFixed(2)}`, pk.rgba("POC", 0.95));
+              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(2)}`, pk.chosenOr("EDGE_HIGH", 0.85, "rgba(184,190,196,0.85)"));
+              lab(cp.val, `CMP VAL ${cp.val?.toFixed(2)}`, pk.chosenOr("EDGE_LOW", 0.85, "rgba(184,190,196,0.85)"));
               if (Number.isFinite(top)) {
                 const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED`;
                 const tw = Math.ceil(ctx.measureText(text).width) + 8;
@@ -11680,14 +11701,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const xF = vrpVM.from != null ? chart.timeScale().timeToCoordinate(vrpVM.from as never) : null;
               if (yH != null && yL != null) {
                 const x0v = Math.max(2, xF == null ? 2 : +xF), x1v = right - width - 4, c = 10;
-                ctx.strokeStyle = "rgba(237,230,211,0.8)"; ctx.lineWidth = 1.5;
+                // The viewfinder is the camera's hardware, drawn in ivory.
+                ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.8); ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(x0v, +yH + c); ctx.lineTo(x0v, +yH); ctx.lineTo(x0v + c, +yH);
                 ctx.moveTo(x0v, +yL - c); ctx.lineTo(x0v, +yL); ctx.lineTo(x0v + c, +yL);
                 ctx.moveTo(x1v - c, +yH); ctx.lineTo(x1v, +yH); ctx.lineTo(x1v, +yH + c);
                 ctx.moveTo(x1v - c, +yL); ctx.lineTo(x1v, +yL); ctx.lineTo(x1v, +yL - c);
                 ctx.stroke();
-                ctx.setLineDash([1, 5]); ctx.strokeStyle = "rgba(237,230,211,0.22)"; ctx.lineWidth = 1;
+                ctx.setLineDash([1, 5]); ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.22); ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(x0v + c + 2, Math.round(+yH) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yH) + 0.5);
                 ctx.moveTo(x0v + c + 2, Math.round(+yL) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yL) + 0.5); ctx.stroke(); ctx.setLineDash([]);
                 ds.visibleRangeGeometry = `VIEWFINDER:${Math.round(x0v)}-${Math.round(x1v)}`;
@@ -11712,9 +11734,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = Math.round(+yr) - Math.floor(rowH / 2);
               const w = Math.max(1, Math.round(r.share * width));
               const h = Math.max(1, rowH - 1);
-              ctx.fillStyle = r.isPoc ? "rgba(201,165,92,0.35)" : r.insideValueArea ? "rgba(237,230,211,0.14)" : "rgba(237,230,211,0.06)";
+              // Hollow "this camera" bars: TAIL rests in the value ivory, fainter.
+              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.35) : r.insideValueArea ? pk.rgba("VALUE", 0.14) : pk.rgbaAs("TAIL", "VALUE", 0.06);
               ctx.fillRect(right - w, y, w, h);
-              ctx.strokeStyle = r.isPoc ? "rgba(201,165,92,0.95)" : r.insideValueArea ? "rgba(237,230,211,0.55)" : "rgba(237,230,211,0.28)";
+              ctx.strokeStyle = r.isPoc ? pk.rgba("POC", 0.95) : r.insideValueArea ? pk.rgba("VALUE", 0.55) : pk.rgbaAs("TAIL", "VALUE", 0.28);
               if (h >= 3) ctx.strokeRect(right - w + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
               top = Math.min(top, y);
               drawn++;
@@ -11730,9 +11753,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = ink;
               ctx.fillText(text, right - width - 8, +yr);
             };
-            lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(2)}`, "rgba(201,165,92,0.95)");
-            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(2)}`, "rgba(237,230,211,0.75)");
-            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(2)}`, "rgba(237,230,211,0.75)");
+            lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(2)}`, pk.rgba("POC", 0.95));
+            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(2)}`, pk.rgba("EDGE_HIGH", 0.75));
+            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(2)}`, pk.rgba("EDGE_LOW", 0.75));
             if (Number.isFinite(top)) {
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW`;
@@ -11743,7 +11766,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillRect(tx, ty - 7, tw, 14);
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillStyle = "rgba(237,230,211,0.92)";
+              ctx.fillStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.92);
               ctx.fillText(text, tx + 4, ty);
             }
             ctx.restore();
@@ -11947,7 +11970,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (yr == null) continue;
               const y = Math.round(+yr) - Math.floor(rowH / 2);
               const h = Math.max(1, rowH - 1);
-              const rgb = r.isPoc ? "201,165,92" : r.insideValueArea ? "237,230,211" : "194,184,146";
+              const rgb = r.isPoc ? pk.rgb("POC") : r.insideValueArea ? pk.rgb("VALUE") : pk.rgb("TAIL");
               const base = r.isPoc ? 1 : r.insideValueArea ? 0.9 : 0.55;
               for (let k = 0; k < r.letters.length; k++) {
                 const L = r.letters.charCodeAt(k) - 65;
@@ -11968,7 +11991,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // returned. A short brass tick OUTSIDE the column, so it reads
               // as a mark on the row and not as a longer bar.
               if (r.single) {
-                ctx.fillStyle = "rgba(201,165,92,0.85)";
+                ctx.fillStyle = pk.rgba("ANCHOR", 0.85);
                 ctx.fillRect(leftEdge - 6, y, 3, h);
                 drawnSingles++;
               }
@@ -11994,9 +12017,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = ink;
               ctx.fillText(text, leftEdge + colMax + 8, y);
             };
-            ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(2) ?? ""}`, "rgba(201,165,92,0.95)", false);
-            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(2) ?? ""}`, "rgba(194,184,146,0.75)", true);
-            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(2) ?? ""}`, "rgba(194,184,146,0.75)", true);
+            ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(2) ?? ""}`, pk.rgba("POC", 0.95), false);
+            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(2) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.75), true);
+            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(2) ?? ""}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.75), true);
 
             ctx.restore();
             ds.tpoProfileRows = String(drawnRows);
@@ -12073,10 +12096,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = Math.round(+yr) - Math.floor(rowH / 2);
               const w = Math.max(1, Math.round(r.share * colMax));
               ctx.fillStyle = r.isPoc
-                ? "rgba(201,165,92,0.55)"
+                ? pk.rgba("POC", 0.55)
                 : r.insideValueArea
-                  ? "rgba(237,230,211,0.26)"
-                  : "rgba(194,184,146,0.14)";
+                  ? pk.rgba("VALUE", 0.26)
+                  : pk.rgba("TAIL", 0.14);
               ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
               top = Math.min(top, y);
               bot = Math.max(bot, y + rowH);
@@ -12085,7 +12108,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
             // The anchor: a hairline spanning the leg's range at the swing bar.
             if (drawnRows > 0) {
-              ctx.strokeStyle = "rgba(201,165,92,0.55)";
+              ctx.strokeStyle = pk.rgba("ANCHOR", 0.55);
               ctx.lineWidth = 1;
               ctx.setLineDash([2, 3]);
               ctx.beginPath();
@@ -12104,16 +12127,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // reads as hanging from its origin, not parked at the edge.
             if (drawnRows > 0) {
               const ya = srs.priceToCoordinate(sp.anchor.price);
-              ctx.fillStyle = "rgba(237,230,211,0.035)";
+              ctx.fillStyle = pk.rgba("WASH", 0.035);
               ctx.fillRect(x0, top, Math.max(0, (W - 76) - x0), bot - top);
-              ctx.strokeStyle = "rgba(201,165,92,0.7)";
+              ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
               ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(histX - 0.5, top); ctx.lineTo(histX - 0.5, bot); ctx.stroke();
               if (ya != null) {
                 const yA = Math.round(+ya);
                 const low = sp.anchor.kind === "LOW";
                 const gy = low ? yA + 7 : yA - 7;
-                ctx.fillStyle = "rgba(201,165,92,0.95)";
+                ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
                 ctx.beginPath();
                 if (low) { ctx.moveTo(x0, gy - 4); ctx.lineTo(x0 + 5, gy + 4); ctx.lineTo(x0 - 5, gy + 4); }
                 else { ctx.moveTo(x0, gy + 4); ctx.lineTo(x0 + 5, gy - 4); ctx.lineTo(x0 - 5, gy - 4); }
@@ -12124,7 +12147,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 let tethered = false;
                 if (x0 - histX > 8) {
                   const yT = Math.min(Math.max(yA, top), bot);
-                  ctx.strokeStyle = "rgba(201,165,92,0.6)";
+                  ctx.strokeStyle = pk.rgba("ANCHOR", 0.6);
                   ctx.beginPath(); ctx.moveTo(x0 - 6, yA + 0.5); ctx.lineTo(histX + 6, yT + 0.5); ctx.lineTo(histX - 0.5, yT + 0.5); ctx.stroke();
                   tethered = true;
                 }
@@ -12137,7 +12160,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (sp.poc != null) {
               const yp = srs.priceToCoordinate(sp.poc);
               if (yp != null) {
-                ctx.strokeStyle = "rgba(201,165,92,0.45)";
+                ctx.strokeStyle = pk.rgba("POC", 0.45);
                 ctx.setLineDash([6, 4]);
                 ctx.beginPath();
                 ctx.moveTo(x0, Math.round(+yp) + 0.5);
@@ -12164,7 +12187,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const cx = Math.max(4, Math.min(x, maxX));
               ctx.fillStyle = "rgba(11,10,8,0.82)";
               ctx.fillRect(cx, y - 12, w, 14);
-              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
               ctx.fillText(text, cx + 4, y);
             };
             chip(
@@ -12212,9 +12235,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (yh == null || yl == null) continue;
               const top = Math.min(+yh, +yl) - 2;
               const h = Math.max(4, Math.abs(+yl - +yh) + 4);
-              ctx.fillStyle = "rgba(201,165,92,0.13)";
+              // The agreement zone is territory resting in brass; its rules
+              // and chip are the house's hardware.
+              ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", 0.13);
               ctx.fillRect(0, top, endX, h);
-              ctx.strokeStyle = "rgba(201,165,92,0.55)";
+              ctx.strokeStyle = pk.rgba("ANCHOR", 0.55);
               ctx.lineWidth = 1;
               ctx.beginPath();
               ctx.moveTo(0, Math.round(top) + 0.5); ctx.lineTo(endX, Math.round(top) + 0.5);
@@ -12226,9 +12251,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = Math.round(top + h / 2);
               ctx.fillStyle = "rgba(11,10,8,0.86)";
               ctx.fillRect(x, y - 8, w, 16);
-              ctx.strokeStyle = "rgba(201,165,92,0.7)";
+              ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
               ctx.strokeRect(x + 0.5, y - 7.5, w - 1, 15);
-              ctx.fillStyle = "rgba(201,165,92,1)";
+              ctx.fillStyle = pk.rgba("ANCHOR", 1);
               ctx.textAlign = "left";
               ctx.fillText(text, x + 5, y);
               painted++;
@@ -12283,7 +12308,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (yh == null || yl == null) continue;
               const x0 = xr == null ? 0 : Math.max(0, Math.round(+xr));
               if (x0 >= endX) continue;
-              ctx.fillStyle = `rgba(201,165,92,${Math.max(0.02, 0.07 - (ago - 1) * 0.015)})`;
+              // A remembered value area: territory, resting in brass.
+              ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", Math.max(0.02, 0.07 - (ago - 1) * 0.015));
               ctx.fillRect(x0, Math.min(+yh, +yl), endX - x0, Math.abs(+yl - +yh));
             }
             let notches = 0;
@@ -12298,14 +12324,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const age = l.sessionsAgo - 1;
               const thick = Math.max(1.5, 5 - age * 1.2);
               const g = ctx.createLinearGradient(0, y - thick, 0, y + thick);
-              g.addColorStop(0, "rgba(201,165,92,0)");
-              g.addColorStop(0.5, `rgba(201,165,92,${Math.max(0.12, 0.34 - age * 0.07)})`);
-              g.addColorStop(1, "rgba(201,165,92,0)");
+              g.addColorStop(0, pk.rgba("POC", 0));
+              g.addColorStop(0.5, pk.rgba("POC", Math.max(0.12, 0.34 - age * 0.07)));
+              g.addColorStop(1, pk.rgba("POC", 0));
               ctx.fillStyle = g;
               ctx.fillRect(x0, y - thick, endX - x0, thick * 2);
-              ctx.fillStyle = "rgba(201,165,92,0.9)";
+              ctx.fillStyle = pk.rgba("POC", 0.9);
               ctx.beginPath(); ctx.arc(x0 + 2, y, 2.5, 0, Math.PI * 2); ctx.fill();
-              ctx.strokeStyle = "rgba(237,230,211,0.75)"; ctx.lineWidth = 1;
+              // Test notches are marks (hardware) drawn in ivory.
+              ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.75); ctx.lineWidth = 1;
               // Memory stays QUIET (visibility governor): the 8 most recent
               // tests leave notches; the exact count stays in the label.
               for (const t of l.recentTestTimes) {
@@ -12325,7 +12352,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (x0 >= endX) continue;
               const fade = Math.max(0.3, 0.9 - (l.sessionsAgo - 1) * 0.15);
               const isPoc = l.kind === "POC";
-              ctx.strokeStyle = isPoc ? `rgba(201,165,92,${fade})` : `rgba(237,230,211,${fade * 0.6})`;
+              const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";
+              ctx.strokeStyle = isPoc ? pk.rgba("POC", fade) : pk.rgba(edge, fade * 0.6);
               ctx.lineWidth = isPoc ? 1.25 : 1;
               ctx.setLineDash(isPoc ? (l.naked ? [] : [8, 3]) : [2, 4]);
               ctx.beginPath();
@@ -12353,7 +12381,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               recordKeepOut(keepOutLedger, spotM);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
               ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);
-              ctx.fillStyle = isPoc ? `rgba(201,165,92,${Math.max(0.6, fade)})` : `rgba(237,230,211,${Math.max(0.55, fade)})`;
+              ctx.fillStyle = isPoc ? pk.rgba("POC", Math.max(0.6, fade)) : pk.rgba(edge, Math.max(0.55, fade));
               ctx.textAlign = "left";
               ctx.fillText(text, spotM.rect.x + 4, y);
             }
@@ -12400,8 +12428,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               xy.forEach((o, k) => { const y = srs.priceToCoordinate(o.q.vah); if (y != null) (k ? ctx.lineTo(+o.x, +y) : ctx.moveTo(+o.x, +y)); });
               for (let k = xy.length - 1; k >= 0; k--) { const y = srs.priceToCoordinate(xy[k].q.val); if (y != null) ctx.lineTo(+xy[k].x, +y); }
               ctx.closePath();
-              ctx.fillStyle = "rgba(237,230,211,0.06)"; ctx.fill();
-              ctx.strokeStyle = "rgba(237,230,211,0.18)"; ctx.lineWidth = 1; ctx.stroke();
+              ctx.fillStyle = pk.rgba("WASH", 0.06); ctx.fill();
+              ctx.strokeStyle = pk.rgba("WASH", 0.18); ctx.lineWidth = 1; ctx.stroke();
               ctx.beginPath();
               let lastX = 0, lastY = 0;
               xy.forEach((o, k) => {
@@ -12409,12 +12437,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (k === 0) ctx.moveTo(+o.x, +y); else { ctx.lineTo(+o.x, lastY); ctx.lineTo(+o.x, +y); }
                 lastX = +o.x; lastY = +y;
               });
-              ctx.strokeStyle = "rgba(201,165,92,0.6)"; ctx.lineWidth = 1.2; ctx.stroke();
-              ctx.beginPath(); ctx.arc(lastX, lastY, 3, 0, Math.PI * 2); ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.fill();
+              ctx.strokeStyle = pk.rgba("POC", 0.6); ctx.lineWidth = 1.2; ctx.stroke();
+              ctx.beginPath(); ctx.arc(lastX, lastY, 3, 0, Math.PI * 2); ctx.fillStyle = pk.rgba("POC", 0.95); ctx.fill();
               const pocY = srs.priceToCoordinate(lp.poc);
               const laneL = stackPlan.lanes.LIVING ?? soloLane(W);
               if (pocY != null && Math.abs(+pocY - lastY) <= 4) {
-                ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(201,165,92,0.45)"; ctx.lineWidth = 1;
+                ctx.setLineDash([2, 3]); ctx.strokeStyle = pk.rgba("ANCHOR", 0.45); ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(lastX + 4, lastY); ctx.lineTo(laneL.right - laneL.width, +pocY); ctx.stroke(); ctx.setLineDash([]);
               }
               ctx.restore();
@@ -12457,9 +12485,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.setLineDash([]);
               return painted;
             };
-            stepLine("vah", "rgba(237,230,211,0.38)", 1, [2, 3]);
-            stepLine("val", "rgba(237,230,211,0.38)", 1, [2, 3]);
-            const drawn = stepLine("poc", "rgba(201,165,92,0.85)", 1.5, []);
+            stepLine("vah", pk.rgba("EDGE_HIGH", 0.38), 1, [2, 3]);
+            stepLine("val", pk.rgba("EDGE_LOW", 0.38), 1, [2, 3]);
+            const drawn = stepLine("poc", pk.rgba("POC", 0.85), 1.5, []);
 
             // Name the line once, at its newest point, with the session's
             // POC travel — a stated distance, not a direction call.
@@ -12485,7 +12513,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               recordKeepOut(keepOutLedger, spotV);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotV, 0.82)})`;
               ctx.fillRect(spotV.rect.x, spotV.rect.y, w, 14);
-              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.fillStyle = pk.rgba("POC", 0.95);
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
               ctx.fillText(text, spotV.rect.x + 4, spotV.rect.y + 7);
@@ -13727,6 +13755,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const tLo = Math.min(d.pts[0].time, d.pts[1].time);
           const tHi = Math.max(d.pts[0].time, d.pts[1].time);
           const vm = selectTimeRangeProfile(barsRef.current || [], tLo, tHi);
+          // The same family ink the overlay reads: a Fixed Range POC is a POC.
+          const pk = profileInkRef.current;
           const x0 = Math.min(A.x, B.x);
           const x1 = Math.max(A.x, B.x);
           const rw = Math.max(1, x1 - x0);
@@ -13738,9 +13768,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const ys = vm.rows.map(r => priceY(r.price)).filter((v): v is number => v != null);
             const yTop = Math.min(...ys) - 4;
             const yBot = Math.max(...ys) + 4;
-            ctx.fillStyle = "rgba(201,165,92,0.05)";
+            ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", 0.05);
             ctx.fillRect(x0, yTop, rw, yBot - yTop);
-            ctx.strokeStyle = "rgba(201,165,92,0.7)";
+            ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
             ctx.lineWidth = 1;
             ctx.strokeRect(x0 + 0.5, yTop + 0.5, rw - 1, yBot - yTop - 1);
             const sorted = [...ys].sort((a, b) => a - b);
@@ -13755,7 +13785,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = priceY(r.price);
               if (y == null) continue;
               const w = Math.max(1, Math.round(r.share * maxW));
-              ctx.fillStyle = r.isPoc ? "rgba(201,165,92,0.85)" : r.insideValueArea ? "rgba(237,230,211,0.45)" : "rgba(194,184,146,0.22)";
+              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.85) : r.insideValueArea ? pk.rgba("VALUE", 0.45) : pk.rgba("TAIL", 0.22);
               ctx.fillRect(x0 + 2, Math.round(y) - Math.floor(rowH / 2), w, Math.max(1, rowH - 1));
             }
             const hline = (price: number | null, ink: string, dash: number[]) => {
@@ -13766,11 +13796,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + 0.5); ctx.lineTo(x1, Math.round(y) + 0.5); ctx.stroke();
               ctx.setLineDash([]);
             };
-            hline(vm.poc, "rgba(201,165,92,0.9)", []);
-            hline(vm.vah, "rgba(237,230,211,0.5)", [3, 4]);
-            hline(vm.val, "rgba(237,230,211,0.5)", [3, 4]);
+            hline(vm.poc, pk.rgba("POC", 0.9), []);
+            hline(vm.vah, pk.rgba("EDGE_HIGH", 0.5), [3, 4]);
+            hline(vm.val, pk.rgba("EDGE_LOW", 0.5), [3, 4]);
             const est = vm.quality === "trade-based" ? "" : " · CANDLE-EST";
-            chip(`FIXED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(2)}${est}`, x0 + 2, yTop - 3, "#C9A55C");
+            chip(`FIXED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(2)}${est}`, x0 + 2, yTop - 3, pk.rgba("ANCHOR", 1));
           } else {
             // Named refusal, where the trader dragged — never an empty box.
             ctx.strokeStyle = "rgba(240,180,41,0.6)";

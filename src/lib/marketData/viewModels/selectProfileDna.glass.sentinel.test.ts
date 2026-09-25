@@ -65,7 +65,10 @@ describe("Profile DNA on the glass (Sentinel)", () => {
   it("shows uncertainty as a dashed spine and a thin sample as the range alone", () => {
     expect(BLOCK).toContain("setLineDash(dna.estimated ? [2, 2] : [])");
     expect(BLOCK).toContain('dna.reason === "THIN_SAMPLE"');
-    expect(BLOCK).toContain("rgba(237,230,211,0.25)");
+    // A thin sample is the SAME ink as a measured spine, fainter: one role
+    // (profileFamilyInk.ts VALUE), two site alphas. Pinned together so the
+    // faint arm cannot drift to a different ink or to the measured weight.
+    expect(BLOCK).toContain('dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25)');
     // Bracket, notch and diamond are drawn only for a measured reading.
     const measuredArm = BLOCK.slice(BLOCK.indexOf("if (dna.measured) {"));
     expect(measuredArm).toContain("lineWidth = 3");

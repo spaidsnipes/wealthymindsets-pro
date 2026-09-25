@@ -87,7 +87,9 @@ describe("the selected object is loudest", () => {
     // full-strength save sits between them.
     const rowsEnd = living.lastIndexOf("ctx.restore();", stroke);
     expect(rowsEnd).toBeGreaterThan(-1);
-    expect(living.slice(rowsEnd, stroke)).toMatch(/^ctx\.restore\(\);\s*if \(sliceOutline\) \{\s*ctx\.save\(\); ctx\.globalAlpha = 1;\s*ctx\.strokeStyle = "rgba\(201,165,92,1\)"; ctx\.lineWidth = 1\.5;\s*$/);
+    // The outline's ink is the profile family's ANCHOR role at full strength
+    // (profileFamilyInk.ts); the alpha stays pinned here, not in the owner.
+    expect(living.slice(rowsEnd, stroke)).toMatch(/^ctx\.restore\(\);\s*if \(sliceOutline\) \{\s*ctx\.save\(\); ctx\.globalAlpha = 1;\s*ctx\.strokeStyle = pk\.rgba\("ANCHOR", 1\); ctx\.lineWidth = 1\.5;\s*$/);
     // Inside the rows loop the slice is only located, never stroked.
     const rows = living.slice(0, rowsEnd);
     expect(rows).toMatch(/sliceOutline = \{ x: rightEdge - histMax - 2\.5,/);
