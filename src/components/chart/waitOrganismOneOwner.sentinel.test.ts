@@ -109,7 +109,11 @@ describe("(b) the chart places and draws — it decides nothing", () => {
     const tag = CHART.indexOf("const tagT = debtTagRef.current;");
     for (const marker of [
       "ds.riskOnPrice = \"OFF\";",
-      "LIQUIDITY LIFECYCLE",
+      // RE-AIMED 2026-09-25 on rebase: the F08A liquidity rework (93b4a143)
+      // retired the "LIQUIDITY LIFECYCLE" caption string from CODE (it now
+      // survives only in a comment, which this scan strips), so the marker is
+      // the layer's own identifier — its last receipt write — instead.
+      "liquidityLifecycle",
     ]) {
       // The LAST occurrence: the block must follow every paint of that layer.
       const at = CHART.lastIndexOf(marker);
