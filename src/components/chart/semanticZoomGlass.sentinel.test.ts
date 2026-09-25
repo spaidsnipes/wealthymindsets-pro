@@ -41,4 +41,15 @@ describe("semantic zoom glass", () => {
     // The question lens still scales the tiers later — depth is untouched by it.
     expect(CHART.indexOf("macro: semanticDensity.macro * questionQuiet,")).toBeGreaterThan(owner);
   });
+
+  it("the FAR veil dims pane 0 only: painted inside the pane-0 clip, sized to it", () => {
+    const clip = CHART.indexOf("ctx.rect(0, 0, plotRight, pane0Bottom);\n      ctx.clip();");
+    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    expect(clip).toBeGreaterThan(-1);
+    expect(far).toBeGreaterThan(clip);
+    const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
+    expect(block).toMatch(/ctx\.fillStyle = "rgba\(11,10,8,0\.56\)"; ctx\.fillRect\(0, 0, plotRight, pane0Bottom\);/);
+    // Nothing in the FAR block measures the container: H spans every pane.
+    expect(block).not.toMatch(/\bH\s*-/);
+  });
 });

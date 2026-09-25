@@ -5493,54 +5493,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
-      /* ── H-501 · FAR IS A DIFFERENT PICTURE (canon plate
-         WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
-         MAJOR STRUCTURE ONLY). Painted first so every later reading sits on
-         top: a veil dims the candles, the envelope is fit through the
-         confirmed swing pivots in view (selectFarRegimeEnvelope), and the
-         last few pivots are named against their own kind. */
-      try {
-        if (semanticDensity.depth === "FAR") {
-          const axisWF = (() => { try { const w = chart.priceScale("right").width(); if (Number.isFinite(w) && w > 0) return Math.ceil(w); } catch {} return 90; })();
-          const axisHF = (() => { try { const h = chart.timeScale().height(); if (Number.isFinite(h) && h > 0) return Math.ceil(h); } catch {} return 28; })();
-          const pr = Math.max(8, W - axisWF), pb = Math.max(20, H - axisHF);
-          ctx.fillStyle = "rgba(11,10,8,0.56)"; ctx.fillRect(0, 0, pr, pb);
-          const tr = chart.timeScale().getVisibleRange();
-          const env = selectFarRegimeEnvelope((barsRef.current ?? []).map(b => ({ time: Number(b.time), high: b.high, low: b.low })),
-            tr ? Number(tr.from) : 0, tr ? Number(tr.to) : 0);
-          canvas.dataset.farForm = env.drawn ? `DIM+ENVELOPE:${env.lean}+NAMED:${env.named.length}` : `DIM:${env.reason}`;
-          if (env.drawn && env.upper && env.lower && env.fromTime != null && env.toTime != null) {
-            const at = (l: { slope: number; intercept: number }, t: number) => srs.priceToCoordinate(l.slope * t + l.intercept);
-            const x0 = chart.timeScale().timeToCoordinate(env.fromTime as never), x1 = chart.timeScale().timeToCoordinate(env.toTime as never);
-            const u0 = at(env.upper, env.fromTime), u1 = at(env.upper, env.toTime), l0 = at(env.lower, env.fromTime), l1 = at(env.lower, env.toTime);
-            if (x0 != null && x1 != null && u0 != null && u1 != null && l0 != null && l1 != null) {
-              ctx.save();
-              ctx.beginPath(); ctx.moveTo(+x0, +u0); ctx.lineTo(+x1, +u1); ctx.lineTo(+x1, +l1); ctx.lineTo(+x0, +l0); ctx.closePath();
-              ctx.fillStyle = "rgba(201,165,92,0.07)"; ctx.fill();
-              ctx.strokeStyle = "rgba(201,165,92,0.7)"; ctx.lineWidth = 1.5;
-              ctx.beginPath(); ctx.moveTo(+x0, +u0); ctx.lineTo(+x1, +u1); ctx.moveTo(+x0, +l0); ctx.lineTo(+x1, +l1); ctx.stroke();
-              ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(237,230,211,0.35)"; ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(+x0, (+u0 + +l0) / 2); ctx.lineTo(+x1, (+u1 + +l1) / 2); ctx.stroke(); ctx.setLineDash([]);
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center";
-              for (const n of env.named) {
-                const xn = chart.timeScale().timeToCoordinate(n.time as never), yn = srs.priceToCoordinate(n.price);
-                if (xn == null || yn == null) continue;
-                const hi = n.kind === "HIGH", ty = hi ? +yn - 26 : +yn + 26;
-                ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(+xn, hi ? +yn - 4 : +yn + 4); ctx.lineTo(+xn, hi ? ty + 6 : ty - 6); ctx.stroke();
-                ctx.textBaseline = hi ? "bottom" : "top";
-                const tw = ctx.measureText(n.word).width + 10;
-                ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(+xn - tw / 2, hi ? ty - 14 : ty, tw, 14);
-                ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(n.word, +xn, hi ? ty - 1 : ty + 1);
-              }
-              ctx.restore();
-            }
-          }
-        } else {
-          delete canvas.dataset.farForm;
-        }
-      } catch { /* camera mid-transition */ }
-
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
@@ -5648,6 +5600,54 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       ctx.beginPath();
       ctx.rect(0, 0, plotRight, pane0Bottom);
       ctx.clip();
+
+      /* ── H-501 · FAR IS A DIFFERENT PICTURE (canon plate
+         WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
+         MAJOR STRUCTURE ONLY). Painted first so every later reading sits on
+         top: a veil dims the candles, the envelope is fit through the
+         confirmed swing pivots in view (selectFarRegimeEnvelope), and the
+         last few pivots are named against their own kind.
+         Inside the pane-0 clip and sized to pane 0: the plate dims the
+         CANDLES. The container also holds the oscillator panes (RSI, MACD,
+         CVD), and a veil sized from the container darkened their readings. */
+      try {
+        if (semanticDensity.depth === "FAR") {
+          ctx.fillStyle = "rgba(11,10,8,0.56)"; ctx.fillRect(0, 0, plotRight, pane0Bottom);
+          const tr = chart.timeScale().getVisibleRange();
+          const env = selectFarRegimeEnvelope((barsRef.current ?? []).map(b => ({ time: Number(b.time), high: b.high, low: b.low })),
+            tr ? Number(tr.from) : 0, tr ? Number(tr.to) : 0);
+          canvas.dataset.farForm = env.drawn ? `DIM+ENVELOPE:${env.lean}+NAMED:${env.named.length}` : `DIM:${env.reason}`;
+          if (env.drawn && env.upper && env.lower && env.fromTime != null && env.toTime != null) {
+            const at = (l: { slope: number; intercept: number }, t: number) => srs.priceToCoordinate(l.slope * t + l.intercept);
+            const x0 = chart.timeScale().timeToCoordinate(env.fromTime as never), x1 = chart.timeScale().timeToCoordinate(env.toTime as never);
+            const u0 = at(env.upper, env.fromTime), u1 = at(env.upper, env.toTime), l0 = at(env.lower, env.fromTime), l1 = at(env.lower, env.toTime);
+            if (x0 != null && x1 != null && u0 != null && u1 != null && l0 != null && l1 != null) {
+              ctx.save();
+              ctx.beginPath(); ctx.moveTo(+x0, +u0); ctx.lineTo(+x1, +u1); ctx.lineTo(+x1, +l1); ctx.lineTo(+x0, +l0); ctx.closePath();
+              ctx.fillStyle = "rgba(201,165,92,0.07)"; ctx.fill();
+              ctx.strokeStyle = "rgba(201,165,92,0.7)"; ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.moveTo(+x0, +u0); ctx.lineTo(+x1, +u1); ctx.moveTo(+x0, +l0); ctx.lineTo(+x1, +l1); ctx.stroke();
+              ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(237,230,211,0.35)"; ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(+x0, (+u0 + +l0) / 2); ctx.lineTo(+x1, (+u1 + +l1) / 2); ctx.stroke(); ctx.setLineDash([]);
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center";
+              for (const n of env.named) {
+                const xn = chart.timeScale().timeToCoordinate(n.time as never), yn = srs.priceToCoordinate(n.price);
+                if (xn == null || yn == null) continue;
+                const hi = n.kind === "HIGH", ty = hi ? +yn - 26 : +yn + 26;
+                ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(+xn, hi ? +yn - 4 : +yn + 4); ctx.lineTo(+xn, hi ? ty + 6 : ty - 6); ctx.stroke();
+                ctx.textBaseline = hi ? "bottom" : "top";
+                const tw = ctx.measureText(n.word).width + 10;
+                ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(+xn - tw / 2, hi ? ty - 14 : ty, tw, 14);
+                ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(n.word, +xn, hi ? ty - 1 : ty + 1);
+              }
+              ctx.restore();
+            }
+          }
+        } else {
+          delete canvas.dataset.farForm;
+        }
+      } catch { /* camera mid-transition */ }
 
       /* ═══════════════════════════════════════════════════════
          FOOTPRINT MODES — all draw at full candle height (high→low)
