@@ -56,8 +56,19 @@ describe("semantic zoom glass", () => {
   it("FAR structure comes from the ONE structure owner, and the FAR block prints no sequence word of its own", () => {
     const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
-    expect(block).toMatch(/selectFarRegimeEnvelope\(\{\s*structure: scaffoldingStructureRef\.current,/);
+    expect(block).toMatch(/farStructure = scaffoldingStructureRef\.current;/);
+    expect(block).toMatch(/selectFarRegimeEnvelope\(\{ structure: farStructure,/);
     expect(block).toMatch(/ctx\.fillText\(n\.word,/);
     expect(block).not.toMatch(/HIGHER|LOWER/);
+  });
+
+  it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {
+    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
+    expect(block).toMatch(/const hit = fc && fc\.bars === farBars && fc\.structure === farStructure && fc\.from === visibleFrom && fc\.to === visibleTo \? fc : null;/);
+    expect(block).toMatch(/const env = hit \? hit\.vm : selectFarRegimeEnvelope\(/);
+    // One call, behind the cache; no per-frame copy of the history.
+    expect(block.match(/selectFarRegimeEnvelope\(/g)).toHaveLength(1);
+    expect(block).not.toMatch(/barsRef\.current \?\? \[\]\)\.map/);
   });
 });

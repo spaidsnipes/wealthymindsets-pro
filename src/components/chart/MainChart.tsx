@@ -5381,6 +5381,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // whole), so a frame reads only the prints that arrived since the last.
     type SideBasisTally = { n: number; provider: boolean; inferred: boolean; undisclosed: boolean };
     let deltaBasisCache: { acc: Map<number, BigTradeTick[]>; perBar: Map<number, SideBasisTally> } | null = null;
+    // The FAR envelope changes only with the bars, the structure owner's
+    // reading or the visible time range; the paint runs ~30×/s.
+    let farEnvelopeCache: {
+      bars: LegacyOhlcvTuple[]; structure: MarketStructureVM | null; from: number; to: number;
+      vm: ReturnType<typeof selectFarRegimeEnvelope>;
+    } | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -5615,12 +5621,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (semanticDensity.depth === "FAR") {
           ctx.fillStyle = "rgba(11,10,8,0.56)"; ctx.fillRect(0, 0, plotRight, pane0Bottom);
           const tr = chart.timeScale().getVisibleRange();
-          const env = selectFarRegimeEnvelope({
-            structure: scaffoldingStructureRef.current,
-            bars: barsRef.current,
-            visibleFrom: tr ? Number(tr.from) : 0,
-            visibleTo: tr ? Number(tr.to) : 0,
-          });
+          const farBars = barsRef.current, farStructure = scaffoldingStructureRef.current;
+          const visibleFrom = tr ? Number(tr.from) : 0, visibleTo = tr ? Number(tr.to) : 0;
+          const fc = farEnvelopeCache;
+          const hit = fc && fc.bars === farBars && fc.structure === farStructure && fc.from === visibleFrom && fc.to === visibleTo ? fc : null;
+          const env = hit ? hit.vm : selectFarRegimeEnvelope({ structure: farStructure, bars: farBars, visibleFrom, visibleTo });
+          if (!hit) farEnvelopeCache = { bars: farBars, structure: farStructure, from: visibleFrom, to: visibleTo, vm: env };
           canvas.dataset.farForm = env.drawn ? `DIM+ENVELOPE:${env.lean}+NAMED:${env.named.length}` : `DIM:${env.reason}`;
           if (env.drawn && env.upper && env.lower && env.fromTime != null && env.toTime != null) {
             const at = (l: { slope: number; intercept: number }, t: number) => srs.priceToCoordinate(l.slope * t + l.intercept);
