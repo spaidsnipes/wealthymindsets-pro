@@ -75,6 +75,8 @@ export function selectLiquidityLifecycle(input: readonly LifecycleBar[] | null |
     events: { stage: LifecycleStage; time: number }[]; awayBars: number; touched: boolean; touchVol: number;
     beyondBars: number; beyondSide: 0 | 1 | -1; consumed: boolean };
   const tracks = new Map<number, Track>();
+  /** Rows within ±2 of a consumed pool: history, excluded from node slots and the peak. */
+  const historyRows = new Set<number>();
   const add = (t: Track, stage: LifecycleStage, time: number) => { if (!t.events.some(e => e.stage === stage) || stage === "TOUCHED" || stage === "REFILLED") t.events.push({ stage, time }); };
 
   bars.forEach((b, i) => {
@@ -97,7 +99,10 @@ export function selectLiquidityLifecycle(input: readonly LifecycleBar[] | null |
         if (t.beyondBars >= HOLD_BARS) {
           // Consumed only if price crossed to the OTHER side of where it came from.
           const cameFrom = t.events.length ? Math.sign(bars[Math.max(0, i - HOLD_BARS - AWAY_BARS)].close - (t.row + 0.5) * step) : 0;
-          if (cameFrom !== 0 && cameFrom !== side) { add(t, "CONSUMED", b.time); t.consumed = true; }
+          if (cameFrom !== 0 && cameFrom !== side) {
+            add(t, "CONSUMED", b.time); t.consumed = true;
+            for (let d = -2; d <= 2; d++) historyRows.add(t.row + d);
+          }
         }
       } else if (side === 0) { t.beyondBars = 0; }
       if (t.touched && !t.consumed && (vol.get(t.row) ?? 0) >= t.touchVol * (1 + GROWTH) && t.touchVol > 0) {
@@ -112,9 +117,10 @@ export function selectLiquidityLifecycle(input: readonly LifecycleBar[] | null |
     // rows the loaded history ever built filled every slot and set the
     // peak, so no pool near today's price could be born (serving, NQ1! 5m:
     // six consumed pools, 0 painted, nothing live).
-    const consumedRows = [...tracks.values()].filter(t => t.consumed).map(t => t.row);
-    const isHistory = (r: number) => consumedRows.some(cr => Math.abs(cr - r) <= 2);
-    const rows = [...vol.entries()].filter(([r]) => !isHistory(r));
+    // Kept as a set that grows only when a pool is consumed: scanning every
+    // consumed pool for every row on every step doubled the selector's cost
+    // at 5,000 bars (Sentinel, 2026-09-25).
+    const rows = [...vol.entries()].filter(([r]) => !historyRows.has(r));
     if (rows.length === 0) return;
     // A node is a local peak carrying at least half the heaviest live row's volume.
     const peak = Math.max(...rows.map(([, v]) => v));
