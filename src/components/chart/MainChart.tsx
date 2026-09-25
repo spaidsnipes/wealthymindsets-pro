@@ -5473,6 +5473,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (!chart || !candleRef.current) return;
       const srs = candleRef.current;
 
+      /* ══ H-501 · SEMANTIC DENSITY — which geometry may speak at this depth ══
+         Computed ONCE per frame from the same visible-bar count the zoom
+         word uses, before the first layer paints. FAR lets macro speak,
+         MID the profile family, NEAR tape + candle anatomy; the other tiers
+         are quieted, never deleted. UNMEASURED leaves every layer at 1.
+         Every layer that changes FORM by depth reads `.depth` from here: a
+         copied count formula is a second owner, and the first edit to one
+         copy would put that layer at a different depth than the tag prints.
+      ══════════════════════════════════════════════════════════════════════ */
+      let visibleBarCount: number | null = null;
+      let semanticDensity = selectSemanticDensity(null);
+      try {
+        const vr0 = chart.timeScale().getVisibleLogicalRange();
+        visibleBarCount = vr0 ? Math.max(0, Math.floor(vr0.to) - Math.ceil(vr0.from) + 1) : null;
+        semanticDensity = semanticDensityForBarCount(visibleBarCount);
+      } catch { /* no camera yet: UNMEASURED, nothing dims */ }
+
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
@@ -5483,9 +5500,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          confirmed swing pivots in view (selectFarRegimeEnvelope), and the
          last few pivots are named against their own kind. */
       try {
-        const vr = chart.timeScale().getVisibleLogicalRange();
-        const farDepth = semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth;
-        if (farDepth === "FAR") {
+        if (semanticDensity.depth === "FAR") {
           const axisWF = (() => { try { const w = chart.priceScale("right").width(); if (Number.isFinite(w) && w > 0) return Math.ceil(w); } catch {} return 90; })();
           const axisHF = (() => { try { const h = chart.timeScale().height(); if (Number.isFinite(h) && h > 0) return Math.ceil(h); } catch {} return 28; })();
           const pr = Math.max(8, W - axisWF), pb = Math.max(20, H - axisHF);
@@ -6686,7 +6701,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // "important print" ticket on a leader — time · price, size @ ASK/BID
         // (buyer-initiated lifts the ask; seller-initiated hits the bid), and
         // SIDE INFERRED when the venue did not stamp the aggressor.
-        const ticketDepth = (() => { try { const vr = chart.timeScale().getVisibleLogicalRange(); return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth; } catch { return "UNMEASURED" as const; } })();
+        const ticketDepth = semanticDensity.depth;
         const printTickets: { x: number; y: number; w: number; h: number }[] = [];
         let bubbleRank = 0;
         let bubblesQuieted = 0;
@@ -6878,9 +6893,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          above the volume pane, signed, in the Appearance owner's delta inks.
          A bar with no captured tape prints nothing — never an OHLC guess. */
       try {
-        const vrD = chart.timeScale().getVisibleLogicalRange();
-        const nD = vrD ? Math.max(0, Math.floor(vrD.to) - Math.ceil(vrD.from) + 1) : null;
-        const depthD = semanticDensityForBarCount(nD).depth;
+        const depthD = semanticDensity.depth;
         let printed = 0;
         if (depthD === "NEAR") {
           // On the volume band's top edge, inside pane 0. Measured from the
@@ -7148,8 +7161,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          last 10 executions stand beside it: price and who initiated
          (+ buyer / − seller). No tape → no column, never a guess. */
       try {
-        const vrN = chart.timeScale().getVisibleLogicalRange();
-        const nearDepth = semanticDensityForBarCount(vrN ? Math.max(0, Math.floor(vrN.to) - Math.ceil(vrN.from) + 1) : null).depth;
+        const nearDepth = semanticDensity.depth;
         const lastBar = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
         const xl = lastBar ? chart.timeScale().timeToCoordinate(lastBar.time as never) : null;
         if (nearDepth === "NEAR" && lastBar && xl != null) {
@@ -8327,12 +8339,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // reading and one short effort tick per bar it is made of. NEAR:
             // the shelf opens — the same ticks, longer, sized by each bar's
             // measured effort.
-            const shelfDepth = (() => {
-              try {
-                const vr = chartRef.current?.timeScale().getVisibleLogicalRange();
-                return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth;
-              } catch { return "UNMEASURED" as const; }
-            })();
+            // The frame's one depth owner, not a second count of the bars.
+            const shelfDepth = semanticDensity.depth;
             // Counted as they are drawn, so the depth receipt below describes
             // the glass rather than the zoom word.
             let shelvesEdged = 0, shelvesFilled = 0, effortTicksDrawn = 0;
@@ -9381,18 +9389,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          upstream in the compiler; it is named here so an edit to this block
          cannot quietly reintroduce the flattering number.
       ══════════════════════════════════════════════════════════════════════ */
-      /* ══ H-501 · SEMANTIC DENSITY — which geometry may speak at this depth ══
-         Computed ONCE per frame from the same visible-bar count the zoom
-         word uses, before the first layer paints. FAR lets macro speak,
-         MID the profile family, NEAR tape + candle anatomy; the other tiers
-         are quieted, never deleted. UNMEASURED leaves every layer at 1.
-      ══════════════════════════════════════════════════════════════════════ */
-      let semanticDensity = selectSemanticDensity(null);
-      try {
-        const vr0 = chartRef.current?.timeScale().getVisibleLogicalRange();
-        const c0 = vr0 ? Math.max(0, Math.floor(vr0.to) - Math.ceil(vr0.from) + 1) : null;
-        semanticDensity = semanticDensityForBarCount(c0);
-      } catch { /* no camera yet: UNMEASURED, nothing dims */ }
       // An active question quiets everything that is not its subject
       // ("SECONDARY NOISE · QUIETED"). Dims, never deletes.
       if (questionQuiet < 1) {
@@ -10698,12 +10694,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // H-501 · At FAR the Living Profile is its SKELETON: rows are noise
             // at regime scale, so the lane shows a value-area spine with caps
             // and the POC as one brass stroke — same owner, same prices.
-            const livingDepth = (() => {
-              try {
-                const vr = chart.timeScale().getVisibleLogicalRange();
-                return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth;
-              } catch { return "UNMEASURED" as const; }
-            })();
+            const livingDepth = semanticDensity.depth;
             ds.livingProfileDepthForm = livingDepth === "FAR" ? "SKELETON" : "ROWS";
             if (livingDepth === "FAR" && lp.vah != null && lp.val != null) {
               const yh = srs.priceToCoordinate(lp.vah), yl = srs.priceToCoordinate(lp.val), yp = srs.priceToCoordinate(lp.poc);
@@ -12161,11 +12152,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            anatomy of nothing," which is absence as a value.
         ═══════════════════════════════════════════════════════════════════ */
         {
-          const vr = chart.timeScale().getVisibleLogicalRange();
-          const count = vr
-            ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1)
-            : null;
-          const zoom = selectSemanticZoom({ visibleBarCount: count });
+          // The frame's one count — the same number the density owner read.
+          const zoom = selectSemanticZoom({ visibleBarCount: visibleBarCount });
           ds.semanticZoom = zoom.tag ?? `UNMEASURED:${zoom.reason ?? ""}`;
           ds.semanticDensity = `${semanticDensity.macro}/${semanticDensity.mid}/${semanticDensity.micro}`;
           if (zoom.visibleBarCount != null) ds.semanticZoomBars = String(zoom.visibleBarCount);
