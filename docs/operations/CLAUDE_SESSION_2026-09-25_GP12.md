@@ -9,7 +9,7 @@
 > public route → human scene → receipt.
 <!-- END:ath-historical-lineage -->
 
-# Claude session — 2026-09-25 · Garden Pass 12 finish-line shift (local, 02:35–07:30 CDT)
+# Claude session — 2026-09-25 · Garden Pass 12 finish-line shift (local, 02:35–07:30 CDT; review fixes landed 07:30–07:45 after a usage-limit pause)
 
 Picked up after the cloud team's 34 Garden 12 commits (`69d7644a`…`f0ca2eaa`, all LOCAL-DEV
 FIXTURE proof, no serving proof — egress blocked). This shift: (1) verified their work on the
@@ -125,6 +125,7 @@ whole OS 20px sideways (`549dbfe6`).
 | Tour: label smear | The stack column's one-row step oscillated between two neighbours and printed on both; nearest free row (`labelSlot.ts`) | `bc960113` |
 | Tour: FAR gap words | Three "NO BAR · 1 interval" chips across the FAR picture; FAR keeps bridges, words only outages ≥ 3 intervals | `0ff1fd7a` |
 | Review fixes (read-only reviewer, 5 confirmed) | Session window dropped the equity opening bar on 1h/4h (overlap rule now); CVD "since" could outclaim a restarted accumulator; CVD refill on bar load + dated caption; "effort zero" beside "not reported"; Passports rounded prices to 2 dp | `1510e313` |
+| Review fixes (canvas reviewer) | STALE tape now dims every layer by one factor (was: present capped below memory); CVD refill keyed on bar identity; thin-bar pin fan-out; CVD refs cleared on rebuild; RAW hides the CVD pane; draw effect re-runs on symbol; SUPPORTING words keep the 0.5 floor | `dce5c622` |
 | Profile Memory biography | Remembered POC/VAH/VAL become selectable LEVEL MarketObjects (while Memory is on) → pins, one selection, governor focus, the same Passport with tests and lineage | `82ecebb9` |
 
 Intermediate integration commits `1b365799` and `97ca91db` carry two anatomy-sentinel pins that
