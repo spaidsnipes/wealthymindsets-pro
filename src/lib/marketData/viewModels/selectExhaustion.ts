@@ -72,6 +72,17 @@ export interface ExhaustionReading {
   /** The bars follow-through was measured on, oldest first: FT_BARS of them,
    *  or fewer while PENDING. */
   readonly followThroughTimes: readonly number[];
+  /** The same bars with how far each reached (its high on an UP push, its low
+   *  on a DOWN one) and whether that went beyond the extreme. `followThrough`
+   *  is the count of `beyond`, once all FT_BARS exist. */
+  readonly followBars: readonly { readonly time: number; readonly reach: number; readonly beyond: boolean }[];
+  /** Where the push started from: the bar before it — its low (UP) or high
+   *  (DOWN). `extension` is measured from here to `price`. */
+  readonly originPrice: number;
+  /** Mean `effortNorm` of the push's first and second halves — fractions of
+   *  the window's peak effort. `aggressionLevel` is second ÷ first. */
+  readonly effortFirstHalf: number;
+  readonly effortSecondHalf: number;
   /** second-half effort ÷ first-half effort. */
   readonly aggressionLevel: number;
   /** push travel ÷ median bar range. */
@@ -90,6 +101,10 @@ export interface ExhaustionVM {
   readonly reason: "MEASURED" | "UNMEASURED_EFFORT" | "TOO_FEW_BARS";
   /** Exhausted pushes, newest last, capped. */
   readonly marks: readonly ExhaustionReading[];
+  /** Every push in the window, newest last, exhausted or not and uncapped —
+   *  so Inspect can find a selected mark's push after it stops being drawn
+   *  (a near miss, or an exhausted push the cap left off the glass). */
+  readonly pushes: readonly ExhaustionReading[];
   /** The newest push's reading even when it did not exhaust (for Inspect). */
   readonly latestPush: ExhaustionReading | null;
 }
@@ -100,11 +115,11 @@ export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined
   const basis: EffortBasis = anatomy?.basis ?? "UNMEASURED";
   const base = { version: EXHAUSTION_VERSION, basis };
   if (!anatomy || !anatomy.measured || basis === "UNMEASURED") {
-    return { ...base, measured: false, reason: "UNMEASURED_EFFORT", marks: [], latestPush: null };
+    return { ...base, measured: false, reason: "UNMEASURED_EFFORT", marks: [], pushes: [], latestPush: null };
   }
   const bars = anatomy.bars;
   if (bars.length < MIN_PUSH_BARS + 1) {
-    return { ...base, measured: false, reason: "TOO_FEW_BARS", marks: [], latestPush: null };
+    return { ...base, measured: false, reason: "TOO_FEW_BARS", marks: [], pushes: [], latestPush: null };
   }
 
   const ranges = bars.map(b => b.high - b.low).filter(r => r > 0).sort((a, b) => a - b);
@@ -150,6 +165,13 @@ export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined
         pushStartTime: push[0].time,
         pushEndTime: push[len - 1].time,
         followThroughTimes: after.map(b => b.time),
+        followBars: after.map(b => {
+          const reach = up ? b.high : b.low;
+          return { time: b.time, reach, beyond: up ? reach > extremePrice : reach < extremePrice };
+        }),
+        originPrice: origin,
+        effortFirstHalf: effFirst,
+        effortSecondHalf: effSecond,
         aggressionLevel,
         extension,
         followThrough,
@@ -165,6 +187,7 @@ export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined
     measured: true,
     reason: "MEASURED",
     marks: readings.filter(r => r.exhausted).slice(-MAX_MARKS),
+    pushes: readings,
     latestPush: readings.at(-1) ?? null,
   };
 }

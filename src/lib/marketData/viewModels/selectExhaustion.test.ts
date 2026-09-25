@@ -111,6 +111,29 @@ describe("the anatomy", () => {
     }
   });
 
+  it("publishes the halves, the origin and the follow bars it already measured, and they agree with the metrics", () => {
+    const v = selectExhaustion(vm(fadingPush([105, 104.5, 107])));
+    const p = v.latestPush!;
+    expect(p.effortSecondHalf / p.effortFirstHalf).toBeCloseTo(p.aggressionLevel, 12);
+    expect(p.effortFirstHalf).toBeCloseTo((1 + 0.95 + 0.9) / 3, 12);
+    // UP: the origin is the prior bar's LOW, and extension runs origin → extreme.
+    expect(p.originPrice).toBe(99.5);
+    expect(p.followBars.map(f => f.time)).toEqual(p.followThroughTimes);
+    expect(p.followBars.map(f => f.reach)).toEqual([105.5, 105, 107.5]);
+    expect(p.followBars.filter(f => f.beyond).length).toBe(p.followThrough);
+    expect(p.followThrough).toBe(1);
+  });
+
+  it("publishes every push in the window, uncapped, beside the capped marks", () => {
+    const v = selectExhaustion(vm(fadingPush([104, 107.5, 106.9])));
+    expect(v.marks).toEqual([]);
+    expect(v.pushes).toHaveLength(1);
+    expect(v.pushes[0]).toEqual(v.latestPush);
+    expect(v.pushes[0].exhausted).toBe(false);
+    const m = selectExhaustion(vm(fadingPush([105, 104.5, 104])));
+    expect(m.pushes.filter(p => p.exhausted)).toEqual(m.marks);
+  });
+
   it("carries the effort basis through and no probability field", () => {
     const v = selectExhaustion(vm(fadingPush([105, 104.5, 104])));
     expect(v.basis).toBe("VOLUME");

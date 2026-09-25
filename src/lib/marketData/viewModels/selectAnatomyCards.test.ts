@@ -18,10 +18,12 @@ const anatomy = (over: Partial<AbsorptionAnatomyVM> = {}) => ({
 const push = (over: Partial<ExhaustionReading> = {}): ExhaustionReading => ({
   direction: "UP", time: 180, price: 105, pushBars: 6, aggressionLevel: 0.4, extension: 7.7,
   pushStartTime: -120, pushEndTime: 180, followThroughTimes: [240, 300, 360],
+  followBars: [{ time: 240, reach: 104, beyond: false }, { time: 300, reach: 104.5, beyond: false }, { time: 360, reach: 103, beyond: false }],
+  originPrice: 99, effortFirstHalf: 0.9, effortSecondHalf: 0.36,
   followThrough: 0, energyTransfer: 3.81, exhausted: true, ...over,
 });
 const exVM = (marks: ExhaustionReading[], latest: ExhaustionReading | null): ExhaustionVM =>
-  ({ version: 1, measured: true, basis: "VOLUME", reason: "MEASURED", marks, latestPush: latest });
+  ({ version: 1, measured: true, basis: "VOLUME", reason: "MEASURED", marks, pushes: latest ? [latest] : [], latestPush: latest });
 
 describe("the plate's two KEY METRICS columns, from the owners on the chart", () => {
   it("absorption card reads the newest zone's own bars", () => {
@@ -53,6 +55,25 @@ describe("the plate's two KEY METRICS columns, from the owners on the chart", ()
     expect(v.absorption.empty).toMatch(/no run of bars/);
     expect(v.exhaustion.empty).toMatch(/no push/);
     expect(selectAnatomyCards(null, null).measured).toBe(false);
+  });
+
+  it("a target zone reads that zone; the newest zone as target reads exactly what the default reads", () => {
+    const older: AbsorptionZone = { ...zone, startTime: 0, endTime: 0, barCount: 1, efficiencyRatio: 1.5, strength: "WEAK" };
+    const a = anatomy({ zones: [older, zone] });
+    expect(selectAnatomyCards(a, exVM([], null), { zone }).absorption)
+      .toEqual(selectAnatomyCards(a, exVM([], null)).absorption);
+    const onOlder = selectAnatomyCards(a, exVM([], null), { zone: older }).absorption;
+    // bar 0 alone: effort 30%, displacement 80%.
+    expect(onOlder.metrics.map(m => m.value)).toEqual(["30%", "80%", "1.5×", "267%"]);
+    expect(onOlder.metrics[2].word).toBe("WEAK");
+  });
+
+  it("a target push reads that push even when a newer mark exists", () => {
+    const older = push({ time: 60, exhausted: false, followThrough: null, extension: 4 });
+    const v = selectAnatomyCards(anatomy(), exVM([push()], push()), { push: older });
+    expect(v.exhaustion.outcome).toBe("NOT EXHAUSTED · 2 OF 3");
+    expect(v.exhaustion.metrics[2]).toMatchObject({ value: "—", word: "PENDING" });
+    expect(v.exhaustion.time).toBe(60);
   });
 
   it("builds no integrity score, probability or body-metaphor units", () => {

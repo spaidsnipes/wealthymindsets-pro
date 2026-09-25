@@ -31,16 +31,27 @@
  * A push that did not exhaust still gets a card, labelled NOT EXHAUSTED with
  * the conditions it met, so a near miss is shown honestly rather than hidden.
  *
+ * ── A TARGET, FOR INSPECT ──────────────────────────────────────────────────
+ *
+ * The canvas cards read the NEWEST zone and push. Inspect on a selected shelf
+ * or mark asks the same four questions about THAT one, so the builder takes
+ * an optional target: a zone from `anatomy.zones`, a push from the exhaustion
+ * owner. Same arithmetic, other object — never a second copy of the metrics.
+ *
  * PURE. DETERMINISTIC.
  */
 
-import type { AbsorptionAnatomyVM } from "@/lib/marketData/selectAbsorptionAnatomy";
-import { DECLINING_AT, EXTENDED_AT, FT_BARS, type ExhaustionVM } from "./selectExhaustion";
+import {
+  ABSORPTION_ANATOMY_DEFAULTS,
+  type AbsorptionAnatomyVM,
+  type AbsorptionZone,
+} from "@/lib/marketData/selectAbsorptionAnatomy";
+import { DECLINING_AT, EXTENDED_AT, FT_BARS, type ExhaustionReading, type ExhaustionVM } from "./selectExhaustion";
 
 export const ANATOMY_CARDS_VERSION = 1;
-/** Mirrors selectAbsorptionAnatomy's defaults: the thresholds a zone bar met. */
-export const HIGH_EFFORT_AT = 0.6;
-export const WEAK_DISPLACEMENT_AT = 0.35;
+/** The anatomy owner's own gates — the thresholds a zone bar met. */
+export const HIGH_EFFORT_AT = ABSORPTION_ANATOMY_DEFAULTS.effortThreshold;
+export const WEAK_DISPLACEMENT_AT = ABSORPTION_ANATOMY_DEFAULTS.displacementThreshold;
 
 export interface AnatomyMetric {
   readonly label: string;
@@ -81,9 +92,16 @@ function emptyCard(head: typeof ABS_HEAD | typeof EX_HEAD, why: string): Anatomy
   return { ...head, metrics: [], outcome: "", outcomeNote: "", time: null, price: null, empty: why };
 }
 
+/** Which zone / push to read instead of the newest. Absent → the newest. */
+export interface AnatomyCardsTarget {
+  readonly zone?: AbsorptionZone | null;
+  readonly push?: ExhaustionReading | null;
+}
+
 export function selectAnatomyCards(
   anatomy: AbsorptionAnatomyVM | null | undefined,
   exhaustion: ExhaustionVM | null | undefined,
+  target: AnatomyCardsTarget = {},
 ): AnatomyCardsVM {
   const basis = anatomy?.basis ?? "UNMEASURED";
   if (!anatomy || !anatomy.measured || basis === "UNMEASURED") {
@@ -94,8 +112,8 @@ export function selectAnatomyCards(
     };
   }
 
-  // ── ABSORPTION: the newest zone in the window ──
-  const zone = anatomy.zones.at(-1) ?? null;
+  // ── ABSORPTION: the target zone, else the newest zone in the window ──
+  const zone = target.zone ?? anatomy.zones.at(-1) ?? null;
   let absorption: AnatomyCard;
   if (!zone) {
     absorption = emptyCard(ABS_HEAD, anatomy.zoneQualificationPossible === false
@@ -122,9 +140,10 @@ export function selectAnatomyCards(
     };
   }
 
-  // ── EXHAUSTION: the newest exhausted push, else the newest push as a near miss ──
+  // ── EXHAUSTION: the target push, else the newest exhausted push, else the
+  // newest push as a near miss ──
   const mark = exhaustion?.marks.at(-1) ?? null;
-  const push = mark ?? exhaustion?.latestPush ?? null;
+  const push = target.push ?? mark ?? exhaustion?.latestPush ?? null;
   let ex: AnatomyCard;
   if (!exhaustion || !exhaustion.measured || !push) {
     ex = emptyCard(EX_HEAD, "no push of 4+ same-direction closes in the window");

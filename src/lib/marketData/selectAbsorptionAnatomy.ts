@@ -199,12 +199,18 @@ export interface AbsorptionAnatomyOptions {
   readonly minZoneBars?: number;
 }
 
-const DEFAULTS = {
+/**
+ * The gates a zone bar must clear when a caller passes no options. Exported so
+ * a reader that explains a zone (Inspect) prints the thresholds from here, not
+ * from a copy that could drift from what the selector applied.
+ */
+export const ABSORPTION_ANATOMY_DEFAULTS = {
   windowBars: 30,
   effortThreshold: 0.6,
   displacementThreshold: 0.35,
   minZoneBars: 2,
 } as const;
+const DEFAULTS = ABSORPTION_ANATOMY_DEFAULTS;
 
 /** The mockup's legend: > 5.0 STRONG · 2.0–5.0 MODERATE · < 2.0 WEAK. */
 export function strengthOfRatio(ratio: number | null, unbounded: boolean): AbsorptionStrength {

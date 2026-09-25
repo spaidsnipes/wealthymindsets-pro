@@ -14,7 +14,7 @@ const anatomy = (bars: AnatomyBar[], over: Partial<AbsorptionAnatomyVM> = {}) =>
   basis: "VOLUME", measured: true, bars, zones: [zone], windowBars: bars.length,
   effortConcentration: null, effortQualifyingBars: 0, zoneQualificationPossible: true, effortSpreadNote: null, ...over,
 } as AbsorptionAnatomyVM);
-const noEx: ExhaustionVM = { version: 1, measured: true, basis: "VOLUME", reason: "MEASURED", marks: [], latestPush: null };
+const noEx: ExhaustionVM = { version: 1, measured: true, basis: "VOLUME", reason: "MEASURED", marks: [], pushes: [], latestPush: null };
 
 describe("no reading, no question", () => {
   it("nothing material → inactive, nothing quieted", () => {
@@ -64,6 +64,7 @@ describe("exhaustion wins when it is newer", () => {
     const bars = [b(0, 99, 100), b(60, 100, 101), b(120, 100, 101), b(180, 101, 102), b(240, 102, 103), b(300, 103, 104), b(360, 103.5, 104.5)];
     const ex: ExhaustionVM = { ...noEx, marks: [{ direction: "UP", time: 300, price: 104, pushBars: 4,
       pushStartTime: 120, pushEndTime: 300, followThroughTimes: [360],
+      followBars: [{ time: 360, reach: 104.5, beyond: true }], originPrice: 100, effortFirstHalf: 0.8, effortSecondHalf: 0.32,
       aggressionLevel: 0.4, extension: 5, followThrough: 0, energyTransfer: 1, exhausted: true }] };
     const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: ex, livingPoc: null, pivots: [] });
     expect(v.kind).toBe("EXHAUSTION");

@@ -13,7 +13,7 @@ const anatomy = (bars: AnatomyBar[]) => ({
   basis: "VOLUME", measured: true, bars, zones: [], windowBars: bars.length,
   effortConcentration: null, effortQualifyingBars: 0, zoneQualificationPossible: true, effortSpreadNote: null,
 } as AbsorptionAnatomyVM);
-const noEx: ExhaustionVM = { version: 1, measured: true, basis: "VOLUME", reason: "MEASURED", marks: [], latestPush: null };
+const noEx: ExhaustionVM = { version: 1, measured: true, basis: "VOLUME", reason: "MEASURED", marks: [], pushes: [], latestPush: null };
 const ask = (bars: AnatomyBar[], pivots: { time: number; price: number; kind: "HIGH" | "LOW" }[], choice: "CONTINUATION" | "TRAP" | "HOLD", ex: ExhaustionVM = noEx) =>
   selectQuestionLens({ absorption: anatomy(bars), exhaustion: ex, livingPoc: null, pivots, choice });
 
