@@ -51,7 +51,7 @@ describe("profile family glass honesty", () => {
   });
 
   it("the fused object answers to the governors, and its diamond sits on its own body", () => {
-    expect(CHART).toMatch(/const fuseA = magnetLight \* semanticDensity\.mid;/);
+    expect(CHART).toMatch(/const fuseA = att\.alpha\("fusedObject"\);/);
     expect(CHART).toMatch(/const cx = spanL \+ 8, cy = \+yF;/);
   });
 

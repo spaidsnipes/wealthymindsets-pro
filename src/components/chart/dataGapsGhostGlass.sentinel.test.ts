@@ -60,13 +60,13 @@ describe("memory ghost candles", () => {
   const ghostBlock = () => slice("if (layerOnRef.current.memoryGhost === true && srs) {", 'ds.memoryGhost = "OFF";');
   const candleForm = () => slice("if (ghost.candles.length > 1 && bsp >= GHOST_CANDLE_MIN_SPACING) {", "ds.memoryGhostForm = `CANDLES:");
 
-  it("never paints brighter than the owner's ceiling: every ghost stroke is at ghost.opacity", () => {
+  it("never paints brighter than the owner's ceiling: every ghost stroke is at ghost.opacity (the attention governor may only lower it)", () => {
     const b = ghostBlock();
     const label = b.indexOf("ctx.globalAlpha = 0.85;");
     expect(label).toBeGreaterThan(-1);
     const alphas = b.slice(0, label).match(/globalAlpha = [^;]+;/g) ?? [];
     expect(alphas.length).toBeGreaterThan(0);
-    for (const a of alphas) expect(a).toBe("globalAlpha = ghost.opacity;");
+    for (const a of alphas) expect(a).toBe('globalAlpha = Math.min(ghost.opacity, att.alpha("memoryGhost"));');
     expect(b).not.toMatch(/ghost\.opacity \*/);
   });
 

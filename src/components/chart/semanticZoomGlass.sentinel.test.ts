@@ -42,8 +42,10 @@ describe("semantic zoom glass", () => {
     ]) {
       expect(CHART.indexOf(reader), reader).toBeGreaterThan(owner);
     }
-    // The question lens still scales the tiers later — depth is untouched by it.
-    expect(CHART.indexOf("macro: semanticDensity.macro * questionQuiet,")).toBeGreaterThan(owner);
+    // The question lens still quiets the layers later — through the attention
+    // governor, which reads the owner and never rewrites it.
+    expect(CHART.indexOf("att = att.withQuestionQuiet(questionQuiet);")).toBeGreaterThan(owner);
+    expect(CHART).not.toMatch(/semanticDensity\s*=\s*\{/);
   });
 
   it("the FAR veil dims pane 0 only: painted inside the pane-0 clip, sized to it", () => {

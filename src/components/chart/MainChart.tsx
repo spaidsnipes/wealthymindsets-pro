@@ -231,6 +231,7 @@ import {
 } from "@/lib/chartKeepOut";
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
+import { selectAttentionGovernor } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
@@ -241,7 +242,7 @@ import { selectNearTape, type NearTapeCache } from "@/lib/marketData/viewModels/
 import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
-import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
+import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
@@ -5697,6 +5698,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       ctx.rect(0, 0, plotRight, pane0Bottom);
       ctx.clip();
 
+      /* ══ ATTENTION GOVERNOR — one owner decides how loud each layer is ══
+         `selectAttentionGovernor` composes the frame's depth, the regime
+         light, the trader's lane opacity and a standing fusion's parent fade
+         into ONE alpha per governed layer, capped by the layer's tier (LIVE,
+         SUPPORTING, MEMORY — memory sits below the present — or CHROME, never
+         dimmed). A paint site asks `att.alpha(key)`; it never multiplies the
+         dimmers itself. The Question Lens quiet is folded in once the lens has
+         spoken (`withQuestionQuiet`, below). Candles and the price line are
+         outside its authority.
+      ══════════════════════════════════════════════════════════════════════ */
+      let att = selectAttentionGovernor({
+        density: semanticDensity,
+        questionQuiet: 1,
+        regimeLight: layerOnRef.current.regimeLighting === true ? regimeLightingRef.current : null,
+        stackPrefs: stackPrefsRef.current,
+        fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? []) : [],
+        feedState: null,
+      });
+
       /* ── H-501 · FAR IS A DIFFERENT PICTURE (canon plate
          WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
          MAJOR STRUCTURE ONLY). Painted first so every later reading sits on
@@ -9604,15 +9624,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          cannot quietly reintroduce the flattering number.
       ══════════════════════════════════════════════════════════════════════ */
       // An active question quiets everything that is not its subject
-      // ("SECONDARY NOISE · QUIETED"). Dims, never deletes.
-      if (questionQuiet < 1) {
-        semanticDensity = {
-          ...semanticDensity,
-          macro: semanticDensity.macro * questionQuiet,
-          mid: semanticDensity.mid * questionQuiet,
-          micro: semanticDensity.micro * questionQuiet,
-        };
-      }
+      // ("SECONDARY NOISE · QUIETED"). Dims, never deletes — through the
+      // attention governor, so the depth owner's reading is never rewritten.
+      att = att.withQuestionQuiet(questionQuiet);
+      canvas.dataset.attention = att.receipt;
 
       try {
         const glass = selectValueCandleGlass(valueCandleRef.current);
@@ -9645,7 +9660,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (col.fits && yCogR != null && Number.isFinite(+yCogR)) {
             const right = col.right;
             const width = col.width;
-            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
+            ctx.save(); ctx.globalAlpha = att.alpha("valueCandle");
 
             // ── THE RUNGS. Each bin at its own two price edges, so a shelf is
             // drawn at the price it traded at and nowhere else. Width is the
@@ -9831,7 +9846,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const yHi = Math.min(+yHiR, +yLoR);
             const yLo = Math.max(+yHiR, +yLoR);
 
-            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
+            ctx.save(); ctx.globalAlpha = att.alpha("stack");
 
             // A band one tick tall is a line, and a line drawn as a 1px-high
             // rectangle disappears at some device pixel ratios. Floor the drawn
@@ -10005,7 +10020,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const laneL = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT + 8 : 64;
             const laneR = laneL + 86;
 
-            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
+            ctx.save(); ctx.globalAlpha = att.alpha("divergence");
             ctx.strokeStyle = "rgba(237,230,211,0.55)";
             ctx.lineWidth = 1;
             // Two marks, one per compared pivot, each at its own price.
@@ -10091,7 +10106,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ds.liquidityWeather = on ? glass.reason : "OFF";
 
         if (on && glass.drawn) {
-          ctx.save(); ctx.globalAlpha = semanticDensity.micro;
+          ctx.save(); ctx.globalAlpha = att.alpha("weather");
 
           // ── THE SHELVES, at their prices. Drawn as a short dotted mark so a
           // level where nothing moved does not read as a support line somebody
@@ -10180,7 +10195,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Outside the extreme, so the description never covers the
               // candle it describes.
               const out = m.side === "ABOVE" ? -1 : 1;
-              ctx.save(); ctx.globalAlpha = semanticDensity.micro;
+              ctx.save(); ctx.globalAlpha = att.alpha("effort");
               ctx.strokeStyle = "rgba(237,230,211,0.85)";
               ctx.fillStyle = "rgba(237,230,211,0.85)";
               ctx.lineWidth = 1;
@@ -10237,7 +10252,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : "OFF";
 
           if (on && dl?.drawn) {
-            ctx.save(); ctx.globalAlpha = semanticDensity.micro;
+            ctx.save(); ctx.globalAlpha = att.alpha("deltaLevels");
             const centerX = W - 96; // Fixed chrome, outside the candle body area.
             const laneMax = 40;
             let drawnRungs = 0;
@@ -10274,15 +10289,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
         /* ══ H-901 · REGIME LIGHTING — which geometry may speak ═════════════
            One breaker, read from the regime owner. Every profile fixture
-           below multiplies its own alpha by its class's light: MAGNETS
-           (Living, TPO, Composite, Visible Range, Memory, Fusion) or TREND
-           (Structure leg, Value Migration, swing marks). Switched off, or
-           UNKNOWN, every light stays at 1. The breaker is named on the glass.
+           below is lit by its class's light through the attention governor
+           (LAYER_ATTENTION names the class): MAGNETS (Living, TPO, Composite,
+           Visible Range, Memory, Fusion) or TREND (Structure leg, Value
+           Migration, swing marks). Switched off, or UNKNOWN, every light
+           stays at 1. The breaker is named on the glass.
         ═══════════════════════════════════════════════════════════════════ */
         const lightOn = layerOnRef.current.regimeLighting === true;
         const regimeLight = lightOn ? regimeLightingRef.current : null;
-        const magnetLight = regimeLight?.magnets ?? 1;
-        const trendLight = regimeLight?.trend ?? 1;
         ds.regimeLighting = lightOn ? (regimeLight?.breaker ?? "NO_BREAKER") : "OFF";
         ds.regimeLightingVerdict = regimeLight?.verdict ?? "";
         if (lightOn && regimeLight) {
@@ -10351,8 +10365,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           if (ghost.drawn) {
-            // The owner's ceiling is the ghost's brightness, in every form.
-            ctx.globalAlpha = ghost.opacity;
+            // The owner's ceiling is the ghost's brightness, in every form;
+            // the attention governor (MEMORY) may only lower it.
+            ctx.globalAlpha = Math.min(ghost.opacity, att.alpha("memoryGhost"));
             let lastXY: { x: number; y: number } | null = null;
             // Below this slot width a hollow ghost body cannot be told from its
             // neighbours or from the live body it sits on, so the path speaks.
@@ -10756,9 +10771,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         stackOrder.splice(0, stackOrder.length, ...orderedStack);
         // FUSION PARENTS DIM (Garden 12 visibility governor): while a fused
         // object stands, its two parents keep drawing — alive, inspectable —
-        // but step back so the derived object reads as the subject.
-        const fusedPairNow = fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? []) : [];
-        const parentFade = (sp: StackSpecies) => (fusedPairNow.includes(sp) ? 0.45 : 1);
+        // but step back so the derived object reads as the subject. The fade
+        // is the attention governor's (`fusedParents`), applied per lane.
         const stackPlan = planProfileStack({
           canvasWidth: W,
           axisWidth: stackAxisW,
@@ -10846,7 +10860,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
 
           if (on && lp?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("LIVING", stackPrefsRef.current) * parentFade("LIVING");
+            ctx.save(); ctx.globalAlpha = att.alpha("livingProfile");
             /*
               GEOMETRY. The histogram lives at the right of the pane, inset
               from the price gutter so the axis labels stay legible. Bars
@@ -10957,6 +10971,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const ghostSrc = barsRef.current ?? [];
               if (ghostCache?.source !== ghostSrc) ghostCache = { source: ghostSrc, vm: selectSessionGhostProfiles(ghostSrc) };
               const gvm = ghostCache.vm;
+              // Memory sits below the present: the ghosts take the governor's
+              // MEMORY alpha, not the Living lane's they are drawn inside.
+              const livingAlpha = ctx.globalAlpha;
+              ctx.globalAlpha = att.alpha("sessionGhosts");
               ds.sessionGhosts = gvm.drawn ? `${gvm.ghosts.map(g => `-${g.sessionsAgo}`).join(",")}:${gvm.fidelity}` : gvm.reason;
               for (const g of [...gvm.ghosts].reverse()) {
                 const k = g.sessionsAgo;
@@ -10997,6 +11015,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillText(`−${k}`, gRight - gW * 0.25, edge[edge.length - 1].y + 4);
                 }
               }
+              ctx.globalAlpha = livingAlpha;
             } else {
               delete ds.sessionGhosts;
             }
@@ -11297,7 +11316,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
-              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro * stackOpacity("COMPOSITE", stackPrefsRef.current) * parentFade("COMPOSITE");
+              ctx.save(); ctx.globalAlpha = att.alpha("compositeProfile");
               const right = lane.right;
               // GARDEN 12 · WHAT WENT IN, drawn: a sediment bracket along the
               // foot of the price pane — one tick per aggregated session start —
@@ -11404,7 +11423,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const lane = stackPlan.lanes.VISIBLE_RANGE;
           if (vrpVM?.drawn && lane?.fits) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("VISIBLE_RANGE", stackPrefsRef.current) * parentFade("VISIBLE_RANGE");
+            ctx.save(); ctx.globalAlpha = att.alpha("visibleRangeProfile");
             const right = lane.right;
             const width = lane.width * stackWidth("VISIBLE_RANGE", stackPrefsRef.current);
             // GARDEN 12 · "MEASURED ACROSS WHAT YOU SEE", drawn: viewfinder
@@ -11537,7 +11556,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // The derived object answers to the same governors as every
               // profile (magnet light, semantic density), so it can never be
               // louder than the candles it sits beside.
-              const fuseA = magnetLight * semanticDensity.mid;
+              const fuseA = att.alpha("fusedObject");
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
                 if (y0 == null || y1 == null) continue;
@@ -11628,7 +11647,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
 
           if (on && tpo?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
+            ctx.save(); ctx.globalAlpha = att.alpha("tpo");
             // VISIBILITY GOVERNOR: an active question owns the left column
             // (strip, debt, control, Ask); the TPO letters step right of it
             // instead of printing through it.
@@ -11766,7 +11785,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           const ax = sp?.anchor ? chart.timeScale().timeToCoordinate(sp.anchor.time as any) : null;
           if (on && sp?.drawn && sp.anchor && ax != null) {
-            ctx.save(); ctx.globalAlpha = trendLight * semanticDensity.mid;
+            ctx.save(); ctx.globalAlpha = att.alpha("structureProfile");
             const x0 = Math.round(+ax);
             /*
               ROOM, NOT OVERLAP. The Living Profile owns the right-edge column
@@ -11938,7 +11957,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.profileFusion;
           ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : "OFF";
           if (on && fu?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro;
+            ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let painted = 0;
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
@@ -11992,7 +12011,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.profileMemory;
           ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : "OFF";
           if (on && mem?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro;
+            ctx.save(); ctx.globalAlpha = att.alpha("profileMemory");
             const ts = chart.timeScale();
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let drawn = 0;
@@ -12132,7 +12151,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const tsL = chart.timeScale();
             const xy = pts.map(q => ({ x: tsL.timeToCoordinate(q.time as any), q })).filter(o => o.x != null) as { x: number; q: typeof pts[number] }[];
             if (xy.length >= 3) {
-              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("LIVING", stackPrefsRef.current);
+              ctx.save(); ctx.globalAlpha = att.alpha("livingProfileMovie");
               ctx.beginPath();
               xy.forEach((o, k) => { const y = srs.priceToCoordinate(o.q.vah); if (y != null) (k ? ctx.lineTo(+o.x, +y) : ctx.moveTo(+o.x, +y)); });
               for (let k = xy.length - 1; k >= 0; k--) { const y = srs.priceToCoordinate(xy[k].q.val); if (y != null) ctx.lineTo(+xy[k].x, +y); }
@@ -12164,7 +12183,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.valueMigration;
           ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : "OFF";
           if (on && vm?.drawn) {
-            ctx.save(); ctx.globalAlpha = trendLight * semanticDensity.mid;
+            ctx.save(); ctx.globalAlpha = att.alpha("valueMigration");
             const ts = chart.timeScale();
             const stepLine = (key: "poc" | "vah" | "val", ink: string, width: number, dash: number[]) => {
               ctx.strokeStyle = ink;
@@ -12250,7 +12269,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const selId = selectedObjectIdRef.current;
           ds.marketZones = String(zones.length);
           if (zones.length > 0) {
-            ctx.save(); ctx.globalAlpha = semanticDensity.mid;
+            ctx.save(); ctx.globalAlpha = att.alpha("marketZones");
             const ts = chart.timeScale();
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let selectedPainted = "";
@@ -12271,7 +12290,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const invalid = z.lifecycle.state === "INVALID";
               // The object being READ is never dimmed by the depth governor:
               // the trader chose it, so it paints at full strength (MOCK 4).
-              ctx.globalAlpha = selected ? 1 : semanticDensity.mid;
+              ctx.globalAlpha = att.alpha("marketZones", { selectedItem: selected });
               if (!selected) {
                 ctx.strokeStyle = invalid ? "rgba(150,150,160,0.30)" : "rgba(201,165,92,0.30)";
                 ctx.lineWidth = 1;
@@ -12388,7 +12407,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.marketStructureBias = ms?.bias ?? "";
 
           if (on && ms?.drawn) {
-            ctx.save(); ctx.globalAlpha = trendLight * semanticDensity.macro;
+            ctx.save(); ctx.globalAlpha = att.alpha("marketStructure");
             let painted = 0;
             for (const p of ms.pivots) {
               const xr = chart.timeScale().timeToCoordinate(p.time as any);
@@ -12443,6 +12462,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.marketStructurePivots;
           }
         }
+
+        // ATTENTION RECEIPT — every layer that painted through the governor
+        // this frame, with the tier and alpha it was given. A layer that is
+        // OFF never asked and is not listed; its own silence receipt speaks.
+        ds.attentionTiers = att.tiersReceipt();
 
         /* ══ F13 · SEMANTIC ZOOM TAG ═════════════════════════════════════════
            FAR · MID · NEAR on the SAME camera. One word top-right, telling
