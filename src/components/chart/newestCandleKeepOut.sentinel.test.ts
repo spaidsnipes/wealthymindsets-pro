@@ -77,3 +77,21 @@ describe("Profile Memory labels yield to the newest bodies", () => {
     expect(memory).not.toMatch(/fillRect\(lx,/);
   });
 });
+
+describe("the selected-zone callout clears the newest bodies and the chips on the glass", () => {
+  const callout = slice('const l1 = "SELECTED ZONE";', "selectedPainted = z.object.objectId;");
+
+  it("is a slot test against keep-out ∪ floatingChips, with the mirror slot under the zone", () => {
+    expect(callout).toMatch(/placeClearOfKeepOut\(\s*\{ x: cxAbove, y: byAbove, w, h: bh2 \},\s*keepOut\(\),/);
+    expect(callout).toMatch(/blockers: floatingChips,\s*strict: true,/);
+    expect(callout).toMatch(/alternates: byBelow \+ bh2 <= pane0Bottom - 4 \? \[\{ x: cxAbove, y: byBelow, w, h: bh2 \}\] : \[\]/);
+    expect(callout).toMatch(/recordKeepOut\(keepOutLedger, spotZ\)/);
+    expect(callout).toMatch(/const cx = spotZ\.rect\.x, by = spotZ\.rect\.y;/);
+  });
+
+  it("keeps its leader on the zone from whichever side it landed, and yields its backing only on candles", () => {
+    expect(callout).toMatch(/ctx\.moveTo\(Math\.round\(footX\) \+ 0\.5, boxAboveZone \? by \+ bh2 : by\)/);
+    expect(callout).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotZ, 0\.92\)\}\)`;\s*ctx\.fillRect\(cx, by, w, bh2\);/);
+    expect(callout).toMatch(/floatingChips\.push\(\{ x: cx, y: by, w, h: bh2 \}\);/);
+  });
+});

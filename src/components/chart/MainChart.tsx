@@ -12227,17 +12227,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const w = Math.ceil(Math.max(w1 + 20, w2 + 8));
               const bh2 = 36;
               const anchorX = x0 + (zEnd - x0) / 2;
-              const cx = Math.max(4, Math.min(anchorX - w / 2, endX - w));
-              const by = Math.max(HEADER_FLOOR_Y, top - bh2 - 34);
+              const cxAbove = Math.max(4, Math.min(anchorX - w / 2, endX - w));
+              const byAbove = Math.max(HEADER_FLOOR_Y, top - bh2 - 34);
+              // A zone born near "now" puts its callout over the newest candles.
+              // The callout is a slot test like any chip: it must clear those
+              // bodies AND the chips already on the glass — first the mirror
+              // slot under the zone, then left along its own row. With no clear
+              // slot it keeps its spot, and yields its backing only to candles.
+              const byBelow = top + h + 34;
+              const spotZ = placeClearOfKeepOut(
+                { x: cxAbove, y: byAbove, w, h: bh2 },
+                keepOut(),
+                {
+                  minX: keepOutMinX(),
+                  blockers: floatingChips,
+                  strict: true,
+                  alternates: byBelow + bh2 <= pane0Bottom - 4 ? [{ x: cxAbove, y: byBelow, w, h: bh2 }] : [],
+                },
+              );
+              recordKeepOut(keepOutLedger, spotZ);
+              const cx = spotZ.rect.x, by = spotZ.rect.y;
               const gold = invalid ? "rgba(170,170,180,0.9)" : "rgba(240,180,41,0.95)";
-              if (by + bh2 < top - 4) {
+              const boxAboveZone = by + bh2 < top - 4, boxBelowZone = by > top + h + 4;
+              if (boxAboveZone || boxBelowZone) {
                 ctx.strokeStyle = gold; ctx.lineWidth = 1;
-                // Leave from the box's own foot (clamped under it), land on the zone.
+                // Leave from the box's edge that faces the zone (clamped under it), land on the zone.
                 const footX = Math.max(cx + 10, Math.min(anchorX, cx + w - 10));
-                ctx.beginPath(); ctx.moveTo(Math.round(footX) + 0.5, by + bh2); ctx.lineTo(Math.round(anchorX) + 0.5, midY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(Math.round(footX) + 0.5, boxAboveZone ? by + bh2 : by); ctx.lineTo(Math.round(anchorX) + 0.5, midY); ctx.stroke();
                 ctx.beginPath(); ctx.arc(anchorX, midY, 3, 0, Math.PI * 2); ctx.fillStyle = gold; ctx.fill();
               }
-              ctx.fillStyle = "rgba(11,10,8,0.92)";
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotZ, 0.92)})`;
               ctx.fillRect(cx, by, w, bh2);
               ctx.strokeStyle = gold;
               ctx.strokeRect(cx + 0.5, by + 0.5, w - 1, bh2 - 1);
