@@ -521,4 +521,13 @@ describe("a species whose own selector refused is not READY", () => {
     expect(profileSpeciesRefusals({ visibleRange: { reason: "TOO_FEW_BARS_IN_VIEW" } }).VISIBLE_RANGE_PROFILE).toMatch(/too few bars in view/);
     expect(profileSpeciesRefusals({ visibleRange: null })).toEqual({});
   });
+
+  it("names Session VP's DATA refusals, never a layout decline", () => {
+    expect(profileSpeciesRefusals({ session: { reason: "NO_BARS" } }).SESSION).toMatch(/no bars in the session/);
+    expect(profileSpeciesRefusals({ session: { reason: "NO_VOLUME" } }).SESSION).toMatch(/no volume/);
+    expect(profileSpeciesRefusals({ session: { reason: "FLAT_RANGE" } }).SESSION).toMatch(/one price/);
+    // Out of room beside the axis is the glass, not the data: the door stays quiet.
+    expect(profileSpeciesRefusals({ session: { reason: "NO_ROOM" } })).toEqual({});
+    expect(profileSpeciesRefusals({ session: { reason: "NO_BUCKETS" } })).toEqual({});
+  });
 });

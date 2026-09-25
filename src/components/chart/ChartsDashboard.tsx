@@ -1943,12 +1943,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // says "DATA REFUSES · <why>" instead of READY over an empty lane.
   // Visible Range is decided by the camera, so the canvas reports it (on change).
   const [visibleRangeRefusal, setVisibleRangeRefusal] = useState<string | null>(null);
+  // Session VP's decline is decided in the paint (its column), so the canvas reports it too.
+  const [sessionVpRefusal, setSessionVpRefusal] = useState<string | null>(null);
   const profileSpeciesRefusalVM = React.useMemo(
     () => profileSpeciesRefusals({
       composite: compositeProfileVM, tpo: tpoProfileVM, structure: structureProfileVM, memory: profileMemoryVM,
       visibleRange: visibleRangeRefusal ? { reason: visibleRangeRefusal } : null,
+      session: sessionVpRefusal ? { reason: sessionVpRefusal } : null,
     }),
-    [compositeProfileVM, tpoProfileVM, structureProfileVM, profileMemoryVM, visibleRangeRefusal],
+    [compositeProfileVM, tpoProfileVM, structureProfileVM, profileMemoryVM, visibleRangeRefusal, sessionVpRefusal],
   );
 
   /**
@@ -5358,6 +5361,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onExpectedEnvelope={onExpectedEnvelope}
                       onProfileFusion={onProfileFusion}
                       onVisibleRangeRefusal={setVisibleRangeRefusal}
+                      onSessionVpRefusal={setSessionVpRefusal}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the

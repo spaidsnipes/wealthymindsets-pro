@@ -860,6 +860,7 @@ export function profileSpeciesRefusals(vms: {
   structure?: { readonly reason: string; readonly note?: string } | null;
   memory?: { readonly reason: string } | null;
   visibleRange?: { readonly reason: string } | null;
+  session?: { readonly reason: string } | null;
 }): Partial<Record<ProfileId, string>> {
   const out: Partial<Record<ProfileId, string>> = {};
   const c = vms.composite?.reason;
@@ -877,5 +878,11 @@ export function profileSpeciesRefusals(vms: {
   if (v === "TOO_FEW_BARS_IN_VIEW") out.VISIBLE_RANGE_PROFILE = "too few bars in view to profile — zoom out";
   else if (v === "NO_VOLUME") out.VISIBLE_RANGE_PROFILE = "the bars in view carry no volume";
   else if (v === "NO_RANGE") out.VISIBLE_RANGE_PROFILE = "the camera has no time range yet";
+  // Session: only the DATA refusals. NO_ROOM / NO_BUCKETS are layout, not
+  // data — the door must not say the data refused when the glass ran out of room.
+  const se = vms.session?.reason;
+  if (se === "NO_BARS") out.SESSION = "no bars in the session window yet";
+  else if (se === "FLAT_RANGE") out.SESSION = "every bar in the session traded one price — there is no distribution";
+  else if (se === "NO_VOLUME") out.SESSION = "the session's bars carry no volume";
   return out;
 }

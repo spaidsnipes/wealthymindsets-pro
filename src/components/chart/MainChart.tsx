@@ -1144,6 +1144,8 @@ interface Props {
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** The Visible Range species' own refusal (null when drawn or off), reported on change only. */
   onVisibleRangeRefusal?: (reason: string | null) => void;
+  /** The Session VP column's decline (null when drawn or off), reported on change only. */
+  onSessionVpRefusal?: (reason: VpDeclineReason | null) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps and the FAR envelope's pivots. */
@@ -1498,6 +1500,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onExpectedEnvelope,
   onProfileFusion,
   onVisibleRangeRefusal,
+  onSessionVpRefusal,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -1726,6 +1729,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { onVisibleRangeRefusalRef.current = onVisibleRangeRefusal; }, [onVisibleRangeRefusal]);
   // Last value reported, so the paint loop tells the room only when it changes.
   const lastVrpRefusalRef = useRef<string | null>(null);
+  const onSessionVpRefusalRef = useRef<typeof onSessionVpRefusal>(undefined);
+  useEffect(() => { onSessionVpRefusalRef.current = onSessionVpRefusal; }, [onSessionVpRefusal]);
+  const lastSessionVpRefusalRef = useRef<VpDeclineReason | null>(null);
   const fusionObjectRef = useRef<FusedProfileObject | null>(null);
   useEffect(() => { onExpectedEnvelopeRef.current = onExpectedEnvelope; }, [onExpectedEnvelope]);
   useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
@@ -8129,6 +8135,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           must not share an encoding.
         */
         const receipt = compileVpRenderReceipt(attempts);
+        {
+          // The Session column's own decline goes to the room's Profiles door
+          // (DATA REFUSES instead of READY over an empty lane), on change only —
+          // this runs in the paint loop. null when drawn or not asked for.
+          const sessionRefusal = attempts.find(a => a.profile === "SESSION")?.declined ?? null;
+          if (sessionRefusal !== lastSessionVpRefusalRef.current) {
+            lastSessionVpRefusalRef.current = sessionRefusal;
+            onSessionVpRefusalRef.current?.(sessionRefusal);
+          }
+        }
         // Read from the ref rather than the captured local: this runs inside a
         // rAF callback, and the element can be gone by the time the frame
         // lands. No element is not a decline to report — there is nothing left

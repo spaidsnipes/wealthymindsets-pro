@@ -30,4 +30,11 @@ describe("visible range refusal reaches the Profiles door", () => {
     expect(room).toContain("onVisibleRangeRefusal={setVisibleRangeRefusal}");
     expect(room).toMatch(/visibleRange: visibleRangeRefusal \? \{ reason: visibleRangeRefusal \} : null,/);
   });
+
+  it("Session VP's column decline reaches the door the same way (on change only)", () => {
+    expect(chart).toContain('const sessionRefusal = attempts.find(a => a.profile === "SESSION")?.declined ?? null;');
+    expect(chart).toMatch(/if \(sessionRefusal !== lastSessionVpRefusalRef\.current\) \{\s*lastSessionVpRefusalRef\.current = sessionRefusal;\s*onSessionVpRefusalRef\.current\?\.\(sessionRefusal\);/);
+    expect(room).toContain("onSessionVpRefusal={setSessionVpRefusal}");
+    expect(room).toMatch(/session: sessionVpRefusal \? \{ reason: sessionVpRefusal \} : null,/);
+  });
 });
