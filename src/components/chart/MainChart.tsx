@@ -10815,6 +10815,49 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            POC in brass (house hardware, not a side); VAH/VAL as faint ivory
            dashes. Each session is its own line: they break at the gap.
         ═══════════════════════════════════════════════════════════════════ */
+        /* GARDEN 12 · THE LIVING PROFILE IS A MOVIE, NOT A STILL. With Living
+           on (and the full Value Migration layer off, so nothing doubles), the
+           CURRENT session's development is drawn on its candles from the same
+           owner: the developing value area as a faint ribbon — its widening,
+           narrowing and drift ARE expansion, contraction, translation — and
+           the developing POC as a thin brass trail ending in a "now" dot tied
+           to the histogram's POC. Candle-estimated, same as the histogram. */
+        {
+          const vmL = valueMigrationRef.current;
+          const lp = livingProfileRef.current;
+          if (layerOnRef.current.livingProfile && !layerOnRef.current.valueMigration && vmL?.drawn && vmL.points.length >= 3 && lp?.drawn) {
+            const cur = vmL.points[vmL.points.length - 1].session;
+            const pts = vmL.points.filter(q => q.session === cur);
+            const tsL = chart.timeScale();
+            const xy = pts.map(q => ({ x: tsL.timeToCoordinate(q.time as any), q })).filter(o => o.x != null) as { x: number; q: typeof pts[number] }[];
+            if (xy.length >= 3) {
+              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("LIVING", stackPrefsRef.current);
+              ctx.beginPath();
+              xy.forEach((o, k) => { const y = srs.priceToCoordinate(o.q.vah); if (y != null) (k ? ctx.lineTo(+o.x, +y) : ctx.moveTo(+o.x, +y)); });
+              for (let k = xy.length - 1; k >= 0; k--) { const y = srs.priceToCoordinate(xy[k].q.val); if (y != null) ctx.lineTo(+xy[k].x, +y); }
+              ctx.closePath();
+              ctx.fillStyle = "rgba(237,230,211,0.06)"; ctx.fill();
+              ctx.strokeStyle = "rgba(237,230,211,0.18)"; ctx.lineWidth = 1; ctx.stroke();
+              ctx.beginPath();
+              let lastX = 0, lastY = 0;
+              xy.forEach((o, k) => {
+                const y = srs.priceToCoordinate(o.q.poc); if (y == null) return;
+                if (k === 0) ctx.moveTo(+o.x, +y); else { ctx.lineTo(+o.x, lastY); ctx.lineTo(+o.x, +y); }
+                lastX = +o.x; lastY = +y;
+              });
+              ctx.strokeStyle = "rgba(201,165,92,0.6)"; ctx.lineWidth = 1.2; ctx.stroke();
+              ctx.beginPath(); ctx.arc(lastX, lastY, 3, 0, Math.PI * 2); ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.fill();
+              const pocY = srs.priceToCoordinate(lp.poc);
+              const laneL = stackPlan.lanes.LIVING ?? soloLane(W);
+              if (pocY != null) {
+                ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(201,165,92,0.45)"; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(lastX + 4, lastY); ctx.lineTo(laneL.right - laneL.width, +pocY); ctx.stroke(); ctx.setLineDash([]);
+              }
+              ctx.restore();
+              ds.livingProfileMovie = `SESSION_BARS:${xy.length}`;
+            }
+          } else delete ds.livingProfileMovie;
+        }
         {
           const vm = valueMigrationRef.current;
           const on = layerOnRef.current.valueMigration;
