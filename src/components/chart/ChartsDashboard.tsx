@@ -1501,13 +1501,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
   }), [chartMarketObjects, chartBarIdentities]);
   const [selectedMarketObjectId, setSelectedMarketObjectId] = useState<string | null>(null);
+  // CONTINUITY (Garden 12 · Defect 7): the selected object survives a refresh
+  // in this browser session — keyed by symbol:timeframe, restored only when
+  // the SAME object id is compiled again (never guessed, never carried to
+  // another instrument). Session storage: a new session starts calm.
+  const selectionKey = `wm:selectedObject:${symbol}:${timeframe}`;
   useEffect(() => {
-    setSelectedMarketObjectId(current =>
-      current && chartMarketObjects.some(object => object.objectId === current)
-        ? current
-        : null,
-    );
-  }, [chartMarketObjects]);
+    setSelectedMarketObjectId(current => {
+      if (current && chartMarketObjects.some(object => object.objectId === current)) return current;
+      let saved: string | null = null;
+      try { saved = sessionStorage.getItem(selectionKey); } catch { /* storage refused */ }
+      return saved && chartMarketObjects.some(object => object.objectId === saved) ? saved : null;
+    });
+  }, [chartMarketObjects, selectionKey]);
+  // Written on select; cleared ONLY by an explicit deselect (below) — an
+  // early compile that has not produced the object yet must not erase it.
+  useEffect(() => {
+    try { if (selectedMarketObjectId) sessionStorage.setItem(selectionKey, selectedMarketObjectId); }
+    catch { /* storage refused: selection simply does not survive */ }
+  }, [selectedMarketObjectId, selectionKey]);
+  const forgetSelection = React.useCallback(() => {
+    try { sessionStorage.removeItem(selectionKey); } catch { /* storage refused */ }
+  }, [selectionKey]);
   const continuationHealthVM = React.useMemo(() =>
     selectContinuationHealth({ structure: chartStructureVM, regime: chartRegimeVM }),
   [chartStructureVM, chartRegimeVM]);
@@ -5134,7 +5149,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
                       onSelectMarketObject={id => {
-                        setSelectedMarketObjectId(current => (current === id ? null : id));
+                        setSelectedMarketObjectId(current => { if (current === id) { forgetSelection(); return null; } return id; });
                         // A selected zone opens the ONE Inspect ticket as its
                         // Passport; any other selection gives way.
                         if (chartStructureZones.some(z => z.object.objectId === id)) {
@@ -5340,7 +5355,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         profileSliceSymbol={symbol}
                         profileSliceAsOf={livingProfileAsOf}
-                        onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); if (chartStructureZones.some(z => z.object.objectId === selectedMarketObjectId)) setSelectedMarketObjectId(null); } }}
+                        onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); if (chartStructureZones.some(z => z.object.objectId === selectedMarketObjectId)) { forgetSelection(); setSelectedMarketObjectId(null); } } }}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}
