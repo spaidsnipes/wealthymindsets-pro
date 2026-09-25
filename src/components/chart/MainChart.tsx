@@ -9945,33 +9945,50 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           if (ghost.drawn) {
+            // The owner's ceiling is the ghost's brightness, in every form.
             ctx.globalAlpha = ghost.opacity;
             let lastXY: { x: number; y: number } | null = null;
-            if (ghost.candles.length > 1) {
+            // Below this slot width a hollow ghost body cannot be told from its
+            // neighbours or from the live body it sits on, so the path speaks.
+            const GHOST_CANDLE_MIN_SPACING = 8;
+            if (ghost.candles.length > 1 && bsp >= GHOST_CANDLE_MIN_SPACING) {
               // CANON F03A — memory as ghost CANDLES on the canvas: the
-              // analogue's own bars, re-based, laid under the live ones.
-              const xs = ghost.candles.map(c => tsG.timeToCoordinate(c.time as never));
-              const spacing = xs[0] != null && xs[1] != null ? Math.abs(+xs[1] - +xs[0]) : 6;
-              // Hollow shadow candles in the GAPS between live candles (half a
-              // bar right): the analogue is re-based, not time-true, and a
-              // ghost exactly behind a live candle is invisible.
-              const bw = Math.max(1, Math.round(spacing * 0.34));
-              const off = spacing / 2;
-              ctx.globalAlpha = Math.min(1, ghost.opacity * 3);
-              ghost.candles.forEach((c, k) => {
-                const x = xs[k];
+              // analogue's own bars, re-based, TIME-TRUE on the live bars they
+              // matched. Any sideways offset would push the newest ghost past
+              // the newest live bar, where it reads as the next bar: a forecast.
+              // The overlay sits above the chart, so "under the live bars" is
+              // made by clipping out every live body before the ghost is drawn;
+              // the ghost shows only where the live candle is not, as hollow
+              // outline with no fill of its own.
+              const liveAt = new Map(ghostBars.slice(-2 * ghost.candles.length).map(b => [b.time, b]));
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(0, 0, W, H);
+              for (const c of ghost.candles) {
+                const live = liveAt.get(c.time);
+                const x = tsG.timeToCoordinate(c.time as never);
+                const lo = live ? srs.priceToCoordinate(live.open) : null, lc = live ? srs.priceToCoordinate(live.close) : null;
+                if (x == null || lo == null || lc == null) continue;
+                ctx.rect(+x - bsp * 0.46, Math.min(+lo, +lc) - 1, bsp * 0.92, Math.abs(+lc - +lo) + 2);
+              }
+              ctx.clip("evenodd");
+              const bw = Math.max(3, Math.round(bsp * 0.6));
+              ctx.strokeStyle = "rgba(200,194,180,0.9)"; ctx.lineWidth = 1;
+              let drawnCandles = 0;
+              for (const c of ghost.candles) {
+                const x = tsG.timeToCoordinate(c.time as never);
                 const yh = srs.priceToCoordinate(c.high), yl = srs.priceToCoordinate(c.low);
                 const yo = srs.priceToCoordinate(c.open), yc = srs.priceToCoordinate(c.close);
-                if (x == null || yh == null || yl == null || yo == null || yc == null) return;
-                const cxg = Math.round(+x + off) + 0.5;
-                ctx.strokeStyle = "rgba(200,194,180,0.9)"; ctx.lineWidth = 1;
+                if (x == null || yh == null || yl == null || yo == null || yc == null) continue;
+                const cxg = Math.round(+x) + 0.5;
                 const top = Math.min(+yo, +yc), hB = Math.max(1, Math.abs(+yc - +yo));
                 ctx.beginPath(); ctx.moveTo(cxg, +yh); ctx.lineTo(cxg, top); ctx.moveTo(cxg, top + hB); ctx.lineTo(cxg, +yl); ctx.stroke();
-                ctx.fillStyle = "rgba(11,10,8,0.6)"; ctx.fillRect(cxg - bw / 2, top, bw, hB);
                 ctx.strokeRect(Math.round(cxg - bw / 2) + 0.5, Math.round(top) + 0.5, bw, Math.max(1, Math.round(hB)));
                 lastXY = { x: +x, y: +yc };
-              });
-              ds.memoryGhostForm = `CANDLES:${ghost.candles.length}`;
+                drawnCandles++;
+              }
+              ctx.restore();
+              ds.memoryGhostForm = `CANDLES:${drawnCandles}`;
             } else {
               ctx.strokeStyle = "rgba(237,230,211,1)";
               ctx.lineWidth = 3;

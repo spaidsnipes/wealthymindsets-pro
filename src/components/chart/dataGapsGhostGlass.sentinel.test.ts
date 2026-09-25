@@ -55,3 +55,38 @@ describe("data gap marks", () => {
     expect(CHART).toMatch(/canvas\.dataset\.dataGaps = dg\.reason === "MEASURED" \? `\$\{dg\.gaps\.length\}:\$\{painted\}` : dg\.reason;/);
   });
 });
+
+describe("memory ghost candles", () => {
+  const ghostBlock = () => slice("if (layerOnRef.current.memoryGhost === true && srs) {", 'ds.memoryGhost = "OFF";');
+  const candleForm = () => slice("if (ghost.candles.length > 1 && bsp >= GHOST_CANDLE_MIN_SPACING) {", "ds.memoryGhostForm = `CANDLES:");
+
+  it("never paints brighter than the owner's ceiling: every ghost stroke is at ghost.opacity", () => {
+    const b = ghostBlock();
+    const label = b.indexOf("ctx.globalAlpha = 0.85;");
+    expect(label).toBeGreaterThan(-1);
+    const alphas = b.slice(0, label).match(/globalAlpha = [^;]+;/g) ?? [];
+    expect(alphas.length).toBeGreaterThan(0);
+    for (const a of alphas) expect(a).toBe("globalAlpha = ghost.opacity;");
+    expect(b).not.toMatch(/ghost\.opacity \*/);
+  });
+
+  it("is time-true on the live bars it matched: no sideways offset past the newest bar", () => {
+    const c = candleForm();
+    expect(c).toMatch(/const cxg = Math\.round\(\+x\) \+ 0\.5;/);
+    expect(c).not.toMatch(/\+x \+ off|const off =|spacing \/ 2/);
+  });
+
+  it("stays under the market: live bodies are clipped out first, and the ghost is outline only", () => {
+    const c = candleForm();
+    const clip = c.indexOf('ctx.clip("evenodd");');
+    const firstInk = c.indexOf("ctx.strokeRect(");
+    expect(clip).toBeGreaterThan(-1);
+    expect(firstInk).toBeGreaterThan(clip);
+    expect(c).toMatch(/ctx\.rect\(\+x - bsp \* 0\.46, Math\.min\(\+lo, \+lc\) - 1, bsp \* 0\.92, Math\.abs\(\+lc - \+lo\) \+ 2\);/);
+    expect(c).not.toMatch(/fillRect|ctx\.fill\(/);
+  });
+
+  it("falls back to the path where a hollow body cannot be read", () => {
+    expect(CHART).toMatch(/const GHOST_CANDLE_MIN_SPACING = 8;/);
+  });
+});
