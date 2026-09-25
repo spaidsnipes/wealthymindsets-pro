@@ -94,6 +94,19 @@ describe("semantic zoom glass", () => {
     expect(block).not.toMatch(/\.price\.toFixed\(2\)/);
   });
 
+  it("NEAR anatomy words are halo text on leaders that start outside the live body — no boxes over the candles", () => {
+    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+    const anatomy = CHART.slice(near, CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near));
+    expect(anatomy).toMatch(/ctx\.fillText\(w\.word, lxw - 4, ly\);/);
+    expect(anatomy).toMatch(/ctx\.shadowBlur = 3;/);
+    expect(anatomy).not.toMatch(/fillRect/);
+    expect(anatomy).toMatch(/const bodyEdge = cx - halfW - 2;/);
+    expect(anatomy).toMatch(/ctx\.moveTo\(bodyEdge, /);
+    expect(anatomy).not.toMatch(/moveTo\(cx - 6,/);
+    // Still obstacles for everything painted after.
+    expect(anatomy).toMatch(/forceChips\.push\(\{ x: lxw - tw - 2, y: ly - 7, w: tw, h: 14 \}\);/);
+  });
+
   it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {
     const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));

@@ -7215,23 +7215,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           want.sort((p1, p2) => p1.y - p2.y);
           const placed: number[] = [];
           for (const w of want) placed.push(Math.max(w.y, (placed[placed.length - 1] ?? -Infinity) + 15));
-          const lx = cx - 58;
+          // The words sit at the live candle's own prices, which the previous
+          // candles almost always overlap, so they are halo text, never
+          // backing boxes: a box at those prices hides the bodies the words
+          // are meant to be read against. Leaders start outside the live
+          // body (its half-width from bar spacing), not inside it.
+          const bodyEdge = cx - halfW - 2;
+          const bend = Math.min(bodyEdge - 4, cx - 24);
+          const lx = Math.min(cx - 58, bend - 30);
           want.forEach((w, i) => {
             const ly = placed[i];
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-            const tw0 = ctx.measureText(w.word).width + 8;
+            const tw = ctx.measureText(w.word).width + 4;
             let lxw = lx;
             for (let k = 0; k < 4; k++) {
-              const hit = forceChips.find(r => lxw - tw0 - 2 < r.x + r.w && lxw - 2 > r.x && ly - 7 < r.y + r.h && ly + 7 > r.y);
+              const hit = forceChips.find(r => lxw - tw - 2 < r.x + r.w && lxw - 2 > r.x && ly - 7 < r.y + r.h && ly + 7 > r.y);
               if (!hit) break;
               lxw = hit.x - 4;
             }
             ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(cx - 6, Math.round(w.y) + 0.5); ctx.lineTo(cx - 24, Math.round(w.y) + 0.5); ctx.lineTo(lxw, Math.round(ly) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(bodyEdge, Math.round(w.y) + 0.5); ctx.lineTo(bend, Math.round(w.y) + 0.5); ctx.lineTo(lxw, Math.round(ly) + 0.5); ctx.stroke(); ctx.setLineDash([]);
             ctx.textAlign = "right";
-            const tw = tw0;
-            ctx.fillStyle = "rgba(11,10,8,0.88)"; ctx.fillRect(lxw - tw - 2, ly - 7, tw, 14);
-            ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(w.word, lxw - 6, ly);
+            ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+            ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(w.word, lxw - 4, ly);
+            ctx.restore();
             forceChips.push({ x: lxw - tw - 2, y: ly - 7, w: tw, h: 14 });
             parts++;
           });
