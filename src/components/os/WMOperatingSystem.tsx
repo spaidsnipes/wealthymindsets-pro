@@ -1208,6 +1208,16 @@ export function WMOperatingSystem({
   // up, and giving it equipment chrome would say the opposite.
   type ScenePanel = "rooms" | "workspace" | "tools" | "community";
   const [scenePanel, setScenePanel] = React.useState<ScenePanel | null>(null);
+  // PICKING A DESTINATION PUTS THE EQUIPMENT DOWN. The shell outlives route
+  // changes, so a Rooms panel opened on /charts stayed open over the Journal
+  // and was still covering the chart's left edge on the way back (finish-line
+  // tour, desktop, 2026-09-25). A new address closes whatever panel was held.
+  const lastHrefRef = React.useRef(activeHref);
+  React.useEffect(() => {
+    if (lastHrefRef.current === activeHref) return;
+    lastHrefRef.current = activeHref;
+    setScenePanel(null);
+  }, [activeHref]);
   // ONE predicate for "is the side panel on screen". The nav element is shared
   // between the two modes precisely so the phone overlay stylesheet, the close
   // control and aria-controls keep describing the thing the trader sees.
