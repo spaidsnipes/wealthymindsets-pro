@@ -41,7 +41,7 @@ describe("absorption question", () => {
 
   it("every debt item is measured; unpaid items mean WAIT", () => {
     const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: noEx, livingPoc: 105, pivots: [] });
-    expect(v.debt.map(d => d.label)).toEqual(["CLEAR DISPLACEMENT", "SUSTAINED AGGRESSION", "STRUCTURE CONFIRMATION", "VOLUME ACCEPTANCE"]);
+    expect(v.debt.map(d => d.label)).toEqual(["CLEAR DISPLACEMENT", "SUSTAINED EFFORT", "STRUCTURE CONFIRMATION", "VOLUME ACCEPTANCE"]);
     expect(v.openDebt).toBe(4);
     expect(v.posture).toBe("WAIT · LET THE MARKET PAY");
     for (const d of v.debt) expect(d.evidence.length).toBeGreaterThan(5);
@@ -76,7 +76,17 @@ describe("MOCK 3 · aggression vs displacement — who is in control", () => {
     const bars = [b(0, 99, 100), b(60, 100, 101, 0.9), b(120, 100.2, 100.9, 0.9), b(180, 100.5, 101.2, 0.3)]
       .map((x, i) => (i === 1 || i === 2 ? { ...x, displacementNorm: 0.2 } : x));
     const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: noEx, livingPoc: null, pivots: [] });
-    expect(v.control).toEqual({ aggression: 0.9, displacement: 0.2, verdict: "EFFORT ABSORBED" });
+    expect(v.control).toEqual({ aggression: 0.9, displacement: 0.2, effortWord: "EFFORT", verdict: "EFFORT ABSORBED" });
+  });
+  it("calls it AGGRESSION only when the tape said who initiated (delta basis)", () => {
+    const bars = [b(0, 99, 100), b(60, 100, 101, 0.9), b(120, 100.2, 100.9, 0.9), b(180, 100.5, 101.2, 0.3)]
+      .map((x, i) => (i === 1 || i === 2 ? { ...x, displacementNorm: 0.2, delta: 40 } : x));
+    const sided = selectQuestionLens({ absorption: anatomy(bars, { basis: "SIGNED_DELTA" }), exhaustion: noEx, livingPoc: null, pivots: [] });
+    expect(sided.control?.effortWord).toBe("AGGRESSION");
+    expect(sided.debt.map(d => d.label)).toContain("SUSTAINED AGGRESSION");
+    const vol = selectQuestionLens({ absorption: anatomy(bars), exhaustion: noEx, livingPoc: null, pivots: [] });
+    expect(vol.control?.effortWord).toBe("EFFORT");
+    expect(vol.debt.map(d => d.label)).not.toContain("SUSTAINED AGGRESSION");
   });
   it("an exhaustion question carries no control pair", () => {
     expect(selectQuestionLens({ absorption: null, exhaustion: null, livingPoc: null, pivots: [] }).control).toBeNull();

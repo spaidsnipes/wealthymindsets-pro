@@ -25,6 +25,9 @@
  *                          away from it.
  *   SUSTAINED AGGRESSION — effort after the zone stayed ≥ the zone's own
  *                          mean effort (the pressure did not vanish).
+ *                          Worded SUSTAINED EFFORT on a VOLUME basis: volume
+ *                          is effort, but nothing on that tape says it was
+ *                          aggressive (initiated), so the word may not either.
  *   STRUCTURE CONFIRMATION — a confirmed swing pivot formed after the zone,
  *                          at a price inside the zone band.
  *   VOLUME ACCEPTANCE    — the Living Profile's POC sits inside the zone band.
@@ -114,7 +117,9 @@ export interface QuestionLensVM {
   readonly control: {
     readonly aggression: number;
     readonly displacement: number;
-    readonly verdict: "EFFORT ABSORBED" | "AGGRESSION PAID";
+    /** AGGRESSION only on a delta basis; on VOLUME the same number is EFFORT. */
+    readonly effortWord: "AGGRESSION" | "EFFORT";
+    readonly verdict: "EFFORT ABSORBED" | "AGGRESSION PAID" | "EFFORT PAID";
   } | null;
 }
 
@@ -198,7 +203,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       { label: "CLEAR DISPLACEMENT", paid: displaced,
         evidence: after.length === 0 ? "no bars after the zone yet"
           : `farthest move away ${f2(farthest)} vs ${DISPLACEMENT_RANGES}× median range ${f2(DISPLACEMENT_RANGES * med)}` },
-      { label: "SUSTAINED AGGRESSION", paid: after.length > 0 && afterEffort >= zoneEffort,
+      { label: delta ? "SUSTAINED AGGRESSION" : "SUSTAINED EFFORT", paid: after.length > 0 && afterEffort >= zoneEffort,
         evidence: after.length === 0 ? "no bars after the zone yet"
           : `effort after ${Math.round(afterEffort * 100)}% vs in zone ${Math.round(zoneEffort * 100)}%` },
       { label: "STRUCTURE CONFIRMATION", paid: !!pivot,
@@ -226,11 +231,13 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       nextQuestion: "Is the opposite side's effort being rewarded?",
       control: (() => {
         const disp = inZone.length ? inZone.reduce((t, b) => t + b.displacementNorm, 0) / inZone.length : 0;
+        const effortWord = delta ? "AGGRESSION" as const : "EFFORT" as const;
         return {
           aggression: zoneEffort,
           displacement: disp,
+          effortWord,
           // The anatomy owner's own weak-displacement gate (0.35).
-          verdict: disp <= 0.35 ? "EFFORT ABSORBED" as const : "AGGRESSION PAID" as const,
+          verdict: disp <= 0.35 ? "EFFORT ABSORBED" as const : delta ? "AGGRESSION PAID" as const : "EFFORT PAID" as const,
         };
       })(),
     };
@@ -245,7 +252,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
   const debt: DebtItem[] = [
     { label: "FOLLOW-THROUGH LOST", paid: m.followThrough === 0,
       evidence: m.followThrough == null ? "fewer than 3 bars since the extreme" : `${m.followThrough}/3 bars made a new extreme` },
-    { label: "AGGRESSION DECLINE", paid: m.aggressionLevel < 0.75,
+    { label: input.exhaustion?.basis === "SIGNED_DELTA" || input.exhaustion?.basis === "INFERRED_DELTA" ? "AGGRESSION DECLINE" : "EFFORT DECLINE", paid: m.aggressionLevel < 0.75,
       evidence: `second-half effort ${Math.round(m.aggressionLevel * 100)}% of first half` },
     { label: "STRUCTURE BREAK", paid: broke,
       evidence: origin == null ? "push origin unknown" : broke ? `closed back beyond the push origin ${f2(origin)}` : `no close back beyond the push origin ${f2(origin)}` },

@@ -8941,10 +8941,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.strokeRect(lx + 0.5, cy + 0.5, colW - 1, cwh - 1);
                     ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
                     ctx.fillStyle = "rgba(237,230,211,0.95)";
-                    ctx.fillText("AGGRESSION vs DISPLACEMENT · WHO IS IN CONTROL?", lx + 12, cy + 13);
+                    // The owner's word: AGGRESSION only on a delta basis, else EFFORT.
+                    ctx.fillText(`${c.effortWord} vs DISPLACEMENT · WHO IS IN CONTROL?`, lx + 12, cy + 13);
                     const half = (colW - 36) / 2;
                     ([
-                      ["AGGRESSION", c.aggression, "rgba(226,92,92,1)", "initiating pressure"],
+                      [c.effortWord, c.aggression, "rgba(226,92,92,1)", c.effortWord === "AGGRESSION" ? "initiating pressure" : "traded volume"],
                       ["DISPLACEMENT", c.displacement, "rgba(120,160,220,1)", "what price did about it"],
                     ] as const).forEach(([lab, v, col, sub], i) => {
                       const x = lx + 12 + i * (half + 12);
