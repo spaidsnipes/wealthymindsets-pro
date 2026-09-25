@@ -16,7 +16,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
-import { canonicalAssetClass, canonicalInstrumentId } from "@/lib/marketData/canonicalIdentity";
+import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
@@ -355,6 +355,8 @@ const SYMBOL_BASE: Record<string, number> = {
 
 // Normalize common aliases → canonical symbol used throughout the app
 function normalizeSym(sym: string): string {
+  const cryptoBase = cryptoBaseTicker(sym);
+  if (cryptoBase) return cryptoBase;
   let u = sym.toUpperCase();
   // Strip per-exchange suffix: "BTC.COINBASE" → "BTC"
   const dot = u.indexOf(".");

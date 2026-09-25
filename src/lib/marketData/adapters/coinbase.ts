@@ -3,6 +3,7 @@ import {
   type CanonicalMarketEvent,
 } from "../marketEvent";
 import { UNKNOWN_RIGHTS_POLICY_ID } from "../capabilityRegistry";
+import { cryptoBaseTicker } from "../canonicalIdentity";
 
 interface CoinbaseTickerMessage {
   type?: unknown;
@@ -42,7 +43,9 @@ export function normalizeCoinbaseTicker(
   // opposite side. Preserve that method explicitly instead of presenting it as
   // exchange-supplied aggressor identity.
   const aggressorSide = message.side === "sell" ? "BUY" : "SELL";
-  const normalizedSymbol = appSymbol.toUpperCase().replace(/USD$/, "");
+  // `BTC-USD` must land on the same key as `BTCUSD` and `BTC`; stripping a
+  // trailing USD alone left `BTC-`, a second instrument in the evidence store.
+  const normalizedSymbol = cryptoBaseTicker(appSymbol) ?? appSymbol.toUpperCase().replace(/USD$/, "");
 
   return {
     schemaVersion: MARKET_EVENT_SCHEMA_VERSION,
