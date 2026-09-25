@@ -7691,7 +7691,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         reasons are compiled into a receipt by src/lib/vpRenderReceipt.ts and
         stamped onto the overlay canvas by runWMVP. §5 SYSTEM TRUTH LAW.
       */
-      function drawWMVP(barsToUse: LegacyOhlcvTuple[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
+      function drawWMVP(barsToUse: LegacyOhlcvTuple[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1, span: "SESSION" | null = null): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
         // `rows` is incremented at the one place a row is actually painted, so
         // the count is of pixels committed and not of buckets considered.
         let rowsPainted = 0;
@@ -8110,6 +8110,49 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (vahPrice !== pocPrice) drawVALevel(vahPrice, vpVahRgba(0.95), "VAH");
         if (valPrice !== pocPrice) drawVALevel(valPrice, vpValRgba(0.95), "VAL");
 
+        // SESSION PROFILE · THE SESSION IS THE FRAME (GP12 Defect 2: "must clip
+        // to an actual session definition"). Without a word, the column is
+        // framed by the stretch of time it measured: a wall at the session's
+        // opening bar and hairlines at the session's high and low running to
+        // the column — the Fixed column (whole history) has no frame, so the
+        // two species differ in shape, not only in ink. The bars are the
+        // session owner's (sessionWindowFor → selectSessionWindowBars); this
+        // block decides no session. A session that opened before the camera
+        // runs its hairlines off the left edge, with no wall.
+        if (span === "SESSION") {
+          const yHi = yOf(priceRange.hi), yLo = yOf(priceRange.lo);
+          const colLeft = vpRight - vpW - 2;
+          let xOpen: number | null = null;
+          try {
+            const xr = chart.timeScale().timeToCoordinate(barsToUse[0].time as never);
+            if (xr != null && Number.isFinite(+xr)) xOpen = +xr;
+          } catch { /* camera mid-transition */ }
+          if (yHi != null && yLo != null && (xOpen == null || xOpen < colLeft - 8)) {
+            const wall = xOpen != null && xOpen >= 0;
+            const x0 = wall ? Math.round(xOpen as number) + 0.5 : 0;
+            const yT = Math.round(yHi) + 0.5, yB = Math.round(yLo) + 0.5;
+            ctx.save();
+            ctx.strokeStyle = vpUpRgba(0.34);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x0, yT); ctx.lineTo(colLeft, yT);
+            ctx.moveTo(x0, yB); ctx.lineTo(colLeft, yB);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (wall) {
+              // "[" — the session's opening edge, serifed at its high and low.
+              ctx.strokeStyle = vpUpRgba(0.7);
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(x0 + 5, yT); ctx.lineTo(x0, yT); ctx.lineTo(x0, yB); ctx.lineTo(x0 + 5, yB);
+              ctx.stroke();
+            }
+            ctx.restore();
+            if (canvasRef.current) canvasRef.current.dataset.vpSpan = wall ? `OPEN:${Math.round(x0)}` : "OPENED_BEFORE_VIEW";
+          }
+        }
+
         // (On-canvas "WM Fixed/Session VP" title removed — it cluttered the top of
         // the chart and could overlap candle/volume numbers. The active VP is
         // already indicated by the highlighted toolbar toggle + its gear.)
@@ -8125,6 +8168,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         vpDrawn = true;
         const bothVP = fixedVPActive && sessionVPActive;
         const nVPCols = bothVP ? 2 : 1;
+        // Withdrawn each frame; re-published only by a Session column that framed itself.
+        if (canvasRef.current) delete canvasRef.current.dataset.vpSpan;
         /*
           THE RENDER RECEIPT. One entry per profile the toolbar asked for, so a
           frame where Fixed drew and Session did not is recorded as exactly
@@ -8167,7 +8212,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (canvasRef.current) canvasRef.current.dataset.vpSessionWindow = sessionWin.kind;
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
-          attempts.push({ profile: "SESSION", ...drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6) });
+          attempts.push({ profile: "SESSION", ...drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6, "SESSION") });
         } else if (canvasRef.current) {
           delete canvasRef.current.dataset.vpSessionWindow;
         }
