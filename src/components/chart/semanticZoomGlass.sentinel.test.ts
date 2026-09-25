@@ -62,6 +62,25 @@ describe("semantic zoom glass", () => {
     expect(block).not.toMatch(/HIGHER|LOWER/);
   });
 
+  it("FAR pivot names stay on the pane body, inside the plot, unboxed, and are obstacles", () => {
+    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    expect(CHART.indexOf("const HEADER_FLOOR_Y = 90;")).toBeGreaterThan(-1);
+    expect(CHART.indexOf("const HEADER_FLOOR_Y = 90;")).toBeLessThan(far);
+    const at = CHART.indexOf("for (const n of env.named) {", far);
+    expect(at).toBeGreaterThan(far);
+    const loop = CHART.slice(at, CHART.indexOf("farPainted = `DIM+ENVELOPE:", at));
+    expect(loop).toMatch(/ctx\.fillText\(n\.word, lx, ly\);/);
+    // A HIGH that would print into the header steps below; a LOW at the foot steps above.
+    expect(loop).toMatch(/if \(above && \+yn - 26 - th < HEADER_FLOOR_Y\) above = false;/);
+    expect(loop).toMatch(/else if \(!above && \+yn \+ 26 \+ th > pane0Bottom - 4\) above = true;/);
+    expect(loop).toMatch(/const lx = Math\.min\(Math\.max\(\+xn, tw \/ 2 \+ 4\), plotRight - tw \/ 2 - 4\);/);
+    expect(loop).toMatch(/forceChips\.push\(\{ x: lx - tw \/ 2, y: ly - th \/ 2, w: tw, h: th \}\);/);
+    // Halo text, no backing box (a flipped name lands on candles).
+    expect(loop).not.toMatch(/fillRect/);
+    // The receipt counts names that reached the glass, written after the paint.
+    expect(CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far))).toMatch(/canvas\.dataset\.farForm = farPainted;/);
+  });
+
   it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {
     const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));

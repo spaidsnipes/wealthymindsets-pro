@@ -5499,6 +5499,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
+      // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
+      // plot's top band; floating chips and cards stay below this line.
+      const HEADER_FLOOR_Y = 90;
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
@@ -5627,7 +5630,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const hit = fc && fc.bars === farBars && fc.structure === farStructure && fc.from === visibleFrom && fc.to === visibleTo ? fc : null;
           const env = hit ? hit.vm : selectFarRegimeEnvelope({ structure: farStructure, bars: farBars, visibleFrom, visibleTo });
           if (!hit) farEnvelopeCache = { bars: farBars, structure: farStructure, from: visibleFrom, to: visibleTo, vm: env };
-          canvas.dataset.farForm = env.drawn ? `DIM+ENVELOPE:${env.lean}+NAMED:${env.named.length}` : `DIM:${env.reason}`;
+          // The receipt names what reached the glass: an envelope whose ends
+          // cannot be placed is not drawn, and a pivot off camera is not named.
+          let farPainted: string = `DIM:${env.reason}`;
           if (env.drawn && env.upper && env.lower && env.fromTime != null && env.toTime != null) {
             const at = (l: { slope: number; intercept: number }, t: number) => srs.priceToCoordinate(l.slope * t + l.intercept);
             const x0 = chart.timeScale().timeToCoordinate(env.fromTime as never), x1 = chart.timeScale().timeToCoordinate(env.toTime as never);
@@ -5640,21 +5645,38 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.beginPath(); ctx.moveTo(+x0, +u0); ctx.lineTo(+x1, +u1); ctx.moveTo(+x0, +l0); ctx.lineTo(+x1, +l1); ctx.stroke();
               ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(237,230,211,0.35)"; ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(+x0, (+u0 + +l0) / 2); ctx.lineTo(+x1, (+u1 + +l1) / 2); ctx.stroke(); ctx.setLineDash([]);
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center";
+              // Pivot names are halo text on a leader, never boxes: a name that
+              // has to step to the other side of its pivot lands on candles.
+              // The side is above a HIGH / below a LOW unless that leaves the
+              // pane body — the window's peak sits ~6% from the pane top, so
+              // above it is the header band or off the canvas, and the most
+              // important name would be the one that vanished. x is kept
+              // inside the plot; each name is an obstacle for later chips.
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              let named = 0;
               for (const n of env.named) {
                 const xn = chart.timeScale().timeToCoordinate(n.time as never), yn = srs.priceToCoordinate(n.price);
-                if (xn == null || yn == null) continue;
-                const hi = n.kind === "HIGH", ty = hi ? +yn - 26 : +yn + 26;
+                if (xn == null || yn == null || +xn < 0 || +xn > plotRight) continue;
+                const tw = ctx.measureText(n.word).width + 6, th = 14;
+                let above = n.kind === "HIGH";
+                if (above && +yn - 26 - th < HEADER_FLOOR_Y) above = false;
+                else if (!above && +yn + 26 + th > pane0Bottom - 4) above = true;
+                const s = above ? -1 : 1;
+                const ly = +yn + s * (26 + th / 2);
+                const lx = Math.min(Math.max(+xn, tw / 2 + 4), plotRight - tw / 2 - 4);
                 ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(+xn, hi ? +yn - 4 : +yn + 4); ctx.lineTo(+xn, hi ? ty + 6 : ty - 6); ctx.stroke();
-                ctx.textBaseline = hi ? "bottom" : "top";
-                const tw = ctx.measureText(n.word).width + 10;
-                ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(+xn - tw / 2, hi ? ty - 14 : ty, tw, 14);
-                ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(n.word, +xn, hi ? ty - 1 : ty + 1);
+                ctx.beginPath(); ctx.moveTo(+xn, +yn + s * 4); ctx.lineTo(+xn, +yn + s * 20); ctx.lineTo(lx, +yn + s * 20); ctx.stroke();
+                ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 4;
+                ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(n.word, lx, ly);
+                ctx.restore();
+                forceChips.push({ x: lx - tw / 2, y: ly - th / 2, w: tw, h: th });
+                named++;
               }
               ctx.restore();
+              farPainted = `DIM+ENVELOPE:${env.lean}+NAMED:${named}`;
             }
           }
+          canvas.dataset.farForm = farPainted;
         } else {
           delete canvas.dataset.farForm;
         }
@@ -8050,9 +8072,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
-      // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
-      // plot's top band; floating chips and cards stay below this line.
-      const HEADER_FLOOR_Y = 90;
       // An active Question Lens owns the plot's left column (strip, debt card,
       // control card, Ask chooser) up to this x. Anything that must stay
       // readable steps right of it rather than printing where the lens paints.
