@@ -9,7 +9,7 @@ await ctx.route("**/api/yahoo?*type=candles*", r => r.fulfill({ status: 200, con
 const p = await ctx.newPage();
 await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "domcontentloaded", timeout: 180000 });
 await p.waitForTimeout(18000);
-const read = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorptionDepthForm !== undefined); return { form: c?.dataset.absorptionDepthForm, living: c?.dataset.livingProfileDepthForm, density: c?.dataset.semanticDensity }; });
+const read = () => p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorptionDepthForm !== undefined); return { far: c?.dataset.farForm, form: c?.dataset.absorptionDepthForm, living: c?.dataset.livingProfileDepthForm, density: c?.dataset.semanticDensity }; });
 const shot = async (name) => { await p.mouse.move(1590, 990); await p.waitForTimeout(1200); console.log(name, JSON.stringify(await read())); await p.screenshot({ path: `scratchpad/garden12/depth_${name}.png` }); };
 await shot("start");
 await p.mouse.move(700, 450);
