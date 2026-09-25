@@ -20,6 +20,7 @@ if (z) { await p.locator(`[data-market-object-target="${z}"]`).click(); await p.
 const out = await p.evaluate(() => ({
   zone: document.querySelector("[data-living-profile]")?.dataset.marketZoneSelected,
   ticket: document.querySelector('[data-testid="chart-inspect-ticket"]')?.innerText.replace(/\s+/g," ").slice(0, 420),
+  provenance: document.querySelector('[data-testid="passport-provenance"]')?.innerText.replace(/\s+/g," "),
 }));
 console.log(JSON.stringify(out, null, 1));
 await p.screenshot({ path: "scratchpad/shift0924/zone_selected.png" });

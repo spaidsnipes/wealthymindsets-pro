@@ -5353,6 +5353,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         fusion={fusion.fused}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
+                        activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}
                         profileSliceAsOf={livingProfileAsOf}
                         onOpenChange={open => { setInspectOpen(open); if (!open) { setSelectedPrint(null); setSelectedSlicePrice(null); if (chartStructureZones.some(z => z.object.objectId === selectedMarketObjectId)) { forgetSelection(); setSelectedMarketObjectId(null); } } }}

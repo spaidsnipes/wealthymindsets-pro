@@ -106,6 +106,7 @@ export function ChartInspectTicket({
   profileSliceSymbol = "",
   profileSliceAsOf = null,
   selectedZone = null,
+  activeDecisionId = null,
   contradiction = null,
   memoryGhost = null,
   envelope = null,
@@ -125,6 +126,8 @@ export function ChartInspectTicket({
   profileSliceAsOf?: number | null;
   /** F11 · a selected swing-origin ZONE — its Passport. */
   selectedZone?: StructureZone | null;
+  /** The DECISION_ID born on this camera, if any — shown beside the object, never merged into it. */
+  activeDecisionId?: string | null;
   /** H-401 · "Passport shows both family lines." */
   contradiction?: ContradictionVM | null;
   /** H-201 · "Analogue sample / mismatch belongs in Inspect." */
@@ -273,6 +276,18 @@ export function ChartInspectTicket({
               {lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}
             </div>
             <div className="text-[11px]" style={{ color: "#8B8676" }}>(Bar close beyond the far edge · a wick through is a sweep, not a break)</div>
+          </div>
+          {/* GARDEN 12 · THE TRUTH MICROSCOPE — identity and provenance, from
+              the object and lifecycle owners verbatim. Calm on the glass, deep
+              here. The Decision_ID is shown BESIDE the object, never merged. */}
+          <div className="space-y-1 px-4 py-3" data-testid="passport-provenance">
+            <Head icon={FileText}>IDENTITY &amp; PROVENANCE</Head>
+            <Row k="Object" v={<span className="break-all font-mono text-[11px]">{z.object.objectId}</span>} />
+            <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{z.object.birthBarId}</span>} />
+            <Row k="Evidence" v={z.object.evidenceIds.length ? `${z.object.evidenceIds.length} id${z.object.evidenceIds.length > 1 ? "s" : ""} · ${z.object.evidenceIds.slice(0, 2).join(" · ")}${z.object.evidenceIds.length > 2 ? " …" : ""}` : "none attached"} />
+            <Row k="Method" v={`zone lifecycle v${lc.version} · confirmed-swing origin`} />
+            <Row k="As of" v={lc.asOf != null ? t(lc.asOf) : "UNKNOWN"} />
+            <Row k="Decision" v={activeDecisionId ? <span className="break-all font-mono text-[11px]">{activeDecisionId}</span> : "none born on this camera"} />
           </div>
         </div>
       </section>
