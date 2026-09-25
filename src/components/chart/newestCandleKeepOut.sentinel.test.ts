@@ -50,7 +50,12 @@ describe("the profile stack's label column yields to the newest bodies", () => {
   const stackLabel = slice("const stackLabel = (y: number, text: string, ink: string) => {", "ctx.restore();\n        };");
 
   it("asks the keep-out where the label may print, stepping around chips too", () => {
-    expect(stackLabel).toMatch(/placeClearOfKeepOut\(\s*\{ x: stackPlan\.labelRight - lwS - 3, y: yy - 5\.5, w: lwS \+ 5, h: 11 \},\s*keepOut\(\),\s*\{ minX: keepOutMinX\(\), blockers: floatingChips \},?\s*\)/);
+    // Pin updated 2026-09-25 (serving TSLA 1h): the column sits left of the
+    // Living body over older candles, so every body on its own row counts too.
+    expect(stackLabel).toMatch(/placeClearOfKeepOut\(\s*\{ x: stackPlan\.labelRight - lwS - 3, y: yy - 5\.5, w: lwS \+ 5, h: 11 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(yy - 5\.5, yy \+ 5\.5\)\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips \},?\s*\)/);
+    const rows = slice("const rowBodiesAt = (yTop: number, yBot: number) => {", "return bodiesInView.filter(");
+    expect(rows).toMatch(/spanCandleKeepOut\(barsRef\.current \?\? \[\]/);
+    expect(rows).toMatch(/barSpacing: bsp/);
     expect(stackLabel).toMatch(/recordKeepOut\(keepOutLedger, spotS\)/);
   });
 

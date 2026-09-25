@@ -8547,6 +8547,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       };
       // A slid label never lands in the column an active Question Lens owns.
       const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
+      // Every candle body in view, once per frame, for a label that prints on
+      // a row of history (the profile stack's one label column sits left of
+      // the Living body, over older candles). Filtered per row by the caller.
+      let bodiesInView: ReturnType<typeof spanCandleKeepOut> | null = null;
+      const rowBodiesAt = (yTop: number, yBot: number) => {
+        if (!bodiesInView) {
+          const tsB = chart.timeScale();
+          const vrB = tsB.getVisibleLogicalRange();
+          bodiesInView = spanCandleKeepOut(barsRef.current ?? [], {
+            visible: vrB ? { from: +vrB.from, to: +vrB.to } : null,
+            barSpacing: bsp,
+            timeToX: t => { const xk = tsB.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+            priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+          }, -1e9, 1e9);
+        }
+        return bodiesInView.filter(b => b.y < yBot && b.y + b.h > yTop);
+      };
       // ONE visible-window anatomy per frame (M8: one mapping per room). The
       // absorption layer paints it; H-401 reads its exhaustion off the SAME
       // measurement even when the Absorption tool is off. Built at most once.
@@ -11169,9 +11186,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // forming candle. It slides left along its own row past the newest
           // bodies, and a dotted leader ties it back to the lane at the true
           // price; with no room it stays and its backing yields instead.
+          // …and so is every older body on its own row: the column sits left of
+          // the Living body, over history (serving TSLA 1h, 2026-09-25).
           const spotS = placeClearOfKeepOut(
             { x: stackPlan.labelRight - lwS - 3, y: yy - 5.5, w: lwS + 5, h: 11 },
-            keepOut(),
+            [...keepOut(), ...rowBodiesAt(yy - 5.5, yy + 5.5)],
             { minX: keepOutMinX(), blockers: floatingChips },
           );
           recordKeepOut(keepOutLedger, spotS);
