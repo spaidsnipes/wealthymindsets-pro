@@ -10539,6 +10539,38 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.setLineDash([]);
             }
 
+            // GARDEN 12 · THE SOURCE STRUCTURE, DRAWN — hide the words and the
+            // profile still says where it came from: (1) the measured leg's
+            // territory, a faint wash from the swing bar to now across the
+            // leg's price span; (2) the SWING itself, a pivot glyph on the real
+            // bar (▲ under a low, ▼ over a high); (3) a tether from that swing
+            // to the histogram's spine, which is drawn solid so the profile
+            // reads as hanging from its origin, not parked at the edge.
+            if (drawnRows > 0) {
+              const ya = srs.priceToCoordinate(sp.anchor.price);
+              ctx.fillStyle = "rgba(237,230,211,0.035)";
+              ctx.fillRect(x0, top, Math.max(0, (W - 76) - x0), bot - top);
+              ctx.strokeStyle = "rgba(201,165,92,0.7)";
+              ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(histX - 0.5, top); ctx.lineTo(histX - 0.5, bot); ctx.stroke();
+              if (ya != null) {
+                const yA = Math.round(+ya);
+                const low = sp.anchor.kind === "LOW";
+                const gy = low ? yA + 7 : yA - 7;
+                ctx.fillStyle = "rgba(201,165,92,0.95)";
+                ctx.beginPath();
+                if (low) { ctx.moveTo(x0, gy - 4); ctx.lineTo(x0 + 5, gy + 4); ctx.lineTo(x0 - 5, gy + 4); }
+                else { ctx.moveTo(x0, gy + 4); ctx.lineTo(x0 + 5, gy - 4); ctx.lineTo(x0 - 5, gy - 4); }
+                ctx.closePath(); ctx.fill();
+                if (histX > x0 + 8) {
+                  const yT = Math.min(Math.max(yA, top), bot);
+                  ctx.strokeStyle = "rgba(201,165,92,0.6)";
+                  ctx.beginPath(); ctx.moveTo(x0 + 6, yA + 0.5); ctx.lineTo(histX - 6, yT + 0.5); ctx.lineTo(histX - 0.5, yT + 0.5); ctx.stroke();
+                }
+                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}+TETHER+TERRITORY`;
+              }
+            }
+
             // Leg POC from the anchor to the right edge of the candles: the
             // level this leg has accepted most, carried forward to "now".
             if (sp.poc != null) {
