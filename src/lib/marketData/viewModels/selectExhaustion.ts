@@ -35,6 +35,15 @@
  * miss honestly. No probability; no "strength score"; no direction call —
  * an exhausted up-push is a fact about the push, not a forecast of a fall.
  *
+ * ── WHERE IT HAPPENED ──────────────────────────────────────────────────────
+ *
+ * The mark hangs at the extreme, and the extreme is not always the push's
+ * last bar (a push can close higher on a bar with a lower high). So the push's
+ * own first and last bar and the bars follow-through was counted on are
+ * published too. A reader that rebuilt the push backwards from the extreme
+ * would put fuel on the origin bar, drop the push's last bar, and grade
+ * follow-through on bars this module never measured.
+ *
  * PURE. DETERMINISTIC.
  */
 
@@ -56,6 +65,13 @@ export interface ExhaustionReading {
   /** The extreme price itself: the push's high (UP) or low (DOWN). */
   readonly price: number;
   readonly pushBars: number;
+  /** The push's first bar (unix seconds). */
+  readonly pushStartTime: number;
+  /** The push's last bar; follow-through is counted on the bars after it. */
+  readonly pushEndTime: number;
+  /** The bars follow-through was measured on, oldest first: FT_BARS of them,
+   *  or fewer while PENDING. */
+  readonly followThroughTimes: readonly number[];
   /** second-half effort ÷ first-half effort. */
   readonly aggressionLevel: number;
   /** push travel ÷ median bar range. */
@@ -131,6 +147,9 @@ export function selectExhaustion(anatomy: AbsorptionAnatomyVM | null | undefined
         time: extreme.time,
         price: extremePrice,
         pushBars: len,
+        pushStartTime: push[0].time,
+        pushEndTime: push[len - 1].time,
+        followThroughTimes: after.map(b => b.time),
         aggressionLevel,
         extension,
         followThrough,

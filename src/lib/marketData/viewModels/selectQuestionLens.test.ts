@@ -63,6 +63,7 @@ describe("exhaustion wins when it is newer", () => {
   it("asks the exhaustion question with its own debt", () => {
     const bars = [b(0, 99, 100), b(60, 100, 101), b(120, 100, 101), b(180, 101, 102), b(240, 102, 103), b(300, 103, 104), b(360, 103.5, 104.5)];
     const ex: ExhaustionVM = { ...noEx, marks: [{ direction: "UP", time: 300, price: 104, pushBars: 4,
+      pushStartTime: 120, pushEndTime: 300, followThroughTimes: [360],
       aggressionLevel: 0.4, extension: 5, followThrough: 0, energyTransfer: 1, exhausted: true }] };
     const v = selectQuestionLens({ absorption: anatomy(bars), exhaustion: ex, livingPoc: null, pivots: [] });
     expect(v.kind).toBe("EXHAUSTION");

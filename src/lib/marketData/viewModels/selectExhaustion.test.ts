@@ -72,6 +72,45 @@ describe("the anatomy", () => {
     expect(selectExhaustion(vm(bars)).marks).toEqual([]);
   });
 
+  it("publishes the push's own span and the bars follow-through was measured on", () => {
+    const m = selectExhaustion(vm(fadingPush([105, 104.5, 104]))).marks[0];
+    expect(m.pushStartTime).toBe(60);
+    expect(m.pushEndTime).toBe(360);
+    expect(m.followThroughTimes).toEqual([420, 480, 540]);
+  });
+
+  it("an extreme short of the push's last bar does not move the push or its follow-through", () => {
+    // Up push on bars 60..360, closes rising; bar 300 has the highest high
+    // (range 4 → 107) and bar 360 closes higher on a lower high (106.5).
+    const bars = fadingPush([105, 104.5, 104]).map(x =>
+      x.time === 300 ? { ...x, high: x.close + 2, low: x.close - 2 } : x);
+    const m = selectExhaustion(vm(bars)).marks[0];
+    expect(m.time).toBe(300);
+    expect(m.price).toBe(107);
+    // Fuel is on the push's bars (not the origin bar at 0), including the
+    // faded last bar the extreme is not on.
+    expect([m.pushStartTime, m.pushEndTime]).toEqual([60, 360]);
+    // Follow-through was measured on the bars after the push end.
+    expect(m.followThroughTimes).toEqual([420, 480, 540]);
+  });
+
+  it("while PENDING, only the follow-through bars that exist are published", () => {
+    const p = selectExhaustion(vm(fadingPush([105]))).latestPush!;
+    expect(p.followThrough).toBeNull();
+    expect(p.followThroughTimes).toEqual([420]);
+  });
+
+  it("every mark failed on all of its measured follow-through bars", () => {
+    // A mark requires followThrough === 0 over FT_BARS existing bars, so the
+    // chart has nothing to fill: each slot it draws is a bar that failed.
+    const v = selectExhaustion(vm(fadingPush([105, 104.5, 104])));
+    expect(v.marks.length).toBeGreaterThan(0);
+    for (const m of v.marks) {
+      expect(m.followThrough).toBe(0);
+      expect(m.followThroughTimes).toHaveLength(FT_BARS);
+    }
+  });
+
   it("carries the effort basis through and no probability field", () => {
     const v = selectExhaustion(vm(fadingPush([105, 104.5, 104])));
     expect(v.basis).toBe("VOLUME");

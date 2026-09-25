@@ -8383,15 +8383,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
             /* ── EXHAUSTION ANATOMY — the plate's right half ────────────────
                Same effort series as the absorption zones above (one owner,
-               two readings). At the extreme of every push whose effort faded
-               as it extended and then failed to follow through: three fading
-               bars (declining aggression) just beyond the extreme, and the
-               plate's four metrics on a chip. Crimson is the plate's own
-               exhaustion colour; the mark is a fact about the push, never a
-               forecast. */
+               two readings). For every push whose effort faded as it extended
+               and then failed to follow through: its fuel on its own bars, a
+               ring on each bar that failed to continue, and the plate's four
+               metrics on a chip. Crimson is the plate's own exhaustion colour;
+               the mark is a fact about the push, never a forecast. */
             {
               const ex = selectExhaustion(anatomy);
               ds.exhaustion = ex.reason === "MEASURED" ? String(ex.marks.length) : ex.reason;
+              // What each mark actually put on the glass, for the receipt below.
+              const exhaustionDrawn: string[] = [];
               for (const m of ex.marks) {
                 const xr = ts.timeToCoordinate(m.time as never);
                 const yr = srs.priceToCoordinate(m.price);
@@ -8401,34 +8402,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const y0 = up ? +yr - 8 : +yr + 8;
                 ctx.save();
                 ctx.fillStyle = "rgba(226,92,92,0.95)";
-                // GARDEN 12 · MEASURED, NOT DECORATIVE (was three fixed bars
-                // 9/6/3). THE FUEL: one tick per bar of the push, on the push's
-                // own bars, sized by that bar's measured effort — the fade is
-                // the real series. FAILED TO CONTINUE: three slots on the three
-                // bars after the extreme; filled only as many as made a new
-                // extreme (followThrough), hollow otherwise; none drawn before
-                // those bars exist.
+                // GARDEN 12 · MEASURED, NOT DECORATIVE. The push's span and its
+                // follow-through bars come from the owner: the extreme the mark
+                // hangs on is not always the push's last bar, so a span rebuilt
+                // backwards from it lands on the wrong bars.
+                // THE FUEL: one tick per bar of the push, sized by that bar's
+                // measured effort — the fade is the real series.
+                // FAILED TO CONTINUE: one hollow ring on each bar follow-through
+                // was measured on. A mark exists only when none of those bars
+                // made a new extreme, so every ring is hollow and each one is a
+                // bar that failed; none is drawn for a bar that does not exist.
                 {
-                  const iEx = anatomy.bars.findIndex(ab => ab.time === m.time);
-                  if (iEx >= 0) {
-                    const push = anatomy.bars.slice(Math.max(0, iEx - m.pushBars + 1), iEx + 1);
-                    for (const ab of push) {
-                      const xb = ts.timeToCoordinate(ab.time as never);
-                      const yb = srs.priceToCoordinate(up ? ab.high : ab.low);
-                      if (xb == null || yb == null) continue;
-                      const h = 2 + ab.effortNorm * 12;
-                      ctx.fillRect(Math.round(+xb) - 1.5, up ? +yb - 4 - h : +yb + 4, 3, h);
-                    }
-                    const after = anatomy.bars.slice(iEx + 1, iEx + 4);
-                    after.forEach((ab, k) => {
-                      const xb = ts.timeToCoordinate(ab.time as never);
-                      if (xb == null) return;
-                      ctx.beginPath(); ctx.arc(+xb, y0, 3, 0, Math.PI * 2);
-                      if (m.followThrough != null && k < m.followThrough) ctx.fill();
-                      else { ctx.strokeStyle = "rgba(226,92,92,0.9)"; ctx.lineWidth = 1.2; ctx.stroke(); }
-                    });
-                    ds.exhaustionGeometry = `FUEL:${push.length}+SLOTS:${after.length}`;
+                  let fuel = 0, rings = 0;
+                  for (const ab of anatomy.bars) {
+                    if (ab.time < m.pushStartTime) continue;
+                    if (ab.time > m.pushEndTime) break;
+                    const xb = ts.timeToCoordinate(ab.time as never);
+                    const yb = srs.priceToCoordinate(up ? ab.high : ab.low);
+                    if (xb == null || yb == null) continue;
+                    const h = 2 + ab.effortNorm * 12;
+                    ctx.fillRect(Math.round(+xb) - 1.5, up ? +yb - 4 - h : +yb + 4, 3, h);
+                    fuel++;
                   }
+                  ctx.strokeStyle = "rgba(226,92,92,0.9)"; ctx.lineWidth = 1.2;
+                  for (const t of m.followThroughTimes) {
+                    const xb = ts.timeToCoordinate(t as never);
+                    if (xb == null) continue;
+                    ctx.beginPath(); ctx.arc(+xb, y0, 3, 0, Math.PI * 2); ctx.stroke();
+                    rings++;
+                  }
+                  exhaustionDrawn.push(`FUEL:${fuel}+SLOTS:${rings}`);
                 }
                 const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
                 // EFFORT, never AGG: the ratio is unsigned effort (volume or
@@ -8478,6 +8481,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillText(chipTxt, cxx + 6, cy + 7.5);
                 ctx.restore();
               }
+              // One entry per mark on the glass; no mark on the glass, no
+              // geometry receipt.
+              if (exhaustionDrawn.length > 0) ds.exhaustionGeometry = exhaustionDrawn.join("|");
+              else delete ds.exhaustionGeometry;
             }
 
             /* ── ANATOMY CARDS — the plate's two KEY METRICS columns ─────────

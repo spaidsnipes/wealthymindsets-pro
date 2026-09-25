@@ -17,6 +17,7 @@ const anatomy = (over: Partial<AbsorptionAnatomyVM> = {}) => ({
 } as AbsorptionAnatomyVM);
 const push = (over: Partial<ExhaustionReading> = {}): ExhaustionReading => ({
   direction: "UP", time: 180, price: 105, pushBars: 6, aggressionLevel: 0.4, extension: 7.7,
+  pushStartTime: -120, pushEndTime: 180, followThroughTimes: [240, 300, 360],
   followThrough: 0, energyTransfer: 3.81, exhausted: true, ...over,
 });
 const exVM = (marks: ExhaustionReading[], latest: ExhaustionReading | null): ExhaustionVM =>
