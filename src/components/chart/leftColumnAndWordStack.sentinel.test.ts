@@ -58,4 +58,9 @@ describe("left column and word stack", () => {
     expect(chipFn).toContain("floatingChips.push({ x: cx, y: cy - 12, w, h: 14 });");
     expect(chipFn).toMatch(/ctx\.fillRect\(cx, cy - 12, w, 14\);/);
   });
+
+  it("the stack column places each label on the nearest free row (no oscillating step)", () => {
+    expect(CHART).toContain("const yy = nearestFreeLabelY(y, stackLabelYs, 12);");
+    expect(CHART).not.toMatch(/yy = y < hit \? hit - 12 : hit \+ 12;/);
+  });
 });

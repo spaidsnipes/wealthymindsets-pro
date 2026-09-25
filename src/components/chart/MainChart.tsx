@@ -22,6 +22,7 @@ import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -11040,12 +11041,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Step AWAY from the label it collides with, toward its own side:
           // always stepping down printed a higher VAH beneath the POC, which
           // inverts the price order the column exists to show.
-          let yy = y;
-          for (let guard = 0; guard < 8; guard++) {
-            const hit = stackLabelYs.find(t => Math.abs(t - yy) < 12);
-            if (hit == null) break;
-            yy = y < hit ? hit - 12 : hit + 12;
-          }
+          // Nearest FREE row that keeps that order (nearestFreeLabelY): the
+          // old one-row step oscillated between two neighbours and, after eight
+          // tries, printed on both (serving, BTC 1m FAR: LIVING POC / VRP POC /
+          // LIVING VAL as one smear).
+          const yy = nearestFreeLabelY(y, stackLabelYs, 12);
           stackLabelYs.push(yy);
           ctx.save();
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
