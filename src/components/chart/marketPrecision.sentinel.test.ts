@@ -49,3 +49,10 @@ describe("the classic VP column's price tags quote the same precision", () => {
     expect(CHART).not.toContain("ctx.fillText(pocPrice.toFixed(2)");
   });
 });
+
+describe("drawing chips quote the same precision", () => {
+  it("the drawing renderer's dec reads the bars; the Fixed Range chip uses it", () => {
+    expect(CHART).toContain("const dec = drawBars.length ? pricePrecisionFromBars(drawBars) : (base > 100 ? 2 : base > 1 ? 3 : 5);");
+    expect(CHART).toContain("POC ${vm.poc?.toFixed(dec)}${est}`");
+  });
+});

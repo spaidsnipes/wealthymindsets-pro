@@ -14122,7 +14122,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const toPx  = (p: LogicalPt): Pt | null => logicalToPixel(p);
     const priceY = (pr: number): number | null => { const y = candleRef.current?.priceToCoordinate(pr); return y == null ? null : +y; };
     const timeX  = (tm: number): number | null => { const x = chartRef.current?.timeScale().timeToCoordinate(tm as any); return x == null ? null : +x; };
-    const dec = base > 100 ? 2 : base > 1 ? 3 : 5;
+    // Drawing chips quote the market's own decimals (pricePrecision.ts), read
+    // from the bars; the static base rule only before any bar has arrived.
+    const drawBars = barsRef.current ?? [];
+    const dec = drawBars.length ? pricePrecisionFromBars(drawBars) : (base > 100 ? 2 : base > 1 ? 3 : 5);
     const dashArr = (st: DrawStyle): number[] => st.dash === "dashed" ? [7, 5] : st.dash === "dotted" ? [2, 4] : [];
     const rayToEdge = (a: Pt, dx: number, dy: number): Pt => {
       let tB = Infinity;
@@ -14266,7 +14269,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             hline(vm.vah, pk.rgba("EDGE_HIGH", 0.5), [3, 4]);
             hline(vm.val, pk.rgba("EDGE_LOW", 0.5), [3, 4]);
             const est = vm.quality === "trade-based" ? "" : " · CANDLE-EST";
-            chip(`FIXED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(2)}${est}`, x0 + 2, yTop - 3, pk.rgba("ANCHOR", 1));
+            chip(`FIXED RANGE · ${vm.barsInView} BARS · POC ${vm.poc?.toFixed(dec)}${est}`, x0 + 2, yTop - 3, pk.rgba("ANCHOR", 1));
           } else {
             // Named refusal, where the trader dragged — never an empty box.
             ctx.strokeStyle = "rgba(240,180,41,0.6)";

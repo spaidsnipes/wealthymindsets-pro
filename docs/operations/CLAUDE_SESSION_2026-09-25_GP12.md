@@ -270,8 +270,7 @@ Added by the browser shift (desktop):
 - **Flatten BLOCKED** (human decision): `placeChartMarketOrder` stays pinned until ten futures carry
   published CME point values. **Replay OPEN**: no frozen-bar replay engine (honest "not wired" panel).
   **Layout OPEN**: saved layouts are one "My stack" slot in Tools.
-- **Precision, remaining sites**: drawing-tool chips (Fixed Range "POC …", info-line/price-range
-  deltas use a static base rule), the risk callout (STOP / INVALIDATION) and indicator math (`computeBB` / VWAP round by a `> 100` rule)
+- **Precision, remaining sites** (drawing chips landed in the last commit): the risk callout (STOP / INVALIDATION) and indicator math (`computeBB` / VWAP round by a `> 100` rule)
   still format outside `pricePrecision.ts`. Visible on FX; route them through the owner.
 - **Keep-out law scope**: the owner protects the newest 3 bodies; this shift added row-span bodies
   for the dPOC name, the stack label column and the envelope name. Zone callouts, the absorption chip
