@@ -604,6 +604,11 @@ function compileChain(admitted: IdentityVerdict, input: InspectChainInput | null
  * keeps two places and everything else keeps none.
  */
 function formatCount(n: number): string {
-  if (n > 0 && n < 1) return n.toFixed(2);
-  return Math.round(n).toLocaleString("en-US");
+  // A quantity at the precision the venue reports it. Rounding to a whole unit
+  // (≥ 1) or to two decimals (< 1) printed a 4.0959 BTC bar as "4" and 0.012
+  // as "0.01" beside a data window reading 0.012 (serving, BTC 1m, 2026-09-25)
+  // — the microscope was blurrier than the glass. Whole counts stay whole;
+  // fractions keep six significant figures, the data window's rule.
+  if (Number.isInteger(n)) return n.toLocaleString("en-US");
+  return Number(n.toPrecision(6)).toLocaleString("en-US", { maximumFractionDigits: 8 });
 }

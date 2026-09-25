@@ -81,6 +81,10 @@ describe("the ticket reads what it can read", () => {
     // summed from the tape it would silently disagree with the bar the trader
     // is looking at — two volumes for one candle.
     expect(rowOf(base(), "VOLUME").value).toBe("623");
+    // Fractional (crypto) quantities keep the venue's precision — never a whole unit.
+    expect(rowOf(base({ barVolume: 0.012 }), "VOLUME").value).toBe("0.012");
+    expect(rowOf(base({ barVolume: 4.0958944299999995 }), "VOLUME").value).toBe("4.09589");
+    expect(rowOf(base({ barVolume: 12400 }), "VOLUME").value).toBe("12,400");
   });
 
   it("carries the version and a non-empty headline", () => {
