@@ -31,6 +31,7 @@ describe("the chart has one selection, owned by selectChartSelection", () => {
     expect(ROOM).toContain("const selectedMarketObjectId = selectedObjectIdOf(chartSelection);");
     expect(ROOM).toContain("const selectedPrint = selectedPrintOf(chartSelection);");
     expect(ROOM).toContain("const selectedSlicePrice = selectedSliceOf(chartSelection);");
+    expect(ROOM).toContain("const selectedAnatomy = selectedAnatomyOf(chartSelection);");
     expect(ROOM).toContain("const inspectOpen = chartSelection.inspectOpen;");
   });
 
@@ -48,6 +49,9 @@ describe("the chart has one selection, owned by selectChartSelection", () => {
       /onSelectMarketObject=\{id => actOnChartSelection\(\{ type: "toggleObject", objectId: id \}\)\}/,
       /onOpenChange=\{open => actOnChartSelection\(\{ type: open \? "openInspect" : "closeInspect" \}\)\}/,
       /actOnChartSelection\(\{ type: "select", selection: \{ kind: "OBJECT", objectId: z\.object\.objectId \} \}\)/,
+      /onSelectAnatomy=\{pick => actOnChartSelection\(\{ type: "select", selection: \{ kind: "ANATOMY", symbol, timeframe, \.\.\.pick, lastDrawn: null \} \}\)\}/,
+      /onAnatomyReading=\{reading => actOnChartSelection\(\{ type: "resolveAnatomy", reading \}\)\}/,
+      /actOnChartSelection\(\{ type: "clear", kinds: \["ANATOMY"\] \}\)/,
     ];
     for (const route of routes) expect(ROOM).toMatch(route);
     // Proof the scan is over the wiring it vouches for, not an empty file.
@@ -74,6 +78,7 @@ describe("the chart has one selection, owned by selectChartSelection", () => {
     expect(ticket).toContain("selectedPrint={activeSelectedPrint}");
     expect(ticket).toContain("selectedProfileSlice={activeProfileSlice}");
     expect(ticket).toMatch(/selectedZone=\{chartStructureZones\.find\(z => z\.object\.objectId === selectedMarketObjectId\) \?\? null\}/);
+    expect(ticket).toContain("selectedAnatomy={activeSelectedAnatomy}");
     expect(ROOM).toContain("selectedPrintOnChart={activeSelectedPrint}");
     expect(ROOM).toContain("selectedMarketObjectId={selectedMarketObjectId}");
   });

@@ -162,6 +162,12 @@ const ANATOMY_BASIS: Record<EffortBasis, string> = {
   UNMEASURED: "UNMEASURED — no volume and no split in this window",
 };
 
+function AnatomyRow({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[92px_1fr] gap-2"><dt style={{ color: "#8B8676" }}>{k}</dt><dd className="text-white">{v}</dd></div>
+  );
+}
+
 function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => void }) {
   const r = sel.reading;
   const absorption = r.target.reading === "ABSORPTION";
@@ -202,9 +208,7 @@ function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => 
       : "Too few bars in this window to grade a push — nothing is drawn.";
   }
 
-  const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
-    <div className="grid grid-cols-[92px_1fr] gap-2"><dt style={{ color: "#8B8676" }}>{k}</dt><dd className="text-white">{v}</dd></div>
-  );
+  const Row = AnatomyRow;
   // Inspect stands on the wall AWAY from the object, so its candles stay in view.
   const wallClass = sel.wall === "LEFT" ? "top-2 left-2" : "top-16 right-[76px]";
   return (

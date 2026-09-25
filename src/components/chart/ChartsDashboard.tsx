@@ -280,6 +280,7 @@ import {
   CHART_SELECTION_AT_REST,
   releasesObject,
   selectChartSelection,
+  selectedAnatomyOf,
   selectedObjectIdOf,
   selectedPrintOf,
   selectedSliceOf,
@@ -1519,6 +1520,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const selectedMarketObjectId = selectedObjectIdOf(chartSelection);
   const selectedPrint = selectedPrintOf(chartSelection);
   const selectedSlicePrice = selectedSliceOf(chartSelection);
+  const selectedAnatomy = selectedAnatomyOf(chartSelection);
   const inspectOpen = chartSelection.inspectOpen;
   // CONTINUITY (Garden 12 · Defect 7): the selected object survives a refresh
   // in this browser session — keyed by symbol:timeframe, restored only when
@@ -1549,6 +1551,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
     dispatchChartSelection(action);
   };
+  // A shelf or mark exists only while the Absorption layer paints it. Switched
+  // off, its selection is let go rather than left describing nothing.
+  useEffect(() => {
+    if (!absorptionAnatomy) actOnChartSelection({ type: "clear", kinds: ["ANATOMY"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
+  }, [absorptionAnatomy]);
   const continuationHealthVM = React.useMemo(() =>
     selectContinuationHealth({ structure: chartStructureVM, regime: chartRegimeVM }),
   [chartStructureVM, chartRegimeVM]);
@@ -1670,6 +1678,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // bucket by `selectProfileSlice`) are read from `chartSelection` above; the
   // reducer's rest state is Inspect CLOSED, for the reasons given here.
   const activeSelectedPrint = selectedPrint?.symbol === symbol && selectedPrint.timeframe === timeframe ? selectedPrint : null;
+  // A shelf or mark is measured on THIS chart's window; one made on another
+  // symbol or timeframe is never shown here.
+  const activeSelectedAnatomy = selectedAnatomy?.symbol === symbol && selectedAnatomy.timeframe === timeframe ? selectedAnatomy : null;
 
   /* The span comes from the bars the chart DREW, not from a second
    * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
@@ -5208,6 +5219,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          the rest of the glass recedes; a restored selection with
                          Inspect closed arrives calm. */
                       selectionInspected={inspectOpen}
+                      /* An absorption shelf or exhaustion mark: the ONE selection
+                         holds it; the glass re-resolves it each frame against the
+                         visible-window anatomy it painted (never this room's
+                         30-bar absorptionAnatomyVM) and hands changes back. */
+                      onSelectAnatomy={pick => actOnChartSelection({ type: "select", selection: { kind: "ANATOMY", symbol, timeframe, ...pick, lastDrawn: null } })}
+                      onAnatomyReading={reading => actOnChartSelection({ type: "resolveAnatomy", reading })}
+                      selectedAnatomy={activeSelectedAnatomy}
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
@@ -5419,6 +5437,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         profileDnaOnGlass={livingProfileOn && livingProfileGlass.drawn}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
+                        selectedAnatomy={activeSelectedAnatomy}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}
                         profileSliceAsOf={livingProfileAsOf}

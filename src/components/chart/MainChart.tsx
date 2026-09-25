@@ -177,7 +177,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionWall", "absorptionZones",
-  "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale",
+  "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry",
   "questionCallout", "questionChoice", "questionLensForm", "scaffoldingScale",
 ] as const;
@@ -193,6 +193,7 @@ import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
 import {
   selectAbsorptionAnatomy,
+  type AbsorptionAnatomyVM,
   type AnatomyBarInput,
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
@@ -241,6 +242,21 @@ import { nearCandleAnatomyParts } from "@/lib/marketData/viewModels/selectNearCa
 import { selectNearTape, type NearTapeCache } from "@/lib/marketData/viewModels/selectNearTape";
 import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
+import {
+  anatomyReadingDrawn,
+  anatomyReadingKey,
+  anatomyTargetId,
+  markTarget,
+  padHitRect,
+  pickAnatomyHit,
+  selectAnatomyInspect,
+  zoneTarget,
+  type AnatomyHit,
+  type AnatomyHitRect,
+  type AnatomyInspectVM,
+  type AnatomyTarget,
+} from "@/lib/marketData/viewModels/anatomySelection";
+import type { SelectedAnatomy } from "@/lib/marketData/viewModels/chartSelection";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
@@ -951,6 +967,16 @@ interface Props {
    * selection restored with Inspect closed arrives calm and recedes nothing.
    */
   selectionInspected?: boolean;
+  /**
+   * A clean click on an absorption shelf or exhaustion mark the glass painted.
+   * Hands up WHICH one (the owners' own coordinates), the wall Inspect should
+   * stand on (away from it), and its reading from the frame that was on screen.
+   */
+  onSelectAnatomy?: (pick: { target: AnatomyTarget; wall: "LEFT" | "RIGHT"; reading: AnatomyInspectVM }) => void;
+  /** The selected shelf or mark. Re-resolved every frame; drawn loudest while the window still draws it. */
+  selectedAnatomy?: SelectedAnatomy | null;
+  /** This frame's resolution of the selected shelf or mark — sent only when it changed. */
+  onAnatomyReading?: (reading: AnatomyInspectVM) => void;
   onOHLCAtCursor?:  (ohlc: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => void;
   // WM VP indicators
   fixedVPActive?:  boolean;
@@ -1416,6 +1442,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
+  onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
   imbalanceStack = null,
@@ -1661,6 +1688,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const selectedSliceRef = useRef<number | null>(null);
   useEffect(() => { selectedSliceRef.current = selectedProfileSlicePrice ?? null; }, [selectedProfileSlicePrice]);
+
+  /*
+    THE SELECTED SHELF OR MARK, read inside the rAF like every other input.
+    `anatomyReadingSentRef` is the last reading handed up (or the one the room
+    already holds), so a frame that resolves the same reading sends nothing —
+    the resolution loop cannot feed itself.
+  */
+  const selectedAnatomyRef = useRef<SelectedAnatomy | null>(null);
+  const anatomyReadingSentRef = useRef<{ key: string; at: number }>({ key: "", at: 0 });
+  useEffect(() => {
+    selectedAnatomyRef.current = selectedAnatomy ?? null;
+    anatomyReadingSentRef.current = { key: anatomyReadingKey(selectedAnatomy?.reading), at: anatomyReadingSentRef.current.at };
+  }, [selectedAnatomy]);
+  const onAnatomyReadingRef = useRef<typeof onAnatomyReading>(undefined);
+  useEffect(() => { onAnatomyReadingRef.current = onAnatomyReading; }, [onAnatomyReading]);
+  /** What the anatomy block painted on the frame on screen — the click path hit-tests exactly this. */
+  const anatomyHitsRef = useRef<AnatomyHit[]>([]);
+  /** The frame those hits were painted from, so a click reads the reading that was on screen. */
+  const anatomyFrameRef = useRef<{ anatomy: AbsorptionAnatomyVM; windowCapped: boolean } | null>(null);
 
   /**
    * DECISION_ID — one truth per camera. Read through a ref so the chrome
@@ -5553,6 +5599,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // The keep-out receipt describes labels on THIS glass; it goes with the
       // clear and only the end of a full frame re-publishes it.
       for (const k of KEEP_OUT_RECEIPTS) delete canvas.dataset[k];
+      // A click selects only what is on the glass: the anatomy hit list is
+      // cleared with it and refilled only by the anatomy paint below.
+      anatomyHitsRef.current = [];
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
@@ -8468,6 +8517,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         try {
           const ts = chart.timeScale();
           const { anatomy, windowCapped } = anatomyInView();
+          anatomyFrameRef.current = { anatomy, windowCapped };
+          // THE SELECTED SHELF OR MARK, resolved against THIS frame's owners —
+          // never a second measurement. The resolution names which drawn
+          // object is the selected one; while it is drawn, its peers quiet.
+          const anatomySel = selectedAnatomyRef.current;
+          const anatomySelReading = anatomySel
+            ? selectAnatomyInspect(anatomySel.reading.target, anatomy, selectExhaustion(anatomy), windowCapped)
+            : null;
+          const anatomyPeersQuiet = anatomyReadingDrawn(anatomySelReading);
+          let anatomySelectedPainted = false;
 
           // Screen positions for every bar that is actually on screen.
           const pts = anatomy.bars.map(b => {
@@ -8660,6 +8719,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const bw = Math.max(2, x1 - x0);
               const bh = Math.max(2, yLo - yHi);
 
+              // SELECTED IS LOUDEST. The selected shelf keeps full ink and gains
+              // solid edges and a halo; while it is drawn every other shelf
+              // steps down to ×0.4. The fill stays a veil (≤ 0.16): the shelf
+              // sits on the candles it measures. Candles are never touched.
+              const shelfSelected = anatomySelReading?.currentId === anatomyTargetId(zoneTarget(zone));
+              ctx.globalAlpha = anatomyPeersQuiet && !shelfSelected ? 0.4 : 1;
+              // What a click can select is what was painted: the shelf's body (a
+              // thin one padded to a finger target), pushed BEFORE the chip slots
+              // can hide its words — a shelf without words is still selectable,
+              // and Inspect reads it.
+              const shelfRects: AnatomyHitRect[] = [padHitRect({ x: x0, y: yHi, w: bw, h: bh })];
+              anatomyHitsRef.current.push({ target: zoneTarget(zone), rects: shelfRects });
+
               // FL-06 does not present the absorption shelf as a floating
               // card. The measured time/price rectangle IS the instrument:
               // a quiet hatched shelf with the reading attached directly to
@@ -8671,9 +8743,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const desktopShelfInstrument = W >= 960;
 
               if (shelfDepth !== "FAR") {
+                const shelfFillA = shelfSelected ? 0.14 : 0.10;
                 ctx.fillStyle = desktopShelfInstrument
-                  ? "rgba(210,214,219,0.10)"
-                  : "rgba(212,175,55,0.10)";
+                  ? `rgba(210,214,219,${shelfFillA})`
+                  : `rgba(212,175,55,${shelfFillA})`;
                 ctx.fillRect(x0, yHi, bw, bh);
                 shelvesFilled++;
               }
@@ -8683,7 +8756,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.beginPath();
                 ctx.rect(x0, yHi, bw, bh);
                 ctx.clip();
-                ctx.strokeStyle = "rgba(210,214,219,0.24)";
+                ctx.strokeStyle = `rgba(210,214,219,${shelfSelected ? 0.36 : 0.24})`;
                 ctx.lineWidth = 1;
                 const hatchStep = 7;
                 for (let hx = x0 - bh; hx < x1 + bh; hx += hatchStep) {
@@ -8706,6 +8779,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.stroke();
               ctx.setLineDash([]);
               shelvesEdged++;
+              if (shelfSelected) {
+                // Both edges solid and alike (no defended side is named), and a
+                // 1px halo just outside the real bounds, in the Appearance
+                // owner's absorb ink. At FAR too: selected stays loudest.
+                ctx.strokeStyle = `rgba(${flowColorsRef.current.absorb},0.9)`;
+                ctx.lineWidth = 1.25;
+                ctx.beginPath();
+                ctx.moveTo(x0, yHi + 0.5); ctx.lineTo(x1, yHi + 0.5);
+                ctx.moveTo(x0, yLo - 0.5); ctx.lineTo(x1, yLo - 0.5);
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x0 - 1.5, yHi - 1.5, bw + 3, bh + 3);
+                anatomySelectedPainted = true;
+              }
               if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }
               // GARDEN 12 · THE THREE FACTS AS GEOMETRY. The shelf (hatched,
               // clipped to its real bounds) is DISPLACEMENT SUPPRESSED — how
@@ -8728,6 +8815,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, 3 + ab.effortNorm * tickMax);
                   effortTicksDrawn++;
                 }
+                shelfRects.push({ x: x0, y: yLo, w: bw, h: 6 + tickMax });
               }
 
               // Compact chip. The ratio is the mockup's own reading; when the
@@ -8777,8 +8865,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // NO TWO CHIPS ON ONE ANOTHER. Neighbouring shelves printed
               // "ABSORPTION 4.18 MOD…ABSORPTION 2.83" as one smear. Try above
               // the shelf, then below it, then stepped further up; if every
-              // slot is taken the shelf still paints and only its words wait
-              // (Inspect on the shelf still reads it).
+              // slot is taken the shelf still paints and only its words wait —
+              // its hit rect is already published, so a click on the shelf
+              // still selects it and Inspect reads it.
               const hit = (y: number) => [...absorbChipRects, ...floatingChips].some(r =>
                 chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
               const slots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6];
@@ -8796,6 +8885,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const chipY = chipSpot.rect.y;
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
+              shelfRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               if (desktopShelfInstrument) {
                 // Direct annotation, not another gold card. A restrained
                 // shadow protects legibility while the shelf remains the
@@ -8821,6 +8911,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
 
+            ctx.globalAlpha = 1;
             ds.absorptionChips = `${absorbChipRects.length}/${absorbChipRects.length + absorbChipsHidden}`;
             // The depth form is what the loop drew, not what the zoom word
             // promised: a zone off the scale draws nothing, and a MID shelf
@@ -8887,7 +8978,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const x = +xr;
                 const up = m.direction === "UP";
                 const y0 = up ? +yr - 8 : +yr + 8;
+                // Selected is loudest; its peers quiet to ×0.4 while it is drawn.
+                const markSelected = anatomySelReading?.currentId === anatomyTargetId(markTarget(m));
+                // The box of what this mark drew (fuel + rings) — its hit body and halo.
+                let mx0 = x - 6, my0 = y0 - 9, mx1 = x + 7, my1 = y0 + 9;
+                let markDrew = false;
+                const grow = (ax: number, ay: number, bx: number, by: number) => {
+                  if (!markDrew) { mx0 = ax; my0 = ay; mx1 = bx; my1 = by; markDrew = true; return; }
+                  mx0 = Math.min(mx0, ax); my0 = Math.min(my0, ay); mx1 = Math.max(mx1, bx); my1 = Math.max(my1, by);
+                };
                 ctx.save();
+                ctx.globalAlpha = anatomyPeersQuiet && !markSelected ? 0.4 : 1;
                 ctx.fillStyle = "rgba(226,92,92,0.95)";
                 // GARDEN 12 · MEASURED, NOT DECORATIVE. The push's span and its
                 // follow-through bars come from the owner: the extreme the mark
@@ -8909,6 +9010,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     if (xb == null || yb == null) continue;
                     const h = 2 + ab.effortNorm * 12;
                     ctx.fillRect(Math.round(+xb) - 1.5, up ? +yb - 4 - h : +yb + 4, 3, h);
+                    grow(+xb - 1.5, up ? +yb - 4 - h : +yb + 4, +xb + 1.5, up ? +yb - 4 : +yb + 4 + h);
                     fuel++;
                   }
                   ctx.strokeStyle = "rgba(226,92,92,0.9)"; ctx.lineWidth = 1.2;
@@ -8916,9 +9018,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const xb = ts.timeToCoordinate(t as never);
                     if (xb == null) continue;
                     ctx.beginPath(); ctx.arc(+xb, y0, 3, 0, Math.PI * 2); ctx.stroke();
+                    grow(+xb - 3, y0 - 3, +xb + 3, y0 + 3);
                     rings++;
                   }
                   exhaustionDrawn.push(`FUEL:${fuel}+SLOTS:${rings}`);
+                }
+                if (markSelected) {
+                  // A 1px halo around what the mark drew, in its own crimson.
+                  ctx.strokeStyle = "rgba(226,92,92,0.95)"; ctx.lineWidth = 1;
+                  ctx.strokeRect(mx0 - 3.5, my0 - 3.5, mx1 - mx0 + 7, my1 - my0 + 7);
+                  anatomySelectedPainted = true;
                 }
                 const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
                 // EFFORT, never AGG: the ratio is unsigned effort (volume or
@@ -8962,6 +9071,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillStyle = "rgba(20,8,8,0.88)";
                 ctx.fillRect(cxx, cy, cw, 14);
                 floatingChips.push({ x: cxx, y: cy, w: cw, h: 14 });
+                // Painted after the shelves, so a mark wins a click where they
+                // overlap; its body is padded to a finger target, its chip is its own.
+                anatomyHitsRef.current.push({
+                  target: markTarget(m),
+                  rects: [padHitRect({ x: mx0, y: my0, w: mx1 - mx0, h: my1 - my0 }), { x: cxx, y: cy, w: cw, h: 14 }],
+                });
                 ctx.strokeStyle = "rgba(226,92,92,0.85)";
                 ctx.lineWidth = 1;
                 ctx.strokeRect(cxx + 0.5, cy + 0.5, cw - 1, 13);
@@ -9638,6 +9753,27 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textBaseline = "middle";
             ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5);
             ctx.restore();
+          }
+
+          // THE SELECTION'S RECEIPT: which object, how this window resolves it,
+          // and whether its halo is on the glass. A changed reading goes back to
+          // Inspect at once when the object itself changed (state or drawn id),
+          // and at most every 250ms when only the live numbers moved.
+          if (anatomySel && anatomySelReading) {
+            ds.anatomySelected = `${anatomySelReading.id}:${anatomySelReading.state}:${anatomySelectedPainted ? "HALO" : "NOT_DRAWN"}`;
+            const key = anatomyReadingKey(anatomySelReading);
+            const sent = anatomyReadingSentRef.current;
+            if (key !== sent.key) {
+              const now = performance.now();
+              const objectMoved = anatomySelReading.state !== anatomySel.reading.state
+                || anatomySelReading.currentId !== anatomySel.reading.currentId;
+              if (objectMoved || now - sent.at >= 250) {
+                anatomyReadingSentRef.current = { key, at: now };
+                onAnatomyReadingRef.current?.(anatomySelReading);
+              }
+            }
+          } else {
+            delete ds.anatomySelected;
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
       }
@@ -14150,10 +14286,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const right = Number(ds.livingProfileLaneRight) + 4;
       if (x >= left && x <= right) {
         const pr = candleRef.current?.coordinateToPrice(y);
-        if (pr != null && Number.isFinite(+pr)) onSelectProfileSlice?.(+pr);
+        // The lane is painted over the shelves, so where they overlap it wins.
+        if (pr != null && Number.isFinite(+pr)) { onSelectProfileSlice?.(+pr); return; }
       }
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, symbol, timeframe]);
+    /*
+      A CLICK ON A SHELF OR MARK SELECTS IT. The rects are what the anatomy
+      block painted on the frame on screen (cleared with the glass), so the
+      click and the paint cannot disagree about where the object is, and the
+      reading handed up is resolved from that same frame's owners. Nothing
+      painted there → no hit, and the click falls through as before.
+    */
+    const anatomyHit = pickAnatomyHit(anatomyHitsRef.current, x, y);
+    const anatomyFrame = anatomyFrameRef.current;
+    if (anatomyHit && anatomyFrame) {
+      onSelectAnatomy?.({
+        target: anatomyHit.target,
+        // Inspect stands on the wall away from the object.
+        wall: x > r.width * 0.45 ? "LEFT" : "RIGHT",
+        reading: selectAnatomyInspect(anatomyHit.target, anatomyFrame.anatomy, selectExhaustion(anatomyFrame.anatomy), anatomyFrame.windowCapped),
+      });
+      return;
+    }
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, symbol, timeframe]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking
