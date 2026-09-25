@@ -43,7 +43,7 @@ describe("question lens and restored selection", () => {
   });
 
   it("TPO yields the left column only when the lens actually painted it this frame", () => {
-    expect(CHART).toMatch(/const leftEdge = lensColumnActive \? QUESTION_LENS_COLUMN_RIGHT : 10;/);
+    expect(CHART).toMatch(/const leftEdge = lensColumnActive \? QUESTION_LENS_COLUMN_RIGHT : 64;/);
     expect(CHART).toMatch(/lensColumnActive = !narrowLens;/);
     expect(CHART).toMatch(/if \(!lensFormPainted\) delete ds\.questionLensForm;/);
   });

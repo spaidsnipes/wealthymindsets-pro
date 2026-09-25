@@ -11663,7 +11663,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const yVal = dna.val != null ? srs.priceToCoordinate(dna.val) : null;
                   const yVah = dna.vah != null ? srs.priceToCoordinate(dna.vah) : null;
                   if (yVal != null && yVah != null) {
-                    ctx.strokeStyle = pk.rgba("VALUE", 0.85); ctx.lineWidth = 3;
+                    // A fingerprint, not a beacon: beside the P110 body the 0.85
+                    // ivory bracket read as the loudest bar on the glass
+                    // (serving, NQ1! 5m). Same 3px length-is-value-width
+                    // geometry, quieter than the profile it describes.
+                    ctx.strokeStyle = pk.rgba("VALUE", 0.5); ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
                   }
                   const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
@@ -12092,7 +12096,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // VISIBILITY GOVERNOR: an active question owns the left column
             // (strip, debt, control, Ask); the TPO letters step right of it
             // instead of printing through it.
-            const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 10;
+            // …and at rest it starts right of the left chrome (the depth chip,
+            // EFFORT, the live countdown pill) — the same 64px gutter the
+            // divergence lane keeps. At 10 the letters ran under those DOM
+            // chips (serving, NQ1! 5m desktop, 2026-09-25).
+            const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 64;
             const colMax = Math.min(140, Math.round(W * 0.14));
 
             // Row height from on-screen spacing between successive grid rows,
