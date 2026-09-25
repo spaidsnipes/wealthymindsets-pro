@@ -31,7 +31,7 @@ describe("footprint rows are drawn high-first", () => {
   });
 
   it("every footprint draw mode takes them high-first, and places row li down from the high", () => {
-    const calls = [...CHART.matchAll(/const levels = getBarFootprint\(c, (numLevels|numLev)\)(\.reverse\(\))?;/g)];
+    const calls = [...CHART.matchAll(/const levels = fpLevels\(c, (numLevels|numLev)\)(\.reverse\(\))?;/g)];
     expect(calls.length).toBeGreaterThanOrEqual(5);
     for (const c of calls) expect(c[2], c[0]).toBe(".reverse()");
     expect((CHART.match(/Math\.round\(yH \+ li \* rowH\)/g) ?? []).length).toBeGreaterThanOrEqual(5);

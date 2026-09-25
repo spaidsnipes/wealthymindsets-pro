@@ -6026,6 +6026,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ctx.fill();
       };
 
+      // O-06 · A FOOTPRINT RECEIPT. Every mode asks for a bar's rows here and
+      // skips a bar with no captured executions, so what came back IS what
+      // painted. Counted so serving can prove the footprint rather than trust it.
+      let fpBarsPainted = 0, fpRowsPainted = 0;
+      const fpLevels = (c: Parameters<typeof getBarFootprint>[0], n: number) => {
+        const rows = getBarFootprint(c, n);
+        if (rows.length > 0) { fpBarsPainted++; fpRowsPainted += rows.length; }
+        return rows;
+      };
+
       /* ══════════════════════════════════════════════════════
          MODE 1: BID × ASK — Deep Charts style
          • Full-width cells: dark base, colored only when one side dominates
@@ -6069,7 +6079,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
-          const levels = getBarFootprint(c, numLevels).reverse();
+          const levels = fpLevels(c, numLevels).reverse();
           // No captured executions means no footprint layer for this bar. In
           // particular, do not paint the dark footprint base over a perfectly
           // valid candle and do not turn unavailable evidence into visual zeroes.
@@ -6193,7 +6203,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
-          const levels = getBarFootprint(c, numLevels).reverse();
+          const levels = fpLevels(c, numLevels).reverse();
           // Empty means unavailable, not zero. Skip the whole bar before the
           // background/POC pass so historical candles stay readable and reduce()
           // is never asked to manufacture a winner from an empty collection.
@@ -6479,7 +6489,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
-          const levels = getBarFootprint(c, numLevels).reverse();
+          const levels = fpLevels(c, numLevels).reverse();
           if (levels.length === 0) return;
           const maxTot = Math.max(1, ...levels.map(l => l.total));
           const maxBarW = halfW - 1;
@@ -6556,7 +6566,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
-          const levels = getBarFootprint(c, numLev).reverse();
+          const levels = fpLevels(c, numLev).reverse();
           if (levels.length === 0) return;
           const x      = cx - halfW;
 
@@ -6634,7 +6644,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // low upward, and every mode paints row li at yH + li·rowH counting
           // DOWN from the high — so the rows are taken high-first here, or the
           // volume traded at the low is painted at the top of the candle.
-          const levels = getBarFootprint(c, numLev).reverse();
+          const levels = fpLevels(c, numLev).reverse();
           if (levels.length === 0) return;
           const x      = cx - halfW;
 
@@ -6785,6 +6795,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
         // (Per-tool "?" popover carries the deep explanation; the shared 4-way
         // legend below stamps the live numbers for every order-flow mode.)
+      }
+
+      {
+        const dsFp = canvas.dataset;
+        if (effectiveFP === ("__off__" as FootprintType)) {
+          dsFp.footprint = "OFF";
+          delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
+        } else if (fpBarsPainted === 0) {
+          // On, and nothing was heard for any bar in view: silence, named.
+          dsFp.footprint = `${effectiveFP}:NO_EXECUTIONS`;
+          delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
+        } else {
+          dsFp.footprint = effectiveFP;
+          dsFp.footprintBars = String(fpBarsPainted);
+          dsFp.footprintRows = String(fpRowsPainted);
+          // Every mode paints the rows it received high-first (see MODE 1).
+          dsFp.footprintOrder = "HIGH_FIRST";
+        }
       }
 
       /* ══════════════════════════════════════════════════════
