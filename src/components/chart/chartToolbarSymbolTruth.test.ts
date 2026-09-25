@@ -71,7 +71,10 @@ describe("the chart toolbar's badges answer to the class owner", () => {
     // /api/yahoo?sym=VIX is {"error":"No data"} while ^VIX is 15.84, so the
     // row was offered and unchartable. It is now `^VIX`, which the owner
     // classifies correctly without being told anything new.
-    expect(classifySymbol("VIX")).toBe("EQUITY");
+    // Pin updated 2026-09-25: bare VIX now resolves to the SAME index under
+    // Yahoo's name (^VIX, yahooSymbol.ts cash-index identities), so the owner
+    // classifies it INDEX. The retired picker row below stays retired.
+    expect(classifySymbol("VIX")).toBe("INDEX");
     expect(raw.has("VIX"), "the unchartable bare-VIX row must stay retired").toBe(false);
     expect(reconcileSearchCategory("^VIX", vocab(raw.get("^VIX")))).toBe("Index");
   });

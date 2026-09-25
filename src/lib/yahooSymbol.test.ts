@@ -388,3 +388,19 @@ describe("a decision of ours never leaves the building dressed as the vendor's",
     expect(unresolved).toEqual(["DXY", "UKOIL", "US100", "US30", "US500", "USOIL"]);
   });
 });
+
+describe("cash indices resolve to the same instrument under Yahoo's name", () => {
+  it("SPX/NDX/DJI/RUT/VIX/IXIC map to Yahoo's index tickers (SPX read NO BAR HISTORY on serving)", () => {
+    expect(toYahooSymbol("SPX")).toBe("^GSPC");
+    expect(toYahooSymbol("NDX")).toBe("^NDX");
+    expect(toYahooSymbol("DJI")).toBe("^DJI");
+    expect(toYahooSymbol("RUT")).toBe("^RUT");
+    expect(toYahooSymbol("VIX")).toBe("^VIX");
+    expect(toYahooSymbol("IXIC")).toBe("^IXIC");
+  });
+
+  it("the CFD proxies stay refused — an identity is not a near-neighbour", () => {
+    for (const s of ["US500", "US30", "US100"]) expect(toYahooSymbol(s)).toBe(s);
+  });
+});
+

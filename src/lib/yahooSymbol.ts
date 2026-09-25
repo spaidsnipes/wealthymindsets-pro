@@ -66,6 +66,22 @@ export const YF_MAP: Record<string, string> = {
   "VX1!":  "^VIX",
 
   /**
+   * CASH INDICES — the SAME instrument under Yahoo's name, not a proxy.
+   * `^GSPC` is the S&P 500 index itself; SPX asked Yahoo for "SPX" and got a
+   * 404, so the index chart read NO BAR HISTORY (serving, 2026-09-25). This is
+   * an identity, which is why it is allowed while the CFD rows below
+   * (US500, US30…) stay refused: those are different instruments.
+   */
+  "SPX":   "^GSPC",
+  "NDX":   "^NDX",
+  "DJI":   "^DJI",
+  "DJIA":  "^DJI",
+  "RUT":   "^RUT",
+  "VIX":   "^VIX",
+  "IXIC":  "^IXIC",
+  "COMP":  "^IXIC",
+
+  /**
    * NOT MAPPED, on purpose: US30, US500, US100, USOIL, UKOIL, DXY.
    *
    * These were mapped to ^DJI / ^GSPC / ^NDX / CL=F / BZ=F during this session
