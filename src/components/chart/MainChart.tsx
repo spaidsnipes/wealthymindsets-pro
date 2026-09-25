@@ -12176,6 +12176,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         delete ds.expectedEnvelopeFan;
         delete ds.expectedEnvelopeSurprise;
         delete ds.expectedEnvelopeCaption;
+        delete ds.expectedEnvelopeClipped;
         if (layerOnRef.current.expectedEnvelope === true && srs) {
           const barsE = (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
           const env = selectExpectedEnvelope(barsE);
@@ -12236,12 +12237,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 timeToX: t => { const xk = tsE.timeToCoordinate(t as never); return xk == null ? null : +xk; },
                 priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
               }, Math.max(0, cols[0].x) - bsp, Math.min(plotRightE, cols[cols.length - 1].x) + bsp)) cutE.rect(r.x, r.y, r.w, r.h);
+              // THE FAN STAYS IN THE PANE (serving TSLA 15m, 2026-09-25): the
+              // upper bands ran up to y≈68, under the bar clock, the semantic
+              // badge and INSPECT. The fan lives between the header floor and
+              // the candle pane's bottom; the receipt says how many columns in
+              // view reached past either edge.
+              let paneBotE = H;
+              try {
+                const ps = (chart as any).paneSize?.(0);
+                if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotE = ps.height;
+              } catch { /* keep the canvas height */ }
+              const clippedTop = inView.filter(c => Math.min(c.y90, c.y10) < HEADER_FLOOR_Y).length;
+              const clippedBot = inView.filter(c => Math.max(c.y90, c.y10) > paneBotE).length;
+              ds.expectedEnvelopeClipped = [
+                clippedTop ? `TOP:${clippedTop}/${inView.length}` : "",
+                clippedBot ? `BOTTOM:${clippedBot}/${inView.length}` : "",
+              ].filter(Boolean).join("|") || "NONE";
               ctx.save();
               ctx.globalAlpha = att.alpha("expectedEnvelope");
               ctx.beginPath();
-              ctx.rect(0, 0, plotRightE, H);
+              ctx.rect(0, HEADER_FLOOR_Y, plotRightE, Math.max(0, paneBotE - HEADER_FLOOR_Y));
               ctx.clip();
               ctx.clip(cutE, "evenodd");
+              // Every chip already on the glass is cut out of the fan too —
+              // one clip per chip, so two overlapping chips never re-fill.
+              for (const r of floatingChips) {
+                ctx.beginPath();
+                ctx.rect(0, 0, W, H);
+                ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+                ctx.clip("evenodd");
+              }
               const GOLD = (a: number) => `rgba(201,165,92,${a})`;
               // Curves through the measured columns (smoothSegments rounds
               // the corners between them; no value is moved or invented).
@@ -12387,6 +12412,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            the zone sat far away on the right. */
         delete ds.contradictionGeometry;
         delete ds.contradictionWords;
+        delete ds.contradictionRegistered;
         if (layerOnRef.current.contradiction === true && srs) {
           const bsC = barsRef.current ?? [];
           const lastC = bsC[bsC.length - 1];
@@ -12557,6 +12583,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     });
                   }
                   ctx.textAlign = "left";
+                  // THE ZONE IS AN OBSTACLE TOO (serving TSLA 15m, 2026-09-25):
+                  // the box and arrows paint early in the frame, and the WAIT
+                  // debt tag, placed later against the chip ledger, landed on
+                  // the DOWN arrow. The whole glyph (box ∪ arrows ∪ crack)
+                  // joins the ledger, after its word row, so later words step
+                  // clear of it.
+                  const zoneTop = Math.min(box.yTop, g.yTop), zoneBot = Math.max(box.yBot, g.yBot);
+                  const zoneChip = { x: box.x0, y: zoneTop, w: bw, h: zoneBot - zoneTop };
+                  floatingChips.push(zoneChip);
+                  ds.contradictionRegistered =
+                    `${Math.round(zoneChip.x)},${Math.round(zoneChip.y)},${Math.round(zoneChip.w)}x${Math.round(zoneChip.h)}`;
                   placed = `ZONE:${useBelow ? "BELOW" : "ABOVE"}`;
                   ds.contradictionGeometry =
                     `BOX:${Math.round(box.x0)},${Math.round(box.yTop)},${Math.round(bw)}x${bh}` +

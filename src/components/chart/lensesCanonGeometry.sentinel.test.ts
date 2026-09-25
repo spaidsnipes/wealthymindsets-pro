@@ -88,6 +88,15 @@ const PINS: Pin[] = [
       b.contradiction.length > 0 &&
       !b.contradiction.includes("LEANS UP") && !b.contradiction.includes("LEANS DOWN") &&
       !b.contradiction.includes("l.evidence") && !b.contradiction.includes("colW") },
+  // Added 2026-09-25 after the serving check: the WAIT debt tag (placed later
+  // against the chip ledger) landed on the DOWN arrow — the zone was never
+  // registered. The whole glyph joins the ledger after its word row.
+  { name: "H-401 the zone (box ∪ arrows ∪ crack) joins the chip ledger after its words", holds: b =>
+      b.contradiction.includes("const zoneTop = Math.min(box.yTop, g.yTop), zoneBot = Math.max(box.yBot, g.yBot);") &&
+      b.contradiction.includes("const zoneChip = { x: box.x0, y: zoneTop, w: bw, h: zoneBot - zoneTop };") &&
+      /for \(const \[key, grp, anchorX\][\s\S]*?floatingChips\.push\(zoneChip\);/.test(b.contradiction) &&
+      b.contradiction.includes("delete ds.contradictionRegistered;") &&
+      b.contradiction.includes("ds.contradictionRegistered =") },
   { name: "H-401 prices in the market's decimals, receipts withdrawn each frame", holds: b =>
       b.contradiction.includes("dp: pxDp,") &&
       b.contradiction.includes("delete ds.contradictionGeometry;") &&
@@ -103,10 +112,23 @@ const PINS: Pin[] = [
   { name: "H-801 projected right of NOW by logical index", holds: b =>
       b.envelope.includes("const xl = tsE.logicalToCoordinate((lastIdxE + (k - fan.nowK)) as never);") &&
       b.envelope.includes("const fwd = inView.filter(c => c.k > fan.nowK).length;") },
+  // The axis edge now rides the header-floor clip rect (updated 2026-09-25).
   { name: "H-801 candles cut out of the fan, fan stops at the axis", holds: b =>
       b.envelope.includes('ctx.clip(cutE, "evenodd");') &&
-      b.envelope.includes("ctx.rect(0, 0, plotRightE, H);") &&
+      /ctx\.rect\(0, HEADER_FLOOR_Y, plotRightE, /.test(b.envelope) &&
       /candleCutOutRects\(barsE, \{/.test(b.envelope) },
+  // Added 2026-09-25 after the serving check: the upper bands ran up to y≈68,
+  // under the bar clock, the semantic badge and INSPECT.
+  { name: "H-801 the fan is clipped at the header floor and the pane bottom, with a receipt", holds: b =>
+      b.envelope.includes("ctx.rect(0, HEADER_FLOOR_Y, plotRightE, Math.max(0, paneBotE - HEADER_FLOOR_Y));") &&
+      b.envelope.includes("const clippedTop = inView.filter(c => Math.min(c.y90, c.y10) < HEADER_FLOOR_Y).length;") &&
+      b.envelope.includes("ds.expectedEnvelopeClipped = [") &&
+      b.envelope.includes("delete ds.expectedEnvelopeClipped;") &&
+      !b.envelope.includes("ctx.rect(0, 0, plotRightE, H);") },
+  { name: "H-801 every chip already on the glass is cut out of the fan, one clip per chip", holds: b =>
+      /for \(const r of floatingChips\) \{\s*ctx\.beginPath\(\);\s*ctx\.rect\(0, 0, W, H\);\s*ctx\.rect\(r\.x - 2, r\.y - 2, r\.w \+ 4, r\.h \+ 4\);\s*ctx\.clip\("evenodd"\);\s*\}/.test(b.envelope) &&
+      // …and the clip is taken BEFORE the first band is filled.
+      b.envelope.indexOf("for (const r of floatingChips) {") < b.envelope.indexOf('band("y10", "y90", 0.07);') },
   { name: "H-801 CAMERA STAYS ON NOW — the block never writes a scale or the camera", holds: b =>
       b.envelope.length > 0 &&
       !/applyOptions|setVisibleRange|setVisibleLogicalRange|scrollToPosition|scrollToRealTime|fitContent|autoscaleInfoProvider|addSeries|addLineSeries|addAreaSeries|setAutoScale|manualPriceRangeRef/.test(b.envelope) },
@@ -156,8 +178,11 @@ const MUTATIONS: { pin: string; from: string | RegExp; to: string }[] = [
   { pin: "H-401 candles cut out of the zone, arrows and crack", from: 'ctx.clip(cutC, "evenodd");', to: "" },
   { pin: "H-401 minimal words: family names, (UP)/(DOWN), UNRESOLVED", from: 'group(cv.up.map(l => l.family), "(UP)")', to: 'group(cv.up.map(l => l.evidence), "LEANS UP")' },
   { pin: "H-401 words through the keep-out owner, ledger and chips", from: "blockers: floatingChips, strict: true });\n                    recordKeepOut(keepOutLedger, spot);", to: "blockers: floatingChips });\n                    recordKeepOut(keepOutLedger, spot);" },
-  { pin: "H-401 no cards: no LEANS columns, no evidence text on glass", from: "ctx.textAlign = \"left\";\n                  placed = `ZONE:", to: "ctx.fillText(\"LEANS UP\", 0, 0);\n                  placed = `ZONE:" },
+  { pin: "H-401 no cards: no LEANS columns, no evidence text on glass", from: "ctx.textAlign = \"left\";\n                  // THE ZONE IS AN OBSTACLE TOO", to: "ctx.fillText(\"LEANS UP\", 0, 0);\n                  // THE ZONE IS AN OBSTACLE TOO" },
+  { pin: "H-401 the zone (box ∪ arrows ∪ crack) joins the chip ledger after its words", from: "floatingChips.push(zoneChip);", to: "" },
   { pin: "H-401 prices in the market's decimals, receipts withdrawn each frame", from: "            dp: pxDp,\n", to: "" },
+  { pin: "H-801 the fan is clipped at the header floor and the pane bottom, with a receipt", from: "ctx.rect(0, HEADER_FLOOR_Y, plotRightE, Math.max(0, paneBotE - HEADER_FLOOR_Y));", to: "ctx.rect(0, 0, plotRightE, H);" },
+  { pin: "H-801 every chip already on the glass is cut out of the fan, one clip per chip", from: "ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);\n                ctx.clip(\"evenodd\");", to: "ctx.clip(\"evenodd\");" },
   { pin: "H-801 the fan: bands and five dashed edges from the fan owner", from: 'edge("y50", [2, 4], 0.6, 1);', to: "" },
   { pin: "H-801 projected right of NOW by logical index", from: "tsE.logicalToCoordinate((lastIdxE + (k - fan.nowK)) as never)", to: "null" },
   { pin: "H-801 candles cut out of the fan, fan stops at the axis", from: 'ctx.clip(cutE, "evenodd");', to: "" },
