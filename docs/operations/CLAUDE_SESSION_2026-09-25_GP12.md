@@ -195,8 +195,8 @@ Stack, H-701 Force/Response + Big Trade contractor sheet, UI-04 Question-Driven 
 
 Process slip (owned): `3d8e8daf` was pushed by a chained command although the full suite reported
 one failing sentinel (a second pin on the stack-label call). Fixed 2 minutes later in `242b3a1f`
-(pin updated to the new truth; suite 12,643/12,643). `3d8e8daf`'s own GitHub sentinel job is red;
-the next commits are green. Commits are now gated on the suite result, never chained after it.
+(pin updated to the new truth; suite 12,643/12,643). `3d8e8daf`'s GitHub gate run was superseded
+(cancelled) by the next push before it finished; every completed gate run since is green. Commits are now gated on the suite result, never chained after it.
 
 Integrity rail — CORRECTED at 09:36. On NQ "CHART INTEGRITY · WOUNDED" is honest (delayed Yahoo quote:
 ACTIVE DEGRADED → DEGRADED → WOUNDED; the rail says "2 BARS BEHIND"). On BTC it was a FALSE ALARM: the
