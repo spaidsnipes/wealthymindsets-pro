@@ -81,6 +81,19 @@ describe("semantic zoom glass", () => {
     expect(CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far))).toMatch(/canvas\.dataset\.farForm = farPainted;/);
   });
 
+  it("NEAR anatomy words come from prices, not pixels; tape prices use the house formatter", () => {
+    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+    expect(near).toBeGreaterThan(-1);
+    const block = CHART.slice(near, CHART.indexOf("delete canvas.dataset.nearTape;", near));
+    expect(block).toMatch(/for \(const p of nearCandleAnatomyParts\(lastBar\)\) \{/);
+    // No pixel-distance equality and no hard-coded wick words in the painter.
+    expect(block).not.toMatch(/Math\.abs\(\+yO - \+yC\)/);
+    expect(block).not.toMatch(/"OPEN = CLOSE"|"HIGH \(WICK\)"|"LOW \(WICK\)"/);
+    // Sub-dollar prints keep their digits.
+    expect(block).toMatch(/formatBubblePrice\(/);
+    expect(block).not.toMatch(/\.price\.toFixed\(2\)/);
+  });
+
   it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {
     const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));

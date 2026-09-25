@@ -225,6 +225,7 @@ import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewMo
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
 import { selectSessionGhostProfiles } from "@/lib/marketData/viewModels/selectSessionGhostProfiles";
 import { selectFarRegimeEnvelope } from "@/lib/marketData/viewModels/selectFarRegimeEnvelope";
+import { nearCandleAnatomyParts } from "@/lib/marketData/viewModels/selectNearCandleAnatomy";
 import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
@@ -7199,19 +7200,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const xl = lastBar ? chart.timeScale().timeToCoordinate(lastBar.time as never) : null;
         if (nearDepth === "NEAR" && lastBar && xl != null) {
           const cx = +xl;
-          const yH = srs.priceToCoordinate(lastBar.high), yL = srs.priceToCoordinate(lastBar.low);
-          const yO = srs.priceToCoordinate(lastBar.open), yC = srs.priceToCoordinate(lastBar.close);
           let parts = 0;
           ctx.save();
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.textBaseline = "middle";
           // All four parts name themselves on the LEFT — the live candle's
-          // right is the profile lane's. Labels keep a 15px pitch; the leader
-          // bends to its true price.
+          // right is the profile lane's. The words come from the prices
+          // (nearCandleAnatomyParts); close words are fanned apart on a 15px
+          // pitch here, never merged, and the leader bends to its true price.
           const want: { y: number; word: string }[] = [];
-          if (yH != null) want.push({ y: +yH, word: "HIGH (WICK)" });
-          if (yO != null && yC != null && Math.abs(+yO - +yC) >= 3) { want.push({ y: +yO, word: "OPEN" }); want.push({ y: +yC, word: "CLOSE" }); }
-          else if (yC != null) want.push({ y: +yC, word: "OPEN = CLOSE" });
-          if (yL != null) want.push({ y: +yL, word: "LOW (WICK)" });
+          for (const p of nearCandleAnatomyParts(lastBar)) {
+            const y = srs.priceToCoordinate(p.price);
+            if (y != null) want.push({ y: +y, word: p.word });
+          }
           want.sort((p1, p2) => p1.y - p2.y);
           const placed: number[] = [];
           for (const w of want) placed.push(Math.max(w.y, (placed[placed.length - 1] ?? -Infinity) + 15));
@@ -7258,7 +7258,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const y = colY + 22 + i * rowH2;
               const buy = t.ask > t.bid;
               ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
-              ctx.fillText(t.price.toFixed(2), colX + colW - 30, y);
+              ctx.fillText(formatBubblePrice(t.price), colX + colW - 30, y);
               ctx.textAlign = "center"; ctx.fillStyle = buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
               ctx.fillText(buy ? "+" : "−", colX + colW - 14, y);
             });
