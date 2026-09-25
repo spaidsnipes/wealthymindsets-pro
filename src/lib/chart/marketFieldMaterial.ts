@@ -337,7 +337,12 @@ export const MA_PERIOD_NEAR = 8;
 /** Periods at or above this take `MA_INK_DEEP` exactly. */
 export const MA_PERIOD_DEEP = 200;
 
-const hexToRgb = (hex: string): [number, number, number] => [
+/**
+ * `#rrggbb` → `[r, g, b]`, for this module's own known-good constants.
+ * Exported for `profileFamilyInk.ts`, which derives its "has the trader
+ * chosen?" baseline from the VP defaults above instead of restating them.
+ */
+export const hexToRgb = (hex: string): [number, number, number] => [
   parseInt(hex.slice(1, 3), 16),
   parseInt(hex.slice(3, 5), 16),
   parseInt(hex.slice(5, 7), 16),
