@@ -12136,12 +12136,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const x = Math.max(4, Math.round(+lx) - w - 6);
               const y = Math.round(+ly) - 12;
-              ctx.fillStyle = "rgba(11,10,8,0.82)";
-              ctx.fillRect(x, y - 7, w, 14);
+              // Its newest point IS the forming candle, so the name would sit on
+              // the newest bodies. It tries the mirror row under the line, then
+              // slides back along its own row (the step line runs beneath it);
+              // with no room it keeps its spot and its backing yields.
+              const spotV = placeClearOfKeepOut(
+                { x, y: y - 7, w, h: 14 },
+                keepOut(),
+                { minX: keepOutMinX(), blockers: floatingChips, alternates: [{ x, y: y + 24 - 7, w, h: 14 }] },
+              );
+              recordKeepOut(keepOutLedger, spotV);
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotV, 0.82)})`;
+              ctx.fillRect(spotV.rect.x, spotV.rect.y, w, 14);
               ctx.fillStyle = "rgba(201,165,92,0.95)";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillText(text, x + 4, y);
+              ctx.fillText(text, spotV.rect.x + 4, spotV.rect.y + 7);
             }
             ctx.restore();
             ds.valueMigrationPoints = String(drawn);

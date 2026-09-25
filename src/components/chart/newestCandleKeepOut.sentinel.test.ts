@@ -96,6 +96,20 @@ describe("the selected-zone callout clears the newest bodies and the chips on th
   });
 });
 
+describe("the Value Migration name, printed at its newest point, yields to the newest bodies", () => {
+  const dpoc = slice("const text = `dPOC ${last.poc.toFixed(2)}", "ds.valueMigrationPoints = String(drawn);");
+
+  it("asks the keep-out, with the mirror row under the line before a slide", () => {
+    expect(dpoc).toMatch(/placeClearOfKeepOut\(\s*\{ x, y: y - 7, w, h: 14 \},\s*keepOut\(\),\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, alternates: \[\{ x, y: y \+ 24 - 7, w, h: 14 \}\] \},?\s*\)/);
+    expect(dpoc).toMatch(/recordKeepOut\(keepOutLedger, spotV\)/);
+  });
+
+  it("paints backing and words where the placement says, at an alpha it allows", () => {
+    expect(dpoc).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotV, 0\.82\)\}\)`;\s*ctx\.fillRect\(spotV\.rect\.x, spotV\.rect\.y, w, 14\);/);
+    expect(dpoc).toMatch(/ctx\.fillText\(text, spotV\.rect\.x \+ 4, spotV\.rect\.y \+ 7\);/);
+  });
+});
+
 describe("the narrow absorption chip's backing yields to the newest bodies", () => {
   const chip = slice("const chip = `ABSORPTION ${ratioTxt} ${zone.strength}`;", "ds.absorptionChips =");
 
