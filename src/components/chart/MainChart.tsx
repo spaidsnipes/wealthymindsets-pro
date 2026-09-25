@@ -10869,12 +10869,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 : `TYPICAL REACH ${side === "up" ? "▲" : "▼"} ${price.toFixed(2)} · median of ${env.sessions} sessions`;
               const tw = ctx.measureText(t).width;
               const lx = Math.max(4, xEnd - tw - 8);
-              const ly = side === "up" ? yy - 8 : yy + 8;
-              ctx.fillStyle = "rgba(11,10,8,0.82)";
-              ctx.fillRect(lx - 4, ly - 7, tw + 8, 14);
+              // COLLISION GOVERNOR (serving NQ1! 5m, 2026-09-25): this name had
+              // no keep-out at all — a 0.82 backing at the live edge over the
+              // newest candles, and an upper reach near the top printed inside
+              // the header band under the bar clock and zoom plate. It stays
+              // below the band, takes a strict slot test against the bodies on
+              // its row and the chips, slides back along its own line, and
+              // joins the chip ledger.
+              const ly = side === "up" ? Math.max(yy - 8, HEADER_FLOOR_Y + 7) : yy + 8;
+              const spotE = placeClearOfKeepOut(
+                { x: lx - 4, y: ly - 7, w: tw + 8, h: 14 },
+                [...keepOut(), ...rowBodiesAt(ly - 7, ly + 7)],
+                { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips, strict: true },
+              );
+              recordKeepOut(keepOutLedger, spotE);
+              floatingChips.push({ x: spotE.rect.x, y: spotE.rect.y, w: spotE.rect.w, h: 14 });
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotE, 0.82)})`;
+              ctx.fillRect(spotE.rect.x, spotE.rect.y, spotE.rect.w, 14);
               ctx.fillStyle = sur.outside ? "rgba(240,190,70,1)" : "rgba(237,230,211,0.85)";
               ctx.textAlign = "left";
-              ctx.fillText(t, lx, ly);
+              ctx.fillText(t, spotE.rect.x + 4, ly);
             }
           } else {
             ctx.fillStyle = "rgba(200,192,174,0.85)";
