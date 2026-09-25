@@ -1726,6 +1726,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { onAnatomyReadingRef.current = onAnatomyReading; }, [onAnatomyReading]);
   /** What the anatomy block painted on the frame on screen — the click path hit-tests exactly this. */
   const anatomyHitsRef = useRef<AnatomyHit[]>([]);
+  /** R-19 · structure-zone bands painted this frame, for band clicks. */
+  const zoneHitsRef = useRef<{ objectId: string; x: number; y: number; w: number; h: number }[]>([]);
   /** The frame those hits were painted from, so a click reads the reading that was on screen. */
   const anatomyFrameRef = useRef<{ anatomy: AbsorptionAnatomyVM; windowCapped: boolean } | null>(null);
 
@@ -5654,6 +5656,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // A click selects only what is on the glass: the anatomy hit list is
       // cleared with it and refilled only by the anatomy paint below.
       anatomyHitsRef.current = [];
+      zoneHitsRef.current = [];
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
@@ -13149,6 +13152,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (x0 >= zEnd) continue;
               const selected = z.object.objectId === selId;
               const invalid = z.lifecycle.state === "INVALID";
+              // R-19 · WHAT IS PAINTED IS WHAT A CLICK SELECTS. The band was
+              // drawn but only its 28px pin was clickable, so a click on the
+              // band fell through and Inspect stayed on the bar under the
+              // cursor ("a zone click landed on the bar ticket"). The band's
+              // rect is recorded from this frame's paint for the click handler.
+              zoneHitsRef.current.push({ objectId: z.object.objectId, x: x0, y: top, w: zEnd - x0, h });
               // The object being READ is never dimmed by the depth governor:
               // the trader chose it, so it paints at full strength (MOCK 4).
               ctx.globalAlpha = att.alpha("marketZones", { selectedItem: selected });
@@ -15000,7 +15009,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       });
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, symbol, timeframe]);
+    /*
+      R-19 · A CLICK ON A ZONE'S BAND SELECTS THE ZONE — the same act as its
+      pin, so the ONE selection reducer opens the same Passport. Where bands
+      overlap, the smallest (most specific) one wins.
+    */
+    const zoneHit = zoneHitsRef.current
+      .filter(z => x >= z.x && x <= z.x + z.w && y >= z.y - 2 && y <= z.y + z.h + 2)
+      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+    if (zoneHit) {
+      onSelectMarketObject?.(zoneHit.objectId);
+      return;
+    }
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, symbol, timeframe]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking
