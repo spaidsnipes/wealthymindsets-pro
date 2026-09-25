@@ -61,12 +61,33 @@ describe("stack placement on the glass", () => {
   });
 
   it("the stack chip steps around chips already on the glass and registers its own", () => {
-    const chip = block.slice(block.indexOf("const chipX = anchored"), block.indexOf("ctx.fillText(glass.label"));
+    // Updated 2026-09-25 (FL-06 direct annotation + keep-out): the chip-free
+    // slot is still found first (`let chipY`), then the keep-out owner may
+    // move it to a chip-free slot that also clears the candle bodies; desktop
+    // paints the words unboxed, narrow keeps the backed box. The chip is still
+    // registered before any paint — boxed or not.
+    const chip = block.slice(block.indexOf("const chipX = anchored"), block.lastIndexOf("ctx.fillText(glass.label"));
     expect(chip.length).toBeGreaterThan(0);
     expect(chip).toMatch(/const stackChipHit = \(y: number\) => floatingChips\.some\(/);
-    expect(chip).toMatch(/const chipY = stackChipSlots\.find\(y => !stackChipHit\(y\)\)/);
+    expect(chip).toMatch(/let chipY = stackChipSlots\.find\(y => !stackChipHit\(y\)\)/);
+    expect(chip).toMatch(/pickSlotClearOfKeepOut\(\s*stackSlotRects,\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(/);
+    expect(chip).toMatch(/s => stackChipHit\(s\.y\),/);
+    expect(chip).toContain("if (stackSpot) { chipY = stackSpot.rect.y; recordKeepOut(keepOutLedger, stackSpot); }");
     expect(chip).toMatch(/floatingChips\.push\(\{ x: chipX, y: chipY, w: chipW, h: chipH \}\);/);
     // The chip is registered before anything paints after it.
-    expect(chip.indexOf("floatingChips.push(")).toBeLessThan(chip.indexOf("ctx.fillRect(chipX, chipY"));
+    const push = chip.indexOf("floatingChips.push(");
+    expect(push).toBeLessThan(chip.indexOf("ctx.fillText(glass.label"));
+    expect(push).toBeLessThan(chip.indexOf("ctx.fillRect(chipX, chipY"));
+    expect(chip.indexOf("ctx.fillRect(chipX, chipY")).toBeGreaterThan(-1);
+  });
+
+  it("desktop words are a direct annotation; the backed box is narrow-only and yields to candles", () => {
+    const words = block.slice(block.indexOf("if (W >= 960) {", block.indexOf("const chipX = anchored")));
+    const desktop = words.slice(0, words.indexOf("} else {"));
+    expect(desktop).toContain("ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);");
+    expect(desktop).not.toMatch(/fillRect|strokeRect/);
+    expect(words).toContain("ctx.fillStyle = `rgba(14,12,8,${stackSpot ? keepOutBackingAlpha(stackSpot, 0.92) : 0.92})`;");
+    expect(block).toMatch(/ds\.imbalanceStackLabel = stackSpot \? `\$\{stackSpot\.mode\}\$\{stackSpot\.onCandles \? ":YIELDED" : ""\}` : "CHIPS_FULL";/);
+    expect([...block.matchAll(/delete ds\.imbalanceStackLabel;/g)].length).toBe(2);
   });
 });

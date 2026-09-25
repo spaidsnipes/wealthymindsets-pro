@@ -11304,17 +11304,44 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
             const stackChipSlots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
               .filter(y => y >= 2 && y + chipH <= H - 2);
-            const chipY = stackChipSlots.find(y => !stackChipHit(y)) ?? stackChipSlots[0] ?? Math.min(H - chipH - 2, yLo + 2);
+            let chipY = stackChipSlots.find(y => !stackChipHit(y)) ?? stackChipSlots[0] ?? Math.min(H - chipH - 2, yLo + 2);
+            // KEEP-OUT. Of the chip-free slots, the first that also clears
+            // every candle body under it wins. When only slots on bodies are
+            // free the chip-free pick stands — the disclosure must print —
+            // and a backed chip lets its backing yield.
+            const stackSlotRects = stackChipSlots.map(y => ({ x: chipX, y, w: chipW, h: chipH }));
+            const stackSpot = stackSlotRects.length > 0
+              ? pickSlotClearOfKeepOut(
+                  stackSlotRects,
+                  [...keepOut(), ...rowBodiesAt(Math.min(...stackChipSlots), Math.max(...stackChipSlots) + chipH)],
+                  s => stackChipHit(s.y),
+                )
+              : null;
+            if (stackSpot) { chipY = stackSpot.rect.y; recordKeepOut(keepOutLedger, stackSpot); }
+            ds.imbalanceStackLabel = stackSpot ? `${stackSpot.mode}${stackSpot.onCandles ? ":YIELDED" : ""}` : "CHIPS_FULL";
             floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
-            ctx.fillStyle = "rgba(14,12,8,0.92)";
-            ctx.fillRect(chipX, chipY, chipW, chipH);
-            ctx.strokeStyle = "rgba(212,175,55,0.65)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(chipX + 0.5, chipY + 0.5, chipW - 1, chipH - 1);
-            ctx.fillStyle = "#d4af37";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
-            ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+            if (W >= 960) {
+              // FL-06 carries on-price words as direct annotation, not a card:
+              // on desktop the label loses its backed gold box (as the shelf's
+              // did) and keeps a shadow for legibility. Narrow keeps the box.
+              ctx.save();
+              ctx.fillStyle = "#d4af37";
+              ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+              ctx.restore();
+            } else {
+              ctx.fillStyle = `rgba(14,12,8,${stackSpot ? keepOutBackingAlpha(stackSpot, 0.92) : 0.92})`;
+              ctx.fillRect(chipX, chipY, chipW, chipH);
+              ctx.strokeStyle = "rgba(212,175,55,0.65)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(chipX + 0.5, chipY + 0.5, chipW - 1, chipH - 1);
+              ctx.fillStyle = "#d4af37";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+            }
 
             ctx.restore();
 
@@ -11327,6 +11354,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.imbalanceStackLevels;
             delete ds.imbalanceStackEdge;
             delete ds.imbalanceStackTag;
+            delete ds.imbalanceStackLabel;
             if (placement.kind !== "FORMED_AFTER_VIEW") delete ds.imbalanceStackAnchor;
           }
         } else {
@@ -11337,6 +11365,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.imbalanceStackLevels;
           delete ds.imbalanceStackEdge;
           delete ds.imbalanceStackTag;
+          delete ds.imbalanceStackLabel;
           delete ds.imbalanceStackAnchor;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
