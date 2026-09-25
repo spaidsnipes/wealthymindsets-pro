@@ -7723,16 +7723,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const nearMinX = layerOnRef.current.questionLens === true && W >= 640 ? 324 : 4;
           const nearFloorY = Math.max(HEADER_FLOOR_Y, BELOW_PRICE_LEGEND) + 4;
           type NearRect = { x: number; y: number; w: number; h: number };
+          // THE FOOTPRINT'S CELLS ARE OBSTACLES (M46: its numbers own the
+          // bars' price rows). Every row mode paints a bar's cells across its
+          // full high→low range at the body's width, for every bar with
+          // captured rows. Serving, 2026-09-25 14:17 CDT: HIGH (WICK) / OPEN /
+          // CLOSE / LOW (WICK) landed on the newest bar's cells in every mode
+          // and HIGH (WICK) crossed the prior bar's column. A word or the
+          // legend now clears every cell column as it clears a chip.
+          const fpRowModes: readonly string[] = ["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive"];
+          const fpRowsFill = fpRowModes.includes(effectiveFP) && fpBarsPainted > 0;
+          const fpCells: NearRect[] = [];
+          if (fpRowsFill) for (const b of nearBars) {
+            if (!getBarSubProfile(b.c)) continue;
+            const yHc = srs.priceToCoordinate(b.c.high), yLc = srs.priceToCoordinate(b.c.low);
+            if (yHc == null || yLc == null) continue;
+            fpCells.push({ x: b.cx - halfW, y: Math.min(+yHc, +yLc), w: colW, h: Math.max(2, Math.abs(+yLc - +yHc)) });
+          }
           const placeNear = (candidates: NearRect[]) => {
             // Only slots inside pane 0's body band (below the header and the
             // price legend, above the pane floor) are candidates at all.
             const inBand = candidates.filter(r => r.y >= nearFloorY && r.y + r.h <= pane0Bottom - 2);
             if (inBand.length === 0) return null;
             const [pref, ...alternates] = inBand;
-            const spot = placeClearOfKeepOut(pref, nearBodies, { minX: nearMinX, blockers: forceChips, strict: true, alternates });
-            // Text never prints over another chip's text; over a candle body
-            // it is halo text on the owner's BLOCKED slot, never a backing.
-            const onChip = rectHits(spot.rect, forceChips) > 0 || spot.rect.y < nearFloorY || spot.rect.y + spot.rect.h > pane0Bottom - 2;
+            // Chips on the glass (the footprint builder's included, when it
+            // registers them) and the footprint's cell columns.
+            const blockersN = [...forceChips, ...fpCells];
+            const spot = placeClearOfKeepOut(pref, nearBodies, { minX: nearMinX, blockers: blockersN, strict: true, alternates });
+            // Text never prints over another chip's text or a footprint cell;
+            // over a candle body it is halo text on the owner's BLOCKED slot,
+            // never a backing.
+            const onChip = rectHits(spot.rect, blockersN) > 0 || spot.rect.y < nearFloorY || spot.rect.y + spot.rect.h > pane0Bottom - 2;
             return onChip ? null : spot.rect;
           };
 
@@ -7740,8 +7760,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.setLineDash([]);
           // ── CANDLE ANATOMY AS GEOMETRY: open tick left, close tick right,
           //    and the bar's own value area INSIDE the body (H-701 hatch).
-          const fpRowModes: readonly string[] = ["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive"];
-          const fpRowsFill = fpRowModes.includes(effectiveFP) && fpBarsPainted > 0;
           let ticks = 0, hatched = 0, bracketed = 0;
           for (const { c, cx, tape } of nearBars) {
             const yO = srs.priceToCoordinate(c.open), yC = srs.priceToCoordinate(c.close);

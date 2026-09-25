@@ -147,12 +147,13 @@ describe("the sides are inked only where lawful", () => {
 describe("collision goes through the keep-out owner", () => {
   it("every word and the legend are placed strictly against candle bodies and earlier chips, below the header and the price legend", () => {
     const b = near();
-    expect(b).toMatch(/const spot = placeClearOfKeepOut\(pref, nearBodies, \{ minX: nearMinX, blockers: forceChips, strict: true, alternates \}\);/);
+    expect(b).toMatch(/const blockersN = \[\.\.\.forceChips, \.\.\.fpCells\];/);
+    expect(b).toMatch(/const spot = placeClearOfKeepOut\(pref, nearBodies, \{ minX: nearMinX, blockers: blockersN, strict: true, alternates \}\);/);
     // Candidates outside pane 0's body band are dropped before placement, so an alternate can still win.
     expect(b).toMatch(/const inBand = candidates\.filter\(r => r\.y >= nearFloorY && r\.y \+ r\.h <= pane0Bottom - 2\);/);
     expect(b).toMatch(/const nearBodies = spanCandleKeepOut\(nearAll, /);
     expect(b).toMatch(/const nearFloorY = Math\.max\(HEADER_FLOOR_Y, BELOW_PRICE_LEGEND\) \+ 4;/);
-    expect(b).toMatch(/const onChip = rectHits\(spot\.rect, forceChips\) > 0 \|\| spot\.rect\.y < nearFloorY \|\| spot\.rect\.y \+ spot\.rect\.h > pane0Bottom - 2;/);
+    expect(b).toMatch(/const onChip = rectHits\(spot\.rect, blockersN\) > 0 \|\| spot\.rect\.y < nearFloorY \|\| spot\.rect\.y \+ spot\.rect\.h > pane0Bottom - 2;/);
     // The spot the OWNER chose is what prints — or nothing does. Returning the
     // caller's preferred rect would overprint the chip it collided with.
     const helper = b.slice(b.indexOf("const placeNear = ("), b.indexOf("ctx.save();", b.indexOf("const placeNear = (")));
@@ -160,6 +161,24 @@ describe("collision goes through the keep-out owner", () => {
     expect(returns).toEqual(["null", "onChip ? null : spot.rect"]);
     expect(b).toMatch(/forceChips\.push\(legendAt\);/);
     expect(b).toMatch(/forceChips\.push\(at\);/);
+  });
+});
+
+describe("NEAR words yield to the footprint's cells (serving, 2026-09-25 14:17 CDT)", () => {
+  it("every bar with captured rows contributes its full high→low cell column, at the body's width, as a blocker", () => {
+    const b = near();
+    const a = b.indexOf("const fpCells: NearRect[] = [];");
+    const z = b.indexOf("const placeNear = (");
+    expect(a).toBeGreaterThan(-1);
+    // Built before the placer that reads it.
+    expect(z).toBeGreaterThan(a);
+    const cells = b.slice(a, z);
+    expect(cells).toMatch(/if \(fpRowsFill\) for \(const b of nearBars\) \{/);
+    expect(cells).toMatch(/if \(!getBarSubProfile\(b\.c\)\) continue;/);
+    expect(cells).toMatch(/const yHc = srs\.priceToCoordinate\(b\.c\.high\), yLc = srs\.priceToCoordinate\(b\.c\.low\);/);
+    expect(cells).toMatch(/fpCells\.push\(\{ x: b\.cx - halfW, y: Math\.min\(\+yHc, \+yLc\), w: colW, h: Math\.max\(2, Math\.abs\(\+yLc - \+yHc\)\) \}\);/);
+    // The same geometry every row mode paints its cells on.
+    expect(CHART).toMatch(/ctx\.fillRect\(x, yH, colW, fullH\);/);
   });
 });
 
