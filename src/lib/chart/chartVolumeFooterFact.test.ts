@@ -30,6 +30,15 @@ describe("formatBarVolume", () => {
     expect(formatBarVolume(999)).toBe("999");
   });
 
+  it("prints a fractional crypto quantity without the adder's rounding noise", () => {
+    expect(formatBarVolume(4.0958944299999995)).toBe("4.09589");
+    expect(formatBarVolume(0.84239467)).toBe("0.842395");
+    expect(formatBarVolume(999.123456)).toBe("999.123");
+    // Dust stays a real, non-zero figure in fixed notation.
+    expect(formatBarVolume(0.00000009)).toBe("0.00000009");
+    expect(formatBarVolume(0.00000009)).not.toMatch(/e/);
+  });
+
   it("hands over to the magnitude rule exactly at its valid domain", () => {
     // 1000 is the seam: the first value for which the "K" branch is honest.
     expect(formatBarVolume(1000)).toBe(formatVolumeMagnitude(1000));

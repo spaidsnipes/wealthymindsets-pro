@@ -69,7 +69,18 @@ export function formatBarVolume(n: number): string {
   // Below the magnitude rule's valid domain: print the count. `1e3` is the
   // exact threshold at which `formatVolumeMagnitude`'s "K" branch starts
   // telling the truth, so this is a seam, not an overlap.
-  if (n < 1e3) return String(n);
+  if (n < 1e3) {
+    if (Number.isInteger(n)) return String(n);
+    // Crypto trades in fractions, and a bar's quantity is a running sum of
+    // them, so it arrives carrying the adder's rounding error — the glass
+    // printed `Vol 4.0958944299999995` on BTC 1m. Six significant figures
+    // keep every digit a venue quotes at this size; fixed notation keeps a
+    // dust-sized bar from turning into `9e-8` or a manufactured `0`.
+    return Number(n.toPrecision(6)).toLocaleString("en-US", {
+      maximumFractionDigits: 8,
+      useGrouping: false,
+    });
+  }
   return formatVolumeMagnitude(n);
 }
 

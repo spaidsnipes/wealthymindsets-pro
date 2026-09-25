@@ -56,8 +56,8 @@ describe("resolveDefaultCameraSymbol", () => {
   });
 
   it("every declared candidate uses a symbol spelling the tape map can key on", () => {
-    // `BTC-USD` opened no socket at all in a measured probe; the candidate
-    // list must use COINBASE_PRODUCT keys, which carry no hyphen.
+    // The candidate list uses COINBASE_PRODUCT key shapes (no hyphen) so the
+    // default camera never depends on spelling resolution to hear the tape.
     for (const candidate of CAMERA_CANDIDATES) {
       expect(candidate.symbol, `${candidate.symbol} is not a tape-map key shape`)
         .not.toContain("-");
