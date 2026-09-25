@@ -29,7 +29,7 @@ const block = (() => {
 
 describe("stack placement on the glass", () => {
   it("takes its placement from the tested owner, not a local clamp", () => {
-    expect(CHART).toMatch(/import \{ stackAnchor \} from "@\/lib\/chart\/stackedImbalanceAnchor";/);
+    expect(CHART).toMatch(/import \{[^}]*\bstackAnchor\b[^}]*\} from "@\/lib\/chart\/stackedImbalanceAnchor";/);
     expect(CHART).not.toMatch(/^function stackAnchor\(/m);
     expect(block).toMatch(/const placement = stackAnchor\(chart, barsRef\.current \?\? \[\], glass\.formedFrom, glass\.formedTo, plotRight\);/);
   });
@@ -47,5 +47,16 @@ describe("stack placement on the glass", () => {
     const calls = [...block.matchAll(/paintStackCell\(ctx, (\w+),/g)].map(m => m[1]);
     expect(calls.length).toBeGreaterThan(0);
     expect(calls.every(a => a === "anchor")).toBe(true);
+  });
+
+  it("each slab is painted from the span-bounded owner, with no minimum length", () => {
+    const at = CHART.indexOf("function paintStackCell(");
+    expect(at).toBeGreaterThan(-1);
+    const body = CHART.slice(at, CHART.indexOf("\n}\n", at));
+    expect(body).toMatch(/const \{ x, w \} = stackSlab\(a, weight\);/);
+    expect(body).toMatch(/ctx\.fillRect\(x, /);
+    expect(body).toMatch(/ctx\.strokeRect\(x \+ 0\.5, /);
+    expect(body).not.toMatch(/Math\.max\(a\.x1 - a\.x0/);
+    expect(body).not.toMatch(/a\.x0/);
   });
 });

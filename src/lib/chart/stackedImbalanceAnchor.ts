@@ -64,3 +64,16 @@ export function stackAnchor(
   if (left > plotRight) return { kind: "FORMED_AFTER_VIEW" };
   return { kind: "ON_BARS", x0: Math.max(0, left), x1: Math.min(plotRight, right), key: `${bf}-${bt}` };
 }
+
+/**
+ * One level's slab, inside the formation span. It grows from the first
+ * formation bar and its length is the level's dominance as a share of the
+ * span; the 30% floor keeps the weakest level visible. It never runs past
+ * `x1`: beyond it are the bodies of bars that did not build the stack, and
+ * the band that carries the level on to now.
+ */
+export function stackSlab(a: { x0: number; x1: number }, weight: number): { x: number; w: number } {
+  const span = Math.max(0, a.x1 - a.x0);
+  const k = Number.isFinite(weight) ? Math.min(1, Math.max(0, weight)) : 0;
+  return { x: a.x0, w: span * (0.3 + 0.7 * k) };
+}

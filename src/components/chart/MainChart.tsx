@@ -193,7 +193,7 @@ import {
   type AnatomyBarInput,
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
-import { stackAnchor } from "@/lib/chart/stackedImbalanceAnchor";
+import { stackAnchor, stackSlab } from "@/lib/chart/stackedImbalanceAnchor";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueCandleGlass";
 import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
@@ -1370,12 +1370,13 @@ function stackCellHeight(ys: readonly (unknown | null)[], bandH: number): number
 function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: number }, y: number, h: number, weight: number) {
   // Canon F06A (Order Flow Lives on Price): stacked imbalance is a run of
   // SLABS grown out of the bars that built it, each slab's length its row's
-  // dominance — a small horizontal histogram on price, not equal boxes.
-  const w = Math.max(a.x1 - a.x0, 18 + 70 * weight);
+  // dominance — a small horizontal histogram on price, not equal boxes. The
+  // slab stays inside the formation span (stackSlab).
+  const { x, w } = stackSlab(a, weight);
   ctx.fillStyle = `rgba(212,175,55,${(0.16 + 0.5 * weight).toFixed(3)})`;
-  ctx.fillRect(a.x0, y - h / 2 + 0.5, w, h - 1);
+  ctx.fillRect(x, y - h / 2 + 0.5, w, h - 1);
   ctx.strokeStyle = "rgba(212,175,55,0.9)"; ctx.lineWidth = 1;
-  ctx.strokeRect(a.x0 + 0.5, y - h / 2 + 0.5, w - 1, h - 1);
+  ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, Math.max(0, w - 1), h - 1);
 }
 
 export function MainChart({ symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,

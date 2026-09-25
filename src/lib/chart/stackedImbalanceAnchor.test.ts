@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { barTimeAtOrBefore, stackAnchor, type StackAnchorChart } from "./stackedImbalanceAnchor";
+import { barTimeAtOrBefore, stackAnchor, stackSlab, type StackAnchorChart } from "./stackedImbalanceAnchor";
 
 /** One bar a minute from t=0; bar k sits at x = x0 + k·spacing, on screen or not. */
 function camera(x0: number, spacing: number): StackAnchorChart {
@@ -65,5 +65,28 @@ describe("finding the formation bars costs a search, not a walk of the history",
     // Two searches of at most ⌈log2 3000⌉ + 1 = 13 reads each; a forward walk
     // reads about 6000.
     expect(reads).toBeLessThanOrEqual(26);
+  });
+});
+
+describe("each level's slab stays on the bars that built the stack", () => {
+  it("never runs past the formation span, however strong the level", () => {
+    // One formation bar at NEAR (30px spacing), five bars back: the span is 30px.
+    const one = { x0: 400, x1: 430 };
+    for (const weight of [0, 0.25, 0.5, 1, 1.4]) {
+      const s = stackSlab(one, weight);
+      expect(s.x).toBe(one.x0);
+      expect(s.x + s.w).toBeLessThanOrEqual(one.x1);
+    }
+    // At FAR the span can be a single 4px bar; the slab still ends inside it.
+    const far = stackSlab({ x0: 100, x1: 104 }, 1);
+    expect(far.x + far.w).toBeLessThanOrEqual(104);
+  });
+
+  it("length is the level's dominance as a share of the span", () => {
+    const a = { x0: 0, x1: 100 };
+    expect(stackSlab(a, 0).w).toBeCloseTo(30);
+    expect(stackSlab(a, 0.5).w).toBeCloseTo(65);
+    expect(stackSlab(a, 1).w).toBeCloseTo(100);
+    expect(stackSlab(a, Number.NaN).w).toBeCloseTo(30);
   });
 });
