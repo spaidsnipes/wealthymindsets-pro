@@ -10917,7 +10917,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           } else {
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
-            ctx.fillText(`EXPECTED ENVELOPE · needs 3 completed sessions on this chart (${env.sessions} loaded)`, 12, H - 86);
+            const refusal = `EXPECTED ENVELOPE · needs 3 completed sessions on this chart (${env.sessions} loaded)`;
+            ctx.fillText(refusal, 12, H - 86);
+            // A chip, so TPO letters painted later yield to these words.
+            floatingChips.push({ x: 12, y: H - 86 - 7, w: ctx.measureText(refusal).width, h: 14 });
           }
           ctx.restore();
         } else {

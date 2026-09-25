@@ -37,4 +37,8 @@ describe("the envelope's reach name (Sentinel)", () => {
     expect(block).toContain("ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotE, 0.82)})`;");
     expect(block).not.toContain("fillRect(lx - 4, ly - 7");
   });
+
+  it("its refusal line is a chip too, so TPO letters yield to it", () => {
+    expect(CHART).toContain("floatingChips.push({ x: 12, y: H - 86 - 7, w: ctx.measureText(refusal).width, h: 14 });");
+  });
 });
