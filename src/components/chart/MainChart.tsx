@@ -10018,9 +10018,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillRect(rightEdge - histMax - 4, top, histMax + 8, band);
                 // Hairlines at VAH/VAL across the pane so the boundaries
                 // register even where the fill is faint.
-                ctx.strokeStyle = "rgba(194,184,146,0.35)";
+                ctx.strokeStyle = "rgba(201,165,92,0.5)";
                 ctx.lineWidth = 1;
-                ctx.setLineDash([2, 4]);
+                ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(0, +yh + 0.5); ctx.lineTo(W, +yh + 0.5);
                 ctx.moveTo(0, +yl + 0.5); ctx.lineTo(W, +yl + 0.5);
@@ -10077,6 +10077,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
 
+            const silhouette: { x: number; y: number }[] = [];
             for (const b of (livingDepth === "FAR" ? [] : lp.bars)) {
               const yr = srs.priceToCoordinate(b.price);
               if (yr == null) continue;
@@ -10086,12 +10087,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // the trader can see it without hunting. Value area gets ivory.
               // Outside-value buckets get muted parchment — same reading,
               // less loud.
+              // CANON P-110 (WM_A_P110_LIVING_PROFILE_STACK): the Living
+              // Profile is ONE gold silhouette, not a stack of hairline bars.
+              // Rows are laid gapless in the plate's gold (value area full,
+              // outside value quieter) so they fuse into a continuous shape;
+              // the silhouette edge is traced after the loop.
               ctx.fillStyle = b.isPoc
-                ? "rgba(201,165,92,0.90)"
+                ? "rgba(214,176,92,0.92)"
                 : b.insideValueArea
-                  ? "rgba(237,230,211,0.72)"
-                  : "rgba(194,184,146,0.42)";
-              ctx.fillRect(rightEdge - width, y, width, Math.max(1, rowH - 1));
+                  ? "rgba(201,165,92,0.74)"
+                  : "rgba(201,165,92,0.34)";
+              ctx.fillRect(rightEdge - width, y, width, Math.max(1, rowH));
+              silhouette.push({ x: rightEdge - width, y: y + rowH / 2 });
               // The slice Inspect is reading, outlined so the ticket and the
               // glass visibly agree on WHICH bucket is selected.
               if (selectedSliceRef.current != null && Math.abs(b.price - selectedSliceRef.current) < 1e-9) {
@@ -10130,10 +10137,34 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.lineTo(rightEdge + 2, y);
               ctx.stroke();
             };
+            // The silhouette's edge, traced once through the row tips.
+            if (silhouette.length >= 3) {
+              const pts = [...silhouette].sort((a, z) => a.y - z.y);
+              ctx.beginPath(); ctx.moveTo(rightEdge, pts[0].y);
+              for (const q of pts) ctx.lineTo(q.x, q.y);
+              ctx.lineTo(rightEdge, pts[pts.length - 1].y);
+              ctx.strokeStyle = "rgba(233,196,106,0.85)"; ctx.lineWidth = 1.2; ctx.stroke();
+              ds.livingProfileForm = "SILHOUETTE";
+            }
             drawRef(lp.poc, "rgba(201,165,92,0.90)", false);
-            drawRef(lp.vah, "rgba(194,184,146,0.55)", true);
-            drawRef(lp.val, "rgba(194,184,146,0.55)", true);
+            // Canon: VAH/VAL are solid gold lines, not ivory dashes.
+            drawRef(lp.vah, "rgba(201,165,92,0.80)", false);
+            drawRef(lp.val, "rgba(201,165,92,0.80)", false);
             ctx.setLineDash([]);
+            // Canon: the POC is a gold point ON the profile, with a dashed
+            // line carried across the market.
+            if (lp.poc != null && livingDepth !== "FAR") {
+              const yp = srs.priceToCoordinate(lp.poc);
+              const pocBar = lp.bars.find(b => b.isPoc);
+              if (yp != null && pocBar) {
+                const px = rightEdge - Math.max(1, Math.round(pocBar.share * histMax));
+                ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(0, Math.round(+yp) + 0.5); ctx.lineTo(px - 8, Math.round(+yp) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                ctx.beginPath(); ctx.arc(px, +yp, 5, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(240,200,100,1)"; ctx.fill();
+                ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+              }
+            }
 
             /*
               HVN / LVN as annotation on the histogram. Not a replacement for
