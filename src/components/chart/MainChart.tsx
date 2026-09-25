@@ -226,6 +226,7 @@ import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResp
 import { selectSessionGhostProfiles } from "@/lib/marketData/viewModels/selectSessionGhostProfiles";
 import { selectFarRegimeEnvelope } from "@/lib/marketData/viewModels/selectFarRegimeEnvelope";
 import { nearCandleAnatomyParts } from "@/lib/marketData/viewModels/selectNearCandleAnatomy";
+import { selectNearTape, type NearTapeCache } from "@/lib/marketData/viewModels/selectNearTape";
 import { selectDataGaps } from "@/lib/marketData/viewModels/selectDataGaps";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
@@ -5388,6 +5389,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       bars: LegacyOhlcvTuple[]; structure: MarketStructureVM | null; from: number; to: number;
       vm: ReturnType<typeof selectFarRegimeEnvelope>;
     } | null = null;
+    // The NEAR tape rows, carried between frames (see selectNearTape).
+    let nearTapeCache: NearTapeCache | null = null;
 
     // Session selection is data work, not paint work. Previously every animation
     // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
@@ -7244,9 +7247,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           });
           canvas.dataset.nearAnatomy = String(parts);
           // TAPE · LAST 10 — the executions this chart actually captured.
-          const tapeBars = [...bigTradePrintAccRef.current.keys()].sort((a, b) => b - a).slice(0, 2);
-          const prints = tapeBars.flatMap(k => bigTradePrintAccRef.current.get(k) ?? [])
-            .filter(t => t.timeMs != null).sort((a, b) => (b.timeMs ?? 0) - (a.timeMs ?? 0)).slice(0, 10);
+          // The owner keeps its answer between frames and reads only prints
+          // that arrived since; the paint never spreads or sorts the tape.
+          nearTapeCache = selectNearTape(bigTradePrintAccRef.current, nearTapeCache);
+          const prints = nearTapeCache.vm.rows;
           if (prints.length > 0) {
             const colW = 124, rowH2 = 13, colH = 20 + prints.length * rowH2;
             // Docked top-left, clear of the right edge where the live candle,
@@ -7263,11 +7267,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 10px ui-monospace, SFMono-Regular, monospace";
             prints.forEach((t, i) => {
               const y = colY + 22 + i * rowH2;
-              const buy = t.ask > t.bid;
               ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
-              ctx.fillText(formatBubblePrice(t.price), colX + colW - 30, y);
-              ctx.textAlign = "center"; ctx.fillStyle = buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
-              ctx.fillText(buy ? "+" : "−", colX + colW - 14, y);
+              ctx.fillText(t.price, colX + colW - 30, y);
+              ctx.textAlign = "center"; ctx.fillStyle = t.buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
+              ctx.fillText(t.buy ? "+" : "−", colX + colW - 14, y);
             });
             forceChips.push({ x: colX, y: colY, w: colW, h: colH });
             canvas.dataset.nearTape = String(prints.length);

@@ -89,9 +89,20 @@ describe("semantic zoom glass", () => {
     // No pixel-distance equality and no hard-coded wick words in the painter.
     expect(block).not.toMatch(/Math\.abs\(\+yO - \+yC\)/);
     expect(block).not.toMatch(/"OPEN = CLOSE"|"HIGH \(WICK\)"|"LOW \(WICK\)"/);
-    // Sub-dollar prints keep their digits.
-    expect(block).toMatch(/formatBubblePrice\(/);
+    // Sub-dollar prints keep their digits: the tape owner formats with
+    // formatBubblePrice (unit-tested there); the painter prints its string.
+    expect(block).toMatch(/ctx\.fillText\(t\.price, /);
     expect(block).not.toMatch(/\.price\.toFixed\(2\)/);
+  });
+
+  it("the TAPE column reads a cached owner — no per-frame spread, flatMap or sort of the captured prints", () => {
+    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+    const anatomyEnd = CHART.indexOf("canvas.dataset.nearAnatomy = String(parts);", near);
+    expect(anatomyEnd).toBeGreaterThan(near);
+    const tape = CHART.slice(anatomyEnd, CHART.indexOf("delete canvas.dataset.nearTape;", near));
+    expect(tape).toMatch(/nearTapeCache = selectNearTape\(bigTradePrintAccRef\.current, nearTapeCache\);/);
+    expect(tape).toMatch(/const prints = nearTapeCache\.vm\.rows;/);
+    expect(tape).not.toMatch(/\.keys\(\)|flatMap\(|\.sort\(/);
   });
 
   it("NEAR anatomy words are halo text on leaders that start outside the live body — no boxes over the candles", () => {
