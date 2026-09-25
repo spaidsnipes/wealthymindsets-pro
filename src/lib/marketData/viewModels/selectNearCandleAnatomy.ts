@@ -15,12 +15,13 @@
  * PURE. DETERMINISTIC.
  */
 
-export interface AnatomyBar {
-  readonly open: number;
-  readonly high: number;
-  readonly low: number;
-  readonly close: number;
-}
+import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+
+/**
+ * The chart's own bar, narrowed to the four prices the words are decided on —
+ * a projection of the shared shape, never a private bar of this file's own.
+ */
+export type AnatomyBar = Pick<LegacyOhlcvTuple, "open" | "high" | "low" | "close">;
 
 export type AnatomyWord = "HIGH (WICK)" | "HIGH" | "OPEN" | "CLOSE" | "OPEN = CLOSE" | "LOW (WICK)" | "LOW";
 
