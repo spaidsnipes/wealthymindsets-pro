@@ -1249,7 +1249,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         ticker: hasRealRef
           ? {
               price,
-              change:    +(price - prevCloseRef.current).toFixed(2),
+              // 8 dp, not 2: float noise out, a forex pip kept (EURUSD's 0.0018
+              // day change read "+0.0000 (+0.16%)" — serving, 2026-09-25).
+              change:    +(price - prevCloseRef.current).toFixed(8),
               changePct: +((price - prevCloseRef.current) / prevCloseRef.current * 100).toFixed(2),
               volume:    newVol,
             }

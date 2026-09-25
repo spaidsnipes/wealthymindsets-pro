@@ -157,7 +157,8 @@ export function resolveRollingChange(
   return {
     changeWindow: window,
     referenceOpen: o,
-    change: +(p - o).toFixed(2),
+    // 8 dp, not 2: float noise out, a forex pip kept (display owns the precision).
+    change: +(p - o).toFixed(8),
     changePct: +(((p - o) / o) * 100).toFixed(2),
   };
 }

@@ -171,3 +171,13 @@ describe("changeWindow — measure disclosure", () => {
     }
   });
 });
+
+describe("resolveRollingChange keeps a forex pip", () => {
+  it("a 0.0018 move on EURUSD is 0.0018, not 0 (serving, 2026-09-25: '+0.0000 (+0.16%)')", () => {
+    const r = resolveRollingChange(1.1418, 1.14);
+    expect(r.change).toBeCloseTo(0.0018, 10);
+    expect(r.change).not.toBe(0);
+    // Float noise is still cleaned.
+    expect(String(resolveRollingChange(0.3, 0.1).change)).toBe("0.2");
+  });
+});
