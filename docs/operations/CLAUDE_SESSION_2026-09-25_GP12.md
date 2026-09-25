@@ -262,10 +262,10 @@ items: sample pages no longer deploy as routes (`03b4ce83`), paper double-submit
 ## Still OPEN (named, not closed)
 
 Added by the browser shift (desktop):
-- **EURUSD live quote reads 1.1400 flat (OPEN, located to the client).** `/api/yahoo?type=quote`
-  returns price 1.13986…, change 0.0017 (measured from the page, 10:13 CDT), yet the forming 1h bar
-  and NOW read 1.1400 (O/H/L all 1.1400). Not in `useWebSocket` tick/change code nor `liveBarPolicy`;
-  the rounding sits between the quote and the forming bar. Next: trace the FX quote → live-bar path.
+- ~~EURUSD live quote reads 1.1400 flat~~ — WITHDRAWN 10:20 after re-measuring on serving: the 1h bar
+  had just opened on its first tick, so O = H = L = NOW is true. After `1e4f1add` `a6b79915`
+  `38dcd634` the header reads "1.1399 +0.0017 (+0.15%)", the axis quotes pips, TPO POC 1.1540 vs
+  VAL 1.1385.
 - **Flatten BLOCKED** (human decision): `placeChartMarketOrder` stays pinned until ten futures carry
   published CME point values. **Replay OPEN**: no frozen-bar replay engine (honest "not wired" panel).
   **Layout OPEN**: saved layouts are one "My stack" slot in Tools.
