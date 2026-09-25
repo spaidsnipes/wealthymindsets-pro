@@ -204,6 +204,7 @@ import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeL
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
 import { selectAnatomyCards } from "@/lib/marketData/viewModels/selectAnatomyCards";
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackOpacity, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -895,6 +896,8 @@ interface Props {
   compareSymbol?:  string;
   onPriceAtCursor?: (price: number) => void;
   onSelectBigTrade?: (print: SelectedBigTrade) => void;
+  /** The print Inspect is reading — its force → response is drawn on price (H-701 plate). */
+  selectedPrintOnChart?: SelectedBigTrade | null;
   /**
    * A clean click inside the Living Profile's lane, resolved to a PRICE. The
    * dashboard resolves the price to the compiler's bucket; this file never
@@ -1379,7 +1382,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
-  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade,
+  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
@@ -1653,6 +1656,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     changes: anything the overlay reads comes through a ref, so the loop is
     never torn down and rebuilt underneath a frame.
   */
+  const selectedPrintRef = useRef<SelectedBigTrade | null>(null);
+  selectedPrintRef.current = selectedPrintOnChart;
   const questionChoiceRef = useRef<QuestionChoice>("AUTO");
   questionChoiceRef.current = questionChoiceOnChart;
   const rawRef = useRef(false);
@@ -6642,6 +6647,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const top = bubblesRef.current.reduce<Bubble | null>((m, b) => (!m || b.bid + b.ask > m.bid + m.ask ? b : m), null);
           if (top) canvas.dataset.bigTradeBubbleTop = `${Math.round(top.x)},${Math.round(top.y)}`;
           else delete canvas.dataset.bigTradeBubbleTop;
+          const oldest = bubblesRef.current.reduce<Bubble | null>((m, b) => (!m || b.anchorTime < m.anchorTime ? b : m), null);
+          if (oldest) canvas.dataset.bigTradeBubbleOldest = `${Math.round(oldest.x)},${Math.round(oldest.y)}`;
+          else delete canvas.dataset.bigTradeBubbleOldest;
         }
         const hoverId = bubbleHoverRef.current;
         // STAGGERING (Garden 12 collision governor): bubbles never move — they
@@ -6853,6 +6861,79 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         }
         canvas.dataset.nearBarDelta = depthD === "NEAR" ? String(printed) : "NOT_NEAR";
+      } catch { /* camera mid-transition */ }
+
+      /* ── H-701 · FORCE → RESPONSE ON THE SELECTED PRINT (canon plate
+         WM_A_H701_FORCE_RESPONSE). The selected object is the loudest thing
+         on the glass: an EVENT line at the print, a FORCE arrow into it from
+         the side that initiated, and the RESPONSE bracket over the next bars
+         with how far price went WITH and AGAINST the force (selectPrintResponse
+         — measured, PENDING until the bars exist; never a forecast). */
+      const forceChips: { x: number; y: number; w: number; h: number }[] = [];
+      try {
+        const sp = selectedPrintRef.current;
+        if (sp && sp.kind !== "delta" && sp.timeMs != null) {
+          const side = sp.ask >= sp.bid ? "buy" as const : "sell" as const;
+          const pr = selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side },
+            (barsRef.current ?? []).map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close })));
+          canvas.dataset.printResponse = pr.drawn ? `${pr.verdict}:${pr.responseBars}` : pr.reason;
+          const xe = pr.eventBarTime != null ? chart.timeScale().timeToCoordinate(pr.eventBarTime as never) : null;
+          const yp = srs.priceToCoordinate(sp.priceLevel);
+          if (pr.drawn && xe != null && yp != null) {
+            const ex = +xe, ey = +yp, up = pr.dir > 0;
+            ctx.save();
+            ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(Math.round(ex) + 0.5, 92); ctx.lineTo(Math.round(ex) + 0.5, H - 40); ctx.stroke(); ctx.setLineDash([]);
+            // FORCE: an arrow from below (buy) / above (sell) into the print.
+            const ax0 = ex - 70, ay0 = up ? ey + 60 : ey - 60;
+            const g = ctx.createLinearGradient(ax0, ay0, ex, ey); g.addColorStop(0, "rgba(232,184,92,0)"); g.addColorStop(1, "rgba(232,184,92,0.95)");
+            ctx.strokeStyle = g; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(ex - 8, up ? ey + 6 : ey - 6); ctx.stroke();
+            const ang = Math.atan2((up ? ey + 6 : ey - 6) - ay0, ex - 8 - ax0);
+            ctx.fillStyle = "rgba(232,184,92,0.95)"; ctx.beginPath();
+            ctx.moveTo(ex - 6, up ? ey + 5 : ey - 5);
+            ctx.lineTo(ex - 6 - 10 * Math.cos(ang - 0.45), (up ? ey + 5 : ey - 5) - 10 * Math.sin(ang - 0.45));
+            ctx.lineTo(ex - 6 - 10 * Math.cos(ang + 0.45), (up ? ey + 5 : ey - 5) - 10 * Math.sin(ang + 0.45));
+            ctx.closePath(); ctx.fill();
+            // RESPONSE: a bracket over the response bars, with-force and
+            // against-force excursions as two marks at the bracket's end.
+            const xEnd = pr.endTime != null ? chart.timeScale().timeToCoordinate(pr.endTime as never) : null;
+            if (xEnd != null) {
+              // EXPECTED ENVELOPE (ghost): ±1 median bar range around the
+              // print, measured from the bars before it. A response that stays
+              // inside it was ordinary; one that leaves it was the surprise.
+              const yEh = srs.priceToCoordinate(sp.priceLevel + pr.medianRange);
+              const yEl = srs.priceToCoordinate(sp.priceLevel - pr.medianRange);
+              if (yEh != null && yEl != null && pr.medianRange > 0) {
+                const eg = ctx.createLinearGradient(ex, 0, +xEnd, 0);
+                eg.addColorStop(0, "rgba(237,230,211,0.14)"); eg.addColorStop(1, "rgba(237,230,211,0.05)");
+                ctx.fillStyle = eg; ctx.fillRect(ex, +yEh, +xEnd - ex, +yEl - +yEh);
+                ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(ex, Math.round(+yEh) + 0.5); ctx.lineTo(+xEnd, Math.round(+yEh) + 0.5);
+                ctx.moveTo(ex, Math.round(+yEl) + 0.5); ctx.lineTo(+xEnd, Math.round(+yEl) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                canvas.dataset.printEnvelope = pr.medianRange.toFixed(2);
+              }
+              const by = up ? ey + 26 : ey - 26;
+              ctx.strokeStyle = "rgba(237,230,211,0.9)"; ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.moveTo(ex, by - 4); ctx.lineTo(ex, by); ctx.lineTo(+xEnd, by); ctx.lineTo(+xEnd, by - 4); ctx.stroke();
+              const yW = srs.priceToCoordinate(sp.priceLevel + pr.dir * pr.withForce);
+              const yA = srs.priceToCoordinate(sp.priceLevel - pr.dir * pr.againstForce);
+              if (yW != null) { ctx.strokeStyle = "rgba(232,184,92,0.95)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(+xEnd + 6, ey); ctx.lineTo(+xEnd + 6, +yW); ctx.stroke(); }
+              if (yA != null) { ctx.strokeStyle = "rgba(237,230,211,0.7)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(+xEnd + 11, ey); ctx.lineTo(+xEnd + 11, +yA); ctx.stroke(); }
+              const txt = `${pr.verdict === "PENDING" ? `PENDING ${pr.responseBars}/3` : pr.verdict} · with ${pr.withForce.toFixed(2)} · against ${pr.againstForce.toFixed(2)}`;
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const tw = ctx.measureText(txt).width + 12;
+              const tx = Math.min(W - 100 - tw, ex), ty = up ? by + 6 : by - 22;
+              ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(tx, ty, tw, 16);
+              forceChips.push({ x: tx, y: ty, w: tw, h: 16 });
+              ctx.fillStyle = pr.verdict === "FOLLOWED" ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.95)";
+              ctx.fillText(txt, tx + 6, ty + 8.5);
+            }
+            ctx.restore();
+          }
+        } else {
+          delete canvas.dataset.printResponse;
+          delete canvas.dataset.printEnvelope;
+        }
       } catch { /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════
@@ -7604,7 +7685,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       let scaffoldPainted: string | null = null;
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
-      const floatingChips: { x: number; y: number; w: number; h: number }[] = [];
+      const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
       // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
       // plot's top band; floating chips and cards stay below this line.
       const HEADER_FLOOR_Y = 90;

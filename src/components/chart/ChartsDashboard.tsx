@@ -5143,6 +5143,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          path, is the bar-selection route. */
                       onOHLCAtCursor={setCursorBar}
                       onSelectBigTrade={print => { setSelectedPrint(print); setSelectedSlicePrice(null); setInspectOpen(true); }}
+                      selectedPrintOnChart={activeSelectedPrint}
                       onSelectProfileSlice={price => { setSelectedSlicePrice({ symbol, timeframe, price }); setSelectedPrint(null); setInspectOpen(true); }}
                       selectedProfileSlicePrice={activeProfileSlice?.found ? activeProfileSlice.price : null}
                       marketObjectTargets={chartMarketObjectTargets}
