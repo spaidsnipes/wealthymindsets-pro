@@ -64,3 +64,13 @@ describe("Coinbase canonical Market Event adapter", () => {
     expect(guard.inspect(event).status).toBe("QUARANTINED");
   });
 });
+
+describe("one instrument, one evidence key, whatever the chart was opened as", () => {
+  it.each(["BTC", "BTCUSD", "BTC-USD", "btc-usd", "BTC/USD", "BTC.COINBASE"])(
+    "%s normalises to BTC — never a phantom like `BTC-`",
+    appSymbol => {
+      const event = normalizeCoinbaseTicker(rawTicker, appSymbol, Date.parse(rawTicker.time) + 20, Date.parse(rawTicker.time) + 25);
+      expect(event?.normalizedSymbol).toBe("BTC");
+    },
+  );
+});

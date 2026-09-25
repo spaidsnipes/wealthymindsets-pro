@@ -36,15 +36,6 @@ import { selectLiquidityWeather } from "@/lib/marketData/viewModels/selectLiquid
 import { HEAT_MAX_OPACITY } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { AggressorTick } from "@/lib/marketData/selectAggressorFlow";
 
-const PUBLIC_SAMPLE = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "public",
-  "liquidity-weather-sample.html",
-);
-
 /**
  * A run of prints. `spread` controls how far price travels per unit of size,
  * which is exactly the quantity the weather module measures — so a cheap run
@@ -169,7 +160,6 @@ ${renderToStaticMarkup(<LiquidityWeatherPanel vm={vm} symbol="FIXTURE" window="s
   SAMPLE_HTML = sample;
   const dest = path.join(tmpdir(), "liquidity-weather-sample.html");
   writeFileSync(dest, sample);
-  writeFileSync(PUBLIC_SAMPLE, sample);
   process.stdout.write(`\n  Liquidity weather sample written to: ${dest}\n`);
   process.stdout.write(`  Open it: file://${dest}\n\n`);
 } catch (error) {

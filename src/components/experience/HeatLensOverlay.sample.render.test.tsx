@@ -39,15 +39,6 @@ import {
   type LiquidityWeatherVM,
 } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 
-const PUBLIC_SAMPLE = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "public",
-  "heat-lens-sample.html",
-);
-
 const PLOT_HEIGHT = 240;
 const LOW = 100;
 const HIGH = 112;
@@ -211,7 +202,6 @@ ${renderToStaticMarkup(<HeatLensGauge vm={state.vm} />)}
   SAMPLE_HTML = sample;
   const dest = path.join(tmpdir(), "heat-lens-sample.html");
   writeFileSync(dest, sample);
-  writeFileSync(PUBLIC_SAMPLE, sample);
   process.stdout.write(`\n  Heat lens sample written to: ${dest}\n`);
   process.stdout.write(`  Open it: file://${dest}\n\n`);
 } catch (error) {

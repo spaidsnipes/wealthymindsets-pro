@@ -10,7 +10,9 @@
  *   - no two distinct readings draw the same picture
  *   - every row's zero lands on the same x, so the feed has a spine
  *
- * The page is written to /tmp and to public/ so a browser can measure it. The
+ * The page is written to the OS temp dir so a browser can measure it. It is
+ * deliberately NOT written into public/ — a local inspection artifact must not
+ * become a deployed route. The
  * measured receipt is the only thing that can prove the last of those three,
  * because a fixed side width is a claim about LAYOUT and this file only sees
  * strings.
@@ -42,7 +44,6 @@ const HEADLINES: readonly (readonly [string, string])[] = [
 ];
 
 const HTML_PATH = "/tmp/headline-lean-band-sample.html";
-const PUBLIC_PATH = path.join(process.cwd(), "public", "headline-lean-band-sample.html");
 
 let SAMPLE_HTML = "";
 
@@ -88,7 +89,6 @@ beforeAll(() => {
   );
 
   fs.writeFileSync(HTML_PATH, `<!doctype html>${SAMPLE_HTML}`, "utf8");
-  fs.writeFileSync(PUBLIC_PATH, `<!doctype html>${SAMPLE_HTML}`, "utf8");
 });
 
 describe("HeadlineLeanBand sample — the ladder of readings, seen together", () => {

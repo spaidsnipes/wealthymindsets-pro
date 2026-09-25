@@ -28,15 +28,6 @@ import path from "node:path";
 import ProtectionGradeLine from "./ProtectionGradeLine";
 import { selectProtectionState } from "@/lib/protectionState";
 
-const PUBLIC_SAMPLE = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "public",
-  "protection-line-sample.html",
-);
-
 /**
  * Six books, chosen because their coverage must NOT look alike — the exact
  * failure the track was added to end, where two opposite exposures differed by
@@ -91,7 +82,6 @@ ${renderToStaticMarkup(<ProtectionGradeLine state={state} book="PAPER BOOK" />)}
   SAMPLE_HTML = sample;
   const dest = path.join(tmpdir(), "protection-line-sample.html");
   writeFileSync(dest, sample);
-  writeFileSync(PUBLIC_SAMPLE, sample);
   process.stdout.write(`\n  Protection line sample written to: ${dest}\n`);
   process.stdout.write(`  Open it: file://${dest}\n\n`);
 } catch (error) {

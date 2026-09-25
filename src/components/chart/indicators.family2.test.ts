@@ -6,7 +6,7 @@
  * ultimateOscillator, awesomeOscillator, acceleratorOscillator, rvi,
  * fisherTransform, kdj, coppockCurve, trix, mfi, ulcerIndex,
  * historicalVolatility, forceIndex, easeOfMovement, chaikinOscillator,
- * accumDist, volumeOscillator, rvol, cvd, klingerOscillator.
+ * accumDist, volumeOscillator, rvol, klingerOscillator.
  *
  * Silent drift here silently mis-computes every named oscillator in the
  * /charts library the traders can toggle on.
@@ -20,7 +20,7 @@ import {
   fisherTransform, kdj, coppockCurve, trix,
   mfi, ulcerIndex, historicalVolatility,
   forceIndex, easeOfMovement, chaikinOscillator, accumDist,
-  volumeOscillator, rvol, cvd, klingerOscillator,
+  volumeOscillator, rvol, klingerOscillator,
   
 } from "./indicators";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
@@ -259,12 +259,6 @@ describe("rvol — Relative Volume", () => {
   });
   it("NaN before warm-up", () => {
     expect(Number.isNaN(rvol(risingBars(10), 20)[0])).toBe(true);
-  });
-});
-
-describe("cvd — Cumulative Volume Delta", () => {
-  it("output length matches input", () => {
-    expect(cvd(risingBars(10)).length).toBe(10);
   });
 });
 

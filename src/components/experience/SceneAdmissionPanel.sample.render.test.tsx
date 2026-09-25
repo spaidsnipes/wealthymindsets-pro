@@ -21,7 +21,7 @@
 import { describe, expect, it } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { SceneAdmissionPanel } from "./SceneAdmissionPanel";
@@ -108,12 +108,6 @@ const SAMPLE_HTML = `<!doctype html>
 
 const TMP = path.join("/tmp", "scene-governance-sample.html");
 writeFileSync(TMP, SAMPLE_HTML, "utf8");
-try {
-  mkdirSync(path.join(process.cwd(), "public"), { recursive: true });
-  writeFileSync(path.join(process.cwd(), "public", "scene-governance-sample.html"), SAMPLE_HTML, "utf8");
-} catch {
-  // A reference page is a convenience. It may never fail a build.
-}
 
 describe("scene governance sample page", () => {
   it("shows three genuinely different reaches", () => {

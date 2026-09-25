@@ -46,9 +46,9 @@ export interface MarketCameraCandidate {
  * Ordered by preference, filtered by truth.
  *
  * `BTC` (not `BTC-USD`) is deliberate: COINBASE_PRODUCT in `useWebSocket.ts`
- * keys on `BTC`/`BTCUSD`, and a probe run with `BTC-USD` opened no socket at
- * all. A default symbol that misses that map would reintroduce the very
- * silence this module exists to end.
+ * keys on bare bases. Since 2026-09-24 the tape maps resolve every spelling
+ * through `cryptoBaseTicker`, but the default stays on the key shape itself
+ * so the camera never depends on that resolution to hear the tape.
  */
 export const CAMERA_CANDIDATES: readonly MarketCameraCandidate[] = Object.freeze([
   { symbol: "BTC", tapeSource: "coinbase" },

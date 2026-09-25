@@ -38,15 +38,6 @@ import { DECISION_WHY_VERSION } from "@/lib/marketData/viewModels/selectDecision
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
 import type { EvidenceDebt } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 
-const PUBLIC_SAMPLE = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "public",
-  "decision-rail-sample.html",
-);
-
 function debt(p: Partial<EvidenceDebt>): EvidenceDebt {
   return {
     payable: 0,
@@ -254,7 +245,6 @@ ${renderToStaticMarkup(
   SAMPLE_HTML = sample;
   const dest = path.join(tmpdir(), "decision-rail-sample.html");
   writeFileSync(dest, sample);
-  writeFileSync(PUBLIC_SAMPLE, sample);
   process.stdout.write(`\n  Decision rail sample written to: ${dest}\n`);
   process.stdout.write(`  Open it: file://${dest}\n\n`);
 } catch (error) {

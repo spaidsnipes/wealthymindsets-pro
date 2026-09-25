@@ -3,6 +3,7 @@ import {
   type CanonicalMarketEvent,
 } from "../marketEvent";
 import { UNKNOWN_RIGHTS_POLICY_ID } from "../capabilityRegistry";
+import { cryptoBaseTicker } from "../canonicalIdentity";
 
 interface BinanceTradeMessage {
   e?: unknown;
@@ -42,7 +43,7 @@ export function normalizeBinanceUsTrade(
   // `m` means the buyer was the maker. The aggressor is therefore the
   // opposite side; label that inversion rather than claiming a direct side.
   const aggressorSide = message.m ? "SELL" : "BUY";
-  const normalizedSymbol = appSymbol.toUpperCase().replace(/USD$/, "");
+  const normalizedSymbol = cryptoBaseTicker(appSymbol) ?? appSymbol.toUpperCase().replace(/USD$/, "");
 
   return {
     schemaVersion: MARKET_EVENT_SCHEMA_VERSION,

@@ -15,7 +15,7 @@
  *
  * WHAT THIS BUYS, STATED HONESTLY: one fewer duplicate DECISION about what a
  * bar is, and ZERO canonical identity. Fifty-odd indicator functions below
- * still receive six anonymous numbers. `vwap`, `cvd`, `obv` and every other
+ * still receive six anonymous numbers. `vwap`, `obv` and every other
  * volume-weighted function here compute a number that is only as meaningful as
  * the FIDELITY of the volume they were handed, and nothing in the parameter
  * type can tell them whether that volume was observed trade-by-trade, folded
@@ -880,21 +880,6 @@ export function rvol(bars: LegacyOhlcvTuple[], p = 20): number[] {
   const vols = bars.map(b => b.volume);
   const avg = sma(vols, p);
   return vols.map((v, i) => isFinite(avg[i]) && avg[i] > 0 ? v / avg[i] : NaN);
-}
-
-export function cvd(bars: LegacyOhlcvTuple[]): number[] {
-  const out: number[] = [0];
-  for (let i = 1; i < bars.length; i++) {
-    const ratio = bars[i].close > bars[i].open ? 0.65 : bars[i].close < bars[i].open ? 0.35 : 0.5;
-    const delta = (ratio - (1 - ratio)) * bars[i].volume;
-    out.push(out[i-1] + delta);
-  }
-  return out;
-}
-
-export function cvdOscillator(bars: LegacyOhlcvTuple[], p = 14): number[] {
-  const cvdVals = cvd(bars);
-  return ema(cvdVals, p).map((v, i) => cvdVals[i] - v);
 }
 
 export function volumeWeightedRsi(bars: LegacyOhlcvTuple[], p = 14): number[] {

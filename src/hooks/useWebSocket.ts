@@ -34,6 +34,7 @@ import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketDa
 import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
@@ -662,8 +663,23 @@ const BINANCE_PAIR: Record<string, string> = {
   SOLUSD: "solusdt",
 };
 
-function binancePair(symbol: string): string | null {
-  return BINANCE_PAIR[symbol.toUpperCase()] ?? null;
+/**
+ * The key both crypto tape maps are read with.
+ *
+ * The pickers emit `BTC-USD`, the default camera uses `BTC`, venue rows use
+ * `BTC.COINBASE` — one instrument, several spellings. Keyed on the raw
+ * uppercase symbol, only `BTC`/`BTCUSD` opened a socket; `BTC-USD` opened
+ * none, so the chart sat on historical bars and every tape-read invention
+ * (bubbles, absorption, footprint) stayed silent on a live 24×7 market.
+ * The identity layer already owns this equivalence, so it is asked here
+ * rather than restated as a second normaliser.
+ */
+function tapeMapKey(symbol: string): string {
+  return cryptoBaseTicker(symbol) ?? symbol.toUpperCase();
+}
+
+export function binancePair(symbol: string): string | null {
+  return BINANCE_PAIR[tapeMapKey(symbol)] ?? null;
 }
 
 function tryBinance(
@@ -959,8 +975,8 @@ function joinTape(
   };
 }
 
-function coinbaseProduct(symbol: string): string | null {
-  return COINBASE_PRODUCT[symbol.toUpperCase()] ?? null;
+export function coinbaseProduct(symbol: string): string | null {
+  return COINBASE_PRODUCT[tapeMapKey(symbol)] ?? null;
 }
 
 function tryCoinbase(
