@@ -23,6 +23,10 @@ import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
+import {
+  PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderRungYs, poolSpan, ringPoint, scaleAngle, wordOnTopArc,
+  type WeatherLens,
+} from "@/lib/chart/liquidityGlassGeometry";
 import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
@@ -152,8 +156,6 @@ const LIQUIDITY_SWEEP_LOOKBACK = 4;
  * the legend actually reserves, and the inset both had all along.
  */
 const PRICE_LEGEND_OVERLAY_H = 28;
-/** The bottom-left word stack's caption type (Liquidity Lifecycle). */
-const LIQUIDITY_CAPTION_FONT = "600 9px ui-sans-serif, system-ui, sans-serif";
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
 const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
@@ -226,6 +228,7 @@ import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaD
 import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
 import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import { HEAVY_RATIO } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -242,6 +245,7 @@ import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangePro
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import {
   KEEP_OUT_RECEIPTS,
+  candleCutOutRects,
   emptyKeepOutLedger,
   keepOutBackingAlpha,
   keepOutReceipt,
@@ -8705,22 +8709,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         return keepOutLedger.boxes;
       };
-      // THE LIQUIDITY LIFECYCLE CAPTION'S LINE — one owner for its words and its
-      // row in the bottom-left word stack (above the weather words when they
-      // speak), read by the caption itself and by TPO, which paints earlier
-      // and must yield to it. Null when the layer is off.
-      const liquidityCaptionLine = (): { text: string; y: number } | null => {
-        if (layerOnRef.current.liquidityLifecycle !== true) return null;
-        const lc = liquidityLifecycleRef.current;
-        const text = !lc
-          ? "LIQUIDITY LIFECYCLE · no reading"
-          : lc.drawn
-            ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · loaded history · candle-estimated · PULLED refused (no book)`
-            : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`;
-        const wds = canvas.dataset;
-        const weatherLines = wds.liquidityWeatherStage ? (wds.liquidityWeatherShelves ? 3 : 2) : 0;
-        return { text, y: Math.max(20, pane0Bottom - 22) - weatherLines * 11 };
-      };
+      // (The Liquidity Lifecycle caption and the Liquidity Weather word lines
+      // left the bottom-left word stack on 2026-09-25: F08A draws pools as
+      // time-bounded ladders and F08B draws weather as a lens, and their
+      // honesty statements travel as receipts and one compact tag.)
       // A slid label never lands in the column an active Question Lens owns.
       const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
       // Every candle body in view, once per frame, for a label that prints on
@@ -11093,65 +11085,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // layer indistinguishable from a feed that cannot speak.
         const on = layerOnRef.current.weather;
         ds.liquidityWeather = on ? glass.reason : "OFF";
-
-        if (on && glass.drawn) {
-          ctx.save(); ctx.globalAlpha = att.alpha("weather");
-
-          // ── THE SHELVES, at their prices. Drawn as a short dotted mark so a
-          // level where nothing moved does not read as a support line somebody
-          // is defending — it is an observation, not a claim about intent.
-          let shelves = 0;
-          ctx.setLineDash([1, 3]);
-          ctx.strokeStyle = "rgba(237,230,211,0.50)";
-          ctx.lineWidth = 1;
-          for (const p of glass.stallPrices) {
-            const yr = srs.priceToCoordinate(p);
-            if (yr == null) continue;
-            const y = Math.round(+yr) + 0.5;
-            ctx.beginPath();
-            ctx.moveTo(158, y);
-            ctx.lineTo(238, y);
-            ctx.stroke();
-            shelves++;
-          }
-          ctx.setLineDash([]);
-
-          // ── THE WORDS, in the chrome and nowhere near a price. Bottom-left of
-          // the plot, which the price-anchored layers above do not use.
-          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "bottom";
-          // The stack starts above the window count ("N BARS IN VIEW") at
-          // the candle pane's foot. It started at H − 6 — inside the time
-          // axis, below the pane clip — so the detail and stall lines were
-          // cut away and the label printed through the window count.
-          let wy = Math.max(20, pane0Bottom - 22);
-          // Each line is a chip: layers painted later (TPO letters) yield to it.
-          const wordChip = (text: string, y: number) =>
-            floatingChips.push({ x: 8, y: y - 11, w: ctx.measureText(text).width, h: 11 });
-          if (glass.stallLabel && shelves > 0) {
-            ctx.fillStyle = "rgba(237,230,211,0.65)";
-            ctx.fillText(glass.stallLabel, 8, wy);
-            wordChip(glass.stallLabel, wy);
-            wy -= 11;
-          }
-          ctx.fillStyle = "rgba(237,230,211,0.75)";
-          ctx.fillText(glass.detail, 8, wy);
-          wordChip(glass.detail, wy);
-          wy -= 11;
-          ctx.fillStyle = "#d4af37";
-          ctx.fillText(glass.label, 8, wy);
-          wordChip(glass.label, wy);
-          ctx.restore();
-
-          ds.liquidityWeatherStage = glass.stage;
-          if (shelves > 0) ds.liquidityWeatherShelves = String(shelves);
-          else delete ds.liquidityWeatherShelves;
-        } else {
-          // A stale stage keeps describing weather that is no longer measured.
-          delete ds.liquidityWeatherStage;
-          delete ds.liquidityWeatherShelves;
-        }
+        // F08B "WEATHER IS A LENS" (2026-09-25). The stage, the engine's
+        // sentence and the shelf caption used to print here as three word
+        // lines in the bottom-left corner — words about a place, printed
+        // nowhere near it. The reading now paints as ONE LENS over the region
+        // its prints landed in (see "F08B · WEATHER IS A LENS" below, after
+        // the heat field it clips): the colour field inside the lens only,
+        // the shelves at their prices inside it, "LIQUIDITY WEATHER" on the
+        // ring, and the lens status as a readout attached to the ring. No
+        // word lines stay in the corner; the stage receipts are published
+        // (and withdrawn) by the lens.
 
         /* ══ H-701 · EFFORT→RESPONSE BAR MARK ═══════════════════════════════
            F06's reading, put back on the candle it is about.
@@ -13049,10 +12992,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const tpo = tpoProfileRef.current;
-          // The Liquidity Lifecycle caption is painted after this block, in the
-          // same bottom-left word stack TPO's letters run through; its line is
-          // reserved here from the one owner of its words and row.
-          const lcLine = liquidityCaptionLine();
+          // (No Liquidity Lifecycle caption line is reserved here any more: the
+          // caption left the bottom-left word stack on 2026-09-25 — F08A pools
+          // are ladders on price, their honesty a receipt and one compact tag.)
           const on = layerOnRef.current.tpo;
           ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
 
@@ -13075,11 +13017,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // are cut out of the TPO's paint region, so no letter prints under
             // a word. At rest the top rows ran under "NQ1! · 5m 30857.75" and
             // beside EFFORT (serving, NQ1! 5m desktop, 2026-09-25).
-            ctx.font = LIQUIDITY_CAPTION_FONT;
             const tpoYields = [
               { x: 0, y: 0, w: W, h: PRICE_LEGEND_OVERLAY_H },
               ...floatingChips.filter(c => c.x < leftEdge + colMax + 4 && c.x + c.w > leftEdge - 6),
-              ...(lcLine ? [{ x: 8, y: lcLine.y - 11, w: ctx.measureText(lcLine.text).width, h: 11 }] : []),
             ];
             ctx.beginPath();
             ctx.rect(0, 0, W, H);
@@ -14143,8 +14083,71 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            NOT BURY CANDLES." Hard-coding an alpha here would put the regulator
            somewhere it could be quietly raised. */
         const heat = selectHeatLens(liquidityWeatherRef.current);
+        /* ══ F08B · WEATHER IS A LENS — WHERE IT SITS ═════════════════════════
+           The Founder's plate (and FL06 ⑤ "Liquidity Weather (Lens)") draws
+           the weather as a brass-ringed lens over the price/time region the
+           reading covers. That region is `glass.window`: first print's bar →
+           last print's bar, lowest → highest print — where the tape was
+           measured, which the weather owner publishes as a fact about the
+           window, never as a level for the stage. `fitWeatherLens` rings it
+           (never smaller than a readable lens, slid onto the plot at the live
+           edge, always enclosing the region). No window (undated prints) or a
+           window scrolled off the camera → no lens, and the receipt says so.
+           Everything the lens paints sits BEHIND the candles: one candle
+           cut-out over the lens's span, shared by the field, the glass tint,
+           the shelves and the ring. */
+        let weatherLens: WeatherLens | null = null;
+        let weatherLensCut: Path2D | null = null;
+        /** The field's composite alpha as actually painted (0 = no field) — the readout's VEIL. */
+        let weatherVeil = 0;
+        let weatherLensWhy: "OFF" | "UNMEASURED" | "UNTIMED" | "OFF_CAMERA" | "DRAWN" = on ? "UNMEASURED" : "OFF";
+        let weatherPlotRight = W - 60;
+        try { weatherPlotRight = W - chart.priceScale("right").width(); } catch { /* keep default */ }
+        const lensBars = barsRef.current ?? [];
+        const lensBarX = (ms: number): number | null => {
+          const tSec = Math.floor(ms / 1000);
+          let lo = 0, hi = lensBars.length - 1, at = -1;
+          while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (Number(lensBars[mid].time) <= tSec) { at = mid; lo = mid + 1; } else hi = mid - 1;
+          }
+          if (at < 0) return null;
+          const x = chart.timeScale().timeToCoordinate(lensBars[at].time as never);
+          return x == null ? null : +x;
+        };
+        if (on && glass.drawn) {
+          const wnd = glass.window;
+          if (!wnd) weatherLensWhy = "UNTIMED";
+          else {
+            const xa = lensBarX(wnd.fromTime), xb = lensBarX(wnd.toTime);
+            const ya = srs.priceToCoordinate(wnd.high), yb = srs.priceToCoordinate(wnd.low);
+            weatherLens = xa == null || xb == null || ya == null || yb == null ? null : fitWeatherLens(
+              { x0: Math.min(xa, xb) - bsp / 2, x1: Math.max(xa, xb) + bsp / 2, y0: +ya, y1: +yb },
+              // Room above for the ring's title and below for HELD / MOVED.
+              { x0: 0, y0: HEADER_FLOOR_Y + 16, x1: weatherPlotRight, y1: pane0Bottom - 16 },
+            );
+            weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
+          }
+        }
+        if (weatherLens) {
+          const tsW = chart.timeScale();
+          const vrW = tsW.getVisibleLogicalRange();
+          const cut = new Path2D();
+          cut.rect(0, 0, W, H);
+          for (const r of candleCutOutRects(lensBars, {
+            visible: vrW ? { from: +vrW.from, to: +vrW.to } : null,
+            barSpacing: bsp,
+            timeToX: t => { const xk = tsW.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+            priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+          }, weatherLens.cx - weatherLens.rx - 8, weatherLens.cx + weatherLens.rx + 8)) cut.rect(r.x, r.y, r.w, r.h);
+          weatherLensCut = cut;
+        }
+
         ds.heatLens = !on ? "OFF" : heat.drawable ? "DRAWN" : "REFUSED";
-        if (on && heat.drawable) {
+        // F08B: the field exists only INSIDE the lens. No lens (untimed or off
+        // camera) → no field, and the receipt names that silence.
+        if (on && heat.drawable && !weatherLens) ds.heatLens = "UNPLACED";
+        if (on && heat.drawable && weatherLens) {
           /* THE REGULATOR GOVERNS THE COMPOSITE, NOT EACH CELL (2026-09-24).
              Observed on a desktop fixture tape: twelve segments at nearly the
              same prices each painted at <= 0.30, and source-over stacked them
@@ -14224,7 +14227,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             wash.addColorStop(1, "rgba(0,0,0,0)");
             ctxHeat.globalAlpha = heat.maxOpacity > 0 ? alpha / heat.maxOpacity : 0;
             ctxHeat.fillStyle = wash;
+            // F08B's field is weather, not a table row: the cell's edges are
+            // softened by a few px. A blur only spreads and lowers alpha — the
+            // regulator below still caps the composite — and the lens clip
+            // keeps it inside the ring.
+            ctxHeat.filter = "blur(3px)";
             ctxHeat.fillRect(cx0, top, cw, band);
+            ctxHeat.filter = "none";
 
             // One to three contour lines: a quiet, deterministic expression
             // of intensity. More expensive travel earns denser texture. The
@@ -14253,10 +14262,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctxHeat.restore();
           if (hctx && painted > 0) {
             mainCtx.save();
+            // F08B: INSIDE THE LENS ONLY, and BEHIND THE CANDLES — the field
+            // meets the glass through the lens ellipse and the candle cut-out
+            // (both set in CSS px, before the device transform is dropped).
+            mainCtx.beginPath();
+            mainCtx.ellipse(weatherLens.cx, weatherLens.cy, weatherLens.rx, weatherLens.ry, 0, 0, Math.PI * 2);
+            mainCtx.clip();
+            if (weatherLensCut) mainCtx.clip(weatherLensCut, "evenodd");
             mainCtx.setTransform(1, 0, 0, 1, 0, 0);
             mainCtx.globalAlpha = glassAlpha;
             mainCtx.drawImage(hc, 0, 0);
             mainCtx.restore();
+            weatherVeil = glassAlpha;
           }
           if (painted > 0) {
             ds.heatLensCells = String(painted);
@@ -14272,27 +14289,290 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.heatLensContours;
           delete ds.heatLensUntimed;
         }
-        /* ══ LIQUIDITY LIFECYCLE — the Founder's Liquidity Weather mockup ════
-           Each pool (a volume-at-price node, candle-estimated) is a band on
-           price whose BIOGRAPHY is told by form on one ink, so it reads with
-           every label hidden:
-             body     how much traded there (fill weight), never its stage
-             edges    dashed while forming → solid once it grew → heavier as
-                      it persisted → heaviest once it refilled after a touch
-             notch    a thin ivory cut through the band where price came back
-             hatch    the stretch from the last touch to the close-through,
-                      then an end cap — a consumed pool stops there
-           Age quiets a pool the longer nothing has happened at it; a consumed
-           pool is memory, so it sits at half weight. PULLED needs book depth
-           and is refused in the caption, never drawn on a pool. The reading
-           is compiled ONCE by the room; this canvas only draws it. */
+        /* ══ F08B · WEATHER IS A LENS — THE RING, ITS WORDS, ITS READOUT ══════
+           Painted after the field it clips (above), in the plate's grammar:
+             glass    a faint slate tint inside the ring, behind the candles —
+                      lens material, not data (blue-grey, never green: §9)
+             shelves  each stalled segment's price, dotted, over the bars it
+                      traded on, INSIDE the lens — the one price this reading
+                      owns (an undated shelf runs the lens's chord at its price)
+             ring     brass, behind the candles. Its lower arc is the lens's
+                      own legend, F08B's dimension scale: the field's ramp from
+                      HELD (the window's dearest cell — size went in, price
+                      held) to MOVED (its cheapest — price moved on little),
+                      with a notch where the NEWEST measured cell sits
+             words    "LIQUIDITY WEATHER" set ON the top arc; HELD / MOVED at
+                      the ends of the scale
+             readout  LENS STATUS (the stage, as a word — never a hue),
+                      PERSISTENCE and RESPONSE (the heat owner's two needles),
+                      VEIL (the field's composite alpha against the 0.30
+                      regulator): one small plate ATTACHED to the ring by a
+                      leader (P-601 "attached to zone object, not a separate
+                      room"), placed clear of the newest candles and the chips,
+                      preferring a slot no candle body sits under.
+           Nothing is printed in the bottom-left corner. */
+        {
+          const L = weatherLens;
+          ds.liquidityWeatherLensState = weatherLensWhy;
+          if (on && glass.drawn && L) {
+            ctx.save();
+            ctx.globalAlpha = att.alpha("weather");
+            ctx.beginPath();
+            ctx.rect(0, HEADER_FLOOR_Y, weatherPlotRight, pane0Bottom - HEADER_FLOOR_Y);
+            ctx.clip();
+
+            // ── Behind the candles: tint, shelves, ring, legend arc.
+            ctx.save();
+            if (weatherLensCut) ctx.clip(weatherLensCut, "evenodd");
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.save();
+            ctx.translate(L.cx, L.cy);
+            ctx.scale(1, L.ry / L.rx);
+            const tint = ctx.createRadialGradient(0, 0, 0, 0, 0, L.rx);
+            tint.addColorStop(0, "rgba(40,52,72,0.08)");
+            tint.addColorStop(0.78, "rgba(30,38,54,0.14)");
+            tint.addColorStop(1, "rgba(8,10,14,0.36)");
+            ctx.fillStyle = tint;
+            ctx.fillRect(-L.rx, -L.rx, L.rx * 2, L.rx * 2);
+            ctx.restore();
+            let shelves = 0;
+            ctx.setLineDash([1, 3]);
+            ctx.strokeStyle = "rgba(237,230,211,0.60)";
+            ctx.lineWidth = 1;
+            for (const s of glass.stallSpans) {
+              const yr = srs.priceToCoordinate(s.price);
+              if (yr == null) continue;
+              const y = Math.round(+yr) + 0.5;
+              const dy = (y - L.cy) / L.ry;
+              if (Math.abs(dy) >= 1) continue;
+              const chord = L.rx * Math.sqrt(1 - dy * dy);
+              const xs = s.fromTime != null ? lensBarX(s.fromTime) : null;
+              const xe = s.toTime != null ? lensBarX(s.toTime) : null;
+              const timed = xs != null && xe != null;
+              const sx0 = Math.max(L.cx - chord, timed ? Math.min(xs!, xe!) - Math.max(6, bsp / 2) : L.cx - chord);
+              const sx1 = Math.min(L.cx + chord, timed ? Math.max(xs!, xe!) + Math.max(6, bsp / 2) : L.cx + chord);
+              if (sx1 <= sx0) continue;
+              ctx.beginPath();
+              ctx.moveTo(sx0, y);
+              ctx.lineTo(sx1, y);
+              ctx.stroke();
+              shelves++;
+            }
+            ctx.setLineDash([]);
+            ctx.restore(); // the lens's inside
+
+            const brass = ctx.createLinearGradient(L.cx - L.rx, L.cy - L.ry, L.cx + L.rx, L.cy + L.ry);
+            brass.addColorStop(0, "rgba(236,210,150,0.95)");
+            brass.addColorStop(0.45, "rgba(184,142,70,0.95)");
+            brass.addColorStop(1, "rgba(104,76,36,0.95)");
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = brass;
+            ctx.beginPath();
+            ctx.ellipse(L.cx, L.cy, L.rx + 2, L.ry + 2, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(52,38,18,0.90)";
+            ctx.beginPath();
+            ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = "rgba(236,210,150,0.50)";
+            ctx.beginPath();
+            ctx.ellipse(L.cx, L.cy, L.rx + 4.5, L.ry + 4.5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            // The lower arc is the legend: the field's own ramp, HELD → MOVED.
+            const legendSteps = 24;
+            ctx.lineWidth = 2;
+            for (let k = 0; k < legendSteps; k++) {
+              ctx.strokeStyle = heatRampColor(1 - (k + 0.5) / legendSteps);
+              ctx.beginPath();
+              ctx.ellipse(L.cx, L.cy, L.rx + 2, L.ry + 2, 0, scaleAngle(1 - k / legendSteps), scaleAngle(1 - (k + 1) / legendSteps), true);
+              ctx.stroke();
+            }
+            const newest = heat.drawable && heat.cells.length > 0
+              ? heat.cells.reduce((a, c) => (c.index > a.index ? c : a))
+              : null;
+            if (newest) {
+              const tn = scaleAngle(newest.intensity);
+              const n0 = ringPoint(L, tn, -3), n1 = ringPoint(L, tn, 8);
+              ctx.strokeStyle = "rgba(237,230,211,0.95)";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(n0.x, n0.y);
+              ctx.lineTo(n1.x, n1.y);
+              ctx.stroke();
+            }
+            ctx.restore(); // the candle cut-out
+
+            // ── The words, whole, set on the ring.
+            ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "rgba(226,196,128,0.95)";
+            const ringTitle = [..."LIQUIDITY WEATHER"];
+            const glyphs = wordOnTopArc(L, ringTitle.map(c => ctx.measureText(c).width + 1.4), 11);
+            glyphs.forEach((gph, i) => {
+              ctx.save();
+              ctx.translate(gph.x, gph.y);
+              ctx.rotate(gph.rot);
+              ctx.fillText(ringTitle[i], 0, 0);
+              ctx.restore();
+            });
+            if (glyphs.length > 0) {
+              const gx = glyphs.map(p => p.x), gy = glyphs.map(p => p.y);
+              floatingChips.push({ x: Math.min(...gx) - 5, y: Math.min(...gy) - 6, w: Math.max(...gx) - Math.min(...gx) + 10, h: Math.max(...gy) - Math.min(...gy) + 12 });
+            }
+            ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
+            ctx.textBaseline = "top";
+            const heldAt = ringPoint(L, SCALE_HEAVY_T, 9), movedAt = ringPoint(L, SCALE_THIN_T, 9);
+            ctx.textAlign = "right";
+            ctx.fillStyle = heatRampColor(1);
+            ctx.fillText("HELD", heldAt.x, heldAt.y);
+            ctx.textAlign = "left";
+            ctx.fillStyle = heatRampColor(0);
+            ctx.fillText("MOVED", movedAt.x, movedAt.y);
+
+            // ── The lens status readout, attached to the ring.
+            const gauge = heat.gauge;
+            const needleOf = (r: number) => 0.5 + Math.max(-0.5, Math.min(0.5, Math.log(r) / (2 * Math.log(HEAVY_RATIO))));
+            const readRows: { k: string; v: string; fill: number | null; needle: number | null }[] = [
+              { k: "PERSISTENCE", v: gauge.persistence == null ? "— not measured" : gauge.persistence.toFixed(2), fill: gauge.persistence, needle: null },
+              { k: "RESPONSE", v: gauge.response == null ? "— not measured" : `${gauge.response.toFixed(2)}×`, fill: null, needle: gauge.response == null || !(gauge.response > 0) ? null : needleOf(gauge.response) },
+              { k: "VEIL", v: weatherVeil > 0 ? `${weatherVeil.toFixed(2)} / ${heat.maxOpacity.toFixed(2)}` : "none", fill: weatherVeil > 0 ? weatherVeil / heat.maxOpacity : null, needle: null },
+            ];
+            const rw = 164, rh = 6 + 4 * 11 + 4;
+            const inPlot = (r: { x: number; y: number; w: number; h: number }) =>
+              r.x >= keepOutMinX() && r.x + r.w <= weatherPlotRight - 4 && r.y >= HEADER_FLOOR_Y + 2 && r.y + r.h <= pane0Bottom - 2;
+            const slots = [
+              { x: L.cx - L.rx - 14 - rw, y: L.cy - rh / 2, w: rw, h: rh },
+              { x: L.cx - L.rx * 0.7 - rw, y: L.cy + L.ry * 0.7 + 8, w: rw, h: rh },
+              { x: L.cx - L.rx * 0.7 - rw, y: L.cy - L.ry * 0.7 - 8 - rh, w: rw, h: rh },
+              { x: L.cx + L.rx + 14, y: L.cy - rh / 2, w: rw, h: rh },
+              { x: L.cx - rw / 2, y: L.cy + L.ry + 20, w: rw, h: rh },
+              { x: L.cx - rw / 2, y: L.cy - L.ry - 24 - rh, w: rw, h: rh },
+            ].filter(inPlot);
+            const chipHit = (r: { x: number; y: number; w: number; h: number }) =>
+              floatingChips.some(c => r.x < c.x + c.w && r.x + r.w > c.x && r.y < c.y + c.h && r.y + r.h > c.y);
+            const bodyHit = (r: { x: number; y: number; w: number; h: number }) =>
+              rowBodiesAt(r.y, r.y + r.h).some(b => r.x < b.x + b.w && r.x + r.w > b.x);
+            const quiet = slots.find(r => !chipHit(r) && !bodyHit(r) && rectHits(r, keepOut()) === 0);
+            const spot = quiet
+              ? { mode: quiet === slots[0] ? "CLEAR" as const : "MOVED" as const, rect: quiet, onCandles: false, displaced: quiet !== slots[0] }
+              : slots.length > 0
+                ? placeClearOfKeepOut(slots[0], keepOut(), { minX: keepOutMinX(), blockers: floatingChips, alternates: slots.slice(1) })
+                : null;
+            if (spot) {
+              recordKeepOut(keepOutLedger, spot);
+              const R = spot.rect;
+              // The leader: from the plate's nearest edge to the ring.
+              const tl = Math.atan2((R.y + R.h / 2 - L.cy) / L.ry, (R.x + R.w / 2 - L.cx) / L.rx);
+              const onRing = ringPoint(L, tl, 5);
+              const ax = Math.max(R.x, Math.min(R.x + R.w, onRing.x)), ay = Math.max(R.y, Math.min(R.y + R.h, onRing.y));
+              ctx.setLineDash([2, 2]);
+              ctx.strokeStyle = "rgba(201,165,92,0.70)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(ax, ay);
+              ctx.lineTo(onRing.x, onRing.y);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.fillRect(onRing.x - 1.5, onRing.y - 1.5, 3, 3);
+              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.86)})`;
+              ctx.fillRect(R.x, R.y, R.w, R.h);
+              ctx.strokeStyle = "rgba(201,165,92,0.55)";
+              ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
+              ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
+              ctx.textBaseline = "middle";
+              ctx.textAlign = "left";
+              const rowY = (i: number) => R.y + 6 + i * 11 + 5;
+              ctx.fillStyle = "rgba(237,230,211,0.70)";
+              ctx.fillText("LENS STATUS", R.x + 6, rowY(0));
+              ctx.fillStyle = "rgba(201,165,92,0.95)";
+              ctx.fillText(`● ${glass.stage}`, R.x + 72, rowY(0));
+              readRows.forEach((row, i) => {
+                const y = rowY(i + 1);
+                ctx.fillStyle = "rgba(237,230,211,0.70)";
+                ctx.fillText(row.k, R.x + 6, y);
+                ctx.fillStyle = "rgba(237,230,211,0.95)";
+                ctx.fillText(row.v, R.x + 72, y);
+                if (row.fill == null && row.needle == null) return;
+                const bx = R.x + R.w - 6 - 34;
+                ctx.fillStyle = "rgba(237,230,211,0.12)";
+                ctx.fillRect(bx, y - 2, 34, 4);
+                if (row.fill != null) {
+                  ctx.fillStyle = "rgba(201,165,92,0.85)";
+                  ctx.fillRect(bx, y - 2, 34 * Math.max(0, Math.min(1, row.fill)), 4);
+                } else if (row.needle != null) {
+                  ctx.fillStyle = "rgba(237,230,211,0.35)";
+                  ctx.fillRect(bx + 16.5, y - 3, 1, 6);
+                  ctx.fillStyle = "rgba(237,230,211,0.95)";
+                  ctx.fillRect(bx + 34 * row.needle - 1, y - 4, 2, 8);
+                }
+              });
+              floatingChips.push({ x: R.x, y: R.y, w: R.w, h: R.h });
+              ds.liquidityWeatherReadout = spot.mode;
+            } else {
+              ds.liquidityWeatherReadout = "NO_ROOM";
+            }
+            ctx.restore();
+
+            ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}`;
+            ds.liquidityWeatherRing = "LIQUIDITY WEATHER";
+            ds.liquidityWeatherStage = glass.stage;
+            if (shelves > 0) ds.liquidityWeatherShelves = String(shelves);
+            else delete ds.liquidityWeatherShelves;
+          } else {
+            // A stale stage keeps describing weather that is no longer measured.
+            delete ds.liquidityWeatherStage;
+            delete ds.liquidityWeatherShelves;
+            delete ds.liquidityWeatherLens;
+            delete ds.liquidityWeatherRing;
+            delete ds.liquidityWeatherReadout;
+          }
+        }
+
+        /* ══ LIQUIDITY LIFECYCLE — F08A "liquidity lifecycle on the book" ════
+           Each pool (a volume-at-price node, candle-estimated) is a glowing
+           gold LADDER at its price rows, BOUNDED IN TIME by its lifecycle:
+           it is not on the glass before the bar it APPEARED on, and it stops
+           at the bar it was CONSUMED on — or at the live bar while it still
+           stands, never out into the empty right margin and never across the
+           whole camera (it used to be a flat band from x = 0 to the axis).
+           Its biography is form on one ink, readable with every word hidden:
+             rungs    2 once it appeared → 3 grew → 4 persisted → 5 refilled
+                      (poolSpan owns the stretches; a touch keeps the form)
+             glow     a soft halo around the ladder, weighted by its volume
+             ticks    a small dashed phase tick at every lifecycle event, the
+                      plate's word over it (APPEAR · GREW · PERSIST · TOUCH ·
+                      REFILL · CONSUMED) where its row has room
+             end cap  a consumed pool stops at a solid cap; it is memory, so
+                      it sits at half weight, and age quiets it further
+           CANDLES STAY IN FRONT: ladders, glows and ticks paint inside one
+           candle cut-out, so a pool runs BEHIND every body it crosses.
+           PULLED needs book depth and this feed has none — it is never drawn,
+           and neither is the plate's depth glow or DEPTH·TINT strip (the same
+           book claim). That honesty statement is no longer a caption line in
+           the corner: it is a receipt (ds.liquidityLifecycleBasis /
+           ds.liquidityLifecycleRefused) plus ONE compact tag at the live
+           pool's end, placed clear of the candles and the chips.
+           The reading is compiled ONCE by the room; this canvas only draws it. */
         if (layerOnRef.current.liquidityLifecycle === true) {
           const lc = liquidityLifecycleRef.current;
           if (!lc) {
             ds.liquidityLifecycle = "NO_READING";
             delete ds.liquidityLifecyclePainted;
+            delete ds.liquidityLifecycleTicks;
+            delete ds.liquidityLifecycleSpans;
+            delete ds.liquidityLifecycleTag;
+            delete ds.liquidityLifecycleBasis;
+            delete ds.liquidityLifecycleRefused;
           } else {
             ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
+            ds.liquidityLifecycleBasis = lc.basis;
+            ds.liquidityLifecycleRefused = "PULLED,DEPTH:no-book";
             const INK = "201,165,92";
             const tsLc = chart.timeScale();
             let axisWL = 60;
@@ -14305,95 +14585,161 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const bsL = barsRef.current ?? [];
             const barsSince = (t: number) => { let n = 0; for (let i = bsL.length - 1; i >= 0 && Number(bsL[i].time) > t; i--) n++; return n; };
             const xOf = (t: number) => { const x = tsLc.timeToCoordinate(t as never); return x == null ? null : +x; };
+            // THE LIVE EDGE: the newest bar's slot. A standing pool runs to here.
+            const lastBarL = bsL.length > 0 ? bsL[bsL.length - 1] : null;
+            const xLastBar = lastBarL ? xOf(Number(lastBarL.time)) : null;
+            const xLive = Math.min(rightL, xLastBar == null ? rightL : xLastBar + spacingL / 2);
             const maxVolL = Math.max(1e-12, ...lc.pools.map(p => p.volume));
-            let painted = 0;
+            const vrLc = tsLc.getVisibleLogicalRange();
+            const cutL = new Path2D();
+            cutL.rect(0, 0, W, H);
+            for (const r of candleCutOutRects(bsL, {
+              visible: vrLc ? { from: +vrLc.from, to: +vrLc.to } : null,
+              barSpacing: spacingL,
+              timeToX: t => xOf(t),
+              priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+            }, 0, rightL)) cutL.rect(r.x, r.y, r.w, r.h);
+            let painted = 0, ticks = 0;
+            const spans: string[] = [];
+            const words: { text: string; x: number; y: number; alpha: number }[] = [];
+            let tagAt: { xEnd: number; top: number; bottom: number; weight: number } | null = null;
             ctx.save();
             ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
+            ctx.clip(cutL, "evenodd");
             for (const pool of lc.pools) {
+              const span = poolSpan(pool.events);
+              if (!span) continue;
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
               if (yT == null || yB == null) continue;
               const top = Math.min(+yT, +yB), h = Math.max(1, Math.abs(+yB - +yT));
-              const xFirst = pool.events.length ? xOf(pool.events[0].time) : null;
-              const openLeft = xFirst == null || xFirst < 0;
-              const x0 = openLeft ? 0 : xFirst!;
-              const consume = pool.events.find(e => e.stage === "CONSUMED");
-              const xConsume = consume ? xOf(consume.time) : null;
-              const xEnd = Math.min(rightL, consume ? (xConsume == null ? -1 : xConsume + spacingL) : rightL);
+              const xStart = xOf(span.startTime);
+              const xStop = span.endTime != null ? xOf(span.endTime) : xLive;
+              if (xStart == null || xStop == null) continue;
+              // From the APPEARED bar's slot (or the camera's edge, when its
+              // history runs off to the left) to the CONSUMED bar's slot or
+              // the live bar.
+              const x0 = Math.max(0, xStart - spacingL / 2);
+              const xEnd = Math.min(rightL, span.endTime != null ? xStop + spacingL / 2 : xStop);
               if (xEnd <= x0) continue;
               const lastEv = pool.events[pool.events.length - 1];
-              const age = Math.max(0.35, Math.min(1, 1 - (lastEv ? barsSince(lastEv.time) : 0) / 240)) * (consume ? 0.5 : 1);
-              ctx.fillStyle = `rgba(${INK},${Math.min(0.2, 0.05 + 0.15 * (pool.volume / maxVolL)) * age})`;
-              ctx.fillRect(x0, top, xEnd - x0, h);
-              let form: { dash: number[]; w: number } = { dash: [2, 3], w: 1 };
-              pool.events.forEach((ev, k) => {
-                if (ev.stage === "APPEARED") form = { dash: [2, 3], w: 1 };
-                else if (ev.stage === "GREW") form = { dash: [], w: 1 };
-                else if (ev.stage === "PERSISTED") form = { dash: [], w: 1.5 };
-                else if (ev.stage === "REFILLED") form = { dash: [], w: 2 };
-                if (ev.stage === "CONSUMED") return;
-                const xs = Math.max(x0, xOf(ev.time) ?? x0);
-                const nxt = pool.events[k + 1];
-                const xe = Math.min(xEnd, nxt ? (xOf(nxt.time) ?? xEnd) : xEnd);
-                if (xe <= xs) return;
-                ctx.setLineDash(form.dash);
-                ctx.lineWidth = form.w;
-                ctx.strokeStyle = `rgba(${INK},${0.85 * age})`;
+              const age = Math.max(0.35, Math.min(1, 1 - (lastEv ? barsSince(lastEv.time) : 0) / 240)) * (span.consumed ? 0.5 : 1);
+              const weight = pool.volume / maxVolL;
+              // GLOW — a soft halo around the ladder, its volume's weight.
+              const halo = 7;
+              const glow = ctx.createLinearGradient(0, top - halo, 0, top + h + halo);
+              glow.addColorStop(0, `rgba(${INK},0)`);
+              glow.addColorStop(0.5, `rgba(${INK},${(0.05 + 0.11 * weight) * age})`);
+              glow.addColorStop(1, `rgba(${INK},0)`);
+              ctx.fillStyle = glow;
+              ctx.fillRect(x0, top - halo, xEnd - x0, h + 2 * halo);
+              // LADDER — fine rungs, each stretch in the form it had then.
+              ctx.lineWidth = 1;
+              ctx.shadowColor = `rgba(${INK},${0.8 * age})`;
+              ctx.shadowBlur = 4;
+              for (const ph of span.phases) {
+                const xa = ph.fromTime === span.startTime ? x0 : Math.max(x0, xOf(ph.fromTime) ?? x0);
+                const xb = ph.toTime == null ? xEnd : Math.min(xEnd, (xOf(ph.toTime) ?? xEnd) + (ph.toTime === span.endTime ? spacingL / 2 : 0));
+                if (xb <= xa) continue;
+                ctx.strokeStyle = `rgba(${INK},${Math.min(0.9, 0.42 + 0.09 * ph.rungs) * age})`;
                 ctx.beginPath();
-                ctx.moveTo(xs, top + 0.5); ctx.lineTo(xe, top + 0.5);
-                ctx.moveTo(xs, top + h - 0.5); ctx.lineTo(xe, top + h - 0.5);
-                ctx.stroke();
-              });
-              ctx.setLineDash([]);
-              if (openLeft) {
-                // Its history continues off camera to the left.
-                ctx.setLineDash([2, 3]); ctx.lineWidth = 1;
-                ctx.strokeStyle = `rgba(${INK},${0.6 * age})`;
-                ctx.beginPath(); ctx.moveTo(0.5, top); ctx.lineTo(0.5, top + h); ctx.stroke();
-                ctx.setLineDash([]);
-              }
-              ctx.fillStyle = `rgba(237,230,211,${0.9 * age})`;
-              for (const ev of pool.events) {
-                if (ev.stage !== "TOUCHED") continue;
-                const xt = xOf(ev.time);
-                if (xt != null && xt >= x0 && xt <= xEnd) ctx.fillRect(xt - 1, top, 2, h);
-              }
-              if (consume && xConsume != null && xConsume > x0) {
-                const touches = pool.events.filter(e => e.stage === "TOUCHED" && e.time <= consume.time);
-                const xLastTouch = touches.length ? xOf(touches[touches.length - 1].time) : null;
-                const hx0 = Math.max(x0, xLastTouch ?? x0);
-                if (xConsume > hx0) {
-                  ctx.save();
-                  ctx.beginPath(); ctx.rect(hx0, top, xConsume - hx0, h); ctx.clip();
-                  ctx.strokeStyle = `rgba(${INK},${0.6 * age})`; ctx.lineWidth = 1;
-                  ctx.beginPath();
-                  for (let hx = hx0 - h; hx < xConsume; hx += 6) { ctx.moveTo(hx, top + h); ctx.lineTo(hx + h, top); }
-                  ctx.stroke();
-                  ctx.restore();
+                for (const ry of ladderRungYs(top, h, ph.rungs)) {
+                  const yy = Math.round(ry) + 0.5;
+                  ctx.moveTo(xa, yy);
+                  ctx.lineTo(xb, yy);
                 }
+                ctx.stroke();
+              }
+              ctx.shadowBlur = 0;
+              // PHASE TICKS — dashed, at every lifecycle event on camera.
+              ctx.setLineDash([2, 2]);
+              ctx.strokeStyle = `rgba(${INK},${0.75 * age})`;
+              const said = new Set<string>();
+              for (const tk of span.ticks) {
+                const xt = xOf(tk.time);
+                if (xt == null || xt < x0 - 1 || xt > xEnd + 1) continue;
+                const xs = Math.round(xt) + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(xs, top - 6);
+                ctx.lineTo(xs, top + h + 6);
+                ctx.stroke();
+                ticks++;
+                if (!said.has(tk.stage)) { said.add(tk.stage); words.push({ text: PHASE_WORD[tk.stage], x: xs + 2, y: top - 8, alpha: age }); }
+              }
+              ctx.setLineDash([]);
+              if (span.consumed) {
+                // END CAP — the pool stops here.
                 ctx.lineWidth = 1.5;
                 ctx.strokeStyle = `rgba(${INK},${0.9 * age})`;
-                ctx.beginPath(); ctx.moveTo(xConsume + 0.5, top - 2); ctx.lineTo(xConsume + 0.5, top + h + 2); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(xEnd - 0.5, top - 3);
+                ctx.lineTo(xEnd - 0.5, top + h + 3);
+                ctx.stroke();
+              } else if (!tagAt || weight > tagAt.weight) {
+                tagAt = { xEnd, top, bottom: top + h, weight };
               }
+              spans.push(`${Math.round(x0)}-${Math.round(xEnd)}${span.consumed ? "c" : ""}`);
               painted++;
+            }
+            ctx.restore(); // releases the candle cut-out
+
+            // THE PHASE WORDS — whole, above their ticks, only where the row
+            // is clear of candle bodies, chips and one another.
+            ctx.save();
+            ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
+            ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "alphabetic";
+            const placedWords: { x: number; y: number; w: number; h: number }[] = [];
+            let wordsSaid = 0;
+            for (const wd of words) {
+              const r = { x: wd.x, y: wd.y - 7, w: ctx.measureText(wd.text).width, h: 8 };
+              if (r.x + r.w > rightL || r.y < HEADER_FLOOR_Y) continue;
+              const hit = (o: { x: number; y: number; w: number; h: number }) => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y;
+              if (placedWords.some(hit) || floatingChips.some(hit) || rowBodiesAt(r.y, r.y + r.h).some(hit)) continue;
+              ctx.fillStyle = `rgba(${INK},${0.85 * wd.alpha})`;
+              ctx.fillText(wd.text, wd.x, wd.y);
+              placedWords.push(r);
+              wordsSaid++;
+            }
+            for (const r of placedWords) floatingChips.push(r);
+
+            // ONE COMPACT TAG — the layer's honesty, at the live pool's end.
+            if (tagAt) {
+              const tag = "CANDLE-EST · NO BOOK · PULL REFUSED";
+              const tw = ctx.measureText(tag).width;
+              const below = { x: tagAt.xEnd - tw, y: tagAt.bottom + 3, w: tw, h: 9 };
+              const above = { x: tagAt.xEnd - tw, y: tagAt.top - 20, w: tw, h: 9 };
+              const tagSpot = placeClearOfKeepOut(below, keepOut(), {
+                minX: keepOutMinX(),
+                blockers: [...floatingChips, ...rowBodiesAt(below.y, below.y + below.h), ...rowBodiesAt(above.y, above.y + above.h)],
+                strict: true,
+                alternates: [above],
+              });
+              recordKeepOut(keepOutLedger, tagSpot);
+              if (tagSpot.mode !== "BLOCKED") {
+                ctx.fillStyle = "rgba(237,230,211,0.62)";
+                ctx.textBaseline = "top";
+                ctx.fillText(tag, tagSpot.rect.x, tagSpot.rect.y);
+                floatingChips.push({ ...tagSpot.rect });
+              }
+              ds.liquidityLifecycleTag = tagSpot.mode;
+            } else {
+              delete ds.liquidityLifecycleTag;
             }
             ctx.restore();
             ds.liquidityLifecyclePainted = `${painted}/${lc.pools.length}`;
-          }
-          // ONE caption line in the bottom-left word stack, above the weather
-          // words when they speak. No box: the pools are the reading.
-          {
-            const { text: caption, y: cy } = liquidityCaptionLine()!;
-            ctx.save();
-            ctx.font = LIQUIDITY_CAPTION_FONT;
-            ctx.textAlign = "left"; ctx.textBaseline = "bottom";
-            ctx.fillStyle = "rgba(237,230,211,0.65)";
-            ctx.fillText(caption, 8, cy);
-            floatingChips.push({ x: 8, y: cy - 11, w: ctx.measureText(caption).width, h: 11 });
-            ctx.restore();
+            ds.liquidityLifecycleTicks = `${ticks}/${wordsSaid}`;
+            if (spans.length > 0) ds.liquidityLifecycleSpans = spans.join(";");
+            else delete ds.liquidityLifecycleSpans;
           }
         } else {
           ds.liquidityLifecycle = "OFF";
           delete ds.liquidityLifecyclePainted;
+          delete ds.liquidityLifecycleTicks;
+          delete ds.liquidityLifecycleSpans;
+          delete ds.liquidityLifecycleTag;
+          delete ds.liquidityLifecycleBasis;
+          delete ds.liquidityLifecycleRefused;
         }
 
         /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════

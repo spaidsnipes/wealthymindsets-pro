@@ -34,13 +34,21 @@ describe("left column and word stack", () => {
     expect(CHART).toMatch(/else cy = Math\.max\(HEADER_FLOOR_Y, y0 \+ 16\);\s*if \(lensBand && cy < 158 && cy \+ 14 > 96\) cy = 160;/);
   });
 
-  it("the bottom-left word stack starts above the window count at the candle pane's foot", () => {
+  it("the bottom-left word stack is gone — weather is a lens, lifecycle a ladder", () => {
+    // The original defect (words at H − 6, inside the time axis) can never
+    // come back.
     expect(CHART).not.toMatch(/let wy = Math\.max\(20, H - 6\);/);
-    expect(CHART).toMatch(/let wy = Math\.max\(20, pane0Bottom - 22\);/);
-    // Pin moved 2026-09-25: the lifecycle caption's row has one owner (liquidityCaptionLine),
-    // read by the caption and by TPO, which must yield to it.
-    expect(CHART).toMatch(/return \{ text, y: Math\.max\(20, pane0Bottom - 22\) - weatherLines \* 11 \};/);
-    expect(CHART).toContain("const { text: caption, y: cy } = liquidityCaptionLine()!;");
+    // Pin moved AGAIN 2026-09-25 (F08A/F08B canon pass). The Founder: "I
+    // STILL HAVE A LOT OF JUST CARDS, NOT THE ACTUAL DESIGNS WITHIN THE
+    // CANON." The weather's three word lines and the lifecycle's caption
+    // line both left the bottom-left corner: F08B paints the weather as a
+    // lens with its words on the ring and its status attached to the ring;
+    // F08A paints pools as time-bounded ladders whose honesty is a receipt
+    // and one keep-out-placed tag. No word stack, no caption-row owner.
+    expect(CHART).not.toMatch(/let wy = Math\.max\(20, pane0Bottom - 22\);/);
+    expect(CHART).not.toContain("liquidityCaptionLine");
+    expect(CHART).not.toContain("weatherLines");
+    expect(CHART).not.toMatch(/\bwordChip\(/);
   });
 
   it("the VP POC tag never prints inside the header band (REGIME desk, 2026-09-25)", () => {

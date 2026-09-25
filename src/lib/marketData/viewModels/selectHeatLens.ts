@@ -86,9 +86,21 @@ export const HEAT_MAX_OPACITY = 0.3;
 export const HEAT_PAINT_FLOOR = 0.125;
 
 /**
- * THE RAMP, OWNED ONCE. Cool cells sit toward the frame's own gold; hot cells
- * move to an ember red. Both ends are hues already in the product — heat is a
- * NEW reading, not an excuse for a new palette.
+ * THE RAMP, OWNED ONCE — F08B's PERSIST ↔ RESPONSE dimension (2026-09-25).
+ *
+ * The Founder's plate "weather is a lens" colours the field inside the lens on
+ * one axis: where size went in and price HELD (the dearest cells — the tape
+ * persisted) the field is gold; where price RESPONDED to little size (the
+ * cheapest cells) it is blue. So the hottest cell is the frame's own gold and
+ * the coolest a steel blue. It used to run gold → ember red, which graded a
+ * dear segment as alarm; a dear segment is where size got filled and also
+ * where a move died, and the house grades neither.
+ *
+ * §9 — NO GREEN ON THE WEATHER. The plate's field passes through green between
+ * its two poles. This ramp passes through a NEUTRAL glass grey instead
+ * (158,158,170): green on the weather reads as "safe", which §9 forbids and
+ * `liquidityWeatherOnGlass.sentinel` enforces. No point on the ramp is
+ * green-dominant (g never beats both r and b) and none is red-dominant.
  *
  * It lives in the selector rather than in a renderer because the lens has TWO
  * renderers — the DOM overlay and the chart's canvas layer — and a palette
@@ -96,12 +108,18 @@ export const HEAT_PAINT_FLOOR = 0.125;
  * like. The first time they drifted, the same cost would read as two different
  * temperatures on two surfaces of one product.
  */
+export const HEAT_RAMP_RESPONSE = [84, 128, 176] as const;
+export const HEAT_RAMP_NEUTRAL = [158, 158, 170] as const;
+export const HEAT_RAMP_PERSIST = [214, 180, 86] as const;
+
 export function heatRampColor(intensity: number): string {
-  const clamped = Math.max(0, Math.min(1, intensity));
-  const r = Math.round(196 + (214 - 196) * clamped);
-  const g = Math.round(165 - (165 - 74) * clamped);
-  const b = Math.round(116 - (116 - 52) * clamped);
-  return `rgb(${r}, ${g}, ${b})`;
+  const clamped = Math.max(0, Math.min(1, Number.isFinite(intensity) ? intensity : 0));
+  // RESPONSE (cheapest) steel blue → neutral glass → PERSIST (dearest) gold.
+  const [a, z, u] = clamped < 0.5
+    ? [HEAT_RAMP_RESPONSE, HEAT_RAMP_NEUTRAL, clamped / 0.5]
+    : [HEAT_RAMP_NEUTRAL, HEAT_RAMP_PERSIST, (clamped - 0.5) / 0.5];
+  const mix = (i: number) => Math.round(a[i] + (z[i] - a[i]) * u);
+  return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
 }
 
 export interface HeatCell {

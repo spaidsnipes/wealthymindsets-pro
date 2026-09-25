@@ -256,3 +256,50 @@ export function keepOutReceipt(ledger: KeepOutLedger): Record<(typeof KEEP_OUT_R
     labelsYieldedToCandles: String(ledger.yields),
   };
 }
+
+export interface CutOutBar extends KeepOutBar {
+  readonly high: number;
+  readonly low: number;
+}
+
+/**
+ * THE CANDLE CUT-OUT — the rects a painter removes from its own fill so every
+ * candle in [x0, x1] stays IN FRONT of it (bodies and wicks, not a slot box).
+ * A layer that lives behind the market (the liquidity ladders, the weather
+ * lens) clips to "everything except these" with an even-odd path, so the rects
+ * are DISJOINT by construction: a body is at most 0.84 of a bar's slot and a
+ * wick stub at most 0.6, so neither can overlap a neighbour's, and a wick stub
+ * is only the part of the wick above/below its own body. (Overlapping rects
+ * would re-fill under even-odd — the cut would paint over the candle it is for.)
+ */
+export function candleCutOutRects(
+  bars: readonly CutOutBar[],
+  camera: KeepOutCamera,
+  x0: number,
+  x1: number,
+): ScreenRect[] {
+  const out: ScreenRect[] = [];
+  if (bars.length === 0 || !(x1 > x0)) return out;
+  const sp = Number.isFinite(camera.barSpacing) && camera.barSpacing > 0 ? camera.barSpacing : 6;
+  const half = sp * 0.42;
+  const wick = Math.min(1, sp * 0.3);
+  const last = bars.length - 1;
+  const i1 = camera.visible ? Math.min(last, Math.floor(camera.visible.to + 0.5)) : last;
+  const i0 = camera.visible ? Math.max(0, Math.ceil(camera.visible.from - 0.5)) : 0;
+  for (let i = i1; i >= i0; i--) {
+    const b = bars[i];
+    if (!b || ![b.open, b.close, b.high, b.low].every(Number.isFinite)) continue;
+    const x = camera.timeToX(b.time);
+    if (x == null || !Number.isFinite(x)) continue;
+    if (x + half < x0) break;
+    if (x - half > x1) continue;
+    const yo = camera.priceToY(b.open), yc = camera.priceToY(b.close);
+    if (yo == null || yc == null || !Number.isFinite(yo) || !Number.isFinite(yc)) continue;
+    const top = Math.min(yo, yc) - 1, bot = Math.max(yo, yc) + 1;
+    out.push({ x: x - half, y: top, w: half * 2, h: bot - top });
+    const yh = camera.priceToY(b.high), yl = camera.priceToY(b.low);
+    if (yh != null && Number.isFinite(yh) && yh < top) out.push({ x: x - wick, y: yh - 1, w: wick * 2, h: top - yh + 1 });
+    if (yl != null && Number.isFinite(yl) && yl > bot) out.push({ x: x - wick, y: bot, w: wick * 2, h: yl - bot + 1 });
+  }
+  return out;
+}

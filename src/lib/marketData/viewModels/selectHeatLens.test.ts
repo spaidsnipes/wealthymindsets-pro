@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   HEAT_MAX_OPACITY,
   HEAT_PAINT_FLOOR,
+  heatRampColor,
   selectHeatLens,
 } from "./selectHeatLens";
 import type {
@@ -225,5 +226,25 @@ describe("selectHeatLens — P-601 weather lens piped onto the canvas tank", () 
       segments: [segment({ index: 0, cost: 300 }), segment({ index: 1, cost: 900 })],
     });
     expect(selectHeatLens(w)).toEqual(selectHeatLens(w));
+  });
+});
+
+describe("F08B ramp — PERSIST gold to RESPONSE blue, and §9 holds along the whole ramp", () => {
+  const rgb = (i: number) => heatRampColor(i).match(/\d+/g)!.map(Number);
+  it("the dearest cell is gold, the cheapest steel blue", () => {
+    const [r1, g1, b1] = rgb(1);
+    expect(r1 > g1 && g1 > b1).toBe(true);
+    const [r0, g0, b0] = rgb(0);
+    expect(b0 > g0 && g0 > r0).toBe(true);
+  });
+  it("no point on the ramp is green-dominant or red-dominant", () => {
+    for (let k = 0; k <= 200; k++) {
+      const [r, g, b] = rgb(k / 200);
+      expect(g > r && g > b, `green at ${k / 200}: ${r},${g},${b}`).toBe(false);
+      expect(r > g * 1.6 && r > b * 1.6, `red at ${k / 200}`).toBe(false);
+    }
+  });
+  it("a non-finite intensity reads as the cheapest end, never NaN paint", () => {
+    expect(heatRampColor(Number.NaN)).toBe(heatRampColor(0));
   });
 });

@@ -61,10 +61,14 @@ describe("question lens and restored selection", () => {
     expect(block).toContain("ds.tpoYields = String(tpoYields.length)");
     // …and to the bottom-left word stack (serving NQ1! 5m, order-flow set on:
     // CONTRADICTION and LIQUIDITY LIFECYCLE words printed across the letters).
-    expect(block).toContain("...(lcLine ? [{ x: 8, y: lcLine.y - 11, w: ctx.measureText(lcLine.text).width, h: 11 }] : []),");
-    expect(CHART).toContain("const lcLine = liquidityCaptionLine();");
+    // Pin moved 2026-09-25 (F08A/F08B canon pass): the LIQUIDITY LIFECYCLE
+    // caption and the LIQUIDITY WEATHER word lines are no longer on the glass
+    // at all (the weather is a lens, the lifecycle ladders on price), so TPO
+    // reserves no caption row for them; CONTRADICTION's chip still yields.
+    expect(block).not.toContain("lcLine");
+    expect(CHART).not.toContain("liquidityCaptionLine");
     expect(CHART).toContain("floatingChips.push({ x: 12, y: H - 100 - 10, w: ctx.measureText(t).width, h: 14 });");
-    expect(CHART).toMatch(/wordChip\(glass\.label, wy\);/);
+    expect(CHART).not.toMatch(/wordChip\(glass\.label, wy\);/);
     // The BASIS caption announces itself so later layers can yield to it.
     expect(CHART).toMatch(/floatingChips\.push\(\{ x: bx, y: by, w: bwTxt \+ 6, h: 15 \}\)/);
   });

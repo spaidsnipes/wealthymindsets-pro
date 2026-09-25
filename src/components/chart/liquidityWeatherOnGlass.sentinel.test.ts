@@ -15,6 +15,21 @@
  *      the segment array would all map onto a price scale without complaint and
  *      every one of those mappings is a number the house invented.
  *
+ * PINS MOVED 2026-09-25 — F08B "WEATHER IS A LENS". The Founder, at the glass:
+ * "I STILL HAVE A LOT OF JUST CARDS, NOT THE ACTUAL DESIGNS WITHIN THE CANON."
+ * The stage, detail and shelf caption used to print as three word lines in the
+ * bottom-left corner, and the shelves as an 80px dotted stub at a fixed column
+ * (x 158–238). The plate draws a brass-ringed LENS over the region the reading
+ * covers, the colour field inside it only, the words ON the ring and the status
+ * as a readout attached to the ring. So:
+ *   · "paints the stage as WORDS in the chrome" → the stage is a WORD in the
+ *     lens's readout, and no word line prints in the corner (asserted absent);
+ *   · "stalls dotted and short at 158–238" → stalls dotted, over the bars their
+ *     segment traded on, bounded by the lens's chord at their price;
+ *   · the two guards above are unchanged, and now also cover the lens geometry:
+ *     the lens is placed from `glass.window` (where/when prints landed), never
+ *     from a cost figure.
+ *
  * A breadcrumb, not a renderer. It reads source.
  */
 
@@ -31,11 +46,21 @@ const strip = (s: string) =>
 const CHART = strip(read("src/components/chart/MainChart.tsx"));
 const ROOM = strip(read("src/components/chart/ChartsDashboard.tsx"));
 
-const block = (() => {
-  const at = CHART.indexOf("selectLiquidityWeatherGlass(liquidityWeatherRef.current)");
-  expect(at, "the glass call was renamed or removed").toBeGreaterThan(-1);
-  return CHART.slice(at, at + 3600);
-})();
+const between = (from: string, to: string) => {
+  const at = CHART.indexOf(from);
+  expect(at, `${from} was renamed or removed`).toBeGreaterThan(-1);
+  const end = CHART.indexOf(to, at);
+  expect(end, `${to} no longer follows ${from}`).toBeGreaterThan(at);
+  return CHART.slice(at, end + to.length);
+};
+
+/** Where the glass is compiled and its reason stamped. */
+const glassBlock = between("selectLiquidityWeatherGlass(liquidityWeatherRef.current)", 'ds.liquidityWeather = on ? glass.reason : "OFF";');
+/** Where the lens is placed. */
+const geoBlock = between("let weatherLens: WeatherLens | null = null;", "weatherLensCut = cut;");
+/** What the lens paints: tint, shelves, ring, words, readout, receipts. */
+const lensBlock = between("const L = weatherLens;", "delete ds.liquidityWeatherReadout;");
+const weatherCode = glassBlock + geoBlock + lensBlock;
 
 describe("the reading reaches the chart", () => {
   it("the room hands the SAME reading it gives the drawer to the glass", () => {
@@ -60,35 +85,50 @@ describe("the reading reaches the chart", () => {
 });
 
 describe("A STALLED SEGMENT IS A PRICE, and it is the one thing on the axis", () => {
-  it("places every stall price on the same scale the candles use", () => {
-    expect(block).toMatch(/for \(const p of glass\.stallPrices\)/);
-    expect(block).toMatch(/srs\.priceToCoordinate\(p\)/);
+  it("places every shelf on the same scale the candles use", () => {
+    expect(lensBlock).toMatch(/for \(const s of glass\.stallSpans\)/);
+    expect(lensBlock).toMatch(/srs\.priceToCoordinate\(s\.price\)/);
   });
 
   it("counts what it actually painted rather than what it was handed", () => {
     // A price outside the visible range yields no coordinate. Reporting the
     // list length would claim shelves that were never drawn.
-    expect(block).toMatch(/shelves\+\+/);
-    expect(block).toMatch(/if \(yr == null\) continue/);
+    expect(lensBlock).toMatch(/shelves\+\+/);
+    expect(lensBlock).toMatch(/if \(yr == null\) continue/);
   });
 });
 
 describe("A COST HAS NO PRICE, and nothing here invents one for it", () => {
   it("passes no cost figure to a coordinate function", () => {
-    expect(block).not.toMatch(/priceToCoordinate\([^)]*(?:ost|rend|ispersion|pread)/);
+    expect(weatherCode).not.toMatch(/priceToCoordinate\([^)]*(?:ost|rend|ispersion|pread)/);
   });
 
   it("never reads the fields that would tempt it — the compiler emits none", () => {
-    expect(block).not.toMatch(
+    expect(weatherCode).not.toMatch(
       /glass\.(?:medianCost|latestCost|segments|trendRatio|dispersion|spread)/,
     );
   });
 
-  it("paints the stage as WORDS in the chrome, not as a band at a level", () => {
-    expect(block).toMatch(/fillText\(glass\.label/);
-    expect(block).toMatch(/textAlign = "left"/);
-    // Fixed chrome offsets, never a price-derived y.
-    expect(block).toMatch(/fillText\(glass\.label, 8,/);
+  it("places the lens from WHERE the prints landed — the window — and nothing else", () => {
+    expect(geoBlock).toMatch(/const wnd = glass\.window;/);
+    expect(geoBlock).toMatch(/srs\.priceToCoordinate\(wnd\.high\)/);
+    expect(geoBlock).toMatch(/srs\.priceToCoordinate\(wnd\.low\)/);
+    expect(geoBlock).toMatch(/lensBarX\(wnd\.fromTime\), xb = lensBarX\(wnd\.toTime\)/);
+    // A window with no time has no place: no lens, and the receipt says why.
+    expect(geoBlock).toMatch(/if \(!wnd\) weatherLensWhy = "UNTIMED";/);
+  });
+
+  it("paints the stage as a WORD on the lens — never a band at a level, never a corner stack", () => {
+    expect(lensBlock).toMatch(/ctx\.fillText\(`● \$\{glass\.stage\}`/);
+    // The three corner lines are gone: no label/detail/stall-caption print,
+    // and no word-stack chip, anywhere from the weather's compile to its lens.
+    // (`glass` is also the local name of the value-candle and divergence
+    // readings above this block; their labels are theirs.)
+    const weatherRegion = between("selectLiquidityWeatherGlass(liquidityWeatherRef.current)", "delete ds.liquidityWeatherReadout;");
+    expect(weatherRegion).not.toMatch(/fillText\(glass\.label/);
+    expect(weatherRegion).not.toMatch(/fillText\(glass\.detail/);
+    expect(weatherRegion).not.toMatch(/fillText\(glass\.stallLabel/);
+    expect(CHART).not.toMatch(/\bwordChip\(/);
   });
 });
 
@@ -96,47 +136,51 @@ describe("§9 — seven stages are a gradient, and no gradient gets a hue", () =
   it("chooses no colour from the stage", () => {
     // AIRLESS is not danger and HEAVY is not safety: a thin tape is where a
     // stop slips and also where a breakout runs. The house grades neither.
-    expect(block).not.toMatch(/glass\.stage\s*===/);
-    expect(block).not.toMatch(/-wm-green|-wm-red/);
+    expect(weatherCode).not.toMatch(/glass\.stage\s*===/);
+    expect(weatherCode).not.toMatch(/-wm-green|-wm-red/);
   });
 
-  it("spends no green and no red on the weather", () => {
-    const rgbas = [...block.matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)];
-    expect(rgbas.length, "no literal colours found — did the block move?").toBeGreaterThan(0);
+  it("spends no green and no red on the weather — tint, ring, words or readout", () => {
+    const rgbas = [...weatherCode.matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)];
+    expect(rgbas.length, "no literal colours found — did the block move?").toBeGreaterThan(5);
     for (const m of rgbas) {
       const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
       expect(g > r && g > b, `green-dominant colour on the weather: ${m[0]}`).toBe(false);
       expect(r > g * 1.6 && r > b * 1.6, `red-dominant colour on the weather: ${m[0]}`).toBe(false);
     }
   });
+
+  it("colours the ring's legend with the ONE ramp the field uses", () => {
+    expect(lensBlock).toMatch(/ctx\.strokeStyle = heatRampColor\(1 - \(k \+ 0\.5\) \/ legendSteps\)/);
+  });
 });
 
 describe("a shelf does not pose as a defended level", () => {
-  it("draws the stalls dotted and short, not as a full-width support line", () => {
+  it("draws the stalls dotted, over their own bars, inside the lens — not a support line", () => {
     // "Nothing moved here" is an observation. A solid line spanning the pane
     // reads as a level somebody is holding, which is a claim about intent.
-    expect(block).toMatch(/setLineDash\(\[1, 3\]\)/);
-    expect(block).toMatch(/moveTo\(158,/);
-    expect(block).toMatch(/lineTo\(238,/);
+    expect(lensBlock).toMatch(/setLineDash\(\[1, 3\]\)/);
+    expect(lensBlock).toMatch(/const chord = L\.rx \* Math\.sqrt\(1 - dy \* dy\);/);
+    expect(lensBlock).toMatch(/lensBarX\(s\.fromTime\)/);
+    // Not at a fixed column any more.
+    expect(CHART).not.toMatch(/moveTo\(158,/);
   });
 
-  it("restores the solid dash before the words, so the chrome is not dotted too", () => {
-    expect(block).toMatch(/setLineDash\(\[\]\)/);
-  });
-
-  it("captions the shelves only when it drew some", () => {
-    expect(block).toMatch(/glass\.stallLabel && shelves > 0/);
+  it("restores the solid dash before the ring, so the brass is not dotted too", () => {
+    expect(lensBlock).toMatch(/setLineDash\(\[\]\)/);
   });
 });
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.liquidityWeather = on \? glass\.reason : "OFF"/);
+    expect(glassBlock).toMatch(/ds\.liquidityWeather = on \? glass\.reason : "OFF"/);
+    expect(lensBlock).toMatch(/ds\.liquidityWeatherLensState = weatherLensWhy;/);
   });
 
   it("withdraws the stage receipt rather than letting a stale one describe the tape", () => {
-    expect(block).toMatch(/delete ds\.liquidityWeatherStage/);
-    expect(block).toMatch(/delete ds\.liquidityWeatherShelves/);
+    expect(lensBlock).toMatch(/delete ds\.liquidityWeatherStage/);
+    expect(lensBlock).toMatch(/delete ds\.liquidityWeatherShelves/);
+    expect(lensBlock).toMatch(/delete ds\.liquidityWeatherLens;/);
   });
 });
 
@@ -175,13 +219,51 @@ describe("the heat lens reads as a tide without inventing another market fact", 
   });
 });
 
+describe("F08B — the field exists only INSIDE the lens, behind the candles", () => {
+  it("the field meets the glass through the lens ellipse and the candle cut-out", () => {
+    expect(CHART).toMatch(
+      /mainCtx\.ellipse\(weatherLens\.cx, weatherLens\.cy, weatherLens\.rx, weatherLens\.ry, 0, 0, Math\.PI \* 2\);\s*mainCtx\.clip\(\);\s*if \(weatherLensCut\) mainCtx\.clip\(weatherLensCut, "evenodd"\);\s*mainCtx\.setTransform\(1, 0, 0, 1, 0, 0\);/,
+    );
+  });
+
+  it("no lens → no field, and the heat receipt names it", () => {
+    expect(CHART).toMatch(/if \(on && heat\.drawable && !weatherLens\) ds\.heatLens = "UNPLACED";/);
+    expect(CHART).toMatch(/if \(on && heat\.drawable && weatherLens\) \{/);
+  });
+
+  it("the lens is fitted by its one owner and cut round every candle it covers", () => {
+    expect(geoBlock).toMatch(/fitWeatherLens\(/);
+    expect(geoBlock).toMatch(/candleCutOutRects\(lensBars,/);
+  });
+
+  it("the ring is brass, behind the candles, with LIQUIDITY WEATHER set ON its top arc", () => {
+    expect(lensBlock).toMatch(/if \(weatherLensCut\) ctx\.clip\(weatherLensCut, "evenodd"\);/);
+    expect(lensBlock).toMatch(/const brass = ctx\.createLinearGradient\(/);
+    expect(lensBlock).toMatch(/const ringTitle = \[\.\.\."LIQUIDITY WEATHER"\];/);
+    expect(lensBlock).toMatch(/wordOnTopArc\(L, /);
+    expect(lensBlock).toMatch(/ctx\.rotate\(gph\.rot\)/);
+  });
+
+  it("the status readout is attached to the ring and placed clear of the newest candles", () => {
+    expect(lensBlock).toMatch(/"LENS STATUS"/);
+    expect(lensBlock).toMatch(/k: "PERSISTENCE"/);
+    expect(lensBlock).toMatch(/k: "RESPONSE"/);
+    expect(lensBlock).toMatch(/k: "VEIL"/);
+    expect(lensBlock).toMatch(/placeClearOfKeepOut\(slots\[0\], keepOut\(\)/);
+    expect(lensBlock).toMatch(/recordKeepOut\(keepOutLedger, spot\)/);
+    expect(lensBlock).toMatch(/keepOutBackingAlpha\(spot, 0\.86\)/);
+    // The leader: plate edge → ring.
+    expect(lensBlock).toMatch(/const onRing = ringPoint\(L, tl, 5\);/);
+  });
+});
+
 describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
   it("a switched-off layer paints NOTHING, not merely fewer shelves", () => {
-    expect(block).toMatch(/if \(on && glass\.drawn\) \{/);
+    expect(lensBlock).toMatch(/if \(on && glass\.drawn && L\) \{/);
   });
 
   it("reads the switch from a REF, never from the overlay's dependency array", () => {
-    expect(block).toMatch(/const on = layerOnRef\.current\.weather/);
+    expect(CHART).toMatch(/const on = layerOnRef\.current\.weather/);
     const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
     expect(deps.slice(0, 400)).not.toMatch(/liquidityWeatherOnChart/);
   });

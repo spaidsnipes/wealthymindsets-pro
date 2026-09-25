@@ -195,3 +195,37 @@ describe("the reading is stamped", () => {
     expect(selectLiquidityWeatherGlass(null).version).toBe(WEATHER_GLASS_VERSION);
   });
 });
+
+describe("F08B — the lens rings WHERE the reading was taken, and only that", () => {
+  it("the window is the first→last print time and lowest→highest print", () => {
+    const g = selectLiquidityWeatherGlass(vm({
+      segments: [
+        seg({ index: 0, low: 430.9, high: 431.4, fromTime: 1_000, toTime: 2_000 }),
+        seg({ index: 1, low: 431.2, high: 431.9, fromTime: 2_100, toTime: 3_500 }),
+      ],
+    }));
+    expect(g.window).toEqual({ fromTime: 1_000, toTime: 3_500, low: 430.9, high: 431.9 });
+  });
+
+  it("a window whose prints carry no time has no place — null, so no lens is drawn", () => {
+    const g = selectLiquidityWeatherGlass(vm());
+    expect(g.window).toBeNull();
+    expect(selectLiquidityWeatherGlass(null).window).toBeNull();
+  });
+
+  it("a shelf carries the time its stalled segment traded, not a fixed column", () => {
+    const g = selectLiquidityWeatherGlass(vm({
+      segments: [
+        seg({ index: 0, fromTime: 1_000, toTime: 2_000 }),
+        seg({ index: 1, stalled: true, high: 430.5, low: 430.5, range: 0, cost: null, rangeInSpread: null, fromTime: 2_100, toTime: 2_900 }),
+      ],
+    }));
+    expect(g.stallSpans).toEqual([{ price: 430.5, fromTime: 2_100, toTime: 2_900 }]);
+  });
+
+  it("the window is still not a level: no stage band, no cost figure", () => {
+    const g = selectLiquidityWeatherGlass(vm({ segments: [seg({ fromTime: 1, toTime: 2 })] })) as unknown as Record<string, unknown>;
+    expect(Object.keys(g.window as object).sort()).toEqual(["fromTime", "high", "low", "toTime"]);
+    expect(g.medianCost).toBeUndefined();
+  });
+});

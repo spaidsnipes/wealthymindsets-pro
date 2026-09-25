@@ -24,6 +24,18 @@
  * shelf, it is perceivable, and it is exactly the kind of fact the Founder
  * means by market geometry. Those prices are carried out and nothing else is.
  *
+ * ── AND WHERE THE READING WAS TAKEN, WHICH IS A PLACE (F08B, 2026-09-25) ────
+ *
+ * "Weather is a lens." The Founder's plate draws the reading as a brass-ringed
+ * lens OVER THE REGION IT DESCRIBES, and that does not contradict the rule
+ * above: the lens does not put the stage at a price. What it rings is the
+ * stretch of tape the reading was measured over — from the first print's time
+ * to the last, between the lowest and highest print. That is where and when
+ * the prints landed, a fact about the window, not a level the stage claims.
+ * `window` carries exactly that and nothing else; the stage still leaves as a
+ * word (now set on the lens's ring instead of stacked in a corner). A window
+ * whose prints carry no time is null — a lens with no place is not drawn.
+ *
  * ── WHY THE STAGE DOES NOT BECOME A COLOUR ─────────────────────────────────
  *
  * Seven stages is a gradient, and a gradient is the easiest thing in the world
@@ -69,6 +81,25 @@ export interface WeatherGlassVM {
    * because it is the one line that has a place on the axis.
    */
   readonly stallLabel: string | null;
+  /**
+   * WHERE AND WHEN the reading's prints landed: first → last stamped print
+   * time (ms) and lowest → highest print across every segment. The place the
+   * lens rings. Null when no segment's prints carry a time.
+   */
+  readonly window: WeatherWindow | null;
+  /**
+   * Each shelf with the time its stalled segment traded (ms), so a shelf is
+   * drawn over the bars it happened on, inside the lens — not at a fixed
+   * column. Null times when that segment's prints were undated.
+   */
+  readonly stallSpans: readonly { readonly price: number; readonly fromTime: number | null; readonly toTime: number | null }[];
+}
+
+export interface WeatherWindow {
+  readonly fromTime: number;
+  readonly toTime: number;
+  readonly low: number;
+  readonly high: number;
 }
 
 function empty(): WeatherGlassVM {
@@ -81,6 +112,8 @@ function empty(): WeatherGlassVM {
     label: "",
     detail: "",
     stallLabel: null,
+    window: null,
+    stallSpans: [],
   };
 }
 
@@ -110,6 +143,31 @@ export function selectLiquidityWeatherGlass(
   }
   stalls.sort((a, b) => a - b);
 
+  // THE WINDOW — only from segments whose own edges are real numbers, and
+  // only when at least one of them carries a time. The price extent spans
+  // every such segment (undated ones still landed inside the window).
+  let fromTime = Infinity, toTime = -Infinity, low = Infinity, high = -Infinity;
+  for (const s of vm.segments) {
+    if (!num(s.high) || !num(s.low)) continue;
+    if (s.low < low) low = s.low;
+    if (s.high > high) high = s.high;
+    if (num(s.fromTime) && s.fromTime < fromTime) fromTime = s.fromTime;
+    if (num(s.toTime) && s.toTime > toTime) toTime = s.toTime;
+  }
+  const win: WeatherWindow | null =
+    Number.isFinite(fromTime) && Number.isFinite(toTime) && Number.isFinite(low) && Number.isFinite(high)
+      ? { fromTime, toTime, low, high }
+      : null;
+  const stallSpans = stalls.map((price) => {
+    let f: number | null = null, t: number | null = null;
+    for (const s of vm.segments) {
+      if (!s.stalled || s.high !== price || s.low !== price) continue;
+      if (num(s.fromTime) && (f == null || s.fromTime < f)) f = s.fromTime;
+      if (num(s.toTime) && (t == null || s.toTime > t)) t = s.toTime;
+    }
+    return { price, fromTime: f, toTime: t };
+  });
+
   const parts = [`LIQUIDITY ${vm.stage}`];
   if (num(vm.trendRatio)) {
     // Half over half. Above 1 means the late half cost more size per unit of
@@ -135,6 +193,8 @@ export function selectLiquidityWeatherGlass(
       stalls.length > 0
         ? `${stalls.length} SHELF${stalls.length > 1 ? "S" : ""} — SIZE TRADED, PRICE DID NOT MOVE`
         : null,
+    window: win,
+    stallSpans,
   };
 }
 
