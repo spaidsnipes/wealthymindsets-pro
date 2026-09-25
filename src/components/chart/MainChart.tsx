@@ -8066,7 +8066,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               botPrice = srs?.coordinateToPrice(H) as number;
             } catch {}
             const above = Number.isFinite(topPrice) ? p > topPrice : true;
-            const edgeY = above ? 9 : H - 9;
+            // Above: under the header band (bar clock, zoom plate, INSPECT sit
+            // over this column at the top), not in it.
+            const edgeY = above ? HEADER_FLOOR_Y + 4 : H - 9;
             ctx.strokeStyle = rgba; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
             ctx.beginPath();
             ctx.moveTo(vpRight - vpW - 2, edgeY);
@@ -8100,12 +8102,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.font = "bold 9px monospace";
-          ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+          // The tag sits above its line — unless that is inside the header
+          // band (serving NQ1! 5m: "VAH 31,020" printed on "BAR OPENED …");
+          // then it reads just under the line.
+          const tagBelow = midY - 12 < HEADER_FLOOR_Y;
+          const tagY = tagBelow ? Math.max(midY + 2, HEADER_FLOOR_Y) : midY - 1;
+          ctx.textAlign = "left"; ctx.textBaseline = tagBelow ? "top" : "bottom";
           const tagTxt = `${tag} ${p >= 10000 ? Math.round(p).toLocaleString("en-US") : p.toFixed(2)}`;
           ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-          ctx.strokeText(tagTxt, vpRight - vpW - 2, midY - 1);
+          ctx.strokeText(tagTxt, vpRight - vpW - 2, tagY);
           ctx.fillStyle = rgba;
-          ctx.fillText(tagTxt, vpRight - vpW - 2, midY - 1);
+          ctx.fillText(tagTxt, vpRight - vpW - 2, tagY);
           ctx.restore();
         };
         if (vahPrice !== pocPrice) drawVALevel(vahPrice, vpVahRgba(0.95), "VAH");
