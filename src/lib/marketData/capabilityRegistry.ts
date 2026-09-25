@@ -438,6 +438,20 @@ export function isReviewedCapability(entry: MarketDataCapability): boolean {
   return MARKET_DATA_CAPABILITIES.includes(entry);
 }
 
+/**
+ * The asset class a runtime tape source carries, from the same table the
+ * capability lookup reads — or `null` for a source this registry has no row
+ * for ("unavailable", finnhub, polygon), which is "not known", never "any".
+ *
+ * Exported so the evidence store can refuse a reading no tape could have
+ * produced (a Coinbase print filed under TSLA) without a second, hand-typed
+ * opinion about which venue carries what.
+ */
+export function runtimeTapeSourceAssetClass(source: string | null): MarketAssetClass | null {
+  if (!source) return null;
+  return TAPE_SOURCE_PATHS[source as Exclude<RuntimeTapeSource, null>]?.assetClass ?? null;
+}
+
 /** Runtime tape truth must come from the reviewed capability registry. */
 export function getRuntimeTapeCapability(source: string | null): MarketDataCapability | null {
   if (!source) return null;

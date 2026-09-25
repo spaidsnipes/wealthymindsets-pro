@@ -18,6 +18,9 @@
  * multi-symbol panels) react without threading refs through the tree.
  */
 
+import { runtimeTapeSourceAssetClass } from "./capabilityRegistry";
+import { canonicalAssetClass } from "./canonicalIdentity";
+
 export interface SessionTapeStats {
   delta: number;
   buyVol: number;
@@ -123,6 +126,12 @@ function hydrateFromStorage(): void {
       // a sign of foreign / corrupted / older-schema data. Fail closed.
       if (!key || typeof key !== "string" || key.indexOf("::") < 0) continue;
       if (!entry || typeof entry !== "object") continue;
+      // A slot filed under a tape that cannot carry its symbol ("TSLA::coinbase",
+      // written by the symbol-switch race — see tapeSourceCanCarry) holds
+      // ANOTHER instrument's prints. Relabelling it would keep the wrong
+      // numbers under TSLA; it is dropped, and the next flush retires it.
+      const sep = key.indexOf("::");
+      if (isImpossibleProvenance(key.slice(0, sep), key.slice(sep + 2))) continue;
       const rec = entry as Record<string, unknown>;
       const savedAt = isFiniteNumber(rec.savedAtSec) ? rec.savedAtSec : nowSec;
       if (nowSec - savedAt > LS_HORIZON_MAX_AGE_SEC) continue;
@@ -204,8 +213,46 @@ function flushAndAcknowledge(expectedAbsentKeys: readonly string[]): SessionSymb
   return "ACKNOWLEDGED";
 }
 
+/**
+ * COULD THIS TAPE HAVE PRODUCED EVIDENCE FOR THIS SYMBOL?
+ *
+ *   false → provably not: the tape's asset class (capabilityRegistry, the one
+ *           table that says what each runtime tape carries) cannot print this
+ *           instrument. A Coinbase trade is never a TSLA trade.
+ *   true  → the classes agree.
+ *   null  → not known: the store's "unavailable" marker, or a source the
+ *           registry has no row for. No claim either way.
+ *
+ * MEASURED LIVE 2026-09-25 on wealthymindsetspro.com/charts, the "Evidence
+ * saved" popover: rows spoke "TSLA, via coinbase" and "Switch chart to NQ1!,
+ * via coinbase". Neither trades on Coinbase. The cause was a render-order race
+ * in the writer — on a symbol switch the chart's new symbol met the PREVIOUS
+ * symbol's tape (its ticks and its source) for one commit, and those prints were
+ * filed under the new name (fixed at the source: `useWebSocket` no longer hands
+ * one symbol's tape out under another's name). This predicate is the store's own
+ * boundary: whatever a writer does, a reading no tape could have produced is
+ * never recorded, never enumerated, and never rehydrated from localStorage.
+ */
+export function tapeSourceCanCarry(symbol: string, tapeSource: string): boolean | null {
+  const tapeClass = runtimeTapeSourceAssetClass(tapeSource);
+  if (!tapeClass) return null;
+  let symbolClass: ReturnType<typeof canonicalAssetClass>;
+  try { symbolClass = canonicalAssetClass(symbol); } catch { return null; }
+  if (tapeClass === "equity") return symbolClass === "equity" || symbolClass === "etf";
+  return symbolClass === tapeClass;
+}
+
+function isImpossibleProvenance(symbol: string, tapeSource: string): boolean {
+  return tapeSourceCanCarry(symbol, tapeSource) === false;
+}
+
 export function getSessionSymbolSlot(symbol: string, tapeSource: string): SessionSymbolSlot {
   hydrateFromStorage();
+  // A detached, never-stored slot: readers get an honest zero, and nothing is
+  // minted under a provenance no tape could have produced.
+  if (isImpossibleProvenance(symbol, tapeSource)) {
+    return { stats: EMPTY_STATS(), horizon: null, cvdSpark: [], lastTradeAtMs: null };
+  }
   const key = keyFor(symbol, tapeSource);
   let slot = slots.get(key);
   if (!slot) {
@@ -222,6 +269,7 @@ export function recordSessionTrade(
   tick: { side?: "buy" | "sell" | null; size: number; time: number },
   isBigTrade: boolean,
 ): void {
+  if (isImpossibleProvenance(symbol, tapeSource)) return;
   const slot = getSessionSymbolSlot(symbol, tapeSource);
   if (tick.side === "buy")  { slot.stats.buyVol  += tick.size; slot.stats.delta += tick.size; }
   if (tick.side === "sell") { slot.stats.sellVol += tick.size; slot.stats.delta -= tick.size; }
@@ -244,6 +292,7 @@ export function recordSessionTrade(
 }
 
 export function pushCvdSample(symbol: string, tapeSource: string): void {
+  if (isImpossibleProvenance(symbol, tapeSource)) return;
   const slot = getSessionSymbolSlot(symbol, tapeSource);
   slot.cvdSpark.push(slot.stats.delta);
   if (slot.cvdSpark.length > 24) slot.cvdSpark.shift();
@@ -266,7 +315,10 @@ export function getKnownSessionSymbols(): Array<{ symbol: string; tapeSource: st
   for (const [key, slot] of slots.entries()) {
     const idx = key.indexOf("::");
     if (idx < 0) continue;
-    out.push({ symbol: key.slice(0, idx), tapeSource: key.slice(idx + 2), slot });
+    const symbol = key.slice(0, idx);
+    const tapeSource = key.slice(idx + 2);
+    if (isImpossibleProvenance(symbol, tapeSource)) continue;
+    out.push({ symbol, tapeSource, slot });
   }
   knownCache = out;
   return out;

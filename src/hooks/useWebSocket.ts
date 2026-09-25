@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
@@ -1153,6 +1153,47 @@ function tryAlpacaRelay(
 }
 
 /* ── Main hook ──────────────────────────────────────────── */
+/**
+ * A symbol that has not spoken yet. Identical to the reset the mount effect
+ * performs; used for the ONE render between a symbol change and that reset.
+ */
+export function silentMarketState(): MarketState {
+  return {
+    ticker:      { price: 0, change: 0, changePct: 0, volume: 0 },
+    liveBar:     null,
+    recentTicks: [],
+    orderBook:   { bids: [], asks: [] },
+    connected:   false,
+    source:      "unavailable",
+    tapeSource:  null,
+    latency:     0,
+    quoteRefusal: null,
+    lastObservedAtMs: null,
+  };
+}
+
+/**
+ * PURE. Whose tape is this state? The hook resets its state in an EFFECT, so
+ * the render in which `symbol` changes still holds the PREVIOUS symbol's
+ * ticks, source and tape source. Every consumer effect that runs in that commit
+ * sees the new name over the old tape.
+ *
+ * MEASURED LIVE 2026-09-25 (/charts, "Evidence saved" popover): "TSLA, via
+ * coinbase", "Switch chart to NQ1!, via coinbase". MainChart's recorder ran in
+ * exactly that commit — canonicalSym already TSLA, recentTicks and tapeSource
+ * still BTC's — and filed up to 2,000 Coinbase BTC prints as TSLA evidence.
+ * So the state answers only to the symbol it was reset for; until the reset
+ * lands, the new symbol reads as silent, which is the truth.
+ */
+export function marketStateFor(
+  requestedSymbol: string,
+  ownerSymbol: string,
+  state: MarketState,
+  silent: MarketState,
+): MarketState {
+  return ownerSymbol === requestedSymbol ? state : silent;
+}
+
 export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe: string }) {
   // Updated during render so a promise from the prior effect cannot land in
   // the gap before React runs that effect's cleanup.
@@ -1200,6 +1241,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     quoteRefusal: null,
     lastObservedAtMs: null,
   });
+  // The symbol `state` was last reset for — see `marketStateFor`.
+  const [stateOwner, setStateOwner] = useState(symbol);
+  const silentForSymbol = useMemo(() => silentMarketState(), [symbol]);
 
   // Flag: ignore non-observed ticks once real data arrives
   const hasRealDataRef = useRef(false);
@@ -1380,6 +1424,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       quoteRefusal: null,
       lastObservedAtMs: null,
     });
+    // Batched with the reset above: from the next render on, `state` is this
+    // symbol's, and `marketStateFor` stops standing in for it.
+    setStateOwner(symbol);
 
     // ── Real data strategy ───────────────────────────────────
     // WM-SEC-P0-03 (2026-08-08): client-side Finnhub WebSocket is DISABLED.
@@ -1794,5 +1841,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 
-  return state;
+  // Never one symbol's tape under another symbol's name (see marketStateFor).
+  return marketStateFor(symbol, stateOwner, state, silentForSymbol);
 }

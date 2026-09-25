@@ -195,15 +195,19 @@ describe("sessionSymbolStore — scale guards", () => {
     // The store must remain functional even if it later caps localStorage
     // flushes — in-memory representation is unbounded on purpose so a busy
     // trader never loses observation truth mid-session.
+    // PIN UPDATED 2026-09-25: the second source was "coinbase" — an equity
+    // ticker on a crypto venue, the exact impossible provenance the store now
+    // refuses (tapeSourceCanCarry; "TSLA, via coinbase" measured live). The
+    // fanout is the same size over two EQUITY tapes that could print it.
     for (let i = 0; i < 50; i++) {
       const sym = `SYM${i}`;
-      recordSessionTrade(sym, "coinbase", { side: "buy",  size: 1, time: 1_700_000_000_000 + i }, false);
-      recordSessionTrade(sym, "alpaca",   { side: "sell", size: 1, time: 1_700_000_000_000 + i }, false);
+      recordSessionTrade(sym, "webull", { side: "buy",  size: 1, time: 1_700_000_000_000 + i }, false);
+      recordSessionTrade(sym, "alpaca", { side: "sell", size: 1, time: 1_700_000_000_000 + i }, false);
     }
     const known = getKnownSessionSymbols();
     expect(known.length).toBe(100);
     // Sanity: a random slot in the middle still reports real data.
-    const middle = getSessionSymbolSlot("SYM25", "coinbase");
+    const middle = getSessionSymbolSlot("SYM25", "webull");
     expect(middle.stats.tradeCount).toBe(1);
     expect(middle.stats.buyVol).toBeCloseTo(1);
   });
