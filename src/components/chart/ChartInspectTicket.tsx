@@ -65,7 +65,8 @@ import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/sel
 import { MIN_DNA_ROWS, type ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
-import type { ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
+import type { ObjectLineageVM, ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
+import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -331,6 +332,8 @@ export function ChartInspectTicket({
   profileSliceAsOf = null,
   selectedZone = null,
   zoneLineage = null,
+  selectedLevel = null,
+  levelLineage = null,
   selectedAnatomy = null,
   activeDecisionId = null,
   contradiction = null,
@@ -356,6 +359,10 @@ export function ChartInspectTicket({
   selectedZone?: StructureZone | null;
   /** The selected zone's LINEAGE (selectZoneLineage) — ids, provenance and the Decision_ID chain. */
   zoneLineage?: ZoneLineageVM | null;
+  /** F11 · a selected MarketObject that is not a zone (a swing LEVEL) — the same Passport drawer. */
+  selectedLevel?: MarketObject | null;
+  /** Its LINEAGE (selectObjectLineage) — printed only when compiled for THIS object. */
+  levelLineage?: ObjectLineageVM | null;
   /** A selected absorption shelf or exhaustion mark, with the glass's current resolution of it. */
   selectedAnatomy?: SelectedAnatomy | null;
   /** The DECISION_ID born on this camera, if any — shown beside the object, never merged into it. */
@@ -553,6 +560,94 @@ export function ChartInspectTicket({
               {lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}
             </div>
             <div className="text-[11px]" style={{ color: "#8B8676" }}>(Bar close beyond the far edge · a wick through is a sweep, not a break)</div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  /*
+    F11 · MARKET OBJECT PASSPORT for a LEVEL. "Kind only changes the noun on
+    the door. The drawer layout does not change." A selected swing level fell
+    through to the bar ticket; it now reads its own slots (SHARED_ATTACHMENT_
+    SLOTS) and the same LINEAGE owner as a zone. The level owner publishes only
+    CONFIRMED, UNTOUCHED swing levels and has no lifecycle owner yet — so
+    touches, response history and an invalidation rule are stated as absent,
+    never inferred.
+  */
+  if (selectedLevel) {
+    const o = selectedLevel;
+    const lineage = levelLineage?.objectId === o.objectId ? levelLineage : null;
+    const t = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+    const price = o.priceLow === o.priceHigh ? o.priceHigh.toFixed(2) : `${o.priceLow.toFixed(2)} – ${o.priceHigh.toFixed(2)}`;
+    const side = o.objectId.endsWith(":HIGH") ? "Swing high" : o.objectId.endsWith(":LOW") ? "Swing low" : null;
+    const Head = ({ icon: Icon, children }: { icon: typeof Crosshair; children: React.ReactNode }) => (
+      <div className="flex items-center gap-2 text-[12px] font-bold tracking-[0.1em] text-wm-gold">
+        <Icon size={15} aria-hidden /> {children}
+      </div>
+    );
+    const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
+      <div className="grid grid-cols-[104px_1fr] gap-2 text-[12.5px] leading-[1.45]"><span style={{ color: "#8B8676" }}>{k}</span><span className="text-white">{v}</span></div>
+    );
+    return (
+      <section className="absolute top-2 left-2 w-[372px] max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl"
+        style={{ background: "#0d0c0a", zIndex: 80 }}
+        data-testid="chart-inspect-ticket" data-inspect-object={o.objectId} data-inspect-kind={o.kind}
+        aria-label={`Market object passport. ${o.kind} ${price}. ${o.state}.`}>
+        <div className="flex items-start gap-2 border-b border-wm-border px-4 py-3">
+          <FileText size={22} className="mt-0.5 text-wm-gold" aria-hidden />
+          <div className="min-w-0">
+            <div className="text-[14px] font-bold tracking-[0.08em] text-white">MARKET OBJECT PASSPORT</div>
+            <div className="text-[12px]" style={{ color: "#C8C0AE" }}>{o.kind === "LEVEL" ? "Level" : o.kind} · {price}{side ? ` · ${side.toLowerCase()}` : ""}</div>
+          </div>
+          <button className="ml-auto" aria-label="Close the passport" onClick={() => onOpenChange(false)}><X size={14} /></button>
+        </div>
+        <div className="divide-y divide-wm-border/70">
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={CalendarDays}>BIRTH</Head>
+            {side && <Row k="Origin" v={<span className="text-wm-gold">{side}</span>} />}
+            <Row k="Price" v={price} />
+            <Row k="Fidelity" v={o.fidelityAtBirth} />
+          </div>
+          <div className="space-y-1 px-4 py-3">
+            <Head icon={Hourglass}>AGE · STATE</Head>
+            <Row k="Since birth" v={`${o.decay} bars`} />
+            <Row k="State" v={o.state} />
+            <Row k="Touches" v={o.testBarIds.length === 0 ? "None since birth — the level owner publishes only untouched levels; a touched level leaves the glass" : `${o.testBarIds.length}`} />
+            <Row k="Invalidation" v={o.invalidationPrice == null ? <span style={{ color: UNREAD_COLOR }}>No rule stated — this level has no lifecycle owner yet</span> : o.invalidationPrice.toFixed(2)} />
+          </div>
+          <div className="space-y-1 px-4 py-3" data-testid="passport-provenance"
+            data-inspect-lineage={lineage ? lineage.birth.state : "NOT_COMPILED"}>
+            <Head icon={FileText}>LINEAGE</Head>
+            <Row k="Object" v={<span className="break-all font-mono text-[11px]">{o.objectId}</span>} />
+            {lineage ? (
+              <>
+                <Row k="Kind" v={`${lineage.kind} · session ${lineage.sessionId}`} />
+                <Row k="Birth bar" v={lineage.birth.state === "READ"
+                  ? <span className="break-all font-mono text-[11px]">{lineage.birth.line}</span>
+                  : <span style={{ color: UNREAD_COLOR }}>{lineage.birth.absence} <span className="break-all font-mono text-[11px]">{lineage.birth.barId}</span></span>} />
+                <Row k="Evidence" v={lineage.evidence.length === 0 ? "none attached" : (
+                  <ol className="space-y-0.5" data-testid="passport-evidence">
+                    {lineage.evidence.map(e => (
+                      <li key={e.id}><span className="break-all font-mono text-[11px]">{e.id}</span> <span style={{ color: "#8B8676" }}>· {e.role === "BIRTH" ? "birth" : "test"}</span></li>
+                    ))}
+                  </ol>
+                )} />
+                <Row k="Method" v={lineage.method} />
+                <Row k="As of" v={t(Math.floor(lineage.asOf / 1000))} />
+                <div data-inspect-chain={lineage.chain.state}>
+                  <Row k="Chain" v={lineage.chain.state === "READ"
+                    ? <span className="break-all font-mono text-[11px]">{lineage.chain.line}</span>
+                    : <span style={{ color: UNREAD_COLOR }}>{lineage.chain.reason}</span>} />
+                </div>
+              </>
+            ) : (
+              <>
+                <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{o.birthBarId}</span>} />
+                <Row k="Decision" v={activeDecisionId ? <span className="break-all font-mono text-[11px]">{activeDecisionId}</span> : "none born on this camera"} />
+                <Row k="Lineage" v={<span style={{ color: UNREAD_COLOR }}>Not compiled for this object.</span>} />
+              </>
+            )}
           </div>
         </div>
       </section>

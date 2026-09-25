@@ -144,7 +144,7 @@ import type {
   LegacyOhlcvTuple,
 } from "@/lib/marketData/canonicalBar";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
-import { selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
+import { selectObjectLineage, selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
@@ -2112,6 +2112,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       ? selectZoneLineage({ zone, identities: chartBarIdentities, decisionId: currentSceneDecision?.decisionId ?? null })
       : null;
   }, [chartStructureZones, selectedMarketObjectId, chartBarIdentities, currentSceneDecision?.decisionId]);
+  // A selected object that is NOT a zone (a swing LEVEL) gets the same
+  // Passport drawer and the same lineage owner — kind changes only the noun.
+  const selectedLevelObject = selectedMarketObject
+    && !chartStructureZones.some(z => z.object.objectId === selectedMarketObject.objectId)
+    ? selectedMarketObject
+    : null;
+  const selectedLevelLineage = React.useMemo(
+    () => selectedLevelObject
+      ? selectObjectLineage({
+          object: selectedLevelObject,
+          method: "selectMarketStructure → selectStructureMarketObjects (confirmed, untouched swing levels)",
+          identities: chartBarIdentities,
+          decisionId: currentSceneDecision?.decisionId ?? null,
+        })
+      : null,
+    [selectedLevelObject, chartBarIdentities, currentSceneDecision?.decisionId],
+  );
   const selectedMarketObjectWait =
     selectedObjectChain?.ok && chartCanvasVM.oneStory
       ? selectWaitStanding(chartCanvasVM.oneStory.decision, chartCanvasVM.oneStory.debt)
@@ -5452,6 +5469,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         zoneLineage={selectedZoneLineage}
+                        selectedLevel={selectedLevelObject}
+                        levelLineage={selectedLevelLineage}
                         selectedAnatomy={activeSelectedAnatomy}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}

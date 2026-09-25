@@ -27,6 +27,7 @@
 
 import type { CanonicalBarIdentity } from "../canonicalBar";
 import { buildInspectChain } from "../inspectChain";
+import type { MarketObject } from "../marketObjectKinds";
 import type { StructureZone } from "./selectStructureZoneObjects";
 
 export const ZONE_LINEAGE_VERSION = 1;
@@ -57,7 +58,26 @@ export function selectZoneLineage(input: {
   /** The Decision_ID born on this camera, if any. */
   readonly decisionId: string | null;
 }): ZoneLineageVM {
-  const o = input.zone.object;
+  return selectObjectLineage({
+    object: input.zone.object,
+    method: `selectStructureZoneObjects + selectZoneLifecycle v${input.zone.lifecycle.version}`,
+    identities: input.identities,
+    decisionId: input.decisionId,
+  });
+}
+
+/** Any MarketObject's lineage. "Kind only changes the noun on the door": a
+ *  LEVEL's lineage is the same drawer as a ZONE's, read from the same slots. */
+export type ObjectLineageVM = ZoneLineageVM;
+
+export function selectObjectLineage(input: {
+  readonly object: MarketObject;
+  /** The owner(s) that published the object, verbatim. */
+  readonly method: string;
+  readonly identities: readonly CanonicalBarIdentity[];
+  readonly decisionId: string | null;
+}): ObjectLineageVM {
+  const o = input.object;
   const identity = input.identities.find(i => i.barId === o.birthBarId) ?? null;
   const verdict = buildInspectChain({ barId: o.birthBarId, objectId: o.objectId, decisionId: input.decisionId });
   return {
@@ -78,7 +98,7 @@ export function selectZoneLineage(input: {
           absence: "Birth bar identity not admitted — the room holds no canonical identity for this id.",
         },
     evidence: o.evidenceIds.map((id, i) => ({ id, role: i === 0 && id === o.birthBarId ? "BIRTH" : "TEST" })),
-    method: `selectStructureZoneObjects + selectZoneLifecycle v${input.zone.lifecycle.version}`,
+    method: input.method,
     asOf: o.asOf,
     chain: verdict.ok
       ? {
