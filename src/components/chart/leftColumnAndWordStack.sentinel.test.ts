@@ -52,7 +52,11 @@ describe("left column and word stack", () => {
   });
 
   it("the VP POC tag never prints inside the header band (REGIME desk, 2026-09-25)", () => {
-    expect(CHART).toMatch(/const pocTagY = rowY \+ Math\.round\(rowH\/2\);\s*if \(pocTagY >= HEADER_FLOOR_Y\) \{/);
+    // Pin moved 2026-09-25 (P-110 canon pass, M47): the POC is named by the
+    // same level drawer as VAH/VAL, whose name steps under its line and whose
+    // chip is floored at the band (vpTagsClearHeaderBand.sentinel.test.ts).
+    expect(CHART).toContain('vpLevel(pocPrice, vpPocRgba, "POC");');
+    expect(CHART).toContain("const tagBelow = midY - 13 < HEADER_FLOOR_Y;");
   });
 
   it("the Structure Profile name and the memory-ghost caption stay below the header chrome", () => {
@@ -62,7 +66,9 @@ describe("left column and word stack", () => {
   });
 
   it("the profile stack's words join the chip ledger, and the Structure chips step clear of them", () => {
-    expect(CHART).toMatch(/recordKeepOut\(keepOutLedger, spotS\);\s*floatingChips\.push\(\{ x: spotS\.rect\.x, y: spotS\.rect\.y, w: spotS\.rect\.w, h: spotS\.rect\.h \}\);/);
+    // Pin updated 2026-09-25 (P-110 canon pass): the stack's words are the
+    // family's level chips now; each joins the ledger where it was placed.
+    expect(CHART).toMatch(/recordKeepOut\(keepOutLedger, spotL\);\s*const r = spotL\.rect;\s*floatingChips\.push\(\{ x: r\.x, y: r\.y, w: r\.w, h: r\.h \}\);/);
     const chipFn = CHART.slice(CHART.indexOf("const chip = (text: string, x: number, y: number) => {"), CHART.indexOf("`STRUCTURE · FROM ${kind}"));
     expect(chipFn.length).toBeGreaterThan(200);
     expect(chipFn).toContain("const taken = (yy: number) => floatingChips.some(");
@@ -75,7 +81,11 @@ describe("left column and word stack", () => {
 
   it("the stack column places each label on the nearest free row (no oscillating step)", () => {
     // Pin updated 2026-09-25: the row is floored below the price legend band first.
-    expect(CHART).toContain("let yy = nearestFreeLabelY(Math.max(y, legendFloor), stackLabelYs, 12);");
+    // …and again 2026-09-25 (P-110 canon pass): the level chips sit at the
+    // plot's right edge, so their floor is the right side's header band, and
+    // the step is one chip's height.
+    expect(CHART).toContain("let yy = nearestFreeLabelY(Math.max(y, rowFloor), levelChipYs, LEVEL_CHIP_H + 1);");
+    expect(CHART).toContain("const rowFloor = floorY + LEVEL_CHIP_H / 2;");
     expect(CHART).not.toMatch(/yy = y < hit \? hit - 12 : hit \+ 12;/);
   });
 });

@@ -46,33 +46,37 @@ describe("one keep-out owner per frame", () => {
   });
 });
 
-describe("the profile stack's label column yields to the newest bodies", () => {
-  const stackLabel = slice("const stackLabel = (y: number, text: string, ink: string) => {", "ctx.restore();\n        };");
+describe("the profile family's level chips yield to the candles", () => {
+  // Pin moved 2026-09-25 (P-110 canon pass). The one label column LEFT of the
+  // stack became the family's level chips at the plot's RIGHT edge (P-110 /
+  // M47), and its keep-out grew from bodies to bodies AND WICKS: on serving
+  // (TSLA 15m) "CMP VAH / POC / VAL" printed on the big red Sep-25 candle.
+  const chip = slice("const levelChip = (y: number, text: string, ink: string, opts:", "const quietWords = (text: string, pref: WordsAt, ink: string");
 
-  it("never prints inside the price legend's band", () => {
-    expect(stackLabel).toContain("const legendFloor = PRICE_LEGEND_OVERLAY_H + 7;");
-    expect(stackLabel).toContain("let yy = nearestFreeLabelY(Math.max(y, legendFloor), stackLabelYs, 12);");
+  it("never prints inside the header band, and two chips never share a row", () => {
+    expect(chip).toContain("const floorY = opts.floorY ?? HEADER_FLOOR_Y;");
+    expect(chip).toContain("let yy = nearestFreeLabelY(Math.max(y, rowFloor), levelChipYs, LEVEL_CHIP_H + 1);");
     // …and a second name floored onto the same row steps DOWN, never back up.
-    expect(stackLabel).toMatch(/if \(yy < legendFloor\) \{\s*yy = legendFloor;\s*while \(stackLabelYs\.some\(t => Math\.abs\(t - yy\) < 12\)\) yy \+= 12;\s*\}/);
+    expect(chip).toMatch(/if \(yy < rowFloor\) \{\s*yy = rowFloor;\s*while \(levelChipYs\.some\(t => Math\.abs\(t - yy\) < LEVEL_CHIP_H \+ 1\)\) yy \+= LEVEL_CHIP_H \+ 1;\s*\}/);
   });
 
-  it("asks the keep-out where the label may print, stepping around chips too", () => {
-    // Pin updated 2026-09-25 (serving TSLA 1h): the column sits left of the
-    // Living body over older candles, so every body on its own row counts too.
-    expect(stackLabel).toMatch(/placeClearOfKeepOut\(\s*\{ x: stackPlan\.labelRight - lwS - 3, y: yy - 5\.5, w: lwS \+ 5, h: 11 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(yy - 5\.5, yy \+ 5\.5\)\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips \},?\s*\)/);
-    const rows = slice("const rowBodiesAt = (yTop: number, yBot: number) => {", "return bodiesInView.filter(");
-    expect(rows).toMatch(/spanCandleKeepOut\(barsRef\.current \?\? \[\]/);
-    expect(rows).toMatch(/barSpacing: bsp/);
-    expect(stackLabel).toMatch(/recordKeepOut\(keepOutLedger, spotS\)/);
+  it("asks the keep-out where the chip may print: every candle body and wick under its slots, every chip, strictly", () => {
+    expect(chip).toMatch(/placeClearOfKeepOut\(\s*slots\.preferred,\s*\[\.\.\.keepOut\(\), \.\.\.profileCandlesAt\(slots\.top, slots\.bottom\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), opts\.minX \?\? 4\), blockers: floatingChips, strict: true, alternates \},?\s*\)/);
+    const rows = slice("function profileCandlesAt(yTop: number, yBot: number) {", "function drawWMVP(");
+    expect(rows).toContain("profileCandleCut().rects.filter(r => r.y < yBot && r.y + r.h > yTop)");
+    const cut = slice("function profileCandleCut() {", "function clipProfileToCandles(species: string) {");
+    expect(cut).toMatch(/candleCutOutRects\(barsRef\.current \?\? \[\], \{/);
+    expect(cut).toMatch(/barSpacing: bsp/);
+    expect(chip).toMatch(/recordKeepOut\(keepOutLedger, spotL\)/);
   });
 
-  it("paints the backing where the placement says, at an alpha the placement allows", () => {
-    expect(stackLabel).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotS, 0\.72\)\}\)`;\s*ctx\.fillRect\(spotS\.rect\.x, spotS\.rect\.y, spotS\.rect\.w, spotS\.rect\.h\);/);
-    expect(stackLabel).not.toMatch(/fillRect\(stackPlan\.labelRight/);
+  it("fills gold only where the placement is clear; on a candle its fill yields", () => {
+    expect(chip).toMatch(/if \(spotL\.onCandles\) \{\s*ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotL, 0\.9\)\}\)`;/);
+    expect(chip).toMatch(/\} else \{\s*ctx\.fillStyle = ink;\s*ctx\.fillRect\(r\.x, r\.y, r\.w, r\.h\);/);
   });
 
-  it("ties a slid label back to the lane at the true price with a dotted leader", () => {
-    expect(stackLabel).toMatch(/if \(spotS\.mode === "SLID"\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(stackPlan\.stackLeft, y\)/);
+  it("ties a moved or slid chip back to its price with a dotted leader", () => {
+    expect(chip).toMatch(/if \(levelChipNeedsLeader\(r, y, spotL\.mode === "SLID"\)\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(anchorX, y\)/);
   });
 });
 
@@ -84,7 +88,8 @@ describe("Profile Memory labels yield to the newest bodies", () => {
     // the label column's names are chips too — and it joins the chip ledger.
     // Pin updated again 2026-09-25 (keep-out completion): the name's row runs
     // back over older candles, so every body under that row counts too.
-    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(y - 7, y \+ 7\)\],\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips, strict: true \},?\s*\)/);
+    // …and again 2026-09-25 (P-110 canon pass): every WICK under the row too.
+    expect(memory).toMatch(/placeClearOfKeepOut\(\s*\{ x: lx, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(y - 7, y \+ 7\), \.\.\.profileCandlesAt\(y - 7, y \+ 7\)\],\s*\{ minX: Math\.max\(x0, keepOutMinX\(\)\), blockers: floatingChips, strict: true \},?\s*\)/);
     expect(memory).toContain("floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });");
     expect(memory).toMatch(/recordKeepOut\(keepOutLedger, spotM\)/);
   });
@@ -195,7 +200,9 @@ describe("the Structure Profile's name and LEG POC chip clear every body under t
     expect(chipFn).toContain("if (down + 2 <= pane0Bottom) rowsS.push(down);");
     expect(chipFn).toContain("if (up - 12 >= HEADER_FLOOR_Y) rowsS.push(up);");
     expect(chipFn).toContain("const altsS = rowsS.filter(r => r !== cy).map(r => ({ x: cx, y: r - 12, w, h: 14 }));");
-    expect(chipFn).toMatch(/placeClearOfKeepOut\(\s*\{ x: cx, y: cy - 12, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(Math\.min\(cy, \.\.\.rowsS\) - 12, Math\.max\(cy, \.\.\.rowsS\) \+ 2\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), Math\.min\(cx, x0 - w - 6\)\), blockers: floatingChips, strict: true, alternates: altsS \},?\s*\)/);
+    // Pin updated again 2026-09-25 (P-110 canon pass): bodies AND wicks.
+    expect(chipFn).toContain("const bandS = [Math.min(cy, ...rowsS) - 12, Math.max(cy, ...rowsS) + 2] as const;");
+    expect(chipFn).toMatch(/placeClearOfKeepOut\(\s*\{ x: cx, y: cy - 12, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(bandS\[0\], bandS\[1\]\), \.\.\.profileCandlesAt\(bandS\[0\], bandS\[1\]\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), Math\.min\(cx, x0 - w - 6\)\), blockers: floatingChips, strict: true, alternates: altsS \},?\s*\)/);
     expect(chipFn).toMatch(/recordKeepOut\(keepOutLedger, spotP\)/);
   });
 

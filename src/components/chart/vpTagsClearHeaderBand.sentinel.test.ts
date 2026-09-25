@@ -19,8 +19,11 @@ const strip = (s: string) =>
 const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8"));
 
 describe("classic VP value-area tags (Sentinel)", () => {
-  const at = CHART.indexOf("const drawVALevel = (p: number, rgba: string, tag: string) => {");
-  const block = CHART.slice(at, CHART.indexOf('if (vahPrice !== pocPrice) drawVALevel(', at));
+  // Pin moved 2026-09-25 (P-110 canon pass, M47): POC, VAH and VAL are drawn
+  // by ONE level drawer — dashed rule, the level's name at the column's left,
+  // a gold price chip at the axis edge. The header-band law is unchanged.
+  const at = CHART.indexOf('const vpLevel = (p: number, ink: (a: number) => string, tag: "POC" | "VAH" | "VAL") => {');
+  const block = CHART.slice(at, CHART.indexOf('vpLevel(pocPrice, vpPocRgba, "POC");', at));
 
   it("finds the tag drawer", () => {
     expect(at).toBeGreaterThan(-1);
@@ -32,9 +35,10 @@ describe("classic VP value-area tags (Sentinel)", () => {
     expect(block).not.toContain("above ? 9 :");
   });
 
-  it("a tag whose row would enter the band reads under its line, floored at the band", () => {
-    expect(block).toContain("const tagBelow = midY - 12 < HEADER_FLOOR_Y;");
-    expect(block).toContain("const tagY = tagBelow ? Math.max(midY + 2, HEADER_FLOOR_Y) : midY - 1;");
-    expect(block).toContain("ctx.fillText(tagTxt, vpRight - vpW - 2, tagY);");
+  it("a name whose row would enter the band reads under its line, floored at the band; the chip never rises into it", () => {
+    expect(block).toContain("const tagBelow = midY - 13 < HEADER_FLOOR_Y;");
+    expect(block).toContain("const below = { x: colLeft, y: Math.max(midY + 2, HEADER_FLOOR_Y), w: ww, h: 12 };");
+    expect(block).toContain("const wordPref = tagBelow ? below : above;");
+    expect(block).toContain("levelChipSlots({ y: midY, w: cw, rightX: vpChipRight, floorY: HEADER_FLOOR_Y, footY: pane0H - 2 })");
   });
 });

@@ -75,26 +75,46 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
   it("the body never tints a candle: every candle under it is cut out of the fill (Defect 4)", () => {
     // Pin updated 2026-09-25 (Sentinel P1-1): the cut-out is ONE Path2D built
     // once per frame and shared by everything the body paints in its room.
+    // Pin updated again 2026-09-25 (P-110 canon pass): the Path2D moved up to
+    // the whole profile family (profileCandleCut, from the one cut-out owner
+    // chartKeepOut.candleCutOutRects over every candle in view), because
+    // Composite, VRP, TPO, Structure and Memory painted through the candles
+    // Living was cut round. Living's wrapper keeps its candles-kept receipt.
     const cutAt = block.indexOf("const clipToCandleCutOut = () => {");
-    const cutFn = block.slice(cutAt, block.indexOf('ctx.clip(livingCut, "evenodd");', cutAt) + 40);
+    const cutFn = block.slice(cutAt, block.indexOf('clipProfileToCandles("LIVING");', cutAt) + 40);
     expect(cutFn.length).toBeGreaterThan(200);
-    expect(cutFn).toContain("cut.rect(0, 0, W, H);");
-    expect(cutFn).toMatch(/cut\.rect\(\+xb - bsp \* 0\.42, top, bsp \* 0\.84, bot - top\);/);
     expect(cutFn).toContain("if (xb == null || +xb < rightEdge - bodyW - 16 - bsp || +xb > rightEdge + bsp) continue;");
     expect(cutFn).toContain("ds.livingProfileCandlesKept = String(candlesKept);");
-    expect(cutFn).toContain('ctx.clip(livingCut, "evenodd");');
-    const cut = block.search(/ctx\.save\(\); clipToCandleCutOut\(\);\s*const g = ctx\.createLinearGradient\(rightEdge, 0, rightEdge - bodyW, 0\);/);
+    expect(cutFn).toContain('clipProfileToCandles("LIVING");');
+    const family = CHART.slice(CHART.indexOf("function profileCandleCut() {"), CHART.indexOf("function profileCandlesAt(yTop: number, yBot: number) {"));
+    expect(family.length).toBeGreaterThan(500);
+    expect(family).toContain("path.rect(0, 0, W, H);");
+    expect(family).toContain("for (const r of rects) path.rect(r.x, r.y, r.w, r.h);");
+    expect(family).toMatch(/candleCutOutRects\(barsRef\.current \?\? \[\], \{[\s\S]*?\}, -1e9, 1e9\);/);
+    expect(family).toContain('ctx.clip(profileCandleCut().path, "evenodd");');
+    const cut = block.search(/ctx\.save\(\); clipToCandleCutOut\(\);\s*const C = LIVING_BODY_CANON;/);
+    const grad = block.indexOf("const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);");
     const fill = block.indexOf("ctx.fillStyle = g; ctx.fill(bodyPath);");
     expect(cut).toBeGreaterThan(-1);
-    expect(fill).toBeGreaterThan(cut);
+    expect(grad).toBeGreaterThan(cut);
+    expect(fill).toBeGreaterThan(grad);
+    // No restore between the cut and the fill: the fill is inside the cut.
+    expect(block.slice(cut, fill)).not.toContain("ctx.restore();");
     expect(block).toMatch(/ctx\.restore\(\); \/\/ releases the candle cut-out/);
   });
 
-  it("the column wash, the memory ghosts and the POC glow and dot paint inside the same cut-out", () => {
+  it("the VAH/VAL rules, the memory ghosts and the POC glow and dot paint inside the same cut-out", () => {
     // Added 2026-09-25 (Sentinel P1-1): with the body sized from bodyW (up to
     // 360px) these reached across ~25 older candles while only the body fill
     // was cut round them.
-    expect(block).toMatch(/ctx\.save\(\); clipToCandleCutOut\(\);\s*ctx\.fillStyle = pk\.rgba\("WASH", 0\.06\);\s*ctx\.fillRect\(rightEdge - bodyW - 4, top, bodyW \+ 8, band\);\s*ctx\.restore\(\);/);
+    // Pin updated 2026-09-25 (P-110 canon pass): the column wash is gone (the
+    // plate has none; the solid body carries "inside value"); the VAH/VAL
+    // rules that replaced it run across the plot BEHIND the candles.
+    const livingOnly = block.slice(0, block.indexOf("const cp = compositeProfileRef.current;"));
+    expect(livingOnly.length).toBeGreaterThan(9000);
+    expect(livingOnly).not.toMatch(/ctx\.fillStyle = pk\.rgba\("WASH", 0\.0[46]\);/);
+    expect(block).toMatch(/ctx\.save\(\); clipToCandleCutOut\(\);\s*const edgeHi = pk\.rgbaAs\("EDGE_HIGH", "ANCHOR", LIVING_BODY_CANON\.edgeRuleAlpha\);/);
+    expect(block).toContain("ctx.restore(); // releases the rules' candle cut-out");
     const ghosts = block.slice(block.indexOf('ctx.globalAlpha = att.alpha("sessionGhosts");'), block.indexOf("ctx.globalAlpha = livingAlpha;"));
     const open = ghosts.indexOf("ctx.save(); clipToCandleCutOut();");
     const close = ghosts.indexOf("ctx.restore(); // releases the ghosts' candle cut-out");
@@ -107,10 +127,16 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
       expect(at, draw).toBeLessThan(close);
     }
     expect(ghosts.indexOf("for (const n of ghostNames) ctx.fillText(n.text, n.x, n.y);")).toBeGreaterThan(close);
+    // Pin updated 2026-09-25 (P-110 canon pass): the dashed POC rule now runs
+    // across the whole plot inside the same cut, and the glow and dot take
+    // the plate's sizes from LIVING_BODY_CANON, at the middle of the POC row.
     const glowAt = block.indexOf("const glow = ctx.createRadialGradient(");
-    const poc = block.slice(glowAt - 60, block.indexOf("releases the POC mark's candle cut-out", glowAt));
-    expect(poc).toMatch(/ctx\.save\(\); clipToCandleCutOut\(\);\s*const glow = ctx\.createRadialGradient\(px, \+yp, 0, px, \+yp, 16\);/);
-    expect(poc).toContain("ctx.arc(px, +yp, 5, 0, Math.PI * 2);");
+    const poc = block.slice(block.lastIndexOf("ctx.save(); clipToCandleCutOut();", glowAt), block.indexOf("releases the POC mark's candle cut-out", glowAt));
+    expect(poc).toMatch(/^ctx\.save\(\); clipToCandleCutOut\(\);\s*ctx\.setLineDash\(\[\.\.\.C\.pocRuleDash\]\);/);
+    expect(poc).toContain("ctx.lineTo(plotRight, Math.round(+yp) + 0.5)");
+    expect(poc).toContain("const glow = ctx.createRadialGradient(px, +yp, 0, px, +yp, C.pocGlowRadius);");
+    expect(poc).toContain("ctx.arc(px, +yp, C.pocDotRadius, 0, Math.PI * 2);");
+    expect(block).toContain("const px = rightEdge - Math.max(1, Math.round(pocBar.share * bodyW)) / 2;");
   });
 
   it("width comes from `share` — a NORMALISED number, never volume — on the body's scale", () => {
@@ -240,10 +266,14 @@ describe("the layer publishes a receipt in every state", () => {
 describe("the Living level names never run under the price axis", () => {
   // Serving TSLA 1h desktop, 2026-09-25: solo, "VAH / POC / VAL" printed right
   // of the lane and the axis cut them to "VA" / "PO".
-  it("a solo label goes right of the lane only when it ends before the plot edge", () => {
-    expect(block).toContain("if (stacked || rightEdge + 4 + ctx.measureText(text).width > plotRight - 2) {");
-    expect(block).toMatch(/stackLabel\(\+yr, text, ink\);\s*livingLabelsInColumn\+\+;/);
-    expect(block).toContain('ds.livingProfileLabels = livingLabelsInColumn > 0 ? `COLUMN:${livingLabelsInColumn}` : "RIGHT";');
+  it("every Living level is a chip right-aligned INSIDE the plot edge (P-110 / M47)", () => {
+    // Pin updated 2026-09-25 (P-110 canon pass): no word right of the lane at
+    // all any more — every level is the family's gold chip, right-aligned to
+    // the plot's edge less LEVEL_CHIP_EDGE_GAP, so no chip can run under the axis.
+    expect(block).not.toContain("ctx.fillText(text, rightEdge + 4, +yr);");
+    expect(block).toMatch(/levelChip\(\+yr, text, ink\);\s*livingChips\+\+;/);
+    expect(block).toContain("ds.livingProfileLabels = `CHIPS:${livingChips}`;");
+    expect(CHART).toContain("const rightX = opts.leftX != null ? opts.leftX + cw : opts.rightX ?? plotRight - LEVEL_CHIP_EDGE_GAP;");
     expect(CHART).toMatch(/"livingProfileCandlesKept", "livingProfileLabels",/);
   });
 });

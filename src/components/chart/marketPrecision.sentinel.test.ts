@@ -44,9 +44,16 @@ describe("profile-family level names quote the same precision", () => {
 describe("the classic VP column's price tags quote the same precision", () => {
   it("computes its own precision from the bars it measured (it can run before the frame's pxDp)", () => {
     expect(CHART).toContain("const vpDp = pricePrecisionFromBars(barsToUse);");
-    expect(CHART).toContain("ctx.fillText(pocPrice.toFixed(vpDp), pocLineLeft - 2, pocTagY);");
+    // Pin updated 2026-09-25 (P-110 canon pass, M47): every VP level — POC
+    // included — is named and chipped through vpPrice, the market's decimals
+    // with thousands grouping. The BTC ≥10,000 rounding ("VAH 64,348") is gone:
+    // it quoted a price the market did not print.
+    expect(CHART).toContain('const vpPrice = (p: number) => p.toLocaleString("en-US", { minimumFractionDigits: vpDp, maximumFractionDigits: vpDp });');
+    expect(CHART).toContain("const word = `${tag} ${vpPrice(p)}`;");
+    expect(CHART).toContain("const chipTxt = vpPrice(p);");
     expect(CHART).toContain('p.toFixed(vpDp)}`;');
     expect(CHART).not.toContain("ctx.fillText(pocPrice.toFixed(2)");
+    expect(CHART).not.toContain('Math.round(p).toLocaleString("en-US")');
   });
 });
 

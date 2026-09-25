@@ -185,6 +185,8 @@ const PROFILE_GEOMETRY_RECEIPTS = [
   "livingProfileForm", "livingProfileDepthForm", "sessionGhosts", "livingProfileMovie", "livingProfileSelected", "livingProfileBodyWidth", "livingProfileCandlesKept", "livingProfileLabels",
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
+  // P-110 canon pass (2026-09-25): the Living rules / solid body / POC mark, the species captions.
+  "livingProfileRules", "livingProfileBodyInk", "livingProfileBodyYields", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption",
 ] as const;
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
@@ -249,6 +251,19 @@ import type { ProfileFusionVM } from "@/lib/marketData/viewModels/selectProfileF
 import type { CompositeProfileVM } from "@/lib/marketData/viewModels/selectCompositeProfile";
 import { selectVisibleRangeProfile, selectTimeRangeProfile, type VisibleRangeProfileVM } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { planProfileStack, soloLane, type StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
+import {
+  LEVEL_CHIP_EDGE_GAP,
+  LEVEL_CHIP_H,
+  LEVEL_CHIP_PAD,
+  LIVING_BODY_CANON,
+  MEMORY_LEVEL_CAP,
+  fusionSilenceWords,
+  levelChipNeedsLeader,
+  levelChipSlots,
+  nearestMemoryLevels,
+  structureProfileForm,
+  structureSilenceWords,
+} from "@/lib/marketData/viewModels/profileCanonGlass";
 import {
   KEEP_OUT_RECEIPTS,
   candleCutOutRects,
@@ -5880,6 +5895,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
+      // The profile family's ONE candle cut-out and the VP columns' chip tally,
+      // per frame (see profileCandleCut in the VP section). Declared HERE, beside
+      // vpDrawn, because big-trades mode runs the VP — and so the cut-out —
+      // before the VP section's own lines are reached.
+      let profileCut: { path: Path2D; rects: ReturnType<typeof candleCutOutRects> } | null = null;
+      const profileCutBy = new Set<string>();
+      let vpChipsPlaced = 0;
+      let vpWordsWithheld = 0;
 
       let bsp = 12;
       try { bsp = chart.timeScale().options().barSpacing ?? 12; } catch {}
@@ -7866,6 +7889,50 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          WM FIXED VP & SESSION VP — right-anchored inside chart
       ══════════════════════════════════════════════════════ */
       /*
+        P-110 · CANDLES STAY CLEAN — ONE candle cut-out for the whole profile
+        family (Founder, 2026-09-25: "work side by side with the visuals canon").
+        On serving (TSLA 15m desktop) Composite and Visible Range laid grey
+        hairline bars THROUGH the newest candles, TPO letters printed on the
+        Sep-18 candles and Structure drew inside the newest cluster; only the
+        Living body was cut round them. Every profile species now paints behind
+        the market: its fill is clipped to "everything except every candle body
+        and wick in view". The rects are the one cut-out owner's (chartKeepOut
+        `candleCutOutRects`: disjoint by construction, so even-odd never
+        re-fills a candle); the Path2D is built once per frame, on first ask.
+        The same rects are the keep-out for every profile WORD, so a level chip
+        or a species caption never prints on a candle body or a wick.
+        FUNCTION DECLARATIONS on purpose: hoisted, so big-trades mode's early
+        runWMVP() (in the footprint section, above this one) can call them.
+      */
+      function profileCandleCut() {
+        if (!profileCut) {
+          const tsP = chart.timeScale();
+          const vrP = tsP.getVisibleLogicalRange();
+          const rects = candleCutOutRects(barsRef.current ?? [], {
+            visible: vrP ? { from: +vrP.from, to: +vrP.to } : null,
+            barSpacing: bsp,
+            timeToX: t => { const xk = tsP.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+            priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+          }, -1e9, 1e9);
+          const path = new Path2D();
+          path.rect(0, 0, W, H);
+          for (const r of rects) path.rect(r.x, r.y, r.w, r.h);
+          profileCut = { path, rects };
+        }
+        return profileCut;
+      }
+      // Clip to "everything except the candles", naming the species for the
+      // receipt (profileCutBy: which species painted inside the cut this frame).
+      function clipProfileToCandles(species: string) {
+        if (!ctx) return;
+        profileCutBy.add(species);
+        ctx.clip(profileCandleCut().path, "evenodd");
+      }
+      // Every candle body and wick under a row band: the keep-out for profile words.
+      function profileCandlesAt(yTop: number, yBot: number) {
+        return profileCandleCut().rects.filter(r => r.y < yBot && r.y + r.h > yTop);
+      }
+      /*
         RETURNS ITS OUTCOME, instead of returning `undefined` into a void.
 
         Five of the guards below are DECLINES: the profile was requested and no
@@ -8102,6 +8169,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // levels — that flag-off change ("sub-row neighbour ramping") produced a
         // solid painted slab and was reverted. Empty buckets draw nothing.
 
+        // P-110 · the column's rows paint BEHIND the candles: every candle
+        // under the column (body and wick) is cut out of its fill. Its numbers
+        // are words, collected here and printed after the cut is released —
+        // a number a candle stands on is withheld, never cut into pieces.
+        const vpSpecies = span === "SESSION" ? "SESSION_VP" : "FIXED_VP";
+        ctx.save();
+        clipProfileToCandles(vpSpecies);
+        const vpWords: { text: string; y: number; poc: boolean; zero: boolean }[] = [];
         let lastLabelY = -Infinity; // de-overlap volume labels
         for (let i = 0; i < nBuckets; i++) {
           const price = Math.round((loKey + i * tickSz) / tickSz) * tickSz;
@@ -8119,12 +8194,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (zyT != null && zyB != null) {
                 const zy = Math.round((zyT + zyB) / 2);
                 if (vpLabelFits(zy, lastLabelY)) {
-                  ctx.font = "11px monospace";
-                  ctx.textAlign = "right"; ctx.textBaseline = "middle";
-                  ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.8)";
-                  ctx.strokeText("0", vpRight - 4, zy);
-                  ctx.fillStyle = "rgba(255,255,255,0.32)";
-                  ctx.fillText("0", vpRight - 4, zy);
+                  vpWords.push({ text: "0", y: zy, poc: false, zero: true });
                   lastLabelY = zy;
                 }
               }
@@ -8180,26 +8250,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = vpUpRgba(((inValue ? 0.55 : 0.30) * alphaScale).toFixed(2));
             ctx.fillRect(vpRight - barW, rowY, barW, rh);
           }
-          if (isPOC) {
-            ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
-            ctx.setLineDash([5, 4]);
-            const pocLineLeft = Math.max(4, vpRight - vpW - 24);
-            ctx.beginPath();
-            ctx.moveTo(pocLineLeft, rowY + Math.round(rowH/2) + 0.5);
-            ctx.lineTo(vpRight - 2, rowY + Math.round(rowH/2) + 0.5);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            // POC price tag so the stationary histogram still has a price anchor —
-            // except inside the header band (bar clock, zoom plate, INSPECT),
-            // where it printed under the chrome. The POC line itself still draws.
-            const pocTagY = rowY + Math.round(rowH/2);
-            if (pocTagY >= HEADER_FLOOR_Y) {
-              ctx.fillStyle = vpPocRgba(0.95);
-              ctx.font = "bold 11px monospace";
-              ctx.textAlign = "right"; ctx.textBaseline = "middle";
-              ctx.fillText(pocPrice.toFixed(vpDp), pocLineLeft - 2, pocTagY);
-            }
-          }
           // Volume numbers — label ONLY the POC and other MAJOR nodes (≥30% of the
           // POC volume), NEVER every level. Printing a number on all ~46 rows turned
           // the profile into a vertical spreadsheet of tiny 0.0x values that buried
@@ -8219,45 +8269,73 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             vpLabelAll ? true : (topLabelPrices.has(price) && !vpZero)
           ));
           if (showLabel) {
-            ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
-            ctx.textAlign = "right"; ctx.textBaseline = "middle";
-            // CRISP dark outline (strokeText) instead of a soft shadowBlur halo — the
-            // blur was what made the VP numbers look fuzzy. Stroke keeps them sharp AND
-            // legible over any bar/candle background.
-            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-            ctx.strokeText(txt, vpRight - 4, midY);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillText(txt, vpRight - 4, midY);
+            vpWords.push({ text: txt, y: midY, poc: isPOC, zero: false });
             lastLabelY = midY;
           }
         }
+        ctx.restore(); // releases the column's candle cut-out
 
-        // ── VAH (blue) & VAL (purple) value-area boxes ──────────────────
-        // Outline the two value-area boundary rows so the trader can instantly
-        // read where 70% of the volume traded. Colors are user-customizable via
-        // the VP gear (wm_vp_vah / wm_vp_val). Drawn after the bars so the
-        // outline sits cleanly on top, with a small price tag at the right edge.
-        const drawVALevel = (p: number, rgba: string, tag: string) => {
+        // The numbers, outside the cut: a number whose box a candle body or wick
+        // crosses is withheld this frame (counted), so none prints on a candle.
+        for (const wd of vpWords) {
+          ctx.font = wd.poc ? "bold 12px monospace" : "11px monospace";
+          const twN = ctx.measureText(wd.text).width;
+          if (rectHits({ x: vpRight - 4 - twN - 2, y: wd.y - 7, w: twN + 4, h: 14 }, profileCandlesAt(wd.y - 7, wd.y + 7)) > 0) {
+            vpWordsWithheld++;
+            continue;
+          }
+          ctx.textAlign = "right"; ctx.textBaseline = "middle";
+          // CRISP dark outline (strokeText) instead of a soft shadowBlur halo — the
+          // blur was what made the VP numbers look fuzzy. Stroke keeps them sharp AND
+          // legible over any bar/candle background.
+          ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = wd.zero ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.9)";
+          ctx.strokeText(wd.text, vpRight - 4, wd.y);
+          ctx.fillStyle = wd.zero ? "rgba(255,255,255,0.32)" : "#ffffff";
+          ctx.fillText(wd.text, vpRight - 4, wd.y);
+          // A printed number is a word on the glass: the level chips below (and
+          // every later chip) step around it instead of printing over it.
+          forceChips.push({ x: vpRight - 4 - twN - 2, y: wd.y - 7, w: twN + 4, h: 14 });
+        }
+
+        /*
+          M47 · THE LEVELS (TSLA Volume Profile Full). POC, VAH and VAL each
+          get the plate's three parts, in the trader's VP inks:
+            · a dashed RULE — faint across the plot, firm across the column —
+              painted behind the candles (the same cut-out as the rows);
+            · the level's NAME at the column's left, "VAH 371.80", above its
+              rule (below it inside the header band);
+            · a filled GOLD PRICE CHIP at the axis edge, on the level's row.
+          Name and chip ask the keep-out owner where they may print against
+          every candle body and wick under their rows and every chip already
+          placed (strict): neither prints on a candle. A name with no clear
+          spot is withheld (its chip still carries the price); a chip with none
+          keeps its row and its fill yields. Prices at the market's precision.
+        */
+        const vpPrice = (p: number) => p.toLocaleString("en-US", { minimumFractionDigits: vpDp, maximumFractionDigits: vpDp });
+        const colLeft = vpRight - vpW - 2;
+        const vpChipRight = Math.min(plotRight - LEVEL_CHIP_EDGE_GAP, vpRight + 8);
+        const vpLevel = (p: number, ink: (a: number) => string, tag: "POC" | "VAH" | "VAL") => {
           const yT = yOf(p + tickSz);
           const yB = yOf(p);
           ctx.save();
           if (yT == null || yB == null) {
+            // POC is carried by its row; off-screen it has no row to carry.
+            if (tag === "POC") { ctx.restore(); return; }
             // ── OFF-SCREEN (zoomed in past the level) ─────────────────────────
             // Instead of vanishing, pin a labelled edge marker with a directional
             // arrow so VAH/VAL stay ALWAYS visible. Determine above/below by
-            // comparing the level price to the prices at the top/bottom edges.
-            let topPrice = NaN, botPrice = NaN;
+            // comparing the level price to the price at the top edge.
+            let topPrice = NaN;
             try {
               topPrice = srs?.coordinateToPrice(0) as number;
-              botPrice = srs?.coordinateToPrice(H) as number;
             } catch {}
             const above = Number.isFinite(topPrice) ? p > topPrice : true;
             // Above: under the header band (bar clock, zoom plate, INSPECT sit
             // over this column at the top), not in it.
             const edgeY = above ? HEADER_FLOOR_Y + 4 : H - 9;
-            ctx.strokeStyle = rgba; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = ink(0.95); ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
             ctx.beginPath();
-            ctx.moveTo(vpRight - vpW - 2, edgeY);
+            ctx.moveTo(colLeft, edgeY);
             ctx.lineTo(vpRight + 2, edgeY);
             ctx.stroke();
             ctx.setLineDash([]);
@@ -8265,44 +8343,76 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const edgeTxt = `${tag} ${above ? "↑" : "↓"} ${p.toFixed(vpDp)}`;
             ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-            ctx.strokeText(edgeTxt, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
-            ctx.fillStyle = rgba;
-            ctx.fillText(edgeTxt, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
+            ctx.strokeText(edgeTxt, colLeft, edgeY + (above ? 8 : -8));
+            ctx.fillStyle = ink(0.95);
+            ctx.fillText(edgeTxt, colLeft, edgeY + (above ? 8 : -8));
             ctx.restore();
             return;
           }
-          // TradingView-style value-area boundary: a single thin DASHED line across
-          // the profile, NOT a full-width outline box. The box (vpW+4 wide) stacked
-          // directly on the footprint numbers — and doubled when Fixed + Session VP
-          // are both on — is what made the VAH/POC/VAL zone read "muddy". A compact
-          // colored tag WITH the actual price sits just above the line at the
-          // profile's left edge, so it never sits on top of the bars' numbers and the
-          // trader can finally read the exact VAH/VAL value on-screen.
           const top  = Math.min(yT, yB);
           const h    = Math.max(7, Math.abs(yB - yT));
           const midY = Math.round(top + h / 2) + 0.5;
-          ctx.strokeStyle = rgba; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
-          ctx.beginPath();
-          ctx.moveTo(vpRight - vpW - 2, midY);
-          ctx.lineTo(vpRight - 2, midY);
-          ctx.stroke();
+          // The rule, behind the candles: faint across the plot, firm across the column.
+          ctx.save();
+          clipProfileToCandles(vpSpecies);
+          ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = ink(0.3);
+          ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(colLeft, midY); ctx.stroke();
+          ctx.strokeStyle = ink(tag === "POC" ? 0.9 : 0.95);
+          ctx.beginPath(); ctx.moveTo(colLeft, midY); ctx.lineTo(vpRight - 2, midY); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.font = "bold 9px monospace";
-          // The tag sits above its line — unless that is inside the header
-          // band (serving NQ1! 5m: "VAH 31,020" printed on "BAR OPENED …");
-          // then it reads just under the line.
-          const tagBelow = midY - 12 < HEADER_FLOOR_Y;
-          const tagY = tagBelow ? Math.max(midY + 2, HEADER_FLOOR_Y) : midY - 1;
-          ctx.textAlign = "left"; ctx.textBaseline = tagBelow ? "top" : "bottom";
-          const tagTxt = `${tag} ${p >= 10000 ? Math.round(p).toLocaleString("en-US") : p.toFixed(vpDp)}`;
-          ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-          ctx.strokeText(tagTxt, vpRight - vpW - 2, tagY);
-          ctx.fillStyle = rgba;
-          ctx.fillText(tagTxt, vpRight - vpW - 2, tagY);
+          ctx.restore();
+          // The name at the column's left, above its rule — unless that is
+          // inside the header band (serving NQ1! 5m: "VAH 31,020" printed on
+          // "BAR OPENED …"); then just under it.
+          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          const word = `${tag} ${vpPrice(p)}`;
+          const ww = Math.ceil(ctx.measureText(word).width) + 4;
+          const tagBelow = midY - 13 < HEADER_FLOOR_Y;
+          const above = { x: colLeft, y: midY - 13, w: ww, h: 12 };
+          const below = { x: colLeft, y: Math.max(midY + 2, HEADER_FLOOR_Y), w: ww, h: 12 };
+          const wordPref = tagBelow ? below : above;
+          const wordAlts = tagBelow ? [] : [below];
+          const wordSpot = placeClearOfKeepOut(wordPref, profileCandlesAt(Math.min(above.y, below.y), below.y + 12), {
+            minX: Math.max(4, colLeft - 120), blockers: forceChips, strict: true, alternates: wordAlts,
+          });
+          if (wordSpot.onCandles) {
+            vpWordsWithheld++;
+          } else {
+            forceChips.push({ ...wordSpot.rect });
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
+            ctx.strokeText(word, wordSpot.rect.x + 2, wordSpot.rect.y + 6);
+            ctx.fillStyle = ink(0.95);
+            ctx.fillText(word, wordSpot.rect.x + 2, wordSpot.rect.y + 6);
+          }
+          // The gold price chip at the axis edge, on the level's own row.
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          const chipTxt = vpPrice(p);
+          const cw = Math.ceil(ctx.measureText(chipTxt).width) + LEVEL_CHIP_PAD;
+          const slots = levelChipSlots({ y: midY, w: cw, rightX: vpChipRight, floorY: HEADER_FLOOR_Y, footY: pane0H - 2 });
+          const chipSpot = placeClearOfKeepOut(slots.preferred, profileCandlesAt(slots.top, slots.bottom), {
+            minX: Math.max(4, colLeft - 40), blockers: forceChips, strict: true, alternates: slots.alternates,
+          });
+          const cr = chipSpot.rect;
+          forceChips.push({ ...cr });
+          vpChipsPlaced++;
+          if (levelChipNeedsLeader(cr, midY, chipSpot.mode === "SLID")) {
+            ctx.strokeStyle = ink(0.6); ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
+            ctx.beginPath(); ctx.moveTo(cr.x + cr.w, cr.y + cr.h / 2); ctx.lineTo(vpChipRight, midY); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.fillStyle = chipSpot.onCandles ? `rgba(11,10,8,${keepOutBackingAlpha(chipSpot, 0.9)})` : ink(0.92);
+          ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
+          if (chipSpot.onCandles) { ctx.strokeStyle = ink(0.9); ctx.lineWidth = 1; ctx.strokeRect(cr.x + 0.5, cr.y + 0.5, cr.w - 1, cr.h - 1); }
+          ctx.fillStyle = chipSpot.onCandles ? ink(1) : "rgba(11,10,8,0.95)";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);
           ctx.restore();
         };
-        if (vahPrice !== pocPrice) drawVALevel(vahPrice, vpVahRgba(0.95), "VAH");
-        if (valPrice !== pocPrice) drawVALevel(valPrice, vpValRgba(0.95), "VAL");
+        vpLevel(pocPrice, vpPocRgba, "POC");
+        if (vahPrice !== pocPrice) vpLevel(vahPrice, vpVahRgba, "VAH");
+        if (valPrice !== pocPrice) vpLevel(valPrice, vpValRgba, "VAL");
 
         // SESSION PROFILE · THE SESSION IS THE FRAME (GP12 Defect 2: "must clip
         // to an actual session definition"). Without a word, the column is
@@ -8446,11 +8556,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (receipt.requested === 0) {
           delete ds.vpRequested; delete ds.vpDrawn; delete ds.vpDeclined;
           delete ds.vpRows; delete ds.vpNote; delete ds.vpAxisClearance;
+          delete ds.vpLevelChips; delete ds.vpWordsWithheld;
         } else {
           ds.vpRequested = String(receipt.requested);
           ds.vpDrawn = String(receipt.drawn);
           ds.vpDeclined = String(receipt.declined);
           ds.vpRows = String(receipt.rows);
+          // M47: how many gold price chips the columns placed, and how many of
+          // their words were withheld because a candle stood where they fell.
+          ds.vpLevelChips = String(vpChipsPlaced);
+          ds.vpWordsWithheld = String(vpWordsWithheld);
           /*
             THE EDGE THE PROFILE WAS ACTUALLY MEASURED AGAINST.
 
@@ -12458,64 +12573,128 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // geometry that is no longer on the glass.
         for (const k of PROFILE_GEOMETRY_RECEIPTS) delete ds[k];
         ds.profileStackLanes = stackOrder.join(",");
-        // The ONE label column. A label that would land on another steps down
-        // a line, so agreeing levels (LIVING POC / CMP POC) never overprint.
-        const stackLabelYs: number[] = [];
-        const stackLabel = (y: number, text: string, ink: string) => {
-          // Step AWAY from the label it collides with, toward its own side:
-          // always stepping down printed a higher VAH beneath the POC, which
-          // inverts the price order the column exists to show.
-          // Nearest FREE row that keeps that order (nearestFreeLabelY): the
-          // old one-row step oscillated between two neighbours and, after eight
-          // tries, printed on both (serving, BTC 1m FAR: LIVING POC / VRP POC /
-          // LIVING VAL as one smear).
-          // Never inside the price legend's band (serving NQ1! 5m, every
-          // species on: "LIVING VAH …" printed over "+0.12% today"). The
-          // words carry the price, so a row just below the band still quotes it.
-          const legendFloor = PRICE_LEGEND_OVERLAY_H + 7;
-          let yy = nearestFreeLabelY(Math.max(y, legendFloor), stackLabelYs, 12);
-          // Two names floored onto one row: the free-row picker keeps the
-          // upper one above — back into the band. Below the band, it steps down.
-          if (yy < legendFloor) {
-            yy = legendFloor;
-            while (stackLabelYs.some(t => Math.abs(t - yy) < 12)) yy += 12;
+        /*
+          P-110 / M47 · THE LEVEL CHIPS — ONE GRAMMAR FOR EVERY SPECIES.
+
+          Serving TSLA 15m desktop, 2026-09-25 (Founder: "work side by side with
+          the visuals canon"): the species named their levels as small grey
+          words in one column LEFT of the stack, whose keep-out saw candle
+          bodies only — "CMP VAH / POC / VAL" printed on the big red Sep-25
+          candle, "VAH 371.80" was a tiny grey word beside the Living body and
+          VAL was not visible at all. The plates name a level with a GOLD PRICE
+          CHIP at the plot's right edge on the level's own row (M47), "VAH
+          5,338.25" (P-110). Every species — Living, Composite, Visible Range,
+          TPO, the fused object — now prints its levels through this placer:
+
+            · slots from `levelChipSlots`: on the rule, just above, just below;
+            · keep-out = the newest bodies ∪ every candle body AND WICK under the
+              slots' rows (`profileCandlesAt`), plus every chip already on the
+              glass (strict) — a chip never prints on a candle or on a chip;
+            · two chips that want one row are stepped apart in price order by
+              the free-row picker (nearestFreeLabelY), never inverted;
+            · a chip that stepped or slid is tied back to its price by a dotted
+              leader; a chip with nowhere clear keeps its row, its fill yields
+              (outline + gold words) and the receipt counts it;
+            · rows never enter the header band (HEADER_FLOOR_Y): the right
+              side's chrome (bar clock, zoom plate, INSPECT, badge) lives there.
+        */
+        const levelChipYs: number[] = [];
+        let levelChipsPlaced = 0;
+        let levelChipsMoved = 0;
+        let levelChipsYielded = 0;
+        // `leftX` anchors a chip by its LEFT end instead (TPO's, beside its column).
+        const levelChip = (y: number, text: string, ink: string, opts: { rightX?: number; leftX?: number; minX?: number; floorY?: number } = {}) => {
+          const floorY = opts.floorY ?? HEADER_FLOOR_Y;
+          const rowFloor = floorY + LEVEL_CHIP_H / 2;
+          let yy = nearestFreeLabelY(Math.max(y, rowFloor), levelChipYs, LEVEL_CHIP_H + 1);
+          // Two names floored onto one row: the free-row picker keeps the upper
+          // one above — back into the band. Below the band, it steps down.
+          if (yy < rowFloor) {
+            yy = rowFloor;
+            while (levelChipYs.some(t => Math.abs(t - yy) < LEVEL_CHIP_H + 1)) yy += LEVEL_CHIP_H + 1;
           }
-          stackLabelYs.push(yy);
+          levelChipYs.push(yy);
           ctx.save();
-          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-          ctx.textAlign = "right";
-          ctx.textBaseline = "middle";
-          // A quiet backing so a label never bleeds into the histogram bars
-          // or a neighbour's label one step away.
-          const lwS = ctx.measureText(text).width;
-          // The column sits where "now" is, so its backing would land on the
-          // forming candle. It slides left along its own row past the newest
-          // bodies, and a dotted leader ties it back to the lane at the true
-          // price; with no room it stays and its backing yields instead.
-          // …and so is every older body on its own row: the column sits left of
-          // the Living body, over history (serving TSLA 1h, 2026-09-25).
-          const spotS = placeClearOfKeepOut(
-            { x: stackPlan.labelRight - lwS - 3, y: yy - 5.5, w: lwS + 5, h: 11 },
-            [...keepOut(), ...rowBodiesAt(yy - 5.5, yy + 5.5)],
-            { minX: keepOutMinX(), blockers: floatingChips },
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          const cw = Math.ceil(ctx.measureText(text).width) + LEVEL_CHIP_PAD;
+          const rightX = opts.leftX != null ? opts.leftX + cw : opts.rightX ?? plotRight - LEVEL_CHIP_EDGE_GAP;
+          // Where the level's own line ends — the point a leader ties back to.
+          const anchorX = opts.leftX ?? rightX;
+          const slots = levelChipSlots({ y: yy, w: cw, rightX, floorY, footY: pane0Bottom - 2 });
+          // A left-anchored chip cannot slide left into the column it names;
+          // its further slots step RIGHT along the same rows instead.
+          const alternates = opts.leftX != null
+            ? [...slots.alternates, ...[40, 80, 120].flatMap(dx => [slots.preferred, ...slots.alternates].map(s => ({ ...s, x: s.x + dx })))]
+            : slots.alternates;
+          const spotL = placeClearOfKeepOut(
+            slots.preferred,
+            [...keepOut(), ...profileCandlesAt(slots.top, slots.bottom)],
+            { minX: Math.max(keepOutMinX(), opts.minX ?? 4), blockers: floatingChips, strict: true, alternates },
           );
-          recordKeepOut(keepOutLedger, spotS);
-          // The column's words join the chip ledger, so a later reading's chip
-          // (the Structure Profile's name / LEG POC) cannot print over them.
-          floatingChips.push({ x: spotS.rect.x, y: spotS.rect.y, w: spotS.rect.w, h: spotS.rect.h });
-          const rightS = spotS.rect.x + lwS + 3;
-          if (spotS.mode === "SLID") {
+          recordKeepOut(keepOutLedger, spotL);
+          const r = spotL.rect;
+          // The chip joins the chip ledger, so a later reading's words step around it.
+          floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+          levelChipsPlaced++;
+          if (spotL.mode !== "CLEAR") levelChipsMoved++;
+          if (spotL.onCandles) levelChipsYielded++;
+          if (levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
             ctx.save();
-            ctx.globalAlpha *= 0.55;
+            ctx.globalAlpha *= 0.6;
             ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
-            ctx.beginPath(); ctx.moveTo(spotS.rect.x + spotS.rect.w + 1, yy); ctx.lineTo(stackPlan.stackLeft, y); ctx.stroke();
+            const fromX = r.x + r.w / 2 < anchorX ? r.x + r.w + 1 : r.x - 1;
+            ctx.beginPath(); ctx.moveTo(fromX, r.y + r.h / 2); ctx.lineTo(anchorX, y); ctx.stroke();
             ctx.restore();
           }
-          ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotS, 0.72)})`;
-          ctx.fillRect(spotS.rect.x, spotS.rect.y, spotS.rect.w, spotS.rect.h);
-          ctx.fillStyle = ink;
-          ctx.fillText(text, rightS, yy);
+          if (spotL.onCandles) {
+            ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotL, 0.9)})`;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+            ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+            ctx.fillStyle = ink;
+          } else {
+            ctx.fillStyle = ink;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+            ctx.fillStyle = "rgba(11,10,8,0.95)";
+          }
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
           ctx.restore();
+        };
+        /*
+          A SPECIES' QUIET WORDS (a caption, a named silence): the same keep-out
+          placer, an outlined dark backing, bone words. Never in the header band,
+          never on a candle body or wick, never on a chip. Returns the rect it
+          took (it joins the chip ledger), or null when there was no row at all.
+        */
+        // `x` is the words' left end, or their RIGHT end with `right: true`.
+        type WordsAt = { x: number; y: number; right?: boolean };
+        const quietWords = (text: string, pref: WordsAt, ink: string, alternates: WordsAt[] = []) => {
+          ctx.save();
+          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          const w = Math.ceil(ctx.measureText(text).width) + 8;
+          const h = 14;
+          const clampX = (a: WordsAt) => Math.max(keepOutMinX(), Math.min(a.right ? a.x - w : a.x, plotRight - w - LEVEL_CHIP_EDGE_GAP));
+          const clampY = (y: number) => Math.max(HEADER_FLOOR_Y, Math.min(y, pane0Bottom - h - 2));
+          const prefR = { x: clampX(pref), y: clampY(pref.y), w, h };
+          const alts = alternates.map(a => ({ x: clampX(a), y: clampY(a.y), w, h }));
+          const rows = [prefR, ...alts];
+          const spotQ = placeClearOfKeepOut(
+            prefR,
+            [...keepOut(), ...profileCandlesAt(Math.min(...rows.map(q => q.y)), Math.max(...rows.map(q => q.y)) + h)],
+            { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts },
+          );
+          recordKeepOut(keepOutLedger, spotQ);
+          const r = spotQ.rect;
+          floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+          ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotQ, 0.82)})`;
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+          ctx.fillStyle = ink;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, r.x + 4, r.y + h / 2 + 0.5);
+          ctx.restore();
+          return r;
         };
 
         /* ══ H-703 · LIVING PROFILE — THE HISTOGRAM ON THE CANVAS ══════════
@@ -12583,18 +12762,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.livingProfileLaneLeft = String(Math.round(rightEdge - histMax));
             ds.livingProfileLaneRight = String(Math.round(rightEdge));
 
-            // CANDLE PRESERVATION (Defect 4): ONE candle cut-out for everything
-            // the body paints in its room — the value column's wash, the memory
-            // ghosts, the body, the POC glow and dot. Every candle under that
-            // room (body and wick) is cut out, so the auction sits BEHIND the
-            // market. Wicks are cut above/below the body only (an overlapping
-            // cut would re-fill the body under even-odd). The room reaches the
-            // glow's 16px radius left of the body. Built once, when first asked.
-            let livingCut: Path2D | null = null;
+            // CANDLE PRESERVATION (Defect 4): everything the body paints — the
+            // VAH/VAL/POC rules, the memory ghosts, the body, its rim, the POC
+            // glow and dot — paints inside the frame's ONE candle cut-out
+            // (profileCandleCut, the whole profile family's), so the auction
+            // sits BEHIND the market. Pin updated 2026-09-25 (P-110 canon pass):
+            // the Path2D moved up to the family, because Composite, Visible
+            // Range, TPO, Structure and Memory were painting through the
+            // candles the Living body was cut round. The receipt still counts
+            // the candles under the body's room (the glow's 16px left of it).
+            let livingCandlesCounted = false;
             const clipToCandleCutOut = () => {
-              if (!livingCut) {
-                const cut = new Path2D();
-                cut.rect(0, 0, W, H);
+              if (!livingCandlesCounted) {
+                livingCandlesCounted = true;
                 let candlesKept = 0;
                 const tsB = chart.timeScale();
                 const vrB = tsB.getVisibleLogicalRange();
@@ -12602,65 +12782,44 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (vrB) {
                   const lo = Math.max(0, Math.floor(vrB.from)), hi = Math.min(barsB.length - 1, Math.ceil(vrB.to));
                   for (let i = lo; i <= hi; i++) {
-                    const b = barsB[i];
-                    const xb = tsB.timeToCoordinate(b.time as never);
+                    const xb = tsB.timeToCoordinate(barsB[i].time as never);
                     if (xb == null || +xb < rightEdge - bodyW - 16 - bsp || +xb > rightEdge + bsp) continue;
-                    const yo = srs.priceToCoordinate(b.open), yc = srs.priceToCoordinate(b.close);
-                    const yhB = srs.priceToCoordinate(b.high), ylB = srs.priceToCoordinate(b.low);
-                    if (yo == null || yc == null) continue;
-                    const top = Math.min(+yo, +yc) - 1, bot = Math.max(+yo, +yc) + 1;
-                    cut.rect(+xb - bsp * 0.42, top, bsp * 0.84, bot - top);
-                    if (yhB != null && +yhB < top) cut.rect(+xb - 1, +yhB - 1, 2, top - +yhB + 1);
-                    if (ylB != null && +ylB > bot) cut.rect(+xb - 1, bot, 2, +ylB - bot + 1);
                     candlesKept++;
                   }
                 }
                 ds.livingProfileCandlesKept = String(candlesKept);
-                livingCut = cut;
               }
-              ctx.clip(livingCut, "evenodd");
+              clipProfileToCandles("LIVING");
             };
 
             /*
-              VALUE-AREA BAND — across the entire pane, not just the histogram.
-              §B5 said no full-width paint that eats candles; this obeys it
-              by keeping alpha at 4% ivory, faint enough that candles read
-              through unchanged and yet visible enough that "inside value"
-              vs "outside value" is a glance. Two horizontal hairlines at
-              VAH and VAL give the band real edges without hue.
+              P-110 · VAH AND VAL ARE SOLID GOLD RULES ACROSS THE PLOT. The
+              plate draws the value area's edges as two thin solid gold lines
+              from the plot's left edge to the axis, crossing the body; the
+              words ride at the right edge (the level chips, below). The 4%
+              full-pane ivory wash and the 6% column wash are gone: P-110 has
+              neither, and the solid body now carries "inside value" itself.
+              Behind the candles: the rules break at every candle they cross.
+              EDGE, resting in Living's brass; one path while both sides share
+              an ink (the glass at rest), two only once VAH and VAL were given two.
             */
             if (lp.vah != null && lp.val != null) {
               const yh = srs.priceToCoordinate(lp.vah);
               const yl = srs.priceToCoordinate(lp.val);
               if (yh != null && yl != null) {
-                const top = Math.min(+yh, +yl);
-                const bot = Math.max(+yh, +yl);
-                const band = Math.max(1, bot - top);
-                ctx.fillStyle = pk.rgba("WASH", 0.04);
-                ctx.fillRect(0, top, W, band);
-                // Denser fill only inside the histogram column so the two
-                // meanings — value area, and where the histogram itself
-                // sits — read together instead of one washing out the other.
-                // The column spans the body's room, so it is cut round the candles.
                 ctx.save(); clipToCandleCutOut();
-                ctx.fillStyle = pk.rgba("WASH", 0.06);
-                ctx.fillRect(rightEdge - bodyW - 4, top, bodyW + 8, band);
-                ctx.restore();
-                // Hairlines at VAH/VAL across the pane so the boundaries
-                // register even where the fill is faint. EDGE, resting in
-                // Living's brass; one path while both sides share an ink (the
-                // glass at rest), two only once VAH and VAL were given two.
-                const edgeHi = pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.5);
-                const edgeLo = pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.5);
+                const edgeHi = pk.rgbaAs("EDGE_HIGH", "ANCHOR", LIVING_BODY_CANON.edgeRuleAlpha);
+                const edgeLo = pk.rgbaAs("EDGE_LOW", "ANCHOR", LIVING_BODY_CANON.edgeRuleAlpha);
                 ctx.strokeStyle = edgeHi;
                 ctx.lineWidth = 1;
                 ctx.setLineDash([]);
                 ctx.beginPath();
-                ctx.moveTo(0, +yh + 0.5); ctx.lineTo(W, +yh + 0.5);
+                ctx.moveTo(0, Math.round(+yh) + 0.5); ctx.lineTo(plotRight, Math.round(+yh) + 0.5);
                 if (edgeLo !== edgeHi) { ctx.stroke(); ctx.strokeStyle = edgeLo; ctx.beginPath(); }
-                ctx.moveTo(0, +yl + 0.5); ctx.lineTo(W, +yl + 0.5);
+                ctx.moveTo(0, Math.round(+yl) + 0.5); ctx.lineTo(plotRight, Math.round(+yl) + 0.5);
                 ctx.stroke();
-                ctx.setLineDash([]);
+                ctx.restore(); // releases the rules' candle cut-out
+                ds.livingProfileRules = "VAH+VAL";
               }
             }
 
@@ -12802,14 +12961,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             /*
-              POC · VAH · VAL — three reference lines the compiler already
-              chose. Cross the whole width the histogram occupies so they
-              read as levels the profile itself carries, not as separate
-              annotations. POC gets brass; VAH/VAL share a weaker ivory
-              because value-area BOUNDARIES are not sides — a trader who
-              trades against VAH tomorrow was trading with it yesterday, and
-              a colour that spent one meaning on the first is lying to them
-              on the second.
+              POC · VAH · VAL across the body — three reference lines the
+              compiler already chose, drawn brighter where they cross the body
+              so they read as levels the profile itself carries (P-110: the
+              rules run on through the gold). Behind the candles, like the body.
+              VAH/VAL are EDGE resting in ANCHOR's brass — value-area BOUNDARIES
+              are not sides; a colour that spent one meaning on the first would
+              lie on the second.
             */
             const drawRef = (
               price: number | null | undefined,
@@ -12820,6 +12978,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
               const y = Math.round(+yr) + 0.5;
+              ctx.save(); clipToCandleCutOut();
               ctx.strokeStyle = ink;
               ctx.lineWidth = 1;
               ctx.setLineDash(dashed ? [3, 4] : []);
@@ -12827,6 +12986,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.moveTo(rightEdge - bodyW - 4, y);
               ctx.lineTo(rightEdge + 2, y);
               ctx.stroke();
+              ctx.restore(); // releases the reference line's candle cut-out
             };
             // The silhouette's edge, traced through the row tips ONE CONTIGUOUS
             // RUN AT A TIME. An untraded bucket is not drawn, so a gap between
@@ -12860,18 +13020,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 bodyPath.lineTo(rightEdge, last.y);
                 bodyPath.closePath();
               }
-              // CANDLE PRESERVATION (Defect 4): the body is the auction BEHIND
-              // the candles, filled inside the one candle cut-out, so the
-              // newest bars stay crisp where the body is brightest.
+              /*
+                P-110 · THE BODY IS ONE SOLID LUMINOUS GOLD MASS. Serving (TSLA
+                15m, 2026-09-25) showed a 4–40% wash under a thin outline — "far
+                below P110". The body is now filled solid (LIVING_BODY_CANON):
+                the tails at ~0.5–0.6, value (VAL…VAH) at ~0.8–0.9 — the same
+                body, lit where the auction accepted — with row seams so it still
+                reads as rows, and a lit rim with a soft glow along its edge.
+                CANDLE PRESERVATION (Defect 4): all of it inside the one candle
+                cut-out, so a solid body can never tint a candle — the newest
+                bars stand crisp in the gold.
+              */
               ctx.save(); clipToCandleCutOut();
-              // The body: brightest at its base by the newest bars, fading
-              // toward the tips so the candles under it stay readable.
+              const C = LIVING_BODY_CANON;
+              // …and it YIELDS to every word already on the glass in its room
+              // (the chip ledger: order-flow chips, big-trade discs, captions):
+              // a solid body must not bury another reading's words. One clip
+              // per chip, so overlapping chips never re-fill under even-odd.
+              const bodyYields = floatingChips.filter(c => c.x < rightEdge + 2 && c.x + c.w > rightEdge - bodyW - 2);
+              for (const c of bodyYields) {
+                const hole = new Path2D();
+                hole.rect(0, 0, W, H);
+                hole.rect(c.x - 2, c.y - 1, c.w + 4, c.h + 2);
+                ctx.clip(hole, "evenodd");
+              }
+              ds.livingProfileBodyYields = String(bodyYields.length);
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
-              g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", 0.40));
-              g.addColorStop(0.55, pk.rgbaAs("VALUE", "ANCHOR", 0.16));
-              g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", 0.04));
+              g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", C.tailBase));
+              g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", C.tailTip));
               ctx.fillStyle = g; ctx.fill(bodyPath);
-              // Value is where the auction accepted: lit brighter inside
+              // Value is where the auction accepted: the densest gold inside
               // VAL…VAH, the same body — not a second shape.
               if (lp.vah != null && lp.val != null) {
                 const yh = srs.priceToCoordinate(lp.vah), yl = srs.priceToCoordinate(lp.val);
@@ -12879,48 +13057,64 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.save();
                   ctx.beginPath(); ctx.rect(rightEdge - bodyW - 2, Math.min(+yh, +yl), bodyW + 4, Math.abs(+yl - +yh)); ctx.clip();
                   const gv = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
-                  gv.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", 0.34));
-                  gv.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", 0.06));
+                  gv.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", C.valueBase));
+                  gv.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", C.valueTip));
                   ctx.fillStyle = gv; ctx.fill(bodyPath);
                   ctx.restore();
                 }
               }
+              // Row seams — P-110's striations — only where a row is tall
+              // enough that a 1px seam reads as a seam and not as a gap.
+              if (rowH >= C.seamMinRowPx) {
+                ctx.save();
+                ctx.clip(bodyPath);
+                ctx.fillStyle = `rgba(11,10,8,${C.seamAlpha})`;
+                for (const q of silhouette) ctx.fillRect(q.x - 2, Math.round(q.y - rowH / 2), rightEdge - q.x + 4, 1);
+                ctx.restore();
+              }
+              // The lit rim: Living's lit gold at rest, the trader's POC ink
+              // once chosen, with a soft glow — the plate's luminous edge.
+              ctx.shadowColor = pk.chosenOr("POC", 0.6, "rgba(233,196,106,0.6)");
+              ctx.shadowBlur = C.rimGlow;
+              ctx.strokeStyle = pk.chosenOr("POC", C.rimAlpha, `rgba(233,196,106,${C.rimAlpha})`);
+              ctx.lineWidth = C.rimWidth; ctx.stroke(edgePath);
               ctx.restore(); // releases the candle cut-out
-              // The edge: Living's lit gold at rest, the trader's POC ink once chosen.
-              ctx.strokeStyle = pk.chosenOr("POC", 0.85, "rgba(233,196,106,0.85)");
-              ctx.lineWidth = 1.2; ctx.stroke(edgePath);
               ds.livingProfileForm = `BODY:${runPts.length}`;
+              ds.livingProfileBodyInk = `SOLID:${C.valueBase}-${C.valueTip}`;
             } else if (livingDepth === "FAR") {
               ds.livingProfileForm = "SKELETON";
             } else {
               delete ds.livingProfileForm;
             }
-            drawRef(lp.poc, pk.rgba("POC", 0.90), false);
+            drawRef(lp.poc, pk.rgba("POC", 0.95), false);
             // Canon: VAH/VAL are solid gold lines, not ivory dashes — EDGE,
             // resting in ANCHOR's brass until the trader picks VAH/VAL inks.
-            drawRef(lp.vah, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.80), false);
-            drawRef(lp.val, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.80), false);
+            drawRef(lp.vah, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.95), false);
+            drawRef(lp.val, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.95), false);
             ctx.setLineDash([]);
-            // Canon: the POC is a gold point ON the profile, with a dashed
-            // line carried across the market.
+            // Canon P-110: the POC is a glowing gold point ON the body — at the
+            // middle of its row — on a dashed gold rule carried across the
+            // whole plot, behind the candles.
             if (lp.poc != null && livingDepth !== "FAR") {
               const yp = srs.priceToCoordinate(lp.poc);
               const pocBar = lp.bars.find(b => b.isPoc);
               if (yp != null && pocBar) {
-                const px = rightEdge - Math.max(1, Math.round(pocBar.share * bodyW));
-                ctx.setLineDash([4, 4]); ctx.strokeStyle = pk.rgba("POC", 0.55); ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(0, Math.round(+yp) + 0.5); ctx.lineTo(px - 8, Math.round(+yp) + 0.5); ctx.stroke(); ctx.setLineDash([]);
-                // The auction's heaviest price glows at the body's peak (P110),
-                // which sits over older candles: glow and dot are cut round them.
+                const px = rightEdge - Math.max(1, Math.round(pocBar.share * bodyW)) / 2;
+                const C = LIVING_BODY_CANON;
                 ctx.save(); clipToCandleCutOut();
-                const glow = ctx.createRadialGradient(px, +yp, 0, px, +yp, 16);
-                glow.addColorStop(0, pk.chosenOr("POC", 0.55, "rgba(240,200,100,0.55)"));
+                ctx.setLineDash([...C.pocRuleDash]); ctx.strokeStyle = pk.rgba("POC", C.pocRuleAlpha); ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(0, Math.round(+yp) + 0.5); ctx.lineTo(plotRight, Math.round(+yp) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                // The auction's heaviest price glows on the body (P110); the
+                // glow and dot are cut round any candle standing there.
+                const glow = ctx.createRadialGradient(px, +yp, 0, px, +yp, C.pocGlowRadius);
+                glow.addColorStop(0, pk.chosenOr("POC", 0.7, "rgba(240,200,100,0.7)"));
                 glow.addColorStop(1, pk.chosenOr("POC", 0, "rgba(240,200,100,0)"));
-                ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, +yp, 16, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(px, +yp, 5, 0, Math.PI * 2);
+                ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, +yp, C.pocGlowRadius, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(px, +yp, C.pocDotRadius, 0, Math.PI * 2);
                 ctx.fillStyle = pk.chosenOr("POC", 1, "rgba(240,200,100,1)"); ctx.fill();
                 ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
                 ctx.restore(); // releases the POC mark's candle cut-out
+                ds.livingProfilePocMark = `DOT:${Math.round(px)},${Math.round(+yp)}`;
               }
             }
 
@@ -12953,13 +13147,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             /*
-              PRICE LABELS on POC · VAH · VAL, right of the histogram, so the
-              trader can quote the levels without reading them off the axis.
-              Small type, brass on POC and muted ivory on the boundaries.
+              P-110 / M47 · THE LEVELS ARE NAMED AT THE RIGHT EDGE — a gold
+              price chip on each level's own row ("VAH 371.80"), through the
+              one level-chip placer (keep-out: every candle body and wick, every
+              chip on the glass). Serving TSLA 15m, 2026-09-25: "VAH 371.80" was
+              a tiny grey word left of the body and VAL was not visible at all.
+              Tagged LIVING only when another species shares the edge.
             */
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
             const label = (
               price: number | null | undefined,
               text: string,
@@ -12968,44 +13162,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (price == null) return;
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
-              ctx.fillStyle = ink;
-              // Stacked: the lane to the right belongs to another profile, so
-              // the labels sit on the LEFT of this histogram instead. Solo, a
-              // label goes right of the lane only when it ENDS before the price
-              // axis — the solo lane sits at a fixed W − 76, and on a wide axis
-              // the words ran under it and read "VA" / "PO" (serving, TSLA 1h
-              // desktop, 2026-09-25). Otherwise it joins the one column too.
-              if (stacked || rightEdge + 4 + ctx.measureText(text).width > plotRight - 2) {
-                stackLabel(+yr, text, ink);
-                livingLabelsInColumn++;
-              } else {
-                ctx.fillText(text, rightEdge + 4, +yr);
-              }
+              levelChip(+yr, text, ink);
+              livingChips++;
             };
             const tag = stacked ? "LIVING " : "";
-            let livingLabelsInColumn = 0;
+            let livingChips = 0;
             if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.80));
-            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.80));
-            ds.livingProfileLabels = livingLabelsInColumn > 0 ? `COLUMN:${livingLabelsInColumn}` : "RIGHT";
+            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
+            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
+            ds.livingProfileLabels = `CHIPS:${livingChips}`;
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
               reading of bar volume, and it says so where the trader is
-              looking — under the histogram — along with the one claim it
-              withholds. Muted ivory: an honesty note, not an alarm.
+              looking — under the body — along with the one claim it withholds.
+              Muted ivory: an honesty note, not an alarm. Placed like every
+              profile word: never on a candle, never on a chip.
             */
             if (lp.estimated || lp.nodesWithheld) {
               const anchor = lp.val ?? lp.poc;
               const ya = anchor != null ? srs.priceToCoordinate(anchor) : null;
               if (ya != null) {
-                ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
-                ctx.textAlign = "right";
-                ctx.fillStyle = pk.rgba("TAIL", 0.70);
                 const words = [lp.estimated ? "CANDLE-ESTIMATED" : null, lp.nodesWithheld ? "NODES WITHHELD" : null]
                   .filter(Boolean).join(" · ");
-                ctx.fillText(words, rightEdge, +ya + 14);
-                ctx.textAlign = "left";
+                quietWords(words, { x: rightEdge - bodyW, y: +ya + 8 }, pk.rgba("TAIL", 0.85), [{ x: rightEdge - bodyW, y: +ya + 24 }]);
               }
             }
 
@@ -13141,6 +13321,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // running into the composite's lane, with faint dividers rising
               // from each tick. N sessions → one profile, without the word.
               {
+                // The dividers rise through the candle field: behind the candles.
+                ctx.save(); clipProfileToCandles("COMPOSITE");
                 const tsC = chart.timeScale();
                 // At the FOOT OF THE CANDLE PANE, measured — not a fraction of
                 // the container, which includes the time axis and any stacked
@@ -13167,6 +13349,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.moveTo(16, yB - 5); ctx.lineTo(10, yB); ctx.lineTo(16, yB + 5); ctx.stroke();
                 }
                 ds.compositeGeometry = `SEDIMENT:${cp.sessionStarts.length}sessions:${xs.length}onscreen`;
+                ctx.restore(); // releases the sediment's candle cut-out
               }
               const width = lane.width * stackWidth("COMPOSITE", stackPrefsRef.current);
               const ys: number[] = [];
@@ -13182,6 +13365,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               let drawn = 0;
               let top = Infinity;
               let strataDrawn = 0;
+              // P-110 · BEHIND THE CANDLES. Serving TSLA 15m (2026-09-25): grey
+              // hairline bars ran through the newest candles. The rows now paint
+              // inside the family's one candle cut-out, in the family's ink —
+              // settled value in bone (VALUE), its tails in the recessed voice,
+              // the POC in the family's gold — so Composite reads as the same
+              // organism as Living, a quieter, settled one.
+              ctx.save(); clipProfileToCandles("COMPOSITE");
               for (const r of cp.rows) {
                 const yr = srs.priceToCoordinate(r.price);
                 if (yr == null) continue;
@@ -13191,8 +13381,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // each row is laid down session by session — the oldest at the
                 // base, each newer session's volume on top, firmer with recency,
                 // a hairline seam between strata. N sessions → one profile,
-                // visible in the shape without the word. Settled steel keeps
-                // Composite apart from live value; the POC row is the family's POC.
+                // visible in the shape without the word.
                 const hRow = Math.max(1, rowH - 1);
                 const total = r.volume > 0 ? r.volume : 1;
                 const nS = r.bySession.length;
@@ -13202,10 +13391,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const segW = w * (v / total);
                   const age = nS > 1 ? k / (nS - 1) : 1;
                   ctx.fillStyle = r.isPoc
-                    ? pk.rgba("POC", +(0.55 + 0.3 * age).toFixed(2))
+                    ? pk.rgba("POC", +(0.62 + 0.3 * age).toFixed(2))
                     : r.insideValueArea
-                      ? `rgba(184,190,196,${(0.30 + 0.30 * age).toFixed(2)})`
-                      : `rgba(160,166,172,${(0.14 + 0.16 * age).toFixed(2)})`;
+                      ? pk.rgba("VALUE", +(0.34 + 0.34 * age).toFixed(2))
+                      : pk.rgbaAs("TAIL", "VALUE", +(0.16 + 0.2 * age).toFixed(2));
                   ctx.fillRect(xs - segW, y, segW, hRow);
                   if (segW >= 3 && xs < right) {
                     ctx.fillStyle = "rgba(11,10,8,0.55)";
@@ -13217,32 +13406,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 top = Math.min(top, y);
                 drawn++;
               }
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-              ctx.textAlign = "right";
-              ctx.textBaseline = "middle";
+              ctx.restore(); // releases the Composite's candle cut-out
+              // The levels, named the family's one way: a price chip at the
+              // plot's right edge on the level's own row (never on a candle).
               const lab = (price: number | null, text: string, ink: string) => {
                 if (price == null) return;
                 const yr = srs.priceToCoordinate(price);
                 if (yr == null) return;
-                if (stackPlan.stacked) { stackLabel(+yr, text, ink); return; }
-                ctx.fillStyle = ink;
-                ctx.fillText(text, right - width - 8, +yr);
+                levelChip(+yr, text, ink);
               };
               lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.chosenOr("EDGE_HIGH", 0.85, "rgba(184,190,196,0.85)"));
-              lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.chosenOr("EDGE_LOW", 0.85, "rgba(184,190,196,0.85)"));
+              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
+              lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
               if (Number.isFinite(top)) {
+                // The species' caption rides just above its own lane — no longer
+                // a fixed row at y=50 inside the header band, where it sat under
+                // the semantic badge and INSPECT (serving, 2026-09-25).
                 const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED`;
-                const tw = Math.ceil(ctx.measureText(text).width) + 8;
-                const tx = Math.max(4, right - tw);
-                // Stack headers own fixed rows under the top chrome: they can
-                // never cover each other, whatever the profiles' price range.
-                const ty = 50;
-                ctx.fillStyle = "rgba(11,10,8,0.85)";
-                ctx.fillRect(tx, ty - 7, tw, 14);
-                ctx.textAlign = "left";
-                ctx.fillStyle = "rgba(184,190,196,0.95)";
-                ctx.fillText(text, tx + 4, ty);
+                const capR = quietWords(text, { x: right, y: top - 18, right: true }, pk.rgba("VALUE", 0.9), [{ x: right, y: top - 34, right: true }]);
+                ds.compositeCaption = `${Math.round(capR.x)},${Math.round(capR.y)}`;
               }
               ctx.restore();
               ds.compositeProfileRows = String(drawn);
@@ -13272,9 +13454,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.save(); ctx.globalAlpha = att.alpha("visibleRangeProfile");
             const right = lane.right;
             const width = lane.width * stackWidth("VISIBLE_RANGE", stackPrefsRef.current);
-            // GARDEN 12 · "MEASURED ACROSS WHAT YOU SEE", drawn: viewfinder
-            // corners at the camera's first bar and at the profile, joined by
-            // rails along the range's high and low. Pan and they move with it.
+            // GARDEN 12 · "MEASURED ACROSS WHAT YOU SEE", drawn: rails along the
+            // camera's traded high and low, running from the camera's first bar
+            // into brackets that hug the profile. Pan and they move with it.
+            // Pin updated 2026-09-25 (P-110 canon pass): the two corners at the
+            // camera's first bar are gone — the range always starts at the left
+            // edge, so they read as stray brackets on serving (TSLA 15m). The
+            // rails run behind the candles (the family's one cut-out).
             {
               // The rails are the camera's traded extremes, not the row keys
               // (bucket floors), which sat up to a tick under the top wick.
@@ -13283,18 +13469,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const xF = vrpVM.from != null ? chart.timeScale().timeToCoordinate(vrpVM.from as never) : null;
               if (yH != null && yL != null) {
                 const x0v = Math.max(2, xF == null ? 2 : +xF), x1v = right - width - 4, c = 10;
-                // The viewfinder is the camera's hardware, drawn in ivory.
+                ctx.save(); clipProfileToCandles("VISIBLE_RANGE");
+                // The brackets are the camera's hardware, drawn in ivory.
                 ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.8); ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.moveTo(x0v, +yH + c); ctx.lineTo(x0v, +yH); ctx.lineTo(x0v + c, +yH);
-                ctx.moveTo(x0v, +yL - c); ctx.lineTo(x0v, +yL); ctx.lineTo(x0v + c, +yL);
                 ctx.moveTo(x1v - c, +yH); ctx.lineTo(x1v, +yH); ctx.lineTo(x1v, +yH + c);
                 ctx.moveTo(x1v - c, +yL); ctx.lineTo(x1v, +yL); ctx.lineTo(x1v, +yL - c);
                 ctx.stroke();
                 ctx.setLineDash([1, 5]); ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.22); ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(x0v + c + 2, Math.round(+yH) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yH) + 0.5);
-                ctx.moveTo(x0v + c + 2, Math.round(+yL) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yL) + 0.5); ctx.stroke(); ctx.setLineDash([]);
-                ds.visibleRangeGeometry = `VIEWFINDER:${Math.round(x0v)}-${Math.round(x1v)}`;
+                ctx.beginPath(); ctx.moveTo(x0v, Math.round(+yH) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yH) + 0.5);
+                ctx.moveTo(x0v, Math.round(+yL) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yL) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                ctx.restore(); // releases the rails' candle cut-out
+                ds.visibleRangeGeometry = `RAILS:${Math.round(x0v)}-${Math.round(x1v)}`;
               }
             }
             const ys: number[] = [];
@@ -13310,6 +13496,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let drawn = 0;
             let top = Infinity;
             ctx.lineWidth = 1;
+            // P-110 · BEHIND THE CANDLES: serving showed these as grey
+            // hairlines through the newest candles. Same hollow "this camera"
+            // form, in the family's ink, inside the one candle cut-out.
+            ctx.save(); clipProfileToCandles("VISIBLE_RANGE");
             for (const r of vrpVM.rows) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
@@ -13317,39 +13507,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const w = Math.max(1, Math.round(r.share * width));
               const h = Math.max(1, rowH - 1);
               // Hollow "this camera" bars: TAIL rests in the value ivory, fainter.
-              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.35) : r.insideValueArea ? pk.rgba("VALUE", 0.14) : pk.rgbaAs("TAIL", "VALUE", 0.06);
+              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.45) : r.insideValueArea ? pk.rgba("VALUE", 0.2) : pk.rgbaAs("TAIL", "VALUE", 0.08);
               ctx.fillRect(right - w, y, w, h);
-              ctx.strokeStyle = r.isPoc ? pk.rgba("POC", 0.95) : r.insideValueArea ? pk.rgba("VALUE", 0.55) : pk.rgbaAs("TAIL", "VALUE", 0.28);
+              ctx.strokeStyle = r.isPoc ? pk.rgba("POC", 0.95) : r.insideValueArea ? pk.rgba("VALUE", 0.65) : pk.rgbaAs("TAIL", "VALUE", 0.32);
               if (h >= 3) ctx.strokeRect(right - w + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
               top = Math.min(top, y);
               drawn++;
             }
+            ctx.restore(); // releases the rows' candle cut-out
+            // The levels, named the family's one way: a price chip at the
+            // plot's right edge on the level's own row (never on a candle).
             const lab = (price: number | null, text: string, ink: string) => {
               if (price == null) return;
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
-              if (stackPlan.stacked) { stackLabel(+yr, text, ink); return; }
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-              ctx.textAlign = "right";
-              ctx.textBaseline = "middle";
-              ctx.fillStyle = ink;
-              ctx.fillText(text, right - width - 8, +yr);
+              levelChip(+yr, text, ink);
             };
             lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.75));
-            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.75));
+            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.85));
+            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.85));
             if (Number.isFinite(top)) {
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              // Just above its own lane — no longer a fixed row at y=66 inside
+              // the header band, where it collided with the semantic badge
+              // "MID · ZONES + PROFILE SPEAK" and INSPECT (serving, 2026-09-25).
               const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW`;
-              const tw = Math.ceil(ctx.measureText(text).width) + 8;
-              const tx = Math.max(4, right - tw);
-              const ty = 66;
-              ctx.fillStyle = "rgba(11,10,8,0.85)";
-              ctx.fillRect(tx, ty - 7, tw, 14);
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.92);
-              ctx.fillText(text, tx + 4, ty);
+              const capR = quietWords(text, { x: right, y: top - 18, right: true }, pk.rgbaAs("ANCHOR", "VALUE", 0.92), [{ x: right, y: top - 34, right: true }]);
+              ds.visibleRangeCaption = `${Math.round(capR.x)},${Math.round(capR.y)}`;
             }
             ctx.restore();
             ds.visibleRangeProfileRows = String(drawn);
@@ -13405,6 +13588,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // profile (magnet light, semantic density), so it can never be
               // louder than the candles it sits beside.
               const fuseA = att.alpha("fusedObject");
+              // Behind the candles, like every species it was fused from.
+              ctx.save(); clipProfileToCandles("FUSED");
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
                 if (y0 == null || y1 == null) continue;
@@ -13417,6 +13602,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.globalAlpha = fuseA * (inVa ? 0.95 : 0.55);
                 ctx.strokeRect(spanR - w + 0.5, Math.min(+y0, +y1) + 0.5, w - 1, h);
               }
+              ctx.restore(); // releases the fused body's candle cut-out
               ctx.globalAlpha = fuseA;
               // PARENT A + PARENT B → DERIVED. Each parent's OWN POC (hollow
               // ring, at its own lane) sends a tributary that converges on the
@@ -13457,7 +13643,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.setLineDash(dash);
                 ctx.beginPath(); ctx.moveTo(spanL, +y); ctx.lineTo(spanR, +y); ctx.stroke();
                 ctx.setLineDash([]);
-                stackLabel(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
+                levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
               };
               ctx.lineWidth = 2;
               line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, []);
@@ -13525,6 +13711,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             for (const c of tpoYields) ctx.rect(c.x - 2, c.y - 1, c.w + 4, c.h + 2);
             ctx.clip("evenodd");
             ds.tpoYields = String(tpoYields.length);
+            // …AND TPO YIELDS TO THE CANDLES. Serving TSLA 15m (2026-09-25): the
+            // letter columns printed ON TOP of the Sep-18 candles. A cell (a
+            // letter, or a block) whose box a candle body or wick crosses is
+            // withheld — its slot stays empty, so the row keeps its extent and
+            // the hole says a candle stands there — and the family's candle
+            // cut-out is intersected with the chrome clip as the last word, so
+            // no stroke of a glyph can land on a candle either.
+            clipProfileToCandles("TPO");
+            const tpoCandles = profileCandleCut().rects.filter(c => c.x < leftEdge + colMax + 8 && c.x + c.w > leftEdge - 8);
+            const onCandle = (x: number, y: number, w: number, h: number) =>
+              tpoCandles.some(c => c.x < x + w && c.x + c.w > x && c.y < y + h && c.y + c.h > y);
+            let tpoCellsYielded = 0;
 
             // Row height from on-screen spacing between successive grid rows,
             // same rule as the volume histogram so the two read at one scale.
@@ -13582,6 +13780,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const L = r.letters.charCodeAt(k) - 65;
                 const late = Math.min(1, L / lastL);
                 const x = leftEdge + k * cellW;
+                if (onCandle(x, y, cellW, h)) { tpoCellsYielded++; continue; }
                 if (asText) {
                   ctx.fillStyle = ink(rgb, base * (0.35 + 0.65 * late));
                   ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);
@@ -13596,7 +13795,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // SINGLE PRINT — the auction passed through once and never
               // returned. A short brass tick OUTSIDE the column, so it reads
               // as a mark on the row and not as a longer bar.
-              if (r.single) {
+              if (r.single && !onCandle(leftEdge - 6, y, 3, h)) {
                 ctx.fillStyle = pk.rgba("ANCHOR", 0.85);
                 ctx.fillRect(leftEdge - 6, y, 3, h);
                 drawnSingles++;
@@ -13604,10 +13803,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             // TPO POC / VAH / VAL: short reference strokes across the column
-            // and a label at its right, so the levels are quotable.
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
+            // (behind the candles, inside the clip above), and the family's
+            // level chip just right of the column — so the levels are quotable
+            // in the same grammar as every other species, never on a candle.
+            const tpoChips: { y: number; text: string; ink: string }[] = [];
             const ref = (price: number | null, text: string, ink: string, dashed: boolean) => {
               if (price == null) return;
               const yr = srs.priceToCoordinate(price);
@@ -13620,14 +13819,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.lineTo(leftEdge + colMax + 4, y);
               ctx.stroke();
               ctx.setLineDash([]);
-              ctx.fillStyle = ink;
-              ctx.fillText(text, leftEdge + colMax + 8, y);
+              tpoChips.push({ y, text, ink });
             };
             ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(pxDp) ?? ""}`, pk.rgba("POC", 0.95), false);
-            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "TAIL", 0.75), true);
-            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_LOW", "TAIL", 0.75), true);
+            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.88), true);
+            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.88), true);
 
+            ctx.restore(); // releases TPO's chrome + candle clips
+            // The chips print outside the clips (a chip is placed clear of the
+            // candles; it is never cut into pieces by one), at TPO's loudness.
+            ctx.save(); ctx.globalAlpha = att.alpha("tpo");
+            for (const c of tpoChips) levelChip(c.y, c.text, c.ink, { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
             ctx.restore();
+            ds.tpoCellsYielded = String(tpoCellsYielded);
             ds.tpoProfileRows = String(drawnRows);
             ds.tpoProfilePeriods = String(tpo.periods);
             if (drawnSingles > 0) ds.tpoProfileSingles = String(drawnSingles);
@@ -13636,6 +13840,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             else delete ds.tpoProfileAsOf;
           } else {
             delete ds.tpoYields;
+            delete ds.tpoCellsYielded;
             delete ds.tpoProfileRows;
             delete ds.tpoProfilePeriods;
             delete ds.tpoProfileSingles;
@@ -13679,6 +13884,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               so the anchor stays a coordinate and the bars stay legible.
             */
             const histX = Math.min(x0 + 2, stackLeft - colMax - 4);
+            /*
+              READABLE, OR A RULE AND A NAMED SILENCE (P-110 canon pass,
+              2026-09-25). Serving TSLA 15m: a 13-bar leg drew its histogram
+              INSIDE the newest candle cluster (x≈1150–1250) — rows 2px apart
+              across 40px, unreadable. A leg shorter than the readable floor, or
+              one that began too near "now" to hold its own histogram, draws
+              what it can state — its swing, its leg POC as a rule — and says
+              why the shape is withheld (profileCanonGlass.structureProfileForm).
+            */
+            const form = structureProfileForm(sp.legBars, room);
+            ds.structureProfileForm = form;
 
             const ys: number[] = [];
             for (const r of sp.rows) {
@@ -13697,24 +13913,34 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let drawnRows = 0;
             let top = Infinity;
             let bot = -Infinity;
-            for (const r of sp.rows) {
-              const yr = srs.priceToCoordinate(r.price);
-              if (yr == null) continue;
-              const y = Math.round(+yr) - Math.floor(rowH / 2);
-              const w = Math.max(1, Math.round(r.share * colMax));
-              ctx.fillStyle = r.isPoc
-                ? pk.rgba("POC", 0.55)
-                : r.insideValueArea
-                  ? pk.rgba("VALUE", 0.26)
-                  : pk.rgba("TAIL", 0.14);
-              ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
-              top = Math.min(top, y);
-              bot = Math.max(bot, y + rowH);
-              drawnRows++;
+            // The leg's price span (the anchor hairline and territory need it
+            // in either form); rows paint only when the leg is readable.
+            for (const y0r of ys) {
+              top = Math.min(top, Math.round(y0r) - Math.floor(rowH / 2));
+              bot = Math.max(bot, Math.round(y0r) - Math.floor(rowH / 2) + rowH);
             }
+            // Behind the candles: the family's one cut-out (serving drew this
+            // leg's rows over its own candles).
+            ctx.save(); clipProfileToCandles("STRUCTURE");
+            if (form === "HISTOGRAM") {
+              for (const r of sp.rows) {
+                const yr = srs.priceToCoordinate(r.price);
+                if (yr == null) continue;
+                const y = Math.round(+yr) - Math.floor(rowH / 2);
+                const w = Math.max(1, Math.round(r.share * colMax));
+                ctx.fillStyle = r.isPoc
+                  ? pk.rgba("POC", 0.7)
+                  : r.insideValueArea
+                    ? pk.rgba("VALUE", 0.4)
+                    : pk.rgba("TAIL", 0.2);
+                ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
+                drawnRows++;
+              }
+            }
+            const legDrawn = Number.isFinite(top) && Number.isFinite(bot);
 
             // The anchor: a hairline spanning the leg's range at the swing bar.
-            if (drawnRows > 0) {
+            if (legDrawn) {
               ctx.strokeStyle = pk.rgba("ANCHOR", 0.55);
               ctx.lineWidth = 1;
               ctx.setLineDash([2, 3]);
@@ -13732,13 +13958,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // bar (▲ under a low, ▼ over a high); (3) a tether from that swing
             // to the histogram's spine, which is drawn solid so the profile
             // reads as hanging from its origin, not parked at the edge.
-            if (drawnRows > 0) {
+            if (legDrawn) {
               const ya = srs.priceToCoordinate(sp.anchor.price);
               ctx.fillStyle = pk.rgba("WASH", 0.035);
               ctx.fillRect(x0, top, Math.max(0, (W - 76) - x0), bot - top);
               ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
               ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(histX - 0.5, top); ctx.lineTo(histX - 0.5, bot); ctx.stroke();
+              if (drawnRows > 0) { ctx.beginPath(); ctx.moveTo(histX - 0.5, top); ctx.lineTo(histX - 0.5, bot); ctx.stroke(); }
               if (ya != null) {
                 const yA = Math.round(+ya);
                 const low = sp.anchor.kind === "LOW";
@@ -13752,30 +13978,34 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // LEFT of its swing (when the swing sits near the stack). That is
                 // when a tether is needed: from the glyph back to the spine.
                 let tethered = false;
-                if (x0 - histX > 8) {
+                if (drawnRows > 0 && x0 - histX > 8) {
                   const yT = Math.min(Math.max(yA, top), bot);
                   ctx.strokeStyle = pk.rgba("ANCHOR", 0.6);
                   ctx.beginPath(); ctx.moveTo(x0 - 6, yA + 0.5); ctx.lineTo(histX + 6, yT + 0.5); ctx.lineTo(histX - 0.5, yT + 0.5); ctx.stroke();
                   tethered = true;
                 }
-                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}${tethered ? "+TETHER" : ""}+TERRITORY`;
+                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}${tethered ? "+TETHER" : ""}+TERRITORY${form === "HISTOGRAM" ? "" : "+RULE"}`;
               }
             }
 
             // Leg POC from the anchor to the right edge of the candles: the
-            // level this leg has accepted most, carried forward to "now".
+            // level this leg has accepted most, carried forward to "now". In
+            // the rule form it is the leg's whole statement, so it is firmer.
             if (sp.poc != null) {
               const yp = srs.priceToCoordinate(sp.poc);
               if (yp != null) {
-                ctx.strokeStyle = pk.rgba("POC", 0.45);
+                ctx.strokeStyle = pk.rgba("POC", form === "HISTOGRAM" ? 0.45 : 0.8);
+                ctx.lineWidth = form === "HISTOGRAM" ? 1 : 1.5;
                 ctx.setLineDash([6, 4]);
                 ctx.beginPath();
                 ctx.moveTo(x0, Math.round(+yp) + 0.5);
                 ctx.lineTo(W - 76, Math.round(+yp) + 0.5);
                 ctx.stroke();
                 ctx.setLineDash([]);
+                ctx.lineWidth = 1;
               }
             }
+            ctx.restore(); // releases the Structure's candle cut-out
 
             // Name the anchor where it is, so the profile says what it is.
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
@@ -13807,10 +14037,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               // CANDLE PRESERVATION. The name prints right of its swing, over
               // the leg's own candles. The row the chips left it is a strict
-              // slot test against every body under it and the chips on the
-              // glass; then the other rows a step away; then a slide left that
-              // stops just past the anchor hairline, so the name still stands
-              // at its swing. No clear spot: it stays and its backing yields.
+              // slot test against every body AND WICK under it (pin updated
+              // 2026-09-25, P-110 canon pass: "LEG POC" printed across a wick)
+              // and the chips on the glass; then the other rows a step away;
+              // then a slide left that stops just past the anchor hairline, so
+              // the name still stands at its swing. No clear spot: it stays
+              // and its backing yields.
               const rowsS: number[] = [y];
               for (let step = 1; step <= 6; step++) {
                 const down = y + step * 15, up = y - step * 15;
@@ -13818,9 +14050,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (up - 12 >= HEADER_FLOOR_Y) rowsS.push(up);
               }
               const altsS = rowsS.filter(r => r !== cy).map(r => ({ x: cx, y: r - 12, w, h: 14 }));
+              const bandS = [Math.min(cy, ...rowsS) - 12, Math.max(cy, ...rowsS) + 2] as const;
               const spotP = placeClearOfKeepOut(
                 { x: cx, y: cy - 12, w, h: 14 },
-                [...keepOut(), ...rowBodiesAt(Math.min(cy, ...rowsS) - 12, Math.max(cy, ...rowsS) + 2)],
+                [...keepOut(), ...rowBodiesAt(bandS[0], bandS[1]), ...profileCandlesAt(bandS[0], bandS[1])],
                 { minX: Math.max(keepOutMinX(), Math.min(cx, x0 - w - 6)), blockers: floatingChips, strict: true, alternates: altsS },
               );
               recordKeepOut(keepOutLedger, spotP);
@@ -13830,14 +14063,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(text, spotP.rect.x + 4, spotP.rect.y + 12);
               floatingChips.push({ x: spotP.rect.x, y: spotP.rect.y, w, h: 14 });
             };
-            chip(
-              `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(pxDp)} · ${sp.legBars} BARS${est}`,
-              // The chip's box is y−12…y+2: its top never rises into the header chrome.
-              x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
-            );
-            if (sp.poc != null) {
-              const yp = srs.priceToCoordinate(sp.poc);
-              if (yp != null) chip(`LEG POC ${sp.poc.toFixed(pxDp)}`, x0 + 4, Math.round(+yp) + 16);
+            const silence = structureSilenceWords({ form, kind: sp.anchor.kind, anchorPrice: sp.anchor.price, legBars: sp.legBars, poc: sp.poc, dp: pxDp });
+            if (silence) {
+              // The rule form: one chip names the swing, the leg, why its
+              // shape is withheld, and the leg POC the rule carries.
+              chip(silence, x0 + 4, Math.max(HEADER_FLOOR_Y + 12, (legDrawn ? top : 0) - 4));
+              ds.structureProfileSilence = form;
+            } else {
+              chip(
+                `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(pxDp)} · ${sp.legBars} BARS${est}`,
+                // The chip's box is y−12…y+2: its top never rises into the header chrome.
+                x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
+              );
+              if (sp.poc != null) {
+                const yp = srs.priceToCoordinate(sp.poc);
+                if (yp != null) chip(`LEG POC ${sp.poc.toFixed(pxDp)}`, x0 + 4, Math.round(+yp) + 16);
+              }
+              delete ds.structureProfileSilence;
             }
 
             ctx.restore();
@@ -13849,6 +14091,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.structureProfileRows;
             delete ds.structureProfileAnchor;
             delete ds.structureProfileLegBars;
+            delete ds.structureProfileForm;
+            delete ds.structureProfileSilence;
           }
         }
 
@@ -13886,6 +14130,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let painted = 0;
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "middle";
+            // The knots and threads cross the candle field: behind the candles
+            // (the family's one cut-out). Their ×N words print after, clear of them.
+            const knotTags: { text: string; x: number; y: number }[] = [];
+            ctx.save(); clipProfileToCandles("FUSION");
             for (const z of fu.zones) {
               const yh = srs.priceToCoordinate(z.high);
               const yl = srs.priceToCoordinate(z.low);
@@ -13929,20 +14177,47 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.setLineDash([]);
               }
               const tag = `×${z.speciesCount}`;
-              ctx.textAlign = "left";
-              ctx.fillStyle = pk.rgba("ANCHOR", 1);
-              ctx.fillText(tag, knotX + 7, yMid - 8);
+              knotTags.push({ text: tag, x: knotX + 7, y: yMid - 8 });
               floatingChips.push({ x: knotX - 96, y: top, w: 110, h });
               painted++;
+            }
+            ctx.restore(); // releases the knots' candle cut-out
+            ctx.textAlign = "left";
+            ctx.fillStyle = pk.rgba("ANCHOR", 1);
+            for (const t of knotTags) {
+              // A tag a candle stands on moves to the knot's other side.
+              const tw = ctx.measureText(t.text).width;
+              const hit = rectHits({ x: t.x, y: t.y - 6, w: tw, h: 12 }, profileCandlesAt(t.y - 6, t.y + 6)) > 0;
+              ctx.fillText(t.text, hit ? t.x - 14 - tw : t.x, t.y);
             }
             ctx.restore();
             ds.profileFusionZones = String(painted);
             ds.profileFusionForm = painted > 0 ? "KNOT" : "NONE";
             ds.profileFusionMaxSpecies = String(Math.max(0, ...fu.zones.map(z => z.speciesCount)));
+            delete ds.profileFusionSilence;
           } else {
             delete ds.profileFusionZones;
             delete ds.profileFusionForm;
             delete ds.profileFusionMaxSpecies;
+            /*
+              FUSION NAMES ITS SILENCE ON THE GLASS (P-110 canon pass,
+              2026-09-25). Serving TSLA 15m: Fusion switched on alone painted
+              nothing and said nothing. On, with fewer than two species or no
+              agreement, it says which — in the family's quiet-word style, where
+              its knots would stand (just left of the profile stack), placed
+              like every profile word: never on a candle, a chip or the header.
+            */
+            if (on) {
+              const words = fu ? fusionSilenceWords(fu, pxDp) : "PROFILE FUSION · silent — no reading";
+              if (words) {
+                ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
+                const endXS = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : plotRight - 8;
+                quietWords(words, { x: endXS, y: HEADER_FLOOR_Y + 8, right: true }, pk.rgbaAs("TAIL", "VALUE", 0.9),
+                  [1, 2, 3, 4].map(k => ({ x: endXS, y: HEADER_FLOOR_Y + 8 + 18 * k, right: true })));
+                ctx.restore();
+                ds.profileFusionSilence = fu ? fu.reason : "NO_READING";
+              } else delete ds.profileFusionSilence;
+            } else delete ds.profileFusionSilence;
           }
         }
 
@@ -13967,6 +14242,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "middle";
             const labelYs: number[] = [];
+            /*
+              H-201 / F03A · MEMORY IS A GHOST, NOT A SPRAY (P-110 canon pass,
+              2026-09-25). Serving TSLA 15m: fifteen dim "S-5 VAH … · NAKED" /
+              "S-4 POC … · 5 TESTS" lines and names across the camera. The glass
+              now keeps the few remembered levels NEAREST to price; how many is
+              the attention tier's call (MEMORY_LEVEL_CAP — Memory at rest keeps
+              four, a selected Memory level nine, a stale feed two). The rest
+              stay in the owner's reading and in Inspect, counted in the receipt.
+            */
+            const tierM = att.tierOf("profileMemory");
+            const barsM = barsRef.current ?? [];
+            const lastCloseM = barsM.length ? barsM[barsM.length - 1].close : null;
+            const { kept: memLevels, withheld: memWithheld } = nearestMemoryLevels(mem.levels, lastCloseM, MEMORY_LEVEL_CAP[tierM]);
+            const keptSessions = new Set(memLevels.map(l => l.sessionsAgo));
+            ds.profileMemoryShown = `${memLevels.length}/${mem.levels.length}:${tierM}`;
+            // Everything Memory paints lies BEHIND the candles (the family's one cut-out).
+            ctx.save(); clipProfileToCandles("MEMORY");
             // GARDEN 12 · MEMORY AS AGING SHELVES, not identical lines. Each
             // remembered session's value area lies BEHIND live price as a faint
             // stratum from where it formed to now; older strata are fainter.
@@ -13975,6 +14267,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // it leaves a notch (its test biography). Weight is age alone.
             const bySess = new Map<number, { vah?: number; val?: number; formedAt: number }>();
             for (const l of mem.levels) {
+              if (!keptSessions.has(l.sessionsAgo)) continue;
               const e = bySess.get(l.sessionsAgo) ?? { formedAt: l.formedAt };
               if (l.kind === "VAH") e.vah = l.price;
               if (l.kind === "VAL") e.val = l.price;
@@ -13992,7 +14285,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillRect(x0, Math.min(+yh, +yl), endX - x0, Math.abs(+yl - +yh));
             }
             let notches = 0;
-            for (const l of mem.levels) {
+            for (const l of memLevels) {
               if (l.kind !== "POC") continue;
               const yr = srs.priceToCoordinate(l.price);
               const xr = ts.timeToCoordinate(l.formedAt as any);
@@ -14022,7 +14315,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
             ds.profileMemoryGeometry = `SHELVES:${bySess.size}+NOTCHES:${notches}`;
-            for (const l of mem.levels) {
+            // The lines, behind the candles; their names are collected and
+            // printed after the cut-out is released (a name is never cut).
+            const memNames: { l: (typeof memLevels)[number]; y: number; x0: number; fade: number }[] = [];
+            for (const l of memLevels) {
               const yr = srs.priceToCoordinate(l.price);
               if (yr == null) continue;
               const y = Math.round(+yr) + 0.5;
@@ -14042,6 +14338,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.setLineDash([]);
               drawn++;
               if (l.naked) naked++;
+              memNames.push({ l, y, x0, fade });
+            }
+            ctx.restore(); // releases Memory's candle cut-out
+            for (const { l, y, x0, fade } of memNames) {
+              const isPoc = l.kind === "POC";
+              const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";
               if (!(isPoc || l.naked)) continue;
               if (labelYs.some(v => Math.abs(v - y) < 11)) continue; // never stack labels
               // A level in the price legend's band keeps its line; its words
@@ -14059,10 +14361,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // name was checked only against the newest bodies and printed
               // over "CMP POC 30760.00" at the same price (serving NQ1! 5m).
               // Its row runs back over older candles, so every body under the
-              // row is a keep-out too, not only the newest three.
+              // row is a keep-out too, not only the newest three — and every
+              // WICK (P-110 canon pass, 2026-09-25: no profile word on a wick).
               const spotM = placeClearOfKeepOut(
                 { x: lx, y: y - 7, w, h: 14 },
-                [...keepOut(), ...rowBodiesAt(y - 7, y + 7)],
+                [...keepOut(), ...rowBodiesAt(y - 7, y + 7), ...profileCandlesAt(y - 7, y + 7)],
                 { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips, strict: true },
               );
               recordKeepOut(keepOutLedger, spotM);
@@ -14074,6 +14377,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(text, spotM.rect.x + 4, y);
             }
             ctx.restore();
+            ds.profileMemoryWithheld = String(memWithheld);
             ds.profileMemoryLevels = String(drawn);
             ds.profileMemoryNaked = String(naked);
             ds.profileMemorySessions = String(mem.sessionsRemembered);
@@ -14081,6 +14385,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.profileMemoryLevels;
             delete ds.profileMemoryNaked;
             delete ds.profileMemorySessions;
+            delete ds.profileMemoryShown;
+            delete ds.profileMemoryWithheld;
           }
         }
 
@@ -14112,6 +14418,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const xy = pts.map(q => ({ x: tsL.timeToCoordinate(q.time as any), q })).filter(o => o.x != null) as { x: number; q: typeof pts[number] }[];
             if (xy.length >= 3) {
               ctx.save(); ctx.globalAlpha = att.alpha("livingProfileMovie");
+              // The ribbon and the trail run across the session's candles:
+              // behind them (the family's one cut-out). The "now" dot is a mark
+              // and prints after the cut is released.
+              ctx.save(); clipProfileToCandles("LIVING_MOVIE");
               ctx.beginPath();
               xy.forEach((o, k) => { const y = srs.priceToCoordinate(o.q.vah); if (y != null) (k ? ctx.lineTo(+o.x, +y) : ctx.moveTo(+o.x, +y)); });
               for (let k = xy.length - 1; k >= 0; k--) { const y = srs.priceToCoordinate(xy[k].q.val); if (y != null) ctx.lineTo(+xy[k].x, +y); }
@@ -14126,6 +14436,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 lastX = +o.x; lastY = +y;
               });
               ctx.strokeStyle = pk.rgba("POC", 0.6); ctx.lineWidth = 1.2; ctx.stroke();
+              ctx.restore(); // releases the movie's candle cut-out
               ctx.beginPath(); ctx.arc(lastX, lastY, 3, 0, Math.PI * 2); ctx.fillStyle = pk.rgba("POC", 0.95); ctx.fill();
               const pocY = srs.priceToCoordinate(lp.poc);
               const laneL = stackPlan.lanes.LIVING ?? soloLane(W);
@@ -14173,9 +14484,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.setLineDash([]);
               return painted;
             };
+            // The steps run across the candles they developed with: behind them.
+            ctx.save(); clipProfileToCandles("VALUE_MIGRATION");
             stepLine("vah", pk.rgba("EDGE_HIGH", 0.38), 1, [2, 3]);
             stepLine("val", pk.rgba("EDGE_LOW", 0.38), 1, [2, 3]);
             const drawn = stepLine("poc", pk.rgba("POC", 0.85), 1.5, []);
+            ctx.restore(); // releases the steps' candle cut-out
 
             // Name the line once, at its newest point, with the session's
             // POC travel — a stated distance, not a direction call.
@@ -14249,6 +14563,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.valueMigrationSessions;
           }
         }
+
+        /*
+          THE PROFILE FAMILY'S CANON RECEIPTS (P-110 canon pass, 2026-09-25) —
+          published after the last profile species painted, withdrawn when none
+          did, so a probe can read what the glass holds:
+            profileCandleCut   "<species that painted inside the one candle
+                               cut-out>:<cut rects>" — e.g. "LIVING,TPO:412"
+            profileLevelChips  "<chips placed>:<moved>M:<yielded>Y" — moved =
+                               stepped or slid off a candle/chip; yielded = no
+                               clear spot, its fill gave way (should read 0Y)
+        */
+        if (profileCutBy.size > 0) ds.profileCandleCut = `${[...profileCutBy].join(",")}:${profileCut ? profileCut.rects.length : 0}`;
+        else delete ds.profileCandleCut;
+        if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y`;
+        else delete ds.profileLevelChips;
 
         /* ══ F11 · MARKET OBJECT ZONES — the Passport mockup, on price ═══════
            Swing-origin ZONES from the structure owner, biography from the

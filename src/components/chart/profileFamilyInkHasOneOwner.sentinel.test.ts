@@ -229,9 +229,12 @@ describe("the profile family's ink has one owner (Sentinel)", () => {
     const memory = BLOCKS.find(b => b.name === "Profile Memory")!.code;
     expect(memory).toContain('const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";');
     const living = BLOCKS.find(b => b.name.startsWith("Living Profile"))!.code;
-    expect(living).toContain('const edgeHi = pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.5);');
-    expect(living).toContain('const edgeLo = pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.5);');
-    expect(living).toMatch(/ctx\.moveTo\(0, \+yh \+ 0\.5\); ctx\.lineTo\(W, \+yh \+ 0\.5\);\s*if \(edgeLo !== edgeHi\) \{ ctx\.stroke\(\); ctx\.strokeStyle = edgeLo; ctx\.beginPath\(\); \}\s*ctx\.moveTo\(0, \+yl \+ 0\.5\);/);
+    // Pin updated 2026-09-25 (P-110 canon pass): the hairlines became P-110's
+    // solid gold VAH/VAL RULES across the plot — same EDGE-resting-in-ANCHOR
+    // roles, the strength now LIVING_BODY_CANON's, ending at the plot edge.
+    expect(living).toContain('const edgeHi = pk.rgbaAs("EDGE_HIGH", "ANCHOR", LIVING_BODY_CANON.edgeRuleAlpha);');
+    expect(living).toContain('const edgeLo = pk.rgbaAs("EDGE_LOW", "ANCHOR", LIVING_BODY_CANON.edgeRuleAlpha);');
+    expect(living).toMatch(/ctx\.moveTo\(0, Math\.round\(\+yh\) \+ 0\.5\); ctx\.lineTo\(plotRight, Math\.round\(\+yh\) \+ 0\.5\);\s*if \(edgeLo !== edgeHi\) \{ ctx\.stroke\(\); ctx\.strokeStyle = edgeLo; ctx\.beginPath\(\); \}\s*ctx\.moveTo\(0, Math\.round\(\+yl\) \+ 0\.5\);/);
   });
 
   it("no species reads the classic VP palette around the owner — the chosen-vs-default rule cannot be bypassed", () => {

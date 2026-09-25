@@ -30,7 +30,9 @@ describe("profile family glass honesty", () => {
   });
 
   it("the Structure tether is reachable (histogram pinned left of its swing) and the receipt says TETHER only when it drew", () => {
-    expect(CHART).toMatch(/if \(x0 - histX > 8\) \{/);
+    // Pin updated 2026-09-25 (P-110 canon pass): a leg too short to profile
+    // draws no rows, so it has no spine to tether to — the tether needs rows.
+    expect(CHART).toMatch(/if \(drawnRows > 0 && x0 - histX > 8\) \{/);
     expect(CHART).not.toMatch(/if \(histX > x0 \+ 8\)/);
     expect(CHART).toMatch(/\$\{tethered \? "\+TETHER" : ""\}/);
   });
