@@ -6952,6 +6952,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // RESPONSE: a bracket over the response bars, with-force and
             // against-force excursions as two marks at the bracket's end.
             const xEnd = pr.endTime != null ? chart.timeScale().timeToCoordinate(pr.endTime as never) : null;
+            // CANON F04A — CAUSAL MARKS ON THE EVENT. Each part names itself:
+            // FORCE (who initiated), EVENT (the print), RESPONSE (what price
+            // did next, measured), and — until the bars exist — the plate
+            // UNPAID EVIDENCE DEBT instead of a guess.
+            const plate = (lines: string[], x: number, y: number, gold: boolean) => {
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 12, th = 6 + lines.length * 13;
+              const tx = Math.max(4, Math.min(W - 100 - tw, x)), ty = Math.max(96, y);
+              ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(tx, ty, tw, th);
+              forceChips.push({ x: tx, y: ty, w: tw, h: th });
+              lines.forEach((l, i) => {
+                ctx.fillStyle = i === 0 && gold ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.92)";
+                ctx.font = i === 0 ? "700 10px ui-sans-serif, system-ui, sans-serif" : "600 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillText(l, tx + 6, ty + 9.5 + i * 13);
+              });
+            };
+            // EVENT: a gold point on the print.
+            ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2); ctx.fillStyle = "rgba(240,200,100,1)"; ctx.fill();
+            ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+            // FORCE caption at the arrow's tail.
+            plate(["FORCE", `(AGGRESSIVE ${up ? "BUY" : "SELL"})`], ax0 - 70, up ? ay0 + 4 : ay0 - 34, true);
+            if (pr.verdict === "PENDING") {
+              // A live-bar print sits at the right edge, under the Inspect
+              // ticket's column; the debt plate stands clear of it on a leader.
+              const px0 = ex > W - 560 ? W - 560 - 190 : ex - 190;
+              const py0 = up ? ey + 30 : ey - 50;
+              ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(232,184,92,0.7)"; ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(px0 + 180, py0 + 16); ctx.lineTo(ex - 5, ey); ctx.stroke(); ctx.setLineDash([]);
+              plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars printed`], px0, py0, true);
+            }
             if (xEnd != null) {
               // EXPECTED ENVELOPE (ghost): ±1 median bar range around the
               // print, measured from the bars before it. A response that stays
@@ -6974,14 +7004,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yA = srs.priceToCoordinate(sp.priceLevel - pr.dir * pr.againstForce);
               if (yW != null) { ctx.strokeStyle = "rgba(232,184,92,0.95)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(+xEnd + 6, ey); ctx.lineTo(+xEnd + 6, +yW); ctx.stroke(); }
               if (yA != null) { ctx.strokeStyle = "rgba(237,230,211,0.7)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(+xEnd + 11, ey); ctx.lineTo(+xEnd + 11, +yA); ctx.stroke(); }
-              const txt = `${pr.verdict === "PENDING" ? `PENDING ${pr.responseBars}/3` : pr.verdict} · with ${pr.withForce.toFixed(2)} · against ${pr.againstForce.toFixed(2)}`;
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const tw = ctx.measureText(txt).width + 12;
-              const tx = Math.min(W - 100 - tw, ex), ty = up ? by + 6 : by - 22;
-              ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(tx, ty, tw, 16);
-              forceChips.push({ x: tx, y: ty, w: tw, h: 16 });
-              ctx.fillStyle = pr.verdict === "FOLLOWED" ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.95)";
-              ctx.fillText(txt, tx + 6, ty + 8.5);
+              if (pr.verdict !== "PENDING" && pr.endClose != null) {
+                // RESPONSE: a thinner arrow from the event to where price closed.
+                const yEc = srs.priceToCoordinate(pr.endClose);
+                if (yEc != null) {
+                  const rx = +xEnd, ry = +yEc;
+                  ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 1.5;
+                  ctx.beginPath(); ctx.moveTo(ex + 5, ey); ctx.lineTo(rx, ry); ctx.stroke();
+                  const ra = Math.atan2(ry - ey, rx - (ex + 5));
+                  ctx.fillStyle = "rgba(237,230,211,0.85)"; ctx.beginPath(); ctx.moveTo(rx, ry);
+                  ctx.lineTo(rx - 8 * Math.cos(ra - 0.5), ry - 8 * Math.sin(ra - 0.5));
+                  ctx.lineTo(rx - 8 * Math.cos(ra + 0.5), ry - 8 * Math.sin(ra + 0.5)); ctx.closePath(); ctx.fill();
+                  const word = pr.verdict === "FOLLOWED" ? "(FOLLOWED THROUGH)" : pr.verdict === "FADED" ? "(FADED · REVERSED)" : "(WEAK DISPLACEMENT)";
+                  plate(["RESPONSE", word, `with ${pr.withForce.toFixed(2)} · against ${pr.againstForce.toFixed(2)}`], rx + 16, ry - 20, pr.verdict === "FOLLOWED");
+                }
+              }
             }
             ctx.restore();
           }
@@ -8267,7 +8304,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // the shelf, then below it, then stepped further up; if every
               // slot is taken the shelf still paints and only its words wait
               // (Inspect on the shelf still reads it).
-              const hit = (y: number) => absorbChipRects.some(r =>
+              const hit = (y: number) => [...absorbChipRects, ...floatingChips].some(r =>
                 chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
               const slots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6];
               const freeY = slots.map(y => Math.max(2, y)).find(y => !hit(y));

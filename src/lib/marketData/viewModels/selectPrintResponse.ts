@@ -35,6 +35,8 @@ export interface PrintResponseVM {
   readonly againstForce: number;
   readonly medianRange: number;
   readonly endTime: number | null;
+  /** Close of the last response bar — where the RESPONSE arrow lands. */
+  readonly endClose: number | null;
   readonly verdict: "FOLLOWED" | "FADED" | "MUTED" | "PENDING";
 }
 
@@ -42,7 +44,7 @@ export function selectPrintResponse(force: PrintForce | null | undefined, input:
   const dir: 1 | -1 = force?.side === "sell" ? -1 : 1;
   const none = (reason: PrintResponseVM["reason"]): PrintResponseVM => ({
     version: PRINT_RESPONSE_VERSION, drawn: false, reason, eventBarTime: null, dir, responseBars: 0,
-    withForce: 0, againstForce: 0, medianRange: 0, endTime: null, verdict: "PENDING",
+    withForce: 0, againstForce: 0, medianRange: 0, endTime: null, endClose: null, verdict: "PENDING",
   });
   const bars = (input ?? []).filter(b => [b.time, b.high, b.low, b.close].every(Number.isFinite) && b.high >= b.low);
   if (!force || bars.length === 0) return none("NO_BARS");
@@ -66,7 +68,8 @@ export function selectPrintResponse(force: PrintForce | null | undefined, input:
   return {
     version: PRINT_RESPONSE_VERSION, drawn: true, reason: "DRAWN", eventBarTime: bars[idx].time, dir,
     responseBars: after.length, withForce: withF, againstForce: against, medianRange: med,
-    endTime: after.length ? after[after.length - 1].time : null, verdict,
+    endTime: after.length ? after[after.length - 1].time : null,
+    endClose: after.length ? after[after.length - 1].close : null, verdict,
   };
 }
 

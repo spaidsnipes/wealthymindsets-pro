@@ -12,6 +12,8 @@ describe("force → response on the same print", () => {
     expect(v.withForce).toBe(2);
     expect(v.againstForce).toBe(0);
     expect(v.responseBars).toBe(RESPONSE_BARS);
+    // The RESPONSE arrow lands on the last response bar's own close.
+    expect(v.endClose).toBe(102.5);
   });
   it("a buy print that price leaves downward reads FADED", () => {
     const bars = [...flat, bar(10, 99.5, 100.8), bar(11, 99, 100), bar(12, 98.6, 99.5)];
