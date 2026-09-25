@@ -10386,27 +10386,37 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let drawnRows = 0;
             let drawnSingles = 0;
             ctx.lineWidth = 1;
+            // GARDEN 12 · TPO READS AS TIME, NOT AS ANOTHER VOLUME BAR. Each
+            // row prints the time brackets that visited it, in order — A is
+            // the window's earliest — early letters dim, late letters bright,
+            // so the auction's migration through time is visible in the
+            // letters themselves. Rows too thin for type become one block per
+            // letter. POC row brass, value area parchment, outside quieter.
+            const maxLetters = Math.max(1, ...tpo.rows.map(r => r.letters.length));
+            const cellW = Math.max(3, Math.min(8, Math.floor(colMax / Math.max(1, maxLetters))));
+            const asText = rowH >= 7;
+            ds.tpoGeometry = `${asText ? "LETTERS" : "BLOCKS"}:${maxLetters}:${tpo.barsPerLetter}BPL`;
+            ctx.font = `700 ${Math.min(10, rowH)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
             for (const r of tpo.rows) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
               const y = Math.round(+yr) - Math.floor(rowH / 2);
               const h = Math.max(1, rowH - 1);
-              const w = Math.max(1, Math.round(r.share * colMax));
-              if (r.isPoc) {
-                ctx.fillStyle = "rgba(201,165,92,0.55)";
-                ctx.fillRect(leftEdge, y, w, h);
-                ctx.strokeStyle = "rgba(201,165,92,0.95)";
-              } else {
-                ctx.fillStyle = r.insideValueArea
-                  ? "rgba(237,230,211,0.10)"
-                  : "rgba(194,184,146,0.05)";
-                ctx.fillRect(leftEdge, y, w, h);
-                ctx.strokeStyle = r.insideValueArea
-                  ? "rgba(237,230,211,0.62)"
-                  : "rgba(194,184,146,0.38)";
-              }
-              if (h >= 3) ctx.strokeRect(leftEdge + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
-              else { ctx.beginPath(); ctx.moveTo(leftEdge, y + 0.5); ctx.lineTo(leftEdge + w, y + 0.5); ctx.stroke(); }
+              const rgb = r.isPoc ? "201,165,92" : r.insideValueArea ? "237,230,211" : "194,184,146";
+              const base = r.isPoc ? 1 : r.insideValueArea ? 0.9 : 0.55;
+              [...r.letters].forEach((ch, k) => {
+                const L = ch.charCodeAt(0) - 65;
+                const a = base * (0.35 + 0.65 * (L / 25));
+                const x = leftEdge + k * cellW;
+                if (asText) {
+                  ctx.fillStyle = `rgba(${rgb},${a.toFixed(3)})`;
+                  ctx.fillText(ch, x, y + h / 2 + 0.5);
+                } else {
+                  ctx.fillStyle = `rgba(${rgb},${(a * 0.8).toFixed(3)})`;
+                  ctx.fillRect(x, y, cellW - 1, h);
+                }
+              });
               drawnRows++;
               // SINGLE PRINT — the auction passed through once and never
               // returned. A short brass tick OUTSIDE the column, so it reads

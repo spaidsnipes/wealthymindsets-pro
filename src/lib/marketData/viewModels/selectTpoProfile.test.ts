@@ -112,3 +112,26 @@ describe("the distribution", () => {
     expect(r.rows.length).toBeLessThanOrEqual(400);
   });
 });
+
+describe("TPO letters — the classic time-bracket column", () => {
+  const bar = (i: number, low: number, high: number) => ({ time: 1000 + i * 60, low, high });
+  it("≤ 26 bars: one letter per bar, in time order, A first", () => {
+    const bars = Array.from({ length: 10 }, (_, i) => bar(i, 100 + (i < 5 ? 0 : 2), 101 + (i < 5 ? 0 : 2)));
+    const vm = selectTpoProfile(bars);
+    expect(vm.barsPerLetter).toBe(1);
+    const low = vm.rows.find(r => r.price <= 100.5)!;
+    expect(low.letters.startsWith("A")).toBe(true);
+    expect(low.letters.includes("F")).toBe(false);
+    const high = vm.rows[vm.rows.length - 1];
+    expect(high.letters).toMatch(/^F/);
+    for (const r of vm.rows) expect([...r.letters].sort().join("")).toBe(r.letters);
+  });
+  it("a long window is split into at most 26 brackets; count is unchanged", () => {
+    const bars = Array.from({ length: 130 }, (_, i) => bar(i, 100, 101));
+    const vm = selectTpoProfile(bars);
+    expect(vm.barsPerLetter).toBe(5);
+    expect(vm.rows.every(r => r.letters.length <= 26)).toBe(true);
+    expect(vm.rows[0].letters).toBe("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    expect(vm.rows[0].count).toBe(130);
+  });
+});

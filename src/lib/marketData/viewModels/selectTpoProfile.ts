@@ -53,6 +53,8 @@ export const TPO_TARGET_ROWS = 80;
 export const MAX_TPO_ROWS = 400;
 /** Classic value-area fraction, identical to the volume engine's default. */
 export const TPO_VALUE_AREA_PCT = 0.7;
+/** A–Z: the window is split into at most this many letter brackets. */
+export const TPO_MAX_LETTERS = 26;
 
 export interface TpoBarInput {
   readonly time: number;
@@ -77,6 +79,11 @@ export interface TpoRow {
   readonly isPoc: boolean;
   /** Touched by exactly one period, strictly inside the range. */
   readonly single: boolean;
+  /**
+   * The time brackets that touched this row, in time order — "A" is the
+   * window's earliest bracket. The classic market-profile letter column.
+   */
+  readonly letters: string;
 }
 
 export interface TpoProfileVM {
@@ -95,6 +102,8 @@ export interface TpoProfileVM {
   readonly totalTpo: number;
   readonly rows: readonly TpoRow[];
   readonly singlePrintCount: number;
+  /** How many chart bars one letter spans (the window split into ≤ 26 brackets). */
+  readonly barsPerLetter: number;
   /** Unix seconds of the last period counted — the reading's asOf. */
   readonly asOf: number | null;
 }
@@ -110,6 +119,7 @@ function refuse(reason: Exclude<TpoReason, "DRAWN">, periods: number, note: stri
     periodNote: PERIOD_NOTE,
     periods,
     tickSize: 0,
+    barsPerLetter: 0,
     poc: null,
     vah: null,
     val: null,
@@ -168,6 +178,16 @@ export function selectTpoProfile(
     const z = idx(b.high);
     for (let i = a; i <= z; i++) counts[i] += 1;
   }
+  // LETTERS. Time order is the bars' own times; each bracket spans
+  // barsPerLetter bars. A row's letters are the brackets whose bars touched it.
+  const byTime = [...valid].sort((x, y) => x.time - y.time);
+  const barsPerLetter = Math.max(1, Math.ceil(byTime.length / TPO_MAX_LETTERS));
+  const letterSets: Set<number>[] = Array.from({ length: n }, () => new Set<number>());
+  byTime.forEach((b, k) => {
+    const L = Math.floor(k / barsPerLetter);
+    for (let i = idx(b.low); i <= idx(b.high); i++) letterSets[i].add(L);
+  });
+  const lettersAt = (i: number) => [...letterSets[i]].sort((x, y) => x - y).map(L => String.fromCharCode(65 + L)).join("");
 
   // Bucket low edge, rounded so a label reads 101.25 and not 101.24999999.
   const priceAt = (i: number) => +((base + i * tick).toFixed(10));
@@ -213,6 +233,7 @@ export function selectTpoProfile(
       insideValueArea: i >= vLo && i <= vHi,
       isPoc: i === pocIdx,
       single,
+      letters: lettersAt(i),
     });
   }
 
@@ -228,6 +249,7 @@ export function selectTpoProfile(
     vah: priceAt(vHi),
     val: priceAt(vLo),
     totalTpo,
+    barsPerLetter,
     rows,
     singlePrintCount,
     asOf: Number.isFinite(asOf) ? asOf : null,
