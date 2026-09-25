@@ -298,6 +298,7 @@ import selectRegimeLighting from "@/lib/marketData/viewModels/selectRegimeLighti
 import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
+import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
@@ -2001,6 +2002,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
     return selectProfileFusion(levels);
   }, [livingProfileOn, livingProfileGlass, tpoProfileOn, tpoProfileVM, structureProfileOn, structureProfileVM, profileMemoryOn, profileMemoryVM]);
+
+  const auctionStateVM = React.useMemo(
+    () => chartCanvasState
+      ? selectAuctionState({ state: chartCanvasState })
+      : null,
+    [chartCanvasState],
+  );
 
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
@@ -5290,6 +5298,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       marketObjectTargets={chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
+                      auctionVerdict={auctionStateVM?.verdict ?? null}
                       /* A zone or LEVEL pin. A restored selection (Inspect
                          closed) is opened on the first click, not deselected;
                          see `toggleObject`. */

@@ -1194,6 +1194,11 @@ interface Props {
    * bound to. Canon: "One market. One camera. One truth. One Decision_ID."
    */
   activeDecisionId?: string | null;
+  /**
+   * Auction verdict word. ACCEPTING / REJECTING / BALANCING / EXPANDING /
+   * FAILING / OPENING_ROTATION. Painted as chrome next to the structure bias.
+   */
+  auctionVerdict?: string | null;
   selectedMarketObjectId?: string | null;
   onSelectMarketObject?: (objectId: string) => void;
   /** Swing-origin ZONES with their lifecycle — painted on price. */
@@ -1518,6 +1523,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   marketStanding = null,
   marketObjectTargets = [],
   activeDecisionId = null,
+  auctionVerdict = null,
   selectedMarketObjectId = null,
   onSelectMarketObject,
   structureZones = [],
@@ -1750,6 +1756,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const liquidityLifecycleRef = useRef<LiquidityLifecycleVM | null>(null);
   useEffect(() => { liquidityLifecycleRef.current = liquidityLifecycle ?? null; }, [liquidityLifecycle]);
+  const auctionVerdictRef = useRef<string | null>(null);
+  useEffect(() => { auctionVerdictRef.current = auctionVerdict ?? null; }, [auctionVerdict]);
 
   /*
     The four switches, read the same way as the readings they gate. They change
@@ -13124,6 +13132,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.marketStructure;
           ds.marketStructure = on ? (ms ? ms.reason : "NO_READING") : "OFF";
           ds.marketStructureBias = ms?.bias ?? "";
+          // Withdrawn every frame and re-stamped only where it is painted, so
+          // a closed layer or UNCLEAR bias never leaves a stale verdict behind.
+          delete ds.auctionVerdict;
 
           if (on && ms?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("marketStructure");
@@ -13172,6 +13183,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(label, W - 168, 6);
               ctx.fillStyle = "rgba(138,130,113,0.75)";
               ctx.fillText(`+${ms.unconfirmedBars} unconfirmed`, W - 168, 18);
+              // Auction verdict beneath structure bias — same chrome column.
+              const av = auctionVerdictRef.current;
+              if (av && av !== "UNKNOWN") {
+                ctx.fillStyle = "rgba(201,165,92,0.75)";
+                ctx.fillText(av, W - 168, 32);
+                ds.auctionVerdict = av;
+              }
             }
 
             ctx.restore();
