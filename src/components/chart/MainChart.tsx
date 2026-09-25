@@ -9907,7 +9907,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               rowH = Math.max(2, Math.min(10, Math.round(g)));
             }
 
-            for (const b of lp.bars) {
+            // H-501 · At FAR the Living Profile is its SKELETON: rows are noise
+            // at regime scale, so the lane shows a value-area spine with caps
+            // and the POC as one brass stroke — same owner, same prices.
+            const livingDepth = (() => {
+              try {
+                const vr = chart.timeScale().getVisibleLogicalRange();
+                return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth;
+              } catch { return "UNMEASURED" as const; }
+            })();
+            ds.livingProfileDepthForm = livingDepth === "FAR" ? "SKELETON" : "ROWS";
+            if (livingDepth === "FAR" && lp.vah != null && lp.val != null) {
+              const yh = srs.priceToCoordinate(lp.vah), yl = srs.priceToCoordinate(lp.val), yp = srs.priceToCoordinate(lp.poc);
+              if (yh != null && yl != null) {
+                const sx = Math.round(rightEdge - histMax * 0.5) + 0.5;
+                ctx.strokeStyle = "rgba(237,230,211,0.75)"; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(sx, +yh); ctx.lineTo(sx, +yl);
+                ctx.moveTo(sx - 8, +yh); ctx.lineTo(sx + 8, +yh); ctx.moveTo(sx - 8, +yl); ctx.lineTo(sx + 8, +yl); ctx.stroke();
+                if (yp != null) { ctx.strokeStyle = "rgba(201,165,92,1)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(rightEdge - histMax, +yp); ctx.lineTo(rightEdge, +yp); ctx.stroke(); }
+                ctx.lineWidth = 1;
+              }
+            }
+
+            for (const b of (livingDepth === "FAR" ? [] : lp.bars)) {
               const yr = srs.priceToCoordinate(b.price);
               if (yr == null) continue;
               const y = Math.round(+yr) - Math.floor(rowH / 2);
