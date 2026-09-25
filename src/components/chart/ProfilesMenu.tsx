@@ -57,6 +57,7 @@ const AVAILABILITY_DOT: Record<ProfileMenuEntry["availability"], string> = {
   WAITING_FOR_BARS: "#8B8FA8",
   WAITING_FOR_PRINTS: "#8B8FA8",
   NEEDS_SIDED_TAPE: "#F0B429",
+  REFUSED_BY_DATA: "#F0B429",
 };
 
 export function ProfilesMenu({
@@ -70,6 +71,7 @@ export function ProfilesMenu({
   testId = "profiles-menu-panel",
   columns = 2,
   stateDetail,
+  speciesRefusal,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -88,8 +90,10 @@ export function ProfilesMenu({
   columns?: 1 | 2;
   /** A switched-on row's own position, printed after DRAWING (e.g. a depth). */
   stateDetail?: Readonly<Partial<Record<ProfileId, string>>>;
+  /** Species whose selector refused the bars on screen, with its reason (see selectProfileMenu). */
+  speciesRefusal?: ProfileMenuInput["speciesRefusal"];
 }) {
-  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families });
+  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, speciesRefusal });
 
   return (
     <section
@@ -165,7 +169,9 @@ export function ProfilesMenu({
                   ? "WAITING FOR BARS"
                   : entry.availability === "WAITING_FOR_PRINTS"
                     ? "WAITING FOR PRINTS"
-                    : entry.active ? "SILENT · TAPE REQUIRED" : "TAPE REQUIRED";
+                    : entry.availability === "REFUSED_BY_DATA"
+                      ? entry.active ? "SILENT · DATA REFUSES" : "DATA REFUSES"
+                      : entry.active ? "SILENT · TAPE REQUIRED" : "TAPE REQUIRED";
 
               return (
                 <button

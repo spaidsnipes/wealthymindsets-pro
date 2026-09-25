@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "./selectProfileMenu";
+import { PROFILE_FAMILY, profileSpeciesRefusals, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "./selectProfileMenu";
 
 const ALL_IDS: readonly ProfileId[] = [
   "FIXED_RANGE",
@@ -472,5 +472,48 @@ describe("P-110 — the Profiles door reads as the blueprint's eleven organisms"
     expect(e.find(x => x.organism === 11)?.label).toBe("Bid/Ask Split Profile");
     expect(e.map(x => x.id)).not.toContain("VALUE_CANDLE");
     expect(e.map(x => x.id)).not.toContain("VALUE_MIGRATION");
+  });
+});
+
+describe("a species whose own selector refused is not READY", () => {
+  const base = { barsPresent: true, printsPresent: true, observedAggressorFlow: true } as const;
+
+  it("reports REFUSED_BY_DATA with the selector's reason, counts it silent and names it", () => {
+    const vm = selectProfileMenu({
+      ...base,
+      active: { COMPOSITE_PROFILE: true },
+      speciesRefusal: profileSpeciesRefusals({ composite: { reason: "NO_COMPLETED_SESSION" } }),
+    });
+    const row = vm.entries.find(e => e.id === "COMPOSITE_PROFILE")!;
+    expect(row.availability).toBe("REFUSED_BY_DATA");
+    expect(row.availabilityNote).toMatch(/no completed session/);
+    expect(vm.silentCount).toBe(1);
+    expect(vm.silentNote).toContain("Composite Profile");
+    expect(vm.silentNote).toMatch(/no completed session/);
+    expect(vm.silentSummary).toBe("1 silent · refused by the data");
+  });
+
+  it("a drawn species is untouched", () => {
+    const vm = selectProfileMenu({
+      ...base,
+      active: { COMPOSITE_PROFILE: true },
+      speciesRefusal: profileSpeciesRefusals({ composite: { reason: "DRAWN" } }),
+    });
+    expect(vm.entries.find(e => e.id === "COMPOSITE_PROFILE")!.availability).toBe("READY");
+    expect(vm.silentCount).toBe(0);
+  });
+
+  it("turns each refusing selector's reason into a sentence, and nothing for DRAWN or no bars", () => {
+    const r = profileSpeciesRefusals({
+      composite: { reason: "NO_BARS" },
+      tpo: { reason: "TOO_FEW_PERIODS" },
+      structure: { reason: "NO_CONFIRMED_PIVOT", note: "no confirmed swing yet" },
+      memory: { reason: "NO_PRIOR_SESSION" },
+    });
+    expect(r.COMPOSITE_PROFILE).toBeUndefined();
+    expect(r.TPO_PROFILE).toMatch(/too few time periods/);
+    expect(r.STRUCTURE_PROFILE).toBe("no confirmed swing yet");
+    expect(r.PROFILE_MEMORY).toMatch(/no completed prior session/);
+    expect(profileSpeciesRefusals({ structure: { reason: "DRAWN" } })).toEqual({});
   });
 });

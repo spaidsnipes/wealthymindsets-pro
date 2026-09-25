@@ -325,14 +325,17 @@ export function selectChartArrangement(
       const waiting = mute.some(e => e.availability === "WAITING_FOR_BARS");
       const waitingForPrints = mute.some(e => e.availability === "WAITING_FOR_PRINTS");
       const untaped = mute.some(e => e.availability === "NEEDS_SIDED_TAPE");
-      const causes = [waiting, waitingForPrints, untaped].filter(Boolean).length;
+      const refused = mute.some(e => e.availability === "REFUSED_BY_DATA");
+      const causes = [waiting, waitingForPrints, untaped, refused].filter(Boolean).length;
       const why = causes > 1
-        ? "Some are waiting for market observations; the rest need a tape that states an aggressor side"
+        ? "Some are waiting for market observations; the rest need a sided tape or data this chart does not hold"
         : waiting
           ? "No bars have loaded for this symbol yet — these will draw when they do"
           : waitingForPrints
             ? "No per-trade prints have reached this chart yet — these will draw when they do"
-            : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
+            : refused
+              ? "The bars on screen cannot build them — each row in the menu says why"
+              : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
       note =
         `${spec.label}: ${spec.purpose}. ` +
         `${deliverableCount} of ${armedCount} readings can draw here — ${names} cannot. ` +

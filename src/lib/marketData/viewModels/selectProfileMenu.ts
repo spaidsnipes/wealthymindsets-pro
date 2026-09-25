@@ -77,12 +77,16 @@ export type ProfileId =
  * WAITING_FOR_BARS — it will draw as soon as the bar window fills. Wait.
  * WAITING_FOR_PRINTS — it needs per-trade prints, but not aggressor side. Wait.
  * NEEDS_SIDED_TAPE — this feed never states an aggressor. Do not wait.
+ * REFUSED_BY_DATA — the species' own selector refused the bars it was given
+ *   (a 24/7 feed has no completed session to composite; too few periods to
+ *   letter). The switch can be lit; the reason is the selector's, verbatim.
  */
 export type ProfileAvailability =
   | "READY"
   | "WAITING_FOR_BARS"
   | "WAITING_FOR_PRINTS"
-  | "NEEDS_SIDED_TAPE";
+  | "NEEDS_SIDED_TAPE"
+  | "REFUSED_BY_DATA";
 
 /**
  * NOT ALL FOUR ARE THE SAME GESTURE, AND THE MENU MAY NOT PRETEND THEY ARE.
@@ -210,6 +214,12 @@ export interface ProfileMenuInput {
   readonly active: Readonly<Partial<Record<ProfileId, boolean>>>;
   /** Only these families' rows (one door each). Omitted → the whole catalogue. */
   readonly families?: readonly ProfileFamily[];
+  /**
+   * Species whose own selector refused the bars on screen, with its reason as
+   * a sentence. Without this the row read READY over an empty chart — the
+   * "READY label" Garden Pass 12 names as the thing that is not an invention.
+   */
+  readonly speciesRefusal?: Readonly<Partial<Record<ProfileId, string>>>;
 }
 
 export interface ProfileMenuVM {
@@ -731,6 +741,9 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
       availability = "NEEDS_SIDED_TAPE";
       availabilityNote =
         "this tape has not stated an aggressor side — the split cannot be drawn from volume alone";
+    } else if (input.speciesRefusal?.[spec.id]) {
+      availability = "REFUSED_BY_DATA";
+      availabilityNote = input.speciesRefusal[spec.id]!;
     } else {
       availability = "READY";
       availabilityNote = "ready to draw from the bars on screen";
@@ -778,6 +791,7 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     const waiting = silent.some(e => e.availability === "WAITING_FOR_BARS");
     const waitingForPrints = silent.some(e => e.availability === "WAITING_FOR_PRINTS");
     const untaped = silent.some(e => e.availability === "NEEDS_SIDED_TAPE");
+    const refused = silent.filter(e => e.availability === "REFUSED_BY_DATA");
     /*
       CAUGHT ON THE SERVING CHART, NOT BY A TEST.
 
@@ -791,14 +805,19 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
       capitalise() helper at the joint, because each one IS a sentence and the
       only reason it did not look like one was the joint.
     */
-    const causes = [waiting, waitingForPrints, untaped].filter(Boolean).length;
-    const why = causes > 1
-      ? "Some are waiting for market observations; the rest need a tape that states an aggressor side"
-      : waiting
-        ? "No bars have loaded for this symbol yet — these will draw when they do"
-        : waitingForPrints
-          ? "No per-trade prints have reached this chart yet — these will draw when they do"
-          : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
+    const causes = [waiting, waitingForPrints, untaped, refused.length > 0].filter(Boolean).length;
+    // A data refusal is specific to its species, so each one carries its own
+    // selector's sentence rather than one shared cause.
+    const refusedWhy = refused.map(e => `${e.label}: ${e.availabilityNote}`).join("; ");
+    const why = refused.length > 0 && causes === 1
+      ? refusedWhy
+      : causes > 1
+        ? `Some are waiting for market observations or a sided tape${refused.length ? `; ${refusedWhy}` : ""}`
+        : waiting
+          ? "No bars have loaded for this symbol yet — these will draw when they do"
+          : waitingForPrints
+            ? "No per-trade prints have reached this chart yet — these will draw when they do"
+            : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
     silentNote =
       `${silentCount} of ${activeCount} switched on but drawing nothing: ${names}. ${why}.`;
   }
@@ -818,7 +837,9 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
           ? `${silentCount} silent · waiting for prints`
           : silent.every(e => e.availability === "NEEDS_SIDED_TAPE")
             ? `${silentCount} silent · aggressor tape required`
-            : `${silentCount} silent · mixed missing inputs`,
+            : silent.every(e => e.availability === "REFUSED_BY_DATA")
+              ? `${silentCount} silent · refused by the data`
+              : `${silentCount} silent · mixed missing inputs`,
     summary:
       activeCount === 0
         ? noun
@@ -826,4 +847,31 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
           ? `${noun} · ${activeCount} · ${silentCount} SILENT`
           : `${noun} · ${activeCount}`,
   };
+}
+
+/**
+ * The profile species whose selectors can refuse the bars on screen, turned
+ * into the menu's `speciesRefusal`. Each sentence restates the selector's own
+ * reason code in words; DRAWN, and absences the menu already names (no bars),
+ * produce nothing.
+ */
+export function profileSpeciesRefusals(vms: {
+  composite?: { readonly reason: string } | null;
+  tpo?: { readonly reason: string } | null;
+  structure?: { readonly reason: string; readonly note?: string } | null;
+  memory?: { readonly reason: string } | null;
+}): Partial<Record<ProfileId, string>> {
+  const out: Partial<Record<ProfileId, string>> = {};
+  const c = vms.composite?.reason;
+  if (c === "NO_COMPLETED_SESSION") out.COMPOSITE_PROFILE = "no completed session in the loaded bars to aggregate — a continuous (24/7) feed never closes one";
+  else if (c === "NO_VOLUME") out.COMPOSITE_PROFILE = "the completed sessions carried no volume";
+  const t = vms.tpo?.reason;
+  if (t === "TOO_FEW_PERIODS") out.TPO_PROFILE = "too few time periods on screen to letter";
+  else if (t === "FLAT_RANGE") out.TPO_PROFILE = "every period traded a single price — there is no distribution to letter";
+  const st = vms.structure;
+  if (st && st.reason !== "DRAWN" && st.reason !== "NO_BARS") out.STRUCTURE_PROFILE = st.note || "no lawful structure leg to anchor on";
+  const m = vms.memory?.reason;
+  if (m === "NO_PRIOR_SESSION") out.PROFILE_MEMORY = "no completed prior session to remember";
+  else if (m === "NO_MIGRATION") out.PROFILE_MEMORY = "no developing value yet to remember";
+  return out;
 }

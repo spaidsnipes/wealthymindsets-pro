@@ -33,7 +33,7 @@ import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot 
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
 // imports the SAME two functions for the Tools door — one owner, two call sites.
-import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
+import { selectProfileMenu, profileSpeciesRefusals, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
 import {
   arrangementSwitches,
   selectChartArrangement,
@@ -1917,6 +1917,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       })),
     ),
     [chartBars],
+  );
+  // What each profile species' own selector refused, so the Profiles door
+  // says "DATA REFUSES · <why>" instead of READY over an empty lane.
+  const profileSpeciesRefusalVM = React.useMemo(
+    () => profileSpeciesRefusals({ composite: compositeProfileVM, tpo: tpoProfileVM, structure: structureProfileVM, memory: profileMemoryVM }),
+    [compositeProfileVM, tpoProfileVM, structureProfileVM, profileMemoryVM],
   );
 
   /**
@@ -4555,6 +4561,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
                 families={["PROFILE"]}
+                speciesRefusal={profileSpeciesRefusalVM}
                 heading="Profiles"
                 active={profileMenuActive}
                 onToggle={onProfileMenuToggle}
