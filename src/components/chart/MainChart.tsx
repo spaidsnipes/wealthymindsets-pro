@@ -224,6 +224,7 @@ import {
   keepOutBackingAlpha,
   keepOutReceipt,
   newestCandleKeepOut,
+  pickSlotClearOfKeepOut,
   placeClearOfKeepOut,
   recordKeepOut,
 } from "@/lib/chartKeepOut";
@@ -8621,9 +8622,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const hit = (y: number) => [...absorbChipRects, ...floatingChips].some(r =>
                 chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
               const slots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6];
-              const freeY = slots.map(y => Math.max(2, y)).find(y => !hit(y));
-              if (freeY == null) { absorbChipsHidden++; continue; }
-              const chipY = freeY;
+              // The narrow chip's backing is opaque, so it also steps off the
+              // newest candle bodies; when only a slot on a body is free it
+              // keeps that slot and its backing yields. The desktop annotation
+              // has no backing, so it is not held to the keep-out.
+              const chipSpot = pickSlotClearOfKeepOut(
+                slots.map(y => ({ x: chipX, y: Math.max(2, y), w: chipW, h: chipH })),
+                desktopShelfInstrument ? [] : keepOut(),
+                s => hit(s.y),
+              );
+              if (chipSpot == null) { absorbChipsHidden++; continue; }
+              recordKeepOut(keepOutLedger, chipSpot);
+              const chipY = chipSpot.rect.y;
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               if (desktopShelfInstrument) {
@@ -8639,7 +8649,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillText(chip, chipX, chipY + chipH / 2 + 0.5);
                 ctx.restore();
               } else {
-                ctx.fillStyle = "rgba(14,12,8,0.92)";
+                ctx.fillStyle = `rgba(14,12,8,${keepOutBackingAlpha(chipSpot, 0.92)})`;
                 ctx.fillRect(chipX, chipY, chipW, chipH);
                 ctx.strokeStyle = "rgba(212,175,55,0.65)";
                 ctx.lineWidth = 1;

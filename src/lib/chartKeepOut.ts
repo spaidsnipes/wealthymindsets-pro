@@ -171,6 +171,26 @@ export function placeClearOfKeepOut(
   return { mode: "BLOCKED", rect: preferred, onCandles: displaced, displaced };
 }
 
+/**
+ * For a placer that owns a fixed slot list (above a shelf, below it, stepped
+ * further out) instead of a row to slide along: the first slot clear of both
+ * the chrome (`taken`) and the keep-out. When only slots on a protected body
+ * are free of chrome, the first of them is kept and its backing must yield.
+ * Null when every slot is taken by chrome — the caller's own rule stands.
+ */
+export function pickSlotClearOfKeepOut(
+  slots: readonly ScreenRect[],
+  keepOut: readonly ScreenRect[],
+  taken: (slot: ScreenRect) => boolean,
+): KeepOutPlacement | null {
+  const open = slots.filter(s => !taken(s));
+  if (open.length === 0) return null;
+  const displaced = rectHits(open[0], keepOut) > 0;
+  const clear = open.find(s => rectHits(s, keepOut) === 0);
+  if (clear) return { mode: clear === open[0] ? "CLEAR" : "MOVED", rect: clear, onCandles: false, displaced };
+  return { mode: "BLOCKED", rect: open[0], onCandles: true, displaced };
+}
+
 /** The backing alpha a placed label may use: unchanged unless it still sits on a protected body. */
 export function keepOutBackingAlpha(placement: Pick<KeepOutPlacement, "onCandles">, alpha: number): number {
   return placement.onCandles ? Math.min(alpha, YIELDED_BACKING_ALPHA) : alpha;

@@ -95,3 +95,18 @@ describe("the selected-zone callout clears the newest bodies and the chips on th
     expect(callout).toMatch(/floatingChips\.push\(\{ x: cx, y: by, w, h: bh2 \}\);/);
   });
 });
+
+describe("the narrow absorption chip's backing yields to the newest bodies", () => {
+  const chip = slice("const chip = `ABSORPTION ${ratioTxt} ${zone.strength}`;", "ds.absorptionChips =");
+
+  it("picks its slot against the chips AND, when backed, the keep-out", () => {
+    expect(chip).toMatch(/const hit = \(y: number\) => \[\.\.\.absorbChipRects, \.\.\.floatingChips\]\.some\(/);
+    expect(chip).toMatch(/pickSlotClearOfKeepOut\(\s*slots\.map\(y => \(\{ x: chipX, y: Math\.max\(2, y\), w: chipW, h: chipH \}\)\),\s*desktopShelfInstrument \? \[\] : keepOut\(\),\s*s => hit\(s\.y\),?\s*\)/);
+    expect(chip).toMatch(/if \(chipSpot == null\) \{ absorbChipsHidden\+\+; continue; \}/);
+    expect(chip).toMatch(/recordKeepOut\(keepOutLedger, chipSpot\);\s*const chipY = chipSpot\.rect\.y;/);
+  });
+
+  it("paints the backed form at an alpha the placement allows", () => {
+    expect(chip).toMatch(/ctx\.fillStyle = `rgba\(14,12,8,\$\{keepOutBackingAlpha\(chipSpot, 0\.92\)\}\)`;\s*ctx\.fillRect\(chipX, chipY, chipW, chipH\);/);
+  });
+});

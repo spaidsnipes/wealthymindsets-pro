@@ -12,6 +12,7 @@ import {
   keepOutBackingAlpha,
   keepOutReceipt,
   newestCandleKeepOut,
+  pickSlotClearOfKeepOut,
   placeClearOfKeepOut,
   recordKeepOut,
   rectHits,
@@ -152,6 +153,51 @@ describe("placeClearOfKeepOut — the label moves, the candle wins, the words st
     expect(isOpaqueBacking(0.72)).toBe(true);
     expect(isOpaqueBacking(keepOutBackingAlpha(p, 0.72))).toBe(false);
     expect(keepOutBackingAlpha({ onCandles: false }, 0.72)).toBe(0.72);
+  });
+});
+
+describe("pickSlotClearOfKeepOut — a fixed slot list steps off the bodies too", () => {
+  const keepOut = newestCandleKeepOut(bars, camera());
+  // Bar 9's body is y 398..412 at x 185..195; a chip there, and slots above/below.
+  const at = (y: number): ScreenRect => ({ x: 170, y, w: 40, h: 14 });
+  const none = () => false;
+
+  it("keeps the first slot when it clears both", () => {
+    const p = pickSlotClearOfKeepOut([at(300), at(400)], keepOut, none);
+    expect(p?.mode).toBe("CLEAR");
+    expect(p?.rect).toEqual(at(300));
+  });
+
+  it("skips a slot on a newest body for the next clear one", () => {
+    const p = pickSlotClearOfKeepOut([at(400), at(300)], keepOut, none);
+    expect(p?.mode).toBe("MOVED");
+    expect(p?.rect).toEqual(at(300));
+    expect(p?.displaced).toBe(true);
+    expect(rectHits(p!.rect, keepOut)).toBe(0);
+  });
+
+  it("chrome still rules first: a slot taken by a chip is never chosen", () => {
+    const p = pickSlotClearOfKeepOut([at(300), at(400), at(250)], keepOut, s => s.y === 300);
+    expect(p?.rect).toEqual(at(250));
+    // The first OPEN slot was on a body, so this is a keep-out move.
+    expect(p?.displaced).toBe(true);
+  });
+
+  it("with only body slots open, keeps the first and yields its backing", () => {
+    const p = pickSlotClearOfKeepOut([at(400), at(405)], keepOut, none);
+    expect(p?.mode).toBe("BLOCKED");
+    expect(p?.rect).toEqual(at(400));
+    expect(isOpaqueBacking(keepOutBackingAlpha(p!, 0.92))).toBe(false);
+  });
+
+  it("returns null only when chrome takes every slot, leaving that rule to the caller", () => {
+    expect(pickSlotClearOfKeepOut([at(300), at(400)], keepOut, () => true)).toBeNull();
+  });
+
+  it("with no keep-out (a backing-free form) behaves as the plain slot test", () => {
+    const p = pickSlotClearOfKeepOut([at(400), at(300)], [], none);
+    expect(p?.mode).toBe("CLEAR");
+    expect(p?.rect).toEqual(at(400));
   });
 });
 
