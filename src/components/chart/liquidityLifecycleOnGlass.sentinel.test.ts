@@ -63,7 +63,10 @@ describe("liquidity lifecycle on glass", () => {
 
   it("stops short of the profile stack and names its silence in one caption line", () => {
     expect(block).toContain("ds.profileStackLeft");
-    expect(block).toContain("PULLED refused (no book)");
+    // The caption's words and row live in one owner (liquidityCaptionLine), read here and by TPO.
+    expect(block).toContain("liquidityCaptionLine()!");
+    const owner = CHART.slice(CHART.indexOf("const liquidityCaptionLine = ()"), CHART.indexOf("const liquidityCaptionLine = ()") + 900);
+    expect(owner).toContain("PULLED refused (no book)");
     expect(block).toMatch(/floatingChips\.push\(\{ x: 8, y: cy - 11/);
     expect(block).toContain("ds.liquidityLifecyclePainted =");
   });

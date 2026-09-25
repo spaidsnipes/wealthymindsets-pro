@@ -149,6 +149,8 @@ const LIQUIDITY_SWEEP_LOOKBACK = 4;
  * the legend actually reserves, and the inset both had all along.
  */
 const PRICE_LEGEND_OVERLAY_H = 28;
+/** The bottom-left word stack's caption type (Liquidity Lifecycle). */
+const LIQUIDITY_CAPTION_FONT = "600 9px ui-sans-serif, system-ui, sans-serif";
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
 const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
@@ -8552,6 +8554,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         return keepOutLedger.boxes;
       };
+      // THE LIQUIDITY LIFECYCLE CAPTION'S LINE — one owner for its words and its
+      // row in the bottom-left word stack (above the weather words when they
+      // speak), read by the caption itself and by TPO, which paints earlier
+      // and must yield to it. Null when the layer is off.
+      const liquidityCaptionLine = (): { text: string; y: number } | null => {
+        if (layerOnRef.current.liquidityLifecycle !== true) return null;
+        const lc = liquidityLifecycleRef.current;
+        const text = !lc
+          ? "LIQUIDITY LIFECYCLE · no reading"
+          : lc.drawn
+            ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · loaded history · candle-estimated · PULLED refused (no book)`
+            : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`;
+        const wds = canvas.dataset;
+        const weatherLines = wds.liquidityWeatherStage ? (wds.liquidityWeatherShelves ? 3 : 2) : 0;
+        return { text, y: Math.max(20, pane0Bottom - 22) - weatherLines * 11 };
+      };
       // A slid label never lands in the column an active Question Lens owns.
       const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
       // Every candle body in view, once per frame, for a label that prints on
@@ -10511,16 +10529,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // axis, below the pane clip — so the detail and stall lines were
           // cut away and the label printed through the window count.
           let wy = Math.max(20, pane0Bottom - 22);
+          // Each line is a chip: layers painted later (TPO letters) yield to it.
+          const wordChip = (text: string, y: number) =>
+            floatingChips.push({ x: 8, y: y - 11, w: ctx.measureText(text).width, h: 11 });
           if (glass.stallLabel && shelves > 0) {
             ctx.fillStyle = "rgba(237,230,211,0.65)";
             ctx.fillText(glass.stallLabel, 8, wy);
+            wordChip(glass.stallLabel, wy);
             wy -= 11;
           }
           ctx.fillStyle = "rgba(237,230,211,0.75)";
           ctx.fillText(glass.detail, 8, wy);
+          wordChip(glass.detail, wy);
           wy -= 11;
           ctx.fillStyle = "#d4af37";
           ctx.fillText(glass.label, 8, wy);
+          wordChip(glass.label, wy);
           ctx.restore();
 
           ds.liquidityWeatherStage = glass.stage;
@@ -11101,6 +11125,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ? `CONTRADICTION · none at price — ${cv.up.length + cv.down.length} families lean ${cv.up.length ? "up" : "down"} · still your read`
                 : `CONTRADICTION · not enough families lean (${cv.silent.map(x => x.family.toLowerCase()).join(", ")} silent)`;
               ctx.fillText(t, 12, H - 100);
+              // A chip, so TPO letters painted later yield to these words.
+              floatingChips.push({ x: 12, y: H - 100 - 10, w: ctx.measureText(t).width, h: 14 });
             }
             ds.contradictionPlaced = placed;
             ctx.restore();
@@ -12192,6 +12218,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const tpo = tpoProfileRef.current;
+          // The Liquidity Lifecycle caption is painted after this block, in the
+          // same bottom-left word stack TPO's letters run through; its line is
+          // reserved here from the one owner of its words and row.
+          const lcLine = liquidityCaptionLine();
           const on = layerOnRef.current.tpo;
           ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
 
@@ -12214,9 +12244,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // are cut out of the TPO's paint region, so no letter prints under
             // a word. At rest the top rows ran under "NQ1! · 5m 30857.75" and
             // beside EFFORT (serving, NQ1! 5m desktop, 2026-09-25).
+            ctx.font = LIQUIDITY_CAPTION_FONT;
             const tpoYields = [
               { x: 0, y: 0, w: W, h: PRICE_LEGEND_OVERLAY_H },
               ...floatingChips.filter(c => c.x < leftEdge + colMax + 4 && c.x + c.w > leftEdge - 6),
+              ...(lcLine ? [{ x: 8, y: lcLine.y - 11, w: ctx.measureText(lcLine.text).width, h: 11 }] : []),
             ];
             ctx.beginPath();
             ctx.rect(0, 0, W, H);
@@ -13471,15 +13503,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // ONE caption line in the bottom-left word stack, above the weather
           // words when they speak. No box: the pools are the reading.
           {
-            const caption = !lc
-              ? "LIQUIDITY LIFECYCLE · no reading"
-              : lc.drawn
-                ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · loaded history · candle-estimated · PULLED refused (no book)`
-                : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`;
-            const weatherLines = ds.liquidityWeatherStage ? (ds.liquidityWeatherShelves ? 3 : 2) : 0;
-            const cy = Math.max(20, pane0Bottom - 22) - weatherLines * 11;
+            const { text: caption, y: cy } = liquidityCaptionLine()!;
             ctx.save();
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = LIQUIDITY_CAPTION_FONT;
             ctx.textAlign = "left"; ctx.textBaseline = "bottom";
             ctx.fillStyle = "rgba(237,230,211,0.65)";
             ctx.fillText(caption, 8, cy);

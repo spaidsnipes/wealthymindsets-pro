@@ -59,6 +59,12 @@ describe("question lens and restored selection", () => {
     expect(block).toContain("...floatingChips.filter(");
     expect(block).toContain('ctx.clip("evenodd")');
     expect(block).toContain("ds.tpoYields = String(tpoYields.length)");
+    // …and to the bottom-left word stack (serving NQ1! 5m, order-flow set on:
+    // CONTRADICTION and LIQUIDITY LIFECYCLE words printed across the letters).
+    expect(block).toContain("...(lcLine ? [{ x: 8, y: lcLine.y - 11, w: ctx.measureText(lcLine.text).width, h: 11 }] : []),");
+    expect(CHART).toContain("const lcLine = liquidityCaptionLine();");
+    expect(CHART).toContain("floatingChips.push({ x: 12, y: H - 100 - 10, w: ctx.measureText(t).width, h: 14 });");
+    expect(CHART).toMatch(/wordChip\(glass\.label, wy\);/);
     // The BASIS caption announces itself so later layers can yield to it.
     expect(CHART).toMatch(/floatingChips\.push\(\{ x: bx, y: by, w: bwTxt \+ 6, h: 15 \}\)/);
   });

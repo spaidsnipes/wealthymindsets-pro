@@ -37,7 +37,10 @@ describe("left column and word stack", () => {
   it("the bottom-left word stack starts above the window count at the candle pane's foot", () => {
     expect(CHART).not.toMatch(/let wy = Math\.max\(20, H - 6\);/);
     expect(CHART).toMatch(/let wy = Math\.max\(20, pane0Bottom - 22\);/);
-    expect(CHART).toMatch(/const cy = Math\.max\(20, pane0Bottom - 22\) - weatherLines \* 11;/);
+    // Pin moved 2026-09-25: the lifecycle caption's row has one owner (liquidityCaptionLine),
+    // read by the caption and by TPO, which must yield to it.
+    expect(CHART).toMatch(/return \{ text, y: Math\.max\(20, pane0Bottom - 22\) - weatherLines \* 11 \};/);
+    expect(CHART).toContain("const { text: caption, y: cy } = liquidityCaptionLine()!;");
   });
 
   it("the VP POC tag never prints inside the header band (REGIME desk, 2026-09-25)", () => {
