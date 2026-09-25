@@ -20,13 +20,16 @@
  * The picture implies any bar can be inspected. In this product that is false,
  * and the falsehood is not small.
  *
- * `useWebSocket` retains **50 prints** — one line, `recentTicks.slice(0, 50)`.
- * That is the entire per-trade tape any consumer in the chart room can see, and
- * it is a LIVE window: it holds the trades that happened moments ago and
- * nothing else. Delta and imbalance are readings about individual trades. A bar
- * from forty minutes ago has no trades left in this room to read. Its OHLC
- * survives — the bar series is fetched history — but the tape that made it is
- * gone.
+ * `useWebSocket` retains `RECENT_TICK_RETENTION` prints — 2,000, through
+ * `retainRecentTicks`, the one named rule. That is the entire per-trade tape
+ * any consumer in the chart room can see, and it is a LIVE window: it holds
+ * the most recent trades and nothing older. On an active future that is on
+ * the order of a minute; on a thin tape it can be far longer. Delta and
+ * imbalance are readings about individual trades, and a bar older than the
+ * window has no trades left in this room to read. Its OHLC survives — the bar
+ * series is fetched history — but the tape that made it is gone. How far back
+ * the window reaches depends on the market, so this compiler MEASURES it for
+ * each bar rather than assuming it.
  *
  * So a ticket that printed `Delta +132` for whichever bar the trader happened
  * to click would be inventing the most persuasive number on the panel. It would
@@ -173,7 +176,7 @@ export interface InspectTicketInput {
 /**
  * Below this many in-window prints, a delta is one or two trades wearing a
  * sign. `selectFootprintWorksheet` sets `MIN_PRINTS_FOR_LADDER = 24` against
- * the same 50-print ceiling for a SIX-LEVEL division; a single signed sum is a
+ * the same retention ceiling for a SIX-LEVEL division; a single signed sum is a
  * coarser question than a per-level ladder, so it can stand on fewer prints —
  * but not on one. Four is the smallest count at which a delta describes a
  * balance rather than a coin flip.

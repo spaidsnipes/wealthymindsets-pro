@@ -34,6 +34,23 @@
  * never reads aggressor side, so withholding real prints from it would turn a
  * missing side classification into a missing market observation.
  *
+ * ── WHY THE TAPE IS PUT IN TIME ORDER HERE, AND ONLY HERE ─────────────────
+ * The stream holds its tape NEWEST-FIRST (`retainRecentTicks`), and that order
+ * is a contract other readers depend on. Every selector this file feeds reads
+ * the OTHER way: index 0 is the oldest print. Stacked imbalance builds its
+ * claim from the first 60% and tests it with the rest; delta divergence walks
+ * its segments forward and calls the last one "recent"; absorption measures
+ * displacement as last minus first; the value candle's `last` is the final
+ * element. Handed the stream's order unchanged, every one of them ran
+ * backwards — a stack built from the newest prints and "tested" by the oldest,
+ * a divergence whose pivots were swapped and whose delta was summed in
+ * reverse — and every type stayed satisfied while it happened.
+ *
+ * So the order is converted once, at this boundary, by `chronologicalTape`,
+ * and not inside any selector: a selector that re-sorted its own input would be
+ * a second owner of "which print came first", and the next one written would
+ * not know it had to.
+ *
  * ── WHAT THIS DELIBERATELY DOES NOT DO ────────────────────────────────────
  * It does not phrase anything. `selectOrderFlowStanding` ranks and phrases, and
  * it takes THESE objects — so the preview sentence is downstream of the
@@ -54,9 +71,72 @@ import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStacke
 import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
 import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 
-/** The tape this reads. Structurally the stream's own tick, never re-typed. */
-type Ticks = Parameters<typeof selectValueCandle>[0];
+/**
+ * The one field `chronologicalTape` reads. Optional because an undated print is
+ * a real case on the wire (a venue message without a timestamp), and the
+ * function owes that case an answer rather than a crash.
+ */
+interface DatedTick {
+  readonly time?: number | null;
+}
+
+/**
+ * The tape this reads. Structurally the stream's own tick, never re-typed: what
+ * the selectors read, plus the `time` this file reads to order it.
+ */
+type Ticks =
+  | readonly (NonNullable<Parameters<typeof selectValueCandle>[0]>[number] & DatedTick)[]
+  | null
+  | undefined;
 type TapeSource = Parameters<typeof hasVerifiedAggressorTape>[0];
+
+function hasFiniteTime(tick: DatedTick | null | undefined): boolean {
+  return tick != null && typeof tick.time === "number" && Number.isFinite(tick.time);
+}
+
+/**
+ * PURE. The stream's tape, OLDEST-FIRST — the order every order-flow selector
+ * reads.
+ *
+ * WHY A SORT, AND NOT SIMPLY A REVERSAL. `retainRecentTicks` is newest-first
+ * per FLUSH, not per print: each flush's batch is prepended in the order it
+ * arrived, which is oldest-first within the batch. So the held tape is a stack
+ * of ascending runs, newest run on top. Reversing it restores the order of the
+ * runs and flips every run inside out. The stream only accepts a print whose
+ * time is not earlier than the last one it took (`applyTickToLiveBar`'s
+ * LATE_EVENT_IGNORED), so the timestamps ARE arrival order, and sorting on them
+ * recovers it exactly.
+ *
+ * THE SORT IS STABLE, and that is the tie rule. Prints stamped with the same
+ * millisecond almost always arrive in one socket message, therefore in one
+ * flush, therefore already in arrival order inside their run; a stable sort
+ * leaves them there. The case it cannot recover — two prints in one
+ * millisecond split across a flush boundary — is ambiguous in the held tape
+ * itself, and costs at most the order of prints no clock here can separate.
+ *
+ * WHEN ANY PRINT IS UNDATED, NOTHING IS SORTED. A sort with holes in its key
+ * would place the undated prints wherever the comparator's NaN happened to
+ * drop them. The retention contract is the only ordering claim left standing,
+ * so the tape is reversed per it: the runs come out in the right order, and
+ * the only error is inside a single flush. The live stream never admits an
+ * undated print (`applyTickToLiveBar` refuses one outright), so the chart
+ * room's tape always takes the sort; this branch exists because the input type
+ * does not promise a time, and a tape assembled anywhere else may lack one.
+ *
+ * Returns a new array and never mutates the one it was handed — the stream's
+ * consumers memoise on that array's identity.
+ */
+export function chronologicalTape<T extends DatedTick>(ticks: readonly T[]): T[];
+export function chronologicalTape<T extends DatedTick>(
+  ticks: readonly T[] | null | undefined,
+): T[] | null;
+export function chronologicalTape<T extends DatedTick>(
+  ticks: readonly T[] | null | undefined,
+): T[] | null {
+  if (ticks == null) return null;
+  if (!ticks.every(hasFiniteTime)) return [...ticks].reverse();
+  return [...ticks].sort((a, b) => (a.time as number) - (b.time as number));
+}
 
 /**
  * WHY THIS DOES NOT REUSE `OrderFlowReadings`.
@@ -103,17 +183,21 @@ export function compileOrderFlowReadings(
   tapeSource: TapeSource,
 ): OrderFlowReadingSet {
   const realTape = hasVerifiedAggressorTape(tapeSource);
+  // Time order FIRST, before the gate, so the side-dependent selectors and
+  // Liquidity Weather (whose segments are equal-count buckets "in tape order")
+  // all read one ordering of one tape.
+  const tape = chronologicalTape(recentTicks);
   // ONE gated array for every SIDE-DEPENDENT selector. Liquidity Weather reads
   // the raw observed prints because its selector deliberately never reads side.
-  const sidedTicks = realTape ? recentTicks : null;
+  const sidedTicks = realTape ? tape : null;
   return {
     valueCandle: selectValueCandle(sidedTicks),
     absorption: selectAbsorption(sidedTicks),
     deltaDivergence: selectDeltaDivergence(sidedTicks),
-    liquidityWeather: selectLiquidityWeather(recentTicks),
+    liquidityWeather: selectLiquidityWeather(tape),
     stackedImbalance: selectStackedImbalance(sidedTicks),
     deltaLevels: selectDeltaLevels(sidedTicks),
-    printsPresent: hasLiquidityWeatherPrints(recentTicks),
+    printsPresent: hasLiquidityWeatherPrints(tape),
     realTape,
   };
 }

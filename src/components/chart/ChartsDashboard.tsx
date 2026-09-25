@@ -166,7 +166,7 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 // journey hook are the SAME three modules /command-deck mounts; none of them is a
 // chart-room variant. See the /charts block in roomEquipment.ts for why the
 // equipment id is deliberately identical to the deck's rather than forked.
-import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
+import { chronologicalTape, useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
 import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
 import { provenTapeWireBlock } from "@/lib/marketData/provenTapeWireBlock";
 import { selectOverlayDrawingLedger } from "@/lib/marketData/viewModels/selectOverlayDrawingLedger";
@@ -1569,12 +1569,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * accumulates from, and this room already reads it for Asset 05 — so the
    * ladder and the Big Trades view can never disagree about what traded.
    *
-   * The compiler is bounded by that tape's 50-print retention and says so on
-   * its own constants. It reads UNREAD rather than estimating a side when the
-   * feed does not state one, which on most equity feeds is the honest answer.
+   * The compiler is bounded by that tape's retention (`RECENT_TICK_RETENTION`)
+   * and says so on its own constants. It reads UNREAD rather than estimating a
+   * side when the feed does not state one, which on most equity feeds is the
+   * honest answer.
+   *
+   * Handed in TIME ORDER, not the stream's order. The worksheet divides against
+   * the LAST print it is given — "the most recent thing this room saw" — and
+   * the stream holds its tape newest-first, so the raw array made that step
+   * divide against the OLDEST print held. `chronologicalTape` is the same
+   * conversion the order-flow compilation applies, so the worksheet and the
+   * five readings agree on which print came last.
    */
   const footprintWorksheetVM = React.useMemo(
-    () => selectFootprintWorksheet({ prints: recentTicks }),
+    () => selectFootprintWorksheet({ prints: chronologicalTape(recentTicks) }),
     [recentTicks],
   );
 

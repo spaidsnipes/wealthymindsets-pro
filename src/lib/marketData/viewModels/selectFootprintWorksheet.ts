@@ -78,30 +78,36 @@ export const ASSET_18_EFFICIENCY_GRADE_REFUSAL =
 /**
  * ── BOTH CONSTANTS BELOW ARE SET BY A CEILING THIS MODULE DOES NOT OWN ──────
  *
- * `useWebSocket` retains **50 prints** (`recentTicks: [...].slice(0, 50)`, one
- * line, one place). That is the entire tape any consumer in the chart room can
- * see, and it bounds this worksheet completely.
+ * `useWebSocket` retains `RECENT_TICK_RETENTION` prints — 2,000 — through
+ * `retainRecentTicks`, the one named rule, locked by its own test. That is the
+ * entire tape any consumer in the chart room can see, and it bounds this
+ * worksheet completely.
  *
  * It is written down here because the numbers below are meaningless without it.
- * A later reader who widens the ladder to the mockup's apparent depth would be
- * dividing the same 50 prints into more bins and getting a more confident-looking
- * picture of less evidence — which is the precise failure this file exists to
- * refuse. **If the retention changes, retune these two together and say so.**
+ * A later reader who widens the ladder to the mockup's apparent depth must
+ * check that the held tape still puts enough prints in each bin — more bins
+ * over the same evidence is a more confident-looking picture of less of it,
+ * which is the precise failure this file exists to refuse. **If the retention
+ * changes, re-check these two together and say so.**
+ *
+ * Both were sized against a 50-print ceiling. At 2,000 they are CONSERVATIVE,
+ * not wrong: each is a floor on evidence, and a larger tape only clears the
+ * floor more often. Widening the ladder is therefore now possible — and is a
+ * decision about the product, not a correction owed by this file.
  */
 
 /**
- * Six levels, not the deeper ladder the mockup draws. At a 50-print ceiling,
- * twelve bins is roughly four prints a level, and four prints is not a
- * footprint — it is four prints with a grid drawn over it.
+ * Six levels, not the deeper ladder the mockup draws. Sized so that, on a
+ * thin tape, a level is still several prints and not one print with a grid
+ * drawn over it.
  */
 export const FOOTPRINT_LEVEL_COUNT = 6;
 
 /**
  * Fewer prints than this and a per-level ladder is noise: a single trade in a
- * bin becomes a "100% one-sided level". Set against the 50-print ceiling so the
- * worksheet appears on a healthy tape rather than only on a saturated one. The
- * threshold is a reading about the tape, not a style preference, so it is named
- * and exported.
+ * bin becomes a "100% one-sided level". Low enough that the worksheet appears
+ * on a healthy tape rather than only on a saturated one. The threshold is a
+ * reading about the tape, not a style preference, so it is named and exported.
  */
 export const MIN_PRINTS_FOR_LADDER = 24;
 
@@ -115,7 +121,13 @@ export interface FootprintPrint {
 }
 
 export interface FootprintWorksheetInput {
-  /** The per-trade tape this room is holding. */
+  /**
+   * The per-trade tape this room is holding, OLDEST-FIRST. Step 3 divides
+   * against the last element as "the most recent print", so a newest-first
+   * array silently divides against the oldest one. The stream holds its tape
+   * newest-first by contract; `chronologicalTape` is the one owner of turning
+   * it around.
+   */
   readonly prints?: readonly FootprintPrint[] | null;
 }
 
