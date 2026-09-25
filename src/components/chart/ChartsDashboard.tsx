@@ -144,6 +144,7 @@ import type {
   LegacyOhlcvTuple,
 } from "@/lib/marketData/canonicalBar";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
+import { selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
@@ -2099,6 +2100,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         decisionId: currentSceneDecision?.decisionId ?? null,
       })
     : null;
+  // The selected zone's Passport LINEAGE: its ids, the birth bar's admitted
+  // identity and the chain to the camera's decision — compiled when the
+  // selection, the identities or the decision change, never per frame.
+  const selectedZoneLineage = React.useMemo(() => {
+    const zone = chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId);
+    return zone
+      ? selectZoneLineage({ zone, identities: chartBarIdentities, decisionId: currentSceneDecision?.decisionId ?? null })
+      : null;
+  }, [chartStructureZones, selectedMarketObjectId, chartBarIdentities, currentSceneDecision?.decisionId]);
   const selectedMarketObjectWait =
     selectedObjectChain?.ok && chartCanvasVM.oneStory
       ? selectWaitStanding(chartCanvasVM.oneStory.decision, chartCanvasVM.oneStory.debt)
@@ -5437,6 +5447,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         profileDnaOnGlass={livingProfileOn && livingProfileGlass.drawn}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
+                        zoneLineage={selectedZoneLineage}
                         selectedAnatomy={activeSelectedAnatomy}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}

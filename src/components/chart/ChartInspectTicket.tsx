@@ -65,6 +65,7 @@ import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/sel
 import { MIN_DNA_ROWS, type ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
+import type { ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -327,6 +328,7 @@ export function ChartInspectTicket({
   profileSliceSymbol = "",
   profileSliceAsOf = null,
   selectedZone = null,
+  zoneLineage = null,
   selectedAnatomy = null,
   activeDecisionId = null,
   contradiction = null,
@@ -350,6 +352,8 @@ export function ChartInspectTicket({
   profileSliceAsOf?: number | null;
   /** F11 · a selected swing-origin ZONE — its Passport. */
   selectedZone?: StructureZone | null;
+  /** The selected zone's LINEAGE (selectZoneLineage) — ids, provenance and the Decision_ID chain. */
+  zoneLineage?: ZoneLineageVM | null;
   /** A selected absorption shelf or exhaustion mark, with the glass's current resolution of it. */
   selectedAnatomy?: SelectedAnatomy | null;
   /** The DECISION_ID born on this camera, if any — shown beside the object, never merged into it. */
@@ -398,6 +402,8 @@ export function ChartInspectTicket({
   if (selectedZone) {
     const z = selectedZone;
     const lc = z.lifecycle;
+    // Only a lineage compiled for THIS object is printed beside it.
+    const lineage = zoneLineage?.objectId === z.object.objectId ? zoneLineage : null;
     const t = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
     const ageSec = lc.asOf != null ? lc.asOf - z.birthTime : null;
     const age = ageSec == null ? "UNKNOWN" : `${Math.floor(ageSec / 86400)}d ${Math.floor((ageSec % 86400) / 3600)}h ${Math.floor((ageSec % 3600) / 60)}m`;
@@ -499,6 +505,45 @@ export function ChartInspectTicket({
             <Row k="Fidelity" v={z.object.fidelityAtBirth} />
             <Row k="Origin" v="Confirmed swing from the structure owner" />
           </div>
+          {/* GARDEN 12 · THE TRUTH MICROSCOPE — LINEAGE, by id, from the owners
+              verbatim (selectZoneLineage): the object, its session, the birth
+              bar's admitted source and provenance, every evidence id, both
+              owners and the lifecycle version, and the chain BAR → OBJECT →
+              DECISION. Calm on the glass, deep here. The Decision_ID sits in
+              the chain BESIDE the object, never merged; nothing reprints the bar. */}
+          <div className="space-y-1 px-4 py-3" data-testid="passport-provenance"
+            data-inspect-lineage={lineage ? lineage.birth.state : "NOT_COMPILED"}>
+            <Head icon={FileText}>LINEAGE</Head>
+            <Row k="Object" v={<span className="break-all font-mono text-[11px]">{z.object.objectId}</span>} />
+            {lineage ? (
+              <>
+                <Row k="Kind" v={`${lineage.kind} · session ${lineage.sessionId}`} />
+                <Row k="Birth bar" v={lineage.birth.state === "READ"
+                  ? <span className="break-all font-mono text-[11px]">{lineage.birth.line}</span>
+                  : <span style={{ color: UNREAD_COLOR }}>{lineage.birth.absence} <span className="break-all font-mono text-[11px]">{lineage.birth.barId}</span></span>} />
+                <Row k="Evidence" v={lineage.evidence.length === 0 ? "none attached" : (
+                  <ol className="space-y-0.5" data-testid="passport-evidence">
+                    {lineage.evidence.map(e => (
+                      <li key={e.id}><span className="break-all font-mono text-[11px]">{e.id}</span> <span style={{ color: "#8B8676" }}>· {e.role === "BIRTH" ? "birth" : "test"}</span></li>
+                    ))}
+                  </ol>
+                )} />
+                <Row k="Method" v={lineage.method} />
+                <Row k="As of" v={t(Math.floor(lineage.asOf / 1000))} />
+                <div data-inspect-chain={lineage.chain.state}>
+                  <Row k="Chain" v={lineage.chain.state === "READ"
+                    ? <span className="break-all font-mono text-[11px]">{lineage.chain.line}</span>
+                    : <span style={{ color: UNREAD_COLOR }}>{lineage.chain.reason}</span>} />
+                </div>
+              </>
+            ) : (
+              <>
+                <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{z.object.birthBarId}</span>} />
+                <Row k="Decision" v={activeDecisionId ? <span className="break-all font-mono text-[11px]">{activeDecisionId}</span> : "none born on this camera"} />
+                <Row k="Lineage" v={<span style={{ color: UNREAD_COLOR }}>Not compiled for this object.</span>} />
+              </>
+            )}
+          </div>
           <div className="space-y-1 px-4 py-3">
             <Head icon={AlertTriangle}>INVALIDATION CONDITION</Head>
             <div className="text-[12.5px]" style={{ color: "#C8C0AE" }}>
@@ -506,18 +551,6 @@ export function ChartInspectTicket({
               {lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}
             </div>
             <div className="text-[11px]" style={{ color: "#8B8676" }}>(Bar close beyond the far edge · a wick through is a sweep, not a break)</div>
-          </div>
-          {/* GARDEN 12 · THE TRUTH MICROSCOPE — identity and provenance, from
-              the object and lifecycle owners verbatim. Calm on the glass, deep
-              here. The Decision_ID is shown BESIDE the object, never merged. */}
-          <div className="space-y-1 px-4 py-3" data-testid="passport-provenance">
-            <Head icon={FileText}>IDENTITY &amp; PROVENANCE</Head>
-            <Row k="Object" v={<span className="break-all font-mono text-[11px]">{z.object.objectId}</span>} />
-            <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{z.object.birthBarId}</span>} />
-            <Row k="Evidence" v={z.object.evidenceIds.length ? `${z.object.evidenceIds.length} id${z.object.evidenceIds.length > 1 ? "s" : ""} · ${z.object.evidenceIds.slice(0, 2).join(" · ")}${z.object.evidenceIds.length > 2 ? " …" : ""}` : "none attached"} />
-            <Row k="Method" v={`zone lifecycle v${lc.version} · confirmed-swing origin`} />
-            <Row k="As of" v={lc.asOf != null ? t(lc.asOf) : "UNKNOWN"} />
-            <Row k="Decision" v={activeDecisionId ? <span className="break-all font-mono text-[11px]">{activeDecisionId}</span> : "none born on this camera"} />
           </div>
         </div>
       </section>
