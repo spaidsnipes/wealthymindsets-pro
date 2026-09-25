@@ -120,3 +120,29 @@ describe("GP12 §27 — the lens prints prices at the market's decimals", () => 
     expect(JSON.stringify(at2)).not.toMatch(/100\.000/);
   });
 });
+
+describe("PERMISSION? quotes the compiler and never grants", () => {
+  const ask = (permission: Parameters<typeof selectQuestionLens>[0]["permission"]) =>
+    selectQuestionLens({ absorption: null, exhaustion: null, livingPoc: null, pivots: [], choice: "PERMISSION", permission });
+
+  it("refuses without a decision reading or gradeable evidence", () => {
+    expect(ask(null).refusal).toMatch(/no decision reading/);
+    expect(ask({ rightOfWay: "WAIT", detail: "x", debt: { payable: 0, resolved: 0, missingLabels: [], warnLabels: [] } }).refusal).toMatch(/no gradeable evidence/);
+  });
+
+  it("lists every owed and warned node, carries the paid count, and says WAIT", () => {
+    const vm = ask({ rightOfWay: "WAIT", detail: "2 to resolve", debt: { payable: 5, resolved: 3, missingLabels: ["regime"], warnLabels: ["direction"] } });
+    expect(vm.kind).toBe("PERMISSION");
+    expect(vm.debt.map(d => d.label)).toEqual(["PAID", "REGIME", "DIRECTION"]);
+    expect(vm.openDebt).toBe(2);
+    expect(vm.posture).toBe("WAIT · LET THE MARKET PAY");
+    expect(vm.focus).toBe("Right of way: WAIT · 2 to resolve");
+  });
+
+  it("with nothing owed it still only quotes — no GO word of its own", () => {
+    const vm = ask({ rightOfWay: "OPEN", detail: "all paid", debt: { payable: 3, resolved: 3, missingLabels: [], warnLabels: [] } });
+    expect(vm.openDebt).toBe(0);
+    expect(vm.posture).toBeNull();
+    expect(JSON.stringify(vm)).not.toMatch(/\bGO\b|GRANTED/);
+  });
+});

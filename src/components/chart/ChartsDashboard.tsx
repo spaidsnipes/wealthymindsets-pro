@@ -5403,6 +5403,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}
                       continuationOnChart={continuationHealthVM ? { health: continuationHealthVM.health, reason: continuationHealthVM.reason } : null}
+                      permissionOnChart={chartCanvasVM.oneStory.debt ? {
+                        rightOfWay: String(chartCanvasVM.oneStory.decision.value),
+                        detail: chartCanvasVM.oneStory.decision.detail,
+                        debt: {
+                          payable: chartCanvasVM.oneStory.debt.payable,
+                          resolved: chartCanvasVM.oneStory.debt.resolved,
+                          missingLabels: chartCanvasVM.oneStory.debt.missingLabels,
+                          warnLabels: chartCanvasVM.oneStory.debt.warnLabels,
+                        },
+                      } : null}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}

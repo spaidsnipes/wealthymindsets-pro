@@ -86,7 +86,7 @@ export interface DebtItem {
 export interface QuestionLensVM {
   readonly version: number;
   readonly active: boolean;
-  readonly kind: "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED" | null;
+  readonly kind: "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED" | "PERMISSION" | null;
   /**
    * DEBT — items are evidence owed (PAID / MISSING). CHANGES — WHAT CHANGED?
    * items are measured differences (CHANGED / SAME); nothing is owed.
@@ -123,7 +123,7 @@ export interface QuestionLensVM {
   } | null;
 }
 
-export type QuestionChoice = "AUTO" | "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED";
+export type QuestionChoice = "AUTO" | "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED" | "PERMISSION";
 export const QUESTION_CHOICES: readonly { readonly id: QuestionChoice; readonly label: string }[] = [
   { id: "AUTO", label: "Auto" },
   { id: "ABSORPTION", label: "Absorbed?" },
@@ -132,6 +132,7 @@ export const QUESTION_CHOICES: readonly { readonly id: QuestionChoice; readonly 
   { id: "TRAP", label: "Trap?" },
   { id: "HOLD", label: "Holding?" },
   { id: "WHAT_CHANGED", label: "What changed?" },
+  { id: "PERMISSION", label: "Permission?" },
 ];
 /** WHAT CHANGED? looks back this many bars (one hour on a 5m camera). */
 export const CHANGE_WINDOW_BARS = 12;
@@ -155,6 +156,21 @@ export interface QuestionLensInput {
   readonly continuation?: { readonly health: "COHERENT" | "CONTESTED" | "ROTATING" | "UNREADABLE"; readonly reason: string } | null;
   /** The market's own decimals (pricePrecision.ts). Omitted → 2. */
   readonly priceDp?: number;
+  /**
+   * PERMISSION? — the Decision Permission Compiler's own reading, carried
+   * verbatim (right of way + its evidence debt). The lens QUOTES it on the
+   * camera; it never grants, weighs or re-derives permission.
+   */
+  readonly permission?: {
+    readonly rightOfWay: string;
+    readonly detail: string;
+    readonly debt: {
+      readonly payable: number;
+      readonly resolved: number;
+      readonly missingLabels: readonly string[];
+      readonly warnLabels: readonly string[];
+    } | null;
+  } | null;
 }
 
 const NONE: QuestionLensVM = {
@@ -177,6 +193,8 @@ const refuse = (choice: QuestionChoice, why: string): QuestionLensVM => ({ ...NO
 export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
   PRICE_DP = Number.isInteger(input.priceDp) && (input.priceDp as number) >= 0 && (input.priceDp as number) <= 10 ? (input.priceDp as number) : 2;
   const choice = input.choice ?? "AUTO";
+  // PERMISSION? reads the decision, not the bars — asked before the bar check.
+  if (choice === "PERMISSION") return permissionLens(input);
   const a = input.absorption;
   const bars = a?.measured ? a.bars : [];
   if (bars.length === 0) return choice === "AUTO" ? NONE : refuse(choice, "no measured bars on this camera yet");
@@ -457,3 +475,33 @@ function whatChanged(bars: readonly Bar[], med: number, input: QuestionLensInput
 }
 
 export default selectQuestionLens;
+
+/**
+ * PERMISSION? — "Is permission granted?", answered by QUOTING the Decision
+ * Permission Compiler: its right-of-way word and detail, and one debt item per
+ * evidence node it says is owed (missing) or not yet clean (warn). A paid line
+ * carries its resolved count. Nothing here decides permission — a second
+ * permission verdict on the camera would be two owners of one answer.
+ */
+function permissionLens(input: QuestionLensInput): QuestionLensVM {
+  const p = input.permission;
+  if (!p) return refuse("PERMISSION", "no decision reading on this camera yet");
+  const d = p.debt;
+  if (!d || d.payable === 0) return refuse("PERMISSION", "the decision chain has no gradeable evidence yet");
+  const items: DebtItem[] = [
+    ...d.missingLabels.map(l => ({ label: l.toUpperCase(), paid: false, evidence: "owed — the compiler has no evidence for it" })),
+    ...d.warnLabels.map(l => ({ label: l.toUpperCase(), paid: false, evidence: "warning — present but not clean" })),
+  ];
+  if (d.resolved > 0) items.unshift({ label: "PAID", paid: true, evidence: `${d.resolved} of ${d.payable} evidence nodes paid` });
+  const open = items.filter(i => !i.paid).length;
+  return {
+    version: QUESTION_LENS_VERSION, active: true, kind: "PERMISSION", ledger: "DEBT", choice: "PERMISSION", refusal: null,
+    question: "Is permission granted?",
+    focus: `Right of way: ${p.rightOfWay} · ${p.detail}`,
+    bandLow: null, bandHigh: null, bandStart: null,
+    debt: items, openDebt: open,
+    posture: open > 0 ? "WAIT · LET THE MARKET PAY" : null,
+    nextQuestion: open > 0 ? null : "What changed?",
+    control: null,
+  };
+}

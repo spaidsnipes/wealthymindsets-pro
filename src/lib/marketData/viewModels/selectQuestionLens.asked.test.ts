@@ -21,8 +21,11 @@ const ask = (bars: AnatomyBar[], pivots: { time: number; price: number; kind: "H
 const upLeg = Array.from({ length: 11 }, (_, i) => b(i, 100 + i, 100.5 + i, 0.6));
 
 describe("the chooser offers exactly the canon's questions", () => {
-  it("Auto plus six asked questions, no more", () => {
-    expect(QUESTION_CHOICES.map(c => c.id)).toEqual(["AUTO", "ABSORPTION", "EXHAUSTION", "CONTINUATION", "TRAP", "HOLD", "WHAT_CHANGED"]);
+  it("Auto plus seven asked questions, no more", () => {
+    // GP12 §67 names PERMISSION? among the canon lenses (WHAT CHANGED? · TRAP? ·
+    // CONTINUATION HEALTHY? · HOLD? · PERMISSION? · SHOW RAW — the last is the
+    // existing raw toggle, not a lens).
+    expect(QUESTION_CHOICES.map(c => c.id)).toEqual(["AUTO", "ABSORPTION", "EXHAUSTION", "CONTINUATION", "TRAP", "HOLD", "WHAT_CHANGED", "PERMISSION"]);
   });
 });
 

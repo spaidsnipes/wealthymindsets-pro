@@ -1121,6 +1121,8 @@ interface Props {
   rawOnChart?: boolean;
   /** The continuation owner's verdict, for the Question Lens's Continuing? (verbatim). */
   continuationOnChart?: { health: "COHERENT" | "CONTESTED" | "ROTATING" | "UNREADABLE"; reason: string } | null;
+  /** PERMISSION? — the decision compiler's reading, quoted verbatim by the lens. */
+  permissionOnChart?: import("@/lib/marketData/viewModels/selectQuestionLens").QuestionLensInput["permission"];
   /** Absorption vs Exhaustion key-metric cards (MOCK 1). */
   anatomyCardsOnChart?: boolean;
   /** H-201 Memory Ghost — prior analogue under the live bars. */
@@ -1499,6 +1501,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   questionChoiceOnChart = "AUTO",
   rawOnChart = false,
   continuationOnChart = null,
+  permissionOnChart = null,
   scaffoldingDepthOnChart = "OFF",
   anatomyCardsOnChart = false,
   memoryGhostOnChart = false,
@@ -1783,6 +1786,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   rawRef.current = rawOnChart;
   const continuationRef = useRef<typeof continuationOnChart>(null);
   continuationRef.current = continuationOnChart;
+  const permissionRef = useRef<typeof permissionOnChart>(null);
+  permissionRef.current = permissionOnChart;
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false });
   useEffect(() => {
     layerOnRef.current = {
@@ -9615,6 +9620,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 choice: questionChoiceRef.current,
                 continuation: continuationRef.current,
                 priceDp: pricePrecisionFromBars(barsRef.current ?? []),
+                permission: permissionRef.current,
               });
               ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
               ds.questionChoice = lens.choice;
