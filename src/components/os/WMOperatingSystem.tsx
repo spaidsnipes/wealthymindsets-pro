@@ -91,6 +91,7 @@ import {
   subscribeEquipmentShortfalls,
 } from "@/lib/workspace/equipmentChannel";
 import type { EquipmentShortfall } from "@/lib/workspace/equipmentChannel";
+import { announceOpenDoorEdge } from "@/lib/os/openDoorEdge";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
 import { ACTIVATOR_GLYPHS, equipmentGlyph } from "./equipmentGlyphs";
@@ -1223,6 +1224,38 @@ export function WMOperatingSystem({
   // control and aria-controls keep describing the thing the trader sees.
   const panelOpen = equipmentMode ? scenePanel !== null : railOpen;
 
+  /*
+    AN OPEN DOOR SITS OVER THE ROOM — ALL OF IT. ONE RULE, NOT FOUR CASES.
+
+    MEASURED on live /charts, 1905px, 2026-09-25, Workspace door open: the
+    chart's "D" data-window toggle (zIndex 70), its "Vol" footer label and the
+    Question Lens "ASK · …" row all printed ON the sheet, and the price legend's
+    headline vanished UNDER it. `<main>` was not a stacking context, so every
+    z-index the room's chrome carries competed with this door's 40 head to head
+    — and a 70 wins.
+
+    `doorOverRoom` drives both halves of the repair: the room is sealed into
+    ONE layer beneath the open door (`isolation: isolate` on `<main>` — nothing
+    inside can out-rank the door however large its z-index), and the door's
+    right edge is ANNOUNCED so the one piece of chrome the trader must still
+    read (the legend headline) steps past it rather than being duplicated
+    somewhere else. Rail mode is untouched: there the panel is an in-flow
+    column that never overlaps the room. Closed, `<main>` carries neither, so a
+    room with no door open stacks exactly as it always did.
+  */
+  const doorOverRoom = equipmentMode && scenePanel !== null;
+  const doorRef = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    if (!doorOverRoom) return;
+    const publish = () => announceOpenDoorEdge(doorRef.current?.getBoundingClientRect().right ?? null);
+    publish();
+    window.addEventListener("resize", publish);
+    return () => {
+      window.removeEventListener("resize", publish);
+      announceOpenDoorEdge(null);
+    };
+  }, [doorOverRoom]);
+
   /**
    * ESCAPE PUTS THE EQUIPMENT DOWN. THE ADDRESS DOES NOT MOVE.
    *
@@ -1727,6 +1760,7 @@ export function WMOperatingSystem({
             state, one aria-expanded, two presentations. */}
         {!panelOpen ? null : (
         <nav
+          ref={doorRef}
           className="wm-os-rail"
           id="wm-os-rail"
           // The accessible name is the TRUTH about what the panel contains.
@@ -2064,6 +2098,9 @@ export function WMOperatingSystem({
             // spent, so the branch lives here rather than in five call sites.
             gap: room === "bleed" ? 0 : 12,
             padding: room === "bleed" ? 0 : "14px 18px",
+            // SEALED BENEATH AN OPEN DOOR — see `doorOverRoom`. Only while a
+            // door is open, so a closed room's stacking is exactly what it was.
+            isolation: doorOverRoom ? "isolate" : undefined,
           }}
         >
           {children}

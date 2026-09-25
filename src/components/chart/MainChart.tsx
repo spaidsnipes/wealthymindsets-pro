@@ -394,6 +394,8 @@ import {
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
 import { PROFILE_INK_AT_REST, resolveProfileInk } from "@/lib/chart/profileFamilyInk";
+// The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
+import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -15544,7 +15546,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           The bottom rule is gone with the row. A 1px border drawn across live
           candles reads as a chart annotation the trader did not place. */}
-      <div
+      <ClearOfOpenDoor
         style={{
           position: "absolute", top: 0, left: 0, right: 0, height: PRICE_LEGEND_OVERLAY_H,
           zIndex: 20, pointerEvents: "none", background: "transparent",
@@ -15993,7 +15995,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             )}
           </button>
         </div>
-      </div>
+      </ClearOfOpenDoor>
 
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
 
