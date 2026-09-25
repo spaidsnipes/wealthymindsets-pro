@@ -23,7 +23,9 @@ console.log("bar:", (await p.locator('[data-testid="stack-fusion"]').innerText()
 await p.screenshot({ path: "scratchpad/shift0924/fusion_panel.png" });
 await p.keyboard.press("Escape"); await p.waitForTimeout(1500);
 const fo = () => p.evaluate(() => [...document.querySelectorAll("canvas")].map(c => c.dataset.profileFusionObject).find(x => x !== undefined) ?? "none");
-console.log("fused object:", await fo());
+console.log("fused object:", await fo(), "| geometry:", await p.evaluate(() => [...document.querySelectorAll("canvas")].map(c => c.dataset.profileFusionGeometry).find(x => x !== undefined) ?? "none"));
+await p.mouse.move(1590, 990); await p.waitForTimeout(800);
+await p.screenshot({ path: process.env.FUSION_CLEAN ?? "scratchpad/shift0924/fusion_fused_clean.png" });
 await p.getByRole("button", { name: /inspect/i }).first().click(); await p.waitForTimeout(1500);
 console.log("inspect:", (await p.locator('[data-inspect-fusion]').innerText().catch(() => "none")).replace(/\s+/g, " "));
 await p.screenshot({ path: "scratchpad/shift0924/fusion_after.png" });

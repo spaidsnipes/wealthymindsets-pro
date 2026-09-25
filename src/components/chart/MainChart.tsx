@@ -9864,6 +9864,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // The trader's order (P-110 stack preferences); geometry stays with the plan.
         const orderedStack = orderStack(stackOrder, stackPrefsRef.current);
         stackOrder.splice(0, stackOrder.length, ...orderedStack);
+        // FUSION PARENTS DIM (Garden 12 visibility governor): while a fused
+        // object stands, its two parents keep drawing — alive, inspectable —
+        // but step back so the derived object reads as the subject.
+        const fusedPairNow = fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? []) : [];
+        const parentFade = (sp: StackSpecies) => (fusedPairNow.includes(sp) ? 0.45 : 1);
         const stackPlan = planProfileStack({
           canvasWidth: W,
           axisWidth: stackAxisW,
@@ -9928,7 +9933,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
 
           if (on && lp?.drawn) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("LIVING", stackPrefsRef.current);
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("LIVING", stackPrefsRef.current) * parentFade("LIVING");
             /*
               GEOMETRY. The histogram lives at the right of the pane, inset
               from the price gutter so the axis labels stay legible. Bars
@@ -10226,7 +10231,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
-              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro * stackOpacity("COMPOSITE", stackPrefsRef.current);
+              ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.macro * stackOpacity("COMPOSITE", stackPrefsRef.current) * parentFade("COMPOSITE");
               const right = lane.right;
               const width = lane.width * stackWidth("COMPOSITE", stackPrefsRef.current);
               const ys: number[] = [];
@@ -10302,7 +10307,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const lane = stackPlan.lanes.VISIBLE_RANGE;
           if (vrpVM?.drawn && lane?.fits) {
-            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("VISIBLE_RANGE", stackPrefsRef.current);
+            ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid * stackOpacity("VISIBLE_RANGE", stackPrefsRef.current) * parentFade("VISIBLE_RANGE");
             const right = lane.right;
             const width = lane.width * stackWidth("VISIBLE_RANGE", stackPrefsRef.current);
             const ys: number[] = [];
@@ -10403,18 +10408,54 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const spanW = spanR - spanL;
               const maxV = Math.max(...f.rows.map(r => r.volume));
               ctx.save();
-              ctx.strokeStyle = `rgba(${flowColorsRef.current.fused},0.95)`;
+              const FU = flowColorsRef.current.fused;
+              ctx.strokeStyle = `rgba(${FU},0.95)`;
               ctx.lineWidth = 1;
+              // THE DERIVED BODY: a filled object in its own right (value area
+              // denser), outlined — not a tint laid over the parents.
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
                 if (y0 == null || y1 == null) continue;
                 const h = Math.max(1, Math.abs(+y1 - +y0) - 1);
                 const w = (r.volume / maxV) * spanW;
                 const inVa = r.price >= f.val && r.price < f.vah;
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = `rgba(${FU},${inVa ? 0.2 : 0.07})`; // candles stay dominant
+                ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);
                 ctx.globalAlpha = inVa ? 0.95 : 0.55;
                 ctx.strokeRect(spanR - w + 0.5, Math.min(+y0, +y1) + 0.5, w - 1, h);
               }
               ctx.globalAlpha = 1;
+              // PARENT A + PARENT B → DERIVED. Each parent's OWN POC (hollow
+              // ring, at its own lane) sends a tributary that converges on the
+              // fused POC (filled diamond). The shape says "made from these
+              // two" without a word; the parents' POCs stay where they are.
+              {
+                const yF = srs.priceToCoordinate(f.poc);
+                if (yF != null) {
+                  const cx = spanL - 16, cy = +yF;
+                  pair.forEach(sp => {
+                    const src = source(sp);
+                    const ln = stackPlan.lanes[sp];
+                    if (!src || !ln?.fits || src.poc == null) return;
+                    const yP = srs.priceToCoordinate(src.poc);
+                    if (yP == null) return;
+                    const px = ln.right - ln.width * 0.5, py = +yP;
+                    ctx.strokeStyle = `rgba(${FU},0.8)`; ctx.lineWidth = 1.2;
+                    ctx.beginPath(); ctx.moveTo(px, py);
+                    ctx.bezierCurveTo(px - (px - cx) * 0.5, py, cx + 10, cy, cx, cy);
+                    ctx.stroke();
+                    ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(11,10,8,0.95)"; ctx.fill(); ctx.stroke();
+                  });
+                  ctx.beginPath();
+                  ctx.moveTo(cx, cy - 6); ctx.lineTo(cx + 6, cy); ctx.lineTo(cx, cy + 6); ctx.lineTo(cx - 6, cy); ctx.closePath();
+                  ctx.fillStyle = `rgba(${FU},1)`; ctx.fill();
+                  ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+                  ds.profileFusionGeometry = "PARENTS_DIM+TRIBUTARIES+DERIVED_BODY";
+                }
+              }
+              ctx.strokeStyle = `rgba(${FU},0.95)`; ctx.lineWidth = 1;
               const line = (price: number, label: string, dash: number[]) => {
                 const y = srs.priceToCoordinate(price);
                 if (y == null) return;
