@@ -57,6 +57,10 @@ import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfile
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
 
+import { anatomyReadingDrawn, type AnatomyInspectVM, type AnatomyTarget } from "@/lib/marketData/viewModels/anatomySelection";
+import type { SelectedAnatomy } from "@/lib/marketData/viewModels/chartSelection";
+import { ABSORPTION_ANATOMY_DEFAULTS, type EffortBasis } from "@/lib/marketData/selectAbsorptionAnatomy";
+import { DECLINING_AT, EXTENDED_AT, FT_BARS, MAX_MARKS, MIN_PUSH_BARS } from "@/lib/marketData/viewModels/selectExhaustion";
 import type { InspectTicketVM, TicketRow } from "@/lib/marketData/viewModels/selectInspectTicket";
 import { MIN_DNA_ROWS, type ProfileDnaVM } from "@/lib/marketData/viewModels/selectProfileDna";
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
@@ -138,6 +142,175 @@ function ProfileDnaBlock({ dna, onGlass }: { dna: ProfileDnaVM; onGlass: boolean
   );
 }
 
+/**
+ * A SELECTED SHELF OR MARK — the anatomy object the trader clicked, read from
+ * the resolution the glass made of it this frame (`selectAnatomyInspect`) and
+ * nothing else. Every number is an owner's: per-bar effort and displacement
+ * and the zone from `selectAbsorptionAnatomy`, the push from `selectExhaustion`,
+ * the four metrics from `selectAnatomyCards` asked about this object. The
+ * thresholds print from the owners' own constants.
+ *
+ * WITHHELD, NOT BLANK: the anatomy owner publishes no wall, no touch times, no
+ * hold test and no expected travel, so none is printed; the hold row names that
+ * absence instead. On VOLUME the side is unknown and the words say so — effort
+ * is traded volume, unsigned. No probability, no intent, no forecast.
+ */
+const ANATOMY_BASIS: Record<EffortBasis, string> = {
+  SIGNED_DELTA: "DELTA · sides stamped by the provider — effort = |ask − bid| per bar",
+  INFERRED_DELTA: "DELTA · INFERRED — the chart's tick accumulator split each bar; the venue did not stamp the sides",
+  VOLUME: "VOLUME · effort = traded volume, unsigned · side UNKNOWN",
+  UNMEASURED: "UNMEASURED — no volume and no split in this window",
+};
+
+function AnatomyTicket({ sel, onClose }: { sel: SelectedAnatomy; onClose: () => void }) {
+  const r = sel.reading;
+  const absorption = r.target.reading === "ABSORPTION";
+  // The body is the CURRENT reading whenever the owners still measure it; only
+  // when they do not does Inspect fall back to the last drawn reading, stamped
+  // with the window it was measured on.
+  const body: AnatomyInspectVM | null = r.card ? r : sel.lastDrawn;
+  const bodyIsLast = body !== null && body !== r;
+  const utc = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const hhmm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16);
+  const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+  const px = (v: number) => String(+v.toPrecision(8));
+  const spanOf = (t: AnatomyTarget) => `${utc(t.startTime)} – ${hhmm(t.endTime)}`;
+  const windowLine = (w: AnatomyInspectVM["window"]) =>
+    w.from == null || w.to == null
+      ? `${w.bars} bars in view`
+      : `${w.bars} bars in view · ${utc(w.from)} – ${utc(w.to)} UTC${w.capped ? " · capped: the field keeps the right-hand end of the view" : ""}`;
+
+  let status: string | null = null;
+  if (r.state === "RESHAPED") {
+    const now = r.zone
+      ? `${utc(r.zone.startTime)} – ${hhmm(r.zone.endTime)}`
+      : r.push ? `${utc(r.push.pushStartTime)} – ${hhmm(r.push.pushEndTime)}` : "—";
+    status = `The ${absorption ? "run" : "push"} has changed since you selected it: ${spanOf(r.target)} → ${now} UTC.`;
+  } else if (r.state === "NOT_GRADED_IN_WINDOW") {
+    status = absorption
+      ? `This window (${r.window.bars} bars) no longer grades it — every reading here is relative to the bars in view.`
+      : r.push?.exhausted
+        ? `Still exhausted in this window, but only the newest ${MAX_MARKS} marks are drawn.`
+        : r.push
+          ? "This window no longer grades it exhausted — the push is shown as it measures now."
+          : `This window (${r.window.bars} bars) no longer measures a push there.`;
+  } else if (r.state === "OUT_OF_VIEW") {
+    status = "Its bars are outside the camera.";
+  } else if (r.state === "UNMEASURED") {
+    status = r.window.basis === "UNMEASURED"
+      ? "Effort is not measured in this window — nothing is drawn."
+      : "Too few bars in this window to grade a push — nothing is drawn.";
+  }
+
+  const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
+    <div className="grid grid-cols-[92px_1fr] gap-2"><dt style={{ color: "#8B8676" }}>{k}</dt><dd className="text-white">{v}</dd></div>
+  );
+  // Inspect stands on the wall AWAY from the object, so its candles stay in view.
+  const wallClass = sel.wall === "LEFT" ? "top-2 left-2" : "top-16 right-[76px]";
+  return (
+    <section
+      className={`absolute ${wallClass} z-[75] w-[272px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md`}
+      data-testid="chart-inspect-ticket"
+      data-inspect-anatomy={r.id}
+      data-inspect-anatomy-state={r.state}
+      aria-label={`Inspect selected ${absorption ? "absorption zone" : "exhaustion"}: ${r.state.replace(/_/g, " ").toLowerCase()}`}
+    >
+      <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
+        <Crosshair size={11} /> {absorption ? "SELECTED ABSORPTION ZONE" : "SELECTED EXHAUSTION"}
+        <button className="ml-auto" aria-label="Close the inspect ticket" onClick={onClose}><X size={12} /></button>
+      </div>
+      <div className="mt-1 text-[11px] text-white">{sel.symbol} · {sel.timeframe} <span className="break-all font-mono text-[10px]" style={{ color: "#8B8676" }}>{r.id}</span></div>
+      <div className="mt-1 text-[10px] font-bold tracking-wide" style={{ color: anatomyReadingDrawn(r) ? "#7FD1A6" : UNREAD_COLOR }}>
+        {anatomyReadingDrawn(r) ? "ON THE GLASS" : r.state.replace(/_/g, " ")}
+      </div>
+      {status && <p className="mt-0.5 text-[10px] leading-snug" style={{ color: UNREAD_COLOR }} data-inspect-anatomy-status>{status}</p>}
+
+      {absorption && r.state === "NOT_GRADED_IN_WINDOW" && r.bars.length > 0 && (
+        <div className="mt-1.5 text-[10px] leading-snug" style={{ color: "#C8C0AE" }} data-inspect-anatomy-now>
+          <div className="font-bold tracking-wide text-wm-muted">ITS BARS, AS THIS WINDOW GRADES THEM</div>
+          {r.bars.map(b => (
+            <div key={b.time} className="tabular-nums">{hhmm(b.time)} · effort {pct(b.effortNorm)} · displacement {pct(b.displacementNorm)}</div>
+          ))}
+        </div>
+      )}
+
+      {bodyIsLast && body && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] font-bold tracking-wide text-wm-muted" data-inspect-anatomy-last>
+          LAST DRAWN READING · measured on {windowLine(body.window)}
+        </div>
+      )}
+      {!body && (
+        <p className="mt-1.5 text-[10px]" style={{ color: UNREAD_COLOR }}>No drawn reading to show — it has not been drawn since it was selected.</p>
+      )}
+
+      {body && absorption && body.zone && (() => {
+        const z = body.zone;
+        return (
+          <dl className="mt-1.5 space-y-1 text-[11px] break-words" style={{ color: "#C8C0AE" }}>
+            <Row k="Span · UTC" v={`${utc(z.startTime)} – ${hhmm(z.endTime)} · ${z.barCount} bars`} />
+            <Row k="Band" v={`${px(z.priceLo)} – ${px(z.priceHi)}`} />
+            <Row k="Effort basis" v={ANATOMY_BASIS[body.window.basis]} />
+            <div>
+              <div style={{ color: "#8B8676" }}>Per bar · effort · displacement · Δ (ask − bid)</div>
+              {body.bars.map(b => (
+                <div key={b.time} className="tabular-nums text-white">
+                  {hhmm(b.time)} · {pct(b.effortNorm)} · {pct(b.displacementNorm)} · {b.delta == null ? "—" : `${b.delta >= 0 ? "+" : "−"}${Math.abs(b.delta).toLocaleString("en-US")}`}
+                </div>
+              ))}
+            </div>
+            {body.card?.metrics.map(m => (
+              <Row key={m.label} k={m.label} v={<><span className="tabular-nums">{m.value}</span> · {m.word}</>} />
+            ))}
+            <div className="text-[10px]" style={{ color: "#8B8676" }}>
+              Ratio legend &gt;5 STRONG · 2–5 MODERATE · &lt;2 WEAK{z.unbounded ? " · ∞ = the run displaced price not at all" : ""}
+            </div>
+            <Row k="Hold test" v={<span style={{ color: UNREAD_COLOR }}>NOT MEASURED — the anatomy owner publishes no wall or hold test. Opposing passive interest is not observed (no depth book); only price holding the band is.</span>} />
+            <Row k="Method" v={`selectAbsorptionAnatomy · effort ≥ ${pct(ABSORPTION_ANATOMY_DEFAULTS.effortThreshold)} and displacement ≤ ${pct(ABSORPTION_ANATOMY_DEFAULTS.displacementThreshold)} of the window's own peak · ≥ ${ABSORPTION_ANATOMY_DEFAULTS.minZoneBars} consecutive bars · self-scaled over the bars in view — may change on pan`} />
+            <Row k="Window" v={windowLine(body.window)} />
+            <Row k="Version" v={`anatomy cards v${body.cardsVersion} · selection v${body.version}`} />
+          </dl>
+        );
+      })()}
+
+      {body && !absorption && body.push && (() => {
+        const p = body.push;
+        const effortWord = body.window.basis === "VOLUME" ? "traded volume" : body.window.basis === "UNMEASURED" ? "unmeasured" : "|ask − bid|";
+        return (
+          <dl className="mt-1.5 space-y-1 text-[11px] break-words" style={{ color: "#C8C0AE" }}>
+            <Row k="Push" v={`${p.direction === "UP" ? "Up" : "Down"} · ${p.pushBars} bars · ${utc(p.pushStartTime)} – ${hhmm(p.pushEndTime)} UTC`} />
+            <Row k="Origin → extreme" v={`${px(p.originPrice)} → ${px(p.price)} · extreme at ${hhmm(p.time)}`} />
+            <Row k="Effort 2nd ÷ 1st" v={`${pct(p.aggressionLevel)} · first half ${pct(p.effortFirstHalf)} · second half ${pct(p.effortSecondHalf)} of the window's peak (${effortWord}) · declining below ${pct(DECLINING_AT)}`} />
+            <Row k="Extension" v={`${p.extension.toFixed(1)}× the window's median bar range · extended at ${EXTENDED_AT}×`} />
+            <div>
+              <div style={{ color: "#8B8676" }}>Follow-through · the {FT_BARS} bars after the push</div>
+              {p.followBars.map(f => (
+                <div key={f.time} className="tabular-nums text-white">{hhmm(f.time)} · reach {px(f.reach)} · {f.beyond ? "beyond the extreme" : "not beyond"}</div>
+              ))}
+              <div className="text-white">
+                {p.followThrough == null
+                  ? `PENDING (${p.followBars.length} of ${FT_BARS} bars after the push are in this window)`
+                  : `${p.followThrough}/${FT_BARS} · ${p.followThrough === 0 ? "LOST" : "HELD"}`}
+              </div>
+            </div>
+            <Row k="Energy transfer" v={p.energyTransfer == null ? "— (effort zero)" : `${pct(p.energyTransfer)} · displacement per effort, 2nd half ÷ 1st`} />
+            <Row k="Outcome" v={body.card?.outcome ?? "—"} />
+            <Row k="Effort basis" v={ANATOMY_BASIS[body.window.basis]} />
+            <Row k="Method" v={`selectExhaustion v${body.exhaustionVersion} · a push is ≥ ${MIN_PUSH_BARS} same-direction closes · exhausted = declining, extended and no follow-through`} />
+            <Row k="Window" v={windowLine(body.window)} />
+            <Row k="Version" v={`anatomy cards v${body.cardsVersion} · selection v${body.version}`} />
+          </dl>
+        );
+      })()}
+
+      <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>
+        {absorption
+          ? "Cannot separate absorption from an empty auction, a halt, or two large participants crossing. Resting orders are not observed (no book)."
+          : "A fact about the push, not a forecast."}
+      </p>
+    </section>
+  );
+}
+
 export function ChartInspectTicket({
   vm,
   /** True when the bar shown is the live one because the cursor is nowhere. */
@@ -150,6 +323,7 @@ export function ChartInspectTicket({
   profileSliceSymbol = "",
   profileSliceAsOf = null,
   selectedZone = null,
+  selectedAnatomy = null,
   activeDecisionId = null,
   contradiction = null,
   memoryGhost = null,
@@ -172,6 +346,8 @@ export function ChartInspectTicket({
   profileSliceAsOf?: number | null;
   /** F11 · a selected swing-origin ZONE — its Passport. */
   selectedZone?: StructureZone | null;
+  /** A selected absorption shelf or exhaustion mark, with the glass's current resolution of it. */
+  selectedAnatomy?: SelectedAnatomy | null;
   /** The DECISION_ID born on this camera, if any — shown beside the object, never merged into it. */
   activeDecisionId?: string | null;
   /** H-401 · "Passport shows both family lines." */
@@ -342,6 +518,10 @@ export function ChartInspectTicket({
         </div>
       </section>
     );
+  }
+
+  if (selectedAnatomy) {
+    return <AnatomyTicket sel={selectedAnatomy} onClose={() => onOpenChange(false)} />;
   }
 
   if (selectedProfileSlice) {
