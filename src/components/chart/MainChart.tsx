@@ -9901,186 +9901,186 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 delete ds.anatomyCardsLayout;
                 delete ds.anatomyCardsScale;
               } else {
-              const shown = [selCard];
-              ds.anatomyCards = `SELECTED:${selCard.kind}:${selCard.empty ? "NONE" : selCard.outcome}`;
-              ctx.save();
-              ctx.globalAlpha = att.textAlpha("anatomyCards");
-              const cw = 292, ch = 188, gap = 12;
-              const top = Math.max(200, H - 190 - ch);
-              const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
-              // The Question Lens owns the left column (strip, debt, control);
-              // the cards step right of it rather than printing over it.
-              let cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
-              let cardsTop = top;
-              // SCAFFOLDING's card (painted later this frame) prefers the same
-              // left column. Find room beside it, then below it; if the
-              // camera has neither, the two cards fold into two measured lines
-              // at the foot of the plot — same numbers, nothing dropped.
-              // PRO has no card (its geometry is on the candles), so it
-              // reserves nothing; the other depths dock clear of these cards.
-              const sDepth = scaffoldingDepthRef.current;
-              let compact = false;
-              let scaffoldBox: { x: number; y: number; w: number; h: number } | null = null;
-              if (sDepth === "FOUNDATION" || sDepth === "INTERMEDIATE") {
-                const sx = cardsLeft, sy = 176 - 9;
-                const { w: sw, h: sh } = SCAFFOLD_CARD_BOX[sDepth];
-                scaffoldBox = { x: sx, y: sy, w: sw, h: sh };
-                const need = shown.length * cw + (shown.length - 1) * gap;
-                if (sx + sw + 12 + need <= W - 90) {
-                  cardsLeft = sx + sw + 12;
-                } else if (sy + sh + 8 + ch <= H - 40) {
-                  cardsTop = sy + sh + 8;
-                } else {
-                  compact = true;
-                }
-              }
-              // CANDLE PRESERVATION. The pair used to be placed by fixed
-              // coordinates alone; on the Founder's live BTC 1m camera
-              // (2026-09-24) it sat on roughly the left half of the candles it
-              // was describing. The market outranks its own commentary: the
-              // cards take a spot only where they cover no candle body or wick
-              // and no chip already painted this frame, else they fold into the
-              // two measured lines below — same numbers, nothing dropped.
-              let axisW = 90;
-              try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) axisW = Math.ceil(w0); } catch {}
-              const pairW = shown.length * cw + (shown.length - 1) * gap;
-              const overlaps = (a: { x: number; y: number; w: number; h: number }, x: number, y: number, w: number, h: number) =>
-                a.x < x + w && a.x + a.w > x && a.y < y + h && a.y + a.h > y;
-              if (!compact) {
-                const rightX = W - axisW - 12 - pairW;
-                const upperY = layerOnRef.current.questionLens === true ? 176 : HEADER_FLOOR_Y + 8;
-                const spot = [
-                  { x: cardsLeft, y: cardsTop },
-                  { x: rightX, y: cardsTop },
-                  { x: cardsLeft, y: upperY },
-                  { x: rightX, y: upperY },
-                ].filter(s =>
-                  s.x >= cardsLeft && s.x + pairW <= W - axisW - 12 &&
-                  s.y >= HEADER_FLOOR_Y && s.y + ch <= H - 40 &&
-                  !(scaffoldBox && overlaps(scaffoldBox, s.x, s.y, pairW, ch)) &&
-                  !floatingChips.some(c => overlaps(c, s.x, s.y, pairW, ch)),
-                ).find(s => candleHits(s.x, s.y, pairW, ch) === 0);
-                if (spot) { cardsLeft = spot.x; cardsTop = spot.y; } else compact = true;
-              }
-              if (compact) {
-                const lines = shown.map(c =>
-                  c.empty
-                    ? `${c.title} · ${c.empty}`
-                    : `${c.kind} · ${c.metrics.map(m => `${m.label.toLowerCase()} ${m.value}`).join(" · ")} · ${c.outcome}`);
-                ctx.font = font(700, 9);
-                const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 16;
-                // One line per card shown: 6px of air plus 14px a line.
-                const lineBoxH = 6 + 14 * lines.length;
-                const footY = H - 58;
-                const headY = layerOnRef.current.questionLens === true ? 160 : HEADER_FLOOR_Y + 8;
-                // The folded lines carry a 0.92 backing too. Foot and head are
-                // tried fewest-candles first (a tie keeps the foot); a slot must
-                // clear every body under it and the chips on the glass. When
-                // only slots on bodies are left the first is kept and its
-                // backing yields — the numbers stay, the candles read through.
-                const slotsC = [{ x: cardsLeft, y: footY, w: lw, h: lineBoxH }, { x: cardsLeft, y: headY, w: lw, h: lineBoxH }]
-                  .sort((a, b) => candleHits(a.x, a.y, a.w, a.h) - candleHits(b.x, b.y, b.w, b.h));
-                const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + lineBoxH)];
-                const takenC = (s: { x: number; y: number; w: number; h: number }) => floatingChips.some(r => overlaps(r, s.x, s.y, s.w, s.h));
-                const spotC = pickSlotClearOfKeepOut(slotsC, koC, takenC) ?? pickSlotClearOfKeepOut(slotsC, koC, () => false)!;
-                recordKeepOut(keepOutLedger, spotC);
-                const ly = spotC.rect.y;
-                ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, lineBoxH));
-                ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.92)})`;
-                ctx.fillRect(cardsLeft, ly, lw, lineBoxH);
-                floatingChips.push({ x: cardsLeft, y: ly, w: lw, h: lineBoxH });
-                ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1;
-                ctx.strokeRect(cardsLeft + 0.5, ly + 0.5, lw - 1, lineBoxH - 1);
-                ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                lines.forEach((t, i) => {
-                  ctx.fillStyle = shown[i]!.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
-                  ctx.fillText(t, cardsLeft + 8, ly + 10 + 14 * i);
-                });
-                ds.anatomyCardsLayout = "COMPACT";
-              } else {
-                ds.anatomyCardsLayout = "CARDS";
-              }
-              // MOCKUP SCALE (as the scaffolding plate): on a desktop camera
-              // the two cards are magnified as one piece, growing UP from the
-              // same floor so the volume pane stays clear. Held to 1 beside the
-              // scaffolding card or where the plot is too narrow. Leaders are
-              // drawn unscaled, so they still land on their own candles.
-              let cardK = 1;
-              if (!compact && sDepth === "OFF" && W >= 1280 && H >= 820) {
-                cardK = Math.max(1, Math.min(1.28, (W - axisW - 12 - cardsLeft) / pairW, (cardsTop + ch - 240) / ch));
-                // Magnified cards grow up from the same floor; if the larger
-                // footprint would reach a candle, they stay at plate scale.
-                if (cardK > 1 && candleHits(cardsLeft, cardsTop + ch - ch * cardK, pairW * cardK, ch * cardK) > 0) cardK = 1;
-              }
-              if (cardK > 1) cardsTop = cardsTop + ch - ch * cardK;
-              ds.anatomyCardsScale = cardK.toFixed(2);
-              if (!compact) ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, cardsTop, pairW * cardK, ch * cardK));
-              // The pair is chrome on the glass: later chips step around it
-              // instead of printing over its numbers.
-              if (!compact) floatingChips.push({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK });
-              if (!compact) shown.forEach((c, k) => {
-                // Scaled space: origin at (cardsLeft, cardsTop).
+                const shown = [selCard];
+                ds.anatomyCards = `SELECTED:${selCard.kind}:${selCard.empty ? "NONE" : selCard.outcome}`;
                 ctx.save();
-                if (cardK > 1) { ctx.translate(cardsLeft, cardsTop); ctx.scale(cardK, cardK); ctx.translate(-cardsLeft, -cardsTop); }
-                const x0 = cardsLeft + k * (cw + gap);
-                const ex = c.kind === "EXHAUSTION";
-                const ACC = ex ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
-                const ACC_DIM = ex ? "rgba(226,92,92,0.55)" : "rgba(201,165,92,0.6)";
-                ctx.fillStyle = ex ? "rgba(20,8,8,0.92)" : "rgba(11,10,8,0.92)";
-                ctx.fillRect(x0, cardsTop, cw, ch);
-                ctx.strokeStyle = ACC_DIM; ctx.lineWidth = 1;
-                ctx.strokeRect(x0 + 0.5, cardsTop + 0.5, cw - 1, ch - 1);
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.font = font(800, 13); ctx.fillStyle = ACC;
-                ctx.fillText(c.title, x0 + cw / 2, cardsTop + 15);
-                ctx.fillStyle = "rgba(237,230,211,0.75)";
-                let sp = 7.5;
-                ctx.font = font(600, sp);
-                while (sp > 5.5 && ctx.measureText(`(${c.subtitle})`).width > cw - 16) { sp -= 0.25; ctx.font = font(600, sp); }
-                ctx.fillText(`(${c.subtitle})`, x0 + cw / 2, cardsTop + 29);
-                if (c.empty) {
-                  ctx.font = font(600, 9); ctx.fillStyle = "rgba(200,192,174,0.85)";
-                  ctx.fillText(c.empty.length > 52 ? c.empty.slice(0, 51) + "…" : c.empty, x0 + cw / 2, cardsTop + ch / 2 + 6);
-                  ctx.restore();
-                  return;
-                }
-                // Four metric tiles, 2×2: label · big number · word.
-                const tw = (cw - 24) / 2, th = 50;
-                c.metrics.forEach((m, i) => {
-                  const tx = x0 + 8 + (i % 2) * (tw + 8);
-                  const ty = cardsTop + 40 + Math.floor(i / 2) * (th + 6);
-                  ctx.strokeStyle = "rgba(237,230,211,0.12)";
-                  ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
-                  ctx.textAlign = "left";
-                  ctx.font = font(700, 7.5); ctx.fillStyle = "rgba(237,230,211,0.8)";
-                  ctx.fillText(m.label, tx + 8, ty + 10);
-                  ctx.font = font(800, 19); ctx.fillStyle = ACC;
-                  ctx.fillText(m.value, tx + 8, ty + 28);
-                  ctx.font = font(700, 7.5); ctx.fillStyle = ACC_DIM;
-                  ctx.fillText(m.word, tx + 8, ty + 43);
-                });
-                ctx.textAlign = "left";
-                ctx.font = font(800, 10); ctx.fillStyle = ACC;
-                ctx.fillText(`${ex ? "EXHAUSTION" : "ABSORPTION"} OUTCOME · ${c.outcome}`, x0 + 10, cardsTop + ch - 24);
-                ctx.font = font(500, 8); ctx.fillStyle = "rgba(200,192,174,0.85)";
-                ctx.fillText(c.outcomeNote, x0 + 10, cardsTop + ch - 10);
-                ctx.restore();
-                // Leader to the candles — in SCREEN space.
-                if (c.time != null && c.price != null) {
-                  const xr = ts.timeToCoordinate(c.time as never);
-                  const yr = srs.priceToCoordinate(c.price);
-                  if (xr != null && yr != null) {
-                    ctx.setLineDash([2, 3]);
-                    ctx.strokeStyle = ACC_DIM;
-                    const lx0 = cardsLeft + (x0 - cardsLeft + cw / 2) * cardK;
-                    ctx.beginPath(); ctx.moveTo(lx0, cardsTop); ctx.lineTo(+xr, +yr); ctx.stroke();
-                    ctx.setLineDash([]);
-                    ctx.fillStyle = ACC;
-                    ctx.beginPath(); ctx.arc(+xr, +yr, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = att.textAlpha("anatomyCards");
+                const cw = 292, ch = 188, gap = 12;
+                const top = Math.max(200, H - 190 - ch);
+                const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+                // The Question Lens owns the left column (strip, debt, control);
+                // the cards step right of it rather than printing over it.
+                let cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
+                let cardsTop = top;
+                // SCAFFOLDING's card (painted later this frame) prefers the same
+                // left column. Find room beside it, then below it; if the
+                // camera has neither, the two cards fold into two measured lines
+                // at the foot of the plot — same numbers, nothing dropped.
+                // PRO has no card (its geometry is on the candles), so it
+                // reserves nothing; the other depths dock clear of these cards.
+                const sDepth = scaffoldingDepthRef.current;
+                let compact = false;
+                let scaffoldBox: { x: number; y: number; w: number; h: number } | null = null;
+                if (sDepth === "FOUNDATION" || sDepth === "INTERMEDIATE") {
+                  const sx = cardsLeft, sy = 176 - 9;
+                  const { w: sw, h: sh } = SCAFFOLD_CARD_BOX[sDepth];
+                  scaffoldBox = { x: sx, y: sy, w: sw, h: sh };
+                  const need = shown.length * cw + (shown.length - 1) * gap;
+                  if (sx + sw + 12 + need <= W - 90) {
+                    cardsLeft = sx + sw + 12;
+                  } else if (sy + sh + 8 + ch <= H - 40) {
+                    cardsTop = sy + sh + 8;
+                  } else {
+                    compact = true;
                   }
                 }
-              });
-              ctx.restore();
+                // CANDLE PRESERVATION. The pair used to be placed by fixed
+                // coordinates alone; on the Founder's live BTC 1m camera
+                // (2026-09-24) it sat on roughly the left half of the candles it
+                // was describing. The market outranks its own commentary: the
+                // cards take a spot only where they cover no candle body or wick
+                // and no chip already painted this frame, else they fold into the
+                // two measured lines below — same numbers, nothing dropped.
+                let axisW = 90;
+                try { const w0 = chart.priceScale("right").width(); if (Number.isFinite(w0) && w0 > 0) axisW = Math.ceil(w0); } catch {}
+                const pairW = shown.length * cw + (shown.length - 1) * gap;
+                const overlaps = (a: { x: number; y: number; w: number; h: number }, x: number, y: number, w: number, h: number) =>
+                  a.x < x + w && a.x + a.w > x && a.y < y + h && a.y + a.h > y;
+                if (!compact) {
+                  const rightX = W - axisW - 12 - pairW;
+                  const upperY = layerOnRef.current.questionLens === true ? 176 : HEADER_FLOOR_Y + 8;
+                  const spot = [
+                    { x: cardsLeft, y: cardsTop },
+                    { x: rightX, y: cardsTop },
+                    { x: cardsLeft, y: upperY },
+                    { x: rightX, y: upperY },
+                  ].filter(s =>
+                    s.x >= cardsLeft && s.x + pairW <= W - axisW - 12 &&
+                    s.y >= HEADER_FLOOR_Y && s.y + ch <= H - 40 &&
+                    !(scaffoldBox && overlaps(scaffoldBox, s.x, s.y, pairW, ch)) &&
+                    !floatingChips.some(c => overlaps(c, s.x, s.y, pairW, ch)),
+                  ).find(s => candleHits(s.x, s.y, pairW, ch) === 0);
+                  if (spot) { cardsLeft = spot.x; cardsTop = spot.y; } else compact = true;
+                }
+                if (compact) {
+                  const lines = shown.map(c =>
+                    c.empty
+                      ? `${c.title} · ${c.empty}`
+                      : `${c.kind} · ${c.metrics.map(m => `${m.label.toLowerCase()} ${m.value}`).join(" · ")} · ${c.outcome}`);
+                  ctx.font = font(700, 9);
+                  const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 16;
+                  // One line per card shown: 6px of air plus 14px a line.
+                  const lineBoxH = 6 + 14 * lines.length;
+                  const footY = H - 58;
+                  const headY = layerOnRef.current.questionLens === true ? 160 : HEADER_FLOOR_Y + 8;
+                  // The folded lines carry a 0.92 backing too. Foot and head are
+                  // tried fewest-candles first (a tie keeps the foot); a slot must
+                  // clear every body under it and the chips on the glass. When
+                  // only slots on bodies are left the first is kept and its
+                  // backing yields — the numbers stay, the candles read through.
+                  const slotsC = [{ x: cardsLeft, y: footY, w: lw, h: lineBoxH }, { x: cardsLeft, y: headY, w: lw, h: lineBoxH }]
+                    .sort((a, b) => candleHits(a.x, a.y, a.w, a.h) - candleHits(b.x, b.y, b.w, b.h));
+                  const koC = [...keepOut(), ...rowBodiesAt(Math.min(headY, footY), Math.max(headY, footY) + lineBoxH)];
+                  const takenC = (s: { x: number; y: number; w: number; h: number }) => floatingChips.some(r => overlaps(r, s.x, s.y, s.w, s.h));
+                  const spotC = pickSlotClearOfKeepOut(slotsC, koC, takenC) ?? pickSlotClearOfKeepOut(slotsC, koC, () => false)!;
+                  recordKeepOut(keepOutLedger, spotC);
+                  const ly = spotC.rect.y;
+                  ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, lineBoxH));
+                  ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.92)})`;
+                  ctx.fillRect(cardsLeft, ly, lw, lineBoxH);
+                  floatingChips.push({ x: cardsLeft, y: ly, w: lw, h: lineBoxH });
+                  ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1;
+                  ctx.strokeRect(cardsLeft + 0.5, ly + 0.5, lw - 1, lineBoxH - 1);
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  lines.forEach((t, i) => {
+                    ctx.fillStyle = shown[i]!.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
+                    ctx.fillText(t, cardsLeft + 8, ly + 10 + 14 * i);
+                  });
+                  ds.anatomyCardsLayout = "COMPACT";
+                } else {
+                  ds.anatomyCardsLayout = "CARDS";
+                }
+                // MOCKUP SCALE (as the scaffolding plate): on a desktop camera
+                // the two cards are magnified as one piece, growing UP from the
+                // same floor so the volume pane stays clear. Held to 1 beside the
+                // scaffolding card or where the plot is too narrow. Leaders are
+                // drawn unscaled, so they still land on their own candles.
+                let cardK = 1;
+                if (!compact && sDepth === "OFF" && W >= 1280 && H >= 820) {
+                  cardK = Math.max(1, Math.min(1.28, (W - axisW - 12 - cardsLeft) / pairW, (cardsTop + ch - 240) / ch));
+                  // Magnified cards grow up from the same floor; if the larger
+                  // footprint would reach a candle, they stay at plate scale.
+                  if (cardK > 1 && candleHits(cardsLeft, cardsTop + ch - ch * cardK, pairW * cardK, ch * cardK) > 0) cardK = 1;
+                }
+                if (cardK > 1) cardsTop = cardsTop + ch - ch * cardK;
+                ds.anatomyCardsScale = cardK.toFixed(2);
+                if (!compact) ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, cardsTop, pairW * cardK, ch * cardK));
+                // The pair is chrome on the glass: later chips step around it
+                // instead of printing over its numbers.
+                if (!compact) floatingChips.push({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK });
+                if (!compact) shown.forEach((c, k) => {
+                  // Scaled space: origin at (cardsLeft, cardsTop).
+                  ctx.save();
+                  if (cardK > 1) { ctx.translate(cardsLeft, cardsTop); ctx.scale(cardK, cardK); ctx.translate(-cardsLeft, -cardsTop); }
+                  const x0 = cardsLeft + k * (cw + gap);
+                  const ex = c.kind === "EXHAUSTION";
+                  const ACC = ex ? "rgba(226,92,92,1)" : "rgba(240,190,70,1)";
+                  const ACC_DIM = ex ? "rgba(226,92,92,0.55)" : "rgba(201,165,92,0.6)";
+                  ctx.fillStyle = ex ? "rgba(20,8,8,0.92)" : "rgba(11,10,8,0.92)";
+                  ctx.fillRect(x0, cardsTop, cw, ch);
+                  ctx.strokeStyle = ACC_DIM; ctx.lineWidth = 1;
+                  ctx.strokeRect(x0 + 0.5, cardsTop + 0.5, cw - 1, ch - 1);
+                  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                  ctx.font = font(800, 13); ctx.fillStyle = ACC;
+                  ctx.fillText(c.title, x0 + cw / 2, cardsTop + 15);
+                  ctx.fillStyle = "rgba(237,230,211,0.75)";
+                  let sp = 7.5;
+                  ctx.font = font(600, sp);
+                  while (sp > 5.5 && ctx.measureText(`(${c.subtitle})`).width > cw - 16) { sp -= 0.25; ctx.font = font(600, sp); }
+                  ctx.fillText(`(${c.subtitle})`, x0 + cw / 2, cardsTop + 29);
+                  if (c.empty) {
+                    ctx.font = font(600, 9); ctx.fillStyle = "rgba(200,192,174,0.85)";
+                    ctx.fillText(c.empty.length > 52 ? c.empty.slice(0, 51) + "…" : c.empty, x0 + cw / 2, cardsTop + ch / 2 + 6);
+                    ctx.restore();
+                    return;
+                  }
+                  // Four metric tiles, 2×2: label · big number · word.
+                  const tw = (cw - 24) / 2, th = 50;
+                  c.metrics.forEach((m, i) => {
+                    const tx = x0 + 8 + (i % 2) * (tw + 8);
+                    const ty = cardsTop + 40 + Math.floor(i / 2) * (th + 6);
+                    ctx.strokeStyle = "rgba(237,230,211,0.12)";
+                    ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+                    ctx.textAlign = "left";
+                    ctx.font = font(700, 7.5); ctx.fillStyle = "rgba(237,230,211,0.8)";
+                    ctx.fillText(m.label, tx + 8, ty + 10);
+                    ctx.font = font(800, 19); ctx.fillStyle = ACC;
+                    ctx.fillText(m.value, tx + 8, ty + 28);
+                    ctx.font = font(700, 7.5); ctx.fillStyle = ACC_DIM;
+                    ctx.fillText(m.word, tx + 8, ty + 43);
+                  });
+                  ctx.textAlign = "left";
+                  ctx.font = font(800, 10); ctx.fillStyle = ACC;
+                  ctx.fillText(`${ex ? "EXHAUSTION" : "ABSORPTION"} OUTCOME · ${c.outcome}`, x0 + 10, cardsTop + ch - 24);
+                  ctx.font = font(500, 8); ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  ctx.fillText(c.outcomeNote, x0 + 10, cardsTop + ch - 10);
+                  ctx.restore();
+                  // Leader to the candles — in SCREEN space.
+                  if (c.time != null && c.price != null) {
+                    const xr = ts.timeToCoordinate(c.time as never);
+                    const yr = srs.priceToCoordinate(c.price);
+                    if (xr != null && yr != null) {
+                      ctx.setLineDash([2, 3]);
+                      ctx.strokeStyle = ACC_DIM;
+                      const lx0 = cardsLeft + (x0 - cardsLeft + cw / 2) * cardK;
+                      ctx.beginPath(); ctx.moveTo(lx0, cardsTop); ctx.lineTo(+xr, +yr); ctx.stroke();
+                      ctx.setLineDash([]);
+                      ctx.fillStyle = ACC;
+                      ctx.beginPath(); ctx.arc(+xr, +yr, 3, 0, Math.PI * 2); ctx.fill();
+                    }
+                  }
+                });
+                ctx.restore();
               }
             } else {
               ds.anatomyCards = "OFF";
