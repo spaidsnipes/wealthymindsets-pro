@@ -6635,7 +6635,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           else delete canvas.dataset.bigTradeBubbleTop;
         }
         const hoverId = bubbleHoverRef.current;
-        for (const b of bubblesRef.current) {
+        // STAGGERING (Garden 12 collision governor): bubbles never move — they
+        // are at the execution's time and price. Largest paint first so a
+        // smaller execution on top stays visible, and a label that would land
+        // on an earlier one steps OUT on a leader instead of overprinting.
+        const bubbleLabelRects: { x: number; y: number; w: number; h: number }[] = [];
+        let bubbleLabelsStaggered = 0;
+        for (const b of [...bubblesRef.current].sort((a, z) => z.r - a.r)) {
           const buy = b.side === "buy";
           // Green = aggressive buy, red = aggressive sell — boosted contrast so both
           // are unmistakable when several bubbles share one candle.
@@ -6716,11 +6722,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.lineWidth = Math.max(2, fontPx * 0.22);
             ctx.strokeStyle = "rgba(0,0,0,0.88)";
-            const labelY = b.r >= 24 ? b.y - 7 : b.y;
-            ctx.strokeText(lbl, b.x, labelY);
+            let labelX = b.x;
+            let labelY = b.r >= 24 ? b.y - 7 : b.y;
+            const lw = ctx.measureText(lbl).width + 4, lh = fontPx + 4;
+            const hitL = (x: number, y: number) => bubbleLabelRects.some(r => x - lw / 2 < r.x + r.w && x + lw / 2 > r.x && y - lh / 2 < r.y + r.h && y + lh / 2 > r.y);
+            let outside = false;
+            if (hitL(labelX, labelY)) {
+              outside = true;
+              labelX = b.x + b.r + 8 + lw / 2;
+              labelY = b.y;
+              // The price axis paints over the overlay: flip left when the
+              // right side has no plot to print in.
+              let axisWB = 70; try { axisWB = chart.priceScale("right").width(); } catch { /* default */ }
+              if (labelX + lw / 2 > W - axisWB - 4) labelX = b.x - b.r - 8 - lw / 2;
+              for (let k = 0; k < 6 && hitL(labelX, labelY); k++) labelY += lh;
+              ctx.save(); ctx.strokeStyle = `rgba(${core},0.7)`; ctx.lineWidth = 1;
+              const leftSide = labelX < b.x;
+              ctx.beginPath(); ctx.moveTo(leftSide ? b.x - b.r : b.x + b.r, b.y); ctx.lineTo(leftSide ? labelX + lw / 2 : labelX - lw / 2, labelY); ctx.stroke(); ctx.restore();
+              ctx.lineWidth = Math.max(2, fontPx * 0.22); ctx.strokeStyle = "rgba(0,0,0,0.88)";
+              bubbleLabelsStaggered++;
+            }
+            bubbleLabelRects.push({ x: labelX - lw / 2, y: labelY - lh / 2, w: lw, h: lh });
+            ctx.strokeText(lbl, labelX, labelY);
             ctx.fillStyle = "rgba(246,224,176,0.99)";
-            ctx.fillText(lbl, b.x, labelY);
-            if (b.r >= 24) {
+            ctx.fillText(lbl, labelX, labelY);
+            if (b.r >= 24 && !outside) {
               ctx.font = "8px Inter, monospace";
               const timeLabel = new Date(b.anchorTime * 1000).toISOString().slice(11, 19);
               ctx.fillStyle = "rgba(232,226,212,0.92)";
@@ -6730,6 +6756,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           ctx.restore();
         }
+        canvas.dataset.bigTradeLabelsStaggered = String(bubbleLabelsStaggered);
       } else {
         // Left big-trades mode → clear bubbles + tooltip
         bubblesRef.current = [];
