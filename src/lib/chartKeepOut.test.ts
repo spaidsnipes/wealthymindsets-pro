@@ -16,6 +16,7 @@ import {
   placeClearOfKeepOut,
   recordKeepOut,
   rectHits,
+  spanCandleKeepOut,
   type KeepOutBar,
   type KeepOutCamera,
   type ScreenRect,
@@ -74,6 +75,30 @@ describe("newestCandleKeepOut — one box per newest body in view", () => {
     const cam = camera({ timeToX: t => (t === t0 + 9 * 60 ? null : 100 + ((t - t0) / 60) * 10) });
     const k = newestCandleKeepOut(bars, cam);
     expect(k.map(b => b.x + b.w / 2)).toEqual([180, 170, 160]);
+  });
+});
+
+describe("spanCandleKeepOut — every body under a label's row", () => {
+  it("returns the bodies whose slots touch [x0, x1], newest first", () => {
+    // Bars at x = 100..190, half 5. Span 138..172 touches bars 4..7 (x 140..170)
+    // and bar 3's slot (130±5 ends at 135 < 138 → not touched).
+    const k = spanCandleKeepOut(bars, camera(), 138, 172);
+    expect(k.map(b => b.x + b.w / 2)).toEqual([170, 160, 150, 140]);
+    // Same body geometry as the newest keep-out.
+    expect(k[0]).toEqual({ x: 165, y: 418, w: 10, h: 14 });
+  });
+
+  it("an empty or inverted span, or no bars, yields nothing", () => {
+    expect(spanCandleKeepOut(bars, camera(), 150, 150)).toEqual([]);
+    expect(spanCandleKeepOut(bars, camera(), 170, 140)).toEqual([]);
+    expect(spanCandleKeepOut([], camera(), 0, 999)).toEqual([]);
+  });
+
+  it("respects the visible range and skips bars the camera cannot place", () => {
+    const k = spanCandleKeepOut(bars, camera({ visible: { from: 0, to: 5.3 } }), 0, 999);
+    expect(k.map(b => b.x + b.w / 2)).toEqual([150, 140, 130, 120, 110, 100]);
+    const cam = camera({ priceToY: p => (p === 58 ? null : 1000 - p * 10) });
+    expect(spanCandleKeepOut(bars, cam, 175, 999).map(b => b.x + b.w / 2)).toEqual([190]);
   });
 });
 

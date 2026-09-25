@@ -101,8 +101,15 @@ describe("the Value Migration name, printed at its newest point, yields to the n
   const dpoc = slice("const text = `dPOC ${last.poc.toFixed(2)}", "ds.valueMigrationPoints = String(drawn);");
 
   it("asks the keep-out, with the mirror row under the line before a slide", () => {
-    expect(dpoc).toMatch(/placeClearOfKeepOut\(\s*\{ x, y: y - 7, w, h: 14 \},\s*keepOut\(\),\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, alternates: \[\{ x, y: y \+ 24 - 7, w, h: 14 \}\] \},?\s*\)/);
+    // Pin updated 2026-09-25 (serving NQ1! 5m: the 0.82 backing hid the ten
+    // bodies before "now"): every body under its own row is a keep-out too,
+    // and it may step just above / below those bodies before sliding.
+    expect(dpoc).toMatch(/const rowBodies = spanCandleKeepOut\(barsRef\.current \?\? \[\], \{/);
+    expect(dpoc).toContain("}, x, x + w);");
+    expect(dpoc).toContain("const rowAlternates = [{ x, y: y + 24 - 7, w, h: 14 }];");
+    expect(dpoc).toMatch(/placeClearOfKeepOut\(\s*\{ x, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodies\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, alternates: rowAlternates \},?\s*\)/);
     expect(dpoc).toMatch(/recordKeepOut\(keepOutLedger, spotV\)/);
+    expect(dpoc).toContain("ds.valueMigrationLabel = `${spotV.mode}${spotV.onCandles ? \":YIELDED\" : \"\"}`;");
   });
 
   it("paints backing and words where the placement says, at an alpha it allows", () => {

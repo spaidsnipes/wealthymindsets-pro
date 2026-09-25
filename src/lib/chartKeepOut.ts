@@ -94,6 +94,42 @@ export function newestCandleKeepOut(
   return out;
 }
 
+/**
+ * Every candle BODY whose slot lies under the horizontal span [x0, x1] — for a
+ * label that prints along a row of history (a line named at its newest point
+ * runs left over the last dozen candles), not only beside "now". Same boxes as
+ * `newestCandleKeepOut` (bodies, not wicks, padded), newest first. Walks back
+ * from the newest bar in view and stops once a slot lies wholly left of x0.
+ */
+export function spanCandleKeepOut(
+  bars: readonly KeepOutBar[],
+  camera: KeepOutCamera,
+  x0: number,
+  x1: number,
+): ScreenRect[] {
+  const out: ScreenRect[] = [];
+  if (bars.length === 0 || !(x1 > x0)) return out;
+  const last = bars.length - 1;
+  const i1 = camera.visible ? Math.min(last, Math.floor(camera.visible.to + 0.5)) : last;
+  const i0 = camera.visible ? Math.max(0, Math.ceil(camera.visible.from - 0.5)) : 0;
+  const half = Math.max(KEEP_OUT_MIN_HALF_WIDTH, (Number.isFinite(camera.barSpacing) ? camera.barSpacing : 0) * 0.5);
+  for (let i = i1; i >= i0; i--) {
+    const b = bars[i];
+    if (!b || !Number.isFinite(b.open) || !Number.isFinite(b.close)) continue;
+    const x = camera.timeToX(b.time);
+    if (x == null || !Number.isFinite(x)) continue;
+    if (x + half < x0) break;
+    if (x - half > x1) continue;
+    const yo = camera.priceToY(b.open);
+    const yc = camera.priceToY(b.close);
+    if (yo == null || yc == null || !Number.isFinite(yo) || !Number.isFinite(yc)) continue;
+    const top = Math.min(yo, yc) - KEEP_OUT_BODY_PAD;
+    const bottom = Math.max(yo, yc) + KEEP_OUT_BODY_PAD;
+    out.push({ x: x - half, y: top, w: half * 2, h: bottom - top });
+  }
+  return out;
+}
+
 const overlaps = (a: ScreenRect, b: ScreenRect) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 

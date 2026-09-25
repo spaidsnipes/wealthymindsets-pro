@@ -228,6 +228,7 @@ import {
   keepOutBackingAlpha,
   keepOutReceipt,
   newestCandleKeepOut,
+  spanCandleKeepOut,
   pickSlotClearOfKeepOut,
   placeClearOfKeepOut,
   recordKeepOut,
@@ -12795,6 +12796,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const last = vm.points[vm.points.length - 1];
             const lx = ts.timeToCoordinate(last.time as any);
             const ly = srs.priceToCoordinate(last.poc);
+            delete ds.valueMigrationLabel;
             if (lx != null && ly != null && vm.latestPocTravel != null) {
               const t = vm.latestPocTravel;
               const text = `dPOC ${last.poc.toFixed(2)} · ${t >= 0 ? "+" : ""}${t.toFixed(2)} THIS SESSION · EST`;
@@ -12803,15 +12805,46 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const x = Math.max(4, Math.round(+lx) - w - 6);
               const y = Math.round(+ly) - 12;
               // Its newest point IS the forming candle, so the name would sit on
-              // the newest bodies. It tries the mirror row under the line, then
-              // slides back along its own row (the step line runs beneath it);
+              // the newest bodies — and its row runs left over the dozen candles
+              // before them (serving NQ1! 5m, 2026-09-25: a 0.82 backing hid ten
+              // bodies). Every body under its row is a keep-out too. Rows tried:
+              // its own, the mirror row under the line, then just clear of the
+              // span's bodies above and below (tied back by a dotted leader);
               // with no room it keeps its spot and its backing yields.
+              const tsR = chart.timeScale();
+              const vrR = tsR.getVisibleLogicalRange();
+              const rowBodies = spanCandleKeepOut(barsRef.current ?? [], {
+                visible: vrR ? { from: +vrR.from, to: +vrR.to } : null,
+                barSpacing: bsp,
+                timeToX: t => { const xk = tsR.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+              }, x, x + w);
+              const rowAlternates = [{ x, y: y + 24 - 7, w, h: 14 }];
+              if (rowBodies.length) {
+                const above = Math.min(...rowBodies.map(b => b.y)) - 3 - 14;
+                const below = Math.max(...rowBodies.map(b => b.y + b.h)) + 3;
+                if (above >= BELOW_PRICE_LEGEND) rowAlternates.push({ x, y: above, w, h: 14 });
+                if (below + 14 <= H - 24) rowAlternates.push({ x, y: below, w, h: 14 });
+              }
               const spotV = placeClearOfKeepOut(
                 { x, y: y - 7, w, h: 14 },
-                keepOut(),
-                { minX: keepOutMinX(), blockers: floatingChips, alternates: [{ x, y: y + 24 - 7, w, h: 14 }] },
+                [...keepOut(), ...rowBodies],
+                { minX: keepOutMinX(), blockers: floatingChips, alternates: rowAlternates },
               );
               recordKeepOut(keepOutLedger, spotV);
+              ds.valueMigrationLabel = `${spotV.mode}${spotV.onCandles ? ":YIELDED" : ""}`;
+              const labelMid = spotV.rect.y + 7;
+              if (Math.abs(labelMid - +ly) > 16) {
+                // Leader: the name is tied back to the line's newest point.
+                ctx.strokeStyle = pk.rgba("POC", 0.5);
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 3]);
+                ctx.beginPath();
+                ctx.moveTo(spotV.rect.x + w, labelMid);
+                ctx.lineTo(+lx, +ly);
+                ctx.stroke();
+                ctx.setLineDash([]);
+              }
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotV, 0.82)})`;
               ctx.fillRect(spotV.rect.x, spotV.rect.y, w, 14);
               ctx.fillStyle = pk.rgba("POC", 0.95);
@@ -12823,6 +12856,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.valueMigrationPoints = String(drawn);
             ds.valueMigrationSessions = String(vm.sessions);
           } else {
+            delete ds.valueMigrationLabel;
             delete ds.valueMigrationPoints;
             delete ds.valueMigrationSessions;
           }
