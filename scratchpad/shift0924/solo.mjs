@@ -17,6 +17,6 @@ const p = await ctx.newPage();
 await p.goto("http://localhost:3100/charts?symbol=AAPL&tf=5m", { waitUntil: "domcontentloaded", timeout: 120000 });
 await p.waitForTimeout(25000);
 await p.screenshot({ path: out });
-const ds = await p.evaluate(() => { const el = document.querySelector("[data-living-profile]"); return el ? { ...el.dataset } : null; });
+const ds = await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.profileMemory !== undefined); return c ? { mem: c.dataset.profileMemoryGeometry, sp: c.dataset.structureProfileGeometry } : null; });
 console.log(JSON.stringify(ds));
 await b.close();

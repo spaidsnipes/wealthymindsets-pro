@@ -10701,6 +10701,61 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "middle";
             const labelYs: number[] = [];
+            // GARDEN 12 · MEMORY AS AGING SHELVES, not identical lines. Each
+            // remembered session's value area lies BEHIND live price as a faint
+            // stratum from where it formed to now; older strata are fainter.
+            // The POC shelf is thick while recent and thins with age; a birth
+            // dot marks where it formed; each later bar that traded back into
+            // it leaves a notch (its test biography). Weight is age alone.
+            const bySess = new Map<number, { vah?: number; val?: number; formedAt: number }>();
+            for (const l of mem.levels) {
+              const e = bySess.get(l.sessionsAgo) ?? { formedAt: l.formedAt };
+              if (l.kind === "VAH") e.vah = l.price;
+              if (l.kind === "VAL") e.val = l.price;
+              bySess.set(l.sessionsAgo, e);
+            }
+            for (const [ago, e] of bySess) {
+              if (e.vah == null || e.val == null) continue;
+              const yh = srs.priceToCoordinate(e.vah), yl = srs.priceToCoordinate(e.val);
+              const xr = ts.timeToCoordinate(e.formedAt as any);
+              if (yh == null || yl == null) continue;
+              const x0 = xr == null ? 0 : Math.max(0, Math.round(+xr));
+              if (x0 >= endX) continue;
+              ctx.fillStyle = `rgba(201,165,92,${Math.max(0.02, 0.07 - (ago - 1) * 0.015)})`;
+              ctx.fillRect(x0, Math.min(+yh, +yl), endX - x0, Math.abs(+yl - +yh));
+            }
+            const memBars = barsRef.current ?? [];
+            let notches = 0;
+            for (const l of mem.levels) {
+              if (l.kind !== "POC") continue;
+              const yr = srs.priceToCoordinate(l.price);
+              const xr = ts.timeToCoordinate(l.formedAt as any);
+              if (yr == null) continue;
+              const y = Math.round(+yr);
+              const x0 = xr == null ? 0 : Math.max(0, Math.round(+xr));
+              if (x0 >= endX) continue;
+              const age = l.sessionsAgo - 1;
+              const thick = Math.max(1.5, 5 - age * 1.2);
+              const g = ctx.createLinearGradient(0, y - thick, 0, y + thick);
+              g.addColorStop(0, "rgba(201,165,92,0)");
+              g.addColorStop(0.5, `rgba(201,165,92,${Math.max(0.12, 0.34 - age * 0.07)})`);
+              g.addColorStop(1, "rgba(201,165,92,0)");
+              ctx.fillStyle = g;
+              ctx.fillRect(x0, y - thick, endX - x0, thick * 2);
+              ctx.fillStyle = "rgba(201,165,92,0.9)";
+              ctx.beginPath(); ctx.arc(x0 + 2, y, 2.5, 0, Math.PI * 2); ctx.fill();
+              ctx.strokeStyle = "rgba(237,230,211,0.75)"; ctx.lineWidth = 1;
+              // Memory stays QUIET (visibility governor): the 8 most recent
+              // tests leave notches; the exact count stays in the label.
+              const testTimes = memBars.map(b => Number(b.time)).filter((t, i) => t > l.formedAt && memBars[i].low <= l.price && memBars[i].high >= l.price).slice(-8);
+              for (const t of testTimes) {
+                const xb = ts.timeToCoordinate(t as any);
+                if (xb == null || +xb > endX) continue;
+                ctx.beginPath(); ctx.moveTo(Math.round(+xb) + 0.5, y - thick - 2); ctx.lineTo(Math.round(+xb) + 0.5, y + thick + 2); ctx.stroke();
+                notches++;
+              }
+            }
+            ds.profileMemoryGeometry = `SHELVES:${bySess.size}+NOTCHES:${notches}`;
             for (const l of mem.levels) {
               const yr = srs.priceToCoordinate(l.price);
               if (yr == null) continue;
