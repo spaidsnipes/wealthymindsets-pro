@@ -8495,7 +8495,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // hangs on the other side of its mark instead.
                 const lensBand = layerOnRef.current.questionLens === true;
                 let cy = up ? y0 - 26 : y0 + 12;
-                if (lensBand && cy < 158 && cy + 14 > 96) cy = up ? y0 + 16 : Math.max(160, y0 + 12);
+                // Hanging below the mark is not enough when the mark itself
+                // sits inside the band: the chip goes below the strip.
+                if (lensBand && cy < 158 && cy + 14 > 96) cy = up ? Math.max(160, y0 + 16) : Math.max(160, y0 + 12);
                 // A push that tops out near the plot's top edge would print its
                 // chip into the header chrome (the zoom plate, INSPECT). Then it
                 // sits beside its mark instead — whichever side covers the
@@ -9634,8 +9636,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // The lane. Sits to the RIGHT of the stacked-imbalance rungs (which
             // own 0..56) so two price-anchored marks never sit on top of each
             // other and get read as one.
-            const laneL = 64;
-            const laneR = 150;
+            // Right of an active Question Lens column too: the lens paints its
+            // debt card over x 12–312, and a caption under it cannot be read.
+            const laneL = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT + 8 : 64;
+            const laneR = laneL + 86;
 
             ctx.save(); ctx.globalAlpha = semanticDensity.micro;
             ctx.strokeStyle = "rgba(237,230,211,0.55)";
@@ -9749,7 +9753,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
           ctx.textAlign = "left";
           ctx.textBaseline = "bottom";
-          let wy = Math.max(20, H - 6);
+          // The stack starts above the window count ("N BARS IN VIEW") at
+          // the candle pane's foot. It started at H − 6 — inside the time
+          // axis, below the pane clip — so the detail and stall lines were
+          // cut away and the label printed through the window count.
+          let wy = Math.max(20, pane0Bottom - 22);
           if (glass.stallLabel && shelves > 0) {
             ctx.fillStyle = "rgba(237,230,211,0.65)";
             ctx.fillText(glass.stallLabel, 8, wy);
@@ -12268,7 +12276,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ? `LIQUIDITY LIFECYCLE · ${lc.pools.length} pools · loaded history · candle-estimated · PULLED refused (no book)`
                 : `LIQUIDITY LIFECYCLE · ${lc.reason.replace(/_/g, " ").toLowerCase()}`;
             const weatherLines = ds.liquidityWeatherStage ? (ds.liquidityWeatherShelves ? 3 : 2) : 0;
-            const cy = Math.max(20, H - 6) - weatherLines * 11;
+            const cy = Math.max(20, pane0Bottom - 22) - weatherLines * 11;
             ctx.save();
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textAlign = "left"; ctx.textBaseline = "bottom";
