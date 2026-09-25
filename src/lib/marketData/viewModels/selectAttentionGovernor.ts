@@ -88,6 +88,13 @@ export const FUSION_PARENT_FADE = 0.45;
 export const SELECTION_RECEDE = 0.45;
 /** A receding layer's words stay legible. */
 export const TEXT_ALPHA_FLOOR = 0.5;
+/**
+ * A stale tape dims every governed layer by ONE factor, so the hierarchy
+ * holds (LIVE > SUPPORTING > MEMORY) while the whole reading steps back.
+ * Capping only LIVE at the STALE ceiling (0.3) put the present BELOW memory
+ * (0.5) and its own supporting context (0.85) — the inversion this replaces.
+ */
+export const STALE_DIM = 0.6;
 
 /**
  * EVERY PAINTING LAYER, ONCE. Keys are the `layerOnRef` switch keys plus the
@@ -244,7 +251,10 @@ export function selectAttentionGovernor(
         ? stackOpacity(spec.lane, input.stackPrefs) * (fused.includes(spec.lane) ? FUSION_PARENT_FADE : 1)
         : 1;
       const recede = receding ? SELECTION_RECEDE : 1;
-      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[tier], depth * quiet * light * lane) * recede);
+      // The layer's OWN standing sets the ceiling; staleness is one shared
+      // factor on top, never a lower ceiling for the present alone.
+      const staleDim = stale ? STALE_DIM : 1;
+      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], depth * quiet * light * lane) * recede * staleDim);
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.

@@ -61,7 +61,15 @@ describe("the one CVD is the tape's", () => {
   });
 
   it("refills when the bars arrive, and dates its caption", () => {
-    expect(CHART).toContain("useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candles]);");
+    // Keyed on bar identity, not the per-flush array (a refill per frame).
+    expect(CHART).toContain("useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candlesKey]);");
+    expect(CHART).not.toMatch(/fillTapeCvdRef\.current\(\); \}, \[[^\]]*\bcandles\]/);
+  });
+
+  it("a rebuild clears the series refs, and RAW hides the pane with the rest of the readings", () => {
+    expect(CHART).toMatch(/c\.removeSeries\(s\); \} catch \{\} \}\);\s*tapeCvdSeriesRef\.current = null;\s*tapeCvdRef\.current = null;/);
+    expect(CHART).toContain("try { cvdS.applyOptions({ visible: want }); }");
+    expect(CHART.indexOf("const want = !rawRef.current;")).toBeLessThan(CHART.indexOf('canvas.dataset.raw = "ON";'));
     expect(CAPTION).toContain("tapeCvdCaption(cvd, sec => fmtAxisTime(sec))");
   });
 

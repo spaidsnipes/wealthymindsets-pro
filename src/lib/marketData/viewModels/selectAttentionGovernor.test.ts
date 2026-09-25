@@ -4,6 +4,7 @@ import {
   ATTENTION_FLOOR,
   LAYER_ATTENTION,
   SELECTION_RECEDE,
+  STALE_DIM,
   TEXT_ALPHA_FLOOR,
   TIER_CEILING,
   selectAttentionGovernor,
@@ -166,17 +167,21 @@ describe("attention governor — one owner for every governed layer's alpha", ()
     }
   });
 
-  it("STALE feed: the present drops to the STALE ceiling (≤ 0.3); memory keeps its own", () => {
+  it("STALE feed: every governed layer steps back by one factor and the order LIVE > SUPPORTING > MEMORY holds", () => {
     for (const depth of DEPTHS) {
+      const fresh = selectAttentionGovernor(input({ density: selectSemanticDensity(depth) }));
       const g = selectAttentionGovernor(input({ density: selectSemanticDensity(depth), feedState: "STALE" }));
       for (const k of KEYS) {
-        if (LAYER_ATTENTION[k].tier === "LIVE") {
-          expect(g.tierOf(k)).toBe("STALE");
-          expect(g.alpha(k), k).toBeLessThanOrEqual(0.3);
-        }
+        if (LAYER_ATTENTION[k].tier === "LIVE") expect(g.tierOf(k)).toBe("STALE");
+        if (LAYER_ATTENTION[k].tier === "CHROME") continue;
+        expect(g.alpha(k), k).toBeCloseTo(Math.max(ATTENTION_FLOOR, fresh.alpha(k) * STALE_DIM), 10);
       }
       expect(g.receipt).toContain("STALE:1");
     }
+    // The present never sinks below memory or its own context.
+    const g = selectAttentionGovernor(input({ feedState: "STALE" }));
+    expect(g.alpha("absorption")).toBeGreaterThan(g.alpha("expectedEnvelope"));
+    expect(g.alpha("expectedEnvelope")).toBeGreaterThan(g.alpha("memoryGhost"));
     const live = selectAttentionGovernor(input({ feedState: "LIVE" }));
     expect(live.alpha("livingProfile")).toBe(1);
     expect(live.receipt).toContain("STALE:0");

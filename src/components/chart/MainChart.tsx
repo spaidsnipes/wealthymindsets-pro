@@ -1570,6 +1570,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // the selector's last verdict the overlay captions and receipts from.
   const tapeCvdSeriesRef = useRef<any>(null);
   const tapeCvdRef = useRef<TapeCvdResult | null>(null);
+  // Whether the CVD series is currently shown (RAW hides it); a new series starts shown.
+  const cvdVisibleRef = useRef(true);
   // Open paper-trade position lines (native IPriceLine on the candle series) +
   // the position each line represents, so we can refresh the live-P&L title on tick.
   const paperLinesRef = useRef<Array<{ line: any; qty: number; avgPx: number }>>([]);
@@ -2693,7 +2695,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   };
   // `candles` too: the new timeframe's bars arrive after the switch commits, and
   // a quiet tape would otherwise leave the pane computed on the old bars.
-  useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candles]);
+  // Bar IDENTITY, not the array: `candles` is a new array on every live-bar
+  // flush, and a refill (selectTapeCvd + setData) per frame rebuilds the time
+  // scale across every series. Length + first time catch new bars and reloads.
+  const candlesKey = candles.length ? `${candles.length}:${candles[0].time}` : "";
+  useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candlesKey]);
 
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
   useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
@@ -4461,6 +4467,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         s.createPriceLine({ price: 0, color: "rgba(139,146,172,0.45)", lineWidth: 1, lineStyle: LW.LineStyle.Solid, axisLabelVisible: false });
         indSeriesRef.current.push(s);
         tapeCvdSeriesRef.current = s;
+        cvdVisibleRef.current = true;
         fillTapeCvdRef.current();
       } catch { tapeCvdSeriesRef.current = null; }
     }
@@ -4938,6 +4945,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const c = chartRef.current;
       if (!c) return;
       indSeriesRef.current.forEach(s => { try { c.removeSeries(s); } catch {} });
+      // The CVD series was among them: a rebuild that returns at its guard must
+      // not leave the fill writing to (and the glass captioning) a removed pane.
+      tapeCvdSeriesRef.current = null;
+      tapeCvdRef.current = null;
       indSeriesRef.current = [];
     };
   }, [activeInds, indSettings, ready]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -5622,6 +5633,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
+      // RAW means candles and volume only: the Tape CVD pane is a reading, so
+      // it hides with the rest (its caption cannot paint in RAW). Applied on
+      // change only.
+      {
+        const cvdS = tapeCvdSeriesRef.current;
+        const want = !rawRef.current;
+        if (cvdS && cvdVisibleRef.current !== want) {
+          cvdVisibleRef.current = want;
+          try { cvdS.applyOptions({ visible: want }); } catch { /* pane mid-rebuild */ }
+        }
+        if (rawRef.current && cvdS) canvas.dataset.cvdSource = "RAW_HIDDEN";
+      }
       if (rawRef.current) {
         canvas.dataset.raw = "ON";
         const stamp = "RAW · every reading hidden · candles and volume only";
@@ -8139,7 +8162,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Globex, FX, RTH/ETH, or the ET day for a continuous market.)
           const allBars = barsRef.current;
           const sessionBars = selectSessionBars(allBars);
-          // Which definition was drawn, on the glass that holds the pixels.
+          // Which session definition was ASKED for (a declined column keeps it:
+          // the refusal is about these bars), on the glass that holds the pixels.
           if (canvasRef.current) canvasRef.current.dataset.vpSessionWindow = sessionWin.kind;
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
@@ -9156,7 +9180,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const cards = selectAnatomyCards(anatomy, selectExhaustion(anatomy));
               ds.anatomyCards = `${cards.absorption.empty ? "NONE" : cards.absorption.outcome}|${cards.exhaustion.empty ? "NONE" : cards.exhaustion.outcome}`;
               ctx.save();
-              ctx.globalAlpha = att.alpha("anatomyCards");
+              ctx.globalAlpha = att.textAlpha("anatomyCards");
               const cw = 292, ch = 188, gap = 12;
               const top = Math.max(200, H - 190 - ch);
               const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
@@ -10739,7 +10763,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.save();
           // SUPPORTING: context drawn about the present sits under it (≤ 0.85)
           // and recedes with everything else while Inspect reads a selection.
-          ctx.globalAlpha = att.alpha("expectedEnvelope");
+          ctx.globalAlpha = att.textAlpha("expectedEnvelope");
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           ctx.textBaseline = "middle";
           if (env.drawn) {
@@ -10821,7 +10845,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.contradiction = `${cv.state}:${cv.up.length}/${cv.down.length}`;
             onContradictionRef.current?.(cv);
             ctx.save();
-            ctx.globalAlpha = att.alpha("contradiction");
+            ctx.globalAlpha = att.textAlpha("contradiction");
             ctx.textBaseline = "middle";
             const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
             const silentNote = cv.silent.length ? ` · silent: ${cv.silent.map(x => x.family.toLowerCase()).join(", ")}` : "";
@@ -13039,7 +13063,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const maxVolL = Math.max(1e-12, ...lc.pools.map(p => p.volume));
             let painted = 0;
             ctx.save();
-            ctx.globalAlpha = att.alpha("liquidityLifecycle");
+            ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
             for (const pool of lc.pools) {
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
               if (yT == null || yB == null) continue;
@@ -13468,7 +13492,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
@@ -14656,6 +14680,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // zone and never on the level.
     const pinPrice = (o: (typeof marketObjectTargets)[number]["object"]) =>
       o.kind === "ZONE" ? (o.priceLow + o.priceHigh) / 2 : o.priceHigh;
+    // Pins are 28×28 buttons: on a thin swing bar the zone's middle is only a
+    // few px from its level, so a pin that would sit on an earlier one fans
+    // right until its button is clear — every object stays selectable.
+    const PIN = 28;
+    const placed: { x: number; y: number }[] = [];
     return marketObjectTargets.flatMap(target => {
       const point = logicalToPixel({
         time: target.birthTime,
@@ -14663,10 +14692,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       });
       const width = containerRef.current?.clientWidth ?? 0;
       const height = containerRef.current?.clientHeight ?? 0;
-      return point && Number.isFinite(point.x) && Number.isFinite(point.y)
-        && point.x >= 0 && point.y >= 0 && point.x <= width && point.y <= height
-        ? [{ ...target, point }]
-        : [];
+      if (!(point && Number.isFinite(point.x) && Number.isFinite(point.y)
+        && point.x >= 0 && point.y >= 0 && point.x <= width && point.y <= height)) return [];
+      let x = point.x;
+      for (let k = 0; k < 6 && placed.some(p => Math.abs(p.x - x) < PIN && Math.abs(p.y - point.y) < PIN); k++) x += PIN;
+      placed.push({ x, y: point.y });
+      return [{ ...target, point: { ...point, x } }];
     });
   }, [logicalToPixel, marketObjectTargets, rangeVer]);
   const selectedMarketObjectTarget = projectedMarketObjects.find(

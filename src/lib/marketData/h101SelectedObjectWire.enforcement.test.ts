@@ -28,6 +28,10 @@ describe("H-101 selected-object wire", () => {
     // zone's high is its swing LEVEL's price — one pixel, two objects).
     expect(chart).toContain("price: pinPrice(target.object)");
     expect(chart).toContain('o.kind === "ZONE" ? (o.priceLow + o.priceHigh) / 2 : o.priceHigh;');
+    // …and a pin that would sit on an earlier one (thin swing bar, shared
+    // birth bar) fans right by one button width until it is clear.
+    expect(chart).toMatch(/placed\.some\(p => Math\.abs\(p\.x - x\) < PIN && Math\.abs\(p\.y - point\.y\) < PIN\)/);
+    expect(chart).toContain("return [{ ...target, point: { ...point, x } }];");
     expect(chart).not.toMatch(/selectedMarketObjectTarget[\s\S]{0,500}(latestBar|cursor)/);
   });
 });

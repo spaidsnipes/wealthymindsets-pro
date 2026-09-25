@@ -110,9 +110,11 @@ describe("every painting layer has an attention tier", () => {
     expect(CHART).toMatch(/canvas\.dataset\.attention = att\.receipt;/);
   });
 
-  it("(e) the SUPPORTING layers ask the governor — context sits under the present", () => {
+  it("(e) the SUPPORTING layers ask the governor — context sits under the present, its words stay legible", () => {
+    // These layers are mostly words: textAlpha keeps them ≥ the 0.5 floor
+    // while a selection recedes everything else (0.85 × 0.45 would be 0.38).
     for (const key of ["expectedEnvelope", "contradiction", "liquidityLifecycle", "anatomyCards"]) {
-      expect(CHART, key).toContain(`ctx.globalAlpha = att.alpha("${key}");`);
+      expect(CHART, key).toContain(`ctx.globalAlpha = att.textAlpha("${key}");`);
     }
   });
 
