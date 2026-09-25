@@ -87,7 +87,10 @@ describe("Saved layouts — first frame", () => {
     });
     const both = html.slice(html.indexOf('data-saved-layout="both"'));
     expect(both).toContain('data-saved-layout-in-force="true"');
-    expect(both).toMatch(/aria-label="Apply layout Both profiles" aria-current="true"/);
+    // Same <button> carries the name and aria-current (and, since 2026-09-25,
+    // aria-describedby pointing at its hint line) — attribute order not pinned.
+    expect(both).toMatch(/<button[^>]*aria-label="Apply layout Both profiles"[^>]*aria-current="true"/);
+    expect(both).toMatch(/<button[^>]*aria-label="Apply layout Both profiles"[^>]*aria-describedby="[^"]*-hint-/);
     expect(both).toContain("The chart is arranged this way now");
     // "Open drive" names SESSION only, which matches, so it is honestly in force too.
     const open = html.slice(html.indexOf('data-saved-layout="open"'), html.indexOf('data-saved-layout="both"'));
