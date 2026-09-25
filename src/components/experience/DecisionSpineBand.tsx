@@ -74,6 +74,7 @@ import {
 import { selectRiskReachBar } from "@/lib/traderMemory/viewModels/selectRiskReachBar";
 import { MarketHonestyPlaque } from "@/components/experience/MarketHonestyPlaque";
 import { selectFoldEscalation } from "@/lib/marketData/viewModels/selectFoldEscalation";
+import { selectWaitPlaque } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 
 /**
@@ -310,55 +311,18 @@ const VALUE: React.CSSProperties = {
 const MUTED: React.CSSProperties = { ...VALUE, color: "#8a8271" };
 
 /**
- * ── F24 TYPE SCALE — THE RAIL IS AN INSTRUMENT, NOT A FOOTNOTE ──────────────
+ * ── F24 TYPE SCALE, SUPERSEDED BY THE PLAQUE (2026-09-25) ───────────────────
  *
- * MEASURED on a live 1440x900 /charts render 2026-09-21, against the canon
- * frame `public/canon/F24-workspace-equipment-over-live-chart.jpg`:
- *
- *                        BUILD            F24 (scaled to 1440)
- *   rail width           245px / 17.0%    12.8%      ← build is WIDER
- *   label size           9px              ~17px
- *   body size            11px             ~17px
- *   body line pitch      14.85px          ~29px
- *   blocks in column     14 text runs     4 groups
- *
- * The column was never too narrow. It was set in fine print — a trader
- * watching price cannot read 9px brass out of the corner of an eye, so the
- * rail was functionally invisible while occupying MORE room than the drawing
- * allots it. F24 shows FOUR large calm statements. Big type is the whole
- * point; it is also why the block census below had to fall with it, because
- * canon type in this column with fourteen runs simply overflows.
- *
- * WHY THE LABEL AND THE BODY ARE THE SAME SIZE. They are in the drawing. F24
- * separates `WHY` from "Post-session alignment held." by COLOUR and case —
- * brass small-caps over pearl sentence — not by scale. Shrinking the label
- * back into a caption is what produced the fine-print reading in the first
- * place.
- *
- * SCOPE: rail-primary only. Everything inside the S-501 fold keeps LABEL /
- * VALUE / MUTED, because the fold is disclosed detail, and inflating detail to
- * headline scale would simply re-create the overflow one click deeper.
+ * F24 (measured 2026-09-21) set the rail's four blocks at ~17px because a
+ * trader cannot read 9px brass out of the corner of an eye. The finding stands;
+ * the four blocks do not. H-101 / F05A / F06A draw the decision surface at rest
+ * as ONE plaque, and the plaque carries the large type now — a 44px serif
+ * state word (see PLAQUE_WORD), far above F24's 24px headline. The 17px
+ * RAIL_LABEL / RAIL_VALUE / RAIL_MUTED scale is retired with the blocks it
+ * sized: everything that is not the plaque lives inside the fold, and the fold
+ * is disclosed detail, which keeps LABEL / VALUE / MUTED — inflating detail to
+ * headline scale would re-create the overflow one click deeper.
  */
-const RAIL_LABEL: React.CSSProperties = {
-  ...LABEL,
-  fontSize: 17,
-  lineHeight: "24px",
-  letterSpacing: 1.5,
-};
-
-const RAIL_VALUE: React.CSSProperties = {
-  ...VALUE,
-  fontSize: 17,
-  lineHeight: "29px",
-  // A canon-scale line cannot be clipped to one ellipsised row: at 17px the
-  // NEXT sentence is three or four lines and every one of them is load-bearing.
-  // `hidden`/`ellipsis` were sized for an 11px single-line caption.
-  overflow: "visible",
-  textOverflow: "clip",
-  overflowWrap: "anywhere",
-};
-
-const RAIL_MUTED: React.CSSProperties = { ...RAIL_VALUE, color: "#8a8271" };
 
 /**
  * THE S-501 FOLD — the plate the fifth-through-eighth chunks collapse behind.
@@ -382,10 +346,14 @@ const DETAIL_DRAWER: React.CSSProperties = {
 };
 
 const DETAIL_SUMMARY: React.CSSProperties = {
-  // The handle is one of the four canon blocks, so it is set at canon scale
-  // like the other three. A 9px handle over 17px siblings reads as a footnote
-  // to the rail rather than as the fourth statement in it.
-  ...RAIL_LABEL,
+  // THE HANDLE IS A DOOR, NOT A FIFTH CARD. It was set at canon scale while it
+  // was one of four stacked statements; under the H-101 plaque it is the only
+  // other thing on the rail at rest, and a door set at headline size competes
+  // with the one statement the plates allow. Brass small caps, one line.
+  ...LABEL,
+  fontSize: 11,
+  lineHeight: "16px",
+  letterSpacing: "0.16em",
   listStyle: "none",
   cursor: "pointer",
   // 44px is the touch floor this repo already enforces elsewhere; the rail is
@@ -632,6 +600,85 @@ function asOfText(capturedAt: number | null): string {
   return `asOf ${new Date(capturedAt).toISOString().slice(11, 19)}Z`;
 }
 
+/**
+ * ── H-101 / F05A / F06A / P110: THE RAIL AT REST IS ONE CALM WAIT PLAQUE ────
+ *
+ * MEASURED on serving /charts beside the canon plates, 2026-09-25: the rail
+ * drew four stacked cards at rest (DECISION · NOT BORN + pill; NOW · STATE;
+ * RISK · WHY · DETAIL; NEXT + PERMISSION WITHHELD). Every plate that draws the
+ * decision surface draws ONE thing: a large serif state word, a small glyph,
+ * one sentence in the room's voice, and (H-101) the asOf stamp. Depth lives
+ * behind the fold. The Founder's words: "a lot of just cards, not the actual
+ * designs within the canon".
+ *
+ * The plaque is ink only. Its word is the compiled verdict, its sentence is
+ * `selectWaitPlaque`'s (which reads the compiled ledger and selectWaitStanding
+ * — no second decision owner), its stamp is the canonical capture instant.
+ *
+ * Material: F06A's framed brass plate — ONE hairline frame with an inner rule,
+ * a faint lamp-light from above, obsidian ground. The six brass/pearl values
+ * are the rail's own (#c4a574 GOLD, #ede6d3 PEARL, #8a8271 MUTED, #d4af37 the
+ * verdict gold, #c9c2a7 the settled ivory); no fourth brass is introduced.
+ */
+const PLAQUE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  textAlign: "center",
+  gap: 6,
+  margin: "4px 2px 10px",
+  padding: "18px 12px 14px",
+  border: "1px solid rgba(196,165,116,0.40)",
+  boxShadow: "inset 0 0 0 3px rgba(5,5,6,0.92), inset 0 0 0 4px rgba(196,165,116,0.16)",
+  borderRadius: 2,
+  background:
+    "radial-gradient(ellipse 90% 60% at 50% 18%, rgba(212,175,55,0.085) 0%, rgba(212,175,55,0.02) 55%, rgba(5,5,6,0) 80%)",
+};
+
+const PLAQUE_WORD: React.CSSProperties = {
+  fontFamily: "Georgia, 'Times New Roman', serif",
+  fontSize: 44,
+  lineHeight: "48px",
+  letterSpacing: "0.10em",
+  fontWeight: 400,
+  // Engraved, not lit: the word is brass on the plate, not a neon sign.
+  textShadow: "0 1px 0 rgba(0,0,0,0.65), 0 0 18px rgba(212,175,55,0.14)",
+};
+
+const PLAQUE_GLYPH: React.CSSProperties = {
+  color: "#c4a574",
+  fontSize: 20,
+  lineHeight: "22px",
+  opacity: 0.9,
+};
+
+const PLAQUE_LINE: React.CSSProperties = {
+  display: "block",
+  fontFamily: "Georgia, 'Times New Roman', serif",
+  fontSize: 11.5,
+  lineHeight: "16px",
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  overflowWrap: "anywhere",
+};
+
+const PLAQUE_RULE: React.CSSProperties = {
+  display: "block",
+  width: "62%",
+  height: 1,
+  margin: "5px auto",
+  background: "linear-gradient(90deg, rgba(196,165,116,0) 0%, rgba(196,165,116,0.55) 50%, rgba(196,165,116,0) 100%)",
+};
+
+const PLAQUE_STAMP: React.CSSProperties = {
+  fontSize: 9.5,
+  lineHeight: "13px",
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "#8a8271",
+  fontVariantNumeric: "tabular-nums",
+};
+
 export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression, replayEngaged } = props;
   const presentation = props.presentation ?? "band";
@@ -703,6 +750,10 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
      To make this rail able to say GRANTED, give it a real broker-honesty
      owner and pass all three keys. Do not reach that state by inventing one. */
   const interlock = selectGoInterlock(nowDecision, oneStory ? oneStory.debt : null);
+  /* H-101 / F05A / F06A — the plaque's ONE sentence. A third caller of the
+     same verdict and the same ledger, never a third answer: the word is
+     `nowDecision.value` verbatim and the standing is selectWaitStanding's. */
+  const plaque = selectWaitPlaque(nowDecision, oneStory ? oneStory.debt : null);
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   /* The ledger first, then the observations outside it — the same two groups
      the bar draws, in the same order, so the chips and the bar can never tell
@@ -757,12 +808,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const decisionValue = decisionId ? (
     <code
       style={{
-        ...(rail ? RAIL_VALUE : VALUE),
-        // The id is the one canon-scale line that is a MACHINE TOKEN, not a
-        // sentence. F24 sets it a step under its own label so a 20-character
-        // hyphenated identifier stays on two lines in a 205px column instead
-        // of breaking mid-token across four.
-        ...(rail ? { fontSize: 15, lineHeight: "22px" } : null),
+        // Detail scale in both projections: on the rail the id now opens the
+        // fold (the plaque is the headline), and the fold is disclosed detail.
+        ...VALUE,
         color: "#e8b923",
         fontWeight: 700,
         whiteSpace: "normal",
@@ -777,13 +825,16 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   ) : rail ? (
     <>
       <span
-        style={{ ...RAIL_MUTED, color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.45 }}
+        style={{ ...VALUE, color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.45 }}
         data-testid="spine-decision-absent"
         title={decisionIdAbsence}
       >
         NOT BORN
       </span>
-      <span className="wm-spine-sr-only">{decisionIdAbsence}</span>
+      {/* Inside the fold the reason is detail, so it is printed, not hidden:
+          "no decision has been born yet" and "a decision exists and we lost
+          it" are different facts and the trader who opened the fold asked. */}
+      <span style={MUTED}>{decisionIdAbsence}</span>
     </>
   ) : (
     <span style={MUTED} data-testid="spine-decision-absent">{decisionIdAbsence}</span>
@@ -1121,6 +1172,77 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     </div>
   );
 
+  /* The plaque's sentence, or — when nothing was compiled — the rail's own
+     long-standing words for that absence, in the plaque's voice. Never a
+     verdict-shaped placeholder: with no story there is no word above it. */
+  const plaqueReason = plaque ? plaque.reason : "NO STORY COMPILED · EVIDENCE INSUFFICIENT";
+
+  /* A NEXT THAT REPEATS NOW IS NOT A NEXT.
+     This cell used to print the Right-of-Way verdict itself, so the rail
+     said WAIT in the header chip and WAIT again here, under two different
+     labels, from one producer. (The reverted form is named literally in
+     the Sentinel `× THE RESURRECTED ECHO`, which is why it is not spelled
+     out here — the spelling must appear nowhere but the guard.) NEXT now
+     compiles the single thing capable of CHANGING the job. The attached
+     expression, when one exists, remains the literal next object.
+
+     A VOID BETWEEN TWO CELLS IS A CLAIM THAT THEY ARE UNRELATED. This cell
+     once carried `marginTop: "auto"` in the rail, parking NEXT ~200px below
+     WHY (measured live 2026-09-15). NEXT is DERIVED from the very evidence
+     WHY displays, so no spacer may sever them.
+
+     ON THE RAIL it now lives inside the fold, directly under the DECISION_ID
+     it is the next act of (H-101 plaque pass, 2026-09-25). At rest the plaque
+     already says the same node in the room's voice — `selectWaitPlaque` names
+     the node NEXT names, and a test pins that they agree. */
+  const nextCell = (
+    <div style={cellStyle}>
+      <span style={LABEL}>Next</span>
+      <span style={VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
+        {expression ?? nextThing.headline}
+      </span>
+      {rail ? null : ladderBar}
+      {/* THE PLAQUE GOES ABOVE THE ROSTER, BECAUSE IT IS WHAT THE ROSTER IS.
+          Read downward: the lock, then the conditions holding it, then the
+          sentence naming the first one to pay. H-101: "GO circuit is dark
+          while debt is open" — this is that circuit, in words.
+
+          NOT aria-hidden. Unlike the bar, this states a fact that appears
+          nowhere else on the rail — that the debt is what withholds
+          permission — and the `title` carries the full release sentence. */}
+      {rail ? (
+        <span
+          data-testid="go-interlock"
+          data-interlock={interlock.state}
+          data-held-by={interlock.heldBy.length}
+          title={interlock.release}
+          aria-label={`${interlock.plaque}. ${interlock.release}`}
+          style={{
+            display: "inline-flex",
+            alignSelf: "flex-start",
+            alignItems: "center",
+            padding: "1px 5px",
+            margin: "4px 0 0",
+            borderRadius: 2,
+            border: "1px solid",
+            fontSize: 10.5,
+            lineHeight: "15px",
+            letterSpacing: "0.13em",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+            ...INTERLOCK_TONE[interlock.state],
+          }}
+        >
+          {interlock.plaque}
+        </span>
+      ) : null}
+      {rail ? null : ladderRoster}
+      <span style={MUTED}>
+        {expression ? "Attached expression" : nextThing.detail}
+      </span>
+    </div>
+  );
+
   return (
     <section
       className={`wm-decision-spine${rail ? " wm-decision-spine--rail" : ""}`}
@@ -1218,44 +1340,106 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           border: 0 !important;
         }
       `}</style>
-      {/* DECISION_ID — the thing every other cell is about. On the desktop
-          rail, identity and MARKET provenance were one restrained header,
-          because the adjacent canvas already owns MARKET as the room.
+      {/* ── H-101 / F05A / F06A / P110 — THE RAIL AT REST IS ONE PLAQUE ────
+          The plates agree: at rest the decision surface is ONE calm WAIT
+          plaque with ONE reason sentence; depth is behind a fold. MEASURED on
+          serving /charts 2026-09-25 the rail drew four stacked cards instead
+          (DECISION + pill, NOW · STATE, RISK · WHY · DETAIL, NEXT + PERMISSION
+          WITHHELD). This block replaces the first two and the fourth AT REST;
+          all four remain, whole, one click away in the fold below.
 
-          ── THE HEADER FINISHED THE ARGUMENT ITS OWN COMMENT STARTED ──────
-          "The adjacent canvas already owns MARKET as the room" was the reason
-          MARKET stopped being a hairlined cell. At F24 type scale it is the
-          reason MARKET stops being PRIMARY at all: `NQ1! · 5m · 30881.5` and
-          `PARTIAL · asOf 00:23:44Z` are two full canon-scale lines restating
-          the symbol, the timeframe and the price that the chart header three
-          hundred pixels to the left is already printing, over the candles they
-          describe. F24's right panel names no symbol and no price for exactly
-          that reason.
+          WHAT STAYS ON THE PLATE, and why each is lawful:
+            · the word — `nowDecision.value`, the compiled verdict, gated by
+              the SAME `surfaceOwnsVerdict` const the canvas pill is told about;
+            · ⚖ — F05A's glyph. Ornament, aria-hidden, no claim;
+            · ONE sentence — `selectWaitPlaque`, keyed on the ledger node NEXT
+              names (or the composition a FINISHED wait waits on);
+            · the WAIT standing ("2 TO RESOLVE" / FINISHED / VENUE) and the NOW
+              session token — the debt count and the moment, at stamp size;
+            · the asOf stamp — H-101 "asOf STAMP REQUIRED". Withheld under a
+              replay camera for the companion-camera law's reason: a wall clock
+              beside a replayed bar reads as a fact about that bar.
 
-          MOVED, NOT DELETED — one click, into the S-501 fold, at its TOP,
-          where it is the provenance the fidelity plaque directly below is a
-          reading OF. The horizontal band still renders MARKET as a full inline
-          cell; this is the 1440 rail silhouette, not a change to the band. */}
+          The DECISION_ID birth, MARKET provenance, the fidelity plaque, RISK,
+          WHY, NEXT with the GO interlock, and the evidence ledger all moved
+          INTO the fold. The horizontal band (phone / options-open) is not the
+          1440 frame and keeps every cell inline, unchanged. */}
       {rail ? (
         <div
-          data-testid="spine-provenance-header"
-          style={{
-            ...cellStyle,
-            borderTop: "none",
-            paddingTop: 8,
-            paddingBottom: 8,
-            gap: 8,
-          }}
+          data-testid="spine-wait-plaque"
+          data-plaque-basis={plaque ? plaque.basis : "NONE"}
+          data-plaque-node={plaque?.node ?? undefined}
+          role="group"
+          aria-label={oneStory && nowDecision
+            ? `Now. State ${nowDecision.value}. ${plaque ? plaque.reason : ""}. ${props.now.token}. ${oneStory.primary}`
+            : `Now. No story compiled. ${props.now.token}.`}
+          style={PLAQUE}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={RAIL_LABEL}>Decision</span>
-            {decisionValue}
-          </div>
-          {canvasSummaryNode && (
-            <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
-              {canvasSummaryNode}
-            </div>
-          )}
+          {surfaceOwnsVerdict && nowDecision ? (
+            <span
+              data-testid="spine-now-state"
+              data-state={nowDecision.value}
+              style={{ ...PLAQUE_WORD, color: nowDecision.tone === "resolved" ? "#c9c2a7" : "#d4af37" }}
+            >
+              {nowDecision.value}
+            </span>
+          ) : null}
+          <span aria-hidden="true" data-testid="spine-plaque-glyph" style={PLAQUE_GLYPH}>
+            ⚖
+          </span>
+          {/* ONE sentence. A two-clause sentence is set F06A's way — first
+              clause, a brass rule, second clause — never as two statements. */}
+          <span
+            data-testid="spine-plaque-reason"
+            aria-label={plaqueReason}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}
+          >
+            {plaqueReason.split(" · ").map((clause, i) => (
+              <React.Fragment key={`clause-${i}`}>
+                {i > 0 ? <span aria-hidden="true" style={PLAQUE_RULE} /> : null}
+                <span aria-hidden="true" style={{ ...PLAQUE_LINE, color: i === 0 ? "#ede6d3" : "#c4a574" }}>
+                  {clause}
+                </span>
+              </React.Fragment>
+            ))}
+          </span>
+          <span aria-hidden="true" style={{ ...PLAQUE_RULE, width: "34%", margin: "6px auto 1px", opacity: 0.55 }} />
+          <span data-testid="spine-plaque-stamp" style={PLAQUE_STAMP}>
+            {/* THE WORD ALONE WAS AMBIGUOUS — "stand down" and "you have work"
+                both rendered as WAIT. The standing is the difference, derived
+                by selectWaitStanding and never asserted. */}
+            {waitStanding ? (
+              <span
+                data-testid="spine-wait-standing"
+                data-standing={waitStanding.standing}
+                title={waitStanding.detail}
+                aria-label={`Wait standing. ${waitStanding.detail}`}
+                style={WAIT_STANDING_TONE[waitStanding.standing]}
+              >
+                {waitStanding.headline}
+              </span>
+            ) : null}
+            {waitStanding ? <span aria-hidden="true"> · </span> : null}
+            <span
+              style={{ color: NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"].color }}
+              data-testid="spine-now-session"
+              data-session-established={props.now.established ? "true" : "false"}
+              title={props.now.detail}
+              aria-label={`${props.now.token} — ${props.now.detail}`}
+            >
+              {props.now.token}
+            </span>
+          </span>
+          <span
+            data-testid="spine-plaque-asof"
+            data-replay-camera={replayEngaged ? "engaged" : undefined}
+            style={PLAQUE_STAMP}
+          >
+            {replayEngaged ? "BAR REPLAY · NO LIVE CLOCK" : asOfText(market.capturedAt)}
+          </span>
+          <span className="wm-spine-sr-only">
+            {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
+          </span>
         </div>
       ) : (
         <div style={{ ...cellStyle, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>
@@ -1264,81 +1448,27 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </div>
       )}
 
-      <div
-        style={cellStyle}
-        aria-label={rail && oneStory && nowDecision
-          ? `Now. State ${nowDecision.value}. ${props.now.token}. ${oneStory.primary}`
-          : undefined}
-      >
-        <span style={rail ? RAIL_LABEL : LABEL}>{rail ? "Now · State" : "Now"}</span>
-        {/* The moment comes FIRST, above the structure narrative. A trader
-            reading downward learns whether this market is trading before
-            reading what it is doing, because the second only means something
-            under the first. */}
-        {surfaceOwnsVerdict && nowDecision ? (
+      {!rail && (
+        <div style={cellStyle}>
+          <span style={LABEL}>Now</span>
+          {/* The moment comes FIRST, above the structure narrative. A trader
+              reading downward learns whether this market is trading before
+              reading what it is doing, because the second only means something
+              under the first. */}
           <span
-            data-testid="spine-now-state"
-            data-state={nowDecision.value}
-            style={{
-              color: nowDecision.tone === "resolved" ? "#c9c2a7" : "#d4af37",
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              // F24 sets the verdict only a little above the surrounding
-              // lines — the whole panel is large, so the headline does not
-              // have to shout to lead. 21px over an 11px body was a headline
-              // over fine print; 24px over a 17px body is the drawing.
-              fontSize: 24,
-              lineHeight: "30px",
-              letterSpacing: 1.1,
-              fontWeight: 700,
-            }}
+            style={NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"]}
+            data-testid="spine-now-session"
+            data-session-established={props.now.established ? "true" : "false"}
+            title={props.now.detail}
+            aria-label={`${props.now.token} — ${props.now.detail}`}
           >
-            {nowDecision.value}
+            {props.now.token}
           </span>
-        ) : null}
-        {/* THE WORD ALONE WAS AMBIGUOUS. "Stand down" and "you have work to do"
-            both rendered as the single word WAIT. This line is the difference,
-            and it is derived — never asserted. See selectWaitStanding. */}
-        {rail && waitStanding ? (
-          <span
-            data-testid="spine-wait-standing"
-            data-standing={waitStanding.standing}
-            title={waitStanding.detail}
-            aria-label={`Wait standing. ${waitStanding.detail}`}
-            style={{
-              // F24's "complete" qualifier sits beside the verdict at reading
-              // size, not as a caption under it. 8.5px was unreadable at a
-              // glance, which defeats the whole reason this line exists.
-              fontSize: 13,
-              lineHeight: "18px",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              ...WAIT_STANDING_TONE[waitStanding.standing],
-            }}
-          >
-            {waitStanding.headline}
+          <span style={oneStory ? VALUE : MUTED}>
+            {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
           </span>
-        ) : null}
-        <span
-          style={{
-            ...NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"],
-            ...(rail
-              ? { fontSize: 13, lineHeight: "18px", textTransform: "uppercase", letterSpacing: 0.7 }
-              : null),
-          }}
-          data-testid="spine-now-session"
-          data-session-established={props.now.established ? "true" : "false"}
-          title={props.now.detail}
-          aria-label={`${props.now.token} — ${props.now.detail}`}
-        >
-          {props.now.token}
-        </span>
-        <span
-          style={oneStory ? VALUE : MUTED}
-          className={rail ? "wm-spine-sr-only" : undefined}
-        >
-          {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
-        </span>
-      </div>
+        </div>
+      )}
 
       {!rail && (
         <div style={cellStyle}>
@@ -1371,24 +1501,25 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       {!rail && honestyCell}
       {!rail && riskCell}
       {!rail && whyCell}
-      {/* ── THE FOLD NOW CARRIES SIX ORGANS, NOT THREE ──────────────────────
+      {/* ── THE FOLD NOW CARRIES EVERY ORGAN BUT THE PLAQUE ────────────────
           S-501 collapsed RISK, WHY and the fidelity plaque behind this one
-          disclosure. The F24 type pass adds MARKET provenance and the two
-          drawn forms of the evidence ledger (the severity-ordered bar and the
-          named roster), for the same stated reason and by the same rule:
-          COLLAPSE, NOT DELETE.
+          disclosure; the F24 pass added MARKET provenance and the two drawn
+          forms of the evidence ledger. The H-101 plaque pass (2026-09-25) adds
+          the DECISION_ID birth (with its canvas pill) and NEXT (with the GO
+          interlock), for the same stated reason and by the same rule:
+          COLLAPSE, NOT DELETE. Order inside: identity, the next act and its
+          permission, then provenance, fidelity, risk, why, the ledger.
 
           EVERY ONE OF THEM IS STILL ON THE SCENE, one click away, in the
           markup at all times (native <details>, so SSR ships the content and
           a screen reader is handed the whole rail regardless of visual state).
           Nothing here is computed differently and no producer changed.
 
-          `summary` visible text names all four regions rather than the three
-          it used to, because a handle that under-names its contents is how a
-          fact becomes unreachable in practice while staying reachable in the
-          DOM. `aria-expanded` is supplied by the native element itself, so the
-          open/closed transition is announced without a hand-rolled attribute
-          that could drift out of sync with the real state. */}
+          The handle names every region it hides, and — §9 — the STATE of what
+          it hides when that state is not nominal (selectFoldEscalation). It is
+          set at detail scale now: the plaque is the headline, the handle is a
+          door, and a door set at headline size is a fifth card. `aria-expanded`
+          is supplied by the native element itself. */}
       {rail && (
         <details data-testid="spine-detail-drawer" style={DETAIL_DRAWER}>
           <summary
@@ -1398,8 +1529,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             title={foldEscalation.detail}
             aria-label={foldEscalation.detail}
           >
-            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-              <span style={{ whiteSpace: "normal" }}>Risk · Why · Detail</span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+              <span style={{ whiteSpace: "normal" }}>Decision · Risk · Why · Next</span>
               {/* §9: the wound is VISIBLE, which is a different instruction
                   from the wound is RED. One parchment word on a brass hairline
                   — no severity rainbow, and absent entirely when INTACT. */}
@@ -1414,11 +1545,13 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
                     border: "1px solid rgba(139,106,41,0.45)",
                     color: "#c2b892",
                     background: "rgba(139,106,41,0.10)",
-                    fontSize: 11,
-                    lineHeight: "16px",
+                    fontSize: 10,
+                    lineHeight: "14px",
                     letterSpacing: "0.12em",
                     textTransform: "uppercase",
                     whiteSpace: "nowrap",
+                    fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+                    fontWeight: 600,
                   }}
                 >
                   Chart integrity · {foldEscalation.word}
@@ -1430,6 +1563,32 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             </span>
           </summary>
           <div style={{ paddingTop: 6 }}>
+            {/* DECISION_ID — the thing every other cell is about, with the
+                canvas pill beside it. MOVED, NOT DELETED: at rest the plaque
+                is the decision; the identity (or the reason there is none) is
+                the first thing the fold opens onto. Same testid, same pill,
+                same `verdictOwnedBySurface` handed down. */}
+            <div
+              data-testid="spine-provenance-header"
+              style={{
+                ...cellStyle,
+                borderTop: "none",
+                paddingTop: 8,
+                paddingBottom: 8,
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={LABEL}>Decision</span>
+                {decisionValue}
+              </div>
+              {canvasSummaryNode && (
+                <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
+                  {canvasSummaryNode}
+                </div>
+              )}
+            </div>
+            {nextCell}
             <div style={cellStyle}>
               <span style={LABEL}>Market</span>
               {marketValue}
@@ -1448,82 +1607,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </details>
       )}
 
-      {/* A NEXT THAT REPEATS NOW IS NOT A NEXT.
-          This cell used to print the Right-of-Way verdict itself, so the rail
-          said WAIT in the header chip and WAIT again here, under two different
-          labels, from one producer. (The reverted form is named literally in
-          the Sentinel `× THE RESURRECTED ECHO`, which is why it is not spelled
-          out here — the spelling must appear nowhere but the guard.) NEXT now
-          compiles the single thing capable of CHANGING the job. The attached
-          expression, when one exists, remains the literal next object. */}
-      {/* A VOID BETWEEN TWO CELLS IS A CLAIM THAT THEY ARE UNRELATED.
-          In the rail, this cell carried `marginTop: "auto"`, which in a flex
-          column eats every spare pixel and parks NEXT at the bottom. Measured
-          on a live /charts render 2026-09-15: roughly two hundred pixels of
-          nothing between WHY and NEXT, mid-column.
-
-          That was already poor composition. It became wrong when NEXT stopped
-          echoing the verdict: NEXT is now DERIVED from the very evidence WHY
-          displays — "regime is the first of 9 unpaid evidence nodes" is the
-          same permission story WHY is telling, one layer down. Severing them
-          with a void says they are separate concerns. They are not.
-
-          Spare space now falls at the END of the column, where empty space
-          reads as margin rather than as a break in the argument. */}
-      <div style={cellStyle}>
-        <span style={rail ? RAIL_LABEL : LABEL}>Next</span>
-        <span style={rail ? RAIL_VALUE : VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
-          {expression ?? nextThing.headline}
-        </span>
-        {rail ? null : ladderBar}
-        {/* NAMED ONLY IF EVERY NODE IS NAMED.
-            A partial roster is worse than none: four chips over a seven-segment
-            bar reads as "these four are the debt", and the three it could not
-            name would vanish behind a number that no longer has a name for its
-            own parts. All or nothing is the only honest gate. */}
-        {/* THE PLAQUE GOES ABOVE THE ROSTER, BECAUSE IT IS WHAT THE ROSTER IS.
-            Read downward: the lock, then the conditions holding it, then the
-            sentence naming the first one to pay. Below the chips it would read
-            as a footnote to a list; above them it is the list's subject.
-
-            NOT aria-hidden. Unlike the bar, this states a fact that appears
-            nowhere else on the rail — that the debt is what withholds
-            permission — and the `title` carries the full release sentence for
-            a pointer without stealing a line from a 17vw column. */}
-        {rail ? (
-          <span
-            data-testid="go-interlock"
-            data-interlock={interlock.state}
-            data-held-by={interlock.heldBy.length}
-            title={interlock.release}
-            aria-label={`${interlock.plaque}. ${interlock.release}`}
-            style={{
-              display: "inline-flex",
-              alignSelf: "flex-start",
-              alignItems: "center",
-              padding: "1px 5px",
-              margin: "4px 0 0",
-              borderRadius: 2,
-              border: "1px solid",
-              // 8px was the smallest run in the whole column, on the one line
-              // that states whether the trader may act. Raised to the canon
-              // qualifier step it shares with the WAIT standing line.
-              fontSize: 13,
-              lineHeight: "18px",
-              letterSpacing: "0.13em",
-              textTransform: "uppercase",
-              whiteSpace: "nowrap",
-              ...INTERLOCK_TONE[interlock.state],
-            }}
-          >
-            {interlock.plaque}
-          </span>
-        ) : null}
-        {rail ? null : ladderRoster}
-        <span style={MUTED} className={rail ? "wm-spine-sr-only" : undefined}>
-          {expression ? "Attached expression" : nextThing.detail}
-        </span>
-      </div>
+      {!rail && nextCell}
     </section>
   );
 }

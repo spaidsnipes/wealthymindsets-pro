@@ -154,7 +154,12 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     for (const label of ["Decision", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }
-    expect(html).toContain(">Now · State<");
+    // WAS: expect(html).toContain(">Now · State<"). H-101 / F05A / F06A draw
+    // the NOW state as an uncaptioned plaque — a big serif word, a glyph, one
+    // sentence. The caption was a card header; the plaque IS the NOW, and its
+    // accessible name still begins "Now. State …" (see the plaque laws below).
+    expect(html).not.toContain(">Now · State<");
+    expect(html).toContain('data-testid="spine-wait-plaque"');
   });
 
   /* ONE WORD, TWO MOUTHS.
@@ -218,7 +223,8 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
 
   it("renders the desktop rail as a compact state instrument instead of visible prose cards", () => {
     const html = render({ presentation: "rail", oneStory: oneStory() });
-    expect(html).toContain(">Now · State<");
+    // WAS: ">Now · State<" — the caption retired with the card (H-101 plaque).
+    expect(html).toContain('aria-label="Now. State WAIT.');
     expect(html).toContain('data-testid="spine-now-state"');
     expect(html).toContain(">WAIT<");
     expect(html).toContain(">NOT BORN<");
@@ -928,5 +934,220 @@ describe("DecisionSpineBand — the GO interlock (canon 123, H-101 leg 3)", () =
   it("does not hide the plaque from a screen reader — it is the only place this fact is said", () => {
     const html = render({ presentation: "rail", oneStory: waiting() });
     expect(html).toContain("PERMISSION WITHHELD. Evidence debt is a first-class condition");
+  });
+});
+
+/**
+ * H-101 / F05A / F06A / P110 — THE RAIL AT REST IS ONE CALM WAIT PLAQUE.
+ *
+ * MEASURED on serving /charts beside the canon plates, 2026-09-25: four
+ * stacked cards at rest (DECISION · NOT BORN + pill; NOW · STATE · WAIT · 2 TO
+ * RESOLVE · SESSION ?; RISK · WHY · DETAIL + integrity chip; NEXT + PERMISSION
+ * WITHHELD). The Founder: "a lot of just cards, not the actual designs within
+ * the canon". Every plate draws ONE plaque — a large serif word, a glyph, one
+ * sentence, an asOf stamp — and puts depth behind a fold.
+ *
+ * These are wrong-answer laws, and static markup can hold them because the
+ * fold is a native <details>: what is at rest is exactly what is outside the
+ * details element plus its summary.
+ */
+describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque", () => {
+  /** The live /charts ledger shape of 2026-09-25, with its roll. */
+  const liveDebt = {
+    payable: 7,
+    watch: 0,
+    resolved: 3,
+    missing: 4,
+    warn: 0,
+    missingLabels: ["Aggression", "CLC", "Available R"],
+    missingPayableLabels: ["Available R", "Permission"],
+    missingPayable: 2,
+    warnLabels: [],
+    venueBlocked: 1,
+    venueBlockedLabels: ["Aggression"],
+    roll: [
+      { key: "direction", label: "Direction", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "location", label: "Location", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "auction", label: "Auction", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      { key: "aggression", label: "Aggression", standing: "MISSING" as const, payableNow: false, venueBlocked: true },
+      { key: "clc", label: "CLC", standing: "MISSING" as const, payableNow: false, venueBlocked: false },
+      { key: "risk", label: "Available R", standing: "MISSING" as const, payableNow: true, venueBlocked: false },
+      { key: "permission", label: "Permission", standing: "MISSING" as const, payableNow: true, venueBlocked: false },
+    ],
+  };
+  const waitingOn = (debt: Record<string, unknown> = liveDebt) =>
+    oneStory({ decision: { value: "WAIT", detail: "evidence debt", tone: "warn" }, debt: debt as never });
+  const AS_OF = Date.UTC(2026, 8, 25, 19, 16, 4);
+
+  function split(html: string) {
+    // Anchored on the SPINE's drawer, and closed at the LAST </details> before
+    // the section ends: the honesty plaque inside the fold carries a native
+    // <details> of its own.
+    // (The plaque is a <section> too, so the spine's end is the LAST one.)
+    const end = html.lastIndexOf("</section>");
+    const open = html.indexOf('<details data-testid="spine-detail-drawer"');
+    const close = html.lastIndexOf("</details>", end);
+    expect(open, "the fold is missing").toBeGreaterThan(-1);
+    expect(close).toBeGreaterThan(open);
+    const summary = html.slice(html.indexOf("<summary", open), html.indexOf("</summary>", open));
+    return {
+      rest: html.slice(0, open),
+      summary,
+      fold: html.slice(open, close),
+      after: html.slice(close + "</details>".length, end),
+    };
+  }
+
+  function railHtml(over: Partial<DecisionSpineBandProps> = {}) {
+    return render({
+      presentation: "rail",
+      oneStory: waitingOn(),
+      honesty: { fidelity: "DEGRADED", asOf: AS_OF, reasons: ["DELAYED"] },
+      market: { symbol: "TSLA", timeframe: "15m", quality: "LIVE", capturedAt: AS_OF, last: 412.5 },
+      canvasSummary: () => <span data-testid="canonical-canvas-verdict">6 blockers</span>,
+      onOpenWhy: () => {},
+      ...over,
+    });
+  }
+
+  it("at rest: one state word, one glyph, one reason sentence, one asOf — and nothing else but the fold's handle", () => {
+    const { rest, after } = split(railHtml());
+    expect(rest.match(/data-testid="spine-wait-plaque"/g)).toHaveLength(1);
+    expect(rest.match(/data-testid="spine-now-state"/g)).toHaveLength(1);
+    expect(rest).toContain(">WAIT<");
+    expect(rest.match(/data-testid="spine-plaque-reason"/g)).toHaveLength(1);
+    expect(rest.match(/data-testid="spine-plaque-asof"/g)).toHaveLength(1);
+    expect(rest).toContain("asOf 19:16:04Z");
+    expect(rest).toContain("⚖");
+    // Everything the four cards used to show at rest is NOT at rest any more.
+    for (const organ of [
+      "spine-provenance-header",
+      "spine-decision-absent",
+      "spine-canvas-summary",
+      "spine-next",
+      "go-interlock",
+      "honesty-plaque",
+      "evidence-ladder",
+      "risk-reach",
+      "why-severity",
+      "spine-available-r-detail",
+    ]) {
+      expect(rest, `${organ} is still a card at rest`).not.toContain(`data-testid="${organ}`);
+    }
+    // No cell trails the fold: the rail ends at the door.
+    expect(after).not.toContain("data-testid");
+    expect(after).not.toContain("<div");
+  });
+
+  it("the fold holds the rest, whole, and ships CLOSED", () => {
+    const html = railHtml();
+    expect(html.match(/<details data-testid="spine-detail-drawer"/g)).toHaveLength(1);
+    expect(html).not.toMatch(/<details data-testid="spine-detail-drawer"[^>]*\sopen/);
+    // Nothing at rest is a disclosure of its own — one door, one fold.
+    expect(split(html).rest).not.toContain("<details");
+    const { fold } = split(html);
+    for (const organ of [
+      "spine-provenance-header",
+      "spine-decision-absent",
+      "spine-canvas-summary",
+      "spine-next",
+      "go-interlock",
+      "honesty-plaque",
+      "evidence-ladder-roster",
+      "spine-available-r-detail",
+    ]) {
+      expect(fold, `${organ} was deleted rather than folded`).toContain(`data-testid="${organ}`);
+    }
+    expect(fold).toContain("PERMISSION WITHHELD");
+    expect(fold).toContain("Resolve available R");
+    expect(fold).toContain("Full evidence");
+    // The id's absence REASON is printed inside the fold, not hidden.
+    expect(fold).toContain("No decision born yet — permission has not crossed.");
+  });
+
+  it("keeps the existing truth at rest: the WAIT debt count, the session, and a wounded integrity word on the handle", () => {
+    const { rest, summary } = split(railHtml());
+    expect(rest).toContain('data-standing="WORKABLE"');
+    expect(rest).toContain(">2 TO RESOLVE<");
+    expect(rest).toContain(">SESSION ?<");
+    expect(summary).toContain('data-testid="spine-fold-integrity"');
+    expect(summary).toContain("WOUNDED");
+    expect(summary).toContain(">Decision · Risk · Why · Next<");
+  });
+
+  it("the sentence is the compiled ledger's first payable node, in F05A's voice — the node NEXT names", () => {
+    const { rest, fold } = split(railHtml());
+    expect(rest).toContain('data-plaque-basis="FIRST_PAYABLE"');
+    expect(rest).toContain('data-plaque-node="Available R"');
+    expect(rest).toContain(">RISK NOT DECLARED<");
+    expect(rest).toContain(">CLARITY PRECEDES ENTRY<");
+    expect(fold).toContain("Resolve available R");
+  });
+
+  it("× THE PAINTED PLAQUE: a different ledger produces a different sentence", () => {
+    const finished = {
+      ...liveDebt,
+      missing: 1,
+      missingPayable: 0,
+      missingPayableLabels: [],
+      venueBlocked: 0,
+      venueBlockedLabels: [],
+      missingLabels: ["Regime"],
+      roll: [
+        { key: "regime", label: "Regime", standing: "MISSING" as const, payableNow: false, venueBlocked: false },
+        { key: "direction", label: "Direction", standing: "RESOLVED" as const, payableNow: false, venueBlocked: false },
+      ],
+    };
+    const a = split(railHtml()).rest;
+    const b = split(railHtml({ oneStory: waitingOn(finished) })).rest;
+    expect(b).toContain(">LET STRUCTURE DEVELOP<");
+    expect(b).toContain('data-standing="FINISHED"');
+    expect(a).not.toContain("LET STRUCTURE DEVELOP");
+    expect(b).not.toContain("RISK NOT DECLARED");
+  });
+
+  it("never borrows F06A's ABSORPTION sentence — no owner on this rail publishes absorption", () => {
+    expect(railHtml()).not.toMatch(/ABSORPTION/i);
+  });
+
+  it("asOf is the canonical capture, UNKNOWN when absent, and withheld under a replay camera", () => {
+    const unknown = split(railHtml({ market: { symbol: "TSLA", timeframe: "15m", quality: null, capturedAt: null, last: null } })).rest;
+    expect(unknown).toContain("asOf UNKNOWN");
+    expect(unknown).not.toContain("1970");
+    const replay = split(railHtml({ replayEngaged: true })).rest;
+    const stamp = replay.slice(replay.indexOf('data-testid="spine-plaque-asof"'));
+    expect(stamp).toContain("BAR REPLAY");
+    expect(replay).not.toContain("asOf 19:16:04Z");
+    expect(replay).toContain('data-replay-camera="engaged"');
+  });
+
+  it("with no story compiled there is no word on the plate — and it says why rather than guess", () => {
+    const { rest } = split(railHtml({ oneStory: null }));
+    expect(rest).not.toContain('data-testid="spine-now-state"');
+    expect(rest).toContain('data-plaque-basis="NONE"');
+    expect(rest).toContain(">NO STORY COMPILED<");
+    expect(rest).not.toMatch(/>(WAIT|ACTION|NO TRADE|CAUTION|UNKNOWN)</);
+  });
+
+  it("ACTION on this rail is never a green light — paid is not ripe", () => {
+    const html = railHtml({
+      oneStory: oneStory({
+        decision: { value: "ACTION", detail: "required evidence paid", tone: "resolved" },
+        debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [], missingPayableLabels: [], missingPayable: 0 },
+      }),
+    });
+    const { rest } = split(html);
+    expect(rest).toContain(">ACTION<");
+    expect(rest).toContain("PERMISSION NOT EVALUATED");
+    expect(html).not.toContain("PERMISSION GRANTED");
+  });
+
+  it("the phone band is not the 1440 frame — it draws no plaque and keeps every cell inline", () => {
+    const band = render({ oneStory: waitingOn() });
+    expect(band).not.toContain('data-testid="spine-wait-plaque"');
+    expect(band).not.toContain("<details");
+    for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
+      expect(band).toContain(`>${label}<`);
+    }
   });
 });

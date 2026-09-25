@@ -37,6 +37,11 @@
  * So nothing moves. The fold keeps all six organs. What changes is that the
  * CLOSED handle stops being mute about whether what it hides is nominal.
  *
+ * (2026-09-25, H-101 plaque pass: the fold now also holds the DECISION_ID
+ * birth and NEXT with its GO interlock — the rail at rest is one WAIT plaque
+ * plus this handle. The escalation law is unchanged and matters MORE now: the
+ * handle is the only other thing on the rail at rest.)
+ *
  * ── Calm when calm is true, and only then ────────────────────────────────────
  *
  * This is an escalation, not a badge. INTACT produces NOTHING — no chip, no
@@ -113,14 +118,14 @@ const CALM: FoldEscalation = Object.freeze({
   level: "CALM",
   word: null,
   treatment: "FULL",
-  detail: "Detail: market provenance, data fidelity, risk, why, and the evidence ledger.",
+  detail: "Detail: decision identity, the next act and its permission, market provenance, data fidelity, risk, why, and the evidence ledger.",
 });
 
 const NO_PLAQUE: FoldEscalation = Object.freeze({
   level: "CALM",
   word: null,
   treatment: null,
-  detail: "Detail: market provenance, risk, why, and the evidence ledger.",
+  detail: "Detail: decision identity, the next act and its permission, market provenance, risk, why, and the evidence ledger.",
 });
 
 /**
@@ -145,8 +150,8 @@ export function selectFoldEscalation(
     treatment,
     detail:
       treatment === "NONE"
-        ? `Chart integrity ${word}. No fidelity has been established for this canvas. Open for market provenance, risk, why, and the evidence ledger.`
-        : `Chart integrity ${word}. Open for the fidelity reading, market provenance, risk, why, and the evidence ledger.`,
+        ? `Chart integrity ${word}. No fidelity has been established for this canvas. Open for decision identity, the next act, market provenance, risk, why, and the evidence ledger.`
+        : `Chart integrity ${word}. Open for decision identity, the next act, the fidelity reading, market provenance, risk, why, and the evidence ledger.`,
   });
 }
 

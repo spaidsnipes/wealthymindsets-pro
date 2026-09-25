@@ -234,10 +234,11 @@ ${renderToStaticMarkup(
     constructed to exercise the geometry's edges. No number on this page is evidence
     about any instrument. It exists so the drawn forms can be LOOKED AT without a session.
     <br><br>
-    <strong style="color:#d4af37;letter-spacing:.8px">S-501 FOUR CHUNK BUDGET.</strong>
-    Each rail below opens with identity, NOW and NEXT. RISK, WHY and the fidelity
-    plaque sit behind the <em>Risk · Why · Fidelity</em> fold — click one to confirm
-    the organs were collapsed, not deleted.
+    <strong style="color:#d4af37;letter-spacing:.8px">H-101 / F05A PLAQUE.</strong>
+    Each rail below rests as ONE plaque — the compiled word, a ⚖, one sentence, the
+    asOf stamp. Identity, NEXT with its permission, provenance, fidelity, RISK, WHY
+    and the ledger sit behind the <em>Decision · Risk · Why · Next</em> fold — click
+    one to confirm the organs were collapsed, not deleted.
   </div>
   <main>${rails}</main>
 </body>
