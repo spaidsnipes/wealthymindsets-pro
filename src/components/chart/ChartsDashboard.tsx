@@ -5313,7 +5313,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         role="radiogroup"
                         aria-label="Ask the chart a question"
                         data-testid="question-lens-chooser"
-                        className="absolute z-[60] flex flex-wrap items-center gap-1 rounded-md border border-wm-gold/40 px-1.5 py-1"
+                        className="absolute z-[60] hidden flex-wrap items-center gap-1 rounded-md border border-wm-gold/40 px-1.5 py-1 sm:flex"
                         style={{ left: 12, top: 532, width: 300, background: "rgba(11,10,8,0.92)" }}
                       >
                         <span className="px-1 text-[9px] font-bold uppercase tracking-[0.12em] text-wm-text-dim">Ask</span>

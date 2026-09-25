@@ -8283,6 +8283,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     } else ds.questionCallout = "NONE";
                   }
                 }
+                // 390 LAW: on narrow glass the lens must not murder the chart.
+                // One line for the question, one for the debt; the full card,
+                // control and Ask live on wider glass (same owner, same facts).
+                const narrowLens = W < 640;
+                ds.questionLensForm = narrowLens ? "COMPACT" : "FULL";
+                if (narrowLens) {
+                  const bx = 8, by = 96, bw = W - 16;
+                  ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(bx, by, bw, 34);
+                  floatingChips.push({ x: bx, y: by, w: bw, h: 34 });
+                  ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.6)" : "rgba(201,165,92,0.6)"; ctx.lineWidth = 1;
+                  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 33);
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(247,241,223,1)";
+                  let q = `“${lens.question}”`;
+                  while (q.length > 6 && ctx.measureText(q).width > bw - 16) q = q.slice(0, -2);
+                  if (q !== `“${lens.question}”`) q = q.slice(0, -1) + "…";
+                  ctx.fillText(q, bx + 8, by + 11);
+                  const rows = lens.debt.length;
+                  const paid = lens.ledger === "CHANGES" ? lens.debt.filter(d => d.paid).length : rows - lens.openDebt;
+                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
+                  ctx.fillText(`${paid}/${rows} ${lens.ledger === "CHANGES" ? "MOVED" : "PAID"} · ${lens.posture ?? ""}`, bx + 8, by + 25);
+                }
+                if (!narrowLens) {
                 // THE PLATE'S TOP STRIP — ACTIVE QUESTION | QUESTION FOCUS |
                 // SECONDARY NOISE · QUIETED, across the camera.
                 {
@@ -8400,6 +8424,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.fillStyle = c.verdict === "EFFORT ABSORBED" ? "rgba(120,160,220,1)" : "rgba(226,92,92,1)";
                     ctx.fillText(`VERDICT: ${c.verdict}`, lx + 12, cy + 76);
                   }
+                }
                 }
                 ctx.restore();
               }
@@ -10461,7 +10486,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // VISIBILITY GOVERNOR: an active question owns the left column
             // (strip, debt, control, Ask); the TPO letters step right of it
             // instead of printing through it.
-            const leftEdge = layerOnRef.current.questionLens === true ? 324 : 10;
+            const leftEdge = layerOnRef.current.questionLens === true && W >= 640 ? 324 : 10;
             const colMax = Math.min(140, Math.round(W * 0.14));
 
             // Row height from on-screen spacing between successive grid rows,
