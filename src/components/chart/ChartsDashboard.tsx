@@ -151,7 +151,7 @@ import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { memoryLevelKindOf, selectMemoryMarketObjects } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { selectLivingBiography } from "@/lib/marketData/viewModels/selectLivingBiography";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
-import { selectDebtTag } from "@/lib/marketData/viewModels/selectWaitPlaque";
+import { selectDebtTag, selectPlaqueFlowContext } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
@@ -3759,6 +3759,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // so the chip and the plaque are two readers of one grading. `null` here is
     // a real, rendered state (UNMEASURED) and not an omission.
     honesty: chartHonesty,
+    // F06A · ORDER FLOW CONTEXT beneath the plaque. The SAME aggressor snapshot
+    // the fidelity chip's ORDER FLOW capability reads — one tape, one reading —
+    // and only while the tape belongs to this symbol (`tickerOwner`, the guard
+    // the quote uses below). The band withholds it under a replay camera.
+    flowContext: selectPlaqueFlowContext(chartFlowSnap, { symbolOwnsTape: tickerOwner === symbol }),
     // THE COMPANION CAMERA, from the SAME owner the masthead standing reads.
     // One boolean, one owner — the masthead, the chart's data-truth strip and
     // this band cannot drift into disagreeing about which camera the room is

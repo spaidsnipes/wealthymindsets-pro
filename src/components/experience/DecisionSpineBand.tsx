@@ -74,7 +74,7 @@ import {
 import { selectRiskReachBar } from "@/lib/traderMemory/viewModels/selectRiskReachBar";
 import { MarketHonestyPlaque } from "@/components/experience/MarketHonestyPlaque";
 import { selectFoldEscalation } from "@/lib/marketData/viewModels/selectFoldEscalation";
-import { selectWaitPlaque } from "@/lib/marketData/viewModels/selectWaitPlaque";
+import { selectWaitPlaque, type PlaqueFlowContextVM } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 
 /**
@@ -237,6 +237,14 @@ export interface DecisionSpineBandProps {
    * the chip and this plate cannot disagree.
    */
   readonly honesty?: MarketFidelityReading | null;
+  /**
+   * F06A · ORDER FLOW CONTEXT beneath the plaque — the tape's aggressor split,
+   * already compiled by `selectPlaqueFlowContext` from `selectAggressorFlow`.
+   * Optional: `undefined`/`null` draws nothing (an empty bar would claim a
+   * balanced tape). Withheld on the rail while a replay camera walks history,
+   * for the same reason the asOf clock is: it is a LIVE reading.
+   */
+  readonly flowContext?: PlaqueFlowContextVM | null;
 }
 
 /**
@@ -681,6 +689,7 @@ const PLAQUE_STAMP: React.CSSProperties = {
 
 export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression, replayEngaged } = props;
+  const flowContext = props.flowContext ?? null;
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
   // NOW owns the compiled posture on the rail. Name that projection here so
@@ -1447,6 +1456,52 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           {decisionValue}
         </div>
       )}
+
+      {/* F06A · ORDER FLOW CONTEXT — beneath the plaque, at rest, ONLY with a
+          lawful reading. The tape's aggressor split (not F06A's book "stacks",
+          which no owner here publishes), with its provenance printed. Absent
+          reading → absent panel; replay camera → withheld like the clock. */}
+      {rail && flowContext && !replayEngaged ? (
+        <div
+          data-testid="spine-flow-context"
+          data-provenance={flowContext.provenance}
+          aria-label={`Order flow context. Aggressor buy ${flowContext.buyPct} percent, aggressor sell ${flowContext.sellPct} percent of sided tape volume. ${flowContext.basis}.`}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+            margin: "0 2px 10px",
+            padding: "9px 11px 8px",
+            border: "1px solid rgba(196,165,116,0.24)",
+            borderRadius: 2,
+          }}
+        >
+          <span aria-hidden="true" style={{ ...LABEL, fontSize: 9.5, letterSpacing: "0.16em", textAlign: "center" }}>
+            Order flow context
+          </span>
+          {([
+            ["Aggressor buy", flowContext.buyPct, "#c4a574"],
+            ["Aggressor sell", flowContext.sellPct, "#8a8271"],
+          ] as const).map(([label, pct, ink]) => (
+            <span
+              key={label}
+              aria-hidden="true"
+              style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", columnGap: 8, rowGap: 3 }}
+            >
+              <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", letterSpacing: "0.1em" }}>{label}</span>
+              <span style={{ ...PLAQUE_STAMP, color: "#ede6d3" }}>{pct}%</span>
+              {/* A proportional bar, never quantized squares: 72% draws as
+                  72% of the track, so the geometry is the number. */}
+              <span style={{ gridColumn: "1 / span 2", height: 4, background: "rgba(196,165,116,0.10)", borderRadius: 1 }}>
+                <span style={{ display: "block", width: `${pct}%`, height: "100%", background: ink, borderRadius: 1 }} />
+              </span>
+            </span>
+          ))}
+          <span aria-hidden="true" style={{ ...PLAQUE_STAMP, fontSize: 8.5, textAlign: "center" }}>
+            {flowContext.basis}
+          </span>
+        </div>
+      ) : null}
 
       {!rail && (
         <div style={cellStyle}>

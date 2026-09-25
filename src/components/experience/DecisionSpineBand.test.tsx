@@ -1142,6 +1142,27 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     expect(html).not.toContain("PERMISSION GRANTED");
   });
 
+  it("F06A: order-flow context sits beneath the plaque at rest — only with a reading, provenance printed", () => {
+    const flow = { buyPct: 72, sellPct: 28, provenance: "INFERRED" as const, basis: "TICK-RULE SIDES · INFERRED" };
+    const { rest } = split(railHtml({ flowContext: flow }));
+    const plaqueAt = rest.indexOf('data-testid="spine-wait-plaque"');
+    const flowAt = rest.indexOf('data-testid="spine-flow-context"');
+    expect(flowAt, "the panel is not at rest").toBeGreaterThan(plaqueAt);
+    expect(rest).toContain('data-provenance="INFERRED"');
+    expect(rest).toContain(">72%<");
+    expect(rest).toContain(">28%<");
+    expect(rest).toContain("width:72%");
+    expect(rest).toContain("TICK-RULE SIDES · INFERRED");
+    // F06A's BOOK words are not this reading's words.
+    expect(rest).not.toMatch(/STACK/i);
+    // No reading → no panel; a replay camera → withheld like the clock.
+    expect(railHtml({ flowContext: null })).not.toContain('data-testid="spine-flow-context"');
+    expect(railHtml()).not.toContain('data-testid="spine-flow-context"');
+    expect(railHtml({ flowContext: flow, replayEngaged: true })).not.toContain('data-testid="spine-flow-context"');
+    // The band is not the 1440 frame.
+    expect(render({ flowContext: flow })).not.toContain('data-testid="spine-flow-context"');
+  });
+
   it("the phone band is not the 1440 frame — it draws no plaque and keeps every cell inline", () => {
     const band = render({ oneStory: waitingOn() });
     expect(band).not.toContain('data-testid="spine-wait-plaque"');

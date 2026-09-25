@@ -53,6 +53,14 @@ describe("(a) the room composes the tag — it never decides one", () => {
     expect(body).toContain("replayEngaged: cameraWalksHistory");
   });
 
+  it("F06A's context under the plaque reads the room's ONE aggressor snapshot, guarded by symbol", () => {
+    expect(ROOM).toContain(
+      "flowContext: selectPlaqueFlowContext(chartFlowSnap, { symbolOwnsTape: tickerOwner === symbol }),",
+    );
+    // One snapshot of the tape in this room — the fidelity chip reads the same.
+    expect(ROOM.match(/selectAggressorFlow\(/g) ?? []).toHaveLength(1);
+  });
+
   it("hands it to the primary chart only — the compare and pinned panes carry no decision", () => {
     expect(ROOM.match(/debtTagOnChart=\{debtTagOnChart\}/g) ?? []).toHaveLength(1);
     const mount = ROOM.indexOf("debtTagOnChart={debtTagOnChart}");

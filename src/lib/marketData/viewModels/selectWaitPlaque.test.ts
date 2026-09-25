@@ -12,7 +12,8 @@ import { resolve } from "node:path";
 import { computeEvidenceDebt, computeRightOfWay, type RightOfWay } from "./decisionPermissionCompiler";
 import type { DecisionChainNode } from "./selectDecisionChain";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
-import { selectWaitPlaque, selectDebtTag } from "./selectWaitPlaque";
+import { selectWaitPlaque, selectDebtTag, selectPlaqueFlowContext } from "./selectWaitPlaque";
+import { selectAggressorFlow, type AggressorTick } from "../selectAggressorFlow";
 import { selectWaitStanding } from "./selectWaitStanding";
 import { selectOneNextThing } from "./selectOneNextThing";
 
@@ -216,5 +217,50 @@ describe("selectDebtTag — H-101: the tag lives on the event, or nowhere", () =
   it("an absent capture instant is an absent asOf, never epoch zero", () => {
     const tag = selectDebtTag({ decision, debt, eventBarOpenedAtMs: EVENT, capturedAt: null, replayEngaged: false })!;
     expect(tag.asOfMs).toBeNull();
+  });
+});
+
+describe("selectPlaqueFlowContext — F06A's context panel, only from a lawful tape reading", () => {
+  const tick = (side: "buy" | "sell" | null, size: number, method?: "PROVIDER" | "TICK_RULE"): AggressorTick =>
+    ({ side, size, price: 100, trade: true, marketEvent: method ? { aggressorMethod: method } : null }) as AggressorTick;
+
+  it("reads the aggressor split from the real selector, whole percent, summing to 100", () => {
+    const snap = selectAggressorFlow([tick("buy", 72, "PROVIDER"), tick("sell", 28, "PROVIDER")]);
+    const vm = selectPlaqueFlowContext(snap, { symbolOwnsTape: true })!;
+    expect(vm.buyPct).toBe(72);
+    expect(vm.sellPct).toBe(28);
+    expect(vm.buyPct + vm.sellPct).toBe(100);
+    expect(vm.provenance).toBe("PROVIDER");
+    expect(vm.basis).toBe("VENUE-STAMPED SIDES");
+  });
+
+  it("discloses an inferred tape — a tick-rule guess may not wear venue chrome", () => {
+    const snap = selectAggressorFlow([tick("buy", 3, "TICK_RULE"), tick("sell", 1, "TICK_RULE")]);
+    const vm = selectPlaqueFlowContext(snap, { symbolOwnsTape: true })!;
+    expect(vm.provenance).toBe("INFERRED");
+    expect(vm.basis).toContain("INFERRED");
+    const mixed = selectPlaqueFlowContext(
+      selectAggressorFlow([tick("buy", 3, "PROVIDER"), tick("sell", 1, "TICK_RULE")]),
+      { symbolOwnsTape: true },
+    )!;
+    expect(mixed.provenance).toBe("MIXED");
+  });
+
+  it("no flow → no panel (an empty bar would claim a balanced tape)", () => {
+    expect(selectPlaqueFlowContext(selectAggressorFlow([]), { symbolOwnsTape: true })).toBeNull();
+    expect(selectPlaqueFlowContext(selectAggressorFlow([tick(null, 5)]), { symbolOwnsTape: true })).toBeNull();
+    expect(selectPlaqueFlowContext(null, { symbolOwnsTape: true })).toBeNull();
+  });
+
+  it("the previous symbol's tape is never this symbol's context", () => {
+    const snap = selectAggressorFlow([tick("buy", 72, "PROVIDER"), tick("sell", 28, "PROVIDER")]);
+    expect(selectPlaqueFlowContext(snap, { symbolOwnsTape: false })).toBeNull();
+  });
+
+  it("never speaks of BOOK stacks — no book reaches this room", () => {
+    const src = readFileSync(resolve(__dirname, "selectWaitPlaque.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    expect(src).not.toMatch(/STACK/);
   });
 });

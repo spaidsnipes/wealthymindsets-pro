@@ -59,6 +59,7 @@ import type {
   RightOfWayTone,
 } from "./decisionPermissionCompiler";
 import { selectWaitStanding, type WaitStanding } from "./selectWaitStanding";
+import type { AggressorFlowSnapshot, AggressorProvenance } from "../selectAggressorFlow";
 
 /** Why the sentence says what it says. Published on the plaque for inspection. */
 export type WaitPlaqueBasis =
@@ -285,6 +286,53 @@ export function selectDebtTag(input: DebtTagInput): DebtTagVM | null {
     asOfMs: typeof capturedAt === "number" && Number.isFinite(capturedAt) && capturedAt > 0 ? capturedAt : null,
     owed: debt.missing,
   };
+}
+
+/**
+ * F06A · ORDER FLOW CONTEXT — the one panel the plate allows beneath the WAIT
+ * plaque, and only where an owner has a lawful reading.
+ *
+ * F06A draws "BID STACK 72% / ASK STACK 28%". Those are BOOK stacks, and no
+ * book reaches this room ("PULLED refused (no book)" is the liquidity layer's
+ * own receipt), so the stack words are refused. What the room DOES own is the
+ * per-trade tape's aggressor split — `selectAggressorFlow`, which the fidelity
+ * chip already reads — so the panel says exactly that: aggressor BUY (lifted
+ * the ask) against aggressor SELL (hit the bid), as shares of the tape's
+ * sided volume, WITH its provenance, because the owner's contract is that a
+ * display layer MUST disclose anything that is not venue-stamped.
+ *
+ * Refusals: no flow observed → null (an empty 50/50 bar would claim balance);
+ * the tape does not yet belong to this symbol (the transition render) → null.
+ * The replay camera is handled by the rail, which already withholds every
+ * live claim while a camera walks history.
+ */
+export interface PlaqueFlowContextVM {
+  /** Aggressor-buy share of sided tape volume, whole percent. */
+  readonly buyPct: number;
+  /** 100 − buyPct, so the two can never disagree about the whole. */
+  readonly sellPct: number;
+  readonly provenance: AggressorProvenance;
+  /** How the sides are known, in words — printed, never hovered. */
+  readonly basis: string;
+}
+
+const FLOW_BASIS: Readonly<Record<AggressorProvenance, string>> = Object.freeze({
+  PROVIDER: "VENUE-STAMPED SIDES",
+  INFERRED: "TICK-RULE SIDES · INFERRED",
+  MIXED: "MIXED SIDE METHODS",
+  UNDISCLOSED: "SIDE METHOD UNDISCLOSED",
+});
+
+export function selectPlaqueFlowContext(
+  snap: AggressorFlowSnapshot | null | undefined,
+  opts: { readonly symbolOwnsTape: boolean },
+): PlaqueFlowContextVM | null {
+  if (!opts.symbolOwnsTape) return null;
+  if (!snap || !snap.hasFlow) return null;
+  const total = snap.askVol + snap.bidVol;
+  if (!(total > 0) || !Number.isFinite(total)) return null;
+  const buyPct = Math.round((snap.askVol / total) * 100);
+  return { buyPct, sellPct: 100 - buyPct, provenance: snap.provenance, basis: FLOW_BASIS[snap.provenance] };
 }
 
 export default selectWaitPlaque;
