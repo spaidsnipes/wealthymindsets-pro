@@ -8193,8 +8193,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               });
               ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
               ds.questionChoice = lens.choice;
-              // The strip yields its right end to the ASK chooser (a DOM row
-              // at left: min(920px, 100% − 420px)).
+              // The strip stops short of the right-edge profile labels (the Ask
+              // chooser now lives in the lens's own left column, under control).
               const stripW = Math.max(420, Math.min(W - 440, 900));
               if (!lens.active && lens.refusal) {
                 // ASKED, BUT NOTHING TO ASK IT OF — said on the strip, nothing quieted.
@@ -10458,7 +10458,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           if (on && tpo?.drawn) {
             ctx.save(); ctx.globalAlpha = magnetLight * semanticDensity.mid;
-            const leftEdge = 10;
+            // VISIBILITY GOVERNOR: an active question owns the left column
+            // (strip, debt, control, Ask); the TPO letters step right of it
+            // instead of printing through it.
+            const leftEdge = layerOnRef.current.questionLens === true ? 324 : 10;
             const colMax = Math.min(140, Math.round(W * 0.14));
 
             // Row height from on-screen spacing between successive grid rows,
