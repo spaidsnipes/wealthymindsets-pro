@@ -32,8 +32,23 @@ afterEach(() => { vi.unstubAllGlobals(); hooks.values = []; hooks.index = 0; hoo
 const RECEIPT_COUNT = 5;
 const FAILURES_INDEX = 5;
 const SUSPENDED_INDEX = 6;
-/** One request per receipt: capabilities, readiness, and three tick routes. */
-const PROBES_PER_BATCH = 5;
+/**
+ * Slot 7: the Webull BROKER-lane receipt (/api/broker/webull/status).
+ *
+ * UPDATED 2026-09-25 to the new truth, not loosened. The webull cell now says
+ * both lanes ("BROKER CONNECTED · DATA NOT ENTITLED") because a single red
+ * "Entitlement blocked" chip was hiding a connected account lane. That needs the
+ * account-lane receipt, so the batch grew one request. The new slot was declared
+ * AFTER `suspended` so every index above is unchanged, and it is held to the
+ * same lifecycle as the other receipts below: invalidated with them, failed
+ * under its own key, re-accepted on recovery.
+ */
+const WEBULL_BROKER_INDEX = 7;
+/**
+ * One request per receipt: capabilities, readiness, three tick routes — and,
+ * since 2026-09-25, the Webull account-lane status. Was 5.
+ */
+const PROBES_PER_BATCH = 6;
 
 describe("provider refresh lifecycle", () => {
   it("discards a pre-background batch and rechecks on foreground without overlap", async () => {
@@ -56,13 +71,17 @@ describe("provider refresh lifecycle", () => {
     pending.splice(0).forEach(resolve => resolve(response));
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
+    expect(hooks.values[WEBULL_BROKER_INDEX]).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH * 2);
     pending.splice(0).forEach(resolve => resolve(response));
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
+    expect(hooks.values[WEBULL_BROKER_INDEX]).toEqual(body);
     documentStub.visibilityState = "hidden";
     visibilityChanged();
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
+    // A backgrounded tab must not keep a current-looking account-lane verdict.
+    expect(hooks.values[WEBULL_BROKER_INDEX]).toBeNull();
     cleanup();
   });
 
@@ -81,15 +100,21 @@ describe("provider refresh lifecycle", () => {
     const cleanup = hooks.effect!();
     await refresh(); // Initial batch is already in flight; no duplicate calls.
     expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH);
+    // The strip ASKS the account lane — it does not merely accept one.
+    expect((fetchMock.mock.calls as unknown[][]).map((call) => String(call[0]))).toContain("/api/broker/webull/status");
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
     fail = true;
     await refresh();
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
-    expect(hooks.values[FAILURES_INDEX]).toEqual(new Set(["market", "readiness", "moomoo", "longbridge", "webull"]));
+    expect(hooks.values[WEBULL_BROKER_INDEX]).toBeNull();
+    // "webull-broker" is its OWN key (2026-09-25): an unanswered account probe
+    // may never be read as a market-data verdict, nor the other way round.
+    expect(hooks.values[FAILURES_INDEX]).toEqual(new Set(["market", "readiness", "moomoo", "longbridge", "webull", "webull-broker"]));
     fail = false;
     await refresh();
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
+    expect(hooks.values[WEBULL_BROKER_INDEX]).toEqual(body);
     expect(hooks.values[FAILURES_INDEX]).toEqual(new Set());
     cleanup();
     await refresh();

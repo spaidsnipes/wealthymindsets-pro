@@ -362,7 +362,19 @@ export async function fetchWebullTickSnapshot(
     if (response.status === 403) {
       const providerCode = await Promise.race([readWebullErrorCode(response), deadline]);
       if (providerCode === "MARKET_DATA_NOT_SUBSCRIBED") {
-        return unavailable(
+        /*
+          CARRIED VERBATIM, 2026-09-25 — additive, like the 401 arm above.
+
+          /readiness printed "Webull market data · SETUP PRESENT · NOT MEASURED"
+          while this arm was answering 403 MARKET_DATA_NOT_SUBSCRIBED on the
+          same runtime. The lane owner (`selectWebullLanes`, webullStatus.ts)
+          now reads this receipt, and the one pixel it may print as evidence —
+          "403 MARKET_DATA_NOT_SUBSCRIBED" — must come from THESE two fields,
+          not be re-derived from the state name or parsed back out of the note.
+          Only auth refusals (HTTP 401) reach `settleWebullRefusal`, so
+          carrying a status here cannot retire a session.
+        */
+        return { ...unavailable(
           "BLOCKED_ENTITLEMENT",
           // ── READ THIS BEFORE EDITING THIS SENTENCE ──────────────────────
           //
@@ -381,7 +393,7 @@ export async function fetchWebullTickSnapshot(
           "Webull answered MARKET_DATA_NOT_SUBSCRIBED to this signed request, so no tick observation was returned. " +
           "That code is Webull's verdict on this request, not a confirmed statement about the account — " +
           "open the entitlement report to see which rungs passed before concluding anything about a subscription.",
-        );
+        ), httpStatus: 403, providerCode };
       }
       return unavailable(
         "ACCESS_UNPROVEN",

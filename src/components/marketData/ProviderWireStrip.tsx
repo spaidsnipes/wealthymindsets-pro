@@ -10,14 +10,46 @@ import {
   selectReadinessWireboard,
   type ReadinessPayload,
 } from "@/lib/broker/selectReadinessWireboard";
+import {
+  WEBULL_BROKER_LANE_ROUTE,
+  selectWebullLanes,
+  type WebullBrokerLaneReceipt,
+  type WebullBrokerLaneState,
+  type WebullDataLaneReceipt,
+  type WebullDataLaneState,
+} from "@/lib/broker/webullStatus";
 
 type WireTone = "LIVE" | "LIMITED" | "BLOCKED" | "OFFLINE" | "CHECKING" | "SUSPENDED";
+
+/**
+ * The ink one LANE of a multi-lane provider is drawn in. Separate from
+ * `WireTone` on purpose: a tone grades a whole wire, an ink grades one lane,
+ * and a cell that holds a connected lane beside a blocked one has no single
+ * honest tone to be painted in.
+ */
+export type LaneInk = "POSITIVE" | "ATTENTION" | "BLOCKED" | "NEUTRAL";
+
+export interface ProviderWireLane {
+  readonly lane: "BROKER" | "DATA";
+  /** e.g. "CONNECTED", "NOT ENTITLED", "CHECKING". */
+  readonly word: string;
+  readonly ink: LaneInk;
+}
 
 export interface ProviderWireView {
   readonly source: string;
   readonly tone: WireTone;
   readonly label: string;
   readonly detail: string;
+  /**
+   * Present only for a provider whose wire is more than one lane (Webull:
+   * signed account lane + market-data lane). When present, the cell draws each
+   * lane in its own ink instead of one label in one tone — see
+   * `webullLanesWireView` for the single red chip this replaced.
+   */
+  readonly lanes?: readonly ProviderWireLane[];
+  /** The one human step a lane's measurement names, surfaced in the cell's tooltip and aria. */
+  readonly founderAction?: string;
   /**
    * TRUE only where the producing branch KNOWS it obtained no measurement at
    * all — no accepted row, no rejected row, nothing returned. This is the
@@ -216,6 +248,117 @@ export function webullTickWireView(receipt: MoomooTickReceipt): ProviderWireView
           `${receipt.eventCount} accepted Webull executed prints · provider-signed side · streaming continuity not certified`,
         )
       : detail,
+  };
+}
+
+const BROKER_LANE_INK: Readonly<Record<WebullBrokerLaneState, LaneInk>> = {
+  CONNECTED: "POSITIVE",
+  AWAITING_2FA: "ATTENTION",
+  AUTH_BLOCKED: "BLOCKED",
+  NOT_CONFIGURED: "NEUTRAL",
+  NOT_CONNECTED: "BLOCKED",
+  NOT_MEASURED: "NEUTRAL",
+};
+
+/**
+ * RECEIVING is ATTENTION, not POSITIVE: one bounded tick snapshot is capped at
+ * LIMITED everywhere else on this strip, and a lane ink may not outrun it.
+ * NOT_RECEIVING borrows the tick view's own tone, so a measured refusal keeps
+ * the grade the tick vocabulary already gave it.
+ */
+const DATA_LANE_INK: Readonly<Record<Exclude<WebullDataLaneState, "NOT_RECEIVING">, LaneInk>> = {
+  RECEIVING: "ATTENTION",
+  ENTITLEMENT_BLOCKED: "ATTENTION",
+  AWAITING_2FA: "ATTENTION",
+  AUTH_BLOCKED: "BLOCKED",
+  NOT_CONFIGURED: "NEUTRAL",
+  NOT_MEASURED: "NEUTRAL",
+};
+
+const TONE_TO_INK: Readonly<Record<WireTone, LaneInk>> = {
+  LIVE: "POSITIVE",
+  LIMITED: "ATTENTION",
+  BLOCKED: "BLOCKED",
+  OFFLINE: "NEUTRAL",
+  CHECKING: "NEUTRAL",
+  SUSPENDED: "NEUTRAL",
+};
+
+/**
+ * WEBULL IS TWO LANES, AND THE CELL SAYS BOTH. (2026-09-25)
+ *
+ * MEASURED on serving, 2026-09-25 14:51 CDT, Settings › Connect brokers: the
+ * CONNECTIONS grid showed ONE red chip — "WEBULL · Entitlement blocked" — built
+ * from the market-data tick receipt alone, while `/api/broker/webull/status` on
+ * the same runtime was answering CONNECTED for the signed account lane. The
+ * Founder read the red chip as "Webull is not connected". For the broker lane
+ * that is false, and nothing on the cell could have told him so.
+ *
+ * So the cell is composed by the ONE lane owner (`selectWebullLanes`) and draws
+ * each lane in its own ink: "BROKER CONNECTED · DATA NOT ENTITLED". The tick
+ * view's verdict is not discarded — it is the data lane, and only the data lane.
+ *
+ * Pending is its own word. A lane whose receipt is still in flight reads
+ * CHECKING rather than NOT MEASURED, because "not yet asked back" and "asked
+ * and got nothing" are different claims. When BOTH lanes are pending, or both
+ * settled unmeasured, this returns null and the strip's existing single-lane
+ * reading (checking / matrix / status unavailable) stands — there is no second
+ * lane to reveal.
+ */
+export function webullLanesWireView(input: {
+  readonly broker: WebullBrokerLaneReceipt | null;
+  readonly brokerPending: boolean;
+  readonly data: (MoomooTickReceipt & WebullDataLaneReceipt) | null;
+  readonly dataPending: boolean;
+}): ProviderWireView | null {
+  if (input.brokerPending && input.dataPending) return null;
+  const lanes = selectWebullLanes({
+    broker: input.brokerPending ? null : input.broker,
+    data: input.dataPending ? null : input.data,
+  });
+  const brokerMeasured = !input.brokerPending && lanes.broker.state !== "NOT_MEASURED";
+  const dataMeasured = !input.dataPending && lanes.data.state !== "NOT_MEASURED";
+  if (!brokerMeasured && !dataMeasured) return null;
+
+  const brokerLane: ProviderWireLane = input.brokerPending
+    ? { lane: "BROKER", word: "CHECKING", ink: "NEUTRAL" }
+    : { lane: "BROKER", word: lanes.broker.word, ink: BROKER_LANE_INK[lanes.broker.state] };
+  const dataLane: ProviderWireLane = input.dataPending
+    ? { lane: "DATA", word: "CHECKING", ink: "NEUTRAL" }
+    : {
+        lane: "DATA",
+        word: lanes.data.word,
+        ink: lanes.data.state === "NOT_RECEIVING" && input.data
+          ? TONE_TO_INK[webullTickWireView(input.data).tone]
+          : lanes.data.state === "NOT_RECEIVING"
+            ? "NEUTRAL"
+            : DATA_LANE_INK[lanes.data.state],
+      };
+  const inks = [brokerLane.ink, dataLane.ink];
+  // The cell's single tone is only a summary attribute; the lanes carry the
+  // truth. A proven lane beside an unproven one is LIMITED — never LIVE, and
+  // never BLOCKED, because BLOCKED on this cell is the misreading being fixed.
+  const tone: WireTone = inks.includes("POSITIVE")
+    ? "LIMITED"
+    : inks.includes("BLOCKED")
+      ? "BLOCKED"
+      : inks.includes("ATTENTION") ? "LIMITED" : "OFFLINE";
+  const founderAction = lanes.data.founderAction ?? lanes.broker.founderAction ?? undefined;
+  // While one lane is in flight the owner saw `null` for it and would call it
+  // NOT MEASURED; the detail says what is actually true — it is being asked.
+  const pendingLane = input.brokerPending ? "broker" : input.dataPending ? "data" : null;
+  const detail = pendingLane
+    ? `Webull ${pendingLane} lane receipt in flight. ${pendingLane === "broker"
+        ? `Data lane ${lanes.data.word}${lanes.data.evidence ? ` · ${lanes.data.evidence}` : ""}.`
+        : `Broker lane ${lanes.broker.word}.`}${founderAction ? ` Founder action: ${founderAction}` : ""}`
+    : lanes.summary;
+  return {
+    source: "webull",
+    tone,
+    label: `${brokerLane.lane} ${brokerLane.word} · ${dataLane.lane} ${dataLane.word}`,
+    detail,
+    lanes: [brokerLane, dataLane],
+    ...(founderAction ? { founderAction } : {}),
   };
 }
 
@@ -589,11 +732,24 @@ export interface ProviderWireInputs {
   readonly readiness: ReadinessPayload | null;
   readonly moomooTicks: MoomooTickReceipt | null;
   readonly longbridgeTicks: MoomooTickReceipt | null;
-  readonly webullTicks: MoomooTickReceipt | null;
+  readonly webullTicks: (MoomooTickReceipt & WebullDataLaneReceipt) | null;
   readonly failures: ReadonlySet<string>;
   readonly suspended: boolean;
   /** Optional: the page's own witness. Absent on surfaces that render no tape. */
   readonly sourcedObservation?: SourcedObservation | null;
+  /**
+   * The Webull BROKER lane (`/api/broker/webull/status`), 2026-09-25.
+   *
+   *   undefined — this caller does not read the broker lane at all; the webull
+   *               cell keeps its single-lane (market-data) reading.
+   *   null      — the broker receipt is in flight, or failed (a failure is
+   *               recorded as "webull-broker" in `failures`).
+   *   receipt   — the broker lane was measured.
+   *
+   * The strip itself always passes null-or-receipt, so on every rendered strip
+   * the webull cell is composed from BOTH lanes by `webullLanesWireView`.
+   */
+  readonly webullBroker?: WebullBrokerLaneReceipt | null;
 }
 
 /**
@@ -605,13 +761,13 @@ export interface ProviderWireInputs {
  * function with a name and a test.
  */
 export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireView[] {
-  const { matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation } = inputs;
+  const { matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation, webullBroker } = inputs;
 
   // A pause may only speak for a strip holding NO verdict at all — no receipt
   // and no observed failure. "We stopped checking" must never erase "we
   // checked, and it was blocked". Those were earned; a pause is the absence
   // of work, and absence of work outranks nothing.
-  const holdsNoVerdict = !matrix && !readiness && !moomooTicks && !longbridgeTicks && !webullTicks && failures.size === 0;
+  const holdsNoVerdict = !matrix && !readiness && !moomooTicks && !longbridgeTicks && !webullTicks && !webullBroker && failures.size === 0;
   if (suspended && holdsNoVerdict) {
     return PROVIDER_SOURCES.map((source) => suspendedProviderWireView(source));
   }
@@ -628,6 +784,16 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
   const webullWire = failures.has("webull") && !webullTicks
     ? { source: "webull", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Webull tick receipt did not return.", evidenceless: true }
     : webullTicks ? webullTickWireView(webullTicks) : null;
+  // Both Webull lanes, from the one lane owner. Null when this caller does not
+  // read the broker lane, or when neither lane has anything to say yet.
+  const webullLanesWire = webullBroker === undefined
+    ? null
+    : webullLanesWireView({
+        broker: webullBroker,
+        brokerPending: webullBroker === null && !failures.has("webull-broker"),
+        data: webullTicks,
+        dataPending: webullTicks === null && !failures.has("webull"),
+      });
   const readinessOverrides = {
     tastytrade: providerConfigReadinessWireView(readiness, "tastytrade", ["tastytrade"]),
     alpaca: providerConfigReadinessWireView(readiness, "alpaca", ["alpaca-paper", "alpaca-live"]),
@@ -636,6 +802,7 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
   const resolved = marketWires.map((wire) => {
     if (wire.source === "moomoo" && moomooWire) return moomooWire;
     if (wire.source === "longbridge" && longbridgeWire) return longbridgeWire;
+    if (wire.source === "webull" && webullLanesWire) return webullLanesWire;
     if (wire.source === "webull" && webullWire) return webullWire;
     if (wire.source === "tastytrade" || wire.source === "alpaca") {
       const override = readinessOverrides[wire.source];
@@ -683,6 +850,66 @@ const TONE_COLOR: Record<WireTone, string> = {
   SUSPENDED: "#6b7189",
 };
 
+/**
+ * Lane inks reuse the strip's own palette — green for a proven lane, amber for
+ * a lane with a named step or an uncertified reading, red only for a rejected
+ * identity or a measured failure — so a two-lane cell reads in the same colour
+ * language as its single-lane neighbours.
+ */
+const LANE_INK_COLOR: Record<LaneInk, string> = {
+  POSITIVE: TONE_COLOR.LIVE,
+  ATTENTION: TONE_COLOR.LIMITED,
+  BLOCKED: TONE_COLOR.BLOCKED,
+  NEUTRAL: TONE_COLOR.OFFLINE,
+};
+
+/**
+ * One cell of the strip. Exported so the cell a human reads can be rendered and
+ * asserted on directly, rather than inferred from a view-model it was built from.
+ */
+export function ProviderWireCell({ wire, compact }: { readonly wire: ProviderWireView; readonly compact: boolean }) {
+  return (
+          <Link
+            href="/readiness"
+            title={wire.detail}
+            aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}
+            data-provider={wire.source}
+            data-provider-tone={wire.tone}
+            style={{ minWidth: 0, border: "1px solid rgba(240,180,41,0.18)", borderRadius: 8, padding: compact ? "6px 8px" : "7px 8px", background: "linear-gradient(145deg, rgba(240,180,41,0.045), rgba(255,255,255,0.012))", textDecoration: "none" }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ color: "#d9dce7", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>{wire.source}</span>
+              {wire.lanes ? (
+                /*
+                  EACH LANE IN ITS OWN INK. (2026-09-25) One label in one tone
+                  is how a connected broker lane was painted red beside a
+                  blocked data lane. The words carry the verdict; the ink only
+                  reinforces it (§9 — colour never replaces a word).
+                */
+                <span data-wire-lanes style={{ display: "inline-flex", flexWrap: "wrap", alignItems: "center", columnGap: 4, fontSize: 9, fontWeight: 800, overflowWrap: "anywhere" }}>
+                  {wire.lanes.map((lane, index) => (
+                    <React.Fragment key={lane.lane}>
+                      {index > 0 && <span aria-hidden="true" style={{ color: TONE_COLOR.OFFLINE }}>·</span>}
+                      <span data-lane={lane.lane} data-lane-ink={lane.ink} style={{ color: LANE_INK_COLOR[lane.ink] }}>
+                        {lane.lane} {lane.word}
+                      </span>
+                    </React.Fragment>
+                  ))}
+                </span>
+              ) : (
+                <span style={{ color: TONE_COLOR[wire.tone], fontSize: 9, fontWeight: 800, overflowWrap: "anywhere" }}>{wire.label}</span>
+              )}
+            </div>
+            {!compact && (
+              <>
+                <div style={{ color: "#8b92ac", fontSize: 9, lineHeight: 1.35, marginTop: 4, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 3 }}>{wire.detail}</div>
+                <div style={{ color: "rgba(240,180,41,0.74)", fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", marginTop: 5, textTransform: "uppercase" }}>Inspect wire →</div>
+              </>
+            )}
+          </Link>
+  );
+}
+
 export default function ProviderWireStrip({
   compact = false,
   sourcedObservation = null,
@@ -701,6 +928,9 @@ export default function ProviderWireStrip({
   // component's state positionally, so a new hook inserted above would
   // silently renumber the receipts they assert on.
   const [suspended, setSuspended] = React.useState(false);
+  // The Webull BROKER lane (2026-09-25). After `suspended`, not before it, for
+  // the positional reason above: every existing slot keeps its index.
+  const [webullBroker, setWebullBroker] = React.useState<WebullBrokerLaneReceipt | null>(null);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -714,6 +944,7 @@ export default function ProviderWireStrip({
       setMoomooTicks(null);
       setLongbridgeTicks(null);
       setWebullTicks(null);
+      setWebullBroker(null);
     };
 
     const recordFailure = (source: string, error: unknown) => {
@@ -725,6 +956,7 @@ export default function ProviderWireStrip({
       if (source === "moomoo") setMoomooTicks(null);
       if (source === "longbridge") setLongbridgeTicks(null);
       if (source === "webull") setWebullTicks(null);
+      if (source === "webull-broker") setWebullBroker(null);
       setFailures((current) => new Set(current).add(source));
     };
     const clearFailure = (source: string) => {
@@ -776,6 +1008,12 @@ export default function ProviderWireStrip({
       readProviderReceipt("webull")
         .then((body) => { if (acceptsReceipt()) { setWebullTicks(body); clearFailure("webull"); } })
         .catch((error: unknown) => recordFailure("webull", error)),
+      // The Webull account lane, so the webull cell can say BOTH lanes. Its
+      // own failure key: an unanswered account probe must never be read as a
+      // market-data verdict, nor the other way round.
+      readJson<WebullBrokerLaneReceipt>(WEBULL_BROKER_LANE_ROUTE)
+        .then((body) => { if (acceptsReceipt()) { setWebullBroker(body); clearFailure("webull-broker"); } })
+        .catch((error: unknown) => recordFailure("webull-broker", error)),
       ]);
       // A background response must not leave a current-looking receipt ready
       // for the next foreground render. Recheck on return to the app.
@@ -801,7 +1039,7 @@ export default function ProviderWireStrip({
     };
   }, []);
 
-  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation });
+  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation, webullBroker });
 
   return (
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
@@ -813,26 +1051,7 @@ export default function ProviderWireStrip({
         ? { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 7 }
         : { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 7 }}>
         {wires.map((wire) => (
-          <Link
-            key={wire.source}
-            href="/readiness"
-            title={wire.detail}
-            aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}
-            data-provider={wire.source}
-            data-provider-tone={wire.tone}
-            style={{ minWidth: 0, border: "1px solid rgba(240,180,41,0.18)", borderRadius: 8, padding: compact ? "6px 8px" : "7px 8px", background: "linear-gradient(145deg, rgba(240,180,41,0.045), rgba(255,255,255,0.012))", textDecoration: "none" }}
-          >
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ color: "#d9dce7", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>{wire.source}</span>
-              <span style={{ color: TONE_COLOR[wire.tone], fontSize: 9, fontWeight: 800, overflowWrap: "anywhere" }}>{wire.label}</span>
-            </div>
-            {!compact && (
-              <>
-                <div style={{ color: "#8b92ac", fontSize: 9, lineHeight: 1.35, marginTop: 4, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 3 }}>{wire.detail}</div>
-                <div style={{ color: "rgba(240,180,41,0.74)", fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", marginTop: 5, textTransform: "uppercase" }}>Inspect wire →</div>
-              </>
-            )}
-          </Link>
+          <ProviderWireCell key={wire.source} wire={wire} compact={compact} />
         ))}
       </div>
     </section>

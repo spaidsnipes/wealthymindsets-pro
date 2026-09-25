@@ -32,9 +32,8 @@ import {
   selectReadinessWireboard,
   type ReadinessPayload,
   type ReadinessWireboard,
-  type WireboardLiveMeasurement,
 } from "@/lib/broker/selectReadinessWireboard";
-import type { WebullStatus } from "@/lib/broker/webullStatus";
+import { WEBULL_LANE_PROVIDERS, readWebullLanes, webullWireboardMeasurements } from "@/lib/broker/webullStatus";
 import {
   selectCertificationJoint,
   type CertificationPayload,
@@ -109,25 +108,28 @@ export default function ReadinessPage() {
           unreachable probe must never be able to erase the presence truth —
           nor to masquerade as a clean result.
         */
-        const [payload, webull] = await Promise.all([
+        /*
+          BOTH WEBULL LANES, FROM THE ONE LANE OWNER. (2026-09-25)
+
+          This block used to read /api/broker/webull/status alone and correct
+          only the webull-broker row. MEASURED on serving 2026-09-25: the
+          "Webull market data" row then read "SETUP PRESENT — NOT MEASURED. No
+          live probe exists for this provider yet" while the market-data probe
+          existed and was answering 403 MARKET_DATA_NOT_SUBSCRIBED on this
+          runtime. `readWebullLanes` reads both lanes' existing routes (each
+          failing to NOT MEASURED on its own) and `webullWireboardMeasurements`
+          hands each row ONLY the lane it measured — the account list still
+          corrects the broker row alone, the market-data read the data row
+          alone. The reader returns lane verdicts, never prints: this room
+          still carries no market feed.
+        */
+        const [payload, webullLanes] = await Promise.all([
           readJsonReceipt<ReadinessPayload>(fetch, "/api/broker/readiness", controller.signal),
-          readJsonReceipt<WebullStatus>(fetch, "/api/broker/webull/status", controller.signal)
-            .catch(() => null),
+          readWebullLanes(fetch, controller.signal),
         ]);
-        const measurements: WireboardLiveMeasurement[] = webull
-          ? [{
-              // The BROKER row, not the market-data row. /api/broker/webull/status
-              // climbs /trading/accounts/list, which proves account access and
-              // nothing about a data package — so it may only correct the lane
-              // it actually measured.
-              provider: "webull-broker",
-              connected: webull.connected === true,
-              state: webull.state,
-              note: webull.note,
-              checkedAt: webull.checkedAt,
-            }]
-          : [];
-        if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload, measurements) });
+        const measurements = webullWireboardMeasurements(webullLanes);
+        const probed = Object.values(WEBULL_LANE_PROVIDERS);
+        if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload, measurements, probed) });
       } catch (e) {
         if (!cancelled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
       }
@@ -295,6 +297,9 @@ export default function ReadinessPage() {
                   */
                   const isReady = row.live ? row.live.blockerClass === "CONNECTED" : row.status === "CONFIGURED";
                   const attention = row.live?.blockerClass === "AWAITING 2FA";
+                  // Amber, not rose: a measured entitlement refusal has a named
+                  // human step and is not a broken wire. (2026-09-25)
+                  const entitlement = row.live?.blockerClass === "ENTITLEMENT BLOCKED";
                   return (
                     <li
                       key={row.provider}
@@ -339,20 +344,38 @@ export default function ReadinessPage() {
                               ? "border-emerald-500/25 bg-emerald-500/[0.07]"
                               : attention
                                 ? "border-sky-400/30 bg-sky-400/[0.07]"
-                                : "border-rose-500/25 bg-rose-500/[0.06]"
+                                : entitlement
+                                  ? "border-amber-400/30 bg-amber-400/[0.07]"
+                                  : "border-rose-500/25 bg-rose-500/[0.06]"
                           }`}
+                          data-live-class={row.live.blockerClass}
                         >
-                          <div className="font-mono text-[9px] font-semibold uppercase tracking-widest text-neutral-400">
-                            Measured live · {row.live.state}
+                          {/*
+                            ONE LINE, CLASS FIRST, EVIDENCE VERBATIM. (2026-09-25)
+                            "ENTITLEMENT BLOCKED · MEASURED LIVE · 403
+                            MARKET_DATA_NOT_SUBSCRIBED at <time>". The status and
+                            code come from the receipt (`live.evidence`), never
+                            from the class name, so a row can only say "403" when
+                            a 403 was answered.
+                          */}
+                          <div className="font-mono text-[9px] font-semibold uppercase tracking-widest text-neutral-400" data-live-headline>
+                            {row.live.blockerClass} · MEASURED LIVE{row.live.evidence ? ` · ${row.live.evidence}` : ""} at {row.live.checkedAt}
                           </div>
+                          {row.live.founderAction && (
+                            <p className="mt-1.5 text-[11px] font-semibold leading-relaxed text-amber-200" data-founder-action>
+                              Founder action: {row.live.founderAction}
+                            </p>
+                          )}
                           <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-200">{row.live.nextAction}</p>
                           <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-400">{row.live.note}</p>
-                          <p className="mt-1 font-mono text-[9px] text-neutral-600">at {row.live.checkedAt}</p>
+                          <p className="mt-1 font-mono text-[9px] text-neutral-600">provider state {row.live.state}</p>
                         </div>
                       )}
                       <p className="mt-3 text-xs leading-relaxed text-neutral-300">
                         {row.live
                           ? "The measurement above outranks the presence check below. Presence says what this runtime carries; the probe says what the provider actually answered."
+                          : isReady && row.probed
+                          ? "Setup present — NOT MEASURED on this load. A live probe exists for this provider but did not answer, so this row proves credentials are installed and nothing more. Reload to measure again."
                           : isReady
                           ? "Setup present — NOT MEASURED. No live probe exists for this provider yet, so this row proves credentials are installed and nothing more."
                           : row.nameMismatches.length > 0
@@ -478,9 +501,9 @@ export default function ReadinessPage() {
               This wireboard is observability, not a second source of authority. Presence of a key never
               certifies a live connection. A row shows SETUP PRESENT or NOT CONFIGURED when presence is all
               this page has — and says NOT MEASURED out loud so a quiet row is never mistaken for a passing
-              one. CONNECTED, AWAITING 2FA, AUTH BLOCKED and NOT CONNECTED appear only on rows that carry a
-              real probe result from that provider&apos;s own status route, and are never guessed from a
-              missing variable.
+              one. CONNECTED, AWAITING 2FA, AUTH BLOCKED, ENTITLEMENT BLOCKED and NOT CONNECTED appear only on
+              rows that carry a real probe result from that provider&apos;s own route, and are never guessed
+              from a missing variable.
             </p>
           </>
         )}

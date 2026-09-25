@@ -49,6 +49,15 @@ export type WireboardBlockerClass =
   | "CONNECTED"
   | "AWAITING 2FA"
   | "AUTH BLOCKED"
+  /**
+   * 2026-09-25. Reachable ONLY from a live measurement whose own state token is
+   * BLOCKED_ENTITLEMENT — i.e. the provider answered with an entitlement code.
+   * Presence can never produce it (the "never DELAYED BY ENTITLEMENT" rule for
+   * a missing variable still holds, and is still pinned). It exists because
+   * without it the one measured entitlement refusal on this runtime fell to
+   * NOT CONNECTED, and the Webull market-data row went on reading NOT MEASURED.
+   */
+  | "ENTITLEMENT BLOCKED"
   | "NOT CONNECTED";
 
 /**
@@ -76,6 +85,14 @@ export interface WireboardLiveMeasurement {
   readonly state: string;
   readonly note: string;
   readonly checkedAt: string;
+  /**
+   * The provider's status and code exactly as its receipt carried them, e.g.
+   * "403 MARKET_DATA_NOT_SUBSCRIBED". Optional: only a lane owner that holds
+   * them verbatim may pass them (see `selectWebullLanes`).
+   */
+  readonly evidence?: string | null;
+  /** The one human step the lane owner derived from this measurement, if any. */
+  readonly founderAction?: string | null;
 }
 
 /** What a measured row shows in place of its presence-only class. */
@@ -90,6 +107,10 @@ export interface WireboardLiveView {
    * prominently without paraphrasing a provider receipt.
    */
   readonly nextAction: string;
+  /** Verbatim status + provider code, or null when the measurement carried none. */
+  readonly evidence: string | null;
+  /** Passed through from the lane owner, never composed here. */
+  readonly founderAction: string | null;
 }
 
 /**
@@ -102,6 +123,9 @@ function liveClassFor(m: WireboardLiveMeasurement): WireboardBlockerClass {
   switch (m.state) {
     case "AWAITING_2FA": return "AWAITING 2FA";
     case "BLOCKED_AUTH": return "AUTH BLOCKED";
+    // The provider's own token for "I identified you and refused you on an
+    // entitlement code". Not inferred from any other state. (2026-09-25)
+    case "BLOCKED_ENTITLEMENT": return "ENTITLEMENT BLOCKED";
     case "UNCONFIGURED": return "NOT CONFIGURED";
     default: return "NOT CONNECTED";
   }
@@ -117,6 +141,11 @@ function nextActionFor(blockerClass: WireboardBlockerClass): string {
       return "Open the provider's app and approve the pending request. One tap. Nothing is missing from this deployment.";
     case "AUTH BLOCKED":
       return "The identity WM Pro presented was rejected. Examine the key pair or the signature — this says nothing about a data package or subscription.";
+    case "ENTITLEMENT BLOCKED":
+      // The mirror of AUTH BLOCKED's sentence, and it must stay its mirror: an
+      // entitlement refusal is not an identity rejection, so no credential is
+      // named as the thing to fix.
+      return "The provider refused this lane on an entitlement code — that is not an identity rejection. No credential needs adding, rotating or re-pasting for this row.";
     case "NOT CONFIGURED":
       return "This runtime does not carry the credential names this provider reads.";
     default:
@@ -163,6 +192,14 @@ export interface WireboardRow {
    * "measured fine" are the two readings of a quiet row and only one is true.
    */
   readonly live: WireboardLiveView | null;
+  /**
+   * True when this page HAS a live probe for this provider, whether or not it
+   * answered on this load. (2026-09-25) An unmeasured row whose probe exists
+   * and failed must not say "No live probe exists for this provider yet" —
+   * that sentence was about to become false for webull-data the moment its
+   * probe was wired. Both readings are NOT MEASURED; only one is "no probe".
+   */
+  readonly probed: boolean;
 }
 
 /**
@@ -241,6 +278,8 @@ function nearMissRow(h: EnvNameNearMiss): WireboardNearMiss {
 export function selectReadinessWireboard(
   payload: ReadinessPayload | null | undefined,
   measurements: readonly WireboardLiveMeasurement[] = [],
+  /** Providers this page asked a live probe about — answered or not. */
+  probedProviders: readonly string[] = [],
 ): ReadinessWireboard {
   const providers = payload?.providers ?? [];
   const nearMisses = (payload?.nearMisses ?? []).map(nearMissRow);
@@ -257,6 +296,8 @@ export function selectReadinessWireboard(
             note: measured.note,
             checkedAt: measured.checkedAt,
             nextAction: nextActionFor(blockerClass),
+            evidence: measured.evidence ?? null,
+            founderAction: measured.founderAction ?? null,
           };
         })()
       : null;
@@ -274,6 +315,7 @@ export function selectReadinessWireboard(
       note: r.note,
       nameMismatches,
       live,
+      probed: live !== null || probedProviders.includes(r.provider),
     };
   });
   const readyCount = rows.filter((r) => r.status === "CONFIGURED").length;

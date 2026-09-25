@@ -354,8 +354,22 @@ describe("selectReadinessWireboard · live measurement overrides presence", () =
       readFileSync(resolve(__dirname, "..", "..", "app", "readiness", "page.tsx"), "utf8"),
     );
     // It must actually ASK for the measurement, not just be able to accept one.
-    expect(page).toContain("/api/broker/webull/status");
-    expect(page).toContain('provider: "webull-broker"');
+    //
+    // UPDATED 2026-09-25 to the new truth. The page used to fetch
+    // /api/broker/webull/status inline and build the webull-broker measurement
+    // itself — so it asked ONE lane, and the "Webull market data" row read
+    // "NOT MEASURED. No live probe exists" beside a probe answering 403
+    // MARKET_DATA_NOT_SUBSCRIBED. Both lanes are now read by the one lane owner
+    // (`readWebullLanes`) and mapped to rows by `webullWireboardMeasurements`,
+    // so the pin follows the ask to where it lives — and now demands BOTH
+    // routes and BOTH row ids, which is strictly more than it demanded before.
+    expect(page).toContain("readWebullLanes(fetch, controller.signal)");
+    expect(page).toContain("webullWireboardMeasurements(");
+    const owner = stripComments(readFileSync(resolve(__dirname, "webullStatus.ts"), "utf8"));
+    expect(owner).toContain('"/api/broker/webull/status"');
+    expect(owner).toContain("/api/market-data/webull/ticks?symbol=");
+    expect(owner).toContain('broker: "webull-broker"');
+    expect(owner).toContain('data: "webull-data"');
 
     const live = page.indexOf("row.live && (");
     const details = page.indexOf("Technical receipt");

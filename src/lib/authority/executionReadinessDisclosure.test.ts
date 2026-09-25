@@ -127,7 +127,12 @@ describe("execution readiness disclosure", () => {
     // Collect EVERY string the page gates on isReady rather than positionally
     // guessing which ternary is the label — an earlier draft of this test
     // matched the className ternary and asserted against Tailwind tokens.
-    const readyBranches = [...src.matchAll(/isReady\s*\n?\s*\?\s*"([^"]+)"/g)].map((m) => m[1]);
+    //
+    // WIDENED 2026-09-25, never narrowed: a READY branch guarded by a
+    // conjunction (`isReady && row.probed ? "…"`) is still a READY branch. The
+    // old pattern demanded `?` straight after `isReady`, so a conjunct would
+    // have let a new READY sentence ship unpinned. It now catches both forms.
+    const readyBranches = [...src.matchAll(/isReady(?:\s*&&\s*[\w.]+)?\s*\n?\s*\?\s*"([^"]+)"/g)].map((m) => m[1]);
     expect(readyBranches.length).toBeGreaterThan(0);
 
     // Split the human-visible sentence from the styling branches. A class list
@@ -164,7 +169,13 @@ describe("execution readiness disclosure", () => {
     // coloured and captioned by the measurement (see selectReadinessWireboard's
     // WireboardLiveMeasurement), which is why this sentence is now allowed to
     // stop hedging and simply say that no measurement exists.
+    //
+    // ADDED 2026-09-25, and re-read under this pin before shipping: a row whose
+    // live probe EXISTS but did not answer (the Webull lanes) may not borrow
+    // "No live probe exists" — that would be false the moment the probe is
+    // wired. It is still NOT MEASURED, still claims nothing beyond presence.
     expect(prose).toEqual([
+      "Setup present — NOT MEASURED on this load. A live probe exists for this provider but did not answer, so this row proves credentials are installed and nothing more. Reload to measure again.",
       "Setup present — NOT MEASURED. No live probe exists for this provider yet, so this row proves credentials are installed and nothing more.",
     ]);
   });
