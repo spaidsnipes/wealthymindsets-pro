@@ -23,6 +23,14 @@
  * The last test is the part that has to survive us. Disclosure decays the
  * moment someone flips the flag to `true` because it looks nicer — so the flag
  * is not allowed to claim more than the code can back.
+ *
+ * 2026-09-25 — REPAIR 2 LANDED and the flag is `true`, backed: the room freezes
+ * its bars at the press (never a slice of today's bars — see
+ * src/lib/chart/replayWindow.ts) and MainChart paints the window and holds live
+ * ticks off the camera. The disclosure branch of the panel stays, and stays
+ * tested here, because it is still what renders whenever the camera is NOT
+ * being driven; the ratchet below now demands the wire's evidence instead of
+ * the disclosure's.
  */
 
 import { describe, it, expect } from "vitest";
@@ -174,11 +182,28 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
   it("does not let the flag claim more than MainChart can back", () => {
     // THE RATCHET. Disclosure rots the moment someone flips the flag because
     // the honest panel looks unfinished. So the flag is bound to the evidence:
-    // a call site may only assert `chartFollowsCursor={true}` once MainChart
+    // the owner may only claim the chart follows the cursor once MainChart
     // actually READS the replay bars, rather than merely declaring and
-    // destructuring them.
+    // destructuring them. (The full wire — freeze, window, tick gate, restore —
+    // is bound to the same flag by replayCameraIsReal.sentinel.test.ts.)
     const dash = read("ChartsDashboard.tsx");
-    const claimsDriving = /chartFollowsCursor=\{true\}/.test(dash);
+    // A bare literal `true` is never lawful — it would claim driving whether or
+    // not a window exists. The claim must come from the room's owner.
+    expect(dash, "chartFollowsCursor={true} is a literal claim; feed it from cameraWalksHistory")
+      .not.toMatch(/chartFollowsCursor=\{true\}/);
+    // `readFileSync` from this file's `SRC` only reaches src/components/chart,
+    // so the registry is read from the repo root explicitly.
+    const registryForClaim = readFileSync(
+      join(process.cwd(), "src", "lib", "workspace", "roomEquipment.ts"),
+      "utf8",
+    );
+    // REMODELLED 2026-09-25 (M9 repair 2), NOT WEAKENED. This used to key on a
+    // call site writing `chartFollowsCursor={true}`, which the DRY fix made
+    // impossible: the call site reads an owner, so the CLAIM now lives in the
+    // owner's value. When the owner says the wire exists, every piece of
+    // evidence the old `true` branch demanded is demanded — plus the call site
+    // reading the room's real-path boolean rather than the bare flag.
+    const claimsDriving = /export const REPLAY_DRIVES_THE_CAMERA: boolean = true;/.test(registryForClaim);
     if (!claimsDriving) {
       // REMODELLED, NOT WEAKENED. This used to demand the literal
       // `chartFollowsCursor={false}`, which forbade the only correct DRY fix
@@ -190,24 +215,18 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
       // the owner AND its value AND that the fidelity publications are gated on
       // it, where before it pinned a single literal.
       expect(dash, "no call site claims to drive, so the disclosure must be fed a false answer")
-        .toMatch(/chartFollowsCursor=\{(false|REPLAY_DRIVES_THE_CAMERA)\}/);
-      if (/chartFollowsCursor=\{REPLAY_DRIVES_THE_CAMERA\}/.test(dash)) {
+        .toMatch(/chartFollowsCursor=\{(false|REPLAY_DRIVES_THE_CAMERA|cameraWalksHistory)\}/);
+      if (/chartFollowsCursor=\{(REPLAY_DRIVES_THE_CAMERA|cameraWalksHistory)\}/.test(dash)) {
         // THE OWNER LIVES IN THE REGISTRY NOW, and the assertion followed it
         // rather than being relaxed. It moved because the WORKSPACE menu needs
         // the same answer to disclose "not wired" BEFORE the trader presses
         // Replay; a registry holding its own `false` would be a second owner.
-        // `readFileSync` from this file's `SRC` only reaches src/components/chart,
-        // so this one reads from the repo root explicitly.
-        const registry = readFileSync(
-          join(process.cwd(), "src", "lib", "workspace", "roomEquipment.ts"),
-          "utf8",
-        );
-        expect(registry, "the named owner is not declared false in its own file")
+        expect(registryForClaim, "the named owner is not declared false in its own file")
           .toMatch(/export const REPLAY_DRIVES_THE_CAMERA: boolean = false;/);
         expect(dash, "ChartsDashboard does not read the single owner")
           .toContain('import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";');
         expect(dash, "the fidelity surfaces are not gated on the same owner")
-          .toMatch(/const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;/);
+          .toMatch(/const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA && replayCamera !== null;/);
         // The whole point: NO surface may answer the panel's open/closed state.
         expect(
           dash.match(/replayEngaged: replayActive\b/g) ?? [],
@@ -217,14 +236,26 @@ describe("M9 · the replay panel discloses that it does not drive the chart", ()
       }
       return;
     }
+    // ── THE OWNER CLAIMS THE WIRE. Demand the evidence, all of it. ──────────
+    // The panel follows the ROOM's real-path boolean — owner AND a window held
+    // right now — never the bare flag, which is true even while no window
+    // describes this chart (the render after a symbol switch).
+    expect(dash, "the panel must read the room's real-path boolean, not the bare flag")
+      .toContain("chartFollowsCursor={cameraWalksHistory}");
+    expect(dash, "the camera boolean must require a held window as well as the owner")
+      .toMatch(/const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA && replayCamera !== null;/);
+    expect(
+      dash.match(/replayEngaged: replayActive\b/g) ?? [],
+      "a fidelity surface is answering 'is the panel open' — that is the OWL facing the other way",
+    ).toHaveLength(0);
     const main = read("MainChart.tsx");
     const uses = (main.match(/\breplayBars\b/g) ?? []).length;
     expect(
       uses,
-      "a call site now claims the chart follows the replay cursor, but MainChart.tsx " +
+      "the owner claims the chart follows the replay cursor, but MainChart.tsx " +
         "still only DECLARES and DESTRUCTURES replayBars (two mentions, zero reads). " +
         "Either wire it for real — frozen CanonicalBar ancestry, never a slice of " +
-        "today's bars — or set chartFollowsCursor back to false.",
+        "today's bars — or set REPLAY_DRIVES_THE_CAMERA back to false.",
     ).toBeGreaterThan(2);
     expect(dash, "the chart cannot follow bars nobody passes it").toMatch(/replayBars=\{/);
   });

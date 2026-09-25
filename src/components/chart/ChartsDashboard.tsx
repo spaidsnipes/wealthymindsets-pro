@@ -214,6 +214,14 @@ import {
 // replay wired". Folding another symbol into the braces reads as tidier and
 // silently breaks both. The tidiness is not worth the guard.
 import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";
+import {
+  defaultReplayCursor,
+  freezeReplaySnapshot,
+  replayScope,
+  selectReplayWindow,
+  stepReplayCursor,
+  type ReplaySnapshot,
+} from "@/lib/chart/replayWindow";
 // ARRANGEMENT_EQUIPMENT_ID is the single translation between the compiler's
 // desk names and the rail's door ids — see its note in the registry.
 import { ARRANGEMENT_EQUIPMENT_ID } from "@/lib/workspace/roomEquipment";
@@ -660,8 +668,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [symbol, timeframe]);
   const [pineOutput,      setPineOutput]      = useState<PineOutput | null>(null);
   const [pineCode,        setPineCode]        = useState<string>("");
-  const [chartBars,       setChartBars]       = useState<LegacyOhlcvTuple[]>([]);
-  const [chartBarIdentities, setChartBarIdentities] = useState<readonly CanonicalBarIdentity[]>([]);
+  // The LIVE bars MainChart hands up (see handleBarsReady). Read as `chartBars`
+  // everywhere below EXCEPT the MarketState publish: `chartBars` is what the
+  // camera shows, which is these unless bar replay is driving it.
+  const [liveChartBars,   setChartBars]       = useState<LegacyOhlcvTuple[]>([]);
+  const [liveChartBarIdentities, setChartBarIdentities] = useState<readonly CanonicalBarIdentity[]>([]);
   const [communityOpen,   setCommunityOpen]   = useState(false);
   const [requestedTab,    setActiveTab]       = useState("Chart");
   const assetClass = canonicalAssetClass(symbol);
@@ -1083,18 +1094,42 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofRiskOnPrice",      riskOnPriceOn);
   usePersistOnChange("wm_ofLiquidityLifecycle", liquidityLifecycleOn);
 
-  // ── NEW: Bar replay ─────────────────────────────────────────
+  // ── Bar replay ──────────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
+  const [replayPlaying,  setReplayPlaying]  = useState(false);
+  const [replaySpeed,    setReplaySpeed]    = useState<ReplaySpeed>(1);
+  const [replayIdx,      setReplayIdx]      = useState(0);
+  const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /**
+   * THE FROZEN ANCESTRY THE REPLAY CAMERA WALKS (M9 repair 2).
+   *
+   * Copied and frozen from the bars the chart was rendering at the moment of
+   * the press (`freezeReplaySnapshot`) — never a slice of whatever the live
+   * store holds by the time the cursor gets there. The live store is not
+   * touched: `liveChartBars` keeps receiving MainChart's bars, the canonical
+   * MarketState publish below keeps reading them, and nothing about replay
+   * reaches either. Only what the ONE camera shows changes.
+   *
+   * Scoped to symbol + timeframe + session: a snapshot of NVDA 5m ETH is not a
+   * replay of anything else, so `selectReplayWindow` answers null the instant
+   * the scope moves and the effect below puts the replay down.
+   */
+  const [replaySnapshot, setReplaySnapshot] = useState<ReplaySnapshot | null>(null);
+  const replayScopeKey = replayScope(symbol, timeframe, extHours);
+  const replayCamera = React.useMemo(
+    () => (replayActive ? selectReplayWindow(replaySnapshot, replayIdx, replayScopeKey) : null),
+    [replayActive, replaySnapshot, replayIdx, replayScopeKey],
+  );
+  const replayTotal = replayCamera?.total ?? 0;
   /**
    * IS A COMPANION CAMERA ACTUALLY DRIVING THE BARS ON THIS GLASS?
    *
    * `replayActive` answers a DIFFERENT question — "is the replay panel open" —
-   * and the two answers are not the same answer today. MEASURED on production
-   * 2026-09-22, canvas-hash sampled at t+1s / t+6s / t+11s after engaging
-   * replay: the price pane kept repainting and the payload kept GROWING, which
-   * is a live socket appending prints, not a camera walking history. The panel
-   * itself says so in its own words — "Not wired to the chart yet … Nothing you
-   * see behind this panel is a replay."
+   * and the two answers were not the same answer for the whole life of the
+   * unwired panel. MEASURED on production 2026-09-22, canvas-hash sampled at
+   * t+1s / t+6s / t+11s after engaging replay: the price pane kept repainting
+   * and the payload kept GROWING, which is a live socket appending prints, not
+   * a camera walking history.
    *
    * THE OWL CAME BACK FACING THE OTHER WAY. The masthead, the chart's data-truth
    * strip and the decision spine were all taught to answer `replayActive`, so
@@ -1102,63 +1137,90 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * candles that were live. Curing a lie by installing its mirror image is not
    * a cure; "impossible to confuse" is violated in both directions.
    *
-   * So the fidelity question gets its own owner, and the panel's own disclosure
-   * flag is fed from it rather than hardcoded a second time. While this is false
-   * every surface tells the truth about LIVE bars and the panel discloses that
-   * it drives nothing. When the real wire lands — frozen CanonicalBar ancestry,
-   * never a slice of today's bars — ONE edit here turns the whole room at once,
-   * which is the only arrangement in which those surfaces cannot drift apart.
-   *
-   * THE OWNER MOVED OUT OF THIS FILE, AND THAT IS THE THIRD CORRECTION.
-   * It was declared here for one commit. Then the EQUIPMENT MENU needed the
-   * same answer — so that the Replay entry can disclose it drives nothing
-   * BEFORE the trader presses, instead of after, when an orange panel is
-   * already sitting under a LIVE masthead. A registry that hardcoded its own
-   * `false` would have been a second owner of one fact: the same two-headed
-   * horse, rebuilt one file over. So it lives in `roomEquipment.ts` — the
-   * lowest file both the room and the rail already import — and is read here.
+   * So the fidelity question has ONE owner. The registry's
+   * `REPLAY_DRIVES_THE_CAMERA` says the wire exists (it lives in
+   * `roomEquipment.ts` because the equipment menu needs the same answer), and
+   * `replayCamera !== null` says this room is actually holding a window to
+   * drive it with RIGHT NOW — which is false for the one render between a
+   * symbol switch and the replay being put down. All three must hold, or every
+   * surface — masthead, strip, spine, and the panel's own
+   * `chartFollowsCursor` — reads LIVE.
    */
   /** The single sentence every fidelity surface in this room is answering. */
-  const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;
-  const [replayPlaying,  setReplayPlaying]  = useState(false);
-  const [replaySpeed,    setReplaySpeed]    = useState<ReplaySpeed>(1);
-  const [replayIdx,      setReplayIdx]      = useState(0);
-  const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA && replayCamera !== null;
+  /**
+   * THE BARS ON THE CAMERA. Every chart-reading derivation below (structure,
+   * profiles, TPO, anatomy, Pine, the header's bar close) reads `chartBars`, so
+   * while replay drives the camera they describe the replayed past and nothing
+   * past the cursor — no lookahead in the bars OR their lineage. The live bars
+   * are `liveChartBars`; exactly one consumer needs them by name (the
+   * canonical MarketState publish), because replay must never feed it.
+   */
+  const chartBars: LegacyOhlcvTuple[] =
+    replayCamera && cameraWalksHistory ? replayCamera.bars : liveChartBars;
+  const chartBarIdentities: readonly CanonicalBarIdentity[] =
+    replayCamera && cameraWalksHistory ? replayCamera.identities : liveChartBarIdentities;
+  // Read by `startReplay` through a ref, so the callback stays stable for the
+  // equipment subscription that holds it and still freezes TODAY's bars.
+  const replaySourceRef = useRef({ bars: liveChartBars, identities: liveChartBarIdentities, scope: replayScopeKey });
+  replaySourceRef.current = { bars: liveChartBars, identities: liveChartBarIdentities, scope: replayScopeKey };
 
   const startReplay = useCallback(() => {
-    setReplayActive(true);
-    setReplayIdx(0);
+    const source = replaySourceRef.current;
+    const snapshot = freezeReplaySnapshot({
+      scope: source.scope,
+      frozenAtMs: Date.now(),
+      bars: source.bars,
+      identities: source.identities,
+    });
+    // Nothing to walk (no bars yet): replay does not open, so the rail's
+    // `aria-pressed` and the panel never claim a replay of an empty chart.
+    if (!snapshot) return;
+    setReplaySnapshot(snapshot);
+    setReplayIdx(defaultReplayCursor(snapshot.bars.length));
     setReplayPlaying(false);
+    setReplayActive(true);
   }, []);
 
   const stopReplay = useCallback(() => {
     setReplayActive(false);
     setReplayPlaying(false);
+    setReplaySnapshot(null);
     if (replayRef.current) clearInterval(replayRef.current);
   }, []);
+
+  // A different instrument, timeframe or session is a different chart: the
+  // frozen ancestry no longer describes it, so the replay is put down (and
+  // MainChart restores the live bars) rather than walked on the wrong chart.
+  // LAYOUT effect, so the put-down lands before the browser paints: for that
+  // one render the window is already null (the camera and every chip read
+  // LIVE), and the panel must not get a frame to show a stale replay either.
+  React.useLayoutEffect(() => {
+    if (replaySnapshot && replaySnapshot.scope !== replayScopeKey) stopReplay();
+  }, [replaySnapshot, replayScopeKey, stopReplay]);
 
   const toggleReplayPlay = useCallback(() => {
     setReplayPlaying(p => !p);
   }, []);
 
-  // Replay interval
+  // Replay interval — walks the FROZEN snapshot, never the live bar count.
   useEffect(() => {
-    if (!replayActive || !replayPlaying) {
+    if (!replayActive || !replayPlaying || replayTotal === 0) {
       if (replayRef.current) clearInterval(replayRef.current);
       return;
     }
     const ms = Math.round(500 / replaySpeed);
     replayRef.current = setInterval(() => {
       setReplayIdx(i => {
-        if (i >= chartBars.length - 1) {
+        if (i >= replayTotal - 1) {
           setReplayPlaying(false);
           return i;
         }
-        return i + 1;
+        return stepReplayCursor(i, 1, replayTotal);
       });
     }, ms);
     return () => { if (replayRef.current) clearInterval(replayRef.current); };
-  }, [replayActive, replayPlaying, replaySpeed, chartBars.length]);
+  }, [replayActive, replayPlaying, replaySpeed, replayTotal]);
 
   // ── Compare symbol ──────────────────────────────────────────
   const [compareOpen,        setCompareOpen]        = useState(false);
@@ -1244,7 +1306,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // that very close beside HISTORICAL BARS VERIFIED — two owners for one
     // instrument at one moment. `chartBars` is cleared on every symbol and
     // timeframe change, so symbol A's close can never be attributed to B.
-    bars: chartBars,
+    //
+    // The LIVE bars, by name — never the camera's. While bar replay drives
+    // the camera `chartBars` is last Tuesday; publishing that would make the
+    // replay a second author of this instrument's canonical MarketState.
+    bars: liveChartBars,
   });
 
   // ── Asset 06 · ABSORPTION ANATOMY ────────────────────────────────────
@@ -4188,7 +4254,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // trading at now. See chartHeaderPriceFact for why the easy version
             // of this fix would have been worse than the dash.
             const headerPriceFact = chartHeaderPriceFact(
-              ticker.price,
+              // BAR REPLAY withholds the live quote: `chartBars` is the replay
+              // window, so the slot reads the replayed bar's close under the
+              // compiler's BAR CLOSE label — the same answer MainChart's row
+              // gives, from the same owner.
+              cameraWalksHistory ? null : ticker.price,
               deriveLastBarClose(chartBars, timeframe, Date.now()),
               // UNASKED IS NOT UNAVAILABLE. Without this argument the header of
               // the primary trading surface opened every cold load by telling
@@ -4226,7 +4296,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // as one — `chartHeaderChangeFact` prints "vs prior 15m bar" with
             // the number, and its `kind` (not its presence) picks the colour.
             const headerChangeFact = chartHeaderChangeFact(
-              hasReal ? { chg: ticker.change, pct: ticker.changePct } : null,
+              hasReal && !cameraWalksHistory ? { chg: ticker.change, pct: ticker.changePct } : null,
               deriveBarOverBarChange(chartBars, timeframe, Date.now()),
               // Explicit, because `minDecimals` sits between and defaults: the
               // header renders 2dp today, and passing it by name here keeps the
@@ -5349,6 +5419,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          withhold the tape counters while the socket was still
                          painting live candles behind them. */
                       replayActive={cameraWalksHistory}
+                      /* The frozen window 0..cursor the camera shows. MainChart
+                         paints it and holds live ticks off the glass while
+                         `replayActive` is true; when it goes false the held
+                         live bars come back. */
+                      replayBars={replayCamera?.bars}
                       compareSymbol={compareSymbol}
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
@@ -5633,29 +5708,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 active={replayActive}
                 playing={replayPlaying}
                 speed={replaySpeed}
-                position={replayIdx}
-                total={chartBars.length}
-                currentTime={chartBars[replayIdx]?.time ?? 0}
-                /* M9 DISCLOSURE — false, and measured rather than assumed.
-                   `replayBars` is passed from NO call site in this file, and in
-                   MainChart.tsx both `replayActive` and `replayBars` appear
-                   exactly twice each: the props interface and the destructure.
-                   Nothing reads them. Until the real wire lands (frozen
-                   CanonicalBar ancestry + truth epochs, per M9 repair 2), the
-                   panel must not narrate a chart it does not drive.
-                   DO NOT flip this to true by slicing today's bars.
-
-                   NOW FED FROM `REPLAY_DRIVES_THE_CAMERA` rather than hardcoded
-                   a second time. The disclosure and the room's fidelity chips
-                   are answers to ONE question; while they were two separate
-                   literals the panel could say "nothing behind me is a replay"
-                   while the masthead an inch above certified HISTORICAL BARS.
-                   Measured in exactly that state on prod 2026-09-22. */
-                chartFollowsCursor={REPLAY_DRIVES_THE_CAMERA}
+                /* Position, total and the walking clock are all read from the
+                   ONE window the camera is showing — bars on the glass of bars
+                   frozen, and the cursor bar's own time — never from the live
+                   bar count, which keeps growing underneath a replay. */
+                position={replayCamera?.position ?? 0}
+                total={replayTotal}
+                currentTime={replayCamera?.time ?? 0}
+                /* M9 — THE PANEL FOLLOWS THE CAMERA BECAUSE THE CAMERA IS REAL.
+                   Repair 1 made this a disclosure: `replayBars` was passed by
+                   nobody and read by nothing, so the panel had to say "Not
+                   wired to the chart yet" rather than narrate a motionless
+                   chart. Repair 2 is the wire: the room freezes its bars at the
+                   press, MainChart paints `replayBars` and holds live ticks off
+                   the camera. So this reads `cameraWalksHistory` — the SAME
+                   owner the masthead, the chart's strip and the spine read —
+                   and can only say "following" while a window is actually
+                   being driven. Never a literal, never the panel's open state. */
+                chartFollowsCursor={cameraWalksHistory}
                 onPlay={toggleReplayPlay}
                 onPause={toggleReplayPlay}
-                onStepBack={() => setReplayIdx(i => Math.max(0, i - 1))}
-                onStepForward={() => setReplayIdx(i => Math.min(chartBars.length - 1, i + 1))}
+                onStepBack={() => setReplayIdx(i => stepReplayCursor(i, -1, replayTotal))}
+                onStepForward={() => setReplayIdx(i => stepReplayCursor(i, 1, replayTotal))}
                 onStop={stopReplay}
                 onSpeedChange={setReplaySpeed}
               />

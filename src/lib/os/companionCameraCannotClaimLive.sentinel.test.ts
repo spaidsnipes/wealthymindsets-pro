@@ -205,8 +205,13 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     // it is declared exactly once in the whole repo, and the room READS it
     // rather than shadowing it with a local of the same name.
     const registry = read("src/lib/workspace/roomEquipment.ts");
+    // RE-PINNED 2026-09-25 to the new truth, `true`: M9 repair 2 landed the
+    // wire (frozen snapshot → `replayBars` → MainChart paints it and holds live
+    // ticks off the camera). The value is no longer just pinned here — it is
+    // BOUND to that evidence by replayCameraIsReal.sentinel.test.ts, which
+    // fails if the flag stays true after any piece of the wire is removed.
     expect(registry, "the single owner is not declared in the registry")
-      .toContain("export const REPLAY_DRIVES_THE_CAMERA: boolean = false;");
+      .toContain("export const REPLAY_DRIVES_THE_CAMERA: boolean = true;");
     expect(
       src.match(/const REPLAY_DRIVES_THE_CAMERA/g) ?? [],
       "ChartsDashboard re-declares the owner locally — a local shadow is a second owner " +
@@ -214,8 +219,12 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     ).toHaveLength(0);
     expect(src, "ChartsDashboard no longer imports the single owner")
       .toContain('import { REPLAY_DRIVES_THE_CAMERA } from "@/lib/workspace/roomEquipment";');
+    // STRICTER since repair 2: the owner AND a window actually held right now.
+    // Between a symbol switch and the replay being put down there is one render
+    // where the panel is open, the wire exists, and no window describes this
+    // chart — that render must read LIVE, not certify HISTORICAL BARS.
     expect(src).toContain(
-      "const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA;",
+      "const cameraWalksHistory = replayActive && REPLAY_DRIVES_THE_CAMERA && replayCamera !== null;",
     );
     // THE BUG ITSELF, spelled out. Not a style rule: `replayEngaged: replayActive`
     // is the exact line that put HISTORICAL BARS VERIFIED over live candles.
@@ -231,8 +240,11 @@ describe("the wire: the room that HAS a companion camera hands it up", () => {
     ).toHaveLength(2);
     expect(src).toContain("replayActive={cameraWalksHistory}");
     // And the panel's own disclosure is fed from that owner rather than being a
-    // second literal that can drift away from it.
-    expect(src).toContain("chartFollowsCursor={REPLAY_DRIVES_THE_CAMERA}");
+    // second literal that can drift away from it. RE-PINNED 2026-09-25: it
+    // reads `cameraWalksHistory` itself now (the flag AND a held window), so
+    // the panel's walking clock and the masthead's HISTORICAL BARS are one
+    // boolean, not two answers that happen to agree.
+    expect(src).toContain("chartFollowsCursor={cameraWalksHistory}");
   });
 
   /**

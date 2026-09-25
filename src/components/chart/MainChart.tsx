@@ -90,6 +90,8 @@ import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
 import { chartIdentityLabel } from "@/lib/chart/chartIdentityLabel";
 import { initialChartRange } from "@/lib/chart/initialChartRange";
+import { baselineBasePrice, mainSeriesPoints, toHeikinAshi, volumeSeriesPoints } from "@/lib/chart/mainSeriesPoints";
+import { foldLiveBar, routeLiveTick } from "@/lib/chart/replayWindow";
 import {
   openChartCameraKeeper,
   type ChartCameraKeeper,
@@ -1211,26 +1213,8 @@ interface Props {
   selectedMarketObjectWait?: WaitStandingVM | null;
 }
 
-/* ── Heikin Ashi transform ───────────────────────────────── */
-function toHeikinAshi(bars: LegacyOhlcvTuple[]): LegacyOhlcvTuple[] {
-  const ha: LegacyOhlcvTuple[] = [];
-  for (let i = 0; i < bars.length; i++) {
-    const b = bars[i];
-    const haClose = (b.open + b.high + b.low + b.close) / 4;
-    const haOpen  = i === 0
-      ? (b.open + b.close) / 2
-      : (ha[i - 1].open + ha[i - 1].close) / 2;
-    ha.push({
-      time:   b.time,
-      open:   +haOpen.toFixed(b.close < 10 ? 4 : 2),
-      close:  +haClose.toFixed(b.close < 10 ? 4 : 2),
-      high:   +Math.max(b.high, haOpen, haClose).toFixed(b.close < 10 ? 4 : 2),
-      low:    +Math.min(b.low,  haOpen, haClose).toFixed(b.close < 10 ? 4 : 2),
-      volume: b.volume,
-    });
-  }
-  return ha;
-}
+/* ── Heikin Ashi transform — moved to @/lib/chart/mainSeriesPoints (one owner
+   for the price series' data, shared with the bar-replay camera). ─────────── */
 
 /* ── Indicator computations ───────────────────────────────
    Full precision, never rounded here (GP12 §27: calculation precision is not
@@ -1613,6 +1597,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // without tearing down & rebuilding the whole pane on each tick.
   const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null }>>([]);
   const barsRef       = useRef<LegacyOhlcvTuple[]>([]);
+  // BAR REPLAY (M9 repair 2). `barsRef` is what the CAMERA shows — the replay
+  // window while replay drives it, the live bars otherwise — because every
+  // overlay in the draw loop reads it, and every one of them must describe the
+  // bars on the glass. While the camera is on history the live bars are HELD
+  // here and keep folding ticks, so Stop returns to a live chart that missed
+  // nothing. `replayCameraRef` is the one flag the tick fold asks.
+  const replayCameraRef = useRef(false);
+  const liveHeldBarsRef = useRef<LegacyOhlcvTuple[]>([]);
+  // What the camera SHOULD show, from props alone: the room's replay window
+  // while it drives the camera (`replayActive` is the room's
+  // `cameraWalksHistory`, never "is the panel open"), otherwise nothing — live.
+  const replayWindowBars = replayActive && replayBars && replayBars.length > 0 ? replayBars : null;
+  const replayCameraOn = replayWindowBars !== null;
+  const replayWindowRef = useRef<LegacyOhlcvTuple[] | null>(null);
+  replayWindowRef.current = replayWindowBars;
   // Canonical lineage is a sidecar, not extra fields smuggled into the renderer
   // tuple. Live bars without admitted identity are intentionally absent here.
   const barIdentitiesRef = useRef<readonly CanonicalBarIdentity[]>([]);
@@ -2729,7 +2728,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candlesKey]);
 
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
-  useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
+  // Not while replaying: the timer counts down the LIVE forming bar against the
+  // wall clock, and a wall clock beside a replayed candle is the exact confusion
+  // the Companion Camera Law forbids (the masthead withholds its clock too).
+  useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false && !replayCameraOn; }, [chartSettings?.candleTimer, replayCameraOn]);
   // Keep tz/clock refs current AND re-apply the chart localization so the axis
   // + crosshair time labels refresh the instant the user changes the setting.
   useEffect(() => {
@@ -3079,6 +3081,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const isComingSoon  = false; // removed: line-break, kagi, point-figure not in dropdown
 
       const displayData = isHA ? toHeikinAshi(data) : data;
+      // The series DATA per candle type has one owner (mainSeriesPoints), because
+      // the bar-replay camera repaints this same series with its window and must
+      // not carry a second copy of what a brick, a column or a volume candle is.
+      // The series OPTIONS stay at each addSeries below.
+      const mainPoints = mainSeriesPoints(candleType, data, {
+        up: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+        down: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+        base,
+        intervalSec: getIntervalSec(timeframe),
+      });
       const admittedBarIdentities = alignCanonicalBarIdentities({
         bars: data,
         identities: fetchedBarIdentities,
@@ -3122,7 +3134,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
+        cs.setData(mainPoints as any);
       } else if (isArea) {
         cs = chart.addSeries(LW.AreaSeries,{
           topColor:         "rgba(79,163,224,0.40)",
@@ -3133,10 +3145,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
+        cs.setData(mainPoints as any);
       } else if (isBaseline) {
         cs = chart.addSeries(LW.BaselineSeries,{
-          baseValue:        { type: "price", price: displayData[Math.floor(displayData.length / 2)]?.close ?? base },
+          baseValue:        { type: "price", price: baselineBasePrice(data, base) },
           topLineColor:     "#00E5CC",
           topFillColor1:    "rgba(0,229,204,0.28)",
           topFillColor2:    "rgba(0,229,204,0.05)",
@@ -3147,7 +3159,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
+        cs.setData(mainPoints as any);
       } else if (isBars) {
         cs = chart.addSeries(LW.BarSeries,{
           upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
@@ -3158,7 +3170,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData as any);
+        cs.setData(mainPoints as any);
       } else if (isHlcBars) {
         cs = chart.addSeries(LW.BarSeries,{
           upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
@@ -3169,7 +3181,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData as any);
+        cs.setData(mainPoints as any);
       } else if (isColumns) {
         // Columns = full-height colored bars (no wicks, wide body)
         // Use background color for wicks to hide them — "transparent" breaks LWC's internal parser
@@ -3185,15 +3197,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        // Force open = low and high = close for bull, open = high and low = close for bear (column shape)
-        const colData = displayData.map(b => ({
-          time: b.time,
-          open: b.close > b.open ? b.low : b.high,
-          high: b.high,
-          low:  b.low,
-          close: b.close,
-        }));
-        cs.setData(colData as any);
+        // Column shape (open = low for bull, high for bear) — see mainSeriesPoints.
+        cs.setData(mainPoints as any);
       } else if (isHollow) {
         // Hollow candles: body filled with chart background so it appears empty;
         // colored border provides the outline. Using background color (not "transparent")
@@ -3211,7 +3216,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData as any);
+        cs.setData(mainPoints as any);
       } else if (isVolCnl) {
         // Volume Candles — green/red body, OPACITY scales with relative volume
         const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
@@ -3220,16 +3225,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           wickUpColor: upC, wickDownColor: downC,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
-        const maxVol = Math.max(1, ...displayData.map(b => b.volume));
-        const minVol = Math.min(...displayData.map(b => b.volume));
-        const volRange = maxVol - minVol || 1;
-        const volData = displayData.map(b => {
-          const frac   = (b.volume - minVol) / volRange;
-          const alpha  = Math.round((0.25 + frac * 0.70) * 255).toString(16).padStart(2, "0");
-          const isBull = b.close >= b.open;
-          return { ...b, color: (isBull ? upC : downC) + alpha, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC };
-        });
-        cs.setData(volData as any);
+        // Body opacity from relative volume — see mainSeriesPoints.
+        cs.setData(mainPoints as any);
       } else if (isVPCandles) {
         // VP Candles — green/red, but HIGH-VOLUME (value-area / POC) bars get a GOLD border
         // to mark volume-profile significance. Distinct from plain Volume Candles.
@@ -3239,19 +3236,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           wickUpColor: upC, wickDownColor: downC,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
-        const vols = [...displayData.map(b => b.volume)].sort((a, b) => a - b);
-        const pocThreshold = vols[Math.floor(vols.length * 0.8)] ?? Infinity; // top 20% = POC bars
-        const vpData = displayData.map(b => {
-          const isBull = b.close >= b.open;
-          const isPOC  = b.volume >= pocThreshold;
-          return {
-            ...b,
-            color:       isBull ? upC : downC,
-            borderColor: isPOC ? "#F0B429" : (isBull ? upC : downC), // gold border on POC bars
-            wickColor:   isBull ? upC : downC,
-          };
-        });
-        cs.setData(vpData as any);
+        // Gold border on the top-20% volume bars — see mainSeriesPoints.
+        cs.setData(mainPoints as any);
       } else if (isOrderflow) {
         // Order Flow Candles — hollow body (footprint cells show through) but a CRISP
         // green/red border so the candle stays sharp, not blurry.
@@ -3269,71 +3255,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
-        cs.setData(displayData as any);
+        cs.setData(mainPoints as any);
       } else if (isRenko) {
         // RENKO — fixed-size bricks, a new brick only when price moves one brick
-        // (time-independent). Bricks are filled green/red blocks (no wicks).
+        // (time-independent). Bricks are filled green/red blocks (no wicks), on
+        // EVENLY-SPACED synthetic timestamps so they pack without gaps on LWC's
+        // time axis. The bricks themselves are built in mainSeriesPoints.
         const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
-        const brickSize  = base * 0.001;
-        let lastBrick    = Math.floor((displayData[0]?.close ?? base) / brickSize) * brickSize;
-        const renkoData: any[] = [];
-        displayData.forEach(b => {
-          while (b.close >= lastBrick + brickSize) {
-            renkoData.push({ time: b.time, open: lastBrick, high: lastBrick + brickSize, low: lastBrick, close: lastBrick + brickSize, color: upC, borderColor: upC, wickColor: upC });
-            lastBrick += brickSize;
-          }
-          while (b.close <= lastBrick - brickSize) {
-            renkoData.push({ time: b.time, open: lastBrick, high: lastBrick, low: lastBrick - brickSize, close: lastBrick - brickSize, color: downC, borderColor: downC, wickColor: downC });
-            lastBrick -= brickSize;
-          }
-        });
-        // Renko is TIME-INDEPENDENT — a brick is a price move, not a clock tick. Keeping
-        // the source bar's real timestamp made many bricks share one time (or sit far
-        // apart), and LWC plots on a TIME axis, so the bricks rendered with big empty
-        // horizontal gaps. Assign EVENLY-SPACED sequential timestamps so the bricks pack
-        // tightly side-by-side like TradingView Renko (no gaps).
-        const rkStep = getIntervalSec(timeframe) || 60;
-        const rkT0 = (displayData[0]?.time as number) ?? Math.floor(Date.now() / 1000);
-        const renkoClean = renkoData.map((r, i) => ({ ...r, time: rkT0 + i * rkStep }));
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC, borderVisible: true,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
-        if (renkoClean.length) cs.setData(renkoClean as any);
+        if (mainPoints.length) cs.setData(mainPoints as any);
       } else if (isRangeBars) {
         // RANGE BARS — each bar spans a FIXED price range; a new bar opens once price
         // travels one full range from the prior bar's open. Distinct from Renko (which
-        // snaps to a grid). Green/red by direction, keeps real timestamps + wicks.
+        // snaps to a grid). Green/red by direction, keeps wicks, on the same
+        // evenly-spaced synthetic timestamps. Built in mainSeriesPoints.
         const upC = chartSettings?.candleUp ?? CANDLE_UP_DEFAULT, downC = chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT;
-        const rangeSize = base * 0.0015;
-        const rbData: any[] = [];
-        let cur: { time: number; open: number; high: number; low: number; close: number } | null = null;
-        displayData.forEach(b => {
-          if (!cur) { cur = { time: b.time as number, open: b.open, high: b.high, low: b.low, close: b.close }; }
-          cur.high = Math.max(cur.high, b.high);
-          cur.low  = Math.min(cur.low,  b.low);
-          cur.close = b.close;
-          if (cur.high - cur.low >= rangeSize) {
-            const isBull = cur.close >= cur.open;
-            rbData.push({ ...cur, color: isBull ? upC : downC, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC });
-            cur = null;
-          }
-        });
-        if (cur) { const c = cur as { time:number;open:number;high:number;low:number;close:number }; const isBull = c.close >= c.open; rbData.push({ ...c, color: isBull ? upC : downC, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC }); }
-        // Range bars are TIME-INDEPENDENT — a bar is a fixed price travel, not a clock
-        // tick. Real source timestamps left consecutive bars far apart on the TIME axis,
-        // producing the big horizontal gaps. Assign EVENLY-SPACED sequential timestamps
-        // so the bars pack tightly side-by-side like a real range-bar chart.
-        const rbStep = getIntervalSec(timeframe) || 60;
-        const rbT0 = (displayData[0]?.time as number) ?? Math.floor(Date.now() / 1000);
-        const rbClean = rbData.map((r, i) => ({ ...r, time: rbT0 + i * rbStep }));
         cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC, borderVisible: true,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
-        if (rbClean.length) cs.setData(rbClean as any);
+        if (mainPoints.length) cs.setData(mainPoints as any);
       } else if (isComingSoon) {
         // 3-Line Break / Kagi / Point & Figure — render as line for now with label
         cs = chart.addSeries(LW.LineSeries,{
@@ -3355,7 +3301,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           priceLineWidth:   1,
           lastValueVisible: true,
         });
-        cs.setData(displayData as any);
+        cs.setData(mainPoints as any);
       }
 
       // For orderflow-candles, force bid-ask footprint in the canvas overlay
@@ -3396,11 +3342,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // vocabulary — it is a chosen costume, not the room's default material.
       const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT;
       const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT;
-      vs.setData(data.map(c => ({
-        time:  c.time,
-        value: c.volume,
-        color: c.close >= c.open ? volUp : volDown,
-      })) as any);
+      vs.setData(volumeSeriesPoints(data, volUp, volDown) as any);
 
       // CANDLE DENSITY — match TradingView / Moomoo / Webull.
       // Lightweight-Charts derives candle BODY width from barSpacing via its
@@ -3491,6 +3433,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       setBarRefusal(compileBarHistoryRefusal(vendorLog));
       setReady(true);
       onBarsReady?.(data, admittedBarIdentities);
+      // A rebuild WHILE the replay camera is on history (a candle-type switch;
+      // symbol, timeframe and session changes end the replay in the room): the
+      // fresh fetch is the LIVE copy, so it is held, and the window is painted
+      // back over the new series rather than the camera jumping to today.
+      if (replayCameraRef.current) {
+        liveHeldBarsRef.current = data;
+        const replayWindow = replayWindowRef.current;
+        if (replayWindow) paintCameraRef.current(replayWindow);
+      }
 
       // Subscriptions attach ONCE per chart (the chart is now persistent across
       // symbol/timeframe changes). They use chartRef.current as the alive-check
@@ -3614,8 +3565,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Provenance: a real tick reached the chart just now.
     lastTickAtRef.current = Date.now();
 
+    // BAR REPLAY GATE. While the replay camera walks history this tick is
+    // folded into the HELD live bars and nothing is painted: the live store
+    // keeps running, the camera does not move. Every read below of "the bars
+    // this tick lands on" is `prevBars`, so the fold, the guard and the
+    // de-spike all measure against the LIVE bars in both routes.
+    const route    = routeLiveTick(replayCameraRef.current);
     const price   = liveBar.close;
-    const prevBars = barsRef.current;
+    const prevBars = route === "HOLD_OFF_CAMERA" ? liveHeldBarsRef.current : barsRef.current;
     const lastBar  = prevBars[prevBars.length - 1];
 
     // M8: the published live bar is READ-ONLY (it is the hook's state, not this
@@ -3701,7 +3658,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // recent median bar range, so even an in-threshold bad tick can never
     // balloon the candle and squash the price scale during a live session.
     {
-      const recent = barsRef.current.slice(-30);
+      const recent = prevBars.slice(-30);
       if (recent.length >= 8) {
         const ranges = recent
           .map(b => b.high - b.low)
@@ -3722,6 +3679,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           };
         }
       }
+    }
+
+    // THE REPLAY CAMERA IS NOT PAINTED BY A LIVE TICK. Held, not dropped: the
+    // room's live bars still advance (onBarsReady), so Stop restores a chart
+    // that includes every print that arrived while the trader was replaying.
+    // No series update, no oscillator or Pine update, no header price.
+    if (route === "HOLD_OFF_CAMERA") {
+      liveHeldBarsRef.current = foldLiveBar(prevBars, bar);
+      onBarsReady?.(liveHeldBarsRef.current, barIdentitiesRef.current);
+      return;
     }
 
     try {
@@ -3784,18 +3751,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     }
 
     setLastPrice(price);
-    setCandles(prev => {
-      const last = prev[prev.length - 1];
-      if (last?.time === bar.time) {
-        const next = [...prev];
-        next[next.length - 1] = bar;
-        barsRef.current = next;
-        return next;
-      }
-      const next = [...prev, bar];
-      barsRef.current = next;
-      return next;
-    });
+    // Same fold the replay route uses for the held bars (replace the forming
+    // bar, else append) — one definition, so the two routes cannot disagree
+    // about what "the live bars" are when Stop hands the camera back.
+    //
+    // Folded HERE, synchronously, not inside a `setCandles` updater. An updater
+    // runs at the NEXT render, and if the replay camera engaged in the same
+    // flush it would have written these live bars over `barsRef` after the
+    // window was painted — the draw loop would then describe today on a camera
+    // every chip certifies as history. `prevBars` IS `barsRef.current` on this
+    // route, so the bars are the same; only the moment of the write changed.
+    const next = foldLiveBar(prevBars, bar);
+    barsRef.current = next;
+    setCandles(next);
 
     // Emit updated bars to parent for Pine Script execution
     if (barsRef.current.length) {
@@ -3805,6 +3773,80 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // ONLY — real aggressor tape, never synthetic footprint. No bubble without
     // a qualifying large trade at that price level on that bar.
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── BAR REPLAY CAMERA (M9 repair 2) ────────────────────────────────
+   * The room freezes its canonical bars at the press and hands this chart the
+   * window 0..cursor as `replayBars` (see selectReplayWindow). This block is
+   * the only place that window reaches the glass:
+   *
+   *   ENTER  the live bars are HELD (the tick fold above keeps folding into
+   *          them) and the price + volume series are repainted with the window.
+   *   STEP   repainted again; the camera follows the cursor only if the trader
+   *          was already watching the newest bar, so a pan back is respected.
+   *   STOP   the held live bars — including every tick that arrived during the
+   *          replay — are repainted and the camera returns to real time.
+   *
+   * `barsRef` becomes the window, so every overlay the draw loop reads from it
+   * (profiles, TPO, gaps, footprint, crosshair) describes the replayed past.
+   * `cameraEpoch` re-runs the effects that build series from `barsRef` once
+   * (indicators, Pine, alert lines) — otherwise an SMA drawn over TODAY's bars
+   * would stretch the time axis past the cursor and show the future.
+   */
+  const [cameraEpoch, setCameraEpoch] = useState(0);
+  const paintCameraRef = useRef<(bars: LegacyOhlcvTuple[]) => void>(() => {});
+  paintCameraRef.current = (bars) => {
+    const cs = candleRef.current, vs = volRef.current;
+    if (!cs || !vs) return;
+    try {
+      cs.setData(mainSeriesPoints(candleType, bars, {
+        up: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+        down: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+        base,
+        intervalSec: getIntervalSec(timeframe),
+      }) as any);
+      if (candleType === "baseline") {
+        cs.applyOptions({ baseValue: { type: "price", price: baselineBasePrice(bars, base) } });
+      }
+    } catch { /* series swapped mid-paint; the next build repaints */ }
+    try {
+      vs.setData(volumeSeriesPoints(
+        bars,
+        chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT,
+        chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT,
+      ) as any);
+    } catch { /* same */ }
+    barsRef.current = bars;
+    setCandles(bars);
+    setCameraEpoch(e => e + 1);
+  };
+  useEffect(() => {
+    if (!ready || !candleRef.current || !volRef.current) return;
+    const ts = chartRef.current?.timeScale();
+    const replayWindow = replayWindowRef.current;
+    if (replayWindow) {
+      const entering = !replayCameraRef.current;
+      let following = true;
+      if (!entering) {
+        try {
+          const r = ts?.getVisibleLogicalRange();
+          following = !r || r.to >= barsRef.current.length - 1.5;
+        } catch { /* no range yet: follow */ }
+      }
+      if (entering) {
+        liveHeldBarsRef.current = barsRef.current;
+        replayCameraRef.current = true;
+      }
+      paintCameraRef.current(replayWindow);
+      if (following) { try { ts?.scrollToRealTime(); } catch { /* disposed */ } }
+    } else if (replayCameraRef.current) {
+      replayCameraRef.current = false;
+      const live = liveHeldBarsRef.current;
+      liveHeldBarsRef.current = [];
+      paintCameraRef.current(live);
+      if (live.length) setLastPrice(live[live.length - 1].close);
+      try { ts?.scrollToRealTime(); } catch { /* disposed */ }
+    }
+  }, [replayActive, replayBars, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── DIRECT live-price poller (guaranteed chart movement) ──────
    * Decisive, self-contained: polls the real quote every 2.5s and forces the
@@ -3963,7 +4005,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // script is removed or swapped. Keep the plugin instance for reuse.
       try { pineMarkersPluginRef.current?.setMarkers([]); } catch {}
     };
-  }, [pineOutput, pineCode, ready]);
+  }, [pineOutput, pineCode, ready, cameraEpoch]);
 
   /* ── Render indicator overlays ─────────────────────────── */
   useEffect(() => {
@@ -4985,7 +5027,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       tapeCvdRef.current = null;
       indSeriesRef.current = [];
     };
-  }, [activeInds, indSettings, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeInds, indSettings, ready, cameraEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Alert level lines ──────────────────────────────────── */
   const alertSeriesRef = useRef<any[]>([]);
@@ -5019,7 +5061,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } catch {}
       });
     })();
-  }, [alertLevels, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [alertLevels, ready, cameraEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Paper-trade position lines (native price lines + live P&L) ──────
    * Reads the local paper-trading blotter (wm_paper_state), finds OPEN
@@ -5033,7 +5075,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   };
   useEffect(() => {
     const series = candleRef.current;
-    if (!series || !paperTradesVisible) return;
+    // WITHHELD WHILE REPLAYING, like the live-tape overlays: a "LONG 10 · +$42"
+    // label is a LIVE P&L claim, and on a camera walking last Tuesday it would
+    // read as that position's P&L on last Tuesday. Rebuilt the moment Stop
+    // hands the camera back.
+    if (!series || !paperTradesVisible || replayCameraOn) return;
 
     let positions: Array<{ symbol: string; qty: number; avgPx: number }> = [];
     try {
@@ -5078,7 +5124,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       paperLinesRef.current.forEach(({ line }) => { try { series.removePriceLine(line); } catch {} });
       paperLinesRef.current = [];
     };
-  }, [symbol, paperTradesVisible, ready, paperNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, paperTradesVisible, ready, paperNonce, replayCameraOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Refresh each open-position line's live-P&L label on every price tick,
    * without tearing the lines down and rebuilding them. */
@@ -14288,7 +14334,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * with the scale it sits on instead of with itself.
    */
   const headerPriceFact = chartHeaderPriceFact(
-    ticker.price,
+    // BAR REPLAY: the live quote is withheld while the camera walks history, so
+    // this cell speaks the replayed bar's close under the compiler's own
+    // BAR CLOSE label instead of printing today's price over last week's bars.
+    replayCameraOn ? null : ticker.price,
     deriveLastBarClose(candles, timeframe, Date.now()),
     candleSource !== "",
     dp,
@@ -14314,7 +14363,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   );
 
   const headerChangeFact = chartHeaderChangeFact(
-    hasProviderChange ? { chg: change, pct: ticker.changePct as number } : null,
+    // Today's session change is a live-quote fact too; replay reads bar-over-bar.
+    hasProviderChange && !replayCameraOn ? { chg: change, pct: ticker.changePct as number } : null,
     deriveBarOverBarChange(candles, timeframe, Date.now()),
     dp,
     // Same fact, same source, as the fidelity chip below: `candleSource` is ""
@@ -15883,7 +15933,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             title={barCountdown.title}
             data-bar-countdown-kind={barCountdown.kind}
             className={`flex items-center gap-1 text-[10px] font-mono font-bold transition-colors ${
-              chartSettings?.candleTimer === false ? "hidden" : ""
+              chartSettings?.candleTimer === false || replayCameraOn ? "hidden" : ""
             } ${
               barCountdown.closing ? "text-wm-red" : "text-wm-text-dim"
             }`}>

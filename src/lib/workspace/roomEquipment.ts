@@ -161,8 +161,18 @@ export interface RoomEquipment {
  * narrowed type would let the compiler prune the true branches of every reader,
  * and those branches must stay compiled so flipping this is a one-line change
  * and not an excavation.
+ *
+ * FLIPPED 2026-09-25 — M9 REPAIR 2, THE WIRE LANDED. The room freezes its bars
+ * at the press (`freezeReplaySnapshot`, src/lib/chart/replayWindow.ts), hands
+ * MainChart the window 0..cursor as `replayBars`, and MainChart paints it,
+ * points every draw-loop overlay at it, and routes live ticks OFF the camera
+ * into the held live bars (`routeLiveTick`). Stop / Escape repaint the live
+ * bars. The branches that stayed compiled are now the ones that run, and the
+ * `unbuilt` disclosure below falls away at the menu for the same reason.
+ * `replayCameraIsReal.sentinel.test.ts` binds this `true` to that evidence:
+ * delete the wire and the flag cannot stay true.
  */
-export const REPLAY_DRIVES_THE_CAMERA: boolean = false;
+export const REPLAY_DRIVES_THE_CAMERA: boolean = true;
 
 /**
  * THE ONE PLACE A DESK'S NAME MEETS ITS DOOR'S ID.
