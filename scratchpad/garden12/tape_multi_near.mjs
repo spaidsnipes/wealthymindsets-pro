@@ -72,7 +72,7 @@ await p.mouse.move(1180, 450);
 for (let i = 0; i < 40; i++) { const d = await p.evaluate(() => [...document.querySelectorAll("canvas")].map(c => c.dataset.semanticDensity).find(Boolean)); if (d && d.startsWith("0.28")) break; await p.mouse.wheel(0, -150); await p.waitForTimeout(120); }
 await p.mouse.move(1590, 990); await p.waitForTimeout(1500);
 await p.screenshot({ path: "scratchpad/garden12/mtape_near.png" });
-console.log("NEAR", JSON.stringify(await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.nearBarDelta !== undefined); return { nearBarDelta: c?.dataset.nearBarDelta, zoom: c?.dataset.semanticZoom, tickets: c?.dataset.importantPrintTickets }; })));
+console.log("NEAR", JSON.stringify(await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.nearBarDelta !== undefined); return { nearBarDelta: c?.dataset.nearBarDelta, zoom: c?.dataset.semanticZoom, tickets: c?.dataset.importantPrintTickets, anatomy: c?.dataset.nearAnatomy, tape: c?.dataset.nearTape }; })));
 const all = await p.evaluate(() => { const c = [...document.querySelectorAll("canvas")].find(c => c.dataset.absorption !== undefined); return c ? { ...c.dataset } : {}; });
 console.log("LAYERS", JSON.stringify(Object.fromEntries(Object.entries(all).filter(([k]) => /stack|heat|weather|deltaLevel|divergence|imbalance/i.test(k)))));
 console.log("pageerrors", JSON.stringify(errs.slice(0, 3)));

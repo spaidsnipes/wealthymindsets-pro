@@ -5528,6 +5528,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (!chart || !candleRef.current) return;
       const srs = candleRef.current;
 
+      // Chips painted before the floating-chip owner exists (print tickets,
+      // the force→response tag, NEAR anatomy); it is seeded from this list.
+      const forceChips: { x: number; y: number; w: number; h: number }[] = [];
       /* ── H-501 · FAR IS A DIFFERENT PICTURE (canon plate
          WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
          MAJOR STRUCTURE ONLY). Painted first so every later reading sits on
@@ -6859,6 +6862,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (ty < 96) ty = b.y + b.r + 20;
             for (let k = 0; k < 4 && printTickets.some(r => tx < r.x + r.w && tx + tw > r.x && ty < r.y + r.h + 4 && ty + th + 4 > r.y); k++) ty += th + 6;
             printTickets.push({ x: tx, y: ty, w: tw, h: th });
+            forceChips.push({ x: tx, y: ty, w: tw, h: th });
             ctx.strokeStyle = "rgba(232,184,92,0.8)"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(tx + tw / 2, ty + (ty < b.y ? th : 0)); ctx.lineTo(b.x, b.y); ctx.stroke();
             ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(tx, ty, tw, th);
@@ -6921,7 +6925,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          the side that initiated, and the RESPONSE bracket over the next bars
          with how far price went WITH and AGAINST the force (selectPrintResponse
          — measured, PENDING until the bars exist; never a forecast). */
-      const forceChips: { x: number; y: number; w: number; h: number }[] = [];
       try {
         const sp = selectedPrintRef.current;
         if (sp && sp.kind !== "delta" && sp.timeMs != null) {
@@ -6985,6 +6988,94 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } else {
           delete canvas.dataset.printResponse;
           delete canvas.dataset.printEnvelope;
+        }
+      } catch { /* camera mid-transition */ }
+
+      /* ── H-501 · NEAR IS A DIFFERENT PICTURE (canon plate
+         WM_A_H501_SEMANTIC_ZOOM, right panel: CANDLE ANATOMY · TAPE TICKS).
+         At NEAR the live candle names its own parts — HIGH (wick), OPEN,
+         CLOSE, LOW (wick) — on leaders, and when real tape was captured the
+         last 10 executions stand beside it: price and who initiated
+         (+ buyer / − seller). No tape → no column, never a guess. */
+      try {
+        const vrN = chart.timeScale().getVisibleLogicalRange();
+        const nearDepth = semanticDensityForBarCount(vrN ? Math.max(0, Math.floor(vrN.to) - Math.ceil(vrN.from) + 1) : null).depth;
+        const lastBar = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
+        const xl = lastBar ? chart.timeScale().timeToCoordinate(lastBar.time as never) : null;
+        if (nearDepth === "NEAR" && lastBar && xl != null) {
+          const cx = +xl;
+          const yH = srs.priceToCoordinate(lastBar.high), yL = srs.priceToCoordinate(lastBar.low);
+          const yO = srs.priceToCoordinate(lastBar.open), yC = srs.priceToCoordinate(lastBar.close);
+          let parts = 0;
+          ctx.save();
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.textBaseline = "middle";
+          // All four parts name themselves on the LEFT — the live candle's
+          // right is the profile lane's. Labels keep a 15px pitch; the leader
+          // bends to its true price.
+          const want: { y: number; word: string }[] = [];
+          if (yH != null) want.push({ y: +yH, word: "HIGH (WICK)" });
+          if (yO != null && yC != null && Math.abs(+yO - +yC) >= 3) { want.push({ y: +yO, word: "OPEN" }); want.push({ y: +yC, word: "CLOSE" }); }
+          else if (yC != null) want.push({ y: +yC, word: "OPEN = CLOSE" });
+          if (yL != null) want.push({ y: +yL, word: "LOW (WICK)" });
+          want.sort((p1, p2) => p1.y - p2.y);
+          const placed: number[] = [];
+          for (const w of want) placed.push(Math.max(w.y, (placed[placed.length - 1] ?? -Infinity) + 15));
+          const lx = cx - 58;
+          want.forEach((w, i) => {
+            const ly = placed[i];
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            const tw0 = ctx.measureText(w.word).width + 8;
+            let lxw = lx;
+            for (let k = 0; k < 4; k++) {
+              const hit = forceChips.find(r => lxw - tw0 - 2 < r.x + r.w && lxw - 2 > r.x && ly - 7 < r.y + r.h && ly + 7 > r.y);
+              if (!hit) break;
+              lxw = hit.x - 4;
+            }
+            ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(cx - 6, Math.round(w.y) + 0.5); ctx.lineTo(cx - 24, Math.round(w.y) + 0.5); ctx.lineTo(lxw, Math.round(ly) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+            ctx.textAlign = "right";
+            const tw = tw0;
+            ctx.fillStyle = "rgba(11,10,8,0.88)"; ctx.fillRect(lxw - tw - 2, ly - 7, tw, 14);
+            ctx.fillStyle = "rgba(237,230,211,0.92)"; ctx.fillText(w.word, lxw - 6, ly);
+            forceChips.push({ x: lxw - tw - 2, y: ly - 7, w: tw, h: 14 });
+            parts++;
+          });
+          canvas.dataset.nearAnatomy = String(parts);
+          // TAPE · LAST 10 — the executions this chart actually captured.
+          const tapeBars = [...bigTradePrintAccRef.current.keys()].sort((a, b) => b - a).slice(0, 2);
+          const prints = tapeBars.flatMap(k => bigTradePrintAccRef.current.get(k) ?? [])
+            .filter(t => t.timeMs != null).sort((a, b) => (b.timeMs ?? 0) - (a.timeMs ?? 0)).slice(0, 10);
+          if (prints.length > 0) {
+            const colW = 124, rowH2 = 13, colH = 20 + prints.length * rowH2;
+            // Docked top-left, clear of the right edge where the live candle,
+            // its profile lane and the print tickets already live.
+            const yNow = srs.priceToCoordinate(lastBar.close);
+            let colY = 176;
+            // The current-price line carries its countdown chip at the left edge.
+            if (yNow != null && +yNow + 12 > colY && +yNow - 12 < colY + colH) colY = Math.round(+yNow) + 16;
+            const colX = 12;
+            ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(colX, colY, colW, colH);
+            ctx.strokeStyle = "rgba(201,165,92,0.55)"; ctx.lineWidth = 1; ctx.strokeRect(colX + 0.5, colY + 0.5, colW - 1, colH - 1);
+            ctx.textAlign = "center"; ctx.fillStyle = "rgba(201,165,92,0.95)"; ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.fillText("TAPE · LAST " + prints.length + " PRINTS", colX + colW / 2, colY + 10);
+            ctx.font = "600 10px ui-monospace, SFMono-Regular, monospace";
+            prints.forEach((t, i) => {
+              const y = colY + 22 + i * rowH2;
+              const buy = t.ask > t.bid;
+              ctx.textAlign = "right"; ctx.fillStyle = "rgba(237,230,211,0.92)";
+              ctx.fillText(t.price.toFixed(2), colX + colW - 30, y);
+              ctx.textAlign = "center"; ctx.fillStyle = buy ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.6)";
+              ctx.fillText(buy ? "+" : "−", colX + colW - 14, y);
+            });
+            forceChips.push({ x: colX, y: colY, w: colW, h: colH });
+            canvas.dataset.nearTape = String(prints.length);
+          } else {
+            canvas.dataset.nearTape = "NO_TAPE";
+          }
+          ctx.restore();
+        } else {
+          delete canvas.dataset.nearAnatomy;
+          delete canvas.dataset.nearTape;
         }
       } catch { /* camera mid-transition */ }
 
