@@ -8153,16 +8153,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let absorbChipsHidden = 0;
             // H-501 · SEMANTIC ZOOM CHANGES THE REPRESENTATION, not just its
             // opacity. Same owner, same count the zoom word uses. FAR: a shelf
-            // is only its two edges, no hatch, no words. MID: the shelf and its
-            // reading. NEAR: the shelf opens — one effort tick per bar it is
-            // made of, sized by that bar's measured effort.
+            // is only its two edges, no hatch, no words. MID: the shelf, its
+            // reading and one short effort tick per bar it is made of. NEAR:
+            // the shelf opens — the same ticks, longer, sized by each bar's
+            // measured effort.
             const shelfDepth = (() => {
               try {
                 const vr = chartRef.current?.timeScale().getVisibleLogicalRange();
                 return semanticDensityForBarCount(vr ? Math.max(0, Math.floor(vr.to) - Math.ceil(vr.from) + 1) : null).depth;
               } catch { return "UNMEASURED" as const; }
             })();
-            ds.absorptionDepthForm = shelfDepth === "FAR" ? "EDGES" : shelfDepth === "NEAR" ? "SHELF+EFFORT_TICKS" : "SHELF";
+            // Counted as they are drawn, so the depth receipt below describes
+            // the glass rather than the zoom word.
+            let shelvesEdged = 0, shelvesFilled = 0, effortTicksDrawn = 0;
             for (const zone of anatomy.zones) {
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
@@ -8194,6 +8197,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ? "rgba(210,214,219,0.10)"
                   : "rgba(212,175,55,0.10)";
                 ctx.fillRect(x0, yHi, bw, bh);
+                shelvesFilled++;
               }
 
               if (desktopShelfInstrument && shelfDepth !== "FAR") {
@@ -8223,39 +8227,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.moveTo(x0, yLo - 0.5); ctx.lineTo(x1, yLo - 0.5);
               ctx.stroke();
               ctx.setLineDash([]);
+              shelvesEdged++;
               if (shelfDepth === "FAR") { absorbChipsHidden++; continue; }
               // GARDEN 12 · THE THREE FACTS AS GEOMETRY. The shelf (hatched,
               // clipped to its real bounds) is DISPLACEMENT SUPPRESSED — how
-              // little price travelled. OPPOSING INTEREST HOLDS: the edge price
-              // pushed INTO — measured from where it approached from (the close
-              // before the shelf began, vs the shelf's middle) — is drawn as a
-              // solid wall; the other edge stays faint. EFFORT HIGH: one tick
-              // per bar on the approach side, sized by that bar's effort
-              // (larger at NEAR). No approach bar on screen → no wall claimed.
+              // little price travelled. EFFORT HIGH: one tick per bar of the
+              // shelf, standing below it, sized by that bar's measured effort
+              // (longer at NEAR). Effort does not depend on the direction
+              // price came from, so the ticks are drawn whatever it was.
+              // OPPOSING INTEREST HOLDS is the shelf holding, and both edges
+              // are drawn alike. Which side defended cannot be read from where
+              // a candle closed; it would need a signed-delta defended edge
+              // from the anatomy owner, which publishes none. A heavier edge
+              // here would name a defender from OHLC position.
               {
-                const iStart = anatomy.bars.findIndex(ab => ab.time >= zone.startTime);
-                const before = iStart > 0 ? anatomy.bars[iStart - 1] : null;
-                const mid = (zone.priceHi + zone.priceLo) / 2;
-                const fromBelow = before ? before.close < mid : null;
-                if (fromBelow != null) {
-                  const wy = fromBelow ? yHi : yLo;
-                  ctx.strokeStyle = "rgba(237,230,211,0.95)"; ctx.lineWidth = 2.5;
-                  ctx.beginPath(); ctx.moveTo(x0, Math.round(wy) + 0.5); ctx.lineTo(x1, Math.round(wy) + 0.5); ctx.stroke();
-                  ctx.lineWidth = 1;
-                  const tickMax = shelfDepth === "NEAR" ? 14 : 8;
-                  ctx.fillStyle = "rgba(237,230,211,0.8)";
-                  for (const ab of anatomy.bars) {
-                    if (ab.time < zone.startTime || ab.time > zone.endTime) continue;
-                    const xb = ts.timeToCoordinate(ab.time as never);
-                    if (xb == null) continue;
-                    const len = 3 + ab.effortNorm * tickMax;
-                    // Ticks stand on the approach side, pointing at the wall.
-                    if (fromBelow) ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, len);
-                    else ctx.fillRect(Math.round(+xb) - 1.5, yHi - 3 - len, 3, len);
-                  }
-                  ds.absorptionWall = fromBelow ? "TOP" : "BOTTOM";
-                } else {
-                  ds.absorptionWall = "UNKNOWN_APPROACH";
+                const tickMax = shelfDepth === "NEAR" ? 14 : 8;
+                ctx.fillStyle = "rgba(237,230,211,0.8)";
+                for (const ab of anatomy.bars) {
+                  if (ab.time < zone.startTime || ab.time > zone.endTime) continue;
+                  const xb = ts.timeToCoordinate(ab.time as never);
+                  if (xb == null) continue;
+                  ctx.fillRect(Math.round(+xb) - 1.5, yLo + 3, 3, 3 + ab.effortNorm * tickMax);
+                  effortTicksDrawn++;
                 }
               }
 
@@ -8342,6 +8335,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
 
             ds.absorptionChips = `${absorbChipRects.length}/${absorbChipRects.length + absorbChipsHidden}`;
+            // The depth form is what the loop drew, not what the zoom word
+            // promised: a zone off the scale draws nothing, and a MID shelf
+            // carries ticks too. No shelf on the glass → no form and no wall
+            // word. A drawn shelf claims no defended edge.
+            if (shelvesEdged === 0) {
+              delete ds.absorptionDepthForm;
+              delete ds.absorptionWall;
+            } else {
+              ds.absorptionDepthForm = shelvesFilled === 0 ? "EDGES" : effortTicksDrawn > 0 ? "SHELF+EFFORT_TICKS" : "SHELF";
+              ds.absorptionWall = "NOT_CLAIMED";
+            }
 
             // ── BASIS. Compact, always visible, never a vendor name.
             const basisTxt = BASIS_LABEL[anatomy.basis];
