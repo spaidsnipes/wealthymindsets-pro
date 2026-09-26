@@ -25,7 +25,7 @@ import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import { PrepChecklistBand } from "@/components/experience/PrepChecklistBand";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
-import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
+import { computeJournalPnl, computeJournalRealizedR, journalMoneyFor, selectJournalPricing, selectRecordedMoney } from "@/lib/journal/computePnl";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
 import { selectRecordedTotal } from "@/lib/journal/selectRecordedTotal";
 import { selectSetupPerformance } from "@/lib/journal/selectSetupPerformance";
@@ -1267,6 +1267,9 @@ function JournalPageInner() {
   const formPricing = selectJournalPricing({
     entry: form.entry, exit: form.exit, size: form.size,
     isNoTradeDay: form.dayModel === "M0",
+    // Garden 16 §17: the INSTRUMENT is part of the price. A futures symbol
+    // with no point value on file is refused by name, never saved at 1x.
+    symbol: form.symbol, contractType: form.contractType,
   });
 
   const saveEntry = () => {
@@ -1279,7 +1282,7 @@ function JournalPageInner() {
     // Canon §6 Contract Lens: options carry a 100x standard multiplier.
     // Delegating to computeJournalPnl (pure, state-matrix-tested) so the
     // 16-branch coverage in computePnl.test.ts protects the shipped path.
-    e.pnl      = computeJournalPnl({ entry: e.entry, exit: e.exit, size: e.size, side: e.side, contractType: e.contractType });
+    e.pnl      = computeJournalPnl({ entry: e.entry, exit: e.exit, size: e.size, side: e.side, contractType: e.contractType, symbol: e.symbol });
     e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) * (e.side === "short" ? -1 : 1) : 0;
     e.result   = classifyFinancialOutcome(e.pnl);
     e.processQuality = e.processQuality ?? "UNRESOLVED";
@@ -1291,7 +1294,7 @@ function JournalPageInner() {
     // plannedRDollars is missing / zero (canon §4).
     e.realizedR = computeJournalRealizedR({
       entry: e.entry, exit: e.exit, size: e.size, side: e.side,
-      contractType: e.contractType, plannedRDollars: e.plannedRDollars,
+      contractType: e.contractType, symbol: e.symbol, plannedRDollars: e.plannedRDollars,
     });
 
     // Nectar snapshot — REMEMBER→REFLECT bridge (Founder OVERRIDE §10
@@ -2652,6 +2655,18 @@ Trade the system, trust the process, winners every day 🚀`,
                 ))}
               </div>
 
+              {/* Garden 16 §17: a futures entry saved before futures were
+                  priced carries 1x dollars. It says so beside its numbers —
+                  on every entry, not only ones with Proof Lane fields. */}
+              {(() => {
+                const mismatch = selectRecordedMoney(selected).mismatch;
+                return mismatch ? (
+                  <p data-testid="journal-detail-money-mismatch" className="mb-4 rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-[11px] leading-relaxed text-wm-text-muted">
+                    {mismatch}
+                  </p>
+                ) : null;
+              })()}
+
               {/* Proof Lane detail block — I-Bkt 1 (+J-Bkt 10 MFE/MAE/Capture): mirrors the modal's Proof
                   Lane strip in read-only form so a pro-trader review sees
                   Model / Planned R $ / Realized R / Contract type / MFE /
@@ -2697,7 +2712,8 @@ Trade the system, trust the process, winners every day 🚀`,
                         "text-sm font-mono font-bold mt-0.5",
                         selected.contractType === "option" ? "text-wm-purple" : "text-wm-text",
                       )}>
-                        {selected.contractType === "option" ? "OPTION · 100x" : "STOCK"}
+                        {/* Garden 16 §17: the same money owner the save used. */}
+                        {selectRecordedMoney(selected).label}
                       </div>
                     </div>
                   </div>
@@ -3118,7 +3134,11 @@ Trade the system, trust the process, winners every day 🚀`,
                   <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §6 / §24</span>
                 </div>
                 {/* Contract type — canon §6 Contract Lens. Options carry a
-                    100x multiplier. Wrong multiplier = wrong P&L = wrong R. */}
+                    100x multiplier. Wrong multiplier = wrong P&L = wrong R.
+                    Garden 16 §17: each button says the money it WOULD price
+                    for the symbol typed above — a futures symbol (ES1!, ES=F,
+                    /ES) reads its point value from the one owner instead of
+                    trusting a stock/option picker that has no futures. */}
                 <div className="mb-3">
                   <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Contract Type</label>
                   <div className="flex gap-2">
@@ -3135,10 +3155,19 @@ Trade the system, trust the process, winners every day 🚀`,
                             : "bg-wm-surface border-wm-border text-wm-text-muted",
                         )}
                       >
-                        {t.toUpperCase()}{t === "option" && " · 100x"}
+                        {journalMoneyFor({ symbol: form.symbol, contractType: t }).label}
                       </button>
                     ))}
                   </div>
+                  <p data-testid="journal-money-basis" className="mt-1 text-[9px] font-mono text-wm-text-dim">
+                    {(() => {
+                      const m = journalMoneyFor({ symbol: form.symbol, contractType: form.contractType });
+                      if (m.status === "UNPRICED") return `$ withheld — ${m.reason}`;
+                      if (m.basis === "futures") return `${form.symbol} priced as ${m.root} futures: $${m.multiplier.toLocaleString("en-US")} per point per contract`;
+                      if (m.basis === "option") return "Priced per contract at 100x the premium";
+                      return "Priced per share at $1 per point — for futures, journal ES1!, ES=F or /ES";
+                    })()}
+                  </p>
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 mb-3">
                   {(["M0", "M1", "M2"] as const).map((m) => (
@@ -3181,12 +3210,13 @@ Trade the system, trust the process, winners every day 🚀`,
                         const exitV = form.exit ?? 0;
                         const sizeV = form.size ?? 0;
                         if (!(p && p > 0)) return <span className="text-wm-text-dim text-[10px]">R undefined — set Planned R first</span>;
+                        if (formPricing.status === "UNPRICEABLE" && formPricing.money) return <span className="text-wm-text-dim text-[10px]">$ withheld — {formPricing.money.label}</span>;
                         if (!(entryV > 0 && exitV > 0 && sizeV > 0)) return <span className="text-wm-text-dim text-[10px]">Awaiting entry/exit/size</span>;
                         // Same state-matrix-tested pure selector as saveEntry.
                         const r = computeJournalRealizedR({
                           entry: entryV, exit: exitV, size: sizeV,
                           side: form.side ?? "long", contractType: form.contractType,
-                          plannedRDollars: p,
+                          symbol: form.symbol, plannedRDollars: p,
                         });
                         if (r === undefined) return <span className="text-wm-text-dim text-[10px]">R undefined</span>;
                         return (

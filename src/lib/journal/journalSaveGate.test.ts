@@ -91,6 +91,17 @@ describe("/journal — a trade that cannot be priced is never written down", () 
     expect(code).not.toMatch(/canSave\s*=\s*(true|false)\b/);
   });
 
+  it("Garden 16 §17: the gate and every money call are told the SYMBOL, so futures are priced at their point value", () => {
+    // Without the symbol, journalMoneyFor cannot see ES1! and prices it at 1x —
+    // the defect this closed. Each call site must pass it.
+    const gateAt = code.indexOf("selectJournalPricing({");
+    expect(code.slice(gateAt, gateAt + 400)).toMatch(/symbol:\s*form\.symbol,\s*contractType:\s*form\.contractType/);
+    expect(code).toMatch(/computeJournalPnl\(\{[^}]*symbol:\s*e\.symbol[^}]*\}\)/);
+    const rCalls = code.split("computeJournalRealizedR({").slice(1).map(s => s.slice(0, 300));
+    expect(rCalls.length).toBeGreaterThanOrEqual(2);
+    for (const call of rCalls) expect(call).toMatch(/symbol:\s*(e|form)\.symbol/);
+  });
+
   it("never dresses an unfinished form as a failure (§8)", () => {
     const noteAt = code.indexOf("{formPricing.note}");
     const region = code.slice(Math.max(0, noteAt - 600), noteAt + 200);

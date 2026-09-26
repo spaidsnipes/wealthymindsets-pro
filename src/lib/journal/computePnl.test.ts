@@ -3,9 +3,14 @@ import {
   computeJournalPnl,
   computeJournalRealizedR,
   contractMultiplierFor,
+  journalMoneyFor,
   selectJournalPricing,
+  selectRecordedMoney,
   OPTION_MULTIPLIER,
 } from "./computePnl";
+import { CONTRACT_MULTIPLIERS } from "@/lib/paperTrade";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * ORKIN protocol (canon §22) — state-matrix tests for journal P&L.
@@ -226,5 +231,184 @@ describe("selectJournalPricing — absence is not breakeven", () => {
     const b = selectJournalPricing({ entry: 1 });
     expect(a).toEqual(b);
     expect(a).not.toBe(b);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FUTURES MONEY — Garden 16 §17: a chart can look right and still be
+// financially wrong.
+//
+// THE DEFECT: ContractType was "stock" | "option", so an ES trade journaled as
+// ES1! 5000 -> 5010, 1 contract, was written down as +$10.00. The real money
+// is +$500.00 ($50 per point). The sign was right, so the win rate never
+// flinched; the dollars, R and the daily -2R stop were 50x too small.
+// ---------------------------------------------------------------------------
+
+describe("computeJournalPnl — futures are priced at their point value", () => {
+  it("THE DEFECT: ES1! 5000 -> 5010, 1 contract long = +$500, not +$10", () => {
+    const pnl = computeJournalPnl({ entry: 5000, exit: 5010, size: 1, side: "long", contractType: "stock", symbol: "ES1!" });
+    expect(pnl).toBe(500);
+    expect(pnl).not.toBe(10);
+  });
+
+  it("ES is the same money in every notation (ES1!, ES=F, /ES, lower case)", () => {
+    for (const symbol of ["ES1!", "ES=F", "/ES", "es1!"]) {
+      expect(computeJournalPnl({ entry: 5000, exit: 5010, size: 1, side: "long", symbol })).toBe(500);
+    }
+  });
+
+  it("NQ: $20/pt — 18000 -> 18005 x2 long = +$200", () => {
+    expect(computeJournalPnl({ entry: 18000, exit: 18005, size: 2, side: "long", symbol: "NQ1!" })).toBe(200);
+  });
+
+  it("GC: $100/pt — 2400.0 -> 2401.5 x1 long = +$150", () => {
+    expect(computeJournalPnl({ entry: 2400, exit: 2401.5, size: 1, side: "long", symbol: "GC=F" })).toBeCloseTo(150, 6);
+  });
+
+  it("CL: $1,000/pt — 75.00 -> 74.50 x1 SHORT = +$500 (sign follows side)", () => {
+    expect(computeJournalPnl({ entry: 75, exit: 74.5, size: 1, side: "short", symbol: "/CL" })).toBeCloseTo(500, 6);
+    expect(computeJournalPnl({ entry: 75, exit: 74.5, size: 1, side: "long", symbol: "/CL" })).toBeCloseTo(-500, 6);
+  });
+
+  it("realized R uses futures money: ES +10pts on a $250 1R = +2.00R, not +0.04R", () => {
+    const r = computeJournalRealizedR({ entry: 5000, exit: 5010, size: 1, side: "long", symbol: "ES1!", plannedRDollars: 250 });
+    expect(r).toBeCloseTo(2, 6);
+  });
+
+  it("the journal reads the ONE point-value owner — every CONTRACT_MULTIPLIERS row, no second table", () => {
+    for (const [key, pv] of Object.entries(CONTRACT_MULTIPLIERS)) {
+      const m = journalMoneyFor({ symbol: key });
+      expect(m.status).toBe("PRICED");
+      if (m.status === "PRICED") {
+        expect(m.basis).toBe("futures");
+        expect(m.multiplier).toBe(pv);
+      }
+    }
+    const src = readFileSync(resolve(__dirname, "computePnl.ts"), "utf8");
+    expect(src).toMatch(/import \{[^}]*\binstrumentEconomics\b[^}]*\} from "@\/lib\/marketData\/contractEconomics"/);
+    // No point value is restated here: no `"ES1!": 50` style row, and no
+    // import of the raw table behind the owner's back.
+    expect(src).not.toMatch(/import[^;]*\bCONTRACT_MULTIPLIERS\b/);
+    expect(src).not.toMatch(/from "@\/lib\/paperTrade"/);
+    expect(src).not.toMatch(/["'](?:ES|NQ|GC|CL|RTY)1!["']\s*:/);
+  });
+});
+
+describe("unpriced futures — named, never 1x, never a 0 breakeven", () => {
+  for (const symbol of ["YM1!", "MES1!", "MES=F", "/YM"]) {
+    it(`${symbol}: no published point value -> UNPRICED with a named reason`, () => {
+      const m = journalMoneyFor({ symbol, contractType: "stock" });
+      expect(m.status).toBe("UNPRICED");
+      if (m.status !== "UNPRICED") return;
+      expect(m.refusal).toBe("NO_POINT_VALUE");
+      expect(m.reason).toMatch(/no published point value on file for (YM|MES)/);
+      // Neither the 1x number nor 0 comes out of the math.
+      const pnl = computeJournalPnl({ entry: 40000, exit: 40010, size: 1, side: "long", symbol });
+      expect(Number.isNaN(pnl)).toBe(true);
+      expect(pnl).not.toBe(10);
+      expect(pnl).not.toBe(0);
+      expect(computeJournalRealizedR({ entry: 40000, exit: 40010, size: 1, side: "long", symbol, plannedRDollars: 100 })).toBeUndefined();
+    });
+  }
+
+  it("a micro never inherits its big brother's multiplier (MES is not $50)", () => {
+    expect(journalMoneyFor({ symbol: "MES1!" }).status).toBe("UNPRICED");
+    expect(journalMoneyFor({ symbol: "ES1!" }).status).toBe("PRICED");
+  });
+
+  it("THE SAVE GATE refuses YM through the existing pricing verdict, by name", () => {
+    const v = selectJournalPricing({ entry: 40000, exit: 40010, size: 1, symbol: "YM1!", contractType: "stock" });
+    expect(v.status).toBe("UNPRICEABLE");
+    if (v.status !== "UNPRICEABLE") return;
+    expect(v.money?.refusal).toBe("NO_POINT_VALUE");
+    expect(v.money?.root).toBe("YM");
+    expect(v.missing).toEqual([]); // no typed value can fix it — not "add the missing value"
+    expect(v.note).toContain("YM");
+    expect(v.note).toContain("no published point value on file for YM");
+    expect(v.note).toContain("$1 per point");
+    expect(v.note).toContain("0.00R");
+    expect(v.note).not.toMatch(/Add the missing value/);
+    expect(v.note).not.toMatch(/\b(ERROR|INVALID|FAILED|FATAL)\b/);
+  });
+
+  it("the instrument refusal wins even when values are also missing (the right fix is named)", () => {
+    const v = selectJournalPricing({ symbol: "MES1!" });
+    expect(v.status).toBe("UNPRICEABLE");
+    if (v.status === "UNPRICEABLE") expect(v.money?.root).toBe("MES");
+  });
+
+  it("M0 no-trade day stays savable whatever the symbol", () => {
+    expect(selectJournalPricing({ isNoTradeDay: true, symbol: "YM1!" }).status).toBe("NO_TRADE_DAY");
+  });
+
+  it("a priced futures trade passes the gate", () => {
+    const v = selectJournalPricing({ entry: 5000, exit: 5010, size: 1, symbol: "ES1!", contractType: "stock" });
+    expect(v.status).toBe("PRICEABLE");
+    expect(v.note).toBeNull();
+  });
+
+  it("an OPTION on a futures symbol is refused, not priced at the equity 100x", () => {
+    const m = journalMoneyFor({ symbol: "ES1!", contractType: "option" });
+    expect(m.status).toBe("UNPRICED");
+    if (m.status === "UNPRICED") expect(m.refusal).toBe("OPTION_ON_FUTURES");
+    expect(Number.isNaN(computeJournalPnl({ entry: 10, exit: 12, size: 1, side: "long", contractType: "option", symbol: "ES1!" }))).toBe(true);
+    expect(selectJournalPricing({ entry: 10, exit: 12, size: 1, contractType: "option", symbol: "ES1!" }).status).toBe("UNPRICEABLE");
+  });
+});
+
+describe("stock and option money is unchanged by the futures fix", () => {
+  it("TSLA stock 1x; TSLA option 100x", () => {
+    expect(computeJournalPnl({ entry: 250, exit: 255, size: 10, side: "long", contractType: "stock", symbol: "TSLA" })).toBe(50);
+    expect(computeJournalPnl({ entry: 1.0, exit: 1.2, size: 1, side: "long", contractType: "option", symbol: "TSLA" })).toBeCloseTo(20, 6);
+    expect(computeJournalPnl({ entry: 1.0, exit: 1.2, size: 1, side: "long", contractType: "option", symbol: "TSLA260918C00365000" })).toBeCloseTo(20, 6);
+  });
+
+  it("bare ES (no futures notation) is a share — it is also Eversource Energy — and the label says so", () => {
+    const m = journalMoneyFor({ symbol: "ES", contractType: "stock" });
+    expect(m.status).toBe("PRICED");
+    if (m.status === "PRICED") {
+      expect(m.basis).toBe("share");
+      expect(m.multiplier).toBe(1);
+      expect(m.label).toBe("STOCK · 1x");
+    }
+  });
+
+  it("symbols the class owner cannot name (BRK.B, empty) keep stock/option money — no journaling dead end", () => {
+    expect(computeJournalPnl({ entry: 400, exit: 410, size: 1, side: "long", symbol: "BRK.B" })).toBe(10);
+    expect(computeJournalPnl({ entry: 400, exit: 410, size: 1, side: "long", symbol: "" })).toBe(10);
+    expect(selectJournalPricing({ entry: 400, exit: 410, size: 1, symbol: "BRK.B" }).status).toBe("PRICEABLE");
+  });
+
+  it("labels say the money each picker button would price", () => {
+    expect(journalMoneyFor({ symbol: "TSLA", contractType: "option" }).label).toBe("OPTION · 100x");
+    expect(journalMoneyFor({ symbol: "ES1!", contractType: "stock" }).label).toBe("FUTURES ES · $50.00 / pt");
+    expect(journalMoneyFor({ symbol: "CL1!" }).label).toBe("FUTURES CL · $1,000.00 / pt");
+    expect(journalMoneyFor({ symbol: "YM1!" }).label).toBe("FUTURES YM · UNPRICED");
+  });
+});
+
+describe("selectRecordedMoney — a stored futures P&L that is not futures money says so", () => {
+  const es = { symbol: "ES1!", contractType: "stock" as const, entry: 5000, exit: 5010, size: 1, side: "long" as const };
+
+  it("a legacy ES entry stored at 1x ($10) is flagged with both numbers", () => {
+    const r = selectRecordedMoney({ ...es, pnl: 10 });
+    expect(r.label).toBe("FUTURES ES · $50.00 / pt");
+    expect(r.mismatch).toContain("$10.00");
+    expect(r.mismatch).toContain("$500.00");
+  });
+
+  it("an ES entry stored at its real money is quiet", () => {
+    expect(selectRecordedMoney({ ...es, pnl: 500 }).mismatch).toBeNull();
+  });
+
+  it("a legacy YM entry stored at 1x is flagged as not YM money", () => {
+    const r = selectRecordedMoney({ ...es, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 10 });
+    expect(r.label).toBe("FUTURES YM · UNPRICED");
+    expect(r.mismatch).toContain("not YM money");
+  });
+
+  it("stock and option entries are never second-guessed (fees / imported figures)", () => {
+    expect(selectRecordedMoney({ ...es, symbol: "TSLA", pnl: 9.5 }).mismatch).toBeNull();
+    expect(selectRecordedMoney({ ...es, symbol: "TSLA", contractType: "option", entry: 1, exit: 1.2, pnl: 19 }).mismatch).toBeNull();
   });
 });
