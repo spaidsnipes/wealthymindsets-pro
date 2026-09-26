@@ -14,9 +14,11 @@ import {
   tokenDisposition,
   type WebullAccessToken,
 } from "./webullAccessToken";
+import { WEBULL_AUTH_MODES, type WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
+const tokenRequired: WebullAuthModeReader = async () => ({ mode: WEBULL_AUTH_MODES.TOKEN_REQUIRED, note: "2FA on", observedAtMs: 0 });
 
 const NOW = 1_700_000_000_000;
-const config = { appKey: "key", appSecret: "secret", now: () => new Date(NOW), nonce: () => "n" };
+const config = { appKey: "key", appSecret: "secret", now: () => new Date(NOW), nonce: () => "n", authModeReader: tokenRequired };
 
 const token = (over: Partial<WebullAccessToken> = {}): WebullAccessToken => ({
   token: "t",

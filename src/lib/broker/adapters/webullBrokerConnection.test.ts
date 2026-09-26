@@ -9,6 +9,8 @@ import {
   inMemoryTokenStore,
   type WebullAccessToken,
 } from "@/lib/marketData/webullAccessToken";
+import { WEBULL_AUTH_MODES, type WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
+const tokenRequired: WebullAuthModeReader = async () => ({ mode: WEBULL_AUTH_MODES.TOKEN_REQUIRED, note: "2FA on", observedAtMs: 0 });
 
 /**
  * `mintSession: false` is stated OUT LOUD in these fixtures rather than
@@ -161,6 +163,7 @@ describe("the account lane carries a LIVING session, not a pasted one", () => {
     apiHost: "api.webull.test",
     now: () => new Date("2026-09-02T08:00:00.000Z"),
     nonce: () => "fixednonce",
+    authModeReader: tokenRequired,
   };
   const nowMs = new Date("2026-09-02T08:00:00.000Z").getTime();
 

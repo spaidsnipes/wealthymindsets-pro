@@ -15,6 +15,8 @@ import {
   retireRejectedWebullSession,
   type SessionRetirementLedger,
 } from "./webullSessionRejection";
+import { WEBULL_AUTH_MODES, type WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
+const tokenRequired: WebullAuthModeReader = async () => ({ mode: WEBULL_AUTH_MODES.TOKEN_REQUIRED, note: "2FA on", observedAtMs: 0 });
 
 const NOW = 1_700_000_000_000;
 
@@ -72,7 +74,7 @@ describe("retiring a refused session — compare, retire once, then REAUTHORIZE"
     }) as unknown as typeof fetch;
     const ensured = await ensureWebullAccessToken(
       fetchImpl,
-      { appKey: "k", appSecret: "s", now: () => new Date(NOW), nonce: () => "n" },
+      { appKey: "k", appSecret: "s", now: () => new Date(NOW), nonce: () => "n", authModeReader: tokenRequired },
       store,
     );
     expect(ensured.minted).toBe(true);

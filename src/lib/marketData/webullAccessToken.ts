@@ -49,6 +49,7 @@
 
 import { WEBULL_SDK_CONTRACT } from "./webullSdkContract";
 import { buildWebullSignedHeaders, type WebullSigningProfile } from "./adapters/webullMarketData";
+import { WEBULL_AUTH_MODES, sharedWebullAuthModeReader, type WebullAuthModeReader } from "./webullAuthMode";
 
 /**
  * The four states `token_manager.py` enumerates, verbatim:
@@ -110,6 +111,13 @@ export const TOKEN_DISPOSITIONS = {
   NEEDS_MINT: "NEEDS_MINT",
   /** Nothing has ever been minted in this runtime. */
   ABSENT: "ABSENT",
+  /**
+   * Webull says this App Key has 2FA switched off (`token_check_enabled:
+   * false`), so no session exists to hold: sign with the key pair and send no
+   * x-access-token. Only `ensureWebullAccessToken` returns this — a stored
+   * token can never be "not required" by itself. See webullAuthMode.ts.
+   */
+  NOT_REQUIRED: "NOT_REQUIRED",
 } as const;
 
 export type TokenDisposition =
@@ -277,6 +285,11 @@ export interface WebullTokenConfig {
   readonly nonce?: () => string;
   /** The SDK hard-selects HMAC-SHA256 for every request it signs. */
   readonly signingProfile?: WebullSigningProfile;
+  /**
+   * Who answers "is a token required at all?" before a dead session is
+   * replaced. Defaults to the shared per-isolate reader; tests inject one.
+   */
+  readonly authModeReader?: WebullAuthModeReader;
 }
 
 export const MINT_OUTCOMES = {
@@ -575,6 +588,27 @@ export async function ensureWebullAccessToken(
   if (disposition === TOKEN_DISPOSITIONS.USABLE) {
     return { token: held, disposition, minted: false, note: describeTokenState(held, nowMs, refreshMarginMs) };
   }
+
+  /**
+   * ASK BEFORE REPLACING A SESSION: IS ONE REQUIRED AT ALL?
+   *
+   * Every path below this line either waits on, or starts, a 2FA cycle — an
+   * SMS code the Founder must type into the Webull app. The SDK never starts
+   * one without first reading `token_check_enabled` from `/openapi/config`,
+   * and neither may WM Pro: with 2FA off for the key there is no session to
+   * approve, and sending none is the correct request, not a degraded one.
+   *
+   * A living session (USABLE above, NEEDS_REFRESH below) is used or extended
+   * without asking — it works in either mode. An UNKNOWN answer keeps the
+   * token path exactly as it was.
+   */
+  if (disposition !== TOKEN_DISPOSITIONS.NEEDS_REFRESH) {
+    const reading = await (config.authModeReader ?? sharedWebullAuthModeReader)(fetchImpl, config);
+    if (reading.mode === WEBULL_AUTH_MODES.TOKENLESS) {
+      return { token: null, disposition: TOKEN_DISPOSITIONS.NOT_REQUIRED, minted: false, note: reading.note };
+    }
+  }
+
   if (disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
     // Still does not re-mint — that would restart the 2FA cycle every request.
     // But it must ASK, or the Founder's tap has no route into this runtime.

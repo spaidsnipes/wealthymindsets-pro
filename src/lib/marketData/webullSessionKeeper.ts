@@ -47,6 +47,7 @@ import {
   type WebullTokenConfig,
   type WebullTokenStore,
 } from "./webullAccessToken";
+import { WEBULL_AUTH_MODES, readWebullAuthMode, type WebullAuthMode } from "./webullAuthMode";
 
 /** How often the worker's cron fires. Mirrors `wrangler.jsonc` `triggers.crons`. */
 export const KEEPER_INTERVAL_MS = 15 * 60_000;
@@ -73,6 +74,12 @@ export const KEEPER_OUTCOMES = {
   REFRESH_FAILED: "REFRESH_FAILED",
   /** App Key / App Secret are not configured on this deployment. */
   NOT_CONFIGURED: "NOT_CONFIGURED",
+  /**
+   * Webull says 2FA is OFF for this App Key (`token_check_enabled: false`):
+   * requests are signed with the key pair alone, so there is no session to
+   * keep and nothing that can ever wait on a phone. The healthy end state.
+   */
+  TOKEN_NOT_REQUIRED: "TOKEN_NOT_REQUIRED",
 } as const;
 
 export type KeeperOutcome = (typeof KEEPER_OUTCOMES)[keyof typeof KEEPER_OUTCOMES];
@@ -85,6 +92,22 @@ export interface KeeperResult {
   readonly expiresInMs?: number;
   /** When this run happened. */
   readonly atMs: number;
+  /**
+   * What Webull said this run about whether a session is needed at all
+   * (`/openapi/config`). Absent only when the keys are not configured.
+   */
+  readonly authMode?: WebullAuthMode;
+  /**
+   * The broker lane, read by the scheduled job right after a run that left a
+   * usable path (or no path needed). The account COUNT only — never an id,
+   * a balance or a token. This is what lets production prove itself without
+   * anyone's browser: `wrangler kv key get` on the record.
+   */
+  readonly broker?: {
+    readonly state: string;
+    readonly accountCount: number;
+    readonly atMs: number;
+  };
 }
 
 function remaining(token: WebullAccessToken | null, nowMs: number): number | undefined {
@@ -106,6 +129,28 @@ export async function keepWebullSessionAlive(
     };
   }
 
+  /**
+   * FIRST QUESTION EVERY RUN: DOES THIS KEY NEED A SESSION AT ALL?
+   *
+   * Asked fresh each run (not from a cache), because this record is where the
+   * Founder's unticking of "Enable 2FA Verification" first becomes visible.
+   * With 2FA off there is nothing to keep, and REAUTH_REQUIRED on a dead
+   * token would be a false alarm about a credential nobody needs.
+   */
+  const reading = await (config.authModeReader ?? readWebullAuthMode)(fetchImpl, config);
+  if (reading.mode === WEBULL_AUTH_MODES.TOKENLESS) {
+    return { outcome: KEEPER_OUTCOMES.TOKEN_NOT_REQUIRED, note: reading.note, atMs: nowMs, authMode: reading.mode };
+  }
+  const kept = await keepHeldSession(fetchImpl, config, store, nowMs);
+  return { ...kept, authMode: reading.mode };
+}
+
+async function keepHeldSession(
+  fetchImpl: typeof fetch,
+  config: WebullTokenConfig,
+  store: WebullTokenStore,
+  nowMs: number,
+): Promise<KeeperResult> {
   const held = await store.read();
 
   if (!held) {
@@ -119,9 +164,31 @@ export async function keepWebullSessionAlive(
   const disposition = tokenDisposition(held, nowMs, KEEPER_REFRESH_MARGIN_MS);
 
   if (disposition === TOKEN_DISPOSITIONS.USABLE) {
+    /**
+     * VERIFY, DON'T TRUST THE CLOCK.
+     *
+     * A session can die long before its stored expiry: Webull documents
+     * INVALID for "No API calls made for 15 consecutive days, or Token does
+     * not exist" — the second clause covers a session replaced or revoked
+     * elsewhere. Measured 2026-09-26: the store said ~14 days left at 18:00Z
+     * and Webull had the session INVALID by 02:45Z, and nothing recorded when
+     * or why. Asking `/auth/tokens/check` each run records the moment it dies,
+     * and is itself an API call, so a quiet fortnight cannot idle it out.
+     */
+    const checked = await checkWebullAccessToken(fetchImpl, config, held.token);
+    if (checked.token && checked.token.status !== WEBULL_TOKEN_STATUSES.NORMAL) {
+      await store.write(checked.token);
+      return {
+        outcome: KEEPER_OUTCOMES.REAUTH_REQUIRED,
+        note: `Webull reports the held session ${checked.token.status} although its stored expiry had not passed. A new one needs one SMS code entered in the Webull app, or unticking "Enable 2FA Verification" on the App Key removes the step for good.`,
+        atMs: nowMs,
+      };
+    }
     return {
       outcome: KEEPER_OUTCOMES.STILL_FRESH,
-      note: "The Webull session is live and outlives the next three keeper runs.",
+      note: checked.token
+        ? "The Webull session is live — Webull confirmed it this run — and outlives the next three keeper runs."
+        : `The Webull session is live by its stored expiry and outlives the next three keeper runs. Webull could not confirm it this run (${checked.note}).`,
       expiresInMs: remaining(held, nowMs),
       atMs: nowMs,
     };
@@ -163,7 +230,7 @@ export async function keepWebullSessionAlive(
   if (held.status !== WEBULL_TOKEN_STATUSES.NORMAL) {
     return {
       outcome: KEEPER_OUTCOMES.REAUTH_REQUIRED,
-      note: "Webull marked the held session invalid or expired. A new one needs one approval in the Webull app; the keeper does not start it.",
+      note: "Webull marked the held session invalid or expired. A new one needs one SMS code entered in the Webull app (the keeper does not start it), or unticking \"Enable 2FA Verification\" on the App Key removes the step for good.",
       atMs: nowMs,
     };
   }

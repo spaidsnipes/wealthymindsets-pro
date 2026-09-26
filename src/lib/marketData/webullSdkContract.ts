@@ -152,6 +152,27 @@ export const WEBULL_SDK_CONTRACT = {
     sdkSource: "webull/core/http/initializer/token/bean/check_token_request.py",
   },
   /**
+   * WHETHER A SESSION TOKEN IS REQUIRED AT ALL.
+   *
+   * `client_initializer.py` asks this BEFORE it touches a token:
+   * `_check_token_enable` reads `token_check_enabled` from this answer and,
+   * when it is false, the SDK never creates, checks or sends a token. Webull's
+   * docs say the same in words: "Token (Optional) — If Two-Factor
+   * Authentication (2FA) is enabled" (authentication/overview), and the
+   * 2FA switch is the "Enable 2FA Verification" box on the App Key.
+   *
+   * WM Pro skipped this question for its whole life and assumed the answer was
+   * yes, so every dead session became a phone prompt even on the day a key
+   * without 2FA would have needed none. `webullAuthMode.ts` asks it.
+   */
+  APP_CONFIG: {
+    path: "/openapi/config",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/core/http/initializer/config/bean/query_config_request.py",
+    method: "GET",
+  },
+  /**
    * WHAT THE PROVIDER ITSELF SAYS THIS APP IS SUBSCRIBED TO.
    *
    * Every other row here asks Webull for market data and reads the refusal. This

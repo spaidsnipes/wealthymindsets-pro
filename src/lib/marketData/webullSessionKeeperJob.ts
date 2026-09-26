@@ -19,8 +19,22 @@ import {
   KEEPER_OUTCOMES,
   WEBULL_KEEPER_RECORD_KEY,
   keepWebullSessionAlive,
+  type KeeperOutcome,
   type KeeperResult,
 } from "./webullSessionKeeper";
+import { probeWebullBrokerConnection } from "@/lib/broker/adapters/webullBrokerConnection";
+
+/**
+ * Outcomes after which a signed request has a path that needs nobody: a live
+ * session, or no session required at all. Only these touch the broker lane,
+ * and never with minting on — a scheduled job must not start a 2FA cycle.
+ */
+const LANE_READY: ReadonlySet<KeeperOutcome> = new Set<KeeperOutcome>([
+  KEEPER_OUTCOMES.TOKEN_NOT_REQUIRED,
+  KEEPER_OUTCOMES.STILL_FRESH,
+  KEEPER_OUTCOMES.REFRESHED,
+  KEEPER_OUTCOMES.APPROVAL_OBSERVED,
+]);
 
 /** A week: long enough to read after a quiet weekend, short enough to age out. */
 const RECORD_TTL_SECONDS = 7 * 24 * 3600;
@@ -40,11 +54,27 @@ export async function runWebullSessionKeeper(
   }
   const cfg = webullDataConfigFromEnv(strings);
 
-  const result = await keepWebullSessionAlive(
+  const store = webullSessionStore(env);
+  const kept = await keepWebullSessionAlive(
     fetchImpl,
     { appKey: cfg.appKey ?? "", appSecret: cfg.appSecret ?? "", apiHost: cfg.apiHost },
-    webullSessionStore(env),
+    store,
   );
+
+  // Prove the lane, not just the session: one account-list read, the same
+  // rung /api/broker/webull/status climbs. Count only; minting stays off.
+  let result: KeeperResult = kept;
+  if (LANE_READY.has(kept.outcome)) {
+    const session = kept.outcome === KEEPER_OUTCOMES.TOKEN_NOT_REQUIRED ? null : await store.read();
+    const receipt = await probeWebullBrokerConnection(fetchImpl, {
+      appKey: cfg.appKey,
+      appSecret: cfg.appSecret,
+      apiHost: cfg.apiHost,
+      accessToken: session?.token,
+      mintSession: false,
+    });
+    result = { ...kept, broker: { state: receipt.state, accountCount: receipt.accountCount, atMs: Date.now() } };
+  }
 
   const kv = env[WEBULL_SESSION_KV_BINDING] as WebullKvNamespace;
   try {
@@ -54,7 +84,7 @@ export async function runWebullSessionKeeper(
   }
 
   // The outcome word only — never the note's upstream text, never a token.
-  console.log(`[webull-keeper] ${result.outcome}`);
+  console.log(`[webull-keeper] ${result.outcome}${result.authMode ? ` auth=${result.authMode}` : ""}${result.broker ? ` broker=${result.broker.state}` : ""}`);
   return result;
 }
 

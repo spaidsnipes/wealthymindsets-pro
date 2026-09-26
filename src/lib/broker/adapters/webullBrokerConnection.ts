@@ -1,4 +1,5 @@
 /** Bounded, read-only proof of the founder's Webull Trading API connection. */
+import type { WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders, readWebullErrorCode } from "@/lib/marketData/adapters/webullMarketData";
 import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
@@ -37,6 +38,8 @@ export interface WebullBrokerConfig {
   readonly tokenStore?: WebullTokenStore;
   /** Escape hatch for tests that want no minting attempted at all. */
   readonly mintSession?: boolean;
+  /** Who says whether a session token is required at all. Tests inject one. */
+  readonly authModeReader?: WebullAuthModeReader;
 }
 
 /**
@@ -167,7 +170,7 @@ export async function probeWebullBrokerConnection(
   if (config.mintSession !== false) {
     const session = await ensureWebullAccessToken(
       fetchImpl,
-      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce },
+      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce, authModeReader: config.authModeReader },
       config.tokenStore ?? defaultTokenStore,
     );
     sessionNote = session.note;

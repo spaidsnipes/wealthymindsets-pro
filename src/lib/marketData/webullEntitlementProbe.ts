@@ -81,6 +81,7 @@
  * the account. That is a developer-portal fact about OUR app registration, and
  * it is fixable by us or by the Founder in one place — not at a checkout.
  */
+import type { WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders } from "./adapters/webullMarketData";
 import { WEBULL_SIGNING_PROFILES, type WebullSigningProfile } from "./webullSigningCanary";
@@ -685,6 +686,8 @@ export interface WebullEntitlementProbeConfig {
   readonly tokenStore?: WebullTokenStore;
   /** Set false to climb with exactly the session handed in. */
   readonly mintSession?: boolean;
+  /** Who says whether a session token is required at all. Tests inject one. */
+  readonly authModeReader?: WebullAuthModeReader;
 }
 
 export async function probeWebullEntitlement(
@@ -724,7 +727,7 @@ export async function probeWebullEntitlement(
   if (config.mintSession !== false && config.tokenStore) {
     const session = await ensureWebullAccessToken(
       fetchImpl,
-      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce },
+      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce, authModeReader: config.authModeReader },
       config.tokenStore,
     );
     if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {

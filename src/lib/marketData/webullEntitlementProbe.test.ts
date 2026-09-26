@@ -21,6 +21,8 @@ import {
   inMemoryTokenStore,
   type WebullAccessToken,
 } from "./webullAccessToken";
+import { WEBULL_AUTH_MODES, type WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
+const tokenRequired: WebullAuthModeReader = async () => ({ mode: WEBULL_AUTH_MODES.TOKEN_REQUIRED, note: "2FA on", observedAtMs: 0 });
 
 function receipt(
   rung: WebullRungReceipt["rung"],
@@ -426,7 +428,7 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
     observedAtMs: NOW.getTime(),
     ...over,
   });
-  const base = { appKey: "k", appSecret: "s", now: () => NOW, nonce: () => "n".repeat(32) };
+  const base = { appKey: "k", appSecret: "s", now: () => NOW, nonce: () => "n".repeat(32), authModeReader: tokenRequired };
 
   it("sends the minted session on every rung, not the pasted one", async () => {
     const tokens: (string | undefined)[] = [];

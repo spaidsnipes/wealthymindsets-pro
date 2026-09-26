@@ -200,7 +200,7 @@ export async function probeWebullPositions(
   if (config.mintSession !== false) {
     const session = await ensureWebullAccessToken(
       fetchImpl,
-      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce },
+      { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce, authModeReader: config.authModeReader },
       config.tokenStore ?? defaultTokenStore,
     );
     sessionNote = session.note;
