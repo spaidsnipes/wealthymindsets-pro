@@ -29,6 +29,7 @@
  * not, and this docblock is not claiming otherwise.
  */
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { sessionKeyOf, type SessionWindow } from "@/lib/marketData/sessionWindow";
 
 /**
  * THE ONLY THREE FIELDS PIVOT DETECTION READS.
@@ -906,6 +907,77 @@ export function vwap(bars: LegacyOhlcvTuple[]): number[] {
     cumPV += tp * b.volume; cumV += b.volume;
     return cumV > 0 ? cumPV / cumV : tp;
   });
+}
+
+/**
+ * SESSION-ANCHORED VWAP (2026-09-26, serving: TSLA 15m drew ONE cumulative
+ * line across a week of bars, in its own pane, on a 362–365 scale).
+ *
+ * `vwap()` above accumulates from whatever bar the feed happened to load
+ * first, so on a week of 15m bars it is a five-day anchored VWAP that no menu
+ * promised. The menu promises "accumulated from the session open … it resets
+ * at the start of each session" (indicatorDescriptions VWAP). This one resets
+ * on the ONE session owner, `sessionKeyOf(time, sessionWindowFor(...))`, so
+ * VWAP, the Session Profile and every other session reader share one clock:
+ * RTH / ETH for equities, the Globex (or grains / livestock) day for futures,
+ * the 17:00 ET FX roll, and the owner's named day for 24/7 markets. It does
+ * not keep a second clock of its own.
+ *
+ *   - A bar the owner places in NO session (outside RTH, the Globex
+ *     maintenance hour) gets NaN: it is not part of any session's VWAP.
+ *   - No volume, no VWAP: until the session has traded volume the value is
+ *     NaN, never the typical price dressed up as a volume-weighted average.
+ *     A zero-volume bar later in the session carries the running value.
+ *   - σ is the volume-weighted standard deviation of typical price about the
+ *     session VWAP (Σv·tp²/Σv − VWAP²), reset with it, so the ±kσ bands start
+ *     every session at zero width.
+ *   - `breakAfter[i]` is true when the NEXT drawn point belongs to a different
+ *     session, so the renderer can refuse to join two sessions with a line.
+ *   - DAILY_WINDOW (daily and longer) returns null: each bar is already a
+ *     whole session, so a session VWAP has nothing to accumulate. The caller
+ *     withholds it with `VWAP_DAILY_WITHHELD_REASON`.
+ */
+export interface SessionVwap {
+  readonly vwap: number[];
+  readonly sigma: number[];
+  readonly breakAfter: boolean[];
+  /** The owner's name for the session the line was anchored to. */
+  readonly label: string;
+}
+
+export const VWAP_DAILY_WITHHELD_REASON =
+  "VWAP withheld · session VWAP resets each session and each bar at this timeframe is already a whole session";
+
+export function sessionVwap(bars: readonly LegacyOhlcvTuple[], win: SessionWindow): SessionVwap | null {
+  if (win.kind === "DAILY_WINDOW") return null;
+  const n = bars.length;
+  const out: number[] = new Array(n).fill(NaN);
+  const sig: number[] = new Array(n).fill(NaN);
+  const keys: (string | null)[] = new Array(n).fill(null);
+  let key: string | null = null;
+  let cumPV = 0, cumPV2 = 0, cumV = 0;
+  for (let i = 0; i < n; i++) {
+    const b = bars[i];
+    const k = sessionKeyOf(Number(b.time), win);
+    keys[i] = k;
+    if (k == null) continue;
+    if (k !== key) { key = k; cumPV = 0; cumPV2 = 0; cumV = 0; }
+    const v = Number.isFinite(b.volume) && b.volume > 0 ? b.volume : 0;
+    const tp = (b.high + b.low + b.close) / 3;
+    cumPV += tp * v; cumPV2 += tp * tp * v; cumV += v;
+    if (cumV <= 0) continue;
+    const m = cumPV / cumV;
+    out[i] = m;
+    sig[i] = Math.sqrt(Math.max(0, cumPV2 / cumV - m * m));
+  }
+  const breakAfter: boolean[] = new Array(n).fill(false);
+  let next = -1;
+  for (let i = n - 1; i >= 0; i--) {
+    if (!Number.isFinite(out[i])) continue;
+    if (next >= 0 && keys[next] !== keys[i]) breakAfter[i] = true;
+    next = i;
+  }
+  return { vwap: out, sigma: sig, breakAfter, label: win.label };
 }
 
 export function anchoredVwap(bars: LegacyOhlcvTuple[], anchorIdx = 0): number[] {

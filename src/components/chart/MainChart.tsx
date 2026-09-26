@@ -4377,36 +4377,65 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Skip indicators requiring external data feeds
     const skip = (name: string) => IND.REQUIRES_FEED.has(name) || IND.MTF_INDICATORS.has(name);
 
-    // ── VWAP — now in its OWN native bottom pane (scaleId "vwap") ──────
-    // Per user request, VWAP lives in a dedicated pane like RSI/MACD rather
-    // than overlaying the candles. The whole VWAP family shares the pane.
-    if ((inds.has("VWAP") || inds.has("VWAP Bands")) && visibleAtTf(ip("VWAP"), timeframe)) {
-      const vwapVals = IND.vwap(bars);
-      addOsc(vwapVals, ip("VWAP").color ?? "#F0B429", "vwap", (ip("VWAP").lineWidth ?? 2));
-      if (inds.has("VWAP Bands")) {
-        let cumSqDev = 0, cumVol = 0;
-        const vwapVals2 = IND.vwap(bars);
-        const s1u: number[] = [], s1d: number[] = [], s2u: number[] = [], s2d: number[] = [];
-        bars.forEach((b, i) => {
-          const tp = (b.high + b.low + b.close) / 3;
-          cumVol += b.volume; cumSqDev += b.volume * (tp - vwapVals2[i]) ** 2;
-          const sigma = Math.sqrt(Math.max(0, cumVol > 0 ? cumSqDev / cumVol : 0));
-          s1u.push(vwapVals2[i] + sigma); s1d.push(vwapVals2[i] - sigma);
-          s2u.push(vwapVals2[i] + 2 * sigma); s2d.push(vwapVals2[i] - 2 * sigma);
-        });
-        addOsc(s1u, "rgba(240,180,41,0.5)", "vwap", 1); addOsc(s1d, "rgba(240,180,41,0.5)", "vwap", 1);
-        addOsc(s2u, "rgba(240,180,41,0.3)", "vwap", 1); addOsc(s2d, "rgba(240,180,41,0.3)", "vwap", 1);
+    // ── VWAP family — ON PRICE, anchored to the session (2026-09-26) ──────
+    // Serving, TSLA 15m: VWAP sat in its own bottom pane on a 362–365 scale
+    // and never reset, so a week of bars drew one cumulative line. VWAP and
+    // every band around it are PRICE LEVELS: they ride the candles' own scale
+    // through `addSessionLine` (price scale + overlayPriceFormat, like the
+    // EMAs), never through `addOsc`, which opens a new pane. The session comes
+    // from the ONE owner, sessionWindowFor → IND.sessionVwap; at daily and
+    // longer there is no session to accumulate, so the line is withheld with
+    // its reason named on the canvas receipt, not drawn as something else.
+    const vwapFamily = inds.has("VWAP") || inds.has("VWAP Bands") || inds.has("VWAP Deviation Bands");
+    const sessVwap = vwapFamily ? IND.sessionVwap(bars, sessionWindowFor(symbol, timeframe, !!extendedHours)) : null;
+    {
+      const ds = canvasRef.current?.dataset;
+      if (ds) {
+        delete ds.vwapSession; delete ds.vwapWithheld;
+        if (vwapFamily) {
+          if (sessVwap) ds.vwapSession = sessVwap.label;
+          else ds.vwapWithheld = IND.VWAP_DAILY_WITHHELD_REASON;
+        }
       }
     }
-
-    if (inds.has("Anchored VWAP")) addOsc(IND.anchoredVwap(bars, 0), "#FFD700", "vwap", 1);
-    if (inds.has("VWAP Deviation Bands")) {
-      const v = IND.vwap(bars);
-      addOsc(v, "#F0B429", "vwap", 1);
-      const sd = IND.stdDev(closes, 20);
-      addOsc(v.map((val, i) => val + sd[i]), "rgba(240,180,41,0.4)", "vwap", 1);
-      addOsc(v.map((val, i) => val - sd[i]), "rgba(240,180,41,0.4)", "vwap", 1);
+    // A line that must not join two sessions: the last point of a session is
+    // painted transparent, so the segment into the next session's first point
+    // is invisible (LWC strokes segment i→i+1 in point i's colour).
+    const addSessionLine = (vals: number[], color: string, width = 1) => {
+      if (!sessVwap) return null;
+      try {
+        const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: overlayPriceFormat });
+        s.setData(bars.map((b, i) => sessVwap.breakAfter[i]
+          ? { time: b.time as any, value: vals[i], color: "rgba(0,0,0,0)" }
+          : { time: b.time as any, value: vals[i] }).filter(d => isFinite(d.value)));
+        indSeriesRef.current.push(s);
+        return s;
+      } catch { return null; }
+    };
+    const vwapBand = (k: number, color: string) => {
+      if (!sessVwap) return;
+      addSessionLine(sessVwap.vwap.map((m, i) => m + k * sessVwap.sigma[i]), color, 1);
+      addSessionLine(sessVwap.vwap.map((m, i) => m - k * sessVwap.sigma[i]), color, 1);
+    };
+    if (sessVwap && (inds.has("VWAP") || inds.has("VWAP Bands")) && visibleAtTf(ip("VWAP"), timeframe)) {
+      addSessionLine(sessVwap.vwap, ip("VWAP").color ?? "#F0B429", (ip("VWAP").lineWidth ?? 2));
+      if (inds.has("VWAP Bands")) {
+        vwapBand(1, "rgba(240,180,41,0.5)");
+        vwapBand(2, "rgba(240,180,41,0.3)");
+      }
     }
+    // "Key VWAP σ extension levels" (ChartToolbar): the session VWAP's own σ,
+    // not a 20-bar close stdDev hung on a cumulative line.
+    if (sessVwap && inds.has("VWAP Deviation Bands")) {
+      addSessionLine(sessVwap.vwap, "#F0B429", 1);
+      vwapBand(1, "rgba(240,180,41,0.4)");
+      vwapBand(2, "rgba(240,180,41,0.3)");
+      vwapBand(3, "rgba(240,180,41,0.2)");
+    }
+    // Anchored VWAP is cumulative from its anchor by definition (bar 0 until
+    // an anchor picker exists) — but it is a price level, so it rides the
+    // price scale too.
+    if (inds.has("Anchored VWAP")) addLine(IND.anchoredVwap(bars, 0), "#FFD700", 1);
 
     // ── Moving Averages ───────────────────────────────────────
     // ONE material, depth by luminance — see `movingAverageInk` in
