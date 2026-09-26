@@ -210,6 +210,7 @@ const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT
 /** The field's brightest point, at the live edge — it tints the glass, never the candles (cut out). */
 const REGIME_FIELD_PEAK = 0.07;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
+import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
@@ -8707,7 +8708,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          on the left edge, so it travels vertically with price.
          Gated by chartSettings.candleTimer (Chart Settings toggle).
       ══════════════════════════════════════════════════════ */
-      if (candleTimerRef.current) {
+      if (candleTimerRef.current && countdownRef.current) {
         const liveBars = barsRef.current;
         const lastBar  = liveBars.length ? liveBars[liveBars.length - 1] : null;
         const yRaw = lastBar ? srs?.priceToCoordinate(lastBar.close) : null;
@@ -17510,6 +17511,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     intervalSec,
     candleStatus.live,
     candleStatus.label,
+    // Proven closure only: no bar is forming, so nothing counts down.
+    sessionOpen === false,
   );
 
   /* ONE INTERVAL, TWO READERS — same law as the feed verdict above. The
@@ -17561,7 +17564,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   // The RAF canvas pill draws the same glyph and the same flash verdict, so
   // the on-chart pill can never disagree with the header strip.
-  countdownRef.current = barCountdown.glyph;
+  // Empty on a closed market: the canvas pill at the price line draws nothing.
+  countdownRef.current = barCountdown.kind === "MARKET_CLOSED" ? "" : barCountdown.glyph;
   closeFlashRef.current = barCountdown.closing;
 
   return (
@@ -18022,7 +18026,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             title={barCountdown.title}
             data-bar-countdown-kind={barCountdown.kind}
             className={`flex items-center gap-1 text-[10px] font-mono font-bold transition-colors ${
-              chartSettings?.candleTimer === false || replayCameraOn ? "hidden" : ""
+              chartSettings?.candleTimer === false || replayCameraOn || barCountdown.kind === "MARKET_CLOSED" ? "hidden" : ""
             } ${
               barCountdown.closing ? "text-wm-red" : "text-wm-text-dim"
             }`}>
@@ -18950,20 +18954,37 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             !!lastBar && lastBar.time === dataWindow.time,
             nowMs,
           );
+          /* BESIDE ITS BAR, NEVER ON THE LEGEND (serving 2026-09-26: this
+             panel sat at top 8 / left 48 over the symbol, the headline price
+             and the D / EFF chips). `rangeVer` keeps it on the bar through
+             pan and zoom; see dataWindowPlacement.ts. */
+          void rangeVer;
+          const dwAt = logicalToPixel({ time: dataWindow.time, price: dataWindow.h });
+          let dwSpacing = 6;
+          try { dwSpacing = Number(chartRef.current?.timeScale().options().barSpacing) || 6; } catch { /* keep the default */ }
+          const dwPlace = placeDataWindow({
+            barX: dwAt?.x ?? null,
+            barHighY: dwAt?.y ?? null,
+            barSpacing: dwSpacing,
+            paneW: containerRef.current?.clientWidth ?? 0,
+            paneH: containerRef.current?.clientHeight ?? 0,
+            topFloor: BELOW_PRICE_LEGEND + DATA_WINDOW_TOGGLE_PX + 2 * PANE_TOP_LEFT_INSET,
+          });
           return (
           <div
             role="group"
             aria-label={scope.spoken}
             data-data-window-historical={scope.historical ? "true" : "false"}
+            data-data-window-side={dwPlace.side}
             style={{
-              position: "absolute", top: 8, left: 48, zIndex: 60,
+              position: "absolute", top: dwPlace.top, left: dwPlace.left, zIndex: 60,
+              width: DATA_WINDOW_W, boxSizing: "border-box",
               background: "rgba(20,24,36,0.92)",
               // The border is the one place this panel may shout. It is chosen
               // from scope.historical, never from "a value is present".
               border: `1px solid ${scope.historical ? "#F0B429" : "#2F80ED"}`,
               borderRadius: 6, padding: "7px 10px",
               pointerEvents: "none",
-              minWidth: 140,
             }}>
             <div title={scope.spoken} style={{ fontSize: 9, fontWeight: 700, color: scope.historical ? "#F0B429" : "#2F80ED", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {scope.heading}

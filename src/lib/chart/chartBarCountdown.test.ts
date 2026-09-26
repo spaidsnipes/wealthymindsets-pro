@@ -149,3 +149,29 @@ describe("MainChart adoption", () => {
     expect(CODE).toContain("ctx.lineTo(x + boxW + 34, cy + 0.5)");
   });
 });
+
+describe("a PROVEN-closed market has no bar to count down to (GP12 §24)", () => {
+  it("reads MARKET_CLOSED — never a ticking number toward a bar due days away", () => {
+    const c = chartBarCountdown(1251, 3600, false, "SESSION CLOSED — LAST VERIFIED", true);
+    expect(c.kind).toBe("MARKET_CLOSED");
+    expect(c.glyph).toBe("CLOSED");
+    expect(c.closing).toBe(false);
+    expect(c.spoken).toContain("no bar is forming");
+  });
+
+  it("closure outranks even a live flag — the flag cannot conjure a forming bar", () => {
+    expect(chartBarCountdown(3, 60, true, "LIVE", true).closing).toBe(false);
+  });
+
+  it("without proof of closure the clock reading is unchanged", () => {
+    expect(chartBarCountdown(1251, 3600, false, "DEGRADED").kind).toBe("CLOCK_ONLY");
+  });
+
+  it("MainChart passes PROVEN closure only, hides the header countdown and the price-line pill", () => {
+    const code = readFileSync(join(process.cwd(), "src", "components/chart/MainChart.tsx"), "utf8");
+    expect(code).toMatch(/candleStatus\.label,\s*\/\/[^\n]*\n\s*sessionOpen === false,\s*\);/);
+    expect(code).toContain('countdownRef.current = barCountdown.kind === "MARKET_CLOSED" ? "" : barCountdown.glyph;');
+    expect(code).toContain("if (candleTimerRef.current && countdownRef.current) {");
+    expect(code).toContain('barCountdown.kind === "MARKET_CLOSED" ? "hidden" : ""');
+  });
+});

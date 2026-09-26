@@ -169,7 +169,7 @@ describe.runIf(REPLAY_DRIVES_THE_CAMERA)("THE GLASS — the window is painted, l
     expect(MAIN, "headline price").toContain("replayCameraOn ? null : ticker.price,");
     expect(MAIN, "headline change").toContain("hasProviderChange && !replayCameraOn ? { chg: change, pct: ticker.changePct as number } : null,");
     expect(MAIN, "on-canvas countdown").toContain("candleTimerRef.current = chartSettings?.candleTimer !== false && !replayCameraOn;");
-    expect(MAIN, "countdown pill").toContain('chartSettings?.candleTimer === false || replayCameraOn ? "hidden" : ""');
+    expect(MAIN, "countdown pill").toContain('chartSettings?.candleTimer === false || replayCameraOn || barCountdown.kind === "MARKET_CLOSED" ? "hidden" : ""');
     expect(MAIN, "paper-trade live P&L lines").toContain("if (!series || !paperTradesVisible || replayCameraOn) return;");
   });
 });

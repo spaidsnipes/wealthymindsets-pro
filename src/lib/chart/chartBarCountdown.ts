@@ -52,7 +52,13 @@ export type BarCountdownKind =
   /** Clock is running but the screen's bar is not tracking it. */
   | "CLOCK_ONLY"
   /** The interval or the remainder is not a number WM can stand behind. */
-  | "UNKNOWN";
+  | "UNKNOWN"
+  /**
+   * The market is PROVEN closed: no bar is forming, so there is nothing to
+   * count down to. Measured on serving, Friday 23:39 ET, NQ1! 1h: "0h 20m 51s"
+   * ticked beside "MARKET CLOSED" toward a bar due Sunday evening.
+   */
+  | "MARKET_CLOSED";
 
 export interface BarCountdown {
   /** The visible glyph. NEVER a bare `HH:MM` — the unit travels with it. */
@@ -115,7 +121,21 @@ export function chartBarCountdown(
   intervalSeconds: number | null | undefined,
   feedLive: boolean,
   feedLabel?: string | null,
+  /** True ONLY on `provenSessionClosure(...) === false` — never inferred here. */
+  sessionProvenClosed = false,
 ): BarCountdown {
+  if (sessionProvenClosed) {
+    return {
+      kind: "MARKET_CLOSED",
+      glyph: "CLOSED",
+      closing: false,
+      title:
+        "The market is closed on its own published hours, so no bar is forming " +
+        "and there is no close to count down to. The countdown returns when the " +
+        "session does.",
+      spoken: "Market closed; no bar is forming",
+    };
+  }
   const interval = fin(intervalSeconds);
   const remaining = fin(remainingSeconds);
 
