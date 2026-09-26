@@ -283,6 +283,7 @@ import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFoot
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
 import { QUESTION_CHOICES, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
+import type { TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
@@ -833,6 +834,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // The chart's lens reading, published when it changes (UI-04 rail column).
   const [railLens, setRailLens] = useState<QuestionLensVM | null>(null);
   const [railAbsorption, setRailAbsorption] = useState<AbsorptionRailRead | null>(null);
+  const [railFootprint, setRailFootprint] = useState<TapeFootprintVM | null>(null);
   // What the trader ASKED of the Question Lens (Auto = the camera chooses).
   const [questionChoice, setQuestionChoice] = useState<QuestionChoice>(() => {
     const v = lsGet("wm_questionChoice", "AUTO") as string;
@@ -3814,6 +3816,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // UI-04: the lens's question and evidence debt stand beside the market.
     questionLens: questionLensOn ? railLens : null,
     absorptionRead: absorptionAnatomy ? railAbsorption : null,
+    tapeFootprint: railFootprint,
     // THE COMPANION CAMERA, from the SAME owner the masthead standing reads.
     // One boolean, one owner — the masthead, the chart's data-truth strip and
     // this band cannot drift into disagreeing about which camera the room is
@@ -5567,6 +5570,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       questionLensOnChart={questionLensOn}
                       onQuestionLensRead={setRailLens}
                       onAbsorptionRead={setRailAbsorption}
+                      onTapeFootprint={setRailFootprint}
                       lensInRail={!narrowViewport && !optionsOpen}
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}

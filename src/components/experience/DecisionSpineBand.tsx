@@ -48,6 +48,7 @@
 import * as React from "react";
 import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
+import type { TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 
 import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
@@ -257,6 +258,8 @@ export interface DecisionSpineBandProps {
   readonly questionLens?: QuestionLensVM | null;
   /** F06A · the chart's own newest absorption zone, for the flow card's ABSORPTION row. */
   readonly absorptionRead?: AbsorptionRailRead | null;
+  /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
+  readonly tapeFootprint?: TapeFootprintVM | null;
 }
 
 /**
@@ -1615,6 +1618,41 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           </span>
         </div>
       ) : null}
+
+      {/* F06A · FOOTPRINT — buy against sell by price, from the tape heard since
+          it began (never called "session" over a partial one). Buy grows left
+          of the centre line, sell right, both on one scale. */}
+      {rail && props.tapeFootprint && !replayEngaged ? (() => {
+        const fp = props.tapeFootprint!;
+        const peak = Math.max(...fp.rows.map(r => Math.max(r.buy, r.sell)), 0);
+        if (!(peak > 0)) return null;
+        const since = new Date(fp.sinceSec * 1000).toISOString().slice(11, 16);
+        return (
+          <div
+            data-testid="spine-tape-footprint"
+            data-footprint-rows={fp.rows.length}
+            aria-label={`Tape footprint since ${since} UTC: aggressor buy ${fp.buy.toPrecision(4)}, aggressor sell ${fp.sell.toPrecision(4)} across ${fp.rows.length} price rows.`}
+            style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "8px 11px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
+          >
+            <span aria-hidden="true" style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>
+              Footprint · since {since} UTC
+            </span>
+            <span aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", fontSize: 11, lineHeight: "14px", color: "#a9a191" }}>
+              <span>Buy</span><span style={{ textAlign: "right" }}>Sell</span>
+            </span>
+            {fp.rows.map((r, i) => (
+              <span key={i} aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: 5, alignItems: "stretch" }}>
+                <span style={{ display: "flex", justifyContent: "flex-end", borderRight: "1px solid rgba(196,165,116,0.35)" }}>
+                  <span style={{ width: `${(r.buy / peak) * 100}%`, background: "#c4a574", opacity: 0.9 }} />
+                </span>
+                <span style={{ display: "flex" }}>
+                  <span style={{ width: `${(r.sell / peak) * 100}%`, background: "#8a8271", opacity: 0.9 }} />
+                </span>
+              </span>
+            ))}
+          </div>
+        );
+      })() : null}
 
       {!rail && (
         <div style={cellStyle}>

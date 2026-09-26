@@ -231,6 +231,7 @@ import {
   type AnatomyBarInput,
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
+import { selectTapeFootprint, type TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 import { stackAnchor, stackSlab } from "@/lib/chart/stackedImbalanceAnchor";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueCandleGlass";
@@ -1229,6 +1230,8 @@ interface Props {
    * zone, published only when it changes (null when the layer is off).
    */
   onAbsorptionRead?: (read: AbsorptionRailRead | null) => void;
+  /** F06A · the rail's footprint — buy/sell by price from the heard tape (throttled, on change). */
+  onTapeFootprint?: (fp: TapeFootprintVM | null) => void;
   /** SHOW RAW — every overlay reading hidden, candles bare; switches untouched. */
   rawOnChart?: boolean;
   /** The continuation owner's verdict, for the Question Lens's Continuing? (verbatim). */
@@ -1612,6 +1615,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onQuestionLensRead,
   lensInRail = false,
   onAbsorptionRead,
+  onTapeFootprint,
   rawOnChart = false,
   continuationOnChart = null,
   permissionOnChart = null,
@@ -1922,6 +1926,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onAbsorptionReadRef = useRef(onAbsorptionRead);
   onAbsorptionReadRef.current = onAbsorptionRead;
   const absorptionReadKeyRef = useRef<string>("");
+  const onTapeFootprintRef = useRef(onTapeFootprint);
+  onTapeFootprintRef.current = onTapeFootprint;
+  const footprintPublishRef = useRef<{ at: number; key: string }>({ at: 0, key: "" });
   const rawRef = useRef(false);
   rawRef.current = rawOnChart;
   const continuationRef = useRef<typeof continuationOnChart>(null);
@@ -2696,6 +2703,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // timeframe) change. The bounded recent-tick buffer folds back into them.
     tickAccRef.current = new Map();
     tickAccStartedAtRef.current = null;
+    // The rail's footprint belonged to the old buckets: withdraw it now.
+    footprintPublishRef.current = { at: 0, key: "NONE" };
+    onTapeFootprintRef.current?.(null);
     bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
     deltaTickAccRef.current = new Map();
@@ -2784,6 +2794,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // subscriber (chip, future multi-symbol panels) re-renders.
       pushCvdSample(canonicalSym, tapeSource ?? "unavailable");
       setSessionTapeTick(t => t + 1);
+    }
+    // F06A rail footprint — at most every 2 s, and only when it changed.
+    if (now - footprintPublishRef.current.at > 2000) {
+      footprintPublishRef.current.at = now;
+      const fp = selectTapeFootprint(tickAccRef.current, tickAccStartedAtRef.current);
+      const key = fp ? `${fp.sinceSec}|${fp.buy.toPrecision(6)}|${fp.sell.toPrecision(6)}|${fp.rows.length}` : "NONE";
+      if (key !== footprintPublishRef.current.key) {
+        footprintPublishRef.current.key = key;
+        onTapeFootprintRef.current?.(fp);
+      }
     }
   }, [recentTicks, timeframe, base, tapeSource, canonicalSym, sessionSlot]);
 

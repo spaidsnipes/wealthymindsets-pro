@@ -1272,3 +1272,27 @@ describe("F06A · the flow card carries the chart's ABSORPTION row", () => {
     expect(none).not.toContain("spine-flow-absorption");
   });
 });
+
+describe("F06A · the rail's footprint from the heard tape", () => {
+  it("draws buy left and sell right on one scale, and says since when — never 'session'", () => {
+    const html = render({ presentation: "rail", tapeFootprint: {
+      rows: [{ priceLo: 101, priceHi: 102, buy: 4, sell: 1 }, { priceLo: 100, priceHi: 101, buy: 1, sell: 2 }],
+      buy: 5, sell: 3, sinceSec: Date.UTC(2026, 8, 26, 4, 0, 0) / 1000,
+    } });
+    expect(html).toContain('data-testid="spine-tape-footprint"');
+    expect(html).toContain("Footprint · since 04:00 UTC");
+    expect(html).toContain("width:100%");
+    expect(html).toContain("width:25%");
+    expect(html).not.toMatch(/session footprint/i);
+  });
+  it("nothing without a footprint", () => {
+    expect(render({ presentation: "rail", tapeFootprint: null })).not.toContain("spine-tape-footprint");
+  });
+  it("MainChart withdraws it on a symbol/timeframe rebuild and publishes on change, throttled", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const code = readFileSync(join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(code).toContain("onTapeFootprintRef.current?.(null);");
+    expect(code).toContain("if (now - footprintPublishRef.current.at > 2000) {");
+  });
+});
