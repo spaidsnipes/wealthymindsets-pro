@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import selectLiquidityLifecycle, { PULLED_REFUSAL } from "./selectLiquidityLifecycle";
+import selectLiquidityLifecycle, { PULLED_REFUSAL, rankPoolsForGlass, GLASS_POOLS_PER_SIDE, type LiquidityPool } from "./selectLiquidityLifecycle";
 
 // A market that builds volume at 100, leaves up to ~103, comes back to 100
 // (touch), trades there again (refill), then breaks down through it (consume).
@@ -61,5 +61,33 @@ describe("Liquidity lifecycle — measured stages, PULLED refused", () => {
     expect(standing.length).toBeGreaterThan(0);
     expect(v.pools[0].stage).not.toBe("CONSUMED");
     expect(v.pools.some(p => Math.abs(p.price - live) < 1)).toBe(true);
+  });
+});
+
+describe("GP12 §64 — which pools speak on the glass (serving TSLA 15m, 2026-09-26 05:00 CDT)", () => {
+  const pool = (price: number, stage: LiquidityPool["stage"] = "PERSISTED"): LiquidityPool =>
+    ({ price, low: price - 0.25, high: price + 0.25, stage, events: [{ stage: "APPEARED", time: 1 }], volume: 100 });
+
+  it("shows the nearest two STANDING pools above price and the nearest two below; the rest are memory", () => {
+    const ps = [pool(90), pool(99), pool(98), pool(101), pool(103), pool(110)];
+    expect(GLASS_POOLS_PER_SIDE).toBe(2);
+    expect(rankPoolsForGlass(ps, 100)).toEqual(["MEMORY", "SHOWN", "SHOWN", "SHOWN", "SHOWN", "MEMORY"]);
+  });
+
+  it("a consumed pool is memory however near it sits", () => {
+    const ps = [pool(100.5, "CONSUMED"), pool(101), pool(99)];
+    expect(rankPoolsForGlass(ps, 100)).toEqual(["MEMORY", "SHOWN", "SHOWN"]);
+  });
+
+  it("the selected pool shows in full whatever its rank or stage", () => {
+    const ps = [pool(90), pool(99), pool(98), pool(101), pool(103), pool(110, "CONSUMED")];
+    const r = rankPoolsForGlass(ps, 100, { selectedPrice: 110.1 });
+    expect(r[5]).toBe("SELECTED");
+    expect(r.filter(x => x === "SHOWN")).toHaveLength(4);
+  });
+
+  it("with no usable price the owner's own order stands", () => {
+    const ps = [pool(1), pool(2), pool(3), pool(4), pool(5)];
+    expect(rankPoolsForGlass(ps, NaN)).toEqual(["SHOWN", "SHOWN", "SHOWN", "SHOWN", "MEMORY"]);
   });
 });

@@ -304,7 +304,7 @@ import {
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFixtures";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
-import { selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
+import { TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
@@ -344,7 +344,7 @@ import {
 import { fuseProfiles, fusedCaption, fusionRefusalCaption, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
 import { fusionSourceFor, pickLawfulFusionPair, type FusionSourceInputs } from "@/lib/marketData/viewModels/profileFusionSources";
 import { profileEstWord, profileLevelTag } from "@/lib/marketData/viewModels/profileEvidenceWord";
-import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
+import { rankPoolsForGlass, type LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
@@ -16964,6 +16964,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.liquidityLifecyclePainted;
             delete ds.liquidityLifecycleClipped;
             delete ds.liquidityLifecycleBirths;
+            delete ds.liquidityLifecycleShown;
+            delete ds.liquidityLifecycleMemory;
             delete ds.liquidityLifecycleTicks;
             delete ds.liquidityLifecycleSpans;
             delete ds.liquidityLifecycleTag;
@@ -17025,11 +17027,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             };
             let clippedTop = 0, clippedBot = 0;
+            // GP12 §64 — WHO SPEAKS WHEN IT IS CROWDED (serving TSLA 15m, the
+            // Founder's full layer set, 2026-09-26 05:00 CDT: six ladders ran
+            // the whole pane at 374–381 — a band of gold hairlines over a week
+            // of candles). The lifecycle owner ranks by distance from price
+            // NOW: the nearest two STANDING pools above and below are SHOWN;
+            // the pool under the trader's selected price is SELECTED (always
+            // in full); every other pool is MEMORY — a short stub at its own
+            // right end (the live bar while it stands, its cap once consumed),
+            // at the governor's memory tier, no full-width ladder, no marks.
+            const priceNowL = lastBarL ? Number(lastBarL.close) : NaN;
+            const rolesL = rankPoolsForGlass(lc.pools, priceNowL, { selectedPrice: selectedSliceRef.current });
+            const shownA = att.textAlpha("liquidityLifecycle");
+            const selectedA = Math.max(shownA, att.alpha("liquidityLifecycle", { selectedItem: true }));
+            const memoryA = shownA * Math.min(1, TIER_CEILING.MEMORY / TIER_CEILING[att.tierOf("liquidityLifecycle")]);
+            /** A pool born before the camera shows only this share of the pane before now. */
+            const OFFCAM_TAIL = 0.2;
+            let shownL = 0, memoryL = 0;
             ctx.save();
             ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
             clipToPaneL();
             ctx.clip(cutL, "evenodd");
-            for (const pool of lc.pools) {
+            for (let pi = 0; pi < lc.pools.length; pi++) {
+              const pool = lc.pools[pi];
+              const role = rolesL[pi];
               const span = poolSpan(pool.events);
               if (!span) continue;
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
@@ -17046,9 +17067,47 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // From the APPEARED bar's slot (or the camera's edge, when its
               // history runs off to the left) to the CONSUMED bar's slot or
               // the live bar.
-              const x0 = Math.max(0, xStart - spacingL / 2);
+              const xBirth = Math.max(0, xStart - spacingL / 2);
+              const bornOnCamera = xStart - spacingL / 2 >= 0;
               const xEnd = Math.min(rightL, span.endTime != null ? xStop + spacingL / 2 : xStop);
+              // Born before the camera and not selected: only the last fifth
+              // of the pane before now, not a ladder across the whole camera.
+              const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xLive - OFFCAM_TAIL * rightL) : xBirth;
               if (xEnd <= x0) continue;
+              if (role === "MEMORY") {
+                // MEMORY — a short stub at the pool's own right end, fading in.
+                const stub = Math.min(48, spacingL * 6);
+                const sx0 = Math.max(x0, xEnd - stub);
+                if (xEnd - sx0 < 2) continue;
+                const stubRungs = span.phases.length > 0 ? span.phases[span.phases.length - 1].rungs : 2;
+                const stubQuiet = pool.events.length ? barsSince(pool.events[pool.events.length - 1].time) : 0;
+                const stubInk = ladderInk({ rungs: stubRungs, consumed: span.consumed, barsQuiet: stubQuiet, weight: pool.volume / maxVolL });
+                ctx.globalAlpha = memoryA;
+                const stubFade = ctx.createLinearGradient(sx0, 0, xEnd, 0);
+                stubFade.addColorStop(0, `rgba(${INK},0)`);
+                stubFade.addColorStop(1, `rgba(${INK},${stubInk.rungAlpha})`);
+                ctx.strokeStyle = stubFade;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (const ry of ladderRungYs(top, h, stubRungs)) {
+                  const yy = Math.round(ry) + 0.5;
+                  ctx.moveTo(sx0, yy);
+                  ctx.lineTo(xEnd, yy);
+                }
+                ctx.stroke();
+                if (span.consumed) {
+                  ctx.lineWidth = 1.5;
+                  ctx.strokeStyle = `rgba(${INK},${Math.min(0.9, 0.35 + stubInk.age)})`;
+                  ctx.beginPath();
+                  ctx.moveTo(xEnd - 0.75, top - 3);
+                  ctx.lineTo(xEnd - 0.75, top + h + 3);
+                  ctx.stroke();
+                }
+                memoryL++;
+                continue;
+              }
+              ctx.globalAlpha = role === "SELECTED" ? selectedA : shownA;
+              shownL++;
               const lastEv = pool.events[pool.events.length - 1];
               const weight = pool.volume / maxVolL;
               const barsQuiet = lastEv ? barsSince(lastEv.time) : 0;
@@ -17073,7 +17132,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               //   maturity    rungs 2 → 3 → 4 → 5 and brighter (ladderInk)
               //   touched     the ladder is BITTEN (a gap) with a caret over it
               //   consumed    a bold cap, and the rungs fade out after it
-              const bornOnCamera = xStart - spacingL / 2 >= 0;
               const touchXs = span.ticks
                 .filter(t => t.stage === "TOUCHED")
                 .map(t => xOf(t.time))
@@ -17236,6 +17294,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // How many painted pools were BORN on camera (a birth bracket) —
             // the rest fade in from the edge, and their spans read "<x0-x1".
             ds.liquidityLifecycleBirths = `${births}/${painted}`;
+            // GP12 §64: how many pools spoke in full, of all the owner held;
+            // the rest are memory stubs.
+            ds.liquidityLifecycleShown = `${shownL}/${lc.pools.length}`;
+            ds.liquidityLifecycleMemory = String(memoryL);
             ds.liquidityLifecycleClipped = [clippedTop ? `TOP:${clippedTop}` : "", clippedBot ? `BOTTOM:${clippedBot}` : ""].filter(Boolean).join("|") || "NONE";
             if (spans.length > 0) ds.liquidityLifecycleSpans = spans.join(";");
             else delete ds.liquidityLifecycleSpans;
@@ -17245,6 +17307,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.liquidityLifecyclePainted;
           delete ds.liquidityLifecycleClipped;
           delete ds.liquidityLifecycleBirths;
+          delete ds.liquidityLifecycleShown;
+          delete ds.liquidityLifecycleMemory;
           delete ds.liquidityLifecycleTicks;
           delete ds.liquidityLifecycleSpans;
           delete ds.liquidityLifecycleTag;

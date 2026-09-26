@@ -87,7 +87,10 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
   it("starts at the APPEARED bar and ends at the CONSUMED bar or the live bar", () => {
     expect(block).toContain("const xStart = xOf(span.startTime);");
     expect(block).toContain("const xStop = span.endTime != null ? xOf(span.endTime) : xLive;");
-    expect(block).toContain("const x0 = Math.max(0, xStart - spacingL / 2);");
+    // Pin moved 2026-09-26 (GP12 §64): the birth x is xBirth; x0 is where
+    // the ladder is DRAWN from (the last fifth of the pane for a pool born
+    // before the camera, unless it is selected).
+    expect(block).toContain("const xBirth = Math.max(0, xStart - spacingL / 2);");
     expect(block).toContain("const xEnd = Math.min(rightL, span.endTime != null ? xStop + spacingL / 2 : xStop);");
     // The live edge is the newest bar's slot, not the axis.
     expect(block).toContain("const xLive = Math.min(rightL, xLastBar == null ? rightL : xLastBar + spacingL / 2);");
@@ -162,7 +165,8 @@ describe("no caption on the glass — the honesty is a receipt and one compact t
     // 2026-09-26 (H-501 permission): the off receipt names OFF vs SILENT:<depth>.
     const offAt = CHART.indexOf("ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);");
     expect(offAt).toBeGreaterThan(-1);
-    const off = CHART.slice(offAt, offAt + 480);
+    // Window widened 2026-09-26: the off branch now also withdraws Shown / Memory.
+    const off = CHART.slice(offAt, offAt + 900);
     for (const k of ["Painted", "Ticks", "Spans", "Tag", "Basis", "Refused"]) expect(off).toContain(`delete ds.liquidityLifecycle${k};`);
   });
 });
@@ -228,5 +232,42 @@ describe("Garden 11 — with the words hidden, the stage is still geometry (TSLA
   it("maturity is rung count AND brightness from one owner; all in family ink", () => {
     expect(block).toContain("const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha;");
     expect(block).toContain("ctx.globalAlpha = att.textAlpha(\"liquidityLifecycle\");");
+  });
+});
+
+describe("GP12 §64 — crowded glass: the near pools speak, the rest are memory (serving TSLA 15m, 2026-09-26 05:00 CDT)", () => {
+  // Measured with the Founder's full layer set: six ladders ran the whole
+  // pane (x 0 → ~1240 of 1567) at 374–381 — a band of gold hairlines.
+  it("ranks pools with the lifecycle owner, by distance from price now, with the selected price", () => {
+    expect(block).toContain("const rolesL = rankPoolsForGlass(lc.pools, priceNowL, { selectedPrice: selectedSliceRef.current });");
+    expect(block).toContain("const priceNowL = lastBarL ? Number(lastBarL.close) : NaN;");
+  });
+
+  it("MEMORY pools are a short stub at their own right end, at the memory tier, and draw nothing else", () => {
+    const mem = block.slice(block.indexOf('if (role === "MEMORY") {'), block.indexOf("memoryL++;"));
+    expect(mem.length).toBeGreaterThan(200);
+    expect(mem).toContain("const stub = Math.min(48, spacingL * 6);");
+    expect(mem).toContain("const sx0 = Math.max(x0, xEnd - stub);");
+    expect(mem).toContain("ctx.globalAlpha = memoryA;");
+    // No glow, no marks, no words from a memory pool.
+    expect(mem).not.toContain("createLinearGradient(0, top - halo");
+    expect(mem).not.toContain("words.push(");
+    expect(block).toMatch(/memoryL\+\+;\s*continue;/);
+    expect(block).toContain("const memoryA = shownA * Math.min(1, TIER_CEILING.MEMORY / TIER_CEILING[att.tierOf(\"liquidityLifecycle\")]);");
+  });
+
+  it("a pool born before the camera draws only the last fifth of the pane before now — unless selected", () => {
+    expect(block).toContain("const OFFCAM_TAIL = 0.2;");
+    expect(block).toContain('const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xLive - OFFCAM_TAIL * rightL) : xBirth;');
+  });
+
+  it("the selected pool paints at the governor's selected strength", () => {
+    expect(block).toContain('ctx.globalAlpha = role === "SELECTED" ? selectedA : shownA;');
+    expect(block).toContain('const selectedA = Math.max(shownA, att.alpha("liquidityLifecycle", { selectedItem: true }));');
+  });
+
+  it("publishes liquidityLifecycleShown = k/N and withdraws it", () => {
+    expect(block).toContain("ds.liquidityLifecycleShown = `${shownL}/${lc.pools.length}`;");
+    expect(CHART.match(/delete ds\.liquidityLifecycleShown;/g)?.length).toBe(2);
   });
 });

@@ -168,4 +168,48 @@ export function selectLiquidityLifecycle(input: readonly LifecycleBar[] | null |
   return { ...base, drawn: pools.length > 0, reason: pools.length ? "DRAWN" : "NO_POOLS", pools, step };
 }
 
+/**
+ * WHICH POOLS SPEAK ON THE GLASS — GP12 §64: "relevant current evidence =
+ * strong … memory = quiet … suppress low-value … when crowded".
+ *
+ * Serving, TSLA 15m desktop, the Founder's full layer set (2026-09-26 05:00
+ * CDT): six ladders ran the whole pane at 374–381 and read as a band of gold
+ * hairlines over a week of candles. The rule, by distance from price NOW:
+ *
+ *   SHOWN     the nearest GLASS_POOLS_PER_SIDE STANDING pools above price and
+ *             the nearest GLASS_POOLS_PER_SIDE below it
+ *   SELECTED  the pool under the trader's selected price (the chart's one
+ *             SLICE selection) — always shown in full, whatever its rank
+ *   MEMORY    every other standing pool and every consumed pool
+ *
+ * A pool AT price (its band holds it) sits on the side its centre is on.
+ * With no usable price the owner's own order stands: the first
+ * 2 × GLASS_POOLS_PER_SIDE standing pools are shown. PURE.
+ */
+export const GLASS_POOLS_PER_SIDE = 2;
+export type PoolGlassRole = "SHOWN" | "SELECTED" | "MEMORY";
+
+export function rankPoolsForGlass(
+  pools: readonly LiquidityPool[],
+  price: number | null | undefined,
+  opts: { readonly perSide?: number; readonly selectedPrice?: number | null } = {},
+): PoolGlassRole[] {
+  const perSide = Math.max(0, Math.floor(opts.perSide ?? GLASS_POOLS_PER_SIDE));
+  const roles: PoolGlassRole[] = pools.map(() => "MEMORY");
+  const standing = pools.map((p, i) => ({ p, i })).filter(({ p }) => p.stage !== "CONSUMED");
+  if (typeof price === "number" && Number.isFinite(price)) {
+    const dist = (p: LiquidityPool) => Math.abs(p.price - price);
+    const above = standing.filter(({ p }) => p.price > price).sort((a, z) => dist(a.p) - dist(z.p));
+    const below = standing.filter(({ p }) => p.price <= price).sort((a, z) => dist(a.p) - dist(z.p));
+    for (const { i } of [...above.slice(0, perSide), ...below.slice(0, perSide)]) roles[i] = "SHOWN";
+  } else {
+    for (const { i } of standing.slice(0, perSide * 2)) roles[i] = "SHOWN";
+  }
+  const sel = opts.selectedPrice;
+  if (typeof sel === "number" && Number.isFinite(sel)) {
+    pools.forEach((p, i) => { if (sel >= p.low && sel <= p.high) roles[i] = "SELECTED"; });
+  }
+  return roles;
+}
+
 export default selectLiquidityLifecycle;
