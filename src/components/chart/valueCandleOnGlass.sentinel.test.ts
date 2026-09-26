@@ -143,7 +143,9 @@ describe("the headline number stays the honest one", () => {
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.valueCandle = on \? glass\.reason : "OFF"/);
+    // 2026-09-26 (H-501 permission): OFF stays the trader's word; a layer
+    // the depth withheld says SILENT:<depth> through the governor's offWord.
+    expect(block).toMatch(/ds\.valueCandle = on \? glass\.reason : att\.offWord\(layerOnRef\.current\.valueCandle\)/);
   });
 
   it("withdraws the drawing receipts when the drawing goes away", () => {

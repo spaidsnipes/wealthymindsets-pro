@@ -227,7 +227,8 @@ describe("a bubble's words never leave the bubble; the disc is an obstacle for l
 
 describe("Big Trades receipts are withdrawn when the layer stops", () => {
   it("the OFF branch withdraws every receipt the ON pass writes, beyond its count and status", () => {
-    const onStart = RAW.indexOf('if (effectiveFP === "big-trades" || bigTradesOverlay) {');
+    // 2026-09-26 (H-501 permission): the gate also asks the ONE permission table.
+    const onStart = RAW.indexOf('if (effectiveFP === "big-trades" || (bigTradesOverlay && att.paints("bigTrades"))) {');
     const offStart = RAW.indexOf("// Left big-trades mode", onStart);
     // 2026-09-25: the footprint receipt now publishes right after this branch
     // (so it can count the bubbles); the OFF slice ends where it begins.

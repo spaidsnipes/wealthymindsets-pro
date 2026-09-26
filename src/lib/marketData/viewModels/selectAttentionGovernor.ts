@@ -37,7 +37,19 @@
  * it), LIVE 1, SUPPORTING 0.85, MEMORY 0.5, STALE 0.3. The floor is 0.12:
  * every layer the trader switched on stays on the glass. CHROME is 1 always.
  * Candles and the price line are outside this owner's authority — nothing
- * here can dim them.
+ * here can dim them (the FAR veil is H-501's, published as `candlesDim`).
+ *
+ * H-501 · THE PERMISSION TABLE FEEDS THIS OWNER (2026-09-26). Dimming alone
+ * never withdrew a representation: serving FAR still carried the six-step
+ * card, the WAIT tag and the liquidity words at the floor alpha. The same
+ * depth now answers `selectSemanticPermission` — SPEAK / QUIET / SILENT per
+ * layer per depth — and this VM is how a paint site asks it:
+ * `paints(layer)` at the block's gate (SILENT → the block does not run,
+ * named in `withheldReceipt`), `speaks(layer)` at its words (QUIET → none),
+ * and a QUIET layer's alpha is capped at QUIET_CEILING here, before the
+ * floor. The selected item speaks at every depth. `offWord(switchedOn)` is
+ * the layer receipt's word when it does not paint: OFF when the trader
+ * closed it, SILENT:<depth> when the depth withheld it.
  *
  * THE SELECTED OBJECT IS LOUDEST. While the trader is inspecting a selection
  * (a zone or level, a Living slice, a bubble, an absorption shelf or an
@@ -57,6 +69,7 @@
  */
 
 import type { DensityTier, SemanticDensityVM } from "./selectSemanticDensity";
+import { QUIET_CEILING, selectSemanticPermission, type DepthLayer, type PermissionOpts, type SemanticPermissionVM } from "./selectSemanticPermission";
 import type { RegimeLightingVM } from "./selectRegimeLighting";
 import { stackOpacity, type ProfileStackPrefs } from "./profileStackPrefs";
 import type { StackSpecies } from "./profileStackPlan";
@@ -216,8 +229,20 @@ export interface AttentionGovernorVM {
   textAlpha(key: AttentionLayerKey, opts?: AttentionAlphaOpts): number;
   /** The same governor with the frame's Question Lens quiet folded in. */
   withQuestionQuiet(q: number): AttentionGovernorVM;
-  /** `key:TIER:alpha,…` for every layer that asked this frame, in first-ask order. */
+  /** `key:TIER:alpha,…` for every layer that painted through it this frame, in first-ask order. */
   tiersReceipt(): string;
+  /** H-501 · the frame's permission table, read from the same depth. */
+  readonly permission: SemanticPermissionVM;
+  /** May this layer put anything on the glass at this depth? A refusal is remembered for the receipt. */
+  paints(layer: DepthLayer, opts?: PermissionOpts): boolean;
+  /** May it put WORDS on the glass (SPEAK)? */
+  speaks(layer: DepthLayer, opts?: PermissionOpts): boolean;
+  /** A layer receipt's word when it does not paint: `OFF` (trader) or `SILENT:<depth>` (depth). */
+  offWord(switchedOn: boolean): string;
+  /** Candle brightness under the depth's veil (1 = not dimmed). */
+  readonly candlesDim: number;
+  /** Layers that were switched on, asked, and were withheld by the depth this frame (first-ask order). */
+  withheldReceipt(): string;
 }
 
 const DEPTH_FIELD: Readonly<Record<DensityTier, "macro" | "mid" | "micro">> = {
@@ -232,7 +257,9 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 export function selectAttentionGovernor(
   input: AttentionGovernorInput,
   asked: Map<AttentionLayerKey, { tier: AttentionTier; alpha: number }> = new Map(),
+  withheld: Set<DepthLayer> = new Set(),
 ): AttentionGovernorVM {
+  const permission = selectSemanticPermission(input.density.depth);
   const quiet = Math.min(1, Math.max(0, fin(input.questionQuiet, 1)));
   const magnets = fin(input.regimeLight?.magnets ?? 1, 1);
   const trend = fin(input.regimeLight?.trend ?? 1, 1);
@@ -274,7 +301,9 @@ export function selectAttentionGovernor(
       // The layer's OWN standing sets the ceiling; staleness is one shared
       // factor on top, never a lower ceiling for the present alone.
       const staleDim = stale ? STALE_DIM : 1;
-      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], depth * quiet * light * lane) * recede * staleDim);
+      // A QUIET layer (H-501 permission) is never louder than QUIET_CEILING.
+      const quietCap = permission.of(key, opts) === "QUIET" ? QUIET_CEILING : 1;
+      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * quiet * light * lane) * recede * staleDim);
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.
@@ -290,8 +319,20 @@ export function selectAttentionGovernor(
     tierOf,
     alpha,
     textAlpha: (key: AttentionLayerKey, opts?: AttentionAlphaOpts) => Math.max(TEXT_ALPHA_FLOOR, alpha(key, opts)),
-    withQuestionQuiet: (q: number) => selectAttentionGovernor({ ...input, questionQuiet: q }, asked),
-    tiersReceipt: () => [...asked].map(([k, v]) => `${k}:${v.tier}:${r2(v.alpha)}`).join(","),
+    withQuestionQuiet: (q: number) => selectAttentionGovernor({ ...input, questionQuiet: q }, asked, withheld),
+    // A layer the depth withheld may have asked for its alpha before its
+    // per-item gate refused every item; it painted nothing, so it is not listed.
+    tiersReceipt: () => [...asked].filter(([k]) => !withheld.has(k)).map(([k, v]) => `${k}:${v.tier}:${r2(v.alpha)}`).join(","),
+    permission,
+    paints: (layer: DepthLayer, opts?: PermissionOpts) => {
+      const ok = permission.paints(layer, opts);
+      if (!ok) withheld.add(layer);
+      return ok;
+    },
+    speaks: (layer: DepthLayer, opts?: PermissionOpts) => permission.speaks(layer, opts),
+    offWord: (switchedOn: boolean) => (switchedOn ? `SILENT:${permission.depth}` : "OFF"),
+    candlesDim: permission.candlesDim,
+    withheldReceipt: () => [...withheld].join(","),
   };
 }
 

@@ -108,7 +108,9 @@ describe("(b) the chart places and draws — it decides nothing", () => {
   it("paints after the claimed layers, not inside them", () => {
     const tag = CHART.indexOf("const tagT = debtTagRef.current;");
     for (const marker of [
-      "ds.riskOnPrice = \"OFF\";",
+      // RE-AIMED 2026-09-26 (H-501 permission): the risk layer's off receipt
+      // now names OFF vs SILENT:<depth> through the governor's offWord.
+      "ds.riskOnPrice = att.offWord(",
       // RE-AIMED 2026-09-25 on rebase: the F08A liquidity rework (93b4a143)
       // retired the "LIQUIDITY LIFECYCLE" caption string from CODE (it now
       // survives only in a comment, which this scan strips), so the marker is

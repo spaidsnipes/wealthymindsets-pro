@@ -18,6 +18,9 @@ const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8"));
 
+// 2026-09-26 (H-501 permission): the FAR block's gate asks the permission table.
+const FAR_GATE = 'if (att.paints("farEnvelope")) {';
+
 describe("semantic zoom glass", () => {
   it("depth has ONE per-frame owner, set before the first layer paints; every reader takes .depth from it", () => {
     const owner = CHART.indexOf("semanticDensity = semanticDensityForBarCount(visibleBarCount);");
@@ -38,12 +41,16 @@ describe("semantic zoom glass", () => {
       "const calloutDepth = semanticDensity.depth;",
       "const vpDepth = semanticDensity.depth;",
       "const depthD = semanticDensity.depth;",
-      "const nearDepth = semanticDensity.depth;",
       "const shelfDepth = semanticDensity.depth;",
       "const livingDepth = semanticDensity.depth;",
-      "if (semanticDensity.depth === \"FAR\") {",
     ]) {
       expect(CHART.indexOf(reader), reader).toBeGreaterThan(owner);
+    }
+    // 2026-09-26 (H-501 permission): the FAR block and the NEAR geometry no
+    // longer read the depth to decide WHETHER they paint — they ask the ONE
+    // permission table through the governor, which is built from this owner.
+    for (const gate of ['if (att.paints("farEnvelope")) {', 'const nearPaints = att.paints("nearGeometry");']) {
+      expect(CHART.indexOf(gate), gate).toBeGreaterThan(CHART.indexOf("let att = selectAttentionGovernor({"));
     }
     // The question lens still quiets the layers later — through the attention
     // governor, which reads the owner and never rewrites it.
@@ -53,17 +60,21 @@ describe("semantic zoom glass", () => {
 
   it("the FAR veil dims pane 0 only: painted inside the pane-0 clip, sized to it", () => {
     const clip = CHART.indexOf("ctx.rect(0, 0, plotRight, pane0Bottom);\n      ctx.clip();");
-    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    const far = CHART.indexOf(FAR_GATE);
     expect(clip).toBeGreaterThan(-1);
     expect(far).toBeGreaterThan(clip);
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
-    expect(block).toMatch(/ctx\.fillStyle = "rgba\(11,10,8,0\.56\)"; ctx\.fillRect\(0, 0, plotRight, pane0Bottom\);/);
+    // 2026-09-26 (H-501 permission): the veil's weight is the permission
+    // table's (candles QUIET at FAR → 1 − FAR_CANDLES_DIM = 0.56), and the
+    // receipt names what the candles read at.
+    expect(block).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{\(1 - att\.candlesDim\)\.toFixed\(2\)\}\)`; ctx\.fillRect\(0, 0, plotRight, pane0Bottom\);/);
+    expect(block).toMatch(/canvas\.dataset\.semanticCandlesDim = String\(att\.candlesDim\);/);
     // Nothing in the FAR block measures the container: H spans every pane.
     expect(block).not.toMatch(/\bH\s*-/);
   });
 
   it("FAR structure comes from the ONE structure owner, and the FAR block prints no sequence word of its own", () => {
-    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    const far = CHART.indexOf(FAR_GATE);
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
     expect(block).toMatch(/farStructure = scaffoldingStructureRef\.current;/);
     expect(block).toMatch(/selectFarRegimeEnvelope\(\{ structure: farStructure,/);
@@ -72,7 +83,7 @@ describe("semantic zoom glass", () => {
   });
 
   it("FAR pivot names stay on the pane body, inside the plot, unboxed, and are obstacles", () => {
-    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    const far = CHART.indexOf(FAR_GATE);
     expect(CHART.indexOf("const HEADER_FLOOR_Y = 90;")).toBeGreaterThan(-1);
     expect(CHART.indexOf("const HEADER_FLOOR_Y = 90;")).toBeLessThan(far);
     const at = CHART.indexOf("for (const n of env.named) {", far);
@@ -96,7 +107,7 @@ describe("semantic zoom glass", () => {
   // new truth: tape as geometry on the bars, words only on hover/selection.
   // The full NEAR geometry law is nearGeometry.sentinel.test.ts.
   const nearBlock = () => {
-    const near = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+    const near = CHART.indexOf('const nearPaints = att.paints("nearGeometry");');
     expect(near).toBeGreaterThan(-1);
     const end = CHART.indexOf("for (const k of NEAR_GLASS_RECEIPTS) delete canvas.dataset[k];", near);
     expect(end).toBeGreaterThan(near);
@@ -135,7 +146,7 @@ describe("semantic zoom glass", () => {
   });
 
   it("the FAR envelope is recomputed only when the bars, the structure reading or the visible range change", () => {
-    const far = CHART.indexOf("if (semanticDensity.depth === \"FAR\") {");
+    const far = CHART.indexOf(FAR_GATE);
     const block = CHART.slice(far, CHART.indexOf("delete canvas.dataset.farForm;", far));
     expect(block).toMatch(/const hit = fc && fc\.bars === farBars && fc\.structure === farStructure && fc\.from === visibleFrom && fc\.to === visibleTo \? fc : null;/);
     expect(block).toMatch(/const env = hit \? hit\.vm : selectFarRegimeEnvelope\(/);

@@ -34,7 +34,9 @@ const CHART = strip(RAW);
 
 /** The NEAR block, from its depth read to its OFF branch. */
 const near = () => {
-  const a = CHART.indexOf("const nearDepth = semanticDensity.depth;");
+  // 2026-09-26 (H-501 permission): the block's gate is the permission
+  // table's (nearGeometry SPEAKs at NEAR only), not a depth read of its own.
+  const a = CHART.indexOf('const nearPaints = att.paints("nearGeometry");');
   expect(a, "NEAR depth read").toBeGreaterThan(-1);
   const b = CHART.indexOf("for (const k of NEAR_GLASS_RECEIPTS) delete canvas.dataset[k];", a);
   expect(b, "NEAR OFF branch").toBeGreaterThan(a);

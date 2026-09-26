@@ -13,6 +13,7 @@ import {
   type AttentionSelection,
 } from "./selectAttentionGovernor";
 import { selectSemanticDensity } from "./selectSemanticDensity";
+import { DEPTH_FORMS, DEPTH_LAYERS, FAR_CANDLES_DIM, QUIET_CEILING, permissionAt } from "./selectSemanticPermission";
 import { DEFAULT_STACK_PREFS, stackOpacity, type ProfileStackPrefs } from "./profileStackPrefs";
 import type { StackSpecies } from "./profileStackPlan";
 import selectRegimeLighting from "./selectRegimeLighting";
@@ -352,5 +353,75 @@ describe("H-901 v2 — the regime's own fixtures are dimmed by the governor, not
       expect(LAYER_ATTENTION[k].tier).toBe("SUPPORTING");
       expect(g.alpha(k), k).toBeCloseTo(Math.max(ATTENTION_FLOOR, at.alpha(k) * SELECTION_RECEDE), 10);
     }
+  });
+});
+
+// 2026-09-26 · H-501 — the permission table feeds this owner.
+describe("attention governor × semantic permission (H-501)", () => {
+  it("a QUIET layer is capped at QUIET_CEILING; SPEAK layers are untouched", () => {
+    // regimeField has no depth tier: before the table it painted at full light at every depth.
+    for (const depth of ["MID", "NEAR"] as const) {
+      const g = selectAttentionGovernor(input({ density: selectSemanticDensity(depth) }));
+      expect(permissionAt("regimeField", depth)).toBe("QUIET");
+      expect(g.alpha("regimeField"), depth).toBeCloseTo(QUIET_CEILING, 10);
+    }
+    const far = selectAttentionGovernor(input({ density: selectSemanticDensity("FAR") }));
+    expect(far.alpha("regimeField")).toBe(TIER_CEILING.SUPPORTING);
+    // Market Structure at FAR is macro (density 1) but QUIET in form.
+    expect(far.alpha("marketStructure")).toBeCloseTo(QUIET_CEILING, 10);
+    const mid = selectAttentionGovernor(input({ density: selectSemanticDensity("MID") }));
+    expect(mid.alpha("marketStructure")).toBeCloseTo(Math.max(ATTENTION_FLOOR, selectSemanticDensity("MID").macro), 10);
+    // The selected item is exempt.
+    expect(far.alpha("marketStructure", { selectedItem: true })).toBe(1);
+  });
+
+  it("paints / speaks read the table for the governor's own depth; the selected item always speaks", () => {
+    for (const depth of ["FAR", "MID", "NEAR"] as const) {
+      const g = selectAttentionGovernor(input({ density: selectSemanticDensity(depth) }));
+      for (const k of DEPTH_LAYERS) {
+        const p = permissionAt(k, depth);
+        expect(g.paints(k), `${k} @ ${depth}`).toBe(p !== "SILENT");
+        expect(g.speaks(k), `${k} @ ${depth}`).toBe(p === "SPEAK");
+        expect(g.paints(k, { selectedItem: true })).toBe(true);
+      }
+    }
+    // UNMEASURED: nothing withheld but the depth forms, which wait for their depth.
+    const u = selectAttentionGovernor(input());
+    for (const k of DEPTH_LAYERS) expect(u.paints(k), k).toBe(!DEPTH_FORMS.has(k));
+    expect(u.candlesDim).toBe(1);
+  });
+
+  it("a refusal is remembered for the withheld receipt, shared through withQuestionQuiet, and a selected ask is never a refusal", () => {
+    const g = selectAttentionGovernor(input({ density: selectSemanticDensity("FAR") }));
+    expect(g.withheldReceipt()).toBe("");
+    expect(g.paints("scaffolding")).toBe(false);
+    expect(g.paints("marketZones", { selectedItem: true })).toBe(true);
+    expect(g.paints("farEnvelope")).toBe(true);
+    const q = g.withQuestionQuiet(0.35);
+    expect(q.paints("debtTag")).toBe(false);
+    expect(q.paints("scaffolding")).toBe(false);
+    expect(g.withheldReceipt()).toBe("scaffolding,debtTag");
+    expect(q.withheldReceipt()).toBe("scaffolding,debtTag");
+  });
+
+  it("offWord: OFF is the trader's word, SILENT:<depth> the depth's", () => {
+    const g = selectAttentionGovernor(input({ density: selectSemanticDensity("FAR") }));
+    expect(g.offWord(false)).toBe("OFF");
+    expect(g.offWord(true)).toBe("SILENT:FAR");
+    expect(selectAttentionGovernor(input({ density: selectSemanticDensity("NEAR") })).offWord(true)).toBe("SILENT:NEAR");
+  });
+
+  it("the tiers receipt leaves out a layer the depth withheld (it asked, then painted nothing)", () => {
+    const g = selectAttentionGovernor(input({ density: selectSemanticDensity("FAR") }));
+    g.alpha("marketZones");
+    const living = g.alpha("livingProfile");
+    expect(g.paints("marketZones")).toBe(false);
+    expect(g.tiersReceipt()).toBe(`livingProfile:LIVE:${Math.round(living * 100) / 100}`);
+  });
+
+  it("the candles' veil is the table's: dimmed at FAR only", () => {
+    expect(selectAttentionGovernor(input({ density: selectSemanticDensity("FAR") })).candlesDim).toBe(FAR_CANDLES_DIM);
+    expect(selectAttentionGovernor(input({ density: selectSemanticDensity("MID") })).candlesDim).toBe(1);
+    expect(selectAttentionGovernor(input({ density: selectSemanticDensity("NEAR") })).candlesDim).toBe(1);
   });
 });

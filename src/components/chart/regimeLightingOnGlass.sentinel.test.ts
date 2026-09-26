@@ -40,7 +40,8 @@ const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/
 
 const block = (() => {
   const start = CHART.indexOf("const lightOn = layerOnRef.current.regimeLighting === true;");
-  const end = CHART.indexOf("if (layerOnRef.current.memoryGhost === true && srs) {", start);
+  // 2026-09-26 (H-501 permission): the gate also asks the ONE permission table.
+  const end = CHART.indexOf('if (layerOnRef.current.memoryGhost === true && att.paints("memoryGhost") && srs) {', start);
   expect(start, "H-901 block not found — did it move?").toBeGreaterThan(-1);
   expect(end).toBeGreaterThan(start);
   return CHART.slice(start, end);

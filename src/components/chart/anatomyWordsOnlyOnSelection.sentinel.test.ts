@@ -105,7 +105,9 @@ describe("absorption shelf words: FL-06 ①'s name at rest, the numbers on selec
 
 describe("anatomy cards: only the selected object's card", () => {
   it("reads the selected, drawn reading's card — never the newest-reading pair", () => {
-    expect(cards).toContain("const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) ? anatomySelReading.card : null;");
+    // 2026-09-26 (H-501 permission): the card asks the permission table as
+    // the selected item — the selection speaks at every depth.
+    expect(cards).toContain('const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) && att.paints("anatomyCards", { selectedItem: true }) ? anatomySelReading.card : null;');
     expect(cards).toContain("const shown = [selCard];");
     expect(cards).not.toMatch(/selectAnatomyCards\(anatomy, selectExhaustion\(anatomy\)\)/);
     expect(cards).not.toMatch(/cards\.absorption|cards\.exhaustion/);

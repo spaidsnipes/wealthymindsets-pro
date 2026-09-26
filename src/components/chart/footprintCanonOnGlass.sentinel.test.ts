@@ -47,8 +47,9 @@ const bidAsk = () => mode('if (effectiveFP === "bid-ask") {', 'if (effectiveFP =
 const delta = () => mode('if (effectiveFP === "delta") {', 'if (effectiveFP === "volume-profile") {');
 const vp = () => mode('if (effectiveFP === "volume-profile") {', 'if (effectiveFP === "imbalance") {');
 const imbalance = () => mode('if (effectiveFP === "imbalance") {', 'if (effectiveFP === "aggressive-passive") {');
-const aggPassive = () => mode('if (effectiveFP === "aggressive-passive") {', 'if (effectiveFP === "big-trades" || bigTradesOverlay) {');
-const bigTrades = () => mode('if (effectiveFP === "big-trades" || bigTradesOverlay) {', 'canvas.dataset.bigTradeBubbleCount = "0";');
+// 2026-09-26 (H-501 permission): the gate also asks the ONE permission table.
+const aggPassive = () => mode('if (effectiveFP === "aggressive-passive") {', 'if (effectiveFP === "big-trades" || (bigTradesOverlay && att.paints("bigTrades"))) {');
+const bigTrades = () => mode('if (effectiveFP === "big-trades" || (bigTradesOverlay && att.paints("bigTrades"))) {', 'canvas.dataset.bigTradeBubbleCount = "0";');
 
 describe("every footprint pixel's loudness comes from the attention governor", () => {
   it("no footprint layer sets globalAlpha to anything but the governor's answer", () => {

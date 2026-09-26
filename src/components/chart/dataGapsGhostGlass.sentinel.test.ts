@@ -58,7 +58,9 @@ describe("data gap marks", () => {
   it("FAR keeps every bridge but words only an outage of ≥ 3 intervals (H-501: FAR speaks macro)", () => {
     const b = block();
     const bridge = b.indexOf("ctx.lineTo(+x1 - 3, +y1); ctx.stroke();");
-    const quiet = b.indexOf('if (semanticDensity.depth === "FAR" && g.emptyIntervals < 3) continue;');
+    // 2026-09-26 (H-501 permission): the depth rule is the permission
+    // table's — dataGaps is QUIET at FAR (bridges, words only for outages).
+    const quiet = b.indexOf('if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;');
     const words = b.indexOf("fillText(t, mx, my)");
     expect(bridge).toBeGreaterThan(-1);
     expect(quiet).toBeGreaterThan(bridge);
@@ -68,7 +70,9 @@ describe("data gap marks", () => {
 });
 
 describe("memory ghost candles", () => {
-  const ghostBlock = () => slice("if (layerOnRef.current.memoryGhost === true && srs) {", 'ds.memoryGhost = "OFF";');
+  // 2026-09-26 (H-501 permission): the gate asks the permission table and
+  // the off receipt names OFF vs SILENT:<depth> (att.offWord).
+  const ghostBlock = () => slice('if (layerOnRef.current.memoryGhost === true && att.paints("memoryGhost") && srs) {', "ds.memoryGhost = att.offWord(layerOnRef.current.memoryGhost === true);");
   const candleForm = () => slice("if (ghost.candles.length > 1 && bsp >= GHOST_CANDLE_MIN_SPACING) {", "ds.memoryGhostForm = `CANDLES:");
 
   it("never paints brighter than the owner's ceiling: every ghost stroke is at ghost.opacity (the attention governor may only lower it)", () => {
@@ -102,10 +106,10 @@ describe("memory ghost candles", () => {
   });
 
   it("the form receipt is withdrawn when the ghost is silent or switched off, and says PATH only when a path was drawn", () => {
-    expect(CHART.match(/ds\.memoryGhost = "OFF";/g) ?? []).toHaveLength(1);
+    expect(CHART.match(/ds\.memoryGhost = att\.offWord\(layerOnRef\.current\.memoryGhost === true\);/g) ?? []).toHaveLength(1);
     const silent = slice('"MEMORY · not enough history on this chart for an analogue"', "ctx.restore();");
     expect(silent).toMatch(/delete ds\.memoryGhostForm;/);
-    const off = slice('ds.memoryGhost = "OFF";', "onMemoryGhostRef.current?.(null);");
+    const off = slice("ds.memoryGhost = att.offWord(layerOnRef.current.memoryGhost === true);", "onMemoryGhostRef.current?.(null);");
     expect(off).toMatch(/delete ds\.memoryGhostForm;/);
     expect(CHART).toMatch(/if \(started\) ds\.memoryGhostForm = "PATH";\s*else delete ds\.memoryGhostForm;/);
   });

@@ -43,8 +43,10 @@ const CHART = read("src/components/chart/MainChart.tsx");
 const ROOM = read("src/components/chart/ChartsDashboard.tsx");
 
 const block = (() => {
-  const start = CHART.indexOf("if (layerOnRef.current.liquidityLifecycle === true) {");
-  const end = CHART.indexOf('ds.liquidityLifecycle = "OFF";', start);
+  // 2026-09-26 (H-501 permission): the gate also asks the ONE permission
+  // table, and the off receipt names OFF vs SILENT:<depth>.
+  const start = CHART.indexOf('if (layerOnRef.current.liquidityLifecycle === true && att.paints("liquidityLifecycle")) {');
+  const end = CHART.indexOf("ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);", start);
   expect(start).toBeGreaterThan(-1);
   expect(end).toBeGreaterThan(start);
   return CHART.slice(start, end);
@@ -151,7 +153,10 @@ describe("no caption on the glass — the honesty is a receipt and one compact t
   });
 
   it("withdraws its ancillary receipts when off", () => {
-    const off = CHART.slice(CHART.indexOf('ds.liquidityLifecycle = "OFF";'), CHART.indexOf('ds.liquidityLifecycle = "OFF";') + 400);
+    // 2026-09-26 (H-501 permission): the off receipt names OFF vs SILENT:<depth>.
+    const offAt = CHART.indexOf("ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);");
+    expect(offAt).toBeGreaterThan(-1);
+    const off = CHART.slice(offAt, offAt + 480);
     for (const k of ["Painted", "Ticks", "Spans", "Tag", "Basis", "Refused"]) expect(off).toContain(`delete ds.liquidityLifecycle${k};`);
   });
 });

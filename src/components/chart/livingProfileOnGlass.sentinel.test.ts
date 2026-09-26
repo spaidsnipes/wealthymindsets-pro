@@ -248,7 +248,9 @@ describe("the trader can quiet this layer, and the chart says WHICH silence it i
   });
 
   it("OFF and NO_READING are different words in the receipt", () => {
-    expect(block).toMatch(/ds\.livingProfile = on \? \(lp \? lp\.reason : "NO_READING"\) : "OFF"/);
+    // 2026-09-26 (H-501 permission): OFF stays the trader's word; a layer
+    // the depth withheld says SILENT:<depth> through the governor's offWord.
+    expect(block).toMatch(/ds\.livingProfile = on \? \(lp \? lp\.reason : "NO_READING"\) : att\.offWord\(layerOnRef\.current\.livingProfile\)/);
   });
 });
 

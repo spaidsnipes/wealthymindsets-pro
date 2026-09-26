@@ -95,7 +95,9 @@ describe("H1 — never looked is not looked and found nothing", () => {
   it("PAINTS NOTHING WHEN THE RANGE IS UNMEASURED", () => {
     // Rendering NEAR of an empty chart would say "you are reading candle
     // anatomy of nothing" — absence rendered as a value.
-    expect(block).toMatch(/if \(zoom\.tag\) \{/);
+    // 2026-09-26 (H-501 permission): the plate also asks the permission
+    // table (zoomPlate SPEAKs at every measured depth); UNMEASURED still paints nothing.
+    expect(block).toMatch(/if \(zoom\.tag && att\.paints\("zoomPlate"\)\) \{/);
   });
 
   it("still publishes an UNMEASURED reason in the receipt, and the bar count", () => {

@@ -144,7 +144,9 @@ describe("the words the glass owes the trader", () => {
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(block).toMatch(/ds\.deltaDivergence = on \? glass\.reason : "OFF"/);
+    // 2026-09-26 (H-501 permission): OFF stays the trader's word; a layer
+    // the depth withheld says SILENT:<depth> through the governor's offWord.
+    expect(block).toMatch(/ds\.deltaDivergence = on \? glass\.reason : att\.offWord\(layerOnRef\.current\.divergence\)/);
   });
 
   it("withdraws the drawing receipt when the drawing goes away", () => {

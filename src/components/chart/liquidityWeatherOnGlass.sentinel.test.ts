@@ -55,7 +55,9 @@ const between = (from: string, to: string) => {
 };
 
 /** Where the glass is compiled and its reason stamped. */
-const glassBlock = between("selectLiquidityWeatherGlass(liquidityWeatherRef.current)", 'ds.liquidityWeather = on ? glass.reason : "OFF";');
+// 2026-09-26 (H-501 permission): OFF stays the trader's word; a withheld
+// layer says SILENT:<depth> through the governor's offWord.
+const glassBlock = between("selectLiquidityWeatherGlass(liquidityWeatherRef.current)", "ds.liquidityWeather = on ? glass.reason : att.offWord(layerOnRef.current.weather);");
 /** Where the lens is placed. */
 const geoBlock = between("let weatherLens: WeatherLens | null = null;", "weatherLensCut = cut;");
 /** What the lens paints: tint, shelves, ring, words, readout, receipts. */
@@ -173,7 +175,9 @@ describe("a shelf does not pose as a defended level", () => {
 
 describe("the layer publishes a receipt in every state, including the silent ones", () => {
   it("stamps the reason even when nothing is painted", () => {
-    expect(glassBlock).toMatch(/ds\.liquidityWeather = on \? glass\.reason : "OFF"/);
+    // 2026-09-26 (H-501 permission): OFF stays the trader's word; a withheld
+    // layer says SILENT:<depth>.
+    expect(glassBlock).toMatch(/ds\.liquidityWeather = on \? glass\.reason : att\.offWord\(layerOnRef\.current\.weather\)/);
     expect(lensBlock).toMatch(/ds\.liquidityWeatherLensState = weatherLensWhy;/);
   });
 
@@ -289,7 +293,9 @@ describe("the lens speaks only where it can be read — serving BTC-USD 1m, 2026
 
   it("the lens state is published in every state (DRAWN / YIELDED_NEAR / GATHERING:<bars> / OFF_CAMERA / UNTIMED / OFF)", () => {
     expect(lensBlock).toMatch(/ds\.liquidityWeatherLensState = weatherLensWhy;/);
-    expect(geoBlock).toMatch(/let weatherLensWhy: string = on \? "UNMEASURED" : "OFF";/);
+    // 2026-09-26 (H-501 permission): a lens the depth withheld says
+    // SILENT:<depth>, never OFF — OFF stays the trader's word.
+    expect(geoBlock).toMatch(/let weatherLensWhy: string = on \? "UNMEASURED" : att\.offWord\(layerOnRef\.current\.weather\);/);
   });
 
   it("the lens passes BEHIND the chips already placed — tint, field and ring", () => {

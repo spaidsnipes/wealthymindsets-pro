@@ -141,7 +141,9 @@ describe("the layer publishes a receipt in every state, including the silent one
     // means "the layer ran and the tape could not be read". Collapsing the two
     // is how a silent regression passes for a quiet tape — the same lesson the
     // VP suspension stamp a few hundred lines down already records.
-    expect(block).toMatch(/ds\.imbalanceStack = on \? glass\.reason : "OFF"/);
+    // 2026-09-26 (H-501 permission): OFF stays the trader's word; a layer
+    // the depth withheld says SILENT:<depth> through the governor's offWord.
+    expect(block).toMatch(/ds\.imbalanceStack = on \? glass\.reason : att\.offWord\(layerOnRef\.current\.stack\)/);
   });
 
   it("a switched-off layer paints NOTHING, not merely fewer rungs", () => {

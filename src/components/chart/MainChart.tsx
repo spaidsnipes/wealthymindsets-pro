@@ -5947,6 +5947,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          Every layer that changes FORM by depth reads `.depth` from here: a
          copied count formula is a second owner, and the first edit to one
          copy would put that layer at a different depth than the tag prints.
+         WHETHER a layer paints at this depth — and whether it may speak
+         words — is not a form read: it is the ONE permission table
+         (selectSemanticPermission, SPEAK / QUIET / SILENT per layer per
+         depth), asked through the attention governor built from this owner:
+         `att.paints(layer)` at every block's gate, `att.speaks(layer)` at its
+         words. Receipts: `semanticPermission`, `semanticWithheld`,
+         `semanticCandlesDim` (2026-09-26).
       ══════════════════════════════════════════════════════════════════════ */
       let visibleBarCount: number | null = null;
       let semanticDensity = selectSemanticDensity(null);
@@ -6183,10 +6190,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          is Market Structure's, printed once.
          Inside the pane-0 clip and sized to pane 0: the plate dims the
          CANDLES. The container also holds the oscillator panes (RSI, MACD,
-         CVD), and a veil sized from the container darkened their readings. */
+         CVD), and a veil sized from the container darkened their readings.
+         2026-09-26 · The block asks the ONE permission table (farEnvelope
+         SPEAKs only at FAR) and the veil's weight is the table's: candles are
+         QUIET at FAR, read at `att.candlesDim`. The major pivots it names are
+         handed to Market Structure, whose FAR form is those swings only. */
+      // The FAR envelope's major swings (`HIGH:<time>`), for Market Structure's
+      // FAR form. null off FAR; empty when the envelope measured none.
+      let farMajorPivots: Set<string> | null = null;
       try {
-        if (semanticDensity.depth === "FAR") {
-          ctx.fillStyle = "rgba(11,10,8,0.56)"; ctx.fillRect(0, 0, plotRight, pane0Bottom);
+        if (att.paints("farEnvelope")) {
+          if (att.candlesDim < 1) {
+            ctx.fillStyle = `rgba(11,10,8,${(1 - att.candlesDim).toFixed(2)})`; ctx.fillRect(0, 0, plotRight, pane0Bottom);
+            canvas.dataset.semanticCandlesDim = String(att.candlesDim);
+          } else {
+            delete canvas.dataset.semanticCandlesDim;
+          }
           const tr = chart.timeScale().getVisibleRange();
           const farBars = barsRef.current, farStructure = scaffoldingStructureRef.current;
           const visibleFrom = tr ? Number(tr.from) : 0, visibleTo = tr ? Number(tr.to) : 0;
@@ -6194,6 +6213,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const hit = fc && fc.bars === farBars && fc.structure === farStructure && fc.from === visibleFrom && fc.to === visibleTo ? fc : null;
           const env = hit ? hit.vm : selectFarRegimeEnvelope({ structure: farStructure, bars: farBars, visibleFrom, visibleTo });
           if (!hit) farEnvelopeCache = { bars: farBars, structure: farStructure, from: visibleFrom, to: visibleTo, vm: env };
+          farMajorPivots = new Set(env.drawn ? env.named.map(n => `${n.kind}:${n.time}`) : []);
           // The receipt names what reached the glass: an envelope whose ends
           // cannot be placed is not drawn, and a pivot off camera is not named.
           let farPainted: string = `DIM:${env.reason}`;
@@ -6243,6 +6263,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           canvas.dataset.farForm = farPainted;
         } else {
           delete canvas.dataset.farForm;
+          delete canvas.dataset.semanticCandlesDim;
         }
       } catch { /* camera mid-transition */ }
 
@@ -6261,9 +6282,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Order Flow Candles forces bid-ask footprint regardless of setting.
       // When footprint is disabled, resolve to a non-matching mode so NO footprint
       // block renders — but the VP overlay further below still draws.
-      const effectiveFP: FootprintType = !footprintEnabled
+      // H-501 · the asked mode's layer asks the ONE permission table: FAR
+      // silences every order-flow mode (the flow speaks at MID and NEAR); its
+      // receipt then says SILENT:FAR, never OFF.
+      const fpAsked: FootprintType = candleType === "orderflow-candles" ? "bid-ask" : footprintType;
+      const fpSilent = footprintEnabled && !(
+        fpAsked === "big-trades" ? att.paints("bigTrades")
+        : fpAsked === "delta" || fpAsked === "aggressive-passive" ? att.paints("bubbles")
+        : att.paints("footprint"));
+      const effectiveFP: FootprintType = !footprintEnabled || fpSilent
         ? ("__off__" as FootprintType)
-        : (candleType === "orderflow-candles" ? "bid-ask" : footprintType);
+        : fpAsked;
+      // MID keeps the footprint's cells and tint; its numbers wait for NEAR.
+      const fpNumbers = att.speaks("footprint");
       // Per-mode receipts speak only for THIS frame's pixels.
       for (const k of FOOTPRINT_MODE_RECEIPTS) delete canvas.dataset[k];
 
@@ -6395,7 +6426,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillRect(x, rowY, colW, rH);
             ctx.fillStyle = askDom ? buyRgba(tint.toFixed(2)) : sellRgba(tint.toFixed(2));
             ctx.fillRect(x, rowY, colW, rH);
-            if (rH >= 10) {
+            if (rH >= 10 && fpNumbers) {
               const t = fitBidAskCellText(lv.bid, lv.ask, fmtV, measureCell, colW - 4, cellFs(rH));
               if (t.form !== "NONE") { cellNum(t.text, cx, rowY + rH / 2, "center", t.px); cellText++; }
             }
@@ -6415,7 +6446,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // (never at NEAR: there the volume-band row carries it). Halo text,
           // not a box, from the SAME owner as that row.
           if (showBadges) {
-            const bd = barTapeDelta(getBarSubProfile(c));
+            // MID keeps the cells; the column's number waits for NEAR (H-501).
+            const bd = fpNumbers ? barTapeDelta(getBarSubProfile(c)) : null;
             if (bd) {
               const text = signedFlowText(bd.delta, fmtV);
               ctx.font = "700 10px 'JetBrains Mono',monospace";
@@ -6763,6 +6795,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
         ctx.textBaseline = "middle";
         for (const w of words) {
+          // MID keeps the tint and edge marks; the run's words wait for NEAR (H-501).
+          if (!fpNumbers) break;
           const tw = ctx.measureText(w.word).width + 4, th = 12;
           const beside = (y: number) => ({ x: w.buy ? w.bx + 3 : w.bx - 3 - tw, y: y - th / 2, w: tw, h: th });
           const slots = [
@@ -6874,7 +6908,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Big Trades draws when it's the active exclusive mode OR when Simultaneous
       // Mode is on (bigTradesOverlay) — in the latter case the primary order-flow
       // block above has already drawn, and we paint the bubbles on top.
-      if (effectiveFP === "big-trades" || bigTradesOverlay) {
+      if (effectiveFP === "big-trades" || (bigTradesOverlay && att.paints("bigTrades"))) {
         // ── Pause / Refresh controls (toolbar gear dropdown) ──────────────
         // Refresh: wipe all bubbles + the per-bar dedupe set so the engine
         // re-detects and re-spawns from scratch this frame.
@@ -7306,6 +7340,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         bubbleHoverRef.current = null;
         canvas.dataset.bigTradeBubbleCount = "0";
         canvas.dataset.bigTradeBubbleStatus = "OFF";
+        // Asked for, but the depth withheld it (H-501): SILENT:<depth>, not OFF.
+        if (bigTradesOverlay || (fpSilent && fpAsked === "big-trades")) canvas.dataset.bigTradeBubbleStatus = att.offWord(true);
         // The count and status speak for an OFF layer; every other receipt
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
@@ -7324,6 +7360,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const fpBars = fpBarsPainted + fpTrailBars.size;
         if (effectiveFP === ("__off__" as FootprintType)) {
           dsFp.footprint = "OFF";
+          if (fpSilent) dsFp.footprint = att.offWord(true);
           delete dsFp.footprintBars; delete dsFp.footprintRows; delete dsFp.footprintOrder;
         } else if (fpBars === 0) {
           // On, and nothing was heard for any bar in view: silence, named.
@@ -7357,7 +7394,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       try {
         const depthD = semanticDensity.depth;
         let printed = 0;
-        if (depthD === "NEAR") {
+        // H-501 · the row asks the ONE permission table (microDelta: NEAR only).
+        if (att.paints("microDelta")) {
           // On the volume band's top edge, inside pane 0. Measured from the
           // container height the row fell into the bottom oscillator pane
           // (and was clipped away) whenever one was open, and into the volume
@@ -7460,7 +7498,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.nearBarDeltaStride;
           delete canvas.dataset.nearBarDeltaBasis;
         }
-        canvas.dataset.nearBarDelta = depthD === "NEAR" ? String(printed) : "NOT_NEAR";
+        canvas.dataset.nearBarDelta = att.permission.paints("microDelta") ? String(printed) : `NOT_NEAR:${depthD}`;
       } catch { /* camera mid-transition */ }
 
       /* ── H-701 · FORCE → RESPONSE ON THE SELECTED PRINT (canon plate
@@ -7478,7 +7516,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const claim = sp && sp.kind !== "delta"
           ? describeBubbleClaim({ kind: "big-trade", bid: sp.bid, ask: sp.ask, price: sp.priceLevel, aggressorMethod: sp.aggressorMethod })
           : null;
-        if (sp && claim && sp.timeMs != null) {
+        // H-501 · the selected print is the selection: it speaks at every depth.
+        if (sp && claim && sp.timeMs != null && att.paints("forceResponse", { selectedItem: true })) {
           const side = claim.side;
           const sideInferred = aggressorProvenanceOf(sp.aggressorMethod) === "INFERRED";
           // The newest bar is a response bar only once its interval has
@@ -7641,10 +7680,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          Raw rows never paint here: a click on a dot selects that print, and
          Inspect lists its raw tape (selectPrintRawTape). */
       try {
-        const nearDepth = semanticDensity.depth;
+        // H-501 · NEAR's geometry asks the ONE permission table (nearGeometry).
+        const nearPaints = att.paints("nearGeometry");
         const nearAll = barsRef.current ?? [];
         const lastBar = nearAll[nearAll.length - 1];
-        if (nearDepth === "NEAR" && lastBar) {
+        if (nearPaints && lastBar) {
           const tsN = chart.timeScale();
           const accN = bigTradePrintAccRef.current;
           const intervalN = getIntervalSec(timeframe);
@@ -7930,7 +7970,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         let painted = 0, worded = 0;
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-        for (const g of dg.gaps) {
+        for (const g of att.paints("dataGaps") ? dg.gaps : []) {
           const x0 = chart.timeScale().timeToCoordinate(g.fromTime as never), x1 = chart.timeScale().timeToCoordinate(g.toTime as never);
           const y0 = srs.priceToCoordinate(g.fromClose), y1 = srs.priceToCoordinate(g.toOpen);
           if (x0 == null || x1 == null || y0 == null || y1 == null) continue;
@@ -7942,7 +7982,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // words and their opaque backing wait for MID/NEAR (serving, BTC 1m
           // FAR: three "NO BAR · 1 interval" chips across the regime picture).
           // An outage of ≥ 3 intervals is named at every depth.
-          if (semanticDensity.depth === "FAR" && g.emptyIntervals < 3) continue;
+          // 2026-09-26 · the depth rule is the permission table's (dataGaps is
+          // QUIET at FAR: the bridge, no words).
+          if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;
           const my = Math.min(+y0, +y1) - 10;
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
@@ -8357,7 +8399,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
         // The numbers, outside the cut: a number whose box a candle body or wick
         // crosses is withheld this frame (counted), so none prints on a candle.
-        for (const wd of vpWords) {
+        // H-501 · NEAR keeps the columns QUIET: rows, no numbers, no level words.
+        const vpSpeaks = att.speaks("volumeProfile");
+        for (const wd of vpSpeaks ? vpWords : []) {
           ctx.font = wd.poc ? "bold 12px monospace" : "11px monospace";
           const twN = ctx.measureText(wd.text).width;
           if (rectHits({ x: vpRight - 4 - twN - 2, y: wd.y - 7, w: twN + 4, h: 14 }, profileCandlesAt(wd.y - 7, wd.y + 7)) > 0) {
@@ -8490,9 +8534,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);
           ctx.restore();
         };
-        vpLevel(pocPrice, vpPocRgba, "POC");
-        if (vahPrice !== pocPrice) vpLevel(vahPrice, vpVahRgba, "VAH");
-        if (valPrice !== pocPrice) vpLevel(valPrice, vpValRgba, "VAL");
+        if (vpSpeaks) {
+          vpLevel(pocPrice, vpPocRgba, "POC");
+          if (vahPrice !== pocPrice) vpLevel(vahPrice, vpVahRgba, "VAH");
+          if (valPrice !== pocPrice) vpLevel(valPrice, vpValRgba, "VAL");
+        }
 
         // SESSION PROFILE · THE SESSION IS THE FRAME (GP12 Defect 2: "must clip
         // to an actual session definition"). Without a word, the column is
@@ -8550,6 +8596,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       function runWMVP() {
         if (vpDrawn) return;
         vpDrawn = true;
+        // H-501 · the toolbar's VP columns ask the ONE permission table: FAR
+        // withholds them. Asked-for but withheld is its own receipt, never
+        // "nothing requested" (vpRequested stays) and never a decline.
+        const dsVp = canvasRef.current?.dataset;
+        if ((fixedVPActive || sessionVPActive) && !att.paints("volumeProfile")) {
+          if (dsVp) {
+            for (const k of ["vpDeclined", "vpRows", "vpNote", "vpAxisClearance", "vpLevelChips", "vpWordsWithheld", "vpSpan", "vpSessionWindow"] as const) delete dsVp[k];
+            dsVp.vpRequested = String((fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0));
+            dsVp.vpDrawn = "0";
+            dsVp.vpSilent = att.offWord(true);
+          }
+          return;
+        }
+        if (dsVp) delete dsVp.vpSilent;
         const bothVP = fixedVPActive && sessionVPActive;
         const nVPCols = bothVP ? 2 : 1;
         // Withdrawn each frame; re-published only by a Session column that framed itself.
@@ -8696,7 +8756,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          legible truth artefact per directive Part XLIII.
       ══════════════════════════════════════════════════════ */
       const horizon = tapeHorizonRef.current;
-      if (horizon && horizon.sym === symbol && footprintEnabled) {
+      if (horizon && horizon.sym === symbol && footprintEnabled && att.paints("tapeHorizon")) {
         try {
           const horizonBarSec = tapeHorizonBarStart(horizon.startedAtSec, getIntervalSec(timeframe));
           const xRaw = chart.timeScale().timeToCoordinate(horizonBarSec as any);
@@ -8786,7 +8846,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          on the left edge, so it travels vertically with price.
          Gated by chartSettings.candleTimer (Chart Settings toggle).
       ══════════════════════════════════════════════════════ */
-      if (candleTimerRef.current && countdownRef.current) {
+      if (candleTimerRef.current && countdownRef.current && att.paints("candleTimer")) {
         const liveBars = barsRef.current;
         const lastBar  = liveBars.length ? liveBars[liveBars.length - 1] : null;
         const yRaw = lastBar ? srs?.priceToCoordinate(lastBar.close) : null;
@@ -9097,9 +9157,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.absorption = anatomy.measured
             ? (anatomy.zones.length > 0 ? "DRAWN" : "MEASURED_NO_ZONES")
             : "UNMEASURED";
+          // H-501 · measured, but the depth withholds the layer's paint: the
+          // receipt names that (SILENT:<depth>) instead of claiming DRAWN.
+          if (!att.permission.paints("absorption")) ds.absorption = att.offWord(true);
 
           if (anatomy.measured && pts.length >= 2) {
             ctx.save();
+            // H-501 · the field, its count and its basis ask the ONE permission
+            // table (absorption is SILENT at FAR). The shelves ask per shelf,
+            // so a selected shelf still speaks; the readings below (exhaustion,
+            // cards, lens, scaffolding) ask for themselves.
+            const absorbPaints = att.paints("absorption");
 
             // Half-height of the field at effortNorm === 1. Bounded so a quiet
             // instrument cannot paint the whole pane.
@@ -9120,7 +9188,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               { frac: 0.50, alpha: 0.06 },
               { frac: 0.28, alpha: 0.07 },
             ];
-            for (const layer of LAYERS) {
+            for (const layer of absorbPaints ? LAYERS : []) {
               ctx.beginPath();
               // top edge, left → right
               pts.forEach((p, i) => {
@@ -9160,7 +9228,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // of the screen. That boundary must be declared, or the field
             // reads as an unexplained smear at the right.
             const firstX = pts[0]!.x;
-            if (windowCapped) {
+            if (windowCapped && absorbPaints) {
               ctx.save();
               ctx.setLineDash([2, 4]);
               ctx.strokeStyle = "rgba(212,175,55,0.30)";
@@ -9206,7 +9274,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const winW = ctx.measureText(winTxt).width;
             const desktopWindowChrome = W >= 960;
-            if (desktopWindowChrome) {
+            if (!absorbPaints) {
+              // Withheld with the field it counts.
+            } else if (desktopWindowChrome) {
               // The count is provenance for the field, not a price event and
               // not another card. FL-06 keeps such chart facts quiet at the
               // glass edge. Retain the backed treatment on narrow canvases,
@@ -9249,6 +9319,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let shelfNamesShown = 0;
             let shelfNumbersShown = false;
             for (const zone of anatomy.zones) {
+              // H-501 · withheld at this depth unless it is the selected shelf:
+              // decided before any geometry, so a withheld shelf has no hit target.
+              if (!att.paints("absorption", { selectedItem: anatomySelReading?.currentId === anatomyTargetId(zoneTarget(zone)) })) continue;
               const x0r = ts.timeToCoordinate(zone.startTime as never);
               const x1r = ts.timeToCoordinate(zone.endTime as never);
               const yHiR = srs.priceToCoordinate(zone.priceHi);
@@ -9637,7 +9710,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // so it tracks the legend if the legend's height ever changes.
             const bx = BASIS_CAPTION_X, by = BELOW_PRICE_LEGEND;
             const desktopBasisChrome = W >= 960;
-            if (desktopBasisChrome) {
+            if (!absorbPaints) {
+              // The field's provenance is withheld with the field.
+            } else if (desktopBasisChrome) {
               // FL-06 carries basis as quiet chart provenance, not a second
               // card hovering over price. Keep the statement visible while
               // letting the canvas remain the dominant object.
@@ -9698,6 +9773,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const y0 = up ? +yr - 8 : +yr + 8;
                 // Selected is loudest; its peers' loudness is the governor's.
                 const markSelected = anatomySelReading?.currentId === anatomyTargetId(markTarget(m));
+                // Withheld at this depth unless it is the selected mark.
+                if (!att.paints("exhaustion", { selectedItem: markSelected })) continue;
                 // The box of what this mark drew (fuel + rings) — its hit body and halo.
                 let mx0 = x - 6, my0 = y0 - 9, mx1 = x + 7, my1 = y0 + 9;
                 let markDrew = false;
@@ -9955,7 +10032,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                where it covers no candle; else it folds to one measured line
                docked through the keep-out owner. */
             if (layerOnRef.current.anatomyCards === true) {
-              const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) ? anatomySelReading.card : null;
+              // The card is the selection's: it asks as the selected item.
+              const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) && att.paints("anatomyCards", { selectedItem: true }) ? anatomySelReading.card : null;
               if (!selCard) {
                 ds.anatomyCards = "AT_REST";
                 delete ds.anatomyCardsCandleHits;
@@ -10159,7 +10237,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               lensReadKeyRef.current = "OFF";
               onQuestionLensReadRef.current?.(null);
             }
-            if (layerOnRef.current.questionLens === true) {
+            if (layerOnRef.current.questionLens === true && att.paints("questionLens")) {
               const lens = selectQuestionLens({
                 absorption: anatomy,
                 exhaustion: selectExhaustion(anatomy),
@@ -10458,7 +10536,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                from the bar that made them, with a □ on that bar (F05A). */
             for (const k of SCAFFOLDING_GLASS_RECEIPTS) delete ds[k];
             const depth = scaffoldingDepthRef.current;
-            if (depth !== "OFF") {
+            // H-501 · the FOUNDATION card and its SWING ABOVE / BELOW tags ask
+            // the ONE permission table (scaffolding is SILENT at FAR).
+            if (depth !== "OFF" && att.paints("scaffolding")) {
               const sc = selectScaffoldingRead({
                 structure: scaffoldingStructureRef.current,
                 absorption: anatomy,
@@ -10920,23 +11000,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.exhaustionGeometry;
             delete ds.exhaustionEffortResult;
             delete ds.exhaustionWords;
-            ctx.save();
-            const txt = BASIS_LABEL.UNMEASURED;
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-            const tw2 = ctx.measureText(txt).width;
-            const desktopBasisChrome = W >= 960;
-            if (!desktopBasisChrome) {
-              ctx.fillStyle = "rgba(14,12,8,0.86)";
-              ctx.fillRect(8, 8, tw2 + 12, 14);
-              ctx.strokeStyle = "rgba(139,106,41,0.35)";
-              ctx.lineWidth = 1;
-              ctx.strokeRect(8.5, 8.5, tw2 + 11, 13);
+            // H-501 · absorption is SILENT at FAR: its refusal words too.
+            if (att.paints("absorption")) {
+              ctx.save();
+              const txt = BASIS_LABEL.UNMEASURED;
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              const tw2 = ctx.measureText(txt).width;
+              const desktopBasisChrome = W >= 960;
+              if (!desktopBasisChrome) {
+                ctx.fillStyle = "rgba(14,12,8,0.86)";
+                ctx.fillRect(8, 8, tw2 + 12, 14);
+                ctx.strokeStyle = "rgba(139,106,41,0.35)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(8.5, 8.5, tw2 + 11, 13);
+              }
+              ctx.fillStyle = "rgba(138,130,113,0.95)";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5);
+              ctx.restore();
             }
-            ctx.fillStyle = "rgba(138,130,113,0.95)";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
-            ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5);
-            ctx.restore();
           }
 
           // THE SELECTION'S RECEIPT: which object, how this window resolves it,
@@ -10964,13 +11047,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       {
         const depth = scaffoldingDepthRef.current;
-        canvas.dataset.scaffolding = depth === "OFF" ? "OFF" : (scaffoldPainted ?? `${depth}:NEEDS_ABSORPTION`);
+        // Withheld by the depth (H-501): named, and no refusal chip either.
+        const scaffoldPaints = depth !== "OFF" && att.paints("scaffolding");
+        canvas.dataset.scaffolding = depth === "OFF" ? "OFF" : !scaffoldPaints ? att.offWord(true) : (scaffoldPainted ?? `${depth}:NEEDS_ABSORPTION`);
         // The glass receipts describe geometry on THIS frame: when no measured
         // read painted (refusal, anatomy off or unmeasured), none stands.
         if (depth === "OFF" || scaffoldPainted == null || (!scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
           for (const k of SCAFFOLDING_GLASS_RECEIPTS) delete canvas.dataset[k];
         }
-        if (depth !== "OFF" && (scaffoldPainted == null || !scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
+        if (scaffoldPaints && (scaffoldPainted == null || !scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
           // Refusal is a render: the lens reads effort, and effort is not being read.
           ctx.save();
           const txt = scaffoldPainted == null
@@ -11040,8 +11125,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // the trader closed this layer, the other says the tape could not speak.
         // A single receipt for both would make a switched-off chart and a broken
         // feed read identically to anyone verifying live.
-        const on = layerOnRef.current.valueCandle;
-        ds.valueCandle = on ? glass.reason : "OFF";
+        // H-501 · switched on AND permitted at this depth by the ONE table.
+        const on = layerOnRef.current.valueCandle && att.paints("valueCandle");
+        ds.valueCandle = on ? glass.reason : att.offWord(layerOnRef.current.valueCandle);
 
         let painted = false;
         if (on && glass.drawn && glass.cog != null) {
@@ -11218,8 +11304,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // Collapsing those is how a silent regression passes for a quiet tape.
         // `OFF` is a third distinct word for the third distinct fact: the
         // trader switched this layer off. It is not a failure to measure.
-        const on = layerOnRef.current.stack;
-        ds.imbalanceStack = on ? glass.reason : "OFF";
+        // H-501 · switched on AND permitted at this depth by the ONE table.
+        const on = layerOnRef.current.stack && att.paints("stack");
+        ds.imbalanceStack = on ? glass.reason : att.offWord(layerOnRef.current.stack);
 
         if (on && glass.drawn && glass.priceLow != null && glass.priceHigh != null) {
           const yHiR = srs.priceToCoordinate(glass.priceHigh);
@@ -11483,8 +11570,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // enough tape to look. Collapsing them hides which.
         // And OFF is neither: the trader closed this layer, the tape did not
         // fail to speak. Three distinct silences, three distinct receipts.
-        const on = layerOnRef.current.divergence;
-        ds.deltaDivergence = on ? glass.reason : "OFF";
+        // H-501 · switched on AND permitted at this depth by the ONE table.
+        const on = layerOnRef.current.divergence && att.paints("divergence");
+        ds.deltaDivergence = on ? glass.reason : att.offWord(layerOnRef.current.divergence);
 
         let painted = false;
         if (on && glass.drawn && glass.priorPrice != null && glass.recentPrice != null && !glass.timeKnown) {
@@ -11652,8 +11740,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // OFF is not UNMEASURED. The tape answered; the trader closed the
         // layer. A receipt that conflated the two would make a switched-off
         // layer indistinguishable from a feed that cannot speak.
-        const on = layerOnRef.current.weather;
-        ds.liquidityWeather = on ? glass.reason : "OFF";
+        // H-501 · switched on AND permitted at this depth by the ONE table.
+        const on = layerOnRef.current.weather && att.paints("weather");
+        ds.liquidityWeather = on ? glass.reason : att.offWord(layerOnRef.current.weather);
         // F08B "WEATHER IS A LENS" (2026-09-25). The stage, the engine's
         // sentence and the shelf caption used to print here as three word
         // lines in the bottom-left corner — words about a place, printed
@@ -11689,8 +11778,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // layer. A receipt that conflated the two would make a switched-off
           // mark indistinguishable from a bar nobody could weigh — which is
           // this product's cardinal defect wearing a dataset attribute.
-          const on = layerOnRef.current.effort;
-          ds.effortMark = on ? (ev ? ev.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.effort && att.paints("effort");
+          ds.effortMark = on ? (ev ? ev.reason : "NO_READING") : att.offWord(layerOnRef.current.effort === true);
 
           if (on && ev?.drawn) {
             const m = ev.mark;
@@ -11755,8 +11844,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const dl = deltaLevelsRef.current;
-          const on = layerOnRef.current.deltaLevels;
-          ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.deltaLevels && att.paints("deltaLevels");
+          ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : att.offWord(layerOnRef.current.deltaLevels);
 
           if (on && dl?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("deltaLevels");
@@ -11871,7 +11960,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // F15A · THE STATE FIELD — the room's light by regime state, rising
             // toward the live edge. Faint by construction; the governor may
             // only lower it.
-            if (regimeLight.field) {
+            // H-501 · each fixture asks the ONE permission table: the field is
+            // FAR's regime light (a faint bias light below FAR); the channel
+            // and the magnets are MID's (at FAR the envelope IS the channel).
+            if (regimeLight.field && att.paints("regimeField")) {
               const rgb = REGIME_FIELD_RGB[regimeLight.field];
               const xEdge = Math.min(plotRight, xLiveR ?? plotRight);
               const reach = plotRight * 0.45;
@@ -11888,7 +11980,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               ds.regimeLightingField = `${regimeLight.field}|a=${aF.toFixed(2)}`;
             } else {
-              ds.regimeLightingField = "NONE";
+              ds.regimeLightingField = regimeLight.field ? att.offWord(true) : "NONE";
             }
 
             // THE FIXTURES, on the real bars: first measured bar → newest.
@@ -11896,6 +11988,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const xB = fx.toTime != null ? xOfR(fx.toTime) : null;
             const wordsTaken: number[] = [];
             const nameAt = (text: string, y: number, color: string, key: "regimeChannel" | "regimeMagnets") => {
+              if (!att.speaks(key)) return;
               if (xA == null || y < HEADER_FLOOR_Y || y > pane0Bottom - 6 || wordsTaken.some(t => Math.abs(t - y) < 11)) return;
               ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
               const w = ctx.measureText(text).width + 4;
@@ -11925,7 +12018,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yCA = yOfR(centre.fromPrice), yCB = yOfR(centre.toPrice);
               const yUA = yOfR(upper.fromPrice), yUB = yOfR(upper.toPrice);
               let channelLines = 0;
-              if (yLA != null && yLB != null && yCA != null && yCB != null && yUA != null && yUB != null) {
+              if (att.paints("regimeChannel") && yLA != null && yLB != null && yCA != null && yCB != null && yUA != null && yUB != null) {
                 ctx.globalAlpha = aC;
                 ctx.save();
                 ctx.beginPath();
@@ -11957,7 +12050,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.globalAlpha = aM;
               ctx.strokeStyle = "rgba(201,165,92,0.9)";
               let magnetLines = 0;
-              for (const lv of [...fx.magnets.levels].sort((a, b) => Math.abs(a.k) - Math.abs(b.k))) {
+              for (const lv of att.paints("regimeMagnets") ? [...fx.magnets.levels].sort((a, b) => Math.abs(a.k) - Math.abs(b.k)) : []) {
                 const y = yOfR(lv.price);
                 if (y == null || y < 0 || y > pane0Bottom) continue;
                 const yy = Math.round(y) + 0.5;
@@ -11980,7 +12073,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.save();
           ctx.globalAlpha = att.alpha("regimeLighting");
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          if (regimeLight.title) {
+          if (!att.paints("regimeLighting")) {
+            ds.regimeLightingMark = att.offWord(true);
+          } else if (regimeLight.title) {
             ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
             const tw = Math.ceil(ctx.measureText(regimeLight.title).width) + 22, th = 16;
             const yT = HEADER_FLOOR_Y + 4;
@@ -12068,7 +12163,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            newest window, re-based and laid faintly under the live bars it
            matched (≤ 0.18). Nothing right of the newest bar: a comparison, not
            a forecast. Weak fit / short history → a named silence. */
-        if (layerOnRef.current.memoryGhost === true && srs) {
+        if (layerOnRef.current.memoryGhost === true && att.paints("memoryGhost") && srs) {
           const ghostBars = (barsRef.current ?? []).map(b => ({ time: Number(b.time), close: Number(b.close), open: Number(b.open), high: Number(b.high), low: Number(b.low) }));
           ds.memoryGhostBars = String(ghostBars.length);
           const ghost = selectMemoryGhost(ghostBars);
@@ -12167,7 +12262,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           ctx.restore();
         } else {
-          ds.memoryGhost = "OFF";
+          ds.memoryGhost = att.offWord(layerOnRef.current.memoryGhost === true);
           delete ds.memoryGhostForm;
           onMemoryGhostRef.current?.(null);
         }
@@ -12190,7 +12285,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         delete ds.expectedEnvelopeSurprise;
         delete ds.expectedEnvelopeCaption;
         delete ds.expectedEnvelopeClipped;
-        if (layerOnRef.current.expectedEnvelope === true && srs) {
+        if (layerOnRef.current.expectedEnvelope === true && att.paints("expectedEnvelope") && srs) {
           const barsE = (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
           const env = selectExpectedEnvelope(barsE);
           ds.expectedEnvelope = env.drawn
@@ -12405,7 +12500,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           ctx.restore();
         } else {
-          ds.expectedEnvelope = "OFF";
+          ds.expectedEnvelope = att.offWord(layerOnRef.current.expectedEnvelope === true);
           onExpectedEnvelopeRef.current?.(null);
         }
 
@@ -12426,7 +12521,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         delete ds.contradictionGeometry;
         delete ds.contradictionWords;
         delete ds.contradictionRegistered;
-        if (layerOnRef.current.contradiction === true && srs) {
+        if (layerOnRef.current.contradiction === true && att.paints("contradiction") && srs) {
           const bsC = barsRef.current ?? [];
           const lastC = bsC[bsC.length - 1];
           const st = scaffoldingStructureRef.current;
@@ -12632,7 +12727,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.restore();
           }
         } else {
-          ds.contradiction = "OFF";
+          ds.contradiction = att.offWord(layerOnRef.current.contradiction === true);
           delete ds.contradictionPlaced;
           onContradictionRef.current?.(null);
         }
@@ -12653,7 +12748,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         })();
         // P-110 #7 · VISIBLE RANGE — computed only when switched on, and only
         // when the camera's time range or the newest bar changed.
-        const vrpOn = layerOnRef.current.visibleRangeProfile === true;
+        // H-501 · every species asks the ONE permission table before it takes a lane.
+        const vrpOn = layerOnRef.current.visibleRangeProfile === true && att.paints("visibleRangeProfile");
         let vrpVM: VisibleRangeProfileVM | null = null;
         if (vrpOn) {
           let from: number | null = null;
@@ -12671,7 +12767,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             vrpCacheRef.current = { key, vm: vrpVM };
           }
         }
-        ds.visibleRangeProfile = vrpOn ? (vrpVM?.reason ?? "NO_READING") : "OFF";
+        ds.visibleRangeProfile = vrpOn ? (vrpVM?.reason ?? "NO_READING") : att.offWord(layerOnRef.current.visibleRangeProfile === true);
         {
           // Only the camera knows this species' refusal; hand it to the room's
           // Profiles door (READY over an empty lane was the defect), on change.
@@ -12682,8 +12778,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
         const stackOrder: StackSpecies[] = [];
-        if (layerOnRef.current.livingProfile && livingProfileRef.current?.drawn) stackOrder.push("LIVING");
-        if (layerOnRef.current.compositeProfile && compositeProfileRef.current?.drawn) stackOrder.push("COMPOSITE");
+        if (layerOnRef.current.livingProfile && att.paints("livingProfile") && livingProfileRef.current?.drawn) stackOrder.push("LIVING");
+        if (layerOnRef.current.compositeProfile && att.paints("compositeProfile") && compositeProfileRef.current?.drawn) stackOrder.push("COMPOSITE");
         if (vrpOn && vrpVM?.drawn) stackOrder.push("VISIBLE_RANGE");
         // The trader's order (P-110 stack preferences); geometry stays with the plan.
         const orderedStack = orderStack(stackOrder, stackPrefsRef.current);
@@ -12856,8 +12952,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const lp = livingProfileRef.current;
-          const on = layerOnRef.current.livingProfile;
-          ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.livingProfile && att.paints("livingProfile");
+          ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : att.offWord(layerOnRef.current.livingProfile);
 
           if (on && lp?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("livingProfile");
@@ -13006,7 +13102,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // sessions before this one stand behind the gold silhouette as
             // GREY silhouettes at their own prices (bar-distributed — the
             // tape of a finished session is gone; the receipt says so).
-            if (layerOnRef.current.profileMemory && livingDepth !== "FAR") {
+            if (layerOnRef.current.profileMemory && att.paints("sessionGhosts")) {
               const ghostSrc = barsRef.current ?? [];
               if (ghostCache?.source !== ghostSrc) ghostCache = { source: ghostSrc, vm: selectSessionGhostProfiles(ghostSrc) };
               const gvm = ghostCache.vm;
@@ -13300,7 +13396,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               text: string,
               ink: string,
             ) => {
-              if (price == null) return;
+              // QUIET (FAR skeleton, NEAR): the lane without its level words.
+              if (price == null || !att.speaks("livingProfile")) return;
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
               levelChip(+yr, text, ink);
@@ -13364,8 +13461,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             */
             {
               const dna = profileDnaRef.current;
-              const dnaOn = layerOnRef.current.profileDna;
-              ds.profileDna = dnaOn ? (dna ? dna.reason : "NO_READING") : "OFF";
+              const dnaOn = layerOnRef.current.profileDna && att.paints("profileDna");
+              ds.profileDna = dnaOn ? (dna ? dna.reason : "NO_READING") : att.offWord(layerOnRef.current.profileDna);
               const spineOwned = dnaOn && dna != null && (dna.measured || dna.reason === "THIN_SAMPLE");
               const yLo = spineOwned && dna.lo != null ? srs.priceToCoordinate(dna.lo) : null;
               const yHi = spineOwned && dna.hi != null ? srs.priceToCoordinate(dna.hi) : null;
@@ -13450,8 +13547,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const cp = compositeProfileRef.current;
-          const on = layerOnRef.current.compositeProfile;
-          ds.compositeProfile = on ? (cp ? cp.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.compositeProfile && att.paints("compositeProfile");
+          ds.compositeProfile = on ? (cp ? cp.reason : "NO_READING") : att.offWord(layerOnRef.current.compositeProfile);
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
@@ -13551,7 +13648,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // The levels, named the family's one way: a price chip at the
               // plot's right edge on the level's own row (never on a candle).
               const lab = (price: number | null, text: string, ink: string) => {
-                if (price == null) return;
+                if (price == null || !att.speaks("compositeProfile")) return;
                 const yr = srs.priceToCoordinate(price);
                 if (yr == null) return;
                 levelChip(+yr, text, ink);
@@ -13559,7 +13656,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
               lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
               lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
-              if (Number.isFinite(top)) {
+              if (Number.isFinite(top) && att.speaks("compositeProfile")) {
                 // The species' caption rides just above its own lane — no longer
                 // a fixed row at y=50 inside the header band, where it sat under
                 // the semantic badge and INSPECT (serving, 2026-09-25).
@@ -13659,7 +13756,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // The levels, named the family's one way: a price chip at the
             // plot's right edge on the level's own row (never on a candle).
             const lab = (price: number | null, text: string, ink: string) => {
-              if (price == null) return;
+              if (price == null || !att.speaks("visibleRangeProfile")) return;
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
               levelChip(+yr, text, ink);
@@ -13667,7 +13764,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
             lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.85));
             lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.85));
-            if (Number.isFinite(top)) {
+            if (Number.isFinite(top) && att.speaks("visibleRangeProfile")) {
               // Just above its own lane — no longer a fixed row at y=66 inside
               // the header band, where it collided with the semantic badge
               // "MID · ZONES + PROFILE SPEAK" and INSPECT (serving, 2026-09-25).
@@ -13713,7 +13810,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.profileFusionObject = fr.ok ? `FUSED:${fr.fused.poc}:${fr.fused.sources.map(s => s.id).join("+")}` : `REFUSED:${fr.reason}`;
             onProfileFusionRef.current?.(fr.ok ? fr.fused : null, fr.ok ? null : fr.reason);
             const lanes = pair.map(sp => stackPlan.lanes[sp]).filter((l): l is NonNullable<typeof l> => !!l && l.fits);
-            if (fr.ok && lanes.length) {
+            if (fr.ok && lanes.length && att.paints("fusedObject")) {
               const f = fr.fused;
               const spanR = Math.max(...lanes.map(l => l.right));
               const spanL = Math.min(...lanes.map(l => l.right - l.width));
@@ -13784,7 +13881,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.setLineDash(dash);
                 ctx.beginPath(); ctx.moveTo(spanL, +y); ctx.lineTo(spanR, +y); ctx.stroke();
                 ctx.setLineDash([]);
-                levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
+                if (att.speaks("fusedObject")) levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
               };
               ctx.lineWidth = 2;
               line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, []);
@@ -13821,8 +13918,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // (No Liquidity Lifecycle caption line is reserved here any more: the
           // caption left the bottom-left word stack on 2026-09-25 — F08A pools
           // are ladders on price, their honesty a receipt and one compact tag.)
-          const on = layerOnRef.current.tpo;
-          ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.tpo && att.paints("tpo");
+          ds.tpoProfile = on ? (tpo ? tpo.reason : "NO_READING") : att.offWord(layerOnRef.current.tpo);
 
           if (on && tpo?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("tpo");
@@ -13999,8 +14096,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const sp = structureProfileRef.current;
-          const on = layerOnRef.current.structureProfile;
-          ds.structureProfile = on ? (sp ? sp.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.structureProfile && att.paints("structureProfile");
+          ds.structureProfile = on ? (sp ? sp.reason : "NO_READING") : att.offWord(layerOnRef.current.structureProfile);
 
           const ax = sp?.anchor ? chart.timeScale().timeToCoordinate(sp.anchor.time as any) : null;
           if (on && sp?.drawn && sp.anchor && ax != null) {
@@ -14252,8 +14349,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const fu = profileFusionRef.current;
-          const on = layerOnRef.current.profileFusion;
-          ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.profileFusion && att.paints("profileFusion");
+          ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : att.offWord(layerOnRef.current.profileFusion);
           if (on && fu?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
@@ -14372,8 +14469,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const mem = profileMemoryRef.current;
-          const on = layerOnRef.current.profileMemory;
-          ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.profileMemory && att.paints("profileMemory");
+          ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : att.offWord(layerOnRef.current.profileMemory);
           if (on && mem?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("profileMemory");
             const ts = chart.timeScale();
@@ -14552,7 +14649,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const vmL = valueMigrationRef.current;
           const lp = livingProfileRef.current;
-          if (layerOnRef.current.livingProfile && !layerOnRef.current.valueMigration && vmL?.drawn && vmL.points.length >= 3 && lp?.drawn) {
+          if (layerOnRef.current.livingProfile && !layerOnRef.current.valueMigration && att.paints("livingProfileMovie") && vmL?.drawn && vmL.points.length >= 3 && lp?.drawn) {
             const cur = vmL.points[vmL.points.length - 1].session;
             const pts = vmL.points.filter(q => q.session === cur);
             const tsL = chart.timeScale();
@@ -14592,8 +14689,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         {
           const vm = valueMigrationRef.current;
-          const on = layerOnRef.current.valueMigration;
-          ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.valueMigration && att.paints("valueMigration");
+          ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : att.offWord(layerOnRef.current.valueMigration);
           if (on && vm?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("valueMigration");
             const ts = chart.timeScale();
@@ -14752,6 +14849,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const zEnd = Math.min(W - 76, Math.max(endX, x0 + 60));
               if (x0 >= zEnd) continue;
               const selected = z.object.objectId === selId;
+              // H-501 · zones are MID's; the selected zone speaks at every depth.
+              if (!att.paints("marketZones", { selectedItem: selected })) continue;
               const invalid = z.lifecycle.state === "INVALID";
               // R-19 · WHAT IS PAINTED IS WHAT A CLICK SELECTS. The band was
               // drawn but only its 28px pin was clickable, so a click on the
@@ -14896,8 +14995,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ═══════════════════════════════════════════════════════════════════ */
         {
           const ms = marketStructureRef.current;
-          const on = layerOnRef.current.marketStructure;
-          ds.marketStructure = on ? (ms ? ms.reason : "NO_READING") : "OFF";
+          const on = layerOnRef.current.marketStructure && att.paints("marketStructure");
+          ds.marketStructure = on ? (ms ? ms.reason : "NO_READING") : att.offWord(layerOnRef.current.marketStructure);
           ds.marketStructureBias = ms?.bias ?? "";
           // Withdrawn every frame and re-stamped only where it is painted, so
           // a closed layer or UNCLEAR bias never leaves a stale verdict behind.
@@ -14927,12 +15026,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const x = +xr, y = +yr;
               if (x < 0 || x > plotRightS || y < 0 || y > paneBotS) continue;
               onCamera++;
+              // H-501 · FAR's form is MAJOR STRUCTURE ONLY: the swings the FAR
+              // envelope measured as major, each with the owner's letter.
+              if (farMajorPivots && !farMajorPivots.has(`${p.kind}:${p.time}`)) continue;
               marks.push({ kind: p.kind, x, y, isLast: p.isLast, label: p.label, price: p.price });
             }
 
             // THE LEVEL RULES — the last swing high and low, from the swing to
-            // the axis, behind the candles.
-            const lastMarks = marks.filter(m => m.isLast);
+            // the axis, behind the candles. QUIET (FAR, NEAR): chevrons and
+            // letters only — no rules, names or bias words.
+            const msSpeaks = att.speaks("marketStructure");
+            const lastMarks = msSpeaks ? marks.filter(m => m.isLast) : [];
             const levels: string[] = [];
             if (lastMarks.length) {
               const vrS = tsS.getVisibleLogicalRange();
@@ -15014,7 +15118,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:${spot.mode}`);
             }
 
-            if (ms.bias !== "UNCLEAR") {
+            if (ms.bias !== "UNCLEAR" && msSpeaks) {
               const word =
                 ms.bias === "HIGHER_HIGHS" ? "STRUCTURE · HIGHER HIGHS · HH · HL"
                 : ms.bias === "LOWER_LOWS" ? "STRUCTURE · LOWER LOWS · LH · LL"
@@ -15096,7 +15200,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (zoom.visibleBarCount != null) ds.semanticZoomBars = String(zoom.visibleBarCount);
           else delete ds.semanticZoomBars;
 
-          if (zoom.tag) {
+          if (zoom.tag && att.paints("zoomPlate")) {
             ctx.save();
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textAlign = "right";
@@ -15183,7 +15287,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         let weatherGathering: { region: { x0: number; y0: number; x1: number; y1: number }; words: string } | null = null;
         /** The field's composite alpha as actually painted (0 = no field) — the readout's VEIL. */
         let weatherVeil = 0;
-        let weatherLensWhy: string = on ? "UNMEASURED" : "OFF";
+        let weatherLensWhy: string = on ? "UNMEASURED" : att.offWord(layerOnRef.current.weather);
         let weatherPlotRight = W - 60;
         try { weatherPlotRight = W - chart.priceScale("right").width(); } catch { /* keep default */ }
         const lensBars = barsRef.current ?? [];
@@ -15289,6 +15393,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
 
         ds.heatLens = !on ? "OFF" : heat.drawable ? "DRAWN" : "REFUSED";
+        // Painted under the weather layer's gate; its own row in the permission
+        // table says the same depth, and the receipt names the silence.
+        if (!on && layerOnRef.current.weather && !att.paints("heatLens")) ds.heatLens = att.offWord(true);
         // F08B: the field exists only INSIDE the lens. No lens (untimed or off
         // camera) → no field, and the receipt names that silence.
         if (on && heat.drawable && !weatherLens) ds.heatLens = "UNPLACED";
@@ -15743,7 +15850,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            ds.liquidityLifecycleRefused) plus ONE compact tag at the live
            pool's end, placed clear of the candles and the chips.
            The reading is compiled ONCE by the room; this canvas only draws it. */
-        if (layerOnRef.current.liquidityLifecycle === true) {
+        // H-501 · liquidity is MID's: SILENT at FAR, ladders without phase
+        // words at NEAR (the one honesty tag stays).
+        if (layerOnRef.current.liquidityLifecycle === true && att.paints("liquidityLifecycle")) {
           const lc = liquidityLifecycleRef.current;
           if (!lc) {
             ds.liquidityLifecycle = "NO_READING";
@@ -15875,7 +15984,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.textBaseline = "alphabetic";
             const placedWords: { x: number; y: number; w: number; h: number }[] = [];
             let wordsSaid = 0;
-            for (const wd of words) {
+            for (const wd of att.speaks("liquidityLifecycle") ? words : []) {
               const r = { x: wd.x, y: wd.y - 7, w: ctx.measureText(wd.text).width, h: 8 };
               if (r.x + r.w > rightL || r.y < HEADER_FLOOR_Y) continue;
               const hit = (o: { x: number; y: number; w: number; h: number }) => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y;
@@ -15917,7 +16026,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             else delete ds.liquidityLifecycleSpans;
           }
         } else {
-          ds.liquidityLifecycle = "OFF";
+          ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);
           delete ds.liquidityLifecyclePainted;
           delete ds.liquidityLifecycleTicks;
           delete ds.liquidityLifecycleSpans;
@@ -15937,7 +16046,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            sits on top of them; the header chrome is clipped out of the rail. */
         delete ds.riskOnPriceTicks;
         delete ds.riskOnPriceSilence;
-        if (layerOnRef.current.riskOnPrice === true) {
+        if (layerOnRef.current.riskOnPrice === true && att.paints("riskOnPrice")) {
           const bsR = barsRef.current ?? [];
           const plansR = drawingsRef.current.map(planFromDrawing).filter((p): p is PositionPlanInput => p != null);
           const rv = selectRiskOnPrice(plansR, bsR, bsR.length ? bsR[bsR.length - 1].close : null);
@@ -16172,7 +16281,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.riskReceiptHits;
           }
         } else {
-          ds.riskOnPrice = "OFF";
+          ds.riskOnPrice = att.offWord(layerOnRef.current.riskOnPrice === true);
           delete ds.riskReceipt;
           delete ds.riskReceiptHits;
         }
@@ -16193,7 +16302,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         let tagState: "NONE" | "OFF_CAMERA" | "DRAWN" = "NONE";
         let tagMode: string | null = null;
         try {
-          if (tagT) {
+          // H-501 · the WAIT tag is MID's and NEAR's: SILENT at FAR.
+          if (tagT && att.paints("debtTag")) {
             tagState = "OFF_CAMERA";
             const bsT = barsRef.current ?? [];
             let evT: (typeof bsT)[number] | null = null;
@@ -16272,6 +16382,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         } catch { /* camera mid-transition: the receipt below still names the state */ }
         canvas.dataset.debtTag = tagState;
+        if (tagT && !att.permission.paints("debtTag")) canvas.dataset.debtTag = att.offWord(true);
         if (tagState === "DRAWN" && tagT) {
           canvas.dataset.debtTagBar = String(tagT.barTimeSec);
           canvas.dataset.debtTagPlacement = tagMode ?? "";
@@ -16287,6 +16398,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // late). A layer that is OFF never asked and is not listed; its own
       // silence receipt speaks.
       canvas.dataset.attentionTiers = att.tiersReceipt();
+
+      // H-501 · SEMANTIC PERMISSION RECEIPTS, re-published every frame from
+      // the one table: `semanticPermission` = the depth and every layer it
+      // silences (`FAR|SILENT=…`; withdrawn when the depth is UNMEASURED);
+      // `semanticWithheld` = the blocks that asked this frame and were
+      // withheld (withdrawn when none). `semanticCandlesDim` is written by the
+      // FAR block where the veil paints.
+      const permissionNow = att.permission.receipt;
+      if (permissionNow) canvas.dataset.semanticPermission = permissionNow;
+      else delete canvas.dataset.semanticPermission;
+      const withheldNow = att.withheldReceipt();
+      if (withheldNow) canvas.dataset.semanticWithheld = withheldNow;
+      else delete canvas.dataset.semanticWithheld;
 
       // Published only when a placer with an opaque backing consulted the
       // keep-out this frame; otherwise it stays withdrawn (cleared above).

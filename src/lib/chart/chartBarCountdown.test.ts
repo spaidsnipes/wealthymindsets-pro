@@ -171,7 +171,9 @@ describe("a PROVEN-closed market has no bar to count down to (GP12 §24)", () =>
     const code = readFileSync(join(process.cwd(), "src", "components/chart/MainChart.tsx"), "utf8");
     expect(code).toMatch(/candleStatus\.label,\s*\/\/[^\n]*\n\s*sessionOpen === false,\s*\);/);
     expect(code).toContain('countdownRef.current = barCountdown.kind === "MARKET_CLOSED" ? "" : barCountdown.glyph;');
-    expect(code).toContain("if (candleTimerRef.current && countdownRef.current) {");
+    // 2026-09-26 (H-501 permission): the pill also asks the permission table
+    // (candleTimer SPEAKs at every depth).
+    expect(code).toContain('if (candleTimerRef.current && countdownRef.current && att.paints("candleTimer")) {');
     expect(code).toContain('barCountdown.kind === "MARKET_CLOSED" ? "hidden" : ""');
   });
 });
