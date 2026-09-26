@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { traderPerformanceStats } from "@/lib/profile/traderPerformanceStats";
+import { describeLegacyFuturesMoney } from "@/lib/journal/computePnl";
+import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
 import { clsx } from "clsx";
@@ -302,12 +304,21 @@ function ProfilePageInner() {
      See lib/profile/traderPerformanceStats.
      SENTINEL: profile-perf-stats-have-one-owner */
   const [closedTrades, setClosedTrades] = useState<Array<{ pnl?: number }>>([]);
+  // Garden 16 §17 (review, 2026-09-26): journal futures entries saved at $1
+  // per point are in these tiles as recorded. The journal money owner counts
+  // them and the tiles say so beneath them.
+  const [legacyFuturesNote, setLegacyFuturesNote] = useState<string | null>(null);
   useEffect(() => {
     try {
       const journalEntries = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
       setClosedTrades([...journalEntries, ...paperTrades].filter(hasResolvedTradeOutcome));
+      setLegacyFuturesNote(
+        Array.isArray(journalEntries)
+          ? describeLegacyFuturesMoney(hydrateJournalEntries(journalEntries).entries).note
+          : null,
+      );
     } catch {}
   }, []);
   const stats = useMemo(() => traderPerformanceStats(closedTrades), [closedTrades]);
@@ -639,6 +650,11 @@ function ProfilePageInner() {
               </div>
             ))}
           </div>
+          {legacyFuturesNote !== null && (
+            <p role="note" data-testid="profile-legacy-futures-note" className="mt-2 max-w-lg text-[10px] leading-relaxed text-wm-text-dim">
+              {legacyFuturesNote}
+            </p>
+          )}
 
           {/* Circle of Excellence — Top 8 */}
           <div className="mt-5">

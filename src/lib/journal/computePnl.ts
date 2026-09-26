@@ -17,7 +17,7 @@
  *  - §4: 1R must be defined BEFORE entry, otherwise R is undefined.
  */
 
-import { realizedR } from "../proofLane/proofLaneR";
+import { realizedR, type DayModel } from "../proofLane/proofLaneR";
 import { instrumentEconomics, formatUsd } from "@/lib/marketData/contractEconomics";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 
@@ -148,25 +148,134 @@ export interface RecordedMoneyInput extends JournalMoneyInput {
   size: number;
   side: Side;
   pnl: number;
+  /**
+   * Canon §3. An M0 record is not a trade, so it has no money to be wrong
+   * about (review, 2026-09-26: an M0 day on ES1! with hidden entry/exit values
+   * would otherwise be told its $0.00 "is not ES money").
+   */
+  dayModel?: DayModel;
 }
 
-export function selectRecordedMoney(e: RecordedMoneyInput): { readonly label: string; readonly mismatch: string | null } {
+export interface RecordedMoney {
+  readonly label: string;
+  readonly mismatch: string | null;
+  /** True when the stored P&L is exactly the $1-per-point figure — a pre-§17 save. */
+  readonly savedAtOneX: boolean;
+}
+
+export function selectRecordedMoney(e: RecordedMoneyInput): RecordedMoney {
   const money = journalMoneyFor(e);
   const priceable = e.entry > 0 && e.exit > 0 && e.size > 0 && Number.isFinite(e.pnl);
-  if (!priceable || (money.status === "PRICED" && money.basis !== "futures")) {
-    return { label: money.label, mismatch: null };
+  if (e.dayModel === "M0" || !priceable || (money.status === "PRICED" && money.basis !== "futures")) {
+    return { label: money.label, mismatch: null, savedAtOneX: false };
   }
+  const oneX = (e.exit - e.entry) * e.size * (e.side === "short" ? -1 : 1);
+  const savedAtOneX = Math.abs(oneX - e.pnl) <= 0.005;
   if (money.status === "UNPRICED") {
     return {
       label: money.label,
       mismatch: `the recorded P&L ${formatUsd(e.pnl)} is not ${money.root} money — ${money.reason}`,
+      savedAtOneX,
     };
   }
   const truth = computeJournalPnl(e);
-  if (Math.abs(truth - e.pnl) <= 0.005) return { label: money.label, mismatch: null };
+  if (Math.abs(truth - e.pnl) <= 0.005) return { label: money.label, mismatch: null, savedAtOneX: false };
   return {
     label: money.label,
     mismatch: `the recorded P&L ${formatUsd(e.pnl)} was not priced at ${formatUsd(money.multiplier)} per point — at ${money.root}'s point value this trade is ${formatUsd(truth)}`,
+    savedAtOneX,
+  };
+}
+
+/**
+ * WHICH CONTRACT A JOURNAL ROW IS, by the money it is priced at — not by the
+ * stock/option picker alone (review NIT, 2026-09-26). The picker has no
+ * futures, so an ES1! trade stored `contractType: "stock"` was filtered under
+ * STK and wore no chip. The basis comes from `journalMoneyFor`, the same owner
+ * the save used. An option on futures is still an option.
+ */
+export type JournalContractBasis = "stock" | "option" | "futures";
+
+export function journalContractBasis(e: JournalMoneyInput): JournalContractBasis {
+  const money = journalMoneyFor(e);
+  if (money.status === "PRICED") return money.basis === "share" ? "stock" : money.basis;
+  return money.refusal === "OPTION_ON_FUTURES" ? "option" : "futures";
+}
+
+/**
+ * The contract chip on a journal list row, or null for a share (a share has
+ * never worn one). A futures row names its root, and says so when its stored
+ * money is not its futures money.
+ */
+export interface ContractChip {
+  readonly basis: "option" | "futures";
+  readonly text: string;
+  /** Full words for `title` / `aria-label`. */
+  readonly words: string;
+  /** True when the row's money is not its contract's money (saved 1x, or unpriced). */
+  readonly flagged: boolean;
+}
+
+export function selectContractChip(e: RecordedMoneyInput): ContractChip | null {
+  const basis = journalContractBasis(e);
+  if (basis === "stock") return null;
+  const money = journalMoneyFor(e);
+  if (basis === "option") {
+    return money.status === "PRICED"
+      ? { basis, text: "OPT", words: money.label, flagged: false }
+      : { basis, text: "OPT", words: `${money.label} — ${money.reason}`, flagged: true };
+  }
+  const root = money.root ?? "";
+  // Canon §3: an M0 row took no trade, so it names its contract and claims no
+  // money state (seen on the glass, 2026-09-26: "FUT YM · UNPRICED" on a no-trade day).
+  if (e.dayModel === "M0") return { basis, text: `FUT ${root}`, words: money.label, flagged: false };
+  const recorded = selectRecordedMoney(e);
+  if (recorded.mismatch !== null) {
+    return {
+      basis,
+      text: recorded.savedAtOneX ? `FUT ${root} · SAVED AT 1x` : `FUT ${root} · MONEY MISMATCH`,
+      words: `${money.label} — ${recorded.mismatch}`,
+      flagged: true,
+    };
+  }
+  if (money.status === "UNPRICED") return { basis, text: `FUT ${root} · UNPRICED`, words: `${money.label} — ${money.reason}`, flagged: true };
+  return { basis, text: `FUT ${root}`, words: money.label, flagged: false };
+}
+
+/**
+ * THE TOTALS SAY WHEN THEY HOLD PRE-§17 FUTURES MONEY.
+ *
+ * Found in review (2026-09-26): futures entries saved before the journal
+ * priced futures at their point value carry $1-per-point dollars (an ES
+ * trade of 10 points stored as $10, not $500), and that stored number feeds
+ * every total — the header P&L, the coach's averages and setup rows, the
+ * chart's P&L strip, /profile — and its stored realizedR feeds the daily R
+ * stop. WM does not rewrite a stored figure behind the trader's back, and it
+ * does not drop the rows either (that would be a second silent change to the
+ * same totals). It counts them as recorded and SAYS so, here, once.
+ *
+ * Counted: trade records (never M0) whose stored P&L `selectRecordedMoney`
+ * flags. Re-pricing a saved entry is not built yet; the note says that too
+ * rather than pointing at a control that does not exist.
+ */
+export interface LegacyFuturesMoney {
+  readonly count: number;
+  readonly note: string | null;
+}
+
+export const FUTURES_POINT_VALUE_SINCE = "2026-09-26";
+
+export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[]): LegacyFuturesMoney {
+  // M0 records are never flagged: `selectRecordedMoney` owns that rule.
+  const count = records.filter((r) => selectRecordedMoney(r).mismatch !== null).length;
+  if (count === 0) return { count, note: null };
+  const one = count === 1;
+  return {
+    count,
+    note: `${count} futures ${one ? "entry was" : "entries were"} not priced at ${one ? "its" : "their"} point value when saved — `
+      + `before ${FUTURES_POINT_VALUE_SINCE} the journal priced futures at $1 per point. `
+      + `${one ? "It is" : "They are"} counted here as recorded, so these dollars and R understate ${one ? "it" : "them"}. `
+      + `Open ${one ? "it" : "one"} to see its futures money; re-pricing saved entries is not available yet.`,
   };
 }
 
@@ -327,4 +436,49 @@ export function computeJournalRealizedR(input: RealizedRInput): number | undefin
   } catch {
     return undefined;
   }
+}
+
+/**
+ * WHAT saveEntry WRITES FOR MONEY — P&L and realized R — or a refusal.
+ *
+ * Found in review (Garden 16 §17, 2026-09-26): `selectJournalPricing` answers
+ * NO_TRADE_DAY for M0 before it asks about the instrument, and saveEntry then
+ * called `computeJournalPnl` anyway. On M0 the entry/exit/size fields are
+ * hidden but keep whatever was typed, so an M0 day on YM1! (no point value on
+ * file) with hidden values was written as pnl NaN → `result "be"` →
+ * `JSON.stringify` null → refused by `hydrateJournalEntry` on the next load →
+ * dropped from the book, and the persistence effect re-saved the book without
+ * it. A no-trade record, lost for good.
+ *
+ *   - M0: no trade was taken, so there is no money to compute. pnl 0 (the
+ *     stored shape needs a number, and `describeRecordOutcome` never shows it
+ *     as money), realizedR undefined — what the modal already promises
+ *     ("Realized R will be recorded as undefined"). `computeJournalPnl` is not
+ *     called.
+ *   - Otherwise: the P&L must be FINITE or nothing is written. The gate should
+ *     have refused first; this is the second lock on the same door, because a
+ *     NaN written here is not a wrong number, it is a deleted record.
+ */
+export interface JournalSaveMoneyInput extends RealizedRInput {
+  /** Canon §3 M0, from the page's day model. */
+  isNoTradeDay?: boolean;
+}
+
+export type JournalSaveMoney =
+  | { readonly status: "WRITE"; readonly pnl: number; readonly realizedR: number | undefined }
+  | { readonly status: "REFUSED"; readonly reason: string };
+
+export function selectJournalSaveMoney(input: JournalSaveMoneyInput): JournalSaveMoney {
+  if (input.isNoTradeDay) return { status: "WRITE", pnl: 0, realizedR: undefined };
+  const pnl = computeJournalPnl(input);
+  if (!Number.isFinite(pnl)) {
+    const money = journalMoneyFor(input);
+    return {
+      status: "REFUSED",
+      reason: money.status === "UNPRICED"
+        ? `WM cannot price this ${money.root} trade: ${money.reason}`
+        : "WM could not compute a finite P&L for this trade",
+    };
+  }
+  return { status: "WRITE", pnl, realizedR: computeJournalRealizedR(input) };
 }

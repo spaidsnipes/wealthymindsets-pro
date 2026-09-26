@@ -66,8 +66,19 @@
  * in the reason of every figure they could have changed — a percentage over 9
  * of 10 rows has to say so, or it is a percentage pretending to be a census.
  *
+ * ── DEFECT SIX: PRE-§17 FUTURES MONEY, UNSAID (review, 2026-09-26) ──────
+ *
+ * Futures entries journaled before the journal priced futures at their point
+ * value carry $1-per-point dollars, and every figure here sums them as
+ * recorded. They are still summed (a silent drop would move every number a
+ * second time), and the report now carries the journal money owner's count
+ * and sentence so the strip can say so — `legacyFutures`.
+ *
  * PURE — no clock, no storage access, no React.
  */
+
+import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
+import { describeLegacyFuturesMoney, type LegacyFuturesMoney } from "@/lib/journal/computePnl";
 
 export type PnlStatState =
   /** WM computed this from finite recorded values. */
@@ -102,6 +113,8 @@ export interface PnlStatsReport {
   readonly counted: number;
   /** Rows present but carrying no usable P&L. Disclosed, never dropped quietly. */
   readonly skipped: number;
+  /** Futures rows summed at the $1-per-point money they were saved with. */
+  readonly legacyFutures: LegacyFuturesMoney;
 }
 
 /** The window every figure is computed over. Stated, never assumed. */
@@ -175,7 +188,7 @@ export function compilePnlStats(rawJournal: string | null): PnlStatsReport {
       "R-Multiple",
       "Profit Factor",
     ].map(unreadable);
-    return { stats, headline: stats[0], counted: 0, skipped: 0 };
+    return { stats, headline: stats[0], counted: 0, skipped: 0, legacyFutures: { count: 0, note: null } };
   }
 
   const pnls: number[] = [];
@@ -347,5 +360,8 @@ export function compilePnlStats(rawJournal: string | null): PnlStatsReport {
     headline: total,
     counted,
     skipped,
+    // Asked of the journal's own reader and money owner — the same rows,
+    // the same test the /journal header uses, not a second copy of it.
+    legacyFutures: describeLegacyFuturesMoney(hydrateJournalEntries(rows).entries),
   };
 }

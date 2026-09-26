@@ -96,10 +96,37 @@ describe("/journal — a trade that cannot be priced is never written down", () 
     // the defect this closed. Each call site must pass it.
     const gateAt = code.indexOf("selectJournalPricing({");
     expect(code.slice(gateAt, gateAt + 400)).toMatch(/symbol:\s*form\.symbol,\s*contractType:\s*form\.contractType/);
-    expect(code).toMatch(/computeJournalPnl\(\{[^}]*symbol:\s*e\.symbol[^}]*\}\)/);
+    // PIN MOVED 2026-09-26 (review RED): the save no longer calls
+    // computeJournalPnl / computeJournalRealizedR itself. It asks
+    // selectJournalSaveMoney, which never prices an M0 day and refuses a
+    // non-finite P&L, so the symbol must reach THAT call. The live R tile
+    // still calls computeJournalRealizedR and must still pass the symbol.
+    expect(code).toMatch(/selectJournalSaveMoney\(\{[^}]*symbol:\s*e\.symbol[^}]*\}\)/);
     const rCalls = code.split("computeJournalRealizedR({").slice(1).map(s => s.slice(0, 300));
-    expect(rCalls.length).toBeGreaterThanOrEqual(2);
+    expect(rCalls.length).toBeGreaterThanOrEqual(1);
     for (const call of rCalls) expect(call).toMatch(/symbol:\s*(e|form)\.symbol/);
+  });
+
+  it("Garden 16 §17 review RED: the save never prices an M0 day and never writes a non-finite P&L", () => {
+    // An M0 day on an unpriced futures root with hidden entry/exit values was
+    // written as pnl NaN -> JSON null -> refused on the next load -> lost.
+    const start = code.indexOf("const saveEntry = () => {");
+    const end = code.indexOf("setEntries(prev => [e, ...prev]);", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const body = code.slice(start, end);
+    // The one money call is told the day model...
+    expect(body).toMatch(/selectJournalSaveMoney\(\{[^}]*isNoTradeDay:\s*e\.dayModel === "M0"[^}]*\}\)/);
+    // ...a refusal returns BEFORE anything is written...
+    const refuseAt = body.search(/if \(money\.status !== "WRITE"\) return;/);
+    expect(refuseAt).toBeGreaterThan(-1);
+    expect(refuseAt).toBeLessThan(body.indexOf("e.pnl"));
+    expect(refuseAt).toBeLessThan(body.indexOf("e.id"));
+    // ...and pnl / realizedR come only from that verdict, never a raw call.
+    expect(body).toMatch(/e\.pnl\s*=\s*money\.pnl;/);
+    expect(body).toMatch(/e\.realizedR\s*=\s*money\.realizedR;/);
+    expect(body).not.toMatch(/computeJournalPnl\(/);
+    expect(body).not.toMatch(/computeJournalRealizedR\(/);
   });
 
   it("never dresses an unfinished form as a failure (§8)", () => {

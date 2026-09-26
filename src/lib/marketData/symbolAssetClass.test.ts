@@ -17,9 +17,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
-import { YF_MAP, YF_CRYPTO_PINS } from "@/lib/yahooSymbol";
+import { YF_MAP, YF_CRYPTO_PINS, isKnownFuturesRoot } from "@/lib/yahooSymbol";
+import { WEBULL_FUTURES_ES_INSTRUMENTS_FIXTURE } from "@/lib/broker/adapters/__fixtures__/webullResponses";
 import {
   classifySymbol,
+  futuresRootOf,
   equityVendorSkipNoun,
   toYahooSymbol,
   isUnsupportedByEquityVendors,
@@ -138,6 +140,81 @@ describe("classifySymbol — one answer per instrument, in every notation", () =
   it("is case- and whitespace-insensitive", () => {
     expect(classifySymbol("  nq=f ")).toBe("FUTURES");
     expect(classifySymbol("btc")).toBe("CRYPTO");
+  });
+});
+
+/**
+ * DATED CONTRACT CODES (Garden 16 §17 review, 2026-09-26). "ESZ6" is how the
+ * broker names the December E-mini (Webull's instrument record: symbol ESU6,
+ * code ES, size 50); it was UNKNOWN here and the journal priced it at 1x, and
+ * "/ESZ6" read back as the root "ESZ". Both directions are pinned: a dated code
+ * of a LISTED root is futures, and nothing else moves — above all not a bare
+ * root, which is a share ("ES" Eversource, "CL" Colgate-Palmolive).
+ */
+describe("classifySymbol / futuresRootOf — dated contract codes of listed roots", () => {
+  it("reads root + month letter + 1-4 digit year as the root's futures", () => {
+    const cases: Array<[string, string]> = [
+      ["ESZ6", "ES"], ["/ESZ6", "ES"], ["ESZ26", "ES"], ["ESZ2026", "ES"], ["esz6", "ES"],
+      ["NQH27", "NQ"], ["MESZ6", "MES"], ["M2KZ6", "M2K"], ["6EH7", "6E"], ["CLX6", "CL"],
+      ["GCZ6", "GC"], ["RTYZ6", "RTY"], ["/CLM5", "CL"], ["ZWN7", "ZW"],
+    ];
+    for (const [sym, root] of cases) {
+      expect(classifySymbol(sym), sym).toBe("FUTURES");
+      expect(futuresRootOf(sym), sym).toBe(root);
+    }
+  });
+
+  it("every month code, for every root the notation owner lists", () => {
+    const roots = Object.entries(YF_MAP)
+      .filter(([k, v]) => k.endsWith("1!") && v === `${k.slice(0, -2)}=F`)
+      .map(([k]) => k.slice(0, -2));
+    expect(roots.length).toBeGreaterThan(20);
+    for (const root of roots) {
+      expect(isKnownFuturesRoot(root), root).toBe(true);
+      for (const month of "FGHJKMNQUVXZ") {
+        expect(futuresRootOf(`${root}${month}6`), `${root}${month}6`).toBe(root);
+      }
+    }
+  });
+
+  it("the broker's own record reads back to its own code", () => {
+    for (const rec of WEBULL_FUTURES_ES_INSTRUMENTS_FIXTURE) {
+      expect(classifySymbol(rec.symbol)).toBe("FUTURES");
+      expect(futuresRootOf(rec.symbol)).toBe(rec.code);
+    }
+  });
+
+  it("NEGATIVE: a bare root stays whatever it was — ES, CL, GC, NQ are shares here", () => {
+    for (const s of ["ES", "CL", "GC", "NQ", "SI", "HG", "LE", "ZB"]) {
+      expect(classifySymbol(s), s).toBe("EQUITY");
+      expect(futuresRootOf(s), s).toBeNull();
+    }
+  });
+
+  it("NEGATIVE: an unlisted root, a non-month letter, a five-digit year, no year — not futures", () => {
+    // VX is deliberately NOT a listed root (yahooSymbol.ts refuses VX1!).
+    for (const s of ["ABCZ6", "AAPLZ6", "ESA6", "ESE6", "ESZ12345", "ESZ", "VXZ6", "Z6", "ESZ6X"]) {
+      expect(classifySymbol(s), s).not.toBe("FUTURES");
+      expect(futuresRootOf(s), s).toBeNull();
+    }
+    // ESZ with no year is five letters — a ticker shape, left as the owner says.
+    expect(classifySymbol("ESZ")).toBe("EQUITY");
+  });
+
+  it("slash roots with a digit read whole ('/M2K' is M2K, '/6E' is 6E), older slash forms unchanged", () => {
+    expect(futuresRootOf("/M2K")).toBe("M2K");
+    expect(futuresRootOf("/6E")).toBe("6E");
+    expect(futuresRootOf("/ES")).toBe("ES");
+    expect(futuresRootOf("/ZW")).toBe("ZW");
+    // An unlisted slash root keeps the letters-only reading it always had.
+    expect(futuresRootOf("/FOO")).toBe("FOO");
+  });
+
+  it("the continuous and Yahoo notations are unchanged", () => {
+    expect(futuresRootOf("ES1!")).toBe("ES");
+    expect(futuresRootOf("ES=F")).toBe("ES");
+    expect(futuresRootOf("MNQ1!")).toBe("MNQ");
+    expect(futuresRootOf("ZC=F")).toBe("ZC");
   });
 });
 

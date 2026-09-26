@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { YF_CRYPTO_PINS, YF_MAP, resolveYahooSymbol, toYahooSymbol } from "./yahooSymbol";
+import { YF_CRYPTO_PINS, YF_MAP, isKnownFuturesRoot, resolveYahooSymbol, toYahooSymbol } from "./yahooSymbol";
 import { canonicalAssetClass } from "./marketData/canonicalIdentity";
 
 /**
@@ -460,5 +460,21 @@ describe("GP12 §26 — VIX futures are never answered with the cash index under
     expect(resolveYahooSymbol("PA1!")).toEqual({ kind: "RESOLVED", ticker: "PA=F" });
     expect(resolveYahooSymbol("SI1!")).toEqual({ kind: "RESOLVED", ticker: "SI=F" });
     expect(resolveYahooSymbol("6E1!")).toEqual({ kind: "RESOLVED", ticker: "6E=F" });
+  });
+});
+
+describe("isKnownFuturesRoot — read off this table, no second list (Garden 16 §17, 2026-09-26)", () => {
+  it("is true exactly for the ROOT1! -> ROOT=F rows", () => {
+    for (const [k, v] of Object.entries(YF_MAP)) {
+      const root = k.endsWith("1!") ? k.slice(0, -2) : null;
+      if (root !== null) expect(isKnownFuturesRoot(root), k).toBe(v === root + "=F");
+    }
+    expect(isKnownFuturesRoot("es")).toBe(true);
+  });
+
+  it("is false for a cash index, a refused contract, a share, and nothing", () => {
+    for (const r of ["SPX", "VIX", "VX", "AAPL", "", "ES1!", "ES=F"]) {
+      expect(isKnownFuturesRoot(r), r).toBe(false);
+    }
   });
 });

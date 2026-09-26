@@ -72,7 +72,7 @@
  */
 
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
-import { spotMetalFutures, toYahooSymbol as toCanonicalYahooNotation } from "@/lib/yahooSymbol";
+import { isKnownFuturesRoot, spotMetalFutures, toYahooSymbol as toCanonicalYahooNotation } from "@/lib/yahooSymbol";
 
 export type AssetClass =
   | "EQUITY"
@@ -84,6 +84,30 @@ export type AssetClass =
 
 function normalize(symbol: string): string {
   return (symbol ?? "").trim().toUpperCase();
+}
+
+/**
+ * A DATED CONTRACT CODE — root + CME month letter + year — read back to its
+ * root, or null. "ESZ6" / "ESZ26" / "ESZ2026" → "ES"; "NQH27" → "NQ";
+ * "M2KZ6" → "M2K"; "6EH7" → "6E".
+ *
+ * Found in review (Garden 16 §17, 2026-09-26): this is the form the broker
+ * names futures in (Webull's own instrument record says "ESU6", code "ES",
+ * size 50), and the class owner called it UNKNOWN — so the journal priced an
+ * ESZ6 trade at $1 a point, and "/ESZ6" read back as the root "ESZ".
+ *
+ * ONLY a root the notation owner already lists as futures is read out of a
+ * code (`isKnownFuturesRoot`, from yahooSymbol.ts's own table). The letters
+ * F G H J K M N Q U V X Z are the exchange month codes; the year is 1-4
+ * digits. A BARE ROOT IS UNTOUCHED — "ES" is Eversource Energy, "CL"
+ * Colgate-Palmolive, "GC" may be a share; no rule here makes them futures.
+ */
+const CONTRACT_MONTH_CODE = /^([A-Z0-9]+)[FGHJKMNQUVXZ](\d{1,4})$/;
+
+function contractMonthRootOf(s: string): string | null {
+  const m = CONTRACT_MONTH_CODE.exec(s);
+  if (!m) return null;
+  return isKnownFuturesRoot(m[1]) ? m[1] : null;
 }
 
 /**
@@ -131,6 +155,11 @@ export function classifySymbol(symbol: string): AssetClass {
   // instrument. That substitution is gone (GP12 §26 — yahooSymbol.ts refuses
   // VX1! at the price gate), and the class says what the symbol names.
   if (s.endsWith("1!")) return "FUTURES";
+
+  // A dated contract of a root the notation owner lists as futures ("ESZ6",
+  // "NQH27"), read from the RAW symbol for the same reason. See
+  // `contractMonthRootOf`: an unlisted root, and every bare root, fall through.
+  if (contractMonthRootOf(s) !== null) return "FUTURES";
 
   // Resolve to the canonical Yahoo notation, through the module that
   // owns notation, so "NQ1!" and "NQ=F" cannot land in different classes. That
@@ -200,7 +229,18 @@ export function isUnsupportedByEquityVendors(symbol: string): boolean {
 export function futuresRootOf(symbol: string): string | null {
   const s = normalize(symbol);
   if (classifySymbol(s) !== "FUTURES") return null;
-  if (s.startsWith("/")) return s.slice(1).replace(/[^A-Z].*$/, "") || null;
+  if (s.startsWith("/")) {
+    // "/ESZ6" is the ES contract for December, not a root called "ESZ", and
+    // "/M2K" / "/6E" are roots with a digit in them (Garden 16 §17,
+    // 2026-09-26). Known roots and dated codes are read first; anything else
+    // keeps the older letters-only reading.
+    const body = s.slice(1);
+    return contractMonthRootOf(body)
+      ?? (isKnownFuturesRoot(body) ? body : null)
+      ?? (body.replace(/[^A-Z].*$/, "") || null);
+  }
+  const dated = contractMonthRootOf(s);
+  if (dated !== null) return dated;
   const canonical = toCanonicalYahooNotation(s);
   if (canonical.endsWith("=F")) return canonical.slice(0, -2);
   if (s.endsWith("1!")) return s.slice(0, -2);

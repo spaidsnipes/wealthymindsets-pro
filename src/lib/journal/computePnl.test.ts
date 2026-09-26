@@ -3,11 +3,19 @@ import {
   computeJournalPnl,
   computeJournalRealizedR,
   contractMultiplierFor,
+  describeLegacyFuturesMoney,
+  FUTURES_POINT_VALUE_SINCE,
+  journalContractBasis,
   journalMoneyFor,
+  selectContractChip,
   selectJournalPricing,
+  selectJournalSaveMoney,
   selectRecordedMoney,
   OPTION_MULTIPLIER,
 } from "./computePnl";
+import { hydrateJournalEntry } from "./hydrateJournalEntries";
+import { classifyFinancialOutcome } from "@/lib/journalOutcome";
+import { WEBULL_FUTURES_ES_INSTRUMENTS_FIXTURE } from "@/lib/broker/adapters/__fixtures__/webullResponses";
 import { CONTRACT_MULTIPLIERS } from "@/lib/paperTrade";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -410,5 +418,183 @@ describe("selectRecordedMoney — a stored futures P&L that is not futures money
   it("stock and option entries are never second-guessed (fees / imported figures)", () => {
     expect(selectRecordedMoney({ ...es, symbol: "TSLA", pnl: 9.5 }).mismatch).toBeNull();
     expect(selectRecordedMoney({ ...es, symbol: "TSLA", contractType: "option", entry: 1, exit: 1.2, pnl: 19 }).mismatch).toBeNull();
+  });
+});
+
+describe("selectJournalSaveMoney — review RED: an M0 day is never priced, a NaN is never written", () => {
+  // The record saveEntry builds, minus the parts money does not touch.
+  function savedRecord(form: {
+    symbol: string; entry: number; exit: number; size: number; side: "long" | "short";
+    contractType?: "stock" | "option"; plannedRDollars?: number; dayModel?: "M0" | "M1" | "M2";
+  }) {
+    const money = selectJournalSaveMoney({ ...form, isNoTradeDay: form.dayModel === "M0" });
+    if (money.status !== "WRITE") return { money, record: null };
+    const record = {
+      id: "t1", date: "2026-09-26", symbol: form.symbol, side: form.side,
+      entry: form.entry, exit: form.exit, size: form.size,
+      pnl: money.pnl, pct: 0, result: classifyFinancialOutcome(money.pnl),
+      dayModel: form.dayModel, contractType: form.contractType,
+      plannedRDollars: form.plannedRDollars, realizedR: money.realizedR,
+    };
+    return { money, record };
+  }
+
+  it("THE DEFECT: an M0 day on YM1! with hidden entry/exit/size saves a finite 0, not NaN", () => {
+    const form = { symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, dayModel: "M0" as const, plannedRDollars: 100 };
+    // The gate still lets the no-trade day through, as canon §3 requires...
+    expect(selectJournalPricing({ ...form, isNoTradeDay: true }).status).toBe("NO_TRADE_DAY");
+    // ...and computeJournalPnl on the same form is the NaN that used to be written.
+    expect(computeJournalPnl(form)).toBeNaN();
+    const { money, record } = savedRecord(form);
+    expect(money).toEqual({ status: "WRITE", pnl: 0, realizedR: undefined });
+    expect(record!.result).toBe("be");
+  });
+
+  it("that M0 record survives the round trip the old one did not (JSON -> hydrate)", () => {
+    const { record } = savedRecord({ symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long", dayModel: "M0", plannedRDollars: 100 });
+    const back = hydrateJournalEntry(JSON.parse(JSON.stringify(record)));
+    expect(back).not.toBeNull();
+    expect(back!.pnl).toBe(0);
+    expect(back!.result).toBe("be");
+    expect(back!.dayModel).toBe("M0");
+    expect(back!.realizedR).toBeUndefined();
+    // NEGATIVE CONTROL — the old write, pnl NaN, is exactly what the reader refuses.
+    expect(hydrateJournalEntry(JSON.parse(JSON.stringify({ ...record, pnl: Number.NaN })))).toBeNull();
+  });
+
+  it("M0 has no realized R whatever the hidden values say (the modal promises 'undefined')", () => {
+    const { money } = savedRecord({ symbol: "TSLA", entry: 100, exit: 110, size: 10, side: "long", dayModel: "M0", plannedRDollars: 50 });
+    expect(money).toEqual({ status: "WRITE", pnl: 0, realizedR: undefined });
+  });
+
+  it("refuses a non-finite P&L by name instead of writing it", () => {
+    // The gate refuses YM1! first; this is the second lock on the same door.
+    const r = selectJournalSaveMoney({ symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" });
+    expect(r.status).toBe("REFUSED");
+    if (r.status === "REFUSED") expect(r.reason).toBe("WM cannot price this YM trade: no published point value on file for YM");
+    // Overflow is non-finite too, and is refused rather than written as null.
+    const huge = selectJournalSaveMoney({ symbol: "TSLA", entry: 1, exit: 1e308, size: 1e308, side: "long" });
+    expect(huge).toEqual({ status: "REFUSED", reason: "WM could not compute a finite P&L for this trade" });
+  });
+
+  it("a priced trade writes the same money computeJournalPnl / computeJournalRealizedR give", () => {
+    const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const, plannedRDollars: 250 };
+    expect(selectJournalSaveMoney(es)).toEqual({ status: "WRITE", pnl: 500, realizedR: 2 });
+    const opt = { symbol: "TSLA", contractType: "option" as const, entry: 1, exit: 1.2, size: 1, side: "long" as const };
+    const o = selectJournalSaveMoney(opt);
+    expect(o.status).toBe("WRITE");
+    if (o.status === "WRITE") expect(o.pnl).toBeCloseTo(20, 6);
+    expect(selectJournalSaveMoney({ symbol: "TSLA", entry: 250, exit: 255, size: 10, side: "long" })).toEqual({ status: "WRITE", pnl: 50, realizedR: undefined });
+  });
+
+  it("an M1 ESZ6 trade round-trips with its futures money intact", () => {
+    const { record } = savedRecord({ symbol: "ESZ6", entry: 5000, exit: 4990, size: 2, side: "long", dayModel: "M1", plannedRDollars: 500 });
+    const back = hydrateJournalEntry(JSON.parse(JSON.stringify(record)))!;
+    expect(back.pnl).toBe(-1000);
+    expect(back.result).toBe("loss");
+    expect(back.realizedR).toBe(-2);
+  });
+});
+
+describe("dated contract codes are priced as their root (review YELLOW)", () => {
+  it("ESZ6 / /ESZ6 / ESZ26 / ESZ2026 are ES at $50/pt — the form the broker names contracts in", () => {
+    for (const sym of ["ESZ6", "/ESZ6", "ESZ26", "ESZ2026", "esz6"]) {
+      expect(computeJournalPnl({ entry: 5000, exit: 5010, size: 1, side: "long", symbol: sym }), sym).toBe(500);
+    }
+    expect(computeJournalPnl({ entry: 18000, exit: 18005, size: 2, side: "long", symbol: "NQH27" })).toBe(200);
+  });
+
+  it("agrees with the broker's own instrument record (Webull ESU6: code ES, size 50)", () => {
+    const [rec] = WEBULL_FUTURES_ES_INSTRUMENTS_FIXTURE;
+    const m = journalMoneyFor({ symbol: rec.symbol });
+    expect(m.status).toBe("PRICED");
+    if (m.status === "PRICED") {
+      expect(m.root).toBe(rec.code);
+      expect(m.multiplier).toBe(Number(rec.size));
+    }
+  });
+
+  it("a dated micro stays unpriced by name (MESZ6 is not $50)", () => {
+    const m = journalMoneyFor({ symbol: "MESZ6" });
+    expect(m.status).toBe("UNPRICED");
+    expect(m.root).toBe("MES");
+  });
+
+  it("bare roots stay shares — ES is Eversource, CL is Colgate-Palmolive", () => {
+    for (const sym of ["ES", "CL", "GC", "NQ"]) {
+      expect(computeJournalPnl({ entry: 100, exit: 110, size: 1, side: "long", symbol: sym }), sym).toBe(10);
+    }
+  });
+});
+
+describe("journalContractBasis / selectContractChip — review NIT: futures are not stock", () => {
+  const row = { entry: 5000, exit: 5010, size: 1, side: "long" as const, pnl: 500 };
+
+  it("the basis follows the journal money, not the stock/option picker", () => {
+    expect(journalContractBasis({ symbol: "ES1!", contractType: "stock" })).toBe("futures");
+    expect(journalContractBasis({ symbol: "ESZ6" })).toBe("futures");
+    expect(journalContractBasis({ symbol: "YM1!" })).toBe("futures");
+    expect(journalContractBasis({ symbol: "TSLA", contractType: "stock" })).toBe("stock");
+    expect(journalContractBasis({ symbol: "TSLA" })).toBe("stock");
+    expect(journalContractBasis({ symbol: "ES", contractType: "stock" })).toBe("stock");
+    expect(journalContractBasis({ symbol: "TSLA", contractType: "option" })).toBe("option");
+    expect(journalContractBasis({ symbol: "ES1!", contractType: "option" })).toBe("option");
+  });
+
+  it("a share has no chip; an option keeps OPT; a futures row names its root", () => {
+    expect(selectContractChip({ ...row, symbol: "TSLA", contractType: "stock" })).toBeNull();
+    expect(selectContractChip({ ...row, symbol: "TSLA", contractType: "option" })).toMatchObject({ basis: "option", text: "OPT", flagged: false });
+    expect(selectContractChip({ ...row, symbol: "ES1!" })).toEqual({ basis: "futures", text: "FUT ES", words: "FUTURES ES · $50.00 / pt", flagged: false });
+  });
+
+  it("a legacy 1x futures row says so on its chip, with both numbers in its words", () => {
+    const c = selectContractChip({ ...row, symbol: "ES1!", pnl: 10 })!;
+    expect(c.text).toBe("FUT ES · SAVED AT 1x");
+    expect(c.flagged).toBe(true);
+    expect(c.words).toContain("$10.00");
+    expect(c.words).toContain("$500.00");
+    // A stored figure that is neither 1x nor the point value is not called 1x.
+    expect(selectContractChip({ ...row, symbol: "ES1!", pnl: 123 })!.text).toBe("FUT ES · MONEY MISMATCH");
+    expect(selectContractChip({ ...row, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 10 })!.text).toBe("FUT YM · SAVED AT 1x");
+  });
+
+  it("an M0 record is never told its money is wrong", () => {
+    expect(selectRecordedMoney({ ...row, symbol: "ES1!", pnl: 0, dayModel: "M0" }).mismatch).toBeNull();
+    expect(selectContractChip({ ...row, symbol: "ES1!", pnl: 0, dayModel: "M0" })!.text).toBe("FUT ES");
+    // Found on the glass: an M0 day on an unpriced root claimed "UNPRICED".
+    expect(selectContractChip({ ...row, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 0, dayModel: "M0" }))
+      .toMatchObject({ text: "FUT YM", flagged: false });
+  });
+});
+
+describe("describeLegacyFuturesMoney — review YELLOW: totals say what they hold", () => {
+  const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const };
+
+  it("counts futures trade records saved at 1x and says so, dated, and that re-pricing is not built", () => {
+    const d = describeLegacyFuturesMoney([
+      { ...es, pnl: 10 },
+      { ...es, symbol: "NQ1!", entry: 18000, exit: 18005, pnl: 5 },
+      { ...es, pnl: 500 },
+      { ...es, symbol: "TSLA", pnl: 10 },
+    ]);
+    expect(d.count).toBe(2);
+    expect(d.note).toBe(
+      `2 futures entries were not priced at their point value when saved — before ${FUTURES_POINT_VALUE_SINCE} the journal priced futures at $1 per point. `
+      + "They are counted here as recorded, so these dollars and R understate them. "
+      + "Open one to see its futures money; re-pricing saved entries is not available yet.",
+    );
+  });
+
+  it("is silent on a book with no such entry, and singular for one", () => {
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 500 }, { ...es, symbol: "AAPL", pnl: 3 }])).toEqual({ count: 0, note: null });
+    expect(describeLegacyFuturesMoney([])).toEqual({ count: 0, note: null });
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 10 }]).note).toMatch(/^1 futures entry was not priced at its point value/);
+  });
+
+  it("never counts an M0 no-trade day, and never changes the stored figure", () => {
+    const rec = { ...es, pnl: 10 };
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 0, dayModel: "M0" }]).count).toBe(0);
+    describeLegacyFuturesMoney([rec]);
+    expect(rec.pnl).toBe(10);
   });
 });

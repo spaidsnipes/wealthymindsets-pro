@@ -122,6 +122,24 @@ export const YF_MAP: Record<string, string> = {
 };
 
 /**
+ * IS THIS A FUTURES ROOT THIS TABLE ALREADY NAMES? ("ES", "MNQ", "6E" → true.)
+ *
+ * Read off the rows above — every `ROOT1!` → `ROOT=F` pair — so there is no
+ * second list of roots to fall out of step with this one. Asked by the class
+ * owner (symbolAssetClass.ts) before it reads a dated contract code like
+ * "ESZ6" as the ES root (Garden 16 §17, 2026-09-26): the broker names futures
+ * that way, and only a root WM already knows as futures may be read out of
+ * one. A bare root is NOT a futures symbol by this test's say-so — "ES" alone
+ * is Eversource Energy — this answers "is ES a futures root", nothing more.
+ */
+export function isKnownFuturesRoot(root: string): boolean {
+  const r = (root ?? "").trim().toUpperCase();
+  if (!r) return false;
+  const key = `${r}1!`;
+  return Object.prototype.hasOwnProperty.call(YF_MAP, key) && YF_MAP[key] === `${r}=F`;
+}
+
+/**
  * Quote currencies Yahoo does not list a pair for. Answering a `BTCUSDT`
  * request with the `BTC-USD` price would be a silent quote-currency
  * substitution — a different market, presented as if it were the one asked

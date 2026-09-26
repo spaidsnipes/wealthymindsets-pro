@@ -25,7 +25,8 @@ import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import { PrepChecklistBand } from "@/components/experience/PrepChecklistBand";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
-import { computeJournalPnl, computeJournalRealizedR, journalMoneyFor, selectJournalPricing, selectRecordedMoney } from "@/lib/journal/computePnl";
+import { computeJournalRealizedR, describeLegacyFuturesMoney, journalContractBasis, journalMoneyFor, selectJournalPricing, selectJournalSaveMoney, selectRecordedMoney, type JournalContractBasis } from "@/lib/journal/computePnl";
+import { JournalContractChip, LegacyFuturesMoneyNote } from "@/components/journal/JournalMoneyMarks";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
 import { selectRecordedTotal } from "@/lib/journal/selectRecordedTotal";
 import { selectSetupPerformance } from "@/lib/journal/selectSetupPerformance";
@@ -518,6 +519,9 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
       {noTradeNote !== null && (
         <p role="note" className="text-[10px] text-wm-text-dim leading-relaxed">{noTradeNote}</p>
       )}
+      {/* Garden 16 §17: the averages, R:R, profit factor and setup rows
+          below include futures entries saved at $1 per point. Said, not hidden. */}
+      <LegacyFuturesMoneyNote records={entries} testId="journal-coach-legacy-futures-note" />
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-2">
@@ -1013,7 +1017,7 @@ function JournalPageInner() {
   const [filterDayModel, setFilterDayModel] = useState<"all"|"M0"|"M1"|"M2">("all");
   // I-Bkt 14: filter by canon §6 contract type. Founder review will
   // want to isolate all option trades or all stock trades separately.
-  const [filterContract, setFilterContract] = useState<"all"|"stock"|"option">("all");
+  const [filterContract, setFilterContract] = useState<"all"|JournalContractBasis>("all");
   // J-Bkt 9: starred-only filter. One-click "show me my best trades" review.
   const [filterStarred, setFilterStarred] = useState(false);
   // Canon §9 Trader Misread Map filter — click the MISREAD chip in the
@@ -1075,7 +1079,8 @@ function JournalPageInner() {
       (filterRes === "all" || e.result === filterRes) &&
       (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome) &&
       (filterDayModel === "all" || e.dayModel === filterDayModel) &&
-      (filterContract === "all" || (e.contractType ?? "stock") === filterContract) &&
+      // Garden 16 §17: by the money the row is priced at, so ES1! is FUT, not STK.
+      (filterContract === "all" || journalContractBasis(e) === filterContract) &&
       (!filterStarred || e.starred) &&
       (filterMisread === "all" || classifyMisread({
         date: e.date,
@@ -1278,24 +1283,27 @@ function JournalPageInner() {
     // page has keyboard and programmatic paths to the same function.
     if (formPricing.status === "UNPRICEABLE") return;
     const e = { ...(form as JournalEntry) };
+    // Canon §6 Contract Lens + Garden 16 §17: options 100x, futures their
+    // point value, shares 1x — through selectJournalSaveMoney (pure,
+    // state-matrix-tested). It never prices an M0 no-trade day, and it
+    // refuses a non-finite P&L: a NaN written here is JSON null, which the
+    // next load refuses, so the record would be lost for good (review,
+    // 2026-09-26). Proof Lane §21 realized R comes from the same call and is
+    // never fabricated when plannedRDollars is missing / zero (canon §4).
+    const money = selectJournalSaveMoney({
+      entry: e.entry, exit: e.exit, size: e.size, side: e.side,
+      contractType: e.contractType, symbol: e.symbol, plannedRDollars: e.plannedRDollars,
+      isNoTradeDay: e.dayModel === "M0",
+    });
+    if (money.status !== "WRITE") return;
     e.id       = uid();
-    // Canon §6 Contract Lens: options carry a 100x standard multiplier.
-    // Delegating to computeJournalPnl (pure, state-matrix-tested) so the
-    // 16-branch coverage in computePnl.test.ts protects the shipped path.
-    e.pnl      = computeJournalPnl({ entry: e.entry, exit: e.exit, size: e.size, side: e.side, contractType: e.contractType, symbol: e.symbol });
+    e.pnl      = money.pnl;
     e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) * (e.side === "short" ? -1 : 1) : 0;
     e.result   = classifyFinancialOutcome(e.pnl);
     e.processQuality = e.processQuality ?? "UNRESOLVED";
     e.processOutcome = classifyProcessOutcome(e.processQuality, e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
-
-    // Proof Lane §21 — realized R via the same state-matrix-tested pure
-    // selector the live modal tile uses. Never fabricated when
-    // plannedRDollars is missing / zero (canon §4).
-    e.realizedR = computeJournalRealizedR({
-      entry: e.entry, exit: e.exit, size: e.size, side: e.side,
-      contractType: e.contractType, symbol: e.symbol, plannedRDollars: e.plannedRDollars,
-    });
+    e.realizedR = money.realizedR;
 
     // Nectar snapshot — REMEMBER→REFLECT bridge (Founder OVERRIDE §10
     // loop closure). Capture what WM actually observed about this
@@ -2058,8 +2066,11 @@ Trade the system, trust the process, winners every day 🚀`,
           >
             ★ Starred
           </button>
-          {/* I-Bkt 14: contract-type filter chips (canon §6 Contract Lens). */}
-          {(["all", "stock", "option"] as const).map(c => (
+          {/* I-Bkt 14: contract-type filter chips (canon §6 Contract Lens).
+              Garden 16 §17 (review, 2026-09-26): read off the journal money
+              basis, so a futures row has its own chip instead of hiding
+              under STK. */}
+          {(["all", "stock", "option", "futures"] as const).map(c => (
             <button
               key={c}
               onClick={() => setFilterContract(c)}
@@ -2067,12 +2078,13 @@ Trade the system, trust the process, winners every day 🚀`,
               className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
                 filterContract === c && c === "option" && "bg-wm-purple/20 text-wm-purple border-wm-purple/40",
                 filterContract === c && c === "stock" && "bg-wm-surface text-wm-text border-wm-border",
+                filterContract === c && c === "futures" && "bg-wm-blue/20 text-wm-blue border-wm-blue/40",
                 filterContract === c && c === "all" && "bg-wm-surface text-wm-text border-wm-border",
                 filterContract !== c && "text-wm-text-muted border-transparent hover:border-wm-border",
               )}
-              title={c === "all" ? "Stock + option entries" : c === "stock" ? "Only stock entries" : "Only option entries (100x multiplier)"}
+              title={c === "all" ? "Stock, option and futures entries" : c === "stock" ? "Only stock entries ($1 per point per share)" : c === "option" ? "Only option entries (100x multiplier)" : "Only futures entries (priced at the contract's point value)"}
             >
-              {c === "all" ? "All Contracts" : c === "option" ? "OPT" : "STK"}
+              {c === "all" ? "All Contracts" : c === "option" ? "OPT" : c === "futures" ? "FUT" : "STK"}
             </button>
           ))}
           {/* J-Bkt 11: reset filters — hidden when nothing is filtered. */}
@@ -2129,6 +2141,16 @@ Trade the system, trust the process, winners every day 🚀`,
           {recordedTotal.note}
         </p>
       )}
+
+      {/* Garden 16 §17 (review, 2026-09-26): futures entries saved at $1 per
+          point are still in the total above and the session R — counted as
+          recorded, never rewritten, never dropped — and the header says so.
+          Same text line, same quiet §9 treatment as the notes around it. */}
+      <LegacyFuturesMoneyNote
+        records={tradeRecords}
+        testId="journal-legacy-futures-note"
+        className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border shrink-0"
+      />
 
       {/* A DIFFERENT refusal from the one above. `recordedTotal.note` is about
           rows WM could not price; this is about rows it could not open at all —
@@ -2498,7 +2520,7 @@ Trade the system, trust the process, winners every day 🚀`,
                         so a review scan shows canon-shaped truth, not just
                         dollar P&L. Silent when the entry pre-dates the
                         Proof Lane fields (legacy entries look identical). */}
-                    {(e.dayModel || typeof e.realizedR === "number" || e.contractType === "option") && (
+                    {(e.dayModel || typeof e.realizedR === "number" || journalContractBasis(e) !== "stock") && (
                       <div className="flex items-center gap-1 mt-1">
                         {e.dayModel && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold">{e.dayModel}</span>
@@ -2516,9 +2538,9 @@ Trade the system, trust the process, winners every day 🚀`,
                           scale="CHIP"
                           testId={`journal-row-r-${e.id}`}
                         />
-                        {e.contractType === "option" && (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-purple/40 bg-wm-purple/10 text-wm-purple">OPT</span>
-                        )}
+                        {/* Garden 16 §17: OPT, FUT <root>, or nothing for a
+                            share — from the journal money basis. */}
+                        <JournalContractChip entry={e} testId={`journal-row-contract-${e.id}`} />
                       </div>
                     )}
                     <div className="flex items-center gap-1.5 mt-1">
@@ -2672,7 +2694,8 @@ Trade the system, trust the process, winners every day 🚀`,
                   Model / Planned R $ / Realized R / Contract type / MFE /
                   MAE / Capture % together with the standard OHLCV stats.
                   Silent for legacy entries. */}
-              {(selected.dayModel || typeof selected.plannedRDollars === "number" || selected.contractType === "option" || typeof selected.mfeR === "number") && (
+              {/* Garden 16 §17: a futures entry shows its Contract tile too. */}
+              {(selected.dayModel || typeof selected.plannedRDollars === "number" || journalContractBasis(selected) !== "stock" || typeof selected.mfeR === "number") && (
                 <div className="mb-4 rounded-xl border border-wm-gold/40 bg-gradient-to-br from-wm-surface/50 to-transparent p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Proof Lane · Trade R Truth</div>
@@ -3165,7 +3188,7 @@ Trade the system, trust the process, winners every day 🚀`,
                       if (m.status === "UNPRICED") return `$ withheld — ${m.reason}`;
                       if (m.basis === "futures") return `${form.symbol} priced as ${m.root} futures: $${m.multiplier.toLocaleString("en-US")} per point per contract`;
                       if (m.basis === "option") return "Priced per contract at 100x the premium";
-                      return "Priced per share at $1 per point — for futures, journal ES1!, ES=F or /ES";
+                      return "Priced per share at $1 per point — for futures, journal ES1!, ES=F, /ES or ESZ6";
                     })()}
                   </p>
                 </div>
