@@ -37,7 +37,7 @@
 
 import { randomUUID } from "crypto";
 import { buildWebullSignedHeaders, readWebullErrorCode } from "@/lib/marketData/adapters/webullMarketData";
-import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
+import { settleWebullRefusal, webullSessionConfirmer } from "@/lib/marketData/webullSessionRejection";
 import { WEBULL_SDK_CONTRACT } from "@/lib/marketData/webullSdkContract";
 import {
   TOKEN_DISPOSITIONS,
@@ -265,6 +265,7 @@ export async function probeWebullPositions(
           providerCode,
           sessionToken,
           nowMs: (config.now || (() => new Date()))().getTime(),
+          confirm: webullSessionConfirmer(fetchImpl, { appKey, appSecret, apiHost: host }),
         });
         if (verdict.kind !== "NOT_SESSION") retirement = ` ${verdict.note}`;
       }

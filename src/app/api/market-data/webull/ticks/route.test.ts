@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
+// Webull's own session check decides a retirement; here it answers DEAD.
+vi.mock("@/lib/marketData/webullSessionRejection", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/marketData/webullSessionRejection")>();
+  return { ...real, webullSessionConfirmer: () => async () => "DEAD" as const };
+});
 vi.mock("@/lib/marketData/adapters/webullMarketData", () => ({
   fetchWebullTickSnapshot: mocks.fetchWebullTickSnapshot,
   webullDataConfigFromEnv: (env: Record<string, string | undefined>) => ({

@@ -109,6 +109,15 @@ export async function retireRejectedWebullSession(
     readonly nowMs: number;
     readonly ledger?: SessionRetirementLedger;
     readonly cooldownMs?: number;
+    /**
+     * Webull's own word on the session, asked BEFORE retiring it. Measured
+     * 2026-09-26: a session the store called live for ~14 more days was
+     * INVALID within hours, and with 2FA on every false retirement costs the
+     * Founder a new SMS code. A 401 on one lane is evidence about that
+     * request; `/auth/tokens/check` is the authority on the session. LIVE
+     * keeps it; UNKNOWN keeps it too (no death on silence); only DEAD retires.
+     */
+    readonly confirm?: (token: string) => Promise<"LIVE" | "DEAD" | "UNKNOWN">;
   },
 ): Promise<SessionRejectionVerdict> {
   if (input.answer === "NOT_SESSION") {
@@ -157,6 +166,19 @@ export async function retireRejectedWebullSession(
     };
   }
 
+  if (input.confirm) {
+    let word: "LIVE" | "DEAD" | "UNKNOWN" = "UNKNOWN";
+    try { word = await input.confirm(held.token); } catch { word = "UNKNOWN"; }
+    if (word !== "DEAD") {
+      return {
+        kind: "NOT_SESSION",
+        note: word === "LIVE"
+          ? "Webull's own session check says the session is live, so the refusal was about this request, not the session — kept."
+          : "Webull could not confirm the session is dead, so it was kept rather than retired on a guess.",
+      };
+    }
+  }
+
   try {
     await store.write({ ...held, status: WEBULL_TOKEN_STATUSES.INVALID });
   } catch {
@@ -189,6 +211,7 @@ export async function settleWebullRefusal(
     readonly sessionToken: string | undefined;
     readonly nowMs: number;
     readonly ledger?: SessionRetirementLedger;
+    readonly confirm?: (token: string) => Promise<"LIVE" | "DEAD" | "UNKNOWN">;
   },
 ): Promise<SessionRejectionVerdict> {
   const answer = classifyWebullAuthAnswer({
@@ -201,5 +224,23 @@ export async function settleWebullRefusal(
     rejectedToken: input.sessionToken,
     nowMs: input.nowMs,
     ledger: input.ledger,
+    confirm: input.confirm,
   });
+}
+
+/**
+ * The production confirmer: ask `/auth/tokens/check`. NORMAL/PENDING → LIVE,
+ * INVALID/EXPIRED → DEAD, no answer → UNKNOWN.
+ */
+export function webullSessionConfirmer(
+  fetchImpl: typeof fetch,
+  config: { readonly appKey?: string; readonly appSecret?: string; readonly apiHost?: string },
+): (token: string) => Promise<"LIVE" | "DEAD" | "UNKNOWN"> {
+  return async (token) => {
+    if (!config.appKey || !config.appSecret) return "UNKNOWN";
+    const { checkWebullAccessToken } = await import("./webullAccessToken");
+    const checked = await checkWebullAccessToken(fetchImpl, { appKey: config.appKey, appSecret: config.appSecret, apiHost: config.apiHost }, token);
+    if (!checked.token) return "UNKNOWN";
+    return checked.token.status === WEBULL_TOKEN_STATUSES.INVALID || checked.token.status === WEBULL_TOKEN_STATUSES.EXPIRED ? "DEAD" : "LIVE";
+  };
 }

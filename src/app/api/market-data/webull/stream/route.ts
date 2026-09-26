@@ -19,7 +19,7 @@ import {
   webullSessionStore,
   webullWorkerEnv,
 } from "@/lib/marketData/webullSessionStore";
-import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
+import { settleWebullRefusal, webullSessionConfirmer } from "@/lib/marketData/webullSessionRejection";
 
 export const dynamic = "force-dynamic";
 
@@ -225,6 +225,7 @@ export async function GET(request: NextRequest) {
               providerCode: event.providerCode,
               sessionToken: session.accessToken,
               nowMs: Date.now(),
+              confirm: webullSessionConfirmer(fetch, { appKey, appSecret, apiHost: env.apiHost }),
             });
             if (verdict.kind !== "NOT_SESSION") {
               controller.enqueue(encoder.encode(sse({ kind: "session", verdict: verdict.kind, note: verdict.note })));

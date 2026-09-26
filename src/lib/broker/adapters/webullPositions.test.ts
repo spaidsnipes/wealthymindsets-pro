@@ -221,7 +221,11 @@ describe("positions lane — a refused session is retired, not re-sent (Garden 1
     const minting = { appKey: "k", appSecret: "s", apiHost: "api.webull.test", now: () => now, nonce: () => "n" };
 
     const named = held();
-    const refused = vi.fn(async () => new Response(JSON.stringify({ code: "INVALID_TOKEN" }), { status: 401 }));
+    const refused = vi.fn(async (url: RequestInfo | URL) =>
+      // The retirement is confirmed by Webull's own session check first.
+      String(url).includes("/auth/tokens/check")
+        ? new Response(JSON.stringify({ token: "x", expires: 0, status: "INVALID" }), { status: 200 })
+        : new Response(JSON.stringify({ code: "INVALID_TOKEN" }), { status: 401 }));
     const receipt = await probeWebullPositions(refused as unknown as typeof fetch, { ...minting, tokenStore: named });
     expect(receipt.state).toBe("BLOCKED_AUTH");
     expect((await named.read())?.status).toBe(WEBULL_TOKEN_STATUSES.INVALID);

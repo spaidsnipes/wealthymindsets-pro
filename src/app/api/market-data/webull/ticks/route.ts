@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/requireAuth";
 import { fetchWebullTickSnapshot, webullDataConfigFromEnv, type WebullSigningProfile } from "@/lib/marketData/adapters/webullMarketData";
 import { classifyWebullTickSnapshot } from "@/lib/marketData/adapters/webullTicksWireStatus";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
-import { settleWebullRefusal } from "@/lib/marketData/webullSessionRejection";
+import { settleWebullRefusal, webullSessionConfirmer } from "@/lib/marketData/webullSessionRejection";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
         providerCode: body.providerCode,
         sessionToken: session.accessToken,
         nowMs: Date.now(),
+        confirm: webullSessionConfirmer(fetch, env),
       })
     : null;
   const sessionReceipt = sessionVerdict && sessionVerdict.kind !== "NOT_SESSION"
