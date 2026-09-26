@@ -112,6 +112,20 @@ export const WEBULL_SDK_CONTRACT = {
     sdkSource: "webull/data/request/get_snapshot_request.py",
   },
   /**
+   * Market data that Webull documents as needing NO subscription: "US Market |
+   * Crypto | No additional subscription required" (Market Data API overview).
+   * `needsMarketData` stays true — it IS market data, on the same /market-data
+   * prefix — which is exactly why it is the control rung: open here while the
+   * stock rungs are refused means the door, the signing and the session all
+   * work and the refusal is the stock package, nothing of ours.
+   */
+  CRYPTO_SNAPSHOTS: {
+    path: "/market-data/crypto/snapshots/list",
+    apiVersion: "v3",
+    needsMarketData: true,
+    sdkSource: "webull/data/request/get_crypto_snapshot_request.py",
+  },
+  /**
    * THE SESSION LANE — how an access token is BORN, not where one is pasted.
    *
    * This row exists because WM Pro spent roughly three months treating

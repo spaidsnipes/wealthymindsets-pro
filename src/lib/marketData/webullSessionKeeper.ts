@@ -108,6 +108,19 @@ export interface KeeperResult {
     readonly accountCount: number;
     readonly atMs: number;
   };
+  /**
+   * The capability matrix, measured by the entitlement ladder on the same run:
+   * each market-data read as `profile:OUTCOME(CODE)`. Stocks and crypto are
+   * separate lines on purpose — Webull documents crypto as needing no
+   * subscription, so the pair separates "this key reads no market data" from
+   * "this key lacks the stock package". Statuses and codes only.
+   */
+  readonly capabilities?: {
+    readonly verdict: string;
+    readonly stocks: string;
+    readonly crypto: string;
+    readonly atMs: number;
+  };
 }
 
 function remaining(token: WebullAccessToken | null, nowMs: number): number | undefined {

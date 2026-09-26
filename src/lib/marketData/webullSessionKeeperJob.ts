@@ -23,6 +23,15 @@ import {
   type KeeperResult,
 } from "./webullSessionKeeper";
 import { probeWebullBrokerConnection } from "@/lib/broker/adapters/webullBrokerConnection";
+import { probeWebullEntitlement, type WebullRungReceipt } from "./webullEntitlementProbe";
+
+/** `profile:OUTCOME(CODE)` per receipt — statuses and codes, never a payload. */
+function receiptLine(receipts: readonly WebullRungReceipt[] | undefined): string {
+  if (!receipts || receipts.length === 0) return "NOT_ASKED";
+  return receipts
+    .map((r) => `${r.rung}/${r.signingProfile}:${r.outcome}${r.providerCode ? `(${r.providerCode})` : ""}`)
+    .join(" ");
+}
 
 /**
  * Outcomes after which a signed request has a path that needs nobody: a live
@@ -73,7 +82,23 @@ export async function runWebullSessionKeeper(
       accessToken: session?.token,
       mintSession: false,
     });
-    result = { ...kept, broker: { state: receipt.state, accountCount: receipt.accountCount, atMs: Date.now() } };
+    const ladder = await probeWebullEntitlement(fetchImpl, {
+      appKey: cfg.appKey,
+      appSecret: cfg.appSecret,
+      apiHost: cfg.apiHost,
+      accessToken: session?.token,
+      mintSession: false,
+    });
+    result = {
+      ...kept,
+      broker: { state: receipt.state, accountCount: receipt.accountCount, atMs: Date.now() },
+      capabilities: {
+        verdict: ladder.verdict,
+        stocks: receiptLine(ladder.rungs.filter((r) => r.gate === "MARKET_DATA")),
+        crypto: receiptLine(ladder.crypto),
+        atMs: Date.now(),
+      },
+    };
   }
 
   const kv = env[WEBULL_SESSION_KV_BINDING] as WebullKvNamespace;
@@ -84,7 +109,7 @@ export async function runWebullSessionKeeper(
   }
 
   // The outcome word only — never the note's upstream text, never a token.
-  console.log(`[webull-keeper] ${result.outcome}${result.authMode ? ` auth=${result.authMode}` : ""}${result.broker ? ` broker=${result.broker.state}` : ""}`);
+  console.log(`[webull-keeper] ${result.outcome}${result.authMode ? ` auth=${result.authMode}` : ""}${result.broker ? ` broker=${result.broker.state}` : ""}${result.capabilities ? ` data=${result.capabilities.verdict}` : ""}`);
   return result;
 }
 

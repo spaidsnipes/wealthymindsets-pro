@@ -44,16 +44,31 @@ const keys = { WEBULL_API_KEY: "key", WEBULL_API_SECRET: "secret" };
 describe("2FA off: the job records TOKEN_NOT_REQUIRED and a CONNECTED broker lane", () => {
   it("signs the account read with the key pair alone and records the count only", async () => {
     const kv = fakeKv();
+    const denied = () => json({ code: "MARKET_DATA_NOT_SUBSCRIBED" }, 403);
     const { fetchImpl, seen } = webull({
       [WEBULL_SDK_CONTRACT.APP_CONFIG.path]: () => json({ token_check_enabled: false }),
       [WEBULL_SDK_CONTRACT.ACCOUNT_LIST.path]: () => json([{ account_id: "a-1" }, { account_id: "a-2" }, { account_id: "a-3" }]),
+      [WEBULL_SDK_CONTRACT.STOCK_PROFILES.path]: () => json([{ symbol: "TSLA" }]),
+      [WEBULL_SDK_CONTRACT.STOCK_SNAPSHOTS.path]: denied,
+      [WEBULL_SDK_CONTRACT.STOCK_TICKS.path]: denied,
+      [WEBULL_SDK_CONTRACT.CRYPTO_SNAPSHOTS.path]: () => json([{ symbol: "BTCUSD", price: "65000.12" }]),
+      [WEBULL_SDK_CONTRACT.APP_SUBSCRIPTIONS.path]: () => json([]),
+      [WEBULL_SDK_CONTRACT.STREAMING_SUBSCRIBE.path]: denied,
     });
     const result = await runWebullSessionKeeper({ ...keys, WEBULL_SESSION: kv }, fetchImpl);
 
     expect(result?.outcome).toBe(KEEPER_OUTCOMES.TOKEN_NOT_REQUIRED);
     expect(result?.broker).toMatchObject({ state: "CONNECTED", accountCount: 3 });
-    expect(seen.map((s) => s.path)).toEqual([WEBULL_SDK_CONTRACT.APP_CONFIG.path, WEBULL_SDK_CONTRACT.ACCOUNT_LIST.path]);
+    expect(seen.slice(0, 2).map((s) => s.path)).toEqual([WEBULL_SDK_CONTRACT.APP_CONFIG.path, WEBULL_SDK_CONTRACT.ACCOUNT_LIST.path]);
     expect(seen.every((s) => s.token === undefined)).toBe(true);
+    expect(seen.map((s) => s.path)).not.toContain(WEBULL_SDK_CONTRACT.CREATE_TOKEN.path);
+
+    // The capability matrix: stocks refused by package, crypto open — the
+    // documented split, measured, with codes and never a price.
+    expect(result?.capabilities?.verdict).toBe("APP_KEY_ENTITLEMENT_ISOLATED");
+    expect(result?.capabilities?.stocks).toContain("DENIED_ENTITLEMENT(MARKET_DATA_NOT_SUBSCRIBED)");
+    expect(result?.capabilities?.crypto).toMatch(/CRYPTO_SNAPSHOT\/[a-z0-9-]+:OK/);
+    expect(JSON.stringify(result)).not.toContain("65000");
 
     const stored = kv.data[WEBULL_KEEPER_RECORD_KEY];
     expect(stored).toBeTruthy();

@@ -112,6 +112,8 @@ export type WebullRungName =
   | "SNAPSHOT"
   | "TICKS"
   | "SUBSCRIPTIONS"
+  /** The no-subscription control rung. Out-of-band — see `WebullEntitlementReport.crypto`. */
+  | "CRYPTO_SNAPSHOT"
   /** The streaming lane. Out-of-band like SUBSCRIPTIONS — see `WebullStreamingProbe`. */
   | "STREAMING_SUBSCRIBE"
   | "STREAMING_UNSUBSCRIBE";
@@ -199,6 +201,13 @@ export interface WebullEntitlementReport {
    * `verdict` — see `WebullStreamingProbe` for why that restraint is deliberate.
    */
   readonly streaming?: WebullStreamingProbe;
+  /**
+   * BTCUSD snapshot, once per signing profile. Webull documents crypto as
+   * needing no market-data subscription, so this is the control that splits
+   * "this key reads no market data" from "this key lacks the stock package".
+   * Out-of-band: it NEVER participates in `verdict`.
+   */
+  readonly crypto?: readonly WebullRungReceipt[];
 }
 
 interface RungSpec {
@@ -363,7 +372,7 @@ export function readWebullLadder(rungs: readonly WebullRungReceipt[]): {
     }
     return {
       verdict: "APP_KEY_ENTITLEMENT_ISOLATED",
-      note: `Non-market-data rungs returned data over the same host and credentials, while every market-data rung was denied under every signing profile tried (${WEBULL_SIGNING_PROFILES.join(", ")}). Signing is therefore controlled for rather than assumed, and the request matches the SDK. The isolated gap is the APP KEY WM Pro signs with — not the account. MEASURED 2026-09-21: the same endpoint returned live ticks for the same accounts through a grant-authorized Webull client, so the account's market data is not in question. This is a developer-portal fact about our app registration. Do not ask the operator to buy anything on this evidence.`,
+      note: `Non-market-data rungs returned data over the same host and credentials, while every market-data rung was denied under every signing profile tried (${WEBULL_SIGNING_PROFILES.join(", ")}). Signing is therefore controlled for rather than assumed, and the request matches the SDK. The isolated gap is market data on the OpenAPI APP KEY WM Pro signs with — not the account. MEASURED 2026-09-21: the same endpoint returned live ticks for the same accounts through a grant-authorized Webull client, so the account's own market data is not in question. DOCUMENTED by Webull (Market Data API overview and the API Keys page, read 2026-09-26): market-data subscriptions bought in the Webull app or desktop are independent of OpenAPI; OpenAPI stock data is its own Non-Display subscription (Nasdaq Basic L1 or TotalView L2), options, futures and order flow each have their own, and crypto and event contracts need none. Adding one is the operator's decision, and Non-Display licensing also decides whether that data may be drawn on a chart at all — this reading does not make that decision for anyone.`,
     };
   }
 
@@ -801,6 +810,24 @@ export async function probeWebullEntitlement(
 
   const { verdict, note } = readWebullLadder(rungs);
 
+  let crypto: WebullRungReceipt[] | undefined;
+  try {
+    const receipts: WebullRungReceipt[] = [];
+    for (const profile of WEBULL_SIGNING_PROFILES) {
+      receipts.push(await climbRung(
+        fetchImpl,
+        rungSpec("CRYPTO_SNAPSHOT", WEBULL_SDK_CONTRACT.CRYPTO_SNAPSHOTS, { category: "US_CRYPTO", symbols: "BTCUSD" }, profile),
+        creds,
+        checkedAt,
+        makeNonce(),
+        timeoutMs,
+      ));
+    }
+    crypto = receipts;
+  } catch {
+    crypto = undefined;
+  }
+
   /**
    * The real-time door, asked once per signing profile, and never allowed to
    * fail the climb above. Same restraint as the subscription read: this is a
@@ -881,5 +908,6 @@ export async function probeWebullEntitlement(
     note: sessionNote ? `${note} No session accompanied this climb: ${sessionNote}` : note,
     ...(subscriptions ? { subscriptions } : {}),
     ...(streaming ? { streaming } : {}),
+    ...(crypto ? { crypto } : {}),
   };
 }

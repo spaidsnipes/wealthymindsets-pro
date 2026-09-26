@@ -139,7 +139,15 @@ describe("readWebullLadder", () => {
     expect(reading.note).not.toMatch(
       /\b(go|must|need to|should|please)\s+(buy|purchase|upgrade|subscribe)\b/i,
     );
-    expect(reading.note).toMatch(/do not ask the operator to buy anything/i);
+    // DOCUMENTED 2026-09-26 — Webull's own words replace the inference: an
+    // app/desktop subscription does not carry to OpenAPI. The note quotes the
+    // requirement as a fact about the key and leaves the purchase — and the
+    // Non-Display licensing question it raises — with the operator.
+    expect(reading.note).toMatch(/DOCUMENTED by Webull/);
+    expect(reading.note).toMatch(/independent of OpenAPI/);
+    expect(reading.note).toMatch(/operator's decision/);
+    expect(reading.note).toMatch(/Non-Display licensing/);
+    expect(reading.note).toMatch(/crypto and event contracts need none/);
   });
 
   /**
@@ -348,7 +356,8 @@ describe("probeWebullEntitlement", () => {
     // inventory (once) and the real-time streaming lane (once per signing
     // profile). This fixture denies every market-data path, so no streaming
     // subscription is ever accepted and none has to be released.
-    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length);
+    // The crypto control rung is the third out-of-band read, once per profile.
+    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1 + 2 * WEBULL_SIGNING_PROFILES.length);
     expect(seen.filter((url) => url.includes("/app/subscriptions/list"))).toHaveLength(1);
     // The whole reason it is out of band: it must never reach the verdict.
     expect(report.rungs.some((rung) => rung.rung === "SUBSCRIPTIONS")).toBe(false);
@@ -402,6 +411,40 @@ describe("probeWebullEntitlement", () => {
     ]);
   });
 
+  /**
+   * THE CONTROL RUNG. Webull documents crypto market data as needing no
+   * subscription, so BTCUSD open while every stock rung is refused proves the
+   * market-data door, the signing and the session work — and that the refusal
+   * is the stock package alone. It is out of band: the verdict cannot move.
+   */
+  it("asks BTCUSD once per profile, out of band, and never lets it move the verdict", async () => {
+    const crypto: string[] = [];
+    const fetchImpl = (async (url: URL) => {
+      const href = String(url);
+      if (href.includes("/market-data/crypto/snapshots/list")) {
+        crypto.push(href);
+        return new Response(JSON.stringify([{ symbol: "BTCUSD", price: "1" }]), { status: 200 });
+      }
+      const marketData = href.includes("/market-data/");
+      return new Response(
+        JSON.stringify(marketData ? { code: "MARKET_DATA_NOT_SUBSCRIBED" } : { data: [{ account_id: "x" }] }),
+        { status: marketData ? 403 : 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const report = await probeWebullEntitlement(fetchImpl, {
+      appKey: "k", appSecret: "s", accessToken: "t",
+      now: () => new Date("2026-09-26T05:00:00.000Z"), nonce: () => "n".repeat(32),
+    });
+
+    expect(crypto).toHaveLength(WEBULL_SIGNING_PROFILES.length);
+    expect(crypto.every((href) => href.includes("category=US_CRYPTO") && href.includes("symbols=BTCUSD"))).toBe(true);
+    expect(report.crypto?.map((r) => r.outcome)).toEqual(WEBULL_SIGNING_PROFILES.map(() => "OK"));
+    expect(report.rungs.some((rung) => rung.rung === "CRYPTO_SNAPSHOT")).toBe(false);
+    expect(report.verdict).toBe("APP_KEY_ENTITLEMENT_ISOLATED");
+    expect(JSON.stringify(report)).not.toContain("BTCUSD\",\"price");
+  });
+
   it("reads an all-denied ladder as our own suspect, not the Founder's wallet", async () => {
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ code: "INVALID_SIGNATURE" }), { status: 403 })) as unknown as typeof fetch;
@@ -443,9 +486,10 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
     // Ladder rungs + every out-of-band read; the minted session has to travel
     // on ALL of them, including the ones that are not rungs. This fixture
     // answers 200 to everything, so each signing profile opens a streaming
-    // subscription AND releases it — two calls per profile.
+    // subscription AND releases it — two calls per profile — and the crypto
+    // control rung is asked once per profile.
     expect(tokens).toHaveLength(
-      webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length * 2,
+      webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length * 3,
     );
     expect(new Set(tokens)).toEqual(new Set(["minted-session-value"]));
   });
