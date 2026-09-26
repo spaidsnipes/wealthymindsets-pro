@@ -133,6 +133,25 @@ describe("H-901 regime lighting — the plate's canvas on the real chart", () =>
     }
   });
 
+  it("(f) the fixtures stay in the pane: clipped below the header floor, every chip on the glass cut out", () => {
+    // Serving TSLA 15m desktop, 2026-09-26 04:06 CDT: the channel's upper
+    // boundary climbed into the header band, across the semantic badge and
+    // beside "Evidence saved". Same rule as the H-801 fan (cd520b21).
+    const pane = at("ctx.rect(0, HEADER_FLOOR_Y, plotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));");
+    expect(block.slice(pane, pane + 200)).toMatch(/^ctx\.rect\([^;]*\);\s*ctx\.clip\(\);\s*ctx\.clip\(cutR, "evenodd"\);/);
+    expect(block).toMatch(/for \(const r of floatingChips\) \{\s*ctx\.beginPath\(\);\s*ctx\.rect\(0, 0, W, H\);\s*ctx\.rect\(r\.x - 2, r\.y - 2, r\.w \+ 4, r\.h \+ 4\);\s*ctx\.clip\("evenodd"\);\s*\}/);
+    const chips = at("for (const r of floatingChips) {");
+    const first = at('att.alpha("regimeField")');
+    expect(pane).toBeLessThan(first);
+    expect(chips).toBeLessThan(first);
+    // A magnet level off the pane is skipped and named, never painted under chrome.
+    at("if (y < HEADER_FLOOR_Y || y > pane0Bottom) { edgeR(y); continue; }");
+    at("edgeR(ya, yb);");
+    const receipt = at("ds.regimeLightingClipped = [");
+    expect(receipt).toBeGreaterThan(at("ctx.restore(); // releases the candle cut-out"));
+    expect(block).toContain('clippedTopR ? `TOP:${clippedTopR}` : ""');
+  });
+
   it("(e) receipts: withdrawn every frame, re-published only for what painted, naming the light each class got", () => {
     const list = CHART.match(/const REGIME_LIGHTING_RECEIPTS = \[([^\]]*)\] as const;/);
     expect(list, "REGIME_LIGHTING_RECEIPTS not found").not.toBeNull();

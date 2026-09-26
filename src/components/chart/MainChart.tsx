@@ -205,7 +205,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
 /** H-901 · what the regime block painted this frame; withdrawn together before it paints. */
 const REGIME_LIGHTING_RECEIPTS = [
   "regimeLightingFixtures", "regimeLightingChannel", "regimeLightingMagnets",
-  "regimeLightingField", "regimeLightingMark", "regimeLightingCandlesKept",
+  "regimeLightingField", "regimeLightingMark", "regimeLightingCandlesKept", "regimeLightingClipped",
 ] as const;
 /** F15A's state light, as an ambient wash (olive BALANCE, amber TRANSITION, oxblood WAIT). */
 const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT: "170,62,50" } as const;
@@ -11954,7 +11954,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const newestR = barsR[barsR.length - 1];
           const xLiveR = newestR ? xOfR(Number(newestR.time)) : null;
           ctx.save();
+          // THE FIXTURES STAY IN THE PANE (serving TSLA 15m desktop, 2026-09-26
+          // 04:06 CDT): the channel's upper boundary climbed up-right into the
+          // header band, across the semantic badge and beside "Evidence
+          // saved". Field, hatch, channel and magnets live between the header
+          // floor and the candle pane's bottom — the H-801 fan's rule.
+          ctx.beginPath();
+          ctx.rect(0, HEADER_FLOOR_Y, plotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));
+          ctx.clip();
           ctx.clip(cutR, "evenodd");
+          // Every chip already on the glass is cut out too — one clip per
+          // chip, padded 2px, so two overlapping chips never re-fill.
+          for (const r of floatingChips) {
+            ctx.beginPath();
+            ctx.rect(0, 0, W, H);
+            ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+            ctx.clip("evenodd");
+          }
+          // Fixture lines that reach past either edge of the pane, named.
+          let clippedTopR = 0, clippedBotR = 0;
+          const edgeR = (...ys: number[]) => {
+            if (Math.min(...ys) < HEADER_FLOOR_Y) clippedTopR++;
+            if (Math.max(...ys) > pane0Bottom) clippedBotR++;
+          };
           // A throw mid-paint must not leave the cut-out clipping every later layer.
           try {
             // F15A · THE STATE FIELD — the room's light by regime state, rising
@@ -12038,6 +12060,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.setLineDash(dash);
                   ctx.beginPath(); ctx.moveTo(xA, ya); ctx.lineTo(xB, yb); ctx.stroke();
                   channelLines++;
+                  edgeR(ya, yb);
                 }
                 ctx.setLineDash([]);
                 nameAt("△ CHANNEL", yUA, "rgba(237,230,211,0.9)", "regimeChannel");
@@ -12052,7 +12075,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               let magnetLines = 0;
               for (const lv of att.paints("regimeMagnets") ? [...fx.magnets.levels].sort((a, b) => Math.abs(a.k) - Math.abs(b.k)) : []) {
                 const y = yOfR(lv.price);
-                if (y == null || y < 0 || y > pane0Bottom) continue;
+                if (y == null) continue;
+                // A level above the header floor or below the pane is off the
+                // glass: named in the clip receipt, never painted under chrome.
+                if (y < HEADER_FLOOR_Y || y > pane0Bottom) { edgeR(y); continue; }
                 const yy = Math.round(y) + 0.5;
                 ctx.setLineDash(lv.k === 0 ? [8, 3] : Math.abs(lv.k) === 1 ? [4, 4] : [2, 4]);
                 ctx.lineWidth = lv.k === 0 ? 1.25 : 1;
@@ -12066,6 +12092,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           } finally {
             ctx.restore(); // releases the candle cut-out
           }
+          ds.regimeLightingClipped = [
+            clippedTopR ? `TOP:${clippedTopR}` : "",
+            clippedBotR ? `BOTTOM:${clippedBotR}` : "",
+          ].filter(Boolean).join("|") || "NONE";
 
           // ONE MARK, placed by the keep-out owner. A breaker earns the
           // compact title (F15A "REGIME · COMPACT") in the top band; no
