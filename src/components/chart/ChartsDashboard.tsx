@@ -1,5 +1,6 @@
 "use client";
 
+import { currentProofScene, proofSceneHoldsWrites, proofSceneValue } from "@/lib/chart/proofScene";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
@@ -533,6 +534,8 @@ function usePersistOnChange(key: string, dep: unknown, value: unknown = dep) {
       seeded.current = true;
       return;
     }
+    // A proof scene never writes back over the trader's saved chart.
+    if (proofSceneHoldsWrites()) return;
     try {
       localStorage.setItem(key, JSON.stringify(latest.current));
     } catch {}
@@ -556,10 +559,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // ── Persist helpers ─────────────────────────────────────────
   function lsGet<T>(key: string, fallback: T): T {
     if (typeof window === "undefined") return fallback;
+    // A proof scene (proofScene.ts) loads its own switches for this page only.
+    const proof = proofSceneValue(currentProofScene(), key);
+    if (proof !== undefined) return proof as T;
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
   }
   function lsSet(key: string, val: unknown) {
     if (typeof window === "undefined") return;
+    if (proofSceneHoldsWrites()) return;
     try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
   }
 

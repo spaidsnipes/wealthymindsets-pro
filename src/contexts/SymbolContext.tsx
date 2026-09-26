@@ -1,5 +1,6 @@
 "use client";
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { normalizeMarketSurfaceSymbol } from "@/lib/routing/marketSurfaceQuery";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect } from "react";
@@ -60,7 +61,7 @@ function readPersistedSymbol(): string {
   try {
     const linked = deepLinkSymbol(window.location.pathname, window.location.search);
     if (linked) {
-      window.localStorage.setItem(LAST_SYMBOL_KEY, linked);
+      if (!proofSceneHoldsWrites()) window.localStorage.setItem(LAST_SYMBOL_KEY, linked);
       return linked;
     }
     const saved = window.localStorage.getItem(LAST_SYMBOL_KEY);
@@ -92,7 +93,7 @@ export function SymbolProvider({ children }: { children: React.ReactNode }) {
   const setActiveSymbol = useCallback((sym: string) => {
     const up = sym.toUpperCase();
     setActiveSymbolState(up);
-    try { localStorage.setItem(LAST_SYMBOL_KEY, up); } catch {}
+    try { if (!proofSceneHoldsWrites()) localStorage.setItem(LAST_SYMBOL_KEY, up); } catch {}
   }, []);
 
   return (

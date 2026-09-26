@@ -29,6 +29,7 @@ import {
 } from "@/lib/chart/liquidityGlassGeometry";
 import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
+import { currentProofScene } from "@/lib/chart/proofScene";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -3571,6 +3572,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
       } catch {
         try { chart.timeScale().fitContent(); } catch {}
+      }
+      // PROOF SCENE (proofScene.ts): `bars=N` opens the camera on the newest N
+      // bars, so FAR / MID / NEAR can be proved by URL on the real glass.
+      {
+        const proofBars = currentProofScene().bars;
+        if (proofBars != null && data.length > 0) {
+          try { chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, data.length - proofBars), to: data.length + 2 }); } catch { /* camera mid-build */ }
+        }
       }
 
       // The axis, last-price tag and crosshair quote the market's own
