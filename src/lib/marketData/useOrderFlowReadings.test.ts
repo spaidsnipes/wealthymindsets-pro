@@ -306,7 +306,9 @@ describe("the tape's time order has one owner", () => {
   it("the chart room hands the footprint worksheet the tape in time order", () => {
     const src = read("../../components/chart/ChartsDashboard.tsx");
     // Positive control: comments are gone, code is not.
-    expect(src).toContain("useOrderFlowReadings(recentTicks, tapeSource)");
+    // 2026-09-26 · the room now also names its bar size (the Value Candle's
+    // per-bar split, UI-02); the tape and its source are still the first two.
+    expect(src).toContain("useOrderFlowReadings(recentTicks, tapeSource, valueCandleBarSec)");
 
     const calls = src.match(/selectFootprintWorksheet\(\s*\{[^}]*\}\s*\)/g) ?? [];
     expect(calls.length).toBeGreaterThan(0);

@@ -236,8 +236,8 @@ import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectS
 import { selectTapeFootprint, type TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 import { stackAnchor, stackSlab } from "@/lib/chart/stackedImbalanceAnchor";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
-import { selectValueCandleGlass } from "@/lib/marketData/viewModels/selectValueCandleGlass";
-import type { ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
+import { selectValueCandleGlass, selectValueCandleGlassPlan } from "@/lib/marketData/viewModels/selectValueCandleGlass";
+import type { ValueCandleBarsVM, ValueCandleVM } from "@/lib/marketData/viewModels/selectValueCandle";
 import { selectDeltaDivergenceGlass } from "@/lib/marketData/viewModels/selectDeltaDivergenceGlass";
 import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
@@ -1135,6 +1135,12 @@ interface Props {
    */
   valueCandle?: ValueCandleVM | null;
   /**
+   * The SAME reading, split into this chart's bar slots by the room's one
+   * compilation (`selectValueCandleBars`) — so the glass can sit on the bar
+   * each value candle measured (canon UI-02). Null: no per-bar split.
+   */
+  valueCandleBars?: ValueCandleBarsVM | null;
+  /**
    * DELTA DIVERGENCE — the two pivot PRICES the engine compared. Compiled by
    * the room and reduced by `selectDeltaDivergenceGlass`, which is where the
    * refusal to put cumulative delta on a DOLLAR axis lives. Null means the room
@@ -1598,6 +1604,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   absorptionAnatomyActive = false,
   imbalanceStack = null,
   valueCandle = null,
+  valueCandleBars = null,
   deltaDivergence = null,
   liquidityWeather = null,
   effortMark = null,
@@ -1782,6 +1789,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    *  dependency of the overlay effect. */
   const valueCandleRef = useRef<ValueCandleVM | null>(null);
   useEffect(() => { valueCandleRef.current = valueCandle; }, [valueCandle]);
+  const valueCandleBarsRef = useRef<ValueCandleBarsVM | null>(null);
+  useEffect(() => { valueCandleBarsRef.current = valueCandleBars; }, [valueCandleBars]);
 
   /** Same reasoning again. Three tape-rate readings now reach the overlay, and
    *  every one of them arrives through a ref for the same documented cause. */
@@ -11261,38 +11270,42 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
 
       /* ══════════════════════════════════════════════════════════════════════
-         THE WM VALUE CANDLE — FINALLY DRAWN ON A CANDLE.
+         THE WM VALUE CANDLE — A CANDLE, ON THE BAR IT MEASURED (canon UI-02).
 
          `selectValueCandle` answers the question an OHLC bar refuses to: not
          where price went, but WHERE THE TRADING ACTUALLY HAPPENED. Centre of
          gravity is Σ(P×V)/Σ(V); the value band is CoG ± one volume-weighted
-         sigma. Every one of those numbers is A PRICE, and until now every one
-         of them lived in a drawer. The invention is called the WM Value CANDLE
-         and there was no candle.
+         sigma. Every one of those numbers is A PRICE.
 
-         WHAT IS DECIDED HERE AND WHAT IS NOT. Whether to draw, the band, the
-         rung list, the relative widths and the words are all settled in
-         `selectValueCandleGlass`, which has tests and emits NO COLOUR FIELD.
-         This block owns arithmetic and ink only.
+         WHAT THE PLATE DRAWS, AND WHAT THIS DRAWS (2026-09-26). UI-02 is a
+         candle: a translucent GLASS body over the bar's open–close (bright
+         rim, clear walls), and inside it a warm GOLD band where the trading
+         happened — CoG ± σ, brightest at the centre, fading to the band
+         edges — cut by a crisp dark line, the Center of Gravity. So each
+         measured bar gets exactly that, at its own x (`timeToCoordinate`) and
+         its own prices (`priceToCoordinate`), over the real candle — the glass
+         is clear enough that the candle's colour still reads through it.
 
-         WHERE IT SITS, AND WHY IT DOES NOT COLLIDE. The rungs are a histogram
-         at the right edge, which is exactly where the Fixed and Session VP
-         columns already live. Rather than suppress one or overdraw the other,
-         this takes THE NEXT COLUMN from the same `vpColumnLayout` the profiles
-         use — the mechanism the file already trusts to keep two histograms
-         apart. When the pane is too narrow to hold another column, the layout
-         says `fits:false` and this declines out loud (`NO_ROOM`) instead of
-         painting at a negative x, which is the exact failure that helper was
-         extracted to end.
+         WHAT WAS RETIRED. This block used to paint a rung histogram in the
+         next VP column at the right edge. A histogram in the profile column
+         reads as a volume profile — it failed the plate and the hidden-label
+         recognition test (GP12 §43) — and it duplicated profile territory.
+         There is no right-edge column paint for the value candle any more.
 
-         IT IS DRAWN BEFORE THE STACKED IMBALANCE BAND, deliberately: the stack
-         is a claim about a price RIGHT NOW and must read on top of the
-         distribution that produced it.
+         WHAT IS DECIDED HERE AND WHAT IS NOT. Which bars carry a value
+         candle, their bands and their words are settled upstream: the room's
+         ONE compilation splits the tape into this chart's bar slots
+         (`selectValueCandleBars`), and `selectValueCandleGlassPlan` says
+         GLASS_PER_BAR (every measured bar), GLASS_WINDOW (one glyph for the
+         whole window at the newest measured bar, when the per-bar split was
+         refused) or NONE. Nothing here invents a per-bar value.
 
-         CONCENTRATION IS NOT TIGHTNESS, and the label refuses to let it
-         pretend to be — the headline is BAND COVERAGE. That refusal is
-         upstream in the compiler; it is named here so an edit to this block
-         cannot quietly reintroduce the flattering number.
+         WORDS ARE FOR INSPECT. At rest the glass carries only geometry; the
+         CoG sentence appears when the crosshair is on a value candle, placed
+         through the keep-out owner. With no tape, the layer says so in one
+         line ("VALUE CANDLE · tape required") instead of drawing nothing
+         silently. CONCENTRATION IS NOT TIGHTNESS — the words lead with BAND
+         COVERAGE, which the compiler owns.
       ══════════════════════════════════════════════════════════════════════ */
       // An active question quiets everything that is not its subject
       // ("SECONDARY NOISE · QUIETED"). Dims, never deletes — through the
@@ -11302,6 +11315,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       try {
         const glass = selectValueCandleGlass(valueCandleRef.current);
+        const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, valueCandleBarsRef.current, { priceDp: pxDp });
         const ds = canvas.dataset;
         // Published in every state, including the silent ones. An absent
         // attribute means this build has no value-candle layer; UNMEASURED
@@ -11314,134 +11328,231 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // H-501 · switched on AND permitted at this depth by the ONE table.
         const on = layerOnRef.current.valueCandle && att.paints("valueCandle");
         ds.valueCandle = on ? glass.reason : att.offWord(layerOnRef.current.valueCandle);
+        // The right-edge rung histogram is retired (UI-02); its receipt is
+        // withdrawn every frame so no probe reads a column that is not there.
+        delete ds.valueCandleRungs;
+        // H-501 · words only where the table lets this layer SPEAK.
+        const vcSpeaks = att.speaks("valueCandle");
 
         let painted = false;
+        let vcPlaced = 0;
+        let vcWords = "AT_REST";
         if (on && glass.drawn && glass.cog != null) {
-          const axisW = (() => {
-            try {
-              const w = chart.priceScale("right").width();
-              if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
-            } catch {}
-            return 90;
-          })();
-          // The profiles already on screen own columns 0..n-1; this takes n.
-          const vpCols = (fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0);
-          const col = vpColumnLayout(W, axisW, vpCols, vpCols + 1);
-          const yCogR = srs.priceToCoordinate(glass.cog);
+          const tsV = chart.timeScale();
+          // The bars the value candles measured, by their own slot time. A
+          // value candle is drawn only on a bar this chart actually holds —
+          // never on "the nearest" one.
+          const bsV = barsRef.current ?? [];
+          const oldestT = vcPlan.candles.length > 0 ? vcPlan.candles[0]!.time : Infinity;
+          const barAt = new Map<number, (typeof bsV)[number]>();
+          for (let i = bsV.length - 1; i >= 0; i--) {
+            const b = bsV[i];
+            if (!b) continue;
+            if (+b.time < oldestT) break;
+            barAt.set(+b.time, b);
+          }
+          // Glass width: the bar's slot, a hair wider than the library's body
+          // (≈ 0.7–0.9 of the slot) so the rim sits just OUTSIDE the candle and
+          // the body's own colour reads through clear walls.
+          const gw = Math.max(3, Math.min(Math.max(3, Math.floor(bsp) - 1), Math.round(bsp * 0.86) + 2));
+          const vcHits: { x: number; y: number; w: number; h: number; c: (typeof vcPlan.candles)[number]; yCog: number }[] = [];
 
-          if (col.fits && yCogR != null && Number.isFinite(+yCogR)) {
-            const right = col.right;
-            const width = col.width;
-            ctx.save(); ctx.globalAlpha = att.alpha("valueCandle");
+          ctx.save();
+          ctx.globalAlpha = att.alpha("valueCandle");
+          for (const c of vcPlan.candles) {
+            const bar = barAt.get(c.time);
+            if (!bar) continue;
+            const xr = tsV.timeToCoordinate(c.time as never);
+            if (xr == null || !Number.isFinite(+xr)) continue;
+            const x = +xr;
+            if (x < -gw || x > plotRight + gw) continue;
+            // PER BAR the glass is the bar's own body (open–close); the WINDOW
+            // glyph's capsule spans the window's observed high–low.
+            const topP = vcPlan.form === "GLASS_WINDOW" ? c.high : Math.max(bar.open, bar.close);
+            const botP = vcPlan.form === "GLASS_WINDOW" ? c.low : Math.min(bar.open, bar.close);
+            const yT = srs.priceToCoordinate(topP);
+            const yB = srs.priceToCoordinate(botP);
+            const yCogR = srs.priceToCoordinate(c.cog);
+            const yVH = srs.priceToCoordinate(c.valueHigh);
+            const yVL = srs.priceToCoordinate(c.valueLow);
+            if (yT == null || yB == null || yCogR == null || yVH == null || yVL == null) continue;
+            const gx = Math.round(x - gw / 2);
+            let gy0 = Math.min(+yT, +yB);
+            let gy1 = Math.max(+yT, +yB);
+            if (gy1 - gy0 < 3) { const m = (gy0 + gy1) / 2; gy0 = m - 1.5; gy1 = m + 1.5; }
+            const gh = gy1 - gy0;
 
-            // ── THE RUNGS. Each bin at its own two price edges, so a shelf is
-            // drawn at the price it traded at and nowhere else. Width is the
-            // compiler's `widthFrac` — relative to the heaviest bin IN THIS
-            // WINDOW and nothing else, because no absolute volume scale
-            // survives a symbol change.
-            let rungs = 0;
-            for (const r of glass.rungs) {
-              const yTop = srs.priceToCoordinate(r.hiPrice);
-              const yBot = srs.priceToCoordinate(r.loPrice);
-              if (yTop == null || yBot == null) continue;
-              const rect = vpRowRect(+yTop, +yBot, 24);
-              if (!rect) continue;
-              const w = Math.max(1, Math.round(width * r.widthFrac));
-              // Inside the measured band is brighter than outside it. Alpha,
-              // not a second hue: the band is a measurement, not a verdict, so
-              // it gets emphasis rather than a grade.
-              ctx.fillStyle = r.inValue ? "rgba(212,175,55,0.55)" : "rgba(212,175,55,0.22)";
-              ctx.fillRect(right - w, rect.y, w, rect.drawHeight);
-              rungs++;
-            }
+            // ── THE GLASS. Clear walls: bright at the two sides, clear in the
+            // middle, so the candle under it keeps its colour.
+            const wall = ctx.createLinearGradient(gx, 0, gx + gw, 0);
+            wall.addColorStop(0, "rgba(237,230,211,0.20)");
+            wall.addColorStop(0.2, "rgba(237,230,211,0.05)");
+            wall.addColorStop(0.5, "rgba(237,230,211,0.00)");
+            wall.addColorStop(0.8, "rgba(237,230,211,0.05)");
+            wall.addColorStop(1, "rgba(237,230,211,0.20)");
+            ctx.fillStyle = wall;
+            ctx.fillRect(gx, gy0, gw, gh);
 
-            // ── THE VALUE BAND EDGES, across the rung lane only. The stacked
-            // imbalance band spans the whole plot because it is a price that
-            // matters now; this one is the extent of a distribution, so it
-            // stays inside the distribution it describes.
-            if (glass.valueLow != null && glass.valueHigh != null) {
-              const yHi = srs.priceToCoordinate(glass.valueHigh);
-              const yLo = srs.priceToCoordinate(glass.valueLow);
-              if (yHi != null && yLo != null) {
-                ctx.strokeStyle = "rgba(212,175,55,0.40)";
-                ctx.lineWidth = 1;
-                ctx.setLineDash([3, 3]);
-                ctx.beginPath();
-                ctx.moveTo(right - width, Math.round(+yHi) + 0.5);
-                ctx.lineTo(right, Math.round(+yHi) + 0.5);
-                ctx.moveTo(right - width, Math.round(+yLo) + 0.5);
-                ctx.lineTo(right, Math.round(+yLo) + 0.5);
-                ctx.stroke();
-                ctx.setLineDash([]);
-              }
-            }
+            // ── THE GOLD VALUE BAND — CoG ± σ, at its own prices, clipped to
+            // the bar's slot. Brightest at the centre (the CoG), fading to the
+            // band edges. It may reach past the body into the wicks: that is
+            // where the trading was, and the band does not pretend otherwise.
+            const bTop = Math.min(+yVH, +yVL);
+            let bBot = Math.max(+yVH, +yVL);
+            if (bBot - bTop < 2) bBot = bTop + 2;
+            const gold = ctx.createLinearGradient(0, bTop, 0, bBot);
+            gold.addColorStop(0, "rgba(212,175,55,0.10)");
+            gold.addColorStop(0.5, "rgba(240,205,110,0.58)");
+            gold.addColorStop(1, "rgba(212,175,55,0.10)");
+            ctx.fillStyle = gold;
+            ctx.fillRect(gx + 1, bTop, Math.max(1, gw - 2), bBot - bTop);
 
-            // ── THE SPINE. Σ(P×V)/Σ(V) is the one number the whole reading is
-            // built on, so it is the one mark that reaches past the lane.
-            const yCog = Math.round(+yCogR) + 0.5;
-            ctx.strokeStyle = "rgba(237,230,211,0.85)";
+            // ── THE RIM — bright caps, fainter walls (the plate's glass tube).
             ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(237,230,211,0.42)";
+            ctx.strokeRect(gx + 0.5, gy0 + 0.5, gw - 1, Math.max(1, gh - 1));
+            ctx.strokeStyle = "rgba(255,250,235,0.85)";
             ctx.beginPath();
-            ctx.moveTo(right - width - 10, yCog);
-            ctx.lineTo(right, yCog);
+            ctx.moveTo(gx, Math.round(gy0) + 0.5); ctx.lineTo(gx + gw, Math.round(gy0) + 0.5);
+            ctx.moveTo(gx, Math.round(gy1) - 0.5); ctx.lineTo(gx + gw, Math.round(gy1) - 0.5);
             ctx.stroke();
 
-            // ── THE LABEL, and the finding beneath it only when one was found.
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-            const lw = ctx.measureText(glass.label).width;
-            const chipH = 14;
-            // THE SENTENCE IS CHROME, THE SPINE IS PRICE (2026-09-24). Anchored
-            // at the CoG, this chip sat on price — exactly where the Living
-            // Profile's VAH/POC labels and the delta bubbles live — and on a
-            // fixture tape the three printed through each other. The CoG keeps
-            // its mark on price (the spine above); the words take a fixed slot
-            // under INSPECT, right-aligned to the lane.
-            const chipX = Math.max(2, right - (lw + 12));
-            const blockH = chipH + (glass.migrationLabel ? 14 : 0);
-            let chipY = 96;
-            for (let guard = 0; guard < 6; guard++) {
-              const hit = floatingChips.find(r =>
-                chipX < r.x + r.w && chipX + lw + 12 > r.x && chipY < r.y + r.h && chipY + blockH > r.y);
-              if (!hit) break;
-              chipY = hit.y + hit.h + 4;
+            // ── THE WICK RODS — a thin metal sheen BESIDE each wick, never on
+            // it, so the wick keeps its own colour. Only where the slot is wide
+            // enough to hold a sheen without smearing into the next bar.
+            if (vcPlan.form === "GLASS_PER_BAR" && gw >= 7) {
+              const yHi = srs.priceToCoordinate(bar.high);
+              const yLo = srs.priceToCoordinate(bar.low);
+              const rx = Math.round(x) + 1.5;
+              ctx.strokeStyle = "rgba(226,222,212,0.30)";
+              ctx.beginPath();
+              if (yHi != null && +yHi < gy0 - 1) { ctx.moveTo(rx, +yHi); ctx.lineTo(rx, gy0); }
+              if (yLo != null && +yLo > gy1 + 1) { ctx.moveTo(rx, gy1); ctx.lineTo(rx, +yLo); }
+              ctx.stroke();
             }
+
+            // ── THE CENTER OF GRAVITY — a crisp dark line across the body,
+            // over a faint ivory halo so it reads off the band as well as on it.
+            const yCog = Math.round(+yCogR) + 0.5;
+            ctx.strokeStyle = "rgba(237,230,211,0.55)";
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(gx - 1, yCog); ctx.lineTo(gx + gw + 1, yCog); ctx.stroke();
+            ctx.strokeStyle = "rgba(14,12,8,0.95)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(gx - 1, yCog); ctx.lineTo(gx + gw + 1, yCog); ctx.stroke();
+
+            const yHiBar = srs.priceToCoordinate(bar.high);
+            const yLoBar = srs.priceToCoordinate(bar.low);
+            const hy0 = Math.min(gy0, bTop, yHiBar == null ? gy0 : +yHiBar) - 3;
+            const hy1 = Math.max(gy1, bBot, yLoBar == null ? gy1 : +yLoBar) + 3;
+            vcHits.push({ x: gx - 2, y: hy0, w: gw + 4, h: hy1 - hy0, c, yCog });
+            vcPlaced++;
+          }
+          ctx.restore();
+
+          // ── INSPECT WORDS. Only when the crosshair is on a value candle and
+          // the depth lets this layer speak. Placed through the keep-out owner
+          // (right of the glass, else left, else above / below), never over a
+          // protected body; asked for, so its backing yields rather than hides.
+          const hp = crosshairPointRef.current;
+          const hit = hp == null ? null
+            : vcHits.find(r => hp.x >= r.x && hp.x <= r.x + r.w && hp.y >= r.y && hp.y <= r.y + r.h) ?? null;
+          if (hit && vcSpeaks) {
+            ctx.save();
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            const lines = hit.c.lines;
+            const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 12;
+            const lh = 4 + 11 * lines.length;
+            const inPane = (r: { x: number; y: number; w: number; h: number }) =>
+              r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 2;
+            const slots = [
+              { x: hit.x + hit.w + 6, y: hit.yCog - lh / 2, w: lw, h: lh },
+              { x: hit.x - 6 - lw, y: hit.yCog - lh / 2, w: lw, h: lh },
+              { x: hit.x + hit.w / 2 - lw / 2, y: hit.y - 4 - lh, w: lw, h: lh },
+              { x: hit.x + hit.w / 2 - lw / 2, y: hit.y + hit.h + 4, w: lw, h: lh },
+            ].filter(inPane);
+            if (slots.length === 0) {
+              vcWords = "HELD";
+            } else {
+              const spot = placeClearOfKeepOut(
+                slots[0]!,
+                [...keepOut(), ...rowBodiesAt(Math.min(...slots.map(r => r.y)), Math.max(...slots.map(r => r.y + r.h)))],
+                { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: slots.slice(1) },
+              );
+              recordKeepOut(keepOutLedger, spot);
+              const s = spot.rect;
+              floatingChips.push({ ...s });
+              ctx.fillStyle = `rgba(14,12,8,${keepOutBackingAlpha(spot, 0.92)})`;
+              ctx.fillRect(s.x, s.y, s.w, s.h);
+              ctx.strokeStyle = "rgba(212,175,55,0.55)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(s.x + 0.5, s.y + 0.5, s.w - 1, s.h - 1);
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              lines.forEach((t, i) => {
+                ctx.fillStyle = i === 0 ? "#d4af37" : "rgba(237,230,211,0.80)";
+                ctx.fillText(t, s.x + 6, s.y + 2 + 11 * i + 5.5);
+              });
+              vcWords = `SELECTED@${hit.c.time}`;
+            }
+            ctx.restore();
+          }
+
+          ds.valueCandleCog = String(glass.cog);
+          if (vcPlaced > 0) {
+            ds.valueCandleForm = vcPlan.form === "GLASS_PER_BAR" ? `GLASS_PER_BAR:${vcPlaced}` : vcPlan.form;
+            // Where the newest value candle's CoG sits on the glass (css px) —
+            // so a probe can point at it instead of guessing.
+            const newest = vcHits[vcHits.length - 1]!;
+            ds.valueCandleAt = `${Math.round(newest.x + newest.w / 2)},${Math.round(newest.yCog)}`;
+            painted = true;
+          } else {
+            // Measured, but no measured bar is on this chart's glass right now
+            // (scrolled away, or the plan could not place one). A different
+            // fact from an unreadable tape, recorded as one.
+            ds.valueCandle = vcPlan.form === "NONE" ? "UNPLACED" : "NOT_IN_VIEW";
+          }
+        } else if (on && !glass.drawn && vcSpeaks) {
+          // HONEST SILENCE, SPOKEN ONCE. The layer is on and the tape cannot
+          // place value; the chart says so in one line rather than drawing
+          // nothing and letting the trader wonder whether it broke.
+          ctx.save();
+          ctx.globalAlpha = att.textAlpha("valueCandle");
+          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          const txt = "VALUE CANDLE · tape required";
+          const tw = ctx.measureText(txt).width + 12;
+          const th = 14;
+          const pref = { x: plotRight - tw - 8, y: HEADER_FLOOR_Y + 8, w: tw, h: th };
+          const alts = [{ x: plotRight - tw - 8, y: HEADER_FLOOR_Y + 26, w: tw, h: th }];
+          const spot = placeClearOfKeepOut(
+            pref,
+            [...keepOut(), ...rowBodiesAt(pref.y, alts[0]!.y + th)],
+            { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts },
+          );
+          if (spot.mode === "BLOCKED") {
+            vcWords = "HELD";
+          } else {
+            recordKeepOut(keepOutLedger, spot);
+            const s = spot.rect;
+            floatingChips.push({ ...s });
             ctx.fillStyle = "rgba(14,12,8,0.92)";
-            ctx.fillRect(chipX, chipY, lw + 12, chipH);
-            ctx.strokeStyle = "rgba(212,175,55,0.65)";
-            ctx.strokeRect(chipX + 0.5, chipY + 0.5, lw + 11, chipH - 1);
-            ctx.fillStyle = "#d4af37";
+            ctx.fillRect(s.x, s.y, s.w, s.h);
+            ctx.strokeStyle = "rgba(212,175,55,0.45)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(s.x + 0.5, s.y + 0.5, s.w - 1, s.h - 1);
+            ctx.fillStyle = "rgba(237,230,211,0.80)";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
-            ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
-            if (glass.migrationLabel) {
-              // Right-aligned to the chip's edge so the longer finding grows
-              // leftward into the pane, never across the price axis.
-              ctx.fillStyle = "rgba(237,230,211,0.80)";
-              ctx.textAlign = "right";
-              ctx.fillText(glass.migrationLabel, chipX + lw + 6, chipY + chipH + 8);
-              ctx.textAlign = "left";
-            }
-            // The chip joins the ledger so layers painted later step around it
-            // (serving, BTC-USD 1m, 14:48 CDT: the weather lens's title printed
-            // through "VALUE · BAND 62% OF RANGE · 242 PRINTS").
-            floatingChips.push({ x: chipX, y: chipY, w: lw + 12, h: blockH });
-
-            ctx.restore();
-
-            ds.valueCandleRungs = String(rungs);
-            ds.valueCandleCog = String(glass.cog);
-            painted = true;
-          } else if (!col.fits) {
-            // The reading was good and the pane could not hold another column.
-            // That is a different fact from an unreadable tape and is recorded
-            // as one.
-            ds.valueCandle = "NO_ROOM";
+            ctx.fillText(txt, s.x + 6, s.y + th / 2 + 0.5);
+            vcWords = "TAPE_REQUIRED";
           }
+          ctx.restore();
         }
+        ds.valueCandleWords = vcWords;
         if (!painted) {
-          // A stale rung count keeps asserting a distribution that is no
-          // longer on the screen.
-          delete ds.valueCandleRungs;
+          // No value candle on the glass: no form, and no CoG claimed.
+          ds.valueCandleForm = "NONE";
+          delete ds.valueCandleAt;
           delete ds.valueCandleCog;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }

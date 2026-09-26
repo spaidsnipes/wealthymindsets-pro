@@ -1,17 +1,24 @@
 /**
- * THE VALUE CANDLE MUST STAY ON THE GLASS.
+ * THE VALUE CANDLE MUST STAY ON THE GLASS — AND ON THE CANDLE.
  *
  * The invention is called the WM Value CANDLE and for months there was no
  * candle: `selectValueCandle` computed a centre of gravity, a value band and a
  * full bins distribution — every one of them A PRICE — and shipped all of it to
- * a drawer. The repair was a wire, and a wire is the easiest thing in this repo
- * to lose. Nobody deletes a feature; somebody refactors a prop, moves the
- * overlay, or "cleans up an unused import", and the rungs quietly stop being
- * painted while the panel keeps quoting a CoG.
+ * a drawer. The first repair was a wire; this file keeps the wire.
  *
- * This file is a breadcrumb, not a renderer. It reads source, because a canvas
- * cannot be asserted on here and the moment it could the assertion would be
- * about a pixel rather than about the wire.
+ * 2026-09-26 · CANON UI-02 (Gravity / Value Center plate). The first repair
+ * drew a rung HISTOGRAM in the next VP column at the right edge. The plate is
+ * a candle: glass over the bar's body, the gold value band (CoG ± σ) inside
+ * it, the Center of Gravity as a dark line across it — and a histogram in the
+ * profile column fails the hidden-label recognition test (GP12 §43) because it
+ * reads as a volume profile. So the histogram rules below were REPLACED, not
+ * dropped: what was "take the next VP column" is now "no right-edge column
+ * paint at all", and "each bin at its own prices" is now "each value candle at
+ * its own bar's x and its own prices". Every rule is held by a pure audit and
+ * the audit is MUTATION-TESTED at the bottom — a sentinel that cannot fail is
+ * decoration.
+ *
+ * This file is a breadcrumb, not a renderer. It reads source.
  */
 
 import { describe, expect, it } from "vitest";
@@ -28,23 +35,87 @@ const strip = (s: string) =>
 const CHART = strip(read("src/components/chart/MainChart.tsx"));
 const ROOM = strip(read("src/components/chart/ChartsDashboard.tsx"));
 
-const block = (() => {
-  const at = CHART.indexOf("selectValueCandleGlass(valueCandleRef.current)");
-  expect(at, "the glass call was renamed or removed").toBeGreaterThan(-1);
-  return CHART.slice(at, at + 6000);
-})();
+const ANCHOR = "selectValueCandleGlass(valueCandleRef.current)";
+const END = "delete ds.valueCandleCog;";
+
+/** The value-candle block: from the glass call to its last receipt write. */
+function blockOf(src: string): string {
+  const at = src.indexOf(ANCHOR);
+  if (at < 0) return "";
+  const end = src.indexOf(END, at);
+  return end < 0 ? src.slice(at, at + 6000) : src.slice(at, end + END.length);
+}
+
+const block = blockOf(CHART);
+
+/**
+ * THE AUDIT — pure over the block's source, so the mutations below can prove
+ * each rule fires. Returns the broken rules (empty = the block is canon).
+ */
+function audit(b: string): string[] {
+  const out: string[] = [];
+  const need = (re: RegExp | string, why: string) => {
+    const ok = typeof re === "string" ? b.includes(re) : re.test(b);
+    if (!ok) out.push(why);
+  };
+
+  // ── (1) NO RIGHT-EDGE COLUMN. The rung histogram is retired.
+  if (/vpColumnLayout\(/.test(b)) out.push("(1) the value candle takes a VP column again");
+  if (/glass\.rungs|\.widthFrac|col\.right/.test(b)) out.push("(1) the rung histogram is painted again");
+  if (/"NO_ROOM"/.test(b)) out.push("(1) a column-room receipt is back — the value candle has no column");
+
+  // ── (2) ON THE BAR IT MEASURED, at that bar's x.
+  need("selectValueCandleGlassPlan(valueCandleRef.current, valueCandleBarsRef.current", "(2) the glass plan is not read");
+  need("for (const c of vcPlan.candles)", "(2) the plan's candles are not what is drawn");
+  need("const bar = barAt.get(c.time);", "(2) the glass is not matched to the bar it measured");
+  need(/if \(!bar\) continue;/, "(2) a value candle may be drawn on a bar the chart does not hold");
+  need("tsV.timeToCoordinate(c.time as never)", "(2) the glass x is not the measured bar's time coordinate");
+  need("Math.max(bar.open, bar.close)", "(2) the per-bar glass does not span the bar's own body");
+
+  // ── (3) EVERY PRICE AT ITS OWN PRICE.
+  need("srs.priceToCoordinate(c.cog)", "(3) the CoG line is not placed at the CoG's price");
+  need("srs.priceToCoordinate(c.valueHigh)", "(3) the band top is not the measured valueHigh");
+  need("srs.priceToCoordinate(c.valueLow)", "(3) the band bottom is not the measured valueLow");
+
+  // ── (4) THE GOVERNOR OWNS THE LOUDNESS.
+  need('ctx.globalAlpha = att.alpha("valueCandle")', "(4) the glass does not take its alpha from the governor");
+
+  // ── (5) NO WORDS AT REST. Exactly two text sites: the Inspect caption
+  // (crosshair on a value candle AND the depth speaks) and the one-line
+  // honest silence (no tape AND the depth speaks). Both through keep-out.
+  const texts = (b.match(/\.fillText\(/g) ?? []).length;
+  if (texts !== 2) out.push(`(5) ${texts} text sites — the at-rest glass must carry none beyond the two gated ones`);
+  const hover = b.indexOf("if (hit && vcSpeaks) {");
+  const silence = b.indexOf("} else if (on && !glass.drawn && vcSpeaks) {");
+  if (hover < 0) out.push("(5) the caption is not gated on hover AND speaks");
+  if (silence < 0) out.push("(5) the tape-required word is not gated on unmeasured AND speaks");
+  const firstText = b.indexOf(".fillText(");
+  if (firstText >= 0 && hover >= 0 && firstText < hover) out.push("(5) text is painted before the hover gate");
+  need('const vcSpeaks = att.speaks("valueCandle");', "(5) words do not ask the permission table");
+  if ((b.match(/placeClearOfKeepOut\(/g) ?? []).length < 2) out.push("(5) words are not placed through the keep-out owner");
+  need("hit.c.lines", "(5) the caption is not the compiler's words");
+  need('"VALUE CANDLE · tape required"', "(5) the honest-silence word is missing");
+
+  // ── (6) RECEIPTS.
+  need("ds.valueCandleForm = vcPlan.form === \"GLASS_PER_BAR\" ? `GLASS_PER_BAR:${vcPlaced}` : vcPlan.form;", "(6) valueCandleForm is not published from the plan");
+  need('ds.valueCandleForm = "NONE";', "(6) valueCandleForm has no NONE state");
+  return out;
+}
 
 describe("the reading reaches the chart", () => {
   it("the room hands the SAME reading it gives the drawer to the glass", () => {
     expect(ROOM).toMatch(/valueCandle=\{chartOrderFlowReadings\.valueCandle\}/);
+    expect(ROOM).toMatch(/valueCandleBars=\{chartOrderFlowReadings\.valueCandleBars\}/);
   });
 
   it("the chart accepts it as a prop and does NOT recompute the tape", () => {
     expect(CHART).toMatch(/valueCandle\?:/);
+    expect(CHART).toMatch(/valueCandleBars\?:/);
     expect(CHART).toMatch(/selectValueCandleGlass/);
-    // The engine itself must never appear here — only the glass compiler,
-    // which takes an already-computed VM.
+    // The engine itself must never appear here — only the glass compilers,
+    // which take already-computed VMs. The per-bar split is the room's too.
     expect(CHART).not.toMatch(/\bselectValueCandle\s*\(/);
+    expect(CHART).not.toMatch(/\bselectValueCandleBars\s*\(/);
   });
 
   it("the overlay reads it through a ref, not through its dependency array", () => {
@@ -52,65 +123,30 @@ describe("the reading reaches the chart", () => {
     // rAF loop down and rebuilds it several times a second — the documented
     // cause of the VP and footprint flashing off on crypto.
     expect(CHART).toMatch(/valueCandleRef/);
+    expect(CHART).toMatch(/valueCandleBarsRef/);
     const deps = CHART.slice(CHART.lastIndexOf("}, [footprintType"));
     expect(deps.slice(0, 400)).not.toMatch(/\bvalueCandle\b/);
+    expect(deps.slice(0, 400)).not.toMatch(/\bvalueCandleBars\b/);
   });
 });
 
-describe("every number is placed at the price it is a claim about", () => {
-  it("puts the spine on the price scale the candles use", () => {
-    expect(block).toMatch(/srs\.priceToCoordinate\(glass\.cog\)/);
+describe("the value candle is a candle, on the bar it measured (UI-02)", () => {
+  it("the block was found and reaches its last receipt", () => {
+    expect(block.length, "the glass call was renamed or removed").toBeGreaterThan(1000);
+    expect(block.endsWith(END)).toBe(true);
   });
 
-  it("draws EVERY bin at its OWN two price edges, not one averaged block", () => {
-    // A single shaded rectangle would say "value is somewhere around here".
-    // The distribution IS the reading; a shelf must be drawn at the price that
-    // traded and nowhere else.
-    expect(block).toMatch(/for \(const r of glass\.rungs\)/);
-    expect(block).toMatch(/srs\.priceToCoordinate\(r\.hiPrice\)/);
-    expect(block).toMatch(/srs\.priceToCoordinate\(r\.loPrice\)/);
+  it("MainChart passes the audit", () => {
+    expect(audit(block)).toEqual([]);
   });
 
-  it("marks the value band edges from the measured band, not from the bins", () => {
-    expect(block).toMatch(/srs\.priceToCoordinate\(glass\.valueHigh\)/);
-    expect(block).toMatch(/srs\.priceToCoordinate\(glass\.valueLow\)/);
-  });
-
-  it("scales each rung by the compiler's relative width, implying no volume axis", () => {
-    expect(block).toMatch(/r\.widthFrac/);
-  });
-});
-
-describe("the histogram shares the right edge instead of fighting for it", () => {
-  it("takes its column from the SAME layout the volume profiles use", () => {
-    // Two right-anchored histograms in one lane is the BTC "VP looks wrong"
-    // bug. `vpColumnLayout` is the mechanism this file already trusts to keep
-    // columns apart; a second, private placement rule would drift from it.
-    expect(block).toMatch(/vpColumnLayout\(W, axisW, vpCols, vpCols \+ 1\)/);
-    expect(block).toMatch(/fixedVPActive \? 1 : 0/);
-    expect(block).toMatch(/sessionVPActive \? 1 : 0/);
-  });
-
-  it("declines out loud when there is no room, rather than painting off-canvas", () => {
-    expect(block).toMatch(/col\.fits/);
-    expect(block).toMatch(/"NO_ROOM"/);
-  });
-
-  it("reserves the LIVE price-axis width, never a guessed one", () => {
-    // 59,800.00 is wider than 12.40, and a fixed reserve let bars bleed over
-    // the numbers.
-    expect(block).toMatch(/chart\.priceScale\("right"\)\.width\(\)/);
+  it("the spine's price owner is the candles' own series", () => {
+    expect(block).toMatch(/srs\.priceToCoordinate\(c\.cog\)/);
   });
 });
 
 describe("§9 — no reading is graded in colour on the glass", () => {
-  it("separates inside-band from outside-band by ALPHA, not by a second hue", () => {
-    // Where value sits is a measurement, not a verdict. Emphasis is honest;
-    // a grade is not.
-    expect(block).toMatch(/r\.inValue \?/);
-  });
-
-  it("spends no green and no red on the distribution", () => {
+  it("spends no green and no red on the value candle", () => {
     expect(block).not.toMatch(/-wm-green|-wm-red/);
     // Every literal colour in the block, checked for a green- or red-dominant
     // channel rather than merely "contains green" — the house ivory #ede6d3 and
@@ -126,18 +162,13 @@ describe("§9 — no reading is graded in colour on the glass", () => {
 });
 
 describe("the headline number stays the honest one", () => {
-  it("prints the compiler's label rather than assembling its own sentence", () => {
+  it("prints the compiler's words rather than assembling its own sentence", () => {
     // `concentration` reads 100% for a perfectly HOLLOW two-sided auction. The
     // compiler leads with band coverage for exactly that reason, and it can
     // only keep doing so if the canvas has no second opinion.
-    expect(block).toMatch(/glass\.label/);
+    expect(block).toMatch(/hit\.c\.lines/);
     expect(block).not.toMatch(/concentration/i);
-  });
-
-  it("speaks the migration only when the engine found one", () => {
-    // `migrationLabel` is null on ALIGNED by construction; printing anything
-    // else here would put a reassurance on every quiet bar.
-    expect(block).toMatch(/glass\.migrationLabel/);
+    expect(block).not.toMatch(/migrationDetail/);
   });
 });
 
@@ -149,18 +180,18 @@ describe("the layer publishes a receipt in every state, including the silent one
   });
 
   it("withdraws the drawing receipts when the drawing goes away", () => {
+    // The retired rung receipt is withdrawn every frame; the CoG whenever no
+    // value candle is on the glass.
     expect(block).toMatch(/delete ds\.valueCandleRungs/);
     expect(block).toMatch(/delete ds\.valueCandleCog/);
   });
 });
 
 describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
-  it("a switched-off layer paints NOTHING, not merely fewer bins", () => {
-    // Named down to this block's OWN condition on purpose. The slice window is
-    // wide enough to reach the next layer's code, and a bare `if (on &&
-    // glass.drawn` was satisfied by the NEIGHBOUR while this block's gate was
-    // deleted — proven by mutation. A sentinel that can be satisfied by a file
-    // it is not guarding is decoration.
+  it("a switched-off layer paints NOTHING, not merely fewer candles", () => {
+    // Named down to this block's OWN condition on purpose — a bare
+    // `if (on && glass.drawn` was once satisfied by a NEIGHBOUR while this
+    // block's gate was deleted (proven by mutation).
     expect(block).toMatch(/if \(on && glass\.drawn && glass\.cog != null\)/);
   });
 
@@ -174,4 +205,34 @@ describe("the trader can quiet this layer, and the chart says WHICH silence it i
     expect(CHART).toMatch(/valueCandleOnChart\?: boolean/);
     expect(ROOM).toMatch(/valueCandleOnChart=\{valueCandleOn\}/);
   });
+});
+
+describe("MUTATIONS — each rule fires on a deliberately broken copy", () => {
+  const mutants: Array<[string, (b: string) => string]> = [
+    ["the rung histogram comes back in a VP column",
+      b => b.replace("const tsV = chart.timeScale();", "const col = vpColumnLayout(W, axisW, vpCols, vpCols + 1); const tsV = chart.timeScale();")],
+    ["the glass is pinned to the newest bar instead of the measured one",
+      b => b.replace("tsV.timeToCoordinate(c.time as never)", "tsV.timeToCoordinate(bsV[bsV.length - 1]!.time as never)")],
+    ["a value candle may land on a bar the chart does not hold",
+      b => b.replace(/if \(!bar\) continue;/, "")],
+    ["the CoG line is drawn at the window CoG, not the bar's",
+      b => b.replace("srs.priceToCoordinate(c.cog)", "srs.priceToCoordinate(glass.cog!)")],
+    ["the governor's alpha is bypassed",
+      b => b.replace('ctx.globalAlpha = att.alpha("valueCandle")', "ctx.globalAlpha = 1")],
+    ["words painted at rest",
+      b => b.replace("if (hit && vcSpeaks) {", "if (true) {")],
+    ["a third text site appears at rest",
+      b => b.replace("vcPlaced++;", 'vcPlaced++; ctx.fillText("CoG", gx, yCog);')],
+    ["words skip the permission table",
+      b => b.replace('const vcSpeaks = att.speaks("valueCandle");', "const vcSpeaks = true;")],
+    ["the form receipt loses its NONE state",
+      b => b.replace('ds.valueCandleForm = "NONE";', "")],
+  ];
+  for (const [name, mutate] of mutants) {
+    it(`fires: ${name}`, () => {
+      const broken = mutate(block);
+      expect(broken, `mutation "${name}" did not apply — the block moved`).not.toBe(block);
+      expect(audit(broken).length).toBeGreaterThan(0);
+    });
+  }
 });

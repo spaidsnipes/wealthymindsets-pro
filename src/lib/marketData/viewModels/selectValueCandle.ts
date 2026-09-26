@@ -354,3 +354,140 @@ export function selectValueCandle(
     bins,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE VALUE CANDLE, BAR BY BAR (2026-09-26, Founder canon plate UI-02).
+
+   The plate draws the Value Candle AS A CANDLE: a glass body over one bar's
+   open–close, and inside it the gold band where that bar's trading actually
+   happened, with the Center of Gravity as a dark line across it. A window
+   reading (`selectValueCandle` over the whole held tape) cannot be drawn that
+   way without lying — it would put many bars' value inside one bar's glass.
+
+   So this splits the SAME tape into the chart's own bar slots and runs the
+   SAME engine on each slot. Nothing new is computed: every per-bar number is
+   `selectValueCandle` over exactly the prints that landed in that bar.
+
+   THE SLOT RULE IS THE CHART'S. `floor(timeMs / 1000 / intervalSec) *
+   intervalSec` — the bucketing MainChart's tape accumulators already use —
+   so a bar's value reading lands on the bar that printed it.
+
+   WHAT THIS REFUSES:
+   · NO INTERVAL → no bars. A tape without a bar size has no slots to fill.
+   · ANY UNDATED PRINT → no bars. Placing it in "the nearest bar" would be a
+     guess; dropping it would silently shrink a bar's volume. The window
+     reading still stands, and `newestBarTime` (from the prints that ARE
+     dated) lets a caller place that one window reading honestly instead.
+   · THE OLDEST BAR IS ALWAYS `partial`. The held tape began inside it —
+     either the page opened mid-bar or retention dropped its opening prints —
+     and nothing here can tell which, so it is never claimed to be whole.
+
+   PURE — no React, no I/O, no clock.
+══════════════════════════════════════════════════════════════════════════ */
+
+export const VALUE_CANDLE_BARS_VERSION = "wm.value-candle-bars.v1" as const;
+
+/** A print that may carry the time it was heard (epoch ms). */
+export interface ValueCandleDatedTick extends ValueCandleTick {
+  readonly time?: number | null | undefined;
+}
+
+export interface ValueCandleBar {
+  /** Bar open, epoch SECONDS, in the chart's own slot rule. */
+  readonly time: number;
+  /** `selectValueCandle` over exactly this bar's prints, in tape order. */
+  readonly reading: ValueCandleVM;
+  /**
+   * True for the oldest bar in the held tape: its opening prints may predate
+   * the tape, so its reading covers the part of the bar that was heard.
+   */
+  readonly partial: boolean;
+}
+
+export type ValueCandleBarsReason = "PER_BAR" | "NO_INTERVAL" | "UNDATED" | "UNMEASURED";
+
+export interface ValueCandleBarsVM {
+  readonly version: typeof VALUE_CANDLE_BARS_VERSION;
+  readonly intervalSec: number | null;
+  readonly reason: ValueCandleBarsReason;
+  /** Measured bars, oldest first. Empty unless `reason === "PER_BAR"`. */
+  readonly bars: readonly ValueCandleBar[];
+  /**
+   * The bar slot of the newest DATED usable print, or null. Set even when the
+   * per-bar split is refused, so a window reading can still be placed at the
+   * bar where the tape currently is.
+   */
+  readonly newestBarTime: number | null;
+}
+
+function usablePrint(t: ValueCandleDatedTick | null | undefined): boolean {
+  const price = Number(t?.price);
+  const size = Number(t?.size);
+  return Number.isFinite(price) && price > 0 && Number.isFinite(size) && size > 0;
+}
+
+export function selectValueCandleBars(
+  ticks: readonly ValueCandleDatedTick[] | null | undefined,
+  intervalSec: number | null | undefined,
+): ValueCandleBarsVM {
+  const interval =
+    typeof intervalSec === "number" && Number.isFinite(intervalSec) && intervalSec > 0
+      ? intervalSec
+      : null;
+  const base = {
+    version: VALUE_CANDLE_BARS_VERSION,
+    intervalSec: interval,
+  } as const;
+
+  const usable = Array.isArray(ticks) ? ticks.filter(usablePrint) : [];
+  if (usable.length === 0) {
+    return { ...base, reason: "UNMEASURED", bars: [], newestBarTime: null };
+  }
+
+  const slotOf = (ms: number) =>
+    interval == null ? null : Math.floor(ms / 1000 / interval) * interval;
+
+  let newestMs = -Infinity;
+  let undated = false;
+  for (const t of usable) {
+    const ms = t.time;
+    if (typeof ms === "number" && Number.isFinite(ms)) {
+      if (ms > newestMs) newestMs = ms;
+    } else {
+      undated = true;
+    }
+  }
+  const newestBarTime = Number.isFinite(newestMs) ? slotOf(newestMs) : null;
+
+  if (interval == null) {
+    return { ...base, reason: "NO_INTERVAL", bars: [], newestBarTime: null };
+  }
+  if (undated) {
+    return { ...base, reason: "UNDATED", bars: [], newestBarTime };
+  }
+
+  // Tape order is preserved inside each slot, so each bar's `last` is that
+  // bar's own last print — its close, so far.
+  const slots = new Map<number, ValueCandleDatedTick[]>();
+  for (const t of usable) {
+    const slot = slotOf(t.time as number) as number;
+    const held = slots.get(slot);
+    if (held) held.push(t);
+    else slots.set(slot, [t]);
+  }
+
+  const times = [...slots.keys()].sort((a, b) => a - b);
+  const bars: ValueCandleBar[] = [];
+  times.forEach((time, i) => {
+    const reading = selectValueCandle(slots.get(time));
+    if (!reading.measured) return;
+    bars.push({ time, reading, partial: i === 0 });
+  });
+
+  return {
+    ...base,
+    reason: bars.length > 0 ? "PER_BAR" : "UNMEASURED",
+    bars,
+    newestBarTime,
+  };
+}

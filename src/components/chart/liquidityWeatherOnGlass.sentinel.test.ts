@@ -322,7 +322,20 @@ describe("the lens speaks only where it can be read — serving BTC-USD 1m, 2026
   });
 
   it("the value-band chip it collided with is on the ledger", () => {
-    expect(CHART).toMatch(/ctx\.fillText\(glass\.migrationLabel, chipX \+ lw \+ 6, chipY \+ chipH \+ 8\);[\s\S]{0,120}\}\s*floatingChips\.push\(\{ x: chipX, y: chipY, w: lw \+ 12, h: blockH \}\);/);
+    // 2026-09-26 · canon UI-02 retired the value candle's at-rest chip (the
+    // glass carries no words at rest). Its two remaining word sites — the
+    // Inspect caption and the "tape required" line — each join the ledger
+    // before they print, so the lens still steps around them.
+    const at = CHART.indexOf("selectValueCandleGlass(valueCandleRef.current)");
+    const vc = CHART.slice(at, CHART.indexOf("delete ds.valueCandleCog;", at));
+    expect(at).toBeGreaterThan(-1);
+    const pushes = [...vc.matchAll(/floatingChips\.push\(\{ \.\.\.s \}\);/g)].map(m => m.index!);
+    const texts = [...vc.matchAll(/ctx\.fillText\(/g)].map(m => m.index!);
+    expect(texts.length).toBe(2);
+    expect(pushes.length).toBe(2);
+    // Every word site is preceded by its own ledger entry.
+    for (const t of texts) expect(pushes.some(p => p < t)).toBe(true);
+    expect(pushes[1]!).toBeGreaterThan(texts[0]!);
   });
 });
 

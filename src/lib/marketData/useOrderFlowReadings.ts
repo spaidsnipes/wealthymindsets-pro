@@ -68,7 +68,7 @@ import {
   selectLiquidityWeather,
 } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectStackedImbalance } from "@/lib/marketData/viewModels/selectStackedImbalance";
-import { selectValueCandle } from "@/lib/marketData/viewModels/selectValueCandle";
+import { selectValueCandle, selectValueCandleBars } from "@/lib/marketData/viewModels/selectValueCandle";
 import { selectDeltaLevels } from "@/lib/marketData/viewModels/selectDeltaLevels";
 
 /**
@@ -155,6 +155,14 @@ export function chronologicalTape<T extends DatedTick>(
  */
 export interface OrderFlowReadingSet {
   readonly valueCandle: ReturnType<typeof selectValueCandle>;
+  /**
+   * THE SAME value engine over the SAME gated tape, split into the chart's
+   * bar slots (canon UI-02: the Value Candle is drawn ON the bar it measured).
+   * Compiled here, beside the window reading, so the glass and the drawer can
+   * never read two moments of one tape. `NO_INTERVAL` when the caller named
+   * no bar size — a surface with no bars has no slots to fill.
+   */
+  readonly valueCandleBars: ReturnType<typeof selectValueCandleBars>;
   readonly absorption: ReturnType<typeof selectAbsorption>;
   readonly deltaDivergence: ReturnType<typeof selectDeltaDivergence>;
   readonly liquidityWeather: ReturnType<typeof selectLiquidityWeather>;
@@ -181,6 +189,7 @@ export interface OrderFlowReadingSet {
 export function compileOrderFlowReadings(
   recentTicks: Ticks,
   tapeSource: TapeSource,
+  barIntervalSec: number | null = null,
 ): OrderFlowReadingSet {
   const realTape = hasVerifiedAggressorTape(tapeSource);
   // Time order FIRST, before the gate, so the side-dependent selectors and
@@ -192,6 +201,7 @@ export function compileOrderFlowReadings(
   const sidedTicks = realTape ? tape : null;
   return {
     valueCandle: selectValueCandle(sidedTicks),
+    valueCandleBars: selectValueCandleBars(sidedTicks, barIntervalSec),
     absorption: selectAbsorption(sidedTicks),
     deltaDivergence: selectDeltaDivergence(sidedTicks),
     liquidityWeather: selectLiquidityWeather(tape),
@@ -206,10 +216,11 @@ export function compileOrderFlowReadings(
 export function useOrderFlowReadings(
   recentTicks: Ticks,
   tapeSource: TapeSource,
+  barIntervalSec: number | null = null,
 ): OrderFlowReadingSet {
   return React.useMemo(
-    () => compileOrderFlowReadings(recentTicks, tapeSource),
-    [recentTicks, tapeSource],
+    () => compileOrderFlowReadings(recentTicks, tapeSource, barIntervalSec),
+    [recentTicks, tapeSource, barIntervalSec],
   );
 }
 

@@ -47,7 +47,7 @@
  * PURE — no React, no canvas, no clock.
  */
 
-import type { ValueCandleVM } from "./selectValueCandle";
+import type { ValueCandleBarsVM, ValueCandleVM } from "./selectValueCandle";
 
 export const VALUE_GLASS_VERSION = "wm.value-candle-glass.v1" as const;
 
@@ -176,6 +176,122 @@ export function selectValueCandleGlass(
     // The engine's own sentence, unedited, and only when it found something.
     migrationLabel: vm.migration === "LAGGED" ? vm.migrationDetail : null,
   };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE GLASS PLAN — WHERE EACH VALUE CANDLE SITS (2026-09-26, canon UI-02).
+
+   The rung histogram above was a generic profile at the right edge: it failed
+   the plate and the hidden-label recognition test (GP12 §43), because a
+   histogram in the profile column reads as a volume profile. The plate draws
+   the invention ON THE CANDLE: glass over the bar's body, the gold value band
+   (CoG ± σ) inside it, the Center of Gravity as a dark line across it.
+
+   This compiles WHICH candles to draw, and never invents one:
+   · GLASS_PER_BAR — the tape was split into the chart's bar slots
+     (`selectValueCandleBars`); every measured bar gets its own value candle.
+   · GLASS_WINDOW  — the per-bar split was refused (an undated print) but the
+     window reading is measured and the newest dated print names a bar: ONE
+     value candle for the whole window, at that bar, spanning the window's
+     observed high–low. Its words say it is one reading across the tape.
+   · NONE          — nothing measured, or nothing that can be placed.
+
+   WORDS ARE FOR INSPECT. `lines` is what a hover may print; the glass at rest
+   prints none. Line one is the CoG, and "lagging price" only on a LAGGED
+   verdict — an aligned bar is silent rather than reassured, the rule above.
+══════════════════════════════════════════════════════════════════════════ */
+
+export const VALUE_GLASS_PLAN_VERSION = "wm.value-candle-glass-plan.v1" as const;
+
+export type ValueCandleForm = "GLASS_PER_BAR" | "GLASS_WINDOW" | "NONE";
+
+export interface ValueGlassCandle {
+  /** The bar slot this value candle is drawn on (epoch seconds). */
+  readonly time: number;
+  readonly cog: number;
+  readonly valueLow: number;
+  readonly valueHigh: number;
+  /** Observed print extremes — the window glyph's capsule. */
+  readonly high: number;
+  readonly low: number;
+  readonly lagged: boolean;
+  readonly partial: boolean;
+  /** Inspect words. Never painted at rest. */
+  readonly lines: readonly string[];
+}
+
+export interface ValueCandleGlassPlan {
+  readonly version: typeof VALUE_GLASS_PLAN_VERSION;
+  readonly form: ValueCandleForm;
+  readonly candles: readonly ValueGlassCandle[];
+}
+
+export interface ValueCandleGlassPlanOpts {
+  /** The market's own decimals (pricePrecision.ts). */
+  readonly priceDp?: number;
+}
+
+function fmtPrice(p: number, dp: number | undefined): string {
+  const d = typeof dp === "number" && Number.isFinite(dp) ? Math.max(0, Math.min(8, Math.round(dp))) : undefined;
+  return d == null
+    ? p.toLocaleString("en-US", { maximumFractionDigits: 8 })
+    : p.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+function candleFrom(
+  vm: ValueCandleVM,
+  time: number,
+  partial: boolean,
+  scope: string | null,
+  opts: ValueCandleGlassPlanOpts,
+): ValueGlassCandle | null {
+  const g = selectValueCandleGlass(vm);
+  if (!g.drawn || g.cog == null || g.valueLow == null || g.valueHigh == null) return null;
+  const high = vm.high, low = vm.low;
+  if (typeof high !== "number" || !Number.isFinite(high) || typeof low !== "number" || !Number.isFinite(low)) return null;
+  const lagged = g.migrationLabel != null;
+  const lines = [
+    `VALUE CoG ${fmtPrice(g.cog, opts.priceDp)}${lagged ? " · lagging price" : ""}`,
+    g.label,
+  ];
+  if (g.migrationLabel) lines.push(g.migrationLabel);
+  if (partial) lines.push("bar heard in part — the tape began inside it");
+  if (scope) lines.push(scope);
+  return {
+    time,
+    cog: g.cog,
+    valueLow: g.valueLow,
+    valueHigh: g.valueHigh,
+    high: Math.max(high, low),
+    low: Math.min(high, low),
+    lagged,
+    partial,
+    lines,
+  };
+}
+
+export function selectValueCandleGlassPlan(
+  windowVm: ValueCandleVM | null | undefined,
+  barsVm: ValueCandleBarsVM | null | undefined,
+  opts: ValueCandleGlassPlanOpts = {},
+): ValueCandleGlassPlan {
+  const none: ValueCandleGlassPlan = { version: VALUE_GLASS_PLAN_VERSION, form: "NONE", candles: [] };
+
+  if (barsVm && barsVm.reason === "PER_BAR" && barsVm.bars.length > 0) {
+    const candles = barsVm.bars
+      .map(b => candleFrom(b.reading, b.time, b.partial, null, opts))
+      .filter((c): c is ValueGlassCandle => c != null);
+    return candles.length > 0
+      ? { version: VALUE_GLASS_PLAN_VERSION, form: "GLASS_PER_BAR", candles }
+      : none;
+  }
+
+  const at = barsVm?.newestBarTime;
+  if (windowVm && windowVm.measured && typeof at === "number" && Number.isFinite(at)) {
+    const c = candleFrom(windowVm, at, false, "one reading across the held tape — not per bar", opts);
+    return c ? { version: VALUE_GLASS_PLAN_VERSION, form: "GLASS_WINDOW", candles: [c] } : none;
+  }
+  return none;
 }
 
 export default selectValueCandleGlass;

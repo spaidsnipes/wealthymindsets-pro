@@ -157,7 +157,7 @@ import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStandi
 import { selectDebtTag, selectPlaqueFlowContext } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
-import { normalizeTFId } from "@/lib/timeframes";
+import { getTimeframe, normalizeTFId } from "@/lib/timeframes";
 import { marketSurfaceUrlWriteback, normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity, selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
@@ -1296,7 +1296,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     compilers, panel, drawer) reads the same compiled moment. See the
     header on `useOrderFlowReadings` for the shape of the defect this ends.
   */
-  const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource);
+  // The bar size the Value Candle splits the tape by — the chart's own slots,
+  // so each bar's value reading lands on the bar that printed it (UI-02).
+  const valueCandleBarSec = React.useMemo(() => {
+    const id = normalizeTFId(timeframe);
+    try { return id ? getTimeframe(id).candleIntervalSec : null; } catch { return null; }
+  }, [timeframe]);
+  const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource, valueCandleBarSec);
   // The hook clears ticker state after a symbol transition. Retain the symbol
   // that actually owns the current render's ticker until that clear lands, so
   // the next Options request can never inherit the prior underlying's spot.
@@ -5569,6 +5575,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         symbol, which is Canon Weakness #1 word for word.
                       */
                       valueCandle={chartOrderFlowReadings.valueCandle}
+                      valueCandleBars={chartOrderFlowReadings.valueCandleBars}
                       /*
                         And the third, for the third time the same reason. The
                         divergence engine's two pivot prices had never left this
