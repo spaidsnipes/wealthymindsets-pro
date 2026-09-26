@@ -836,8 +836,15 @@ export function ChartInspectTicket({
   if (selectedProfileSlice) {
     const sl = selectedProfileSlice;
     const fmt = (n: number) => n.toFixed(2);
+    // §40 · INSPECT STANDS ON THE WALL AWAY FROM THE OBJECT (Garden 16,
+    // 2026-09-26, found on the glass: TSLA 15m, a click on the Living body at
+    // its POC opened this ticket on the RIGHT wall — over the profile body it
+    // was describing and the newest candles). The Living lane is always
+    // anchored at the price axis, so its slice is read from the LEFT wall, the
+    // same rule the anatomy ticket already follows. It stays below the header row
+    // (top-16): at top-2 it covered the symbol and last price.
     return (
-      <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+      <section className="absolute top-16 left-2 z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
         data-testid="chart-inspect-ticket"
         data-inspect-profile-slice={sl.found ? String(sl.price) : sl.miss}
         aria-label={sl.found ? `Inspect profile slice at ${fmt(sl.price)}` : "Inspect profile slice: no traded bucket at that price"}>
