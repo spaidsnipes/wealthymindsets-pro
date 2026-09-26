@@ -402,8 +402,50 @@ describe("one OS · 390 is not a different application", () => {
     // gold "COMMAND DECK →" chip in the chart's own action row. The chip is
     // ChartsDashboard's and is pinned dead by chartPhoneControlReachability;
     // this is the frame's half.
+    //
+    // ── MOVED TO THE NEW TRUTH 2026-09-26 · GARDEN 16 §11 ────────────────
+    // This also asserted `not.toContain("Command Deck")` — no WORDS at all.
+    // That pinned the removed ROUTE ADVERTISEMENT, which was right on 09-19
+    // and contradicts §11 now: "The Command Deck control must be visibly
+    // discoverable at the top of the primary market experience … COMMAND DECK
+    // IS A REAL CONTROL SURFACE, NOT A DECORATIVE BUTTON." What stays banned
+    // is exactly what the 09-19 cut removed — a way to LEAVE: no href to the
+    // legacy route and no arrow chip. What is now required is the in-place
+    // control (the next test).
     expect(INSTRUMENT_HTML).not.toContain('href="/command-deck"');
-    expect(INSTRUMENT_HTML).not.toContain("Command Deck");
+    expect(INSTRUMENT_HTML).not.toContain("Command Deck →");
+    expect(INSTRUMENT_HTML).not.toContain("COMMAND DECK →");
+  });
+
+  it("carries the Command Deck as ONE in-place control — a button, never a route (Garden 16 §11)", () => {
+    // Exactly one, rendered from the frame's own markup.
+    const controls = INSTRUMENT_HTML.match(/<button[^>]*data-testid="os-command-deck"[^>]*>/g) ?? [];
+    expect(controls, "the /charts masthead has no Command Deck control").toHaveLength(1);
+    const tag = controls[0];
+    // A button with no way to navigate: no href, and not wrapped as a link.
+    expect(tag).not.toMatch(/href=/);
+    expect(INSTRUMENT_HTML).not.toMatch(/<a[^>]*data-testid="os-command-deck"/);
+    // Named by the canon's two words, and honestly closed at first paint: a
+    // CLOSED drawer is unmounted, so `aria-controls` must be absent rather
+    // than dangling (the frame's own measured rule for Workspace/Tools).
+    expect(tag).toContain('aria-label="Command Deck"');
+    expect(tag).toContain('aria-expanded="false"');
+    expect(tag).not.toContain("aria-controls=");
+    // It is not a third piece of the Workspace/Tools pair: the two equipment
+    // plates are still exactly two (asserted above), and this one wears its
+    // own testid rather than `os-equipment-*`.
+    expect(INSTRUMENT_HTML.match(/data-testid="os-equipment-/g)).toHaveLength(2);
+    // No verdict word and no LEGACY chip ride on it.
+    const at = INSTRUMENT_HTML.indexOf('data-testid="os-command-deck"');
+    const button = INSTRUMENT_HTML.slice(at, INSTRUMENT_HTML.indexOf("</button>", at));
+    expect(button).toContain("Command Deck");
+    expect(button).not.toMatch(/LEGACY|→|\bWAIT\b|OPTIMAL|ALIGNED/);
+  });
+
+  it("the Command Deck control is not drawn in rooms off the market", () => {
+    // HTML is the shell with no route — a doors room. The deck is equipment
+    // of the market camera; a room with no camera has no deck to hold.
+    expect(HTML).not.toContain('data-testid="os-command-deck"');
   });
 
   it("a rail room's opened sheet still reaches every door the owner declares", () => {

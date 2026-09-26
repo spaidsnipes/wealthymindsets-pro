@@ -194,9 +194,19 @@ describe("decision memory reachability", () => {
     // canvas AND in /command-deck; when the chart room became a third reader it
     // was extracted rather than copied. The store is reached through one more
     // door than before, and through exactly one fewer copy of the merge.
+    //
+    // A FOURTH READER, RECORDED ON PURPOSE — 2026-09-26 (Garden 16 §11).
+    // `useChartCommandDeck` feeds the Command Deck drawer on /charts, and its
+    // RECEIPT section reads the latest sealed decision exactly as
+    // /command-deck's receipt does (`selectDecisionReceipt`). It is a READER,
+    // not a writer: the BLOCKER above — no production `put()`, so the store is
+    // provably empty — is untouched, and the drawer says so in words ("Decision
+    // sealing is not wired in this build") rather than hardcoding `null`, so
+    // the day sealing is wired the /charts receipt lights with no second edit.
     expect(consumers).toEqual([
       "src/app/command-deck/page.tsx",
       "src/app/profile/page.tsx",
+      "src/components/command-deck/useChartCommandDeck.ts",
       "src/lib/traderMemory/useSessionDecisions.ts",
     ]);
   });

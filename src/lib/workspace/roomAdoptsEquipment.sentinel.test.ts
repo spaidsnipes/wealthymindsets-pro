@@ -351,6 +351,26 @@ const ROOMS = [
         deps: "[chartPersonalEdgeVm]",
         depth: "PersonalEdgeChip",
       },
+      /**
+       * THE COMMAND DECK, IN PLACE — added 2026-09-26 (Garden 16 §11), the
+       * room's first `"deck"` tenant. Enrolled here by the rule this table
+       * states: a registry entry with no row fails the bidirectional check.
+       *
+       * `reads` pins `deck={chartCommandDeck}` — the ONE `useChartCommandDeck`
+       * call the room makes — so the drawer cannot be handed a second
+       * compilation. `deps` carries `chartCanvasVM.chain` (the header verdict
+       * is the chain's permission node, read the way the chain's own door
+       * reads it) and `tradePhase` (the room state the drawer's control
+       * writes); dropping either would freeze the drawer on a stale phase or
+       * a stale verdict while the rail moved on.
+       */
+      {
+        id: "command-deck",
+        memo: "chartCommandDeckEquipment",
+        reads: /deck=\{chartCommandDeck\}/,
+        deps: "[chartCommandDeck, chartCanvasVM.chain, tradePhase, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]",
+        depth: "CommandDeckSurface",
+      },
     ],
   },
 ] as const;

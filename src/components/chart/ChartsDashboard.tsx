@@ -230,6 +230,12 @@ import {
 // ARRANGEMENT_EQUIPMENT_ID is the single translation between the compiler's
 // desk names and the rail's door ids — see its note in the registry.
 import { ARRANGEMENT_EQUIPMENT_ID } from "@/lib/workspace/roomEquipment";
+// THE COMMAND DECK, IN PLACE (Garden 16 §11, 2026-09-26). The region id is the
+// masthead control's `aria-controls` target — one owner, in the registry.
+import { COMMAND_DECK_REGION_ID } from "@/lib/workspace/roomEquipment";
+import CommandDeckSurface from "@/components/command-deck/CommandDeckSurface";
+import { useChartCommandDeck } from "@/components/command-deck/useChartCommandDeck";
+import type { TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -1451,16 +1457,35 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => canonicalMarketStateIdentity({ symbol, timeframe, extHours }),
     [symbol, timeframe, extHours],
   );
+  /*
+    THE TRADE PHASE IS ROOM STATE — 2026-09-26, Garden 16 §11 ("Its controls
+    must be wired. Its state must be real.").
+
+    This call passed no phase for its whole life, so the chain compiled at
+    PREPARATION forever (useMarketCanvasVM's default) and the deck's phase
+    selector existed only on /command-deck. The Command Deck drawer's PROCESS
+    control now writes THIS state, and it is handed to the ONE compile below —
+    so the chain headline, its Management node, the evidence debt the right
+    rail reads through `oneStory`, and the decision-chain equipment all answer
+    the same press. Held here, not in the drawer, so putting the drawer down
+    does not reset what the trader said they were doing.
+  */
+  const [tradePhase, setTradePhase] = React.useState<TradePhase>("PREPARATION");
   const chartCanvasVM = useMarketCanvasVM({
     identity: canvasIdentity,
     ownerId: canvasUser?.id ?? null,
+    phase: tradePhase,
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
   // THE TRADER'S OWN RECORD, on the same subscription the deck uses. The merge
   // of live decision memory with the journal book lives in useSessionDecisions
   // and nowhere else, so this room and /command-deck cannot answer "where have
-  // I performed" from two different lists.
-  const { decisions: chartSessionDecisions } = useSessionDecisions(canvasUser?.id ?? null);
+  // I performed" from two different lists. The journal entries ride the SAME
+  // subscription for the Command Deck's unreviewed-close count (2026-09-26).
+  const {
+    decisions: chartSessionDecisions,
+    journal: { entries: chartJournalEntries },
+  } = useSessionDecisions(canvasUser?.id ?? null);
   // Live cadence clock, for the same reason the canvas keeps one: evidence age
   // must keep advancing when the feed is silent instead of freezing at the last
   // market-state change. SSR-safe — null before mount, so first paint matches.
@@ -2750,20 +2775,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
        drawer, which the directive bans by name. ENTER is how this gets deeper. */
   }, [chartPersonalEdgeVm]);
 
-  /*
-    The chooser. The room hands the layer ONE descriptor — the one the rail
-    asked for — so the layer never learns that this room has more than one piece
-    of equipment, and never has to choose. Choosing is the room's job because
-    only the room knows what it compiled.
-  */
-  const chartEquipmentContent =
-    ({
-      "market-reality": chartMarketRealityEquipment,
-      "market-object-passport": chartPassportEquipment,
-      "order-flow": chartOrderFlowEquipment,
-      "decision-chain": chartDecisionChainEquipment,
-      "personal-edge": chartPersonalEdgeEquipment,
-    }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
+  /* The chooser lives below `chartCapabilityReport` since 2026-09-26: its sixth
+     tenant, the Command Deck, reads that report, and a `const` read before its
+     declaration is a TDZ crash, not a stale value. */
 
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(
     "No decision born yet — permission has not crossed.",
@@ -3714,6 +3728,126 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [source, connected, chartBars.length, sessionOpen, chartQuoteObservation, barsSettled],
   );
 
+  /* ── ONE CAPABILITY REPORT, TWO READERS — 2026-09-26 ────────────────────────
+     The per-capability report was compiled inside the fidelity chip's render
+     IIFE far below, for the chip's tooltip. The Command Deck's WIRE section now
+     reads it too, and a second `selectPerCapabilityFidelity` call would be a
+     second grader of one wire — the ONE GRADER note above, one report over. So
+     it is hoisted beside the badge, unchanged, and the IIFE reads it. */
+  const chartCapabilityReport = React.useMemo(
+    () =>
+      selectPerCapabilityFidelity({
+        source: source ?? "unavailable",
+        connected,
+        hasCandles: chartBars.length > 0,
+        quoteObservation: chartQuoteObservation,
+        // Closure outranks the provider verdict for bars + quotes.
+        sessionOpen,
+        // ticks / depth / options / greeks: unwired on
+        // ChartsDashboard; silent per canon §no-silent-override.
+        // orderFlow lights when the aggressor selector proves
+        // real per-trade flow (hasFlow=true). tapeConnected is
+        // set to the same signal so the report writes the
+        // canonical LIVE label per the selector's derivation.
+        tapeConnected: chartFlowSnap.hasFlow ? true : undefined,
+        orderFlowDerived: chartFlowSnap.hasFlow ? true : undefined,
+      }),
+    [source, connected, chartBars.length, chartQuoteObservation, sessionOpen, chartFlowSnap.hasFlow],
+  );
+
+  /*
+    THE COMMAND DECK — the room's SIXTH tenant, and the first of kind "deck".
+    2026-09-26, Garden 16 §10 + §11.
+
+    §11 wants a control surface in the same organism; §10 wants ONE market
+    home. So the deck is not a page this room links to — it is a drawer this
+    room holds, over the chart that never unmounts, fed only by what this
+    room already compiled:
+
+      · the chain / permission / one story — `chartCanvasVM`, the ONE
+        `useMarketCanvasVM` call above, compiled WITH `tradePhase`;
+      · the canonical state and its history — `chartCanvasState`,
+        `continuationHistory`, the room's own subscriptions;
+      · the trader's record — `chartSessionDecisions` and the journal entries
+        from the same `useSessionDecisions` subscription;
+      · the wire — `chartCapabilityReport`, hoisted just above.
+
+    `useChartCommandDeck` is called exactly once, here. It compiles no market
+    and opens no wire (a Sentinel reads it for both).
+  */
+  const chartCommandDeck = useChartCommandDeck({
+    ownerId: canvasUser?.id ?? null,
+    nowMs: chartEdgeNowMs,
+    phase: tradePhase,
+    state: chartCanvasState,
+    history: continuationHistory,
+    chain: chartCanvasVM.chain,
+    permission: chartCanvasVM.permission,
+    oneStory: chartCanvasVM.oneStory,
+    sessionDecisions: chartSessionDecisions,
+    journalEntries: chartJournalEntries,
+    resolvedObjectCount: chartPassportVM.resolvedCount,
+  });
+
+  /*
+    The descriptor ASSEMBLES; it compiles nothing (the adoption Sentinel scans
+    this body for compose / select calls). The verdict is the chain's own
+    permission node, read exactly as `chartDecisionChainEquipment` reads it, so
+    the deck's header and the chain's header cannot disagree. The headline is
+    the job's emphasis rationale; the counts are reads of the phase, the job
+    and the trader's unreviewed closes. No score, no percentage.
+  */
+  const chartCommandDeckEquipment = React.useMemo(() => {
+    const permissionNode = chartCanvasVM.chain?.nodes.find((n) => n.key === "permission") ?? null;
+    return {
+      equipmentId: "command-deck",
+      // The rail's own words — see the registry note on why "Your".
+      title: "Your command deck",
+      verdict: chartCanvasVM.chain ? (permissionNode?.verdict ?? "UNKNOWN") : "UNRESOLVED",
+      headline: chartCommandDeck.emphasis.rationale,
+      counts: [
+        { testId: "equipment-count-deck-phase", label: `phase: ${tradePhase.toLowerCase().replace("_", "-")}` },
+        { testId: "equipment-count-deck-job", label: `job: ${chartCommandDeck.job.toLowerCase()}` },
+        {
+          testId: "equipment-count-deck-unreviewed",
+          label: `${chartCommandDeck.unreviewedCloses.total} unreviewed`,
+        },
+      ],
+      renderDepth: (unabridged: boolean) => (
+        <CommandDeckSurface
+          deck={chartCommandDeck}
+          phase={tradePhase}
+          onPhase={setTradePhase}
+          symbol={symbol}
+          ownerId={canvasUser?.id ?? null}
+          nowMs={chartEdgeNowMs}
+          dataQuality={chartCanvasState?.qualityState}
+          capabilityReport={chartCapabilityReport}
+          unabridged={unabridged}
+        />
+      ),
+    };
+    /* NO drill, NO Link, NO onEnter: this room offers no FULL stage (the
+       camera stays), and a drawer that navigated would be the route
+       advertisement the 09-19 cut removed. */
+  }, [chartCommandDeck, chartCanvasVM.chain, tradePhase, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]);
+
+  /*
+    The chooser. The room hands the layer ONE descriptor — the one the rail
+    asked for — so the layer never learns that this room has more than one piece
+    of equipment, and never has to choose. Choosing is the room's job because
+    only the room knows what it compiled.
+  */
+  const chartEquipmentContent =
+    ({
+      "market-reality": chartMarketRealityEquipment,
+      "market-object-passport": chartPassportEquipment,
+      "order-flow": chartOrderFlowEquipment,
+      "decision-chain": chartDecisionChainEquipment,
+      "personal-edge": chartPersonalEdgeEquipment,
+      "command-deck": chartCommandDeckEquipment,
+    }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
+
   /* ── THE HONESTY READING ────────────────────────────────────────────────────
      `MarketHonestyPlaque` existed for a day rendered in exactly one place —
      /command-deck — with its reading written into the JSX as a null literal.
@@ -4488,7 +4622,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // Dividend). The SHIFT-Q 7-question tooltip enrichment now
             // ships to every surface for free, and any future canon
             // vocabulary or color change touches ONE component.
-            const quoteObservation = chartQuoteObservation;
+            // (The local `quoteObservation` alias that stood here fed the
+            // capability report's inline call; that call is hoisted, and the
+            // report now reads `chartQuoteObservation` directly — 2026-09-26.)
             // 2026-09-10 — measured live in production on /charts?symbol=NQ1!:
             // this header read "NQ1! — DATA UNAVAILABLE" while `chartBars`
             // (read six lines below for the tooltip) held three sessions of
@@ -4517,22 +4653,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // hint + coverage count. Canon §Provider Status Per
             // Capability delivered on the /charts chrome without
             // fattening the visible chip (canon §Semantic Zoom).
-            const capabilityReport = selectPerCapabilityFidelity({
-              source: source ?? "unavailable",
-              connected,
-              hasCandles: chartBars.length > 0,
-              quoteObservation,
-              // Closure outranks the provider verdict for bars + quotes.
-              sessionOpen,
-              // ticks / depth / options / greeks: unwired on
-              // ChartsDashboard; silent per canon §no-silent-override.
-              // orderFlow lights when the aggressor selector proves
-              // real per-trade flow (hasFlow=true). tapeConnected is
-              // set to the same signal so the report writes the
-              // canonical LIVE label per the selector's derivation.
-              tapeConnected: chartFlowSnap.hasFlow ? true : undefined,
-              orderFlowDerived: chartFlowSnap.hasFlow ? true : undefined,
-            });
+            // READER, NOT GRADER — the same move the badge made. The report is
+            // hoisted to `chartCapabilityReport` (2026-09-26) because the
+            // Command Deck's WIRE section reads it too.
+            const capabilityReport = chartCapabilityReport;
             return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}
         </div>
@@ -5997,6 +6121,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         onExpand={onChartEquipmentExpand}
         onReturn={onChartEquipmentReturn}
         onClose={onChartEquipmentClose}
+        // The masthead's Command Deck control points `aria-controls` here, so
+        // the aside wears the id ONLY while it holds the deck (2026-09-26).
+        regionId={chartEquipment.equipmentId === "command-deck" ? COMMAND_DECK_REGION_ID : undefined}
       />
     </div>
   );

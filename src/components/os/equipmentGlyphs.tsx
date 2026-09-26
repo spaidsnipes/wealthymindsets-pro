@@ -56,10 +56,34 @@ function Glyph({ children }: { children: React.ReactNode }): React.ReactElement 
 }
 
 /**
- * The two persistent activators. They are not room equipment — they are the
+ * THE COMMAND DECK'S MARK — drawn ONCE, worn twice (2026-09-26).
+ *
+ * A stroked crosshair, because the deck's existing icon everywhere else in the
+ * product is lucide `Crosshair` (wmDestinations.ts), and a trader who has seen
+ * that door should recognise this control as the same subject. Drawn here in
+ * the house stroke rather than imported from lucide so it sits at the same
+ * weight as the Workspace brick and the Tools lens beside it.
+ *
+ * One element, two keys: the masthead activator below and the equipment map's
+ * `command-deck` entry. Two copies of one drawing is how the plate and the
+ * registry come to show two different pictures of one thing.
+ */
+const COMMAND_DECK_MARK = (
+  <Glyph>
+    <circle cx="12" cy="12" r="7.5" />
+    <circle cx="12" cy="12" r="1.6" />
+    <path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5" />
+  </Glyph>
+);
+
+/**
+ * The persistent activators. They are not room equipment — they are the
  * chrome that HANDS you room equipment — so they are named here rather than
  * keyed by an equipment id, and the sentinel does not police them against
  * `allRoomEquipmentIds()`.
+ *
+ * `deck` joined Workspace and Tools 2026-09-26 (Garden 16 §11). It is not a
+ * third HAND — it opens one drawer, the Command Deck, not a shelf of choices.
  */
 export const ACTIVATOR_GLYPHS = {
   /** F24 draws Workspace as a brick grid. */
@@ -76,6 +100,8 @@ export const ACTIVATOR_GLYPHS = {
       <path d="M15 15l4.5 4.5" />
     </Glyph>
   ),
+  /** The Command Deck control — the deck's crosshair. */
+  deck: COMMAND_DECK_MARK,
 } as const satisfies Record<string, React.ReactElement>;
 
 /**
@@ -157,6 +183,12 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
       <path d="M17 14.5V8l-2.5 2.5" />
     </Glyph>
   ),
+  /**
+   * Your command deck — the same crosshair the masthead control wears. The
+   * tile is never drawn (a `"deck"` entry is in neither hand), but the map is
+   * exhaustive by sentinel and a hole here would be the silent kind.
+   */
+  "command-deck": COMMAND_DECK_MARK,
   /** What you actually did this session — a face turned back on itself. */
   "behaviour-mirror": (
     <Glyph>

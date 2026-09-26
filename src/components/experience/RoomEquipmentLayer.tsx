@@ -146,6 +146,17 @@ export interface RoomEquipmentLayerProps {
    * by the same upstream grammar.
    */
   readonly placement?: "corner" | "market-dock";
+  /**
+   * OPTIONAL — the DOM id the aside wears, so a control elsewhere can point
+   * `aria-controls` at it (2026-09-26, the Command Deck masthead control).
+   *
+   * Handed down by the room, like everything else here: the layer names no
+   * invention, so it cannot know which of its tenants has an outside control.
+   * The room passes it only while the content it hands down IS that tenant,
+   * and this element exists only while something is held — so the id and the
+   * `aria-controls` that names it are present together or not at all.
+   */
+  readonly regionId?: string;
 }
 
 /**
@@ -217,6 +228,7 @@ export function RoomEquipmentLayer({
   onReturn,
   onClose,
   placement = "corner",
+  regionId,
 }: RoomEquipmentLayerProps): React.ReactElement | null {
   const { stage, decisionId, equipmentId } = journey;
 
@@ -272,7 +284,16 @@ export function RoomEquipmentLayer({
             // glance — it takes the drawer's wall at preview so every switch
             // is reachable on the first press.
             ...(stage === "drawer" || content.renderPreviewTools ? { bottom: 18 } : { maxHeight: 220 }),
-            zIndex: 60,
+            // 80, NOT 60 — MEASURED 2026-09-26 on local /charts at 1440x900
+            // with the Command Deck drawer open: the chart pane's own chrome
+            // sits at 60–73 in the same stacking context (the "D" data-window
+            // toggle at 70, the market-object hit targets at 72/73), so the
+            // blue D printed ON the drawer's title and an object target could
+            // take a click aimed inside the drawer. A wall the trader picked up
+            // must be above the pane it stands over. Still BELOW the chart's
+            // own popovers and context menu (130–200), which the trader opens
+            // on purpose and must be able to read.
+            zIndex: 80,
             width: "clamp(280px, 22vw, 340px)",
             display: "flex",
             flexDirection: "column",
@@ -319,6 +340,7 @@ export function RoomEquipmentLayer({
         `}</style>
       ) : null}
       <aside
+        id={regionId}
         aria-label={`${content.title} — room equipment`}
         className={marketDock ? "wm-room-equipment--market-dock" : undefined}
         data-testid="room-equipment"
@@ -334,6 +356,14 @@ export function RoomEquipmentLayer({
           display: "flex",
           alignItems: "center",
           gap: 10,
+          // WRAPS, and its words do not — 2026-09-26. Measured in the 316px
+          // market-dock at 1440: "YOUR COMMAND DECK" broke into three lines and
+          // "TSLA · 1D" into two, because every item shrank to fit one row. A
+          // header whose title reads one word per line is not a header. The
+          // row may now fold (Close follows the verdict to a second line);
+          // no phrase is ever split.
+          flexWrap: "wrap",
+          rowGap: 6,
           padding: stage === "full" ? "0 0 14px" : "10px 12px",
           borderBottom: `1px solid ${HAIR}`,
           flex: "0 0 auto",
@@ -346,6 +376,7 @@ export function RoomEquipmentLayer({
             letterSpacing: 1.1,
             textTransform: "uppercase",
             color: GOLD,
+            whiteSpace: "nowrap",
           }}
         >
           {content.title}
@@ -355,13 +386,19 @@ export function RoomEquipmentLayer({
             which market the canvas is about. Handed in; never resolved here. */}
         <span
           data-testid="equipment-subject"
-          style={{ fontSize: 11, letterSpacing: 0.4, color: PEARL }}
+          style={{ fontSize: 11, letterSpacing: 0.4, color: PEARL, whiteSpace: "nowrap" }}
         >
           {subject.symbol}
           <span style={{ color: MUTED }}> · {subject.timeframe}</span>
         </span>
-        <span style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase" }}>
-          {content.verdict}
+        {/* The verdict word as the trader reads it: an enum's underscore is
+            the machinery's spelling ("NOT_EVALUATED" was measured on the
+            glass 2026-09-26). The word is unchanged; only its spelling is. */}
+        <span
+          data-testid="equipment-verdict"
+          style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap" }}
+        >
+          {content.verdict.replace(/_/g, " ")}
         </span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {stage === "full" ? (

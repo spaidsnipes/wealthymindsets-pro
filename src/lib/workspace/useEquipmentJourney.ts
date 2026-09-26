@@ -55,7 +55,7 @@ import {
   reflectJourneyInUrl,
   subscribeEquipment,
 } from "./equipmentChannel";
-import { isJourneyEquipment } from "./roomEquipment";
+import { isJourneyEquipment, journeyOpensAtDrawer } from "./roomEquipment";
 
 export interface EquipmentJourneyHandles {
   /** The current journey — hand straight to `RoomEquipmentLayer`. */
@@ -136,6 +136,10 @@ export function useEquipmentJourney(
         return;
       }
       dispatch({ type: "OPEN", equipmentId: req.equipmentId, decisionId });
+      // A CONTROL SURFACE HAS NO THRESHOLD (2026-09-26). See
+      // `journeyOpensAtDrawer`: the registry declares it, this owner obeys it,
+      // and no room writes a stage of its own to get the same effect.
+      if (journeyOpensAtDrawer(roomHref, req.equipmentId)) dispatch({ type: "EXPAND" });
     });
   }, [roomHref, decisionId]);
 
@@ -145,7 +149,11 @@ export function useEquipmentJourney(
     const fromUrl = readJourneyFromUrl(window.location.search);
     if (!fromUrl.equipmentId || !isJourneyEquipment(roomHref, fromUrl.equipmentId)) return;
     dispatch({ type: "OPEN", equipmentId: fromUrl.equipmentId, decisionId });
-    if (fromUrl.stage === "drawer") dispatch({ type: "EXPAND" });
+    // The same registry rule as a press (2026-09-26): a link to a control
+    // surface opens where a press would, whether or not it spells the stage.
+    if (fromUrl.stage === "drawer" || journeyOpensAtDrawer(roomHref, fromUrl.equipmentId)) {
+      dispatch({ type: "EXPAND" });
+    }
     // Mount only. Re-running this whenever the decision id changed would drag
     // the trader back to the threshold every time the market compiled a new
     // decision — which on a live tape is constantly.

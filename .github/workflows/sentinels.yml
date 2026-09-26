@@ -163,6 +163,41 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: '1'
 
+      # ── The Command Deck control, PRESSED (Garden 16 §11) ─────────────────
+      #
+      # The vitest suite proves what the Command Deck drawer RENDERS and that
+      # the masthead control names a region that exists. It cannot press
+      # anything — this repo has no DOM test environment — and every law of
+      # §11 is a law about a press: the address keeps its path, the chart is
+      # the same nodes after, Escape and Close bring focus home, the drawer
+      # sits above the pane's chrome, and the phase control changes what the
+      # right rail says. prove-command-deck.mjs presses them on the build the
+      # step above made, served by `next start`, at 1440.
+      #
+      # PROVEN before this was committed, 2026-09-26, from a clean worktree
+      # with NO secrets: `next build` then `next start`, 8 laws, exit 0 — and
+      # each law was broken on purpose (region id removed, focus return
+      # removed, phase not handed to the compile, drawer back under the pane,
+      # both hand-down mechanisms removed, press landing at the threshold) and
+      # went red on the law it guards.
+      #
+      # SCOPE, stated so a green check is not over-read: the auth RESPONSE is
+      # stubbed so the interior route renders — layout only, no account, no
+      # token. With no provider keys the market reads NO BAR HISTORY, honestly.
+      # It proves the control and the drawer BEHAVE; how the composed scene
+      # READS beside a Founder plate remains HUMAN_PROOF_REQUIRED.
+      - name: Command Deck control proof (served /charts, 1440)
+        run: |
+          ./node_modules/.bin/next start -p 3489 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3489/login && break
+            if [ "$i" = 60 ]; then echo "server never answered on :3489"; exit 1; fi
+            sleep 1
+          done
+          npm run prove:command-deck -- --base http://localhost:3489
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+
       # ── Interior surface geometry ─────────────────────────────────────────
       #
       # The step above measures only the three routes reachable WITHOUT a

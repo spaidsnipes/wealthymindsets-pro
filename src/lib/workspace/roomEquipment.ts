@@ -63,8 +63,33 @@ import type { ArrangementId } from "@/lib/marketData/viewModels/selectChartArran
  * It is REQUIRED rather than defaulted so that the compiler asks the question
  * of every future entry. A default would silently sort new equipment into
  * whichever hand the default happened to name.
+ *
+ * `"deck"` — ADDED 2026-09-26, GARDEN 16 §11. The Command Deck control
+ * surface. It is NEITHER hand: it is picked up only from its own masthead
+ * control (`os-command-deck` in WMOperatingSystem) and is never listed as a
+ * Workspace or Tools tile. A third kind rather than a flag on `lens` so the
+ * two hands' `roomEquipmentOfKind` answers cannot contain it by accident —
+ * the Tools drawer asks for `"lens"` and a deck would have ridden in with it.
+ * C-101 draws the deck as "COMMAND DECK NOT HOME"; D-701's salvage clause
+ * migrates its organs into drawers. This kind is that drawer, and nothing
+ * about it can route: it is still an entry in the file that holds no href.
  */
-export type RoomEquipmentKind = "workspace" | "lens";
+export type RoomEquipmentKind = "workspace" | "lens" | "deck";
+
+/**
+ * THE COMMAND DECK'S TWO NAMES, EACH WITH ONE OWNER — 2026-09-26.
+ *
+ * The id is the product's URL contract (`?equip=command-deck`) and the region
+ * id is the `aria-controls` contract between the masthead control and the
+ * drawer that answers it. Two files have to agree on each: the frame (which
+ * draws the control) and the room (which mounts the drawer). A literal typed in
+ * both is two readings of one fact, and the way they disagree is silent — a
+ * control whose `aria-controls` names a region that does not exist, which a
+ * screen reader FOLLOWS and lands nowhere (measured once already on this
+ * frame; see the note on the Workspace/Tools plates' `aria-controls`).
+ */
+export const COMMAND_DECK_EQUIPMENT_ID = "command-deck";
+export const COMMAND_DECK_REGION_ID = "wm-command-deck";
 
 export interface RoomEquipment {
   /** Stable id. Appears in the URL, so it is part of the product's contract. */
@@ -896,6 +921,44 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "lens",
       direct: true,
     },
+    /**
+     * THE COMMAND DECK, IN PLACE — 2026-09-26, GARDEN 16 §10 + §11.
+     *
+     * §11: "The Command Deck control must be visibly discoverable at the top of
+     * the primary market experience … Its opening state must belong to the
+     * same organism … COMMAND DECK IS A REAL CONTROL SURFACE, NOT A DECORATIVE
+     * BUTTON." §10: ONE MARKET HOME = /charts. C-101 hatches the old deck as
+     * "COMMAND DECK NOT HOME"; D-701 says "MIGRATE LEGITIMATE ORGANS INTO
+     * WORKSPACE/TOOLS DRAWERS" and "KEEP MARKET CAMERA LIVE". Both hold only
+     * if the deck is a DRAWER over a chart that never remounts — so it is
+     * equipment, registered here, where nothing can carry an href.
+     *
+     * JOURNEY EQUIPMENT, NOT `direct`. The deck has depth (six sections of
+     * the room's own readings), so it takes the grammar's drawer and its
+     * `?equip=command-deck&stage=drawer` cold-open. It is not `momentary`
+     * either: the trader holds it and puts it down, so its control reports
+     * `aria-expanded` truthfully.
+     *
+     * THE LABEL SAYS WHOSE DECK IT IS — AND WHY IT IS NOT THE BARE WORDS YET.
+     * `/command-deck` is still a destination in `wmDestinations.ts` (the
+     * legacy route and its quarantine stand until the Founder authorises the
+     * demotion — spec step 4, deliberately NOT done here). While that door
+     * exists, equipment called exactly "Command Deck" would be the collision
+     * `equipmentIsNotADestination.sentinel` was born from ("Passport" the room
+     * vs "Object passport" the equipment), and that Sentinel is right. So the
+     * equipment carries the same qualifier every trader-owned tenant on this
+     * rail carries — "Your behaviour mirror", "Your personal edge" — because a
+     * ROOM is not *yours*. The masthead control keeps the canon's two words;
+     * the drawer title reads YOUR COMMAND DECK. The day step 4 removes the
+     * destination row, this label becomes "Command Deck" in one edit and the
+     * Sentinel stays green for the reason the spec gives.
+     */
+    {
+      id: COMMAND_DECK_EQUIPMENT_ID,
+      label: "Your command deck",
+      hint: "Your job, phase, story, receipts, steward and wire — on this market",
+      kind: "deck",
+    },
   ],
 };
 
@@ -967,4 +1030,30 @@ export function isJourneyEquipment(
 ): boolean {
   if (!id) return false;
   return roomEquipment(href).some((e) => e.id === id && !e.direct);
+}
+
+/**
+ * TRUE when picking this equipment up lands at DRAWER depth, skipping the
+ * threshold — 2026-09-26, for the Command Deck.
+ *
+ * The threshold (PREVIEW) exists so a READING can say its verdict in one line
+ * before the trader commits screen to it. A CONTROL SURFACE has no such line
+ * worth previewing: what the trader pressed it for is the phase control, the
+ * job chip and the sections under them. A preview in front of those would be
+ * the "press Draw, then press EXPAND to actually draw" burial `direct`'s note
+ * already refuses, rebuilt one depth further in. So a `"deck"` entry opens
+ * straight into its drawer — the same depth `?stage=drawer` cold-opens — and
+ * every other entry keeps the threshold it has always had.
+ *
+ * Declared HERE, beside `isJourneyEquipment`, because it is the same kind of
+ * fact: a property of the product's registry, read by the journey's one owner
+ * (`useEquipmentJourney`). A room that decided this for itself would be a
+ * second writer of the journey's stages.
+ */
+export function journeyOpensAtDrawer(
+  href: string | null | undefined,
+  id: string | null | undefined,
+): boolean {
+  if (!id) return false;
+  return roomEquipment(href).some((e) => e.id === id && !e.direct && e.kind === "deck");
 }

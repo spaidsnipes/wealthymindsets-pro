@@ -73,6 +73,29 @@ describe("phone chart control reachability", () => {
     expect(css).not.toMatch(/\.wm-chart-command-deck-link\s*\{/);
   });
 
+  // ── ADDED 2026-09-26 · GARDEN 16 §11 — THE NEW TRUTH BESIDE THE OLD ────
+  // The absence above still holds and is unchanged: no chip, no arrow, no
+  // route advertisement in the chart's action row. §11 adds the other half —
+  // the Command Deck is now a real control surface IN this room — and the
+  // chart's half of that is a DRAWER the room holds, never a way out of it.
+  // (The masthead button itself is the frame's, and is pinned in
+  // ShellAccessParity against rendered markup.)
+  it("holds the Command Deck as an in-place drawer, never as a route out of the chart", () => {
+    const code = codeOnly(dashboard);
+    // No navigation to the legacy route from the market camera, in any form.
+    expect(code).not.toMatch(/href=\{?["'`]\/command-deck/);
+    expect(code).not.toMatch(/(push|replace)\(\s*["'`]\/command-deck/);
+    // The deck is equipment the room serves through its one chooser…
+    expect(code).toMatch(/"command-deck":\s*chartCommandDeckEquipment/);
+    // …rendered as depth inside the room's existing equipment layer…
+    expect(code).toMatch(/renderDepth:\s*\(unabridged: boolean\)\s*=>\s*\(\s*<CommandDeckSurface/);
+    // …which never offers the FULL stage that would take the chart away.
+    const layer = code.slice(code.indexOf("<RoomEquipmentLayer"), code.indexOf("/>", code.indexOf("<RoomEquipmentLayer")));
+    expect(layer.length).toBeGreaterThan(100);
+    expect(layer).not.toMatch(/onEnter=/);
+    expect(layer).toMatch(/regionId=\{chartEquipment\.equipmentId === "command-deck" \? COMMAND_DECK_REGION_ID : undefined\}/);
+  });
+
   // ── RE-AIMED 2026-09-21 · THE TIMEFRAMES MOVED TO THE GLASS ───────────────
   // This guard used to read: "gives all timeframes their own touch-sized
   // horizontal rail", and it asserted a full-width `overflow-x: auto` rail

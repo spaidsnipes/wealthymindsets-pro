@@ -78,8 +78,12 @@ import {
 // trader is ALREADY standing in can hand them. See roomEquipment's header.
 import {
   ARRANGEMENT_EQUIPMENT_ID,
+  COMMAND_DECK_EQUIPMENT_ID,
+  COMMAND_DECK_REGION_ID,
+  isJourneyEquipment,
   roomEquipment,
   roomEquipmentOfKind,
+  type RoomEquipment,
   type RoomEquipmentKind,
 } from "@/lib/workspace/roomEquipment";
 import {
@@ -411,7 +415,9 @@ function lastArrangementIndex(list: readonly { readonly id: string }[]): number 
 // renders nothing. A formatting choice that silently disarms four guards is
 // the guards' failure to state this, and it is stated here.
 function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentation = "list", arrangementTail }: RoomWorkspaceRailProps): React.ReactElement | null {
-  const equipment = kind ? roomEquipmentOfKind(activeHref, kind) : roomEquipment(activeHref);
+  // A `"deck"` entry is in NEITHER hand (2026-09-26): it has its own masthead
+  // control, and listing it here too would be two doors to one drawer.
+  const equipment = kind ? roomEquipmentOfKind(activeHref, kind) : roomEquipment(activeHref).filter((e) => e.kind !== "deck");
 
   // WHAT IS CURRENTLY IN THE TRADER'S HAND.
   //
@@ -742,6 +748,158 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
         );
       })}
     </div>
+  );
+}
+
+/**
+ * THE COMMAND DECK CONTROL — 2026-09-26, GARDEN 16 §11.
+ *
+ * "The Command Deck control must be visibly discoverable at the top of the
+ * primary market experience. Its visual treatment must belong to ATH. Its
+ * opening state must belong to the same organism. Its controls must be wired.
+ * Its state must be real. Its return path must preserve context."
+ *
+ * WHAT IT IS NOT. It is not a Link and carries no href: the 09-19 cut removed a
+ * gold "COMMAND DECK" route chip from above price, and C-101 hatches the old
+ * deck as "COMMAND DECK NOT HOME". Pressing this changes no address. It asks
+ * the ROOM, over the same equipment channel every Workspace tile uses, to pick
+ * up its `command-deck` drawer over the live chart — or put it down.
+ *
+ * It is not a third HAND either. Workspace and Tools each open a shelf of
+ * choices in the frame's own panel; this opens exactly one drawer, owned by the
+ * room. So it never sets `scenePanel` to a third value (the two-hand Sentinel
+ * names them), and it puts whichever hand is up DOWN before it asks, so only
+ * one thing is ever open over price.
+ *
+ * STATE IS TOLD, NEVER INFERRED — the RoomWorkspaceRail rule. The first
+ * reading is the channel's memory (`heldEquipmentIds()`), then every announce
+ * the room makes. The one interpretation it performs is the journey's own
+ * law: the journey holds ONE reading at a time, so when the room announces a
+ * DIFFERENT journey id open, the deck is no longer in its hand. Direct
+ * instruments (Draw, Replay) are ignored — they ride beside the journey.
+ *
+ * FOCUS COMES HOME. When the deck is put down by Escape or by the drawer's own
+ * Close, the element that held focus has just unmounted and the browser drops
+ * focus on <body> — the top of the document, further from the chart than the
+ * trader was. If focus was inside the deck (or on this control) when it
+ * closed, it returns here. If the trader had already moved focus somewhere
+ * else on purpose, it is left where they put it.
+ */
+function CommandDeckPlate({
+  activeHref,
+  entry,
+  onPress,
+}: {
+  readonly activeHref: string;
+  /** The registry's own `"deck"` entry — the hint is read, not retyped. */
+  readonly entry: RoomEquipment;
+  /** Puts the frame's own hand (Workspace / Tools / Rooms / Community) down. */
+  readonly onPress: () => void;
+}): React.ReactElement {
+  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
+  const [held, setHeld] = React.useState<boolean>(() =>
+    heldEquipmentIds().has(COMMAND_DECK_EQUIPMENT_ID),
+  );
+  // Read inside the channel handler without re-subscribing on every change.
+  const heldRef = React.useRef(held);
+  const focusWasInDeck = React.useRef(false);
+
+  React.useEffect(() => {
+    const first = heldEquipmentIds().has(COMMAND_DECK_EQUIPMENT_ID);
+    heldRef.current = first;
+    setHeld(first);
+    return subscribeEquipmentStage(({ equipmentId, stage }) => {
+      const next =
+        equipmentId === null
+          ? false
+          : equipmentId === COMMAND_DECK_EQUIPMENT_ID
+            ? stage !== "closed"
+            : stage !== "closed" && isJourneyEquipment(activeHref, equipmentId)
+              ? false
+              : heldRef.current;
+      const was = heldRef.current;
+      if (next === was) return;
+      heldRef.current = next;
+      setHeld(next);
+      if (was && !next && typeof document !== "undefined") {
+        const active = document.activeElement;
+        const dropped = active === null || active === document.body;
+        if (focusWasInDeck.current && (dropped || active === buttonRef.current)) {
+          buttonRef.current?.focus();
+        }
+        focusWasInDeck.current = false;
+      }
+    });
+  }, [activeHref]);
+
+  // Where focus is while the deck is held — so the close above knows whether
+  // the trader was working inside it. Listening only while held: a global
+  // focus hook is not a permanent tenant.
+  React.useEffect(() => {
+    if (!held || typeof document === "undefined") return;
+    const inDeck = (node: EventTarget | null): boolean =>
+      node instanceof Element &&
+      (node === buttonRef.current || node.closest(`#${COMMAND_DECK_REGION_ID}`) !== null);
+    focusWasInDeck.current = inDeck(document.activeElement);
+    const onFocusIn = (event: FocusEvent) => {
+      focusWasInDeck.current = inDeck(event.target);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [held]);
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      data-testid="os-command-deck"
+      data-equipment-open={held ? "true" : undefined}
+      className="wm-os-equipment-plate wm-os-command-deck"
+      // The word the trader reads IS the accessible name. No arrow (an arrow
+      // means leaving), no LEGACY chip (this is not the legacy route), no
+      // verdict word (the right rail owns WAIT; Garden 11 removed duplicates).
+      aria-label="Command Deck"
+      aria-expanded={held}
+      // Only while held: the drawer is unmounted when closed, and a dangling
+      // `aria-controls` is FOLLOWED by a screen reader to nowhere.
+      aria-controls={held ? COMMAND_DECK_REGION_ID : undefined}
+      title={entry.hint}
+      onClick={() => {
+        onPress();
+        requestEquipment(COMMAND_DECK_EQUIPMENT_ID, held ? "put-down" : "pick-up");
+      }}
+      style={{
+        // The Workspace/Tools plate, same tokens, same compact floor; the
+        // desktop stylesheet below sizes it like its neighbours.
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: 7,
+        minHeight: 34,
+        padding: "7px 13px",
+        borderRadius: 3,
+        border: `1px solid ${held ? GOLD : "rgba(196,165,116,0.42)"}`,
+        background: held
+          ? "rgba(196,165,116,0.14)"
+          : "linear-gradient(180deg, rgba(196,165,116,0.07), rgba(196,165,116,0.02))",
+        cursor: "pointer",
+        ...EYEBROW,
+        color: held ? GOLD : PEARL,
+        fontSize: 10,
+        letterSpacing: 1.8,
+      }}
+    >
+      <span
+        aria-hidden
+        className="wm-os-equipment-plate-mark"
+        style={{ flex: "0 0 auto", display: "block", width: 12, height: 12, color: GOLD }}
+      >
+        {ACTIVATOR_GLYPHS.deck}
+      </span>
+      <span className="wm-os-equipment-plate-word" style={{ whiteSpace: "nowrap" }}>
+        Command Deck
+      </span>
+    </button>
   );
 }
 
@@ -1215,6 +1373,11 @@ export function WMOperatingSystem({
   // A room off the market: the same doorways as HOME, without the camera's
   // own equipment, plus the one door back to the camera.
   const doorsOnly = destinations === "doors";
+  // The room's Command Deck, if its registry declares one — and only ONE. Two
+  // `"deck"` entries would be two drawers behind one word, so the control is
+  // not drawn at all rather than guessing which (2026-09-26).
+  const deckEntries = roomEquipmentOfKind(activeHref, "deck");
+  const commandDeckEntry = deckEntries.length === 1 ? deckEntries[0] : null;
   // Which piece of equipment the trader has picked up. `null` — nothing — is
   // the only legal FIRST value on a market scene, and unlike `railOpen` it is
   // not seeded from a room's opinion: there is no opinion that justifies
@@ -1676,6 +1839,25 @@ export function WMOperatingSystem({
                 </button>
               );
             })}
+            {/* THE COMMAND DECK CONTROL (Garden 16 §11, 2026-09-26) — after
+                the two hands, behind a hairline so it reads as a distinct
+                control and not a third plate of the same pair. Drawn only
+                where the room's registry declares exactly one `"deck"` entry
+                (today: /charts), never in a doors-only room. */}
+            {!doorsOnly && commandDeckEntry !== null ? (
+              <>
+                <span
+                  aria-hidden
+                  className="wm-os-command-deck-rule"
+                  style={{ width: 1, height: 22, background: RULE, flex: "0 0 auto", margin: "0 2px" }}
+                />
+                <CommandDeckPlate
+                  activeHref={activeHref}
+                  entry={commandDeckEntry}
+                  onPress={() => setScenePanel(null)}
+                />
+              </>
+            ) : null}
           </div>
         ) : (
         <button
@@ -2354,6 +2536,11 @@ export function WMOperatingSystem({
              plain words. */
           .wm-os-market-rooms,
           .wm-os-market-community { display: none !important; }
+          /* The Command Deck control (2026-09-26) obeys the same Phase 1 law:
+             Garden 16 section 11 is a desktop order while the 390 certificate
+             is closed, so the phone masthead is left exactly as it was. */
+          .wm-os-command-deck,
+          .wm-os-command-deck-rule { display: none !important; }
           ${
             phoneDoorOnly
               ? /* ── THE RAIL IS THE PHONE'S NAVIGATION HERE ──────────────
@@ -2490,6 +2677,13 @@ export function WMOperatingSystem({
             letter-spacing: 0.6px !important;
             text-transform: none !important;
           }
+          /* THE COMMAND DECK PLATE SIZES TO ITS WORDS (2026-09-26). MEASURED at
+             1440x900: inside the pair's fixed 176px the two words broke into
+             "Command" over "Deck". It is not one of the matched pair; it
+             stands after a hairline as its own control, so it takes the
+             width its name needs and never splits it. */
+          .wm-os-command-deck { width: auto !important; }
+          .wm-os-command-deck .wm-os-equipment-plate-word { white-space: nowrap; }
         }
       `}</style>
     </div>

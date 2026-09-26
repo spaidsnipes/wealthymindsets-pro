@@ -85,6 +85,11 @@ const REQUIRED_GATES: readonly { readonly id: string; readonly re: RegExp }[] = 
   { id: "sentinels", re: /vitest run/ },
   { id: "production-build", re: /next build/ },
   { id: "phone-geometry", re: /npm run audit:phone/ },
+  // ADDED 2026-09-26 (Garden 16 §11). The only gate that PRESSES the room:
+  // the Command Deck control's laws are all laws about a press, which no
+  // static render can observe. Proven from a secret-free worktree against
+  // `next build` + `next start` before it was wired — 8 laws, exit 0.
+  { id: "command-deck-control", re: /npm run prove:command-deck/ },
 ];
 
 describe("the Sentinels run on a machine, not on someone remembering", () => {
