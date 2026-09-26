@@ -18,6 +18,7 @@ import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import {
   ALPACA_PAPER_BASE,
   alpacaAccountUnauthorizedResponse,
+  isAlpacaOrderId,
   isAuthorizedAlpacaOwner,
   liveAlpacaDisabledResponse,
   rejectsLiveAlpacaRequest,
@@ -271,6 +272,11 @@ export async function DELETE(request: Request) {
     );
   }
   if (!orderId) return NextResponse.json({ error: "Order id required" }, { status: 400 });
+  // Found 2026-09-26: id=../positions resolved to DELETE /v2/positions and
+  // closed every paper position. Only a UUID may reach the path. See isAlpacaOrderId.
+  if (!isAlpacaOrderId(orderId)) {
+    return NextResponse.json({ error: "Order id must be an Alpaca order id (UUID)", code: "INVALID_ORDER_ID" }, { status: 400 });
+  }
 
   try {
     const base = ALPACA_PAPER_BASE;

@@ -202,12 +202,6 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "Zero references to the PATH. /app/news and /app/education use the WORD 'sentiment' for " +
       "unrelated local scoring, which is why a looser grep looks reassuring and is not. Task #52.",
   },
-  "/api/tradovate": {
-    cls: "DARK",
-    evidence:
-      "Zero references to the path. BrokerConnectPanel.tsx lists tradovate as a broker CARD with " +
-      "external sign-in links, which is not a call to this credential-holding proxy. Task #50.",
-  },
   "/api/audio": {
     cls: "DARK",
     evidence:
@@ -327,7 +321,15 @@ describe("every API endpoint has something that actually calls it", () => {
     const every = Object.values(NO_IN_APP_CALLER);
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
-    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(13);
+    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(12);
+    // 13 -> 12 on 2026-09-26: /api/tradovate RETIRED, not wired. It forwarded
+    // any signed-in caller's method, payload and bearer token to
+    // live.tradovateapi.com/v1/<caller-chosen endpoint> with no owner gate, no
+    // execution authority, no ledger and no receipt, and nothing in the app
+    // called it. Giving it a consumer would have wired live execution; the
+    // debt was paid by removing the authority (Garden 16 §75). The route's
+    // return is refused by name in
+    // src/lib/authority/liveExecutionStaysClosed.sentinel.test.ts.
     // 3 -> 4 on 2026-09-20: /api/market-data/webull/entitlement, added the same
     // day it was classified. A diagnostic registered at birth is the honest
     // case this class is for; the dishonest case is a DARK route relabelled
