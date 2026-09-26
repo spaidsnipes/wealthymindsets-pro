@@ -177,6 +177,21 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // ESCAPE PUTS THE PROFILE MENU DOWN (Garden 16 §17/§49, found on the glass
+  // 2026-09-26): the menu closed only by clicking its full-screen scrim, so a
+  // keyboard user who opened it was left with an invisible layer over the
+  // whole masthead. Escape closes it and hands focus back to its trigger.
+  React.useEffect(() => {
+    if (!profileOpen) return;
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setProfileOpen(false);
+      profileTriggerRef.current?.focus();
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [profileOpen]);
+
   return (
     <div
       className={compact ? "wm-shell-access wm-shell-access--compact" : "wm-shell-access"}

@@ -122,6 +122,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [notifsOpen,    setNotifsOpen]    = useState(false);
   const [settingsOpen,  setSettingsOpen]  = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
+  // Escape puts the profile menu down (Garden 16 §17/§49): it closed only by
+  // clicking its full-screen backdrop, trapping a keyboard user under it.
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onEscape = (e: KeyboardEvent) => { if (e.key === "Escape") setProfileOpen(false); };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [profileOpen]);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [mounted,       setMounted]       = useState(false);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);

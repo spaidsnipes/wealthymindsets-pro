@@ -94,6 +94,7 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
+import { isChartChromeTarget } from "@/lib/chart/chartPointerTarget";
 import { chartIdentityLabel } from "@/lib/chart/chartIdentityLabel";
 import { initialChartRange } from "@/lib/chart/initialChartRange";
 import { baselineBasePrice, mainSeriesPoints, toHeikinAshi, volumeSeriesPoints } from "@/lib/chart/mainSeriesPoints";
@@ -18685,6 +18686,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const handleCursorSelectDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || e.button !== 0) return;
     if (drawingTool !== "cursor") return;
+    // A press on the pane's own chrome (axis controls, D, inspect toggles, the
+    // timeframe chip) is that control's, never a market selection.
+    if (isChartChromeTarget(e.target as Element)) { cursorDownRef.current = null; return; }
     const r = e.currentTarget.getBoundingClientRect();
     cursorDownRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
   }, [drawingTool]);
@@ -20519,6 +20523,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               100% → 40% → 15% → 100% so drawings + price read clean over a busy
               chart, TradingView-style. Dimmed state is highlighted. */}
           <button
+            type="button"
+            aria-label={`Order-flow overlay opacity ${Math.round(flowOpacity * 100)} percent`}
             onClick={() => setFlowOpacity(o => (o > 0.7 ? 0.4 : o > 0.25 ? 0.15 : 1))}
             title={`Order-flow overlay opacity: ${Math.round(flowOpacity * 100)}% — click to dim footprint / bubbles / VP so drawings and price stand out (cycles 100 → 40 → 15%)`}
             style={{
@@ -20626,8 +20632,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             Capability is untouched: same control, same handler, same title,
             one corner down. */}
         <button
+          type="button"
           onClick={() => setDataWindowOpen(v => !v)}
           title={dataWindowOpen ? "Hide data window" : "Show data window"}
+          // Its state was colour alone (blue on / grey off) — §49 "non-color
+          // meaning". The name says what it is; aria-pressed says whether it is on.
+          aria-label="Data window"
+          aria-pressed={dataWindowOpen}
           style={{
             position: "absolute", top: BELOW_PRICE_LEGEND, left: PANE_TOP_LEFT_INSET, zIndex: 70,
             width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
