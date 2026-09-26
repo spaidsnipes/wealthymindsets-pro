@@ -44,22 +44,26 @@ const slice = (src: string, start: string, end: string, min = 200): string => {
 describe("1 · the chart toolbar's menus open inside the viewport", () => {
   it("every dropped menu in ChartToolbar is placed by placeAnchoredMenu — none re-derives `bottom + 4`", () => {
     expect(TOOLBAR.length).toBeGreaterThan(20000);
-    expect(TOOLBAR).toMatch(/import \{ placeAnchoredMenu \} from "@\/lib\/ui\/popoverPlacement";/);
-    expect((TOOLBAR.match(/placeAnchoredMenu\(\{/g) ?? []).length, "symbol list, indicators, chart tools").toBe(3);
+    expect(TOOLBAR).toMatch(/import \{ placeAnchoredMenu, placeChartToolsMenu \} from "@\/lib\/ui\/popoverPlacement";/);
+    expect((TOOLBAR.match(/placeAnchoredMenu\(\{/g) ?? []).length, "symbol list, indicators").toBe(2);
+    expect((TOOLBAR.match(/placeChartToolsMenu\(\{/g) ?? []).length, "chart tools (wraps placeAnchoredMenu)").toBe(1);
     expect(TOOLBAR, "a menu fixed at trigger.bottom + 4 again — it will open off-screen at the drawer's foot")
       .not.toMatch(/\.bottom\s*\?\?\s*36\)\s*\+\s*4/);
     expect(TOOLBAR, "a literal maxHeight ignores the room the viewport actually has").not.toMatch(/maxHeight:\s*(460|520)\b/);
-    expect((TOOLBAR.match(/maxHeight:\s*place\.maxHeight/g) ?? []).length).toBe(3);
+    expect((TOOLBAR.match(/maxHeight:\s*place\.maxHeight/g) ?? []).length).toBe(2);
   });
 
   it("the Chart tools menu measures itself, opens on the side it fits, and scrolls what cannot fit", () => {
     const menu = slice(TOOLBAR, "{advancedOpen && (() => {", 'aria-label="More chart tools"');
-    expect(menu).toMatch(/placeAnchoredMenu\(\{[\s\S]*menuHeight:\s*advancedMenuH/);
-    const style = slice(TOOLBAR, 'aria-label="More chart tools"', "zIndex: 9999", 60);
-    expect(style).toMatch(/top:\s*place\.top/);
-    expect(style).toMatch(/bottom:\s*place\.bottom/);
-    expect(style).toMatch(/maxHeight:\s*place\.maxHeight/);
-    expect(style).toMatch(/overflowY:\s*"auto"/);
+    expect(menu).toMatch(
+      /placeChartToolsMenu\(\{\s*viewport: \{ width: window\.innerWidth, height: window\.innerHeight \},\s*trigger: rect,\s*menuHeight: advancedMenuH,\s*\}\)/,
+    );
+    // The painted style IS the tested value (popoverPlacement.test.ts), spread
+    // first and never overridden by a local top/bottom/maxHeight after it.
+    const style = slice(TOOLBAR, 'aria-label="More chart tools"', "zIndex: 9999", 40);
+    expect(style).toMatch(/data-menu-side=\{place\.side\}\s*style=\{\{\s*\.\.\.place\.style,\s*$/);
+    const after = slice(TOOLBAR, "...place.style,", "</div>", 40);
+    expect(after.slice(0, 400)).not.toMatch(/\b(top|bottom|maxHeight|position):/);
     expect(TOOLBAR).toMatch(/ref=\{advancedMenuRef\}\s*role="menu"/);
     // Measured before paint, from the menu's own content height.
     expect(TOOLBAR).toMatch(/useLayoutEffect\(\(\) => \{\s*if \(!advancedOpen\)[\s\S]{0,200}?el\.scrollHeight/);
@@ -68,13 +72,14 @@ describe("1 · the chart toolbar's menus open inside the viewport", () => {
 
 describe("2 · the drawing style popover stays beside the controls that summoned it", () => {
   it("the popover places itself with placePanelBeside from its own exported width and measured height", () => {
-    expect(PANEL).toMatch(/import \{ placePanelBeside, type ViewportRect \} from "@\/lib\/ui\/popoverPlacement";/);
+    expect(PANEL).toMatch(/import \{ positionStylePopover, type ViewportRect \} from "@\/lib\/ui\/popoverPlacement";/);
     expect(PANEL).toMatch(
-      /placePanelBeside\(\{[\s\S]{0,200}?anchor: beside\.anchor,\s*avoid: beside\.avoid,\s*panel: \{ width: DRAWING_STYLE_POPOVER_WIDTH_PX, height: measuredH \}/,
+      /positionStylePopover\(\{\s*viewport: typeof window !== "undefined" \? \{ width: window\.innerWidth, height: window\.innerHeight \} : null,\s*anchor,\s*beside,\s*panelWidth: DRAWING_STYLE_POPOVER_WIDTH_PX,\s*measuredHeight: measuredH,\s*\}\)/,
     );
-    expect(PANEL).toMatch(/left: placed\.left, top: placed\.top, maxHeight: placed\.maxHeight, overflowY: "auto"/);
-    // Unmeasured, it is laid out but not painted — no flash over the tools.
-    expect(PANEL).toMatch(/visibility: "hidden"/);
+    // Hidden-until-measured, then placed and shown: positionStylePopover owns
+    // it (tested as values in popoverPlacement.test.ts); the popover paints it.
+    expect(PANEL).toMatch(/data-style-popover-side=\{position\.side\}\s*style=\{\{\s*position: "fixed", zIndex: 99999,\s*\.\.\.position\.style,/);
+    expect(PANEL).not.toMatch(/visibility: "hidden"/);
   });
 
   it("the opacity row yields width instead of pushing \"100%\" past the popover's edge", () => {
@@ -85,27 +90,35 @@ describe("2 · the drawing style popover stays beside the controls that summoned
 
   it("the sidebar hands it the summoning control and the whole tool group as the rectangle to avoid", () => {
     expect(SIDEBAR).not.toMatch(/anchorFor\(/);
-    expect(SIDEBAR).toMatch(/const g = railRef\.current\?\.getBoundingClientRect\(\) \?\? a;/);
-    expect(SIDEBAR).toMatch(/avoid: \{ left: g\.left, top: g\.top, right: g\.right, bottom: g\.bottom \}/);
+    expect(SIDEBAR).toMatch(
+      /const besideFor = \(el: HTMLElement\) =>\s*styleBesideFor\(el\.getBoundingClientRect\(\), railRef\.current\?\.getBoundingClientRect\(\) \?\? null\);/,
+    );
     expect(SIDEBAR).toMatch(/setStyleBeside\(besideFor\(el\)\)/);
     expect(SIDEBAR).toMatch(/setStyleBeside\(besideFor\(e\.currentTarget\)\)/);
     expect(SIDEBAR).toMatch(/beside=\{styleBeside\}/);
+  });
+
+  it("G2: the rect handed over IS the sheet — railRef sits on the root that carries wm-draw-sheet", () => {
+    // Detach it and styleBesideFor falls back to the control alone: the
+    // popover then opens beside one swatch, back over the sheet's buttons.
+    expect((SIDEBAR.match(/ref=\{railRef\}/g) ?? []).length, "railRef is attached exactly once").toBe(1);
+    const root = slice(SIDEBAR, "  return (\n    <div\n      ref={railRef}", 'className={isSheet ? "wm-draw-sheet" : "wm-room-chrome wm-draw-rail"}', 0);
+    expect(root).toMatch(/^  return \(\n    <div\n      ref=\{railRef\}\s*$/);
   });
 });
 
 describe("3 · the price legend ends left of the price-axis column", () => {
   it("the band's right edge is the chart's own axis width, read from the chart", () => {
     expect(CHART.length).toBeGreaterThan(100000);
-    expect(CHART).toMatch(/import \{ priceLegendRightInset \} from "@\/lib\/chart\/priceLegendAxisClearance";/);
+    expect(CHART).toMatch(/import \{ bindPriceLegendInset \} from "@\/lib\/chart\/priceLegendAxisClearance";/);
     expect(CHART).toMatch(
       /<ClearOfOpenDoor\s+style=\{\{\s*position: "absolute", top: 0, left: 0, right: priceLegendInset, height: PRICE_LEGEND_OVERLAY_H,\s*alignItems: "safe center",/,
     );
-    const effect = slice(CHART, "const [priceLegendInset, setPriceLegendInset] = useState(0);", "}, [ready]);", 150);
-    expect(effect).toMatch(/chart\.priceScale\("right"\)\.width\(\)/);
-    expect(effect).toMatch(/priceLegendRightInset\(w\)/);
-    // The time scale's width moves exactly when the axis column does.
-    expect(effect).toMatch(/ts\?\.subscribeSizeChange\?\.\(read\)/);
-    expect(effect).toMatch(/unsubscribeSizeChange\?\.\(read\)/);
+    const effect = slice(CHART, "const [priceLegendInset, setPriceLegendInset] = useState(0);", "}, [ready]);", 60);
+    // What the setter receives is tested in priceLegendAxisClearance.test.ts
+    // against a stub chart whose right scale is 60px; here, that binding is
+    // the effect, its cleanup is returned, and the setter is the band's.
+    expect(effect).toMatch(/if \(!chart \|\| !ready\) return;\s*return bindPriceLegendInset\(chart, setPriceLegendInset\);\s*$/);
   });
 
   it("the right-hand words may shrink and abbreviate inside the band, never spill past it", () => {

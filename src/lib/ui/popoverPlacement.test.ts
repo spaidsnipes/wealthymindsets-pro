@@ -6,8 +6,11 @@
 import { describe, expect, it } from "vitest";
 import {
   placeAnchoredMenu,
+  placeChartToolsMenu,
   placePanelBeside,
+  positionStylePopover,
   rectsOverlap,
+  styleBesideFor,
   POPOVER_VIEWPORT_GUTTER_PX,
   type ViewportRect,
 } from "./popoverPlacement";
@@ -162,5 +165,83 @@ describe("placePanelBeside — Workspace › Draw › Drawing style at 1600x900"
         }
       }
     }
+  });
+});
+
+describe("placeChartToolsMenu — the style ChartToolbar paints for the Chart tools menu (G3)", () => {
+  // 1600x900, trigger measured at x 1386–1592, y 844–888 at the drawer's foot.
+  const viewport = { width: 1600, height: 900 };
+  const trigger = { left: 1386, top: 844, right: 1592, bottom: 888 };
+
+  it("opens UPWARD from a trigger at y 844–888, wholly on screen", () => {
+    const p = placeChartToolsMenu({ viewport, trigger, menuHeight: 630 });
+    expect(p.side).toBe("above");
+    expect(p.style).toEqual({ position: "fixed", top: undefined, bottom: 60, maxHeight: 832, overflowY: "auto", right: 8 });
+    expect(menuBox(900, { side: p.side, bottom: p.style.bottom, maxHeight: p.style.maxHeight }, 630)).toEqual({ top: 210, bottom: 840, h: 630 });
+  });
+
+  it("a menu taller than the room above is capped to it and scrolls — never runs off the top", () => {
+    const p = placeChartToolsMenu({ viewport, trigger, menuHeight: 2000 });
+    expect(p.side).toBe("above");
+    expect(p.style.maxHeight).toBe(832); // 844 − 4 − 8
+    expect(p.style.overflowY).toBe("auto");
+    const box = menuBox(900, { side: p.side, bottom: p.style.bottom, maxHeight: p.style.maxHeight }, 2000);
+    expect(box.top).toBe(POPOVER_VIEWPORT_GUTTER_PX);
+    expect(box.bottom).toBeLessThanOrEqual(trigger.top);
+  });
+
+  it("before it has measured itself it still takes the roomier (upper) side", () => {
+    expect(placeChartToolsMenu({ viewport, trigger, menuHeight: null }).side).toBe("above");
+  });
+});
+
+describe("positionStylePopover — whether DrawingStylePopover is painted, and where (G3)", () => {
+  // Workspace › Draw at 1600x900: the drawer sheet x 1281–1600; its colour swatch.
+  const viewport = { width: 1600, height: 900 };
+  const sheet: ViewportRect = { left: 1281, top: 120, right: 1600, bottom: 420 };
+  const swatch: ViewportRect = { left: 1289, top: 300, right: 1333, bottom: 344 };
+  const beside = styleBesideFor(swatch, sheet);
+
+  it("unmeasured: laid out but hidden, so it never flashes over the tools", () => {
+    const p = positionStylePopover({ viewport, anchor: { left: 0, top: 0 }, beside, panelWidth: 220, measuredHeight: null });
+    expect(p.style).toEqual({ left: 0, top: 0, visibility: "hidden" });
+    expect(p.side).toBeUndefined();
+  });
+
+  it("measured: SHOWN (no visibility key), left of the sheet, covering none of it", () => {
+    const p = positionStylePopover({ viewport, anchor: { left: 0, top: 0 }, beside, panelWidth: 220, measuredHeight: 300 });
+    expect(p.style).not.toHaveProperty("visibility");
+    expect(p.side).toBe("left");
+    expect(p.style).toEqual({ left: 1055, top: 300, maxHeight: 300, overflowY: "auto" });
+    const box = { left: p.style.left, top: p.style.top, right: p.style.left + 220, bottom: p.style.top + 300 };
+    expect(rectsOverlap(box, sheet)).toBe(false);
+  });
+
+  it("without a beside group it is shown at its legacy anchor at once", () => {
+    const p = positionStylePopover({ viewport, anchor: { left: 46, top: 200 }, beside: undefined, panelWidth: 220, measuredHeight: null });
+    expect(p.style).toEqual({ left: 46, top: 200 });
+  });
+});
+
+describe("styleBesideFor — the sheet rect is what keeps the popover off the sheet (G2)", () => {
+  const viewport = { width: 1600, height: 900 };
+  const sheet: ViewportRect = { left: 1281, top: 120, right: 1600, bottom: 420 };
+  const swatch: ViewportRect = { left: 1289, top: 300, right: 1333, bottom: 344 };
+  const place = (b: ReturnType<typeof styleBesideFor>) => {
+    const p = placePanelBeside({ viewport, anchor: b.anchor, avoid: b.avoid, panel: { width: 220, height: 300 } });
+    return { left: p.left, top: p.top, right: p.left + 220, bottom: p.top + 300 };
+  };
+
+  it("with the sheet's rect (railRef attached) the popover clears the sheet", () => {
+    const b = styleBesideFor(swatch, sheet);
+    expect(b.avoid).toEqual(sheet);
+    expect(b.anchor).toEqual(swatch);
+    expect(rectsOverlap(place(b), sheet)).toBe(false);
+  });
+
+  it("NEGATIVE CONTROL: with no group rect (ref detached) it avoids only the swatch — and lands on the sheet", () => {
+    const b = styleBesideFor(swatch, null);
+    expect(b.avoid).toEqual(swatch);
+    expect(rectsOverlap(place(b), sheet)).toBe(true);
   });
 });

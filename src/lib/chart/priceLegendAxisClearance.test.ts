@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PRICE_LEGEND_AXIS_GAP_PX,
+  bindPriceLegendInset,
   legendOverprintsPriceAxis,
   priceLegendRightInset,
 } from "./priceLegendAxisClearance";
@@ -43,5 +44,58 @@ describe("the 1600x900 finding: MARKET CLOSED · LAST BAR OPENED 07:45 PM vs \"3
         expect(legendOverprintsPriceAxis(pane - priceLegendRightInset(w), pane, w)).toBe(false);
       }
     }
+  });
+});
+
+describe("bindPriceLegendInset — what the legend band's setter actually receives (G1)", () => {
+  /** A chart stub: the right scale is `width()` px; the time scale records its size handler. */
+  function stubChart(width: () => number) {
+    const handlers: Array<() => void> = [];
+    const removed: Array<() => void> = [];
+    const chart = {
+      priceScale: (_id: "right") => ({ width }),
+      timeScale: () => ({
+        subscribeSizeChange: (h: () => void) => { handlers.push(h); },
+        unsubscribeSizeChange: (h: () => void) => { removed.push(h); },
+      }),
+    };
+    return { chart, handlers, removed };
+  }
+  /** A React-like state cell: applies each updater, records the values set. */
+  function stateCell(initial = 0) {
+    let value = initial;
+    const seen: number[] = [];
+    const set = (u: (prev: number) => number) => { value = u(value); seen.push(value); };
+    return { set, seen, get: () => value };
+  }
+
+  it("a 60px right axis hands the band priceLegendRightInset(60) — 66 — on bind", () => {
+    const { chart } = stubChart(() => 60);
+    const cell = stateCell(0);
+    bindPriceLegendInset(chart, cell.set);
+    expect(cell.get()).toBe(priceLegendRightInset(60));
+    expect(cell.get()).toBe(60 + PRICE_LEGEND_AXIS_GAP_PX);
+    expect(cell.get()).toBeGreaterThan(0);
+  });
+
+  it("re-reads when the time scale resizes, and unsubscribes the same handler on cleanup", () => {
+    let w = 60;
+    const { chart, handlers, removed } = stubChart(() => w);
+    const cell = stateCell(0);
+    const cleanup = bindPriceLegendInset(chart, cell.set);
+    expect(handlers).toHaveLength(1);
+    w = 74.4;
+    handlers[0]();
+    expect(cell.get()).toBe(75 + PRICE_LEGEND_AXIS_GAP_PX);
+    handlers[0]();
+    expect(cell.seen).toEqual([66, 81, 81]);
+    cleanup();
+    expect(removed).toEqual([handlers[0]]);
+  });
+
+  it("a chart with no right scale (throws) hands the band 0, not a stale inset", () => {
+    const cell = stateCell(66);
+    bindPriceLegendInset({ priceScale: () => { throw new Error("no right scale"); }, timeScale: () => null }, cell.set);
+    expect(cell.get()).toBe(0);
   });
 });

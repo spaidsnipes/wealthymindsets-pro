@@ -78,7 +78,7 @@
  */
 
 import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
-import { describeLegacyFuturesMoney, type LegacyFuturesMoney } from "@/lib/journal/computePnl";
+import { describeLegacyFuturesMoney, NO_LEGACY_FUTURES_MONEY, type LegacyFuturesMoney } from "@/lib/journal/computePnl";
 
 export type PnlStatState =
   /** WM computed this from finite recorded values. */
@@ -188,7 +188,7 @@ export function compilePnlStats(rawJournal: string | null): PnlStatsReport {
       "R-Multiple",
       "Profit Factor",
     ].map(unreadable);
-    return { stats, headline: stats[0], counted: 0, skipped: 0, legacyFutures: { count: 0, note: null } };
+    return { stats, headline: stats[0], counted: 0, skipped: 0, legacyFutures: NO_LEGACY_FUTURES_MONEY };
   }
 
   const pnls: number[] = [];

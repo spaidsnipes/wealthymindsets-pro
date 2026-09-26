@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
-import { placePanelBeside, type ViewportRect } from "@/lib/ui/popoverPlacement";
+import { positionStylePopover, type ViewportRect } from "@/lib/ui/popoverPlacement";
 import {
   Trash2, Magnet, Lock, Eye, EyeOff,
   ChevronDown, Pen,
@@ -234,14 +234,13 @@ export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }
     const natural = el.scrollHeight + (el.offsetHeight - el.clientHeight);
     setMeasuredH(h => (h === natural ? h : natural));
   });
-  const placed = beside && measuredH != null && typeof window !== "undefined"
-    ? placePanelBeside({
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-        anchor: beside.anchor,
-        avoid: beside.avoid,
-        panel: { width: DRAWING_STYLE_POPOVER_WIDTH_PX, height: measuredH },
-      })
-    : null;
+  const position = positionStylePopover({
+    viewport: typeof window !== "undefined" ? { width: window.innerWidth, height: window.innerHeight } : null,
+    anchor,
+    beside,
+    panelWidth: DRAWING_STYLE_POPOVER_WIDTH_PX,
+    measuredHeight: measuredH,
+  });
 
   const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 };
   const lbl: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "#8B8FA8", width: 52, flexShrink: 0, letterSpacing: "0.06em" };
@@ -255,16 +254,11 @@ export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }
   return createPortal(
     <div
       ref={ref}
-      data-style-popover-side={placed?.side}
+      data-style-popover-side={position.side}
       style={{
         position: "fixed", zIndex: 99999,
-        ...(beside
-          // Until it has measured itself it is laid out but not painted, so
-          // it never flashes over the controls it is about to step off.
-          ? placed
-            ? { left: placed.left, top: placed.top, maxHeight: placed.maxHeight, overflowY: "auto" as const }
-            : { left: 0, top: 0, visibility: "hidden" as const }
-          : { left: anchor.left, top: anchor.top }),
+        // Hidden until measured, then beside the controls — see positionStylePopover.
+        ...position.style,
         background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 10,
         padding: "10px 12px", width: DRAWING_STYLE_POPOVER_WIDTH_PX,
         boxShadow: "0 12px 40px rgba(0,0,0,0.8)",

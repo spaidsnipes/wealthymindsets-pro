@@ -4,6 +4,8 @@ import {
   computeJournalRealizedR,
   contractMultiplierFor,
   describeLegacyFuturesMoney,
+  journalRowShowsProofChips,
+  journalShowsProofLane,
   FUTURES_POINT_VALUE_SINCE,
   journalContractBasis,
   journalMoneyFor,
@@ -578,6 +580,8 @@ describe("describeLegacyFuturesMoney — review YELLOW: totals say what they hol
       { ...es, symbol: "TSLA", pnl: 10 },
     ]);
     expect(d.count).toBe(2);
+    expect(d.otherCount).toBe(0);
+    expect(d.chip).toBe("2 futures at $1/pt");
     expect(d.note).toBe(
       `2 futures entries were not priced at their point value when saved — before ${FUTURES_POINT_VALUE_SINCE} the journal priced futures at $1 per point. `
       + "They are counted here as recorded, so these dollars and R understate them. "
@@ -586,8 +590,9 @@ describe("describeLegacyFuturesMoney — review YELLOW: totals say what they hol
   });
 
   it("is silent on a book with no such entry, and singular for one", () => {
-    expect(describeLegacyFuturesMoney([{ ...es, pnl: 500 }, { ...es, symbol: "AAPL", pnl: 3 }])).toEqual({ count: 0, note: null });
-    expect(describeLegacyFuturesMoney([])).toEqual({ count: 0, note: null });
+    const none = { count: 0, otherCount: 0, note: null, chip: null };
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 500 }, { ...es, symbol: "AAPL", pnl: 3 }])).toEqual(none);
+    expect(describeLegacyFuturesMoney([])).toEqual(none);
     expect(describeLegacyFuturesMoney([{ ...es, pnl: 10 }]).note).toMatch(/^1 futures entry was not priced at its point value/);
   });
 
@@ -596,5 +601,99 @@ describe("describeLegacyFuturesMoney — review YELLOW: totals say what they hol
     expect(describeLegacyFuturesMoney([{ ...es, pnl: 0, dayModel: "M0" }]).count).toBe(0);
     describeLegacyFuturesMoney([rec]);
     expect(rec.pnl).toBe(10);
+  });
+});
+
+describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row saved at $1/pt is called one", () => {
+  const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const };
+  // An option on ES, stored the pre-§17 way at the equity 100x: 2 points x 100.
+  const optOnEs = { symbol: "ES1!", contractType: "option" as const, entry: 10, exit: 12, size: 1, side: "long" as const, pnl: 200 };
+
+  it("a 100x option-on-ES row and a $123 ES row are NOT counted as $1/pt", () => {
+    expect(selectRecordedMoney(optOnEs).mismatch).not.toBeNull(); // still flagged...
+    const d = describeLegacyFuturesMoney([optOnEs, { ...es, pnl: 123 }]);
+    expect(d.count).toBe(0); // ...but never as a $1-per-point save
+    expect(d.otherCount).toBe(2);
+    expect(d.chip).toBe("2 money mismatch");
+    expect(d.chip).not.toMatch(/\$1\/pt/);
+    expect(d.note).not.toMatch(/\$1 per point\. /);
+    expect(d.note).not.toMatch(/understate/);
+    expect(d.note).toBe(
+      "2 entries carry a recorded P&L that is not their contract's money "
+      + "(an option on futures, a futures root WM cannot price, or a figure that is neither $1 per point nor the point value). "
+      + "They are counted here as recorded. Open one to see why.",
+    );
+  });
+
+  it("an option on ES whose stored figure happens to equal 1x is still not a futures $1/pt save", () => {
+    const optAt1x = { ...optOnEs, pnl: 2 };
+    expect(selectRecordedMoney(optAt1x).savedAtOneX).toBe(true);
+    expect(describeLegacyFuturesMoney([optAt1x])).toMatchObject({ count: 0, otherCount: 1, chip: "1 money mismatch" });
+  });
+
+  it("an unpriced root NOT at 1x is neutral; an unpriced root AT 1x is a $1/pt save", () => {
+    const ym = { ...es, symbol: "YM1!", entry: 40000, exit: 40010 };
+    expect(describeLegacyFuturesMoney([{ ...ym, pnl: 77 }])).toMatchObject({ count: 0, otherCount: 1 });
+    expect(describeLegacyFuturesMoney([{ ...ym, pnl: 10 }])).toMatchObject({ count: 1, otherCount: 0 });
+  });
+
+  it("a mixed book gets both sentences, $1/pt first, and a two-part chip", () => {
+    const d = describeLegacyFuturesMoney([{ ...es, pnl: 10 }, optOnEs]);
+    expect(d.count).toBe(1);
+    expect(d.otherCount).toBe(1);
+    expect(d.chip).toBe("1 futures at $1/pt · 1 money mismatch");
+    expect(d.note).toMatch(/^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other entry carries a recorded P&L that is not its contract's money/);
+  });
+});
+
+describe("Y3 — a legacy SHORT futures trade and an option on futures", () => {
+  it("SHORT ES1! 5010 → 5000 stored +$10 is a $1/pt save: 'FUT ES · SAVED AT 1x'", () => {
+    const short = { symbol: "ES1!", entry: 5010, exit: 5000, size: 1, side: "short" as const, pnl: 10 };
+    const r = selectRecordedMoney(short);
+    expect(r.savedAtOneX).toBe(true);
+    expect(r.mismatch).toContain("$500.00");
+    expect(selectContractChip(short)!.text).toBe("FUT ES · SAVED AT 1x");
+    expect(describeLegacyFuturesMoney([short]).count).toBe(1);
+    // The sign matters: a SHORT stored at −$10 is not the 1x figure.
+    expect(selectRecordedMoney({ ...short, pnl: -10 }).savedAtOneX).toBe(false);
+  });
+
+  it("an option on futures wears a flagged OPT chip whose words carry the OPTION_ON_FUTURES reason", () => {
+    const m = journalMoneyFor({ symbol: "ES1!", contractType: "option" });
+    expect(m.status).toBe("UNPRICED");
+    if (m.status !== "UNPRICED") return;
+    const c = selectContractChip({ symbol: "ES1!", contractType: "option", entry: 10, exit: 12, size: 1, side: "long", pnl: 200 })!;
+    expect(c).toMatchObject({ basis: "option", text: "OPT", flagged: true });
+    expect(c.words).toBe(`OPTION ON ES · UNPRICED — ${m.reason}`);
+    expect(c.words).toContain("not priced at the 100x equity-option standard");
+  });
+});
+
+describe("M0 NIT — an M0 chip's words agree with its unflagged style", () => {
+  it("an M0 day on an unpriced root never says UNPRICED in the title of a quiet chip", () => {
+    const c = selectContractChip({ symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long", pnl: 0, dayModel: "M0" })!;
+    expect(c.flagged).toBe(false);
+    expect(c.words).not.toMatch(/UNPRICED/);
+    expect(c.words).toBe("FUTURES YM · M0 no-trade day — no money recorded");
+    expect(selectContractChip({ symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long", pnl: 0, dayModel: "M0" })!.words)
+      .toBe("FUTURES ES · M0 no-trade day — no money recorded");
+  });
+});
+
+describe("Y2 — the row chip gate and the Proof Lane gate read the money basis", () => {
+  it("a futures row with no Model and no realized R still shows its chip strip and its Contract tile", () => {
+    const bare = { symbol: "ES1!", contractType: "stock" as const };
+    expect(journalRowShowsProofChips(bare)).toBe(true);
+    expect(journalShowsProofLane(bare)).toBe(true);
+    expect(journalRowShowsProofChips({ symbol: "ESZ6" })).toBe(true);
+    expect(journalShowsProofLane({ symbol: "YM1!" })).toBe(true);
+    expect(journalRowShowsProofChips({ symbol: "ES1!", contractType: "option" })).toBe(true);
+  });
+
+  it("a bare share stays silent, as legacy rows always were", () => {
+    expect(journalRowShowsProofChips({ symbol: "TSLA", contractType: "stock" })).toBe(false);
+    expect(journalShowsProofLane({ symbol: "TSLA" })).toBe(false);
+    expect(journalRowShowsProofChips({ symbol: "TSLA", realizedR: 0 })).toBe(true);
+    expect(journalShowsProofLane({ symbol: "TSLA", mfeR: 1 })).toBe(true);
   });
 });

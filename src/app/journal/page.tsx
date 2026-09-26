@@ -25,7 +25,7 @@ import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import { PrepChecklistBand } from "@/components/experience/PrepChecklistBand";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
-import { computeJournalRealizedR, describeLegacyFuturesMoney, journalContractBasis, journalMoneyFor, selectJournalPricing, selectJournalSaveMoney, selectRecordedMoney, type JournalContractBasis } from "@/lib/journal/computePnl";
+import { computeJournalRealizedR, describeLegacyFuturesMoney, journalContractBasis, journalMoneyFor, journalRowShowsProofChips, journalShowsProofLane, selectJournalPricing, selectJournalSaveMoney, selectRecordedMoney, type JournalContractBasis } from "@/lib/journal/computePnl";
 import { JournalContractChip, LegacyFuturesMoneyNote } from "@/components/journal/JournalMoneyMarks";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
 import { selectRecordedTotal } from "@/lib/journal/selectRecordedTotal";
@@ -2520,7 +2520,7 @@ Trade the system, trust the process, winners every day 🚀`,
                         so a review scan shows canon-shaped truth, not just
                         dollar P&L. Silent when the entry pre-dates the
                         Proof Lane fields (legacy entries look identical). */}
-                    {(e.dayModel || typeof e.realizedR === "number" || journalContractBasis(e) !== "stock") && (
+                    {journalRowShowsProofChips(e) && (
                       <div className="flex items-center gap-1 mt-1">
                         {e.dayModel && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold">{e.dayModel}</span>
@@ -2695,7 +2695,7 @@ Trade the system, trust the process, winners every day 🚀`,
                   MAE / Capture % together with the standard OHLCV stats.
                   Silent for legacy entries. */}
               {/* Garden 16 §17: a futures entry shows its Contract tile too. */}
-              {(selected.dayModel || typeof selected.plannedRDollars === "number" || journalContractBasis(selected) !== "stock" || typeof selected.mfeR === "number") && (
+              {journalShowsProofLane(selected) && (
                 <div className="mb-4 rounded-xl border border-wm-gold/40 bg-gradient-to-br from-wm-surface/50 to-transparent p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Proof Lane · Trade R Truth</div>

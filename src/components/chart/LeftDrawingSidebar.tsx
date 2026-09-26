@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { DrawingTool, DrawingStyle } from "./DrawingToolsPanel";
 import { DrawingStylePopover, isStyleCapableTool } from "./DrawingToolsPanel";
-import type { ViewportRect } from "@/lib/ui/popoverPlacement";
+import { styleBesideFor, type ViewportRect } from "@/lib/ui/popoverPlacement";
 
 interface Item { id: DrawingTool; label: string; icon: React.ReactNode; }
 
@@ -120,14 +120,8 @@ export function LeftDrawingSidebar({
    * summoned it is the same defect one step later.
    */
   const [styleBeside, setStyleBeside] = useState<{ anchor: ViewportRect; avoid: ViewportRect } | null>(null);
-  const besideFor = (el: HTMLElement) => {
-    const a = el.getBoundingClientRect();
-    const g = railRef.current?.getBoundingClientRect() ?? a;
-    return {
-      anchor: { left: a.left, top: a.top, right: a.right, bottom: a.bottom },
-      avoid: { left: g.left, top: g.top, right: g.right, bottom: g.bottom },
-    };
-  };
+  const besideFor = (el: HTMLElement) =>
+    styleBesideFor(el.getBoundingClientRect(), railRef.current?.getBoundingClientRect() ?? null);
 
   const pickTool = (id: DrawingTool, el: HTMLElement) => {
     onToolChange(id);

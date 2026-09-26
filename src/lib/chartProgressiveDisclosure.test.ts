@@ -204,7 +204,12 @@ describe("chart progressive disclosure", () => {
   });
 
   it("keeps the menu viewport-bound instead of extending the toolbar", () => {
-    expect(toolbar).toContain('position: "fixed"');
-    expect(toolbar).toContain("window.innerWidth - (rect?.right ?? window.innerWidth)");
+    // The right-edge arithmetic moved into placeChartToolsMenu (Garden 16 §65),
+    // where it is asserted as values in popoverPlacement.test.ts.
+    expect(toolbar).toMatch(/placeChartToolsMenu\(\{\s*viewport: \{ width: window\.innerWidth, height: window\.innerHeight \},\s*trigger: rect,/);
+    const placement = readFileSync(resolve(process.cwd(), "src/lib/ui/popoverPlacement.ts"), "utf8");
+    expect(placement).toContain("input.viewport.width - (t?.right ?? input.viewport.width)");
+    expect(placement).toContain('position: "fixed"');
+    expect(toolbar).toMatch(/style=\{\{\s*\.\.\.place\.style,/);
   });
 });

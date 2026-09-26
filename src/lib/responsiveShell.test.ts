@@ -178,12 +178,12 @@ describe("responsive P0 command surfaces", () => {
     // MOVED 2026-09-26, same guarantee, new owner. The clamp used to live in
     // the sidebar as `Math.max(8, Math.min(left, maxLeft))`; it kept the
     // popover on screen but put it ON the drawer's own tool buttons (nine
-    // covered at 1600x900). Placement now lives in `placePanelBeside`, which
-    // the popover calls with that same exported width and which keeps the
+    // covered at 1600x900). Placement now lives in `placePanelBeside` (via
+    // `positionStylePopover`), which the popover calls with that same exported width and which keeps the
     // 8px gutter (POPOVER_VIEWPORT_GUTTER_PX). The 375px phone case this test
     // was written for is now asserted as arithmetic below, not as a string.
     expect(panel, "the popover must place itself from the same exported number")
-      .toMatch(/placePanelBeside\(\{[\s\S]{0,300}?panel:\s*\{\s*width:\s*DRAWING_STYLE_POPOVER_WIDTH_PX/);
+      .toMatch(/positionStylePopover\(\{[\s\S]{0,300}?panelWidth:\s*DRAWING_STYLE_POPOVER_WIDTH_PX/);
     expect(sidebar, "the sidebar must hand the popover its anchor and the group it must not cover")
       .toMatch(/beside=\{styleBeside\}/);
     const DRAWING_STYLE_POPOVER_WIDTH = Number(

@@ -223,7 +223,7 @@ import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
-import { priceLegendRightInset } from "@/lib/chart/priceLegendAxisClearance";
+import { bindPriceLegendInset } from "@/lib/chart/priceLegendAxisClearance";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -5919,16 +5919,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !ready) return;
-    const read = () => {
-      let w = 0;
-      try { w = chart.priceScale("right").width(); } catch { /* no right scale */ }
-      const next = priceLegendRightInset(w);
-      setPriceLegendInset(prev => (prev === next ? prev : next));
-    };
-    read();
-    let ts: { subscribeSizeChange?: (h: () => void) => void; unsubscribeSizeChange?: (h: () => void) => void } | null = null;
-    try { ts = chart.timeScale(); ts?.subscribeSizeChange?.(read); } catch { ts = null; }
-    return () => { try { ts?.unsubscribeSizeChange?.(read); } catch { /* chart already removed */ } };
+    return bindPriceLegendInset(chart, setPriceLegendInset);
   }, [ready]);
 
   useEffect(() => {

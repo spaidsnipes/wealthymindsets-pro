@@ -104,14 +104,14 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
         {/* Garden 16 §17 (review, 2026-09-26): futures rows saved at $1 per
             point are in every figure here as recorded. Said on the strip, in
             words, with the whole sentence on hover and to a screen reader. */}
-        {report && report.legacyFutures.note !== null && (
+        {report && report.legacyFutures.note !== null && report.legacyFutures.chip !== null && (
           <span
             data-testid="pnl-stats-legacy-futures"
             className="ml-2 text-[9px] text-wm-gold"
             title={report.legacyFutures.note}
             aria-label={report.legacyFutures.note}
           >
-            {report.legacyFutures.count} futures at $1/pt
+            {report.legacyFutures.chip}
           </span>
         )}
         <button

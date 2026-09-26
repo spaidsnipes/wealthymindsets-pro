@@ -228,7 +228,12 @@ export function selectContractChip(e: RecordedMoneyInput): ContractChip | null {
   const root = money.root ?? "";
   // Canon §3: an M0 row took no trade, so it names its contract and claims no
   // money state (seen on the glass, 2026-09-26: "FUT YM · UNPRICED" on a no-trade day).
-  if (e.dayModel === "M0") return { basis, text: `FUT ${root}`, words: money.label, flagged: false };
+  // The words say no money was recorded — never "UNPRICED" beside a blue,
+  // unflagged chip (review NIT, 2026-09-26: title "FUTURES YM · UNPRICED" on a
+  // chip whose colour said the contract was fine).
+  if (e.dayModel === "M0") {
+    return { basis, text: `FUT ${root}`, words: `FUTURES ${root} · M0 no-trade day — no money recorded`, flagged: false };
+  }
   const recorded = selectRecordedMoney(e);
   if (recorded.mismatch !== null) {
     return {
@@ -254,29 +259,91 @@ export function selectContractChip(e: RecordedMoneyInput): ContractChip | null {
  * does not drop the rows either (that would be a second silent change to the
  * same totals). It counts them as recorded and SAYS so, here, once.
  *
- * Counted: trade records (never M0) whose stored P&L `selectRecordedMoney`
- * flags. Re-pricing a saved entry is not built yet; the note says that too
- * rather than pointing at a control that does not exist.
+ * TWO GROUPS, TWO SENTENCES (Garden 16 §65, 2026-09-26). Only a FUTURES row
+ * whose stored P&L is exactly the $1-per-point figure (`savedAtOneX`) is
+ * counted in `count` and told "$1 per point … understate". Every other
+ * flagged row — an option on futures (stored at the equity 100x), a futures
+ * figure that is neither 1x nor the point value, an unpriced root not at 1x —
+ * is counted in `otherCount` and gets a neutral sentence: WM does not know
+ * those dollars understate anything, so it does not say they do.
+ *
+ * Never counted: M0 records (`selectRecordedMoney` owns that rule), shares,
+ * equity options. Re-pricing a saved entry is not built yet; the note says
+ * that too rather than pointing at a control that does not exist.
  */
 export interface LegacyFuturesMoney {
+  /** Futures trade records stored at exactly $1 per point. */
   readonly count: number;
+  /** Other records whose stored P&L is not their contract's money. */
+  readonly otherCount: number;
   readonly note: string | null;
+  /** Short words for the chart's P&L strip; null exactly when `note` is. */
+  readonly chip: string | null;
 }
 
 export const FUTURES_POINT_VALUE_SINCE = "2026-09-26";
 
+export const NO_LEGACY_FUTURES_MONEY: LegacyFuturesMoney = { count: 0, otherCount: 0, note: null, chip: null };
+
 export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[]): LegacyFuturesMoney {
-  // M0 records are never flagged: `selectRecordedMoney` owns that rule.
-  const count = records.filter((r) => selectRecordedMoney(r).mismatch !== null).length;
-  if (count === 0) return { count, note: null };
-  const one = count === 1;
-  return {
-    count,
-    note: `${count} futures ${one ? "entry was" : "entries were"} not priced at ${one ? "its" : "their"} point value when saved — `
+  let count = 0;
+  let otherCount = 0;
+  for (const r of records) {
+    const recorded = selectRecordedMoney(r);
+    if (recorded.mismatch === null) continue;
+    if (recorded.savedAtOneX && journalContractBasis(r) === "futures") count += 1;
+    else otherCount += 1;
+  }
+  if (count === 0 && otherCount === 0) return NO_LEGACY_FUTURES_MONEY;
+  const sentences: string[] = [];
+  const chips: string[] = [];
+  if (count > 0) {
+    const one = count === 1;
+    sentences.push(
+      `${count} futures ${one ? "entry was" : "entries were"} not priced at ${one ? "its" : "their"} point value when saved — `
       + `before ${FUTURES_POINT_VALUE_SINCE} the journal priced futures at $1 per point. `
       + `${one ? "It is" : "They are"} counted here as recorded, so these dollars and R understate ${one ? "it" : "them"}. `
       + `Open ${one ? "it" : "one"} to see its futures money; re-pricing saved entries is not available yet.`,
-  };
+    );
+    chips.push(`${count} futures at $1/pt`);
+  }
+  if (otherCount > 0) {
+    const one = otherCount === 1;
+    sentences.push(
+      `${otherCount} ${count > 0 ? "other " : ""}${one ? "entry carries a recorded P&L that is" : "entries carry a recorded P&L that is"} not ${one ? "its" : "their"} contract's money `
+      + `(an option on futures, a futures root WM cannot price, or a figure that is neither $1 per point nor the point value). `
+      + `${one ? "It is" : "They are"} counted here as recorded. Open ${one ? "it" : "one"} to see why.`,
+    );
+    chips.push(`${otherCount} money mismatch`);
+  }
+  return { count, otherCount, note: sentences.join(" "), chip: chips.join(" · ") };
+}
+
+/**
+ * THE GATES THAT DECIDE WHETHER A JOURNAL ROW SHOWS ITS CONTRACT (Garden 16
+ * §17 / §65). A futures or option row is shown as one even when it carries
+ * no Model and no realized R — the gate reads the money basis, not the
+ * stock/option picker. Owned here so /journal's list row and its Proof Lane
+ * tile cannot drift apart, and so the rule is tested, not only read.
+ */
+export interface JournalProofFields extends JournalMoneyInput {
+  dayModel?: DayModel;
+  realizedR?: number;
+  plannedRDollars?: number;
+  mfeR?: number;
+}
+
+/** The list row's chip strip (Model, R, contract chip). */
+export function journalRowShowsProofChips(e: JournalProofFields): boolean {
+  return Boolean(e.dayModel) || typeof e.realizedR === "number" || journalContractBasis(e) !== "stock";
+}
+
+/** The detail view's "Proof Lane · Trade R Truth" block with its Contract tile. */
+export function journalShowsProofLane(e: JournalProofFields): boolean {
+  return Boolean(e.dayModel)
+    || typeof e.plannedRDollars === "number"
+    || journalContractBasis(e) !== "stock"
+    || typeof e.mfeR === "number";
 }
 
 export interface PnlInput {

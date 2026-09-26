@@ -51,7 +51,38 @@ describe("JournalContractChip — what a journal list row shows", () => {
   });
 });
 
+describe("JournalContractChip — Garden 16 §65: words and style agree", () => {
+  it("an M0 day on an unpriced root is a quiet blue chip whose words do not say UNPRICED", () => {
+    const html = renderToStaticMarkup(
+      <JournalContractChip entry={{ ...ES, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 0, dayModel: "M0" }} />,
+    );
+    expect(html).toContain(">FUT YM</span>");
+    expect(html).toContain("text-wm-blue");
+    expect(html).not.toContain("UNPRICED");
+    expect(html).toContain('title="FUTURES YM · M0 no-trade day — no money recorded"');
+  });
+
+  it("an option on ES is a dim, flagged OPT chip that says why on hover", () => {
+    const html = renderToStaticMarkup(
+      <JournalContractChip entry={{ symbol: "ES1!", contractType: "option", entry: 10, exit: 12, size: 1, side: "long", pnl: 200 }} />,
+    );
+    expect(html).toContain(">OPT</span>");
+    expect(html).toContain("text-wm-text-dim");
+    expect(html).not.toContain("text-wm-purple");
+    expect(html).toContain("OPTION ON ES · UNPRICED — an option on ES futures is not priced at the 100x equity-option standard");
+  });
+});
+
 describe("LegacyFuturesMoneyNote — what the totals say", () => {
+  it("a 100x option-on-ES row alone is never told it was saved at $1 per point", () => {
+    const html = renderToStaticMarkup(
+      <LegacyFuturesMoneyNote records={[{ symbol: "ES1!", contractType: "option", entry: 10, exit: 12, size: 1, side: "long", pnl: 200 }]} />,
+    );
+    expect(html).toContain("1 entry carries a recorded P&amp;L that is not its contract&#x27;s money");
+    expect(html).not.toContain("$1 per point.");
+    expect(html).not.toContain("understate");
+  });
+
   it("renders the owner's sentence as readable text with role=note", () => {
     const html = renderToStaticMarkup(
       <LegacyFuturesMoneyNote records={[{ ...ES, pnl: 10 }, { ...ES, pnl: 500 }]} testId="n" />,
@@ -78,14 +109,16 @@ describe("the chart's P&L strip counts the same rows", () => {
     const report = compilePnlStats(raw);
     expect(report.legacyFutures.count).toBe(1);
     expect(report.legacyFutures.note).toMatch(/^1 futures entry was not priced at its point value/);
+    expect(report.legacyFutures.chip).toBe("1 futures at $1/pt");
     // Nothing excluded, nothing rewritten: 10 + -10.
     expect(report.counted).toBe(2);
     expect(report.headline.text).toBe("+$0.00");
   });
 
   it("is silent for an unreadable journal and for a journal with no futures", () => {
-    expect(compilePnlStats("{nope").legacyFutures).toEqual({ count: 0, note: null });
-    expect(compilePnlStats(null).legacyFutures).toEqual({ count: 0, note: null });
+    const none = { count: 0, otherCount: 0, note: null, chip: null };
+    expect(compilePnlStats("{nope").legacyFutures).toEqual(none);
+    expect(compilePnlStats(null).legacyFutures).toEqual(none);
   });
 });
 
@@ -114,8 +147,29 @@ describe("call sites — every total that sums journal money mounts the disclosu
     expect(code).toMatch(/<JournalContractChip entry=\{e\}/);
   });
 
+  it("/journal Y2: the gate wrapping the row chip and the Proof Lane gate are the owner's predicates", () => {
+    const code = src("app/journal/page.tsx");
+    const rowGate = code.indexOf("{journalRowShowsProofChips(e) && (");
+    expect(rowGate, "list-row chip strip gated by journalRowShowsProofChips").toBeGreaterThan(-1);
+    const chip = code.indexOf("<JournalContractChip entry={e}", rowGate);
+    expect(chip - rowGate, "the contract chip sits inside that gate").toBeGreaterThan(0);
+    expect(chip - rowGate).toBeLessThan(1500);
+    const laneGate = code.indexOf("{journalShowsProofLane(selected) && (");
+    expect(laneGate, "Proof Lane block gated by journalShowsProofLane").toBeGreaterThan(-1);
+    const tile = code.indexOf(">Contract</div>", laneGate);
+    expect(tile - laneGate).toBeGreaterThan(0);
+    expect(tile - laneGate).toBeLessThan(4000);
+    // The old hand-written gates, which a later edit could quietly narrow, are gone.
+    expect(code).not.toMatch(/\{\(e\.dayModel \|\| typeof e\.realizedR === "number"/);
+    expect(code).not.toMatch(/\{\(selected\.dayModel \|\| typeof selected\.plannedRDollars === "number"/);
+  });
+
   it("the P&L strip and /profile show the sentence in words", () => {
-    expect(src("components/chart/PnLStatsPanel.tsx")).toMatch(/report\.legacyFutures\.note !== null/);
+    const panel = src("components/chart/PnLStatsPanel.tsx");
+    expect(panel).toMatch(/report\.legacyFutures\.note !== null/);
+    // Y1: the strip's short words come from the owner, never a local "$1/pt" count.
+    expect(panel).toMatch(/\{report\.legacyFutures\.chip\}/);
+    expect(panel).not.toMatch(/legacyFutures\.count\} futures at \$1\/pt/);
     const profile = src("app/profile/page.tsx");
     expect(profile).toMatch(/describeLegacyFuturesMoney\(hydrateJournalEntries\(journalEntries\)\.entries\)\.note/);
     expect(profile).toMatch(/\{legacyFuturesNote\}/);

@@ -168,3 +168,103 @@ export function placePanelBeside(input: BesidePanelInput): BesidePanelPlacement 
 export function rectsOverlap(a: ViewportRect, b: ViewportRect): boolean {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
+
+// ── 3. The components' own wiring, as pure functions (Garden 16 §65) ──────
+//
+// The arithmetic above was tested; the components' USE of it was pinned only
+// by reading their source. These two carry the exact style each component
+// paints, so "opens upward at the drawer's foot" and "is ever shown at all"
+// are asserted as values.
+
+export interface FixedMenuStyle {
+  readonly position: "fixed";
+  readonly top?: number;
+  readonly bottom?: number;
+  readonly maxHeight: number;
+  readonly overflowY: "auto";
+  readonly right: number;
+}
+
+/**
+ * The Chart tools ("More chart tools") menu in ChartToolbar: right-aligned
+ * under its trigger's right edge, on the side `placeAnchoredMenu` picks,
+ * capped to that side's room and scrolling inside. A trigger not yet laid
+ * out (null rect) is treated as the old top-of-screen default.
+ */
+export function placeChartToolsMenu(input: {
+  readonly viewport: { readonly width: number; readonly height: number };
+  readonly trigger: ViewportRect | null | undefined;
+  readonly menuHeight: number | null;
+}): { readonly side: AnchoredMenuPlacement["side"]; readonly style: FixedMenuStyle } {
+  const t = input.trigger;
+  const place = placeAnchoredMenu({
+    viewportHeight: input.viewport.height,
+    anchor: { top: t?.top ?? 0, bottom: t?.bottom ?? 36 },
+    menuHeight: input.menuHeight,
+  });
+  return {
+    side: place.side,
+    style: {
+      position: "fixed",
+      top: place.top,
+      bottom: place.bottom,
+      maxHeight: place.maxHeight,
+      overflowY: "auto",
+      right: Math.max(POPOVER_VIEWPORT_GUTTER_PX, input.viewport.width - (t?.right ?? input.viewport.width)),
+    },
+  };
+}
+
+export type StylePopoverPosition =
+  | { readonly left: number; readonly top: number; readonly maxHeight: number; readonly overflowY: "auto" }
+  | { readonly left: 0; readonly top: 0; readonly visibility: "hidden" }
+  | { readonly left: number; readonly top: number };
+
+/**
+ * Where DrawingStylePopover sits and whether it is painted. With `beside`
+ * (the summoning control + the group to keep off): hidden until it has
+ * measured its own height, then placed by `placePanelBeside` and shown.
+ * Without it: the legacy fixed anchor, shown at once.
+ */
+export function positionStylePopover(input: {
+  readonly viewport: { readonly width: number; readonly height: number } | null;
+  readonly anchor: { readonly left: number; readonly top: number };
+  readonly beside: { readonly anchor: ViewportRect; readonly avoid: ViewportRect } | null | undefined;
+  readonly panelWidth: number;
+  readonly measuredHeight: number | null;
+}): { readonly side: BesidePanelSide | undefined; readonly style: StylePopoverPosition } {
+  if (!input.beside) return { side: undefined, style: { left: input.anchor.left, top: input.anchor.top } };
+  if (input.measuredHeight == null || input.viewport == null) {
+    // Laid out but not painted, so it never flashes over the controls it is
+    // about to step off.
+    return { side: undefined, style: { left: 0, top: 0, visibility: "hidden" } };
+  }
+  const placed = placePanelBeside({
+    viewport: input.viewport,
+    anchor: input.beside.anchor,
+    avoid: input.beside.avoid,
+    panel: { width: input.panelWidth, height: input.measuredHeight },
+  });
+  return {
+    side: placed.side,
+    style: { left: placed.left, top: placed.top, maxHeight: placed.maxHeight, overflowY: "auto" },
+  };
+}
+
+/**
+ * What the drawing sidebar hands the popover: the summoning control, and the
+ * whole tool group (the rail, or the `wm-draw-sheet` drawer) as the rectangle
+ * to keep off. With no group rect — the root's ref detached — it falls back
+ * to the control alone, which is exactly how the popover landed on nine of
+ * the sheet's buttons; the sidebar sentinel pins the ref for that reason.
+ */
+export function styleBesideFor(
+  control: ViewportRect,
+  group: ViewportRect | null | undefined,
+): { anchor: ViewportRect; avoid: ViewportRect } {
+  const g = group ?? control;
+  return {
+    anchor: { left: control.left, top: control.top, right: control.right, bottom: control.bottom },
+    avoid: { left: g.left, top: g.top, right: g.right, bottom: g.bottom },
+  };
+}

@@ -35,7 +35,7 @@ import {
 // The one owner of where a dropped menu sits: below its trigger when it fits,
 // above when it fits there, otherwise the roomier side capped to the viewport.
 // See the three menus below and the file's own header for the 1600x900 finding.
-import { placeAnchoredMenu } from "@/lib/ui/popoverPlacement";
+import { placeAnchoredMenu, placeChartToolsMenu } from "@/lib/ui/popoverPlacement";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -1583,9 +1583,9 @@ export function ChartToolbar({
             // It opens upward when there is room there (it measures 630px and
             // the room above is 832px), and whatever cannot fit on either
             // side scrolls inside the menu instead of past the screen.
-            const place = placeAnchoredMenu({
-              viewportHeight: window.innerHeight,
-              anchor: { top: rect?.top ?? 0, bottom: rect?.bottom ?? 36 },
+            const place = placeChartToolsMenu({
+              viewport: { width: window.innerWidth, height: window.innerHeight },
+              trigger: rect,
               menuHeight: advancedMenuH,
             });
             return (
@@ -1595,12 +1595,7 @@ export function ChartToolbar({
                 aria-label="More chart tools"
                 data-menu-side={place.side}
                 style={{
-                  position: "fixed",
-                  top: place.top,
-                  bottom: place.bottom,
-                  maxHeight: place.maxHeight,
-                  overflowY: "auto",
-                  right: Math.max(8, window.innerWidth - (rect?.right ?? window.innerWidth)),
+                  ...place.style,
                   zIndex: 9999,
                   width: 210,
                   background: "var(--wm-card,#131520)",

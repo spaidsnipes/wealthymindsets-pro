@@ -40,3 +40,39 @@ export function legendOverprintsPriceAxis(
   if (typeof axisWidthPx !== "number" || !Number.isFinite(axisWidthPx) || axisWidthPx <= 0) return false;
   return legendRightPx > paneWidthPx - axisWidthPx;
 }
+
+/**
+ * The slice of the chart this binding reads. Structural, so a test can hand
+ * it a stub whose right scale is 60px wide.
+ */
+export interface PriceLegendInsetChart {
+  priceScale(id: "right"): { width(): number };
+  timeScale(): {
+    subscribeSizeChange?: (h: () => void) => void;
+    unsubscribeSizeChange?: (h: () => void) => void;
+  } | null | undefined;
+}
+
+/**
+ * THE BINDING THE LEGEND BAND LIVES BY (Garden 16 §65, 2026-09-26). Pulled
+ * out of MainChart's effect so what the setter RECEIVES is tested, not only
+ * what `priceLegendRightInset` would return if anyone called it: reads the
+ * axis width now and on every time-scale size change, hands the setter the
+ * inset as an updater that keeps the old value when nothing moved (no
+ * re-render), and returns the cleanup.
+ */
+export function bindPriceLegendInset(
+  chart: PriceLegendInsetChart,
+  setInset: (update: (prev: number) => number) => void,
+): () => void {
+  const read = () => {
+    let w = 0;
+    try { w = chart.priceScale("right").width(); } catch { /* no right scale */ }
+    const next = priceLegendRightInset(w);
+    setInset(prev => (prev === next ? prev : next));
+  };
+  read();
+  let ts: ReturnType<PriceLegendInsetChart["timeScale"]> = null;
+  try { ts = chart.timeScale(); ts?.subscribeSizeChange?.(read); } catch { ts = null; }
+  return () => { try { ts?.unsubscribeSizeChange?.(read); } catch { /* chart already removed */ } };
+}
