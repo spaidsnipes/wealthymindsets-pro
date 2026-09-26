@@ -260,6 +260,15 @@ export interface DecisionSpineBandProps {
   readonly absorptionRead?: AbsorptionRailRead | null;
   /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
   readonly tapeFootprint?: TapeFootprintVM | null;
+  /**
+   * UI-04 · the lens's ASK chooser (QuestionLensChooser), built by the room
+   * with its handlers and handed down only while the rail is mounted. Drawn
+   * rail-only: at the top of the lens card when the card shows, otherwise in a
+   * card of its own — so the only way to change the question and the only
+   * Show raw never vanish (an idle lens with no question and no refusal, or a
+   * replay camera that withholds the reading). Null/undefined → nothing drawn.
+   */
+  readonly lensChooser?: React.ReactNode;
 }
 
 /**
@@ -730,6 +739,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const flowContext = props.flowContext ?? null;
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
+  // UI-04 · whether the lens card draws. The ASK chooser rides it when it does
+  // and takes a card of its own when it does not — one copy either way.
+  const lensCardShown = Boolean(
+    rail && props.questionLens && !replayEngaged && (props.questionLens.active || props.questionLens.refusal),
+  );
   // NOW owns the compiled posture on the rail. Name that projection here so
   // the value cannot drift back into NEXT, whose source guard deliberately
   // rejects the old raw-decision expression anywhere in this component.
@@ -1509,7 +1523,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       {/* UI-04 · THE QUESTION AND ITS DEBT, BESIDE THE MARKET — the chart's own
           lens reading, verbatim. Order as the plate: question, focus, the debt
           ledger item by item, posture, next question, then who is in control. */}
-      {rail && props.questionLens && !replayEngaged && (props.questionLens.active || props.questionLens.refusal) ? (() => {
+      {rail && props.lensChooser && !lensCardShown ? (
+        <div data-testid="spine-lens-chooser-only" style={{ margin: "0 2px 10px", padding: "8px 11px", border: "1px solid rgba(196,165,116,0.28)", borderRadius: 2 }}>
+          {props.lensChooser}
+        </div>
+      ) : null}
+      {lensCardShown ? (() => {
         const lens = props.questionLens!;
         const changes = lens.ledger === "CHANGES";
         const rows = lens.debt.length;
@@ -1521,6 +1540,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             data-lens-open={lens.openDebt}
             style={{ display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 10px", padding: "9px 11px 9px", border: `1px solid ${lens.openDebt > 0 ? "rgba(226,92,92,0.45)" : "rgba(196,165,116,0.28)"}`, borderRadius: 2 }}
           >
+            {props.lensChooser ? <div data-testid="spine-lens-chooser">{props.lensChooser}</div> : null}
             <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em" }}>Active question</span>
             {lens.active ? (
               <>

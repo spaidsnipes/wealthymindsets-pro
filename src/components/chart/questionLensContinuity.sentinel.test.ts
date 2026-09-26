@@ -26,15 +26,31 @@ const strip = (s: string) =>
 const read = (rel: string) => strip(readFileSync(path.join(process.cwd(), rel), "utf8"));
 const CHART = read("src/components/chart/MainChart.tsx");
 const ROOM = read("src/components/chart/ChartsDashboard.tsx");
+const ASK = read("src/components/chart/QuestionLensChooser.tsx");
 
 describe("question lens and restored selection", () => {
   it("the Ask row stays inside the pane at every height and renders on phones", () => {
-    const at = ROOM.indexOf('data-testid="question-lens-chooser"');
+    // Pin repointed 2026-09-26 (UI-04, the ASK chooser lives with the lens):
+    // the row's ONE markup moved into QuestionLensChooser, whose "floating"
+    // placement carries the same in-pane top and the same no-hidden-on-phones
+    // law. The room builds ONE element and floats it only where the rail is
+    // not mounted; the rail gets it otherwise. The law is unchanged.
+    const at = ASK.indexOf('data-testid="question-lens-chooser"');
     expect(at).toBeGreaterThan(-1);
-    const row = ROOM.slice(at, at + 900);
-    expect(row).toContain('top: "min(532px, calc(100% - 96px))"');
-    expect(row).not.toMatch(/top: 532\b/);
-    expect(row).not.toMatch(/\bhidden\b[^"]*sm:flex/);
+    const style = ASK.slice(ASK.indexOf("const FLOATING_STYLE"), ASK.indexOf("const FLOATING_STYLE") + 300);
+    expect(style).toContain('top: "min(532px, calc(100% - 96px))"');
+    expect(ASK).toContain("style={floating ? FLOATING_STYLE : undefined}");
+    expect(ASK).not.toMatch(/top: 532\b/);
+    expect(ASK).not.toMatch(/\bhidden\b[^"]*sm:flex/);
+    // ONE copy of the markup in the room; it floats only where there is no rail,
+    // and nothing but the lens being on (on the Chart tab) gates it — no width
+    // gate, so phones keep it.
+    expect(ROOM).not.toContain('data-testid="question-lens-chooser"');
+    expect(ROOM).toContain("const lensRailMounted = !narrowViewport && !optionsOpen;");
+    expect(ROOM).toContain('const lensChooser = activeTab === "Chart" && !gridView && questionLensOn ? (');
+    expect(ROOM).toContain("{!lensRailMounted && lensChooser}");
+    expect(ROOM).toContain("lensChooser: lensRailMounted ? lensChooser : null,");
+    expect(ROOM.split("<QuestionLensChooser").length - 1).toBe(1);
   });
 
   it("a refused question fits narrow glass", () => {

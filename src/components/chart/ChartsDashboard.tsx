@@ -283,6 +283,7 @@ import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivis
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
 import { QUESTION_CHOICES, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { QuestionLensChooser } from "@/components/chart/QuestionLensChooser";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
 import type { TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
@@ -3799,6 +3800,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // keep the proven horizontal, scrollable band below the chart. The
   // conditions are mutually exclusive, so there is never a second mounted
   // decision surface or a second truth owner.
+  // UI-04 · THE ASK lives with the lens (2026-09-26). ONE element, ONE set of
+  // handlers, built here — below every binding it reads (questionChoice,
+  // rawOn, questionLensOn, activeTab, gridView, narrowViewport, optionsOpen),
+  // never above them. It renders in the rail's lens card when the rail is
+  // mounted (the same condition that mounts the rail below and tells
+  // MainChart `lensInRail`), and floats over the pane only where there is no
+  // rail (narrow glass / Options) — never two copies on screen.
+  const lensRailMounted = !narrowViewport && !optionsOpen;
+  const lensChooser = activeTab === "Chart" && !gridView && questionLensOn ? (
+    <QuestionLensChooser
+      placement={lensRailMounted ? "rail" : "floating"}
+      choice={questionChoice}
+      onChoose={setQuestionChoice}
+      rawOn={rawOn}
+      onToggleRaw={() => setRawOn(v => !v)}
+    />
+  ) : null;
   const decisionSpineProps = {
     decisionId: currentSceneDecision?.decisionId ?? null,
     decisionIdAbsence: sceneDecisionAbsence,
@@ -3822,6 +3840,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     flowContext: selectPlaqueFlowContext(chartFlowSnap, { symbolOwnsTape: tickerOwner === symbol }),
     // UI-04: the lens's question and evidence debt stand beside the market.
     questionLens: questionLensOn ? railLens : null,
+    lensChooser: lensRailMounted ? lensChooser : null,
     absorptionRead: absorptionAnatomy ? railAbsorption : null,
     tapeFootprint: railFootprint,
     // THE COMPANION CAMERA, from the SAME owner the masthead standing reads.
@@ -5646,45 +5665,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       hold?). Only while the Question Lens is on; the lens owner
                       compiles the answer and refuses what it cannot ask.
                     */}
-                    {activeTab === "Chart" && !gridView && questionLensOn && (
-                      <div
-                        role="radiogroup"
-                        aria-label="Ask the chart a question"
-                        data-testid="question-lens-chooser"
-                        className="absolute z-[60] flex flex-wrap items-center gap-1 rounded-md border border-wm-gold/40 px-1.5 py-1"
-                        // Under the lens column where the pane is tall enough, but
-                        // never below the pane's floor: the pane clips overflow, and
-                        // this row holds the only way to change the question and the
-                        // only Show raw. It renders on phones too (the compact lens
-                        // keeps its answer on two lines; the trader still needs to
-                        // be able to ask something else or see the raw tape).
-                        style={{ left: 12, top: "min(532px, calc(100% - 96px))", width: "min(300px, calc(100% - 24px))", background: "rgba(11,10,8,0.92)" }}
-                      >
-                        <span className="px-1 text-[9px] font-bold uppercase tracking-[0.12em] text-wm-text-dim">Ask</span>
-                        {QUESTION_CHOICES.map(c => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            role="radio"
-                            aria-checked={questionChoice === c.id}
-                            data-question-choice={c.id}
-                            onClick={() => setQuestionChoice(c.id)}
-                            className={`min-h-7 rounded px-2 text-[10px] font-semibold ${questionChoice === c.id ? "bg-wm-gold/20 text-wm-gold" : "text-wm-text-muted hover:text-wm-text"}`}
-                          >
-                            {c.label}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          aria-pressed={rawOn}
-                          data-testid="show-raw"
-                          onClick={() => setRawOn(v => !v)}
-                          className={`min-h-7 rounded border px-2 text-[10px] font-semibold ${rawOn ? "border-wm-gold/60 bg-wm-gold/20 text-wm-gold" : "border-wm-border text-wm-text-muted hover:text-wm-text"}`}
-                        >
-                          {rawOn ? "Raw · restore" : "Show raw"}
-                        </button>
-                      </div>
-                    )}
+                    {/* Narrow glass / Options only (2026-09-26): with the rail
+                        mounted the same element renders in the rail's lens card
+                        (UI-04 — no question controls on the price surface). */}
+                    {!lensRailMounted && lensChooser}
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
                       <ChartInspectTicket
                         vm={inspectTicketVM}
