@@ -130,6 +130,25 @@ export function instrumentEconomics(symbol: string, refPrice: number | null): In
   return refuse(sym, "UNKNOWN_INSTRUMENT", "instrument class unknown — no money is guessed");
 }
 
+/**
+ * AN ORDERABLE PRICE — `price` on the instrument's own tick grid.
+ *
+ * Found on the glass (2026-09-26, TSLA 15m, Draw › Long Position): the plan's
+ * anchors were raw pixel prices — ENTRY 369.9904, STOP 366.9931 — and the
+ * rail had to say "≈299.7 ticks". No venue takes a stop at 366.9931, and on
+ * ES a quarter-point grid makes an off-grid plan unorderable. A plan is placed
+ * where an order could be: the nearest tick. Instruments with no tick on file
+ * (spot FX, crypto venues, contracts without a published spec) are returned
+ * unchanged — rounding to a guessed grid would be a second fabrication.
+ */
+export function snapToTick(symbol: string, price: number): number {
+  if (!Number.isFinite(price)) return price;
+  const e = instrumentEconomics(symbol, price);
+  if (e.status !== "PRICED" || e.tickSize == null) return price;
+  const decimals = (String(e.tickSize).split(".")[1] ?? "").length;
+  return Number((Math.round(price / e.tickSize) * e.tickSize).toFixed(decimals));
+}
+
 export type RiskEconomics =
   | {
       readonly status: "PRICED";

@@ -18,6 +18,7 @@
  */
 
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 
 export const MIN_PRICE_PRECISION = 2;
 export const MAX_PRICE_PRECISION = 8;
@@ -36,7 +37,18 @@ const exactAt = (v: number, d: number): boolean => {
   return Math.abs(scaled - Math.round(scaled)) < 1e-6 * Math.max(1, Math.abs(scaled)) ** 0.5;
 };
 
-export function pricePrecisionFromBars(bars: readonly PrecisionBar[]): number {
+export function pricePrecisionFromBars(bars: readonly PrecisionBar[], symbol?: string): number {
+  // A US EQUITY AT OR ABOVE $1 QUOTES IN CENTS (SEC Rule 612), whatever its
+  // tape printed. Found on the glass (2026-09-26, TSLA 15m on Webull's
+  // consolidated bars): 202 of 1,200 recent prices were genuine sub-penny
+  // executions (367.3818, 365.0001 — midpoint / price-improvement prints),
+  // so no decimal count under 4 stated 90% of them and the axis, the header
+  // and every level name read "388.0000". Prints can be sub-penny; the grid a
+  // trader quotes and orders on is not. The class comes from its one owner.
+  if (symbol && classifySymbol(symbol) === "EQUITY") {
+    const newest = bars.length ? bars[bars.length - 1].close : NaN;
+    if (Number.isFinite(newest) && newest >= 1) return MIN_PRICE_PRECISION;
+  }
   const values: number[] = [];
   for (let i = bars.length - 1; i >= 0 && values.length < PRECISION_SAMPLE_BARS * 4; i--) {
     const b = bars[i];

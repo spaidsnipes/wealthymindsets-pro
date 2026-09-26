@@ -63,7 +63,7 @@ describe("one owner: the room hands the ticket the owner's reading", () => {
     expect(block).toContain("selectClarityAnatomy(");
     expect(block).toContain("inspectBar.o");
     expect(block).toContain("chartBars.slice(Math.max(0, end - BREATH_SAMPLE), end)");
-    expect(block).toContain("pricePrecisionFromBars(chartBars)");
+    expect(block).toContain("pricePrecisionFromBars(chartBars, symbol)"); // Garden 16: the owner needs the class (equity cents grid)
     expect(room).toContain("clarity={clarityVM}");
   });
 });

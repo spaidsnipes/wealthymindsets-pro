@@ -14,6 +14,7 @@ import {
   formatUsd,
   instrumentEconomics,
   selectRiskEconomics,
+  snapToTick,
 } from "./contractEconomics";
 
 describe("contract spec — one owner, two halves", () => {
@@ -126,6 +127,38 @@ describe("refusals are named, never priced at 1x", () => {
     const r = selectRiskEconomics("BTC-USD", { entry: 84000, stop: 83500, target: null });
     expect(r.status === "PRICED" && r.words).toBe("$500.00 per 1 coin");
     expect(r.receipt).toBe("PRICED:BTC-USD:tick=NA:pv=1:ticks=NA:risk=500.00:reward=NA:coin");
+  });
+});
+
+describe("snapToTick — a plan is placed where an order could be", () => {
+  it("rounds to each certificate instrument's own grid", () => {
+    expect(snapToTick("TSLA", 366.9931)).toBe(366.99);
+    expect(snapToTick("TSLA", 369.9904)).toBe(369.99);
+    expect(snapToTick("ES1!", 6512.37)).toBe(6512.25);
+    expect(snapToTick("ES1!", 6512.38)).toBe(6512.5);
+    expect(snapToTick("GC1!", 2650.349)).toBe(2650.3);
+    expect(snapToTick("GC1!", 2650.351)).toBe(2650.4);
+    expect(snapToTick("CL1!", 91.7349)).toBe(91.73);
+    expect(snapToTick("ABCD", 0.41237)).toBe(0.4124);
+  });
+
+  it("leaves no float noise behind", () => {
+    expect(String(snapToTick("GC1!", 2650.30000001))).toBe("2650.3");
+    expect(String(snapToTick("ES1!", 0.1 + 0.2))).toBe("0.25");
+  });
+
+  it("does not invent a grid it does not have (FX, crypto, contracts without a spec)", () => {
+    expect(snapToTick("EURUSD", 1.142371)).toBe(1.142371);
+    expect(snapToTick("BTC-USD", 84012.337)).toBe(84012.337);
+    expect(snapToTick("YM1!", 42017.3)).toBe(42017.3);
+    expect(snapToTick("MES1!", 6512.37)).toBe(6512.37);
+    expect(Number.isNaN(snapToTick("ES1!", NaN))).toBe(true);
+  });
+
+  it("a snapped plan states whole ticks on the rail (the glass read ≈299.7)", () => {
+    const r = selectRiskEconomics("TSLA", { entry: snapToTick("TSLA", 369.9904), stop: snapToTick("TSLA", 366.9931), target: snapToTick("TSLA", 375.985) });
+    expect(r.status === "PRICED" && r.words).toBe("300 ticks × $0.01 = $3.00 per 1 share");
+    expect(r.status === "PRICED" && r.rewardWords).toBe("reward $6.00 per 1 share");
   });
 });
 

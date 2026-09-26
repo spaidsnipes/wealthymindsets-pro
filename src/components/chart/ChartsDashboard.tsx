@@ -1940,9 +1940,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return selectClarityAnatomy({
       bar: { open: inspectBar.o, high: inspectBar.h, low: inspectBar.l, close: inspectBar.c },
       priorBars: chartBars.slice(Math.max(0, end - BREATH_SAMPLE), end),
-      dp: pricePrecisionFromBars(chartBars),
+      dp: pricePrecisionFromBars(chartBars, symbol),
     });
-  }, [inspectBar, chartBars]);
+  }, [inspectBar, chartBars, symbol]);
 
   const effortVsResultVM = React.useMemo(
     () => selectEffortVsResult({

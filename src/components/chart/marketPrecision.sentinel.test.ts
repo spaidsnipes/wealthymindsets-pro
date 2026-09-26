@@ -7,6 +7,10 @@
  * "1.14 +0.00 (+0.20%)" with O/H/L all 1.14. Both now read the bars through
  * one owner, pricePrecision.ts.
  *
+ * Garden 16 (2026-09-26): every read now passes the chart's `symbol`, so the
+ * owner can hold a US equity at or above $1 on the cents grid its tape's
+ * sub-penny prints hide (TSLA on Webull read "388.0000").
+ *
  * A breadcrumb, not a renderer. It reads source.
  */
 
@@ -20,20 +24,20 @@ const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/
 
 describe("market precision (Sentinel)", () => {
   it("the price series takes its priceFormat from the raw bars", () => {
-    expect(CHART).toContain("cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data)) });");
+    expect(CHART).toContain("cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data, symbol)) });");
     const at = CHART.indexOf("cs.applyOptions({ priceFormat: priceFormatFor(");
     expect(CHART.indexOf("candleRef.current = cs;", at)).toBeGreaterThan(at);
   });
 
   it("the header legend's precision is read from the bars, the base rule only before any bar", () => {
-    expect(CHART).toContain("const dp        = candles.length ? pricePrecisionFromBars(candles) : (base < 10 ? 4 : 2);");
+    expect(CHART).toContain("const dp        = candles.length ? pricePrecisionFromBars(candles, symbol) : (base < 10 ? 4 : 2);");
     expect(CHART).not.toContain("const dp        = base < 10 ? 4 : 2;");
   });
 });
 
 describe("profile-family level names quote the same precision", () => {
   it("one per-frame precision from the owner, used by every level name", () => {
-    expect(CHART).toContain("const pxDp = pricePrecisionFromBars(barsRef.current ?? []);");
+    expect(CHART).toContain("const pxDp = pricePrecisionFromBars(barsRef.current ?? [], symbol);");
     for (const s of ["`TPO POC ${tpo.poc?.toFixed(pxDp)", "`CMP POC ${cp.poc?.toFixed(pxDp)}`", "`VRP POC ${vrpVM.poc?.toFixed(pxDp)}`", "`FUSED POC ${f.poc.toFixed(pxDp)}`", "`LEG POC ${sp.poc.toFixed(pxDp)}`", "`dPOC ${last.poc.toFixed(pxDp)}"]) {
       expect(CHART, s).toContain(s);
     }
@@ -43,7 +47,7 @@ describe("profile-family level names quote the same precision", () => {
 
 describe("the classic VP column's price tags quote the same precision", () => {
   it("computes its own precision from the bars it measured (it can run before the frame's pxDp)", () => {
-    expect(CHART).toContain("const vpDp = pricePrecisionFromBars(barsToUse);");
+    expect(CHART).toContain("const vpDp = pricePrecisionFromBars(barsToUse, symbol);");
     // Pin updated 2026-09-25 (P-110 canon pass, M47): every VP level — POC
     // included — is named and chipped through vpPrice, the market's decimals
     // with thousands grouping. The BTC ≥10,000 rounding ("VAH 64,348") is gone:
@@ -61,7 +65,7 @@ describe("the classic VP column's price tags quote the same precision", () => {
 
 describe("drawing chips quote the same precision", () => {
   it("the drawing renderer's dec reads the bars; the Fixed Range chip uses it", () => {
-    expect(CHART).toContain("const dec = drawBars.length ? pricePrecisionFromBars(drawBars) : (base > 100 ? 2 : base > 1 ? 3 : 5);");
+    expect(CHART).toContain("const dec = drawBars.length ? pricePrecisionFromBars(drawBars, symbol) : (base > 100 ? 2 : base > 1 ? 3 : 5);");
     expect(CHART).toContain("POC ${vm.poc?.toFixed(dec)}${est}`");
   });
 });
@@ -75,7 +79,7 @@ describe("GP12 §27 — calculation precision is not display precision", () => {
   });
 
   it("overlay indicator lines speak the market's own decimals", () => {
-    expect(CHART).toContain("const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars));");
+    expect(CHART).toContain("const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars, symbol));");
     expect(CHART).toMatch(/crosshairMarkerVisible: false, priceFormat: overlayPriceFormat \}/);
   });
 
@@ -95,7 +99,7 @@ describe("every other price named on the glass quotes the same precision", () =>
   // Added 2026-09-25 (NOAH lane): the frame's pxDp is read before the first
   // layer that names a price (the tape bubbles paint long before the profiles).
   it("pxDp is read once, ahead of the bubbles", () => {
-    const at = CHART.indexOf("const pxDp = pricePrecisionFromBars(barsRef.current ?? []);");
+    const at = CHART.indexOf("const pxDp = pricePrecisionFromBars(barsRef.current ?? [], symbol);");
     expect(at).toBeGreaterThan(-1);
     expect(CHART.indexOf("const pxDp =", at + 1)).toBe(-1);
     expect(at).toBeLessThan(CHART.indexOf("const lbl = p.toFixed(pxDp);"));

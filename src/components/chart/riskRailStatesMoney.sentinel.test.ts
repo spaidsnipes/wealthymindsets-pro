@@ -31,7 +31,7 @@ function riskBlock(): string {
 
 describe("risk rail states money (Garden 16 §17)", () => {
   it("imports the one economics owner", () => {
-    expect(SRC).toMatch(/import \{ selectRiskEconomics \} from "@\/lib\/marketData\/contractEconomics";/);
+    expect(SRC).toMatch(/import \{ selectRiskEconomics(?:, snapToTick)? \} from "@\/lib\/marketData\/contractEconomics";/);
   });
 
   it("prices the stop with the chart's own symbol and the plan's prices", () => {

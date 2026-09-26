@@ -340,7 +340,7 @@ import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from 
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
-import { selectRiskEconomics } from "@/lib/marketData/contractEconomics";
+import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import {
@@ -2327,7 +2327,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // from the bars), not to a tick guessed from the price level — that rule
     // snapped USDJPY (3 dp) to 0.01 and BTC (0.01) to 0.25 (GP12 §27).
     const bars = barsRef.current || [];
-    const dp = pricePrecisionFromBars(bars);
+    const dp = pricePrecisionFromBars(bars, symbol);
     const minTick = 10 ** -dp;
     const iv = barInterval();
     const candidates: number[] = [+(Math.round(price / minTick) * minTick).toFixed(dp)];
@@ -2396,6 +2396,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const snapped = snapLogical(+price, +time);
     return { price: snapped.price, time: snapped.time };
   }, [snapLogical]);
+
+  // GARDEN 16 §17 · A POSITION PLAN IS PLACED WHERE AN ORDER COULD BE. Long / Short
+  // Position anchors sit on the instrument's own tick grid (the one economics
+  // owner); every other drawing keeps its free price. Seen on the glass: ENTRY
+  // 369.9904 · STOP 366.9931 and "≈299.7 ticks" on TSLA.
+  const planPt = useCallback((tool: string, lp: LogicalPt): LogicalPt =>
+    tool === "long-position" || tool === "short-position" ? { ...lp, price: snapToTick(symbol, lp.price) } : lp,
+  [symbol]);
 
   // Convert logical {price, time} → canvas CSS pixel (x,y)
   const logicalToPixel = useCallback((pt: LogicalPt): { x: number; y: number } | null => {
@@ -3637,7 +3645,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // The axis, last-price tag and crosshair quote the market's own
       // precision, not the library default of two decimals (EURUSD 1h read
       // 1.15 / 1.14 / 1.13). Read from the raw bars, not Heikin-Ashi averages.
-      try { cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data)) }); } catch { /* series type without a price scale */ }
+      try { cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data, symbol)) }); } catch { /* series type without a price scale */ }
       chartRef.current  = chart;
       candleRef.current = cs;
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
@@ -4297,7 +4305,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Helper: overlay line on main price scale. It lives on the PRICE scale,
     // so it speaks the market's own decimals (pricePrecision.ts) — not the
     // library's 2-dp default, which read USDJPY 150.123 as 150.12.
-    const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars));
+    const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars, symbol));
     const addLine = (vals: number[], color: string, width = 1, style = 0, lastVal = false) => {
       try {
         const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false, priceFormat: overlayPriceFormat });
@@ -6080,7 +6088,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // (pricePrecision.ts): "TPO POC 1.15" beside "TPO VAL 1.15" on EURUSD
       // was two decimals naming two different prices (serving, 2026-09-25).
       // Read once, before the first layer that names a price (the bubbles).
-      const pxDp = pricePrecisionFromBars(barsRef.current ?? []);
+      const pxDp = pricePrecisionFromBars(barsRef.current ?? [], symbol);
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
@@ -8337,7 +8345,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const snap = computeProfileFromBars(barsToUse, { targetRows: rows, valueAreaPct: 0.7 });
         // The market's own decimals for this column's price tags (pricePrecision.ts);
         // computed here, not read from the frame, because this can run first.
-        const vpDp = pricePrecisionFromBars(barsToUse);
+        const vpDp = pricePrecisionFromBars(barsToUse, symbol);
         if (snap.rows.length === 0 || snap.totalVolume <= 0) return { declined: "NO_VOLUME", rows: 0 };
         const tickSz = snap.tickSize;
 
@@ -10446,7 +10454,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 pivots: marketStructureRef.current?.drawn ? marketStructureRef.current.pivots : [],
                 choice: questionChoiceRef.current,
                 continuation: continuationRef.current,
-                priceDp: pricePrecisionFromBars(barsRef.current ?? []),
+                priceDp: pricePrecisionFromBars(barsRef.current ?? [], symbol),
                 // PERMISSION?'s items sit on the bar the ledger was read at —
                 // the H-101 debt tag's event bar, the one bar the compiler names.
                 permission: permissionRef.current ? { ...permissionRef.current, eventBarTime: debtTagRef.current?.barTimeSec ?? null } : null,
@@ -17687,7 +17695,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // static base rule put EURUSD at two decimals: "1.14 +0.00 (+0.20%)" with
   // O/H/L all "1.14" (serving, EURUSD 1h, 2026-09-25). The base rule stays
   // only as the answer before any bar has arrived.
-  const dp        = candles.length ? pricePrecisionFromBars(candles) : (base < 10 ? 4 : 2);
+  const dp        = candles.length ? pricePrecisionFromBars(candles, symbol) : (base < 10 ? 4 : 2);
   /**
    * WHICH OF THE TWO PLACES RENDERS THE TRADED QUANTITY — decided once, here.
    *
@@ -17885,7 +17893,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Drawing chips quote the market's own decimals (pricePrecision.ts), read
     // from the bars; the static base rule only before any bar has arrived.
     const drawBars = barsRef.current ?? [];
-    const dec = drawBars.length ? pricePrecisionFromBars(drawBars) : (base > 100 ? 2 : base > 1 ? 3 : 5);
+    const dec = drawBars.length ? pricePrecisionFromBars(drawBars, symbol) : (base > 100 ? 2 : base > 1 ? 3 : 5);
     const dashArr = (st: DrawStyle): number[] => st.dash === "dashed" ? [7, 5] : st.dash === "dotted" ? [2, 4] : [];
     const rayToEdge = (a: Pt, dx: number, dy: number): Pt => {
       let tB = Infinity;
@@ -18303,7 +18311,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (dvpReceipts.length) ovDs.bidAskSplit = dvpReceipts.join(","); else delete ovDs.bidAskSplit;
       if (fixedRangeReceipts.length) ovDs.fixedRange = fixedRangeReceipts.join(","); else delete ovDs.fixedRange;
     }
-  }, [base, logicalToPixel, drawingStyle, getBarFootprint]);
+  }, [base, logicalToPixel, drawingStyle, getBarFootprint, symbol]);
 
   // Lightweight RAF repaint for drawings ONLY — avoids bumping rangeVer (which
   // re-runs the heavy footprint/bubble canvas) on every mousemove during draw/drag.
@@ -18448,7 +18456,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (!drag || !lp) return;
       const d = drawingsRef.current[drag.idx];
       if (!d) return;
-      if (drag.ptIdx != null) d.pts[drag.ptIdx] = lp;                       // reshape one anchor
+      if (drag.ptIdx != null) d.pts[drag.ptIdx] = planPt(d.tool, lp);        // reshape one anchor (plans stay on the tick grid)
       else drawingsRef.current[drag.idx] = moveDrawingBy(d, lp.price - drag.last.price, lp.time - drag.last.time);
       drag.last = lp;
       scheduleDrawRender();
@@ -18464,21 +18472,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     }
 
     // ── Live rubber-band preview for click-to-place / drag-draw ──
-    if (lp) previewPtRef.current = lp;
+    if (lp) previewPtRef.current = planPt(drawingTool, lp);
     if (ip || (st && mouseMovedRef.current)) scheduleDrawRender();
-  }, [drawingTool, pixelToLogical, moveDrawingBy, scheduleDrawRender]);
+  }, [drawingTool, pixelToLogical, planPt, moveDrawingBy, scheduleDrawRender]);
 
   const handleDrawPointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!e.isPrimary) return;
     if (drawingTool === "select" || drawingTool === "cursor" || drawingTool === "eraser") {
-      if (dragRef.current) scheduleDrawRender();
+      const drag = dragRef.current;
+      if (drag) {
+        // A moved plan lands on the tick grid on release (snapping every small
+        // delta mid-drag would pin a quarter-point plan in place).
+        const d = drawingsRef.current[drag.idx];
+        if (d) drawingsRef.current[drag.idx] = { ...d, pts: d.pts.map(p => planPt(d.tool, p)) };
+        scheduleDrawRender();
+      }
       dragRef.current = null;
       return;
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    const lp = pixelToLogical(x, y) ?? drawingStartRef.current?.lp ?? null;
+    const rawLp = pixelToLogical(x, y) ?? drawingStartRef.current?.lp ?? null;
+    const lp = rawLp && planPt(drawingTool, rawLp);
     const ip = inProgressRef.current;
 
     // ── Freehand commit ──────────────────────────────────────────
@@ -18513,7 +18529,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     previewPtRef.current = lp;
     drawingStartRef.current = null;
     setRangeVer(v => v + 1);
-  }, [drawingTool, pixelToLogical, makeDrawing, finalizeDrawing, onDrawingComplete, scheduleDrawRender]);
+  }, [drawingTool, pixelToLogical, planPt, makeDrawing, finalizeDrawing, onDrawingComplete, scheduleDrawRender]);
 
   // Double-click finishes an open-ended polyline / path.
   const handleDrawDoubleClick = useCallback(() => {

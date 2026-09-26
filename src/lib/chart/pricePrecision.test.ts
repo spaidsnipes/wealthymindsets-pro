@@ -72,6 +72,27 @@ describe("pricePrecisionFromBars", () => {
   it("no bars → the floor", () => {
     expect(pricePrecisionFromBars([])).toBe(2);
   });
+
+  // Garden 16, 2026-09-26: TSLA on Webull's consolidated bars — measured shape:
+  // ~17% of recent prices are sub-penny executions off even the half-cent grid.
+  const consolidatedTsla = Array.from({ length: 60 }, (_, i) => i % 6 === 0
+    ? bar(367.3818 + i * 0.01, 367.9 + i * 0.01, 365.0001 + i * 0.01, 367.1725 + i * 0.01)
+    : bar(367.38 + i * 0.01, 367.9 + i * 0.01, 365.1 + i * 0.01, 367.17 + i * 0.01));
+
+  it("a US equity at or above $1 quotes in cents whatever sub-penny prints its tape carries (TSLA read 388.0000)", () => {
+    expect(pricePrecisionFromBars(consolidatedTsla)).toBeGreaterThan(2); // the bars alone cannot see the grid
+    expect(pricePrecisionFromBars(consolidatedTsla, "TSLA")).toBe(2);
+    expect(pricePrecisionFromBars(consolidatedTsla, "tsla")).toBe(2);
+  });
+
+  it("the cents rule is the equity's alone: FX, crypto, futures and sub-dollar stocks keep their measured grid", () => {
+    const pipettes = Array.from({ length: 40 }, (_, i) => bar(1.14235 + i * 1e-5, 1.14311 + i * 1e-5, 1.14187 + i * 1e-5, 1.14262 + i * 1e-5));
+    expect(pricePrecisionFromBars(pipettes, "EURUSD")).toBe(5);
+    expect(pricePrecisionFromBars(consolidatedTsla, "BTC-USD")).toBe(pricePrecisionFromBars(consolidatedTsla));
+    expect(pricePrecisionFromBars(consolidatedTsla, "ES1!")).toBe(pricePrecisionFromBars(consolidatedTsla));
+    const penny = Array.from({ length: 40 }, (_, i) => bar(0.4123 + i * 1e-4, 0.4133 + i * 1e-4, 0.4113 + i * 1e-4, 0.4125 + i * 1e-4));
+    expect(pricePrecisionFromBars(penny, "ABCD")).toBe(4);
+  });
 });
 
 describe("priceFormatFor", () => {
