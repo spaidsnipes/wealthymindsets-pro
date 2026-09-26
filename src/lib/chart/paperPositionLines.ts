@@ -95,3 +95,67 @@ export function paperPositionLineTitle(
   const up = pnl >= 0;
   return { up, text: `${head} · ${up ? "+" : "-"}${formatUsd(Math.abs(pnl))}` };
 }
+
+/** One Webull holding as the broker positions route receipts it. */
+export interface BrokerCostLine {
+  readonly instrumentType: "STOCK" | "OPTION" | "OTHER";
+  readonly quantity: number;
+  readonly costPrice: number;
+  readonly option?: { readonly type: "CALL" | "PUT"; readonly strike: number; readonly expireDate: string };
+}
+
+/**
+ * The words on one broker cost line. An option paints at its STRIKE, so the
+ * premium is confessed in the words; a stock paints at its cost.
+ */
+export function brokerCostLineTitle(p: BrokerCostLine): string {
+  return p.instrumentType === "OPTION" && p.option
+    ? `WEBULL ${p.option.strike}${p.option.type === "CALL" ? "C" : "P"} ${p.option.expireDate.slice(5)} ×${p.quantity} · prem ${p.costPrice}`
+    : `WEBULL COST ×${p.quantity}`;
+}
+
+/**
+ * PRICE-LINE WORDS LIVE ON THE WM GLASS, NOT IN THE AXIS GUTTER (found on the
+ * glass 2026-09-26, Garden 16 §17). lightweight-charts right-aligns a price
+ * line's `title` against the price axis — exactly where the WM overlay paints
+ * the profile body, the live-price bar and the WAIT tag. "PAPER" read; the
+ * money half ("LONG 10 · +$21.10") sat under the WAIT tag, and "WEBULL COST
+ * ×3" under the profile. The native line keeps its stroke and its axis price;
+ * its words are placed by the overlay's keep-out owner, never on a candle,
+ * never on a chip, never on the profile body — and a word with no clear spot
+ * is WITHHELD with a receipt, not overprinted.
+ */
+export interface PriceLineWords {
+  readonly kind: "PAPER" | "BROKER";
+  readonly price: number;
+  readonly text: string;
+  readonly ink: string;
+}
+
+/** The native line's own title: always empty — the words are the overlay's. */
+export const PRICE_LINE_NATIVE_TITLE = "";
+
+/**
+ * The right end the words may reach on their row: left of the profile family
+ * (its stack edge, or the Living body when it reaches further into the plot),
+ * never past the plot's right edge. Pure, so the rule is testable.
+ */
+export function priceLineWordsRightEdge(g: {
+  readonly plotRight: number;
+  readonly profileStackLeft?: number | null;
+  readonly livingBodyLeft?: number | null;
+  readonly gap?: number;
+}): number {
+  const gap = g.gap ?? 8;
+  const edges = [g.plotRight, g.profileStackLeft, g.livingBodyLeft].filter(
+    (v): v is number => typeof v === "number" && Number.isFinite(v),
+  );
+  return Math.min(...edges) - gap;
+}
+
+/** The frame's receipt for one word: `PAPER@370:CLEAR`, `BROKER@366.5:WITHHELD`. */
+export function priceLineWordsReceipt(
+  placed: readonly { readonly kind: PriceLineWords["kind"]; readonly price: number; readonly mode: string }[],
+): string {
+  return placed.length ? placed.map(p => `${p.kind}@${p.price}:${p.mode}`).join(",") : "NONE";
+}

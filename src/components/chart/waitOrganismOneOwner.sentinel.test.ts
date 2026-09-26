@@ -35,9 +35,13 @@ const RAIL = strip(read("src/components/experience/DecisionSpineBand.tsx"));
 
 function tagBlock(): string {
   const a = CHART.indexOf("const tagT = debtTagRef.current;");
-  const b = CHART.indexOf("canvas.dataset.attentionTiers = att.tiersReceipt();");
+  const receipts = CHART.indexOf("canvas.dataset.attentionTiers = att.tiersReceipt();");
+  // The paper/broker price-line words (2026-09-26) paint right after the tag,
+  // so they step around it; the tag's block ends where theirs begins.
+  const b = CHART.indexOf("const wordsP = [...priceLineWordsRef.current.paper");
   expect(a, "the H-101 tag block is missing").toBeGreaterThan(-1);
-  expect(b, "the tag must paint before the frame's receipts").toBeGreaterThan(a);
+  expect(b, "the tag must paint before the price-line words").toBeGreaterThan(a);
+  expect(receipts, "the tag must paint before the frame's receipts").toBeGreaterThan(b);
   return CHART.slice(a, b);
 }
 

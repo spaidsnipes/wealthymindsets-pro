@@ -343,6 +343,7 @@ import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOn
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
 import { loadPaperSnapshot, PAPER_KEY } from "@/lib/paperTrade";
 import { PAPER_BOOK_RECOVERY_WORDS, paperPositionLineTitle, selectPaperPositionLines, type PaperPositionLine } from "@/lib/chart/paperPositionLines";
+import { brokerCostLineTitle, PRICE_LINE_NATIVE_TITLE, priceLineWordsReceipt, priceLineWordsRightEdge, type PriceLineWords } from "@/lib/chart/paperPositionLines";
 
 /** The H-1001 rail's canvas receipts, withdrawn at the top of every frame. */
 const RISK_RAIL_RECEIPTS = ["riskOnPrice", "riskOnPriceTicks", "riskOnPriceSilence", "riskEconomics"] as const;
@@ -1758,6 +1759,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // painted as native price lines. Same paint rail as paper lines; different
   // truth source (broker, not blotter) and its own cleanup list.
   const brokerCostLinesRef = useRef<any[]>([]);
+  // The words of the paper and broker price lines, painted on the WM overlay
+  // by its keep-out owner (the native lines carry no title). Keyed by owner so
+  // each effect clears only its own.
+  const priceLineWordsRef = useRef<{ paper: PriceLineWords[]; broker: PriceLineWords[] }>({ paper: [], broker: [] });
+  // The newest price OBSERVED for a named symbol (a loaded bar, a live tick).
+  // `lastPrice` starts at a seed (getBase) and is not reset on a symbol
+  // change, so paper money is marked only against this, for THIS symbol.
+  const observedPxRef = useRef<{ symbol: string; px: number } | null>(null);
   const [brokerCostPositions, setBrokerCostPositions] = useState<Array<{
     symbol: string;
     instrumentType: "STOCK" | "OPTION" | "OTHER";
@@ -3686,6 +3695,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // bars are here and the chart is new: build them once on it.
       setCameraEpoch(e => e + 1);
       if (data.length) {
+        observedPxRef.current = { symbol, px: data[data.length - 1].close };
         setLastPrice(data[data.length - 1].close);
         setOpenPrice(data[0].open);
       }
@@ -4019,6 +4029,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       } catch { /* ignore a single bad recompute */ }
     }
 
+    if (price > 0) observedPxRef.current = { symbol, px: price };
     setLastPrice(price);
     // Same fold the replay route uses for the held bars (replace the forming
     // bar, else append) — one definition, so the two routes cannot disagree
@@ -4112,7 +4123,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const live = liveHeldBarsRef.current;
       liveHeldBarsRef.current = [];
       paintCameraRef.current(live);
-      if (live.length) setLastPrice(live[live.length - 1].close);
+      if (live.length) {
+        observedPxRef.current = { symbol, px: live[live.length - 1].close };
+        setLastPrice(live[live.length - 1].close);
+      }
       try { ts?.scrollToRealTime(); } catch { /* disposed */ }
     }
   }, [replayActive, replayBars, ready]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -5394,8 +5408,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     setPaperBookRecovery(plan.status === "RECOVERY_REQUIRED");
     if (plan.status !== "DRAWN") return;
 
-    const lp = lastPrice > 0 ? lastPrice
-      : (barsRef.current.length ? barsRef.current[barsRef.current.length - 1].close : 0);
+    // Marked only against a price observed for THIS symbol. No such price
+    // (no bars yet, or the last one belongs to the previous symbol) is the
+    // owner's "P&L UNKNOWN (no price)", never a seed or another market's print.
+    const obs = observedPxRef.current;
+    const lp = obs && obs.symbol === symbol ? obs.px : 0;
 
     plan.lines.forEach(pos => {
       const { up, text } = paperPositionLineTitle(pos, lp);
@@ -5406,11 +5423,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           lineWidth: 2,
           lineStyle: 0,               // solid
           axisLabelVisible: true,
-          title: text,
+          title: PRICE_LINE_NATIVE_TITLE, // the words are the overlay's
         });
         paperLinesRef.current.push({ line, pos });
+        priceLineWordsRef.current.paper.push({ kind: "PAPER", price: pos.avgPx, text, ink: paperColor(up) });
       } catch {}
     });
+    setRangeVer(v => v + 1);
 
     // Dev-only diagnostic readback (never ships to production).
     if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
@@ -5425,17 +5444,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     return () => {
       paperLinesRef.current.forEach(({ line }) => { try { series.removePriceLine(line); } catch {} });
       paperLinesRef.current = [];
+      priceLineWordsRef.current.paper = [];
     };
   }, [symbol, paperTradesVisible, ready, paperNonce, replayCameraOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Refresh each open-position line's live-P&L label on every price tick,
    * without tearing the lines down and rebuilding them. */
   useEffect(() => {
-    if (!paperLinesRef.current.length || !(lastPrice > 0)) return;
-    paperLinesRef.current.forEach(({ line, pos }) => {
-      const { up, text } = paperPositionLineTitle(pos, lastPrice);
-      try { line.applyOptions({ title: text, color: paperColor(up) }); } catch {}
+    const obs = observedPxRef.current;
+    if (!paperLinesRef.current.length || !obs || obs.symbol !== symbol || !(obs.px > 0)) return;
+    priceLineWordsRef.current.paper = paperLinesRef.current.map(({ line, pos }) => {
+      const { up, text } = paperPositionLineTitle(pos, obs.px);
+      try { line.applyOptions({ color: paperColor(up) }); } catch {}
+      return { kind: "PAPER" as const, price: pos.avgPx, text, ink: paperColor(up) };
     });
+    setRangeVer(v => v + 1);
   }, [lastPrice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Re-read paper state when another tab writes wm_paper_state, or when the
@@ -5498,9 +5521,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const series = candleRef.current;
     if (!series || !ready || !brokerCostPositions.length) return;
     brokerCostPositions.forEach(p => {
-      const title = p.instrumentType === "OPTION" && p.option
-        ? `WEBULL ${p.option.strike}${p.option.type === "CALL" ? "C" : "P"} ${p.option.expireDate.slice(5)} ×${p.quantity} · prem ${p.costPrice}`
-        : `WEBULL COST ×${p.quantity}`;
+      const title = brokerCostLineTitle(p);
       try {
         const line = series.createPriceLine({
           price: p.paintLevel,
@@ -5508,14 +5529,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           lineWidth: 1,
           lineStyle: 2,               // dashed: a held level, not a live P&L line
           axisLabelVisible: true,
-          title,
+          title: PRICE_LINE_NATIVE_TITLE, // the words are the overlay's
         });
         brokerCostLinesRef.current.push(line);
+        priceLineWordsRef.current.broker.push({ kind: "BROKER", price: p.paintLevel, text: title, ink: "#E8B54D" });
       } catch {}
     });
+    setRangeVer(v => v + 1);
     return () => {
       brokerCostLinesRef.current.forEach(line => { try { series.removePriceLine(line); } catch {} });
       brokerCostLinesRef.current = [];
+      priceLineWordsRef.current.broker = [];
     };
   }, [brokerCostPositions, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -17511,6 +17535,70 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.debtTagBar;
           delete canvas.dataset.debtTagPlacement;
         }
+      }
+
+      /* ══ PRICE-LINE WORDS · PAPER AND BROKER ══════════════════════════════
+         Found on the glass 2026-09-26 (Garden 16 §17): the native price-line
+         title is right-aligned against the axis — under the profile body, the
+         live-price bar and the WAIT tag this canvas paints over it. The money
+         half of "PAPER LONG 10 · +$21.10" and all of "WEBULL COST ×3" were
+         covered. The native line keeps its stroke and its axis price; its words
+         are placed HERE, last among the claimed chips, by the keep-out owner:
+         on the line's own row, left of the profile family, never on a candle
+         body or wick (every body on the row, not only the newest three), never
+         on a chip, never on the profile body. A word with no clear spot is
+         WITHHELD — the line and its axis price stay, the receipt names it.
+         Receipt, every frame: `priceLineWords` (`PAPER@370:SLID,…` or NONE). */
+      {
+        const wordsP = [...priceLineWordsRef.current.paper, ...priceLineWordsRef.current.broker];
+        const placedP: { kind: PriceLineWords["kind"]; price: number; mode: string }[] = [];
+        if (wordsP.length) {
+          let axisWP = 60;
+          try { axisWP = chart.priceScale("right").width(); } catch { /* keep default */ }
+          const plotRightP = Math.max(8, W - axisWP);
+          const dsP = canvas.dataset;
+          const livingBodyLeft = dsP.livingProfile === "DRAWN" && dsP.livingProfileLaneRight && dsP.livingProfileBodyWidth
+            ? Number(dsP.livingProfileLaneRight) - Number(dsP.livingProfileBodyWidth)
+            : null;
+          const rightEnd = priceLineWordsRightEdge({
+            plotRight: plotRightP,
+            profileStackLeft: dsP.profileStackLeft ? Number(dsP.profileStackLeft) : null,
+            livingBodyLeft,
+          });
+          ctx.save();
+          ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+          for (const wd of wordsP) {
+            const yc = srs.priceToCoordinate(wd.price);
+            if (yc == null || +yc < HEADER_FLOOR_Y || +yc > pane0Bottom) { placedP.push({ kind: wd.kind, price: wd.price, mode: "OFF_CAMERA" }); continue; }
+            const y = +yc;
+            const w = Math.ceil(ctx.measureText(wd.text).width) + 10;
+            const h = 16;
+            const x = rightEnd - w;
+            if (x < keepOutMinX()) { placedP.push({ kind: wd.kind, price: wd.price, mode: "WITHHELD" }); continue; }
+            // Centred on the line, then just above it, then just below it.
+            const onLine = { x, y: y - h / 2, w, h };
+            const alts = [{ x, y: y - h - 2, w, h }, { x, y: y + 2, w, h }];
+            const spotP = placeClearOfKeepOut(
+              onLine,
+              [...keepOut(), ...rowBodiesAt(y - h - 2, y + h + 2)],
+              { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts },
+            );
+            if (spotP.mode === "BLOCKED") { placedP.push({ kind: wd.kind, price: wd.price, mode: "WITHHELD" }); continue; }
+            recordKeepOut(keepOutLedger, spotP);
+            const r = spotP.rect;
+            floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+            ctx.fillStyle = "rgba(11,10,8,0.9)";
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+            ctx.strokeStyle = wd.ink; ctx.lineWidth = 1;
+            ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+            ctx.fillStyle = wd.ink;
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(wd.text, r.x + 5, r.y + h / 2 + 0.5);
+            placedP.push({ kind: wd.kind, price: wd.price, mode: spotP.mode });
+          }
+          ctx.restore();
+        }
+        canvas.dataset.priceLineWords = priceLineWordsReceipt(placedP);
       }
 
       // ATTENTION RECEIPT — every layer that painted through the governor

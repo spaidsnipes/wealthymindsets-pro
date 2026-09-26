@@ -134,3 +134,42 @@ describe("symbols match through the one notation owner", () => {
     expect(selectPaperPositionLines(book([pos("ES1!", 1, 5870)]), "").status).toBe("NONE");
   });
 });
+
+describe("price-line words (placed on the WM glass, 2026-09-26)", () => {
+  it("broker words: a stock names its cost; an option confesses its premium", async () => {
+    const { brokerCostLineTitle } = await import("./paperPositionLines");
+    expect(brokerCostLineTitle({ instrumentType: "STOCK", quantity: 3, costPrice: 366.5 })).toBe("WEBULL COST ×3");
+    expect(brokerCostLineTitle({
+      instrumentType: "OPTION", quantity: 2, costPrice: 4.1,
+      option: { type: "CALL", strike: 400, expireDate: "2026-10-17" },
+    })).toBe("WEBULL 400C 10-17 ×2 · prem 4.1");
+    expect(brokerCostLineTitle({
+      instrumentType: "OPTION", quantity: 1, costPrice: 2,
+      option: { type: "PUT", strike: 350, expireDate: "2026-11-20" },
+    })).toBe("WEBULL 350P 11-20 ×1 · prem 2");
+  });
+
+  it("the native title is empty — the words are the overlay's", async () => {
+    const { PRICE_LINE_NATIVE_TITLE } = await import("./paperPositionLines");
+    expect(PRICE_LINE_NATIVE_TITLE).toBe("");
+  });
+
+  it("the words' right end stands left of the profile family and the plot edge", async () => {
+    const { priceLineWordsRightEdge } = await import("./paperPositionLines");
+    // Measured on the glass: plot right 1268, stack left 1092, Living body left 892.
+    expect(priceLineWordsRightEdge({ plotRight: 1268, profileStackLeft: 1092, livingBodyLeft: 892 })).toBe(884);
+    expect(priceLineWordsRightEdge({ plotRight: 1268, profileStackLeft: 1092, livingBodyLeft: null })).toBe(1084);
+    expect(priceLineWordsRightEdge({ plotRight: 1268 })).toBe(1260);
+    expect(priceLineWordsRightEdge({ plotRight: 1268, profileStackLeft: Number.NaN })).toBe(1260);
+    expect(priceLineWordsRightEdge({ plotRight: 1268, livingBodyLeft: 900, gap: 12 })).toBe(888);
+  });
+
+  it("receipt names each word and its placement, or NONE", async () => {
+    const { priceLineWordsReceipt } = await import("./paperPositionLines");
+    expect(priceLineWordsReceipt([])).toBe("NONE");
+    expect(priceLineWordsReceipt([
+      { kind: "PAPER", price: 370, mode: "CLEAR" },
+      { kind: "BROKER", price: 366.5, mode: "WITHHELD" },
+    ])).toBe("PAPER@370:CLEAR,BROKER@366.5:WITHHELD");
+  });
+});

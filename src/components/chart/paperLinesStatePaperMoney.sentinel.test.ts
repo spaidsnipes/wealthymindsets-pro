@@ -36,6 +36,22 @@ function paperBlock(): string {
 const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("/charts paper line — one owner per fact", () => {
+  it("marks money only against a price observed for THIS symbol — never the seed, never the last symbol's print", () => {
+    const b = code(paperBlock());
+    // Verifier RED, reproduced on the glass 2026-09-26: after TSLA -> ES1! with
+    // no ES bars the line read "PAPER SHORT 1 · +$275,894.50" (ES marked at
+    // TSLA's 372.11); on a fresh mount it was marked at getBase's 7,595 seed.
+    expect(b).toContain("const lp = obs && obs.symbol === symbol ? obs.px : 0;");
+    expect(b).not.toMatch(/const lp = lastPrice/);
+    expect(b).not.toMatch(/barsRef\.current\[barsRef\.current\.length - 1\]\.close/);
+    expect(b).toContain("if (!paperLinesRef.current.length || !obs || obs.symbol !== symbol || !(obs.px > 0)) return;");
+    // Every setter of the price also stamps the symbol it was observed for.
+    const setters = [...code(SRC).matchAll(/setLastPrice\(/g)].length;
+    const stamps = [...code(SRC).matchAll(/observedPxRef\.current = \{ symbol, px: /g)].length;
+    expect(setters).toBe(3);
+    expect(stamps).toBe(setters);
+  });
+
   it("imports the book's parser and the paper-line owner", () => {
     expect(SRC).toContain('import { loadPaperSnapshot, PAPER_KEY } from "@/lib/paperTrade";');
     expect(SRC).toMatch(/import \{ PAPER_BOOK_RECOVERY_WORDS, paperPositionLineTitle, selectPaperPositionLines, type PaperPositionLine \} from "@\/lib\/chart\/paperPositionLines";/);
@@ -53,8 +69,11 @@ describe("/charts paper line — one owner per fact", () => {
     expect(b).toContain('if (plan.status !== "DRAWN") return;');
     expect(b).toContain("plan.lines.forEach(pos => {");
     expect(b).toContain("const { up, text } = paperPositionLineTitle(pos, lp);");
-    expect(b).toContain("const { up, text } = paperPositionLineTitle(pos, lastPrice);");
-    expect(b).toMatch(/title: text,/);
+    expect(b).toContain("const { up, text } = paperPositionLineTitle(pos, obs.px);");
+    // The words are the overlay's (priceLineWordsOnGlass.sentinel): the native
+    // line carries the owner's empty title, the text rides to the overlay.
+    expect(b).toContain("title: PRICE_LINE_NATIVE_TITLE,");
+    expect(b).toContain('priceLineWordsRef.current.paper.push({ kind: "PAPER", price: pos.avgPx, text, ink: paperColor(up) });');
   });
 
   it("no P&L arithmetic, point value or symbol rule lives in the chart", () => {
@@ -74,7 +93,14 @@ describe("/charts paper line — one owner per fact", () => {
   });
 
   it("a book in recovery says so on the glass, in the owner's words", () => {
-    expect(code(paperBlock())).toContain('setPaperBookRecovery(plan.status === "RECOVERY_REQUIRED");');
+    const b = code(paperBlock());
+    const flag = b.indexOf('setPaperBookRecovery(plan.status === "RECOVERY_REQUIRED");');
+    const drawnOnly = b.indexOf('if (plan.status !== "DRAWN") return;');
+    expect(flag).toBeGreaterThan(-1);
+    // Before the DRAWN-only return (verifier YELLOW, 2026-09-26): below it, a
+    // book in recovery would never raise the notice and the empty chart would
+    // read as "no open paper positions".
+    expect(drawnOnly, "the recovery flag must be set before the DRAWN-only return").toBeGreaterThan(flag);
     const chip = /\{paperTradesVisible && paperBookRecovery && !replayCameraOn && \([\s\S]{0,700}?\{PAPER_BOOK_RECOVERY_WORDS\}[\s\S]{0,40}?<\/div>/.exec(SRC);
     expect(chip, "recovery words not rendered").not.toBeNull();
     expect(chip![0]).toContain('role="status"');
