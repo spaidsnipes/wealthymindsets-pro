@@ -39,7 +39,16 @@ export interface ZoneLineageVM {
   readonly symbolId: string;
   readonly sessionId: string;
   readonly birth:
-    | { readonly state: "READ"; readonly barId: string; readonly line: string }
+    | {
+        readonly state: "READ";
+        readonly barId: string;
+        readonly line: string;
+        /** The admitted identity's own words, verbatim — the Passport's BIRTH SOURCE slot (2026-09-26). */
+        readonly source: string;
+        readonly provenance: string;
+        /** The birth bar's open, epoch ms, from its identity. */
+        readonly asOf: number;
+      }
     | { readonly state: "UNREAD"; readonly barId: string; readonly absence: string };
   /** The object's evidence ids in its own order: the birth bar first, then each test bar. */
   readonly evidence: readonly { readonly id: string; readonly role: "BIRTH" | "TEST" }[];
@@ -91,6 +100,9 @@ export function selectObjectLineage(input: {
           state: "READ",
           barId: identity.barId,
           line: `${identity.barId} · ${identity.source} · ${identity.provenance} · ${identity.fidelity}`,
+          source: identity.source,
+          provenance: identity.provenance,
+          asOf: identity.asOf,
         }
       : {
           state: "UNREAD",

@@ -80,8 +80,12 @@ describe("a selected LEVEL opens its Passport, not the bar ticket", () => {
 
   it("states what the level owner cannot know instead of inferring it", () => {
     const html = passport(high, null);
-    expect(html).toContain("None since birth — the level owner publishes only untouched levels");
-    expect(html).toContain("No rule stated — this level has no lifecycle owner yet");
+    // 2026-09-26 (F11B): each slot is a primary line and a secondary line, so
+    // the old one-line sentences are split across the two — same words.
+    expect(html).toContain(">None since birth<");
+    expect(html).toContain("The level owner publishes only untouched levels");
+    expect(html).toContain(">No rule stated<");
+    expect(html).toContain("This level has no lifecycle owner yet");
     expect(html).toContain('data-inspect-lineage="NOT_COMPILED"');
   });
 
@@ -104,8 +108,10 @@ describe("a selected LEVEL opens its Passport, not the bar ticket", () => {
       testBarIds: ["BTC|1h|3000|e0"], evidenceIds: ["BTC|1h|2000|e0", "BTC|1h|3000|e0"] };
     const html = passport(mem, selectObjectLineage({ object: mem, method: "selectProfileMemory", identities, decisionId: null }));
     expect(html).toContain("Prior-session POC");
-    expect(html).toContain("1 recent — each test bar is in the evidence list (Profile Memory keeps the most recent)");
+    // 2026-09-26 (F11B): primary "1 recent", secondary the evidence note.
+    expect(html).toContain(">1 recent<");
+    expect(html).toContain("Each test bar is in the evidence list (Profile Memory keeps the most recent)");
     expect(html).toMatch(/BTC\|1h\|3000\|e0<\/span> <span[^>]*>· test/);
-    expect(html).not.toContain("the level owner publishes only untouched levels");
+    expect(html.toLowerCase()).not.toContain("the level owner publishes only untouched levels");
   });
 });

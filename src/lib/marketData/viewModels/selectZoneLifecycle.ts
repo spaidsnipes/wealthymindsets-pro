@@ -37,13 +37,23 @@
  * age in bars and in time, and how many times it was tested — nothing
  * projected.
  *
+ *   DEPTH (v2, 2026-09-26) — how far into the band each touch reached, as a
+ *   fraction of the band's height measured from the NEAR edge (demand: from
+ *   its high down; supply: from its low up), clamped to [0, 1]. A wick through
+ *   the far edge reads 1 — the same fact `swept` states. `deepestPenetration`
+ *   is the maximum over every touch: the Passport's CONSUMPTION meter. It is
+ *   read off the bars' own highs and lows; a zone with no height (low = high)
+ *   has no fraction to take, and says null rather than 0 or 1.
+ *
  * PURE. DETERMINISTIC. No React, no canvas, no IO, no clock.
  */
 
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import type { MarketObjectState } from "@/lib/marketData/marketObjectKinds";
 
-export const ZONE_LIFECYCLE_VERSION = 1;
+/** v2 (2026-09-26): each touch carries `depth`; the lifecycle carries
+ *  `deepestPenetration`. States and touches are unchanged from v1. */
+export const ZONE_LIFECYCLE_VERSION = 2;
 
 export type ZoneSide = "DEMAND" | "SUPPLY";
 export type TouchResponse = "REJECTED" | "INVALIDATED" | "OPEN";
@@ -65,6 +75,12 @@ export interface ZoneTouch {
   readonly response: TouchResponse;
   /** Wick went through the far edge without a close beyond it. */
   readonly swept: boolean;
+  /**
+   * How far into the band the episode reached, from the near edge, as a
+   * fraction of the band's height in [0, 1]; 1 = the far edge was reached or
+   * crossed. Null when the band has no height (nothing to take a fraction of).
+   */
+  readonly depth: number | null;
 }
 
 export interface ZoneLifecycle {
@@ -74,6 +90,11 @@ export interface ZoneLifecycle {
   /** The close that ends the zone: demand → below `low`; supply → above `high`. */
   readonly invalidationPrice: number;
   readonly invalidatedAt: number | null;
+  /**
+   * CONSUMPTION — the deepest any touch reached into the band (max `depth`).
+   * 0 when untouched; null when the band has no height.
+   */
+  readonly deepestPenetration: number | null;
   /** Bars since birth, and the newest bar's time — age, stated not projected. */
   readonly barsSinceBirth: number;
   readonly asOf: number | null;
@@ -94,15 +115,25 @@ export function selectZoneLifecycle(
   const closesBeyond = (b: LegacyOhlcvTuple) => (demand ? b.close < zone.low : b.close > zone.high);
   const wicksThrough = (b: LegacyOhlcvTuple) => (demand ? b.low < zone.low : b.high > zone.high);
 
+  const height = zone.high - zone.low;
+  /** One bar's reach into the band from the near edge, as a fraction of its height. */
+  const reach = (b: LegacyOhlcvTuple): number | null => {
+    if (!(height > 0)) return null;
+    const into = demand ? zone.high - b.low : b.high - zone.low;
+    return Math.min(1, Math.max(0, into / height));
+  };
+  const deeper = (a: number | null, b: number | null) => (a == null ? b : b == null ? a : Math.max(a, b));
+
   const touches: ZoneTouch[] = [];
   let invalidatedAt: number | null = null;
-  let ep: { start: number; end: number; bars: number; swept: boolean } | null = null;
+  let ep: { start: number; end: number; bars: number; swept: boolean; depth: number | null } | null = null;
 
   for (const b of after) {
     if (enters(b)) {
-      if (!ep) ep = { start: b.time, end: b.time, bars: 0, swept: false };
+      if (!ep) ep = { start: b.time, end: b.time, bars: 0, swept: false, depth: null };
       ep.end = b.time;
       ep.bars++;
+      ep.depth = deeper(ep.depth, reach(b));
       if (closesBeyond(b)) {
         touches.push({ ...ep, response: "INVALIDATED", swept: ep.swept });
         invalidatedAt = b.time;
@@ -118,7 +149,7 @@ export function selectZoneLifecycle(
       ep = null;
     } else if (closesBeyond(b)) {
       // Gapped straight through without a bar inside the zone.
-      touches.push({ start: b.time, end: b.time, bars: 1, response: "INVALIDATED", swept: false });
+      touches.push({ start: b.time, end: b.time, bars: 1, response: "INVALIDATED", swept: false, depth: height > 0 ? 1 : null });
       invalidatedAt = b.time;
       break;
     }
@@ -138,6 +169,7 @@ export function selectZoneLifecycle(
     touches,
     invalidationPrice,
     invalidatedAt,
+    deepestPenetration: height > 0 ? touches.reduce((m, t) => Math.max(m, t.depth ?? 0), 0) : null,
     barsSinceBirth: after.length,
     asOf: bars.length ? bars[bars.length - 1].time : null,
   };

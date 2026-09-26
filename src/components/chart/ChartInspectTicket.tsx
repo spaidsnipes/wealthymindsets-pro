@@ -55,7 +55,8 @@ import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhos
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
-import { Activity, AlertTriangle, CalendarDays, Clock, Crosshair, FileText, Hourglass, ShieldCheck, Target, X } from "lucide-react";
+import { Ban, BadgeCheck, Check, CircleDashed, Clock, Crosshair, Fingerprint, Gauge, Hourglass, IdCard, Lock, Shield, ShieldCheck, Target, TrendingDown, X } from "lucide-react";
+import { WM, wmToneColor } from "@/lib/design/wmTokens";
 
 import { anatomyReadingDrawn, type AnatomyInspectVM, type AnatomyTarget } from "@/lib/marketData/viewModels/anatomySelection";
 import type { SelectedAnatomy } from "@/lib/marketData/viewModels/chartSelection";
@@ -66,6 +67,10 @@ import { MIN_DNA_ROWS, type ProfileDnaVM } from "@/lib/marketData/viewModels/sel
 import type { ProfileSliceResult } from "@/lib/marketData/viewModels/selectProfileSlice";
 import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import type { ObjectLineageVM, ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
+import {
+  passportDockSide, passportPrice, selectPassportSlots,
+  type PassportDock, type PassportMark, type PassportSlot, type PassportSlotId, type PassportSlotStatus,
+} from "@/lib/marketData/viewModels/selectPassportSlots";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { LivingBiographyVM } from "@/lib/marketData/viewModels/selectLivingBiography";
 import type { ClarityAnatomyVM } from "@/lib/marketData/viewModels/selectClarityAnatomy";
@@ -365,6 +370,270 @@ function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClo
   );
 }
 
+/*
+  F11B · THE MARKET OBJECT PASSPORT DRAWER — `WM_NewMockup_85_F11B_Passport_Drawer`.
+  "Not a room. Not a folder. A passport." One drawer for every kind ("Kind only
+  changes the noun on the door"): a header, the eight slots in the plate's
+  order — each a medallion, a title, two lines and a status mark — then the
+  depth the Truth Microscope owes (every touch, every evidence id, the chain),
+  and the footer: PASSPORT ID · INSPECTED · DECISION.
+
+  Every word comes from `selectPassportSlots`, which reads the owners and says
+  UNKNOWN where an owner is silent. This renders; it measures nothing.
+
+  WHERE IT STANDS. The drawer takes the wall AWAY from the selected object,
+  measured from the object's own pin on the glass (`passportDockSide`), so the
+  candles it describes stay in view — the plate draws the object beside it.
+*/
+const PASSPORT_MEDALLION: Record<PassportSlotId, typeof Crosshair> = {
+  BIRTH_SOURCE: Fingerprint,
+  AGE: Hourglass,
+  TOUCHES: Target,
+  DEFENSES: ShieldCheck,
+  CONSUMPTION: Gauge,
+  DECAY: TrendingDown,
+  INVALIDATION: Ban,
+  FIDELITY: BadgeCheck,
+};
+const PASSPORT_MARK: Record<PassportMark, typeof Crosshair> = {
+  CHECK: Check,
+  CLOCK: Clock,
+  SHIELD: Shield,
+  CROSS: X,
+  UNKNOWN: CircleDashed,
+};
+/** Status → the palette owner's tone. A broken object is a boundary (objection), not a failure of the system (warn). */
+const PASSPORT_TONE: Record<PassportSlotStatus, Parameters<typeof wmToneColor>[0]> = {
+  OK: "ok",
+  WATCH: "watch",
+  FAIL: "objection",
+  UNKNOWN: "neutral",
+};
+const PASSPORT_WIDTH = 360;
+
+function PassportSlotRow({ s }: { s: PassportSlot }) {
+  const Medallion = PASSPORT_MEDALLION[s.icon];
+  const Mark = PASSPORT_MARK[s.mark];
+  const tone = wmToneColor(PASSPORT_TONE[s.status]);
+  const pct = s.meter != null ? Math.round(s.meter * 100) : null;
+  return (
+    <li className="flex items-center gap-3 px-3 py-1.5" data-passport-slot={s.id} data-passport-status={s.status}
+      aria-label={`${s.title}: ${s.primary}. ${s.secondary}. ${s.status === "UNKNOWN" ? "Not measured" : s.status.toLowerCase()}.`}>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border" aria-hidden
+        style={{ borderColor: WM.gold.line, color: WM.gold.hero, background: WM.surface.deep }}>
+        {pct != null
+          ? <span className="text-[10.5px] font-bold tabular-nums">{pct}%</span>
+          : <Medallion size={16} strokeWidth={1.6} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-bold tracking-[0.1em]" style={{ color: WM.gold.hero }}>{s.title}</span>
+        <span className="block text-[12.5px] leading-[1.3]" style={{ color: s.status === "UNKNOWN" ? WM.text.body : WM.text.hero }}>{s.primary}</span>
+        <span className="block text-[11px] leading-[1.3]" style={{ color: WM.text.muted }}>{s.secondary}</span>
+        {pct != null && (
+          <span className="mt-1 flex items-center gap-2" data-passport-meter={pct}>
+            <span className="relative h-[5px] flex-1 overflow-hidden rounded-full" style={{ background: WM.surface.highest }}>
+              <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, background: WM.gold.hero }} />
+            </span>
+            <span className="w-9 text-right text-[11px] font-bold tabular-nums" style={{ color: WM.text.hero }}>{pct}%</span>
+          </span>
+        )}
+      </span>
+      <span className="shrink-0" style={{ color: tone }} data-passport-mark={s.mark}>
+        <Mark size={17} strokeWidth={2} aria-hidden />
+      </span>
+    </li>
+  );
+}
+
+function PassportDrawer({
+  object,
+  zone,
+  lineage,
+  activeDecisionId,
+  timeZone,
+  onClose,
+}: {
+  object: MarketObject;
+  zone: StructureZone | null;
+  lineage: ObjectLineageVM | null;
+  activeDecisionId: string | null;
+  timeZone: string | null;
+  onClose: () => void;
+}) {
+  const clock = zonedClock(timeZone);
+  const t = clock.stamp;
+  const memoryKind = zone ? null : memoryLevelKindOf(object.objectId);
+  const levelOrigin = memoryKind ? `Prior-session ${memoryKind}`
+    : object.objectId.endsWith(":HIGH") ? "Swing high" : object.objectId.endsWith(":LOW") ? "Swing low" : null;
+  // Only a lineage compiled for THIS object is printed beside it.
+  const own = lineage?.objectId === object.objectId ? lineage : null;
+  const vm = selectPassportSlots({
+    object, zone, lineage: own, originWord: levelOrigin,
+    levelOwner: zone ? null : memoryKind ? "MEMORY" : "STRUCTURE",
+    decisionId: activeDecisionId, stamp: t,
+  });
+  const px = passportPrice;
+  const price = object.priceLow === object.priceHigh ? px(object.priceHigh) : `${px(object.priceLow)} – ${px(object.priceHigh)}`;
+  const noun = zone
+    ? `${zone.side === "DEMAND" ? "Demand" : "Supply"} zone · ${price}`
+    : `${object.kind === "LEVEL" ? "Level" : object.kind} · ${price}${levelOrigin ? ` · ${levelOrigin.toLowerCase()}` : ""}`;
+  const stateTone = wmToneColor(PASSPORT_TONE[vm.state === "INVALID" ? "FAIL" : vm.state === "CONSUMED" || vm.state === "TESTED" ? "WATCH" : "OK"]);
+
+  // THE WALL AWAY FROM THE OBJECT — measured from its pin on the glass.
+  const ref = React.useRef<HTMLElement>(null);
+  const [dock, setDock] = React.useState<PassportDock>("LEFT");
+  const [objectX, setObjectX] = React.useState<number | null>(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    const host = el?.offsetParent as HTMLElement | null;
+    if (!el || !host) return;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const sel = `[data-market-object-target="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(object.objectId) : object.objectId}"]`;
+      const pin = host.querySelector(sel) as HTMLElement | null;
+      const hr = host.getBoundingClientRect();
+      const pr = pin?.getBoundingClientRect();
+      const x = pr && pr.width > 0 ? Math.round(pr.left + pr.width / 2 - hr.left) : null;
+      setObjectX(x);
+      setDock(passportDockSide({ objectX: x, paneWidth: hr.width, drawerWidth: el.offsetWidth || PASSPORT_WIDTH }));
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    measure();
+    // A pan moves the pin (its inline `left`); a resize moves the walls.
+    const mo = new MutationObserver(schedule);
+    mo.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ["style"] });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+    ro?.observe(host);
+    return () => { mo.disconnect(); ro?.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [object.objectId]);
+
+  const lc = zone?.lifecycle ?? null;
+  const heldWord = zone?.side === "DEMAND" ? "held above" : "held below";
+  const Head = ({ children }: { children: React.ReactNode }) => (
+    <div className="text-[11px] font-bold tracking-[0.1em]" style={{ color: WM.gold.hero }}>{children}</div>
+  );
+  const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
+    <div className="grid grid-cols-[92px_1fr] gap-2 text-[11.5px] leading-[1.4]"><span style={{ color: WM.text.muted }}>{k}</span><span style={{ color: WM.text.hero }}>{v}</span></div>
+  );
+  return (
+    <section ref={ref}
+      className={`absolute top-2 ${dock === "RIGHT" ? "right-[76px]" : "left-2"} max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl`}
+      // Opaque and above the chart's own chips: the passport is the object
+      // being read, so nothing on the glass may show through or sit on it.
+      style={{ width: PASSPORT_WIDTH, background: "#0d0c0a", zIndex: 80 }}
+      data-testid="chart-inspect-ticket"
+      data-inspect-zone={zone ? object.objectId : undefined}
+      data-inspect-object={zone ? undefined : object.objectId}
+      data-inspect-kind={zone ? undefined : object.kind}
+      data-passport-dock={dock}
+      data-passport-object-x={objectX ?? undefined}
+      aria-label={zone
+        ? `Market object passport. ${zone.side} zone ${object.priceLow} to ${object.priceHigh}. ${vm.state}.`
+        : `Market object passport. ${object.kind} ${price}. ${vm.state}.`}>
+      <div className="border-b border-wm-border px-3 pb-2 pt-3">
+        <div className="flex items-center gap-2">
+          <IdCard size={20} style={{ color: WM.gold.hero }} aria-hidden />
+          <div className="text-[13px] font-bold tracking-[0.1em]" style={{ color: WM.gold.hero }}>MARKET OBJECT PASSPORT</div>
+          <Lock size={14} className="ml-auto" style={{ color: WM.gold.mark }} aria-label="Read-only: the passport remembers, it is not edited" />
+          <button className="ml-1" aria-label="Close the passport" onClick={onClose}><X size={14} /></button>
+        </div>
+        {/* D ≈ 0 — depth zero: the object, its lineage and its decision in ONE inspect (inspectChain.ts). */}
+        <div className="mt-0.5 text-center text-[11px] tracking-[0.2em]" style={{ color: WM.text.body }} title="Depth zero — one inspect, the chart stays">D ≈ 0</div>
+        <div className="mt-1 flex items-center gap-2 text-[12px]" style={{ color: WM.text.body }}>
+          <span className="min-w-0 truncate">{noun}</span>
+          <span className="ml-auto shrink-0 rounded border px-1.5 text-[10px] font-bold tracking-[0.08em]" data-passport-state={vm.state}
+            style={{ color: stateTone, borderColor: stateTone }}>{vm.state}</span>
+        </div>
+      </div>
+
+      <ol className="divide-y divide-wm-border/70" data-testid="passport-slots">
+        {vm.slots.map(s => <PassportSlotRow key={s.id} s={s} />)}
+      </ol>
+
+      {/* THE TRUTH MICROSCOPE — deep, below the slots: every touch and its response. */}
+      {lc && lc.touches.length > 0 && (
+        <div className="space-y-1.5 border-t border-wm-border px-3 py-2.5">
+          <Head>TOUCH TIMELINE</Head>
+          <div className="relative mt-1 flex justify-between px-1" data-testid="passport-touch-timeline">
+            <div className="absolute left-2 right-2 top-[6px] h-px" style={{ background: WM.gold.hair }} aria-hidden />
+            {lc.touches.map(tc => (
+              <div key={tc.start} className="relative flex flex-col items-center gap-1">
+                <span className="h-[12px] w-[12px] rounded-full" style={{
+                  background: tc.response === "INVALIDATED" ? WM.state.objection : tc.response === "OPEN" ? "transparent" : WM.gold.hero,
+                  border: `1px solid ${WM.gold.hero}` }} />
+                <span className="text-[10.5px]" style={{ color: WM.text.body }}>{t(tc.start).slice(5, 16)}</span>
+              </div>
+            ))}
+          </div>
+          <Head>RESPONSE HISTORY</Head>
+          <ol className="space-y-0.5" data-testid="passport-response-history">
+            {lc.touches.map((tc, i) => (
+              <li key={tc.start} className="grid grid-cols-[14px_1fr_auto_auto] gap-2 text-[11.5px]">
+                <span style={{ color: WM.text.muted }}>{i + 1}</span>
+                <span style={{ color: WM.text.hero }}>{t(tc.start).slice(5, 16)}</span>
+                <span style={{ color: tc.response === "REJECTED" ? WM.gold.hero : tc.response === "INVALIDATED" ? WM.state.objection : WM.text.hero }}>
+                  {tc.response === "REJECTED" ? "Rejection" : tc.response === "INVALIDATED" ? "Close beyond" : "Open"}{tc.swept ? " · swept" : ""}
+                </span>
+                <span className="tabular-nums" style={{ color: WM.text.muted }}>
+                  {tc.depth != null ? `${Math.round(tc.depth * 100)}% deep` : "—"}{tc.response === "REJECTED" ? ` · ${heldWord}` : ""}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* GARDEN 12 · LINEAGE, by id, from the owners verbatim (selectObjectLineage):
+          the object, its session, the birth bar's admitted source and
+          provenance, every evidence id, the owners and version, and the chain
+          BAR → OBJECT → DECISION. The Decision_ID sits BESIDE the object,
+          never merged; nothing reprints the bar. */}
+      <div className="space-y-1 border-t border-wm-border px-3 py-2.5" data-testid="passport-provenance"
+        data-inspect-lineage={own ? own.birth.state : "NOT_COMPILED"}>
+        <Head>LINEAGE</Head>
+        <Row k="Object" v={<span className="break-all font-mono text-[11px]">{object.objectId}</span>} />
+        {own ? (
+          <>
+            <Row k="Kind" v={`${own.kind} · session ${own.sessionId}`} />
+            <Row k="Birth bar" v={own.birth.state === "READ"
+              ? <span className="break-all font-mono text-[11px]">{own.birth.line}</span>
+              : <span style={{ color: UNREAD_COLOR }}>{own.birth.absence} <span className="break-all font-mono text-[11px]">{own.birth.barId}</span></span>} />
+            <Row k="Evidence" v={own.evidence.length === 0 ? "none attached" : (
+              <ol className="space-y-0.5" data-testid="passport-evidence">
+                {own.evidence.map(e => (
+                  <li key={e.id}><span className="break-all font-mono text-[11px]">{e.id}</span> <span style={{ color: WM.text.muted }}>· {e.role === "BIRTH" ? "birth" : "test"}</span></li>
+                ))}
+              </ol>
+            )} />
+            <Row k="Method" v={own.method} />
+            <div data-inspect-chain={own.chain.state}>
+              <Row k="Chain" v={own.chain.state === "READ"
+                ? <span className="break-all font-mono text-[11px]">{own.chain.line}</span>
+                : <span style={{ color: UNREAD_COLOR }}>{own.chain.reason}</span>} />
+            </div>
+          </>
+        ) : (
+          <>
+            <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{object.birthBarId}</span>} />
+            <Row k="Lineage" v={<span style={{ color: UNREAD_COLOR }}>Not compiled for this object.</span>} />
+          </>
+        )}
+      </div>
+
+      {/* The footer stays on the glass while the depth above it scrolls: the
+          plate's last line is the PASSPORT ID, and an id below the fold is an
+          id the trader never reads. Opaque, so nothing scrolls through it. */}
+      <footer className="sticky bottom-0 space-y-0.5 border-t border-wm-border px-3 py-2 text-[10.5px] tracking-[0.06em]" style={{ color: WM.text.body, background: "#0d0c0a" }}
+        data-testid="passport-footer" data-passport-id={vm.footer.passportId} data-passport-decision={vm.footer.decision.state}>
+        <div><span style={{ color: WM.text.muted }}>PASSPORT ID:</span> <span className="break-all font-mono" title={vm.footer.objectId}>{vm.footer.passportId}</span></div>
+        <div><span style={{ color: WM.text.muted }}>INSPECTED AS OF:</span> <span className="tabular-nums">{vm.footer.inspectedLine}</span></div>
+        <div><span style={{ color: WM.text.muted }}>DECISION:</span> <span className="break-all">{vm.footer.decision.line}</span></div>
+      </footer>
+    </section>
+  );
+}
+
 export function ChartInspectTicket({
   vm,
   /** True when the bar shown is the live one because the cursor is nowhere. */
@@ -458,261 +727,22 @@ export function ChartInspectTicket({
     call. A click that found no traded bucket says so instead of going quiet.
   */
   /*
-    F11 · MARKET OBJECT PASSPORT — the Founder's mockup, in the ONE ticket.
-    Birth · Age · Touches · Response history · Current state · Source
-    fidelity · Invalidation condition. Every line is what the lifecycle owner
-    measured; there is no decay rate, half-life or invalidation probability,
-    because nothing measured one.
+    F11 / F11B · MARKET OBJECT PASSPORT — a selected ZONE or LEVEL opens the
+    ONE drawer (PassportDrawer). "Kind only changes the noun on the door. The
+    drawer layout does not change." Every line is an owner's; a slot whose
+    owner is silent says so (selectPassportSlots).
   */
-  if (selectedZone) {
-    const z = selectedZone;
-    const lc = z.lifecycle;
-    // Only a lineage compiled for THIS object is printed beside it.
-    const lineage = zoneLineage?.objectId === z.object.objectId ? zoneLineage : null;
-    const t = clock.stamp;
-    const ageSec = lc.asOf != null ? lc.asOf - z.birthTime : null;
-    const age = ageSec == null ? "UNKNOWN" : `${Math.floor(ageSec / 86400)}d ${Math.floor((ageSec % 86400) / 3600)}h ${Math.floor((ageSec % 3600) / 60)}m`;
-    const stateNote: Record<string, string> = {
-      ALIVE: "Untouched since birth.",
-      TESTED: "Price is inside it now — no response yet.",
-      DEFENDED: "Every completed touch was rejected.",
-      CONSUMED: "Still standing, but a touch swept through its far edge.",
-      INVALID: "A bar closed beyond its far edge.",
-    };
-    const stateColor = lc.state === "INVALID" ? "#FF4D6A" : lc.state === "CONSUMED" ? "#F0B429" : "#7FD1A6";
-    const heldWord = z.side === "DEMAND" ? "held above" : "held below";
-    const Head = ({ icon: Icon, children }: { icon: typeof Crosshair; children: React.ReactNode }) => (
-      <div className="flex items-center gap-2 text-[12px] font-bold tracking-[0.1em] text-wm-gold">
-        <Icon size={15} aria-hidden /> {children}
-      </div>
-    );
-    const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
-      <div className="grid grid-cols-[104px_1fr] gap-2 text-[12.5px] leading-[1.45]"><span style={{ color: "#8B8676" }}>{k}</span><span className="text-white">{v}</span></div>
-    );
+  if (selectedZone || selectedLevel) {
+    const object = selectedZone ? selectedZone.object : selectedLevel!;
     return (
-      // LEFT WALL, not right: a zone is born at a recent swing, so it lives at
-      // the right of the camera — a right-hand passport covered the very
-      // object it describes. The plate shows the zone beside its passport.
-      <section className="absolute top-2 left-2 w-[372px] max-h-[calc(100%-1rem)] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl"
-        // Opaque and above the chart's own chips: the passport is the object
-        // being read, so nothing on the glass may show through or sit on it.
-        style={{ background: "#0d0c0a", zIndex: 80 }}
-        data-testid="chart-inspect-ticket" data-inspect-zone={z.object.objectId}
-        aria-label={`Market object passport. ${z.side} zone ${z.object.priceLow} to ${z.object.priceHigh}. ${lc.state}.`}>
-        <div className="flex items-start gap-2 border-b border-wm-border px-4 py-3">
-          <FileText size={22} className="mt-0.5 text-wm-gold" aria-hidden />
-          <div className="min-w-0">
-            <div className="text-[14px] font-bold tracking-[0.08em] text-white">MARKET OBJECT PASSPORT</div>
-            <div className="text-[12px]" style={{ color: "#C8C0AE" }}>
-              {z.side === "DEMAND" ? "Demand" : "Supply"} zone · {z.origin.toLowerCase()} <span style={{ color: stateColor }}>●</span>
-            </div>
-          </div>
-          <button className="ml-auto" aria-label="Close the passport" onClick={() => onOpenChange(false)}><X size={14} /></button>
-        </div>
-        <div className="divide-y divide-wm-border/70">
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={CalendarDays}>BIRTH</Head>
-            <Row k="Created" v={t(z.birthTime)} />
-            <Row k="Origin" v={<><span className="text-wm-gold">{z.side === "DEMAND" ? "Swing low" : "Swing high"}</span> · {String(+z.object.priceLow.toPrecision(8))} – {String(+z.object.priceHigh.toPrecision(8))}</>} />
-          </div>
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={Hourglass}>AGE</Head>
-            <Row k="Age" v={age} />
-            <Row k="Since creation" v={`${lc.barsSinceBirth} bars`} />
-          </div>
-          <div className="space-y-2 px-4 py-3">
-            <Head icon={Target}>TOUCHES</Head>
-            <Row k="Total touches" v={`${lc.touches.length}${lc.touches.length ? ` · ${lc.touches.filter(x => x.response !== "OPEN").length} completed` : ""}`} />
-            {lc.touches.length === 0 ? (
-              <p className="text-[12.5px]" style={{ color: "#C8C0AE" }}>None since birth.</p>
-            ) : (
-              <div className="relative mt-1 flex justify-between px-1" data-testid="passport-touch-timeline">
-                <div className="absolute left-2 right-2 top-[6px] h-px bg-wm-gold/30" aria-hidden />
-                {lc.touches.map(tc => (
-                  <div key={tc.start} className="relative flex flex-col items-center gap-1">
-                    <span className="h-[12px] w-[12px] rounded-full" style={{ background: tc.response === "INVALIDATED" ? "#FF4D6A" : tc.response === "OPEN" ? "transparent" : "#F0B429", border: "1px solid #F0B429" }} />
-                    <span className="text-[10.5px]" style={{ color: "#C8C0AE" }}>{t(tc.start).slice(5, 16)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          {lc.touches.length > 0 && (
-            <div className="space-y-1 px-4 py-3">
-              <Head icon={Activity}>RESPONSE HISTORY</Head>
-              <ol className="space-y-0.5" data-testid="passport-response-history">
-                {lc.touches.map((tc, i) => (
-                  <li key={tc.start} className="grid grid-cols-[14px_1fr_auto_auto] gap-2 text-[12.5px]">
-                    <span style={{ color: "#8B8676" }}>{i + 1}</span>
-                    <span className="text-white">{t(tc.start).slice(5, 16)}</span>
-                    <span style={{ color: tc.response === "REJECTED" ? "#F0B429" : tc.response === "INVALIDATED" ? "#FF4D6A" : "#EDE6D3" }}>
-                      {tc.response === "REJECTED" ? "Rejection" : tc.response === "INVALIDATED" ? "Close beyond" : "Open"}{tc.swept ? " · swept" : ""}
-                    </span>
-                    <span style={{ color: "#8B8676" }}>{tc.response === "REJECTED" ? heldWord : "—"}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={Activity}>CURRENT STATE</Head>
-            <div className="text-[12.5px]"><span className="font-bold" style={{ color: stateColor }}>{lc.state}</span> <span style={{ color: "#C8C0AE" }}>· {stateNote[lc.state]}</span></div>
-            {lc.touches.length > 0 && <div className="text-[12.5px]" style={{ color: "#C8C0AE" }}>Price last touched {t(lc.touches[lc.touches.length - 1].end)}</div>}
-          </div>
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={Clock}>DECAY</Head>
-            <p className="text-[12.5px]" style={{ color: "#C8C0AE" }}>
-              Decay is stated, not projected: age and tests only. No half-life or invalidation probability is published — nothing measured one.
-            </p>
-          </div>
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={ShieldCheck}>SOURCE FIDELITY</Head>
-            <Row k="Fidelity" v={z.object.fidelityAtBirth} />
-            <Row k="Origin" v="Confirmed swing from the structure owner" />
-          </div>
-          {/* GARDEN 12 · THE TRUTH MICROSCOPE — LINEAGE, by id, from the owners
-              verbatim (selectZoneLineage): the object, its session, the birth
-              bar's admitted source and provenance, every evidence id, both
-              owners and the lifecycle version, and the chain BAR → OBJECT →
-              DECISION. Calm on the glass, deep here. The Decision_ID sits in
-              the chain BESIDE the object, never merged; nothing reprints the bar. */}
-          <div className="space-y-1 px-4 py-3" data-testid="passport-provenance"
-            data-inspect-lineage={lineage ? lineage.birth.state : "NOT_COMPILED"}>
-            <Head icon={FileText}>LINEAGE</Head>
-            <Row k="Object" v={<span className="break-all font-mono text-[11px]">{z.object.objectId}</span>} />
-            {lineage ? (
-              <>
-                <Row k="Kind" v={`${lineage.kind} · session ${lineage.sessionId}`} />
-                <Row k="Birth bar" v={lineage.birth.state === "READ"
-                  ? <span className="break-all font-mono text-[11px]">{lineage.birth.line}</span>
-                  : <span style={{ color: UNREAD_COLOR }}>{lineage.birth.absence} <span className="break-all font-mono text-[11px]">{lineage.birth.barId}</span></span>} />
-                <Row k="Evidence" v={lineage.evidence.length === 0 ? "none attached" : (
-                  <ol className="space-y-0.5" data-testid="passport-evidence">
-                    {lineage.evidence.map(e => (
-                      <li key={e.id}><span className="break-all font-mono text-[11px]">{e.id}</span> <span style={{ color: "#8B8676" }}>· {e.role === "BIRTH" ? "birth" : "test"}</span></li>
-                    ))}
-                  </ol>
-                )} />
-                <Row k="Method" v={lineage.method} />
-                <Row k="As of" v={t(Math.floor(lineage.asOf / 1000))} />
-                <div data-inspect-chain={lineage.chain.state}>
-                  <Row k="Chain" v={lineage.chain.state === "READ"
-                    ? <span className="break-all font-mono text-[11px]">{lineage.chain.line}</span>
-                    : <span style={{ color: UNREAD_COLOR }}>{lineage.chain.reason}</span>} />
-                </div>
-              </>
-            ) : (
-              <>
-                <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{z.object.birthBarId}</span>} />
-                <Row k="Decision" v={activeDecisionId ? <span className="break-all font-mono text-[11px]">{activeDecisionId}</span> : "none born on this camera"} />
-                <Row k="Lineage" v={<span style={{ color: UNREAD_COLOR }}>Not compiled for this object.</span>} />
-              </>
-            )}
-          </div>
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={AlertTriangle}>INVALIDATION CONDITION</Head>
-            <div className="text-[12.5px]" style={{ color: "#C8C0AE" }}>
-              Invalidated if a close {z.side === "DEMAND" ? "below" : "above"} <span style={{ color: "#FF4D6A" }}>{String(+lc.invalidationPrice.toPrecision(8))}</span>
-              {lc.invalidatedAt != null ? ` — happened ${t(lc.invalidatedAt)}` : ""}
-            </div>
-            <div className="text-[11px]" style={{ color: "#8B8676" }}>(Bar close beyond the far edge · a wick through is a sweep, not a break)</div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  /*
-    F11 · MARKET OBJECT PASSPORT for a LEVEL. "Kind only changes the noun on
-    the door. The drawer layout does not change." A selected swing level fell
-    through to the bar ticket; it now reads its own slots (SHARED_ATTACHMENT_
-    SLOTS) and the same LINEAGE owner as a zone. The level owner publishes only
-    CONFIRMED, UNTOUCHED swing levels and has no lifecycle owner yet — so
-    touches, response history and an invalidation rule are stated as absent,
-    never inferred.
-  */
-  if (selectedLevel) {
-    const o = selectedLevel;
-    const lineage = levelLineage?.objectId === o.objectId ? levelLineage : null;
-    const t = clock.stamp;
-    // Full precision (a 1.08347 FX level is not "1.08").
-    const px = (v: number) => String(+v.toPrecision(8));
-    const price = o.priceLow === o.priceHigh ? px(o.priceHigh) : `${px(o.priceLow)} – ${px(o.priceHigh)}`;
-    const memoryKind = memoryLevelKindOf(o.objectId);
-    const side = memoryKind ? `Prior-session ${memoryKind}`
-      : o.objectId.endsWith(":HIGH") ? "Swing high" : o.objectId.endsWith(":LOW") ? "Swing low" : null;
-    const Head = ({ icon: Icon, children }: { icon: typeof Crosshair; children: React.ReactNode }) => (
-      <div className="flex items-center gap-2 text-[12px] font-bold tracking-[0.1em] text-wm-gold">
-        <Icon size={15} aria-hidden /> {children}
-      </div>
-    );
-    const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
-      <div className="grid grid-cols-[104px_1fr] gap-2 text-[12.5px] leading-[1.45]"><span style={{ color: "#8B8676" }}>{k}</span><span className="text-white">{v}</span></div>
-    );
-    return (
-      <section className="absolute top-2 left-2 w-[372px] max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] overflow-y-auto rounded-lg border border-wm-gold/40 shadow-2xl"
-        style={{ background: "#0d0c0a", zIndex: 80 }}
-        data-testid="chart-inspect-ticket" data-inspect-object={o.objectId} data-inspect-kind={o.kind}
-        aria-label={`Market object passport. ${o.kind} ${price}. ${o.state}.`}>
-        <div className="flex items-start gap-2 border-b border-wm-border px-4 py-3">
-          <FileText size={22} className="mt-0.5 text-wm-gold" aria-hidden />
-          <div className="min-w-0">
-            <div className="text-[14px] font-bold tracking-[0.08em] text-white">MARKET OBJECT PASSPORT</div>
-            <div className="text-[12px]" style={{ color: "#C8C0AE" }}>{o.kind === "LEVEL" ? "Level" : o.kind} · {price}{side ? ` · ${side.toLowerCase()}` : ""}</div>
-          </div>
-          <button className="ml-auto" aria-label="Close the passport" onClick={() => onOpenChange(false)}><X size={14} /></button>
-        </div>
-        <div className="divide-y divide-wm-border/70">
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={CalendarDays}>BIRTH</Head>
-            {side && <Row k="Origin" v={<span className="text-wm-gold">{side}</span>} />}
-            <Row k="Price" v={price} />
-            <Row k="Fidelity" v={o.fidelityAtBirth} />
-          </div>
-          <div className="space-y-1 px-4 py-3">
-            <Head icon={Hourglass}>AGE · STATE</Head>
-            <Row k="Since birth" v={`${o.decay} bars`} />
-            <Row k="State" v={o.state} />
-            <Row k="Touches" v={o.testBarIds.length === 0
-              ? (memoryKind ? "None since birth — still naked" : "None since birth — the level owner publishes only untouched levels; a touched level leaves the glass")
-              : `${o.testBarIds.length} recent — each test bar is in the evidence list${memoryKind ? " (Profile Memory keeps the most recent)" : ""}`} />
-            <Row k="Invalidation" v={o.invalidationPrice == null ? <span style={{ color: UNREAD_COLOR }}>No rule stated — this level has no lifecycle owner yet</span> : px(o.invalidationPrice)} />
-          </div>
-          <div className="space-y-1 px-4 py-3" data-testid="passport-provenance"
-            data-inspect-lineage={lineage ? lineage.birth.state : "NOT_COMPILED"}>
-            <Head icon={FileText}>LINEAGE</Head>
-            <Row k="Object" v={<span className="break-all font-mono text-[11px]">{o.objectId}</span>} />
-            {lineage ? (
-              <>
-                <Row k="Kind" v={`${lineage.kind} · session ${lineage.sessionId}`} />
-                <Row k="Birth bar" v={lineage.birth.state === "READ"
-                  ? <span className="break-all font-mono text-[11px]">{lineage.birth.line}</span>
-                  : <span style={{ color: UNREAD_COLOR }}>{lineage.birth.absence} <span className="break-all font-mono text-[11px]">{lineage.birth.barId}</span></span>} />
-                <Row k="Evidence" v={lineage.evidence.length === 0 ? "none attached" : (
-                  <ol className="space-y-0.5" data-testid="passport-evidence">
-                    {lineage.evidence.map(e => (
-                      <li key={e.id}><span className="break-all font-mono text-[11px]">{e.id}</span> <span style={{ color: "#8B8676" }}>· {e.role === "BIRTH" ? "birth" : "test"}</span></li>
-                    ))}
-                  </ol>
-                )} />
-                <Row k="Method" v={lineage.method} />
-                <Row k="As of" v={t(Math.floor(lineage.asOf / 1000))} />
-                <div data-inspect-chain={lineage.chain.state}>
-                  <Row k="Chain" v={lineage.chain.state === "READ"
-                    ? <span className="break-all font-mono text-[11px]">{lineage.chain.line}</span>
-                    : <span style={{ color: UNREAD_COLOR }}>{lineage.chain.reason}</span>} />
-                </div>
-              </>
-            ) : (
-              <>
-                <Row k="Born on bar" v={<span className="break-all font-mono text-[11px]">{o.birthBarId}</span>} />
-                <Row k="Decision" v={activeDecisionId ? <span className="break-all font-mono text-[11px]">{activeDecisionId}</span> : "none born on this camera"} />
-                <Row k="Lineage" v={<span style={{ color: UNREAD_COLOR }}>Not compiled for this object.</span>} />
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+      <PassportDrawer
+        object={object}
+        zone={selectedZone}
+        lineage={selectedZone ? zoneLineage : levelLineage}
+        activeDecisionId={activeDecisionId}
+        timeZone={timeZone}
+        onClose={() => onOpenChange(false)}
+      />
     );
   }
 

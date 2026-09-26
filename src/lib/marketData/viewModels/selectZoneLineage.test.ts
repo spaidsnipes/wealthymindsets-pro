@@ -32,7 +32,13 @@ describe("selectZoneLineage — the Passport's ids, provenance and chain, from t
     const l = selectZoneLineage({ zone: demand, identities, decisionId: null });
     expect(l.objectId).toBe("ZONE:BTC|1h|1000|e0:DEMAND");
     expect([l.kind, l.sessionId, l.symbolId]).toEqual(["ZONE", "CONTINUOUS", "BTC"]);
-    expect(l.birth).toEqual({ state: "READ", barId: "BTC|1h|1000|e0", line: "BTC|1h|1000|e0 · coinbase · REST_BACKFILL · INDICATIVE" });
+    // 2026-09-26: the READ birth also carries the identity's source, provenance
+    // and asOf as fields (the Passport's BIRTH SOURCE slot) — the same words
+    // the line already printed, never a price.
+    expect(l.birth).toEqual({
+      state: "READ", barId: "BTC|1h|1000|e0", line: "BTC|1h|1000|e0 · coinbase · REST_BACKFILL · INDICATIVE",
+      source: "coinbase", provenance: "REST_BACKFILL", asOf: 1000,
+    });
     expect(l.method).toBe(`selectStructureZoneObjects + selectZoneLifecycle v${demand.lifecycle.version}`);
     expect(l.asOf).toBe(4000);
   });
