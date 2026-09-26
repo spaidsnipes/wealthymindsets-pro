@@ -128,7 +128,10 @@ describe("(b) the chart places and draws — it decides nothing", () => {
 describe("(c) the rail draws the plaque — one owner, one word, no state", () => {
   it("reads the plaque from exactly one selector call, off the same verdict and ledger", () => {
     expect(RAIL.match(/selectWaitPlaque\(/g) ?? []).toHaveLength(1);
-    expect(RAIL).toContain("selectWaitPlaque(nowDecision, oneStory ? oneStory.debt : null)");
+    // Garden 16 §31 (2026-09-26): the same verdict and ledger, plus the room's
+    // own settled bar count, so a request that returned nothing is named
+    // NO BAR HISTORY instead of a ledger node. Still one call, still no state.
+    expect(RAIL).toMatch(/selectWaitPlaque\(\n\s*nowDecision,\n\s*oneStory \? oneStory\.debt : null,\n\s*market\.barsSettled === true && typeof market\.barsInHand === "number" \? \{ settled: true, bars: market\.barsInHand \} : null,\n\s*\)/);
   });
 
   it("draws the state word exactly once, under the one claim const", () => {

@@ -3888,6 +3888,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // `29563.25 LAST 15m BAR CLOSE` at t=2163ms, off the same request.
       // Nothing new is computed — `barsSettled` was already in this scope.
       barsSettled,
+      // Garden 16 §31: the WAIT plaque names NO BAR HISTORY over an empty
+      // settled request (ES1! read "LET STRUCTURE DEVELOP" over nothing).
+      barsInHand: chartBars.length,
       // THE THIRD PRICE OWNER, handed over for the same reason the second one
       // was. MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m, one
       // viewport: the chart header read `81738.08 +492.44 (+0.61%)` and this

@@ -148,6 +148,12 @@ export interface SpineMarketEvidence {
    */
   readonly barsSettled?: boolean;
   /**
+   * How many bars the settled request returned. OPTIONAL (undefined = this
+   * surface did not say). With `barsSettled === true` and 0, the WAIT plaque
+   * names the missing material instead of a ledger node (Garden 16 §31).
+   */
+  readonly barsInHand?: number;
+  /**
    * THIRD PRICE OWNER — the live display quote and the provider that said it.
    *
    * MEASURED on the serving Worker 2026-09-20, BTCUSDT · 5m: the chart header
@@ -814,7 +820,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   /* H-101 / F05A / F06A — the plaque's ONE sentence. A third caller of the
      same verdict and the same ledger, never a third answer: the word is
      `nowDecision.value` verbatim and the standing is selectWaitStanding's. */
-  const plaque = selectWaitPlaque(nowDecision, oneStory ? oneStory.debt : null);
+  const plaque = selectWaitPlaque(
+    nowDecision,
+    oneStory ? oneStory.debt : null,
+    market.barsSettled === true && typeof market.barsInHand === "number" ? { settled: true, bars: market.barsInHand } : null,
+  );
   const ladder = selectEvidenceLadder(oneStory ? oneStory.debt : null);
   /* The ledger first, then the observations outside it — the same two groups
      the bar draws, in the same order, so the chips and the bar can never tell

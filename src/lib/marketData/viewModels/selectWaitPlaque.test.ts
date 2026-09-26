@@ -264,3 +264,45 @@ describe("selectPlaqueFlowContext — F06A's context panel, only from a lawful t
     expect(src).not.toMatch(/STACK/);
   });
 });
+
+describe("selectWaitPlaque — no market material (Garden 16 §31, found on the glass 2026-09-26)", () => {
+  // ES1! 15m, every vendor refused: the ledger still owed "direction" as
+  // payable-now, so the plaque read "DIRECTION UNRESOLVED · LET STRUCTURE
+  // DEVELOP" over an empty canvas.
+  const UNPAID: DecisionChainNode[] = [
+    node("regime", "Regime", "UNKNOWN", "COMPOSITION"),
+    node("direction", "Direction", "UNKNOWN", "EVIDENCE"),
+    node("location", "Location", "UNKNOWN", "EVIDENCE"),
+    node("risk", "Available R", "UNKNOWN", "DECLARATION"),
+  ];
+
+  it("a settled request with zero bars names the missing material, not a ledger node", () => {
+    const { debt, decision } = compile(UNPAID);
+    expect(decision.value).toBe("WAIT");
+    expect(selectWaitPlaque(decision, debt)!.reason).toBe("DIRECTION UNRESOLVED · LET STRUCTURE DEVELOP");
+    const p = selectWaitPlaque(decision, debt, { settled: true, bars: 0 })!;
+    expect(p.word).toBe("WAIT");
+    expect(p.reason).toBe("NO BAR HISTORY · NOTHING TO READ YET");
+    expect(p.basis).toBe("NO_MATERIAL");
+    expect(p.node).toBeNull();
+    expect(p.standing).toBe(selectWaitStanding(decision, debt)!.standing);
+  });
+
+  it("a request not back yet is not absence: the ledger keeps the sentence", () => {
+    const { debt, decision } = compile(UNPAID);
+    expect(selectWaitPlaque(decision, debt, { settled: false, bars: 0 })!.basis).toBe("FIRST_PAYABLE");
+    expect(selectWaitPlaque(decision, debt, null)!.basis).toBe("FIRST_PAYABLE");
+  });
+
+  it("any bars at all hand the sentence back to the ledger", () => {
+    const { debt, decision } = compile(UNPAID);
+    expect(selectWaitPlaque(decision, debt, { settled: true, bars: 1 })!.reason).toBe("DIRECTION UNRESOLVED · LET STRUCTURE DEVELOP");
+  });
+
+  it("the material rule speaks only for WAIT; other verdicts keep their own sentence", () => {
+    const { debt, decision } = compile(UNPAID, "BLOCKED" as PermissionVM["verdict"]);
+    if (decision.value !== "WAIT") {
+      expect(selectWaitPlaque(decision, debt, { settled: true, bars: 0 })!.basis).not.toBe("NO_MATERIAL");
+    }
+  });
+});

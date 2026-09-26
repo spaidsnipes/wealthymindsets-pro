@@ -73,6 +73,8 @@ export type WaitPlaqueBasis =
   | "LEDGER_CLEAR"
   /** WAIT with no ledger compiled — the plaque says so rather than guess. */
   | "NO_LEDGER"
+  /** WAIT over no market material: the bars were asked for and none came back. */
+  | "NO_MATERIAL"
   /** NO TRADE — a hard rule. */
   | "RULE"
   /** CAUTION — flagged evidence. */
@@ -146,12 +148,24 @@ function plural(n: number, one: string, many: string): string {
 }
 
 /**
+ * What the room holds to read, from the room's own bars request. OPTIONAL:
+ * a surface that does not say keeps the exact ledger-only behaviour.
+ */
+export interface WaitPlaqueMaterial {
+  /** The bars request for this selection has come back. */
+  readonly settled: boolean;
+  /** How many bars it returned. */
+  readonly bars: number;
+}
+
+/**
  * The plaque's word and its one sentence. Null only when nothing was compiled
  * at all — a plaque over no verdict would be a picture of a decision.
  */
 export function selectWaitPlaque(
   decision: RightOfWayReading | null | undefined,
   debt: EvidenceDebt | null | undefined,
+  material?: WaitPlaqueMaterial | null,
 ): WaitPlaqueVM | null {
   if (!decision) return null;
   const base = { word: decision.value, tone: decision.tone } as const;
@@ -162,6 +176,16 @@ export function selectWaitPlaque(
       // recomputed `missingPayable > 0` would be a second answer to the
       // question the WAIT standing line already answers.
       const standing = selectWaitStanding(decision, debt ?? null);
+      // NO MATERIAL OUTRANKS EVERY NODE (found on the glass, 2026-09-26, ES1!
+      // 15m with NO BAR HISTORY — every vendor refused): the plaque read
+      // "DIRECTION UNRESOLVED · LET STRUCTURE DEVELOP" over an empty canvas,
+      // which says a market is forming. Nothing in the ledger can be paid from
+      // no bars, so the one sentence names the missing evidence itself. Keyed
+      // on the room's own fact (the bars request came back, holding zero bars);
+      // "not back yet" stays the ledger's question, never a verdict of absence.
+      if (material && material.settled && material.bars === 0) {
+        return { ...base, reason: "NO BAR HISTORY · NOTHING TO READ YET", basis: "NO_MATERIAL", node: null, standing: standing?.standing ?? null };
+      }
       if (!standing || !debt) {
         return { ...base, reason: "NO LEDGER EXPLAINS THIS WAIT", basis: "NO_LEDGER", node: null, standing: null };
       }
