@@ -32,7 +32,7 @@ export async function GET(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   // GP12 §15: account state belongs to the owner of these credentials.
-  const owner = webullOwnerGate(auth.user.sub, process.env, "TRANSITIONAL");
+  const owner = webullOwnerGate(auth.user.sub, process.env);
   if (!owner.allowed) return NextResponse.json(webullOwnerRefusal(owner), { status: 403 });
   const adapter = getAdapter("webull");
   const h = adapter?.health();

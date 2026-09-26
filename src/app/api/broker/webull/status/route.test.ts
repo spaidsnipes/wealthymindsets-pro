@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextResponse } from "next/server";
 
 // Route gated behind requireAuth so the per-provider infra status isn't
@@ -17,6 +17,18 @@ function req(): Request {
 }
 
 describe("/api/broker/webull/status — canon §12 truth", () => {
+  // Garden 16 §35: the gate fails closed with no named owner, so every read
+  // below runs as the named owner ("u1", the mocked session).
+  beforeEach(() => { vi.stubEnv("WEBULL_OWNER_USER_ID", "u1"); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("fails closed with no named owner — a signed-in stranger reads nothing (§35)", async () => {
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "");
+    const res = await GET(req());
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("BROKER_OWNER_NOT_CONFIGURED");
+  });
+
   it("returns the unconfigured live probe honestly (never claims wired)", async () => {
     const res = await GET(req());
     const body = await res.json();

@@ -11,32 +11,25 @@
  * credential), the same pattern the Alpaca routes use with
  * `ALPACA_OWNER_USER_ID`.
  *
- * Two postures, chosen per route by the caller:
- *   - "STRICT"      — no owner configured → nobody. Used for anything that can
- *                     reach an order path (preview, place, cancel).
- *   - "TRANSITIONAL" — no owner configured → allowed, but the verdict SAYS
- *                     NOT_CONFIGURED so the surface can state the gap. Used only
- *                     for the read routes that were live before this gate
- *                     existed, so adding it does not blank the Founder's glass
- *                     before he has set the owner. Once the owner is set, both
- *                     postures are identical.
+ * ONE POSTURE: FAIL CLOSED (Garden 16 §35, 2026-09-26). No owner named → no
+ * one. The TRANSITIONAL posture that let any signed-in user read positions,
+ * status and the 2FA door while the owner was unset is retired: "unknown
+ * broker/account owner: FAIL CLOSED. Never expose one user's brokerage truth
+ * to another signed-in user. Never hard-code Founder identity as a shortcut."
+ * The glass states the gap (BROKER_OWNER_NOT_CONFIGURED); the fix is setting
+ * WEBULL_OWNER_USER_ID on the deployment, never a code default.
  */
 
 export type WebullOwnerGate =
-  | { readonly allowed: true; readonly state: "OWNER" | "NOT_CONFIGURED" }
+  | { readonly allowed: true; readonly state: "OWNER" }
   | { readonly allowed: false; readonly state: "NOT_OWNER" | "NOT_CONFIGURED" };
 
 export function webullOwnerGate(
   userId: string,
   env: Readonly<Record<string, string | undefined>>,
-  posture: "STRICT" | "TRANSITIONAL",
 ): WebullOwnerGate {
   const owner = env.WEBULL_OWNER_USER_ID?.trim();
-  if (!owner) {
-    return posture === "STRICT"
-      ? { allowed: false, state: "NOT_CONFIGURED" }
-      : { allowed: true, state: "NOT_CONFIGURED" };
-  }
+  if (!owner) return { allowed: false, state: "NOT_CONFIGURED" };
   return userId === owner ? { allowed: true, state: "OWNER" } : { allowed: false, state: "NOT_OWNER" };
 }
 

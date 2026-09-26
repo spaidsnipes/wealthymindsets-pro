@@ -17,17 +17,15 @@ export const dynamic = "force-dynamic";
  * and within a minute of the last press (one code at a time). See
  * `requestWebullSessionCode`.
  *
- * TRANSITIONAL owner posture: while WEBULL_OWNER_USER_ID is unset any signed-in
- * WM Pro user may press it — the code goes only to the phone on the Founder's
- * Webull account, so the worst a non-owner can do is one text a minute. Once
- * the owner is named, only the owner may.
+ * Owner-only, fail closed (Garden 16 §35): with WEBULL_OWNER_USER_ID unset
+ * nobody may press it; once the owner is named, only the owner may.
  *
  * Returns an outcome word and a sentence. Never a token.
  */
 export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const owner = webullOwnerGate(auth.user.sub, process.env, "TRANSITIONAL");
+  const owner = webullOwnerGate(auth.user.sub, process.env);
   if (!owner.allowed) return NextResponse.json(webullOwnerRefusal(owner), { status: 403 });
 
   const cfg = webullBrokerConfigFromEnv(process.env);

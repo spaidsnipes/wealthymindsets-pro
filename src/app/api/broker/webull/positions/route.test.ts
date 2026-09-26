@@ -13,7 +13,7 @@
  * is owned by webullPositions.test.ts against the measured fixtures.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextResponse } from "next/server";
 
 vi.mock("@/lib/requireAuth", () => ({
@@ -36,6 +36,18 @@ function req(query = ""): Request {
 }
 
 describe("/api/broker/webull/positions — BROKER COST LINE wire", () => {
+  // Garden 16 §35: the gate fails closed with no named owner, so every read
+  // below runs as the named owner ("u1", the mocked session).
+  beforeEach(() => { vi.stubEnv("WEBULL_OWNER_USER_ID", "u1"); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("fails closed with no named owner — a signed-in stranger reads nothing (§35)", async () => {
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "");
+    const res = await GET(req());
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("BROKER_OWNER_NOT_CONFIGURED");
+  });
+
   it("gates behind requireAuth — a position book is not public recon", async () => {
     (requireAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,

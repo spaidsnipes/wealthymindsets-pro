@@ -30,7 +30,7 @@ export async function GET(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   // GP12 §15: these are the owner's positions, not every signed-in user's.
-  const owner = webullOwnerGate(auth.user.sub, process.env, "TRANSITIONAL");
+  const owner = webullOwnerGate(auth.user.sub, process.env);
   if (!owner.allowed) return NextResponse.json(webullOwnerRefusal(owner), { status: 403 });
 
   const receipt = await probeWebullPositions(fetch, {

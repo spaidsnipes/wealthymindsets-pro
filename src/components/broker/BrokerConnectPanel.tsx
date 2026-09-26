@@ -892,7 +892,14 @@ function ManagedConnectionStatus({
       if (!isCurrent()) return;
       if (!response.ok || !json) {
         setReceipt(null);
-        setError(response.status === 401 ? "Sign in to WM Pro to check this connection." : `Connection check failed (HTTP ${response.status}).`);
+        // A 403 is the owner gate (Garden 16 §35) and carries its own sentence
+        // — "no named owner" vs "belongs to another user" — say it, not a code.
+        const refusal = (json as { error?: unknown } | null)?.error;
+        setError(
+          response.status === 401 ? "Sign in to WM Pro to check this connection."
+            : response.status === 403 && typeof refusal === "string" ? refusal
+            : `Connection check failed (HTTP ${response.status}).`,
+        );
       } else {
         setReceipt(json);
       }

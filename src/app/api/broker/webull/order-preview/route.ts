@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const owner = webullOwnerGate(auth.user.sub, process.env, "STRICT");
+  const owner = webullOwnerGate(auth.user.sub, process.env);
   if (!owner.allowed) return NextResponse.json(webullOwnerRefusal(owner), { status: 403 });
 
   let input: Record<string, unknown>;
