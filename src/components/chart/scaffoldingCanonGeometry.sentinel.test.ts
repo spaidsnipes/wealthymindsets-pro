@@ -66,7 +66,7 @@ describe("ADVANCED / PRO — geometry on the real candles, no card", () => {
     expect(fills.length).toBeGreaterThan(0);
     for (const f of fills) expect(f).toBe("plaque.x, plaque.y, plaque.w, plaque.h");
     expect(pro).toMatch(/proPlaqueSlots\(sleeve, PRO_PLAQUE,/);
-    expect(pro).toMatch(/placeClearOfKeepOut\(slots\.preferred, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(yLo, yHi\)\], \{\s*minX, blockers: \[\.\.\.floatingChips, \.\.\.sleeveBoxes\(sleeve\)\], strict: true, alternates: slots\.alternates,/);
+    expect(pro).toMatch(/placeClearOfKeepOut\(slots\.preferred, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(yLo, yHi\)\], \{\s*minX, blockers: \[\.\.\.floatingChips, \.\.\.sleeveBoxes\(sleeve\), \.\.\.waitSlots, \.\.\.\(ruleStrip \? \[ruleStrip\] : \[\]\)\], strict: true, alternates: slots\.alternates,/);
     expect(pro).toMatch(/recordKeepOut\(keepOutLedger, spot\);/);
     expect(pro).toMatch(/panel\(keepOutBackingAlpha\(spot, 0\.94\)\)/);
     expect(pro).toMatch(/floatingChips\.push\(plaque\);/);
@@ -100,6 +100,63 @@ describe("ADVANCED / PRO — geometry on the real candles, no card", () => {
 
   it("the old anatomy-cards reservation no longer holds room for a Pro card", () => {
     expect(SRC).toMatch(/if \(sDepth === "FOUNDATION" \|\| sDepth === "INTERMEDIATE"\) \{\s*const sx = cardsLeft, sy = 176 - 9;\s*const \{ w: sw, h: sh \} = SCAFFOLD_CARD_BOX\[sDepth\];/);
+  });
+});
+
+// Added 2026-09-26 — coordinator side-by-side at 04:57 CDT (TSLA 15m, 80 bars,
+// scaff:PRO) found two gaps against UI-12 PRO and one collision:
+//   1. the plate's dashed resistance rule the mass flattens into was missing
+//      (only the generic full-width swing lines were there);
+//   2. the plaque read "1.00× EVEN · CAUTION" in one line instead of the
+//      plate's title / big number / grade marks / grade line;
+//   3. at 80 bars the plaque sat where H-101's WAIT tag lands.
+describe("ADVANCED / PRO — the plate's resistance rule and plaque hierarchy", () => {
+  it("draws ONE dashed rule on the level the read is pushing into, across the window, named by its kind", () => {
+    expect(pro).toMatch(/if \(sc\.pushingInto\) \{\s*const lvlR = sc\.pushingInto === "SWING ABOVE" \? sc\.swingAbove : sc\.swingBelow;\s*const yR = lvlR == null \? null : yOf\(lvlR\);/);
+    expect(pro).toMatch(/const x0R = first\.x - hb, x1R = ax \+ 4;/);
+    expect(pro).toMatch(/ctx\.moveTo\(x0R, yyR\); ctx\.lineTo\(x1R, yyR\);/);
+    expect(pro).toMatch(/const wordR = `\$\{sc\.pushingInto\} · \$\{lvlR\.toFixed\(pxDp\)\}`;/);
+    expect(code).not.toMatch(/HTF/);
+    // Inked by the cell that meets it — maroon when the push stopped paying.
+    expect(pro).toMatch(/const meetConv = sleeve\.segments\.at\(-1\)\?\.conversion \?\? null;/);
+    expect(pro).toMatch(/const ruleInk = RULE_INK\[meetConv \?\? "NONE"\];/);
+    expect(pro).toMatch(/"NOT CONVERTING": "rgba\(200,96,76,/);
+    // Its generic full-width line steps back so there is one rule, not two.
+    expect(code).toMatch(/ctx\.strokeStyle = depth === "PRO" && tag === sc\.pushingInto \? "rgba\(237,230,211,0\.22\)" : "rgba\(237,230,211,0\.55\)";/);
+    // Its name is placed by the keep-out owner and registered.
+    expect(pro).toMatch(/const labR = placeClearOfKeepOut\(\{ x: x0R, y: lyR, w: twR, h: 11 \}, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(lyR, lyR \+ 11\)\], \{\s*minX, blockers: floatingChips, strict: true,/);
+    expect(pro).toMatch(/floatingChips\.push\(labR\.rect\);/);
+    expect(pro).toMatch(/ds\.scaffoldingResistance = /);
+  });
+
+  it("the plaque reads title → big ratio → grade marks → grade line, with no invented percent", () => {
+    const words = pro.slice(pro.indexOf("const { x: qx, y: qy, w: qw, h: qh } = plaque;"), pro.indexOf("floatingChips.push(plaque);"));
+    const order = [
+      'ctx.fillText("RESULT PER EFFORT · RECENT HALF", qc, qy + 21);',
+      "ctx.fillText(ratio, qc, qy + 37);",
+      "ctx.fillText(marks, qc, qy + 53);",
+      "qc, qy + 66);",
+    ].map(k => words.indexOf(k));
+    for (const i of order) expect(i).toBeGreaterThan(-1);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(words).toMatch(/ctx\.font = font\(800, 20\);/);
+    expect(words).toContain("`${sc.resultPerEffort.toFixed(2)}×`");
+    expect(words).not.toMatch(/%|\* 100|EFFICIENCY RATIO/);
+    // Marks come from the owner grade only.
+    expect(words).toContain("const marks = gradeMarks(sc.conversion);");
+    expect(words).not.toMatch(/★/);
+  });
+
+  it("the plaque leaves H-101's WAIT slots free and is registered before H-101 places its tag", () => {
+    expect(pro).toMatch(/const tagW = debtTagRef\.current;/);
+    expect(pro).toMatch(/waitSlots\.push\(\{ x: xW - wW \/ 2 - 4, y: yLW \+ 22, w: wW \+ 8, h: 28 \}, \{ x: xW - wW \/ 2 - 4, y: yHW - 50, w: wW \+ 8, h: 28 \}\);/);
+    expect(pro).toMatch(/minX, blockers: \[\.\.\.floatingChips, \.\.\.waitSlots\], strict: true,/);
+    const pushAt = SRC.indexOf("floatingChips.push(plaque);");
+    const h101 = SRC.indexOf("/* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT");
+    expect(pushAt).toBeGreaterThan(-1);
+    expect(h101).toBeGreaterThan(pushAt);
+    const tag = SRC.slice(h101, SRC.indexOf("canvas.dataset.debtTag = tagState;", h101));
+    expect(tag).toMatch(/placeClearOfKeepOut\(below, keepOut\(\), \{\s*minX: keepOutMinX\(\),\s*blockers: floatingChips,\s*strict: true,/);
   });
 });
 

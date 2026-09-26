@@ -202,6 +202,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
+  "scaffoldingResistance",
 ] as const;
 
 /** H-901 · what the regime block painted this frame; withdrawn together before it paints. */
@@ -347,6 +348,7 @@ import {
   SCAFFOLDING_GLASS_RECEIPTS,
   countRectHits,
   dockClearOfCandles,
+  gradeMarks,
   planProSleeve,
   proPlaqueSlots,
   sleeveBoxes,
@@ -11080,7 +11082,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const xp = t0 == null ? null : xOf(t0);
                   const yy = Math.round(y) + 0.5;
                   ctx.setLineDash([6, 4]);
-                  ctx.strokeStyle = "rgba(237,230,211,0.55)";
+                  // At PRO the level the read is pushing into is carried by the
+                  // plate's resistance rule over the window; its full-width
+                  // line steps back so the glass shows ONE rule, not two.
+                  ctx.strokeStyle = depth === "PRO" && tag === sc.pushingInto ? "rgba(237,230,211,0.22)" : "rgba(237,230,211,0.55)";
                   ctx.lineWidth = 1;
                   ctx.beginPath(); ctx.moveTo(xp != null && xp > 0 ? xp : 0, yy); ctx.lineTo(W - 76, yy); ctx.stroke();
                   ctx.setLineDash([]);
@@ -11124,6 +11129,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ds.scaffoldingForm = "GEOMETRY";
                   const convWord = (c: string | null) => (c === "CONVERTING" ? "C" : c === "EVEN" ? "E" : c === "NOT CONVERTING" ? "N" : "-");
                   let plaque: GlassRect | null = null;
+                  let ruleStrip: GlassRect | null = null;
+                  // H-101's WAIT tag paints LATER this frame on its event bar
+                  // (below it, else above it) and steps around `floatingChips`.
+                  // When its event is on camera the plaque leaves those two
+                  // slots free, so the tag is never forced onto the plaque.
+                  const waitSlots: GlassRect[] = [];
+                  {
+                    const tagW = debtTagRef.current;
+                    if (tagW) {
+                      const bsW = barsRef.current ?? [];
+                      for (let i = bsW.length - 1; i >= 0; i--) {
+                        const tb = Math.round(bsW[i].time);
+                        if (tb < tagW.barTimeSec) break;
+                        if (tb !== tagW.barTimeSec) continue;
+                        const xW = xOf(bsW[i].time), yHW = yOf(bsW[i].high), yLW = yOf(bsW[i].low);
+                        if (xW != null && yHW != null && yLW != null) {
+                          ctx.font = "700 12px Georgia, 'Times New Roman', serif";
+                          const wW = Math.ceil(ctx.measureText(tagW.word).width) + 20;
+                          waitSlots.push({ x: xW - wW / 2 - 4, y: yLW + 22, w: wW + 8, h: 28 }, { x: xW - wW / 2 - 4, y: yHW - 50, w: wW + 8, h: 28 });
+                        }
+                        break;
+                      }
+                    }
+                  }
                   if (sleeve.drawn) {
                     const pts = sleeve.points;
                     const hb = sleeve.halfBar;
@@ -11247,6 +11276,53 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     }
                     ds.scaffoldingGeometry = `ON_PRICE:${pts.length}:${sleeve.segments.map(sg => convWord(sg.conversion)).join("")}:${effDyn.trend}/${resDyn.trend}:WORDS_${arrowWords}`;
 
+                    // THE PLATE'S RESISTANCE RULE (UI-12 Pro: the dashed rule the
+                    // mass flattens into). The level is the one the read says the
+                    // recent half is PUSHING INTO, named by its own kind — "SWING
+                    // ABOVE", never "HTF", because no higher timeframe is read.
+                    // It spans the window, start to arrows, on its real price,
+                    // inked with the conversion of the cell that meets it (maroon
+                    // when the push stopped paying).
+                    if (sc.pushingInto) {
+                      const lvlR = sc.pushingInto === "SWING ABOVE" ? sc.swingAbove : sc.swingBelow;
+                      const yR = lvlR == null ? null : yOf(lvlR);
+                      if (lvlR != null && yR != null) {
+                        const meetConv = sleeve.segments.at(-1)?.conversion ?? null;
+                        const RULE_INK: Record<string, string> = {
+                          CONVERTING: "rgba(160,185,210,0.9)",
+                          EVEN: "rgba(214,178,100,0.9)",
+                          "NOT CONVERTING": "rgba(200,96,76,0.92)",
+                          NONE: "rgba(237,230,211,0.7)",
+                        };
+                        const ruleInk = RULE_INK[meetConv ?? "NONE"];
+                        const x0R = first.x - hb, x1R = ax + 4;
+                        const yyR = Math.round(yR) + 0.5;
+                        ctx.save();
+                        ctx.setLineDash([7, 4]);
+                        ctx.strokeStyle = ruleInk; ctx.lineWidth = 1.5;
+                        ctx.beginPath(); ctx.moveTo(x0R, yyR); ctx.lineTo(x1R, yyR); ctx.stroke();
+                        ctx.restore();
+                        ruleStrip = { x: x0R, y: yyR - 3, w: x1R - x0R, h: 6 };
+                        // Its name sits on the pushing side, at the window's start
+                        // (the plate's top-left caption), or at its right end.
+                        ctx.font = font(700, 8);
+                        const wordR = `${sc.pushingInto} · ${lvlR.toFixed(pxDp)}`;
+                        const twR = ctx.measureText(wordR).width + 4;
+                        const lyR = sc.pushingInto === "SWING ABOVE" ? yyR - 14 : yyR + 3;
+                        const labR = placeClearOfKeepOut({ x: x0R, y: lyR, w: twR, h: 11 }, [...keepOut(), ...rowBodiesAt(lyR, lyR + 11)], {
+                          minX, blockers: floatingChips, strict: true,
+                          alternates: [{ x: x1R - twR, y: lyR, w: twR, h: 11 }],
+                        });
+                        const labelled = labR.mode === "CLEAR" || labR.mode === "MOVED";
+                        if (labelled) {
+                          ctx.fillStyle = ruleInk;
+                          ctx.fillText(wordR, labR.rect.x + 2, lyR + 5.5);
+                          floatingChips.push(labR.rect);
+                        }
+                        ds.scaffoldingResistance = `${sc.pushingInto.replace(" ", "_")}:${lvlR.toFixed(pxDp)}:${convWord(meetConv)}:${labelled ? "LABELLED" : "UNLABELLED"}`;
+                      }
+                    }
+
                     // ONE plaque, tied by a leader to the window's last bar,
                     // placed by the keep-out owner (strict: clear of bodies and
                     // of every chip already on the glass).
@@ -11256,11 +11332,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       const yLo = Math.min(...all.map(r => r.y)), yHi = Math.max(...all.map(r => r.y + r.h));
                       // The plaque never covers the geometry it describes.
                       const spot = placeClearOfKeepOut(slots.preferred, [...keepOut(), ...rowBodiesAt(yLo, yHi)], {
-                        minX, blockers: [...floatingChips, ...sleeveBoxes(sleeve)], strict: true, alternates: slots.alternates,
+                        minX, blockers: [...floatingChips, ...sleeveBoxes(sleeve), ...waitSlots, ...(ruleStrip ? [ruleStrip] : [])], strict: true, alternates: slots.alternates,
                       });
                       recordKeepOut(keepOutLedger, spot);
                       plaque = spot.rect;
-                      ds.scaffoldingPlaque = `${spot.mode}:${Math.round(plaque.x)},${Math.round(plaque.y)}`;
+                      ds.scaffoldingPlaque = `${spot.mode}:${Math.round(plaque.x)},${Math.round(plaque.y)}:WAIT_SLOTS_${waitSlots.length}`;
                       // The leader: plaque edge → ONE candle's wick tip — the
                       // window's last bar, or its first when the plaque had
                       // to sit beside the window's start.
@@ -11291,7 +11367,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     // No mass on this camera: the plaque still states the
                     // ratio, top-left, clear of the candles — and no leader.
                     const spot = placeClearOfKeepOut({ x: minX, y: HEADER_FLOOR_Y + 8, ...PRO_PLAQUE }, [...keepOut(), ...rowBodiesAt(HEADER_FLOOR_Y + 8, HEADER_FLOOR_Y + 8 + PRO_PLAQUE.h)], {
-                      minX, blockers: floatingChips, strict: true,
+                      minX, blockers: [...floatingChips, ...waitSlots], strict: true,
                     });
                     recordKeepOut(keepOutLedger, spot);
                     plaque = spot.rect;
@@ -11299,21 +11375,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.fillStyle = panel(keepOutBackingAlpha(spot, 0.94));
                     ctx.fillRect(plaque.x, plaque.y, plaque.w, plaque.h);
                   }
-                  // The plaque's words: path, the one number, what it means.
+                  // The plaque, in the plate's hierarchy (UI-12 "EFFICIENCY
+                  // RATIO / 62% / five stars / MODERATE · DEFENSIVE SETUP"): a
+                  // small-caps title, the one big number, the grade marks, one
+                  // grade line. The number stays the owner's RATIO (×) — no
+                  // percent is invented. The marks are the conversion word's
+                  // three levels (gradeMarks), not five stars nobody measured;
+                  // no conversion, no marks.
                   const { x: qx, y: qy, w: qw, h: qh } = plaque;
                   ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
                   ctx.strokeRect(qx + 0.5, qy + 0.5, qw - 1, qh - 1);
                   crumb(qx + 8, qy + 9, 6.5);
+                  const qc = qx + qw / 2;
+                  ctx.textAlign = "center";
                   ctx.font = font(700, 7.5); ctx.fillStyle = GOLD;
-                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", qx + 8, qy + 21);
-                  ctx.font = font(800, 16); ctx.fillStyle = CREAM;
+                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", qc, qy + 21);
+                  ctx.font = font(800, 20); ctx.fillStyle = GOLD;
                   const ratio = sc.resultPerEffort == null ? "—" : `${sc.resultPerEffort.toFixed(2)}×`;
-                  ctx.fillText(ratio, qx + 8, qy + 36);
-                  const rw = ctx.measureText(ratio).width;
-                  ctx.font = font(700, 8); ctx.fillStyle = GOLD;
-                  ctx.fillText(clip(`${sc.conversion ?? "NO EFFORT"} · ${sc.posture}`, qw - rw - 22), qx + 14 + rw, qy + 37);
-                  ctx.font = font(500, 7); ctx.fillStyle = DIM;
-                  ctx.fillText(clip(`${sc.window.length} bars · ${sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired"}`, qw - 16), qx + 8, qy + 50);
+                  ctx.fillText(ratio, qc, qy + 37);
+                  const marks = gradeMarks(sc.conversion);
+                  if (marks) { ctx.font = font(700, 10); ctx.fillStyle = GOLD; ctx.fillText(marks, qc, qy + 53); }
+                  ctx.font = font(700, 7.5); ctx.fillStyle = CREAM;
+                  ctx.fillText(clip(`${sc.conversion ?? "NO EFFORT"} · ${sc.posture}`, qw - 16), qc, qy + 66);
+                  ctx.textAlign = "left";
                   floatingChips.push(plaque);
                 } else {
                   /* FOUNDATION / INTERMEDIATE — the plate's student and

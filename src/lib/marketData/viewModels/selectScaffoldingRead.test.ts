@@ -100,6 +100,20 @@ describe("one read, three depths", () => {
     expect(v).toMatchObject({ swingBelow: 101, swingBelowTime: 60, swingBelowKind: "LOW" });
   });
 
+  // Added 2026-09-26: the plate's resistance rule is the level the push runs into.
+  it("names the level the recent half is pushing into — by its kind, only when price travelled toward it", () => {
+    const sw = { swingHighs: [{ time: 120, price: 120 }], swingLows: [{ time: 60, price: 101 }] };
+    const up = selectScaffoldingRead({ structure: structure(sw), absorption: anatomy(story), exhaustion: null });
+    expect(up.pushingInto).toBe("SWING ABOVE");
+    const fall = story.map((b, i) => ({ ...b, open: 120 - i + 0.5, close: 120 - i, high: 121 - i, low: 119.5 - i }));
+    const down = selectScaffoldingRead({ structure: structure({ swingHighs: [{ time: 60, price: 125 }], swingLows: [{ time: 120, price: 99 }] }), absorption: anatomy(fall), exhaustion: null });
+    expect(down.pushingInto).toBe("SWING BELOW");
+    // Travelling up with nothing confirmed above: no rule is claimed.
+    const none = selectScaffoldingRead({ structure: structure({ swingLows: [{ time: 60, price: 101 }] }), absorption: anatomy(story), exhaustion: null });
+    expect(none.pushingInto).toBeNull();
+    expect(JSON.stringify(up)).not.toMatch(/HTF/);
+  });
+
   it("carries no probability, star or score field — and says so in step 6", () => {
     const v = selectScaffoldingRead({ structure: structure(), absorption: anatomy(story), exhaustion: null });
     expect(Object.keys(v).some(k => /prob|star|score|confidence/i.test(k))).toBe(false);

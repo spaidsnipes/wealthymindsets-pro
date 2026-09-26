@@ -208,8 +208,25 @@ export const SCAFFOLD_CARD_BOX = {
   FOUNDATION_COMPACT: { w: 340, h: 151 },
   INTERMEDIATE: { w: 252, h: 112 },
 } as const;
-/** The Pro plaque (crumb, ratio, conversion, window). */
-export const PRO_PLAQUE = { w: 212, h: 58 } as const;
+/** The Pro plaque: crumb, small-caps title, the big ratio, the grade marks, the grade line. */
+export const PRO_PLAQUE = { w: 212, h: 74 } as const;
+
+/**
+ * THE PLAQUE'S STARS ARE THE OWNER'S GRADE, NOTHING ELSE. Plate UI-12 prints
+ * "★★★★★" under its efficiency ratio; no owner measures five grades of
+ * efficiency. The one grade that exists is the read's conversion word, which
+ * has THREE levels — so the marks are out of three and say exactly that word:
+ * NOT CONVERTING ★☆☆ · EVEN ★★☆ · CONVERTING ★★★. No conversion (no effort)
+ * → no marks at all.
+ */
+export const CONVERSION_GRADE_OF = 3;
+export function conversionGrade(conversion: Conversion | null): number | null {
+  return conversion === "CONVERTING" ? 3 : conversion === "EVEN" ? 2 : conversion === "NOT CONVERTING" ? 1 : null;
+}
+export function gradeMarks(conversion: Conversion | null): string {
+  const g = conversionGrade(conversion);
+  return g == null ? "" : "★".repeat(g) + "☆".repeat(CONVERSION_GRADE_OF - g);
+}
 
 /**
  * The spot nearest `preferred` where a card covers no candle and no chip.
@@ -268,4 +285,5 @@ export function dockClearOfCandles(input: DockInput): DockResult {
 export const SCAFFOLDING_GLASS_RECEIPTS = [
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
+  "scaffoldingResistance",
 ] as const;

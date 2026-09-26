@@ -9,7 +9,10 @@ import {
   SCAFFOLDING_GLASS_RECEIPTS,
   SLEEVE_PAD_EFFORT,
   SLEEVE_PAD_MIN,
+  CONVERSION_GRADE_OF,
+  conversionGrade,
   countRectHits,
+  gradeMarks,
   dockClearOfCandles,
   planProSleeve,
   proPlaqueSlots,
@@ -159,6 +162,21 @@ describe("FOUNDATION / INTERMEDIATE — the card docks where it hides no candle"
     expect(d.mode).toBe("NONE");
     expect(d.hits).toBeGreaterThan(0);
     expect(d.rect).toMatchObject({ x: 12, y: 167 });
+  });
+});
+
+describe("PRO plaque grade — the owner's conversion word, out of three", () => {
+  it("maps each conversion word to its marks and invents none", () => {
+    expect(gradeMarks("CONVERTING")).toBe("★★★");
+    expect(gradeMarks("EVEN")).toBe("★★☆");
+    expect(gradeMarks("NOT CONVERTING")).toBe("★☆☆");
+    expect(gradeMarks(null)).toBe("");
+    expect(conversionGrade(null)).toBeNull();
+    expect(CONVERSION_GRADE_OF).toBe(3);
+  });
+  it("the plaque grows only to hold the plate's four rows and stays a plaque", () => {
+    expect(PRO_PLAQUE.h).toBeGreaterThanOrEqual(70);
+    expect(PRO_PLAQUE.w * PRO_PLAQUE.h).toBeLessThan((300 * 266) / 5);
   });
 });
 

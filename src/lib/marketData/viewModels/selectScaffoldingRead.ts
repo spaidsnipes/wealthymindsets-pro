@@ -115,6 +115,13 @@ export interface ScaffoldingReadVM {
   readonly swingAboveKind: "HIGH" | "LOW" | null;
   readonly swingBelowKind: "HIGH" | "LOW" | null;
   /**
+   * The level the recent half is PUSHING INTO — the plate's resistance rule:
+   * the swing above when the recent half travelled up, the swing below when
+   * it travelled down. Null when price did not travel or nothing is
+   * confirmed on that side. Named by kind ("SWING ABOVE"), never "HTF".
+   */
+  readonly pushingInto: "SWING ABOVE" | "SWING BELOW" | null;
+  /**
    * PRO: the read window's bars, oldest first — the anatomy's OWN bars (no
    * second bar shape, M8), so the glass maps them with the chart's own
    * transforms — and its segments.
@@ -144,7 +151,7 @@ function empty(reason: ScaffoldingReadVM["reason"], basis: ScaffoldingReadVM["ba
     version: SCAFFOLDING_VERSION, measured: false, reason, basis, steps: [], conclusion: "", dynamics: [],
     caution: false, cautionFlags: [], posture: "", effortCurve: [], resultCurve: [], resultPerEffort: null,
     conversion: null, swingAbove: null, swingBelow: null, swingAboveTime: null, swingBelowTime: null,
-    swingAboveKind: null, swingBelowKind: null, window: [], segments: [],
+    swingAboveKind: null, swingBelowKind: null, pushingInto: null, window: [], segments: [],
   };
 }
 
@@ -298,6 +305,7 @@ export function selectScaffoldingRead(input: ScaffoldingInput): ScaffoldingReadV
     swingBelowTime: belowPt?.time ?? null,
     swingAboveKind: abovePt ? (highs.includes(abovePt) ? "HIGH" : "LOW") : null,
     swingBelowKind: belowPt ? (highs.includes(belowPt) ? "HIGH" : "LOW") : null,
+    pushingInto: travel > 0 && above != null ? "SWING ABOVE" : travel < 0 && below != null ? "SWING BELOW" : null,
     window: bars,
     segments,
   };
