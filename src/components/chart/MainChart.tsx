@@ -19164,7 +19164,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           Rendered only when a setter exists: a chip that cannot change the
           timeframe is a label wearing a button's clothes. */}
       {setTimeframe && (
-        <TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} />
+        <TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} symbol={symbol} />
       )}
 
       {/* ── THE OTHER HALF OF THE FOOTER BAND ────────────────────────────

@@ -7,6 +7,7 @@ import {
 } from "./timeframes";
 import { resolveYahooTimeframe } from "./yahooTimeframes";
 import { EXCHANGE_TIMEFRAME_SECONDS } from "./marketData/exchangeTimeframes";
+import { ALPACA_TF_MAP } from "./marketData/alpacaBarRoute";
 
 /**
  * THE CANONICAL LADDER — Garden 16 §21 ("Recover the actual registry. DO NOT
@@ -24,20 +25,24 @@ const CANON_FAMILY_QUOTED =
 const SRC = (rel: string) => readFileSync(join(process.cwd(), "src", rel), "utf8");
 
 /**
- * The chart's first equity bar route, read from source. Next route files may
- * only export handlers, so the table cannot be imported; parsing it is how the
- * registry's NATIVE claims stay pinned to the route that makes them true.
+ * The chart's first equity bar route's table. It used to be parsed out of
+ * route.ts (a Next route may only export handlers); since 2026-09-26 the route
+ * IMPORTS it from alpacaBarRoute.ts, so reading the lib is reading the route.
+ * The import edge itself is pinned below, so the two cannot drift apart.
  */
 function alpacaTfMap(): Record<string, string> {
-  const src = SRC("app/api/alpaca/route.ts");
-  const start = src.indexOf("const ALPACA_TF_MAP");
-  const end = src.indexOf("};", start);
-  expect(start, "ALPACA_TF_MAP moved or was renamed").toBeGreaterThan(-1);
   const out: Record<string, string> = {};
-  for (const m of src.slice(start, end).matchAll(/"([^"]+)":\s*\{\s*timeframe:\s*"([^"]+)"/g)) out[m[1]] = m[2];
-  expect(Object.keys(out).length, "parsed no ALPACA_TF_MAP entries").toBeGreaterThan(10);
+  for (const [k, v] of Object.entries(ALPACA_TF_MAP)) out[k] = v.timeframe;
+  expect(Object.keys(out).length, "no ALPACA_TF_MAP entries").toBeGreaterThan(10);
   return out;
 }
+
+it("/api/alpaca serves from the lib's ALPACA_TF_MAP and keeps no private copy", () => {
+  const route = SRC("app/api/alpaca/route.ts");
+  expect(route).toMatch(/import \{ ALPACA_TF_MAP, toAlpacaCryptoSymbol as toCryptoSym \} from "@\/lib\/marketData\/alpacaBarRoute";/);
+  expect(route).not.toMatch(/const ALPACA_TF_MAP/);
+  expect(route).toContain("const hit = ALPACA_TF_MAP[tf];");
+});
 
 function finnhubResKeys(): string[] {
   const src = SRC("app/api/finnhub/route.ts");

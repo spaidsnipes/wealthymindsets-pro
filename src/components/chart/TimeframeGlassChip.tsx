@@ -41,6 +41,7 @@ import {
   CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, canonRungSpokenName, getTimeframe,
   timeframeSpokenName, type CanonRung, type TFId,
 } from "@/lib/timeframes";
+import { canonAvailabilityFor, ladderOnNowSentence } from "@/lib/marketData/chartBarRoute";
 
 /**
  * THE FOOTER BAND THE CHIP LIVES IN — and the defect that proved it necessary.
@@ -89,9 +90,12 @@ export const TIMEFRAME_CHIP_BOTTOM_PX = 3;
 interface Props {
   timeframe: string;
   setTimeframe: (t: string) => void;
+  /** The chart's symbol. Whether a rung's bars are the provider's own or
+   *  rebuilt by WM depends on which route serves THIS instrument (§26). */
+  symbol: string;
 }
 
-export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
+export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props) {
   const [open, setOpen] = useState(false);
   const [ladderOpen, setLadderOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -233,7 +237,7 @@ export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
           </button>
         </div>
       )}
-      {open && ladderOpen && <TimeframeLadder timeframe={timeframe} onChoose={choose} />}
+      {open && ladderOpen && <TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} />}
 
       <button
         type="button"
@@ -267,10 +271,13 @@ export const TIMEFRAME_LADDER_ID = "wm-chart-timeframe-ladder";
 
 interface LadderProps {
   timeframe: string;
+  /** The chart's symbol: each rung is re-measured against the route that
+   *  serves THIS instrument (canonAvailabilityFor). */
+  symbol: string;
   /** The chip's own `choose` — the same door the strip's nine use. */
   onChoose: (id: TFId) => void;
-  /** The registry's ladder. A prop only so a test can hand it a rung the live
-   *  ladder does not have today (a DERIVED one) and watch it be marked. */
+  /** Overrides the per-symbol ladder. A prop only so a test can hand it a rung
+   *  of a shape no live symbol produces and watch it be drawn. */
   rungs?: readonly CanonRung[];
 }
 
@@ -297,7 +304,13 @@ interface LadderProps {
  * current timeframe, which is what lets a test call it and press its buttons
  * without a DOM.
  */
-export function TimeframeLadder({ timeframe, onChoose, rungs = CANON_LADDER }: LadderProps) {
+export function TimeframeLadder({ timeframe, symbol, onChoose, rungs: given }: LadderProps) {
+  const rungs = given ?? CANON_LADDER.map(r => canonAvailabilityFor(r, symbol));
+  // When no rung is the chart's timeframe (6M / 1Y drawn unavailable, or
+  // 45m / 3M / 2Y / 5Y which are not rungs), say what the chart is on in
+  // words. No rung is marked current for it: an unavailable rung is never
+  // dressed as a healthy one.
+  const onNow = ladderOnNowSentence(timeframe, symbol, rungs);
   return (
     <section
       id={TIMEFRAME_LADDER_ID}
@@ -314,6 +327,11 @@ export function TimeframeLadder({ timeframe, onChoose, rungs = CANON_LADDER }: L
       // phone — where the strip, a block-level flex row, stretches to match.
       style={{ pointerEvents: "auto", contain: "inline-size" }}
     >
+      {onNow && (
+        <p className="wm-chart-timeframe-on-now pb-1 mb-0.5 border-b border-wm-border text-[10px] leading-snug font-mono text-wm-text">
+          {onNow}
+        </p>
+      )}
       {CANON_LADDER_GROUPS.map(group => {
         const inGroup = rungs.filter(r => r.group === group.id);
         if (inGroup.length === 0) return null;

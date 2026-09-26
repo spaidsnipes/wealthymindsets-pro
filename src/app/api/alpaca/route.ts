@@ -24,6 +24,7 @@ import {
   toLegacySecondsTuple,
 } from "@/lib/marketData/alpacaCandleIngress";
 import { canonicalBarIdentity } from "@/lib/marketData/canonicalBar";
+import { ALPACA_TF_MAP, toAlpacaCryptoSymbol as toCryptoSym } from "@/lib/marketData/alpacaBarRoute";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -107,36 +108,8 @@ class UnsupportedTimeframeError extends Error {
   }
 }
 
-const ALPACA_TF_MAP: Record<string, { timeframe: string; daysBack: number }> = {
-  "1m":  { timeframe: "1Min",  daysBack: 2   },
-  "2m":  { timeframe: "2Min",  daysBack: 5   },
-  "3m":  { timeframe: "3Min",  daysBack: 5   },
-  "5m":  { timeframe: "5Min",  daysBack: 5   },
-  "10m": { timeframe: "10Min", daysBack: 10  },
-  "15m": { timeframe: "15Min", daysBack: 30  },
-  "30m": { timeframe: "30Min", daysBack: 60  },
-  "1h":  { timeframe: "1Hour", daysBack: 90  },
-  "2h":  { timeframe: "2Hour", daysBack: 120 },
-  "4h":  { timeframe: "4Hour", daysBack: 180 },
-  "D":   { timeframe: "1Day",  daysBack: 2000 },
-  "W":   { timeframe: "1Week", daysBack: 3650 },
-  // Monthly & multi-month/year period selectors → monthly candles spanning
-  // years. Alpaca's largest bucket is 1Month; without these entries they fell
-  // through to the "1Min" default, which is why Monthly showed minute bars.
-  "M":   { timeframe: "1Month", daysBack: 5475 },   // ~15y
-  "3M":  { timeframe: "1Month", daysBack: 7300 },
-  "6M":  { timeframe: "1Month", daysBack: 7300 },
-  "1Y":  { timeframe: "1Month", daysBack: 7300 },
-  "3Y":  { timeframe: "1Month", daysBack: 7300 },
-  "5Y":  { timeframe: "1Month", daysBack: 7300 },
-  // WM-CHART-P0-01A: MainChart.tsx uses "1D"/"1W"/"1M" as canonical keys;
-  // alpaca's map originally used the shorter "D"/"W"/"M" alone. The mismatch
-  // silently sent "1M" through the ?? default (1Day/2000) — same defect
-  // class as "Monthly showed minute bars". Accept both spellings.
-  "1D":  { timeframe: "1Day",   daysBack: 2000 },
-  "1W":  { timeframe: "1Week",  daysBack: 3650 },
-  "1M":  { timeframe: "1Month", daysBack: 5475 },
-};
+// The map moved to a lib (2026-09-26) so the chart's timeframe ladder can ask
+// it per symbol instead of re-typing it: see src/lib/marketData/alpacaBarRoute.ts.
 
 function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
   const hit = ALPACA_TF_MAP[tf];
@@ -171,12 +144,6 @@ function isCryptoSym(sym: string) { return classifySymbol(sym) === "CRYPTO"; }
  */
 function usableReference(value: unknown, price: number): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 && value !== price;
-}
-
-// Alpaca crypto symbols use "BTC/USD" format
-function toCryptoSym(sym: string): string {
-  const up = sym.replace(/[/-]USD$/i, "").toUpperCase();
-  return `${up}/USD`;
 }
 
 export async function GET(request: Request) {

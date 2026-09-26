@@ -183,9 +183,27 @@ describe("the session clock is the registry's, and a non-clock id gets none", ()
     expect(barMinutesOf("1D")).toBeNull();
   });
 
-  it("refuses to profile a non-clock id rather than inventing its span", () => {
-    expect(() => sessionWindowFor("AAPL", "100T", false)).toThrow(/not a registry clock/);
-    expect(() => sessionWindowFor("BTC-USD", "15s", false)).toThrow(/not a registry clock/);
-    expect(() => sessionWindowFor("AAPL", "3Y", false)).toThrow(/not a registry clock/);
+  it("refuses to profile a non-clock id rather than inventing its span — by a NAMED result, never a throw", () => {
+    // It used to THROW, and sessionWindowFor is called from render bodies
+    // (MainChart, the room's state detail): one stray id took the chart down.
+    for (const [sym, tf] of [["AAPL", "100T"], ["BTC-USD", "15s"], ["AAPL", "3Y"], ["ES1!", "TICK"], ["AAPL", ""]] as const) {
+      for (const ext of [false, true]) {
+        let w: ReturnType<typeof sessionWindowFor> | undefined;
+        expect(() => { w = sessionWindowFor(sym, tf, ext); }, `${sym} ${tf}`).not.toThrow();
+        expect(w, `${sym} ${tf}`).toEqual({
+          kind: "NO_CLOCK",
+          label: `NO SESSION · "${tf}" is not a registry clock — not profiled as one-minute bars`,
+          windowBars: null,
+          barMinutes: null,
+        });
+      }
+    }
+  });
+
+  it("a NO_CLOCK window keys no bar to any session, so every consumer draws nothing", () => {
+    const w = sessionWindowFor("AAPL", "15s", false);
+    const bars = [1_758_900_600, 1_758_900_660, 1_758_904_200].map(time => ({ time }));
+    for (const b of bars) expect(sessionKeyOf(b.time, w)).toBeNull();
+    expect(selectSessionWindowBars(bars, w)).toEqual([]);
   });
 });

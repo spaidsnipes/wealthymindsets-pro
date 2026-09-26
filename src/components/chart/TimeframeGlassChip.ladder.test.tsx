@@ -37,7 +37,7 @@ const code = readFileSync(join(process.cwd(), "src/components/chart/TimeframeGla
   .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 describe("TimeframeLadder — every canon rung, honest about each", () => {
-  const html = renderToStaticMarkup(<TimeframeLadder timeframe="15m" onChoose={() => {}} />);
+  const html = renderToStaticMarkup(<TimeframeLadder timeframe="15m" symbol="TSLA" onChoose={() => {}} />);
 
   it("draws all 23 canon rungs, grouped, under the panel the More control names", () => {
     expect(html).toContain(`id="${TIMEFRAME_LADDER_ID}"`);
@@ -48,7 +48,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
   });
 
   it("a NATIVE rung is a real button; an UNAVAILABLE rung is NOT a button", () => {
-    const tree = elements(TimeframeLadder({ timeframe: "15m", onChoose: () => {} }));
+    const tree = elements(TimeframeLadder({ timeframe: "15m", symbol: "TSLA", onChoose: () => {} }));
     for (const r of CANON_LADDER) {
       const el = tree.find(e => e.props["data-availability"] && textOf(e).startsWith(r.id) && textOf(e).replace(/,.*$/, "") === r.id);
       expect(el, r.id).toBeDefined();
@@ -76,14 +76,14 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
   });
 
   it("marks the current timeframe — and only it — with aria-current", () => {
-    const tree = elements(TimeframeLadder({ timeframe: "3m", onChoose: () => {} }));
+    const tree = elements(TimeframeLadder({ timeframe: "3m", symbol: "TSLA", onChoose: () => {} }));
     const current = tree.filter(e => e.props["aria-current"] === "true");
     expect(current.map(textOf)).toEqual(["3m"]);
   });
 
   it("pressing a NATIVE rung hands its chart id to onChoose — for every servable rung", () => {
     const onChoose = vi.fn();
-    const tree = elements(TimeframeLadder({ timeframe: "15m", onChoose }));
+    const tree = elements(TimeframeLadder({ timeframe: "15m", symbol: "TSLA", onChoose }));
     const buttons = tree.filter(e => e.type === "button");
     for (const b of buttons) (b.props.onClick as () => void)();
     const expected = CANON_LADDER.flatMap(r => (r.availability === "UNAVAILABLE" ? [] : [r.chartTf]));
@@ -93,7 +93,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
 
   it("a DERIVED rung, when one exists, says 'derived' aloud and on the glass", () => {
     const derived: CanonRung = { id: "20m", group: "MINUTES", n: 20, unit: "minute", availability: "DERIVED_CANONICAL", chartTf: "10m" };
-    const tree = elements(TimeframeLadder({ timeframe: "15m", onChoose: () => {}, rungs: [derived] }));
+    const tree = elements(TimeframeLadder({ timeframe: "15m", symbol: "TSLA", onChoose: () => {}, rungs: [derived] }));
     const b = tree.find(e => e.type === "button")!;
     expect(b.props["aria-label"]).toMatch(/derived from finer bars$/);
     expect(textOf(b)).toContain("derived");
@@ -107,7 +107,7 @@ describe("TimeframeGlassChip — ONE expandable control, ONE door to the setter"
     // The ONLY call of setTimeframe in the file is inside `choose`.
     expect(code.match(/setTimeframe\(/g)).toHaveLength(1);
     expect(code).toContain("onClick={() => choose(id)}");
-    expect(code).toContain("<TimeframeLadder timeframe={timeframe} onChoose={choose} />");
+    expect(code).toContain("<TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} />");
   });
 
   it("the More control is a disclosure: expanded/collapsed, controls the ladder, named with its visible word", () => {
@@ -138,9 +138,58 @@ describe("TimeframeGlassChip — ONE expandable control, ONE door to the setter"
   });
 
   it("server-renders closed: only the chip, announcing its timeframe from the registry", () => {
-    const html = renderToStaticMarkup(<TimeframeGlassChip timeframe="3m" setTimeframe={() => {}} />);
+    const html = renderToStaticMarkup(<TimeframeGlassChip timeframe="3m" setTimeframe={() => {}} symbol="TSLA" />);
     expect(html).toContain('aria-label="Timeframe: 3 minutes bars. Change timeframe."');
     expect(html).not.toContain(TIMEFRAME_LADDER_ID);
     expect(html).not.toContain("wm-chart-timeframes ");
+  });
+});
+
+describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () => {
+  const derivedIds = (sym: string) =>
+    elements(TimeframeLadder({ timeframe: "15m", symbol: sym, onChoose: () => {} }))
+      .filter(e => e.type === "button" && e.props["data-availability"] === "DERIVED_CANONICAL")
+      .map(e => textOf(e).replace(/derived$/, ""));
+
+  it("ES1!: 3m / 10m / 2h / 4h wear 'derived' on the glass and aloud; TSLA and BTC wear it nowhere", () => {
+    expect(derivedIds("ES1!")).toEqual(["3m", "10m", "2h", "4h"]);
+    const tree = elements(TimeframeLadder({ timeframe: "4h", symbol: "ES1!", onChoose: () => {} }));
+    const b = tree.find(e => e.type === "button" && textOf(e).startsWith("4h"))!;
+    expect(b.props["aria-label"]).toBe("4 hours bars, derived from finer bars");
+    expect(b.props["aria-current"]).toBe("true");
+    for (const sym of ["TSLA", "BTC"]) {
+      const buttons = elements(TimeframeLadder({ timeframe: "15m", symbol: sym, onChoose: () => {} })).filter(e => e.type === "button");
+      expect(buttons, sym).toHaveLength(13);
+      expect(buttons.every(e => e.props["data-availability"] === "NATIVE_PROVIDER"), sym).toBe(true);
+    }
+  });
+
+  it("the chip hands the chart's symbol to the ladder", () => {
+    expect(code).toContain("export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props)");
+    const main = readFileSync(join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(main).toContain("<TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} symbol={symbol} />");
+  });
+
+  it("on 1Y the ladder top says what the chart is on — and marks NO rung current, the dashed 1Y included", () => {
+    const html = renderToStaticMarkup(<TimeframeLadder timeframe="1Y" symbol="TSLA" onChoose={() => {}} />);
+    expect(html).toContain("On now: 1Y — served as monthly candles · pending the Founder&#x27;s decision");
+    // First thing in the panel, before any group.
+    expect(html.indexOf("wm-chart-timeframe-on-now")).toBeLessThan(html.indexOf("<h3"));
+    expect(html).not.toContain('aria-current="true"');
+    const tree = elements(TimeframeLadder({ timeframe: "1Y", symbol: "TSLA", onChoose: () => {} }));
+    const y1 = tree.find(e => e.props["data-availability"] && textOf(e).startsWith("1Y"))!;
+    expect(y1.type).toBe("span");
+    expect(y1.props["data-availability"]).toBe("UNAVAILABLE");
+    expect(String(y1.props.className)).not.toContain("bg-wm-blue");
+  });
+
+  it("on 6M and 45m the same, in their own words; on a marked rung there is no sentence", () => {
+    const six = renderToStaticMarkup(<TimeframeLadder timeframe="6M" symbol="ES1!" onChoose={() => {}} />);
+    expect(six).toContain("On now: 6M — served as half-year candles rebuilt from quarterly bars · pending the Founder&#x27;s decision");
+    expect(six).not.toContain('aria-current="true"');
+    const fortyFive = renderToStaticMarkup(<TimeframeLadder timeframe="45m" symbol="TSLA" onChoose={() => {}} />);
+    expect(fortyFive).toContain("On now: 45m — no bar route serves it for this instrument · pending the Founder&#x27;s decision");
+    const marked = renderToStaticMarkup(<TimeframeLadder timeframe="3m" symbol="TSLA" onChoose={() => {}} />);
+    expect(marked).not.toContain("wm-chart-timeframe-on-now");
   });
 });

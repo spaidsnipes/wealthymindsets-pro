@@ -55,7 +55,8 @@ export type SessionWindowKind =
   | "CME_LIVESTOCK_DAY"
   | "FX_DAY"
   | "CONTINUOUS_ET_DAY"
-  | "DAILY_WINDOW";
+  | "DAILY_WINDOW"
+  | "NO_CLOCK";
 
 /**
  * NOT EVERY FUTURE TRADES THE GLOBEX DAY (added 2026-09-25, GP12 truth pass).
@@ -79,8 +80,8 @@ const CME_LIVESTOCK_ROOTS = new Set(["LE", "HE", "GF"]);
 // The root is read by the notation owner, not by a predicate typed here.
 export { futuresRootOf };
 
-export interface SessionWindow {
-  readonly kind: SessionWindowKind;
+interface ClockedSessionWindow {
+  readonly kind: Exclude<SessionWindowKind, "NO_CLOCK">;
   /** What the glass may print about the bars it profiled. */
   readonly label: string;
   /** Daily-or-longer only: how many of the latest bars form the window. */
@@ -90,6 +91,25 @@ export interface SessionWindow {
    *  09:30 open; the chart's own isRegularSession keeps it). */
   readonly barMinutes: number;
 }
+
+/**
+ * THE ANSWER FOR AN ID THE REGISTRY HAS NO CLOCK FOR (2026-09-26, Garden 16
+ * §26 nit). This used to be a `throw` — thrown DURING RENDER, because
+ * MainChart and the room call sessionWindowFor from their render bodies, so a
+ * single stray id ("15s", "100T", a stale saved "3Y") took the chart down
+ * instead of leaving its session tools empty. Now it is a named result: no
+ * bar minutes (there are none to give — `null`, not an invented 1), no session
+ * key for any bar (sessionKeyOf answers null), so every consumer draws nothing
+ * and the label says why. Behaviour for every registry clock is unchanged.
+ */
+export interface NoClockSessionWindow {
+  readonly kind: "NO_CLOCK";
+  readonly label: string;
+  readonly windowBars: null;
+  readonly barMinutes: null;
+}
+
+export type SessionWindow = ClockedSessionWindow | NoClockSessionWindow;
 
 const DAY_SEC = 86_400;
 
@@ -139,7 +159,12 @@ export function sessionWindowFor(symbol: string, timeframe: string, extendedHour
     // No clock, no session window: a bar of unknown span cannot be placed
     // inside 09:30–16:00 without inventing its length. The chart already
     // refuses the same ids (MainChart getIntervalSec, WM-CHART-P0-03).
-    throw new Error(`sessionWindowFor: "${timeframe}" is not a registry clock — refusing to profile it as one-minute bars.`);
+    return {
+      kind: "NO_CLOCK",
+      label: `NO SESSION · "${timeframe}" is not a registry clock — not profiled as one-minute bars`,
+      windowBars: null,
+      barMinutes: null,
+    };
   }
   const cls = classifySymbol(symbol);
   if (cls === "EQUITY" || cls === "INDEX") {
@@ -214,6 +239,7 @@ export function sessionKeyOf(sec: number, win: SessionWindow): string | null {
     case "CONTINUOUS_ET_DAY":
       return etParts(sec).date;
     case "DAILY_WINDOW":
+    case "NO_CLOCK":
       return null;
   }
 }

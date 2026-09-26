@@ -36,6 +36,7 @@ import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/ma
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
+import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
@@ -792,13 +793,8 @@ function tryBinance(
  * match (real trade). Higher US volume than Binance.US → ~4 ticks/sec on BTC
  * (measured 33 updates / 8s vs Binance.US 6). This is the primary crypto feed.
  ───────────────────────────────────────────────────────────────────── */
-const COINBASE_PRODUCT: Record<string, string> = {
-  BTC: "BTC-USD", ETH: "ETH-USD", SOL: "SOL-USD", BNB: "BNB-USD",
-  XRP: "XRP-USD", DOGE: "DOGE-USD", ADA: "ADA-USD", AVAX: "AVAX-USD",
-  LINK: "LINK-USD", DOT: "DOT-USD", LTC: "LTC-USD", ATOM: "ATOM-USD",
-  UNI: "UNI-USD", MATIC: "MATIC-USD", BTCUSD: "BTC-USD", ETHUSD: "ETH-USD",
-  SOLUSD: "SOL-USD",
-};
+// COINBASE_PRODUCT moved to src/lib/marketData/coinbaseProduct.ts (2026-09-26)
+// so the timeframe ladder can name the bars' venue without importing a hook.
 
 /* ───────────────────────────────────────────────────────────────────────────
    SHARED TAPE HUB — one socket per (feed, symbol), fanned out to every consumer.
@@ -979,9 +975,7 @@ function joinTape(
   };
 }
 
-export function coinbaseProduct(symbol: string): string | null {
-  return COINBASE_PRODUCT[tapeMapKey(symbol)] ?? null;
-}
+export { coinbaseProduct };
 
 function tryCoinbase(
   symbol:   string,

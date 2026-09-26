@@ -427,13 +427,26 @@ function spokenBars(n: number, unit: CanonUnit): string {
  *   DERIVED_CANONICAL  only where a real aggregation owner feeds the chart for
  *                      this rung. NONE does today: the one tape-to-CanonicalBar
  *                      builder (dxlinkProtocol.aggregateCandles, 15s windows)
- *                      has no production importer. No rung claims this.
+ *                      has no production importer. No rung claims this IN
+ *                      THIS TABLE; per symbol, Yahoo's reconstruction does
+ *                      (see "THIS TABLE IS THE EQUITY ANSWER" below).
  *   UNAVAILABLE        everything else, with the reason a human reads.
  *
- * A route pinning test (timeframeLadder.test.ts) reads ALPACA_TF_MAP out of
- * src/app/api/alpaca/route.ts and fails if a NATIVE rung stops mapping to its
- * exact bucket, or if an UNAVAILABLE rung's id starts being served — so this
- * table cannot quietly outlive the routes it describes.
+ * A route pinning test (timeframeLadder.test.ts) reads ALPACA_TF_MAP (now
+ * owned by src/lib/marketData/alpacaBarRoute.ts, which the route imports) and
+ * fails if a NATIVE rung stops mapping to its exact bucket, or if an
+ * UNAVAILABLE rung's id starts being served — so this table cannot quietly
+ * outlive the routes it describes.
+ *
+ * ── THIS TABLE IS THE EQUITY ANSWER, NOT EVERY SYMBOL'S (2026-09-26, §26) ───
+ * "NATIVE" above is true of the chart's first EQUITY route. It is not true of
+ * ES1! (Alpaca is never asked for futures; Yahoo folds 3m/10m/2h/4h from finer
+ * bars) nor of every crypto spelling. The glass therefore never reads this
+ * table raw: canonAvailabilityFor(rung, symbol) in
+ * src/lib/marketData/chartBarRoute.ts walks the chart's real bar waterfall for
+ * the symbol on screen, and a rung whose bars are REBUILT is DERIVED_CANONICAL
+ * there — Yahoo's aggregateYahooBars being the aggregation owner that feeds
+ * the chart for it.
  *
  * ── STILL OPEN, AND NOT DECIDED HERE ─────────────────────────────────────────
  * Which N-tick counts exist (canon names only "TICK"), whether 45m stays, and
@@ -555,6 +568,17 @@ export function canonRungSpokenName(rung: CanonRung): string {
 const LIVE_BAR_SEC_PENDING_DECISION: Readonly<Partial<Record<TFId, number>>> = Object.freeze({
   "45m": 60, "3M": 60, "6M": 60, "1Y": 60, "2Y": 60, "5Y": 60,
 });
+
+/**
+ * Is this id one whose MEANING is still the Founder's to decide — 45m (does it
+ * stay?) and the five range ids (a candle of that size, or that much history
+ * of daily/weekly bars?). Read off the table above, the one place these six are
+ * already named as pending, so the ladder's words and the live clock cannot
+ * disagree about which ids are open.
+ */
+export function timeframePendingFounderDecision(raw: string): boolean {
+  return isTFId(raw) && LIVE_BAR_SEC_PENDING_DECISION[raw] !== undefined;
+}
 
 /** Seconds per live forming bar, or null when the id is not a registry clock. */
 export function liveBarBucketSec(raw: string): number | null {

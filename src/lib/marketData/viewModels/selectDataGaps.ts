@@ -122,6 +122,8 @@ export function selectDataGaps(input: DataGapsInput): DataGapsVM {
   const clock = input.sessionClock
     && input.sessionClock.kind !== "DAILY_WINDOW"
     && input.sessionClock.kind !== "CONTINUOUS_ET_DAY"
+    // A clockless id keys no bar to any session; it is not a market clock.
+    && input.sessionClock.kind !== "NO_CLOCK"
     ? input.sessionClock : null;
   const sessionSource: DataGapsVM["sessionSource"] =
     input.continuous ? "CONTINUOUS" : sessionAt.size > 0 ? "BAR_IDENTITY" : clock ? "MARKET_CLOCK" : null;

@@ -122,7 +122,10 @@ describe("retired duplicates stay retired", () => {
   });
 
   it("the public API routes keep their 3Y entries: removing them changes what an external request gets", () => {
-    expect(codeOf("app/api/alpaca/route.ts")).toContain('"3Y":');
+    // /api/alpaca's table lives in alpacaBarRoute.ts since 2026-09-26; the
+    // route imports it, so an external ?tf=3Y still gets what it got.
+    expect(codeOf("lib/marketData/alpacaBarRoute.ts")).toContain('"3Y":');
+    expect(codeOf("app/api/alpaca/route.ts")).toContain('from "@/lib/marketData/alpacaBarRoute"');
     expect(codeOf("lib/yahooTimeframes.ts")).toContain('"3Y":');
   });
 });
