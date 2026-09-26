@@ -1,12 +1,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { deskFromUrlParam } from "@/lib/marketData/viewModels/selectChartArrangement";
 
 const src = readFileSync(join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
 
 describe("/charts?desk= — a Workspace desk is addressable (GP12 §69)", () => {
-  it("maps the four desk words and nothing else", async () => {
-    const { deskFromUrlParam } = await import("./ChartsDashboard");
+  it("the dashboard reads desk words through the desk vocabulary's owner", () => {
+    expect(src).toMatch(/\bdeskFromUrlParam,\n[^}]*\} from "@\/lib\/marketData\/viewModels\/selectChartArrangement";/);
+    expect(src).not.toMatch(/export function deskFromUrlParam/);
+  });
+
+  it("maps the four desk words and nothing else", () => {
     expect(deskFromUrlParam("order-flow")).toBe("ORDER_FLOW");
     expect(deskFromUrlParam("ORDER_FLOW")).toBe("ORDER_FLOW");
     expect(deskFromUrlParam("regime")).toBe("REGIME");

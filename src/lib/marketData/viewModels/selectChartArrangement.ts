@@ -94,6 +94,19 @@ export const CHART_ARRANGEMENT_VERSION = 1;
 export type ArrangementId = "CLEAN" | "ORDER_FLOW" | "REGIME" | "REVIEW";
 
 /**
+ * `?desk=` words → a Workspace desk; unknown → null (GP12 §69).
+ *
+ * Lives with the desk vocabulary it maps onto. It used to live at the bottom
+ * of ChartsDashboard, so its unit test cold-imported the whole dashboard and
+ * MainChart (~4.9 s of transform) against a 5 s timeout, and failed about one
+ * run in two with no code change (measured 2026-09-26).
+ */
+export function deskFromUrlParam(raw: string | null | undefined): ArrangementId | null {
+  const w = (raw ?? "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return w === "clean" ? "CLEAN" : w === "order-flow" ? "ORDER_FLOW" : w === "regime" ? "REGIME" : w === "review" ? "REVIEW" : null;
+}
+
+/**
  * FULL    — every reading this arrangement arms can draw right now.
  * PARTIAL — some can, some cannot. The trader should know which before pressing.
  * NONE    — this tape can answer none of what this arrangement is named for.

@@ -39,6 +39,7 @@ import { selectProfileMenu, profileSpeciesRefusals, type ProfileId } from "@/lib
 import {
   arrangementSwitches,
   captureArrangement,
+  deskFromUrlParam,
   savedArrangementSwitches,
   selectChartArrangement,
   type ArrangementId,
@@ -6278,9 +6279,3 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
   );
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
-
-/** `?desk=` words → a Workspace desk. Exported for its test; unknown → null. */
-export function deskFromUrlParam(raw: string | null | undefined): ArrangementId | null {
-  const w = (raw ?? "").trim().toLowerCase().replace(/[\s_]+/g, "-");
-  return w === "clean" ? "CLEAN" : w === "order-flow" ? "ORDER_FLOW" : w === "regime" ? "REGIME" : w === "review" ? "REVIEW" : null;
-}

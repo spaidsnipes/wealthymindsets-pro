@@ -340,6 +340,7 @@ import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from 
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import { selectRiskEconomics } from "@/lib/marketData/contractEconomics";
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import {
@@ -17133,6 +17134,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            sits on top of them; the header chrome is clipped out of the rail. */
         delete ds.riskOnPriceTicks;
         delete ds.riskOnPriceSilence;
+        delete ds.riskEconomics;
         if (layerOnRef.current.riskOnPrice === true && att.paints("riskOnPrice")) {
           const bsR = barsRef.current ?? [];
           const plansR = drawingsRef.current.map(planFromDrawing).filter((p): p is PositionPlanInput => p != null);
@@ -17251,11 +17253,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 : rv.state === "STOP_TOUCHED" ? `stop touched ${tfmt(rv.stopAt)} · invalidated on price`
                 : rv.state === "TARGET_TOUCHED" ? `target touched ${tfmt(rv.targetAt)}`
                 : "stop and target in one bar — this timeframe cannot order them";
-              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)} (${rv.riskPct?.toFixed(2)}%)`, RISK);
+              // GARDEN 16 §17: the stop states what it COSTS on THIS
+              // instrument — ticks × tick value = $ per 1 unit — from the one
+              // contract-economics owner, keyed on the chart's own symbol. A
+              // contract with no published point value says so; never 1x.
+              const econR = selectRiskEconomics(symbol, { entry: rv.entry, stop: rv.stop, target: rv.target });
+              ds.riskEconomics = econR.receipt;
+              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)} (${rv.riskPct?.toFixed(2)}%)`, RISK, true, econR.words);
               // The refusals ride under the entry, in words: the chart holds no
               // size, no account and no fill, so none of them is estimated.
               callout(+yE, `ENTRY ${rv.entry.toFixed(pxDp)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
-              if (yT != null && rv.target != null) callout(+yT, `TARGET ${rv.target.toFixed(pxDp)} · ${rv.rr?.toFixed(2)} R`, REWARD);
+              if (yT != null && rv.target != null) callout(+yT, `TARGET ${rv.target.toFixed(pxDp)} · ${rv.rr?.toFixed(2)} R`, REWARD, true, econR.rewardWords ?? undefined);
               // LIVE: the chart's last price on the rail, in R.
               if (rv.live) {
                 const yL = srs.priceToCoordinate(rv.live.price);
