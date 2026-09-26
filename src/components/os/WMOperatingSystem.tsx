@@ -200,6 +200,17 @@ const PHONE_DOORS = phoneNavDestinations();
  * convention someone has to remember. The `+ 1` below makes it arithmetic.
  */
 export const OS_RAIL_BREAKPOINT_PX = 900;
+/**
+ * THE COMPACT MASTHEAD BAND (Garden 16 §11 verifier RED, measured on the glass
+ * 2026-09-26). From the rail breakpoint up to this width the desktop masthead
+ * cannot hold two 176px plates AND the Command Deck plate AND the frame's own
+ * utilities: at 1024 Search, Notifications, Settings and Profile were pushed
+ * past the right edge, at 901 the deck control too (before the deck, only
+ * Profile, only at 901). In this band the pair narrows and the deck plate
+ * shows its mark alone — its accessible name and tooltip still say
+ * "Command Deck".
+ */
+export const OS_MASTHEAD_COMPACT_MAX_PX = 1399;
 
 /**
  * How wide the rooms rail is when it is open.
@@ -2684,6 +2695,29 @@ export function WMOperatingSystem({
              width its name needs and never splits it. */
           .wm-os-command-deck { width: auto !important; }
           .wm-os-command-deck .wm-os-equipment-plate-word { white-space: nowrap; }
+        }
+        /* THE COMPACT MASTHEAD BAND — see OS_MASTHEAD_COMPACT_MAX_PX. Later in
+           the sheet than the desktop block, so at equal weight it wins. */
+        @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) and (max-width: ${OS_MASTHEAD_COMPACT_MAX_PX}px) {
+          .wm-os-equipment-plates { gap: 6px !important; }
+          .wm-os-equipment-plate {
+            width: 118px !important;
+            min-height: 44px !important;
+            gap: 8px !important;
+            padding: 0 12px !important;
+          }
+          .wm-os-equipment-plate-mark { width: 18px !important; height: 18px !important; }
+          .wm-os-equipment-plate-word { font-size: 13px !important; }
+          .wm-os-command-deck { width: auto !important; padding: 0 12px !important; }
+          /* The mark alone; the words stay in the accessibility tree. */
+          .wm-os-command-deck .wm-os-equipment-plate-word {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            overflow: hidden !important;
+            clip: rect(0 0 0 0) !important;
+            white-space: nowrap !important;
+          }
         }
       `}</style>
     </div>

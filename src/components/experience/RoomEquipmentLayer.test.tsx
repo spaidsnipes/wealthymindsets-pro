@@ -201,10 +201,12 @@ describe("RoomEquipmentLayer — market equipment stays on the live camera", () 
       expect(html).not.toContain("right:18px;bottom:18px");
     }
     expect(renderMarketDock("preview")).toContain("top:120px");
-    expect(renderMarketDock("preview")).not.toContain("top:92px");
+    expect(renderMarketDock("preview")).not.toContain("top:108px");
     expect(renderMarketDock("preview")).toContain("max-height:220px");
     expect(renderMarketDock("preview")).not.toContain("bottom:18px");
-    expect(renderMarketDock("drawer")).toContain("top:92px");
+    // Below the pane identity line (y 85–101), not through it.
+    expect(renderMarketDock("drawer")).toContain("top:108px");
+    expect(renderMarketDock("drawer")).not.toContain("top:92px");
     expect(renderMarketDock("drawer")).not.toContain("top:120px");
     expect(renderMarketDock("drawer")).toContain("bottom:18px");
     expect(renderMarketDock("drawer")).not.toContain("max-height:220px");

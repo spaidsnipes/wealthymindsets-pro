@@ -276,7 +276,12 @@ export function RoomEquipmentLayer({
             // it had already earned the smaller FL-06 footprint. Keep the
             // threshold below the horizon until the trader explicitly asks
             // for drawer depth; DRAWER retains the established left wall.
-            top: stage === "preview" ? 120 : 92,
+            // DRAWER at 108, not 92 (found on the glass 2026-09-26, Command
+            // Deck open on /charts TSLA 15m): the pane's identity line
+            // ("TSLA · 15m 372.11 LAST 15m BAR CLOSE …") runs y 85–101, and a
+            // 92px top cut it in half, leaving the upper half of every glyph
+            // showing above the wall. 108 clears the whole line.
+            top: stage === "preview" ? 120 : 108,
             // PREVIEW is a glanceable instrument, not a blank full-height
             // drawer. FL-06 keeps the inspect ticket subordinate to price;
             // only DRAWER earns the full left-wall working depth.

@@ -1471,6 +1471,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     does not reset what the trader said they were doing.
   */
   const [tradePhase, setTradePhase] = React.useState<TradePhase>("PREPARATION");
+  // THE PHASE BELONGS TO ONE MARKET (verifier YELLOW, 2026-09-26): "In Trade"
+  // said on TSLA is not a trade on ES1!. A symbol change returns the room to
+  // PREPARATION — the chain never reads "Managing" for a market never entered.
+  const [tradePhaseSymbol, setTradePhaseSymbol] = React.useState(symbol);
+  if (tradePhaseSymbol !== symbol) {
+    setTradePhaseSymbol(symbol);
+    setTradePhase("PREPARATION");
+  }
   const chartCanvasVM = useMarketCanvasVM({
     identity: canvasIdentity,
     ownerId: canvasUser?.id ?? null,
