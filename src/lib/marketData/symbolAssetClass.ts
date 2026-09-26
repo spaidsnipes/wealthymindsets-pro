@@ -208,6 +208,44 @@ export function futuresRootOf(symbol: string): string | null {
 }
 
 /**
+ * ONE KEY PER INSTRUMENT, whatever notation it was typed in — or `null` for an
+ * empty symbol. Two symbols name the same instrument exactly when their keys
+ * are equal (`sameInstrument`).
+ *
+ * Found in source (2026-09-26, Garden 16 §17 audit): the /charts paper-position
+ * line matched the book to the chart with its own private rule —
+ * `norm(s).replace(/(USDT|USDC|USD|PERP)$/, "")` — so a /paper BTC position
+ * (priced in USD) was drawn on a BTCUSDT chart and marked at the USDT market's
+ * last price, and "/ES" never matched the book's "ES1!". The rule was a sixth
+ * copy of the fact this module exists to hold once.
+ *
+ * Composed from the owners, never restated:
+ *   - futures key on their ROOT (`futuresRootOf`), so ES1! / ES=F / /ES / es1!
+ *     are one contract and a micro (MES1!) is never its big brother;
+ *   - spot metals key on the metal (XAU / XAUUSD / XAU/USD → SPOT:GOLD),
+ *     because the notation table borrows GC=F for XAUUSD and spot gold is
+ *     not the GC contract;
+ *   - everything else is the notation owner's Yahoo ticker, so BTC / BTCUSD /
+ *     BTC-USD / BTC.COINBASE are one USD market and BTCUSDT (left unresolved
+ *     there on purpose — USDT is not USD) is a different one.
+ */
+export function instrumentNotationKey(symbol: string): string | null {
+  const s = normalize(symbol);
+  if (!s) return null;
+  const root = futuresRootOf(s);
+  if (root) return `${root}=F`;
+  const metal = spotMetalFutures(s);
+  if (metal) return `SPOT:${metal.name.toUpperCase()}`;
+  return toCanonicalYahooNotation(s);
+}
+
+/** Do these two symbols name the same instrument? Empty never matches. */
+export function sameInstrument(a: string, b: string): boolean {
+  const ka = instrumentNotationKey(a);
+  return ka !== null && ka === instrumentNotationKey(b);
+}
+
+/**
  * The words for WHAT an equity vendor was not asked to carry, or `null` when
  * the symbol is one they do carry.
  *

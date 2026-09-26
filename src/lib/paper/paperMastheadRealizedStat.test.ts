@@ -199,3 +199,31 @@ describe("the masthead law is swept, not located", () => {
     }
   });
 });
+
+/**
+ * PAPER ON THE GLASS, AND THE BOOK'S OWN BARRIER (found 2026-09-26, Garden 16
+ * §17 audit). The masthead sits over /charts beside the broker's "WEBULL COST"
+ * lines. Its visible word was "P&L" — PAPER lived only in the tooltip — and it
+ * summed `JSON.parse(stored).trades` raw, so a book /paper holds behind
+ * RECOVERY REQUIRED still printed a confident total over every room.
+ */
+describe("masthead paper P&L says PAPER and honours the recovery barrier", () => {
+  it("the owner's label is PAPER P&L in every state", () => {
+    for (const book of [
+      { unreadable: false, tradeCount: 0, realizedPnl: 0 },
+      { unreadable: false, tradeCount: 3, realizedPnl: 250 },
+      { unreadable: true, tradeCount: 0, realizedPnl: 0 },
+    ]) {
+      expect(paperMastheadRealizedStat(book)!.label).toBe("PAPER P&L");
+    }
+  });
+
+  it("HeaderPnL draws the owner's label and reads the book through its parser", () => {
+    const code = codeOf(resolve(SRC, "components", "layout", "HeaderPnL.tsx"));
+    expect(code).toContain("{stat.label}</span>");
+    expect(code).not.toMatch(/>P&L</);
+    expect(code).toContain("const snapshot = parsePaperSnapshot(stored);");
+    expect(code).toContain("if (snapshot === null || isPaperBookRecoveryRequired(snapshot.integrity)) {");
+    expect(code).not.toMatch(/JSON\.parse\(stored\)/);
+  });
+});

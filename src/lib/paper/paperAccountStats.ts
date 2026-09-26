@@ -287,7 +287,9 @@ export function paperMastheadRealizedStat(book: MastheadPaperBook | null): Paper
   if (book === null) return null;
 
   return resultStat(
-    "P&L",
+    // "PAPER P&L", not "P&L" (2026-09-26): the masthead sits over /charts next
+    // to the broker's own lines, and simulated money must say so on the glass.
+    "PAPER P&L",
     book.realizedPnl,
     {
       bookRecoveryRequired: book.unreadable,

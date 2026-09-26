@@ -341,6 +341,8 @@ import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiq
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
+import { loadPaperSnapshot, PAPER_KEY } from "@/lib/paperTrade";
+import { PAPER_BOOK_RECOVERY_WORDS, paperPositionLineTitle, selectPaperPositionLines, type PaperPositionLine } from "@/lib/chart/paperPositionLines";
 
 /** The H-1001 rail's canvas receipts, withdrawn at the top of every frame. */
 const RISK_RAIL_RECEIPTS = ["riskOnPrice", "riskOnPriceTicks", "riskOnPriceSilence", "riskEconomics"] as const;
@@ -1750,7 +1752,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const cvdVisibleRef = useRef(true);
   // Open paper-trade position lines (native IPriceLine on the candle series) +
   // the position each line represents, so we can refresh the live-P&L title on tick.
-  const paperLinesRef = useRef<Array<{ line: any; qty: number; avgPx: number }>>([]);
+  const paperLinesRef = useRef<Array<{ line: any; pos: PaperPositionLine }>>([]);
   // BROKER COST LINE (HOUSE PLAN bolt-on #6): the founder's REAL Webull
   // positions for THIS symbol, fetched from /api/broker/webull/positions and
   // painted as native price lines. Same paint rail as paper lines; different
@@ -2542,6 +2544,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // Bumped whenever paper state may have changed (another tab writes wm_paper_state,
   // or the window regains focus after the user placed a trade on /paper) → re-read.
   const [paperNonce, setPaperNonce] = useState(0);
+  // The paper book is behind /paper's recovery barrier: no paper line is
+  // drawn, and the glass says so (words from paperPositionLines).
+  const [paperBookRecovery, setPaperBookRecovery] = useState(false);
 
   // Countdown state. The RAW REMAINDER, not a formatted string: the wording
   // and the feed claim are compiled at the render, where `candleDataStatus`
@@ -5360,47 +5365,50 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * Reads the local paper-trading blotter (wm_paper_state), finds OPEN
    * positions for THIS symbol, and draws a TradingView-style horizontal
    * entry line with a live-updating P&L label. Read-only: this only
-   * VISUALISES paper state — it never places, modifies, or closes a trade. */
-  const pnlLabel = (qty: number, avgPx: number, lp: number) => {
-    const pnl = (lp - avgPx) * qty;               // qty is signed (+long / -short)
-    const s = pnl >= 0 ? "+" : "-";
-    return { up: pnl >= 0, text: `${qty > 0 ? "LONG" : "SHORT"} ${Math.abs(qty)} · ${s}$${Math.abs(pnl).toLocaleString("en-US", { maximumFractionDigits: 2 })}` };
-  };
+   * VISUALISES paper state — it never places, modifies, or closes a trade.
+   *
+   * PAPER MONEY, ONE OWNER PER FACT (Garden 16 §17, found in source
+   * 2026-09-26): this line printed P&L at 1x (one ES1! up 10 points read
+   * "LONG 1 · +$10", worth $500), carried no word PAPER beside the "WEBULL
+   * COST" line, parsed the book with a raw JSON.parse that ignored /paper's
+   * RECOVERY REQUIRED barrier, and matched symbols with a private strip that
+   * drew the USD "BTC" book on a BTCUSDT chart. `selectPaperPositionLines`
+   * and `paperPositionLineTitle` (src/lib/chart/paperPositionLines.ts) now own
+   * all of it; this effect only draws what they return and receipts it on
+   * the canvas as `data-paper-lines`. */
+  const paperColor = (up: boolean | null) => up === null ? "#8B92AC" : up ? "#00D4AA" : "#FF4D6A";
   useEffect(() => {
     const series = candleRef.current;
-    // WITHHELD WHILE REPLAYING, like the live-tape overlays: a "LONG 10 · +$42"
-    // label is a LIVE P&L claim, and on a camera walking last Tuesday it would
-    // read as that position's P&L on last Tuesday. Rebuilt the moment Stop
-    // hands the camera back.
+    const cv = canvasRef.current;
+    // WITHHELD WHILE REPLAYING, like the live-tape overlays: a "PAPER LONG 10 ·
+    // +$42.00" label is a LIVE P&L claim, and on a camera walking last Tuesday
+    // it would read as that position's P&L on last Tuesday. Rebuilt the moment
+    // Stop hands the camera back.
+    if (cv) cv.dataset.paperLines = !paperTradesVisible ? "OFF" : replayCameraOn ? "REPLAY_WITHHELD" : !series ? "NO_SERIES" : "READING";
     if (!series || !paperTradesVisible || replayCameraOn) return;
 
-    let positions: Array<{ symbol: string; qty: number; avgPx: number }> = [];
-    try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem("wm_paper_state") : null;
-      if (raw) positions = (JSON.parse(raw).positions || []);
-    } catch { positions = []; }
-
-    const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const bse  = (s: string) => norm(s).replace(/(USDT|USDC|USD|PERP)$/, "");
-    const tgt = norm(symbol), tgtB = bse(symbol);
-    const mine = positions.filter(p => p.qty !== 0 && (norm(p.symbol) === tgt || bse(p.symbol) === tgtB));
-    if (!mine.length) return;
+    // Read through the book's own parser, so a book /paper holds behind the
+    // recovery barrier draws nothing here either.
+    const plan = selectPaperPositionLines(loadPaperSnapshot(), symbol);
+    if (cv) cv.dataset.paperLines = plan.receipt;
+    setPaperBookRecovery(plan.status === "RECOVERY_REQUIRED");
+    if (plan.status !== "DRAWN") return;
 
     const lp = lastPrice > 0 ? lastPrice
       : (barsRef.current.length ? barsRef.current[barsRef.current.length - 1].close : 0);
 
-    mine.forEach(p => {
-      const { up, text } = pnlLabel(p.qty, p.avgPx, lp);
+    plan.lines.forEach(pos => {
+      const { up, text } = paperPositionLineTitle(pos, lp);
       try {
         const line = series.createPriceLine({
-          price: p.avgPx,
-          color: up ? "#00D4AA" : "#FF4D6A",
+          price: pos.avgPx,
+          color: paperColor(up),
           lineWidth: 2,
           lineStyle: 0,               // solid
           axisLabelVisible: true,
           title: text,
         });
-        paperLinesRef.current.push({ line, qty: p.qty, avgPx: p.avgPx });
+        paperLinesRef.current.push({ line, pos });
       } catch {}
     });
 
@@ -5408,7 +5416,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
       (window as unknown as { __wmPaperLines?: unknown }).__wmPaperLines = {
         symbol, count: paperLinesRef.current.length,
-        titles: mine.map(p => pnlLabel(p.qty, p.avgPx, lp).text),
+        titles: plan.lines.map(pos => paperPositionLineTitle(pos, lp).text),
+        receipt: plan.receipt,
         lp, ts: Date.now(),
       };
     }
@@ -5423,9 +5432,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * without tearing the lines down and rebuilding them. */
   useEffect(() => {
     if (!paperLinesRef.current.length || !(lastPrice > 0)) return;
-    paperLinesRef.current.forEach(({ line, qty, avgPx }) => {
-      const { up, text } = pnlLabel(qty, avgPx, lastPrice);
-      try { line.applyOptions({ title: text, color: up ? "#00D4AA" : "#FF4D6A" }); } catch {}
+    paperLinesRef.current.forEach(({ line, pos }) => {
+      const { up, text } = paperPositionLineTitle(pos, lastPrice);
+      try { line.applyOptions({ title: text, color: paperColor(up) }); } catch {}
     });
   }, [lastPrice]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -5433,7 +5442,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * window regains focus after the user placed a trade elsewhere in the app. */
   useEffect(() => {
     const bump = () => setPaperNonce(n => n + 1);
-    const onStorage = (e: StorageEvent) => { if (e.key === "wm_paper_state") bump(); };
+    const onStorage = (e: StorageEvent) => { if (e.key === PAPER_KEY) bump(); };
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", bump);
     return () => {
@@ -19724,6 +19733,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           >
             <span style={{ color: "#00C076", fontWeight: 850 }}>Collecting live executed trades…</span>
             {" "}Footprints populate from this point forward; historical rows remain blank.
+          </div>
+        )}
+        {/* PAPER BOOK RECOVERY — the Positions layer is on and the paper book
+            is behind /paper's recovery barrier, so no paper line is drawn.
+            Silence here would read as "no open paper positions", which WM
+            cannot claim about a book it could not read (same rule /paper
+            follows: "Book recovery required before WM can claim this account
+            is flat"). Words owned by paperPositionLines. */}
+        {paperTradesVisible && paperBookRecovery && !replayCameraOn && (
+          <div
+            role="status"
+            data-testid="paper-book-recovery"
+            style={{
+              // Top-left band under the EFFORT row: seen on the glass
+              // (2026-09-26, TSLA 15m) that a bottom-left chip wrapped over
+              // the time-axis dates and the BARS IN VIEW note.
+              position: "absolute", top: 86, left: 12,
+              zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "none",
+              background: "rgba(11,14,26,0.90)", border: "1px solid rgba(255,77,106,0.45)",
+              color: "#AAB2CC", fontSize: 11, fontWeight: 650, maxWidth: "calc(100% - 96px)",
+            }}
+          >
+            {PAPER_BOOK_RECOVERY_WORDS}
           </div>
         )}
         {/* After tape arrives, its disclosure and the Nectar reading become

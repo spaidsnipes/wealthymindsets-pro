@@ -37,7 +37,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyFill,
   contractMultiplier,
+  contractSpecKey,
   CONTRACT_MULTIPLIERS,
+  normalizeTicketQty,
+  tradesInWholeContracts,
   type Order,
   type Position,
 } from "./paperTrade";
@@ -68,6 +71,59 @@ describe("contract point value", () => {
   it("an unknown symbol is 1x rather than throwing", () => {
     expect(contractMultiplier("")).toBe(1);
     expect(contractMultiplier("NOT_A_SYMBOL")).toBe(1);
+  });
+
+  it("FOUND 2026-09-26: every notation of a contract gets its one point value", () => {
+    // Was an exact-key lookup: ES=F and /ES read 1x here while contractEconomics
+    // (root-keyed) read $50 for the same contract.
+    for (const s of ["ES1!", "ES=F", "/ES", "es1!", " ES1! "]) {
+      expect(contractMultiplier(s), s).toBe(50);
+      expect(contractSpecKey(s), s).toBe("ES1!");
+    }
+    expect(contractMultiplier("NQ=F")).toBe(20);
+    expect(contractMultiplier("/CL")).toBe(1_000);
+    expect(contractMultiplier("gc=f")).toBe(100);
+    expect(contractMultiplier("/RTY")).toBe(50);
+  });
+
+  it("root-awareness adds no coverage it does not have", () => {
+    // A micro is its own contract (MES = $5, not on file): never its big brother.
+    for (const s of ["MES1!", "MES=F", "MNQ1!", "MGC1!"]) {
+      expect(contractMultiplier(s), s).toBe(1);
+      expect(contractSpecKey(s), s).toBeNull();
+    }
+    // A bare equity ticker that spells a root is not a futures contract.
+    for (const s of ["ES", "CL", "GC", "NQ"]) expect(contractMultiplier(s), s).toBe(1);
+    // Contracts without a published value on file stay uncovered.
+    for (const s of ["YM1!", "YM=F", "/YM", "SI1!"]) expect(contractMultiplier(s), s).toBe(1);
+    // A prototype name is not a row.
+    expect(contractSpecKey("constructor")).toBeNull();
+  });
+
+  it("the table itself is unchanged: five rows, /paper's five contracts", () => {
+    expect(Object.keys(CONTRACT_MULTIPLIERS).sort()).toEqual(["CL1!", "ES1!", "GC1!", "NQ1!", "RTY1!"]);
+  });
+});
+
+describe("a ticket holds whole contracts (found 2026-09-26)", () => {
+  it("futures floor to a whole contract, never rounding up, least 1", () => {
+    expect(normalizeTicketQty("NQ1!", 1.5)).toBe(1);
+    expect(normalizeTicketQty("NQ1!", 2.99)).toBe(2);
+    expect(normalizeTicketQty("ES=F", 3)).toBe(3);
+    expect(normalizeTicketQty("YM1!", 0.4)).toBe(1);
+    for (const bad of [0, -2, Number.NaN, Infinity]) expect(normalizeTicketQty("CL1!", bad), String(bad)).toBe(1);
+  });
+
+  it("shares and coins keep the ticket's existing rule (value, or 1 when empty)", () => {
+    expect(normalizeTicketQty("BTC", 0.5)).toBe(0.5);
+    expect(normalizeTicketQty("AAPL", 2.5)).toBe(2.5);
+    expect(normalizeTicketQty("AAPL", 0)).toBe(1);
+    expect(normalizeTicketQty("TSLA", Number.NaN)).toBe(1);
+  });
+
+  it("whole-contract class is asked of the asset-class owner", () => {
+    for (const s of ["NQ1!", "ES=F", "/CL", "YM1!", "MES1!"]) expect(tradesInWholeContracts(s), s).toBe(true);
+    for (const s of ["AAPL", "BTC", "ETH", "SPY", "EURUSD", ""]) expect(tradesInWholeContracts(s), s).toBe(false);
   });
 });
 
@@ -168,6 +224,32 @@ describe("the /paper surface applies it on every money line", () => {
     // arithmetic's address moved.
     expect(page).toContain("selectPositionMark(pos, quoteReadiness[pos.symbol], contractMultiplier(pos.symbol))");
     expect(page).toContain("p.qty*p.marketPx*contractMultiplier(p.symbol)");
+  });
+
+  it("FOUND 2026-09-26: the ticket's Est. Value is funded like the gate", () => {
+    // Was `const est = qty * px;` — one NQ1! read $21,750 on the ticket while
+    // the funding gate charged $435,000 for the same order.
+    expect(page).not.toMatch(/const est = qty \* px;/);
+    expect(page).toContain("const pointValue = contractMultiplier(sym);");
+    expect(page).toContain("const est = qty * px * pointValue;");
+    // The number carries its chain and its name when a point value applies.
+    expect(page).toContain('{pointValue > 1 ? "Est. Value (notional)" : "Est. Value"}');
+    expect(page).toMatch(/× \{fmt2\(px\)\} × \$\{pointValue\.toLocaleString\("en-US"\)\}\/pt/);
+  });
+
+  it("FOUND 2026-09-26: the ticket holds whole contracts for futures", () => {
+    expect(page).not.toContain("setQty(+e.target.value||1)");
+    expect(page).toContain("onChange={e=>setQty(normalizeTicketQty(sym, +e.target.value))}");
+    // Re-read under the new symbol's rule when the symbol changes, and a
+    // fractional contract never leaves submit().
+    expect(page).toContain("useEffect(() => { setQty(q => normalizeTicketQty(sym, q)); }, [sym]);");
+    expect(page).toContain("if (wholeContracts && !Number.isInteger(qty)) return;");
+  });
+
+  it("/paper and /charts ask one predicate whether the book is in recovery", () => {
+    expect(page).toContain("const bookRecoveryRequired = isPaperBookRecoveryRequired(bookIntegrity);");
+    expect(page).toContain("isPaperBookRecoveryRequired(update.integrity)");
+    expect(page).not.toMatch(/integrity\.unreadable \|\| \w*\.?integrity\.rejected > 0/);
   });
 
   it("the money line is the ONLY place the multiplier lands on the mark", () => {

@@ -12,6 +12,7 @@
 import type { CapitalStoreFacts } from "@/lib/experience/capitalReach";
 import { isDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { selectFillQueueBasis, type FillQueueBasis } from "@/lib/paperFillQueueBasis";
+import { classifySymbol, futuresRootOf } from "@/lib/marketData/symbolAssetClass";
 
 export const PAPER_KEY = "wm_paper_state";
 export const STARTING_CASH = 100_000;
@@ -118,8 +119,62 @@ export const CONTRACT_MULTIPLIERS: Readonly<Record<string, number>> = Object.fre
  * against this table so that omission fails the suite instead of the trader.
  */
 export function contractMultiplier(symbol: string): number {
-  const m = CONTRACT_MULTIPLIERS[symbol];
+  const key = contractSpecKey(symbol);
+  const m = key === null ? undefined : CONTRACT_MULTIPLIERS[key];
   return typeof m === "number" && Number.isFinite(m) && m > 0 ? m : 1;
+}
+
+/**
+ * The CONTRACT_MULTIPLIERS row that prices `symbol`, or null when none does.
+ *
+ * Found in source (2026-09-26, Garden 16 §17 audit): `contractMultiplier` was
+ * an exact-key lookup, `CONTRACT_MULTIPLIERS[symbol]`, so the SAME contract
+ * typed another way — "ES=F", "/ES", "es1!" — priced at 1x here while
+ * contractEconomics (which keys on the futures root) priced it at $50. Two
+ * answers to "what is one ES point worth" depending on who was asked.
+ *
+ * The row is found through the ROOT from `futuresRootOf` (the one asset-class
+ * owner), exactly as contractEconomics finds its tick, so both read the same
+ * row. No rows are added: the table still names only /paper's five contracts
+ * (a Sentinel pins keys == UNIVERSE), a micro ("MES1!" → root MES) still finds
+ * no row, and a bare equity ticker that happens to spell a root ("ES") is not
+ * futures and finds none either.
+ */
+export function contractSpecKey(symbol: string): string | null {
+  const root = futuresRootOf(symbol ?? "");
+  if (root === null) return null;
+  const key = `${root}1!`;
+  return Object.prototype.hasOwnProperty.call(CONTRACT_MULTIPLIERS, key) ? key : null;
+}
+
+/**
+ * Does this instrument trade in WHOLE units only? True for every futures
+ * contract (asked of the asset-class owner, so a contract with no point value
+ * on file is still a contract); false for shares and coins, whose fractional
+ * quantities this book already carries.
+ */
+export function tradesInWholeContracts(symbol: string): boolean {
+  return classifySymbol(symbol ?? "") === "FUTURES";
+}
+
+/**
+ * The quantity an order ticket may hold for `symbol`.
+ *
+ * Found in source (2026-09-26): /paper's ticket did `setQty(+e.target.value||1)`
+ * for every symbol, so "1.5" NQ1! became a 1.5-contract order — a size no
+ * exchange accepts, which the book then filled and funded as $652,500 of
+ * notional. Futures now floor to a whole contract (never rounding UP into
+ * more exposure than typed) with 1 as the least. Shares and coins keep the
+ * ticket's existing rule unchanged.
+ *
+ * Deliberately a TICKET rule, not a fill-boundary rejection: a book may
+ * already hold a fractional contract from before this rule, and refusing
+ * fractional orders at the fill would make that position impossible to close.
+ */
+export function normalizeTicketQty(symbol: string, value: number): number {
+  if (!tradesInWholeContracts(symbol)) return value || 1;
+  const whole = Number.isFinite(value) ? Math.floor(value) : 0;
+  return whole >= 1 ? whole : 1;
 }
 
 /**
@@ -867,6 +922,16 @@ export const CLEAN_BOOK_INTEGRITY: PaperBookIntegrity = {
 export interface PaperSnapshot {
   readonly state: PaperState;
   readonly integrity: PaperBookIntegrity;
+}
+
+/**
+ * Is this book behind the recovery barrier? One answer for every reader:
+ * /paper shows RECOVERY REQUIRED on it and /charts draws no paper line on it
+ * (a partial read of a book WM could not fully read is not a position).
+ * The same condition `savePaperState` refuses to write over.
+ */
+export function isPaperBookRecoveryRequired(integrity: PaperBookIntegrity): boolean {
+  return integrity.unreadable || integrity.rejected > 0;
 }
 
 type PaperBookRecord = Exclude<keyof PaperBookIntegrity, "rejected" | "unreadable">;

@@ -7,7 +7,7 @@
  * and the tick table must be the other half of the ONE point-value owner.
  */
 import { describe, expect, it } from "vitest";
-import { CONTRACT_MULTIPLIERS } from "@/lib/paperTrade";
+import { CONTRACT_MULTIPLIERS, contractMultiplier } from "@/lib/paperTrade";
 import {
   CONTRACT_TICK_SIZES,
   formatMoney,
@@ -128,6 +128,41 @@ describe("refusals are named, never priced at 1x", () => {
     const r = selectRiskEconomics("BTC-USD", { entry: 84000, stop: 83500, target: null });
     expect(r.status === "PRICED" && r.words).toBe("$500.00 per 1 coin");
     expect(r.receipt).toBe("PRICED:BTC-USD:tick=NA:pv=1:ticks=NA:risk=500.00:reward=NA:coin");
+  });
+
+  it("FOUND 2026-09-26: /paper's own BTC and ETH are USD markets, not refusals", () => {
+    // The old test was `/USD$/` over the typed string, so the bare bases
+    // /paper trades read CRYPTO_NOT_USD. USD is now decided by the notation
+    // owner (toYahooSymbol → {TICKER}-USD).
+    for (const s of ["BTC", "ETH", "btc", "BTCUSD", "BTC/USD", "BTC.COINBASE", "SUI"]) {
+      const e = instrumentEconomics(s, 100);
+      expect(e, s).toMatchObject({ status: "PRICED", assetClass: "CRYPTO", unit: "coin", currency: "USD", pointValue: 1, tickSize: null });
+    }
+    const r = selectRiskEconomics("ETH", { entry: 3800, stop: 3750, target: 3900 });
+    expect(r.receipt).toBe("PRICED:ETH:tick=NA:pv=1:ticks=NA:risk=50.00:reward=100.00:coin");
+  });
+
+  it("USDT and USDC are not USD: those pairs stay refused, by name", () => {
+    for (const s of ["BTCUSDT", "BTC-USDT", "ETHUSDC"]) {
+      const e = instrumentEconomics(s, 100);
+      expect(e, s).toMatchObject({ status: "REFUSED", refusal: "CRYPTO_NOT_USD" });
+    }
+    // Measured 2026-09-26: the class owner reads "BTC/USDT" as FOREX (slash
+    // rule after the notation owner declines USDT), so its refusal is named
+    // SPOT_FX_LOT. Wrong NAME, right outcome — it is never priced. Pinned so
+    // a classifier fix shows up here rather than silently.
+    expect(instrumentEconomics("BTC/USDT", 100)).toMatchObject({ status: "REFUSED", refusal: "SPOT_FX_LOT" });
+    expect(selectRiskEconomics("BTCUSDT", { entry: 84000, stop: 83500, target: null }).words)
+      .toBe("$ risk withheld — BTCUSDT is not quoted in USD");
+  });
+
+  it("the rail and the paper book read the SAME row for every notation", () => {
+    // contractEconomics and contractMultiplier both find the row through
+    // contractSpecKey, so no notation can be $50 on one and 1x on the other.
+    for (const s of ["ES1!", "ES=F", "/ES", "es1!", "NQ=F", "/CL", "GC1!", "RTY=F"]) {
+      const e = instrumentEconomics(s, 100);
+      expect(e.status === "PRICED" && e.pointValue, s).toBe(contractMultiplier(s));
+    }
   });
 });
 

@@ -33,8 +33,8 @@
  * from one instrument to the next.
  */
 
-import { CONTRACT_MULTIPLIERS } from "@/lib/paperTrade";
-import { classifySymbol, futuresRootOf, type AssetClass } from "./symbolAssetClass";
+import { CONTRACT_MULTIPLIERS, contractSpecKey } from "@/lib/paperTrade";
+import { classifySymbol, futuresRootOf, toYahooSymbol, type AssetClass } from "./symbolAssetClass";
 
 /**
  * Minimum price increment for every contract that has a point value. Keys
@@ -96,9 +96,11 @@ export function instrumentEconomics(symbol: string, refPrice: number | null): In
 
   if (assetClass === "FUTURES") {
     const root = futuresRootOf(sym) ?? sym;
-    const key = `${root}1!`;
-    const pv = Object.prototype.hasOwnProperty.call(CONTRACT_MULTIPLIERS, key) ? CONTRACT_MULTIPLIERS[key] : undefined;
-    const tick = Object.prototype.hasOwnProperty.call(CONTRACT_TICK_SIZES, key) ? CONTRACT_TICK_SIZES[key] : undefined;
+    // The row is found by the SAME function contractMultiplier uses, so the
+    // rail's money and the paper book's money cannot pick different rows.
+    const key = contractSpecKey(sym);
+    const pv = key === null ? undefined : CONTRACT_MULTIPLIERS[key];
+    const tick = key !== null && Object.prototype.hasOwnProperty.call(CONTRACT_TICK_SIZES, key) ? CONTRACT_TICK_SIZES[key] : undefined;
     if (!(typeof pv === "number" && pv > 0 && typeof tick === "number" && tick > 0)) {
       return refuse(root, "NO_POINT_VALUE", `no published point value on file for ${root}`);
     }
@@ -117,7 +119,14 @@ export function instrumentEconomics(symbol: string, refPrice: number | null): In
     };
   }
   if (assetClass === "CRYPTO") {
-    if (!/USD$/.test(sym.replace(/[-/]/g, ""))) {
+    // QUOTE CURRENCY IS ASKED OF THE NOTATION OWNER. Found in source
+    // (2026-09-26): this was `/USD$/` over the typed string, so /paper's own
+    // "BTC" and "ETH" — USD markets by the product's own definition — were
+    // refused CRYPTO_NOT_USD. `toYahooSymbol` resolves every USD form (BTC,
+    // BTCUSD, BTC/USD, BTC.COINBASE, a pinned base like SUI) to a
+    // `{TICKER}-USD` market and deliberately leaves USDT/USDC unresolved, so
+    // BTCUSDT stays refused: USDT is not USD.
+    if (!toYahooSymbol(sym).endsWith("-USD")) {
       return refuse(sym, "CRYPTO_NOT_USD", `${sym} is not quoted in USD`);
     }
     return {

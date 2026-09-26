@@ -35,6 +35,9 @@ import {
   applyOrderRejections,
   applyOrderFills,
   contractMultiplier,
+  normalizeTicketQty,
+  tradesInWholeContracts,
+  isPaperBookRecoveryRequired,
   canCancelOrder,
   selectCloseOrderPlan,
   selectOrderFill,
@@ -717,10 +720,23 @@ function OrderTicket({
 
   const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
   const px  = readiness.price ?? prices[sym] ?? 0;
-  const est = qty * px;
+  // Found in source (2026-09-26, Garden 16 §17): this was `qty * px`, so one
+  // NQ1! read "Est. Value $21,750" on the ticket while the fill loop's funding
+  // gate charged the same order $435,000 (qty × px × $20 per point) and
+  // rejected it. The ticket and the gate now ask the same owner.
+  const pointValue = contractMultiplier(sym);
+  const wholeContracts = tradesInWholeContracts(sym);
+  const est = qty * px * pointValue;
+
+  // A quantity typed for a coin (0.5 BTC) must not ride into a futures
+  // ticket when the symbol changes: it is re-read under the new symbol's rule.
+  useEffect(() => { setQty(q => normalizeTicketQty(sym, q)); }, [sym]);
 
   const submit = () => {
     if (!readiness.actionable || !qty || qty <= 0) return;
+    // UI gating is not the sole guard: a fractional contract never leaves the
+    // ticket, whatever state the input was left in.
+    if (wholeContracts && !Number.isInteger(qty)) return;
     // A price level is a risk decision. If the trader left it blank, WM
     // refuses and says so — it does NOT fall back to the market price.
     const levels = validateTicketLevels({
@@ -948,8 +964,9 @@ function OrderTicket({
             className="w-7 h-7 rounded-lg border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center transition-colors">
             <Minus size={11}/>
           </button>
-          <input type="number" min={1} value={qty} onChange={e=>setQty(+e.target.value||1)}
-            aria-label="Order quantity"
+          <input type="number" min={1} value={qty}
+            onChange={e=>setQty(normalizeTicketQty(sym, +e.target.value))}
+            aria-label={wholeContracts ? "Order quantity in whole contracts" : "Order quantity"}
             className="flex-1 bg-wm-surface border border-wm-border rounded-lg px-2 py-1.5 text-xs text-wm-text text-center outline-none focus:border-wm-green/50 font-mono font-bold"/>
           <button onClick={()=>setQty(q=>q+1)}
             aria-label="Increase order quantity"
@@ -980,9 +997,16 @@ function OrderTicket({
 
       {/* Est value */}
       <div className="flex justify-between text-[10px] text-wm-text-dim mb-3 px-1">
-        <span>Est. Value</span>
+        <span>{pointValue > 1 ? "Est. Value (notional)" : "Est. Value"}</span>
         <span className="font-mono font-bold text-wm-text">{readiness.actionable ? `$${est.toLocaleString("en-US",{maximumFractionDigits:0})}` : "UNKNOWN"}</span>
       </div>
+      {/* The chain that makes the number: a contract's value is not its
+          quoted price (Garden 16 §17). Shown only when a point value applies. */}
+      {pointValue > 1 && readiness.actionable && (
+        <div className="-mt-2 mb-3 px-1 text-right text-[9px] font-mono text-wm-text-dim" data-testid="ticket-notional-chain">
+          {qty} {qty === 1 ? "contract" : "contracts"} × {fmt2(px)} × ${pointValue.toLocaleString("en-US")}/pt
+        </div>
+      )}
 
       {/* Refusals — why this order was not sent. §7: never fabricate a level. */}
       {levelIssues.length > 0 && (
@@ -1766,7 +1790,7 @@ export default function PaperTradingPage() {
     () => describePaperBookIntegrity(bookIntegrity),
     [bookIntegrity],
   );
-  const bookRecoveryRequired = bookIntegrity.unreadable || bookIntegrity.rejected > 0;
+  const bookRecoveryRequired = isPaperBookRecoveryRequired(bookIntegrity);
   /**
    * Whether the trader has taken their book out of the barrier IN THIS SESSION.
    *
@@ -1825,7 +1849,7 @@ export default function PaperTradingPage() {
       // ever refused.
       setBookIntegrity(update.integrity);
       setPersistenceState(
-        update.integrity.unreadable || update.integrity.rejected > 0
+        isPaperBookRecoveryRequired(update.integrity)
           ? "RECOVERY REQUIRED"
           : update.disposition === "PERSISTED"
           ? "PERSISTED"

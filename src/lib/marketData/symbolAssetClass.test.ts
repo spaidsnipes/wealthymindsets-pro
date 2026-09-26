@@ -25,6 +25,8 @@ import {
   isUnsupportedByEquityVendors,
   unsupportedAssetClassReason,
   observesUsEquitySession,
+  instrumentNotationKey,
+  sameInstrument,
 } from "./symbolAssetClass";
 
 /**
@@ -339,5 +341,46 @@ describe("MainChart asks the owner instead of retyping the predicate", () => {
     // The coin list that had to be edited every time a coin was added, and
     // which never knew the `-USD` form the app's own pickers emit.
     expect(src).not.toMatch(/\["BTC","ETH"/);
+  });
+});
+
+/**
+ * FOUND 2026-09-26 (Garden 16 §17 audit): the /charts paper line matched the
+ * book to the chart with a private `norm()` + USD/USDT/USDC/PERP strip — a
+ * sixth copy of "is this the same instrument". The answer now lives here.
+ */
+describe("sameInstrument — one key per instrument, any notation", () => {
+  it("every notation of a futures contract is one contract", () => {
+    for (const s of ["ES1!", "ES=F", "/ES", "es1!", " ES1! "]) {
+      expect(instrumentNotationKey(s), s).toBe("ES=F");
+      expect(sameInstrument(s, "ES1!"), s).toBe(true);
+    }
+    expect(sameInstrument("NQ1!", "NQ=F")).toBe(true);
+  });
+
+  it("a micro is not its big brother, and a bare equity is not a contract", () => {
+    expect(sameInstrument("MES1!", "ES1!")).toBe(false);
+    expect(sameInstrument("ES", "ES1!")).toBe(false);
+  });
+
+  it("USD crypto notations are one market; USDT is a different one", () => {
+    for (const s of ["BTC", "BTCUSD", "BTC-USD", "BTC/USD", "BTC.COINBASE"]) {
+      expect(sameInstrument(s, "BTC"), s).toBe(true);
+    }
+    expect(sameInstrument("BTCUSDT", "BTC")).toBe(false);
+    expect(sameInstrument("BTC-USDC", "BTC")).toBe(false);
+  });
+
+  it("spot metals are not the futures the notation table borrows for them", () => {
+    expect(instrumentNotationKey("XAUUSD")).toBe("SPOT:GOLD");
+    expect(sameInstrument("XAU", "XAUUSD")).toBe(true);
+    expect(sameInstrument("XAUUSD", "GC1!")).toBe(false);
+  });
+
+  it("equities match themselves only; empty never matches", () => {
+    expect(sameInstrument("tsla", "TSLA")).toBe(true);
+    expect(sameInstrument("TSLA", "TSL")).toBe(false);
+    expect(sameInstrument("", "")).toBe(false);
+    expect(instrumentNotationKey("  ")).toBeNull();
   });
 });

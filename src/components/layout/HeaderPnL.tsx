@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { paperMastheadRealizedStat, type PaperStat } from "@/lib/paper/paperAccountStats";
+import { isPaperBookRecoveryRequired, parsePaperSnapshot } from "@/lib/paperTrade";
 
 /**
  * The trader's realized paper P&L, drawn in the masthead.
@@ -80,21 +81,24 @@ export function HeaderPnL() {
       // ABSENT AND UNREADABLE ARE DIFFERENT FACTS. No key means this trader has
       // no paper book; unparseable bytes mean we hold a book we cannot read.
       if (stored === null) { setStat(null); return; }
-      try {
-        const paper = JSON.parse(stored);
-        const trades: ReadonlyArray<{ pnl?: number }> =
-          paper && Array.isArray(paper.trades) ? paper.trades : null;
-        if (trades === null) throw new Error("no trades array");
-        setStat(
-          paperMastheadRealizedStat({
-            unreadable: false,
-            tradeCount: trades.length,
-            realizedPnl: trades.reduce((acc, t) => acc + (t.pnl ?? 0), 0),
-          }),
-        );
-      } catch {
+      // READ THROUGH THE BOOK'S OWN PARSER (found 2026-09-26, Garden 16 §17
+      // audit). This was `JSON.parse(stored).trades` summed raw: a book /paper
+      // holds behind RECOVERY REQUIRED — a record it could not read — still
+      // printed a confident total here over every room, including /charts.
+      // The barrier now reaches the masthead the way it reaches /paper.
+      const snapshot = parsePaperSnapshot(stored);
+      if (snapshot === null || isPaperBookRecoveryRequired(snapshot.integrity)) {
         setStat(paperMastheadRealizedStat({ unreadable: true, tradeCount: 0, realizedPnl: 0 }));
+        return;
       }
+      const trades = snapshot.state.trades;
+      setStat(
+        paperMastheadRealizedStat({
+          unreadable: false,
+          tradeCount: trades.length,
+          realizedPnl: trades.reduce((acc, t) => acc + (t.pnl ?? 0), 0),
+        }),
+      );
     };
     read();
     window.addEventListener("wm-settings-changed", read);
@@ -115,7 +119,9 @@ export function HeaderPnL() {
       title={stat.reason}
       aria-label={`${stat.label}: ${stat.value}. ${stat.reason}`}
     >
-      <span className="text-[9px] text-wm-text-dim font-semibold">P&L</span>
+      {/* PAPER is on the glass, not only in the tooltip: this is simulated
+          money drawn beside broker truth ("WEBULL COST") on /charts. */}
+      <span className="text-[9px] text-wm-text-dim font-semibold">{stat.label}</span>
       <span
         className={clsx(
           "text-[11px] font-bold font-mono",
