@@ -91,9 +91,45 @@ describe("NEAR carries no at-rest anatomy word knot", () => {
     // The hatch is the bar's OWN held-tape value area, clipped inside the body width.
     expect(b).toMatch(/const va = tape\?\.valueArea;/);
     expect(b).toMatch(/const vx = cx - halfW \+ 1, vw = Math\.max\(2, colW - 2\);/);
-    expect(b).toMatch(/ctx\.rect\(vx, vTop, vw, vH\); ctx\.clip\(\);/);
+    // UPDATED 2026-09-26: the hatch is QUEUED here and painted after the
+    // Value Candle (UI-02), so a glazed bar keeps one encoding of value.
+    expect(b).toMatch(/nearHatchJobs\.push\(\{ time: Number\(c\.time\), vx, vTop, vw, vH, bracket: fpRowsFill \}\);/);
+    expect(hatchBlock()).toMatch(/ctx\.rect\(vx, vTop, vw, vH\); ctx\.clip\(\);/);
     // Where the footprint's rows fill the bar, a bracket on its edges, not a hatch across the numbers.
     expect(b).toMatch(/const fpRowsFill = fpRowModes\.includes\(effectiveFP\) && fpBarsPainted > 0;/);
+    // The NEAR block itself paints no hatch.
+    expect(b).not.toMatch(/ctx\.rect\(vx, vTop, vw, vH\)/);
+  });
+});
+
+/** The deferred NEAR value-hatch pass, after the Value Candle block. */
+const hatchBlock = () => {
+  const a = CHART.indexOf("if (nearHatchQueued) {");
+  expect(a, "deferred hatch pass").toBeGreaterThan(-1);
+  const z = CHART.indexOf("STACKED IMBALANCE", a);
+  return CHART.slice(a, z > a ? z : a + 4000);
+};
+
+describe("UI-02 × H-701 · one encoding of value per bar (serving 2026-09-26 04:47 CDT)", () => {
+  it("the Value Candle records each bar it glazed; the NEAR hatch paints after it and skips those bars", () => {
+    const vcAdd = CHART.indexOf("vcGlassBars.add(Number(bar.time));");
+    const vcPlaced = CHART.indexOf("vcPlaced++;");
+    expect(vcAdd).toBeGreaterThan(vcPlaced);
+    // Recorded in the glass loop, before its paint ends.
+    expect(vcAdd - vcPlaced).toBeLessThan(200);
+    const pass = CHART.indexOf("if (nearHatchQueued) {");
+    // The hatch pass runs after the Value Candle's paint loop this frame.
+    expect(pass).toBeGreaterThan(vcAdd);
+    const h = hatchBlock();
+    expect(h).toMatch(/if \(vcGlassBars\.has\(j\.time\)\) \{ yieldedVc\+\+; continue; \}/);
+    // The receipt counts only bars still hatched, and names the yield.
+    expect(h).toMatch(/if \(hatched \+ bracketed > 0\) dsH\.nearHatch = hatched > 0 \? `HATCH:\$\{hatched\}` : `BRACKET:\$\{bracketed\}`; else delete dsH\.nearHatch;/);
+    expect(h).toMatch(/if \(yieldedVc > 0\) dsH\.nearHatchYieldedToValueCandle = String\(yieldedVc\); else delete dsH\.nearHatchYieldedToValueCandle;/);
+    expect(h.indexOf("dsH.nearHatch =")).toBeGreaterThan(h.indexOf("hatched++;"));
+    // Withdrawn off NEAR with every other NEAR receipt.
+    expect(RAW).toMatch(/const NEAR_GLASS_RECEIPTS = \[[^\]]*"nearHatch", "nearHatchYieldedToValueCandle"/);
+    // The frame record is fresh each frame (declared in the paint pass, not a ref).
+    expect(CHART).toMatch(/      const vcGlassBars = new Set<number>\(\);/);
   });
 });
 

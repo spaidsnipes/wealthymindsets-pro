@@ -161,7 +161,7 @@ const PRICE_LEGEND_OVERLAY_H = 28;
 /** Every receipt the NEAR geometry block writes — withdrawn together off NEAR. */
 /** The largest held prints per bar the NEAR tape owner keeps (the paint shows as many as the slot has room for). */
 const NEAR_TAPE_MAX_DOTS = 12;
-const NEAR_GLASS_RECEIPTS = ["nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearTapeTop", "nearAnatomy", "nearHatch", "nearAnatomyWords"] as const;
+const NEAR_GLASS_RECEIPTS = ["nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearTapeTop", "nearAnatomy", "nearHatch", "nearHatchYieldedToValueCandle", "nearAnatomyWords"] as const;
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
 const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
@@ -6061,6 +6061,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
+      // UI-02 × H-701 · ONE ENCODING OF VALUE PER BAR. The Value Candle block
+      // (later this frame) records each bar it painted glass on here; the
+      // NEAR value hatch is queued, and painted after it only on bars the
+      // Value Candle left bare. Serving, 2026-09-26 04:47 CDT: the hatch's
+      // lines over the gold CoG ± σ band and the dark CoG line made both
+      // unreadable on the same body.
+      const vcGlassBars = new Set<number>();
+      const nearHatchJobs: { time: number; vx: number; vTop: number; vw: number; vH: number; bracket: boolean }[] = [];
+      let nearHatchQueued = false;
       // The header chrome (OHLC line, bar clock, zoom plate, INSPECT) owns the
       // plot's top band; floating chips and cards stay below this line.
       const HEADER_FLOOR_Y = 90;
@@ -7920,7 +7929,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.setLineDash([]);
           // ── CANDLE ANATOMY AS GEOMETRY: open tick left, close tick right,
           //    and the bar's own value area INSIDE the body (H-701 hatch).
-          let ticks = 0, hatched = 0, bracketed = 0;
+          let ticks = 0;
           for (const { c, cx, tape } of nearBars) {
             const yO = srs.priceToCoordinate(c.open), yC = srs.priceToCoordinate(c.close);
             if (yO == null || yC == null) continue;
@@ -7937,29 +7946,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (yVh == null || yVl == null) continue;
             const vTop = Math.min(+yVh, +yVl) - 1, vH = Math.max(2, Math.abs(+yVl - +yVh) + 2);
             const vx = cx - halfW + 1, vw = Math.max(2, colW - 2);
-            if (fpRowsFill) {
-              // The footprint's rows already fill the bar with numbers: the
-              // value area stands as a bracket on the body's edges instead of
-              // a hatch across the numbers.
-              ctx.strokeStyle = "rgba(232,184,92,0.9)"; ctx.lineWidth = 1.5;
-              ctx.beginPath();
-              ctx.moveTo(vx + 3, vTop); ctx.lineTo(vx, vTop); ctx.lineTo(vx, vTop + vH); ctx.lineTo(vx + 3, vTop + vH);
-              ctx.moveTo(vx + vw - 3, vTop); ctx.lineTo(vx + vw, vTop); ctx.lineTo(vx + vw, vTop + vH); ctx.lineTo(vx + vw - 3, vTop + vH);
-              ctx.stroke();
-              bracketed++;
-            } else {
-              ctx.save();
-              ctx.beginPath(); ctx.rect(vx, vTop, vw, vH); ctx.clip();
-              ctx.strokeStyle = "rgba(232,184,92,0.42)"; ctx.lineWidth = 1;
-              ctx.beginPath();
-              for (let d = -vH; d < vw; d += 5) { ctx.moveTo(vx + d, vTop + vH); ctx.lineTo(vx + d + vH, vTop); }
-              ctx.stroke();
-              ctx.restore();
-              ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1;
-              ctx.strokeRect(vx + 0.5, Math.round(vTop) + 0.5, vw - 1, Math.round(vH) - 1);
-              hatched++;
-            }
+            // Queued, not painted: the Value Candle paints later this frame,
+            // and a bar it glazes keeps its gold band alone (see below).
+            nearHatchJobs.push({ time: Number(c.time), vx, vTop, vw, vH, bracket: fpRowsFill });
           }
+          nearHatchQueued = true;
 
           // ── TAPE PATH: the forming bar's held prints in time order.
           let pathPts = 0;
@@ -8089,7 +8080,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (pathPts > 1) dsN.nearTapePath = String(pathPts); else delete dsN.nearTapePath;
           if (topDot) dsN.nearTapeTop = `${Math.round(topDot.x)},${Math.round(topDot.y)}`; else delete dsN.nearTapeTop;
           dsN.nearAnatomy = `TICKS:${ticks}`;
-          if (hatched + bracketed > 0) dsN.nearHatch = hatched > 0 ? `HATCH:${hatched}` : `BRACKET:${bracketed}`; else delete dsN.nearHatch;
           if (wordsN > 0) dsN.nearAnatomyWords = String(wordsN); else delete dsN.nearAnatomyWords;
         } else {
           for (const k of NEAR_GLASS_RECEIPTS) delete canvas.dataset[k];
@@ -11762,6 +11752,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const hy1 = Math.max(gy1, bBot, yLoBar == null ? gy1 : +yLoBar) + 3;
             vcHits.push({ x: gx - 2, y: hy0, w: gw + 4, h: hy1 - hy0, c, yCog });
             vcPlaced++;
+            // A record for the NEAR value hatch (one encoding of value per bar).
+            vcGlassBars.add(Number(bar.time));
           }
           ctx.restore();
 
@@ -11871,6 +11863,46 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.valueCandleCog;
         }
       } catch { /* chart may be mid-transition; safe to skip this frame */ }
+
+      /* ── H-701 · THE NEAR VALUE HATCH, after the Value Candle (UI-02).
+         Queued by the NEAR block; painted here only on bars the Value Candle
+         did NOT glaze this frame. Where footprint rows fill the bar it is a
+         bracket on the body's edges, else a hatch inside the body. The
+         receipt counts only what painted, and how many bars yielded. */
+      try {
+        if (nearHatchQueued) {
+          const dsH = canvas.dataset;
+          let hatched = 0, bracketed = 0, yieldedVc = 0;
+          ctx.save();
+          ctx.setLineDash([]);
+          for (const j of nearHatchJobs) {
+            if (vcGlassBars.has(j.time)) { yieldedVc++; continue; }
+            const { vx, vTop, vw, vH } = j;
+            if (j.bracket) {
+              ctx.strokeStyle = "rgba(232,184,92,0.9)"; ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(vx + 3, vTop); ctx.lineTo(vx, vTop); ctx.lineTo(vx, vTop + vH); ctx.lineTo(vx + 3, vTop + vH);
+              ctx.moveTo(vx + vw - 3, vTop); ctx.lineTo(vx + vw, vTop); ctx.lineTo(vx + vw, vTop + vH); ctx.lineTo(vx + vw - 3, vTop + vH);
+              ctx.stroke();
+              bracketed++;
+            } else {
+              ctx.save();
+              ctx.beginPath(); ctx.rect(vx, vTop, vw, vH); ctx.clip();
+              ctx.strokeStyle = "rgba(232,184,92,0.42)"; ctx.lineWidth = 1;
+              ctx.beginPath();
+              for (let d = -vH; d < vw; d += 5) { ctx.moveTo(vx + d, vTop + vH); ctx.lineTo(vx + d + vH, vTop); }
+              ctx.stroke();
+              ctx.restore();
+              ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1;
+              ctx.strokeRect(vx + 0.5, Math.round(vTop) + 0.5, vw - 1, Math.round(vH) - 1);
+              hatched++;
+            }
+          }
+          ctx.restore();
+          if (hatched + bracketed > 0) dsH.nearHatch = hatched > 0 ? `HATCH:${hatched}` : `BRACKET:${bracketed}`; else delete dsH.nearHatch;
+          if (yieldedVc > 0) dsH.nearHatchYieldedToValueCandle = String(yieldedVc); else delete dsH.nearHatchYieldedToValueCandle;
+        }
+      } catch { /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════════════════════
          STACKED IMBALANCE — PUT BACK ON THE PRICE IT IS A CLAIM ABOUT.
