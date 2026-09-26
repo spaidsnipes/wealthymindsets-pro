@@ -55,3 +55,36 @@ describe("shouldFoldChartLiveBar", () => {
     expect(shouldFoldChartLiveBar(1_000, 1_000 + 3_600, false)).toBe(false);
   });
 });
+
+// ── applyTickToClock (2026-09-26) — a print on an id with no clock builds no bar.
+import { applyTickToClock } from "./liveBarPolicy";
+
+describe("applyTickToClock — fail closed when the registry has no clock", () => {
+  const cur = { time: 60, open: 100, high: 100, low: 100, close: 100, volume: 2 };
+
+  it("with a clock it IS applyTickToLiveBar, byte for byte", () => {
+    for (const [current, last, tick, sec] of [
+      [null, null, { price: 100, size: 2, time: 61_500 }, 60],
+      [cur, 61_500, { price: 101, size: 1, time: 62_000 }, 60],
+      [cur, 61_500, { price: 102, size: 1, time: 125_000 }, 60],
+      [cur, 61_500, { price: 99, size: 1, time: 61_000 }, 60],
+    ] as const) {
+      expect(applyTickToClock(current, last, tick, sec)).toEqual(applyTickToLiveBar(current, last, tick, sec));
+    }
+  });
+
+  it("× THE SIXTY-SECOND GUESS: with no clock, no bar is built — not a one-minute one", () => {
+    const r = applyTickToClock(null, null, { price: 100, size: 2, time: 61_500 }, null);
+    expect(r).toEqual({ status: "ACCEPTED", bar: null, lastEventAt: 61_500 });
+  });
+
+  it("still forward-only without a clock: a late print cannot rewind the price", () => {
+    const r = applyTickToClock(null, 61_500, { price: 90, size: 1, time: 61_000 }, null);
+    expect(r).toEqual({ status: "LATE_EVENT_IGNORED", bar: null, lastEventAt: 61_500 });
+  });
+
+  it("still refuses an invalid print without a clock", () => {
+    expect(() => applyTickToClock(null, null, { price: 0, size: 1, time: 61_000 }, null)).toThrow();
+    expect(() => applyTickToClock(null, null, { price: 1, size: 1, time: Number.NaN }, null)).toThrow();
+  });
+});

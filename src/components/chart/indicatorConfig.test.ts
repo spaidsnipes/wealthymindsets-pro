@@ -51,6 +51,14 @@ describe("tfGroupOf — timeframe → group classification", () => {
     expect(tfGroupOf("5Y")).toBe("Months");
   });
 
+  it("× THE MINUTE FILED AS A MONTH: 3m is three minutes (2026-09-26)", () => {
+    // The months regex was case-insensitive, so "3m" matched "3M" and a study
+    // hidden on monthly charts vanished on 3-minute charts too. Latent while 3m
+    // had no button; the canonical ladder on the timeframe chip gives it one.
+    expect(tfGroupOf("3m")).toBe("Minutes");
+    expect(tfGroupOf("3M")).toBe("Months");
+  });
+
   it("falls back to Minutes for empty input; bare terminal-suffix tokens match those groups (documented behavior)", () => {
     expect(tfGroupOf("")).toBe("Minutes");
     // "bogus" ends with 's' → hits /s$/i seconds regex. Documented so a

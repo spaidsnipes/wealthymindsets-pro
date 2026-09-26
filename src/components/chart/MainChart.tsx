@@ -628,7 +628,10 @@ function getIntervalSec(tf: string): number {
     "1h":  3600, "2h":  7200, "4h":  14400,
     "1D":  86400, "1W": 604800, "1M": 2592000,
     "3M":  7776000, "6M": 15552000, "1Y": 31536000,
-    "3Y":  94608000, "5Y": 157680000,
+    "5Y": 157680000,
+    // "3Y" left 2026-09-26: not a TFId (normalizeTFId("3Y") is null), so no
+    // mount of this chart could send it. Unreachable keys are how a second
+    // vocabulary survives the registry that was meant to end it.
   };
   const v = m[tf];
   if (v == null) {
@@ -691,7 +694,6 @@ function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
     "3M":  { mult:3,  span:"month"  },
     "6M":  { mult:6,  span:"month"  },
     "1Y":  { mult:12, span:"month"  },
-    "3Y":  { mult:36, span:"month"  },
     "5Y":  { mult:60, span:"month"  },
   };
   return map[tf] ?? null;
@@ -3191,7 +3193,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // (e.g. Daily → 1200 bars ≈ 5y, Weekly/Monthly → full available history).
       const barCount = timeframe === "1D" ? 2600
                      : timeframe === "1W" ? 1000
-                     : ["1M","3M","6M","1Y","3Y","5Y"].includes(timeframe) ? 400
+                     : ["1M","3M","6M","1Y","5Y"].includes(timeframe) ? 400
                      // Hourly TFs now pull ~2y of 60-min bars (Yahoo's max) so the
                      // chart scrolls back years, not 60 days.
                      : ["1h","2h","4h"].includes(timeframe) ? 3000

@@ -23,7 +23,8 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
-import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { applyTickToClock } from "@/lib/marketData/liveBarPolicy";
+import { liveBarBucketSec } from "@/lib/timeframes";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
@@ -1248,15 +1249,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // Flag: ignore non-observed ticks once real data arrives
   const hasRealDataRef = useRef(false);
 
-  const getIntervalSec = useCallback(() => {
-    const m: Record<string, number> = {
-      "1t": 1, "5t": 5, "30t": 30,
-      "1m": 60, "2m": 120, "3m": 180, "5m": 300, "10m": 600,
-      "15m": 900, "30m": 1800, "1h": 3600, "2h": 7200,
-      "4h": 14400, "1D": 86400, "1W": 604800, "1M": 2592000,
-    };
-    return m[timeframe] ?? 60;
-  }, [timeframe]);
+  // THE CLOCK IS THE REGISTRY'S (2026-09-26, Garden 16 §22). This was a
+  // private table with "1t"/"5t"/"30t" keys no caller could reach and a
+  // `?? 60` that clocked every unknown id — a future tick id included — as
+  // one-minute bars. `liveBarBucketSec` answers for every TFId exactly as the
+  // table did, and null for anything else: no clock, no forming bar.
+  const getIntervalSec = useCallback((): number | null => liveBarBucketSec(timeframe), [timeframe]);
 
   /* Flush buffer to React state (called in RAF) */
   const flush = useCallback(() => {
@@ -1341,8 +1339,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // which is reliably refetched per symbol.
     if (!Number.isFinite(tick.price) || tick.price <= 0) return;
 
-    const intervalSec = getIntervalSec();
-    const barUpdate = applyTickToLiveBar(barRef.current, lastBarEventAtRef.current, tick, intervalSec);
+    const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, tick, getIntervalSec());
     if (barUpdate.status === "LATE_EVENT_IGNORED") return;
 
     priceRef.current = tick.price;
@@ -1366,7 +1363,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const size = event.size;
     const time = event.timestampProvider ?? event.timestampReceived;
     if (!(price && price > 0) || !(size && size > 0) || !Number.isFinite(time) || time <= 0) return;
-    const barUpdate = applyTickToLiveBar(barRef.current, lastBarEventAtRef.current, { price, size, time }, getIntervalSec());
+    const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, { price, size, time }, getIntervalSec());
     if (barUpdate.status === "LATE_EVENT_IGNORED") return;
     priceRef.current = price;
     barRef.current = barUpdate.bar;
@@ -1381,7 +1378,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     setState(previous => ({
       ...previous,
       ticker: { ...previous.ticker, price, volume: previous.ticker.volume + size },
-      liveBar: { ...barUpdate.bar },
+      // A clockless id builds no bar (applyTickToClock); `{ ...null }` would
+      // publish an empty object as if it were one.
+      liveBar: barUpdate.bar ? { ...barUpdate.bar } : null,
       source,
       connected: true,
       latency: Math.max(0, now - time),

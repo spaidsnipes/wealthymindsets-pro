@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { futuresRootOf, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "./sessionWindow";
+import { barMinutesOf, futuresRootOf, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "./sessionWindow";
+import { TF_IDS, getTimeframe } from "@/lib/timeframes";
 
 // January: New York is on EST (UTC−5), so ET hh:mm = UTC hh:mm − 5h.
 const et = (day: number, hh: number, mm = 0) => Date.UTC(2026, 0, day, hh + 5, mm) / 1000;
@@ -124,5 +125,67 @@ describe("not every future keeps the Globex day (2026-09-25)", () => {
     for (const s of ["ES1!", "NQ1!", "CL1!", "GC1!", "ZN1!", "ZB1!", "VX1!", "/ES"]) {
       expect(sessionWindowFor(s, "5m", false).kind, s).toBe("GLOBEX_DAY");
     }
+  });
+});
+
+// ── FAIL CLOSED ON A NON-CLOCK ID (2026-09-26, Garden 16 §21 step 4) ─────────
+// barMinutesOf used to answer 1 for "tick and unknown frames": an N-tick id
+// would have been profiled as one-minute bars and nothing would have said so.
+// It now reads the registry, and an id the registry does not know has no
+// minutes. Every REAL id must answer exactly as before; the old implementation
+// is kept here, verbatim, as the oracle.
+describe("the session clock is the registry's, and a non-clock id gets none", () => {
+  const OLD_DAILY = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/;
+  const OLD_BARS: Record<string, number> = { "1D": 5, "1W": 4, "1M": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3 };
+  const oldBarMinutes = (tf: string) => {
+    const m = /^(\d+)(m|h)$/i.exec(tf.trim());
+    if (!m) return 1;
+    const n = Number(m[1]);
+    return m[2].toLowerCase() === "h" ? n * 60 : n;
+  };
+  const oldWindow = (symbol: string, tf: string, ext: boolean) => {
+    if (OLD_DAILY.test(tf)) {
+      const n = OLD_BARS[tf] ?? 5;
+      return { kind: "DAILY_WINDOW", label: `LAST ${n} BARS · each ${tf} bar is already a whole session`, windowBars: n, barMinutes: 1440 };
+    }
+    return { ...sessionWindowFor(symbol, "5m", ext), barMinutes: oldBarMinutes(tf) };
+  };
+
+  it("every TFId, and the legacy D/W/M, profile exactly as they did", () => {
+    const ids = [...TF_IDS, "D", "W", "M"];
+    for (const sym of ["AAPL", "/ES", "ZW1!", "LE1!", "EURUSD=X", "BTC-USD"]) {
+      for (const tf of ids) {
+        for (const ext of [false, true]) {
+          expect(sessionWindowFor(sym, tf, ext), `${sym} ${tf} ${ext}`).toEqual(oldWindow(sym, tf, ext));
+        }
+      }
+    }
+  });
+
+  it("barMinutesOf answers the registry's minutes for every intraday id", () => {
+    for (const id of TF_IDS) {
+      const sec = getTimeframe(id).candleIntervalSec;
+      expect(barMinutesOf(id), id).toBe(sec < 86_400 ? sec / 60 : null);
+    }
+    expect(barMinutesOf("45m")).toBe(45);
+    expect(barMinutesOf("4h")).toBe(240);
+  });
+
+  it("× THE TICK THAT READ AS A MINUTE: a non-clock id has no minutes", () => {
+    for (const tf of ["1t", "100T", "TICK", "15s", "20m", "7m", "3Y", "", "banana"]) {
+      expect(barMinutesOf(tf), `"${tf}"`).toBeNull();
+    }
+  });
+
+  it("× THE MONTH THAT READ AS A MINUTE: 1M is not 1 minute", () => {
+    // The old regex was case-insensitive, so "1M" (one month) answered 1.
+    expect(barMinutesOf("1M")).toBeNull();
+    expect(barMinutesOf("1D")).toBeNull();
+  });
+
+  it("refuses to profile a non-clock id rather than inventing its span", () => {
+    expect(() => sessionWindowFor("AAPL", "100T", false)).toThrow(/not a registry clock/);
+    expect(() => sessionWindowFor("BTC-USD", "15s", false)).toThrow(/not a registry clock/);
+    expect(() => sessionWindowFor("AAPL", "3Y", false)).toThrow(/not a registry clock/);
   });
 });

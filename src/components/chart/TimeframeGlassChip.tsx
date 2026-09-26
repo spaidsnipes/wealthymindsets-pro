@@ -37,7 +37,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { CHART_TF_SHIPPED, getTimeframe, timeframeSpokenName } from "@/lib/timeframes";
+import {
+  CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, canonRungSpokenName, getTimeframe,
+  timeframeSpokenName, type CanonRung, type TFId,
+} from "@/lib/timeframes";
 
 /**
  * THE FOOTER BAND THE CHIP LIVES IN — and the defect that proved it necessary.
@@ -90,7 +93,15 @@ interface Props {
 
 export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
   const [open, setOpen] = useState(false);
+  const [ladderOpen, setLadderOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // ONE door for every timeframe choice on the glass (2026-09-26). The nine on
+  // the strip and every servable rung of the full ladder switch the chart
+  // through this and nothing else, so the ladder cannot grow a second path to
+  // `setTimeframe` that skips closing the menu, or that a future guard added
+  // here would miss.
+  const choose = (id: TFId) => { setTimeframe(id); setOpen(false); };
 
   // A menu on the trading glass that cannot be dismissed without choosing is a
   // trap over the market. Escape and outside-press both close it.
@@ -135,7 +146,7 @@ export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
           // outside the slice and invisible to the guard. Attribute order is
           // load-bearing here. Same constraint the pinned-cluster class carries
           // in ChartToolbar.tsx for chartPhoneControlReachability.
-          className="wm-chart-timeframes flex items-center gap-0.5 mb-1.5 px-1.5 py-1 rounded-lg wm-room-chrome border border-wm-border"
+          className="wm-chart-timeframes flex items-center justify-center gap-0.5 mb-1.5 px-1.5 py-1 rounded-lg wm-room-chrome border border-wm-border"
           role="group"
           aria-label="Chart timeframe"
           style={{ pointerEvents: "auto" }}
@@ -147,7 +158,7 @@ export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
               <button
                 key={id}
                 type="button"
-                onClick={() => { setTimeframe(id); setOpen(false); }}
+                onClick={() => choose(id)}
                 // CARRIED FORWARD, not re-derived. This attribute is the
                 // residue of two live measurements and one reversal, and the
                 // reasoning moves with the control or it gets re-litigated by
@@ -198,12 +209,41 @@ export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
               </button>
             );
           })}
+          {/* THE ONE EXPANDABLE CONTROL (Garden 16 §24, "UX COMPRESSION ≠
+              FEATURE DELETION", 2026-09-26). The nine above stay the calm
+              primary set; this reveals the whole canonical ladder beneath
+              the strip. A disclosure, so it says expanded or collapsed and
+              nothing else — it is never "current", because it is not a
+              timeframe. */}
+          <button
+            type="button"
+            onClick={() => setLadderOpen(v => !v)}
+            aria-expanded={ladderOpen}
+            aria-controls={TIMEFRAME_LADDER_ID}
+            aria-label="More timeframes"
+            title="All timeframes"
+            className={clsx(
+              "wm-chart-timeframe wm-chart-timeframe-more px-2 h-7 rounded text-[11px] font-mono transition-colors",
+              ladderOpen
+                ? "text-wm-text bg-wm-surface"
+                : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface",
+            )}
+          >
+            More <span aria-hidden="true">{ladderOpen ? "\u25B4" : "\u25BE"}</span>
+          </button>
         </div>
       )}
+      {open && ladderOpen && <TimeframeLadder timeframe={timeframe} onChoose={choose} />}
 
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        // Opening on a timeframe the strip does not carry (3m, 2h … picked from
+        // the ladder, or a deep link) opens the ladder with it, so the current
+        // timeframe is on screen and marked the moment the menu appears.
+        onClick={() => {
+          if (!open) setLadderOpen(!CHART_TF_SHIPPED.includes(timeframe as TFId));
+          setOpen(o => !o);
+        }}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={`Timeframe: ${timeframeSpokenName(timeframe as never)}. Change timeframe.`}
@@ -219,5 +259,125 @@ export function TimeframeGlassChip({ timeframe, setTimeframe }: Props) {
         {current}
       </button>
     </div>
+  );
+}
+
+/** The ladder panel's id — the More control's `aria-controls` names it. */
+export const TIMEFRAME_LADDER_ID = "wm-chart-timeframe-ladder";
+
+interface LadderProps {
+  timeframe: string;
+  /** The chip's own `choose` — the same door the strip's nine use. */
+  onChoose: (id: TFId) => void;
+  /** The registry's ladder. A prop only so a test can hand it a rung the live
+   *  ladder does not have today (a DERIVED one) and watch it be marked. */
+  rungs?: readonly CanonRung[];
+}
+
+/**
+ * THE WHOLE CANONICAL LADDER, GROUPED, ON THE GLASS (2026-09-26).
+ *
+ * Every rung the Founder's timeframe family names is drawn, TICK and seconds
+ * included, because canon asks for "a calm primary set plus one fast
+ * expandable interval picker that exposes the full family", and a rung that is
+ * missing from the picker reads as a rung that does not exist. What the chart
+ * can do with each rung is not decided here: CANON_LADDER in the registry owns
+ * that, measured against the bar routes.
+ *
+ *   NATIVE / DERIVED   a real button in the strip's own look, wired to the
+ *                      chip's `choose`. A derived rung also says "derived",
+ *                      aloud and on the glass: canon forbids passing one off
+ *                      as provider-native.
+ *   UNAVAILABLE        visible and NOT a button. Dashed, dim, no hover, no
+ *                      focus stop (a thing that cannot be pressed must not
+ *                      look pressable), and its reason printed in words under
+ *                      its group, not in a tooltip a touch screen never shows.
+ *
+ * No hooks, on purpose: the panel is a pure function of the ladder and the
+ * current timeframe, which is what lets a test call it and press its buttons
+ * without a DOM.
+ */
+export function TimeframeLadder({ timeframe, onChoose, rungs = CANON_LADDER }: LadderProps) {
+  return (
+    <section
+      id={TIMEFRAME_LADDER_ID}
+      aria-label="All timeframes"
+      className="wm-chart-timeframe-ladder w-full min-w-[min(92vw,360px)] mb-1.5 px-2 py-1.5 rounded-lg wm-room-chrome border border-wm-border"
+      // WIDTH, MEASURED in a component harness on 2026-09-26 (real chip, real
+      // globals.css). A fixed 360px panel under the 366px desktop strip left
+      // the two left edges 3px apart at 1600x900. Plain `w-full` fixed that
+      // and broke the phone: the chip's wrapper sits at `left: 50%`, so at
+      // 390px it had 195px to shrink into and the strip was pushed off the top
+      // of the screen. So: `inline-size` containment stops the reason
+      // sentences from widening the popover, `w-full` takes the strip's width
+      // on desktop, and the min-width floor keeps it a readable 358px on a
+      // phone — where the strip, a block-level flex row, stretches to match.
+      style={{ pointerEvents: "auto", contain: "inline-size" }}
+    >
+      {CANON_LADDER_GROUPS.map(group => {
+        const inGroup = rungs.filter(r => r.group === group.id);
+        if (inGroup.length === 0) return null;
+        // One line per distinct reason, naming the rungs it covers: six rungs
+        // that share a reason read it once, not six times.
+        const reasons = new Map<string, string[]>();
+        for (const r of inGroup) {
+          if (r.availability !== "UNAVAILABLE") continue;
+          reasons.set(r.reason, [...(reasons.get(r.reason) ?? []), r.id]);
+        }
+        const headingId = `${TIMEFRAME_LADDER_ID}-${group.id}`;
+        return (
+          <section key={group.id} aria-labelledby={headingId} className="wm-chart-timeframe-ladder-group py-1">
+            <h3 id={headingId} className="mb-1 text-[9px] font-mono font-bold uppercase tracking-[0.14em] text-wm-text-dim">
+              {group.label}
+            </h3>
+            <ul className="flex flex-wrap items-center gap-0.5">
+              {inGroup.map(r => <li key={r.id}>{ladderRung(r, timeframe, onChoose)}</li>)}
+            </ul>
+            {[...reasons].map(([reason, ids]) => (
+              <p key={reason} className="wm-chart-timeframe-reason mt-1 text-[10px] leading-snug text-wm-text-dim">
+                <span className="font-mono text-wm-text-muted">{ids.join(" \u00B7 ")}</span>: {reason}
+              </p>
+            ))}
+          </section>
+        );
+      })}
+    </section>
+  );
+}
+
+function ladderRung(r: CanonRung, timeframe: string, onChoose: (id: TFId) => void) {
+  const spoken = canonRungSpokenName(r);
+  if (r.availability === "UNAVAILABLE") {
+    return (
+      <span
+        data-availability={r.availability}
+        title={`${spoken}: ${r.reason}`}
+        className="wm-chart-timeframe-off inline-flex items-center justify-center px-2 h-7 rounded text-[11px] font-mono text-wm-text-dim border border-dashed border-wm-border cursor-not-allowed select-none"
+      >
+        {r.id}<span className="sr-only">, {spoken}, unavailable</span>
+      </span>
+    );
+  }
+  const active = r.chartTf === timeframe;
+  const derived = r.availability === "DERIVED_CANONICAL";
+  const name = derived ? `${spoken}, derived from finer bars` : spoken;
+  return (
+    <button
+      type="button"
+      data-availability={r.availability}
+      onClick={() => onChoose(r.chartTf)}
+      aria-current={active ? "true" : undefined}
+      aria-label={name}
+      title={name}
+      className={clsx(
+        "wm-chart-timeframe px-2 h-7 rounded text-[11px] font-mono transition-colors",
+        active
+          ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
+          : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface",
+      )}
+    >
+      {r.id}
+      {derived && <span aria-hidden="true" className="ml-0.5 text-[9px] text-wm-text-dim">derived</span>}
+    </button>
   );
 }

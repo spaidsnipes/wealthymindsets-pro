@@ -306,6 +306,16 @@ export const CHART_TF_ORDER: readonly TFId[] = Object.freeze([
  * until the fetch path aggregates, rather than shipping a mislabelled candle.
  *
  * Widening this list is WM-CHART-P0-01b, not a UI tweak.
+ *
+ * ── 2026-09-26 · STILL THE PRIMARY SET, NO LONGER THE WHOLE REACH ─────────
+ * These nine stay the calm strip (Garden 16 §24: "UX COMPRESSION ≠ FEATURE
+ * DELETION"). The rest of the canonical ladder is reached through ONE "More"
+ * control on the same strip, and what that control may offer is owned by
+ * CANON_LADDER below — not by this list. The paragraph above was written
+ * against the Yahoo evidence only; read against the chart's FIRST bar route,
+ * /api/alpaca maps 3m/10m/2h/4h to 3Min/10Min/2Hour/4Hour, buckets of exactly
+ * that size, so they are NATIVE there. 45m is not (no route maps it and the
+ * canon's current family drops it). See CANON_LADDER for the per-rung record.
  */
 export const CHART_TF_SHIPPED: readonly TFId[] = Object.freeze([
   "1m", "2m", "5m", "15m", "30m", "1h", "1D", "1W", "1M",
@@ -356,7 +366,6 @@ export const HEATMAP_TF_ORDER: readonly TFId[] = Object.freeze([
  */
 export function timeframeSpokenName(id: TFId): string {
   const sec = getTimeframe(id).candleIntervalSec;
-  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
   // Months are the one unit that is not a fixed multiple of a day, so the
   // canonical table stores 1M as 30 days. Naming it "30 days" would be a
   // different claim than the button makes, so the calendar units are named
@@ -364,9 +373,191 @@ export function timeframeSpokenName(id: TFId): string {
   const cal = /^(\d+)([DWMY])$/.exec(id);
   if (cal) {
     const n = Number(cal[1]);
-    const unit = { D: "day", W: "week", M: "month", Y: "year" }[cal[2]]!;
-    return `${plural(n, unit)} bars`;
+    const unit = ({ D: "day", W: "week", M: "month", Y: "year" } as const)[cal[2] as "D" | "W" | "M" | "Y"];
+    return spokenBars(n, unit);
   }
-  if (sec % 3600 === 0) return `${plural(sec / 3600, "hour")} bars`;
-  return `${plural(sec / 60, "minute")} bars`;
+  if (sec % 3600 === 0) return spokenBars(sec / 3600, "hour");
+  return spokenBars(sec / 60, "minute");
+}
+
+/**
+ * The one phrase builder both spoken-name functions use (2026-09-26). It was a
+ * local `plural` inside timeframeSpokenName; the canonical ladder needs the same
+ * words for rungs that have no TFId ("1 second bars", "1 quarter bars"), and a
+ * second copy is how "1 minute bars" and "1 minutes bars" end up side by side.
+ */
+function spokenBars(n: number, unit: CanonUnit): string {
+  return `${n} ${unit}${n === 1 ? "" : "s"} bars`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE CANONICAL LADDER — every rung the Founder's timeframe law names, and
+ * what the chart's bar path can honestly do with each one TODAY (2026-09-26).
+ *
+ * ── WHERE THE LIST COMES FROM (Garden 16 §21 "Recover the actual registry.
+ * DO NOT GUESS THE MIDDLE") ──────────────────────────────────────────────────
+ * Recovered from Drive, verbatim in four current documents (Build Order,
+ * ATH Command Center, Master Index "TIMEFRAME CONTRACT", Living Market Visual
+ * Systems Canon), the 2026-09-21 "CURRENT WM PRO TIMEFRAME FAMILY":
+ *
+ *   TICK / 1s / 5s / 10s / 15s / 30s / 1m / 2m / 3m / 5m / 10m / 15m / 20m /
+ *   30m / 1h / 2h / 4h / 1D / 1W / 1M / 1Q / 6M / 1Y
+ *
+ * That is TWENTY-THREE rungs. The research note that carried it here called it
+ * a "26-rung ladder" and then listed these 23; the list is the evidence, the
+ * count was not, so the list wins and the count is recorded as a discrepancy
+ * rather than padded to match. 45m appears in the first 2026-09-21 ladder and
+ * NOT in the current family — it is left out here and stays an open question.
+ *
+ * ── WHAT EACH RUNG MAY SAY ABOUT ITSELF ──────────────────────────────────────
+ * Canon: "A timeframe may be: NATIVE_PROVIDER / DERIVED_CANONICAL /
+ * UNAVAILABLE. The UI must never pretend a derived interval is
+ * provider-native." Measured against the chart's bar path as it is wired
+ * today (MainChart's history waterfall: /api/exchange for a venue symbol,
+ * then /api/alpaca, /api/finnhub, /api/yahoo):
+ *
+ *   NATIVE_PROVIDER    the chart's FIRST equity route, /api/alpaca, maps this
+ *                      rung's id to a bucket of EXACTLY this size (1Min …
+ *                      4Hour, 1Day, 1Week, 1Month). A fallback vendor may
+ *                      reconstruct it instead — /api/yahoo folds 3m/10m/2h/4h
+ *                      from a finer interval — and those bars are stamped
+ *                      DERIVED at ingress (yahooCandleIngress), so the bars
+ *                      carry their own truth even when the rung's claim is
+ *                      about the first route.
+ *   DERIVED_CANONICAL  only where a real aggregation owner feeds the chart for
+ *                      this rung. NONE does today: the one tape-to-CanonicalBar
+ *                      builder (dxlinkProtocol.aggregateCandles, 15s windows)
+ *                      has no production importer. No rung claims this.
+ *   UNAVAILABLE        everything else, with the reason a human reads.
+ *
+ * A route pinning test (timeframeLadder.test.ts) reads ALPACA_TF_MAP out of
+ * src/app/api/alpaca/route.ts and fails if a NATIVE rung stops mapping to its
+ * exact bucket, or if an UNAVAILABLE rung's id starts being served — so this
+ * table cannot quietly outlive the routes it describes.
+ *
+ * ── STILL OPEN, AND NOT DECIDED HERE ─────────────────────────────────────────
+ * Which N-tick counts exist (canon names only "TICK"), whether 45m stays, and
+ * whether 6M / 1Y are candles (canon) or ranges (the TFIds above). Nothing in
+ * this block chooses for the Founder; the reasons below say so out loud.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+export type CanonRungId =
+  | "TICK" | "1s" | "5s" | "10s" | "15s" | "30s"
+  | "1m" | "2m" | "3m" | "5m" | "10m" | "15m" | "20m" | "30m"
+  | "1h" | "2h" | "4h"
+  | "1D" | "1W" | "1M" | "1Q" | "6M" | "1Y";
+
+export type CanonAvailability = "NATIVE_PROVIDER" | "DERIVED_CANONICAL" | "UNAVAILABLE";
+
+export type CanonRungGroup = "TICK_SECONDS" | "MINUTES" | "HOURS" | "DAYS_LONGER";
+
+export type CanonUnit =
+  | "tick" | "second" | "minute" | "hour" | "day" | "week" | "month" | "quarter" | "year";
+
+interface CanonRungBase {
+  id: CanonRungId;
+  group: CanonRungGroup;
+  /** Rung size: `n` of `unit`. null only for TICK, whose trade count is undecided. */
+  n: number | null;
+  unit: CanonUnit;
+}
+
+/**
+ * A discriminated union on purpose: an UNAVAILABLE rung has no `chartTf`, so no
+ * picker can wire it to the timeframe setter without a type error, and a
+ * servable rung has no `reason`, so it cannot carry an excuse it does not need.
+ */
+export type CanonRung =
+  | (CanonRungBase & { availability: "NATIVE_PROVIDER" | "DERIVED_CANONICAL"; chartTf: TFId })
+  | (CanonRungBase & { availability: "UNAVAILABLE"; reason: string });
+
+/** The reasons a human reads. Short, true, and none of them a promise. */
+const NO_TAPE = "Needs a certified trade tape — none on this path.";
+const NOT_BUILT_20M = "Not built yet — no bar route serves 20-minute bars.";
+const NOT_BUILT_1Q = "Not built yet — no chart timeframe asks a route for quarterly candles.";
+const OPEN_6M = "Open decision — a half-year candle, or six months of daily bars.";
+const OPEN_1Y = "Open decision — a yearly candle, or one year of daily bars.";
+
+const off = (id: CanonRungId, group: CanonRungGroup, n: number | null, unit: CanonUnit, reason: string): CanonRung =>
+  ({ id, group, n, unit, availability: "UNAVAILABLE", reason });
+const native = (id: CanonRungId & TFId, group: CanonRungGroup, n: number, unit: CanonUnit): CanonRung =>
+  ({ id, group, n, unit, availability: "NATIVE_PROVIDER", chartTf: id });
+
+export const CANON_LADDER: readonly CanonRung[] = Object.freeze([
+  off("TICK", "TICK_SECONDS", null, "tick",   NO_TAPE),
+  off("1s",   "TICK_SECONDS", 1,    "second", NO_TAPE),
+  off("5s",   "TICK_SECONDS", 5,    "second", NO_TAPE),
+  off("10s",  "TICK_SECONDS", 10,   "second", NO_TAPE),
+  off("15s",  "TICK_SECONDS", 15,   "second", NO_TAPE),
+  off("30s",  "TICK_SECONDS", 30,   "second", NO_TAPE),
+
+  native("1m",  "MINUTES", 1,  "minute"),
+  native("2m",  "MINUTES", 2,  "minute"),
+  native("3m",  "MINUTES", 3,  "minute"),
+  native("5m",  "MINUTES", 5,  "minute"),
+  native("10m", "MINUTES", 10, "minute"),
+  native("15m", "MINUTES", 15, "minute"),
+  off("20m",    "MINUTES", 20, "minute", NOT_BUILT_20M),
+  native("30m", "MINUTES", 30, "minute"),
+
+  native("1h", "HOURS", 1, "hour"),
+  native("2h", "HOURS", 2, "hour"),
+  native("4h", "HOURS", 4, "hour"),
+
+  native("1D", "DAYS_LONGER", 1, "day"),
+  native("1W", "DAYS_LONGER", 1, "week"),
+  native("1M", "DAYS_LONGER", 1, "month"),
+  off("1Q",    "DAYS_LONGER", 1, "quarter", NOT_BUILT_1Q),
+  off("6M",    "DAYS_LONGER", 6, "month",   OPEN_6M),
+  off("1Y",    "DAYS_LONGER", 1, "year",    OPEN_1Y),
+]);
+
+/** Display order and human names of the ladder's four groups. */
+export const CANON_LADDER_GROUPS: readonly { id: CanonRungGroup; label: string }[] = Object.freeze([
+  { id: "TICK_SECONDS", label: "Tick & seconds" },
+  { id: "MINUTES",      label: "Minutes" },
+  { id: "HOURS",        label: "Hours" },
+  { id: "DAYS_LONGER",  label: "Days & longer" },
+]);
+
+/**
+ * What a rung is called out loud. A servable rung borrows its chart id's name
+ * so the ladder and the strip can never announce the same bars two ways; the
+ * rest are named from their own size. TICK has no size yet, so it says so.
+ */
+export function canonRungSpokenName(rung: CanonRung): string {
+  if (rung.availability !== "UNAVAILABLE") return timeframeSpokenName(rung.chartTf);
+  if (rung.n === null) return "tick bars, trade count not yet chosen";
+  return spokenBars(rung.n, rung.unit);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE LIVE FORMING BAR'S CLOCK — answered here, not in the hook (2026-09-26).
+ *
+ * `useWebSocket` carried its own table (Garden 16 §22: one registry, many
+ * consumers) with three extra keys, "1t" / "5t" / "30t" — 1-, 5- and 30-SECOND
+ * buckets whose names read like trade counts — and a `?? 60` default. No
+ * caller could ever pass those keys (every mount hands it a TFId or the
+ * literal "1m"), and the default meant that ANY id it did not know, a future
+ * tick id included, was silently clocked as one-minute bars.
+ *
+ * Now: a TFId gets its registry candle; anything else gets null, and the hook
+ * builds no forming bar for it. Fail closed.
+ *
+ * PRESERVED, NOT ENDORSED. Six TFIds were never in the hook's table and have
+ * always fallen to that 60 s default: 45m and the five range ids. Their meaning
+ * is the open decision named above (and in TIME_ENGINE_TRUTH §2: on a 1Y chart
+ * the registry says daily bars, MainChart says a 365-day interval, Alpaca
+ * serves monthly bars and the live bar forms by the minute). Moving them to
+ * their registry candle would be choosing a meaning. So their current live
+ * clock is kept exactly, and named here where the choice will be made.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+const LIVE_BAR_SEC_PENDING_DECISION: Readonly<Partial<Record<TFId, number>>> = Object.freeze({
+  "45m": 60, "3M": 60, "6M": 60, "1Y": 60, "2Y": 60, "5Y": 60,
+});
+
+/** Seconds per live forming bar, or null when the id is not a registry clock. */
+export function liveBarBucketSec(raw: string): number | null {
+  if (!isTFId(raw)) return null;
+  return LIVE_BAR_SEC_PENDING_DECISION[raw] ?? getTimeframe(raw).candleIntervalSec;
 }

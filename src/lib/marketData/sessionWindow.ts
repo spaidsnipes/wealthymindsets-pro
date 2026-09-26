@@ -45,6 +45,7 @@
  */
 
 import { classifySymbol, futuresRootOf } from "./symbolAssetClass";
+import { getTimeframe, normalizeTFId, type TFId } from "@/lib/timeframes";
 
 export type SessionWindowKind =
   | "US_EQUITY_RTH"
@@ -90,25 +91,56 @@ export interface SessionWindow {
   readonly barMinutes: number;
 }
 
-/** "5m" → 5, "1h" → 60, "4h" → 240; tick and unknown frames → 1. */
-export function barMinutesOf(timeframe: string): number {
-  const m = /^(\d+)(m|h)$/i.exec(timeframe.trim());
-  if (!m) return 1;
-  const n = Number(m[1]);
-  return m[2].toLowerCase() === "h" ? n * 60 : n;
+const DAY_SEC = 86_400;
+
+/**
+ * "5m" → 5, "1h" → 60, "4h" → 240 — and null for anything that is not an
+ * intraday clock in the timeframe registry.
+ *
+ * FAIL CLOSED (2026-09-26, Garden 16 §21 step 4). This used to be a private
+ * regex that answered 1 for "tick and unknown frames": an N-tick id would have
+ * been profiled as one-minute bars with nothing anywhere saying so. It also
+ * matched case-insensitively, so "1M" (one MONTH) read as 1 minute. The size
+ * now comes from the registry's own candle, and an id the registry does not
+ * know has no minutes to give.
+ */
+export function barMinutesOf(timeframe: string): number | null {
+  const id = normalizeTFId(timeframe.trim());
+  if (!id) return null;
+  const sec = getTimeframe(id).candleIntervalSec;
+  return sec < DAY_SEC ? sec / 60 : null;
 }
 
-const DAILY_OR_LONGER = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/;
-const DAILY_WINDOW_BARS: Readonly<Record<string, number>> = {
-  "1D": 5, "1W": 4, "1M": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3,
+/**
+ * Daily-or-longer is the registry's call (candle ≥ one day), not a second list
+ * of ids. The regex this replaced also carried "3Y", which is not a TFId —
+ * normalizeTFId("3Y") is null, so no chart could ever send it (retired
+ * 2026-09-26 with its MainChart twins). "D"/"W"/"M" still read as daily
+ * through normalizeTFId, as they did through the regex.
+ */
+function isDailyOrLonger(timeframe: string): boolean {
+  const id = normalizeTFId(timeframe);
+  return id !== null && getTimeframe(id).candleIntervalSec >= DAY_SEC;
+}
+
+/** How many of the latest bars form the window. A policy of this module's,
+ *  keyed by the registry's own ids so it cannot name one that does not exist. */
+const DAILY_WINDOW_BARS: Readonly<Partial<Record<TFId, number>>> = {
+  "1D": 5, "1W": 4, "1M": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "5Y": 3,
 };
 
 export function sessionWindowFor(symbol: string, timeframe: string, extendedHours: boolean): SessionWindow {
-  if (DAILY_OR_LONGER.test(timeframe)) {
-    const n = DAILY_WINDOW_BARS[timeframe] ?? 5;
+  if (isDailyOrLonger(timeframe)) {
+    const n = DAILY_WINDOW_BARS[timeframe as TFId] ?? 5;
     return { kind: "DAILY_WINDOW", label: `LAST ${n} BARS · each ${timeframe} bar is already a whole session`, windowBars: n, barMinutes: 1440 };
   }
   const barMinutes = barMinutesOf(timeframe);
+  if (barMinutes === null) {
+    // No clock, no session window: a bar of unknown span cannot be placed
+    // inside 09:30–16:00 without inventing its length. The chart already
+    // refuses the same ids (MainChart getIntervalSec, WM-CHART-P0-03).
+    throw new Error(`sessionWindowFor: "${timeframe}" is not a registry clock — refusing to profile it as one-minute bars.`);
+  }
   const cls = classifySymbol(symbol);
   if (cls === "EQUITY" || cls === "INDEX") {
     return extendedHours

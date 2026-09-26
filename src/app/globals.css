@@ -475,6 +475,15 @@
     min-height: 44px;
   }
 
+  /* THE FULL LADDER UNDER THE STRIP (2026-09-26). Its servable rungs are
+     `.wm-chart-timeframe` buttons and inherit the touch target above. The
+     unavailable ones are not controls and owe no touch target; they take the
+     same box anyway, so a row that mixes the two does not jag. */
+  .wm-chart-timeframe-off {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   /* THE FOOTER BAND'S LEFT HALF — F24's `Vol 68.92M`, sharing the strip with
      the timeframe chip in its centre.
 

@@ -15,10 +15,14 @@
  * catchable rather than only the one hex somebody thought to blacklist.
  *
  * `chartsRoomChrome.test.ts` cured five files that painted their own opaque
- * slab around MARKET. Its FRAME list is:
+ * slab around MARKET. Its FRAME list was:
  *
  *   ChartToolbar · LeftDrawingSidebar · StockInfoPanel · ChartsDashboard ·
  *   TimeframeSelector
+ *
+ * (2026-09-26: ChartToolbar's band left the table on 2026-09-21, and
+ * TimeframeSelector was DELETED — an orphan no route ever rendered, carrying a
+ * second timeframe list. The history above is kept as it happened.)
  *
  * `MainChart.tsx` is not on it — and MainChart owns the market field itself.
  * So the largest surface in the product kept the defect after its five

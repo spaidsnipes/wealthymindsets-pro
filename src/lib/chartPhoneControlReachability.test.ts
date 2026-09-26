@@ -148,6 +148,38 @@ describe("phone chart control reachability", () => {
     expect(toolbarCode).not.toContain('from "@/lib/timeframes"');
   });
 
+  // ── ADDED 2026-09-26 · THE LADDER'S CONTROLS ARE THUMB-SIZED TOO ──────────
+  // The chip grew ONE new control, "More", and a panel of the full canonical
+  // ladder beneath the strip (Garden 16 §24). There is no chart control
+  // inventory in this repo to enter them into; this case is where the chip's
+  // controls are held to a touch target, so they are entered here.
+  //
+  // MEASURED 2026-09-26 in a component harness (the real chip, real
+  // globals.css compiled by the repo's tailwind.config.ts, Chromium at
+  // 390x844): all 13 servable ladder rungs and More rendered 44x44, the panel
+  // sat inside the viewport, and the unavailable rungs took no tab stop.
+  it("gives the More control and every servable ladder rung the timeframe touch target", () => {
+    expect(chip.length, "the chip file read as empty code").toBeGreaterThan(500);
+    // More wears the options' class, so it inherits their 44px floor.
+    expect(chip).toMatch(/"wm-chart-timeframe wm-chart-timeframe-more px-2/);
+    // So does every servable rung in the ladder: the same class, not a lookalike.
+    const ladder = chip.slice(chip.indexOf("function ladderRung"));
+    expect(ladder.length).toBeGreaterThan(200);
+    expect(ladder).toContain('"wm-chart-timeframe px-2 h-7');
+    // An unavailable rung is not a control. It takes the same box so a mixed
+    // row does not jag — and it must never borrow the control class, or it
+    // would read to a sweep like this one as a pressable option.
+    expect(ladder).toContain("wm-chart-timeframe-off");
+    expect(ladder).not.toMatch(/"wm-chart-timeframe-off[^"]*\bwm-chart-timeframe\b(?!-)/);
+    // `[^}]`, not `[\s\S]`: the lazy any-character form walks out of this rule
+    // and finds a LATER 44px floor (mutation-checked 2026-09-26: deleting this
+    // rule's min-height left the looser pattern green).
+    expect(css).toMatch(/\.wm-chart-timeframe-off\s*\{[^}]*?min-height:\s*44px/);
+    // The panel adds no scroll edge either; it wraps like the strip.
+    expect(chip).toContain('<ul className="flex flex-wrap');
+    expect(css).not.toMatch(/\.wm-chart-timeframe-ladder\s*\{[^}]*?overflow/);
+  });
+
   // ── RE-AIMED 2026-09-21 · THE CLUSTER IS GONE, NOT UNSTUCK ───────────────
   //
   // This asserted that the pinned cluster EXISTED and that a phone media query

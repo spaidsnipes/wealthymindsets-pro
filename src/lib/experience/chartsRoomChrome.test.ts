@@ -135,11 +135,19 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
   // forbids every arrangement the old row permitted. The file's OTHER surfaces
   // are still swept for opaque slabs by the case after the table, where
   // `ChartToolbar.tsx` remains listed.
+  // ── RE-AIMED 2026-09-26 · TimeframeSelector LEFT THIS TABLE ──────────────
+  //
+  // `["TimeframeSelector.tsx", "the timeframe rail under MARKET"]` was a row
+  // here. The file is DELETED: no route ever rendered it (it sat on
+  // screenReach's orphan list as a born orphan), and it carried its own
+  // nine-id timeframe list beside the registry's. There was never a
+  // timeframe rail under MARKET for it to paint. The timeframe control that
+  // IS on the glass, TimeframeGlassChip, wears `wm-room-chrome` and is pinned
+  // by chartPhoneControlReachability.test.ts and chartProgressiveDisclosure.test.ts.
   const FRAME: Array<[string, string]> = [
     ["LeftDrawingSidebar.tsx", "the 40px drawing rail left of MARKET"],
     ["StockInfoPanel.tsx", "the info panel right of MARKET"],
     ["ChartsDashboard.tsx", "the study row and the 14px collapse strip"],
-    ["TimeframeSelector.tsx", "the timeframe rail under MARKET"],
   ];
 
   it.each(FRAME)("%s adopts wm-room-chrome (%s)", (file) => {
@@ -151,10 +159,14 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
     // purpose: both also contain legitimately-opaque popovers and interior
     // surfaces that are NOT the room boundary. Widening the sweep to them
     // would make this gate a demand to break trap 2.
+    //
+    // TimeframeSelector.tsx left this sweep 2026-09-26 because the file left
+    // the repo (see the FRAME note above). TimeframeGlassChip.tsx took its
+    // seat: it is the timeframe control that actually paints on the glass.
     for (const file of [
       "ChartToolbar.tsx",
       "OrderFlowCockpitStrip.tsx",
-      "TimeframeSelector.tsx",
+      "TimeframeGlassChip.tsx",
     ]) {
       const src = CODE(`components/chart/${file}`);
       expect(src, `${file} repainted an opaque slab over the sanctuary`)

@@ -13,7 +13,12 @@ export type TfGroup = (typeof TF_GROUPS)[number];
 /** Map a canonical app timeframe (e.g. "5m", "1h", "1D") to its visibility group. */
 export function tfGroupOf(tf: string): TfGroup {
   const t = (tf || "").trim();
-  if (t === "1M" || /^(3M|6M|1Y|3Y|5Y)$/i.test(t)) return "Months";
+  // Case-SENSITIVE since 2026-09-26. With the old `i` flag "3m" — three
+  // MINUTES — matched "3M" and was grouped with the months, so hiding a study
+  // on monthly charts hid it on 3-minute charts too. Latent while 3m had no
+  // button; the canonical ladder gives it one. "3Y" left the same day: not a
+  // TFId, so nothing could send it.
+  if (t === "1M" || /^(3M|6M|1Y|5Y)$/.test(t)) return "Months";
   if (t === "1W") return "Weeks";
   if (t === "1D") return "Days";
   if (/h$/i.test(t)) return "Hours";

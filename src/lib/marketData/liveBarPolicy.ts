@@ -86,6 +86,41 @@ export function applyTickToLiveBar(
 }
 
 /**
+ * A print on a timeframe that may or may not have a clock (2026-09-26).
+ *
+ * `useWebSocket` now asks the registry for its bucket (`liveBarBucketSec`), and
+ * the registry answers null for an id that is not a clock — a trade-count id,
+ * say, which has no seconds to floor a print into. With a clock this is
+ * `applyTickToLiveBar`, unchanged. Without one it FAILS CLOSED: no forming bar
+ * is built, because any bucket chosen here would be an invented one — the old
+ * hook's `?? 60` was exactly that, a one-minute bar under a label it did not
+ * earn. The print still reaches the ticker and the tape, which are not clock
+ * consumers, and the forward-only rule above still holds for them: a late print
+ * may not rewind the price.
+ */
+export type ClockedTickUpdate =
+  | LiveBarUpdate
+  | { status: "ACCEPTED" | "LATE_EVENT_IGNORED"; bar: null; lastEventAt: number | null };
+
+export function applyTickToClock(
+  current: LegacyOhlcvTuple | null,
+  lastEventAt: number | null,
+  tick: LiveBarTick,
+  intervalSec: number | null,
+): ClockedTickUpdate {
+  if (intervalSec !== null) return applyTickToLiveBar(current, lastEventAt, tick, intervalSec);
+  if (!Number.isFinite(tick.time) || tick.time <= 0 ||
+      !Number.isFinite(tick.price) || tick.price <= 0 ||
+      !Number.isFinite(tick.size) || tick.size < 0) {
+    throw new Error("Live bar policy requires valid tick and interval inputs.");
+  }
+  if (lastEventAt != null && tick.time < lastEventAt) {
+    return { status: "LATE_EVENT_IGNORED", bar: null, lastEventAt };
+  }
+  return { status: "ACCEPTED", bar: null, lastEventAt: tick.time };
+}
+
+/**
  * Does a live chart update FOLD into the last drawn candle, or open its own?
  *
  * Fold only when the update cannot lawfully be a new candle:

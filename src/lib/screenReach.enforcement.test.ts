@@ -755,13 +755,14 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // SmartMoneyPanel to exactly ONE occurrence — so the order-flow story has
   // one owner on this room and cannot be told twice.
   "src/components/chart/OrderFlowCockpitStrip.tsx",
-  // BORN ORPHAN, and the one that looks least like one: its OWN history has
-  // six commits (f976a7f, 77916c7, 51e9e68, 0011021, aca6435, 22bdb14), so a
-  // file-level `git log` reads as a long-maintained component. But
-  // `git log -S"TimeframeSelector" -- src/app src/components` returns ONE
-  // commit — its creation. Six commits of upkeep on something no route has
-  // ever rendered. A FILE'S OWN HISTORY IS NOT ITS MOUNT'S HISTORY.
-  "src/components/chart/TimeframeSelector.tsx",
+  // (TimeframeSelector.tsx was here as a BORN ORPHAN — six commits of its own
+  // upkeep, and `git log -S"TimeframeSelector" -- src/app src/components`
+  // returned only its creation: A FILE'S OWN HISTORY IS NOT ITS MOUNT'S
+  // HISTORY. DELETED 2026-09-26 (Garden 16 §22, one registry many consumers):
+  // it carried a private nine-id INTERVALS list beside the registry's
+  // CHART_TF_SHIPPED, and no route ever rendered it. The debt was settled the
+  // other way. This list is a BIDIRECTIONAL CEILING, so the entry is removed
+  // rather than left as a stale excuse.)
   // RETIRED PER FOUNDER SPEC in 89a350e, not untriaged. Held retired by
   // src/lib/sessionVpRetired.test.ts. Do not "fix" this by mounting it.
   "src/components/chart/WMSessionVP.tsx",
