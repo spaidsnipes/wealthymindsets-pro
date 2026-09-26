@@ -188,7 +188,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
   // P-110 canon pass (2026-09-25): the Living rules / solid body / POC mark, the species captions.
-  "livingProfileRules", "livingProfileBodyInk", "livingProfileBodyYields", "livingProfileBodyClipped", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption",
+  "profileFusionBody", "livingProfileRules", "livingProfileBodyInk", "livingProfileBodyYields", "livingProfileBodyClipped", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption",
 ] as const;
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
@@ -271,6 +271,7 @@ import {
   placeLevelPair,
   LEFT_CHROME_RIGHT,
   nearestMemoryLevels,
+  smoothBodyWidths,
   organismGlyph,
   tpoPeriodInk,
   GLYPH_BOX,
@@ -13008,6 +13009,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         stackOrder.splice(0, stackOrder.length, ...edgeOrder);
         if (livingOuter) ds.profileStackLivingOuter = "1";
         else delete ds.profileStackLivingOuter;
+        /*
+          GP12 §52 / §64 · WHILE A FUSED OBJECT STANDS, ITS PARENTS ARE GHOSTS
+          (serving TSLA 15m, 2026-09-26 04:26 CDT: the parents' dimmed "CMP VA…" /
+          "LIVING VAH 371.80" chips crowded the fused child and printed over the
+          fusion link and the price line). The pair Profile Fusion fuses on its
+          own — the trader's Pick · Fuse pair wins — is decided HERE, once, so
+          the parents' blocks know before they paint: their bodies recede
+          through the governor (FUSION_PARENT_FADE, 0.25) and their level chips
+          are WITHHELD on the glass (they stay in Inspect with the fused object's
+          sources); only the FUSED chips speak. A withheld chip is never placed,
+          so it leaves no box in the chip ledger. "Stands" = the fused object the
+          last frame built (fusionObjectRef), the same fact the governor reads.
+        */
+        const fusionAutoPair: StackSpecies[] | null = layerOnRef.current.profileFusion === true && stackOrder.length >= 2
+          ? (stackOrder.includes("LIVING") ? [stackOrder.find(s => s !== "LIVING")!, "LIVING"] : [stackOrder[0], stackOrder[1]])
+          : null;
+        const fusionPairNow = stackPrefsRef.current.fusion ?? fusionAutoPair;
+        const parentChipsWithheld = new Set<StackSpecies>(fusionObjectRef.current && fusionPairNow && fusionPairNow.length === 2 ? fusionPairNow : []);
+        let parentChipsWithheldCount = 0;
         // FUSION PARENTS DIM (Garden 12 visibility governor): while a fused
         // object stands, its two parents keep drawing — alive, inspectable —
         // but step back so the derived object reads as the subject. The fade
@@ -13635,6 +13655,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ) => {
               // QUIET (FAR skeleton, NEAR): the lane without its level words.
               if (price == null || !att.speaks("livingProfile")) return;
+              if (parentChipsWithheld.has("LIVING")) { parentChipsWithheldCount++; return; } // a fused parent: its chips wait in Inspect
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
               levelChip(+yr, text, ink);
@@ -13900,6 +13921,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // plot's right edge on the level's own row (never on a candle).
               const lab = (price: number | null, text: string, ink: string) => {
                 if (price == null || !att.speaks("compositeProfile")) return;
+              if (parentChipsWithheld.has("COMPOSITE")) { parentChipsWithheldCount++; return; } // a fused parent: its chips wait in Inspect
                 const yr = srs.priceToCoordinate(price);
                 if (yr == null) return;
                 levelChip(+yr, text, ink);
@@ -14019,6 +14041,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // plot's right edge on the level's own row (never on a candle).
             const lab = (price: number | null, text: string, ink: string) => {
               if (price == null || !att.speaks("visibleRangeProfile")) return;
+              if (parentChipsWithheld.has("VISIBLE_RANGE")) { parentChipsWithheldCount++; return; } // a fused parent: its chips wait in Inspect
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
               levelChip(+yr, text, ink);
@@ -14067,9 +14090,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             and value area (never an average of POCs); the parents keep
             drawing, quieter (the governor's fusedParents).
           */
-          const autoPair: StackSpecies[] | null = layerOnRef.current.profileFusion === true && stackOrder.length >= 2
-            ? (stackOrder.includes("LIVING") ? [stackOrder.find(s => s !== "LIVING")!, "LIVING"] : [stackOrder[0], stackOrder[1]])
-            : null;
+          const autoPair: StackSpecies[] | null = fusionAutoPair;
           const pair = stackPrefsRef.current.fusion ?? autoPair;
           ds.profileFusionPair = pair && pair.length === 2 ? `${stackPrefsRef.current.fusion ? "TRADER" : "AUTO"}:${pair.join("+")}` : "NONE";
           if (pair && pair.length === 2) {
@@ -14106,35 +14127,68 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // louder than the candles it sits beside.
               const fuseA = att.alpha("fusedObject");
               // Behind the candles, like every species it was fused from.
-              // THE DERIVED BODY (GP12 §52): the rebinned, recomputed histogram
-              // as a body of its own — rows denser than the parents' (who step
-              // back through the governor), and its silhouette traced as ONE
-              // rim, run by contiguous run, so it reads as a new object and not
-              // as a tint laid over its parents.
+              // THE DERIVED BODY (GP12 §52), P-110's way (2026-09-26, serving
+              // 04:26 CDT: a bright stroke round every rebinned row read as a
+              // spiky comb). ONE body in the family gold at its own alpha,
+              // value lit brighter, a soft luminous rim — its display edge
+              // smoothed row to row (smoothBodyWidths, never across an untraded
+              // gap). The exact rebinned row map, POC and value area are the
+              // owner's and stay what Inspect reads.
               ctx.save(); clipProfileToCandles("FUSED");
-              const fusedTips: { x: number; y: number }[] = [];
+              const fusedRows: { y: number; w: number; top: number; bottom: number }[] = [];
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
                 if (y0 == null || y1 == null) continue;
-                const h = Math.max(1, Math.abs(+y1 - +y0) - 1);
-                const w = (r.volume / maxV) * spanW;
-                const inVa = r.price >= f.val && r.price < f.vah;
-                ctx.globalAlpha = fuseA;
-                ctx.fillStyle = `rgba(${FU},${inVa ? 0.34 : 0.12})`;
-                ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);
-                ctx.globalAlpha = fuseA * (inVa ? 0.95 : 0.55);
-                ctx.strokeRect(spanR - w + 0.5, Math.min(+y0, +y1) + 0.5, w - 1, h);
-                fusedTips.push({ x: spanR - w, y: (+y0 + +y1) / 2 });
+                fusedRows.push({ y: (+y0 + +y1) / 2, w: (r.volume / maxV) * spanW, top: Math.min(+y0, +y1), bottom: Math.max(+y0, +y1) });
+              }
+              fusedRows.sort((a, z) => a.y - z.y);
+              const fusedPitch = fusedRows.length >= 2 ? Math.max(2, fusedRows[1].y - fusedRows[0].y) * 1.6 + 1 : 4;
+              const fusedBreaks = new Set<number>();
+              fusedRows.forEach((q, k) => { if (k > 0 && q.y - fusedRows[k - 1].y > fusedPitch) fusedBreaks.add(k); });
+              const fusedW = smoothBodyWidths(fusedRows.map(q => q.w), fusedBreaks);
+              const fusedTips = fusedRows.map((q, k) => ({ x: spanR - fusedW[k], y: q.y }));
+              const fusedBody = new Path2D();
+              const fusedEdge = new Path2D();
+              let fusedRuns = 0;
+              for (let k = 0; k < fusedTips.length; k++) {
+                const q = fusedTips[k];
+                const first = k === 0 || fusedBreaks.has(k);
+                const last = k === fusedTips.length - 1 || fusedBreaks.has(k + 1);
+                if (first) {
+                  fusedRuns++;
+                  fusedBody.moveTo(spanR, fusedRows[k].top);
+                  fusedBody.lineTo(q.x, fusedRows[k].top);
+                  fusedEdge.moveTo(q.x, fusedRows[k].top);
+                } else {
+                  const p = fusedTips[k - 1];
+                  const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+                  fusedBody.quadraticCurveTo(p.x, p.y, mx, my);
+                  fusedEdge.quadraticCurveTo(p.x, p.y, mx, my);
+                }
+                if (last) {
+                  fusedBody.lineTo(q.x, fusedRows[k].bottom);
+                  fusedEdge.lineTo(q.x, fusedRows[k].bottom);
+                  fusedBody.lineTo(spanR, fusedRows[k].bottom);
+                  fusedBody.closePath();
+                }
               }
               ctx.globalAlpha = fuseA;
-              if (fusedTips.length >= 2) {
-                fusedTips.sort((a, z) => a.y - z.y);
-                const pitch = Math.max(2, Math.abs(fusedTips[1].y - fusedTips[0].y)) * 1.6 + 1;
-                ctx.beginPath();
-                fusedTips.forEach((q, k) => (k === 0 || q.y - fusedTips[k - 1].y > pitch ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)));
-                ctx.strokeStyle = `rgba(${FU},0.95)`; ctx.lineWidth = 1.4; ctx.stroke();
-                ctx.lineWidth = 1;
+              ctx.fillStyle = pk.rgbaAs("VALUE", "ANCHOR", 0.42);
+              ctx.fill(fusedBody);
+              {
+                const yVah = srs.priceToCoordinate(f.vah), yVal = srs.priceToCoordinate(f.val);
+                if (yVah != null && yVal != null) {
+                  ctx.save();
+                  ctx.beginPath(); ctx.rect(spanL - 2, Math.min(+yVah, +yVal), spanW + 4, Math.abs(+yVal - +yVah)); ctx.clip();
+                  ctx.fillStyle = pk.rgbaAs("VALUE", "ANCHOR", 0.72);
+                  ctx.fill(fusedBody);
+                  ctx.restore();
+                }
               }
+              ctx.shadowColor = `rgba(${FU},0.55)`; ctx.shadowBlur = 6;
+              ctx.strokeStyle = `rgba(${FU},0.85)`; ctx.lineWidth = 1.2; ctx.stroke(fusedEdge);
+              ctx.shadowBlur = 0; ctx.lineWidth = 1;
+              ds.profileFusionBody = `SMOOTH:${fusedRuns}run:${fusedRows.length}rows`;
               ctx.restore(); // releases the fused body's candle cut-out
               ctx.globalAlpha = fuseA;
               // ③ the fused object's own head glyph, above its highest row.
@@ -15175,6 +15229,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // no spot clear of the candles is absent (withheld, never on a candle).
         if (profileGlyphs.length > 0) ds.profileSpeciesGlyphs = profileGlyphs.join(",");
         else delete ds.profileSpeciesGlyphs;
+        // The fused object's parents whose level chips were withheld this frame.
+        if (parentChipsWithheld.size > 0) ds.profileParentChipsWithheld = `${parentChipsWithheldCount}:${[...parentChipsWithheld].join("+")}`;
+        else delete ds.profileParentChipsWithheld;
 
         /* ══ F11 · MARKET OBJECT ZONES — the Passport mockup, on price ═══════
            Swing-origin ZONES from the structure owner, biography from the

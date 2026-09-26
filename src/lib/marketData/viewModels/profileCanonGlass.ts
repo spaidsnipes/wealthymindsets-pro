@@ -361,6 +361,26 @@ export function nearestMemoryLevels<T extends { readonly price: number; readonly
   return { kept, withheld: levels.length - kept.length };
 }
 
+/* ── A BODY'S DISPLAY EDGE ──────────────────────────────────────────────────
+ * Serving 2026-09-26 04:26 CDT: the fused object's rim traced every rebinned
+ * row, so it read as a harsh spiky comb. P-110's bodies have a smooth,
+ * luminous edge. For DISPLAY ONLY the row widths are smoothed with a [1, 2, 1]
+ * kernel inside each contiguous run (a run never borrows width across an
+ * untraded gap; its end rows weigh only their one neighbour). The owner's
+ * exact row map — POC, VAH, VAL, every row's volume — is untouched and stays
+ * what Inspect reads.
+ */
+export function smoothBodyWidths(widths: readonly number[], runBreaks: ReadonlySet<number> = new Set()): number[] {
+  return widths.map((w, i) => {
+    const prevOk = i > 0 && !runBreaks.has(i);
+    const nextOk = i < widths.length - 1 && !runBreaks.has(i + 1);
+    let sum = 2 * w, n = 2;
+    if (prevOk) { sum += widths[i - 1]; n += 1; }
+    if (nextOk) { sum += widths[i + 1]; n += 1; }
+    return sum / n;
+  });
+}
+
 /* ── THE ORGANISM GLYPHS (P-110 organism plate, 11 types) ────────────────────
  * Garden 11 recognition test (`&proof=nolabels`, serving 2026-09-26 03:58):
  * with every word hidden, TPO vanished (it was letters) and Composite / VRP

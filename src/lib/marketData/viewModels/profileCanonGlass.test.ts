@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ORGANISM_KINDS,
+  smoothBodyWidths,
   organismGlyph,
   tpoPeriodInk,
   type OrganismKind,
@@ -188,6 +189,23 @@ describe("the P-110 body is a solid mass, not a wash", () => {
     expect(LIVING_BODY_CANON.tailBase).toBeGreaterThanOrEqual(0.45);
     expect(LIVING_BODY_CANON.tailBase).toBeLessThan(LIVING_BODY_CANON.valueBase);
     expect(LIVING_BODY_CANON.valueTip).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("a body's display edge is smoothed, never its row map", () => {
+  it("a spiky comb becomes a smooth edge: the largest row-to-row jump shrinks", () => {
+    const comb = [10, 60, 12, 58, 14, 62, 11];
+    const smooth = smoothBodyWidths(comb);
+    const maxJump = (a: number[]) => Math.max(...a.slice(1).map((v, i) => Math.abs(v - a[i])));
+    expect(maxJump(smooth)).toBeLessThan(maxJump(comb) / 2);
+    expect(comb).toEqual([10, 60, 12, 58, 14, 62, 11]); // the input is untouched
+  });
+
+  it("never borrows width across an untraded gap, and a flat run stays flat", () => {
+    const s = smoothBodyWidths([10, 10, 100, 100], new Set([2]));
+    expect(s[1]).toBe(10);
+    expect(s[2]).toBe(100);
+    expect(smoothBodyWidths([7, 7, 7])).toEqual([7, 7, 7]);
   });
 });
 

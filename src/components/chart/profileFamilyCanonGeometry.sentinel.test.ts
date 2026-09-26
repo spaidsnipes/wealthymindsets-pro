@@ -105,7 +105,8 @@ describe("1 · ONE candle cut-out for the whole profile family", () => {
     between(VRP, 'ctx.save(); clipProfileToCandles("VISIBLE_RANGE");\n            for (const r of vrpVM.rows)', "ctx.fillRect(right - w, y, w, h);", "ctx.restore(); // releases the rows' candle cut-out");
     between(STRUCTURE, 'ctx.save(); clipProfileToCandles("STRUCTURE");', "ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));", "ctx.restore(); // releases the Structure's candle cut-out");
     between(MEMORY, 'ctx.save(); clipProfileToCandles("MEMORY");', "ctx.lineTo(endX, y);", "ctx.restore(); // releases Memory's candle cut-out");
-    between(FUSED, 'ctx.save(); clipProfileToCandles("FUSED");', "ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);", "ctx.restore(); // releases the fused body's candle cut-out");
+    // Pin updated 2026-09-26 (04:26 CDT): the fused rows became ONE smoothed body (§10).
+    between(FUSED, 'ctx.save(); clipProfileToCandles("FUSED");', "ctx.fill(fusedBody);", "ctx.restore(); // releases the fused body's candle cut-out");
     between(FUSION, 'ctx.save(); clipProfileToCandles("FUSION");', "ctx.fillRect(knotX - 96, top, 96, h);", "ctx.restore(); // releases the knots' candle cut-out");
     // Pin updated 2026-09-26: the movie's value-area ribbon is retired (see
     // "7 · no generic rectangle"); its POC trail still paints inside the cut.
@@ -324,9 +325,11 @@ describe("8 · live defects, serving 2026-09-26 03:59–04:00 CDT", () => {
 
   it("Fusion draws the fused OBJECT itself: auto-paired from two stack species, recomputed body with a rim, family-ink chips, parents receding", () => {
     expect(FUSED).toContain('const pair = stackPrefsRef.current.fusion ?? autoPair;');
-    expect(FUSED).toMatch(/layerOnRef\.current\.profileFusion === true && stackOrder\.length >= 2/);
+    // Pin moved 2026-09-26: the auto pair is decided once, before the parents paint (§10).
+    expect(CHART).toMatch(/const fusionAutoPair: StackSpecies\[\] \| null = layerOnRef\.current\.profileFusion === true && stackOrder\.length >= 2/);
+    expect(FUSED).toContain("const autoPair: StackSpecies[] | null = fusionAutoPair;");
     expect(FUSED).toContain("const fr = fuseProfiles(source(pair[0]), source(pair[1]));");
-    expect(FUSED).toContain("fusedTips.push({ x: spanR - w, y: (+y0 + +y1) / 2 });");
+    expect(FUSED).toContain("const fusedTips = fusedRows.map((q, k) => ({ x: spanR - fusedW[k], y: q.y }));");
     expect(FUSED).toContain('line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, [], pk.rgba("POC", 0.95));');
     expect(FUSED).not.toContain("levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);");
     expect(CHART).toContain("fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],");
@@ -379,5 +382,34 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
     expect(VRP).toContain("ds.visibleRangeGeometry = `RAILS+LANE_CORNERS:");
     expect(STRUCTURE).toContain("ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, x1 - x0, Math.round(bot - top));");
     expect(STRUCTURE).toContain("+CUBE_BOX");
+  });
+});
+
+describe("10 · the fused object is the subject (serving 2026-09-26 04:26 CDT, beside P-110)", () => {
+  it("its body is ONE smoothed silhouette in the family gold with a soft rim — not a stroke round every rebinned row", () => {
+    expect(FUSED).toContain("const fusedW = smoothBodyWidths(fusedRows.map(q => q.w), fusedBreaks);");
+    expect(FUSED).toContain('ctx.fillStyle = pk.rgbaAs("VALUE", "ANCHOR", 0.42);');
+    expect(FUSED).toContain("ctx.stroke(fusedEdge);");
+    // The comb is gone: no per-row fill or outline.
+    expect(FUSED).not.toContain("ctx.strokeRect(spanR - w + 0.5");
+    expect(FUSED).not.toContain("ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);");
+    expect(FUSED).toContain("ds.profileFusionBody = `SMOOTH:${fusedRuns}run:${fusedRows.length}rows`;");
+  });
+
+  it("its parents recede to a ghost through the governor (FUSION_PARENT_FADE 0.25)", () => {
+    const gov = readFileSync(path.join(process.cwd(), "src/lib/marketData/viewModels/selectAttentionGovernor.ts"), "utf8");
+    expect(gov).toContain("export const FUSION_PARENT_FADE = 0.25;");
+  });
+
+  it("its parents' level chips are withheld on the glass — never placed, so no residual box — and only the FUSED chips speak", () => {
+    expect(CHART).toContain("const parentChipsWithheld = new Set<StackSpecies>(fusionObjectRef.current && fusionPairNow && fusionPairNow.length === 2 ? fusionPairNow : []);");
+    for (const [block, sp] of [[LIVING, "LIVING"], [COMPOSITE, "COMPOSITE"], [VRP, "VISIBLE_RANGE"]] as const) {
+      // The withhold returns BEFORE levelChip is called: nothing joins the chip ledger.
+      between(block, `if (parentChipsWithheld.has("${sp}")) { parentChipsWithheldCount++; return; }`, "levelChip(+yr, text, ink);", "};");
+    }
+    // Decided before the first parent paints.
+    expect(CHART.indexOf("const parentChipsWithheld = new Set<StackSpecies>(")).toBeLessThan(CHART.indexOf("const lp = livingProfileRef.current;"));
+    expect(FUSED).toContain('if (att.speaks("fusedObject")) levelChip(+y, label, chipInk);');
+    expect(CHART).toContain('if (parentChipsWithheld.size > 0) ds.profileParentChipsWithheld = `${parentChipsWithheldCount}:${[...parentChipsWithheld].join("+")}`;');
   });
 });

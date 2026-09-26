@@ -99,8 +99,14 @@ export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
 
 /** Dim, never delete (F27): no governed layer goes below this. */
 export const ATTENTION_FLOOR = 0.12;
-/** A fused object's two parents step back so the derived object reads as the subject. */
-export const FUSION_PARENT_FADE = 0.45;
+/**
+ * A fused object's two parents step back so the derived object reads as the
+ * subject. 0.25 since 2026-09-26 (GP12 §52 "parents survive… remain
+ * inspectable", §64 "fade non-selected parents"; serving TSLA 15m 04:26 CDT:
+ * at 0.45 the parents still crowded the fused child in the one right-edge
+ * space) — a ghost, still on the glass, never deleted.
+ */
+export const FUSION_PARENT_FADE = 0.25;
 /** Everything that is not the selected item, while a selection is inspected on camera. */
 export const SELECTION_RECEDE = 0.45;
 /** A receding layer's words stay legible. */

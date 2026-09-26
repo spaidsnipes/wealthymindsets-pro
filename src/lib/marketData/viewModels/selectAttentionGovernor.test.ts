@@ -45,7 +45,7 @@ function handProduct(
   const d = i.density, q = i.questionQuiet;
   const m = i.regimeLight?.magnets ?? 1, t = i.regimeLight?.trend ?? 1;
   const op = (sp: StackSpecies) => stackOpacity(sp, i.stackPrefs);
-  const fade = (sp: StackSpecies) => ((i.fusedParents ?? []).includes(sp) ? 0.45 : 1);
+  const fade = (sp: StackSpecies) => ((i.fusedParents ?? []).includes(sp) ? 0.25 : 1);
   switch (key) {
     case "valueCandle": case "stack": case "divergence": case "weather": case "effort": case "deltaLevels":
       return d.micro * q;
@@ -103,7 +103,7 @@ describe("attention governor — one owner for every governed layer's alpha", ()
     const i = input({ fusedParents: ["LIVING", "VISIBLE_RANGE"] });
     const g = selectAttentionGovernor(i);
     expect(g.alpha("livingProfileMovie")).toBeCloseTo(g.alpha("livingProfile"), 10);
-    expect(g.alpha("livingProfileMovie")).toBeCloseTo(0.45, 10);
+    expect(g.alpha("livingProfileMovie")).toBeCloseTo(0.25, 10); // FUSION_PARENT_FADE, 0.25 since 2026-09-26 (§52/§64: parents recede to a ghost)
   });
 
   it("MEMORY sits below the present it remembers, at every depth, quiet and light", () => {
