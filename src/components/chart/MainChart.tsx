@@ -224,8 +224,10 @@ import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
 import {
+  absorptionRailRead,
   selectAbsorptionAnatomy,
   type AbsorptionAnatomyVM,
+  type AbsorptionRailRead,
   type AnatomyBarInput,
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
@@ -1222,6 +1224,11 @@ interface Props {
    */
   onQuestionLensRead?: (lens: QuestionLensVM | null) => void;
   lensInRail?: boolean;
+  /**
+   * F06A · the rail's ABSORPTION row — this chart's own newest absorption
+   * zone, published only when it changes (null when the layer is off).
+   */
+  onAbsorptionRead?: (read: AbsorptionRailRead | null) => void;
   /** SHOW RAW — every overlay reading hidden, candles bare; switches untouched. */
   rawOnChart?: boolean;
   /** The continuation owner's verdict, for the Question Lens's Continuing? (verbatim). */
@@ -1604,6 +1611,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   questionChoiceOnChart = "AUTO",
   onQuestionLensRead,
   lensInRail = false,
+  onAbsorptionRead,
   rawOnChart = false,
   continuationOnChart = null,
   permissionOnChart = null,
@@ -1911,6 +1919,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const lensInRailRef = useRef(lensInRail);
   lensInRailRef.current = lensInRail;
   const lensReadKeyRef = useRef<string>("");
+  const onAbsorptionReadRef = useRef(onAbsorptionRead);
+  onAbsorptionReadRef.current = onAbsorptionRead;
+  const absorptionReadKeyRef = useRef<string>("");
   const rawRef = useRef(false);
   rawRef.current = rawOnChart;
   const continuationRef = useRef<typeof continuationOnChart>(null);
@@ -8990,10 +9001,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
         const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW });
         anatomyFrame = { anatomy, windowCapped };
+        {
+          const read = absorptionRailRead(anatomy, barsRef.current?.[barsRef.current.length - 1]?.time as number | undefined, barInterval());
+          const key = JSON.stringify(read);
+          if (key !== absorptionReadKeyRef.current) { absorptionReadKeyRef.current = key; onAbsorptionReadRef.current?.(read); }
+        }
         return anatomyFrame;
       };
       if (!absorptionAnatomyActive) {
         const ds = canvas.dataset;
+        if (absorptionReadKeyRef.current !== "OFF") { absorptionReadKeyRef.current = "OFF"; onAbsorptionReadRef.current?.(null); }
         ds.absorption = "OFF";
         delete ds.absorptionBasis;
         delete ds.absorptionZones;

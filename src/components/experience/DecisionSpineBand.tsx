@@ -47,6 +47,7 @@
 
 import * as React from "react";
 import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
+import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
@@ -254,6 +255,8 @@ export interface DecisionSpineBandProps {
    * carries them. Null/undefined → nothing drawn.
    */
   readonly questionLens?: QuestionLensVM | null;
+  /** F06A · the chart's own newest absorption zone, for the flow card's ABSORPTION row. */
+  readonly absorptionRead?: AbsorptionRailRead | null;
 }
 
 /**
@@ -1592,6 +1595,21 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
               </span>
             </span>
           ))}
+          {/* F06A's ABSORPTION row — the chart's own newest zone, never re-derived.
+              FORMING while the run reaches the newest bar; ON RECORD once it closed. */}
+          {props.absorptionRead && props.absorptionRead.state !== "UNMEASURED" ? (
+            <span
+              aria-hidden="true"
+              data-testid="spine-flow-absorption"
+              data-absorption-state={props.absorptionRead.state}
+              style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", columnGap: 8, borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}
+            >
+              <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", letterSpacing: "0.1em" }}>Absorption</span>
+              <span style={{ ...PLAQUE_STAMP, color: props.absorptionRead.state === "NONE" ? "#8a8271" : "#c4a574" }}>
+                {props.absorptionRead.state === "NONE" ? "None in window" : `${props.absorptionRead.state === "FORMING" ? "Forming" : "On record"} · ${props.absorptionRead.strength}`}
+              </span>
+            </span>
+          ) : null}
           <span aria-hidden="true" data-testid="spine-flow-basis" style={{ ...PLAQUE_STAMP, textAlign: "center" }}>
             {flowContext.basis}
           </span>

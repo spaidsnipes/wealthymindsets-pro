@@ -1261,3 +1261,14 @@ describe("the canvas stops painting lens cards over the candles when the rail ca
     expect(room).toContain("questionLens: questionLensOn ? railLens : null");
   });
 });
+
+describe("F06A · the flow card carries the chart's ABSORPTION row", () => {
+  const flow = { buyPct: 72, sellPct: 28, provenance: "PROVIDER" as never, basis: "VENUE-STAMPED SIDES" };
+  it("prints the state and strength the chart published; nothing when unmeasured", () => {
+    const html = render({ presentation: "rail", flowContext: flow, absorptionRead: { state: "FORMING", strength: "STRONG", priceLo: 1, priceHi: 2, basis: "VOLUME" } });
+    expect(html).toContain('data-absorption-state="FORMING"');
+    expect(html).toContain("Forming · STRONG");
+    const none = render({ presentation: "rail", flowContext: flow, absorptionRead: { state: "UNMEASURED", strength: null, priceLo: null, priceHi: null, basis: "VOLUME" } });
+    expect(none).not.toContain("spine-flow-absorption");
+  });
+});

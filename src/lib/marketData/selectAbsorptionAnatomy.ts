@@ -430,3 +430,30 @@ export function selectAbsorptionAnatomy(
     effortSpreadNote,
   };
 }
+
+
+/**
+ * F06A · THE RAIL'S ABSORPTION ROW — a projection of this reading, never a
+ * second one. FORMING when the newest zone reaches the newest bar (the run is
+ * still being written); ON_RECORD when the newest zone has closed; NONE when
+ * the window holds no zone; UNMEASURED when nothing observable backs the field.
+ */
+export interface AbsorptionRailRead {
+  readonly state: "FORMING" | "ON_RECORD" | "NONE" | "UNMEASURED";
+  readonly strength: AbsorptionStrength | null;
+  readonly priceLo: number | null;
+  readonly priceHi: number | null;
+  readonly basis: EffortBasis;
+}
+
+export function absorptionRailRead(
+  vm: AbsorptionAnatomyVM,
+  newestBarTime: number | undefined,
+  barSeconds: number,
+): AbsorptionRailRead {
+  if (!vm.measured) return { state: "UNMEASURED", strength: null, priceLo: null, priceHi: null, basis: vm.basis };
+  const z = vm.zones.length ? vm.zones[vm.zones.length - 1] : null;
+  if (!z) return { state: "NONE", strength: null, priceLo: null, priceHi: null, basis: vm.basis };
+  const forming = typeof newestBarTime === "number" && Number.isFinite(newestBarTime) && z.endTime >= newestBarTime - Math.max(0, barSeconds);
+  return { state: forming ? "FORMING" : "ON_RECORD", strength: z.strength, priceLo: z.priceLo, priceHi: z.priceHi, basis: vm.basis };
+}
