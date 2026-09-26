@@ -29,9 +29,13 @@ const ROOM = read("src/components/chart/ChartsDashboard.tsx");
 
 describe("question lens and restored selection", () => {
   it("the Ask row stays inside the pane at every height and renders on phones", () => {
-    const at = ROOM.indexOf('data-testid="question-lens-chooser"');
+    // The FLOATING row (narrow glass / Options — no rail there). With the rail
+    // mounted the same chooser renders in the rail's lens column (UI-04).
+    const at = ROOM.indexOf('questionLensOn && !lensRailMounted && (');
     expect(at).toBeGreaterThan(-1);
-    const row = ROOM.slice(at, at + 900);
+    const row = ROOM.slice(at, at + 1200);
+    expect(row).toContain('data-testid="question-lens-chooser"');
+    expect(ROOM).toContain("lensChooser: questionLensOn && activeTab === \"Chart\" && !gridView ? (");
     expect(row).toContain('top: "min(532px, calc(100% - 96px))"');
     expect(row).not.toMatch(/top: 532\b/);
     expect(row).not.toMatch(/\bhidden\b[^"]*sm:flex/);
