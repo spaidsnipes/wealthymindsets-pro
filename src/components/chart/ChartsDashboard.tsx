@@ -22,6 +22,8 @@ import { ProfilesMenu } from "./ProfilesMenu";
 import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
+import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
@@ -1811,6 +1813,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // bucket by `selectProfileSlice`) are read from `chartSelection` above; the
   // reducer's rest state is Inspect CLOSED, for the reasons given here.
   const activeSelectedPrint = selectedPrint?.symbol === symbol && selectedPrint.timeframe === timeframe ? selectedPrint : null;
+  // F07B · SUBSEQUENT RESPONSE for the selected print (a cluster's anchor),
+  // measured live on this chart's own bars by selectPrintResponse — CLOSED
+  // bars only (the forming bar is named by the same clock proof the header
+  // uses), so Inspect says OUTCOME UNKNOWN until the response bars exist.
+  // The walk is from the newest end and bounded, so it runs per render.
+  const selectedPrintResponse = (() => {
+    const sp = activeSelectedPrint;
+    if (!sp || sp.kind === "delta" || sp.timeMs == null || !(sp.bid + sp.ask > 0)) return null;
+    const newest = chartBars[chartBars.length - 1];
+    const formingBarTime = newest && selectChartCloseLabel(Number(newest.time), timeframe, Date.now()).forming ? Number(newest.time) : null;
+    return selectPrintResponse({ timeSec: sp.timeMs / 1000, price: sp.priceLevel, side: sp.ask >= sp.bid ? "buy" : "sell" }, chartBars, { formingBarTime });
+  })();
   // A shelf or mark is measured on THIS chart's window; one made on another
   // symbol or timeframe is never shown here.
   const activeSelectedAnatomy = selectedAnatomy?.symbol === symbol && selectedAnatomy.timeframe === timeframe ? selectedAnatomy : null;
@@ -5675,6 +5689,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         followingLiveBar={inspectFollowingLiveBar}
                         open={inspectOpen}
                         selectedPrint={activeSelectedPrint}
+                        printResponse={selectedPrintResponse}
+                        onSelectPrint={print => actOnChartSelection({ type: "select", selection: { kind: "PRINT", print } })}
                         contradiction={contradictionVM}
                         memoryGhost={memoryGhostVM}
                         envelope={envelopeVM}

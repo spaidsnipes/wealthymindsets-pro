@@ -181,6 +181,10 @@ export function formatBubbleVolume(v: number): string {
   if (!Number.isFinite(a)) return "—";
   if (a >= 1_000_000) return `${(a / 1_000_000).toFixed(1)}M`;
   if (a >= 1_000) return `${(a / 1_000).toFixed(1)}k`;
+  // 2026-09-26 (F07B cluster disc on BTC-USD): a 1.21 BTC cluster was
+  // inscribed "1 ×4". Whole units (shares, contracts) print as before;
+  // a fractional size under 100 keeps its decimals (2 under 10, else 1).
+  if (a >= 1 && a < 100 && !Number.isInteger(a)) return a.toFixed(a < 10 ? 2 : 1);
   if (a >= 1) return Math.round(a).toLocaleString("en-US");
   if (a > 0) return a.toFixed(a >= 0.1 ? 2 : 4);
   return "0";
@@ -198,7 +202,11 @@ export function formatBubbleVolume(v: number): string {
 export function formatBubbleExact(v: number): string {
   if (!Number.isFinite(v)) return "—";
   const a = Math.abs(v);
-  return a >= 1
+  // 2026-09-26 (F07B cluster callout on BTC-USD): 1 ≤ a < 1,000 kept NO
+  // decimals, so a 1.21 BTC total printed "1" — the "FULL precision"
+  // headline silently rounding a crypto size. Whole-unit sizes (shares,
+  // contracts) print exactly as before; fractional ones keep up to 4 places.
+  return a >= 1_000
     ? a.toLocaleString("en-US", { maximumFractionDigits: 0 })
     : a.toLocaleString("en-US", { maximumFractionDigits: 4 });
 }

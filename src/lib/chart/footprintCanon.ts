@@ -55,6 +55,11 @@
  *     AT MOST ONE gold leader callout (G04) for the dominant print, in
  *     percentile language against the session's captured prints, placed
  *     through the keep-out owner. No other tickets: the rest lives in Inspect.
+ *     F07B (2026-09-26): discs that touch on the screen MERGE into one
+ *     cluster disc (clusterBigTrades — area = Σ areas, size-weighted
+ *     centre, "TOTAL ×n" + the anchor's price inside), so no two discs on
+ *     the glass ever overprint; only a disc — never a member — takes the
+ *     callout, and every member stays selectable in Inspect.
  *
  * PURE. DETERMINISTIC. No canvas: text width arrives as a `measure` callback.
  */
@@ -344,15 +349,19 @@ export interface PlacedInscriptionLine extends InscriptionLine {
  * than a smaller one (the 9px lines of a big disc fall back to the 8px lines a
  * smaller disc already fits).
  */
-export function bigTradeInscriptionLines(r: number, sizeText: string, timeText: string, priceText: string): InscriptionLine[][] {
+export function bigTradeInscriptionLines(r: number, sizeText: string, timeText: string, priceText: string, members = 1): InscriptionLine[][] {
   const sizePx = Math.max(9, Math.min(15, Math.round(r * 0.42)));
   const subs = r >= 30 ? [9, 8] : [8];
   const sizes = [...new Set([sizePx, Math.max(8, sizePx - 2)])];
-  const S = (px: number): InscriptionLine => ({ text: sizeText, px, weight: 700 });
+  // F07B · a CLUSTER disc writes its TOTAL with "×n" and its anchor's price.
+  // No time line: n prints have n times, and one of them written alone would
+  // read as the cluster's time — the members' clocks live in Inspect.
+  const cluster = members > 1;
+  const S = (px: number): InscriptionLine => ({ text: cluster ? `${sizeText} ×${members}` : sizeText, px, weight: 700 });
   const T = (px: number): InscriptionLine => ({ text: timeText, px, weight: 600 });
   const P = (px: number): InscriptionLine => ({ text: priceText, px, weight: 600 });
   const out: InscriptionLine[][] = [];
-  for (const sp of sizes) for (const sub of subs) out.push([S(sp), T(sub), P(sub)]);
+  if (!cluster) for (const sp of sizes) for (const sub of subs) out.push([S(sp), T(sub), P(sub)]);
   for (const sp of sizes) for (const sub of subs) out.push([S(sp), P(sub)]);
   for (const sp of sizes) out.push([S(sp)]);
   return out;
@@ -435,17 +444,230 @@ export function bigTradeCalloutLines(input: {
   readonly aggressorMethod?: AggressorMethod;
   readonly pct: number | null;
   readonly prints: number;
+  /**
+   * F07B · the disc is a CLUSTER of `n` prints whose claimed sizes sum to
+   * `total`. Its first line names the cluster, its size line the total at the
+   * anchor print's price; the side of each member lives in Inspect.
+   */
+  readonly cluster?: { readonly n: number; readonly total: number } | null;
 }): { readonly lines: readonly string[]; readonly receipt: string } | null {
-  const claim = describeBubbleClaim({ kind: "big-trade", bid: input.bid, ask: input.ask, price: input.price, aggressorMethod: input.aggressorMethod });
-  if (!claim) return null;
-  const size = formatBubbleExact(Math.abs(claim.value));
   const rank = input.pct == null
     ? `UNRANKED · ${input.prints} SESSION PRINTS`
     : `${percentileOrdinal(input.pct)} PERCENTILE`;
+  const pctReceipt = input.pct == null ? "UNRANKED" : (Math.floor(input.pct * 1000) / 10).toFixed(1);
+  if (input.cluster && input.cluster.n > 1) {
+    if (!(input.cluster.total > 0)) return null;
+    const total = formatBubbleExact(input.cluster.total);
+    return {
+      lines: [`CLUSTER ×${input.cluster.n}`, `${total} @ ${input.priceText}`, rank],
+      receipt: `CLUSTER${input.cluster.n}:${total}@${pctReceipt}`,
+    };
+  }
+  const claim = describeBubbleClaim({ kind: "big-trade", bid: input.bid, ask: input.ask, price: input.price, aggressorMethod: input.aggressorMethod });
+  if (!claim) return null;
+  const size = formatBubbleExact(Math.abs(claim.value));
   return {
     lines: [claim.heading, `${size} @ ${input.priceText}`, rank],
-    receipt: `ONE:${size}@${input.pct == null ? "UNRANKED" : (Math.floor(input.pct * 1000) / 10).toFixed(1)}`,
+    receipt: `ONE:${size}@${pctReceipt}`,
   };
+}
+
+/* ═══ BIG TRADE CLUSTERS (F07B · GP12 §60 / §64) ═══════════════════════════
+ *
+ * Found on serving (BTC-USD 1m, MID, 2026-09-26 03:55 CDT): four prints in one
+ * minute at 84209–84211 drew four gold discs ON TOP OF EACH OTHER at the live
+ * edge — one unreadable knot whose inscriptions overprinted. GP12 §64:
+ * "Stagger bubbles… Suppress low-value labels when crowded. Merge labels."
+ *
+ * THE RULE, written before the code. Each print is placed at its EXACT time
+ * and price by the anchor owner and sized by the size owner. Then, on the
+ * screen the trader is looking at:
+ *   · discs whose circles overlap — counting the membrane's breath
+ *     (BIG_TRADE_BREATH) and a CLUSTER_GAP_PX hairline, so two discs that
+ *     only kiss while breathing are one knot too — MERGE into one CLUSTER
+ *     disc, transitively, and again until no two discs on the glass touch;
+ *   · the cluster's AREA is the sum of its members' areas (r = √Σr²), capped
+ *     at the size owner's ceiling — never a new scale;
+ *   · its CENTRE is the members' size-weighted time and price (and pixel);
+ *   · it keeps every member, so each print stays individually inspectable;
+ *   · a lone disc is its own cluster and keeps its own key — identity,
+ *     selection and the dedupe set are unchanged for it.
+ * Nothing is invented: a cluster is a grouping of real prints, and every
+ * number it prints is a sum or a member's own.
+ *
+ * PURE. DETERMINISTIC. Screen-space: the caller re-clusters every frame,
+ * because zoom decides what touches.
+ */
+
+/** The membrane's breath: the disc's semi-axes swing by ±this share of r. */
+export const BIG_TRADE_BREATH = 0.03;
+/** Clear glass kept between two discs that are NOT merged (px). */
+export const CLUSTER_GAP_PX = 2;
+/** A multi-print cluster's key is this prefix + its anchor print's key. */
+export const CLUSTER_KEY_PREFIX = "cluster:";
+
+export interface ClusterDiscInput {
+  readonly key: string;
+  readonly x: number;
+  readonly y: number;
+  /** The size owner's TARGET radius (never the spawn-eased one). */
+  readonly r: number;
+  /** The size the disc claims (bubbleClaimMagnitude) — the cluster weight. */
+  readonly size: number;
+  readonly timeSec: number;
+  readonly barTime: number;
+  readonly price: number;
+  readonly bid: number;
+  readonly ask: number;
+}
+
+export interface BigTradeCluster<T extends ClusterDiscInput = ClusterDiscInput> {
+  /** A lone print keeps its own key; a cluster is CLUSTER_KEY_PREFIX + anchor key. */
+  readonly key: string;
+  /** Every print in it, oldest first. */
+  readonly members: readonly T[];
+  /** The largest member (earliest on a tie) — whose price the cluster writes. */
+  readonly anchor: T;
+  readonly x: number;
+  readonly y: number;
+  /** √Σr², capped at maxR. */
+  readonly r: number;
+  /** Size-weighted time and price of the members. */
+  readonly timeSec: number;
+  readonly price: number;
+  /** Σ member sizes (each member's own claim). */
+  readonly size: number;
+  readonly bid: number;
+  readonly ask: number;
+  /** Distinct bars the members printed in, ascending. */
+  readonly barTimes: readonly number[];
+}
+
+/** True when two discs touch on the glass: overlap, counting breath and the hairline gap. */
+export function discsTouch(
+  a: { readonly x: number; readonly y: number; readonly r: number },
+  b: { readonly x: number; readonly y: number; readonly r: number },
+): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * (1 + BIG_TRADE_BREATH) + CLUSTER_GAP_PX;
+}
+
+/** Area is additive: r = √Σr², capped at the size owner's ceiling. */
+export function clusterRadius(radii: readonly number[], maxR: number): number {
+  let s = 0;
+  for (const r of radii) if (Number.isFinite(r) && r > 0) s += r * r;
+  return Math.min(maxR, Math.sqrt(s));
+}
+
+function buildCluster<T extends ClusterDiscInput>(members: T[], maxR: number): BigTradeCluster<T> {
+  members.sort((a, z) => a.timeSec - z.timeSec || a.key.localeCompare(z.key));
+  let W = 0, x = 0, y = 0, t = 0, p = 0, bid = 0, ask = 0;
+  let anchor = members[0];
+  for (const m of members) {
+    W += m.size; x += m.size * m.x; y += m.size * m.y; t += m.size * m.timeSec; p += m.size * m.price;
+    bid += pos(m.bid); ask += pos(m.ask);
+    if (m.size > anchor.size) anchor = m;
+  }
+  const lone = members.length === 1;
+  return {
+    key: lone ? members[0].key : `${CLUSTER_KEY_PREFIX}${anchor.key}`,
+    members,
+    anchor,
+    x: lone ? members[0].x : x / W,
+    y: lone ? members[0].y : y / W,
+    r: lone ? Math.min(maxR, members[0].r) : clusterRadius(members.map(m => m.r), maxR),
+    timeSec: lone ? members[0].timeSec : t / W,
+    price: lone ? members[0].price : p / W,
+    size: W,
+    bid, ask,
+    barTimes: [...new Set(members.map(m => m.barTime))].sort((a, z) => a - z),
+  };
+}
+
+/**
+ * The frame's clusters. Discs with a non-finite position, a non-positive
+ * radius or no claimed size are not on the glass and are dropped. Output is
+ * ordered by the size each cluster claims, largest first.
+ */
+export function clusterBigTrades<T extends ClusterDiscInput>(discs: readonly T[], opts: { readonly maxR: number }): BigTradeCluster<T>[] {
+  let groups: T[][] = discs
+    .filter(d => Number.isFinite(d.x) && Number.isFinite(d.y) && d.r > 0 && d.size > 0)
+    .map(d => [d]);
+  let clusters = groups.map(g => buildCluster(g, opts.maxR));
+  // Union-find over touching pairs, then rebuild — until nothing touches.
+  // Each round merges at least two groups, so it ends in < n rounds.
+  for (;;) {
+    const n = clusters.length;
+    const parent = clusters.map((_, i) => i);
+    const find = (i: number): number => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    // Sweep by x: a pair farther apart in x than the widest possible touch cannot touch.
+    const order = clusters.map((_, i) => i).sort((a, z) => clusters[a].x - clusters[z].x);
+    let merged = false;
+    for (let i = 0; i < n; i++) {
+      const a = clusters[order[i]];
+      const reach = (a.r + opts.maxR) * (1 + BIG_TRADE_BREATH) + CLUSTER_GAP_PX;
+      for (let j = i + 1; j < n; j++) {
+        const b = clusters[order[j]];
+        if (b.x - a.x >= reach) break;
+        if (!discsTouch(a, b)) continue;
+        const ra = find(order[i]), rb = find(order[j]);
+        if (ra !== rb) { parent[rb] = ra; merged = true; }
+      }
+    }
+    if (!merged) break;
+    const byRoot = new Map<number, T[]>();
+    for (let i = 0; i < n; i++) {
+      const root = find(i);
+      const list = byRoot.get(root) ?? [];
+      list.push(...groups[i]);
+      byRoot.set(root, list);
+    }
+    groups = [...byRoot.values()];
+    clusters = groups.map(g => buildCluster(g, opts.maxR));
+  }
+  return clusters.sort((a, z) => z.size - a.size || a.key.localeCompare(z.key));
+}
+
+/** A selected key → the cluster on this frame that holds it (its own key, a member's, or its anchor's). */
+export function clusterHolding<T extends ClusterDiscInput>(clusters: readonly BigTradeCluster<T>[], key: string | null): BigTradeCluster<T> | null {
+  if (key == null) return null;
+  const base = key.startsWith(CLUSTER_KEY_PREFIX) ? key.slice(CLUSTER_KEY_PREFIX.length) : key;
+  return clusters.find(c => c.key === key || c.members.some(m => m.key === base)) ?? null;
+}
+
+/** The print a cluster key was minted from (a lone print's key is its own). */
+export function clusterAnchorKey(key: string): string {
+  return key.startsWith(CLUSTER_KEY_PREFIX) ? key.slice(CLUSTER_KEY_PREFIX.length) : key;
+}
+
+/**
+ * RECEIPT `bigTradeOverlaps`: pairs of DRAWN discs whose circles intersect.
+ * After clustering this is 0 — anything else is a knot on the glass.
+ */
+export function countCircleOverlaps(circles: readonly { readonly x: number; readonly y: number; readonly r: number }[]): number {
+  let n = 0;
+  for (let i = 0; i < circles.length; i++) {
+    for (let j = i + 1; j < circles.length; j++) {
+      const a = circles[i], b = circles[j];
+      if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r) n++;
+    }
+  }
+  return n;
+}
+
+/**
+ * F07B's BARS TOUCHED dots: one per bar from the cluster's first bar to its
+ * last, filled where a member printed. Capped at `max` dots (the last is then
+ * the cluster's final bar, so the row never claims a span it did not show).
+ */
+export function clusterBarDots(barTimes: readonly number[], intervalSec: number, max = 12): boolean[] {
+  if (!barTimes.length || !(intervalSec > 0)) return [];
+  const first = barTimes[0], last = barTimes[barTimes.length - 1];
+  const span = Math.round((last - first) / intervalSec) + 1;
+  const touched = new Set(barTimes.map(t => Math.round((t - first) / intervalSec)));
+  const n = Math.min(span, max);
+  const out: boolean[] = [];
+  for (let i = 0; i < n; i++) out.push(touched.has(i === n - 1 ? span - 1 : i));
+  return out;
 }
 
 /**

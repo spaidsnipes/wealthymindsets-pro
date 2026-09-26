@@ -175,7 +175,11 @@ describe("F07A · G04 · F06 — Big Trades on price", () => {
     expect(none).toBeGreaterThan(-1);
     expect(stroke).toBeGreaterThan(none);
     // Paths are painted BEFORE the discs, so a disc sits on its own path.
-    expect(b.indexOf("responsePaths++;")).toBeLessThan(b.indexOf("for (const b of [...bubblesRef.current].sort("));
+    // 2026-09-26 (F07B clusters): the disc loop iterates the cluster owner's
+    // discs (`bigDiscs`), not the raw prints — the landmark follows it; the
+    // positive control that the loop exists is kept.
+    expect(b.indexOf("for (const b of [...bigDiscs].sort(")).toBeGreaterThan(-1);
+    expect(b.indexOf("responsePaths++;")).toBeLessThan(b.indexOf("for (const b of [...bigDiscs].sort("));
   });
 
   it("at most ONE callout: chosen once, after every disc is on the glass, never inside a loop", () => {

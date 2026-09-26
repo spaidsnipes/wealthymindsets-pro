@@ -77,6 +77,47 @@ export interface SelectedBigTrade extends BigTradeLevel {
    * the glass never lists rows. Absent when the tape held nothing for the bar.
    */
   rawTape?: RawTapeVM | null;
+  /**
+   * F07B · RELATIVE SIZE VS SESSION, measured at the click by
+   * footprintCanon's sessionSizePercentile over every print this chart
+   * captured this session. `pct` is null below the population floor.
+   */
+  sessionRank?: { readonly pct: number | null; readonly prints: number } | null;
+  /**
+   * F07B · the selection is a CLUSTER of overlapping prints (footprintCanon's
+   * clusterBigTrades). `printKey` is then the cluster key, `priceLevel` /
+   * `timeMs` the anchor print's own, `bid` / `ask` the members' sums.
+   */
+  cluster?: BigTradeClusterSelection | null;
+}
+
+/** One print inside a selected cluster — each individually selectable in Inspect. */
+export interface BigTradeClusterMember {
+  readonly printKey: string;
+  readonly barTime: number;
+  readonly timeMs: number;
+  readonly price: number;
+  readonly bid: number;
+  readonly ask: number;
+  /** The size this print claims (bubbleClaimMagnitude). */
+  readonly size: number;
+  readonly side: "buy" | "sell";
+  readonly aggressorMethod?: AggressorMethod;
+  /** This print's own rank in the session, at the click. */
+  readonly pct: number | null;
+}
+
+export interface BigTradeClusterSelection {
+  readonly n: number;
+  /** Σ of the members' claimed sizes. */
+  readonly total: number;
+  readonly anchorKey: string;
+  /** Distinct bars the members printed in. */
+  readonly barsTouched: number;
+  /** footprintCanon's clusterBarDots: first → last bar, filled where a member printed. */
+  readonly barDots: readonly boolean[];
+  /** Oldest first. */
+  readonly members: readonly BigTradeClusterMember[];
 }
 
 /** "#rank of N, median M" — a count, never a percentile dressed as a score. */

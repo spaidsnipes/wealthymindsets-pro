@@ -64,7 +64,14 @@ describe("the one G04 callout stays on the plot, clear of the candles, in its ow
   it("is chosen once, by the callout owner, from the frame's one depth", () => {
     const b = bigTrades();
     expect(b.match(/pickBigTradeCallout\(/g) ?? []).toHaveLength(1);
-    expect(callout()).toContain("{ depth: calloutDepth, selectedKey: selectedBubbleKey, hoveredKey },");
+    // 2026-09-26 (F07B clusters): the one selection is located on this
+    // frame's DISCS first — a selected print inside a cluster selects its
+    // cluster — so the callout receives that disc's key. Candidates are the
+    // discs, never a cluster's members.
+    expect(callout()).toContain("{ depth: calloutDepth, selectedKey: selDiscKey, hoveredKey },");
+    expect(callout()).toContain("bigDiscs.map(b => ({ key: b.spawnKey, magnitude: Math.abs(b.value),");
+    expect(slice("const bigClusters = clusterBigTrades<BigClusterInput>(", "const BIG_TRADE_FULL = 5;"))
+      .toContain("const selDiscKey = clusterHolding(bigClusters, selectedBubbleKey)?.key ?? null;");
   });
 
   // Carried from the NEAR builder's ticket gate (2026-09-25: "three tickets
@@ -74,7 +81,8 @@ describe("the one G04 callout stays on the plot, clear of the candles, in its ow
   // exactly those two keys — never a rank.
   it("at NEAR the callout is words on selection or hover, never at rest", () => {
     const b = callout();
-    expect(b).toContain("const hoveredKey = hoverId != null ? bubblesRef.current.find(b => b.id === hoverId)?.spawnKey ?? null : null;");
+    // 2026-09-26 (F07B clusters): hover is read off the drawn discs.
+    expect(b).toContain("const hoveredKey = hoverId != null ? bigDiscs.find(b => b.id === hoverId)?.spawnKey ?? null : null;");
     expect(b).not.toMatch(/bubbleRank|BIG_TRADE_FULL/);
   });
 
@@ -197,9 +205,12 @@ describe("the NEAR delta row states how its sides were known", () => {
 describe("the five full bubbles are the five largest prints, not the five grown furthest", () => {
   it("ranks by the claimed magnitude, never by the animated radius", () => {
     const b = bigTrades();
-    const loops = b.match(/for \(const b of \[\.\.\.bubblesRef\.current\]\.sort\(\(a, z\) => .*\) \{/g) ?? [];
+    // 2026-09-26 (F07B clusters): the ranking loop runs over the cluster
+    // owner's discs; a cluster ranks by its members' summed claim (`value`).
+    const loops = b.match(/for \(const b of \[\.\.\.bigDiscs\]\.sort\(\(a, z\) => .*\) \{/g) ?? [];
     expect(loops.length, "the ranking loop was renamed or removed").toBe(1);
-    expect(loops[0]).toBe("for (const b of [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {");
+    expect(loops[0]).toBe("for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {");
+    expect(b).not.toMatch(/for \(const b of \[\.\.\.bubblesRef\.current\]\.sort\(/);
     // The hovered and the SELECTED print are never demoted to a quiet ring —
     // the selected object is loudest — and neither takes a rank from the five.
     expect(b).toContain("if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id && !selB) {");

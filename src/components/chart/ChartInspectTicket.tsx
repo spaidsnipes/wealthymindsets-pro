@@ -49,7 +49,9 @@
  */
 
 import React from "react";
-import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
+import type { BigTradeClusterMember, SelectedBigTrade } from "@/lib/bigTradeLevels";
+import { percentileOrdinal } from "@/lib/chart/footprintCanon";
+import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels/selectPrintResponse";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
@@ -634,6 +636,81 @@ function PassportDrawer({
   );
 }
 
+/* ═══ F07B · CLUSTER / RESPONSE INSPECT (WM_NewMockup_77) ═══════════════════
+   The plate's right panel: RELATIVE SIZE VS SESSION (percentile + meter),
+   CLUSTER COUNT + BARS TOUCHED, SUBSEQUENT RESPONSE — and OUTCOME UNKNOWN
+   while the response bars are beyond the observed window. Every number is
+   an owner's: the session rank from footprintCanon's sessionSizePercentile
+   (taken at the click), the response from selectPrintResponse over the
+   chart's own closed bars, live. */
+
+function F07Card({ title, children, testId }: { title: string; children: React.ReactNode; testId: string }) {
+  return (
+    <div className="mt-2 rounded border border-wm-border p-2" data-testid={testId}>
+      <div className="text-[10px] font-bold tracking-wide text-wm-gold">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function SessionRankCard({ rank, combined }: { rank: { pct: number | null; prints: number } | null | undefined; combined: boolean }) {
+  if (!rank) return null;
+  const pct = rank.pct;
+  return (
+    <F07Card title="RELATIVE SIZE VS SESSION" testId="inspect-session-rank">
+      {pct == null ? (
+        <div className="text-[11px]" style={{ color: UNREAD_COLOR }}>UNRANKED · {rank.prints} session prints — too few for a percentile</div>
+      ) : (
+        <>
+          <div className="text-[18px] font-bold leading-tight text-wm-gold" data-session-pct={(Math.floor(pct * 1000) / 10).toFixed(1)}>{percentileOrdinal(pct)}</div>
+          <div className="text-[10px]" style={{ color: "#C8C0AE" }}>PERCENTILE</div>
+          <div className="mt-1 h-1.5 w-full rounded-sm" style={{ background: "#2A2618" }} aria-hidden>
+            <div className="h-1.5 rounded-sm" style={{ width: `${Math.max(1, Math.floor(pct * 1000) / 10)}%`, background: "#E8B85C" }} />
+          </div>
+          <div className="mt-1 text-[10px]" style={{ color: "#C8C0AE" }}>
+            {combined ? "Combined size vs" : "Size vs"} {rank.prints} single prints this chart captured this session — measured at selection
+          </div>
+        </>
+      )}
+    </F07Card>
+  );
+}
+
+const fmtMove = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: v >= 100 ? 0 : v >= 1 ? 2 : 4 });
+
+function ResponseCard({ pr }: { pr: PrintResponseVM | null | undefined }) {
+  if (!pr) return null;
+  if (!pr.drawn) {
+    return (
+      <F07Card title="SUBSEQUENT RESPONSE" testId="inspect-response">
+        <div className="text-[11px]" style={{ color: UNREAD_COLOR }} data-response-verdict={pr.reason}>
+          NOT MEASURED · {pr.reason === "NO_PRIOR_RANGE" ? "no ranged bar before the print to measure against" : pr.reason === "PRINT_OUTSIDE_BARS" ? "the print is outside the loaded bars" : "no bars"}
+        </div>
+      </F07Card>
+    );
+  }
+  if (pr.verdict === "PENDING") {
+    return (
+      <F07Card title="OUTCOME UNKNOWN" testId="inspect-response">
+        <div className="text-[11px] text-white" data-response-verdict="PENDING">Beyond observed window</div>
+        <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
+          {pr.responseBars} of {RESPONSE_BARS} response bars closed · future path not determined
+        </div>
+        {pr.responseBars > 0 && (
+          <div className="text-[10px]" style={{ color: "#C8C0AE" }}>So far: +{fmtMove(pr.withForce)} with the force · −{fmtMove(pr.againstForce)} against</div>
+        )}
+      </F07Card>
+    );
+  }
+  return (
+    <F07Card title="SUBSEQUENT RESPONSE" testId="inspect-response">
+      <div className="text-[14px] font-bold text-white" data-response-verdict={pr.verdict}>{pr.verdict}</div>
+      <div className="text-[11px]" style={{ color: "#C8C0AE" }}>+{fmtMove(pr.withForce)} with the force · −{fmtMove(pr.againstForce)} against</div>
+      <div className="text-[10px]" style={{ color: "#C8C0AE" }}>next {RESPONSE_BARS} closed bars · yardstick: median bar range {fmtMove(pr.medianRange)} · a measurement, not a forecast</div>
+    </F07Card>
+  );
+}
+
 export function ChartInspectTicket({
   vm,
   /** True when the bar shown is the live one because the cursor is nowhere. */
@@ -660,6 +737,8 @@ export function ChartInspectTicket({
   timeZone = null,
   livingBiography = null,
   clarity = null,
+  printResponse = null,
+  onSelectPrint,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -703,6 +782,10 @@ export function ChartInspectTicket({
   livingBiography?: LivingBiographyVM | null;
   /** F05 · the selected bar's own anatomy (selectClarityAnatomy), read on its prices. */
   clarity?: ClarityAnatomyVM | null;
+  /** F07B · SUBSEQUENT RESPONSE of the selected print / cluster anchor (selectPrintResponse, live). */
+  printResponse?: PrintResponseVM | null;
+  /** F07B · select one member of a selected cluster — the room's one selection. */
+  onSelectPrint?: (print: SelectedBigTrade) => void;
 }) {
   const clock = zonedClock(timeZone);
   if (!open) {
@@ -813,6 +896,71 @@ export function ChartInspectTicket({
       : p.rawTape?.sizeRank != null
         ? `#${p.rawTape.sizeRank} by size of ${p.rawTape.held} held prints in its bar`
         : "not ranked — no other bubble of this kind is retained";
+    if (p.cluster && p.kind !== "delta") {
+      // F07B · A CLUSTER of prints that overlapped on the glass, merged into
+      // one disc. Its anchor is the largest member (whose price the disc
+      // writes); every member is listed and selectable on its own.
+      const c = p.cluster;
+      const selectMember = (m: BigTradeClusterMember) => onSelectPrint?.({
+        symbol: p.symbol, timeframe: p.timeframe, barTime: m.barTime, printKey: m.printKey,
+        timeMs: m.timeMs, priceLevel: m.price, bid: m.bid, ask: m.ask, total: m.bid + m.ask,
+        aggressorMethod: m.aggressorMethod, kind: "big-trade", relation: null, rawTape: null,
+        sessionRank: p.sessionRank ? { pct: m.pct, prints: p.sessionRank.prints } : null,
+      });
+      return (
+        <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+          data-testid="chart-inspect-ticket" data-inspect-print={p.printKey} data-inspect-cluster={c.n}
+          aria-label={`Inspect selected big-trade cluster for ${p.symbol}`}>
+          <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
+            <Crosshair size={11} /> INSPECT: BIG TRADE CLUSTER
+            <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
+          </div>
+          <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
+          <div className="mt-1 text-[18px] font-bold leading-tight text-wm-gold">{formatBubbleExact(c.total)} <span className="text-[12px]">×{c.n}</span></div>
+          <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
+            anchor {String(p.priceLevel)} @ {p.timeMs != null ? clock.exact(p.timeMs) : "UNKNOWN"} · {formatBubbleVolume(p.ask)} bought · {formatBubbleVolume(p.bid)} sold
+          </div>
+          <SessionRankCard rank={p.sessionRank} combined />
+          <F07Card title="CLUSTER COUNT" testId="inspect-cluster-count">
+            <div className="text-[18px] font-bold leading-tight text-white">{c.n}</div>
+            <div className="text-[10px]" style={{ color: "#C8C0AE" }}>BARS TOUCHED · {c.barsTouched}</div>
+            <div className="mt-1 flex gap-1" aria-label={`${c.barsTouched} bars touched`}>
+              {c.barDots.map((on, k) => (
+                <span key={k} className="inline-block h-2 w-2 rounded-full" data-bar-dot={on ? "touched" : "empty"}
+                  style={on ? { background: "#E8B85C" } : { border: "1px solid #E8B85C" }} />
+              ))}
+            </div>
+          </F07Card>
+          <ResponseCard pr={printResponse} />
+          <div className="mt-2 border-t border-wm-border pt-2" data-testid="inspect-cluster-members">
+            <div className="text-[10px] font-bold tracking-wide text-wm-gold">MEMBERS · oldest first · {c.members.length > 0 ? clock.zone(c.members[0].timeMs / 1000) : ""}</div>
+            <table className="mt-1 w-full text-[10px] tabular-nums" style={{ color: "#C8C0AE" }}>
+              <thead>
+                <tr className="text-left text-wm-muted"><th className="font-bold">TIME</th><th className="font-bold">PRICE</th><th className="font-bold text-right">SIZE</th><th className="font-bold text-right">SIDE</th></tr>
+              </thead>
+              <tbody>
+                {c.members.map(m => (
+                  <tr key={m.printKey} data-cluster-member={m.printKey}
+                    className={`${m.printKey === c.anchorKey ? "text-wm-gold font-bold " : ""}${onSelectPrint ? "cursor-pointer hover:text-white" : ""}`}
+                    tabIndex={onSelectPrint ? 0 : undefined}
+                    aria-label={onSelectPrint ? `Inspect the ${m.side} print of ${formatBubbleVolume(m.size)} at ${m.price}` : undefined}
+                    onClick={onSelectPrint ? () => selectMember(m) : undefined}
+                    onKeyDown={onSelectPrint ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectMember(m); } } : undefined}>
+                    <td>{clock.tick(m.timeMs)}</td>
+                    <td>{String(m.price)}</td>
+                    <td className="text-right">{formatBubbleVolume(m.size)}</td>
+                    <td className="text-right">{m.side === "buy" ? "BUY" : "SELL"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>
+            These prints overlapped on the glass at this zoom and are drawn as one disc: area = the sum of theirs, centred on their size-weighted time and price. Participant and intent: UNKNOWN. Raw tape is session-only; refresh may remove it.
+          </p>
+        </section>
+      );
+    }
     if (p.kind === "delta") {
       // A DELTA ZONE is a net across a price bucket, not a print: no
       // "executed", no "at", no execution identity (bubbleClaim.ts).
@@ -856,6 +1004,8 @@ export function ChartInspectTicket({
           <dt>Execution identity</dt><dd>{p.printKey ?? "UNKNOWN"}</dd>
           <dt>Size relation</dt><dd>{relation}</dd>
         </dl>
+        <SessionRankCard rank={p.sessionRank} combined={false} />
+        <ResponseCard pr={printResponse} />
         {/*
           F06B · RAW TAPE FOR THIS OBJECT ONLY, camera alive. The glass shows
           the print as a dot or bubble at its time and price; the rows live

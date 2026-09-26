@@ -382,12 +382,13 @@ import {
   type BigTradeLevel,
   type SelectedBigTrade,
 } from "@/lib/bigTradeLevels";
-import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleVolume, formatBubbleClock } from "@/lib/bubbleClaim";
-import { bigTradeAnchor, bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
+import { bubbleClaimMagnitude, bubbleRelation, describeBubbleClaim, formatBubbleExact, formatBubblePrice, formatBubbleVolume, formatBubbleClock } from "@/lib/bubbleClaim";
+import { BIG_TRADE_MAX_R, bigTradeAnchor, bigTradeBubbleRadius, bubbleFramePeak, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { compactSpawnKeys } from "@/lib/bubbleSpawnCache";
 // FOOTPRINT CANON (2026-09-25): the six per-candle modes' geometry, written
 // down before it was painted — see that module's header.
 import {
+  BIG_TRADE_BREATH,
   FOOTPRINT_FORM,
   FOOTPRINT_MODE_RECEIPTS,
   aggPassiveRing,
@@ -395,6 +396,14 @@ import {
   bigTradeCalloutLines,
   bigTradeCalloutSlots,
   bigTradeInscriptionLines,
+  clusterAnchorKey,
+  clusterBarDots,
+  clusterBigTrades,
+  clusterHolding,
+  clusterRadius,
+  countCircleOverlaps,
+  type BigTradeCluster,
+  type ClusterDiscInput,
   fitBidAskCellText,
   fitBubbleInscription,
   footprintHistogramRow,
@@ -2111,7 +2120,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     spawnKey:  string;   // dedupe + cull key (bt: / dt: prefixes)
     aggressorMethod?: AggressorMethod;
   };
+  /** One print as the cluster owner (footprintCanon's clusterBigTrades) reads it, carrying its bubble. */
+  type BigClusterInput = ClusterDiscInput & { readonly b: Bubble };
   const bubblesRef    = useRef<Bubble[]>([]);           // Big Trades — individual large prints
+  /*
+    F07B · THE BIG-TRADE DISCS THE LAST FRAME DREW — one per cluster (a lone
+    print is its own cluster and is its own bubble). Hover and click hit-test
+    THESE, so what the trader points at is what was painted; the clusters
+    carry their members for Inspect.
+  */
+  const bigTradeFrameRef = useRef<{
+    discs: Bubble[];
+    clusters: Map<string, BigTradeCluster<BigClusterInput>>;
+    intervalSec: number;
+  }>({ discs: [], clusters: new Map(), intervalSec: 60 });
   const bubbleSpawnRef = useRef<Set<string>>(new Set());
   const deltaBubblesRef = useRef<Bubble[]>([]);       // Delta mode — net delta per zone
   const deltaBubbleSpawnRef = useRef<Set<string>>(new Set());
@@ -6149,7 +6171,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             inspecting,
           };
         } else if (selectedBubbleKey) {
-          const bub = bubblesRef.current.find(b => b.spawnKey === selectedBubbleKey)
+          const bub = bubblesRef.current.find(b => b.spawnKey === clusterAnchorKey(selectedBubbleKey))
             ?? deltaBubblesRef.current.find(b => b.spawnKey === selectedBubbleKey);
           attSelection = { kind: "BUBBLE", key: selectedBubbleKey, onCamera: bub != null && inPlot(bub.x, bub.y), inspecting };
         }
@@ -7098,6 +7120,45 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // hide the bubbles behind the profile. Guarded → won't double-draw later.
         runWMVP();
 
+        // ── F07B · ONE CLUSTER OWNER (GP12 §64 "Merge labels") ──────────
+        // Serving 2026-09-26 03:55 CDT: four prints in one minute at
+        // 84209–84211 drew four discs on top of each other at the live edge.
+        // Every print is placed at its exact time and price FIRST; then the
+        // discs that touch on this screen merge into ONE cluster disc (area =
+        // Σ member areas, capped at the size owner's ceiling; centre = the
+        // size-weighted time and price), until no two discs touch. A lone
+        // print is its own cluster and stays its own bubble. Members are
+        // kept for Inspect — nothing is dropped, nothing is invented.
+        const bigClusters = clusterBigTrades<BigClusterInput>(bubblesRef.current.map(b => ({
+          key: b.spawnKey, x: b.x, y: b.y, r: b.baseR, size: Math.abs(b.value),
+          timeSec: b.anchorTime, barTime: b.anchorBarTime, price: b.anchorPrice, bid: b.bid, ask: b.ask, b,
+        })), { maxR: BIG_TRADE_MAX_R });
+        const bigClusterOf = new Map<string, BigTradeCluster<BigClusterInput>>();
+        const bigDiscs: Bubble[] = bigClusters.map(c => {
+          if (c.members.length === 1) return c.members[0].b;
+          bigClusterOf.set(c.key, c);
+          const a = c.anchor.b;
+          const side: "buy" | "sell" = c.ask >= c.bid ? "buy" : "sell";
+          return {
+            ...a,
+            spawnKey: c.key,
+            x: c.x, y: c.y,
+            // Target from the members' targets; drawn from their eased radii,
+            // so a cluster of fresh prints grows as they do.
+            baseR: c.r,
+            r: clusterRadius(c.members.map(m => m.b.r), BIG_TRADE_MAX_R),
+            side,
+            value: (side === "buy" ? 1 : -1) * c.size,
+            bid: c.bid, ask: c.ask,
+            born: Math.max(...c.members.map(m => m.b.born)),
+          };
+        });
+        bigTradeFrameRef.current = { discs: bigDiscs, clusters: bigClusterOf, intervalSec: intervalSec ?? 60 };
+        // The one selection, located on THIS frame's discs: a selected print
+        // that is now inside a cluster selects (and lights) its cluster.
+        const selDiscKey = clusterHolding(bigClusters, selectedBubbleKey)?.key ?? null;
+        canvas.dataset.bigTradeClusters = `${bigClusterOf.size}/${[...bigClusterOf.values()].reduce((s, c) => s + c.members.length, 0)}`;
+
         // F07A · Big Trades are MARKS ON THE MARKET: luminous gold discs at the
         // execution's own time and price, area ∝ size, the size / time / price
         // written INSIDE. No ticket boxes and no labels stepped outside a
@@ -7134,10 +7195,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const btNewest = btBars[btBars.length - 1];
         const btForming = btNewest && selectChartCloseLabel(Number(btNewest.time), timeframe, Date.now()).forming
           ? Number(btNewest.time) : null;
-        const byClaim = [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value));
+        const byClaim = [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value));
         let responsePaths = 0;
         byClaim.forEach((b, i) => {
-          const selP = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+          const selP = selDiscKey != null && b.spawnKey === selDiscKey;
           if (i >= BIG_TRADE_FULL && hoverId !== b.id && !selP) return;
           const pts = memoBigTradeResponsePath(b.spawnKey, { timeSec: b.anchorTime, price: b.anchorPrice, side: b.side }, btBars, btForming);
           if (!pts) return;
@@ -7176,9 +7237,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // its target on every spawn and pan-back, so ranking by it demoted
         // the newest largest print to a quiet ring until it grew, then
         // popped it and demoted another.
-        for (const b of [...bubblesRef.current].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
+        // Every disc and ring that reaches the glass, for the overlap receipt.
+        const drawnDiscs: { x: number; y: number; r: number }[] = [];
+        for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
-          const selB = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+          const selB = selDiscKey != null && b.spawnKey === selDiscKey;
           if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id && !selB) {
             ctx.save();
             ctx.globalAlpha = att.alpha("bigTrades");
@@ -7187,6 +7250,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1.2; ctx.stroke();
             ctx.restore();
             forceChips.push({ x: b.x - rq - 2, y: b.y - rq - 2, w: 2 * rq + 4, h: 2 * rq + 4 });
+            drawnDiscs.push({ x: b.x, y: b.y, r: rq });
             bubblesQuieted++;
             continue;
           }
@@ -7196,7 +7260,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const isHover = hoverId === b.id;
           // Only the membrane breathes; the centre stays on the evidence.
           const t = nowMs / 520 + b.phase;
-          const wob = 1 + Math.sin(t) * 0.03;
+          const wob = 1 + Math.sin(t) * BIG_TRADE_BREATH;
           const Rx = Math.max(0.1, b.r * wob);
           const Ry = Math.max(0.1, b.r / wob);
 
@@ -7225,7 +7289,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const inscription = fitBubbleInscription(b.r, bigTradeInscriptionLines(b.r,
             formatBubbleVolume(Math.abs(b.value)),
             formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current),
-            `${buy ? "↑" : "↓"} ${b.anchorPrice.toFixed(pxDp)}`), measureInscription);
+            `${buy ? "↑" : "↓"} ${b.anchorPrice.toFixed(pxDp)}`,
+            bigClusterOf.get(b.spawnKey)?.members.length ?? 1), measureInscription);
           if (inscription.length) {
             ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -7240,9 +7305,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
           // The disc is an obstacle for every later chip on the glass.
           forceChips.push({ x: b.x - b.r - 4, y: b.y - b.r - 4, w: 2 * b.r + 8, h: 2 * b.r + 8 });
+          drawnDiscs.push({ x: b.x, y: b.y, r: Math.max(Rx, Ry) });
           bigDrawn++;
           if (selB) markSelectedBubble(b, Rx, Ry);
         }
+        // GP12 §64 · the knot receipt: pairs of drawn discs whose circles
+        // still intersect. After clustering it is 0; anything else is a knot.
+        canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
         canvas.dataset.bigTradeInscribed = String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
@@ -7262,10 +7331,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Depth from the frame's one owner: FAR speaks macro, NEAR waits to
           // be asked (selected / hovered), MID names the dominant print.
           const calloutDepth = semanticDensity.depth;
-          const hoveredKey = hoverId != null ? bubblesRef.current.find(b => b.id === hoverId)?.spawnKey ?? null : null;
+          // F07B: only a DISC is eligible — a cluster, never one of its
+          // members — so the one callout names what the trader sees.
+          const hoveredKey = hoverId != null ? bigDiscs.find(b => b.id === hoverId)?.spawnKey ?? null : null;
           const pick = pickBigTradeCallout(
-            bubblesRef.current.map(b => ({ key: b.spawnKey, magnitude: Math.abs(b.value), onCamera: b.x >= 0 && b.x <= plotRight && b.y >= 0 && b.y <= pane0Bottom, b })),
-            { depth: calloutDepth, selectedKey: selectedBubbleKey, hoveredKey },
+            bigDiscs.map(b => ({ key: b.spawnKey, magnitude: Math.abs(b.value), onCamera: b.x >= 0 && b.x <= plotRight && b.y >= 0 && b.y <= pane0Bottom, b })),
+            { depth: calloutDepth, selectedKey: selDiscKey, hoveredKey },
           );
           calloutReceipt = `NONE:${pick.reason}`;
           if (pick.target) {
@@ -7274,6 +7345,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const words = bigTradeCalloutLines({
               bid: b.bid, ask: b.ask, price: b.anchorPrice, priceText: b.anchorPrice.toFixed(pxDp),
               aggressorMethod: b.aggressorMethod, pct: rank.pct, prints: rank.prints,
+              cluster: bigClusterOf.has(b.spawnKey) ? { n: bigClusterOf.get(b.spawnKey)!.members.length, total: Math.abs(b.value) } : null,
             });
             if (words) {
               ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
@@ -7296,7 +7368,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 calloutReceipt = "NONE:NO_ROOM";
               } else {
                 const r = spot.rect;
-                const selC = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+                const selC = selDiscKey != null && b.spawnKey === selDiscKey;
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selC });
                 // The leader: from the disc's rim to the nearest point of the box.
@@ -7336,6 +7408,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       } else {
         // Left big-trades mode → clear bubbles + tooltip
         bubblesRef.current = [];
+        bigTradeFrameRef.current = { discs: [], clusters: new Map(), intervalSec: 60 };
         bubbleSpawnRef.current = new Set();
         bubbleHoverRef.current = null;
         canvas.dataset.bigTradeBubbleCount = "0";
@@ -7346,7 +7419,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
           "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
-          "bigTradeCallout", "bigTradeCalloutSlot"] as const) delete canvas.dataset[k];
+          "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
       }
 
       // O-06 · THE FOOTPRINT RECEIPT, after every mode has painted (Big
@@ -17492,7 +17565,37 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // so it is topmost. The selection carries its KIND, so the ticket never
     // calls a zone's net an executed print, and its size RELATION among the
     // retained bubbles of the same kind.
-    const hit = [...bubblesRef.current, ...deltaBubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
+    // F07B: big trades hit-test the DISCS the last frame drew — a cluster is
+    // one target, and its members are listed (and selectable) in Inspect.
+    const bigFrame = bigTradeFrameRef.current;
+    const hit = [...bigFrame.discs, ...deltaBubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
+    const hitCluster = hit && hit.kind !== "delta" ? bigFrame.clusters.get(hit.spawnKey) ?? null : null;
+    if (hit && hitCluster) {
+      // RELATIVE SIZE VS SESSION for the cluster's total and for each member,
+      // against every print this chart captured this session.
+      const accC = bigTradePrintAccRef.current;
+      const rankC = sessionSizePercentile(hitCluster.size, accC.values());
+      const members = hitCluster.members.map(m => ({
+        printKey: m.key, barTime: m.barTime, timeMs: m.timeSec * 1000, price: m.price,
+        bid: m.bid, ask: m.ask, size: m.size, side: m.b.side, aggressorMethod: m.b.aggressorMethod,
+        pct: sessionSizePercentile(m.size, accC.values()).pct,
+      }));
+      const a = hitCluster.anchor;
+      onSelectBigTrade?.({
+        symbol, timeframe, barTime: a.barTime, printKey: hitCluster.key,
+        timeMs: a.timeSec * 1000, priceLevel: a.price,
+        bid: hitCluster.bid, ask: hitCluster.ask, total: hitCluster.size, aggressorMethod: a.b.aggressorMethod,
+        kind: "big-trade", relation: null, rawTape: null,
+        sessionRank: { pct: rankC.pct, prints: rankC.prints },
+        cluster: {
+          n: members.length, total: hitCluster.size, anchorKey: a.key,
+          barsTouched: hitCluster.barTimes.length,
+          barDots: clusterBarDots(hitCluster.barTimes, bigFrame.intervalSec),
+          members,
+        },
+      });
+      return;
+    }
     if (hit) {
       const same = hit.kind === "delta" ? deltaBubblesRef.current : bubblesRef.current;
       const relation = bubbleRelation(
@@ -17504,6 +17607,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         timeMs: hit.kind === "delta" ? undefined : hit.anchorTime * 1000, priceLevel: hit.anchorPrice,
         bid: hit.bid, ask: hit.ask, total: hit.bid + hit.ask, aggressorMethod: hit.aggressorMethod,
         kind: hit.kind, relation,
+        sessionRank: hit.kind === "delta" ? null : (() => {
+          const rk = sessionSizePercentile(bubbleClaimMagnitude(hit.kind, hit.bid, hit.ask), bigTradePrintAccRef.current.values());
+          return { pct: rk.pct, prints: rk.prints };
+        })(),
         // F06B · a print's raw tape goes to Inspect with it; a delta zone is
         // a net, not a print, and carries none.
         rawTape: hit.kind === "delta" ? null : selectPrintRawTape(bigTradePrintAccRef.current.get(hit.anchorBarTime), {
@@ -17593,7 +17700,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const r0 = e.currentTarget.getBoundingClientRect();
       setOver(drawHitTestRef.current(e.clientX - r0.left, e.clientY - r0.top));
     }
-    const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];
+    // F07B: the discs the last frame drew — a cluster is one hover target.
+    const bubbles = [...bigTradeFrameRef.current.discs, ...deltaBubblesRef.current];
     if (!bubbles.length) {
       if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
       return;
@@ -17606,7 +17714,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const b = bubbles[i];
       if (Math.hypot(mx - b.x, my - b.y) <= b.r + 2) { hit = b; break; }
     }
-    if (hit) {
+    const hoverCluster = hit && hit.kind !== "delta" ? bigTradeFrameRef.current.clusters.get(hit.spawnKey) ?? null : null;
+    if (hit && hoverCluster) {
+      if (bubbleHoverRef.current !== hit.id) {
+        // A cluster's tip names the cluster: n prints, their summed claim,
+        // the price range they printed across. Each member lives in Inspect.
+        const prices = hoverCluster.members.map(m => m.price);
+        const lo = Math.min(...prices), hi = Math.max(...prices);
+        bubbleHoverRef.current = hit.id;
+        setBubbleTip({
+          x: hit.x, y: hit.y - hit.r,
+          side: hit.side,
+          heading: `CLUSTER ×${hoverCluster.members.length}`,
+          headline: formatBubbleExact(hoverCluster.size),
+          text: `${hoverCluster.members.length} prints · ${formatBubblePrice(lo)}${hi > lo ? `–${formatBubblePrice(hi)}` : ""} · ${formatBubbleVolume(hoverCluster.ask)} bought · ${formatBubbleVolume(hoverCluster.bid)} sold · click to inspect each`,
+        });
+      }
+    } else if (hit) {
       if (bubbleHoverRef.current !== hit.id) {
         // The words are owned by bubbleClaim.ts, because `hit.value` means a
         // DIFFERENT quantity per bubble kind and this one call site serves

@@ -63,9 +63,17 @@ describe("the selected object is loudest", () => {
     // 2026-09-25 (footprint canon, F07A): the loop's first receipt after it is
     // `bigTradesDrawn` — the staggered-label receipt went with the labels that
     // stepped outside their bubbles.
-    const big = slice("for (const b of [...bubblesRef.current].sort(", "canvas.dataset.bigTradesDrawn");
+    // 2026-09-26 (F07B clusters): the big-trade loop iterates the cluster
+    // owner's discs, and the one selection is first LOCATED on them
+    // (`selDiscKey` = the disc holding `selectedBubbleKey` — its own key, a
+    // member's, or a cluster's anchor), so a selected print that merged into
+    // a cluster lights the cluster instead of vanishing from the glass.
+    const big = slice("for (const b of [...bigDiscs].sort(", "canvas.dataset.bigTradesDrawn");
+    expect(slice("const bigClusters = clusterBigTrades<BigClusterInput>(", "const BIG_TRADE_FULL = 5;"))
+      .toMatch(/const selDiscKey = clusterHolding\(bigClusters, selectedBubbleKey\)\?\.key \?\? null;/);
     for (const [name, loop, key] of [["delta", delta, "bubbles"], ["big-trade", big, "bigTrades"]] as const) {
-      expect(loop, name).toMatch(/const selB = selectedBubbleKey != null && b\.spawnKey === selectedBubbleKey;/);
+      if (name === "delta") expect(loop, name).toMatch(/const selB = selectedBubbleKey != null && b\.spawnKey === selectedBubbleKey;/);
+      else expect(loop, name).toMatch(/const selB = selDiscKey != null && b\.spawnKey === selDiscKey;/);
       expect(loop, name).toContain(`ctx.globalAlpha = att.alpha("${key}", { selectedItem: selB });`);
       expect(loop, name).toContain(`ctx.globalAlpha = att.textAlpha("${key}", { selectedItem: selB });`);
       // The mark is drawn AFTER the bubble's own save/restore, outside its alpha.

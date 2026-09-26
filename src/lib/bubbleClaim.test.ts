@@ -81,8 +81,11 @@ function region(src: string, startMark: string, endMark: string, minLen: number)
   return slice;
 }
 
+// 2026-09-26 (F07B clusters): the hover list is the big-trade DISCS the last
+// frame drew (a cluster is one target) plus the delta bubbles; the region
+// still runs through both the cluster tip and the per-print claim tip.
 const tooltipHandler = () =>
-  region(chartSrc(), "const bubbles = [...bubblesRef.current", "} else if (bubbleHoverRef.current", 400);
+  region(chartSrc(), "const bubbles = [...bigTradeFrameRef.current.discs", "} else if (bubbleHoverRef.current", 400);
 
 const tooltipRender = () =>
   region(chartSrc(), "{bubbleTip && (() => {", "Comic tail pointer", 400);
@@ -274,6 +277,10 @@ describe("formatters keep small crypto sizes visible", () => {
     // exists to show, on every crypto symbol.
     expect(formatBubbleVolume(0.0431)).toBe("0.0431");
     expect(formatBubbleVolume(0.25)).toBe("0.25");
+    // 2026-09-26: whole-coin crypto sizes keep decimals; whole units do not grow any.
+    expect(formatBubbleVolume(1.21)).toBe("1.21");
+    expect(formatBubbleVolume(12.7)).toBe("12.7");
+    expect(formatBubbleVolume(5)).toBe("5");
     expect(formatBubbleVolume(0)).toBe("0");
   });
 
@@ -281,6 +288,9 @@ describe("formatters keep small crypto sizes visible", () => {
     expect(formatBubbleExact(12_400_000)).toBe("12,400,000");
     expect(formatBubbleExact(12_400)).toBe("12,400");
     expect(formatBubbleExact(0.0431)).toBe("0.0431");
+    // 2026-09-26: a whole-coin crypto size keeps its decimals (was "1").
+    expect(formatBubbleExact(1.21)).toBe("1.21");
+    expect(formatBubbleExact(250)).toBe("250");
     expect(formatBubbleExact(Number.NaN)).toBe("—");
   });
 
