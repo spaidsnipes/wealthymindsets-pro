@@ -16073,6 +16073,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const pref = { x: plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
               const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: Math.max(keepOutMinX(), m.x), blockers: floatingChips, strict: true });
               recordKeepOut(keepOutLedger, spot);
+              // A BLOCKED name is NOT painted (serving ES1! 15m, 2026-09-26:
+              // "SWING H◉UNRESOLVED" — a BLOCKED placement keeps the preferred
+              // rect, which sat on the H-901 coin and the newest bodies). The
+              // rule stays on price; the name is read in Inspect.
+              if (spot.mode === "BLOCKED") {
+                levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:BLOCKED`);
+                continue;
+              }
               floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
               named.push(spot.rect);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.82)})`;
@@ -16110,15 +16118,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alt ? [alt] : [],
               });
               recordKeepOut(keepOutLedger, spot);
-              floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
-              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.82)})`;
-              ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
-              lines.forEach((l, i) => {
-                ctx.font = l.f;
-                ctx.fillStyle = l.c;
-                ctx.fillText(l.t, spot.rect.x + 5, spot.rect.y + 8 + i * 12);
-              });
-              if (av && av !== "UNKNOWN") ds.auctionVerdict = av;
+              // Same rule as the level names: BLOCKED is not painted.
+              if (spot.mode !== "BLOCKED") {
+                floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
+                ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.82)})`;
+                ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+                lines.forEach((l, i) => {
+                  ctx.font = l.f;
+                  ctx.fillStyle = l.c;
+                  ctx.fillText(l.t, spot.rect.x + 5, spot.rect.y + 8 + i * 12);
+                });
+                if (av && av !== "UNKNOWN") ds.auctionVerdict = av;
+              }
               ds.marketStructureBiasPlaced = spot.mode;
             }
 

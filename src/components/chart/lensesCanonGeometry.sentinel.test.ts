@@ -55,6 +55,7 @@ const blocks = (raw: string) => ({
   contradiction: strip(between(raw, "H-401 · CONTRADICTION NOT AVERAGED", "PROFILE STACK PLAN — one owner")),
   structure: strip(between(raw, "H-704 · MARKET STRUCTURE — swing highs and lows on price", "F13 · SEMANTIC ZOOM TAG")),
   risk: strip(between(raw, "H-1001 · RISK ON PRICE — hardware brackets", "THE RECEIPT — torn from the same DECISION_ID")),
+  raw,
 });
 
 type Pin = { name: string; holds: (b: ReturnType<typeof blocks>) => boolean };
@@ -157,6 +158,16 @@ const PINS: Pin[] = [
       b.structure.includes("ds.marketStructureBiasPlaced = spot.mode;") &&
       /const pref = \{ x: plotRightS - 6 - tw, y: Math\.max\(HEADER_FLOOR_Y \+ 2,/.test(b.structure) },
 
+  // Added 2026-09-26 after serving ES1! 15m: "SWING H◉UNRESOLVED" — a BLOCKED
+  // name kept its preferred rect and painted over the H-901 coin and the
+  // newest bodies. BLOCKED is not painted; the coin is on the ledger first.
+  { name: "H-704 a BLOCKED level name is not painted, and the H-901 coin is on the ledger before it places", holds: b =>
+      /recordKeepOut\(keepOutLedger, spot\);\s*if \(spot\.mode === "BLOCKED"\) \{\s*levels\.push\([^\n]*:BLOCKED`\);\s*continue;\s*\}\s*floatingChips\.push\(\{ x: spot\.rect\.x, y: spot\.rect\.y, w: tw, h: th \}\);\s*named\.push\(spot\.rect\);/.test(b.structure) &&
+      b.raw.indexOf("floatingChips.push(spotC.rect);") > -1 &&
+      b.raw.indexOf("floatingChips.push(spotC.rect);") < b.raw.indexOf("H-704 · MARKET STRUCTURE — swing highs and lows on price") },
+  { name: "H-704 a BLOCKED bias plate is not painted", holds: b =>
+      /if \(spot\.mode !== "BLOCKED"\) \{\s*floatingChips\.push\(\{ x: spot\.rect\.x, y: spot\.rect\.y, w: tw, h: th \}\);\s*ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spot, 0\.82\)\}\)`;\s*ctx\.fillRect\(spot\.rect\.x, spot\.rect\.y, tw, th\);\s*lines\.forEach/.test(b.structure) },
+
   // ── H-1001 ───────────────────────────────────────────────────────────────
   { name: "H-1001 the silence is named when nothing is bracketed", holds: b =>
       b.risk.includes('"RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk"') &&
@@ -192,6 +203,8 @@ const MUTATIONS: { pin: string; from: string | RegExp; to: string }[] = [
   { pin: "H-704 the receipt counts only pivots on camera", from: "if (x < 0 || x > plotRightS || y < 0 || y > paneBotS) continue;", to: "" },
   { pin: "H-704 chevrons, letters beside their own swing, level rules behind candles", from: 'if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) continue;', to: "" },
   { pin: "H-704 bias word through the keep-out owner, never in the header band", from: "ds.marketStructureBiasPlaced = spot.mode;", to: 'ctx.fillText(word, W - 168, 6);' },
+  { pin: "H-704 a BLOCKED level name is not painted, and the H-901 coin is on the ledger before it places", from: "if (spot.mode === \"BLOCKED\") {\n                levels.push", to: "if (false) {\n                levels.push" },
+  { pin: "H-704 a BLOCKED bias plate is not painted", from: "if (spot.mode !== \"BLOCKED\") {\n                floatingChips.push", to: "if (true) {\n                floatingChips.push" },
   { pin: "H-1001 the silence is named when nothing is bracketed", from: "? \"RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk\"", to: "? \"\"" },
   { pin: "H-1001 callouts placed by the keep-out owner, no card border, no ad-hoc slide", from: "ctx.fillStyle = color; ctx.fillRect(x, y - h / 2, 2, h);", to: "ctx.strokeStyle = color; ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, w - 1, h - 1);" },
   { pin: "H-1001 R ticks on the reward bracket from the tick owner", from: 'if (ticksR.length) ds.riskOnPriceTicks = ticksR.join(",");', to: "" },
