@@ -1173,6 +1173,7 @@ export function ChartInspectTicket({
           {fusion.sources.map(s => (
             <div key={s.id}>Source {s.species} · own POC {s.poc?.toFixed(2) ?? "—"} · volume {Math.round(s.volume).toLocaleString("en-US")}</div>
           ))}
+          <div>DERIVED · {fusion.evidence === "CANDLE_ESTIMATED" ? "CANDLE-ESTIMATED (a parent's volume was spread over bar ranges)" : "TRADE-BASED"} · {fusion.volumeUnit} · {fusion.sharedRows} shared rows · policy {fusion.overlapPolicy}</div>
           <div>Method {fusion.method} v{fusion.version} · grid {fusion.step} · asOf {fusion.asOf != null ? clock.stamp(fusion.asOf) : "—"} · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
         </div>
       )}

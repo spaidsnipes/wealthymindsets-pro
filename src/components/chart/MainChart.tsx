@@ -190,6 +190,8 @@ const PROFILE_GEOMETRY_RECEIPTS = [
   "visibleRangeGeometry", "profileFusionGeometry",
   // P-110 canon pass (2026-09-25): the Living rules / solid body / POC mark, the species captions.
   "profileFusionBody", "livingProfileRules", "livingProfileBodyInk", "livingProfileBodyYields", "livingProfileBodyClipped", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption",
+  // G16 §23: the fused object's caption / evidence and a refused pair's words.
+  "profileFusionCaption", "profileFusionEvidence", "profileFusionRefusal",
 ] as const;
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
@@ -338,7 +340,9 @@ import {
   rewardRTicks,
   smoothSegments,
 } from "@/lib/chart/lensGlassGeometry";
-import { fuseProfiles, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
+import { fuseProfiles, fusedCaption, fusionRefusalCaption, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
+import { fusionSourceFor, pickLawfulFusionPair, type FusionSourceInputs } from "@/lib/marketData/viewModels/profileFusionSources";
+import { profileEstWord } from "@/lib/marketData/viewModels/profileEvidenceWord";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
@@ -13609,8 +13613,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           so it leaves no box in the chip ledger. "Stands" = the fused object the
           last frame built (fusionObjectRef), the same fact the governor reads.
         */
+        // G16 §23 · every parent states instrument, volume unit, evidence and
+        // time window (profileFusionSources owns the mapping), and the auto pair
+        // is the first LAWFUL pair — Living-over-every-bar + Composite counts
+        // the completed sessions twice and is refused, named.
+        const fusionBars = barsRef.current ?? [];
+        const fusionInputs: FusionSourceInputs = {
+          instrument: String(symbol),
+          firstBarTime: fusionBars.length ? Number(fusionBars[0].time) : null,
+          lastBarTime: fusionBars.length ? Number(fusionBars[fusionBars.length - 1].time) : null,
+          living: layerOnRef.current.livingProfile ? livingProfileRef.current : null,
+          composite: layerOnRef.current.compositeProfile ? compositeProfileRef.current : null,
+          visibleRange: vrpOn ? vrpVM : null,
+        };
+        const fusionSourceOf = (sp: StackSpecies): FusionSourceProfile | null => fusionSourceFor(sp, fusionInputs);
         const fusionAutoPair: StackSpecies[] | null = layerOnRef.current.profileFusion === true && stackOrder.length >= 2
-          ? (stackOrder.includes("LIVING") ? [stackOrder.find(s => s !== "LIVING")!, "LIVING"] : [stackOrder[0], stackOrder[1]])
+          ? pickLawfulFusionPair(stackOrder, fusionSourceOf)
           : null;
         const fusionPairNow = stackPrefsRef.current.fusion ?? fusionAutoPair;
         const parentChipsWithheld = new Set<StackSpecies>(fusionObjectRef.current && fusionPairNow && fusionPairNow.length === 2 ? fusionPairNow : []);
@@ -14523,7 +14541,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // The species' caption rides just above its own lane — no longer
                 // a fixed row at y=50 inside the header band, where it sat under
                 // the semantic badge and INSPECT (serving, 2026-09-25).
-                const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED`;
+                // G16 §20 · built from bar volume spread over each bar's range — says so.
+                const text = `COMPOSITE · ${cp.sessions} SESSION${cp.sessions === 1 ? "" : "S"} · TODAY EXCLUDED${profileEstWord(cp.quality)}`;
                 const capR = quietWords(text, { x: right, y: top - 18, right: true }, pk.rgba("VALUE", 0.9), [{ x: right, y: top - 34, right: true }]);
                 ds.compositeCaption = `${Math.round(capR.x)},${Math.round(capR.y)}`;
               }
@@ -14643,7 +14662,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Just above its own lane — no longer a fixed row at y=66 inside
               // the header band, where it collided with the semantic badge
               // "MID · ZONES + PROFILE SPEAK" and INSPECT (serving, 2026-09-25).
-              const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW`;
+              const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW${profileEstWord(vrpVM.quality)}`;
               const capR = quietWords(text, { x: right, y: top - 18, right: true }, pk.rgbaAs("ANCHOR", "VALUE", 0.92), [{ x: right, y: top - 34, right: true }]);
               ds.visibleRangeCaption = `${Math.round(capR.x)},${Math.round(capR.y)}`;
             }
@@ -14681,17 +14700,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const pair = stackPrefsRef.current.fusion ?? autoPair;
           ds.profileFusionPair = pair && pair.length === 2 ? `${stackPrefsRef.current.fusion ? "TRADER" : "AUTO"}:${pair.join("+")}` : "NONE";
           if (pair && pair.length === 2) {
-            const cpF = layerOnRef.current.compositeProfile ? compositeProfileRef.current : null;
-            const lpF = layerOnRef.current.livingProfile ? livingProfileRef.current : null;
-            const lastT = barsRef.current?.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null;
-            const source = (sp: StackSpecies): FusionSourceProfile | null =>
-              sp === "LIVING" && lpF?.drawn
-                ? { id: "living", species: "LIVING", rows: lpF.bars, poc: lpF.poc, asOf: lastT, fidelity: null }
-                : sp === "COMPOSITE" && cpF?.drawn
-                ? { id: "composite", species: "COMPOSITE", rows: cpF.rows, poc: cpF.poc, asOf: cpF.asOf, fidelity: null }
-                : sp === "VISIBLE_RANGE" && vrpOn && vrpVM?.drawn
-                  ? { id: "visible-range", species: "VISIBLE_RANGE", rows: vrpVM.rows, poc: vrpVM.poc, asOf: (barsRef.current?.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null), fidelity: null }
-                  : null;
+            const source = fusionSourceOf;
             const fr = fuseProfiles(source(pair[0]), source(pair[1]));
             fusionObjectRef.current = fr.ok ? fr.fused : null;
             ds.profileFusionObject = fr.ok ? `FUSED:${fr.fused.poc}:${fr.fused.sources.map(s => s.id).join("+")}` : `REFUSED:${fr.reason}`;
@@ -14780,6 +14789,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.globalAlpha = fuseA;
               // ③ the fused object's own head glyph, above its highest row.
               if (fusedTips.length > 0) paintOrganismGlyph("FUSION", spanR - spanW / 2, fusedTips[0].y - 14, `rgba(${FU},0.95)`, floatingChips, "FUSED");
+              // G16 §20/§23 · the derived object names itself: DERIVED, both
+              // parents, and CANDLE-EST when either parent's volume was estimated.
+              ds.profileFusionEvidence = f.evidence;
+              if (fusedTips.length > 0 && att.speaks("fusedObject")) {
+                const capF = quietWords(fusedCaption(f), { x: spanR, y: fusedTips[0].y - 34, right: true }, `rgba(${FU},0.95)`, [{ x: spanR, y: fusedTips[0].y - 50, right: true }]);
+                ds.profileFusionCaption = `${Math.round(capF.x)},${Math.round(capF.y)}`;
+              }
               // PARENT A + PARENT B → DERIVED. Each parent's OWN POC (hollow
               // ring, at its own lane) sends a tributary that converges on the
               // fused POC (filled diamond). The shape says "made from these
@@ -14835,6 +14851,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               line(f.vah, `FUSED VAH ${f.vah.toFixed(pxDp)}`, [4, 3], pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
               line(f.val, `FUSED VAL ${f.val.toFixed(pxDp)}`, [4, 3], pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
               ctx.restore();
+            }
+            // G16 §23 · A REFUSED PAIR SAYS WHY ON THE GLASS (the pair and the
+            // named reason), where the fused object would have stood — never a
+            // silent lane that reads as "fusion is broken".
+            if (!fr.ok) {
+              const endXF = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : plotRight - 8;
+              ctx.save(); ctx.globalAlpha = att.alpha("fusedObject");
+              const rr = quietWords(fusionRefusalCaption(pair, fr.reason), { x: endXF, y: HEADER_FLOOR_Y + 26, right: true }, pk.rgbaAs("TAIL", "VALUE", 0.9),
+                [2, 3, 4, 5].map(k => ({ x: endXF, y: HEADER_FLOOR_Y + 8 + 18 * k, right: true })));
+              ctx.restore();
+              ds.profileFusionRefusal = `${fr.reason}:${Math.round(rr.x)},${Math.round(rr.y)}`;
             }
           } else {
             fusionObjectRef.current = null;

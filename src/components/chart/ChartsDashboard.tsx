@@ -27,7 +27,7 @@ import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
-import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
+import { fusionRefusalWords, type FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { readRiskReceipt, tearRiskReceipt, writeRiskReceiptOnce, type RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { StackArrangeBar } from "./StackArrangeBar";
 import { STACK_PREFS_STORAGE_KEY, parseStackPrefs, withoutLocked, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -5043,7 +5043,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 onToggle={onProfileMenuToggle}
               />
               <StackArrangeBar prefs={profileStackPrefs} onChange={onStackPrefsChange}
-                fusionNote={fusion.fused ? `POC ${fusion.fused.poc.toFixed(2)} recomputed` : fusion.refusal ? `refused · ${fusion.refusal.replace(/_/g, " ").toLowerCase()}` : null} />
+                fusionNote={fusion.fused ? `POC ${fusion.fused.poc.toFixed(2)} recomputed` : fusion.refusal ? `refused · ${fusionRefusalWords(fusion.refusal)}` : null} />
               {/* READING LENSES — structure, regime lighting, the question lens and
                   scaffolding re-read the SAME camera; they are not profiles and do
                   not share the profiles' grid. Order-flow tools live behind
