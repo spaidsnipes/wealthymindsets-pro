@@ -1218,3 +1218,46 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     }
   });
 });
+
+describe("UI-04 · the Question Lens stands BESIDE the market, in the rail", () => {
+  const lens = {
+    version: 1, active: true, kind: "ABSORPTION" as const, ledger: "DEBT" as const, choice: "AUTO" as const,
+    refusal: null, question: "Is effort being absorbed at 30684.00–30951.50?", focus: "Absorption of effort (volume basis)",
+    bandLow: 1, bandHigh: 2, bandStart: 3,
+    debt: [
+      { label: "CLEAR DISPLACEMENT", paid: false, evidence: "farthest move away 0.00 vs 2× median range 178.50" },
+      { label: "SUSTAINED EFFORT", paid: true, evidence: "effort after 21% vs in zone 77%" },
+    ],
+    openDebt: 1, posture: "WAIT · LET THE MARKET PAY", nextQuestion: "Is the opposite side's effort being rewarded?",
+    control: { aggression: 0.77, displacement: 0.16, effortWord: "EFFORT" as const, verdict: "EFFORT ABSORBED" as const },
+  };
+
+  it("prints the chart's reading verbatim, in the plate's order", () => {
+    const html = render({ presentation: "rail", questionLens: lens });
+    expect(html).toContain('data-testid="spine-question-lens"');
+    const order = ["Active question", "Is effort being absorbed", "Focus · Absorption", "Evidence debt · 1/2 paid · 1 open",
+      "Missing · CLEAR DISPLACEMENT", "Paid · SUSTAINED EFFORT", "WAIT · LET THE MARKET PAY", "Next question →", "EFFORT 77%", "DISPLACEMENT 16%", "Verdict: EFFORT ABSORBED"]
+      .map(w => html.indexOf(w));
+    expect(order.every(i => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("no lens, or the band (phone) presentation → nothing", () => {
+    expect(render({ presentation: "rail", questionLens: null })).not.toContain("spine-question-lens");
+    expect(render({ presentation: "band", questionLens: lens })).not.toContain("spine-question-lens");
+  });
+});
+
+describe("the canvas stops painting lens cards over the candles when the rail carries them", () => {
+  it("MainChart gates the strip, debt and control cards on lensInRail, and publishes only on change", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const code = readFileSync(join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(code).toContain("if (!narrowLens && !lensInRailRef.current) {");
+    expect(code).toContain("lensColumnActive = !narrowLens && !lensInRailRef.current;");
+    expect(code).toContain("if (key !== lensReadKeyRef.current) {");
+    const room = readFileSync(join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+    expect(room).toContain("lensInRail={!narrowViewport && !optionsOpen}");
+    expect(room).toContain("questionLens: questionLensOn ? railLens : null");
+  });
+});

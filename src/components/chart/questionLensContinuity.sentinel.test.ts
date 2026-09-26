@@ -45,7 +45,7 @@ describe("question lens and restored selection", () => {
   it("TPO yields the left column only when the lens actually painted it this frame", () => {
     // Pin moved 64 → 84 (2026-09-25): the EFFORT reopen button's box ends at x 76.
     expect(CHART).toMatch(/const leftEdge = lensColumnActive \? QUESTION_LENS_COLUMN_RIGHT : 84;/);
-    expect(CHART).toMatch(/lensColumnActive = !narrowLens;/);
+    expect(CHART).toMatch(/lensColumnActive = !narrowLens && !lensInRailRef\.current;/);
     expect(CHART).toMatch(/if \(!lensFormPainted\) delete ds\.questionLensForm;/);
   });
 

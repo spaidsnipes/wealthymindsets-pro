@@ -281,7 +281,7 @@ import FootprintWorksheetView from "@/components/experience/FootprintWorksheetVi
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
-import { QUESTION_CHOICES, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { QUESTION_CHOICES, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
@@ -829,6 +829,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [visibleRangeProfileOn, setVisibleRangeProfileOn] = useState<boolean>(() => lsGet("wm_ofVisibleRangeProfile", false) as boolean);
   const [regimeLightingOn, setRegimeLightingOn] = useState<boolean>(() => lsGet("wm_ofRegimeLighting", false) as boolean);
   const [questionLensOn, setQuestionLensOn] = useState<boolean>(() => lsGet("wm_ofQuestionLens", false) as boolean);
+  // The chart's lens reading, published when it changes (UI-04 rail column).
+  const [railLens, setRailLens] = useState<QuestionLensVM | null>(null);
   // What the trader ASKED of the Question Lens (Auto = the camera chooses).
   const [questionChoice, setQuestionChoice] = useState<QuestionChoice>(() => {
     const v = lsGet("wm_questionChoice", "AUTO") as string;
@@ -3807,6 +3809,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // and only while the tape belongs to this symbol (`tickerOwner`, the guard
     // the quote uses below). The band withholds it under a replay camera.
     flowContext: selectPlaqueFlowContext(chartFlowSnap, { symbolOwnsTape: tickerOwner === symbol }),
+    // UI-04: the lens's question and evidence debt stand beside the market.
+    questionLens: questionLensOn ? railLens : null,
     // THE COMPANION CAMERA, from the SAME owner the masthead standing reads.
     // One boolean, one owner — the masthead, the chart's data-truth strip and
     // this band cannot drift into disagreeing about which camera the room is
@@ -5558,6 +5562,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       regimeLighting={chartRegimeLighting}
                       regimeLightingOnChart={regimeLightingOn}
                       questionLensOnChart={questionLensOn}
+                      onQuestionLensRead={setRailLens}
+                      lensInRail={!narrowViewport && !optionsOpen}
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}
                       continuationOnChart={continuationHealthVM ? { health: continuationHealthVM.health, reason: continuationHealthVM.reason } : null}

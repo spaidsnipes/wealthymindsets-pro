@@ -194,7 +194,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
-  "questionCallout", "questionChoice", "questionLensForm",
+  "questionCallout", "questionChoice", "questionLensForm", "questionLensHome",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
@@ -285,7 +285,7 @@ import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFi
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
-import { selectQuestionLens, type QuestionChoice } from "@/lib/marketData/viewModels/selectQuestionLens";
+import { selectQuestionLens, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
 import { selectSessionGhostProfiles } from "@/lib/marketData/viewModels/selectSessionGhostProfiles";
 import { selectFarRegimeEnvelope } from "@/lib/marketData/viewModels/selectFarRegimeEnvelope";
@@ -1212,6 +1212,16 @@ interface Props {
   questionLensOnChart?: boolean;
   /** What the trader asked of the Question Lens (AUTO = the camera chooses). */
   questionChoiceOnChart?: QuestionChoice;
+  /**
+   * UI-04 — the lens's EVIDENCE DEBT column stands BESIDE the market, not on
+   * it. When the room's rail is mounted, the chart publishes its lens reading
+   * here (only when it changes) and stops painting the question strip, the
+   * debt card and the control card over the candles; the band and callouts on
+   * price stay. Serving BTC 5m 2026-09-26: the WHAT CHANGED card sat on the
+   * candles and buried the ABSORPTION SHELF drawn under it.
+   */
+  onQuestionLensRead?: (lens: QuestionLensVM | null) => void;
+  lensInRail?: boolean;
   /** SHOW RAW — every overlay reading hidden, candles bare; switches untouched. */
   rawOnChart?: boolean;
   /** The continuation owner's verdict, for the Question Lens's Continuing? (verbatim). */
@@ -1592,6 +1602,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   visibleRangeProfileOnChart = false,
   questionLensOnChart = false,
   questionChoiceOnChart = "AUTO",
+  onQuestionLensRead,
+  lensInRail = false,
   rawOnChart = false,
   continuationOnChart = null,
   permissionOnChart = null,
@@ -1894,6 +1906,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   marketObjectTargetsRef.current = marketObjectTargets;
   const questionChoiceRef = useRef<QuestionChoice>("AUTO");
   questionChoiceRef.current = questionChoiceOnChart;
+  const onQuestionLensReadRef = useRef(onQuestionLensRead);
+  onQuestionLensReadRef.current = onQuestionLensRead;
+  const lensInRailRef = useRef(lensInRail);
+  lensInRailRef.current = lensInRail;
+  const lensReadKeyRef = useRef<string>("");
   const rawRef = useRef(false);
   rawRef.current = rawOnChart;
   const continuationRef = useRef<typeof continuationOnChart>(null);
@@ -10088,6 +10105,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                top of the pane, the question's band on price, and the measured
                evidence debt as a compact column. While active, every layer
                that is not the question's subject is quieted (questionQuiet). */
+            if (layerOnRef.current.questionLens !== true && lensReadKeyRef.current !== "OFF") {
+              lensReadKeyRef.current = "OFF";
+              onQuestionLensReadRef.current?.(null);
+            }
             if (layerOnRef.current.questionLens === true) {
               const lens = selectQuestionLens({
                 absorption: anatomy,
@@ -10100,6 +10121,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 permission: permissionRef.current,
               });
               ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
+              // Published to the rail only when the reading CHANGES — never per frame.
+              {
+                const key = JSON.stringify(lens);
+                if (key !== lensReadKeyRef.current) {
+                  lensReadKeyRef.current = key;
+                  onQuestionLensReadRef.current?.(lens);
+                }
+              }
+              ds.questionLensHome = lensInRailRef.current ? "RAIL" : "CANVAS";
               ds.questionChoice = lens.choice;
               // The strip stops short of the right-edge profile labels (the Ask
               // chooser now lives in the lens's own left column, under control).
@@ -10204,7 +10234,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const narrowLens = W < 640; // keep in step with the exhaustion chip's column rule
                 ds.questionLensForm = narrowLens ? "COMPACT" : "FULL";
                 lensFormPainted = true;
-                lensColumnActive = !narrowLens;
+                lensColumnActive = !narrowLens && !lensInRailRef.current;
                 if (narrowLens) {
                   const bx = 8, by = 96, bw = W - 16;
                   ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(bx, by, bw, 34);
@@ -10223,7 +10253,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
                   ctx.fillText(`${paid}/${rows} ${lens.ledger === "CHANGES" ? "MOVED" : "PAID"} · ${lens.posture ?? ""}`, bx + 8, by + 25);
                 }
-                if (!narrowLens) {
+                if (!narrowLens && !lensInRailRef.current) {
                 // THE PLATE'S TOP STRIP — ACTIVE QUESTION | QUESTION FOCUS |
                 // SECONDARY NOISE · QUIETED, across the camera.
                 {

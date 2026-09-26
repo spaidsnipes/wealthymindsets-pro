@@ -46,6 +46,7 @@
  */
 
 import * as React from "react";
+import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 
 import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
@@ -245,6 +246,14 @@ export interface DecisionSpineBandProps {
    * for the same reason the asOf clock is: it is a LIVE reading.
    */
   readonly flowContext?: PlaqueFlowContextVM | null;
+  /**
+   * UI-04 · the Question Lens's column BESIDE the market: the active question,
+   * its evidence debt (or WHAT CHANGED ledger) and the effort/displacement
+   * pair, read verbatim from the chart's own `selectQuestionLens` reading.
+   * The canvas no longer paints these cards over the candles when the rail
+   * carries them. Null/undefined → nothing drawn.
+   */
+  readonly questionLens?: QuestionLensVM | null;
 }
 
 /**
@@ -1490,6 +1499,54 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           {decisionValue}
         </div>
       )}
+
+      {/* UI-04 · THE QUESTION AND ITS DEBT, BESIDE THE MARKET — the chart's own
+          lens reading, verbatim. Order as the plate: question, focus, the debt
+          ledger item by item, posture, next question, then who is in control. */}
+      {rail && props.questionLens && !replayEngaged && (props.questionLens.active || props.questionLens.refusal) ? (() => {
+        const lens = props.questionLens!;
+        const changes = lens.ledger === "CHANGES";
+        const rows = lens.debt.length;
+        const paid = changes ? lens.debt.filter(d => d.paid).length : rows - lens.openDebt;
+        return (
+          <div
+            data-testid="spine-question-lens"
+            data-lens-kind={lens.kind ?? "REFUSED"}
+            data-lens-open={lens.openDebt}
+            style={{ display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 10px", padding: "9px 11px 9px", border: `1px solid ${lens.openDebt > 0 ? "rgba(226,92,92,0.45)" : "rgba(196,165,116,0.28)"}`, borderRadius: 2 }}
+          >
+            <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em" }}>Active question</span>
+            {lens.active ? (
+              <>
+                <span style={{ fontSize: 14, lineHeight: "19px", color: "#f7f1df", fontWeight: 600 }}>“{lens.question}”</span>
+                {lens.focus ? <span style={{ ...PLAQUE_STAMP, color: "#c8c0ae", textTransform: "none", letterSpacing: "0.02em" }}>Focus · {lens.focus}</span> : null}
+                <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", color: lens.openDebt > 0 ? "#ff9696" : "#c9a55c", marginTop: 2 }}>
+                  {changes ? `What changed · ${paid} of ${rows} moved` : `Evidence debt · ${paid}/${rows} paid${lens.openDebt ? ` · ${lens.openDebt} open` : ""}`}
+                </span>
+                {lens.debt.map(d => (
+                  <span key={d.label} data-lens-item={d.paid ? "PAID" : "OWED"} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <span style={{ fontSize: 11, lineHeight: "15px", fontWeight: 700, color: d.paid ? "#c9a55c" : changes ? "#c8c0ae" : "#ff9696" }}>
+                      {changes ? (d.paid ? "Changed" : "Same") : d.paid ? "Paid" : "Missing"} · {d.label}
+                    </span>
+                    <span style={{ fontSize: 11, lineHeight: "15px", color: "#a9a191" }}>{d.evidence}</span>
+                  </span>
+                ))}
+                {lens.posture ? <span style={{ fontSize: 11, lineHeight: "15px", fontWeight: 800, color: lens.openDebt > 0 ? "#ff9696" : "#c9a55c" }}>{lens.posture}</span> : null}
+                {lens.nextQuestion ? <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae" }}>Next question → {lens.nextQuestion}</span> : null}
+                {lens.control ? (
+                  <span data-testid="spine-lens-control" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, borderTop: "1px solid rgba(196,165,116,0.18)", paddingTop: 6 }}>
+                    <span style={{ fontSize: 11, lineHeight: "15px", color: "#e25c5c", fontWeight: 700 }}>{lens.control.effortWord} {Math.round(lens.control.aggression * 100)}%</span>
+                    <span style={{ fontSize: 11, lineHeight: "15px", color: "#78a0dc", fontWeight: 700 }}>DISPLACEMENT {Math.round(lens.control.displacement * 100)}%</span>
+                    <span style={{ gridColumn: "1 / span 2", fontSize: 11, lineHeight: "15px", fontWeight: 800, color: lens.control.verdict === "EFFORT ABSORBED" ? "#78a0dc" : "#e25c5c" }}>Verdict: {lens.control.verdict}</span>
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae" }}>{lens.refusal}</span>
+            )}
+          </div>
+        );
+      })() : null}
 
       {/* F06A · ORDER FLOW CONTEXT — beneath the plaque, at rest, ONLY with a
           lawful reading. The tape's aggressor split (not F06A's book "stacks",
