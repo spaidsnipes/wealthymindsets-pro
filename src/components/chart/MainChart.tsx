@@ -3633,6 +3633,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       } catch {}
 
       setCandles(data);
+      // The series-building effects (indicators, Pine, alert lines) ran at
+      // `ready`, before these bars existed, and returned on an empty barsRef —
+      // so every SAVED indicator vanished on refresh and symbol change (serving,
+      // 2026-09-26: VWAP / EMA / BB / RSI / MACD requested, none drawn). The
+      // bars are here and the chart is new: build them once on it.
+      setCameraEpoch(e => e + 1);
       if (data.length) {
         setLastPrice(data[data.length - 1].close);
         setOpenPrice(data[0].open);
