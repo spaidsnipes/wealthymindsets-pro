@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fitWeatherLens, ladderRungYs, lensDistance, LENS_MIN_RX, LENS_MIN_RY, poolSpan,
   scaleAngle, SCALE_HEAVY_T, SCALE_THIN_T, wordOnTopArc, PHASE_WORD,
-  weatherLensGate, LENS_MIN_BARS, LENS_MIN_REGION_W,
+  weatherLensGate, LENS_MIN_BARS, LENS_MIN_REGION_W, ladderInk, STANDING_AGE_FLOOR, splitAtBites,
 } from "./liquidityGlassGeometry";
 import { candleCutOutRects } from "@/lib/chartKeepOut";
 
@@ -50,6 +50,46 @@ describe("F08A — a pool is BOUNDED IN TIME by its lifecycle", () => {
     const thin = ladderRungYs(100, 3, 4);
     expect(thin[1] - thin[0]).toBeCloseTo(3);
     expect((thin[0] + thin[3]) / 2).toBeCloseTo(101.5);
+  });
+});
+
+describe("F08A ladders are LIT like the plate (serving BTC-USD 5m, 2026-09-26 04:04 CDT)", () => {
+  it("a standing PERSISTED pool quiet for 200 bars is not under-lit", () => {
+    const ink = ladderInk({ rungs: 4, consumed: false, barsQuiet: 200, weight: 0.5 });
+    expect(ink.age).toBe(STANDING_AGE_FLOOR);
+    expect(ink.rungAlpha).toBeGreaterThanOrEqual(0.7);
+    expect(ink.lineWidth).toBeGreaterThan(1);
+    expect(ink.blur).toBeGreaterThanOrEqual(6);
+  });
+  it("a consumed pool is memory: half weight, and it ages all the way down", () => {
+    const fresh = ladderInk({ rungs: 4, consumed: true, barsQuiet: 0, weight: 1 });
+    const old = ladderInk({ rungs: 4, consumed: true, barsQuiet: 1000, weight: 1 });
+    expect(fresh.rungAlpha).toBeLessThanOrEqual(0.5);
+    expect(old.rungAlpha).toBeLessThan(fresh.rungAlpha);
+    expect(old.lineWidth).toBe(1);
+  });
+  it("maturity brightens the ladder; the glow follows volume", () => {
+    const a = ladderInk({ rungs: 2, consumed: false, barsQuiet: 0, weight: 0 });
+    const r = ladderInk({ rungs: 5, consumed: false, barsQuiet: 0, weight: 0 });
+    expect(r.rungAlpha).toBeGreaterThan(a.rungAlpha);
+    expect(ladderInk({ rungs: 4, consumed: false, barsQuiet: 0, weight: 1 }).glowAlpha)
+      .toBeGreaterThan(ladderInk({ rungs: 4, consumed: false, barsQuiet: 0, weight: 0 }).glowAlpha);
+  });
+});
+
+describe("Garden 11: a TOUCH reads as a bite in the ladder, words hidden", () => {
+  it("breaks the rungs for gap px centred on each touch", () => {
+    expect(splitAtBites(0, 100, [50], 4)).toEqual([[0, 48], [52, 100]]);
+    expect(splitAtBites(0, 100, [20, 70], 4)).toEqual([[0, 18], [22, 68], [72, 100]]);
+  });
+  it("no touches keeps the stretch whole; touches off the stretch change nothing", () => {
+    expect(splitAtBites(10, 90, [], 4)).toEqual([[10, 90]]);
+    expect(splitAtBites(10, 90, [200, -50], 4)).toEqual([[10, 90]]);
+  });
+  it("a touch at the stretch's edge bites only the inside", () => {
+    expect(splitAtBites(10, 90, [10], 4)).toEqual([[12, 90]]);
+    expect(splitAtBites(10, 90, [90], 4)).toEqual([[10, 88]]);
+    expect(splitAtBites(5, 5, [5], 4)).toEqual([]);
   });
 });
 

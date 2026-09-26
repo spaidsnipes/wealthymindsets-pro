@@ -98,14 +98,19 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
 
   it("glows softly around the ladder, weighted by the pool's volume", () => {
     expect(block).toContain("const glow = ctx.createLinearGradient(0, top - halo, 0, top + h + halo);");
-    expect(block).toMatch(/ctx\.shadowBlur = 4;[\s\S]*ctx\.shadowBlur = 0;/);
+    // Pin moved 2026-09-26 (serving 04:04, "very faint next to F08A"): the
+    // glow, blur, width and rung alpha come from ONE owner, ladderInk.
+    expect(block).toContain("const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed, barsQuiet, weight });");
+    expect(block).toMatch(/ctx\.shadowBlur = ink\.blur;[\s\S]*ctx\.shadowBlur = 0;/);
+    expect(block).toContain("ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha");
   });
 
   it("marks every lifecycle event with a dashed phase tick and a consumed pool with an end cap", () => {
     expect(block).toContain("for (const tk of span.ticks)");
     expect(block).toMatch(/ctx\.setLineDash\(\[2, 2\]\);[\s\S]*ctx\.moveTo\(xs, top - 6\);/);
     expect(block).toContain("words.push({ text: PHASE_WORD[tk.stage]");
-    expect(block).toMatch(/if \(span\.consumed\) \{[\s\S]*ctx\.moveTo\(xEnd - 0\.5, top - 3\);/);
+    // Pin moved 2026-09-26 (Garden 11): the cap is a BOLD bar, the rungs fade after it.
+    expect(block).toMatch(/if \(span\.consumed\) \{[\s\S]*ctx\.lineWidth = 2\.5;[\s\S]*ctx\.moveTo\(xEnd - 1\.25, top - 5\);/);
   });
 
   it("never draws PULLED — this feed has no book", () => {
@@ -121,7 +126,7 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
     expect(releaseAt).toBeGreaterThan(clipAt);
     const inside = block.slice(clipAt, releaseAt);
     expect(inside).toContain("ctx.fillRect(x0, top - halo");
-    expect(inside).toContain("ctx.lineTo(xb, yy);");
+    expect(inside).toContain("ctx.lineTo(sb, yy);");
     // Words print whole, after the cut-out is released.
     expect(inside).not.toContain("fillText(");
   });
@@ -149,7 +154,8 @@ describe("no caption on the glass — the honesty is a receipt and one compact t
     expect(block).toContain('const tag = "CANDLE-EST · NO BOOK · PULL REFUSED";');
     expect(block).toMatch(/const tagSpot = placeClearOfKeepOut\(below, keepOut\(\), \{/);
     expect(block).toContain("recordKeepOut(keepOutLedger, tagSpot);");
-    expect(block).toMatch(/if \(tagSpot\.mode !== "BLOCKED"\) \{/);
+    // Pin moved 2026-09-26: a placed tag must also sit inside the pane.
+    expect(block).toMatch(/if \(tagSpot\.mode !== "BLOCKED" && tagSpot\.rect\.y >= paneTopL/);
   });
 
   it("withdraws its ancillary receipts when off", () => {
@@ -158,5 +164,69 @@ describe("no caption on the glass — the honesty is a receipt and one compact t
     expect(offAt).toBeGreaterThan(-1);
     const off = CHART.slice(offAt, offAt + 480);
     for (const k of ["Painted", "Ticks", "Spans", "Tag", "Basis", "Refused"]) expect(off).toContain(`delete ds.liquidityLifecycle${k};`);
+  });
+});
+
+describe("the lifecycle stays in the pane and behind the chips — serving BTC-USD 5m, 2026-09-26 04:04 CDT", () => {
+  // A pool near 84,350 sat at the top of the pane; its rungs ran through the
+  // header band, the "Evidence saved" chip and the semantic badge.
+  it("clips every paint to the pane below HEADER_FLOOR_Y, before the candle cut-out", () => {
+    expect(block).toContain("const paneTopL = HEADER_FLOOR_Y, paneBotL = pane0Bottom;");
+    expect(block).toMatch(/ctx\.rect\(0, paneTopL, W, Math\.max\(0, paneBotL - paneTopL\)\);\s*ctx\.clip\(\);/);
+    const paneAt = block.indexOf("clipToPaneL();");
+    expect(paneAt).toBeGreaterThan(-1);
+    expect(block.indexOf('ctx.clip(cutL, "evenodd");')).toBeGreaterThan(paneAt);
+  });
+
+  it("cuts every chip already on the glass out, one clip per chip, padded 2px", () => {
+    expect(block).toContain("const CHIP_PAD_L = 2;");
+    expect(block).toMatch(/for \(const r of floatingChips\) \{\s*ctx\.beginPath\(\);\s*ctx\.rect\(0, 0, W, H\);\s*ctx\.rect\(r\.x - CHIP_PAD_L, r\.y - CHIP_PAD_L, r\.w \+ CHIP_PAD_L \* 2, r\.h \+ CHIP_PAD_L \* 2\);\s*ctx\.clip\("evenodd"\);/);
+  });
+
+  it("a pool wholly above the header floor draws nothing, and the receipt counts the clipped", () => {
+    expect(block).toContain("if (top + h < paneTopL || top > paneBotL) continue;");
+    expect(block).toContain("if (top - 10 < paneTopL) clippedTop++;");
+    expect(block).toMatch(/ds\.liquidityLifecycleClipped = \[clippedTop \? `TOP:\$\{clippedTop\}` : ""/);
+    // The OFF branch speaks through the governor since H-501 (0865484c).
+    const offAt = CHART.indexOf("ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);");
+    expect(offAt).toBeGreaterThan(-1);
+    const off = CHART.slice(offAt, offAt + 500);
+    expect(off).toContain("delete ds.liquidityLifecycleClipped;");
+  });
+
+  it("the words and the tag stay in the pane too", () => {
+    const words = block.slice(block.indexOf("ctx.restore(); // releases the candle cut-out"));
+    expect(words).toMatch(/ctx\.rect\(0, paneTopL, W, Math\.max\(0, paneBotL - paneTopL\)\);\s*ctx\.clip\(\);/);
+    expect(words).toContain('tagSpot.mode !== "BLOCKED" && tagSpot.rect.y >= paneTopL');
+  });
+});
+
+describe("Garden 11 — with the words hidden, the stage is still geometry (TSLA 15m, &proof=nolabels, 2026-09-26 04:06 CDT)", () => {
+  // Measured: the pools read as generic bundles of horizontal lines. F08A
+  // tells the biography in shape; so does this block now, one ink.
+  it("a pool born on camera opens with a BIRTH bracket at its APPEARED bar", () => {
+    expect(block).toContain("const bornOnCamera = xStart - spacingL / 2 >= 0;");
+    expect(block).toMatch(/if \(tk\.stage === "APPEARED"\) \{[\s\S]{0,200}ctx\.moveTo\(xs \+ 4, top - 5\);\s*ctx\.lineTo\(xs, top - 5\);\s*ctx\.lineTo\(xs, top \+ h \+ 5\);\s*ctx\.lineTo\(xs \+ 4, top \+ h \+ 5\);/);
+  });
+
+  it("a pool born before the camera FADES IN from the edge, and its span says so", () => {
+    expect(block).toMatch(/if \(ph\.fromTime === span\.startTime && !bornOnCamera\) \{\s*[\s\S]{0,120}const fadeIn = ctx\.createLinearGradient\(x0, 0, x0 \+ 28, 0\);/);
+    expect(block).toContain('spans.push(`${bornOnCamera ? "" : "<"}${Math.round(x0)}');
+    expect(block).toContain("ds.liquidityLifecycleBirths = `${births}/${painted}`;");
+  });
+
+  it("a TOUCH bites the rungs and carries a caret", () => {
+    expect(block).toContain("for (const [sa, sb] of splitAtBites(xa, xb, touchXs, 4)) {");
+    expect(block).toMatch(/\} else if \(tk\.stage === "TOUCHED"\) \{[\s\S]{0,160}ctx\.moveTo\(xs - 3, top - 8\);\s*ctx\.lineTo\(xs, top - 4\);\s*ctx\.lineTo\(xs \+ 3, top - 8\);/);
+  });
+
+  it("a CONSUMED pool ends in a bold cap and its rungs fade out after it", () => {
+    expect(block).toContain("const fadeOut = ctx.createLinearGradient(xEnd, 0, xEnd + tail, 0);");
+    expect(block).toContain("const tail = Math.min(16, spacingL * 2, Math.max(0, rightL - xEnd));");
+  });
+
+  it("maturity is rung count AND brightness from one owner; all in family ink", () => {
+    expect(block).toContain("const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha;");
+    expect(block).toContain("ctx.globalAlpha = att.textAlpha(\"liquidityLifecycle\");");
   });
 });

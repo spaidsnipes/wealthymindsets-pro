@@ -110,6 +110,59 @@ export function ladderRungYs(top: number, h: number, rungs: number): number[] {
   return Array.from({ length: n }, (_, i) => y0 + i * pitch);
 }
 
+/**
+ * THE LADDER'S INK — how brightly a pool is lit (serving BTC-USD 5m desktop,
+ * 2026-09-26 04:04 CDT: next to F08A's glowing gold ladders, the rungs read as
+ * faint hairlines). Age used to quiet EVERY pool linearly to 0.35 over 240
+ * quiet bars, so a pool that had simply stood, PERSISTED, for 100 bars was
+ * painted at ~0.4 before the governor even spoke. A standing pool is still
+ * liquidity on the book: age may dim it only to STANDING_AGE_FLOOR. A consumed
+ * pool is memory, at half weight, and ages all the way down. The governor's
+ * alpha is applied on top by the caller and is not this function's business.
+ */
+export const STANDING_AGE_FLOOR = 0.8;
+export interface LadderInk {
+  readonly age: number;
+  readonly rungAlpha: number;
+  readonly glowAlpha: number;
+  readonly lineWidth: number;
+  readonly blur: number;
+}
+export function ladderInk(p: { rungs: number; consumed: boolean; barsQuiet: number; weight: number }): LadderInk {
+  const quiet = Number.isFinite(p.barsQuiet) ? Math.max(0, p.barsQuiet) : 0;
+  const raw = Math.max(0.35, Math.min(1, 1 - quiet / 240));
+  const age = p.consumed ? raw * 0.5 : Math.max(STANDING_AGE_FLOOR, raw);
+  const w = Math.max(0, Math.min(1, Number.isFinite(p.weight) ? p.weight : 0));
+  return {
+    age,
+    rungAlpha: Math.min(0.95, 0.5 + 0.1 * p.rungs) * age,
+    glowAlpha: (0.07 + 0.15 * w) * age,
+    lineWidth: !p.consumed && p.rungs >= LADDER_RUNGS.PERSISTED ? 1.25 : 1,
+    blur: p.consumed ? 2 : 6,
+  };
+}
+
+/**
+ * THE TOUCH BITE — Garden 11's recognition test ("hide the text label: can the
+ * Founder still tell what invention it is?"). With words hidden, a touch must
+ * read as geometry: the ladder is BITTEN where price came back — its rungs
+ * break for `gap` px centred on each touch. Returns the rung segments left.
+ */
+export function splitAtBites(xa: number, xb: number, bites: readonly number[], gap = 4): [number, number][] {
+  if (!(xb > xa)) return [];
+  const cuts = bites.filter(x => Number.isFinite(x) && x > xa - gap && x < xb + gap).sort((a, z) => a - z);
+  const out: [number, number][] = [];
+  let from = xa;
+  for (const x of cuts) {
+    const l = x - gap / 2, r = x + gap / 2;
+    if (l > from) out.push([from, Math.min(l, xb)]);
+    from = Math.max(from, r);
+    if (from >= xb) break;
+  }
+  if (from < xb) out.push([from, xb]);
+  return out;
+}
+
 // ── F08B · THE WEATHER LENS ─────────────────────────────────────────────────
 
 export interface ScreenBox { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }

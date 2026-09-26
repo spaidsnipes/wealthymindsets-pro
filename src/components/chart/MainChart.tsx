@@ -24,7 +24,7 @@ import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketD
 import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
-  PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderRungYs, poolSpan, ringPoint, scaleAngle, weatherLensGate,
+  PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
@@ -16216,6 +16216,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (!lc) {
             ds.liquidityLifecycle = "NO_READING";
             delete ds.liquidityLifecyclePainted;
+            delete ds.liquidityLifecycleClipped;
+            delete ds.liquidityLifecycleBirths;
             delete ds.liquidityLifecycleTicks;
             delete ds.liquidityLifecycleSpans;
             delete ds.liquidityLifecycleTag;
@@ -16251,12 +16253,35 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               timeToX: t => xOf(t),
               priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
             }, 0, rightL)) cutL.rect(r.x, r.y, r.w, r.h);
-            let painted = 0, ticks = 0;
+            let painted = 0, ticks = 0, births = 0;
             const spans: string[] = [];
             const words: { text: string; x: number; y: number; alpha: number }[] = [];
             let tagAt: { xEnd: number; top: number; bottom: number; weight: number } | null = null;
+            // THE PANE, NOT THE HEADER (serving BTC-USD 5m desktop, 2026-09-26
+            // 04:04 CDT: a pool at the top of the pane ran its rungs through
+            // the header band, the "Evidence saved" chip and the semantic
+            // badge). Every lifecycle paint — rungs, glows, ticks, words, tag —
+            // lives between HEADER_FLOOR_Y and the candle pane's foot, and every
+            // chip already on the glass is cut out of it, one clip per chip
+            // padded 2px (the H-801 fan's rule, cd520b21), so overlapping chips
+            // never re-fill under even-odd.
+            const paneTopL = HEADER_FLOOR_Y, paneBotL = pane0Bottom;
+            const clipToPaneL = () => {
+              ctx.beginPath();
+              ctx.rect(0, paneTopL, W, Math.max(0, paneBotL - paneTopL));
+              ctx.clip();
+              const CHIP_PAD_L = 2;
+              for (const r of floatingChips) {
+                ctx.beginPath();
+                ctx.rect(0, 0, W, H);
+                ctx.rect(r.x - CHIP_PAD_L, r.y - CHIP_PAD_L, r.w + CHIP_PAD_L * 2, r.h + CHIP_PAD_L * 2);
+                ctx.clip("evenodd");
+              }
+            };
+            let clippedTop = 0, clippedBot = 0;
             ctx.save();
             ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
+            clipToPaneL();
             ctx.clip(cutL, "evenodd");
             for (const pool of lc.pools) {
               const span = poolSpan(pool.events);
@@ -16264,6 +16289,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
               if (yT == null || yB == null) continue;
               const top = Math.min(+yT, +yB), h = Math.max(1, Math.abs(+yB - +yT));
+              // A pool whose band (with its glow) reaches past the pane is
+              // counted; one wholly above the header floor draws nothing.
+              if (top - 10 < paneTopL) clippedTop++;
+              if (top + h + 10 > paneBotL) clippedBot++;
+              if (top + h < paneTopL || top > paneBotL) continue;
               const xStart = xOf(span.startTime);
               const xStop = span.endTime != null ? xOf(span.endTime) : xLive;
               if (xStart == null || xStop == null) continue;
@@ -16274,62 +16304,133 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const xEnd = Math.min(rightL, span.endTime != null ? xStop + spacingL / 2 : xStop);
               if (xEnd <= x0) continue;
               const lastEv = pool.events[pool.events.length - 1];
-              const age = Math.max(0.35, Math.min(1, 1 - (lastEv ? barsSince(lastEv.time) : 0) / 240)) * (span.consumed ? 0.5 : 1);
               const weight = pool.volume / maxVolL;
+              const barsQuiet = lastEv ? barsSince(lastEv.time) : 0;
+              const lastRungs = span.phases.length > 0 ? span.phases[span.phases.length - 1].rungs : 2;
+              // One owner for how brightly a pool is lit (ladderInk): a
+              // standing pool dims with age only to 0.8; consumed is memory.
+              const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed, barsQuiet, weight });
+              const age = ink.age;
               // GLOW — a soft halo around the ladder, its volume's weight.
               const halo = 10;
               const glow = ctx.createLinearGradient(0, top - halo, 0, top + h + halo);
               glow.addColorStop(0, `rgba(${INK},0)`);
-              glow.addColorStop(0.5, `rgba(${INK},${(0.05 + 0.11 * weight) * age})`);
+              glow.addColorStop(0.5, `rgba(${INK},${ink.glowAlpha})`);
               glow.addColorStop(1, `rgba(${INK},0)`);
               ctx.fillStyle = glow;
               ctx.fillRect(x0, top - halo, xEnd - x0, h + 2 * halo);
+              // GARDEN 11 RECOGNITION (TSLA 15m, &proof=nolabels, 2026-09-26
+              // 04:06 CDT): with the words hidden the pools read as generic
+              // bundles of lines. The biography is now GEOMETRY, one ink:
+              //   born here   a bracket at the APPEARED bar  [
+              //   born before the camera   the rungs FADE IN from the edge
+              //   maturity    rungs 2 → 3 → 4 → 5 and brighter (ladderInk)
+              //   touched     the ladder is BITTEN (a gap) with a caret over it
+              //   consumed    a bold cap, and the rungs fade out after it
+              const bornOnCamera = xStart - spacingL / 2 >= 0;
+              const touchXs = span.ticks
+                .filter(t => t.stage === "TOUCHED")
+                .map(t => xOf(t.time))
+                .filter((x): x is number => x != null && x >= x0 && x <= xEnd);
               // LADDER — fine rungs, each stretch in the form it had then.
-              ctx.lineWidth = 1;
-              ctx.shadowColor = `rgba(${INK},${0.8 * age})`;
-              ctx.shadowBlur = 4;
+              ctx.lineWidth = ink.lineWidth;
+              ctx.shadowColor = `rgba(${INK},${0.9 * age})`;
+              ctx.shadowBlur = ink.blur;
+              let lastRungAlpha = ink.rungAlpha;
               for (const ph of span.phases) {
                 const xa = ph.fromTime === span.startTime ? x0 : Math.max(x0, xOf(ph.fromTime) ?? x0);
                 const xb = ph.toTime == null ? xEnd : Math.min(xEnd, (xOf(ph.toTime) ?? xEnd) + (ph.toTime === span.endTime ? spacingL / 2 : 0));
                 if (xb <= xa) continue;
-                ctx.strokeStyle = `rgba(${INK},${Math.min(0.9, 0.42 + 0.09 * ph.rungs) * age})`;
+                const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha;
+                lastRungAlpha = rungA;
+                if (ph.fromTime === span.startTime && !bornOnCamera) {
+                  // Its history runs off the camera: the rungs fade in.
+                  const fadeIn = ctx.createLinearGradient(x0, 0, x0 + 28, 0);
+                  fadeIn.addColorStop(0, `rgba(${INK},0)`);
+                  fadeIn.addColorStop(1, `rgba(${INK},${rungA})`);
+                  ctx.strokeStyle = fadeIn;
+                } else {
+                  ctx.strokeStyle = `rgba(${INK},${rungA})`;
+                }
                 ctx.beginPath();
                 for (const ry of ladderRungYs(top, h, ph.rungs)) {
                   const yy = Math.round(ry) + 0.5;
-                  ctx.moveTo(xa, yy);
-                  ctx.lineTo(xb, yy);
+                  for (const [sa, sb] of splitAtBites(xa, xb, touchXs, 4)) {
+                    ctx.moveTo(sa, yy);
+                    ctx.lineTo(sb, yy);
+                  }
                 }
                 ctx.stroke();
               }
               ctx.shadowBlur = 0;
-              // PHASE TICKS — dashed, at every lifecycle event on camera.
-              ctx.setLineDash([2, 2]);
-              ctx.strokeStyle = `rgba(${INK},${0.75 * age})`;
+              // THE MARKS — one geometric mark per lifecycle event on camera.
               const said = new Set<string>();
+              const markA = Math.min(0.95, 0.35 + age);
               for (const tk of span.ticks) {
                 const xt = xOf(tk.time);
                 if (xt == null || xt < x0 - 1 || xt > xEnd + 1) continue;
                 const xs = Math.round(xt) + 0.5;
-                ctx.beginPath();
-                ctx.moveTo(xs, top - 6);
-                ctx.lineTo(xs, top + h + 6);
-                ctx.stroke();
+                ctx.strokeStyle = `rgba(${INK},${markA})`;
+                if (tk.stage === "APPEARED") {
+                  // BIRTH — a bracket opening the ladder.
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath();
+                  ctx.moveTo(xs + 4, top - 5);
+                  ctx.lineTo(xs, top - 5);
+                  ctx.lineTo(xs, top + h + 5);
+                  ctx.lineTo(xs + 4, top + h + 5);
+                  ctx.stroke();
+                } else if (tk.stage === "TOUCHED") {
+                  // TOUCH — a caret over the bite in the rungs.
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(xs - 3, top - 8);
+                  ctx.lineTo(xs, top - 4);
+                  ctx.lineTo(xs + 3, top - 8);
+                  ctx.stroke();
+                } else if (tk.stage !== "CONSUMED") {
+                  // GREW / PERSISTED / REFILLED — a dashed phase tick where the
+                  // ladder gains its next rung.
+                  ctx.lineWidth = 1;
+                  ctx.setLineDash([2, 2]);
+                  ctx.beginPath();
+                  ctx.moveTo(xs, top - 6);
+                  ctx.lineTo(xs, top + h + 6);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                }
                 ticks++;
                 if (!said.has(tk.stage)) { said.add(tk.stage); words.push({ text: PHASE_WORD[tk.stage], x: xs + 2, y: top - 8, alpha: age }); }
               }
-              ctx.setLineDash([]);
+              if (bornOnCamera) births++;
               if (span.consumed) {
-                // END CAP — the pool stops here.
-                ctx.lineWidth = 1.5;
-                ctx.strokeStyle = `rgba(${INK},${0.9 * age})`;
+                // END CAP — a bold bar where the pool stops, and the rungs fade
+                // out after it (memory, not liquidity still standing).
+                const tail = Math.min(16, spacingL * 2, Math.max(0, rightL - xEnd));
+                if (tail > 1) {
+                  const fadeOut = ctx.createLinearGradient(xEnd, 0, xEnd + tail, 0);
+                  fadeOut.addColorStop(0, `rgba(${INK},${lastRungAlpha})`);
+                  fadeOut.addColorStop(1, `rgba(${INK},0)`);
+                  ctx.strokeStyle = fadeOut;
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  for (const ry of ladderRungYs(top, h, span.phases.length > 0 ? span.phases[span.phases.length - 1].rungs : 2)) {
+                    const yy = Math.round(ry) + 0.5;
+                    ctx.moveTo(xEnd, yy);
+                    ctx.lineTo(xEnd + tail, yy);
+                  }
+                  ctx.stroke();
+                }
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = `rgba(${INK},${markA})`;
                 ctx.beginPath();
-                ctx.moveTo(xEnd - 0.5, top - 3);
-                ctx.lineTo(xEnd - 0.5, top + h + 3);
+                ctx.moveTo(xEnd - 1.25, top - 5);
+                ctx.lineTo(xEnd - 1.25, top + h + 5);
                 ctx.stroke();
               } else if (!tagAt || weight > tagAt.weight) {
                 tagAt = { xEnd, top, bottom: top + h, weight };
               }
-              spans.push(`${Math.round(x0)}-${Math.round(xEnd)}${span.consumed ? "c" : ""}`);
+              spans.push(`${bornOnCamera ? "" : "<"}${Math.round(x0)}-${Math.round(xEnd)}${span.consumed ? "c" : ""}`);
               painted++;
             }
             ctx.restore(); // releases the candle cut-out
@@ -16338,6 +16439,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // is clear of candle bodies, chips and one another.
             ctx.save();
             ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
+            // Words and tag stay in the pane too (their chip tests already
+            // step around chips; this clip is the floor under that rule).
+            ctx.beginPath();
+            ctx.rect(0, paneTopL, W, Math.max(0, paneBotL - paneTopL));
+            ctx.clip();
             ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
             ctx.textAlign = "left";
             ctx.textBaseline = "alphabetic";
@@ -16368,7 +16474,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 alternates: [above],
               });
               recordKeepOut(keepOutLedger, tagSpot);
-              if (tagSpot.mode !== "BLOCKED") {
+              if (tagSpot.mode !== "BLOCKED" && tagSpot.rect.y >= paneTopL && tagSpot.rect.y + tagSpot.rect.h <= paneBotL) {
                 ctx.fillStyle = "rgba(237,230,211,0.62)";
                 ctx.textBaseline = "top";
                 ctx.fillText(tag, tagSpot.rect.x, tagSpot.rect.y);
@@ -16381,12 +16487,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.restore();
             ds.liquidityLifecyclePainted = `${painted}/${lc.pools.length}`;
             ds.liquidityLifecycleTicks = `${ticks}/${wordsSaid}`;
+            // How many painted pools were BORN on camera (a birth bracket) —
+            // the rest fade in from the edge, and their spans read "<x0-x1".
+            ds.liquidityLifecycleBirths = `${births}/${painted}`;
+            ds.liquidityLifecycleClipped = [clippedTop ? `TOP:${clippedTop}` : "", clippedBot ? `BOTTOM:${clippedBot}` : ""].filter(Boolean).join("|") || "NONE";
             if (spans.length > 0) ds.liquidityLifecycleSpans = spans.join(";");
             else delete ds.liquidityLifecycleSpans;
           }
         } else {
           ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);
           delete ds.liquidityLifecyclePainted;
+          delete ds.liquidityLifecycleClipped;
+          delete ds.liquidityLifecycleBirths;
           delete ds.liquidityLifecycleTicks;
           delete ds.liquidityLifecycleSpans;
           delete ds.liquidityLifecycleTag;
