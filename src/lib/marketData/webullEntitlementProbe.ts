@@ -90,6 +90,7 @@ import {
   TOKEN_DISPOSITIONS,
   ensureWebullAccessToken,
   type WebullTokenStore,
+  sessionAwaitsHuman,
 } from "./webullAccessToken";
 
 const DEFAULT_HOST = "api.webull.com";
@@ -739,7 +740,7 @@ export async function probeWebullEntitlement(
       { appKey, appSecret, apiHost: host, timeoutMs: config.timeoutMs, now: config.now, nonce: config.nonce, authModeReader: config.authModeReader },
       config.tokenStore,
     );
-    if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+    if (sessionAwaitsHuman(session.disposition)) {
       return {
         provider: "webull",
         verdict: "AWAITING_2FA",

@@ -62,6 +62,8 @@ export interface WebullKvNamespace {
 
 /** One session per deployment. Named, not derived, so it cannot drift. */
 export const WEBULL_SESSION_KEY = "webull:session:v1";
+/** When WM Pro last texted a code on its own (see AUTO_MINT_COOLDOWN_MS). */
+export const WEBULL_AUTO_MINT_KEY = "webull:automint:last:v1";
 
 /**
  * Let KV expire the record on its own.
@@ -130,6 +132,26 @@ export function kvTokenStore(
         // Losing durability is bad; failing the Founder's request because we
         // could not write a cache is worse. The session still works for this
         // isolate, and the next request re-mints at worst.
+      }
+    },
+
+    async readLastAutoMintAt() {
+      try {
+        const raw = await kv.get(WEBULL_AUTO_MINT_KEY);
+        const at = raw === null ? NaN : Number(raw);
+        return Number.isFinite(at) ? at : null;
+      } catch {
+        // Unreadable ledger: no throttle rather than no session.
+        return null;
+      }
+    },
+
+    async writeLastAutoMintAt(atMs) {
+      try {
+        // Kept a day: long enough to outlive every cooldown, short enough to age out.
+        await kv.put(WEBULL_AUTO_MINT_KEY, String(Math.round(atMs)), { expirationTtl: 24 * 3600 });
+      } catch {
+        // The code was already texted; losing the stamp only loosens the throttle.
       }
     },
   };

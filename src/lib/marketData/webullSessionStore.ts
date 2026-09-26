@@ -144,14 +144,16 @@ export async function resolveWebullSessionToken(
     return { awaiting2fa: false, note: "Webull App Key and App Secret are not both configured, so no session can be minted." };
   }
 
-  const { ensureWebullAccessToken, TOKEN_DISPOSITIONS } = await import("./webullAccessToken");
+  const { ensureWebullAccessToken, sessionAwaitsHuman } = await import("./webullAccessToken");
   const session = await ensureWebullAccessToken(
     fetchImpl,
     { appKey, appSecret, apiHost: config.apiHost, timeoutMs: config.timeoutMs },
     store,
   );
 
-  if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+  // AWAITING_2FA and REAUTH_HELD alike: the next step is a human's, so no
+  // lane may sign a request that can only be refused. The note names the step.
+  if (sessionAwaitsHuman(session.disposition)) {
     return { awaiting2fa: true, note: session.note };
   }
   return session.token?.token

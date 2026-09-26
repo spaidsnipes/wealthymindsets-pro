@@ -9,6 +9,7 @@ import {
   ensureWebullAccessToken,
   inMemoryTokenStore,
   type WebullTokenStore,
+  sessionAwaitsHuman,
 } from "@/lib/marketData/webullAccessToken";
 
 const DEFAULT_HOST = "api.webull.com";
@@ -174,7 +175,7 @@ export async function probeWebullBrokerConnection(
       config.tokenStore ?? defaultTokenStore,
     );
     sessionNote = session.note;
-    if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+    if (sessionAwaitsHuman(session.disposition)) {
       // Sending this would earn a 401 and we would report a credential fault
       // for what is actually one tap in the Webull app. Say the true thing.
       return receipt("AWAITING_2FA", session.note);

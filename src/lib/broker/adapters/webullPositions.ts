@@ -44,6 +44,7 @@ import {
   ensureWebullAccessToken,
   inMemoryTokenStore,
   type WebullTokenStore,
+  sessionAwaitsHuman,
 } from "@/lib/marketData/webullAccessToken";
 import type { WebullBrokerConfig } from "./webullBrokerConnection";
 
@@ -204,7 +205,7 @@ export async function probeWebullPositions(
       config.tokenStore ?? defaultTokenStore,
     );
     sessionNote = session.note;
-    if (session.disposition === TOKEN_DISPOSITIONS.AWAITING_2FA) {
+    if (sessionAwaitsHuman(session.disposition)) {
       return receipt("AWAITING_2FA", session.note);
     }
     if (session.token?.token) sessionToken = session.token.token;

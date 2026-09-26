@@ -118,6 +118,13 @@ export const TOKEN_DISPOSITIONS = {
    * token can never be "not required" by itself. See webullAuthMode.ts.
    */
   NOT_REQUIRED: "NOT_REQUIRED",
+  /**
+   * A new session is needed, but WM Pro already texted a code inside
+   * `AUTO_MINT_COOLDOWN_MS` and will not text again on its own. Callers treat
+   * it like AWAITING_2FA: no doomed request, the note says the one human step.
+   * Only `ensureWebullAccessToken` returns this.
+   */
+  REAUTH_HELD: "REAUTH_HELD",
 } as const;
 
 export type TokenDisposition =
@@ -125,6 +132,23 @@ export type TokenDisposition =
 
 /** Renew this far ahead of expiry, so a token never dies mid-request. */
 export const DEFAULT_REFRESH_MARGIN_MS = 5 * 60_000;
+
+/**
+ * HOW OFTEN WM PRO MAY TEXT THE FOUNDER ON ITS OWN.
+ *
+ * Every CREATE sends an SMS code to the phone bound to the account, and a
+ * code not entered within 5 minutes EXPIRES. Measured 2026-09-26: the BROKER
+ * COST LINE asks `/api/broker/webull/positions` on every /charts load, so with
+ * the session dead each page load — anyone's — minted a session and texted
+ * the Founder, and the next load after five minutes did it again. That is the
+ * Founder's phone serving as infrastructure, the exact failure GP12 §14 names.
+ *
+ * So a session is started automatically at most once per this window, the
+ * ledger lives beside the session (KV), and inside the window every lane gets
+ * REAUTH_HELD with a sentence naming the one human step. With 2FA OFF on the
+ * key (`webullAuthMode`) none of this runs: there is no session to start.
+ */
+export const AUTO_MINT_COOLDOWN_MS = 6 * 3600_000;
 
 /** Below this, a number cannot be an epoch and must be a duration. */
 const SMALLEST_PLAUSIBLE_EPOCH_SECONDS = 1_000_000_000; // 2001-09-09
@@ -261,17 +285,32 @@ export function describeTokenState(
 export interface WebullTokenStore {
   read(): Promise<WebullAccessToken | null>;
   write(token: WebullAccessToken): Promise<void>;
+  /**
+   * THE MINT LEDGER — when WM Pro last started a session ON ITS OWN (a
+   * CREATE, which texts a code to the Founder's phone). Optional so a store
+   * that cannot remember simply never throttles; the KV store remembers across
+   * isolates, which is the whole point. See `AUTO_MINT_COOLDOWN_MS`.
+   */
+  readLastAutoMintAt?(): Promise<number | null>;
+  writeLastAutoMintAt?(atMs: number): Promise<void>;
 }
 
 /** An in-memory store. Correct for one isolate; loses the token on eviction. */
 export function inMemoryTokenStore(initial: WebullAccessToken | null = null): WebullTokenStore {
   let held = initial;
+  let lastAutoMintAt: number | null = null;
   return {
     async read() {
       return held;
     },
     async write(token) {
       held = token;
+    },
+    async readLastAutoMintAt() {
+      return lastAutoMintAt;
+    },
+    async writeLastAutoMintAt(atMs) {
+      lastAutoMintAt = atMs;
     },
   };
 }
@@ -557,6 +596,54 @@ export async function checkWebullAccessToken(
   }
 }
 
+/**
+ * True when the next step is a HUMAN's (a code to enter, or one to request):
+ * AWAITING_2FA and REAUTH_HELD. Callers branch on this rather than on either
+ * word, so a lane cannot handle one and send a doomed request on the other.
+ */
+export function sessionAwaitsHuman(disposition: TokenDisposition): boolean {
+  return disposition === TOKEN_DISPOSITIONS.AWAITING_2FA || disposition === TOKEN_DISPOSITIONS.REAUTH_HELD;
+}
+
+const hhmmUtc = (ms: number) => new Date(ms).toISOString().slice(11, 16);
+
+/**
+ * Inside the cooldown, the refusal to text again — with the one human step.
+ * Null when a session may be started now. A ledger stamp more than one
+ * cooldown in the FUTURE is a clock fault, not a reason to block forever.
+ */
+async function heldByCooldown(store: WebullTokenStore, nowMs: number): Promise<EnsureTokenResult | null> {
+  const last = store.readLastAutoMintAt ? await store.readLastAutoMintAt() : null;
+  if (last === null || !Number.isFinite(last)) return null;
+  if (nowMs - last >= AUTO_MINT_COOLDOWN_MS || last - nowMs > AUTO_MINT_COOLDOWN_MS) return null;
+  return {
+    token: null,
+    disposition: TOKEN_DISPOSITIONS.REAUTH_HELD,
+    minted: false,
+    note:
+      `Webull needs a new session. WM Pro texted a code to the Founder's phone at ${hhmmUtc(last)} UTC and ` +
+      `will not text again on its own before ${hhmmUtc(last + AUTO_MINT_COOLDOWN_MS)} UTC. Enter a code that ` +
+      `is still inside its 5 minutes in the Webull app, or untick "Enable 2FA Verification" on the App Key ` +
+      `to remove this step for good.`,
+  };
+}
+
+/** CREATE, and stamp the ledger when it actually texted someone (PENDING). */
+async function createAndStamp(
+  fetchImpl: typeof fetch,
+  config: WebullTokenConfig,
+  store: WebullTokenStore,
+  previousToken: string | undefined,
+  nowMs: number,
+): Promise<MintResult> {
+  const minted = await mintWebullAccessToken(fetchImpl, config, previousToken, "CREATE_TOKEN");
+  if (minted.token) await store.write(minted.token);
+  if (minted.token?.status === WEBULL_TOKEN_STATUSES.PENDING && store.writeLastAutoMintAt) {
+    await store.writeLastAutoMintAt(nowMs);
+  }
+  return minted;
+}
+
 export interface EnsureTokenResult {
   readonly token: WebullAccessToken | null;
   readonly disposition: TokenDisposition;
@@ -634,8 +721,9 @@ export async function ensureWebullAccessToken(
     // INVALID/EXPIRED. Minting immediately is the remedy, and doing it here
     // means the caller is not sent away holding a token nobody can use.
     if (rechecked === TOKEN_DISPOSITIONS.NEEDS_MINT) {
-      const reminted = await mintWebullAccessToken(fetchImpl, config, undefined, "CREATE_TOKEN");
-      if (reminted.token) await store.write(reminted.token);
+      const held = await heldByCooldown(store, nowMs);
+      if (held) return held;
+      const reminted = await createAndStamp(fetchImpl, config, store, undefined, nowMs);
       return {
         token: reminted.token,
         disposition: tokenDisposition(reminted.token, nowMs, refreshMarginMs),
@@ -647,13 +735,16 @@ export async function ensureWebullAccessToken(
     return { token: checked.token, disposition: rechecked, minted: false, note: checked.note };
   }
 
-  const result = await mintWebullAccessToken(
-    fetchImpl,
-    config,
-    held?.token,
-    disposition === TOKEN_DISPOSITIONS.NEEDS_REFRESH ? "REFRESH_TOKEN" : "CREATE_TOKEN",
-  );
-  if (result.token) await store.write(result.token);
+  let result: MintResult;
+  if (disposition === TOKEN_DISPOSITIONS.NEEDS_REFRESH) {
+    // Extending a living session texts nobody; it is never throttled.
+    result = await mintWebullAccessToken(fetchImpl, config, held?.token, "REFRESH_TOKEN");
+    if (result.token) await store.write(result.token);
+  } else {
+    const cooled = await heldByCooldown(store, nowMs);
+    if (cooled) return cooled;
+    result = await createAndStamp(fetchImpl, config, store, held?.token, nowMs);
+  }
 
   return {
     token: result.token,
