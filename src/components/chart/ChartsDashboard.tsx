@@ -3149,6 +3149,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         : savedArrangementSwitches(desk.switches, arrangementMenu),
     );
   useEffect(() => subscribeSavedLayoutRequests((req) => arrangementDeskRef.current(req)), []);
+
+  /*
+    A DESK IS ADDRESSABLE — /charts?desk=order-flow (GP12 §69 continuity).
+    One press, applied ONCE per page load through the same desk door as the
+    Workspace tile (compiler switches, locks honoured). Unknown words are
+    ignored, never guessed. The param is read, not rewritten, so a reload of
+    the same address re-seats the same desk and nothing else.
+  */
+  const deskFromUrlDoneRef = useRef(false);
+  const deskBarsReady = chartBars.length > 0;
+  useEffect(() => {
+    // After the first bars: the desk compiler reads what this tape can carry.
+    if (deskFromUrlDoneRef.current || !deskBarsReady || typeof window === "undefined") return;
+    const desk = deskFromUrlParam(new URLSearchParams(window.location.search).get("desk"));
+    deskFromUrlDoneRef.current = true;
+    if (desk) arrangementDeskRef.current(desk);
+  }, [deskBarsReady]);
   // …and the room TELLS the door what it is arranged as, so Save keeps the
   // chart's real switch positions and a saved tile lights when in force.
   const arrangementCaptureKey = JSON.stringify(captureArrangement(arrangementMenu));
@@ -6227,3 +6244,9 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
   );
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** `?desk=` words → a Workspace desk. Exported for its test; unknown → null. */
+export function deskFromUrlParam(raw: string | null | undefined): ArrangementId | null {
+  const w = (raw ?? "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return w === "clean" ? "CLEAN" : w === "order-flow" ? "ORDER_FLOW" : w === "regime" ? "REGIME" : w === "review" ? "REVIEW" : null;
+}
