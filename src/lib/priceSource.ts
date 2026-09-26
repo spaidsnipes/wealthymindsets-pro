@@ -26,6 +26,14 @@ import {
 export type PriceSource =
   | "polygon" | "coinbase" | "binance" | "alpaca" | "finnhub" | "yahoo" | "unavailable" | string;
 
+/**
+ * Providers whose price is ONE VENUE's prints, not the consolidated tape.
+ * Alpaca here is the IEX relay (see the `alpaca` arm of `priceSourceBadge`):
+ * no SIP entitlement receipt exists in this tree. Read by `readCanvasHonesty`
+ * so the plaque's DEGRADED carries the PARTIAL_TAPE reason rather than none.
+ */
+export const PARTIAL_TAPE_PROVENANCES: ReadonlySet<string> = new Set(["alpaca"]);
+
 export interface PriceObservationEvidence {
   /** A real price was received for this selection, not merely a configured source. */
   present: boolean;

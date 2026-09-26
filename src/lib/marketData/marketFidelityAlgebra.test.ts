@@ -270,6 +270,30 @@ describe("the one door from the seven pipeline labels", () => {
     expect(out.reasons).toContain(FIDELITY_REASONS.DELAYED);
   });
 
+  it("a PARTIAL TAPE (IEX only) is a named wound, not 'No reason recorded'", () => {
+    // Found 2026-09-26: the Alpaca IEX path folded to DEGRADED with reasons [],
+    // so the plaque read DEGRADED beside "No reason recorded against this reading."
+    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED, null, { partial: true });
+    expect(out.fidelity).toBe(MARKET_FIDELITIES.DEGRADED);
+    expect(out.reasons).toEqual([FIDELITY_REASONS.PARTIAL_TAPE]);
+    // The label alone cannot name it — ACTIVE DEGRADED also covers a delayed
+    // consolidated quote, which is NOT a partial tape. No witness, no reason.
+    for (const tape of [undefined, null, { partial: false }, { partial: "true" as unknown as boolean }]) {
+      expect(
+        fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED, null, tape).reasons,
+        JSON.stringify(tape),
+      ).toEqual([]);
+    }
+    // PARTIAL_TAPE is a reason, never a fidelity; and only ACTIVE DEGRADED carries it.
+    expect(ALL_MARKET_FIDELITIES as readonly string[]).not.toContain(FIDELITY_REASONS.PARTIAL_TAPE);
+    for (const label of ALL_CANONICAL_FIDELITY_LABELS) {
+      if (label === CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED) continue;
+      expect(fidelityFromPipelineLabel(label, null, { partial: true }), label).toEqual(
+        fidelityFromPipelineLabel(label, null),
+      );
+    }
+  });
+
   it("a wall carries QUARANTINED as a REASON and never as a fidelity", () => {
     const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT, null);
     expect(out.reasons).toContain(FIDELITY_REASONS.QUARANTINED);

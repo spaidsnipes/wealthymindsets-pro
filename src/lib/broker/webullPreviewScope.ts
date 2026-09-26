@@ -25,7 +25,11 @@
  * the button is client code.
  */
 import type { UniversalOrderIntent } from "@/lib/broker/BrokerAdapter";
-import { classifySymbol, type AssetClass } from "@/lib/marketData/symbolAssetClass";
+import {
+  classifySymbol,
+  equityVendorSkipNoun,
+  type AssetClass,
+} from "@/lib/marketData/symbolAssetClass";
 
 export type WebullPreviewScope =
   | {
@@ -41,15 +45,30 @@ export type WebullPreviewScope =
       readonly refusal: string;
     };
 
-const CLASS_NOUN: Readonly<Record<Exclude<AssetClass, "EQUITY">, string>> = {
-  FUTURES: "futures",
+/**
+ * Only the classes the owner does NOT name. Futures, forex and spot metals take
+ * their noun from `equityVendorSkipNoun` (symbolAssetClass.ts): this table used
+ * to say "forex" for XAUUSD because `classifySymbol` files spot metals under
+ * FOREX — the owner already knew better ("spot metals"), and a second literal
+ * table could only drift from it.
+ */
+const NOUN_THE_OWNER_DOES_NOT_NAME: Readonly<Record<Exclude<AssetClass, "EQUITY" | "FUTURES" | "FOREX">, string>> = {
   CRYPTO: "crypto",
   INDEX: "an index",
-  FOREX: "forex",
   // UNKNOWN is refused too: "unrecognised" and "a stock" are different facts
   // (symbolAssetClass.ts), and an order path may not round one into the other.
   UNKNOWN: "a symbol it cannot classify",
 };
+
+function refusedClassNoun(symbol: string, assetClass: Exclude<AssetClass, "EQUITY">): string {
+  const owned = equityVendorSkipNoun(symbol);
+  if (owned) return owned;
+  // FUTURES/FOREX always get an owner noun; should that ever stop being true,
+  // say "cannot classify" rather than invent a class here.
+  return assetClass === "FUTURES" || assetClass === "FOREX"
+    ? NOUN_THE_OWNER_DOES_NOT_NAME.UNKNOWN
+    : NOUN_THE_OWNER_DOES_NOT_NAME[assetClass];
+}
 
 export function webullPreviewScope(symbol: string): WebullPreviewScope {
   const assetClass = classifySymbol(symbol);
@@ -58,6 +77,6 @@ export function webullPreviewScope(symbol: string): WebullPreviewScope {
   return {
     eligible: false,
     assetClass,
-    refusal: `Equities only — this preview cannot price ${CLASS_NOUN[assetClass]} (${shown}). Nothing is sent to Webull.`,
+    refusal: `Equities only — this preview cannot price ${refusedClassNoun(symbol ?? "", assetClass)} (${shown}). Nothing is sent to Webull.`,
   };
 }

@@ -118,6 +118,13 @@ export const FIDELITY_REASONS = {
   UNSUPPORTED: "UNSUPPORTED",
   /** The provider refused: auth, entitlement, policy. A wall, not a stale tick. */
   REFUSED: "REFUSED",
+  /**
+   * IEX only · one exchange's prints, not the consolidated tape. Real and
+   * current, and not the market: price and volume can differ from the full
+   * tape, most in pre/post-market. Added 2026-09-26 because the Alpaca IEX
+   * path folded to DEGRADED beside "No reason recorded against this reading."
+   */
+  PARTIAL_TAPE: "PARTIAL_TAPE",
 } as const;
 
 export type FidelityReason = (typeof FIDELITY_REASONS)[keyof typeof FIDELITY_REASONS];
@@ -288,6 +295,15 @@ export interface ExecutionOwnership {
   readonly adapterOwnsCanvasPrice: boolean;
 }
 
+/**
+ * What the caller knows about the TAPE behind the price. `partial: true` means
+ * one venue's prints (e.g. IEX), not the consolidated tape. `null` means not
+ * established and adds no reason — absence is never promoted to a wound.
+ */
+export interface TapeScope {
+  readonly partial: boolean;
+}
+
 /* ── THE ONE DOOR FROM THE PIPELINE VOCABULARY ─────────────────────────────── */
 
 /**
@@ -311,6 +327,7 @@ export interface ExecutionOwnership {
 export function fidelityFromPipelineLabel(
   label: CanonicalFidelityLabel,
   execution: ExecutionOwnership | null,
+  tape: TapeScope | null = null,
 ): { readonly fidelity: MarketFidelity; readonly reasons: readonly FidelityReason[] } {
   switch (label) {
     case CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE:
@@ -338,7 +355,14 @@ export function fidelityFromPipelineLabel(
       return { fidelity: MARKET_FIDELITIES.STALE, reasons: [] };
 
     case CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED:
-      return { fidelity: MARKET_FIDELITIES.DEGRADED, reasons: [] };
+      // ACTIVE DEGRADED is shared by several wounds (a delayed consolidated
+      // quote, an uncertified broker feed, the IEX relay), so the label alone
+      // cannot name the reason. Only a caller that KNOWS the tape is partial
+      // may say so; `=== true` so a JS caller's junk never invents one.
+      return {
+        fidelity: MARKET_FIDELITIES.DEGRADED,
+        reasons: tape?.partial === true ? [FIDELITY_REASONS.PARTIAL_TAPE] : [],
+      };
 
     case CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT:
       // A wall. Nothing was admitted, so there is nothing to paint — and

@@ -17,6 +17,10 @@ describe("webullPreviewScope — only US equities get a preview", () => {
     ["GC1!", "FUTURES", "Equities only — this preview cannot price futures (GC1!). Nothing is sent to Webull."],
     ["BTCUSD", "CRYPTO", "Equities only — this preview cannot price crypto (BTCUSD). Nothing is sent to Webull."],
     ["SPX", "INDEX", "Equities only — this preview cannot price an index (SPX). Nothing is sent to Webull."],
+    // Spot metals: classifySymbol files them under FOREX, but the noun comes
+    // from the owner (equityVendorSkipNoun) — never "forex" for spot gold.
+    ["XAUUSD", "FOREX", "Equities only — this preview cannot price spot metals (XAUUSD). Nothing is sent to Webull."],
+    ["XAGUSD", "FOREX", "Equities only — this preview cannot price spot metals (XAGUSD). Nothing is sent to Webull."],
   ] as const)("%s is %s and is refused by name", (symbol, cls, words) => {
     const scope = webullPreviewScope(symbol);
     expect(scope.eligible).toBe(false);
@@ -49,6 +53,9 @@ describe("webullPreviewScope — only US equities get a preview", () => {
     }
     const src = readFileSync(resolve(__dirname, "webullPreviewScope.ts"), "utf8");
     expect(src).toContain("classifySymbol(symbol)");
+    // The noun is the owner's where the owner has one, not a local literal.
+    expect(stripComments(src)).toContain("equityVendorSkipNoun(symbol)");
+    expect(stripComments(src)).not.toMatch(/FOREX:\s*"forex"|FUTURES:\s*"futures"/);
   });
 
   it("the route derives the intent's class from this scope — the literal is gone", () => {

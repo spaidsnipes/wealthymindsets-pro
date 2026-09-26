@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { readCanvasHonesty } from "./readCanvasHonesty";
 import { CANONICAL_FIDELITY_LABELS } from "./canonicalFidelityLabels";
-import { MARKET_FIDELITIES } from "./marketFidelityAlgebra";
+import { FIDELITY_REASONS, MARKET_FIDELITIES } from "./marketFidelityAlgebra";
+import { priceSourceBadge } from "../priceSource";
 
 /*
   THE MEASURED CANVAS, WRITTEN DOWN.
@@ -179,5 +180,24 @@ describe("readCanvasHonesty — the plaque names the moment the rail names", () 
     // The wrong clock, alone, is the defect. If the dashboard ever passes only
     // the tape stamp again, the live canvas goes back to reading UNMEASURED.
     expect(dash).toContain("capturedAtMs:");
+  });
+});
+
+describe("readCanvasHonesty — the IEX relay's DEGRADED names its reason", () => {
+  // Built by the REAL badge owner, so a change to the alpaca arm reaches here.
+  const iex = priceSourceBadge("alpaca", true, true, { present: true, fresh: true });
+  const yahoo = priceSourceBadge("yahoo", true, true, { present: true, fresh: true });
+
+  it("alpaca (IEX only) → DEGRADED with PARTIAL_TAPE, never 'No reason recorded'", () => {
+    expect(iex.label).toBe(CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED);
+    const reading = readCanvasHonesty({ badge: iex, capturedAtMs: CAPTURED_AT, observedAtMs: null, execution: NO_OWNER });
+    expect(reading?.fidelity).toBe(MARKET_FIDELITIES.DEGRADED);
+    expect(reading?.reasons).toEqual([FIDELITY_REASONS.PARTIAL_TAPE]);
+  });
+
+  it("a delayed consolidated quote is ALSO ACTIVE DEGRADED and is NOT a partial tape", () => {
+    expect(yahoo.label).toBe(CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED);
+    const reading = readCanvasHonesty({ badge: yahoo, capturedAtMs: CAPTURED_AT, observedAtMs: null, execution: NO_OWNER });
+    expect(reading?.reasons).not.toContain(FIDELITY_REASONS.PARTIAL_TAPE);
   });
 });

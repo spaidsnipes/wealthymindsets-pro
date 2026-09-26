@@ -1,4 +1,4 @@
-import type { PriceSourceBadge } from "../priceSource";
+import { PARTIAL_TAPE_PROVENANCES, type PriceSourceBadge } from "../priceSource";
 import {
   fidelityFromPipelineLabel,
   readMarketFidelity,
@@ -82,7 +82,8 @@ export interface CanvasHonestyInput {
    * mechanism behind a chip reading ACTIVE DEGRADED beside a plaque reading
    * EXECUTABLE about one instrument at one instant.
    */
-  readonly badge: Pick<PriceSourceBadge, "label" | "availability">;
+  readonly badge: Pick<PriceSourceBadge, "label" | "availability"> &
+    Partial<Pick<PriceSourceBadge, "provenance">>;
   /**
    * The canonical market state's accept-site stamp — the same value the
    * MARKET cell renders as `asOf`. Preferred, so the rail speaks once.
@@ -116,7 +117,10 @@ export function readCanvasHonesty(input: CanvasHonestyInput): MarketFidelityRead
   if (input.badge.availability !== undefined) return null;
 
   const asOf = firstFiniteMoment(input.capturedAtMs, input.observedAtMs);
-  const folded = fidelityFromPipelineLabel(input.badge.label, input.execution);
+  // The badge's provenance is the only witness to the TAPE's scope: IEX is one
+  // venue, and the plaque must say so rather than "No reason recorded".
+  const partial = PARTIAL_TAPE_PROVENANCES.has(input.badge.provenance ?? "");
+  const folded = fidelityFromPipelineLabel(input.badge.label, input.execution, { partial });
   // readMarketFidelity performs the final refusal itself. Duplicating the
   // finiteness check here would put a second owner on "what counts as a
   // moment", so the null is passed straight through to the one that owns it.
