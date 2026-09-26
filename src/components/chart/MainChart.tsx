@@ -84,7 +84,7 @@ import {
   recordSkip,
   withPaintBudget,
 } from "@/lib/chart/paintBudgetLedger";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { coinbaseProduct, useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
@@ -3076,8 +3076,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                      : ["5m","10m","15m","30m"].includes(timeframe) ? 5000
                      : 500;
 
-      // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles
-      const exParsed = parseExchangeSymbol(symbol);
+      // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles.
+      //
+      // ONE VENUE FOR BARS AND TAPE (serving, BTCUSD 1m, 2026-09-26): a plain
+      // "BTCUSD" matched no venue suffix, Alpaca's crypto path asked for
+      // "BTCUSD/USD" and got nothing, and the bars fell through to a vendor
+      // whose crypto volume is ~0 — the Data Window read "V 0" on a minute
+      // Coinbase shows traded 0.485 BTC, under a LIVE TAPE that IS Coinbase.
+      // Every volume invention on crypto was reading that zero. The tape's own
+      // venue owner (`coinbaseProduct`) now names the bars' venue too; a
+      // timeframe Coinbase does not publish still falls through as before.
+      const tapeCoinbase = parseExchangeSymbol(symbol) ? null : coinbaseProduct(symbol);
+      const exParsed = parseExchangeSymbol(symbol)
+        ?? (tapeCoinbase ? { coin: tapeCoinbase.split("-")[0], exchange: "coinbase" as const } : null);
       const exchangeData: CanonicalCandleBatch | null = exParsed
         ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store", signal: myAbortSignal })
             .then(r => r.json()).then(j => candleBatch(j, barCount)).catch(() => null)
