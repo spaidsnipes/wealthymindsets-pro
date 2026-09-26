@@ -140,6 +140,8 @@ export interface KeeperResult {
     readonly unresolved: number;
     /** What WM compared against: the durable KV book, an empty one, or none readable. */
     readonly ledger: "KV" | "NONE_PERSISTED" | "UNREADABLE";
+    /** Accounts whose open list did not answer, as `ACCOUNT_TYPE:HTTP` — never an id. */
+    readonly unreadable?: readonly string[];
     readonly atMs: number;
   };
 }

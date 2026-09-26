@@ -104,9 +104,15 @@ export async function runWebullSessionKeeper(
       reconciliation = { state: accounts.state, accounts: 0, openOrders: 0, external: 0, unresolved: 0, ledger, atMs: Date.now() };
     } else {
       let open = 0, external = 0, unresolved = 0, failed = 0, truncated = false;
+      const unreadable: string[] = [];
       for (const a of accounts.accounts) {
         const page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
-        if (page.state !== "OK") { failed++; continue; }
+        if (page.state !== "OK") {
+          failed++;
+          // Webull's own account-type word and the refusal's HTTP status — never an id.
+          unreadable.push(`${a.accountType ?? "UNTYPED"}:${page.state === "REJECTED" ? page.status : "NO_ANSWER"}`);
+          continue;
+        }
         open += page.count;
         truncated ||= page.truncated;
         const read = reconcileOpenOrders(page.clientOrderIds, (book ?? []).filter(r => r.accountId === a.accountId));
@@ -121,6 +127,7 @@ export async function runWebullSessionKeeper(
         external,
         unresolved,
         ledger,
+        ...(unreadable.length ? { unreadable } : {}),
         atMs: Date.now(),
       };
     }
