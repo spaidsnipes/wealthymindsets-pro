@@ -15,12 +15,20 @@
  *     passes `liveOrdersEnabled: true` — and no caller exists.
  *
  * This Sentinel reads source (a breadcrumb, not a runtime proof). It fails if:
- *   A. any server file (src/app/api or src/lib) names `live.tradovateapi.com`,
- *      or the retired `/api/tradovate` route comes back;
+ *   A. any server file (src/app/api or src/lib) names a `tradovateapi.com`
+ *      host other than `demo.tradovateapi.com` (the live host, an assembled
+ *      `".tradovateapi.com"`, or any other subdomain), or any API route under
+ *      the retired `/api/tradovate` prefix comes back (a catch-all included);
  *   B. any server file names an `*.alpaca.markets` host other than the paper
  *      trading host and the market-data hosts — i.e. a live trading base;
  *   C. `submitWebullOrderOnce` gains a non-test caller;
- *   D. any non-test source sets `liveOrdersEnabled` to anything but `false`.
+ *   D. any non-test source sets `liveOrdersEnabled` to anything but `false`
+ *      (dot, quoted or bracketed key; `false || x` is not `false`);
+ *   E. the Webull place/cancel endpoints are named anywhere but their contract
+ *      entry and the one place path: `ORDER_PLACE` / `ORDER_CANCEL` and the
+ *      `/trading/orders/place|cancel` paths. C watches one function name; E
+ *      watches the endpoint itself, so a second sender written from scratch
+ *      is caught too.
  *
  * Scope for A and B is src/app/api AND src/lib, one step wider than the audit
  * asked: a live base written in lib and imported by a route is the same hole.
@@ -41,8 +49,21 @@ const SERVER = SOURCES.filter((f) => f.file.startsWith("app/api/") || f.file.sta
 const API = SERVER.filter((f) => f.file.startsWith("app/api/"));
 
 // ── A. Tradovate live host ───────────────────────────────────────────────────
-const TRADOVATE_LIVE = /live\.tradovateapi\.com/i;
+/** Greedy on the left, like B: an assembled `"https://" + "live" + ".tradovateapi.com"`
+ *  yields `.tradovateapi.com`, which is not the demo host. */
+const TRADOVATE_HOST = /[a-z0-9.-]*tradovateapi\.com/gi;
+const TRADOVATE_DEMO_HOST = "demo.tradovateapi.com";
 const RETIRED_ROUTE = "/api/tradovate";
+
+function nonDemoTradovateHostsIn(text: string): string[] {
+  return [...text.matchAll(TRADOVATE_HOST)].map((m) => m[0].toLowerCase()).filter((h) => h !== TRADOVATE_DEMO_HOST);
+}
+
+/** Any route under the retired prefix — `/api/tradovate`, `/api/tradovate/[...path]`,
+ *  `/api/tradovate-live` — is the same door reopened. */
+function retiredRoutes(paths: readonly string[]): string[] {
+  return paths.filter((p) => p.toLowerCase().startsWith(RETIRED_ROUTE));
+}
 
 // ── B. Alpaca hosts ──────────────────────────────────────────────────────────
 /** Written out literally, NOT derived from ALPACA_PAPER_BASE: deriving it would
@@ -78,11 +99,30 @@ const SUBMIT_DECLARATION = /export async function submitWebullOrderOnce\(/;
  * The whitespace sits INSIDE the lookahead on purpose: `\s*(?!false)` lets the
  * engine give back a space and see " false", which is not "false", and fire.
  */
-const LIVE_FLAG_WRITE = /\bliveOrdersEnabled\s*\??\s*(?::|=(?!=))(?!\s*(?:false|boolean)\b)/;
+const LIVE_FLAG_WRITE =
+  /\bliveOrdersEnabled['"`]?\s*\]?\s*\??\s*(?::|=(?!=))(?!\s*(?:false|boolean)\s*(?:[,;})\]]|$))/m;
 const LIVE_FLAG_SHORTHAND = /[{,]\s*liveOrdersEnabled\s*[,}]/;
+/** The key handed over as a string argument: `Reflect.set(cfg, "liveOrdersEnabled", …)`,
+ *  `Object.defineProperty(cfg, "liveOrdersEnabled", …)`. */
+const LIVE_FLAG_BY_NAME = /['"`]liveOrdersEnabled['"`]\s*,/;
 
 function setsLiveFlag(text: string): boolean {
-  return LIVE_FLAG_WRITE.test(text) || LIVE_FLAG_SHORTHAND.test(text);
+  return LIVE_FLAG_WRITE.test(text) || LIVE_FLAG_SHORTHAND.test(text) || LIVE_FLAG_BY_NAME.test(text);
+}
+
+// ── E. Webull place/cancel endpoints ─────────────────────────────────────────
+const ORDER_ENDPOINT = /\bORDER_(?:PLACE|CANCEL)\b|\/trading\/orders\/(?:place|cancel)\b/g;
+const CONTRACT_OWNER = "lib/marketData/webullSdkContract.ts";
+/** Where each mention is allowed, and how many: the contract declares both keys
+ *  and both paths once; the place path reads ORDER_PLACE once. Nothing reads
+ *  ORDER_CANCEL — no live cancel is wired. */
+const ORDER_ENDPOINT_ALLOWED: Readonly<Record<string, readonly string[]>> = {
+  [CONTRACT_OWNER]: ["/trading/orders/cancel", "/trading/orders/place", "ORDER_CANCEL", "ORDER_PLACE"],
+  [SUBMIT_OWNER]: ["ORDER_PLACE"],
+};
+
+function orderEndpointMentions(text: string): string[] {
+  return [...text.matchAll(ORDER_ENDPOINT)].map((m) => m[0]).sort();
 }
 
 describe("the scan sees the code it polices", () => {
@@ -101,6 +141,12 @@ describe("the scan sees the code it polices", () => {
     expect(ALPACA_PAPER_BASE).toBe(`https://${ALPACA_PAPER_HOST}`);
   });
 
+  it("sees the Webull place/cancel contract where it lives", () => {
+    const contract = SOURCES.find((f) => f.file === CONTRACT_OWNER);
+    expect(contract, `${CONTRACT_OWNER} was not scanned`).toBeDefined();
+    expect(orderEndpointMentions(contract!.text)).toEqual(ORDER_ENDPOINT_ALLOWED[CONTRACT_OWNER]);
+  });
+
   it("sees the Webull place path and its gate read", () => {
     const owner = SOURCES.find((f) => f.file === SUBMIT_OWNER);
     expect(owner, `${SUBMIT_OWNER} was not scanned`).toBeDefined();
@@ -110,9 +156,17 @@ describe("the scan sees the code it polices", () => {
 });
 
 describe("each detector bites (positive controls on specimens)", () => {
-  it("A: a live Tradovate URL is caught", () => {
-    expect(TRADOVATE_LIVE.test('const u = "https://live.tradovateapi.com/v1/order/placeorder";')).toBe(true);
-    expect(TRADOVATE_LIVE.test('const u = "https://demo.tradovateapi.com/v1";')).toBe(false);
+  it("A: a live, assembled or other Tradovate host is caught; demo passes; any retired-prefix route is caught", () => {
+    expect(nonDemoTradovateHostsIn('const u = "https://live.tradovateapi.com/v1/order/placeorder";')).toEqual(["live.tradovateapi.com"]);
+    expect(nonDemoTradovateHostsIn('const u = "https://" + "live" + ".tradovateapi.com";')).toEqual([".tradovateapi.com"]);
+    expect(nonDemoTradovateHostsIn('const u = `https://${env}.tradovateapi.com`;')).toEqual([".tradovateapi.com"]);
+    expect(nonDemoTradovateHostsIn('new WebSocket("wss://md.tradovateapi.com/v1/websocket")')).toEqual(["md.tradovateapi.com"]);
+    expect(nonDemoTradovateHostsIn('const u = "https://demo.tradovateapi.com/v1";')).toEqual([]);
+    expect(retiredRoutes(["/api/tradovate", "/api/tradovate/[...path]", "/api/tradovate-live", "/api/alpaca-trading"])).toEqual([
+      "/api/tradovate",
+      "/api/tradovate/[...path]",
+      "/api/tradovate-live",
+    ]);
   });
 
   it("B: a live or assembled Alpaca trading host is caught; paper and data pass", () => {
@@ -138,6 +192,14 @@ describe("each detector bites (positive controls on specimens)", () => {
       'const cfg = { liveOrdersEnabled: process.env.WEBULL_LIVE === "1" };',
       "const cfg = { liveOrdersEnabled: !0 };",
       "const cfg = { appKey, liveOrdersEnabled };",
+      'const cfg = { "liveOrdersEnabled": true };',
+      "const cfg = { 'liveOrdersEnabled': x };",
+      'cfg["liveOrdersEnabled"] = true;',
+      "cfg[`liveOrdersEnabled`] = 1;",
+      "const cfg = { liveOrdersEnabled: false || process.env.LIVE };",
+      "cfg.liveOrdersEnabled = false ? 0 : 1;",
+      'Reflect.set(cfg, "liveOrdersEnabled", true);',
+      'Object.defineProperty(cfg, "liveOrdersEnabled", { value: true });',
     ]) expect(setsLiveFlag(s), s).toBe(true);
     for (const s of [
       "const cfg = { ...base, liveOrdersEnabled: false };",
@@ -146,15 +208,28 @@ describe("each detector bites (positive controls on specimens)", () => {
       "readonly liveOrdersEnabled?: boolean;",
       "if (!config.liveOrdersEnabled) {",
       "if (config.liveOrdersEnabled === false) {",
+      'const cfg = { "liveOrdersEnabled": false };',
+      'cfg["liveOrdersEnabled"] = false;',
+      "cfg.liveOrdersEnabled = false\nnext()",
+      'if (cfg["liveOrdersEnabled"]) {',
     ]) expect(setsLiveFlag(s), s).toBe(false);
+  });
+
+  it("E: a place or cancel endpoint named by key, bracket or path is caught", () => {
+    expect(orderEndpointMentions("await signedCall(f, c, WEBULL_SDK_CONTRACT.ORDER_PLACE, body);")).toEqual(["ORDER_PLACE"]);
+    expect(orderEndpointMentions('const e = WEBULL_SDK_CONTRACT["ORDER_CANCEL"];')).toEqual(["ORDER_CANCEL"]);
+    expect(orderEndpointMentions('fetch(base + "/trading/orders/place", init)')).toEqual(["/trading/orders/place"]);
+    expect(orderEndpointMentions('fetch(`${base}/trading/orders/cancel`, init)')).toEqual(["/trading/orders/cancel"]);
+    expect(orderEndpointMentions('fetch(base + "/trading/orders/preview")')).toEqual([]);
+    expect(orderEndpointMentions("WEBULL_SDK_CONTRACT.ORDER_PREVIEW; ORDER_DETAIL; ORDER_OPEN_LIST")).toEqual([]);
   });
 });
 
 describe("live execution stays closed", () => {
-  it("A: no server file names live.tradovateapi.com, and /api/tradovate stays retired", () => {
-    const hits = SERVER.filter((f) => TRADOVATE_LIVE.test(f.text)).map((f) => f.file);
-    expect(hits, "a live Tradovate host is back in server code — that is live execution with no authority").toEqual([]);
-    expect(apiRoutePaths(), "/api/tradovate was retired on 2026-09-26 (§75) and must not return").not.toContain(RETIRED_ROUTE);
+  it("A: no server file names a non-demo Tradovate host, and nothing under /api/tradovate returns", () => {
+    const hits = SERVER.flatMap((f) => nonDemoTradovateHostsIn(f.text).map((h) => `${f.file}: ${h}`));
+    expect(hits, "a non-demo Tradovate host is in server code — that is live execution with no authority").toEqual([]);
+    expect(retiredRoutes(apiRoutePaths()), "/api/tradovate was retired on 2026-09-26 (§75) and must not return").toEqual([]);
   });
 
   it("B: every Alpaca host in server code is the paper trading host or a market-data host", () => {
@@ -174,5 +249,14 @@ describe("live execution stays closed", () => {
   it("D: no non-test source sets liveOrdersEnabled to anything but false", () => {
     const hits = SOURCES.filter((f) => setsLiveFlag(f.text)).map((f) => f.file);
     expect(hits, "liveOrdersEnabled is opened in source — only the Founder's explicit live-test instruction may do that").toEqual([]);
+  });
+
+  it("E: the Webull place and cancel endpoints are named only by their contract and the one place path", () => {
+    const found: Record<string, string[]> = {};
+    for (const f of SOURCES) {
+      const m = orderEndpointMentions(f.text);
+      if (m.length) found[f.file] = m;
+    }
+    expect(found, "a Webull place/cancel endpoint gained a new sender — the live order path has a second door").toEqual(ORDER_ENDPOINT_ALLOWED);
   });
 });
