@@ -202,7 +202,11 @@ describe("the Structure Profile's name and LEG POC chip clear every body under t
     expect(chipFn).toContain("const altsS = rowsS.filter(r => r !== cy).map(r => ({ x: cx, y: r - 12, w, h: 14 }));");
     // Pin updated again 2026-09-25 (P-110 canon pass): bodies AND wicks.
     expect(chipFn).toContain("const bandS = [Math.min(cy, ...rowsS) - 12, Math.max(cy, ...rowsS) + 2] as const;");
-    expect(chipFn).toMatch(/placeClearOfKeepOut\(\s*\{ x: cx, y: cy - 12, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(bandS\[0\], bandS\[1\]\), \.\.\.profileCandlesAt\(bandS\[0\], bandS\[1\]\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), Math\.min\(cx, x0 - w - 6\)\), blockers: floatingChips, strict: true, alternates: altsS \},?\s*\)/);
+    expect(chipFn).toMatch(/placeClearOfKeepOut\(\s*\{ x: cx, y: cy - 12, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(bandS\[0\], bandS\[1\]\), \.\.\.profileCandlesAt\(bandS\[0\], bandS\[1\]\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), LEFT_CHROME_RIGHT, Math\.min\(cx, x0 - w - 6\)\), blockers: floatingChips, strict: true, alternates: altsS \},?\s*\)/);
+    // Pin updated 2026-09-26 (serving: the silence started off the pane's left
+    // edge, "…GH 374.34"): never left of the left chrome, and with no room left
+    // of the stack the chip may use the whole plot.
+    expect(chipFn).toContain("const cx = Math.max(LEFT_CHROME_RIGHT, Math.min(x, maxX >= LEFT_CHROME_RIGHT ? maxX : plotRight - LEVEL_CHIP_EDGE_GAP - w));");
     expect(chipFn).toMatch(/recordKeepOut\(keepOutLedger, spotP\)/);
   });
 

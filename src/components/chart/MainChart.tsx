@@ -268,6 +268,8 @@ import {
   fusionSilenceWords,
   levelChipNeedsLeader,
   levelChipSlots,
+  placeLevelPair,
+  LEFT_CHROME_RIGHT,
   nearestMemoryLevels,
   structureProfileForm,
   structureSilenceWords,
@@ -6007,6 +6009,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const profileCutBy = new Set<string>();
       let vpChipsPlaced = 0;
       let vpWordsWithheld = 0;
+      let vpPairsMoved = 0;
 
       let bsp = 12;
       try { bsp = chart.timeScale().options().barSpacing ?? 12; } catch {}
@@ -6181,7 +6184,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         questionQuiet: 1,
         regimeLight: layerOnRef.current.regimeLighting === true ? regimeLightingRef.current : null,
         stackPrefs: stackPrefsRef.current,
-        fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? []) : [],
+        // The fused object's parents step back — the trader's Pick · Fuse pair,
+        // or the pair Profile Fusion fused on its own (the object's sources).
+        fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],
         feedState: feedStateRef.current,
         selection: attSelection,
       });
@@ -8499,14 +8504,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           get the plate's three parts, in the trader's VP inks:
             · a dashed RULE — faint across the plot, firm across the column —
               painted behind the candles (the same cut-out as the rows);
-            · the level's NAME at the column's left, "VAH 371.80", above its
-              rule (below it inside the header band);
-            · a filled GOLD PRICE CHIP at the axis edge, on the level's row.
-          Name and chip ask the keep-out owner where they may print against
-          every candle body and wick under their rows and every chip already
-          placed (strict): neither prints on a candle. A name with no clear
-          spot is withheld (its chip still carries the price); a chip with none
-          keeps its row and its fill yields. Prices at the market's precision.
+            · the level's NAME ("VAH", no price) at the column's left;
+            · its PRICE in a filled GOLD CHIP at the axis edge.
+          ONE label per level: name and chip are one placed pair
+          (profileCanonGlass.placeLevelPair), clear of every candle body and
+          wick and every chip. Prices at the market's precision.
         */
         const vpPrice = (p: number) => p.toLocaleString("en-US", { minimumFractionDigits: vpDp, maximumFractionDigits: vpDp });
         const colLeft = vpRight - vpW - 2;
@@ -8559,50 +8561,50 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.beginPath(); ctx.moveTo(colLeft, midY); ctx.lineTo(vpRight - 2, midY); ctx.stroke();
           ctx.setLineDash([]);
           ctx.restore();
-          // The name at the column's left, above its rule — unless that is
-          // inside the header band (serving NQ1! 5m: "VAH 31,020" printed on
-          // "BAR OPENED …"); then just under it.
+          // M47 · ONE LABEL PER LEVEL, PLACED AS ONE PAIR (2026-09-26, Regime
+          // desk on serving: "371.75" / "369.85" chips printed ON the Sep 25
+          // bodies, and every level was named twice — "VAL 369.85" beside a
+          // "369.85" chip). The NAME ("VAL") at the column's left and the PRICE
+          // in a gold chip at the axis travel together (placeLevelPair): the
+          // first row where BOTH clear every candle body and wick and every
+          // chip; else they slide left together along the rule; else the chip
+          // yields and the name is withheld. Rows never enter the header band.
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-          const word = `${tag} ${vpPrice(p)}`;
-          const ww = Math.ceil(ctx.measureText(word).width) + 4;
-          const tagBelow = midY - 13 < HEADER_FLOOR_Y;
-          const above = { x: colLeft, y: midY - 13, w: ww, h: 12 };
-          const below = { x: colLeft, y: Math.max(midY + 2, HEADER_FLOOR_Y), w: ww, h: 12 };
-          const wordPref = tagBelow ? below : above;
-          const wordAlts = tagBelow ? [] : [below];
-          const wordSpot = placeClearOfKeepOut(wordPref, profileCandlesAt(Math.min(above.y, below.y), below.y + 12), {
-            minX: Math.max(4, colLeft - 120), blockers: forceChips, strict: true, alternates: wordAlts,
-          });
-          if (wordSpot.onCandles) {
-            vpWordsWithheld++;
-          } else {
-            forceChips.push({ ...wordSpot.rect });
-            ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-            ctx.strokeText(word, wordSpot.rect.x + 2, wordSpot.rect.y + 6);
-            ctx.fillStyle = ink(0.95);
-            ctx.fillText(word, wordSpot.rect.x + 2, wordSpot.rect.y + 6);
-          }
-          // The gold price chip at the axis edge, on the level's own row.
+          const nameW = Math.ceil(ctx.measureText(tag).width) + 6;
           ctx.font = LEVEL_CHIP_FONT;
           const chipTxt = vpPrice(p);
           const cw = Math.ceil(ctx.measureText(chipTxt).width) + LEVEL_CHIP_PAD;
-          const slots = levelChipSlots({ y: midY, w: cw, rightX: vpChipRight, floorY: HEADER_FLOOR_Y, footY: pane0H - 2 });
-          const chipSpot = placeClearOfKeepOut(slots.preferred, profileCandlesAt(slots.top, slots.bottom), {
-            minX: Math.max(4, colLeft - 40), blockers: forceChips, strict: true, alternates: slots.alternates,
+          const bandTop = Math.max(HEADER_FLOOR_Y, midY - 2 * LEVEL_CHIP_H - 6);
+          const bandBot = midY + 2 * LEVEL_CHIP_H + 6;
+          const pair = placeLevelPair({
+            y: midY, nameW, chipW: cw, nameX: colLeft, chipRightX: vpChipRight,
+            floorY: HEADER_FLOOR_Y, footY: pane0H - 2, minX: LEFT_CHROME_RIGHT,
+            keepOut: profileCandlesAt(bandTop, bandBot), blockers: forceChips,
           });
-          const cr = chipSpot.rect;
+          const cr = pair.chip;
           forceChips.push({ ...cr });
           vpChipsPlaced++;
-          if (levelChipNeedsLeader(cr, midY, chipSpot.mode === "SLID")) {
+          if (pair.mode !== "ROW") vpPairsMoved++;
+          if (pair.name) forceChips.push({ ...pair.name });
+          else vpWordsWithheld++;
+          if (pair.leader) {
             ctx.strokeStyle = ink(0.6); ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
             ctx.beginPath(); ctx.moveTo(cr.x + cr.w, cr.y + cr.h / 2); ctx.lineTo(vpChipRight, midY); ctx.stroke();
             ctx.setLineDash([]);
           }
-          ctx.fillStyle = chipSpot.onCandles ? `rgba(11,10,8,${keepOutBackingAlpha(chipSpot, 0.9)})` : ink(0.92);
+          if (pair.name) {
+            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
+            ctx.strokeText(tag, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
+            ctx.fillStyle = ink(0.95);
+            ctx.fillText(tag, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
+          }
+          ctx.font = LEVEL_CHIP_FONT;
+          ctx.fillStyle = pair.onCandles ? `rgba(11,10,8,${keepOutBackingAlpha(pair, 0.9)})` : ink(0.92);
           ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
-          if (chipSpot.onCandles) { ctx.strokeStyle = ink(0.9); ctx.lineWidth = 1; ctx.strokeRect(cr.x + 0.5, cr.y + 0.5, cr.w - 1, cr.h - 1); }
-          ctx.fillStyle = chipSpot.onCandles ? ink(1) : "rgba(11,10,8,0.95)";
+          if (pair.onCandles) { ctx.strokeStyle = ink(0.9); ctx.lineWidth = 1; ctx.strokeRect(cr.x + 0.5, cr.y + 0.5, cr.w - 1, cr.h - 1); }
+          ctx.fillStyle = pair.onCandles ? ink(1) : "rgba(11,10,8,0.95)";
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);
           ctx.restore();
@@ -8769,7 +8771,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (receipt.requested === 0) {
           delete ds.vpRequested; delete ds.vpDrawn; delete ds.vpDeclined;
           delete ds.vpRows; delete ds.vpNote; delete ds.vpAxisClearance;
-          delete ds.vpLevelChips; delete ds.vpWordsWithheld;
+          delete ds.vpLevelChips; delete ds.vpWordsWithheld; delete ds.vpLevelPairsMoved;
         } else {
           ds.vpRequested = String(receipt.requested);
           ds.vpDrawn = String(receipt.drawn);
@@ -8779,6 +8781,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // their words were withheld because a candle stood where they fell.
           ds.vpLevelChips = String(vpChipsPlaced);
           ds.vpWordsWithheld = String(vpWordsWithheld);
+          ds.vpLevelPairsMoved = String(vpPairsMoved);
           /*
             THE EDGE THE PROFILE WAS ACTUALLY MEASURED AGAINST.
 
@@ -12927,7 +12930,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (vrpOn && vrpVM?.drawn) stackOrder.push("VISIBLE_RANGE");
         // The trader's order (P-110 stack preferences); geometry stays with the plan.
         const orderedStack = orderStack(stackOrder, stackPrefsRef.current);
-        stackOrder.splice(0, stackOrder.length, ...orderedStack);
+        /*
+          P-110 · THE BODIES SIT BESIDE THE LIVE EDGE (2026-09-26, serving TSLA
+          15m, Living + Composite): the plan steps every lane drawn LEFT of
+          Living past the Living body's reach, and with Living innermost that
+          threw the Composite lane to x≈250–330 of a 1235px pane — over the
+          Sep 23–24 candles, its caption floating above. The Living body is the
+          one that reaches into history; its neighbours stay against the axis.
+          So Living is always the OUTERMOST lane when it shares the edge; the
+          trader's order still holds among the others. The plan (pure, tested)
+          is unchanged — only the order it is handed.
+        */
+        const livingOuter = orderedStack.includes("LIVING") && orderedStack.length > 1;
+        const edgeOrder = livingOuter ? [...orderedStack.filter(s => s !== "LIVING"), "LIVING" as const] : orderedStack;
+        stackOrder.splice(0, stackOrder.length, ...edgeOrder);
+        if (livingOuter) ds.profileStackLivingOuter = "1";
+        else delete ds.profileStackLivingOuter;
         // FUSION PARENTS DIM (Garden 12 visibility governor): while a fused
         // object stands, its two parents keep drawing — alive, inspectable —
         // but step back so the derived object reads as the subject. The fade
@@ -13949,7 +13967,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            kept. The sources keep drawing in their own lanes; the fused
            profile is outlined in gold across both lanes. Unfuse drops it. */
         {
-          const pair = stackPrefsRef.current.fusion;
+          /*
+            GP12 §52 · PROFILE FUSION DRAWS THE FUSED OBJECT (2026-09-26,
+            serving TSLA 15m, Structure + Fusion + Living + Composite: Fusion
+            read as a lone "×2" tick). With the Profile Fusion layer on and two
+            stack species on the glass, the family fuses them itself — the
+            trader's own Pick · Fuse pair, when set, wins. fuseProfiles rebins
+            both onto the coarser common grid and RECOMPUTES the row map, POC
+            and value area (never an average of POCs); the parents keep
+            drawing, quieter (the governor's fusedParents).
+          */
+          const autoPair: StackSpecies[] | null = layerOnRef.current.profileFusion === true && stackOrder.length >= 2
+            ? (stackOrder.includes("LIVING") ? [stackOrder.find(s => s !== "LIVING")!, "LIVING"] : [stackOrder[0], stackOrder[1]])
+            : null;
+          const pair = stackPrefsRef.current.fusion ?? autoPair;
+          ds.profileFusionPair = pair && pair.length === 2 ? `${stackPrefsRef.current.fusion ? "TRADER" : "AUTO"}:${pair.join("+")}` : "NONE";
           if (pair && pair.length === 2) {
             const cpF = layerOnRef.current.compositeProfile ? compositeProfileRef.current : null;
             const lpF = layerOnRef.current.livingProfile ? livingProfileRef.current : null;
@@ -13984,7 +14016,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // louder than the candles it sits beside.
               const fuseA = att.alpha("fusedObject");
               // Behind the candles, like every species it was fused from.
+              // THE DERIVED BODY (GP12 §52): the rebinned, recomputed histogram
+              // as a body of its own — rows denser than the parents' (who step
+              // back through the governor), and its silhouette traced as ONE
+              // rim, run by contiguous run, so it reads as a new object and not
+              // as a tint laid over its parents.
               ctx.save(); clipProfileToCandles("FUSED");
+              const fusedTips: { x: number; y: number }[] = [];
               for (const r of f.rows) {
                 const y0 = srs.priceToCoordinate(r.price + f.step), y1 = srs.priceToCoordinate(r.price);
                 if (y0 == null || y1 == null) continue;
@@ -13992,10 +14030,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const w = (r.volume / maxV) * spanW;
                 const inVa = r.price >= f.val && r.price < f.vah;
                 ctx.globalAlpha = fuseA;
-                ctx.fillStyle = `rgba(${FU},${inVa ? 0.2 : 0.07})`; // candles stay dominant
+                ctx.fillStyle = `rgba(${FU},${inVa ? 0.34 : 0.12})`;
                 ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);
                 ctx.globalAlpha = fuseA * (inVa ? 0.95 : 0.55);
                 ctx.strokeRect(spanR - w + 0.5, Math.min(+y0, +y1) + 0.5, w - 1, h);
+                fusedTips.push({ x: spanR - w, y: (+y0 + +y1) / 2 });
+              }
+              ctx.globalAlpha = fuseA;
+              if (fusedTips.length >= 2) {
+                fusedTips.sort((a, z) => a.y - z.y);
+                const pitch = Math.max(2, Math.abs(fusedTips[1].y - fusedTips[0].y)) * 1.6 + 1;
+                ctx.beginPath();
+                fusedTips.forEach((q, k) => (k === 0 || q.y - fusedTips[k - 1].y > pitch ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)));
+                ctx.strokeStyle = `rgba(${FU},0.95)`; ctx.lineWidth = 1.4; ctx.stroke();
+                ctx.lineWidth = 1;
               }
               ctx.restore(); // releases the fused body's candle cut-out
               ctx.globalAlpha = fuseA;
@@ -14032,19 +14080,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 }
               }
               ctx.strokeStyle = `rgba(${FU},0.95)`; ctx.lineWidth = 1;
-              const line = (price: number, label: string, dash: number[]) => {
+              // The fused levels: rules across the derived body in the flow's
+              // fused ink; their CHIPS in the family's ink (POC / EDGE roles),
+              // so a fused POC reads as a POC of the same family.
+              const line = (price: number, label: string, dash: number[], chipInk: string) => {
                 const y = srs.priceToCoordinate(price);
                 if (y == null) return;
                 ctx.setLineDash(dash);
                 ctx.beginPath(); ctx.moveTo(spanL, +y); ctx.lineTo(spanR, +y); ctx.stroke();
                 ctx.setLineDash([]);
-                if (att.speaks("fusedObject")) levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);
+                if (att.speaks("fusedObject")) levelChip(+y, label, chipInk);
               };
               ctx.lineWidth = 2;
-              line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, []);
+              line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, [], pk.rgba("POC", 0.95));
               ctx.lineWidth = 1;
-              line(f.vah, `FUSED VAH ${f.vah.toFixed(pxDp)}`, [4, 3]);
-              line(f.val, `FUSED VAL ${f.val.toFixed(pxDp)}`, [4, 3]);
+              line(f.vah, `FUSED VAH ${f.vah.toFixed(pxDp)}`, [4, 3], pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
+              line(f.val, `FUSED VAL ${f.val.toFixed(pxDp)}`, [4, 3], pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
               ctx.restore();
             }
           } else {
@@ -14420,7 +14471,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const chip = (text: string, x: number, y: number) => {
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const maxX = W - 76 - livingCol - w;
-              const cx = Math.max(4, Math.min(x, maxX));
+              // INSIDE THE PLOT, right of the left chrome (2026-09-26, serving:
+              // with the Living body wide, maxX fell under the left edge and the
+              // silence read "…GH 374.34 · TOO SHORT…"). When there is no room
+              // left of the stack the chip may use the whole plot; the keep-out
+              // below keeps it off candles and chips.
+              const cx = Math.max(LEFT_CHROME_RIGHT, Math.min(x, maxX >= LEFT_CHROME_RIGHT ? maxX : plotRight - LEVEL_CHIP_EDGE_GAP - w));
               const taken = (yy: number) => floatingChips.some(r =>
                 cx < r.x + r.w + 2 && cx + w + 2 > r.x && yy - 12 < r.y + r.h + 1 && yy + 2 + 1 > r.y);
               let cy = y;
@@ -14449,7 +14505,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const spotP = placeClearOfKeepOut(
                 { x: cx, y: cy - 12, w, h: 14 },
                 [...keepOut(), ...rowBodiesAt(bandS[0], bandS[1]), ...profileCandlesAt(bandS[0], bandS[1])],
-                { minX: Math.max(keepOutMinX(), Math.min(cx, x0 - w - 6)), blockers: floatingChips, strict: true, alternates: altsS },
+                { minX: Math.max(keepOutMinX(), LEFT_CHROME_RIGHT, Math.min(cx, x0 - w - 6)), blockers: floatingChips, strict: true, alternates: altsS },
               );
               recordKeepOut(keepOutLedger, spotP);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotP, 0.82)})`;
@@ -14460,9 +14516,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             };
             const silence = structureSilenceWords({ form, kind: sp.anchor.kind, anchorPrice: sp.anchor.price, legBars: sp.legBars, poc: sp.poc, dp: pxDp });
             if (silence) {
-              // The rule form: one chip names the swing, the leg, why its
-              // shape is withheld, and the leg POC the rule carries.
+              // The rule form: one chip names the swing, the leg and why its
+              // shape is withheld; the leg POC the rule carries is named by the
+              // family's level chip on its own row, like every species' POC.
               chip(silence, x0 + 4, Math.max(HEADER_FLOOR_Y + 12, (legDrawn ? top : 0) - 4));
+              if (sp.poc != null) {
+                const ypS = srs.priceToCoordinate(sp.poc);
+                if (ypS != null) levelChip(+ypS, `LEG POC ${sp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+              }
               ds.structureProfileSilence = form;
             } else {
               chip(

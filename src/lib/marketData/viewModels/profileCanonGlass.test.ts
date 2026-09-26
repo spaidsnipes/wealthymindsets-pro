@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LEFT_CHROME_RIGHT,
+  LEVEL_PAIR_GAP,
+  placeLevelPair,
   LEVEL_CHIP_FONT,
   LEVEL_CHIP_H,
   LIVING_BODY_CANON,
@@ -62,6 +65,54 @@ describe("the level chip's slots (P-110 / M47)", () => {
   });
 });
 
+describe("the level pair (M47: one name + one price chip, placed as a unit)", () => {
+  const base = { y: 300, nameW: 24, chipW: 50, nameX: 1000, chipRightX: 1150, floorY: 90, footY: 600, minX: 84, blockers: [] as { x: number; y: number; w: number; h: number }[] };
+  const clear = (r: { x: number; y: number; w: number; h: number } | null, boxes: { x: number; y: number; w: number; h: number }[]) =>
+    r != null && rectHits(r, boxes) === 0;
+
+  it("no candles: name at the column's left, chip at the axis, both on the rule's row", () => {
+    const p = placeLevelPair({ ...base, keepOut: [] });
+    expect(p.mode).toBe("ROW");
+    expect(p.chip).toEqual({ x: 1100, y: 300 - LEVEL_CHIP_H / 2, w: 50, h: LEVEL_CHIP_H });
+    expect(p.name).toEqual({ x: 1000, y: 300 - LEVEL_CHIP_H / 2, w: 24, h: LEVEL_CHIP_H });
+    expect(p.leader).toBe(false);
+  });
+
+  it("candles under the whole column across every nearby row (the Regime-desk case): the pair slides left together, clear of all of them", () => {
+    // Sep 25 bodies at x 1040–1150 spanning y 250–360 — every row of the column is taken.
+    const candles = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => ({ x: 1040 + k * 11, y: 250, w: 9, h: 110 }));
+    const p = placeLevelPair({ ...base, keepOut: candles });
+    expect(p.mode).toBe("SLID");
+    expect(clear(p.chip, candles)).toBe(true);
+    expect(clear(p.name, candles)).toBe(true);
+    expect(p.name!.x + p.name!.w).toBeLessThanOrEqual(p.chip.x);
+    expect(p.chip.x - (p.name!.x + p.name!.w)).toBe(LEVEL_PAIR_GAP);
+    expect(p.leader).toBe(true);
+  });
+
+  it("never prints the pair on a chip already on the glass; steps to a clear row first", () => {
+    const chipThere = { x: 1090, y: 290, w: 70, h: 20 };
+    const p = placeLevelPair({ ...base, keepOut: [], blockers: [chipThere] });
+    expect(p.mode).toBe("ROW");
+    expect(clear(p.chip, [chipThere])).toBe(true);
+  });
+
+  it("nowhere clear: the chip keeps its row and yields, the name is withheld — never a name on a candle", () => {
+    const wall = [{ x: 0, y: 0, w: 2000, h: 1000 }];
+    const p = placeLevelPair({ ...base, keepOut: wall });
+    expect(p.mode).toBe("YIELDED");
+    expect(p.name).toBeNull();
+    expect(p.onCandles).toBe(true);
+  });
+
+  it("never slides left of the left chrome", () => {
+    expect(LEFT_CHROME_RIGHT).toBe(84);
+    const candles = [{ x: 90, y: 0, w: 1100, h: 1000 }];
+    const p = placeLevelPair({ ...base, keepOut: candles });
+    expect(p.mode).toBe("YIELDED");
+  });
+});
+
 describe("Structure readability", () => {
   it("a short leg or a leg with no room draws its rule, not a histogram", () => {
     expect(structureProfileForm(13, 400)).toBe("RULE_SHORT_LEG");
@@ -73,7 +124,7 @@ describe("Structure readability", () => {
 
   it("names the silence from the leg's own numbers, at the market's precision", () => {
     expect(structureSilenceWords({ form: "RULE_SHORT_LEG", kind: "HIGH", anchorPrice: 374.54, legBars: 13, poc: 372.35, dp: 2 }))
-      .toBe("STRUCTURE · 13-BAR LEG FROM SWING HIGH 374.54 · TOO SHORT TO PROFILE (21+) · LEG POC 372.35");
+      .toBe("STRUCTURE · 13-BAR LEG FROM SWING HIGH 374.54 · TOO SHORT TO PROFILE (21+)");
     expect(structureSilenceWords({ form: "RULE_NO_ROOM", kind: "LOW", anchorPrice: 1.08412, legBars: 40, poc: null, dp: 5 }))
       .toBe("STRUCTURE · LEG FROM SWING LOW 1.08412 BEGAN TOO NEAR NOW TO PROFILE");
     expect(structureSilenceWords({ form: "HISTOGRAM", kind: "LOW", anchorPrice: 1, legBars: 40, poc: 1, dp: 2 })).toBeNull();

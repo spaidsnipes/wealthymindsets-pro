@@ -136,6 +136,100 @@ export function levelChipSlots(input: LevelChipSlotInput): LevelChipSlots {
   };
 }
 
+/* ── THE LEVEL PAIR (M47: ONE label per level) ──────────────────────────────
+ * Serving, Regime desk (both volume profiles), 2026-09-26 04:00 CDT: the
+ * Session column's price chips printed ON the Sep 25 candle bodies (their
+ * slide was capped 40px left of the column, so a column over the newest
+ * candles had nowhere to go and kept its spot), and every level was named
+ * twice — "VAL 369.85" beside a "369.85" chip. M47 names a level ONCE: its
+ * NAME at the column's left and its PRICE in a gold chip at the axis edge.
+ * They are placed as ONE unit: the first row (the rule's own, just above,
+ * just below, a step further out either side) where BOTH are clear of every
+ * candle body and wick and every chip; else the pair slides left together
+ * along the rule's row (the rule is its leader); else the chip keeps its row
+ * with its fill yielded and the name is withheld — never a word on a candle.
+ */
+export interface LevelPairInput {
+  /** The rule's y. */
+  readonly y: number;
+  readonly nameW: number;
+  readonly chipW: number;
+  /** The name's preferred left x (the column's left edge). */
+  readonly nameX: number;
+  /** The chip's right end (the axis edge). */
+  readonly chipRightX: number;
+  readonly floorY: number;
+  readonly footY: number;
+  /** A slide never goes left of this. */
+  readonly minX: number;
+  /** Every candle body and wick near the rows (the cut-out rects). */
+  readonly keepOut: readonly ScreenRect[];
+  /** Every chip / word already on the glass. */
+  readonly blockers: readonly ScreenRect[];
+}
+
+export type LevelPairMode = "ROW" | "SLID" | "YIELDED";
+
+export interface LevelPairPlacement {
+  readonly mode: LevelPairMode;
+  readonly chip: ScreenRect;
+  /** Null when the name is withheld (no clear spot for the pair). */
+  readonly name: ScreenRect | null;
+  /** The chip still sits on a candle — its fill must yield. */
+  readonly onCandles: boolean;
+  /** A dotted leader back to the rule is owed. */
+  readonly leader: boolean;
+}
+
+/** Air between the name and the chip when they travel together. */
+export const LEVEL_PAIR_GAP = 3;
+
+const hitsAny = (r: ScreenRect, boxes: readonly ScreenRect[]) =>
+  boxes.some(b => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y);
+
+export function placeLevelPair(i: LevelPairInput): LevelPairPlacement {
+  const h = LEVEL_CHIP_H;
+  const lo = i.floorY;
+  const hi = Math.max(lo, i.footY - h);
+  const clampY = (y: number) => Math.min(hi, Math.max(lo, y));
+  const rows: number[] = [];
+  for (const r of [i.y - h / 2, i.y - h - 2, i.y + 2, i.y - 2 * h - 4, i.y + h + 4].map(clampY)) {
+    if (!rows.some(u => Math.abs(u - r) < 1)) rows.push(r);
+  }
+  const obstacles = [...i.keepOut, ...i.blockers];
+  const chipAt = (y: number): ScreenRect => ({ x: i.chipRightX - i.chipW, y, w: i.chipW, h });
+  const nameAt = (y: number, chip: ScreenRect): ScreenRect => {
+    const x = Math.min(i.nameX, chip.x - LEVEL_PAIR_GAP - i.nameW);
+    return { x, y, w: i.nameW, h };
+  };
+  const leaderFor = (r: ScreenRect, slid: boolean) => slid || Math.abs(r.y + h / 2 - i.y) > LEVEL_CHIP_LEADER_PX;
+  // 1. A row where the pair, each at its own place, is clear.
+  for (const y of rows) {
+    const chip = chipAt(y);
+    const name = nameAt(y, chip);
+    if (name.x >= i.minX && !hitsAny(chip, obstacles) && !hitsAny(name, obstacles)) {
+      return { mode: "ROW", chip, name, onCandles: false, leader: leaderFor(chip, false) };
+    }
+  }
+  // 2. The pair slides left together along the rule's own row.
+  const y0 = rows[0];
+  const pairW = i.nameW + LEVEL_PAIR_GAP + i.chipW;
+  let x = i.chipRightX - pairW;
+  for (let guard = 0; guard <= obstacles.length && x >= i.minX; guard++) {
+    const unit = { x, y: y0, w: pairW, h };
+    const hits = obstacles.filter(o => hitsAny(unit, [o]));
+    if (hits.length === 0) {
+      const name = { x, y: y0, w: i.nameW, h };
+      const chip = { x: x + i.nameW + LEVEL_PAIR_GAP, y: y0, w: i.chipW, h };
+      return { mode: "SLID", chip, name, onCandles: false, leader: true };
+    }
+    x = Math.min(...hits.map(o => o.x)) - LEVEL_PAIR_GAP - pairW;
+  }
+  // 3. Nowhere clear: the chip keeps its row (its fill yields), the name is withheld.
+  const chip = chipAt(y0);
+  return { mode: "YIELDED", chip, name: null, onCandles: hitsAny(chip, i.keepOut), leader: leaderFor(chip, false) };
+}
+
 /** Whether a placed chip needs a dotted leader back to its price. */
 export function levelChipNeedsLeader(rect: ScreenRect, y: number, slid: boolean): boolean {
   return slid || Math.abs(rect.y + rect.h / 2 - y) > LEVEL_CHIP_LEADER_PX;
@@ -174,15 +268,28 @@ export interface StructureSilenceInput {
   readonly dp: number;
 }
 
-/** The named silence for a leg that draws its rule and not its histogram; null for HISTOGRAM. */
+/**
+ * The named silence for a leg that draws its rule and not its histogram; null
+ * for HISTOGRAM. The leg POC is NOT in the sentence (2026-09-26: serving
+ * showed the ~90-character sentence starting off the pane's left edge, "…GH
+ * 374.34 · TOO SHORT…"): the POC is named by its own level chip on its rule,
+ * like every other species' POC, so the sentence stays short enough to place.
+ */
 export function structureSilenceWords(s: StructureSilenceInput): string | null {
   if (s.form === "HISTOGRAM") return null;
   const swing = `SWING ${s.kind} ${s.anchorPrice.toFixed(s.dp)}`;
-  const poc = s.poc != null && Number.isFinite(s.poc) ? ` · LEG POC ${s.poc.toFixed(s.dp)}` : "";
   return s.form === "RULE_SHORT_LEG"
-    ? `STRUCTURE · ${s.legBars}-BAR LEG FROM ${swing} · TOO SHORT TO PROFILE (${STRUCTURE_MIN_READABLE_BARS}+)${poc}`
-    : `STRUCTURE · LEG FROM ${swing} BEGAN TOO NEAR NOW TO PROFILE${poc}`;
+    ? `STRUCTURE · ${s.legBars}-BAR LEG FROM ${swing} · TOO SHORT TO PROFILE (${STRUCTURE_MIN_READABLE_BARS}+)`
+    : `STRUCTURE · LEG FROM ${swing} BEGAN TOO NEAR NOW TO PROFILE`;
 }
+
+/**
+ * The plot's left chrome: the D toggle, the EFFORT reopen button and the live
+ * countdown pill are DOM over x 12–76 (measured by box, serving NQ1! 5m,
+ * 2026-09-25; TPO starts at 84 for the same reason). A profile word placed
+ * through the keep-out never slides left of this.
+ */
+export const LEFT_CHROME_RIGHT = 84;
 
 /* ── FUSION'S SILENCE ───────────────────────────────────────────────────────
  * Serving TSLA 15m, 2026-09-25: Fusion switched on alone painted nothing and

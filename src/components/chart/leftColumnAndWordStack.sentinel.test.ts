@@ -56,7 +56,8 @@ describe("left column and word stack", () => {
     // same level drawer as VAH/VAL, whose name steps under its line and whose
     // chip is floored at the band (vpTagsClearHeaderBand.sentinel.test.ts).
     expect(CHART).toContain('vpLevel(pocPrice, vpPocRgba, "POC");');
-    expect(CHART).toContain("const tagBelow = midY - 13 < HEADER_FLOOR_Y;");
+    // …and again 2026-09-26: the name and chip are one pair floored at the band.
+    expect(CHART).toContain("floorY: HEADER_FLOOR_Y, footY: pane0H - 2, minX: LEFT_CHROME_RIGHT,");
   });
 
   it("the Structure Profile name and the memory-ghost caption stay below the header chrome", () => {

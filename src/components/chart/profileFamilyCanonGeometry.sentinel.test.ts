@@ -63,8 +63,8 @@ const between = (s: string, open: string, inner: string, close: string) => {
 const VP = slice("function drawWMVP(", "function runWMVP()", 8000);
 const LIVING = slice("const lp = livingProfileRef.current;", "const cp = compositeProfileRef.current;", 9000);
 const COMPOSITE = slice("const cp = compositeProfileRef.current;", "const lane = stackPlan.lanes.VISIBLE_RANGE;", 3000);
-const VRP = slice("const lane = stackPlan.lanes.VISIBLE_RANGE;", "const pair = stackPrefsRef.current.fusion;", 2800);
-const FUSED = slice("const pair = stackPrefsRef.current.fusion;", "const tpo = tpoProfileRef.current;", 2500);
+const VRP = slice("const lane = stackPlan.lanes.VISIBLE_RANGE;", "const autoPair: StackSpecies[] | null =", 2800);
+const FUSED = slice("const autoPair: StackSpecies[] | null =", "const tpo = tpoProfileRef.current;", 2500);
 const TPO = slice("const tpo = tpoProfileRef.current;", "const sp = structureProfileRef.current;", 3000);
 const STRUCTURE = slice("const sp = structureProfileRef.current;", "const fu = profileFusionRef.current;", 5000);
 const FUSION = slice("const fu = profileFusionRef.current;", "const mem = profileMemoryRef.current;", 2000);
@@ -163,8 +163,10 @@ describe("2 · ONE level grammar: the chip, placed clear of every candle body an
   });
 
   it("M47: the VP columns name each level with a gold price chip at the axis edge; a number a candle stands on is withheld", () => {
-    expect(VP).toContain("const slots = levelChipSlots({ y: midY, w: cw, rightX: vpChipRight, floorY: HEADER_FLOOR_Y, footY: pane0H - 2 });");
-    expect(VP).toMatch(/const chipSpot = placeClearOfKeepOut\(slots\.preferred, profileCandlesAt\(slots\.top, slots\.bottom\), \{\s*minX: Math\.max\(4, colLeft - 40\), blockers: forceChips, strict: true, alternates: slots\.alternates,/);
+    // Pin updated 2026-09-26: the chip travels with the level's name as ONE
+    // pair (placeLevelPair; see §8), its slide no longer capped at 40px.
+    expect(VP).toContain("const pair = placeLevelPair({");
+    expect(VP).toContain("const cr = pair.chip;");
     expect(VP).toContain("forceChips.push({ ...cr });");
     expect(VP).toMatch(/if \(rectHits\(\{ x: vpRight - 4 - twN - 2, y: wd\.y - 7, w: twN \+ 4, h: 14 \}, profileCandlesAt\(wd\.y - 7, wd\.y \+ 7\)\) > 0\) \{\s*vpWordsWithheld\+\+;\s*continue;/);
     expect(VP).toContain('vpLevel(pocPrice, vpPocRgba, "POC");');
@@ -292,5 +294,41 @@ describe("7 · no generic rectangle, nothing under the header chrome (P-110 side
     expect(LIVING).toContain('ds.livingProfileBodyClipped = bodyAboveFloor > 0 ? `HEADER:${bodyAboveFloor}` : "NONE";');
     const list = slice("const PROFILE_GEOMETRY_RECEIPTS = [", "] as const;", 200);
     expect(list).toContain('"livingProfileBodyClipped"');
+  });
+});
+
+describe("8 · live defects, serving 2026-09-26 03:59–04:00 CDT", () => {
+  it("VP (Regime desk): ONE label per level — name + price chip as one pair, clear of candles and chips", () => {
+    expect(VP).toMatch(/const pair = placeLevelPair\(\{[\s\S]*?keepOut: profileCandlesAt\(bandTop, bandBot\), blockers: forceChips,\s*\}\);/);
+    // The name is the tag alone — the price lives only in the chip.
+    expect(VP).toContain("ctx.fillText(tag, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);");
+    expect(VP).not.toMatch(/`\$\{tag\} \$\{vpPrice\(p\)\}`/);
+    expect(VP).toContain("ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);");
+    // The old 40px slide cap (why chips stayed on the Sep 25 bodies) is gone.
+    expect(VP).not.toContain("minX: Math.max(4, colLeft - 40)");
+    expect(CHART).toContain("ds.vpLevelPairsMoved = String(vpPairsMoved);");
+  });
+
+  it("Structure: the silence chip stays inside the plot right of the left chrome; its LEG POC is a level chip", () => {
+    expect(STRUCTURE).toContain("const cx = Math.max(LEFT_CHROME_RIGHT, Math.min(x, maxX >= LEFT_CHROME_RIGHT ? maxX : plotRight - LEVEL_CHIP_EDGE_GAP - w));");
+    between(STRUCTURE, "chip(silence, x0 + 4,", "levelChip(+ypS, `LEG POC ${sp.poc.toFixed(pxDp)}`, pk.rgba(\"POC\", 0.95));", "ds.structureProfileSilence = form;");
+  });
+
+  it("Composite sits against the axis: Living is the outermost lane whenever it shares the edge", () => {
+    expect(CHART).toContain('const livingOuter = orderedStack.includes("LIVING") && orderedStack.length > 1;');
+    expect(CHART).toContain('const edgeOrder = livingOuter ? [...orderedStack.filter(s => s !== "LIVING"), "LIVING" as const] : orderedStack;');
+    expect(CHART).toContain("stackOrder.splice(0, stackOrder.length, ...edgeOrder);");
+    const at = CHART.indexOf("stackOrder.splice(0, stackOrder.length, ...edgeOrder);");
+    expect(CHART.indexOf("const stackPlan = planProfileStack({")).toBeGreaterThan(at);
+  });
+
+  it("Fusion draws the fused OBJECT itself: auto-paired from two stack species, recomputed body with a rim, family-ink chips, parents receding", () => {
+    expect(FUSED).toContain('const pair = stackPrefsRef.current.fusion ?? autoPair;');
+    expect(FUSED).toMatch(/layerOnRef\.current\.profileFusion === true && stackOrder\.length >= 2/);
+    expect(FUSED).toContain("const fr = fuseProfiles(source(pair[0]), source(pair[1]));");
+    expect(FUSED).toContain("fusedTips.push({ x: spanR - w, y: (+y0 + +y1) / 2 });");
+    expect(FUSED).toContain('line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, [], pk.rgba("POC", 0.95));');
+    expect(FUSED).not.toContain("levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);");
+    expect(CHART).toContain("fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],");
   });
 });

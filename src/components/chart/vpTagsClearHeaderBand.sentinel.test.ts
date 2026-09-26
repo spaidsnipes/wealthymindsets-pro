@@ -35,10 +35,11 @@ describe("classic VP value-area tags (Sentinel)", () => {
     expect(block).not.toContain("above ? 9 :");
   });
 
-  it("a name whose row would enter the band reads under its line, floored at the band; the chip never rises into it", () => {
-    expect(block).toContain("const tagBelow = midY - 13 < HEADER_FLOOR_Y;");
-    expect(block).toContain("const below = { x: colLeft, y: Math.max(midY + 2, HEADER_FLOOR_Y), w: ww, h: 12 };");
-    expect(block).toContain("const wordPref = tagBelow ? below : above;");
-    expect(block).toContain("levelChipSlots({ y: midY, w: cw, rightX: vpChipRight, floorY: HEADER_FLOOR_Y, footY: pane0H - 2 })");
+  it("the level's name and chip are one placed pair, floored at the band — neither rises into it", () => {
+    // Pin updated 2026-09-26 (Regime desk on serving: chips ON the Sep 25
+    // bodies, every level named twice): name + price chip are ONE pair from
+    // placeLevelPair, whose rows are clamped to floorY = HEADER_FLOOR_Y.
+    expect(block).toMatch(/const pair = placeLevelPair\(\{\s*y: midY, nameW, chipW: cw, nameX: colLeft, chipRightX: vpChipRight,\s*floorY: HEADER_FLOOR_Y, footY: pane0H - 2, minX: LEFT_CHROME_RIGHT,/);
+    expect(block).toContain("const bandTop = Math.max(HEADER_FLOOR_Y, midY - 2 * LEVEL_CHIP_H - 6);");
   });
 });
