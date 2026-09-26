@@ -68,6 +68,7 @@ import type { StructureZone } from "@/lib/marketData/viewModels/selectStructureZ
 import type { ObjectLineageVM, ZoneLineageVM } from "@/lib/marketData/viewModels/selectZoneLineage";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { LivingBiographyVM } from "@/lib/marketData/viewModels/selectLivingBiography";
+import type { ClarityAnatomyVM } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
@@ -389,6 +390,7 @@ export function ChartInspectTicket({
   profileDnaOnGlass = false,
   timeZone = null,
   livingBiography = null,
+  clarity = null,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -430,6 +432,8 @@ export function ChartInspectTicket({
   timeZone?: string | null;
   /** H-601 · the Living Profile's session lineage (selectLivingBiography), for the slice ticket. */
   livingBiography?: LivingBiographyVM | null;
+  /** F05 · the selected bar's own anatomy (selectClarityAnatomy), read on its prices. */
+  clarity?: ClarityAnatomyVM | null;
 }) {
   const clock = zonedClock(timeZone);
   if (!open) {
@@ -916,6 +920,31 @@ export function ChartInspectTicket({
           <Row key={row.id} row={row} />
         ))}
       </div>
+
+      {/*
+        F05 CLARITY — the candle's own anatomy (F05A callout, F05B Inspect
+        column), decided on its four prices and the bars before it. Geometry
+        only: where the close sits is not who traded, so no pressure split.
+      */}
+      {clarity && clarity.state === "READ" && (
+        <div
+          className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug"
+          data-inspect-clarity={clarity.wickIntent ?? "NONE"}
+          data-inspect-clarity-gap={clarity.gap}
+          data-inspect-clarity-breath={clarity.breath}
+          style={{ color: "#C8C0AE" }}
+        >
+          <div className="font-bold tracking-wide text-wm-gold">CLARITY · CANDLE ANATOMY</div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-2">
+            {clarity.lines.map(l => (
+              <React.Fragment key={l.key}>
+                <dt className="text-wm-muted">{l.label}</dt>
+                <dd className="text-white tabular-nums">{l.value}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </div>
+      )}
 
       {/*
         LINEAGE — the bar's canonical identity and the chain it starts, from

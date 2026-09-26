@@ -285,6 +285,8 @@ import { QUESTION_CHOICES, type QuestionChoice } from "@/lib/marketData/viewMode
 import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
+import { pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -1881,6 +1883,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!inspectBar || chartBars.length === 0) return false;
     const newest = chartBars[chartBars.length - 1];
     return newest.time === inspectBar.time;
+  }, [inspectBar, chartBars]);
+
+  /**
+   * F05 CLARITY — the selected bar's own anatomy for the Inspect ticket.
+   * Same `inspectBar` the ticket and Effort vs Result read (one candle, one
+   * subject); the prior slice stops AT the subject, so its breath is judged
+   * against the bars before it and never against itself. Decimals from the
+   * one precision owner.
+   */
+  const clarityVM = React.useMemo(() => {
+    if (!inspectBar) return null;
+    const at = chartBars.findIndex(b => b.time === inspectBar.time);
+    const end = at >= 0 ? at : chartBars.length;
+    return selectClarityAnatomy({
+      bar: { open: inspectBar.o, high: inspectBar.h, low: inspectBar.l, close: inspectBar.c },
+      priorBars: chartBars.slice(Math.max(0, end - BREATH_SAMPLE), end),
+      dp: pricePrecisionFromBars(chartBars),
+    });
   }, [inspectBar, chartBars]);
 
   const effortVsResultVM = React.useMemo(
@@ -5640,6 +5660,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         levelLineage={selectedLevelLineage}
                         timeZone={effChartSettings.displayTimeZone}
                         livingBiography={livingBiographyVM}
+                        clarity={clarityVM}
                         selectedAnatomy={activeSelectedAnatomy}
                         activeDecisionId={currentSceneDecision?.decisionId ?? null}
                         profileSliceSymbol={symbol}
