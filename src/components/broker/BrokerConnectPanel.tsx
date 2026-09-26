@@ -21,6 +21,7 @@ import {
 import { selectFirstBrokenJoint, type JointVerdict } from "@/lib/broker/selectFirstBrokenJoint";
 import { providerReportToStageEvidence } from "@/lib/broker/providerReportToStageEvidence";
 import type { ProviderReport } from "@/app/api/broker/status/route";
+import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -545,6 +546,8 @@ interface ManagedConnectionReceipt {
     missing: readonly string[];
     note: string;
   };
+  /** The keeper's last run — what Webull said with nobody on the site. */
+  sessionKeeper?: WebullKeeperView | null;
 }
 
 const WEBULL_CANARY_LABELS: Record<WebullCanaryReceipt["state"], string> = {
@@ -957,11 +960,44 @@ function ManagedConnectionStatus({
             {receipt.state === "AWAITING_2FA" && (
               <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
                 <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
-                  Waiting on your approval in the Webull app
+                  Waiting on an SMS code in the Webull app
                 </div>
                 <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-                  WM Pro created this session itself and Webull sent it to your phone for 2FA. Open the Webull app, approve the OpenAPI request, then check this wire again. Nothing is missing from this deployment and there is no value for you to copy anywhere.
+                  {/* Webull's docs (Token): the code is TYPED into the app, within 5 minutes. */}
+                  Webull texted a code to the phone on the account. Enter it in the app within 5 minutes: {WEBULL_CODE_ENTRY_PATH}. To remove this step for good: {WEBULL_2FA_SWITCH_PATH}. Nothing is missing from this deployment and there is no value for you to copy anywhere.
                 </p>
+              </div>
+            )}
+            {/*
+              THE KEEPER'S RECORD, ON THE GLASS (2026-09-26). What Webull said
+              every 15 minutes with nobody on the site — 2FA mode, session,
+              accounts, the capability matrix, open-order reconciliation —
+              compiled by webullSessionGuidance so these lines cannot drift from
+              the record or improvise advice.
+            */}
+            {receipt.sessionKeeper !== undefined && (
+              <div
+                className="mt-2 rounded-lg border px-2 py-1.5"
+                data-webull-keeper={receipt.sessionKeeper?.outcome ?? "NONE"}
+                data-webull-auth-mode={receipt.sessionKeeper?.authMode ?? "UNKNOWN"}
+                style={{ borderColor: "rgba(139, 146, 172, 0.35)", background: "rgba(139, 146, 172, 0.05)" }}
+              >
+                <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
+                  Webull link · keeper{receipt.sessionKeeper ? ` · ${new Date(receipt.sessionKeeper.atMs).toISOString().slice(11, 16)} UTC` : ""}
+                </div>
+                {broker.id === "webull" && receipt.sessionKeeper?.authMode !== "TOKENLESS" && !connected && (
+                  <WebullSendCodeButton onSent={() => { window.setTimeout(() => { void check(); }, 1500); }} />
+                )}
+                {webullSessionGuidance(receipt.sessionKeeper).map(line => (
+                  <p
+                    key={line.key}
+                    className="mt-1 text-[9px] leading-snug"
+                    data-webull-guidance={line.key}
+                    style={{ color: line.tone === "ACTION" ? "#f4c86b" : line.tone === "OK" ? "#C8C0AE" : "#9aa1b8" }}
+                  >
+                    <span className="font-bold">{line.label}</span> · {line.text}
+                  </p>
+                ))}
               </div>
             )}
             {receipt.state === "BLOCKED_AUTH" && (
@@ -1336,5 +1372,45 @@ export function BrokerConnectPanel({
         </div>
 
     </ShellModalDrawer>
+  );
+}
+
+/* ── "Text me a code" ─────────────────────────────────────
+   The one human-initiated Webull session start (POST /api/broker/webull/
+   session). Automatic starts are rationed so no page load can text the
+   Founder; this press is the step every held lane names. It sends a request
+   and nothing else — no credential, no body — and prints the server's
+   sentence verbatim. Lives outside ManagedConnectionStatus on purpose: that
+   section is pinned never to POST, and this is the one control that must. */
+function WebullSendCodeButton({ onSent }: { onSent?: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<{ outcome: string; note: string } | null>(null);
+  const press = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/broker/webull/session", { method: "POST", cache: "no-store" });
+      const json = (await res.json().catch(() => null)) as { outcome?: string; note?: string; error?: string } | null;
+      setSaid({ outcome: json?.outcome ?? `HTTP ${res.status}`, note: json?.note ?? json?.error ?? "No sentence came back." });
+      if (res.ok && json?.outcome === "CODE_SENT") onSent?.();
+    } catch {
+      setSaid({ outcome: "UNREACHABLE", note: "WM Pro could not reach its own session door." });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-1.5" data-webull-send-code={said?.outcome ?? "IDLE"}>
+      <button
+        type="button"
+        onClick={() => { void press(); }}
+        disabled={busy}
+        data-testid="webull-send-code"
+        className="rounded-md border px-2 py-1 text-[10px] font-bold"
+        style={{ borderColor: "rgba(244, 200, 107, 0.55)", color: "#f4c86b", background: "rgba(244, 200, 107, 0.08)" }}
+      >
+        {busy ? "Asking Webull…" : "Text me a code"}
+      </button>
+      {said && <p className="mt-1 text-[9px] leading-snug" style={{ color: said.outcome === "CODE_SENT" ? "#f4c86b" : "#C8C0AE" }}>{said.note}</p>}
+    </div>
   );
 }

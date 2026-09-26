@@ -59,8 +59,19 @@ export async function GET(request: Request): Promise<Response> {
     credentialPresence: webullCredentialPresence(process.env),
     connectOAuth: webullConnectOAuthReadiness(process.env),
     ownerGate: owner.state,
+    // Whitelisted field by field: the keeper record holds codes and counts
+    // only, and nothing it grows later leaks here by default.
     sessionKeeper: keeper
-      ? { outcome: keeper.outcome, note: keeper.note, atMs: keeper.atMs, expiresInMs: keeper.expiresInMs }
+      ? {
+          outcome: keeper.outcome,
+          note: keeper.note,
+          atMs: keeper.atMs,
+          expiresInMs: keeper.expiresInMs,
+          authMode: keeper.authMode,
+          broker: keeper.broker,
+          capabilities: keeper.capabilities,
+          reconciliation: keeper.reconciliation,
+        }
       : null,
   };
   return NextResponse.json(body, {

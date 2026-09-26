@@ -52,7 +52,8 @@ export async function POST(request: Request): Promise<Response> {
     { appKey: cfg.appKey, appSecret: cfg.appSecret, apiHost: cfg.apiHost },
     webullSessionStore(await webullWorkerEnv()),
   );
-  if (session.awaiting2fa || !session.accessToken) {
+  // No token is the RIGHT request when 2FA is off on the key (tokenless).
+  if (session.awaiting2fa || (!session.accessToken && !session.tokenless)) {
     return NextResponse.json({ state: session.awaiting2fa ? "AWAITING_2FA" : "NO_SESSION", note: session.note }, { status: 200 });
   }
   const orderCfg = { appKey: cfg.appKey, appSecret: cfg.appSecret, apiHost: cfg.apiHost, accessToken: session.accessToken };

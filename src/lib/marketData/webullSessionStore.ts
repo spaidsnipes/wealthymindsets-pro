@@ -124,6 +124,8 @@ export interface WebullResolvedSession {
   readonly accessToken?: string;
   /** True when Webull is waiting on the Founder's approval in the app. */
   readonly awaiting2fa: boolean;
+  /** True when 2FA is OFF on the App Key: sign with the key pair, send no token. */
+  readonly tokenless?: boolean;
   /** Human-readable state, safe to show. Never contains the token value. */
   readonly note: string;
 }
@@ -144,7 +146,7 @@ export async function resolveWebullSessionToken(
     return { awaiting2fa: false, note: "Webull App Key and App Secret are not both configured, so no session can be minted." };
   }
 
-  const { ensureWebullAccessToken, sessionAwaitsHuman } = await import("./webullAccessToken");
+  const { ensureWebullAccessToken, sessionAwaitsHuman, TOKEN_DISPOSITIONS } = await import("./webullAccessToken");
   const session = await ensureWebullAccessToken(
     fetchImpl,
     { appKey, appSecret, apiHost: config.apiHost, timeoutMs: config.timeoutMs },
@@ -155,6 +157,9 @@ export async function resolveWebullSessionToken(
   // lane may sign a request that can only be refused. The note names the step.
   if (sessionAwaitsHuman(session.disposition)) {
     return { awaiting2fa: true, note: session.note };
+  }
+  if (session.disposition === TOKEN_DISPOSITIONS.NOT_REQUIRED) {
+    return { awaiting2fa: false, tokenless: true, note: session.note };
   }
   return session.token?.token
     ? { accessToken: session.token.token, awaiting2fa: false, note: session.note }

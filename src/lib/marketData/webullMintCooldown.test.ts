@@ -8,7 +8,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   AUTO_MINT_COOLDOWN_MS,
+  EXPLICIT_CODE_SPACING_MS,
   TOKEN_DISPOSITIONS,
+  requestWebullSessionCode,
   ensureWebullAccessToken,
   inMemoryTokenStore,
   sessionAwaitsHuman,
@@ -129,5 +131,53 @@ describe("the ledger survives the isolate (KV)", () => {
     expect(await store.readLastAutoMintAt!()).toBe(T0);
     data[WEBULL_AUTO_MINT_KEY] = "garbage";
     expect(await store.readLastAutoMintAt!()).toBeNull();
+  });
+});
+
+describe("a HUMAN asking for a code is honoured — with three refusals", () => {
+  const store = () => {
+    const base = inMemoryTokenStore(tok());
+    let explicit: number | null = null;
+    return Object.assign(base, {
+      async readLastExplicitCodeAt() { return explicit; },
+      async writeLastExplicitCodeAt(at: number) { explicit = at; },
+    });
+  };
+
+  it("sends one code even inside the automatic cooldown, and stamps both ledgers", async () => {
+    const s = store();
+    await s.writeLastAutoMintAt!(T0 - 60_000);
+    const f = answering({ token: "p", expires: T0 + 300_000, status: "PENDING" });
+    const r = await requestWebullSessionCode(f as unknown as typeof fetch, cfg(T0), s);
+    expect(r.outcome).toBe("CODE_SENT");
+    expect(r.note).toContain("OpenAPI Notifications");
+    expect(paths(f)).toEqual([WEBULL_SDK_CONTRACT.CREATE_TOKEN.path]);
+    expect(await s.readLastExplicitCodeAt()).toBe(T0);
+    expect(await s.readLastAutoMintAt!()).toBe(T0);
+  });
+
+  it("one code at a time: a second press inside a minute sends nothing", async () => {
+    const s = store();
+    await s.writeLastExplicitCodeAt(T0);
+    const f = answering({ token: "p2", expires: T0, status: "PENDING" });
+    const r = await requestWebullSessionCode(f as unknown as typeof fetch, cfg(T0 + EXPLICIT_CODE_SPACING_MS - 1_000), s);
+    expect(r.outcome).toBe("TOO_SOON");
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("never replaces a LIVE session — the press would destroy what it asks for", async () => {
+    const s = store();
+    await s.write(tok({ status: "NORMAL", expiresAtMs: T0 + 86_400_000 }));
+    const f = answering({ token: "p", expires: T0, status: "PENDING" });
+    expect((await requestWebullSessionCode(f as unknown as typeof fetch, cfg(T0), s)).outcome).toBe("ALREADY_LIVE");
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("2FA off: nothing to send", async () => {
+    const off: WebullAuthModeReader = async () => ({ mode: WEBULL_AUTH_MODES.TOKENLESS, note: "", observedAtMs: T0 });
+    const f = answering({});
+    const r = await requestWebullSessionCode(f as unknown as typeof fetch, { ...cfg(T0), authModeReader: off }, store());
+    expect(r.outcome).toBe("NOT_REQUIRED");
+    expect(f).not.toHaveBeenCalled();
   });
 });

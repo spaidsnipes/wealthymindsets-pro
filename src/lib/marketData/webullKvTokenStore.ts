@@ -64,6 +64,8 @@ export interface WebullKvNamespace {
 export const WEBULL_SESSION_KEY = "webull:session:v1";
 /** When WM Pro last texted a code on its own (see AUTO_MINT_COOLDOWN_MS). */
 export const WEBULL_AUTO_MINT_KEY = "webull:automint:last:v1";
+/** When a HUMAN last asked for a code (see EXPLICIT_CODE_SPACING_MS). */
+export const WEBULL_EXPLICIT_CODE_KEY = "webull:explicitcode:last:v1";
 
 /**
  * Let KV expire the record on its own.
@@ -94,7 +96,10 @@ export function kvTtlSeconds(token: WebullAccessToken, nowMs: number): number {
 export function kvTokenStore(
   kv: WebullKvNamespace,
   now: () => Date = () => new Date(),
-): WebullTokenStore {
+): WebullTokenStore & {
+  readLastExplicitCodeAt(): Promise<number | null>;
+  writeLastExplicitCodeAt(atMs: number): Promise<void>;
+} {
   return {
     async read() {
       let raw: string | null;
@@ -143,6 +148,24 @@ export function kvTokenStore(
       } catch {
         // Unreadable ledger: no throttle rather than no session.
         return null;
+      }
+    },
+
+    async readLastExplicitCodeAt() {
+      try {
+        const raw = await kv.get(WEBULL_EXPLICIT_CODE_KEY);
+        const at = raw === null ? NaN : Number(raw);
+        return Number.isFinite(at) ? at : null;
+      } catch {
+        return null;
+      }
+    },
+
+    async writeLastExplicitCodeAt(atMs) {
+      try {
+        await kv.put(WEBULL_EXPLICIT_CODE_KEY, String(Math.round(atMs)), { expirationTtl: 3600 });
+      } catch {
+        // The code was sent; losing the stamp only loosens the one-minute spacing.
       }
     },
 

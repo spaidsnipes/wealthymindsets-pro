@@ -644,6 +644,65 @@ async function createAndStamp(
   return minted;
 }
 
+/**
+ * A HUMAN ASKED FOR A CODE — the one CREATE that is not automatic.
+ *
+ * `AUTO_MINT_COOLDOWN_MS` rations what WM Pro does ON ITS OWN. A person who
+ * presses "Text me a code" is the step every held lane names, so their press
+ * is honoured whatever the automatic ledger says — with three refusals:
+ *   · 2FA is OFF on the key: there is no code to send (NOT_REQUIRED).
+ *   · a session is LIVE: a CREATE would replace it, and a replaced session is
+ *     dead — the press would destroy exactly what it was meant to obtain.
+ *   · a press inside `EXPLICIT_CODE_SPACING_MS` of the last: one code at a
+ *     time; a second CREATE invalidates the first before it can be entered.
+ */
+export const EXPLICIT_CODE_SPACING_MS = 60_000;
+
+export type ExplicitCodeOutcome = "CODE_SENT" | "NOT_REQUIRED" | "ALREADY_LIVE" | "TOO_SOON" | "REFUSED" | "UNREACHABLE";
+
+export interface ExplicitCodeResult {
+  readonly outcome: ExplicitCodeOutcome;
+  /** Safe to show. Never a token. */
+  readonly note: string;
+}
+
+export async function requestWebullSessionCode(
+  fetchImpl: typeof fetch,
+  config: WebullTokenConfig,
+  store: WebullTokenStore & {
+    readLastExplicitCodeAt?(): Promise<number | null>;
+    writeLastExplicitCodeAt?(atMs: number): Promise<void>;
+  },
+): Promise<ExplicitCodeResult> {
+  const nowMs = (config.now || (() => new Date()))().getTime();
+  const reading = await (config.authModeReader ?? sharedWebullAuthModeReader)(fetchImpl, config);
+  if (reading.mode === WEBULL_AUTH_MODES.TOKENLESS) {
+    return { outcome: "NOT_REQUIRED", note: "2FA is off on the App Key — there is no code to send and nothing to enter." };
+  }
+  const held = await store.read();
+  if (tokenDisposition(held, nowMs) === TOKEN_DISPOSITIONS.USABLE) {
+    return { outcome: "ALREADY_LIVE", note: "The Webull session is live, so no code was sent — a new one would replace it." };
+  }
+  const last = store.readLastExplicitCodeAt ? await store.readLastExplicitCodeAt() : null;
+  if (last !== null && nowMs - last >= 0 && nowMs - last < EXPLICIT_CODE_SPACING_MS) {
+    const wait = Math.ceil((EXPLICIT_CODE_SPACING_MS - (nowMs - last)) / 1000);
+    return { outcome: "TOO_SOON", note: `A code was sent ${Math.round((nowMs - last) / 1000)}s ago — enter that one, or ask again in ${wait}s.` };
+  }
+  const minted = await mintWebullAccessToken(fetchImpl, config, held?.token, "CREATE_TOKEN");
+  if (!minted.token) {
+    return { outcome: minted.outcome === MINT_OUTCOMES.UNREACHABLE ? "UNREACHABLE" : "REFUSED", note: minted.note };
+  }
+  await store.write(minted.token);
+  if (store.writeLastExplicitCodeAt) await store.writeLastExplicitCodeAt(nowMs);
+  if (minted.token.status === WEBULL_TOKEN_STATUSES.PENDING && store.writeLastAutoMintAt) await store.writeLastAutoMintAt(nowMs);
+  return minted.token.status === WEBULL_TOKEN_STATUSES.NORMAL
+    ? { outcome: "ALREADY_LIVE", note: "Webull opened the session without a code." }
+    : {
+        outcome: "CODE_SENT",
+        note: "Webull texted a code to the phone on the account. Enter it in the Webull app within 5 minutes: Menu → Messages → OpenAPI Notifications → Check Now.",
+      };
+}
+
 export interface EnsureTokenResult {
   readonly token: WebullAccessToken | null;
   readonly disposition: TokenDisposition;

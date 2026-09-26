@@ -39,7 +39,8 @@ describe("Webull managed connection UI", () => {
    */
   it("separates 'tap approve' from 'identity rejected' — they have opposite next actions", () => {
     expect(panel).toContain('receipt.state === "AWAITING_2FA"');
-    expect(panel).toContain("Waiting on your approval in the Webull app");
+    // Webull's docs (Token): a code TYPED into the app — not a tap.
+    expect(panel).toContain("Waiting on an SMS code in the Webull app");
     expect(panel).toContain("there is no value for you to copy anywhere");
 
     expect(panel).toContain('receipt.state === "BLOCKED_AUTH"');
