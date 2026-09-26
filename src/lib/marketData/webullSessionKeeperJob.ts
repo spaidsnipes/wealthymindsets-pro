@@ -25,6 +25,7 @@ import {
 import { probeWebullBrokerConnection } from "@/lib/broker/adapters/webullBrokerConnection";
 import { probeWebullEntitlement, type WebullRungReceipt } from "./webullEntitlementProbe";
 import { listWebullAccounts, listWebullOpenOrders, reconcileOpenOrders } from "@/lib/broker/adapters/webullOrders";
+import { kvOrderLedger } from "@/lib/broker/adapters/webullOrderLedgerKv";
 
 /** `profile:OUTCOME(CODE)` per receipt — statuses and codes, never a payload. */
 function receiptLine(receipts: readonly WebullRungReceipt[] | undefined): string {
@@ -94,18 +95,23 @@ export async function runWebullSessionKeeper(
     // usable path. WM holds no durable Webull order ledger yet, so the
     // comparison is against an empty one and says so (ledger NONE_PERSISTED).
     const orderCfg = { appKey: cfg.appKey ?? "", appSecret: cfg.appSecret ?? "", apiHost: cfg.apiHost, accessToken: session?.token };
+    const book = await kvOrderLedger(env[WEBULL_SESSION_KV_BINDING] as WebullKvNamespace).all();
+    const ledger: NonNullable<KeeperResult["reconciliation"]>["ledger"] =
+      book === null ? "UNREADABLE" : book.length === 0 ? "NONE_PERSISTED" : "KV";
     const accounts = await listWebullAccounts(fetchImpl, orderCfg);
     let reconciliation: NonNullable<KeeperResult["reconciliation"]>;
     if (accounts.state !== "OK") {
-      reconciliation = { state: accounts.state, accounts: 0, openOrders: 0, external: 0, ledger: "NONE_PERSISTED", atMs: Date.now() };
+      reconciliation = { state: accounts.state, accounts: 0, openOrders: 0, external: 0, unresolved: 0, ledger, atMs: Date.now() };
     } else {
-      let open = 0, external = 0, failed = 0, truncated = false;
+      let open = 0, external = 0, unresolved = 0, failed = 0, truncated = false;
       for (const a of accounts.accounts) {
         const page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
         if (page.state !== "OK") { failed++; continue; }
         open += page.count;
         truncated ||= page.truncated;
-        external += reconcileOpenOrders(page.clientOrderIds, []).external;
+        const read = reconcileOpenOrders(page.clientOrderIds, (book ?? []).filter(r => r.accountId === a.accountId));
+        external += read.external;
+        unresolved += read.unresolved.length;
       }
       const n = accounts.accounts.length;
       reconciliation = {
@@ -113,7 +119,8 @@ export async function runWebullSessionKeeper(
         accounts: n,
         openOrders: open,
         external,
-        ledger: "NONE_PERSISTED",
+        unresolved,
+        ledger,
         atMs: Date.now(),
       };
     }

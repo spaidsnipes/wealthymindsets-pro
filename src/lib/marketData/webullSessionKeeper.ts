@@ -123,17 +123,23 @@ export interface KeeperResult {
   };
   /**
    * GP12 §38 — the periodic reconciliation: every account's open orders at
-   * Webull against WM's order ledger. Counts only. `ledger` says what WM had
-   * to compare against: NONE_PERSISTED means WM has placed no Webull order
-   * through a durable ledger, so every open order is EXTERNAL (placed in the
-   * Webull app or another tool) — a fact, not an alarm.
+   * Webull against WM's durable order ledger (webullOrderLedgerKv). Counts
+   * only. NONE_PERSISTED means the book is empty — WM has placed no Webull
+   * order — so every open order is EXTERNAL (placed in the Webull app or
+   * another tool): a fact, not an alarm.
    */
   readonly reconciliation?: {
     readonly state: "OK" | "PARTIAL" | "FAILED" | "REJECTED" | "NO_ANSWER";
     readonly accounts: number;
     readonly openOrders: number;
     readonly external: number;
-    readonly ledger: "NONE_PERSISTED";
+    /**
+     * WM's own SUBMITTING / SUBMISSION_UNKNOWN rows absent from Webull's open
+     * lists — each needs the exact client-order lookup; never concluded here.
+     */
+    readonly unresolved: number;
+    /** What WM compared against: the durable KV book, an empty one, or none readable. */
+    readonly ledger: "KV" | "NONE_PERSISTED" | "UNREADABLE";
     readonly atMs: number;
   };
 }

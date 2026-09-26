@@ -59,7 +59,7 @@ describe("2FA off: the job records TOKEN_NOT_REQUIRED and a CONNECTED broker lan
     const result = await runWebullSessionKeeper({ ...keys, WEBULL_SESSION: kv }, fetchImpl);
 
     // GP12 §38 — every account's open list, against a ledger WM does not yet persist.
-    expect(result?.reconciliation).toMatchObject({ state: "OK", accounts: 3, openOrders: 3, external: 3, ledger: "NONE_PERSISTED" });
+    expect(result?.reconciliation).toMatchObject({ state: "OK", accounts: 3, openOrders: 3, external: 3, unresolved: 0, ledger: "UNREADABLE" });
     expect(JSON.stringify(result)).not.toContain("placed-in-the-app");
 
     expect(result?.outcome).toBe(KEEPER_OUTCOMES.TOKEN_NOT_REQUIRED);
