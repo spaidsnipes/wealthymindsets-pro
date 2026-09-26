@@ -201,6 +201,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Release-gate definitions consumed by process, not by a screen.",
   },
+  "src/lib/os/mastheadFit.ts": {
+    reason: "OPS_TOOLING",
+    note: "The compact masthead band's wrap rule (Garden 16 §51) written as arithmetic over glass-measured widths, so 901/1024/1280/1440 can be pinned and a widened masthead item caught before it reaches the glass. The browser places the feed reading from the stylesheet in WMOperatingSystem.tsx; no screen should import a model of its own layout. Consumed only by mastheadFit.test.ts.",
+  },
   "src/lib/design/internalNames.ts": {
     reason: "OPS_TOOLING",
     note: "The two names a trader must never read — ATHOS and DLAR — plus the recorded reason each is on the list and the two that were narrowed OFF it for being trader vocabulary and a shipped route. Consumed only by three Sentinels, which is the point: this is a build-time ban, and a trader gains nothing by any screen importing it. It exists as a module rather than as three copied array literals because both names reached prod through a decision made correctly in one place and contradicted in another, and a list kept in three files is that same failure waiting.",

@@ -69,6 +69,12 @@ export interface OsFeedChipParts {
   /** The canonical fidelity word. Always present. */
   readonly label: string;
   /**
+   * `label`, cut into at most two PHRASES the badge may break between — and
+   * nowhere else. See {@link feedLabelLines}. Joined with a space they are
+   * `label` exactly; nothing is dropped or abbreviated.
+   */
+  readonly labelLines: readonly string[];
+  /**
    * The WHEN half, or `null` when the compiler produced nothing to say. `null`
    * means the separator must be omitted too — see `separator`.
    */
@@ -155,6 +161,43 @@ function formatObservedInstant(observedAtMs: unknown): string | null {
 }
 
 /**
+ * THE FIDELITY WORD BREAKS BETWEEN PHRASES, NEVER INSIDE ONE (Garden 16 §51,
+ * measured on the glass 2026-09-26, local /charts at 901px).
+ *
+ * The badge label used to wrap wherever the browser liked. In the narrow
+ * desktop band the masthead squeezed it to one word per line — "SESSION /
+ * CLOSED — / LAST / VERIFIED" — and then ran it past the viewport anyway
+ * (x 892–1005 of 901): a reading that is both shredded and cut off.
+ *
+ * This is the one place that says where a label MAY break. At most two lines:
+ *
+ *   - a canon label with an em dash breaks after the dash, which is where the
+ *     canon itself put the pause: "SESSION CLOSED —" / "LAST VERIFIED";
+ *   - otherwise a label longer than {@link LABEL_ONE_LINE_MAX_CHARS} characters
+ *     breaks before its last word — the canon's plain labels read subject
+ *     first, verdict last: "HISTORICAL BARS" / "VERIFIED", "DELAYED BY" /
+ *     "ENTITLEMENT";
+ *   - anything shorter stays one line.
+ *
+ * Nothing is shortened or dropped: the lines joined with a single space are the
+ * label, character for character, so the eye and `spoken` still carry the same
+ * claim. Whether the lines actually stack is the stylesheet's business — at a
+ * width that can hold the whole label they sit side by side.
+ */
+export const LABEL_ONE_LINE_MAX_CHARS = 16;
+
+export function feedLabelLines(label: string): readonly string[] {
+  const text = label.trim().replace(/\s+/g, " ");
+  const dash = text.indexOf(" — ");
+  if (dash > 0 && dash + 3 < text.length) {
+    return [text.slice(0, dash + 2), text.slice(dash + 3)];
+  }
+  const words = text.split(" ");
+  if (text.length <= LABEL_ONE_LINE_MAX_CHARS || words.length < 2) return [text];
+  return [words.slice(0, -1).join(" "), words[words.length - 1]];
+}
+
+/**
  * Compose the trailing chip from a compiled feed standing.
  *
  * Total over every `FeedStanding` the compiler can emit, including ones with a
@@ -173,6 +216,7 @@ export function osFeedChipParts(feed: FeedStanding): OsFeedChipParts {
 
   return {
     label,
+    labelLines: feedLabelLines(label),
     detail,
     separator: detail === null ? null : "·",
     instant,

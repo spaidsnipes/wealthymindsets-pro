@@ -1623,11 +1623,18 @@ Trade the system, trust the process, winners every day 🚀`,
       {/* Header chrome → hairline. `bg-wm-dark` painted an opaque band
           across the top of MARKET; sanctuary hairline preserves the
           structural boundary without occluding the atmosphere. */}
+      {/* DESKTOP RECOMPOSITION (Garden 16 §51, measured 2026-09-26 at 1600):
+          this row never wrapped, so the toolbar's last controls — Genome and
+          New Entry — ran past the right edge, and the stat chips were squeezed
+          into a tall column beside the title. From the rail breakpoint up,
+          globals.css lets the header wrap: title and tabs first, the toolbar
+          wrapping onto as many rows as it needs, and the chips flowing in a
+          row of their own. The four hooks below are those rules' names. */}
       <div className="wm-journal-header flex items-center gap-3 px-4 border-b border-wm-border shrink-0" style={{ minHeight:44 }}>
         <FileText size={15} className="text-wm-purple shrink-0" />
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400, color: "#ede6d3" }}>Trade Journal</h1>
         {/* Main tabs */}
-        <div className="flex gap-1">
+        <div className="wm-journal-tabs flex gap-1">
           {([
             { id:"journal" as const, label:"Journal",           icon:FileText },
             // Label matches what the panel actually is: deterministic aggregation over
@@ -1656,7 +1663,7 @@ Trade the system, trust the process, winners every day 🚀`,
         {/* flex-wrap so the WR/PnL/Session-R/Week-Edge/GENOME/TREND/MISREAD
             chip stack reflows on narrow viewports (390px mobile) instead
             of overflowing the header. Canon §Cross-device Continuity. */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="wm-journal-chips flex items-center gap-2 flex-wrap">
           {/* H1: absence is not zero. A journal of nothing but M0 no-trade days
               has no win rate — printing "0% WR" would read as a column of
               losses to a trader who correctly took none. §9: unknown is quiet. */}
@@ -2018,7 +2025,7 @@ Trade the system, trust the process, winners every day 🚀`,
             );
           })()}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="wm-journal-tools ml-auto flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
             <Search size={11} className="text-wm-text-muted" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search journal..."

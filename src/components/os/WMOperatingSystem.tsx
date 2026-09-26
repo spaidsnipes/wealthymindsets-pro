@@ -1030,6 +1030,7 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
   return (
     <div
       data-testid="os-feed-standing"
+      className="wm-os-feed-standing"
       data-tone={feed.tone}
       data-established={parts.unestablished ? "false" : "true"}
       title={parts.spoken}
@@ -1049,6 +1050,22 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
           border: `1px solid ${ink}`,
         }}
       />
+      {/* THE WORDS ARE ONE FLOWING GROUP BESIDE THE PIP (Garden 16 §51).
+          As siblings of the pip, a wrap could leave the pip alone on a line
+          above its own reading. Grouped, the reading wraps as a block: the
+          label's phrases first, then the detail and the instant, each moving
+          to the next line whole when the masthead is narrow. */}
+      <span
+        className="wm-os-feed-words"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "baseline",
+          columnGap: 7,
+          rowGap: 1,
+          minWidth: 0,
+        }}
+      >
       <span
         style={{
           fontSize: 10,
@@ -1062,7 +1079,17 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
           lineHeight: 1.25,
         }}
       >
-        {parts.label}
+        {/* Breaks BETWEEN phrases only — each phrase is nowrap, and the
+            owner decides where the phrases are (feedLabelLines). A space
+            between them keeps the one-line reading "A — B" at wide widths. */}
+        {parts.labelLines.map((line, i) => (
+          <React.Fragment key={i}>
+            {i > 0 ? " " : null}
+            <span className="wm-os-feed-label-line" style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+              {line}
+            </span>
+          </React.Fragment>
+        ))}
       </span>
       {/* THE SECOND HALF — canon's `· asOf`.
           Separator and detail are rendered as ONE conditional pair, so a
@@ -1128,6 +1155,7 @@ function FeedBadge({ feed }: { feed: FeedStanding }): React.ReactElement {
           <span>{parts.instant}</span>
         </span>
       )}
+      </span>
     </div>
   );
 }
@@ -2724,6 +2752,47 @@ export function WMOperatingSystem({
         /* THE COMPACT MASTHEAD BAND — see OS_MASTHEAD_COMPACT_MAX_PX. Later in
            the sheet than the desktop block, so at equal weight it wins. */
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) and (max-width: ${OS_MASTHEAD_COMPACT_MAX_PX}px) {
+          /* THE BAND RECOMPOSES; IT DOES NOT SPILL (Garden 16 section 51,
+             measured on the glass 2026-09-26). One unwrapping row did two
+             wrong things in this band. On /charts at 901 the feed reading was
+             crushed to one word per line and still ran past the edge (x 892
+             to 1005 of 901). On every doors room (/journal) the seven-mode bar
+             was squeezed into the space left between the doors and the
+             utilities and folded into a column: masthead 211px tall at 901,
+             165 at 1024, 119 at 1280.
+
+             So the row may wrap, and what wraps is chosen:
+             - the mode bar, where a room has one, takes a whole second row and
+               lays its seven modes out side by side;
+             - the feed reading keeps its phrases whole (see feedLabelLines),
+               stacks them beside the pip when that is enough, and only when
+               even that cannot fit does it move whole to the right of a
+               second row — never past the edge, never hidden. */
+          .wm-os-masthead {
+            flex-wrap: wrap !important;
+            column-gap: 10px !important;
+            row-gap: 6px !important;
+            /* A reading that had to move to row two stands at its right end.
+               SAFE, so that if one row ever overflows anyway it spills to the
+               right where it can be seen, never off the left edge: measured
+               with the wrap removed, plain flex-end pushed the wordmark to
+               x -90 — the disappearing W. */
+            justify-content: flex-end;
+            justify-content: safe flex-end;
+          }
+          .wm-os-masthead-center:not(:empty) { flex-basis: 100% !important; order: 1; }
+          /* The reading grows from its stacked width up to its one-line width
+             and no further; whatever is left over goes to the auto margin in
+             front of the utilities, so utilities and reading stay together
+             at the trailing edge, as F24 draws them. An empty centre (the
+             instrument view) is no longer the spacer — the margin is. */
+          .wm-os-masthead-center:empty { flex-grow: 0 !important; }
+          .wm-os-masthead-center + * { margin-left: auto !important; }
+          .wm-os-feed-standing {
+            flex: 1 1 0% !important;
+            min-width: min-content !important;
+            max-width: max-content !important;
+          }
           .wm-os-equipment-plates { gap: 6px !important; }
           .wm-os-equipment-plate {
             width: 118px !important;

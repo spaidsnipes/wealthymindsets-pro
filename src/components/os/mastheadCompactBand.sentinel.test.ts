@@ -48,4 +48,36 @@ describe("the compact masthead band", () => {
     expect(b).not.toMatch(/\.wm-os-command-deck[^{]*\{[^}]*display: none/);
     expect(OS).toContain('aria-label="Command Deck"');
   });
+
+  // Garden 16 §51 (2026-09-26, measured): at 901 the feed reading ran to
+  // x 1005 of 901, and on every doors room the mode bar folded into a column
+  // (masthead 211px tall at 901). The band now lets the row wrap, chosen.
+  it("lets the row wrap instead of spilling past the edge", () => {
+    expect(band()).toMatch(/\.wm-os-masthead \{[^}]*flex-wrap: wrap !important;/);
+  });
+
+  it("gives a room's mode bar a whole row, and leaves an empty centre out of it", () => {
+    const b = band();
+    expect(b).toMatch(/\.wm-os-masthead-center:not\(:empty\) \{ flex-basis: 100% !important; order: 1; \}/);
+    expect(b).toMatch(/\.wm-os-masthead-center:empty \{ flex-grow: 0 !important; \}/);
+  });
+
+  it("the feed reading's floor is its own widest phrase and its ceiling one line — never zero", () => {
+    const b = band();
+    const rule = /\.wm-os-feed-standing \{([^}]*)\}/.exec(b);
+    expect(rule, "the band does not size the feed reading").not.toBeNull();
+    // min-width 0 is what let the reading shrink to nothing and overflow.
+    expect(rule![1]).toContain("min-width: min-content !important;");
+    expect(rule![1]).toContain("max-width: max-content !important;");
+    expect(rule![1]).not.toMatch(/display: none|visibility: hidden/);
+  });
+
+  it("keeps utilities and reading together at the trailing edge", () => {
+    expect(band()).toMatch(/\.wm-os-masthead-center \+ \* \{ margin-left: auto !important; \}/);
+  });
+
+  it("aligns a wrapped reading right SAFELY — an overflow can never push the wordmark off the left edge", () => {
+    // Measured with the wrap removed: plain flex-end put the wordmark at x -90.
+    expect(band()).toMatch(/\.wm-os-masthead \{[^}]*justify-content: safe flex-end;/);
+  });
 });

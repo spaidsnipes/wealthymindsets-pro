@@ -1337,3 +1337,34 @@ input[type=range]::-webkit-slider-runnable-track {
     white-space: nowrap;
   }
 }
+
+/* ── THE JOURNAL HEADER ON THE DESK (Garden 16 section 51, 2026-09-26) ──────
+   Measured on the glass at 1600: one unwrapping row, so the toolbar ran past
+   the right edge (Genome and New Entry unreachable) and the stat chips were
+   crushed into a column beside the title. From the rail breakpoint up (901 =
+   OS_RAIL_BREAKPOINT_PX + 1 in WMOperatingSystem.tsx; journalHeaderDesk.test
+   pins the two together) the header recomposes instead:
+     row 1  title, tabs (never split mid-name), entry count
+     then   the toolbar, right-aligned, wrapping onto as many rows as it needs
+     last   the stat chips, flowing left to right in a row of their own.
+   Nothing is hidden. The phone and tablet header is untouched: below 901 it
+   keeps its scroller and its edge fade. */
+@media (min-width: 901px) {
+  .wm-journal-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    mask-image: none;
+  }
+  .wm-journal-tabs > button { white-space: nowrap; }
+  .wm-journal-tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .wm-journal-chips {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
