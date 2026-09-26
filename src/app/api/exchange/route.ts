@@ -33,6 +33,7 @@ import {
   ingestExchangeCandles,
   toLegacySecondsTuple,
 } from "@/lib/marketData/exchangeCandleIngress";
+import { mergeVenueTail, VENUE_TAIL_INTERVALS } from "@/lib/marketData/venueTailFill";
 
 type Ex = PublicCryptoExchange;
 
@@ -135,14 +136,56 @@ async function getQuote(ex: Ex, coin: string): Promise<ExchangeQuote> {
 }
 
 /* ── CANDLES: normalized OHLCV ────────────────────────────────── */
+const coinbaseTuples = (r: unknown): LegacyOhlcvTuple[] =>
+  (Array.isArray(r) ? r : []).map((c: any) => ({ time: c[0], low: c[1], high: c[2], open: c[3], close: c[4], volume: c[5] }));
+
+/**
+ * THE LIVE EDGE'S CLOSED MINUTES (2026-09-26). Coinbase's un-windowed candles
+ * page answers from a snapshot that lags the book by minutes — measured on
+ * BTC-USD 1m its newest candle stayed pinned at 09:28 UTC while the clock ran
+ * to 09:32, so every fresh load drew "NO BAR · 3 intervals" between history
+ * and the forming bar the Coinbase tape was already building. The same
+ * endpoint asked for an explicit window returns every closed minute. So the
+ * same venue is re-read for a BOUNDED tail window and merged in (see
+ * venueTailFill.ts): closed intervals only, one bar per instant, replaced
+ * never summed. `null` = no tail was read (it failed, or not this venue).
+ */
+async function getCoinbaseTail(coin: string, sec: number): Promise<LegacyOhlcvTuple[] | null> {
+  const endSec = Math.floor(Date.now() / 1000);
+  const startSec = endSec - VENUE_TAIL_INTERVALS * sec;
+  const iso = (t: number) => new Date(t * 1000).toISOString();
+  try {
+    const r = await j(`https://api.exchange.coinbase.com/products/${pair("coinbase", coin)}/candles?granularity=${sec}&start=${encodeURIComponent(iso(startSec))}&end=${encodeURIComponent(iso(endSec))}`);
+    return Array.isArray(r) ? coinbaseTuples(r) : null;
+  } catch {
+    return null;
+  }
+}
+
+interface VenueCandlePage {
+  readonly tuples: LegacyOhlcvTuple[];
+  /** Closed intervals the tail read supplied that the history page lacked; null = no tail read. */
+  readonly tailFilled: number | null;
+}
+
+async function getCandlePage(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<VenueCandlePage> {
+  if (ex !== "coinbase") return { tuples: await getCandles(ex, coin, tf, sec, bars), tailFilled: null };
+  const [history, tail] = await Promise.all([
+    getCandles(ex, coin, tf, sec, bars),
+    getCoinbaseTail(coin, sec),
+  ]);
+  if (tail === null) return { tuples: history, tailFilled: null };
+  const merged = mergeVenueTail({ history, tail, intervalSec: sec, nowSec: Math.floor(Date.now() / 1000) });
+  return { tuples: merged.bars.slice(-bars), tailFilled: merged.filled };
+}
+
 async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<LegacyOhlcvTuple[]> {
   const p = pair(ex, coin);
 
   if (ex === "coinbase") {
     const r = await j(`https://api.exchange.coinbase.com/products/${p}/candles?granularity=${sec}`);
     // [time, low, high, open, close, volume] newest-first
-    return (r as any[]).map(c => ({ time: c[0], low: c[1], high: c[2], open: c[3], close: c[4], volume: c[5] }))
-      .sort((a, b) => a.time - b.time).slice(-bars);
+    return coinbaseTuples(r).sort((a, b) => a.time - b.time).slice(-bars);
   }
   if (ex === "kraken") {
     const min = Math.max(1, Math.round(sec / 60));
@@ -196,11 +239,12 @@ export async function GET(req: Request) {
           reason: resolution.reason,
         }, { status: 422 });
       }
-      const normalized = await cached(
+      const page = await cached(
         `c:${ex}:${coin}:${resolution.timeframe}:${bars}`,
         4000,
-        () => getCandles(ex, coin, resolution.timeframe, resolution.seconds, bars),
-      ) as LegacyOhlcvTuple[];
+        () => getCandlePage(ex, coin, resolution.timeframe, resolution.seconds, bars),
+      ) as VenueCandlePage;
+      const normalized = page.tuples;
 
       /* M8: THE ARTERY'S SECOND PRODUCTION CONSUMER.
        *
@@ -253,6 +297,10 @@ export async function GET(req: Request) {
         barFidelity: "INDICATIVE",
         sessionKnown: true,
         sessionModel: "CONTINUOUS",
+        // Closed intervals the same venue's windowed tail read supplied that
+        // its lagging history page did not hold (venueTailFill.ts); null =
+        // no tail was read. The chart publishes it as `dataGapsTailFilled`.
+        tailFilled: page.tailFilled,
         refusedBars: ingress.refusals.length,
         refusals: ingress.refusals,
       });

@@ -734,17 +734,25 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?
 interface CanonicalCandleBatch {
   readonly candles: LegacyOhlcvTuple[];
   readonly identities: readonly CanonicalBarIdentity[];
+  /**
+   * Closed intervals the venue's own windowed tail read supplied that its
+   * history page lacked (/api/exchange · venueTailFill.ts, 2026-09-26).
+   * Absent/null = no tail was read for this batch.
+   */
+  readonly tailFilled?: number | null;
 }
 
 function candleBatch(json: {
   readonly candles?: LegacyOhlcvTuple[];
   readonly barIdentities?: CanonicalBarIdentity[];
+  readonly tailFilled?: number | null;
 }, count: number): CanonicalCandleBatch | null {
   const candles = Array.isArray(json.candles) ? json.candles.slice(-count) : [];
   if (candles.length === 0) return null;
   return {
     candles,
     identities: Array.isArray(json.barIdentities) ? json.barIdentities : [],
+    tailFilled: typeof json.tailFilled === "number" && Number.isFinite(json.tailFilled) ? json.tailFilled : null,
   };
 }
 
@@ -3631,6 +3639,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       volRef.current    = vs;
       barsRef.current   = data;
       barIdentitiesRef.current = admittedBarIdentities;
+      // RECEIPT (data path, not paint): how many closed live-edge intervals
+      // the bars' own venue supplied from its windowed tail read, so a
+      // "NO BAR" at the live edge can be told apart from our backfill lagging.
+      // NO_TAIL = this batch's source reads no tail (only Coinbase does today).
+      try {
+        const cv = canvasRef.current;
+        if (cv) cv.dataset.dataGapsTailFilled = canonicalBatch?.tailFilled != null ? String(canonicalBatch.tailFilled) : "NO_TAIL";
+      } catch { /* canvas not mounted */ }
 
       // Feed the manual vertical-drag range through the main series' autoscale.
       // When manualPriceRangeRef is null the chart auto-fits as normal; when the
