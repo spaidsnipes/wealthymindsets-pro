@@ -56,31 +56,19 @@ import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
 
 import type { OrderFlowReadingSet } from "@/lib/marketData/useOrderFlowReadings";
+import { MARKET_INTELLIGENCE_WINGS, UNBUILT_WINGS } from "@/lib/workspace/marketIntelligence";
 
 /** The tape window every one of these five reads. Named once. */
 const WINDOW_LABEL = "session tape";
 
-/**
- * The Market Intelligence family, in the bolt-on's own order. Named once so
- * the wing tags and the confession line cannot drift into two spellings.
+/*
+ * The Market Intelligence family and its unbuilt wings are OWNED by
+ * `lib/workspace/marketIntelligence.ts` (Garden 16 §14/§15) — the W tile's
+ * hint in the equipment registry is derived from the same two constants, so
+ * the tile cannot promise a wing this panel does not mount. Re-exported here
+ * so existing readers keep one import path.
  */
-export const MARKET_INTELLIGENCE_WINGS = {
-  FLOW: "Flow",
-  LIQUIDITY: "Liquidity",
-  VOLUME_PROFILE: "Volume/Profile",
-  STRUCTURE: "Structure",
-  MEMORY_CONTEXT: "Memory/Context",
-} as const;
-
-/**
- * The two wings with no installed instrument today, confessed by name at full
- * depth. When an instrument lands in one, remove it here and mount the
- * reading above — the sentinel pins this list so silent staleness fails loud.
- */
-const UNBUILT_WINGS: readonly string[] = [
-  MARKET_INTELLIGENCE_WINGS.STRUCTURE,
-  MARKET_INTELLIGENCE_WINGS.MEMORY_CONTEXT,
-];
+export { MARKET_INTELLIGENCE_WINGS };
 
 /** One reading, wearing the family wing it answers for. */
 function Wing({

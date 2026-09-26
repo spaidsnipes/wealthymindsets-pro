@@ -238,6 +238,35 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
 /** Public, so chrome can render the desks without importing the whole VM. */
 export const ARRANGEMENT_SPECS: readonly ArrangementSpec[] = ARRANGEMENTS;
 
+/**
+ * THE CAMERA GRAMMAR — Garden 16 §14, ONE OWNER.
+ *
+ * "Workspace owns arrangement. Therefore use unmistakable camera grammar such
+ * as CLEAN / ORDER FLOW CAMERA / REGIME CAMERA / REVIEW CAMERA … A guest should
+ * immediately understand: CAMERA CHANGES HOW I VIEW THE SAME MARKET."
+ *
+ * The desk's canon name ("Order Flow") stays the compiler's `label` — it is
+ * the FL-08 declaration word and the `?desk=` vocabulary. What a guest PRESSES
+ * says what the thing IS: a camera on the same market. Before this the
+ * Workspace tile read "Order Flow" one plate away from a Tools tile reading
+ * "Order flow" (the W intelligence door) — two machines, one name.
+ *
+ * Every surface that offers a desk as a button (the Workspace rail tile, the
+ * Tools › Chart tools arrangement panel) calls this; none appends the word
+ * itself, so the grammar cannot drift between the two doors.
+ */
+export const CAMERA_WORD = "camera";
+
+export function arrangementCameraLabel(id: ArrangementId): string {
+  const spec = ARRANGEMENTS.find(a => a.id === id);
+  // Unreachable for a typed id; an unknown desk gets no invented name.
+  if (!spec) return "";
+  return `${spec.label} ${CAMERA_WORD}`;
+}
+
+/** What every camera promises, in one line — the Workspace hand's caption. */
+export const CAMERA_PROMISE = "Same market, different view";
+
 export interface ChartArrangementInput {
   /**
    * The compiled profile menu. This module asks it which readings can draw

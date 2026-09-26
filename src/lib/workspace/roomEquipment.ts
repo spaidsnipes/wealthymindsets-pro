@@ -32,7 +32,14 @@
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 // TYPE-ONLY. The registry takes its desk vocabulary from the compiler that owns
 // the desks rather than restating it, so the two can never drift apart.
-import type { ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
+import {
+  arrangementCameraLabel,
+  type ArrangementId,
+} from "@/lib/marketData/viewModels/selectChartArrangement";
+// THE W DOOR'S WORDS have one owner (Garden 16 §14/§15). Both rooms that hand
+// out the W read the same two exports, so the deck and the chart room cannot
+// name WM's intelligence two ways.
+import { W_DOOR_LABEL, wDoorHint } from "@/lib/workspace/marketIntelligence";
 
 /**
  * WHICH OF THE TWO HANDS THIS BELONGS IN.
@@ -496,13 +503,18 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      * imbalance — were reachable from exactly one room in the product, and it
      * was not the room the Founder opens.
      *
-     * THE LABEL IS THE TRADER'S NOUN. Not "microstructure", not "tape
-     * selectors". THE HINT NAMES THE QUESTION, not the five modules behind it.
+     * THE LABEL IS THE BRAND'S W (Garden 16 §14, 2026-09-26). It read
+     * "Order flow" — the trader's noun — until the Workspace hand grew a desk
+     * of the same name; two machines under one noun is the confusion §14
+     * forbids. The hint names the families, derived from their one owner.
      */
     {
       id: "order-flow",
-      label: "Order flow",
-      hint: "Whether the side pressing is being paid for the effort it spends",
+      // GARDEN 16 §14 — THE W, NOT A SECOND "ORDER FLOW". The id stays (it is
+      // the URL contract); the NAME is the brand's intelligence door, because
+      // "Order Flow" is now exactly one thing: the camera in the Workspace hand.
+      label: W_DOOR_LABEL,
+      hint: wDoorHint(),
       kind: "lens",
     },
   ],
@@ -532,6 +544,64 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
    * deck's. It is not.
    */
   [INSTRUMENT_VIEW_ROUTE]: [
+    /**
+     * THE W LEADS THE TOOLS HAND — Garden 16 §14. "The W control is WM SMART
+     * MONEY / MARKET INTELLIGENCE … W ACTIVATES WM INTELLIGENCE." It was the
+     * third tile under two passports-and-verdicts, named "Order flow"; a guest
+     * opening Tools met WM's intelligence last and under the camera's name.
+     * First position, W mark, brand name. Order only — nothing it opens moved.
+     */
+    /**
+     * THE CHART ROOM'S THIRD TENANT — AND THE LARGEST SINGLE BURIAL IN WM.
+     *
+     * Five finished, tested inventions — value candle, absorption anatomy,
+     * delta divergence, liquidity weather, stacked imbalance — each had exactly
+     * ONE mount in the entire product, and it was the same mount: a long
+     * scrolling column inside `SmartMoneyPanel`, a legacy side panel that must
+     * first be opened from a chart control and then scrolled past several other
+     * sections. Five inventions, one door, and the door was a scroll.
+     *
+     * That is this file's own header clause, at its worst: "every one of its
+     * inventions was reached by opening a legacy panel and scrolling". The chart
+     * room is where the trader spends the most time and it could hand them the
+     * least.
+     *
+     * WHY THIS IS ONE ENTRY AND NOT FIVE. Five rail entries would be a card farm
+     * on a rail — and worse, it would ask a trader to know which of five nouns
+     * answers the question they actually have. They have ONE question: is this
+     * push real. All five readings are answers to it, and the preview ranks them
+     * by how much each CONSTRAINS A DECISION rather than by how loud it is.
+     *
+     * IT IS A SUBTRACTION, NOT AN ADDITION. The legacy panel keeps its column;
+     * nothing is deleted and no surface is duplicated. Both surfaces read ONE
+     * compilation out of `useOrderFlowReadings` — not the same rule written
+     * twice, literally the same objects — so the widget cannot say ABSORBED over
+     * a panel that says BALANCED. Two copies of a rule agree exactly until one
+     * is edited.
+     *
+     * THE FEED'S OWN LIMIT TRAVELS WITH THE EQUIPMENT. These readings need a
+     * per-trade aggressor tape, and not every feed carries one. The preview says
+     * NO TAPE before the trader presses anything, and says which feeds do carry
+     * one — so a quiet widget is a disclosed fact rather than a broken control.
+     *
+     * THE LABEL IS THE BRAND'S W, NOT THE MACHINERY'S — AND NOT THE CAMERA'S.
+     * Not "microstructure", not "tape selectors". It read "Order flow" until
+     * 2026-09-26, when Garden 16 §14 named this door WM SMART MONEY / MARKET
+     * INTELLIGENCE and gave "Order Flow" to the Workspace camera alone.
+     *
+     * THE HINT NAMES THE FAMILIES, NOT THE MODULES. A count of five would be an
+     * implementation number; what the trader gets is which families of WM
+     * intelligence are installed — and which two are not, before the press.
+     */
+    {
+      id: "order-flow",
+      // GARDEN 16 §14 — THE W, NOT A SECOND "ORDER FLOW". The id stays (it is
+      // the URL contract); the NAME is the brand's intelligence door, because
+      // "Order Flow" is now exactly one thing: the camera in the Workspace hand.
+      label: W_DOOR_LABEL,
+      hint: wDoorHint(),
+      kind: "lens",
+    },
     {
       id: "market-reality",
       label: "Market reality",
@@ -566,52 +636,6 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       id: "market-object-passport",
       label: "Market object passport",
       hint: "Where each reading came from, and what would break it",
-      kind: "lens",
-    },
-    /**
-     * THE CHART ROOM'S THIRD TENANT — AND THE LARGEST SINGLE BURIAL IN WM.
-     *
-     * Five finished, tested inventions — value candle, absorption anatomy,
-     * delta divergence, liquidity weather, stacked imbalance — each had exactly
-     * ONE mount in the entire product, and it was the same mount: a long
-     * scrolling column inside `SmartMoneyPanel`, a legacy side panel that must
-     * first be opened from a chart control and then scrolled past several other
-     * sections. Five inventions, one door, and the door was a scroll.
-     *
-     * That is this file's own header clause, at its worst: "every one of its
-     * inventions was reached by opening a legacy panel and scrolling". The chart
-     * room is where the trader spends the most time and it could hand them the
-     * least.
-     *
-     * WHY THIS IS ONE ENTRY AND NOT FIVE. Five rail entries would be a card farm
-     * on a rail — and worse, it would ask a trader to know which of five nouns
-     * answers the question they actually have. They have ONE question: is this
-     * push real. All five readings are answers to it, and the preview ranks them
-     * by how much each CONSTRAINS A DECISION rather than by how loud it is.
-     *
-     * IT IS A SUBTRACTION, NOT AN ADDITION. The legacy panel keeps its column;
-     * nothing is deleted and no surface is duplicated. Both surfaces read ONE
-     * compilation out of `useOrderFlowReadings` — not the same rule written
-     * twice, literally the same objects — so the widget cannot say ABSORBED over
-     * a panel that says BALANCED. Two copies of a rule agree exactly until one
-     * is edited.
-     *
-     * THE FEED'S OWN LIMIT TRAVELS WITH THE EQUIPMENT. These readings need a
-     * per-trade aggressor tape, and not every feed carries one. The preview says
-     * NO TAPE before the trader presses anything, and says which feeds do carry
-     * one — so a quiet widget is a disclosed fact rather than a broken control.
-     *
-     * THE LABEL IS THE TRADER'S NOUN, NOT THE MACHINERY'S. Not "microstructure",
-     * not "tape selectors" — order flow is what a trader calls this.
-     *
-     * THE HINT NAMES THE QUESTION, NOT THE MODULES. A count of five would be an
-     * implementation number; what the trader gets is whether the effort being
-     * spent is being paid for.
-     */
-    {
-      id: "order-flow",
-      label: "Order flow",
-      hint: "Whether the side pressing is being paid for the effort it spends",
       kind: "lens",
     },
     /**
@@ -727,7 +751,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      */
     {
       id: "clean-room",
-      label: "Clean",
+      label: arrangementCameraLabel("CLEAN"),
       hint: "Put every panel and instrument down — just the market",
       kind: "workspace",
       direct: true,
@@ -770,7 +794,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
      */
     {
       id: "arrange-order-flow",
-      label: "Order Flow",
+      label: arrangementCameraLabel("ORDER_FLOW"),
       hint: "Arm absorption, imbalances, value candles, delta and liquidity",
       kind: "workspace",
       direct: true,
@@ -778,7 +802,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
     },
     {
       id: "arrange-regime",
-      label: "Regime",
+      label: arrangementCameraLabel("REGIME"),
       hint: "Both volume profiles — where price has been accepted",
       kind: "workspace",
       direct: true,
@@ -786,7 +810,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
     },
     {
       id: "arrange-review",
-      label: "Review",
+      label: arrangementCameraLabel("REVIEW"),
       hint: "Session profile and effort-against-result, after the fact",
       kind: "workspace",
       direct: true,

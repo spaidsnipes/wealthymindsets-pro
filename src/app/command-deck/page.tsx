@@ -1494,7 +1494,9 @@ function CommandDeckInner() {
       equipmentId: "order-flow",
       // The rail's own words. A widget that opened under a different title
       // reads as a different thing having loaded.
-      title: "Order flow",
+      // The W door's name (Garden 16 §14) — equal to W_DOOR_LABEL, pinned by
+      // equipmentIsNotADestination + oneWDoor sentinels.
+      title: "WM Smart Money",
       verdict: orderFlowStanding.verdict,
       headline: orderFlowStanding.headline,
       counts: [

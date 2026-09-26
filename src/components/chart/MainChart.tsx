@@ -2752,11 +2752,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // "living intelligence" aesthetic per Founder Mockup 1.
   const cvdSparkRef = useRef<number[]>(sessionSlot.cvdSpark);
   cvdSparkRef.current = sessionSlot.cvdSpark;
-  // ── Delta accumulator: SEPARATE from Big Trades. Captures EVERY real executed
-  // trade (no minLot floor) so net aggressive delta per price zone reflects the
-  // full aggressive flow. Real trades only (tick.trade) — never quote/synthetic. ──
-  const deltaTickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
-  const deltaProcessedRef = useRef<Set<string>>(new Set());
+  // ── ONE LADDER (Garden 16 §15, 2026-09-26). A second accumulator,
+  // `deltaTickAccRef`, used to fold the SAME trades into the SAME
+  // bar → price-level → {bid, ask} map for the Delta Bubbles, on the stated
+  // ground that `tickAccRef` was lot-filtered. It was not (no lot floor exists
+  // above), so the chart held two copies of one flow truth, each with its own
+  // dedupe window, able to drift the moment either fold was edited. Delta
+  // Bubbles now read `tickAccRef`. `oneFlowLadder.sentinel.test.ts` pins it.
   const tapeSourceRef = useRef(tapeSource);
   useEffect(() => { tapeSourceRef.current = tapeSource; }, [tapeSource]);
   // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
@@ -2791,8 +2793,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     onTapeFootprintRef.current?.(null);
     bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
-    deltaTickAccRef.current = new Map();
-    deltaProcessedRef.current = new Set();
     // Session counters + horizon + sparkline are NOT reset here. They live in
     // the per-symbol store so switching from BTC → TSLA no longer destroys
     // the running BTC observation window; returning to BTC restores exactly
@@ -2889,43 +2889,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
     }
   }, [recentTicks, timeframe, base, tapeSource, canonicalSym, sessionSlot]);
-
-  // ── Delta accumulator population: EVERY real executed trade (tick.trade),
-  //    NO minLot floor → full aggressive flow so net-delta-per-zone reflects
-  //    real buying/selling pressure. Separate from Big Trades (tickAccRef above,
-  //    which stays lot-filtered and untouched). Real trades only — the tick.trade
-  //    flag excludes bookTicker/quote/REST/synthetic price-direction ticks. ──
-  useEffect(() => {
-    if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
-    const intervalSec = getIntervalSec(timeframe);
-    const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
-    const dp      = base > 100 ? 2 : 4;
-
-    recentTicks.forEach(tick => {
-      if (!tick.trade) return;                                  // real executed trades only
-      if (!Number.isFinite(tick.price) || tick.price <= 0) return;
-      if (!Number.isFinite(tick.size)  || tick.size  <= 0) return;
-      const dedupeKey = marketTickDedupeKey(tick);
-      if (deltaProcessedRef.current.has(dedupeKey)) return;
-      deltaProcessedRef.current.add(dedupeKey);
-      if (deltaProcessedRef.current.size > 12000) {
-        deltaProcessedRef.current = new Set([...deltaProcessedRef.current].slice(-6000));
-      }
-      const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
-      const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
-      if (!deltaTickAccRef.current.has(barTime)) deltaTickAccRef.current.set(barTime, new Map());
-      const lvlMap = deltaTickAccRef.current.get(barTime)!;
-      const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
-      lvlMap.set(priceLevel, {
-        bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
-        ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
-      });
-    });
-    if (deltaTickAccRef.current.size > 400) {
-      const oldest = [...deltaTickAccRef.current.keys()].sort((a, b) => a - b)[0];
-      deltaTickAccRef.current.delete(oldest);
-    }
-  }, [recentTicks, timeframe, base, tapeSource]);
 
   // ── Tape CVD (H-701) — cumulative signed tape, only where it was heard ──
   // One candle per bar the accumulator holds executions for: open = prior
@@ -5900,7 +5863,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   /**
    * Delta Bubbles ONLY — net aggressive delta per price zone (6–10 bins).
-   * Separate from Big Trades; still tickAccRef-only, no synthetic footprint.
+   * Reads THE ladder (`tickAccRef`) — the same folded tape the footprint and
+   * Tape CVD read — so a bubble and a footprint cell cannot disagree about one
+   * bar's delta. No synthetic footprint.
    */
   /**
    * Delegates to the shared pure owner in src/lib/deltaBubbleLevels.ts.
@@ -5914,7 +5879,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * tight bars and dropped their aggressor volume).
    */
   const getDeltaBubbleLevels = useCallback((bar: LegacyOhlcvTuple): DeltaBubbleLevel[] => {
-    const realData = deltaTickAccRef.current.get(bar.time as number);
+    const realData = tickAccRef.current.get(bar.time as number);
     if (!realData || realData.size === 0) return [];
 
     const ticks: DeltaTick[] = [];

@@ -98,6 +98,7 @@ import {
 import type { EquipmentShortfall } from "@/lib/workspace/equipmentChannel";
 import { announceOpenDoorEdge } from "@/lib/os/openDoorEdge";
 import { SavedLayoutsDoor } from "./SavedLayoutsDoor";
+import { CAMERA_PROMISE } from "@/lib/marketData/viewModels/selectChartArrangement";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
 import { ACTIVATOR_GLYPHS, equipmentGlyph } from "./equipmentGlyphs";
@@ -407,6 +408,11 @@ interface RoomWorkspaceRailProps {
 /** The rail ids of the arrangement desks, from the registry's one map. */
 const ARRANGEMENT_DOOR_IDS: ReadonlySet<string> = new Set(Object.values(ARRANGEMENT_EQUIPMENT_ID));
 
+/** Index of the FIRST arrangement desk in a room's list, or -1 when it has none. */
+function firstArrangementIndex(list: readonly { readonly id: string }[]): number {
+  return list.findIndex((e) => ARRANGEMENT_DOOR_IDS.has(e.id));
+}
+
 /** Index of the LAST arrangement desk in a room's list, or -1 when it has none. */
 function lastArrangementIndex(list: readonly { readonly id: string }[]): number {
   let at = -1;
@@ -516,6 +522,12 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
   if (equipment.length === 0) return null;
   const tiled = presentation === "tile";
   const tailAfter = arrangementTail === undefined ? -1 : lastArrangementIndex(equipment);
+  // GARDEN 16 §14 — "A guest should immediately understand: CAMERA CHANGES HOW
+  // I VIEW THE SAME MARKET." The desks' own labels say "… camera"; this one
+  // line above the first of them says what a camera IS, once, in the hand that
+  // owns arrangement. Drawn only where a room has desks, so no other room grows
+  // a caption over instruments that are not cameras.
+  const camerasAt = firstArrangementIndex(equipment);
   return (
     <div data-testid="os-rail-workspace">
       <div
@@ -563,6 +575,19 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
         const glyph = equipmentGlyph(item.id);
         return (
         <React.Fragment key={item.id}>
+        {index === camerasAt ? (
+          <div
+            data-testid="os-camera-caption"
+            style={{
+              ...EYEBROW,
+              padding: tiled ? "2px 14px 8px" : "4px 14px 4px",
+              color: HINT_INK,
+              letterSpacing: 1.4,
+            }}
+          >
+            Cameras — {CAMERA_PROMISE}
+          </div>
+        ) : null}
         <button
           type="button"
           data-equipment={item.id}

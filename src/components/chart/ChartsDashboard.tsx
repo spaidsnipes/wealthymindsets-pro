@@ -2561,7 +2561,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const chartOrderFlowEquipment = React.useMemo(
     () => ({
       equipmentId: "order-flow",
-      title: "Order flow",
+      // The W door's name (Garden 16 §14) — equal to W_DOOR_LABEL, pinned by
+      // equipmentIsNotADestination + oneWDoor sentinels.
+      title: "WM Smart Money",
       verdict: chartOrderFlowStanding.verdict,
       headline: chartOrderFlowStanding.headline,
       counts: [

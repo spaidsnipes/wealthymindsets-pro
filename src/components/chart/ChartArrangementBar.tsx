@@ -60,6 +60,8 @@ import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/s
 import {
   selectChartArrangement,
   arrangementSwitches,
+  arrangementCameraLabel,
+  CAMERA_PROMISE,
   type ArrangementId,
   type ArrangementEntry,
 } from "@/lib/marketData/viewModels/selectChartArrangement";
@@ -130,7 +132,9 @@ export function ChartArrangementBar({
           className="rounded-lg border border-wm-border bg-wm-surface/95 p-2"
         >
           <div className="px-2 pt-1 pb-2 text-[10px] font-bold tracking-widest text-wm-muted">
-            WORKSPACE — HOW THE BOOK IS ARRANGED
+            {/* Garden 16 §14 camera grammar — the same words the Workspace
+                hand prints, from the same owner. */}
+            WORKSPACE CAMERAS — {CAMERA_PROMISE.toUpperCase()}
           </div>
 
           {/* THE DECLARATION, WHERE THE CHIP USED TO PUT IT. This is the only
@@ -172,7 +176,7 @@ export function ChartArrangementBar({
                   className="text-[12px] font-bold"
                   style={{ color: entry.active ? "#d4af37" : "#E8EAF2" }}
                 >
-                  {entry.label}
+                  {arrangementCameraLabel(entry.id)}
                 </span>
                 {entry.active && <Check size={11} className="text-wm-gold" />}
                 <span className="ml-auto text-[10px] font-bold tabular-nums text-wm-muted">

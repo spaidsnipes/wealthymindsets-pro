@@ -35,6 +35,7 @@ import { describe, expect, it } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
 import { allRoomEquipmentIds } from "./roomEquipment";
 import { MARKET_INTELLIGENCE_WINGS } from "@/components/experience/OrderFlowDepthPanel";
+import { UNBUILT_WINGS } from "./marketIntelligence";
 
 const read = (rel: string): string =>
   readFileSync(join(process.cwd(), rel), "utf8");
@@ -77,10 +78,17 @@ describe("one W door — the Market Intelligence family has one warehouse", () =
 
   it("the wings with no installed instrument are confessed, not faked", () => {
     // The confession line renders from the named constant — an empty-tile
-    // "Structure" widget appearing instead would be the painted door.
+    // "Structure" widget appearing instead would be the painted door. The
+    // constant moved to its one owner (lib/workspace/marketIntelligence) on
+    // 2026-09-26 so the W tile's hint could be derived from it too; the panel
+    // must still RENDER from it, not from a retyped list.
     expect(DEPTH_PANEL).toMatch(/data-testid="order-flow-unbuilt-wings"/);
-    expect(DEPTH_PANEL).toMatch(/MARKET_INTELLIGENCE_WINGS\.STRUCTURE/);
-    expect(DEPTH_PANEL).toMatch(/MARKET_INTELLIGENCE_WINGS\.MEMORY_CONTEXT/);
+    expect(DEPTH_PANEL).toMatch(/\{UNBUILT_WINGS\.join\(/);
+    expect(DEPTH_PANEL).toMatch(/import \{[^}]*UNBUILT_WINGS[^}]*\} from "@\/lib\/workspace\/marketIntelligence"/);
+    expect(UNBUILT_WINGS).toEqual([
+      MARKET_INTELLIGENCE_WINGS.STRUCTURE,
+      MARKET_INTELLIGENCE_WINGS.MEMORY_CONTEXT,
+    ]);
   });
 
   it("every mounted reading wears a wing tag", () => {

@@ -238,13 +238,20 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
       <path d="M3.5 16.5l8.5 4.3 8.5-4.3" />
     </Glyph>
   ),
-  /** Whether the pressing side is being paid — flow against flow. */
+  /**
+   * THE W — WM Smart Money / Market Intelligence (Garden 16 §14: "Use the
+   * actual W/logo identity"). The brand mark's own geometry from `WMLogo`
+   * (W strokes + the rising arrow off its right leg), scaled 0.6 from its
+   * 40-unit box (already centred on x=12) and dropped 1.8 to centre on y — drawn in
+   * `currentColor` like every other mark, because the tile owns held/resting
+   * ink. It replaced two opposed arrows ("flow against flow"), which was the
+   * camera's subject drawn on the intelligence door.
+   */
   "order-flow": (
     <Glyph>
-      <path d="M3.5 8.5h13" />
-      <path d="M13 5l3.5 3.5L13 12" />
-      <path d="M20.5 15.5h-13" />
-      <path d="M11 12l-3.5 3.5L11 19" />
+      <path d="M4.2 9l2.7 8.4 2.7-5.4 2.7 5.4L15 9" />
+      <path d="M15 9h4.8" />
+      <path d="M17.4 6.6l2.4 2.4-2.4 2.4" />
     </Glyph>
   ),
   /** Where you have actually performed — your own measured curve. */
