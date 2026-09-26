@@ -84,3 +84,15 @@ describe("MainChart places the Data Window through the owner", () => {
     expect(code).toContain("topFloor: BELOW_PRICE_LEGEND + DATA_WINDOW_TOGGLE_PX + 2 * PANE_TOP_LEFT_INSET");
   });
 });
+
+describe("nothing else floats in the price-legend band", () => {
+  const code = readFileSync(resolve(__dirname, "..", "..", "components/chart/MainChart.tsx"), "utf8");
+  it("Reset Scale lives in the bottom-right scale cluster, not at top 8 over the header", () => {
+    expect(code).not.toMatch(/position: "absolute", right: 62, top: 8/);
+    const cluster = code.indexOf("Scale buttons — bottom-right");
+    const reset = code.indexOf('data-testid="chart-reset-scale"');
+    expect(cluster).toBeGreaterThan(0);
+    expect(reset).toBeGreaterThan(cluster);
+    expect(reset - cluster).toBeLessThan(2500);
+  });
+});

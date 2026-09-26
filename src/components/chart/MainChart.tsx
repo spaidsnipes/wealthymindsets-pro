@@ -18821,34 +18821,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           );
         })()}
 
-        {/* ── Small "reset scale" button — appears ONLY after the user has
-             manually stretched the price axis by dragging the numbers. Replaces
-             the old double-click-to-reset gesture with an explicit, discoverable
-             control. Sits just left of the price axis, top-right. ─── */}
-        {scaleLocked && (
-          <button
-            onClick={() => {
-              manualPriceRangeRef.current = null;
-              setScaleLocked(false);
-              setAutoScale(true);
-              try {
-                candleRef.current?.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current });
-                chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
-              } catch {}
-            }}
-            title="Reset price scale to auto-fit"
-            style={{
-              position: "absolute", right: 62, top: 8, zIndex: 55,
-              height: 22, padding: "0 8px", borderRadius: 5, fontSize: 9.5, fontWeight: 800,
-              cursor: "pointer", letterSpacing: 0.3, whiteSpace: "nowrap",
-              display: "flex", alignItems: "center", gap: 4,
-              background: "rgba(240,180,41,0.22)", border: "1px solid rgba(240,180,41,0.65)", color: "#F0B429",
-              backdropFilter: "blur(3px)", boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-            }}>
-            ⤢ Reset Scale
-          </button>
-        )}
-
         {/* ── Scale buttons — bottom-right, above the time axis so they
              no longer clutter / overlap the price action at top ─── */}
         <div style={{
@@ -18864,6 +18836,33 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               whether the price axis is showing PRICES or PERCENTAGES.
               chartAxisControlLabel owns the name, the hover and the pressed
               state for all four. The glyphs are deliberately unchanged. */}
+          {/* RESET SCALE — appears ONLY after the trader stretched the price
+              axis by dragging its numbers. It used to float at top: 8 /
+              right: 62, inside the price-legend band, where it printed over
+              "BAR OPENED …" (serving, NQ1! 1h, 2026-09-26). A scale control
+              belongs with the scale controls. */}
+          {scaleLocked && (
+            <button
+              onClick={() => {
+                manualPriceRangeRef.current = null;
+                setScaleLocked(false);
+                setAutoScale(true);
+                try {
+                  candleRef.current?.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current });
+                  chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
+                } catch {}
+              }}
+              title="Reset price scale to auto-fit"
+              data-testid="chart-reset-scale"
+              style={{
+                height: 22, padding: "0 8px", borderRadius: 4, fontSize: 9.5, fontWeight: 800,
+                cursor: "pointer", letterSpacing: 0.3, whiteSpace: "nowrap",
+                display: "flex", alignItems: "center", gap: 4,
+                background: "rgba(240,180,41,0.22)", border: "1px solid rgba(240,180,41,0.65)", color: "#F0B429",
+              }}>
+              ⤢ Reset Scale
+            </button>
+          )}
           {/* Reset View — undo vertical drag, re-fit price + time to the data */}
           <button
             onClick={() => {
