@@ -365,7 +365,7 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
   });
 
   it("TPO paints NO fillText at MID/FAR: letters are gated on NEAR; otherwise time-coloured blocks", () => {
-    expect(TPO).toContain('const asText = semanticDensity.depth === "NEAR" && rowH >= 7 && cellW >= ctx.measureText("M").width;');
+    expect(TPO).toContain('const asText = att.permission.paints("nearGeometry") && rowH >= 7 && cellW >= ctx.measureText("M").width;');
     const texts = [...TPO.matchAll(/ctx\.fillText\(/g)];
     expect(texts.length, "TPO's only fillText is the NEAR letter").toBe(1);
     between(TPO, "if (asText) {", "ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);", "} else {");

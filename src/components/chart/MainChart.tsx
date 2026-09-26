@@ -14307,7 +14307,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // migration through time survives every word being hidden. The
             // blocks yield to the candles cell by cell (below), so they no
             // longer need to stay a faint tint to leave the candles readable.
-            const asText = semanticDensity.depth === "NEAR" && rowH >= 7 && cellW >= ctx.measureText("M").width;
+            // H-501: the depth rule is the ONE permission table's — letters only where
+            // it grants NEAR geometry. TPO itself is SILENT at NEAR in that table
+            // ([X, S, X]), so on today's glass TPO is always its blocks.
+            const asText = att.permission.paints("nearGeometry") && rowH >= 7 && cellW >= ctx.measureText("M").width;
             // Brightness runs early → late across THIS window's brackets (the
             // newest one is full weight even when there are fewer than 26).
             const lastL = Math.max(1, ...tpo.rows.map(r => r.letters.length ? r.letters.charCodeAt(r.letters.length - 1) - 65 : 0));
