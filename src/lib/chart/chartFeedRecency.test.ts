@@ -232,3 +232,14 @@ describe("a PROVEN-closed market is not a lagging feed", () => {
     expect(body).not.toContain("nextMidnight");
   });
 });
+
+describe("clock skew is not a future bar", () => {
+  it("a bar stamped up to 10 s ahead of this clock is the forming bar", () => {
+    const s = chartFeedRecency(BAR_OPEN_S, ONE_MIN, BAR_OPEN_S * 1000 - 3_000, UTC);
+    expect(s.kind).toBe("CURRENT_BAR");
+  });
+  it("beyond the tolerance it is still refused", () => {
+    const s = chartFeedRecency(BAR_OPEN_S, ONE_MIN, BAR_OPEN_S * 1000 - 11_000, UTC);
+    expect(s.kind).toBe("UNKNOWN");
+  });
+});

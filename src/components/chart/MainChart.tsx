@@ -7882,9 +7882,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // FAR: three "NO BAR · 1 interval" chips across the regime picture).
           // An outage of ≥ 3 intervals is named at every depth.
           if (semanticDensity.depth === "FAR" && g.emptyIntervals < 3) continue;
-          const mx = (+x0 + +x1) / 2, my = Math.min(+y0, +y1) - 10;
+          const my = Math.min(+y0, +y1) - 10;
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
+          // Inside the plot: a hole at the live edge centred its words under
+          // the price axis ("NO BAR · 3 inte…", serving BTC 1m 2026-09-26).
+          let plotW = W;
+          try { plotW = chart.timeScale().width(); } catch { /* keep W */ }
+          const mx = Math.max(tw / 2 + 4, Math.min(plotW - tw / 2 - 4, (+x0 + +x1) / 2));
           ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
           forceChips.push({ x: mx - tw / 2, y: my - 12, w: tw, h: 13 });

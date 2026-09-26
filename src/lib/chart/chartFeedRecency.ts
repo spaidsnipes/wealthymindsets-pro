@@ -59,6 +59,9 @@
  * opinion about the exact thing the badge beside it already decides.
  */
 
+/** How far ahead of this clock a bar may be stamped and still be "forming now". */
+export const CLOCK_SKEW_TOLERANCE_S = 10;
+
 export type FeedRecencyKind =
   /** The newest bar is the one the clock says should be forming right now. */
   | "CURRENT_BAR"
@@ -154,7 +157,16 @@ export function chartFeedRecency(
   const clock = fmtClock(opened, timeZone);
   if (clock == null) return UNKNOWN("the bar timestamp could not be read as a time.");
 
-  const ageSeconds = now / 1000 - opened;
+  const rawAgeSeconds = now / 1000 - opened;
+  /*
+   * CLOCK SKEW IS NOT A FUTURE BAR (serving, BTCUSD 1m, 2026-09-26). At every
+   * minute boundary the newest bar arrives stamped by the EXCHANGE a moment
+   * before this machine's clock reaches the same second, and the header read
+   * "NEWEST BAR — TIME UNKNOWN" on a live, ticking chart. A bar at most
+   * CLOCK_SKEW_TOLERANCE_S ahead is the one forming now; beyond that the
+   * record is still refused as a future bar.
+   */
+  const ageSeconds = rawAgeSeconds < 0 && rawAgeSeconds >= -CLOCK_SKEW_TOLERANCE_S ? 0 : rawAgeSeconds;
 
   // A bar stamped in the future is not "zero bars behind" — it is a record WM
   // does not understand, and saying "current" about it would be a guess
