@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeMarketSurfaceSymbol } from "@/lib/routing/marketSurfaceQuery";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { resolveDefaultCameraSymbol } from "@/lib/marketData/defaultMarketCamera";
 
@@ -34,9 +36,33 @@ const SymbolContext = createContext<SymbolCtx>({
  * finally to DEFAULT_SYMBOL. Never throws — private-mode / disabled
  * storage returns the default.
  */
+/**
+ * THE DEEP LINK WINS THE FIRST FRAME (GP12 §70, measured 2026-09-26).
+ *
+ * /charts?symbol=BTCUSD&tf=5m painted SPY 15m — profiles and all — before
+ * swapping: this restore ran in a layout effect (before paint) while the
+ * page's URL seed ran in a plain effect (after paint), and under the Suspense
+ * prerender `useSearchParams` is empty on the first client render anyway. A
+ * wrong instrument on screen, however briefly, is a false market. So on the
+ * market surfaces that honour `?symbol=`, the URL is read here, first, and
+ * persisted like any selection. It is still a SEED: this runs once per mount,
+ * and the trader's next pick owns the symbol.
+ */
+export const DEEP_LINK_SYMBOL_ROUTES: readonly string[] = [INSTRUMENT_VIEW_ROUTE, "/command-deck"];
+
+export function deepLinkSymbol(pathname: string, search: string): string | null {
+  if (!DEEP_LINK_SYMBOL_ROUTES.some(r => pathname === r || pathname.startsWith(`${r}/`))) return null;
+  return normalizeMarketSurfaceSymbol(new URLSearchParams(search).get("symbol"));
+}
+
 function readPersistedSymbol(): string {
   if (typeof window === "undefined") return DEFAULT_SYMBOL;
   try {
+    const linked = deepLinkSymbol(window.location.pathname, window.location.search);
+    if (linked) {
+      window.localStorage.setItem(LAST_SYMBOL_KEY, linked);
+      return linked;
+    }
     const saved = window.localStorage.getItem(LAST_SYMBOL_KEY);
     if (saved) return saved.toUpperCase();
     const settings = JSON.parse(window.localStorage.getItem("wm_settings") || "{}");

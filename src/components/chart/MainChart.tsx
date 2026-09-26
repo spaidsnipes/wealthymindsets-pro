@@ -211,6 +211,7 @@ const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT
 const REGIME_FIELD_PEAK = 0.07;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
+import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
@@ -18998,7 +18999,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               { cell: scope.high,   value: dataWindow.h, color: "#00C076" },
               { cell: scope.low,    value: dataWindow.l, color: "#FF4D67" },
               { cell: scope.close,  value: dataWindow.c, color: "#E2E8FF" },
-              { cell: scope.volume, value: dataWindow.v, color: "#8896BE", fmt: (v: number) => v.toLocaleString() },
+              { cell: scope.volume, value: dataWindow.v, color: "#8896BE", fmt: formatVolume },
             ].map(row => (
               <div key={row.cell.label} title={row.cell.title} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
                 <span style={{ fontSize: 10, color: "#4A5580", fontFamily: "monospace" }}>{row.cell.label}</span>

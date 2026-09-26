@@ -616,7 +616,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, []);
 
   const [timeframe,       setTimeframe]       = useState<string>(() => {
-    const requested = normalizeMarketSurfaceTimeframe(initialTimeframe);
+    // The deep link wins the first frame (GP12 §70): under the Suspense
+    // prerender `initialTimeframe` can arrive null on the first client render,
+    // and the saved timeframe painted before the URL's (SPY 15m before 5m).
+    const requested = normalizeMarketSurfaceTimeframe(initialTimeframe)
+      ?? (typeof window !== "undefined" && window.location.pathname.startsWith(INSTRUMENT_VIEW_ROUTE)
+        ? normalizeMarketSurfaceTimeframe(new URLSearchParams(window.location.search).get("tf"))
+        : null);
     if (requested) return requested;
     const settings = (() => { try { return JSON.parse(localStorage.getItem("wm_settings") || "{}"); } catch { return {}; } })();
     const defTF = settings.defaultTF as string | undefined;
