@@ -484,6 +484,91 @@ export async function submitWebullOrderOnce(
   return result("ACKNOWLEDGED", "Webull acknowledged the order. Fills arrive through the order record, not this answer.", true, brokerOrderId);
 }
 
+// ── reconciliation (GP12 §38) ────────────────────────────────────────────────
+
+export type WebullOpenOrdersResult =
+  | {
+      readonly state: "OK";
+      /** Open order rows Webull returned for the account (combo parents count once). */
+      readonly count: number;
+      /** Every client order id found, parent and leg alike. Never rendered. */
+      readonly clientOrderIds: readonly string[];
+      /** True when Webull handed back a pagination key: more rows than this page. */
+      readonly truncated: boolean;
+    }
+  | { readonly state: "REJECTED"; readonly status: number; readonly reason: string }
+  | { readonly state: "NO_ANSWER"; readonly reason: string };
+
+/**
+ * The account's open orders, one page. `get_order_open_request_v2.py`:
+ * `/trading/orders/open-orders/list`, v3 GET, account_id + page_size +
+ * pagination_key. Open lists LAG and are supporting evidence (GP12 §33); an
+ * ambiguous submission is settled by the exact lookup, never by this.
+ */
+export async function listWebullOpenOrders(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+  accountId: string,
+  pageSize = 100,
+): Promise<WebullOpenOrdersResult> {
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_OPEN_LIST, {
+    query: { account_id: accountId, page_size: String(Math.max(1, Math.min(100, Math.round(pageSize)))) },
+  });
+  if (t.kind === "NO_ANSWER") return { state: "NO_ANSWER", reason: t.reason };
+  if (t.status < 200 || t.status >= 300) return { state: "REJECTED", status: t.status, reason: providerWords(t.payload) || `HTTP ${t.status}` };
+  const p = t.payload as Record<string, unknown> | unknown[] | null;
+  const rows: unknown[] = Array.isArray(p) ? p
+    : Array.isArray((p as { data?: unknown })?.data) ? (p as { data: unknown[] }).data
+    : Array.isArray((p as { orders?: unknown })?.orders) ? (p as { orders: unknown[] }).orders
+    : Array.isArray((p as { result?: unknown })?.result) ? (p as { result: unknown[] }).result
+    : [];
+  const ids = new Set<string>();
+  let count = 0;
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    count++;
+    const row = r as Record<string, unknown>;
+    const own = firstString(row.client_order_id, row.clientOrderId);
+    if (own) ids.add(own);
+    const legs = Array.isArray(row.orders) ? row.orders : [];
+    for (const leg of legs) {
+      if (!leg || typeof leg !== "object") continue;
+      const legId = firstString((leg as Record<string, unknown>).client_order_id, (leg as Record<string, unknown>).clientOrderId);
+      if (legId) ids.add(legId);
+    }
+  }
+  const pagination = !Array.isArray(p) && p && typeof p === "object" ? firstString((p as Record<string, unknown>).pagination_key, (p as Record<string, unknown>).next_pagination_key) : null;
+  return { state: "OK", count, clientOrderIds: [...ids], truncated: pagination !== null };
+}
+
+export interface OpenOrderReconciliation {
+  /** Open at Webull and present in WM's ledger. */
+  readonly known: number;
+  /** Open at Webull and absent from WM's ledger — placed elsewhere (the Webull app, another tool). */
+  readonly external: number;
+  /**
+   * In WM's ledger as SUBMITTING / SUBMISSION_UNKNOWN and NOT on the open
+   * list. Never concluded from here — the list lags; these need the exact
+   * lookup by client order id before anyone may say "not placed".
+   */
+  readonly unresolved: readonly string[];
+}
+
+/** Pure: WM's ledger against one page of Webull's open list. Decides nothing it cannot see. */
+export function reconcileOpenOrders(
+  brokerClientOrderIds: readonly string[],
+  ledger: readonly Pick<LedgerRecord, "clientOrderId" | "state">[],
+): OpenOrderReconciliation {
+  const mine = new Map(ledger.map((r) => [r.clientOrderId, r.state] as const));
+  const open = new Set(brokerClientOrderIds);
+  let known = 0;
+  for (const id of open) if (mine.has(id)) known++;
+  const unresolved = ledger
+    .filter((r) => (r.state === "SUBMITTING" || r.state === "SUBMISSION_UNKNOWN") && !open.has(r.clientOrderId))
+    .map((r) => r.clientOrderId);
+  return { known, external: open.size - known, unresolved };
+}
+
 /** An in-memory ledger: correct for tests and one isolate, never for production money. */
 export function inMemoryOrderLedger(): WebullOrderLedger {
   const rows = new Map<string, LedgerRecord>();

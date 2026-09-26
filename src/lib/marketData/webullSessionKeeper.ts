@@ -121,6 +121,21 @@ export interface KeeperResult {
     readonly crypto: string;
     readonly atMs: number;
   };
+  /**
+   * GP12 §38 — the periodic reconciliation: every account's open orders at
+   * Webull against WM's order ledger. Counts only. `ledger` says what WM had
+   * to compare against: NONE_PERSISTED means WM has placed no Webull order
+   * through a durable ledger, so every open order is EXTERNAL (placed in the
+   * Webull app or another tool) — a fact, not an alarm.
+   */
+  readonly reconciliation?: {
+    readonly state: "OK" | "PARTIAL" | "FAILED" | "REJECTED" | "NO_ANSWER";
+    readonly accounts: number;
+    readonly openOrders: number;
+    readonly external: number;
+    readonly ledger: "NONE_PERSISTED";
+    readonly atMs: number;
+  };
 }
 
 function remaining(token: WebullAccessToken | null, nowMs: number): number | undefined {

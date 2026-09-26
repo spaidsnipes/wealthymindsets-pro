@@ -24,6 +24,7 @@ import {
 } from "./webullSessionKeeper";
 import { probeWebullBrokerConnection } from "@/lib/broker/adapters/webullBrokerConnection";
 import { probeWebullEntitlement, type WebullRungReceipt } from "./webullEntitlementProbe";
+import { listWebullAccounts, listWebullOpenOrders, reconcileOpenOrders } from "@/lib/broker/adapters/webullOrders";
 
 /** `profile:OUTCOME(CODE)` per receipt — statuses and codes, never a payload. */
 function receiptLine(receipts: readonly WebullRungReceipt[] | undefined): string {
@@ -89,9 +90,37 @@ export async function runWebullSessionKeeper(
       accessToken: session?.token,
       mintSession: false,
     });
+    // GP12 §38: reconcile every account's open orders on every run with a
+    // usable path. WM holds no durable Webull order ledger yet, so the
+    // comparison is against an empty one and says so (ledger NONE_PERSISTED).
+    const orderCfg = { appKey: cfg.appKey ?? "", appSecret: cfg.appSecret ?? "", apiHost: cfg.apiHost, accessToken: session?.token };
+    const accounts = await listWebullAccounts(fetchImpl, orderCfg);
+    let reconciliation: NonNullable<KeeperResult["reconciliation"]>;
+    if (accounts.state !== "OK") {
+      reconciliation = { state: accounts.state, accounts: 0, openOrders: 0, external: 0, ledger: "NONE_PERSISTED", atMs: Date.now() };
+    } else {
+      let open = 0, external = 0, failed = 0, truncated = false;
+      for (const a of accounts.accounts) {
+        const page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
+        if (page.state !== "OK") { failed++; continue; }
+        open += page.count;
+        truncated ||= page.truncated;
+        external += reconcileOpenOrders(page.clientOrderIds, []).external;
+      }
+      const n = accounts.accounts.length;
+      reconciliation = {
+        state: failed > 0 && failed === n ? "FAILED" : failed > 0 || truncated ? "PARTIAL" : "OK",
+        accounts: n,
+        openOrders: open,
+        external,
+        ledger: "NONE_PERSISTED",
+        atMs: Date.now(),
+      };
+    }
     result = {
       ...kept,
       broker: { state: receipt.state, accountCount: receipt.accountCount, atMs: Date.now() },
+      reconciliation,
       capabilities: {
         verdict: ladder.verdict,
         stocks: receiptLine(ladder.rungs.filter((r) => r.gate === "MARKET_DATA")),

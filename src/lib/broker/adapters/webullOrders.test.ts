@@ -13,6 +13,8 @@ import { WEBULL_SDK_CONTRACT } from "@/lib/marketData/webullSdkContract";
 import {
   getWebullOrderByClientId,
   inMemoryOrderLedger,
+  listWebullOpenOrders,
+  reconcileOpenOrders,
   mapToWebullStockOrder,
   mintClientOrderId,
   previewWebullOrder,
@@ -266,5 +268,38 @@ describe("the exact lookup never mistakes silence for absence", () => {
   it("an auth failure is UNKNOWN, never absence", async () => {
     const { fetchImpl } = scripted(json({ code: "INVALID_TOKEN" }, 401));
     expect((await getWebullOrderByClientId(fetchImpl, config, "ACC1", id)).state).toBe("UNKNOWN");
+  });
+});
+
+
+describe("GP12 §38 — reconciliation reads the open list and decides only what it can see", () => {
+  it("lists one account's open orders with the SDK's query, counting combo parents once and collecting leg ids", async () => {
+    const { fetchImpl, calls } = scripted(json({
+      data: [
+        { client_order_id: "c1", order_id: "b1" },
+        { client_order_id: "c2", orders: [{ client_order_id: "c2-leg1" }, { client_order_id: "c2-leg2" }] },
+      ],
+      pagination_key: "next",
+    }));
+    const r = await listWebullOpenOrders(fetchImpl, config, "ACC1");
+    expect(pathOf(calls[0])).toBe(WEBULL_SDK_CONTRACT.ORDER_OPEN_LIST.path);
+    expect(new URL(calls[0].url).searchParams.get("account_id")).toBe("ACC1");
+    expect(new URL(calls[0].url).searchParams.get("page_size")).toBe("100");
+    expect((calls[0].init.headers as Record<string, string>)["x-version"]).toBe("v3");
+    expect(r).toEqual({ state: "OK", count: 2, clientOrderIds: ["c1", "c2", "c2-leg1", "c2-leg2"], truncated: true });
+  });
+
+  it("a refusal and a lost answer are named, never an empty book", async () => {
+    expect((await listWebullOpenOrders(scripted(json({ code: "NOPE" }, 403)).fetchImpl, config, "A")).state).toBe("REJECTED");
+    expect((await listWebullOpenOrders(scripted("THROW").fetchImpl, config, "A")).state).toBe("NO_ANSWER");
+  });
+
+  it("known, external, and — never concluded from the list — unresolved submissions", () => {
+    const r = reconcileOpenOrders(["mine-open", "app-order"], [
+      { clientOrderId: "mine-open", state: "ACKNOWLEDGED" },
+      { clientOrderId: "lost-answer", state: "SUBMISSION_UNKNOWN" },
+      { clientOrderId: "done", state: "REJECTED" },
+    ]);
+    expect(r).toEqual({ known: 1, external: 1, unresolved: ["lost-answer"] });
   });
 });
