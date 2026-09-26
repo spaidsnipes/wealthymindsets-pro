@@ -37,6 +37,12 @@ describe("proof scene", () => {
     expect(proofSceneValue(s, "wm_ofLivingProfile")).toBeUndefined();
   });
 
+  it("ind= sets the classic indicator set for this load; clean empties it", () => {
+    expect(proofSceneValue(parseProofScene("?ind=VWAP,EMA 21,RSI"), "wm_activeInds")).toEqual(["VWAP", "EMA 21", "RSI"]);
+    expect(proofSceneValue(parseProofScene("?scene=clean"), "wm_activeInds")).toEqual([]);
+    expect(proofSceneValue(parseProofScene("?on=LivingProfile"), "wm_activeInds")).toBeUndefined();
+  });
+
   it("bars bounds the camera to a sane count", () => {
     expect(parseProofScene("?bars=18").bars).toBe(18);
     expect(parseProofScene("?bars=2").bars).toBeNull();

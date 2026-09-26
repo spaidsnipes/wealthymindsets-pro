@@ -19,6 +19,9 @@
  *                                   volume-profile, imbalance, aggressive-passive, big-trades)
  *                   scaff:<depth> → scaffolding depth (FOUNDATION, INTERMEDIATE, ADVANCED, OFF)
  *   bars=N        the camera opens on the newest N bars (semantic depth by bar count)
+ *   ind=A,B       the classic indicator set for this load (names as the
+ *                 indicator menu lists them: VWAP, EMA 21, RSI, MACD, …);
+ *                 with scene=clean and no ind= the set is empty
  *
  * While a proof scene is open NOTHING is written back: layer switches, the last
  * symbol and every other persisted chart preference stay exactly as the trader
@@ -28,6 +31,7 @@
 export const SCENE_PARAM = "scene";
 export const ON_PARAM = "on";
 export const BARS_PARAM = "bars";
+export const INDICATORS_PARAM = "ind";
 
 /** Layer switches a clean scene turns off (booleans), plus the non-boolean scaffolding depth. */
 const CLEAN_BOOLEAN_PREFIX = "wm_of";
@@ -53,11 +57,14 @@ export function parseProofScene(search: string): ProofScene {
   const clean = q.get(SCENE_PARAM) === "clean";
   const onRaw = q.get(ON_PARAM);
   const barsRaw = q.get(BARS_PARAM);
+  const indRaw = q.get(INDICATORS_PARAM);
   const barsN = barsRaw != null ? Math.round(Number(barsRaw)) : NaN;
   const bars = Number.isFinite(barsN) && barsN >= 5 && barsN <= 5000 ? barsN : null;
-  if (!clean && !onRaw && bars == null) return NO_PROOF_SCENE;
+  if (!clean && !onRaw && bars == null && indRaw == null) return NO_PROOF_SCENE;
 
   const overrides: Record<string, unknown> = {};
+  if (indRaw != null) overrides.wm_activeInds = indRaw.split(",").map(t => t.trim()).filter(Boolean);
+  else if (clean) overrides.wm_activeInds = [];
   for (const token of (onRaw ?? "").split(",").map(t => t.trim()).filter(Boolean)) {
     if (/^fp:/i.test(token)) {
       overrides.wm_fp_enabled = true;
