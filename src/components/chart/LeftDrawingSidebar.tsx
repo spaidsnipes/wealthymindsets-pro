@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   MousePointer2, Move, Minus, TrendingUp, MoveHorizontal, MoveVertical,
   Ruler, Square, Circle, Triangle, Type, Pencil, Eraser, Trash2,
@@ -8,7 +8,8 @@ import {
   ArrowBigUp, ArrowBigDown, AlignRight,
 } from "lucide-react";
 import type { DrawingTool, DrawingStyle } from "./DrawingToolsPanel";
-import { DrawingStylePopover, isStyleCapableTool, DRAWING_STYLE_POPOVER_WIDTH_PX } from "./DrawingToolsPanel";
+import { DrawingStylePopover, isStyleCapableTool } from "./DrawingToolsPanel";
+import type { ViewportRect } from "@/lib/ui/popoverPlacement";
 
 interface Item { id: DrawingTool; label: string; icon: React.ReactNode; }
 
@@ -98,34 +99,40 @@ export function LeftDrawingSidebar({
    */
   const isSheet = variant === "sheet";
   const [styleOpen, setStyleOpen] = useState(false);
-  const [stylePos, setStylePos]   = useState<{ left: number; top: number } | null>(null);
   const railRef = useRef<HTMLDivElement>(null);
 
   /**
-   * The popover opens to the RIGHT of its anchor, which is correct beside a
-   * 40px rail on a wide screen and off-screen inside a 320px drawer. Clamp
-   * it to the viewport instead of letting it render where no one can reach
-   * it — an unreachable style panel is the same defect as an unreachable
-   * rail, one level down.
+   * WHERE THE STYLE POPOVER GOES (2026-09-26).
+   *
+   * It used to open at the anchor's right edge, clamped back inside the
+   * viewport — correct beside the 40px desktop rail, and on top of this
+   * component's own buttons inside the 320px drawer. MEASURED on the glass
+   * at 1600x900 (Workspace › Draw › Drawing style): popover x 1372–1592 over
+   * a sheet at x 1281–1600, covering nine tool buttons, with its "100%"
+   * reading ending at x 1606.
+   *
+   * The popover now places itself (`placePanelBeside`, from its own measured
+   * height and its own exported width, DRAWING_STYLE_POPOVER_WIDTH_PX): it
+   * lines up with the control that summoned it and keeps off this whole
+   * group of controls — right of the rail on desktop, left of the drawer at
+   * 1600, below the tools on a phone where neither side has room. Unreachable
+   * is still the defect this block answers; covering the controls that
+   * summoned it is the same defect one step later.
    */
-  const anchorFor = (r: DOMRect, topPad = 0) => {
-    const left = r.right + 6;
-    if (typeof window === "undefined") return { left, top: r.top + topPad };
-    const maxLeft = window.innerWidth - DRAWING_STYLE_POPOVER_WIDTH_PX - 8;
-    return { left: Math.max(8, Math.min(left, maxLeft)), top: r.top + topPad };
+  const [styleBeside, setStyleBeside] = useState<{ anchor: ViewportRect; avoid: ViewportRect } | null>(null);
+  const besideFor = (el: HTMLElement) => {
+    const a = el.getBoundingClientRect();
+    const g = railRef.current?.getBoundingClientRect() ?? a;
+    return {
+      anchor: { left: a.left, top: a.top, right: a.right, bottom: a.bottom },
+      avoid: { left: g.left, top: g.top, right: g.right, bottom: g.bottom },
+    };
   };
-
-  useEffect(() => {
-    if (styleOpen && railRef.current) {
-      setStylePos(anchorFor(railRef.current.getBoundingClientRect(), 8));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [styleOpen]);
 
   const pickTool = (id: DrawingTool, el: HTMLElement) => {
     onToolChange(id);
     if (isStyleCapableTool(id)) {
-      setStylePos(anchorFor(el.getBoundingClientRect()));
+      setStyleBeside(besideFor(el));
       setStyleOpen(true);
     } else {
       setStyleOpen(false);
@@ -242,7 +249,7 @@ export function LeftDrawingSidebar({
         aria-label="Drawing style"
         aria-haspopup="dialog"
         aria-expanded={styleOpen}
-        onClick={() => setStyleOpen(v => !v)}
+        onClick={e => { setStyleBeside(besideFor(e.currentTarget)); setStyleOpen(v => !v); }}
       >
         <span
           aria-hidden="true"
@@ -265,11 +272,12 @@ export function LeftDrawingSidebar({
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8B8FA8"}
       ><Trash2 size={14} /></button>
 
-      {styleOpen && stylePos && typeof document !== "undefined" && (
+      {styleOpen && styleBeside && typeof document !== "undefined" && (
         <DrawingStylePopover
           style={style}
           onChange={onStyleChange}
-          anchor={stylePos}
+          anchor={{ left: styleBeside.anchor.right + 6, top: styleBeside.anchor.top }}
+          beside={styleBeside}
           onClose={() => setStyleOpen(false)}
         />
       )}

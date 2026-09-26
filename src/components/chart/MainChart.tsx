@@ -222,6 +222,7 @@ import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
+import { priceLegendRightInset } from "@/lib/chart/priceLegendAxisClearance";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -5935,6 +5936,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     ro.observe(cont);
     return () => ro.disconnect();
   }, []);
+
+  // THE LEGEND'S RIGHT EDGE IS THE PRICE AXIS'S LEFT EDGE (2026-09-26).
+  // See priceLegendAxisClearance: at 1600x900 the legend's feed-recency words
+  // ran 16px into the axis column, over its top label. The chart owns the
+  // axis width; this reads it whenever the plot's width moves (the time
+  // scale's size changes exactly when the axis column grows or shrinks, and
+  // when the pane resizes) and hands the band its inset.
+  const [priceLegendInset, setPriceLegendInset] = useState(0);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !ready) return;
+    const read = () => {
+      let w = 0;
+      try { w = chart.priceScale("right").width(); } catch { /* no right scale */ }
+      const next = priceLegendRightInset(w);
+      setPriceLegendInset(prev => (prev === next ? prev : next));
+    };
+    read();
+    let ts: { subscribeSizeChange?: (h: () => void) => void; unsubscribeSizeChange?: (h: () => void) => void } | null = null;
+    try { ts = chart.timeScale(); ts?.subscribeSizeChange?.(read); } catch { ts = null; }
+    return () => { try { ts?.unsubscribeSizeChange?.(read); } catch { /* chart already removed */ } };
+  }, [ready]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -19257,9 +19280,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
           The bottom rule is gone with the row. A 1px border drawn across live
           candles reads as a chart annotation the trader did not place. */}
+      {/* RIGHT IS THE PRICE AXIS, NOT 0 (2026-09-26). The band used to span
+          the axis column, and its right group — "MARKET CLOSED · LAST BAR
+          OPENED 07:45 PM", then the fullscreen glyph — overprinted the
+          axis's top label at 1600x900. `priceLegendInset` is the chart's own
+          axis width + a gap (priceLegendAxisClearance); the right group may
+          shrink and wrap inside the band (`min-w-0`), never spill past it.
+          `safe center`: a line that fits is centred exactly as before; an
+          item that wraps taller than the band starts at its top and grows
+          DOWN. MEASURED at 1024x768: centred, the headline price and these
+          words wrapped to three lines and lost the top half of the first to
+          the pane's top edge. */}
       <ClearOfOpenDoor
         style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: PRICE_LEGEND_OVERLAY_H,
+          position: "absolute", top: 0, left: 0, right: priceLegendInset, height: PRICE_LEGEND_OVERLAY_H,
+          alignItems: "safe center",
           zIndex: 20, pointerEvents: "none", background: "transparent",
         }}
         className="flex items-center gap-4 px-3"
@@ -19547,7 +19582,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         )}
 
         {/* Right side: countdown + live */}
-        <div className="ml-auto flex items-center gap-3">
+        {/* `flexShrink: 2` + `line-clamp-2` on the recency words: on a pane
+            too narrow for one line of everything (1024 with the axis column
+            kept clear), these words yield width before the headline price
+            does, and they ABBREVIATE — at most two lines, ending in "…" —
+            instead of growing into the chip row under the band. The full
+            sentence stays in the element's title and spoken label. At 1600
+            nothing shrinks, nothing clamps, nothing moves. */}
+        <div className="ml-auto flex min-w-0 items-center gap-3" style={{ flexShrink: 2 }}>
           {/* Candle countdown */}
           <div
             role="group"
@@ -19605,7 +19647,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   aria-label="Bar replay engaged — historical bars, not a live quote"
                   title={"BAR REPLAY — the camera is walking historical bars.\nNo live-quote claim is made while replay is engaged.\nLive tape collection continues in the background; its counters are\nhidden because they describe live bars, not the ones on screen."}
                 >
-                  <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
+                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
                     {showFidelityChrome
                       ? `${CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED} · BAR REPLAY`
                       : "BAR REPLAY"}
@@ -19628,7 +19670,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     timestamped bar can support a historical-only receipt;
                     zero bars can support only data unavailable. */}
                 {noFeed ? (
-                  <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
+                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
                     {/* §8 — a designed refusal must not wear a transient
                         state's vocabulary. "DATA UNAVAILABLE" says nothing
                         arrived. When `quoteRefusal` is set, something DID
@@ -19657,14 +19699,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                      extra. */
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
-                    <span className="text-[10px] text-wm-text font-semibold">
+                    <span className="line-clamp-2 text-[10px] text-wm-text font-semibold">
                       {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : feedRecency.glyph}
                     </span>
                   </span>
                 ) : (
                   // A proven-closed market is a calm fact, not a warning: pearl,
                   // never the amber a lagging feed earns.
-                  <span className="text-[10px] font-semibold" style={{ color: feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
+                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
                     {showFidelityChrome ? `${status.label} · ${feedRecency.glyph}` : feedRecency.glyph}
                   </span>
                 )}
@@ -19695,7 +19737,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                (audited, same session), so it opts itself back in rather than
                the band opting everything in. */
             style={{ pointerEvents: "auto" }}
-            className="flex items-center justify-center min-w-11 min-h-11 p-3 -m-3 rounded hover:bg-wm-surface transition-colors text-wm-text-dim hover:text-wm-text"
+            // `self-start`: when the words beside it wrap on a narrow pane,
+            // the glyph stays on their first line instead of sinking to the
+            // middle of the block (at 1024 it met the canvas "MID" label).
+            // On one line it is the group's tallest item, so nothing moves.
+            className="flex self-start items-center justify-center min-w-11 min-h-11 p-3 -m-3 rounded hover:bg-wm-surface transition-colors text-wm-text-dim hover:text-wm-text"
           >
             {isFullscreen ? (
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none">

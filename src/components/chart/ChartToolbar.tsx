@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
@@ -32,6 +32,10 @@ import {
   reconcileSearchCategory,
   type SearchCategory,
 } from "@/lib/marketData/searchResultCategory";
+// The one owner of where a dropped menu sits: below its trigger when it fits,
+// above when it fits there, otherwise the roomier side capped to the viewport.
+// See the three menus below and the file's own header for the 1600x900 finding.
+import { placeAnchoredMenu } from "@/lib/ui/popoverPlacement";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -819,6 +823,47 @@ export function ChartToolbar({
   // Ext hours is reported by setExtendedHours on the trader's own change only —
   // never on mount (that overwrote the room's saved choice with RTH).
 
+  /* ── THE MENUS OPEN INSIDE THE VIEWPORT (2026-09-26) ─────────────────────
+     Found on the glass, local /charts at 1600x900: the `Chart tools` trigger
+     sits at the foot of this drawer (bottom 888), and its menu was fixed at
+     `top: trigger.bottom + 4` — y 892 on a 900px screen. 8px of a 630px menu
+     were visible; none of its fourteen items, "Drawing tools" among them,
+     could be reached. `placeAnchoredMenu` owns the rule for all three menus
+     in this file; this block only MEASURES.
+
+     The chart-tools menu's natural height is read before paint (layout
+     effect), so it opens on the side where it fits without a flash on the
+     wrong one. The symbol and indicator lists change length while the trader
+     types, so they are placed by their design cap instead — a list that
+     jumped from below to above mid-keystroke would be its own defect. */
+  const advancedMenuRef = useRef<HTMLDivElement>(null);
+  const [advancedMenuH, setAdvancedMenuH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!advancedOpen) { setAdvancedMenuH(null); return; }
+    const el = advancedMenuRef.current;
+    if (!el) return;
+    const natural = el.scrollHeight + (el.offsetHeight - el.clientHeight);
+    setAdvancedMenuH(h => (h === natural ? h : natural));
+  }, [advancedOpen]);
+  // A menu placed from its trigger's rectangle is stale the moment the page
+  // resizes or the drawer scrolls under it; re-place while any is open.
+  const [, setPlacementTick] = useState(0);
+  useEffect(() => {
+    if (!advancedOpen && !symbolOpen && !indicatorOpen) return;
+    const bump = (e: Event) => {
+      // A list scrolling inside its own menu moves no trigger.
+      const t = e.target;
+      if (t instanceof Node && (symRef.current?.contains(t) || indRef.current?.contains(t) || advancedRef.current?.contains(t))) return;
+      setPlacementTick(n => n + 1);
+    };
+    window.addEventListener("resize", bump);
+    window.addEventListener("scroll", bump, true);
+    return () => {
+      window.removeEventListener("resize", bump);
+      window.removeEventListener("scroll", bump, true);
+    };
+  }, [advancedOpen, symbolOpen, indicatorOpen]);
+
   /* close on outside click */
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -1036,13 +1081,21 @@ export function ChartToolbar({
 
             {symbolOpen && (() => {
               const r = symRef.current?.getBoundingClientRect();
+              // Placed by its 460px design cap (see the block above the
+              // outside-click effect): below when 460 fits, else above, else
+              // the roomier side capped to it. The results list scrolls.
+              const place = placeAnchoredMenu({
+                viewportHeight: window.innerHeight,
+                anchor: { top: r?.top ?? 0, bottom: r?.bottom ?? 36 },
+                menuHeight: 460, cap: 460,
+              });
               return (
               <div style={{
-                position:"fixed", top:(r?.bottom ?? 36)+4, left:r?.left ?? 0,
+                position:"fixed", top:place.top, bottom:place.bottom, left:r?.left ?? 0,
                 zIndex:9999, width:360,
                 background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
                 borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
-                overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:460,
+                overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:place.maxHeight,
               }}>
 
                 {/* Top-match autofill hint */}
@@ -1180,6 +1233,12 @@ export function ChartToolbar({
 
             {indicatorOpen && (() => {
               const r = indRef.current?.getBoundingClientRect();
+              // Same owner, 520px design cap — see the symbol list above.
+              const place = placeAnchoredMenu({
+                viewportHeight: window.innerHeight,
+                anchor: { top: r?.top ?? 0, bottom: r?.bottom ?? 36 },
+                menuHeight: 520, cap: 520,
+              });
               return (
               <div style={{
                 // Anchored to its trigger with a fixed 420px width, this popover
@@ -1187,12 +1246,12 @@ export function ChartToolbar({
                 // right-hand controls of the Indicators picker. Clamp the width to
                 // the viewport and pull the left edge back when it would overflow,
                 // never past the 8px gutter. Desktop layout is unchanged.
-                position:"fixed", top:(r?.bottom ?? 36)+4,
+                position:"fixed", top:place.top, bottom:place.bottom,
                 left:`max(8px, min(${r?.left ?? 0}px, calc(100vw - 428px)))`,
                 zIndex:9999, width:"min(420px, calc(100vw - 16px))",
                 background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
                 borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
-                overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:520,
+                overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:place.maxHeight,
               }}>
 
                 {/* header */}
@@ -1519,13 +1578,28 @@ export function ChartToolbar({
           {advancedOpen && (() => {
             const rect = advancedRef.current?.getBoundingClientRect();
             const itemClass = "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-[11px] font-semibold text-wm-text-muted transition-colors hover:bg-wm-surface hover:text-wm-text";
+            // This trigger lives at the FOOT of the drawer: at 1600x900 its
+            // bottom is y 888, and a menu dropped below it showed 8px of 630.
+            // It opens upward when there is room there (it measures 630px and
+            // the room above is 832px), and whatever cannot fit on either
+            // side scrolls inside the menu instead of past the screen.
+            const place = placeAnchoredMenu({
+              viewportHeight: window.innerHeight,
+              anchor: { top: rect?.top ?? 0, bottom: rect?.bottom ?? 36 },
+              menuHeight: advancedMenuH,
+            });
             return (
               <div
+                ref={advancedMenuRef}
                 role="menu"
                 aria-label="More chart tools"
+                data-menu-side={place.side}
                 style={{
                   position: "fixed",
-                  top: (rect?.bottom ?? 36) + 4,
+                  top: place.top,
+                  bottom: place.bottom,
+                  maxHeight: place.maxHeight,
+                  overflowY: "auto",
                   right: Math.max(8, window.innerWidth - (rect?.right ?? window.innerWidth)),
                   zIndex: 9999,
                   width: 210,

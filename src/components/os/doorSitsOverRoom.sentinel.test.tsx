@@ -108,7 +108,11 @@ describe("the legend headline steps past the open door (symbol + price stay read
       CHART,
       "MainChart's price legend band is no longer door-aware — the headline hides under an open Workspace door again",
     ).toMatch(
-      /<ClearOfOpenDoor\s+style=\{\{\s*position: "absolute", top: 0, left: 0, right: 0, height: PRICE_LEGEND_OVERLAY_H,/,
+      // `right` moved from 0 to `priceLegendInset` on 2026-09-26: the band
+      // spanned the price-axis column and its right group overprinted the
+      // axis's top label at 1600x900 (priceLegendAxisClearance). This pin is
+      // about the band being door-aware; its right edge is owned elsewhere.
+      /<ClearOfOpenDoor\s+style=\{\{\s*position: "absolute", top: 0, left: 0, right: priceLegendInset, height: PRICE_LEGEND_OVERLAY_H,/,
     );
     // Exactly one: a second door-aware legend would be a second price owner.
     expect(CHART.match(/<ClearOfOpenDoor\b/g) ?? []).toHaveLength(1);

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
+import { placePanelBeside, type ViewportRect } from "@/lib/ui/popoverPlacement";
 import {
   Trash2, Magnet, Lock, Eye, EyeOff,
   ChevronDown, Pen,
@@ -182,7 +183,14 @@ const COLORS = [
 interface StylePopoverProps {
   style:    DrawingStyle;
   onChange: (patch: Partial<DrawingStyle>) => void;
+  /** A fixed point, for callers that place the popover themselves. */
   anchor:   { left: number; top: number };
+  /**
+   * The control that summoned the popover and the group of controls it must
+   * not cover. When given, the popover places ITSELF with `placePanelBeside`
+   * from its own measured height, and `anchor` is ignored.
+   */
+  beside?:  { anchor: ViewportRect; avoid: ViewportRect };
   onClose:  () => void;
 }
 
@@ -199,7 +207,7 @@ interface StylePopoverProps {
  */
 export const DRAWING_STYLE_POPOVER_WIDTH_PX = 220;
 
-export function DrawingStylePopover({ style, onChange, anchor, onClose }: StylePopoverProps) {
+export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }: StylePopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -209,6 +217,31 @@ export function DrawingStylePopover({ style, onChange, anchor, onClose }: StyleP
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [onClose]);
+
+  /* ── BESIDE THE CONTROLS, NOT OVER THEM (2026-09-26) ─────────────────────
+     Found on the glass, local /charts at 1600x900, Workspace › Draw ›
+     Drawing style: this popover was anchored at the swatch's right edge,
+     clamped back to x 1372 inside the 320px drawer, and covered nine of the
+     sheet's own tool buttons (Select / Move through Short Position). Its
+     height is only known once it is in the document, so it is measured
+     before paint and handed to `placePanelBeside`, which keeps it right of,
+     left of, below or above the `avoid` group — and inside the viewport. */
+  const [measuredH, setMeasuredH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!beside) return;
+    const el = ref.current;
+    if (!el) return;
+    const natural = el.scrollHeight + (el.offsetHeight - el.clientHeight);
+    setMeasuredH(h => (h === natural ? h : natural));
+  });
+  const placed = beside && measuredH != null && typeof window !== "undefined"
+    ? placePanelBeside({
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        anchor: beside.anchor,
+        avoid: beside.avoid,
+        panel: { width: DRAWING_STYLE_POPOVER_WIDTH_PX, height: measuredH },
+      })
+    : null;
 
   const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 };
   const lbl: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "#8B8FA8", width: 52, flexShrink: 0, letterSpacing: "0.06em" };
@@ -222,8 +255,16 @@ export function DrawingStylePopover({ style, onChange, anchor, onClose }: StyleP
   return createPortal(
     <div
       ref={ref}
+      data-style-popover-side={placed?.side}
       style={{
-        position: "fixed", left: anchor.left, top: anchor.top, zIndex: 99999,
+        position: "fixed", zIndex: 99999,
+        ...(beside
+          // Until it has measured itself it is laid out but not painted, so
+          // it never flashes over the controls it is about to step off.
+          ? placed
+            ? { left: placed.left, top: placed.top, maxHeight: placed.maxHeight, overflowY: "auto" as const }
+            : { left: 0, top: 0, visibility: "hidden" as const }
+          : { left: anchor.left, top: anchor.top }),
         background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 10,
         padding: "10px 12px", width: DRAWING_STYLE_POPOVER_WIDTH_PX,
         boxShadow: "0 12px 40px rgba(0,0,0,0.8)",
@@ -281,12 +322,18 @@ export function DrawingStylePopover({ style, onChange, anchor, onClose }: StyleP
       {/* Opacity */}
       <div style={{ ...row, marginBottom: 0 }}>
         <span style={lbl}>OPACITY</span>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
+          {/* `minWidth: 0`, here AND on this wrapper (2026-09-26). A range
+              input's min-content is its intrinsic ~129px, so neither it nor
+              the flex item holding it could shrink: the row needed 163px of
+              the popover's 136, overflowed it by 15px, and at 1600x900 the
+              "100%" beside it ended at x 1606 — past the viewport's right
+              edge. The slider now yields; the reading stays inside. */}
           <input
             type="range" min={10} max={100} step={5}
             value={style.opacity}
             onChange={e => onChange({ opacity: Number(e.target.value) })}
-            style={{ flex: 1, accentColor: "#4FA3E0" }}
+            style={{ flex: 1, minWidth: 0, accentColor: "#4FA3E0" }}
           />
           <span style={{ fontSize: 9, fontWeight: 700, color: "#C7D0E8", width: 28, textAlign: "right" }}>{style.opacity}%</span>
         </div>

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import manifest from "../app/manifest";
 import { destinationsInGroup, WM_DESTINATIONS } from "./routing/wmDestinations";
+import { placePanelBeside } from "./ui/popoverPlacement";
 
 const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 
@@ -174,9 +175,31 @@ describe("responsive P0 command surfaces", () => {
       .toMatch(/export const DRAWING_STYLE_POPOVER_WIDTH_PX\s*=\s*\d+/);
     expect(panel, "the popover must consume its own exported width")
       .toContain("width: DRAWING_STYLE_POPOVER_WIDTH_PX");
-    expect(sidebar, "the caller must clamp using that same exported number")
-      .toContain("DRAWING_STYLE_POPOVER_WIDTH_PX");
-    expect(sidebar).toMatch(/Math\.max\(8,\s*Math\.min\(left,\s*maxLeft\)\)/);
+    // MOVED 2026-09-26, same guarantee, new owner. The clamp used to live in
+    // the sidebar as `Math.max(8, Math.min(left, maxLeft))`; it kept the
+    // popover on screen but put it ON the drawer's own tool buttons (nine
+    // covered at 1600x900). Placement now lives in `placePanelBeside`, which
+    // the popover calls with that same exported width and which keeps the
+    // 8px gutter (POPOVER_VIEWPORT_GUTTER_PX). The 375px phone case this test
+    // was written for is now asserted as arithmetic below, not as a string.
+    expect(panel, "the popover must place itself from the same exported number")
+      .toMatch(/placePanelBeside\(\{[\s\S]{0,300}?panel:\s*\{\s*width:\s*DRAWING_STYLE_POPOVER_WIDTH_PX/);
+    expect(sidebar, "the sidebar must hand the popover its anchor and the group it must not cover")
+      .toMatch(/beside=\{styleBeside\}/);
+    const DRAWING_STYLE_POPOVER_WIDTH = Number(
+      panel.match(/export const DRAWING_STYLE_POPOVER_WIDTH_PX\s*=\s*(\d+)/)![1],
+    );
+    const phone = placePanelBeside({
+      viewport: { width: 375, height: 812 },
+      anchor: { left: 63, top: 77, right: 107, bottom: 121 },   // a tool button in the 320px drawer
+      avoid: { left: 56, top: 69, right: 375, bottom: 519 },    // the drawer's tool group
+      panel: { width: DRAWING_STYLE_POPOVER_WIDTH, height: 206 },
+    });
+    expect(phone.left).toBeGreaterThanOrEqual(8);
+    expect(phone.left + DRAWING_STYLE_POPOVER_WIDTH).toBeLessThanOrEqual(375 - 8);
+    expect(phone.top + Math.min(206, phone.maxHeight)).toBeLessThanOrEqual(812 - 8);
+    expect(phone.side, "no room left or right of a 320px drawer on a phone: it opens under the tools").toBe("below");
+    expect(phone.top).toBeGreaterThanOrEqual(519);
   });
 
   it("replaces the permanent capture rail with one contextual drawer", () => {
