@@ -1103,6 +1103,13 @@ interface Props {
   compareSymbol?:  string;
   onPriceAtCursor?: (price: number) => void;
   onSelectBigTrade?: (print: SelectedBigTrade) => void;
+  /**
+   * PROOF SCENE `select=bigtrade` (proofScene.ts). The room reads this to
+   * select the LARGEST disc the last frame drew — through the same hit path a
+   * click takes, so it fires `onSelectBigTrade` exactly as a click would.
+   * Returns false when no disc is drawn.
+   */
+  proofSelectBigTradeRef?: React.MutableRefObject<(() => boolean) | null>;
   /** The print Inspect is reading — its force → response is drawn on price (H-701 plate). */
   selectedPrintOnChart?: SelectedBigTrade | null;
   /**
@@ -1632,7 +1639,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
-  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, selectedPrintOnChart = null,
+  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
   fixedVPActive = false, sessionVPActive = false,
@@ -18809,17 +18816,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const r = e.currentTarget.getBoundingClientRect();
     cursorDownRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
   }, [drawingTool]);
-  const handleCursorSelectUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary) return;
-    if (drawingTool !== "cursor") return;
-    const s = cursorDownRef.current; cursorDownRef.current = null;
-    if (!s) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - r.left, y = e.clientY - r.top;
-    if (Math.hypot(x - s.x, y - s.y) > 5) return;   // was a pan, not a click
-    const idx = hitTestDrawing(x, y);
-    setSelectedIdx(idx >= 0 ? idx : null);
-    if (idx >= 0) return;
+  /*
+    F07B · ONE BIG-TRADE HIT PATH. A cursor click tests the discs the last frame
+    drew at (x, y); a proof scene's `select=bigtrade` pins the largest drawn disc
+    (`pinned`). Either way the selection is built here, once, and leaves through
+    `onSelectBigTrade` — no second builder.
+  */
+  const selectBigTradeAt = useCallback((x: number, y: number, pinned: Bubble | null = null): boolean => {
     // H-701B · ANY bubble opens Inspect on this camera — delta bubbles too
     // (they were hover-only). Same stacking as the hover: delta drawn last,
     // so it is topmost. The selection carries its KIND, so the ticket never
@@ -18828,7 +18831,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // F07B: big trades hit-test the DISCS the last frame drew — a cluster is
     // one target, and its members are listed (and selectable) in Inspect.
     const bigFrame = bigTradeFrameRef.current;
-    const hit = [...bigFrame.discs, ...deltaBubblesRef.current].reverse().find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 2);
+    const hit = [...bigFrame.discs, ...deltaBubblesRef.current].reverse().find(b => pinned ? b === pinned : Math.hypot(x - b.x, y - b.y) <= b.r + 2);
     const hitCluster = hit && hit.kind !== "delta" ? bigFrame.clusters.get(hit.spawnKey) ?? null : null;
     if (hit && hitCluster) {
       // RELATIVE SIZE VS SESSION for the cluster's total and for each member,
@@ -18854,7 +18857,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           members,
         },
       });
-      return;
+      return true;
     }
     if (hit) {
       const same = hit.kind === "delta" ? deltaBubblesRef.current : bubblesRef.current;
@@ -18877,8 +18880,34 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           barTime: hit.anchorBarTime, printKey: hit.spawnKey, timeMs: hit.anchorTime * 1000, price: hit.anchorPrice,
         }),
       });
-      return;
+      return true;
     }
+    return false;
+  }, [onSelectBigTrade, symbol, timeframe]);
+  useEffect(() => {
+    if (!proofSelectBigTradeRef) return;
+    proofSelectBigTradeRef.current = () => {
+      const bigFrame = bigTradeFrameRef.current;
+      const sizeOf = (b: Bubble) => bigFrame.clusters.get(b.spawnKey)?.size ?? b.bid + b.ask;
+      const largest = bigFrame.discs
+        .filter(b => b.kind !== "delta")
+        .reduce<Bubble | null>((top, b) => (top === null || sizeOf(b) > sizeOf(top) ? b : top), null);
+      return largest ? selectBigTradeAt(largest.x, largest.y, largest) : false;
+    };
+    return () => { proofSelectBigTradeRef.current = null; };
+  }, [proofSelectBigTradeRef, selectBigTradeAt]);
+  const handleCursorSelectUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
+    if (drawingTool !== "cursor") return;
+    const s = cursorDownRef.current; cursorDownRef.current = null;
+    if (!s) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    if (Math.hypot(x - s.x, y - s.y) > 5) return;   // was a pan, not a click
+    const idx = hitTestDrawing(x, y);
+    setSelectedIdx(idx >= 0 ? idx : null);
+    if (idx >= 0) return;
+    if (selectBigTradeAt(x, y)) return;
     /*
       H-501 NEAR · A CLICK ON A TAPE DOT SELECTS THAT PRINT — the one
       selection the bubbles use, so Inspect opens on it (F06B: its raw tape,
@@ -18945,7 +18974,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectMarketObject?.(zoneHit.objectId);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, symbol, timeframe]);
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

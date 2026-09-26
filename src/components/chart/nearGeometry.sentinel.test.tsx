@@ -43,10 +43,16 @@ const near = () => {
   return CHART.slice(a, b + 80);
 };
 
-/** The cursor-mode click handler. */
+/**
+ * The cursor-mode click handler. Slice widened 2026-09-26 (proof select=bigtrade):
+ * the handler's big-trade disc hit moved, verbatim, into `selectBigTradeAt` — the
+ * ONE hit path the handler calls and a proof scene pins — declared right above
+ * the handler, so the slice starts there and every assertion below still reads it.
+ */
 const click = () => {
-  const a = CHART.indexOf("const handleCursorSelectUp = useCallback(");
+  const a = CHART.indexOf("const selectBigTradeAt = useCallback(");
   expect(a).toBeGreaterThan(-1);
+  expect(CHART.indexOf("const handleCursorSelectUp = useCallback(", a)).toBeGreaterThan(a);
   const b = CHART.indexOf("}, [drawingTool, hitTestDrawing, onSelectBigTrade", a);
   expect(b).toBeGreaterThan(a);
   return CHART.slice(a, b);

@@ -1,6 +1,9 @@
 "use client";
 
-import { currentProofScene, proofSceneHoldsWrites, proofSceneValue } from "@/lib/chart/proofScene";
+import {
+  currentProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
+  proofSelectReceipt, type ProofSelectKind,
+} from "@/lib/chart/proofScene";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
@@ -1730,7 +1733,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const selectionKey = `wm:selectedObject:${symbol}:${timeframe}`;
   useEffect(() => {
     let saved: string | null = null;
-    try { saved = sessionStorage.getItem(selectionKey); } catch { /* storage refused */ }
+    // A proof scene arrives on its own glass: the trader's remembered object
+    // neither restores into it nor is overwritten by it (proofSceneHoldsWrites).
+    if (!proofSceneHoldsWrites()) {
+      try { saved = sessionStorage.getItem(selectionKey); } catch { /* storage refused */ }
+    }
     dispatchChartSelection({
       type: "reconcile",
       symbol,
@@ -1742,12 +1749,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Written on select; cleared ONLY by an explicit let-go (`releasesObject`) —
   // an early compile that has not produced the object yet must not erase it.
   useEffect(() => {
+    if (proofSceneHoldsWrites()) return;
     try { if (selectedMarketObjectId) sessionStorage.setItem(selectionKey, selectedMarketObjectId); }
     catch { /* storage refused: selection simply does not survive */ }
   }, [selectedMarketObjectId, selectionKey]);
   /** Every trader-driven selection change goes through here: one reducer, one memory rule. */
   const actOnChartSelection = (action: ChartSelectionAction) => {
-    if (releasesObject(chartSelection, action)) {
+    if (releasesObject(chartSelection, action) && !proofSceneHoldsWrites()) {
       try { sessionStorage.removeItem(selectionKey); } catch { /* storage refused */ }
     }
     dispatchChartSelection(action);
@@ -3265,6 +3273,90 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     deskFromUrlDoneRef.current = true;
     if (desk) arrangementDeskRef.current(desk);
   }, [deskBarsReady]);
+  /*
+    INSPECT IS ADDRESSABLE — /charts?…&select=zone|level|bar|bigtrade (GP12 §68,
+    INSPECT = TRUTH MICROSCOPE; proofScene.ts). A verifier that can only open a
+    URL and take a screenshot sees Inspect open on ONE thing. Applied ONCE per
+    page load, after the thing exists, through the ONE selection owner
+    (`actOnChartSelection`) — a zone or LEVEL is a "select" of its OBJECT, a bar
+    is the cursor-bar route plus "openInspect", a Big Trade is MainChart's own
+    click path pinned to the largest disc it drew. A proof scene holds writes,
+    so none of it reaches session storage. The receipt on <html> is read back
+    from the owner's state, never from the intent.
+  */
+  const proofSelectKind: ProofSelectKind | null = typeof window === "undefined" ? null : currentProofScene().select;
+  const proofSelectDoneRef = useRef(false);
+  const [proofSelectSettled, setProofSelectSettled] = useState(false);
+  const proofSelectBigTradeRef = useRef<(() => boolean) | null>(null);
+  /** This render's attempt: true once applied (fresh closure every render). */
+  const proofSelectAttemptRef = useRef<(kind: ProofSelectKind) => boolean>(() => false);
+  proofSelectAttemptRef.current = (kind) => {
+    const last = chartBars[chartBars.length - 1];
+    if (!last) return false;
+    if (kind === "zone" || kind === "level") {
+      const id = pickProofSelectObject(
+        chartMarketObjectTargets.map(t => t.object), kind === "zone" ? "ZONE" : "LEVEL", last.close);
+      if (!id) return false;
+      actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: id } });
+      return true;
+    }
+    if (kind === "bar") {
+      const bar = pickNewestClosedBar(chartBars, t => selectChartCloseLabel(t, timeframe, Date.now()).forming);
+      if (!bar) return false;
+      setCursorBar({ o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time });
+      actOnChartSelection({ type: "clear" });
+      actOnChartSelection({ type: "openInspect" });
+      return true;
+    }
+    return proofSelectBigTradeRef.current?.() ?? false;
+  };
+  useEffect(() => {
+    if (!proofSelectKind || !deskBarsReady || proofSelectDoneRef.current) return;
+    const kind = proofSelectKind;
+    const root = document.documentElement.dataset;
+    root.proofSelect = proofSelectReceipt(kind, "PENDING");
+    // Objects settle once history lands; a Big Trade needs the tape to print.
+    const settleMs = 1000;
+    const giveUpMs = kind === "bigtrade" ? 20_000 : 10_000;
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      const waited = Date.now() - started;
+      if (waited < settleMs) return;
+      if (proofSelectAttemptRef.current(kind)) {
+        proofSelectDoneRef.current = true;
+        setProofSelectSettled(true);
+        window.clearInterval(timer);
+      } else if (waited > giveUpMs) {
+        proofSelectDoneRef.current = true;
+        setProofSelectSettled(true);
+        root.proofSelect = proofSelectReceipt(kind, "NONE_AVAILABLE");
+        window.clearInterval(timer);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [proofSelectKind, deskBarsReady]);
+  const proofSelectHeld: string | null = (() => {
+    switch (proofSelectKind) {
+      case "zone":
+      case "level":
+        return inspectOpen && selectedMarketObjectId ? selectedMarketObjectId : null;
+      case "bar":
+        return inspectOpen && chartSelection.selection === null && cursorBar ? String(cursorBar.time) : null;
+      case "bigtrade":
+        return inspectOpen && selectedPrint ? selectedPrint.printKey ?? `${selectedPrint.barTime}@${selectedPrint.priceLevel}` : null;
+      default:
+        return null;
+    }
+  })();
+  useEffect(() => {
+    // Only after the one application: before it the receipt reads PENDING.
+    if (!proofSelectKind || !proofSelectSettled) return;
+    const root = document.documentElement.dataset;
+    if (proofSelectHeld) root.proofSelect = proofSelectReceipt(proofSelectKind, proofSelectHeld);
+    else if (root.proofSelect !== proofSelectReceipt(proofSelectKind, "NONE_AVAILABLE")) {
+      root.proofSelect = proofSelectReceipt(proofSelectKind, "RELEASED");
+    }
+  }, [proofSelectKind, proofSelectSettled, proofSelectHeld]);
   // …and the room TELLS the door what it is arranged as, so Save keeps the
   // chart's real switch positions and a saved tile lights when in force.
   const arrangementCaptureKey = JSON.stringify(captureArrangement(arrangementMenu));
@@ -5677,6 +5769,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          path, is the bar-selection route. */
                       onOHLCAtCursor={setCursorBar}
                       onSelectBigTrade={print => actOnChartSelection({ type: "select", selection: { kind: "PRINT", print } })}
+                      proofSelectBigTradeRef={proofSelectBigTradeRef}
                       selectedPrintOnChart={activeSelectedPrint}
                       onSelectProfileSlice={price => actOnChartSelection({ type: "select", selection: { kind: "SLICE", symbol, timeframe, price } })}
                       selectedProfileSlicePrice={activeProfileSlice?.found ? activeProfileSlice.price : null}

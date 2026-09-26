@@ -25,6 +25,18 @@
  *   ind=A,B       the classic indicator set for this load (names as the
  *                 indicator menu lists them: VWAP, EMA 21, RSI, MACD, …);
  *                 with scene=clean and no ind= the set is empty
+ *   select=K      Inspect opens by URL on ONE thing (GP12 §68, INSPECT = TRUTH
+ *                 MICROSCOPE), through the room's one selection owner, once per
+ *                 page load after the thing exists:
+ *                   zone     → the compiled ZONE object nearest price (F11B Passport)
+ *                   level    → the compiled LEVEL object nearest price (Passport)
+ *                   bar      → the newest CLOSED bar (F05B candle anatomy)
+ *                   bigtrade → the largest Big Trade disc/cluster drawn (F07B)
+ *                 Unknown words are ignored. The receipt is on <html>:
+ *                 data-proof-select="<kind>:<id>" | "<kind>:NONE_AVAILABLE"
+ *                 (also "<kind>:PENDING" while waiting, "<kind>:RELEASED" once let go).
+ *                 There is no ghost selection: the Memory Ghost is a section of
+ *                 the bar ticket, so select=bar shows it.
  *
  * While a proof scene is open NOTHING is written back: layer switches, the last
  * symbol and every other persisted chart preference stay exactly as the trader
@@ -35,6 +47,11 @@ export const SCENE_PARAM = "scene";
 export const ON_PARAM = "on";
 export const BARS_PARAM = "bars";
 export const INDICATORS_PARAM = "ind";
+export const SELECT_PARAM = "select";
+
+/** What a proof scene may open Inspect on. */
+export const PROOF_SELECT_KINDS = ["zone", "level", "bar", "bigtrade"] as const;
+export type ProofSelectKind = (typeof PROOF_SELECT_KINDS)[number];
 
 /** Layer switches a clean scene turns off (booleans), plus the non-boolean scaffolding depth. */
 const CLEAN_BOOLEAN_PREFIX = "wm_of";
@@ -52,9 +69,11 @@ export interface ProofScene {
   readonly overrides: Readonly<Record<string, unknown>>;
   /** Newest N bars on camera, or null to keep the chart's own camera. */
   readonly bars: number | null;
+  /** What Inspect opens on for this load, or null. */
+  readonly select: ProofSelectKind | null;
 }
 
-export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrides: {}, bars: null };
+export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrides: {}, bars: null, select: null };
 
 export function parseProofScene(search: string): ProofScene {
   let q: URLSearchParams;
@@ -65,7 +84,9 @@ export function parseProofScene(search: string): ProofScene {
   const indRaw = q.get(INDICATORS_PARAM);
   const barsN = barsRaw != null ? Math.round(Number(barsRaw)) : NaN;
   const bars = Number.isFinite(barsN) && barsN >= 5 && barsN <= 5000 ? barsN : null;
-  if (!clean && !onRaw && bars == null && indRaw == null) return NO_PROOF_SCENE;
+  const selectRaw = (q.get(SELECT_PARAM) ?? "").trim().toLowerCase();
+  const select = (PROOF_SELECT_KINDS as readonly string[]).includes(selectRaw) ? selectRaw as ProofSelectKind : null;
+  if (!clean && !onRaw && bars == null && indRaw == null && select == null) return NO_PROOF_SCENE;
 
   const overrides: Record<string, unknown> = {};
   if (indRaw != null) overrides.wm_activeInds = indRaw.split(",").map(t => t.trim()).filter(Boolean);
@@ -85,7 +106,7 @@ export function parseProofScene(search: string): ProofScene {
       overrides[`${CLEAN_BOOLEAN_PREFIX}${token}`] = true;
     }
   }
-  return { active: true, clean, overrides, bars };
+  return { active: true, clean, overrides, bars, select };
 }
 
 /**
@@ -115,4 +136,51 @@ export function currentProofScene(): ProofScene {
 /** True while a proof scene is open: nothing may be written back to saved preferences. */
 export function proofSceneHoldsWrites(): boolean {
   return currentProofScene().active;
+}
+
+/** The geometry a proof selection reads from a compiled market object. */
+export interface ProofSelectObject {
+  readonly objectId: string;
+  readonly kind: string;
+  readonly priceLow: number;
+  readonly priceHigh: number;
+}
+
+/**
+ * `select=zone|level`: the compiled object of that kind nearest `price` (0
+ * inside its band); the first compiled wins a tie. Null when none is compiled —
+ * never a guess at another kind.
+ */
+export function pickProofSelectObject(
+  objects: readonly ProofSelectObject[],
+  kind: "ZONE" | "LEVEL",
+  price: number,
+): string | null {
+  if (!Number.isFinite(price)) return null;
+  let best: { id: string; d: number } | null = null;
+  for (const o of objects) {
+    if (o.kind !== kind || !Number.isFinite(o.priceLow) || !Number.isFinite(o.priceHigh)) continue;
+    const lo = Math.min(o.priceLow, o.priceHigh), hi = Math.max(o.priceLow, o.priceHigh);
+    const d = price < lo ? lo - price : price > hi ? price - hi : 0;
+    if (best === null || d < best.d) best = { id: o.objectId, d };
+  }
+  return best?.id ?? null;
+}
+
+/** `select=bar`: the newest bar that has CLOSED (the forming bar is skipped), or null. */
+export function pickNewestClosedBar<T extends { readonly time: number }>(
+  bars: readonly T[],
+  isForming: (time: number) => boolean,
+): T | null {
+  for (let i = bars.length - 1; i >= 0; i--) {
+    if (!isForming(Number(bars[i].time))) return bars[i];
+  }
+  return null;
+}
+
+export type ProofSelectReceiptState = "PENDING" | "NONE_AVAILABLE" | "RELEASED";
+
+/** The receipt on <html data-proof-select>: `<kind>:<id>` or `<kind>:<STATE>`. */
+export function proofSelectReceipt(kind: ProofSelectKind, idOrState: string): string {
+  return `${kind}:${idOrState}`;
 }

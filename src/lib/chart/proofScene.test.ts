@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { NO_PROOF_SCENE, parseProofScene, proofSceneValue } from "./proofScene";
+import {
+  NO_PROOF_SCENE, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneValue, proofSelectReceipt,
+} from "./proofScene";
 
 describe("proof scene", () => {
   it("is inactive without its parameters", () => {
@@ -55,5 +57,50 @@ describe("proof scene", () => {
     expect(parseProofScene("?bars=2").bars).toBeNull();
     expect(parseProofScene("?bars=abc").active).toBe(false);
     expect(parseProofScene("?bars=800").bars).toBe(800);
+  });
+
+  it("select= opens Inspect by URL on a known kind; unknown words are ignored (2026-09-26)", () => {
+    expect(parseProofScene("?symbol=TSLA&select=zone").select).toBe("zone");
+    expect(parseProofScene("?select=LEVEL").select).toBe("level");
+    expect(parseProofScene("?scene=clean&select=bar").select).toBe("bar");
+    expect(parseProofScene("?select=bigtrade&on=fp:big-trades").select).toBe("bigtrade");
+    // select= alone is a proof scene: it holds writes, and has no layer opinion.
+    const alone = parseProofScene("?select=zone");
+    expect(alone.active).toBe(true);
+    expect(alone.clean).toBe(false);
+    expect(proofSceneValue(alone, "wm_ofLivingProfile")).toBeUndefined();
+    // Unknown (and the skipped ghost) are ignored, never guessed.
+    expect(parseProofScene("?select=ghost")).toEqual(NO_PROOF_SCENE);
+    expect(parseProofScene("?select=")).toEqual(NO_PROOF_SCENE);
+    expect(parseProofScene("?scene=clean&select=everything").select).toBeNull();
+    expect(parseProofScene("?symbol=TSLA").select).toBeNull();
+  });
+
+  it("select=zone|level picks the compiled object of that kind nearest price", () => {
+    const objects = [
+      { objectId: "Z-far", kind: "ZONE", priceLow: 90, priceHigh: 95 },
+      { objectId: "L-1", kind: "LEVEL", priceLow: 101, priceHigh: 101 },
+      { objectId: "Z-near", kind: "ZONE", priceLow: 103, priceHigh: 106 },
+      { objectId: "L-2", kind: "LEVEL", priceLow: 99.5, priceHigh: 99.5 },
+      { objectId: "Z-tie", kind: "ZONE", priceLow: 97, priceHigh: 97 },
+    ];
+    expect(pickProofSelectObject(objects, "ZONE", 100)).toBe("Z-near");
+    expect(pickProofSelectObject(objects, "LEVEL", 100)).toBe("L-2");
+    expect(pickProofSelectObject(objects, "ZONE", 104)).toBe("Z-near");
+    expect(pickProofSelectObject(objects.filter(o => o.kind === "LEVEL"), "ZONE", 100)).toBeNull();
+    expect(pickProofSelectObject(objects, "ZONE", NaN)).toBeNull();
+  });
+
+  it("select=bar is the newest CLOSED bar; the forming bar is skipped", () => {
+    const bars = [{ time: 1 }, { time: 2 }, { time: 3 }];
+    expect(pickNewestClosedBar(bars, t => t === 3)).toEqual({ time: 2 });
+    expect(pickNewestClosedBar(bars, () => false)).toEqual({ time: 3 });
+    expect(pickNewestClosedBar(bars, () => true)).toBeNull();
+    expect(pickNewestClosedBar([], () => false)).toBeNull();
+  });
+
+  it("the receipt names the kind and the id or the state", () => {
+    expect(proofSelectReceipt("zone", "ZONE-1")).toBe("zone:ZONE-1");
+    expect(proofSelectReceipt("bigtrade", "NONE_AVAILABLE")).toBe("bigtrade:NONE_AVAILABLE");
   });
 });
