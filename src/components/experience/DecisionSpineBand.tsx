@@ -260,8 +260,6 @@ export interface DecisionSpineBandProps {
   readonly absorptionRead?: AbsorptionRailRead | null;
   /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
   readonly tapeFootprint?: TapeFootprintVM | null;
-  /** UI-04 · the lens's ASK chooser, handed down by the room (its handlers, its markup). */
-  readonly lensChooser?: React.ReactNode;
 }
 
 /**
@@ -1511,11 +1509,6 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       {/* UI-04 · THE QUESTION AND ITS DEBT, BESIDE THE MARKET — the chart's own
           lens reading, verbatim. Order as the plate: question, focus, the debt
           ledger item by item, posture, next question, then who is in control. */}
-      {rail && props.lensChooser && !(props.questionLens && (props.questionLens.active || props.questionLens.refusal)) ? (
-        <div data-testid="spine-lens-chooser-only" style={{ margin: "0 2px 10px", padding: "8px 11px", border: "1px solid rgba(196,165,116,0.28)", borderRadius: 2 }}>
-          {props.lensChooser}
-        </div>
-      ) : null}
       {rail && props.questionLens && !replayEngaged && (props.questionLens.active || props.questionLens.refusal) ? (() => {
         const lens = props.questionLens!;
         const changes = lens.ledger === "CHANGES";
@@ -1528,7 +1521,6 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             data-lens-open={lens.openDebt}
             style={{ display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 10px", padding: "9px 11px 9px", border: `1px solid ${lens.openDebt > 0 ? "rgba(226,92,92,0.45)" : "rgba(196,165,116,0.28)"}`, borderRadius: 2 }}
           >
-            {props.lensChooser ? <div data-testid="spine-lens-chooser">{props.lensChooser}</div> : null}
             <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em" }}>Active question</span>
             {lens.active ? (
               <>
