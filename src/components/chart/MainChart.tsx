@@ -196,7 +196,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
-  "questionCallout", "questionChoice", "questionLensForm", "questionLensHome",
+  "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
@@ -10310,6 +10310,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               lensReadKeyRef.current = "OFF";
               onQuestionLensReadRef.current?.(null);
             }
+            // The band's and tag's receipts describe THIS frame's paint only.
+            delete ds.questionLensTag;
+            delete ds.questionBandYielded;
             if (layerOnRef.current.questionLens === true && att.paints("questionLens")) {
               const lens = selectQuestionLens({
                 absorption: anatomy,
@@ -10370,11 +10373,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const top = Math.min(+yh, +yl) - (lens.kind === "EXHAUSTION" ? 3 : 0);
                     const h = Math.max(6, Math.abs(+yl - +yh));
                     const x0 = xs == null ? 0 : Math.max(0, +xs - 6);
+                    // THE BAND PASSES BEHIND THE WORDS ALREADY ON THE GLASS
+                    // (serving TSLA 15m FAR, 2026-09-26: the TRAP band's fill
+                    // and rail ran through the envelope's second MAJOR HIGH
+                    // name). Every chip the band reaches is cut out of it,
+                    // exactly as the weather lens yields to chips.
+                    const bandCut = new Path2D();
+                    bandCut.rect(0, 0, W, H);
+                    let bandYielded = 0;
+                    for (const c of floatingChips) {
+                      if (c.y > top + h + 2 || c.y + c.h < top - 2 || c.x > W - 76 || c.x + c.w < x0) continue;
+                      bandCut.rect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
+                      bandYielded++;
+                    }
+                    ds.questionBandYielded = String(bandYielded);
+                    ctx.save();
+                    ctx.clip(bandCut, "evenodd");
                     ctx.fillStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.14)" : "rgba(240,180,41,0.14)";
                     ctx.fillRect(x0, top, W - 76 - x0, h);
                     ctx.strokeStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.7)" : "rgba(240,180,41,0.75)";
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, W - 76 - x0, Math.round(h));
+                    ctx.restore();
                     // MOCK 4's tag on the band: the zone NAMED on price, and —
                     // only when the lens's own control reading says effort was
                     // absorbed — the measured displacement that failed to come.
@@ -10399,15 +10419,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       { x: Math.min(txR, Math.max(4, x0 - tw - 8)), y: top + h / 2 - 9 },
                       { x: txR, y: top - 42 },
                     ];
-                    const slot = tagSlots.find(o => !busy(o.x, o.y, tw, 18)) ?? { x: txR, y: top + h + 4 };
-                    const tx = slot.x, ty = slot.y;
-                    ctx.fillStyle = "rgba(40,8,10,0.92)";
-                    ctx.fillRect(tx, ty, tw, 18);
-                    ctx.strokeStyle = tagCol; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, 17);
-                    ctx.fillStyle = "rgba(255,190,190,1)";
-                    ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                    ctx.fillText(tag, tx + 8, ty + 9.5);
-                    floatingChips.push({ x: tx, y: ty, w: tw, h: 18 });
+                    // THE TAG IS PLACED BY THE KEEP-OUT OWNER, strictly
+                    // (serving TSLA 15m FAR, 2026-09-26: every slot above was
+                    // taken, and the unchecked fallback printed "BROKEN SWING ·
+                    // 383.30" straight through the envelope's MAJOR HIGH name —
+                    // two words struck through each other). The slots are its
+                    // preferred spot and alternates, then just below the band,
+                    // then sliding left along the row; the header band (the
+                    // lens's own strip) and every chip already on the glass —
+                    // the FAR names among them — are blockers. With no clear
+                    // spot the tag is HELD: the band still marks the price and
+                    // Inspect / the rail carry the words.
+                    const tagRect = (o: { x: number; y: number }) => ({ x: o.x, y: o.y, w: tw, h: 18 });
+                    const tagSpot = placeClearOfKeepOut(tagRect(tagSlots[0]), keepOut(), {
+                      minX: keepOutMinX(),
+                      blockers: [...floatingChips, { x: 0, y: 96, w: W, h: 64 }],
+                      strict: true,
+                      alternates: [...tagSlots.slice(1), { x: txR, y: top + h + 4 }, { x: Math.min(txR, Math.max(4, x0)), y: top + h + 4 }].map(tagRect),
+                    });
+                    recordKeepOut(keepOutLedger, tagSpot);
+                    ds.questionLensTag = tagSpot.mode === "BLOCKED" ? "HELD" : tagSpot.mode;
+                    if (tagSpot.mode !== "BLOCKED") {
+                      const tx = tagSpot.rect.x, ty = tagSpot.rect.y;
+                      ctx.fillStyle = "rgba(40,8,10,0.92)";
+                      ctx.fillRect(tx, ty, tw, 18);
+                      ctx.strokeStyle = tagCol; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, 17);
+                      ctx.fillStyle = "rgba(255,190,190,1)";
+                      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                      ctx.fillText(tag, tx + 8, ty + 9.5);
+                      floatingChips.push({ x: tx, y: ty, w: tw, h: 18 });
+                    }
                     const c = lens.control;
                     if (c && c.verdict === "EFFORT ABSORBED") {
                       const call = `NO CONVINCING DISPLACEMENT · ${Math.round(c.displacement * 100)}% vs EFFORT ${Math.round(c.aggression * 100)}%`;

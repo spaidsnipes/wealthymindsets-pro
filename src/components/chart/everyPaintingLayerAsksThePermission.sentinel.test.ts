@@ -253,3 +253,58 @@ describe("mutation checks — the audit fires on a broken copy", () => {
     expect(v.some(x => x.startsWith("(e)"))).toBe(true);
   });
 });
+
+/**
+ * THE QUESTION LENS YIELDS TO THE FAR NAMES (serving TSLA 15m FAR, 04:13 CDT
+ * 2026-09-26, Founder's Trap? lens): the lens is trader hardware and speaks at
+ * every depth, but its "BROKEN SWING · 383.30" tag fell back to an unchecked
+ * slot and printed through the envelope's second MAJOR HIGH name, and its band
+ * ran through that name. H-501's FAR panel shows the names only, so the names
+ * win: they are chips before the lens places anything, the tag is placed
+ * strictly by the keep-out owner (or HELD), and the band is cut round chips.
+ */
+function lensAudit(src: string): string[] {
+  const out: string[] = [];
+  const far = src.indexOf('if (att.paints("farEnvelope")) {');
+  const namesPush = src.indexOf("forceChips.push({ x: lx - tw / 2, y: ly - th / 2, w: tw, h: th });", far);
+  const seed = src.indexOf("const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];");
+  const lens = src.indexOf('const tagWord = lens.kind === "EXHAUSTION"');
+  if (far < 0 || namesPush < far) out.push("the FAR names are not chips");
+  if (!(seed > namesPush && lens > seed)) out.push("the FAR names do not reach floatingChips before the lens tag");
+  const end = src.indexOf("const c = lens.control;", lens);
+  const tag = lens > 0 && end > lens ? src.slice(lens, end) : "";
+  if (!tag.includes("const tagSpot = placeClearOfKeepOut(tagRect(tagSlots[0]), keepOut(), {")) out.push("the tag is not placed by the keep-out owner");
+  if (!/blockers: \[\.\.\.floatingChips,/.test(tag)) out.push("the tag's blockers are not the chips on the glass");
+  if (!tag.includes("strict: true,")) out.push("the tag is not placed strictly");
+  if (/\?\? \{ x: txR, y: top \+ h \+ 4 \}/.test(tag)) out.push("the unchecked fallback slot is back");
+  if (!tag.includes('ds.questionLensTag = tagSpot.mode === "BLOCKED" ? "HELD" : tagSpot.mode;')) out.push("the HELD receipt is missing");
+  const guard = tag.indexOf('if (tagSpot.mode !== "BLOCKED") {');
+  const words = tag.indexOf("ctx.fillText(tag, tx + 8, ty + 9.5);");
+  if (!(guard > 0 && words > guard)) out.push("the tag's words print when BLOCKED");
+  const bandStart = src.lastIndexOf("const bandCut = new Path2D();", lens);
+  const band = bandStart > 0 ? src.slice(bandStart, lens) : "";
+  if (!band.includes('ctx.clip(bandCut, "evenodd");') || !band.includes("for (const c of floatingChips) {")) out.push("the band is not cut round the chips");
+  if (band.indexOf('ctx.clip(bandCut, "evenodd");') > band.indexOf("ctx.fillRect(x0, top, W - 76 - x0, h);")) out.push("the band fills before its cut");
+  return out;
+}
+
+describe("the Question Lens yields to the FAR names (H-501 × F16, 2026-09-26)", () => {
+  it("names are chips first; the tag is strict or HELD; the band passes behind chips", () => {
+    expect(lensAudit(CHART)).toEqual([]);
+    expect(CHART).toMatch(/const ANATOMY_BLOCK_RECEIPTS = \[[\s\S]*"questionLensTag", "questionBandYielded"/);
+  });
+
+  it("MUTATION: the old unchecked fallback slot fires the audit", () => {
+    const from = "const tagSpot = placeClearOfKeepOut(tagRect(tagSlots[0]), keepOut(), {";
+    expect(CHART.includes(from)).toBe(true);
+    const broken = CHART.replace(from, "const slot = tagSlots.find(o => !busy(o.x, o.y, tw, 18)) ?? { x: txR, y: top + h + 4 };\n const tagSpot = placeClearOfKeepOut(tagRect(slot), keepOut(), {");
+    expect(lensAudit(broken)).toContain("the unchecked fallback slot is back");
+  });
+
+  it("MUTATION: a tag that prints when BLOCKED, or a band that ignores the chips, fires the audit", () => {
+    const g = 'if (tagSpot.mode !== "BLOCKED") {';
+    expect(lensAudit(CHART.replace(g, "if (true) {"))).toContain("the tag's words print when BLOCKED");
+    expect(lensAudit(CHART.replace('ctx.clip(bandCut, "evenodd");', ""))).toContain("the band is not cut round the chips");
+    expect(lensAudit(CHART.replace("blockers: [...floatingChips, { x: 0, y: 96, w: W, h: 64 }],", "blockers: [],"))).toContain("the tag's blockers are not the chips on the glass");
+  });
+});
