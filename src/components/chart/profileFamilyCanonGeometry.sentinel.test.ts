@@ -107,7 +107,9 @@ describe("1 · ONE candle cut-out for the whole profile family", () => {
     between(MEMORY, 'ctx.save(); clipProfileToCandles("MEMORY");', "ctx.lineTo(endX, y);", "ctx.restore(); // releases Memory's candle cut-out");
     between(FUSED, 'ctx.save(); clipProfileToCandles("FUSED");', "ctx.fillRect(spanR - w, Math.min(+y0, +y1), w, h);", "ctx.restore(); // releases the fused body's candle cut-out");
     between(FUSION, 'ctx.save(); clipProfileToCandles("FUSION");', "ctx.fillRect(knotX - 96, top, 96, h);", "ctx.restore(); // releases the knots' candle cut-out");
-    between(MIGRATION, 'ctx.save(); clipProfileToCandles("LIVING_MOVIE");', "ctx.fillStyle = pk.rgba(\"WASH\", 0.06); ctx.fill();", "ctx.restore(); // releases the movie's candle cut-out");
+    // Pin updated 2026-09-26: the movie's value-area ribbon is retired (see
+    // "7 · no generic rectangle"); its POC trail still paints inside the cut.
+    between(MIGRATION, 'ctx.save(); clipProfileToCandles("LIVING_MOVIE");', 'ctx.strokeStyle = pk.rgba("POC", 0.6); ctx.lineWidth = 1.2; ctx.stroke();', "ctx.restore(); // releases the movie's candle cut-out");
     between(MIGRATION, 'ctx.save(); clipProfileToCandles("VALUE_MIGRATION");', 'stepLine("poc", pk.rgba("POC", 0.85), 1.5, [])', "ctx.restore(); // releases the steps' candle cut-out");
   });
 
@@ -247,5 +249,48 @@ describe("6 · the family's receipts", () => {
     for (const k of ["livingProfileRules", "livingProfileBodyInk", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption"]) {
       expect(list, k).toContain(`"${k}"`);
     }
+  });
+});
+
+describe("7 · no generic rectangle, nothing under the header chrome (P-110 side-by-side, serving 2026-09-26 03:57 CDT)", () => {
+  // Sentinel read TSLA 15m, Living alone, beside P-110: (1) a dark-grey
+  // translucent box with a stepped top behind the session's candles — the
+  // Living movie's developing VAH…VAL ribbon (GP12 §43, generic rectangle);
+  // (2) the body's upper tip climbing under the INSPECT DOM chip.
+  const movie = (() => {
+    const a = MIGRATION.indexOf('ctx.save(); ctx.globalAlpha = att.alpha("livingProfileMovie");');
+    const b = MIGRATION.indexOf("ds.livingProfileMovie = ", a);
+    expect(a).toBeGreaterThan(-1);
+    expect(b).toBeGreaterThan(a);
+    return MIGRATION.slice(a, b);
+  })();
+
+  it("the Living movie paints no value-area ribbon — no wash fill, no VAH→VAL closed path — only its POC trail", () => {
+    expect(movie.length).toBeGreaterThan(600);
+    expect(movie).not.toMatch(/ctx\.fillStyle = pk\.rgba\("WASH"/);
+    expect(movie).not.toContain("o.q.vah");
+    expect(movie).not.toContain("xy[k].q.val");
+    expect(movie).not.toContain("ctx.closePath();");
+    expect(movie).toContain("const y = srs.priceToCoordinate(o.q.poc);");
+    // The receipt names what is on the glass.
+    expect(MIGRATION).toContain("ds.livingProfileMovie = `POC_TRAIL:${xy.length}:NO_RIBBON`;");
+  });
+
+  it("the Living body is clipped between HEADER_FLOOR_Y and the pane foot, after its chip holes, inside the save of its fill", () => {
+    between(
+      LIVING,
+      "ctx.rect(0, HEADER_FLOOR_Y, plotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));",
+      "ctx.clip();",
+      "ctx.fillStyle = g; ctx.fill(bodyPath);",
+    );
+    const holes = LIVING.indexOf("for (const c of holes) {");
+    const floor = LIVING.indexOf("ctx.rect(0, HEADER_FLOOR_Y, plotRight,");
+    const fill = LIVING.indexOf("ctx.fillStyle = g; ctx.fill(bodyPath);");
+    expect(holes).toBeGreaterThan(-1);
+    expect(floor).toBeGreaterThan(holes);
+    expect(LIVING.slice(floor, fill)).not.toContain("ctx.restore();");
+    expect(LIVING).toContain('ds.livingProfileBodyClipped = bodyAboveFloor > 0 ? `HEADER:${bodyAboveFloor}` : "NONE";');
+    const list = slice("const PROFILE_GEOMETRY_RECEIPTS = [", "] as const;", 200);
+    expect(list).toContain('"livingProfileBodyClipped"');
   });
 });

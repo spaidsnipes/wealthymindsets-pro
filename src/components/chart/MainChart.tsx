@@ -188,7 +188,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
   "structureProfileGeometry", "profileMemoryGeometry", "tpoGeometry", "compositeGeometry",
   "visibleRangeGeometry", "profileFusionGeometry",
   // P-110 canon pass (2026-09-25): the Living rules / solid body / POC mark, the species captions.
-  "livingProfileRules", "livingProfileBodyInk", "livingProfileBodyYields", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption",
+  "livingProfileRules", "livingProfileBodyInk", "livingProfileBodyYields", "livingProfileBodyClipped", "livingProfilePocMark", "compositeCaption", "visibleRangeCaption",
 ] as const;
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
@@ -13426,6 +13426,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.clip(hole, "evenodd");
               }
               ds.livingProfileBodyYields = `${bodyYields.length}${yLastL != null ? "+PRICE_LINE" : ""}`;
+              // …AND IT NEVER CLIMBS INTO THE HEADER BAND. Serving TSLA 15m
+              // (2026-09-26 03:57 CDT, Sentinel side-by-side with P-110): the
+              // body's upper tip rose under the INSPECT DOM chip. The header
+              // chrome (bar clock, zoom plate, INSPECT, badge) is DOM the canvas
+              // cannot see, so the body is clipped to the band between
+              // HEADER_FLOOR_Y and the candle pane's foot — the same clip the
+              // Expected Envelope and the weather lens take. The receipt counts
+              // the body rows that reached past the floor.
+              ctx.beginPath();
+              ctx.rect(0, HEADER_FLOOR_Y, plotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));
+              ctx.clip();
+              const bodyAboveFloor = silhouette.filter(q => q.y - rowH / 2 < HEADER_FLOOR_Y).length;
+              ds.livingProfileBodyClipped = bodyAboveFloor > 0 ? `HEADER:${bodyAboveFloor}` : "NONE";
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
               g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", C.tailBase));
               g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", C.tailTip));
@@ -14804,12 +14817,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // behind them (the family's one cut-out). The "now" dot is a mark
               // and prints after the cut is released.
               ctx.save(); clipProfileToCandles("LIVING_MOVIE");
-              ctx.beginPath();
-              xy.forEach((o, k) => { const y = srs.priceToCoordinate(o.q.vah); if (y != null) (k ? ctx.lineTo(+o.x, +y) : ctx.moveTo(+o.x, +y)); });
-              for (let k = xy.length - 1; k >= 0; k--) { const y = srs.priceToCoordinate(xy[k].q.val); if (y != null) ctx.lineTo(+xy[k].x, +y); }
-              ctx.closePath();
-              ctx.fillStyle = pk.rgba("WASH", 0.06); ctx.fill();
-              ctx.strokeStyle = pk.rgba("WASH", 0.18); ctx.lineWidth = 1; ctx.stroke();
+              // THE DEVELOPING VALUE-AREA RIBBON IS RETIRED (2026-09-26, P-110
+              // side-by-side on serving, TSLA 15m, Living alone): its VAH…VAL
+              // fill read as a dark-grey translucent box with a stepped top
+              // behind the session's candles (x≈985–1100, 369–377) — a generic
+              // rectangle (GP12 §43) the plate does not have. P-110's only grey
+              // is the prior-session memory ghost (sessionGhosts, a separate
+              // layer). The developing POC trail stays: it is a line on price,
+              // not a box. Value migration, as a picture, is the Value Migration
+              // layer's (switched on by the trader).
               ctx.beginPath();
               let lastX = 0, lastY = 0;
               xy.forEach((o, k) => {
@@ -14827,7 +14843,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.beginPath(); ctx.moveTo(lastX + 4, lastY); ctx.lineTo(laneL.right - laneL.width, +pocY); ctx.stroke(); ctx.setLineDash([]);
               }
               ctx.restore();
-              ds.livingProfileMovie = `SESSION_BARS:${xy.length}`;
+              // Names what the movie paints: the developing POC trail, no ribbon.
+              ds.livingProfileMovie = `POC_TRAIL:${xy.length}:NO_RIBBON`;
             }
           } else delete ds.livingProfileMovie;
         }
