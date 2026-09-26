@@ -28,6 +28,7 @@ import {
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -5879,6 +5880,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      // GP12 §43/§81 — the labels-hidden recognition test (proofNoLabels.ts).
+      if (setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search))) canvas.dataset.proof = "NOLABELS";
+      else delete canvas.dataset.proof;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
@@ -16641,6 +16645,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     canvas.style.width = W + "px"; canvas.style.height = H + "px";
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
