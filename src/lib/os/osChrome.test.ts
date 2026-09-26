@@ -402,7 +402,11 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     const CASES = [
       ["polygon", true, "a certified realtime tape", L.LIVE_CERTIFIED_QUOTE],
       ["coinbase", true, "a continuous crypto tape", L.LIVE_CERTIFIED_QUOTE],
-      ["alpaca", true, "IEX realtime", L.LIVE_CERTIFIED_QUOTE],
+      // Was LIVE_CERTIFIED_QUOTE until 2026-09-26. IEX is one venue — a
+      // partial tape the capability registry grades PROXY / PARTIAL — and
+      // the certified label means consolidated tape. Both surfaces moved
+      // together, which is the point of this table.
+      ["alpaca", true, "IEX partial tape", L.ACTIVE_DEGRADED],
       ["webull", true, "an active provider with no certification yet", L.ACTIVE_DEGRADED],
       ["finnhub", undefined, "a delayed consolidated quote", L.ACTIVE_DEGRADED],
       ["yahoo", undefined, "a delayed consolidated quote", L.ACTIVE_DEGRADED],
@@ -554,9 +558,13 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     expect(compileFeedStanding({ ...LIVE_OBS, connected: null }, NOW).label).toBe(
       L.LIVE_CERTIFIED_QUOTE,
     );
-    expect(compileFeedStanding({ ...LIVE_OBS, source: "alpaca", connected: null }, NOW).label).toBe(
-      L.LIVE_CERTIFIED_QUOTE,
-    );
+    // The alpaca half used to expect LIVE_CERTIFIED_QUOTE. Since 2026-09-26
+    // the IEX relay's strongest honest word is ACTIVE DEGRADED (one venue, not
+    // the consolidated tape). What this test guards is unchanged: the silent
+    // socket is NOT rounded down to STALE PIPELINE.
+    const iex = compileFeedStanding({ ...LIVE_OBS, source: "alpaca", connected: null }, NOW);
+    expect(iex.label).toBe(L.ACTIVE_DEGRADED);
+    expect(iex.label).not.toBe(L.STALE_PIPELINE);
   });
 });
 

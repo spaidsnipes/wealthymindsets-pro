@@ -8,6 +8,7 @@ import {
   type WebullOrderIntent,
 } from "@/lib/broker/adapters/webullOrders";
 import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
+import { webullPreviewScope } from "@/lib/broker/webullPreviewScope";
 import {
   resolveWebullSessionToken,
   webullSessionStore,
@@ -41,6 +42,21 @@ export async function POST(request: Request): Promise<Response> {
     input = (await request.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
+  }
+
+  // CLASS BEFORE CONTACT. Found 2026-09-26: this route stamped
+  // `assetClass: "equity"` on every intent, so ES1!, GC1!, BTCUSD and SPX all
+  // reached Webull's preview as stocks and the order module's own equity-only
+  // refusal could never fire. The class is now asked of its one owner, and a
+  // non-equity is refused HERE — before any session, account or network call —
+  // with 422, because an unsupported class is not a healthy 200.
+  const symbolIn = typeof input.symbol === "string" ? input.symbol : "";
+  const scope = webullPreviewScope(symbolIn);
+  if (!scope.eligible) {
+    return NextResponse.json(
+      { state: "REFUSED_LOCAL", reason: scope.refusal, assetClass: scope.assetClass },
+      { status: 422, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const cfg = webullBrokerConfigFromEnv(process.env);
@@ -78,14 +94,16 @@ export async function POST(request: Request): Promise<Response> {
     clientOrderId: mintClientOrderId(),
     decisionId: typeof input.decisionId === "string" ? input.decisionId : "",
     accountId: account.accountId,
-    symbol: typeof input.symbol === "string" ? input.symbol : "",
+    symbol: symbolIn,
     side: input.side === "sell" ? "sell" : "buy",
     type: (["market", "limit", "stop", "stop-limit"] as const).find((t) => t === input.type) ?? "limit",
     qty: num(input.qty) ?? 0,
     limitPx: num(input.limitPx),
     stopPx: num(input.stopPx),
     tif: (["day", "gtc", "ioc", "fok"] as const).find((t) => t === input.tif) ?? "day",
-    assetClass: "equity",
+    // DERIVED from the class owner via the scope above — never a literal, so
+    // `mapToWebullStockOrder`'s equity-only refusal is live again downstream.
+    assetClass: scope.orderAssetClass,
   };
 
   const result = await previewWebullOrder(fetch, orderCfg, intent);

@@ -9,6 +9,7 @@
  * explicit live-test instruction.
  */
 import React from "react";
+import { webullPreviewScope } from "@/lib/broker/webullPreviewScope";
 
 type Answer =
   | { state: "PREVIEWED"; payload: unknown; accounts: Choice[]; accountIndex: number }
@@ -47,6 +48,32 @@ export function WebullOrderPreviewRow({
   const [accountIndex, setAccountIndex] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
   const [answer, setAnswer] = React.useState<Answer | null>(null);
+
+  // Found on /charts 2026-09-26: this row offered an ENABLED "Preview buy 1
+  // ES1! @ …" (and GC1!, BTCUSD, SPX). The class comes from its one owner via
+  // `webullPreviewScope`, the same answer the route enforces server-side.
+  const scope = webullPreviewScope(symbol);
+
+  if (!scope.eligible) {
+    // UNSUPPORTED MAY NEVER LOOK HEALTHY (Garden 16 §19): no button, no share
+    // count — a disabled "Preview buy" would still read as a control that
+    // merely isn't ready yet. The refusal is named, in the chart's amber.
+    return (
+      <div
+        data-testid="webull-preview-row"
+        data-preview-state="REFUSED_SCOPE"
+        data-preview-asset-class={scope.assetClass}
+        className="mt-2 border-t border-wm-border pt-2"
+      >
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="font-semibold uppercase tracking-[0.12em] text-wm-text-dim">Preview at Webull</span>
+        </div>
+        <p data-testid="webull-preview-refusal" className="mt-1 text-[11px] font-semibold" style={{ color: "#F0B429" }}>
+          {scope.refusal}
+        </p>
+      </div>
+    );
+  }
 
   const ready = !!side && entry != null && Number.isFinite(entry) && !!decisionId && qty > 0;
 

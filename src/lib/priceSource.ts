@@ -205,12 +205,25 @@ export function priceSourceBadge(
     case "coinbase":
       return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time crypto stream", live: true, provenance: "coinbase", unresolved: false };
     case "alpaca":
+      // IEX IS ONE VENUE, NOT THE TAPE. Found 2026-09-26 at 3ff5cd7: this arm
+      // printed LIVE — CERTIFIED QUOTE, which canonicalFidelityLabels defines
+      // as "real-time consolidated tape … from a certified source", while the
+      // capability registry grades this very path `alpaca-external-relay`
+      // fidelityClass PROXY, availability PARTIAL ("IEX scope must be
+      // verified"). IEX is one exchange among the US venues; its prints are
+      // real and current, and they are not the market. So the strongest
+      // honest word is ACTIVE DEGRADED, with the tooltip naming IEX, and
+      // `live: false` — every reader of `live` treats it as the certificate
+      // (green pill, "certified realtime" detail, the chart's LIVE — CERTIFIED
+      // QUOTE pip). Freshness still decays: a quiet IEX tape is caught above by
+      // `observation.fresh === false` → STALE PIPELINE, before this arm runs.
+      // The upgrade path is a SIP entitlement receipt; none exists in this tree.
+      // (The `!connected` case never reaches here: the arm above returns
+      // ACTIVE DEGRADED for it.)
       return {
-        label: connected ? L.LIVE_CERTIFIED_QUOTE : L.STALE_PIPELINE,
-        title: connected
-          ? "Real-time — IEX-only prints may diverge from consolidated tape in pre/post-market"
-          : "Reconnecting to live feed",
-        live: connected,
+        label: L.ACTIVE_DEGRADED,
+        title: "IEX only — one exchange's prints, not the consolidated tape. Real-time but partial; price and volume can differ from the full market, most in pre/post-market.",
+        live: false,
         provenance: "alpaca",
         unresolved: false,
       };

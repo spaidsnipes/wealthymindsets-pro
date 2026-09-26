@@ -261,6 +261,33 @@ export function canWait(): true {
   return true;
 }
 
+/* ── EXECUTION OWNERSHIP — THE INPUT EXECUTABLE WAS MISSING ────────────────── */
+
+/**
+ * What the caller KNOWS about execution for the price on its canvas.
+ *
+ * Found on /charts 2026-09-26 (audit at 3ff5cd7): the door below mapped
+ * LIVE — CERTIFIED QUOTE to EXECUTABLE with no other argument, so the Honesty
+ * Plaque printed EXECUTABLE over any fresh crypto tape — while the Webull live
+ * place path (`submitWebullOrderOnce`) had zero production callers and
+ * `liveOrdersEnabled` was never true anywhere. A fresh quote is a MARKET fact.
+ * "The adapter will route at this price" is an EXECUTION fact, and the header
+ * of this file already names the flattening of the two as the lie. The door
+ * could not tell them apart because execution was not in its argument list.
+ *
+ * Garden 16 §13: CONNECTED / ENTITLED / FRESH / AUTHORIZED / EXECUTABLE /
+ * RECOVERABLE stay separate. FRESH is what the pipeline label proves; this
+ * object is the only way EXECUTABLE enters.
+ */
+export interface ExecutionOwnership {
+  /**
+   * True ONLY when an execution adapter owned by this surface will route an
+   * order at the price this canvas shows. A connected broker is not this; a
+   * preview endpoint is not this; a configured key is not this.
+   */
+  readonly adapterOwnsCanvasPrice: boolean;
+}
+
 /* ── THE ONE DOOR FROM THE PIPELINE VOCABULARY ─────────────────────────────── */
 
 /**
@@ -274,13 +301,24 @@ export function canWait(): true {
  * canon is explicit that "closed is not delayed", and a closed session showing
  * its last verified picture is a correct reading of a market that is not
  * trading. It is INDICATIVE with no wound.
+ *
+ * `execution` is REQUIRED so no caller can reach EXECUTABLE by forgetting to
+ * say what it knows, and `null` is the honest value for "not established".
+ * Anything but an explicit `adapterOwnsCanvasPrice: true` folds a certified
+ * live quote into INDICATIVE — the strongest non-executable fidelity, which
+ * still paints FULL: the quote is sound, it is simply not an order price.
  */
 export function fidelityFromPipelineLabel(
   label: CanonicalFidelityLabel,
+  execution: ExecutionOwnership | null,
 ): { readonly fidelity: MarketFidelity; readonly reasons: readonly FidelityReason[] } {
   switch (label) {
     case CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE:
-      return { fidelity: MARKET_FIDELITIES.EXECUTABLE, reasons: [] };
+      // `=== true`, not truthiness: a JS caller handing `undefined` or a
+      // stringly "false" must land on the refusal, never on EXECUTABLE.
+      return execution?.adapterOwnsCanvasPrice === true
+        ? { fidelity: MARKET_FIDELITIES.EXECUTABLE, reasons: [] }
+        : { fidelity: MARKET_FIDELITIES.INDICATIVE, reasons: [] };
 
     case CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED:
       // Closed is not delayed, and it is not stale either.

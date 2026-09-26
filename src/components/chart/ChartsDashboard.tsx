@@ -3747,6 +3747,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // on every canvas carrying bars and no live print.
       capturedAtMs: chartCanvasState?.capturedAt ?? null,
       observedAtMs: lastObservedAtMs,
+      // WHAT /charts KNOWS ABOUT EXECUTION: no adapter owns this canvas's
+      // price. Found 2026-09-26 at 3ff5cd7: the Webull place path
+      // (`submitWebullOrderOnce`) has zero production callers and
+      // `liveOrdersEnabled` is never true; the only order control here is a
+      // PREVIEW, which prices and places nothing. So a fresh certified quote
+      // reads INDICATIVE on the plaque, never EXECUTABLE (Garden 16 §13).
+      execution: { adapterOwnsCanvasPrice: false },
     }),
     [chartSurfaceBadge, chartCanvasState?.capturedAt, lastObservedAtMs],
   );

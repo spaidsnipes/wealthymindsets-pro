@@ -39,8 +39,17 @@ describe("availability is not verification or session evidence", () => {
       expect(priceSourceBadge(source, true, true, {present: false, fresh: true}).live).toBe(false);
       expect(priceSourceBadge(source, false, true, {present: true, fresh: true}).live).toBe(false);
       expect(priceSourceBadge(source, true, true, {present: true, fresh: false}).label).toBe(L.STALE_PIPELINE);
+    }
+    // All three requirements met certifies a CONSOLIDATED or continuous tape.
+    // alpaca was in this list until 2026-09-26; the IEX relay is one venue (the
+    // registry grades it PROXY / PARTIAL), so meeting the three requirements
+    // earns it ACTIVE DEGRADED and no certificate — asserted, not dropped.
+    for (const source of ["polygon", "coinbase", "binance"]) {
       expect(priceSourceBadge(source, true, true, {present: true, fresh: true}).live).toBe(true);
     }
+    const iex = priceSourceBadge("alpaca", true, true, {present: true, fresh: true});
+    expect(iex.live).toBe(false);
+    expect(iex.label).toBe(L.ACTIVE_DEGRADED);
   });
   it.each([false, true, null, undefined])("empty unresolved chart stays unavailable for session %s", (sessionOpen) => {
     const badge = resolveChartSurfaceBadge("unavailable", false, false, sessionOpen);

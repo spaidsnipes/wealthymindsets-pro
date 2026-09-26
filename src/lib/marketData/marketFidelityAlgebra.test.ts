@@ -176,10 +176,18 @@ describe("WAIT? — always legal", () => {
 });
 
 describe("the one door from the seven pipeline labels", () => {
+  // What every caller on the trading surfaces truly knows today (2026-09-26):
+  // no execution adapter owns any canvas price. `OWNED` is the hypothetical
+  // caller that does, and exists here only to prove the door still opens.
+  const NOT_OWNED = { adapterOwnsCanvasPrice: false } as const;
+  const OWNED = { adapterOwnsCanvasPrice: true } as const;
+
   it("MAPS ALL SEVEN — no label falls through into a guess", () => {
-    for (const label of ALL_CANONICAL_FIDELITY_LABELS) {
-      const out = fidelityFromPipelineLabel(label);
-      expect(ALL_MARKET_FIDELITIES, label).toContain(out.fidelity);
+    for (const execution of [null, NOT_OWNED, OWNED]) {
+      for (const label of ALL_CANONICAL_FIDELITY_LABELS) {
+        const out = fidelityFromPipelineLabel(label, execution);
+        expect(ALL_MARKET_FIDELITIES, label).toContain(out.fidelity);
+      }
     }
   });
 
@@ -187,40 +195,108 @@ describe("the one door from the seven pipeline labels", () => {
     // The canon is explicit, and this is the mapping most likely to be got
     // wrong: a closed session showing its last verified picture is a CORRECT
     // reading of a market that is not trading.
-    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED);
+    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED, null);
     expect(out.fidelity).toBe(MARKET_FIDELITIES.INDICATIVE);
     expect(out.reasons).toEqual([]);
   });
 
-  it("only the certified live quote earns EXECUTABLE", () => {
+  /*
+    REPLACED PIN, 2026-09-26. This block used to assert
+      "only the certified live quote earns EXECUTABLE"
+    with the door taking the label alone — i.e. that LIVE — CERTIFIED QUOTE IS
+    EXECUTABLE, unconditionally. That pinned the lie this module's own header
+    names: "An EXECUTABLE badge on a canvas the adapter does not own is a lie."
+    A fresh quote proves FRESH; it proves nothing about who will route an order
+    at it (Garden 16 §13, "CONNECTED ≠ EXECUTABLE"). The old strength is kept —
+    exactly one label may EVER earn EXECUTABLE — and the new truth is added
+    beside it: it earns it only with an ownership receipt.
+  */
+  it("CONNECTED ≠ EXECUTABLE — a certified live quote without an execution owner is INDICATIVE", () => {
+    for (const execution of [null, NOT_OWNED]) {
+      const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE, execution);
+      expect(out.fidelity, `execution=${JSON.stringify(execution)}`).toBe(MARKET_FIDELITIES.INDICATIVE);
+      expect(out.reasons).toEqual([]);
+      // INDICATIVE is the STRONGEST non-executable class: it still paints at
+      // full strength, because the quote itself is sound.
+      expect(paintTreatment(readMarketFidelity(out.fidelity, AS_OF, out.reasons))).toBe("FULL");
+    }
+  });
+
+  it("NO CALLER WITHOUT AN OWNERSHIP RECEIPT CAN REACH EXECUTABLE — through any label", () => {
+    for (const execution of [null, NOT_OWNED]) {
+      const executable = ALL_CANONICAL_FIDELITY_LABELS.filter(
+        (l) => fidelityFromPipelineLabel(l, execution).fidelity === MARKET_FIDELITIES.EXECUTABLE,
+      );
+      expect(executable, `execution=${JSON.stringify(execution)}`).toEqual([]);
+    }
+  });
+
+  it("a JS caller's non-boolean ownership never opens the door", () => {
+    // `=== true` rather than truthiness. A stringly "false" is truthy.
+    for (const junk of [undefined, "false", "true", 1, {}]) {
+      const out = fidelityFromPipelineLabel(
+        CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        { adapterOwnsCanvasPrice: junk as unknown as boolean },
+      );
+      expect(out.fidelity, String(junk)).toBe(MARKET_FIDELITIES.INDICATIVE);
+    }
+  });
+
+  it("with an ownership receipt, only the certified live quote earns EXECUTABLE", () => {
+    // The equal-strength replacement for the old pin: ownership is necessary,
+    // and it is not sufficient — a degraded, stale or walled label stays what
+    // it is no matter who owns the adapter.
     const executable = ALL_CANONICAL_FIDELITY_LABELS.filter(
-      (l) => fidelityFromPipelineLabel(l).fidelity === MARKET_FIDELITIES.EXECUTABLE,
+      (l) => fidelityFromPipelineLabel(l, OWNED).fidelity === MARKET_FIDELITIES.EXECUTABLE,
     );
     expect(executable).toEqual([CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE]);
+  });
+
+  it("ownership changes ONLY the certified live quote — every other label folds identically", () => {
+    for (const label of ALL_CANONICAL_FIDELITY_LABELS) {
+      if (label === CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE) continue;
+      expect(fidelityFromPipelineLabel(label, OWNED), label).toEqual(
+        fidelityFromPipelineLabel(label, NOT_OWNED),
+      );
+    }
   });
 
   it("entitlement delay is a KNOWN WOUND, not a stale clock", () => {
     // Delayed by contract is a different fact from delayed by failure, and
     // flattening them would tell the trader the pipeline is broken when it is
     // working exactly as purchased.
-    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.DELAYED_BY_ENTITLEMENT);
+    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.DELAYED_BY_ENTITLEMENT, null);
     expect(out.fidelity).toBe(MARKET_FIDELITIES.DEGRADED);
     expect(out.reasons).toContain(FIDELITY_REASONS.DELAYED);
   });
 
   it("a wall carries QUARANTINED as a REASON and never as a fidelity", () => {
-    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT);
+    const out = fidelityFromPipelineLabel(CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT, null);
     expect(out.reasons).toContain(FIDELITY_REASONS.QUARANTINED);
     expect(out.fidelity).not.toBe("QUARANTINED" as MarketFidelity);
   });
 
   it("NO PIPELINE LABEL BUYS A GO ON ITS OWN", () => {
     // The composition law, checked end to end through the real door: even the
-    // certified live quote needs a broker, a paid ledger and a known R.
+    // certified live quote with an owned adapter needs a broker, a paid ledger
+    // and a known R.
+    for (const execution of [null, NOT_OWNED, OWNED]) {
+      for (const label of ALL_CANONICAL_FIDELITY_LABELS) {
+        const { fidelity, reasons } = fidelityFromPipelineLabel(label, execution);
+        const reading = readMarketFidelity(fidelity, AS_OF, reasons);
+        expect(canGo({ reading, broker: "UNVERIFIED", debt: { unpaid: 0 }, availableR: 1 })).toBe(false);
+      }
+    }
+  });
+
+  it("WITHOUT AN OWNER, NO LABEL COMPILES AN INTENT — even beside a CAPABLE broker", () => {
+    // The /charts composition exactly: a fresh crypto tape, a broker that
+    // answered, and no adapter routing at this price. Before 2026-09-26 this
+    // compiled, because the door handed the quote EXECUTABLE.
     for (const label of ALL_CANONICAL_FIDELITY_LABELS) {
-      const { fidelity, reasons } = fidelityFromPipelineLabel(label);
+      const { fidelity, reasons } = fidelityFromPipelineLabel(label, NOT_OWNED);
       const reading = readMarketFidelity(fidelity, AS_OF, reasons);
-      expect(canGo({ reading, broker: "UNVERIFIED", debt: { unpaid: 0 }, availableR: 1 })).toBe(false);
+      expect(canCompileIntent(reading, "CAPABLE"), label).toBe(false);
     }
   });
 });

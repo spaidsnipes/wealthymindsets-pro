@@ -2,6 +2,7 @@ import type { PriceSourceBadge } from "../priceSource";
 import {
   fidelityFromPipelineLabel,
   readMarketFidelity,
+  type ExecutionOwnership,
   type MarketFidelityReading,
 } from "./marketFidelityAlgebra";
 
@@ -92,6 +93,14 @@ export interface CanvasHonestyInput {
    * every canvas that has bars and no live tape, which is most of them.
    */
   readonly observedAtMs: number | null | undefined;
+  /**
+   * What this surface KNOWS about execution for the price on its canvas —
+   * required, so a caller cannot reach EXECUTABLE by omission. Found on
+   * /charts 2026-09-26: without this input a fresh crypto tape printed
+   * EXECUTABLE on the plaque while no execution adapter owned the canvas.
+   * `null` means not established and folds exactly like `false`.
+   */
+  readonly execution: ExecutionOwnership | null;
 }
 
 /**
@@ -107,7 +116,7 @@ export function readCanvasHonesty(input: CanvasHonestyInput): MarketFidelityRead
   if (input.badge.availability !== undefined) return null;
 
   const asOf = firstFiniteMoment(input.capturedAtMs, input.observedAtMs);
-  const folded = fidelityFromPipelineLabel(input.badge.label);
+  const folded = fidelityFromPipelineLabel(input.badge.label, input.execution);
   // readMarketFidelity performs the final refusal itself. Duplicating the
   // finiteness check here would put a second owner on "what counts as a
   // moment", so the null is passed straight through to the one that owns it.

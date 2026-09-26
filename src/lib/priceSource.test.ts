@@ -4,6 +4,7 @@ import {
   CANONICAL_FIDELITY_LABELS as L,
   ALL_CANONICAL_FIDELITY_LABELS,
 } from "./marketData/canonicalFidelityLabels";
+import { MARKET_DATA_CAPABILITIES } from "./marketData/capabilityRegistry";
 
 // These legacy source/session cases have an observed, fresh quote. Missing
 // receipts are exercised against the raw API in unavailableFidelity.test.ts.
@@ -83,9 +84,32 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
     expect(observedQuote("yahoo", true).live).toBe(false);
   });
 
-  it("ties alpaca liveness to the connection state (IEX is real-time only while connected in RTH)", () => {
-    expect(observedQuote("alpaca", true).live).toBe(true);
+  /*
+    REPLACED PIN, 2026-09-26. This asserted `observedQuote("alpaca", true).live
+    === true`, which made the IEX relay print LIVE — CERTIFIED QUOTE in green.
+    That label is defined (canonicalFidelityLabels) as real-time CONSOLIDATED
+    tape from a certified source; the capability registry grades this very
+    path PROXY / PARTIAL. IEX is one venue. The old pin certified a partial
+    tape as the market. The disconnected half of the old pin is kept verbatim.
+  */
+  it("never certifies the IEX relay — one venue is ACTIVE DEGRADED, and the tooltip says IEX", () => {
+    const connected = observedQuote("alpaca", true);
+    expect(connected.label).toBe(L.ACTIVE_DEGRADED);
+    expect(connected.label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
+    expect(connected.live).toBe(false);
+    expect(connected.title).toMatch(/\bIEX\b/);
+    expect(connected.title).toMatch(/not the consolidated tape/i);
     expect(observedQuote("alpaca", false).live).toBe(false);
+  });
+
+  it("the IEX cap agrees with the capability registry's own grade for the path", () => {
+    // Two owners of one fact must not disagree: the registry already graded
+    // the relay PROXY / PARTIAL. If the registry is ever upgraded (a SIP
+    // entitlement receipt), this test is where the badge is allowed to follow.
+    const relay = MARKET_DATA_CAPABILITIES.find((c) => c.providerPath === "alpaca-external-relay");
+    expect(relay?.fidelityClass).toBe("PROXY");
+    expect(relay?.availability).toBe("PARTIAL");
+    expect(observedQuote("alpaca", true).label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
   });
 
   it("emits STALE_PIPELINE + unresolved=true before any source resolves", () => {
@@ -160,9 +184,20 @@ describe("candleDataStatus", () => {
       expect(s.state).toBe("UNAVAILABLE");
       expect(s.label).toBe("DATA UNAVAILABLE");
     });
-    it("alpaca connected + candles + fresh tick → LIVE (equity IEX-only path)", () => {
+    // REPLACED PIN, 2026-09-26: this was "→ LIVE". The IEX-only path is a
+    // partial tape and may not reach the LIVE — CERTIFIED QUOTE chip (see the
+    // provenance block above for why the old pin was wrong).
+    it("alpaca connected + candles + fresh tick → ACTIVE DEGRADED, never LIVE (IEX is partial tape)", () => {
       const s = candleDataStatus("alpaca", true, true, 9_999, 10_000);
-      expect(s.state).toBe("LIVE");
+      expect(s.state).not.toBe("LIVE");
+      expect(s.label).toBe(L.ACTIVE_DEGRADED);
+      expect(s.live).toBe(false);
+    });
+    it("alpaca connected + candles + a tick past the budget still DECAYS to STALE PIPELINE", () => {
+      // The cap must not freeze the chip at ACTIVE DEGRADED over a dead tape.
+      const s = candleDataStatus("alpaca", true, true, 1, 30_000);
+      expect(s.state).toBe("STALE");
+      expect(s.label).toBe(L.STALE_PIPELINE);
     });
     it("alpaca DISCONNECTED + fresh observation → degraded, not certified streaming", () => {
       const s = candleDataStatus("alpaca", false, true, 9_999, 10_000);
@@ -197,7 +232,7 @@ describe("candleDataStatus", () => {
       expect(s.label).toBe("DATA UNAVAILABLE");
     });
     it("live=false paths never claim live=true (rejection guarantee)", () => {
-      for (const s of ["yahoo", "finnhub", "unknown"] as const) {
+      for (const s of ["yahoo", "finnhub", "unknown", "alpaca"] as const) {
         expect(candleDataStatus(s, true, true, 9_999, 10_000).live).toBe(false);
       }
     });

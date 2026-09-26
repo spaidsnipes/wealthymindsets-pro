@@ -5,9 +5,15 @@
  *
  * Until now the Webull lane could only be asked questions with yes/no answers:
  * does the app key sign correctly, does the broker accept a connection. This
- * strip holds the real-time socket open and counts prints as they land, which
+ * strip holds the real-time socket open and counts messages as they land, which
  * is the only evidence that actually settles the three-month argument — because
- * a print on the glass cannot be misread as anything else.
+ * an arrival on the glass cannot be misread as anything else.
+ *
+ * 2026-09-26: it subscribes QUOTE (Level-1 bid/ask) and used to call every one
+ * a "print" under a green "Live" that never decayed. A bid/ask update is not a
+ * trade; arrival is not a standing condition. The noun now comes from the
+ * subscription and the headline from `readWebullStreamStanding` at the shared
+ * feed clock.
  *
  * IT DOES NOT DECIDE WHAT ANYTHING MEANS. Every phase, headline and sentence
  * comes from `reduceWebullStream`, which is pure and tested. Deciding meaning
@@ -19,13 +25,17 @@ import { Loader2, Radio, Square } from "lucide-react";
 import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 import type { WebullStreamRouteEvent } from "@/lib/marketData/webullQuotesStream";
 import {
+  describeMessageCount,
   describeSilence,
   initialWebullStreamState,
   openingWebullStreamState,
+  readWebullStreamStanding,
   reduceWebullStream,
   type WebullLiveStreamState,
   type WebullStreamPhase,
 } from "@/lib/marketData/webullStreamState";
+import type { WebullSubType } from "@/lib/marketData/webullQuotesSubscribe";
+import { useFeedEvaluationClock } from "@/lib/marketData/useProvenSessionClosure";
 import {
   initialReconnectState,
   nextStep,
@@ -44,9 +54,22 @@ const PHASE_COLOR: Record<WebullStreamPhase, string> = {
   CONNECTION_REFUSED: "#f87171",
   SUBSCRIBE_REFUSED: "#f87171",
   SUBSCRIBED: "#60a5fa",
-  FLOWING: "#00C076",
+  // Was "#00C076" (green) under the headline "Live" until 2026-09-26. Arrival
+  // proves access, not certainty — §9 COLOR LAW, "no green LIVE pip". Ivory,
+  // the same neutral this strip's continuity line already uses.
+  FLOWING: "#C8C0AE",
+  // A decayed stream is a calm fact, amber like every other uncertified
+  // reading on the chart chrome — never the red of a refusal.
+  SILENT: "#F0B429",
   ENDED: "#9ca3af",
 };
+
+/**
+ * THE ONE STATEMENT OF WHAT THIS STRIP ASKS WEBULL FOR. Read by the request URL
+ * AND by the reducer's opening state, so the count's noun can never disagree
+ * with the subscription that produced it. Level-1 quotes (bid/ask), not TICK.
+ */
+const STRIP_SUB_TYPES: readonly WebullSubType[] = ["QUOTE"];
 
 /**
  * Only the event names the server actually emits are listened for: the four
@@ -109,12 +132,12 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
 
   const open = useCallback(() => {
     // Each open is a NEW stream: the server repeats handshake AND subscribe.
-    setState(openingWebullStreamState);
+    setState(openingWebullStreamState(STRIP_SUB_TYPES));
     openedAtRef.current = Date.now();
     // A new connection is judged on its own answers, not the last one's.
     reconnectRef.current = observe(reconnectRef.current, { kind: "opening" });
     const source = new EventSource(
-      `/api/market-data/webull/stream?symbols=${encodeURIComponent(symbol)}&subTypes=QUOTE`,
+      `/api/market-data/webull/stream?symbols=${encodeURIComponent(symbol)}&subTypes=${STRIP_SUB_TYPES.join(",")}`,
     );
     sourceRef.current = source;
 
@@ -171,8 +194,12 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
     start();
   }, [autoStart, running, start]);
 
-  const silence = describeSilence(state);
-  const color = PHASE_COLOR[state.phase];
+  // The house's one shared feed clock — the same sampled "now" the masthead
+  // and the chart rail grade against — so this strip decays on their beat.
+  const nowMs = useFeedEvaluationClock();
+  const shown = readWebullStreamStanding(state, nowMs);
+  const silence = describeSilence(shown);
+  const color = PHASE_COLOR[shown.phase];
 
   return (
     <div className="rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5" data-webull-realtime-strip>
@@ -182,8 +209,9 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
             Real-time stream
           </div>
           <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-            Holds Webull&apos;s real-time socket open for {symbol} and counts prints as they arrive.
-            Read-only: no account access and no order action.
+            Holds Webull&apos;s real-time socket open for {symbol} and counts Level-1 quote updates
+            (bid/ask) as they arrive — not trade prints, not depth. Read-only: no account access and
+            no order action.
           </p>
         </div>
         <button
@@ -207,22 +235,25 @@ export default function WebullRealTimeStrip({ symbol = WIRE_PROOF_SYMBOL, autoSt
         </button>
       </div>
 
-      <div className="mt-2 rounded-lg border px-2 py-2" style={{ borderColor: `${color}59`, background: `${color}14` }}>
+      <div className="mt-2 rounded-lg border px-2 py-2" style={{ borderColor: `${color}59`, background: `${color}14` }}
+        data-webull-stream-phase={shown.phase}>
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[10px] font-bold" style={{ color }}>
-            {state.headline}
+          <span className="text-[10px] font-bold" style={{ color }} data-webull-stream-headline>
+            {shown.headline}
           </span>
-          <span className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
-            {state.quoteCount} print{state.quoteCount === 1 ? "" : "s"}
+          <span className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted" data-webull-stream-count>
+            {describeMessageCount(shown)}
           </span>
         </div>
         <p className="mt-1 text-[9px] leading-snug text-wm-text-dim" aria-live="polite">
-          {state.detail}
+          {shown.detail}
         </p>
-        {state.lastQuoteAt && (
+        {shown.lastMessageAt && (
           <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-            Newest {new Date(state.lastQuoteAt).toLocaleTimeString()}
-            {state.lastTopic ? ` · ${state.lastTopic}` : ""}
+            {/* RECEIVED, not "newest": the stamp is the route's arrival clock,
+                not Webull's event time. */}
+            Last received {new Date(shown.lastMessageAt).toLocaleTimeString()}
+            {shown.lastTopic ? ` · ${shown.lastTopic}` : ""}
           </p>
         )}
         {silence && <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">{silence}</p>}
