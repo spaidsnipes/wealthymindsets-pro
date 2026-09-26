@@ -246,10 +246,17 @@ describe("compact currency pairs are pairs, not equities", () => {
     expect(wrong, "spelled without a slash and therefore called an equity").toEqual([]);
   });
 
-  it("THE REGRESSION: no currency pair is stamped CLOSED on a Sunday", () => {
+  it("THE REGRESSION: no currency pair is stamped CLOSED once FX reopens on Sunday", () => {
+    // 18:00 ET Sunday: FX has reopened (17:00 ET) while US cash is still
+    // provably shut (until 20:00 ET) — so a pair misread as an equity would be
+    // stamped CLOSED here, and a correctly classified one is not.
+    const SUNDAY_1800_ET = new Date("2026-09-06T22:00:00Z");
     const all = FOREX_SYMBOLS.filter((s) => s.includes("/") || forexPairCodes(s) !== null);
-    const stamped = all.filter((s) => provenSessionClosure(s, SUNDAY) === false);
+    const stamped = all.filter((s) => provenSessionClosure(s, SUNDAY_1800_ET) === false);
     expect(stamped, "FX reopens Sunday evening — closure is not established").toEqual([]);
+    expect(provenSessionClosure("AAPL", SUNDAY_1800_ET)).toBe(false);
+    // Before the reopen every pair is provably shut — SUNDAY is noon ET.
+    expect(all.every((s) => provenSessionClosure(s, SUNDAY) === false)).toBe(true);
   });
 
   it("both spellings of one pair agree with each other", () => {

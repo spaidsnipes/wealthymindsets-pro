@@ -64,6 +64,14 @@ export type FeedRecencyKind =
   | "CURRENT_BAR"
   /** At least one whole bar should have opened since, and none did. */
   | "BARS_BEHIND"
+  /**
+   * The market is PROVEN closed (`provenSessionClosure` === false), so no bar
+   * should have opened since — the gap is the calendar, not the feed. GP12
+   * §24: MARKET CLOSED ≠ PROVIDER FAILURE. Measured on serving, Friday
+   * 23:29 ET, NQ1! 1h: "BAR OPENED 04:00 PM · 6 BARS BEHIND" in warning
+   * amber about a CME market shut for the weekend since 17:00.
+   */
+  | "MARKET_CLOSED"
   /** No timestamp, no interval, or a bar stamped in the future. */
   | "UNKNOWN";
 
@@ -125,6 +133,13 @@ export function chartFeedRecency(
   intervalSeconds: number | null | undefined,
   nowMs: number | null | undefined,
   timeZone?: string,
+  /**
+   * True ONLY when the session is proven closed (`provenSessionClosure(...)
+   * === false`). Never inferred here: an unproven weekday gap stays BARS
+   * BEHIND, because "the market is probably shut" is the excuse a dead feed
+   * would hide behind.
+   */
+  sessionProvenClosed = false,
 ): FeedRecency {
   const opened = fin(barOpenedAtSeconds);
   const interval = fin(intervalSeconds);
@@ -152,6 +167,22 @@ export function chartFeedRecency(
   }
 
   const barsBehind = Math.floor(ageSeconds / interval);
+
+  if (sessionProvenClosed && barsBehind > 0) {
+    return {
+      kind: "MARKET_CLOSED",
+      glyph: `MARKET CLOSED · LAST BAR OPENED ${clock}`,
+      // Not a count of missing bars: on a closed market none are missing.
+      barsBehind: 0,
+      title:
+        `The market for this chart is closed on its own published hours, so ` +
+        `no new bar is due. The newest bar OPENED at ${clock} — an OPENING ` +
+        `time, not a last-update time — and the gap since then is the ` +
+        `calendar, not the feed. When the session reopens and bars still ` +
+        `do not arrive, this reading returns to counting bars behind.`,
+      spoken: `Market closed. Newest bar opened ${clock}.`,
+    };
+  }
 
   if (barsBehind === 0) {
     return {

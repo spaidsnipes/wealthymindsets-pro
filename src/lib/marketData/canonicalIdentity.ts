@@ -641,14 +641,77 @@ export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
  * starts claiming it during Saturday evening ET, which every earlier caller
  * east of New York was already reporting as Sunday.
  */
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE WEEKLY EDGES, ON THE MARKET'S CLOCK (added 2026-09-26)
+ *
+ * Measured on serving, Friday 2026-09-25 23:29 ET, NQ1! 1h: the header read
+ * "BAR OPENED 04:00 PM · 6 BARS BEHIND" in warning orange, the masthead
+ * "ACTIVE DEGRADED" and the rail "CHART INTEGRITY · WOUNDED" — about a CME
+ * market that had closed for the weekend at 17:00 ET. Day rules alone cannot
+ * see Friday night, so a closed exchange read as a failing provider all
+ * evening (GP12 §24: MARKET CLOSED ≠ PROVIDER FAILURE).
+ *
+ * These edges are the venues' published weekly hours, read on the ET clock,
+ * and each is only ever used to PROVE CLOSED — never to prove open:
+ *   CME Globex futures — Fri 17:00 ET → Sun 18:00 ET, plus the daily
+ *                        maintenance halt Mon–Thu 17:00–18:00 ET.
+ *   Spot FX            — Fri 17:00 ET → Sun 17:00 ET.
+ *   US cash / options  — Fri 20:00 ET (post-market ends) → Sun 20:00 ET (the
+ *                        overnight venues' Sunday start; before that nothing
+ *                        trades a US listed share).
+ * Sunday uses the EARLIEST reopening of the class (17:00 for futures, which
+ * is FX's hour, not Globex's 18:00), so the edge can only under-claim.
+ * Holidays are still unseen: a holiday stays `null`, never a guess.
+ */
+const MIN = (h: number, m = 0) => h * 60 + m;
+
 export function provenSessionClosure(symbol: string, at: Date): false | null {
   const cls = canonicalAssetClass(symbol);
   if (cls === "crypto") return null;
-  const day = marketWeekdayET(at);
-  if (day === null) return null;
+  const clock = marketClockET(at);
+  if (clock === null) return null;
+  const { weekday: day, minuteOfDay: m } = clock;
   if (day === 6) return false;
-  if (day === 0 && (cls === "equity" || cls === "etf" || cls === "options")) return false;
+  if (cls === "equity" || cls === "etf" || cls === "options") {
+    if (day === 0 && m < MIN(20)) return false;
+    if (day === 5 && m >= MIN(20)) return false;
+    return null;
+  }
+  if (cls === "futures" || cls === "forex") {
+    if (day === 0 && m < MIN(17)) return false;
+    if (day === 5 && m >= MIN(17)) return false;
+    if (cls === "futures" && day >= 1 && day <= 4 && m >= MIN(17) && m < MIN(18)) return false;
+    return null;
+  }
   return null;
+}
+
+/**
+ * Weekday and minute-of-day at `at`, in America/New_York, DST-aware. `null`
+ * when the instant or the tz database is unreadable — the same refusal as
+ * `marketWeekdayET`, which it agrees with by construction (one formatter).
+ */
+export function marketClockET(at: Date): { readonly weekday: number; readonly minuteOfDay: number } | null {
+  const ms = at?.getTime?.();
+  if (!Number.isFinite(ms)) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(at);
+    const get = (t: string) => parts.find(p => p.type === t)?.value;
+    const weekday = ET_WEEKDAY_INDEX[get("weekday") ?? ""];
+    const hour = Number(get("hour"));
+    const minute = Number(get("minute"));
+    if (weekday === undefined || !Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+    return { weekday, minuteOfDay: (hour % 24) * 60 + minute };
+  } catch {
+    return null;
+  }
 }
 
 const ET_WEEKDAY_INDEX: Readonly<Record<string, number>> = {

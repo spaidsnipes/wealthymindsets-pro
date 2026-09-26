@@ -17517,7 +17517,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
      sits in its interval, so they take `intervalSec` from the same state. A
      second derivation would agree with the first only until someone edited
      one of them. */
-  const feedRecency = chartFeedRecency(lastBarT, intervalSec, nowMs);
+  // Proven closure only (`=== false`): a closed exchange is not a lagging feed.
+  const feedRecency = chartFeedRecency(lastBarT, intervalSec, nowMs, undefined, sessionOpen === false);
 
   /*
    * H-101 lives in price/time space. The target is projected from the
@@ -18128,7 +18129,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     </span>
                   </span>
                 ) : (
-                  <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>
+                  // A proven-closed market is a calm fact, not a warning: pearl,
+                  // never the amber a lagging feed earns.
+                  <span className="text-[10px] font-semibold" style={{ color: feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
                     {showFidelityChrome ? `${status.label} · ${feedRecency.glyph}` : feedRecency.glyph}
                   </span>
                 )}

@@ -20,8 +20,9 @@ import { FEED_CLOCK_SAMPLE_INTERVAL_MS } from "@/lib/os/osChrome";
  * Because `null` leaves every downstream label exactly as it was, the settle
  * can only ever retire a false ACTIVE claim — it can never introduce one.
  *
- * Re-evaluates at the next local midnight so a tab left open across the
- * Friday→Saturday boundary stops asserting an active session all weekend.
+ * Re-evaluates at every top of the hour so a tab left open across a weekly
+ * close (Globex Friday 17:00 ET, US post-market 20:00 ET, Saturday) stops
+ * asserting an active session within the hour.
  */
 export function useProvenSessionClosure(symbol: string): false | null {
   const now = useSessionClockDate();
@@ -37,7 +38,7 @@ export function useProvenSessionClosure(symbol: string): false | null {
  * JSX" defect this codebase has already had to fix once.
  *
  * Returns `null` on the server and first client render, then the current
- * local date — re-evaluated at the next local midnight.
+ * local date — re-evaluated at every top of the hour.
  */
 /**
  * The frame's clock for grading how OLD an observation is — not the calendar.
@@ -99,12 +100,25 @@ export function useSessionClockDate(): Date | null {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    const evaluate = () => setNow(new Date());
+    /*
+     * EVERY HOUR, ON THE HOUR — and again after that.
+     *
+     * This used to schedule ONE timeout at the next local midnight and never
+     * another, so a tab left open across two midnights froze on its second
+     * day. And since 2026-09-26 closure has HOUR edges (Globex Friday 17:00
+     * ET, its daily 17:00–18:00 halt, US post-market's 20:00), which a
+     * midnight-only clock would miss by hours. Every edge is a whole ET hour,
+     * and ET's offset from UTC is whole hours, so the UTC top of the hour is
+     * an ET top of the hour for every viewer, wherever they sit.
+     */
+    const HOUR = 3_600_000;
+    let timer: ReturnType<typeof setTimeout>;
+    const evaluate = () => {
+      setNow(new Date());
+      const ms = Date.now();
+      timer = setTimeout(evaluate, Math.max(1_000, (Math.floor(ms / HOUR) + 1) * HOUR - ms + 1_000));
+    };
     evaluate();
-
-    const at = new Date();
-    const nextMidnight = new Date(at.getFullYear(), at.getMonth(), at.getDate() + 1).getTime();
-    const timer = setTimeout(evaluate, Math.max(1_000, nextMidnight - at.getTime()));
     return () => clearTimeout(timer);
   }, []);
 

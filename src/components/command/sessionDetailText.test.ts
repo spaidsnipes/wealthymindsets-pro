@@ -82,7 +82,9 @@ describe("sessionDetailText — weekend / market-closed / connection truth", () 
     });
   });
   it("Futures without observed activity remain session UNKNOWN", () => {
-    expect(present("RTH", false, 0, "ES1!", null)).toMatchObject({
+    // A weekday: Sunday noon ET is now PROVEN closed for futures (the weekly
+    // edge, 2026-09-26), so the unestablished case is asked mid-week.
+    expect(present("RTH", false, 3, "ES1!", null)).toMatchObject({
       value: "SESSION UNKNOWN",
       activity: "UNKNOWN",
     });

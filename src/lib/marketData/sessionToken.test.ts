@@ -86,12 +86,16 @@ describe("selectCanonicalSessionToken — closure that is proven is not withheld
     }
   });
 
-  it("proves Sunday closed for US cash but NOT for futures or FX — they reopen Sunday evening", () => {
+  it("proves Sunday closed for US cash, and for futures and FX only until they reopen Sunday evening", () => {
     expect(selectCanonicalSessionToken({ symbol: "TSLA", at: SUNDAY }).token).toBe(SESSION_TOKEN_CLOSED);
     expect(selectCanonicalSessionToken({ symbol: "SPY", at: SUNDAY }).token).toBe(SESSION_TOKEN_CLOSED);
-    // Claiming Sunday closure for these would be the same overreach inverted.
-    expect(selectCanonicalSessionToken({ symbol: "NQ1!", at: SUNDAY }).token).toBe(SESSION_TOKEN_UNKNOWN);
-    expect(selectCanonicalSessionToken({ symbol: "EUR/USD", at: SUNDAY }).token).toBe(SESSION_TOKEN_UNKNOWN);
+    // SUNDAY is noon ET — before Globex (18:00) and FX (17:00) reopen.
+    expect(selectCanonicalSessionToken({ symbol: "NQ1!", at: SUNDAY }).token).toBe(SESSION_TOKEN_CLOSED);
+    expect(selectCanonicalSessionToken({ symbol: "EUR/USD", at: SUNDAY }).token).toBe(SESSION_TOKEN_CLOSED);
+    // After the reopen, claiming closure would be the same overreach inverted.
+    const SUNDAY_1900_ET = new Date("2026-09-06T23:00:00Z");
+    expect(selectCanonicalSessionToken({ symbol: "NQ1!", at: SUNDAY_1900_ET }).token).toBe(SESSION_TOKEN_UNKNOWN);
+    expect(selectCanonicalSessionToken({ symbol: "EUR/USD", at: SUNDAY_1900_ET }).token).toBe(SESSION_TOKEN_UNKNOWN);
   });
 
   it("'SESSION ?' is still the honest answer on a weekday — there is no intraday calendar", () => {

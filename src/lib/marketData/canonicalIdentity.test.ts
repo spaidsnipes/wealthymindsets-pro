@@ -35,11 +35,36 @@ describe("provenSessionClosure", () => {
     }
   });
 
-  it("proves Sunday closed for US cash only — futures and FX reopen Sunday evening", () => {
+  it("proves Sunday closed for US cash; futures and FX only until they reopen Sunday evening", () => {
     expect(provenSessionClosure("TSLA", sunday)).toBe(false);
     expect(provenSessionClosure("SPY", sunday)).toBe(false);
-    expect(provenSessionClosure("NQ1!", sunday)).toBeNull();
-    expect(provenSessionClosure("EUR/USD", sunday)).toBeNull();
+    // Sunday noon ET: Globex reopens 18:00 ET and FX 17:00 ET, so both are
+    // provably shut on their own published hours (2026-09-26 weekly edges).
+    expect(provenSessionClosure("NQ1!", sunday)).toBe(false);
+    expect(provenSessionClosure("EUR/USD", sunday)).toBe(false);
+    // After the reopen nothing is claimed — the old asymmetry, kept.
+    const sundayEvening = new Date("2026-09-06T23:00:00Z"); // 19:00 ET
+    expect(provenSessionClosure("NQ1!", sundayEvening)).toBeNull();
+    expect(provenSessionClosure("EUR/USD", sundayEvening)).toBeNull();
+    expect(provenSessionClosure("TSLA", sundayEvening)).toBe(false);
+  });
+
+  it("proves Friday night closed after each venue's weekly close, and the Globex daily halt", () => {
+    const fri = (hhmmET: string) => new Date(`2026-09-25T${hhmmET}:00-04:00`);
+    // CME and FX close 17:00 ET Friday; US cash's post-market runs to 20:00.
+    expect(provenSessionClosure("NQ1!", fri("16:59"))).toBeNull();
+    expect(provenSessionClosure("NQ1!", fri("17:00"))).toBe(false);
+    expect(provenSessionClosure("EUR/USD", fri("17:00"))).toBe(false);
+    expect(provenSessionClosure("TSLA", fri("19:59"))).toBeNull();
+    expect(provenSessionClosure("TSLA", fri("20:00"))).toBe(false);
+    // The measured case: NQ at 23:29 ET Friday was reading "6 BARS BEHIND".
+    expect(provenSessionClosure("NQ1!", fri("23:29"))).toBe(false);
+    // Globex's daily maintenance halt Mon–Thu 17:00–18:00 ET; FX has none.
+    const wed = (hhmmET: string) => new Date(`2026-09-23T${hhmmET}:00-04:00`);
+    expect(provenSessionClosure("NQ1!", wed("17:30"))).toBe(false);
+    expect(provenSessionClosure("NQ1!", wed("18:00"))).toBeNull();
+    expect(provenSessionClosure("EUR/USD", wed("17:30"))).toBeNull();
+    expect(provenSessionClosure("TSLA", wed("17:30"))).toBeNull();
   });
 
   it("never claims closure for crypto — a continuous market has no session to close", () => {

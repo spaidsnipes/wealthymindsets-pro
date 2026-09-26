@@ -184,3 +184,51 @@ describe("MainChart adoption", () => {
     expect(CODE).toMatch(/chartFeedRecency\(\s*lastBarT,\s*intervalSec,\s*nowMs/);
   });
 });
+
+/**
+ * GP12 §24 — MARKET CLOSED ≠ PROVIDER FAILURE. Measured on serving, Friday
+ * 2026-09-25 23:29 ET, NQ1! 1h: "BAR OPENED 04:00 PM · 6 BARS BEHIND" in
+ * warning amber about a CME market shut for the weekend since 17:00 ET.
+ */
+describe("a PROVEN-closed market is not a lagging feed", () => {
+  const FRI_1600_ET_S = Date.parse("2026-09-25T16:00:00-04:00") / 1000;
+  const FRI_2329_ET_MS = Date.parse("2026-09-25T23:29:00-04:00");
+  const HOUR = 3600;
+
+  it("the measured case reads MARKET CLOSED with the opening time kept, never N BARS BEHIND", () => {
+    const s = chartFeedRecency(FRI_1600_ET_S, HOUR, FRI_2329_ET_MS, "America/New_York", true);
+    expect(s.kind).toBe("MARKET_CLOSED");
+    expect(s.glyph).toBe("MARKET CLOSED · LAST BAR OPENED 04:00 PM");
+    expect(s.glyph).not.toMatch(/BEHIND/);
+    expect(s.barsBehind).toBe(0);
+    expect(s.spoken).toContain("Market closed");
+    expect(s.title).toContain("calendar, not the feed");
+  });
+
+  it("without PROOF of closure the same gap still counts bars behind — no excuse for a dead feed", () => {
+    const s = chartFeedRecency(FRI_1600_ET_S, HOUR, FRI_2329_ET_MS, "America/New_York");
+    expect(s.kind).toBe("BARS_BEHIND");
+    expect(s.barsBehind).toBe(7);
+  });
+
+  it("closure does not relabel the bar that is still forming", () => {
+    const s = chartFeedRecency(FRI_1600_ET_S, HOUR, FRI_1600_ET_S * 1000 + 20 * 60_000, "America/New_York", true);
+    expect(s.kind).toBe("CURRENT_BAR");
+  });
+
+  it("MainChart hands the recency owner the PROVEN closure only, and pearl, not amber, for it", () => {
+    const CODE = codeOf("components/chart/MainChart.tsx");
+    expect(CODE).toMatch(/chartFeedRecency\(\s*lastBarT,\s*intervalSec,\s*nowMs,\s*undefined,\s*sessionOpen === false\s*\)/);
+    expect(CODE).toContain('feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429"');
+  });
+
+  it("the session clock re-checks every hour, not once at midnight", () => {
+    const HOOK = codeOf("lib/marketData/useProvenSessionClosure.ts");
+    const at = HOOK.indexOf("export function useSessionClockDate");
+    const body = HOOK.slice(at, at + 1800);
+    expect(body).toContain("const HOUR = 3_600_000");
+    // Re-armed from inside the callback — a single timeout is the defect.
+    expect(body).toMatch(/const evaluate = \(\) => \{[\s\S]*timer = setTimeout\(evaluate/);
+    expect(body).not.toContain("nextMidnight");
+  });
+});

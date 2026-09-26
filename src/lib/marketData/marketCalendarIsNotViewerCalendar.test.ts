@@ -47,7 +47,11 @@ describe("× A MARKET'S CALENDAR IS NOT THE VIEWER'S CALENDAR", () => {
     // close, but this helper holds no intraday calendar — so the honest answer
     // is "not established", not a weekend closure it inferred from UTC.
     expect(marketWeekdayET(FRI_2330_ET)).toBe(5);
-    expect(provenSessionClosure("TSLA", FRI_2330_ET)).toBeNull();
+    // Since 2026-09-26 the ET clock also carries the HOUR: 23:30 ET Friday is
+    // after US post-market ended at 20:00 ET, so closure is proven — from the
+    // market's Friday-night hour, never from UTC's Saturday (19:00 ET, same
+    // UTC-Saturday shape, stays unproven in the test above).
+    expect(provenSessionClosure("TSLA", FRI_2330_ET)).toBe(false);
   });
 
   it("still proves the weekend it was written to prove", () => {
@@ -72,8 +76,13 @@ describe("× A MARKET'S CALENDAR IS NOT THE VIEWER'S CALENDAR", () => {
 
   it("keeps the asymmetry between US cash and futures on Sunday", () => {
     expect(provenSessionClosure("TSLA", SUN_1200_ET)).toBe(false);
-    expect(provenSessionClosure("NQ1!", SUN_1200_ET),
-      "futures reopen Sunday evening — claiming Sunday closure is the same overreach").toBeNull();
+    // Noon is before any Sunday reopen, so futures are provably shut too…
+    expect(provenSessionClosure("NQ1!", SUN_1200_ET)).toBe(false);
+    // …and after Globex reopens the asymmetry is exactly the old one.
+    const SUN_1900_ET = new Date("2026-09-13T23:00:00Z");
+    expect(provenSessionClosure("TSLA", SUN_1900_ET)).toBe(false);
+    expect(provenSessionClosure("NQ1!", SUN_1900_ET),
+      "futures reopen Sunday evening — claiming closure after the reopen is the same overreach").toBeNull();
   });
 
   it("never claims closure for a continuous market", () => {
