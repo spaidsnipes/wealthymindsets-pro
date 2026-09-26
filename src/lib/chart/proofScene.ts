@@ -18,6 +18,9 @@
  *                   fp:<mode>     → footprint on, that mode (bid-ask, delta,
  *                                   volume-profile, imbalance, aggressive-passive, big-trades)
  *                   scaff:<depth> → scaffolding depth (FOUNDATION, INTERMEDIATE, ADVANCED, OFF)
+ *                   ask:<choice>  → the Question Lens's asked question (AUTO, ABSORPTION,
+ *                                   EXHAUSTION, CONTINUATION, TRAP, HOLD, WHAT_CHANGED,
+ *                                   PERMISSION) — pair with QuestionLens
  *   bars=N        the camera opens on the newest N bars (semantic depth by bar count)
  *   ind=A,B       the classic indicator set for this load (names as the
  *                 indicator menu lists them: VWAP, EMA 21, RSI, MACD, …);
@@ -37,6 +40,8 @@ export const INDICATORS_PARAM = "ind";
 const CLEAN_BOOLEAN_PREFIX = "wm_of";
 const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP"] as const;
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
+/** What the trader asked of the Question Lens (ChartsDashboard's own key). */
+const QUESTION_CHOICE_KEY = "wm_questionChoice";
 const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofMyStack"]);
 const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy"]);
 
@@ -71,6 +76,9 @@ export function parseProofScene(search: string): ProofScene {
       overrides.wm_footprint = token.slice(3);
     } else if (/^scaff:/i.test(token)) {
       overrides[SCAFFOLDING_KEY] = token.slice(6).toUpperCase();
+    } else if (/^ask:/i.test(token)) {
+      // The room validates the id against QUESTION_CHOICES; an unknown one reads AUTO.
+      overrides[QUESTION_CHOICE_KEY] = token.slice(4).toUpperCase();
     } else if (PLAIN_TOGGLES.has(token)) {
       overrides[`wm_${token}`] = true;
     } else if (/^[A-Z][A-Za-z]+$/.test(token)) {

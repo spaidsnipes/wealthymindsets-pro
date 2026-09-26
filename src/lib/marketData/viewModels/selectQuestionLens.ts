@@ -67,6 +67,29 @@
  *     ZONE · NEW EXHAUSTION MARK · RANGE EXPANDED (window mean ≥ 1.5× the
  *     median). Ledger CHANGES: CHANGED / SAME, nothing owed.
  *
+ * ── ON PRICE (GP12 §67, 2026-09-26) ───────────────────────────────────────
+ * "These may reorganize emphasis. They do not create another chart / route /
+ * Decision_ID." Each question also names WHERE ON PRICE its evidence sits —
+ * `marks`, in price × time, read from the same bars, swings, zones and marks
+ * the debt was measured on. The chart projects them; it never finds a bar
+ * itself. Plates: UI-04 (Absorbed?: zone band + rings on the tested highs +
+ * "DECREASING … EFFORT" / "NO CONVINCING DISPLACEMENT" + dotted effort
+ * columns rising into the zone + the aggressor's own band), UI-15
+ * (Continuing?: the leg, its extreme and half-leg levels, "HIGHER LOW HELD",
+ * the close beyond the prior swing), UI-07 (✓ PAID / ✗ UNPAID per item).
+ *   TRAP — ring on the swing, the break bar bracketed, a return arrow from the
+ *     break extreme to the close back inside, ✓/✗ on the bar that paid or
+ *     refused each item.
+ *   HOLD — ring on the swing, a defense wedge on every test, ✓ at the
+ *     rejection close, ✗ at a close beyond.
+ *   WHAT CHANGED — the window lit; each changed object outlined.
+ *   EXHAUSTED — ring on the extreme, the push origin level, ✓/✗ per
+ *     follow-through bar, ✓ at the close back beyond the origin.
+ *   PERMISSION — one ✓/✗ per compiler item on the ledger's event bar (the
+ *     H-101 debt tag's bar); none on camera → named silence.
+ * Where an owner has nothing to anchor a mark to, the question says so in
+ * `silences` (painted as a muted word) — it never places a guess.
+ *
  * PURE. DETERMINISTIC.
  */
 
@@ -121,6 +144,45 @@ export interface QuestionLensVM {
     readonly effortWord: "AGGRESSION" | "EFFORT";
     readonly verdict: "EFFORT ABSORBED" | "AGGRESSION PAID" | "EFFORT PAID";
   } | null;
+  /**
+   * Where on price the question's evidence sits (see ON PRICE above). Always
+   * set by this selector; optional so a VM built by hand (a rail fixture)
+   * without on-price geometry still types.
+   */
+  readonly marks?: readonly LensMark[];
+  /** Geometry the question would draw but no owner can anchor — named, never guessed. */
+  readonly silences?: readonly string[];
+}
+
+/**
+ * One piece of the question's on-price geometry, in price × time.
+ *   LEVEL     — a horizontal rule at `price` from `time` to `time2` (null = the live edge)
+ *   BAND      — rows `price`…`price2` from `time` to `time2` (null = the live edge)
+ *   RING      — a ring on a bar at `price`
+ *   PAID/OWED — ✓ / ✗ on the bar that paid (or refused) debt item `item`
+ *   ARROW     — from (`time`,`price`) to (`time2`,`price2`)
+ *   LEG       — a line from (`time`,`price`) to (`time2`,`price2`)
+ *   BREAK_BAR — the bar that broke a level: `price` its extreme, `price2` the level
+ *   EFFORT    — a dotted column on a bar, `strength` = effortNorm, ending at
+ *               `price` and pointing `dir` (UP = rising into the zone from below)
+ *   DEFENSE   — a wedge under (`dir` UP) or over (DOWN) a bar that tested a level
+ *   WINDOW    — the span `time` → `time2` (null = the live edge)
+ */
+export type LensMarkKind = "LEVEL" | "BAND" | "RING" | "PAID" | "OWED" | "ARROW" | "LEG" | "BREAK_BAR" | "EFFORT" | "DEFENSE" | "WINDOW";
+export interface LensMark {
+  readonly kind: LensMarkKind;
+  readonly time: number;
+  readonly price: number;
+  readonly time2?: number | null;
+  readonly price2?: number;
+  readonly strength?: number;
+  readonly dir?: "UP" | "DOWN";
+  /** ASKED — the question's subject; SIDE — the aggressor's own band; CHANGED — a WHAT CHANGED? object. */
+  readonly tone?: "ASKED" | "SIDE" | "CHANGED";
+  /** The plate's leader word — at most one per mark; everything else stays in the rail. */
+  readonly word?: string;
+  /** The debt item a PAID / OWED mark evidences. */
+  readonly item?: string;
 }
 
 export type QuestionChoice = "AUTO" | "ABSORPTION" | "EXHAUSTION" | "CONTINUATION" | "TRAP" | "HOLD" | "WHAT_CHANGED" | "PERMISSION";
@@ -170,13 +232,19 @@ export interface QuestionLensInput {
       readonly missingLabels: readonly string[];
       readonly warnLabels: readonly string[];
     } | null;
+    /**
+     * The bar the ledger was read at (the H-101 debt tag's event bar, epoch
+     * seconds) — where PERMISSION?'s items sit on price. Null → no event bar
+     * (the compiler is not waiting on one): the marks are a named silence.
+     */
+    readonly eventBarTime?: number | null;
   } | null;
 }
 
 const NONE: QuestionLensVM = {
   version: QUESTION_LENS_VERSION, active: false, kind: null, ledger: "DEBT", choice: "AUTO", refusal: null, question: null, focus: null,
   bandLow: null, bandHigh: null, bandStart: null, debt: [], openDebt: 0, posture: null, nextQuestion: null,
-  control: null,
+  control: null, marks: [], silences: [],
 };
 
 /**
@@ -241,7 +309,54 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
           : accepted ? `Living POC ${f2(input.livingPoc)} inside the zone` : `Living POC ${f2(input.livingPoc)} outside the zone` },
     ];
     const open = debt.filter(d => !d.paid).length;
+    const zoneDisp = inZone.length ? inZone.reduce((t, b) => t + b.displacementNorm, 0) / inZone.length : 0;
+    // UI-04 ON PRICE. The TESTED edge: on a delta basis the side's own push
+    // (buyers push into the high, sellers into the low); on VOLUME, the edge
+    // price is on the far side of — below the zone it was a ceiling.
+    const last = bars[bars.length - 1];
+    const testedHigh = delta ? zDelta >= 0 : last.close <= (zone.priceLo + zone.priceHi) / 2;
+    const edgeOf = (b: Bar) => (testedHigh ? b.high : b.low);
+    const marks: LensMark[] = [];
+    const silences: string[] = [];
+    const peak = inZone.reduce<Bar | null>((m, b) => (!m || (testedHigh ? b.high > m.high : b.low < m.low) ? b : m), null);
+    // Retests: after the zone, a bar that re-entered the band from the tested
+    // side and was a local extreme (≥ its neighbours), ≥ 4 bars apart; last 2.
+    const retests: Bar[] = [];
+    after.forEach((b, i) => {
+      const inBand = testedHigh ? b.high >= zone.priceLo : b.low <= zone.priceHi;
+      const prev = after[i - 1], next = after[i + 1];
+      const localExt = (!prev || (testedHigh ? b.high >= prev.high : b.low <= prev.low)) && (!next || (testedHigh ? b.high >= next.high : b.low <= next.low));
+      if (!inBand || !localExt) return;
+      const lastR = retests[retests.length - 1];
+      if (lastR && bars.indexOf(b) - bars.indexOf(lastR) < 4) {
+        if (testedHigh ? b.high > lastR.high : b.low < lastR.low) retests[retests.length - 1] = b;
+      } else retests.push(b);
+    });
+    const shownRetests = retests.slice(-2);
+    const effortWord = after.length > 0 && afterEffort < zoneEffort ? `DECREASING ${who.toUpperCase()}` : undefined;
+    const noDisp = zoneDisp <= 0.35 ? "NO CONVINCING DISPLACEMENT" : undefined;
+    // The plate's two leader words: DECREASING … EFFORT on the peak, NO
+    // CONVINCING DISPLACEMENT (the control verdict) on the last retest. With
+    // no retest the peak carries the verdict — one word per mark.
+    if (peak) marks.push({ kind: "RING", time: peak.time, price: edgeOf(peak), tone: "ASKED", word: shownRetests.length ? effortWord : (noDisp ?? effortWord) });
+    shownRetests.forEach((b, i) => marks.push({ kind: "RING", time: b.time, price: edgeOf(b), tone: "ASKED",
+      word: i === shownRetests.length - 1 ? noDisp ?? (peak ? undefined : effortWord) : undefined }));
+    // Dotted effort columns rising (or falling) into the zone, one per zone bar.
+    for (const b of inZone) {
+      if (b.effortNorm > 0) marks.push({ kind: "EFFORT", time: b.time, price: testedHigh ? zone.priceLo : zone.priceHi, strength: b.effortNorm, dir: testedHigh ? "UP" : "DOWN" });
+    }
+    // The aggressor's own band (UI-04's blue buyer band): only when the tape
+    // names a side — the pre-zone bar with the largest same-side delta.
+    if (!delta) silences.push("SIDE BAND · VOLUME BASIS — SIDE UNKNOWN");
+    else {
+      const sign = zDelta >= 0 ? 1 : -1;
+      const src = bars.filter(b => b.time < zone.startTime && b.delta != null && Math.sign(b.delta) === sign)
+        .reduce<Bar | null>((m, b) => (!m || Math.abs(b.delta!) > Math.abs(m.delta!) ? b : m), null);
+      if (src) marks.push({ kind: "BAND", time: src.time, price: src.low, price2: src.high, time2: null, tone: "SIDE" });
+      else silences.push(`SIDE BAND · NO PRIOR ${sign > 0 ? "BUYER" : "SELLER"} EFFORT IN VIEW`);
+    }
     return {
+      marks, silences,
       version: QUESTION_LENS_VERSION,
       active: true,
       kind: "ABSORPTION",
@@ -258,7 +373,7 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       posture: open > 0 ? "WAIT · LET THE MARKET PAY" : "DEBT PAID · READ THE ANSWER",
       nextQuestion: "Is the opposite side's effort being rewarded?",
       control: (() => {
-        const disp = inZone.length ? inZone.reduce((t, b) => t + b.displacementNorm, 0) / inZone.length : 0;
+        const disp = zoneDisp;
         const effortWord = delta ? "AGGRESSION" as const : "EFFORT" as const;
         return {
           aggression: zoneEffort,
@@ -292,7 +407,18 @@ export function selectQuestionLens(input: QuestionLensInput): QuestionLensVM {
       evidence: origin == null ? "push origin unknown" : broke ? `closed back beyond the push origin ${f2(origin)}` : `no close back beyond the push origin ${f2(origin)}` },
   ];
   const open = debt.filter(d => !d.paid).length;
+  // ON PRICE: a ring on the extreme, the push origin as a level, ✓/✗ on each
+  // follow-through bar (✓ = it did NOT make a new extreme), ✓ at the first
+  // close back beyond the origin.
+  const marks: LensMark[] = [{ kind: "RING", time: m.time, price: m.price, tone: "ASKED" }];
+  const silences: string[] = [];
+  if (origin != null) marks.push({ kind: "LEVEL", time: m.pushStartTime, price: origin, time2: null, tone: "ASKED", word: "PUSH ORIGIN" });
+  else silences.push("PUSH ORIGIN UNKNOWN");
+  for (const fb of m.followBars) marks.push({ kind: fb.beyond ? "OWED" : "PAID", time: fb.time, price: fb.reach, item: "FOLLOW-THROUGH LOST" });
+  const brokeBar = origin == null ? undefined : after.find(b => (m.direction === "UP" ? b.close < origin : b.close > origin));
+  if (brokeBar) marks.push({ kind: "PAID", time: brokeBar.time, price: brokeBar.close, item: "STRUCTURE BREAK" });
   return {
+    marks, silences,
     version: QUESTION_LENS_VERSION,
     active: true,
     kind: "EXHAUSTION",
@@ -321,9 +447,11 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
   const last = bars[bars.length - 1];
   const idxAfter = (t: number) => { const i = bars.findIndex(b => b.time > t); return i < 0 ? bars.length : i; };
   const mean = (xs: readonly Bar[]) => (xs.length ? xs.reduce((t, b) => t + b.effortNorm, 0) / xs.length : 0);
-  const done = (kind: "CONTINUATION" | "TRAP" | "HOLD", question: string, focus: string, lo: number, hi: number, start: number, debt: DebtItem[], next: string): QuestionLensVM => {
+  const done = (kind: "CONTINUATION" | "TRAP" | "HOLD", question: string, focus: string, lo: number, hi: number, start: number, debt: DebtItem[], next: string,
+    marks: LensMark[], silences: string[] = []): QuestionLensVM => {
     const open = debt.filter(d => !d.paid).length;
     return {
+      marks, silences,
       version: QUESTION_LENS_VERSION, active: true, kind, ledger: "DEBT", choice, refusal: null, question, focus,
       bandLow: Math.min(lo, hi), bandHigh: Math.max(lo, hi), bandStart: start, debt, openDebt: open,
       posture: open > 0 ? "WAIT · LET THE MARKET PAY" : "DEBT PAID · READ THE ANSWER",
@@ -360,9 +488,33 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
       { label: "NO EXHAUSTION", paid: !exOnLeg,
         evidence: exOnLeg ? `exhaustion marked at ${f2(exOnLeg.price)} on this leg` : "no exhaustion mark on this leg" },
     ];
+    // UI-15 ON PRICE: the leg, a ring on its origin ("HIGHER LOW HELD" only
+    // when the prior same-kind swing is beyond it and no close has broken it),
+    // the extreme as a level with NEW EXTREME's ✓/✗, the half-leg level with
+    // PULLBACK SHALLOW's ✓/✗ at the newest close, the close beyond the prior
+    // opposite swing ("CLOSED ABOVE PRIOR HIGH"), and ✗ on an exhaustion.
+    const exBar = leg[exI];
+    const marks: LensMark[] = [{ kind: "LEG", time: origin.time, price: origin.price, time2: exBar.time, price2: extreme, tone: "ASKED" }];
+    const priorSame = pivots.filter(p => p.kind === origin.kind && p.time < origin.time).reduce<typeof pivots[number] | null>((m, p) => (!m || p.time > m.time ? p : m), null);
+    const originHeld = !leg.some(b => (up ? b.close < origin.price : b.close > origin.price));
+    const structural = priorSame != null && (up ? priorSame.price < origin.price : priorSame.price > origin.price) && originHeld;
+    marks.push({ kind: "RING", time: origin.time, price: origin.price, tone: "ASKED", word: structural ? (up ? "HIGHER LOW HELD" : "LOWER HIGH HELD") : undefined });
+    marks.push({ kind: "LEVEL", time: exBar.time, price: extreme, time2: null, tone: "ASKED" });
+    marks.push({ kind: barsSince < NEW_EXTREME_BARS ? "PAID" : "OWED", time: exBar.time, price: extreme, item: "NEW EXTREME" });
+    const halfLeg = origin.price + (extreme - origin.price) / 2;
+    marks.push({ kind: "LEVEL", time: origin.time, price: halfLeg, time2: null, tone: "ASKED", word: "HALF-LEG" });
+    marks.push({ kind: retrace < 0.5 ? "PAID" : "OWED", time: last.time, price: last.close, item: "PULLBACK SHALLOW" });
+    const priorOpp = pivots.filter(p => p.kind === (up ? "HIGH" : "LOW") && p.time < origin.time && (up ? p.price < extreme : p.price > extreme))
+      .reduce<typeof pivots[number] | null>((m, p) => (!m || p.time > m.time ? p : m), null);
+    const brokeOpp = priorOpp ? leg.find(b => (up ? b.close > priorOpp.price : b.close < priorOpp.price)) : undefined;
+    if (priorOpp && brokeOpp) {
+      marks.push({ kind: "LEVEL", time: priorOpp.time, price: priorOpp.price, time2: brokeOpp.time, tone: "ASKED" });
+      marks.push({ kind: "RING", time: brokeOpp.time, price: brokeOpp.close, tone: "ASKED", word: up ? "CLOSED ABOVE PRIOR HIGH" : "CLOSED BELOW PRIOR LOW" });
+    }
+    if (exOnLeg) marks.push({ kind: "OWED", time: exOnLeg.time, price: exOnLeg.price, item: "NO EXHAUSTION" });
     return done("CONTINUATION", `Is the ${up ? "up" : "down"}-move from ${f2(origin.price)} still healthy?`,
       `Continuation of the ${up ? "up" : "down"}-leg`, origin.price, extreme, origin.time, debt,
-      up ? "If it stalls, is buyer effort being absorbed?" : "If it stalls, is seller effort being absorbed?");
+      up ? "If it stalls, is buyer effort being absorbed?" : "If it stalls, is seller effort being absorbed?", marks);
   }
 
   if (choice === "TRAP") {
@@ -399,9 +551,29 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
       { label: "EFFORT FADED", paid: faded,
         evidence: after.length === 0 ? "no bars since the break" : `effort after ${Math.round(mean(after) * 100)}% vs at the break ${Math.round(brk.effortNorm * 100)}%` },
     ];
+    // ON PRICE: ring on the swing, the break bar bracketed (its extreme past
+    // the level), a return arrow from that extreme to the close back inside,
+    // and ✓/✗ on the bar that paid or refused each item. EFFORT FADED is a
+    // mean over the bars since — no single bar pays it, so it has no mark.
+    const marks: LensMark[] = [
+      { kind: "RING", time: p.time, price: p.price, tone: "ASKED" },
+      { kind: "BREAK_BAR", time: brk.time, price: brkExt, price2: p.price, tone: "ASKED" },
+    ];
+    const backBar = bars.slice(i, i + 4).find(b => (hi ? b.close < p.price : b.close > p.price));
+    if (backBar) {
+      marks.push({ kind: "ARROW", time: brk.time, price: brkExt, time2: backBar.time, price2: backBar.close, tone: "ASKED" });
+      marks.push({ kind: "PAID", time: backBar.time, price: backBar.close, item: "CLOSE BACK INSIDE" });
+    } else if (bars[i + 3]) marks.push({ kind: "OWED", time: bars[i + 3].time, price: bars[i + 3].close, item: "CLOSE BACK INSIDE" });
+    if (closesBeyond >= 2) {
+      const second = bars.slice(i).filter(b => (hi ? b.close > p.price : b.close < p.price))[1];
+      marks.push({ kind: "OWED", time: second.time, price: second.close, item: "NO ACCEPTANCE" });
+    }
+    const extBar = after.find(b => (hi ? b.high - brkExt : brkExt - b.low) >= med);
+    if (after.length >= 3 && !extended) marks.push({ kind: "PAID", time: after[2].time, price: hi ? after[2].high : after[2].low, item: "FOLLOW-THROUGH FAILED" });
+    else if (extBar) marks.push({ kind: "OWED", time: extBar.time, price: hi ? extBar.high : extBar.low, item: "FOLLOW-THROUGH FAILED" });
     return done("TRAP", `Was the break of the swing ${hi ? "high" : "low"} ${f2(p.price)} a trap?`,
       `Break of ${f2(p.price)} — trap or acceptance`, p.price, p.price, p.time, debt,
-      "Is the level now holding from the other side?");
+      "Is the level now holding from the other side?", marks);
   }
 
   // HOLD — the nearest confirmed swing on the far side of price.
@@ -431,9 +603,20 @@ function askStructural(choice: "CONTINUATION" | "TRAP" | "HOLD", bars: readonly 
     { label: "DEFENDED TWICE", paid: tests.length >= 2,
       evidence: `${tests.length} separate test${tests.length === 1 ? "" : "s"}` },
   ];
+  // ON PRICE: ring on the swing, a defense wedge on every test bar (under a
+  // support, over a resistance), ✓ at the rejection close, ✗ at a close beyond.
+  const marks: LensMark[] = [{ kind: "RING", time: lvl.time, price: lvl.price, tone: "ASKED" }];
+  for (const ti of tests) {
+    const tb = after[ti];
+    marks.push({ kind: "DEFENSE", time: tb.time, price: support ? tb.low : tb.high, dir: support ? "UP" : "DOWN", tone: "ASKED" });
+  }
+  const rejBar = lastTest >= 0 ? after.slice(lastTest + 1).find(b => (support ? b.close - lvl.price : lvl.price - b.close) >= med) : undefined;
+  if (rejBar) marks.push({ kind: "PAID", time: rejBar.time, price: rejBar.close, item: "REJECTED" });
+  const beyondBar = after.find(b => (support ? b.close < lvl.price : b.close > lvl.price));
+  if (beyondBar) marks.push({ kind: "OWED", time: beyondBar.time, price: beyondBar.close, item: "NO CLOSE BEYOND" });
   return done("HOLD", `Is the swing ${support ? "low" : "high"} ${f2(lvl.price)} holding?`,
     `${support ? "Support" : "Resistance"} at a confirmed swing`, lvl.price, lvl.price, lvl.time, debt,
-    "If it breaks, is the break a trap?");
+    "If it breaks, is the break a trap?", marks);
 }
 
 function whatChanged(bars: readonly Bar[], med: number, input: QuestionLensInput): QuestionLensVM {
@@ -462,7 +645,21 @@ function whatChanged(bars: readonly Bar[], med: number, input: QuestionLensInput
       evidence: `window mean range ${f2(winRange)} vs median ${f2(med)} (changed at ≥ 1.5×)` },
   ];
   const n = items.filter(i => i.paid).length;
+  // ON PRICE: the window lit (the rest quieted by the lens), each changed
+  // object outlined — new swings ringed, a traded-through swing's level run
+  // to its break bar, new zones boxed, new exhaustion rings.
+  const onPrice: LensMark[] = [{ kind: "WINDOW", time: from, price: win[0].close, time2: null, tone: "CHANGED" }];
+  for (const p of newPivots) onPrice.push({ kind: "RING", time: p.time, price: p.price, tone: "CHANGED" });
+  for (const x of broken) {
+    const bb = bars.find(b => b.time === x.t)!;
+    onPrice.push({ kind: "LEVEL", time: x.p.time, price: x.p.price, time2: x.t, tone: "CHANGED" });
+    onPrice.push({ kind: "BREAK_BAR", time: x.t, price: x.p.kind === "HIGH" ? bb.high : bb.low, price2: x.p.price, tone: "CHANGED" });
+  }
+  for (const z of zones) onPrice.push({ kind: "BAND", time: z.startTime, price: z.priceLo, price2: z.priceHi, time2: z.endTime, tone: "CHANGED" });
+  for (const m of marks) onPrice.push({ kind: "RING", time: m.time, price: m.price, tone: "CHANGED" });
+  const silences = n === 0 ? ["NOTHING MOVED IN THE WINDOW"] : [];
   return {
+    marks: onPrice, silences,
     version: QUESTION_LENS_VERSION, active: true, kind: "WHAT_CHANGED", ledger: "CHANGES", choice: "WHAT_CHANGED", refusal: null,
     question: `What changed in the last ${CHANGE_WINDOW_BARS} bars?`,
     focus: "Differences on this camera, measured",
@@ -494,7 +691,17 @@ function permissionLens(input: QuestionLensInput): QuestionLensVM {
   ];
   if (d.resolved > 0) items.unshift({ label: "PAID", paid: true, evidence: `${d.resolved} of ${d.payable} evidence nodes paid` });
   const open = items.filter(i => !i.paid).length;
+  // UI-07 ON PRICE: one ✓ / ✗ per item, stacked on the bar the ledger was read
+  // at. The compiler grades nodes, not bars — that bar is the only one it names.
+  const marks: LensMark[] = [];
+  const silences: string[] = [];
+  const evT = p.eventBarTime ?? null;
+  const evBar = evT == null ? undefined : input.absorption?.bars.find(b => Math.round(b.time) === evT);
+  if (evT == null) silences.push("NO EVIDENCE BAR · THE LEDGER NAMES NONE");
+  else if (!evBar) silences.push("EVIDENCE BAR NOT IN VIEW");
+  else for (const it of items) marks.push({ kind: it.paid ? "PAID" : "OWED", time: evBar.time, price: evBar.high, item: it.label });
   return {
+    marks, silences,
     version: QUESTION_LENS_VERSION, active: true, kind: "PERMISSION", ledger: "DEBT", choice: "PERMISSION", refusal: null,
     question: "Is permission granted?",
     focus: `Right of way: ${p.rightOfWay} · ${p.detail}`,

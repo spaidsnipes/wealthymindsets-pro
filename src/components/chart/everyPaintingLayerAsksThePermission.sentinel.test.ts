@@ -105,6 +105,11 @@ const FORM_READS = [
   "const shelfDepth = semanticDensity.depth;",
   "const livingDepth = semanticDensity.depth;",
   "depth: semanticDensity.depth,",
+  // 2026-09-26 · the Question Lens's ON PRICE form: the lens SPEAKs at every
+  // depth (the table), and at FAR its form is minimal — levels, bands, rings,
+  // the leg, the break bar and arrow; no columns, ✓ / ✗, wedges or words. A
+  // FORM read, not a gate: the lens's gate is still att.paints("questionLens").
+  'const lensFar = semanticDensity.depth === "FAR";',
 ];
 
 const RECEIPTS = [

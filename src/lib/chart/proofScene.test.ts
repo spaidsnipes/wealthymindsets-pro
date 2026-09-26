@@ -31,6 +31,13 @@ describe("proof scene", () => {
     expect(proofSceneValue(s, "wm_ofCompositeProfile")).toBe(false);
   });
 
+  it("ask:<choice> opens the Question Lens on that question for this load (2026-09-26)", () => {
+    const s = parseProofScene("?scene=clean&on=QuestionLens,ask:trap");
+    expect(proofSceneValue(s, "wm_ofQuestionLens")).toBe(true);
+    expect(proofSceneValue(s, "wm_questionChoice")).toBe("TRAP");
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=QuestionLens"), "wm_questionChoice")).toBeUndefined();
+  });
+
   it("without clean, on= only adds to the saved chart", () => {
     const s = parseProofScene("?on=ExpectedEnvelope");
     expect(proofSceneValue(s, "wm_ofExpectedEnvelope")).toBe(true);

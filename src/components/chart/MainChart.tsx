@@ -197,6 +197,8 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
+  // 2026-09-26 · the lens's on-price geometry lives in questionLensForm; its card form moved here.
+  "questionLensCard",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
@@ -5981,6 +5983,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
       if (rawRef.current) {
         canvas.dataset.raw = "ON";
+        // SHOW RAW is the lens's last canon answer (GP12 §67): on price, nothing.
+        if (layerOnRef.current.questionLens === true) canvas.dataset.questionLensForm = "SHOW_RAW:none";
+        else delete canvas.dataset.questionLensForm;
         const stamp = "RAW · every reading hidden · candles and volume only";
         ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
         const sw = ctx.measureText(stamp).width + 16;
@@ -10410,6 +10415,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // The band's and tag's receipts describe THIS frame's paint only.
             delete ds.questionLensTag;
             delete ds.questionBandYielded;
+            delete ds.questionLensCard;
             if (layerOnRef.current.questionLens === true && att.paints("questionLens")) {
               const lens = selectQuestionLens({
                 absorption: anatomy,
@@ -10419,7 +10425,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 choice: questionChoiceRef.current,
                 continuation: continuationRef.current,
                 priceDp: pricePrecisionFromBars(barsRef.current ?? []),
-                permission: permissionRef.current,
+                // PERMISSION?'s items sit on the bar the ledger was read at —
+                // the H-101 debt tag's event bar, the one bar the compiler names.
+                permission: permissionRef.current ? { ...permissionRef.current, eventBarTime: debtTagRef.current?.barTimeSec ?? null } : null,
               });
               ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
               // Published to the rail only when the reading CHANGES — never per frame.
@@ -10457,10 +10465,40 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.95)";
                 ctx.fillText(fit(lens.refusal.charAt(0).toUpperCase() + lens.refusal.slice(1)), bx + 14, by + 31);
                 ctx.restore();
+                // Nothing to ask it of → nothing on price; the strip IS the named silence.
+                ds.questionLensForm = `${lens.choice}:silence(refused)`;
+                lensFormPainted = true;
               }
               if (lens.active && lens.question) {
                 questionQuiet = 0.35;
                 ctx.save();
+                // What the band block painted — read by ON PRICE's receipt below.
+                let lensBandPainted = false, lensTagPainted = false, lensCalloutOwed = false;
+                // THE QUESTION'S OWN MARKS OWN THEIR PIXELS. The ring on the
+                // swing and the bracket on the break bar are registered as chips
+                // BEFORE the tag is placed, so the tag — and every later layer —
+                // steps round them instead of printing through them (local
+                // TSLA 15m Trap?, 2026-09-26: the tag's first slot sat on the
+                // break bar's bracket). ON PRICE paints them below, cut only
+                // round the OTHER chips.
+                const lensOwnMarkBoxes = new Set<{ x: number; y: number; w: number; h: number }>();
+                {
+                  const tsP = chart.timeScale();
+                  const hbP = Math.max(3, bsp * 0.5);
+                  for (const m of lens.marks ?? []) {
+                    if (m.kind !== "RING" && m.kind !== "BREAK_BAR") continue;
+                    const xv = tsP.timeToCoordinate(m.time as never), yv = srs.priceToCoordinate(m.price);
+                    if (xv == null || yv == null) continue;
+                    const y2v = m.kind === "BREAK_BAR" && m.price2 != null ? srs.priceToCoordinate(m.price2) : null;
+                    if (m.kind === "BREAK_BAR" && y2v == null) continue;
+                    const box = m.kind === "RING"
+                      ? { x: +xv - 9, y: +yv - 9, w: 18, h: 18 }
+                      : { x: +xv - hbP - 3, y: Math.min(+yv, +y2v!) - 3, w: hbP * 2 + 6, h: Math.abs(+y2v! - +yv) + 6 };
+                    if (box.x + box.w < 0 || box.x > W || box.y + box.h < HEADER_FLOOR_Y || box.y > pane0Bottom) continue;
+                    lensOwnMarkBoxes.add(box);
+                    floatingChips.push(box);
+                  }
+                }
                 // The question's band across the camera.
                 if (lens.bandLow != null && lens.bandHigh != null) {
                   const yh = srs.priceToCoordinate(lens.bandHigh);
@@ -10486,9 +10524,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ds.questionBandYielded = String(bandYielded);
                     ctx.save();
                     ctx.clip(bandCut, "evenodd");
-                    ctx.fillStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.14)" : "rgba(240,180,41,0.14)";
+                    // UI-04 paints the ABSORPTION ZONE red, as EXHAUSTION's; UI-15
+                    // draws no box round the leg (the leg is ON PRICE's line), so
+                    // CONTINUATION's band is only a faint wash.
+                    const redBand = lens.kind === "EXHAUSTION" || lens.kind === "ABSORPTION";
+                    ctx.fillStyle = redBand ? "rgba(226,92,92,0.14)" : lens.kind === "CONTINUATION" ? "rgba(240,180,41,0.04)" : "rgba(240,180,41,0.14)";
                     ctx.fillRect(x0, top, W - 76 - x0, h);
-                    ctx.strokeStyle = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,0.7)" : "rgba(240,180,41,0.75)";
+                    ctx.strokeStyle = redBand ? "rgba(226,92,92,0.7)" : lens.kind === "CONTINUATION" ? "rgba(240,180,41,0.25)" : "rgba(240,180,41,0.75)";
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, W - 76 - x0, Math.round(h));
                     ctx.restore();
@@ -10506,8 +10548,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     let lensAxisW = 90;
                     try { const aw = chart.priceScale("right").width(); if (Number.isFinite(aw) && aw > 0) lensAxisW = Math.ceil(aw); } catch {}
                     const plotR = W - lensAxisW - 4;
-                    const busy = (x: number, y: number, w: number, hh: number) =>
-                      (y < 160 && y + hh > 96) || floatingChips.some(r => x < r.x + r.w + 3 && x + w + 3 > r.x && y < r.y + r.h + 1 && y + hh + 1 > r.y);
                     const txR = Math.max(4, plotR - tw);
                     const tagSlots = [
                       { x: Math.min(txR, Math.max(x0, x0 + (plotR - x0) / 2 - tw / 2)), y: top - 22 },
@@ -10547,31 +10587,261 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       floatingChips.push({ x: tx, y: ty, w: tw, h: 18 });
                     }
                     const c = lens.control;
-                    if (c && c.verdict === "EFFORT ABSORBED") {
-                      const call = `NO CONVINCING DISPLACEMENT · ${Math.round(c.displacement * 100)}% vs EFFORT ${Math.round(c.aggression * 100)}%`;
-                      ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
-                      const cw3 = ctx.measureText(call).width;
-                      const ax = plotR - 8, ay = top + h / 2;
-                      const lx = Math.max(4, plotR - cw3 - 30);
-                      let ly = Math.min(H - 40, top + h + 28);
-                      for (let k = 0; k < 4 && busy(lx - 4, ly - 8, cw3 + 8, 16); k++) ly += 18;
-                      ctx.strokeStyle = "rgba(240,180,41,0.85)";
-                      ctx.beginPath(); ctx.arc(ax, ay, 6, 0, Math.PI * 2); ctx.stroke();
-                      ctx.beginPath(); ctx.moveTo(ax - 4, ay + 5); ctx.lineTo(lx + cw3 + 4, ly); ctx.stroke();
-                      ctx.fillStyle = "rgba(0,0,0,0.75)";
-                      ctx.fillRect(lx - 4, ly - 8, cw3 + 8, 16);
-                      ctx.fillStyle = "rgba(240,180,41,1)";
-                      ctx.fillText(call, lx, ly);
-                      floatingChips.push({ x: lx - 4, y: ly - 8, w: cw3 + 8, h: 16 });
-                      ds.questionCallout = "NO_CONVINCING_DISPLACEMENT";
-                    } else ds.questionCallout = "NONE";
+                    // UI-04's NO CONVINCING DISPLACEMENT is no longer a ring pinned
+                    // to the band's right end: it is the leader word on the tested
+                    // high the lens names (ON PRICE, below). The control verdict
+                    // still decides whether it is owed.
+                    lensCalloutOwed = !!c && c.verdict === "EFFORT ABSORBED";
+                    lensBandPainted = true;
+                    lensTagPainted = tagSpot.mode !== "BLOCKED";
                   }
+                }
+                /* ── ON PRICE — each question's own geometry (GP12 §67; plates
+                   UI-04 Absorbed?, UI-15 Continuing?, UI-07 evidence debt).
+                   "These may reorganize emphasis. They do not create another
+                   chart / route / Decision_ID." Projected from `lens.marks`,
+                   which the selector read off the same bars, swings, zones and
+                   marks the debt was measured on — nothing here finds a bar.
+                   The geometry passes behind every chip already on the glass
+                   (cut out, as the band is). Words are the plate's leader words
+                   only, each placed strictly by the keep-out owner against the
+                   candle bodies in its row, every chip on the glass and the
+                   lens's own strip / card — or HELD, never printed through.
+                   A mark no owner could anchor is a named silence (a muted
+                   word), never a guess. FAR (H-501: the lens speaks at every
+                   depth, kept minimal): levels, bands, rings, the leg, the break
+                   bar and its return arrow only — no effort columns, no ✓ / ✗,
+                   no defense wedges, no words beyond the tag.
+                   Receipt, every frame it paints: questionLensForm =
+                   <KIND>:<geometry list> (withdrawn when the lens paints nothing). */
+                {
+                  const lensFar = semanticDensity.depth === "FAR";
+                  const tsL = chart.timeScale();
+                  let axL = 90;
+                  try { const aw = chart.priceScale("right").width(); if (Number.isFinite(aw) && aw > 0) axL = Math.ceil(aw); } catch {}
+                  const plotRL = W - axL - 4;
+                  const xOf = (t: number) => { const v = tsL.timeToCoordinate(t as never); return v == null ? null : +v; };
+                  const yOf = (p: number) => { const v = srs.priceToCoordinate(p); return v == null ? null : +v; };
+                  const onPlot = (x: number, y: number) => x >= 0 && x <= plotRL && y >= HEADER_FLOOR_Y && y <= pane0Bottom;
+                  const formCounts = new Map<string, number>();
+                  const count = (k: string) => formCounts.set(k, (formCounts.get(k) ?? 0) + 1);
+                  if (lensBandPainted) count("band");
+                  if (lensTagPainted) count("tag");
+                  // The lens's own header strip, and its card on wider glass
+                  // without the rail — painted after this block — block its words.
+                  const lensOwnRects = [{ x: 0, y: 96, w: W, h: 64 }];
+                  if (W >= 640 && !lensInRailRef.current) lensOwnRects.push({ x: 12, y: 164, w: 300, h: 108 + lens.debt.length * 30 + (lens.control ? 100 : 0) });
+                  const barByTime = new Map<number, { high: number; low: number }>();
+                  for (const b of barsRef.current ?? []) barByTime.set(b.time as number, b);
+                  const halfBar = Math.max(3, bsp * 0.5);
+                  const ASKED_INK = "rgba(240,190,70,0.95)", CHANGED_INK = "rgba(237,230,211,0.9)";
+                  const inkOf = (m: { tone?: string }) => (m.tone === "CHANGED" ? CHANGED_INK : ASKED_INK);
+                  const words: { word: string; ax: number; ay: number; above: boolean; ink: string; level: boolean }[] = [];
+                  // Geometry passes behind the chips already on the glass.
+                  const markCut = new Path2D();
+                  markCut.rect(0, 0, W, H);
+                  for (const ch of floatingChips) if (!lensOwnMarkBoxes.has(ch)) markCut.rect(ch.x - 1, ch.y - 1, ch.w + 2, ch.h + 2);
+                  ctx.save();
+                  ctx.beginPath(); ctx.rect(0, HEADER_FLOOR_Y, plotRL, Math.max(0, pane0Bottom - HEADER_FLOOR_Y)); ctx.clip();
+                  ctx.clip(markCut, "evenodd");
+                  const glyphStack = new Map<number, number>();
+                  const order = ["WINDOW", "BAND", "LEVEL", "LEG", "EFFORT", "BREAK_BAR", "ARROW", "DEFENSE", "RING", "PAID", "OWED"] as const;
+                  const marks = [...(lens.marks ?? [])].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+                  for (const m of marks) {
+                    if (lensFar && (m.kind === "EFFORT" || m.kind === "PAID" || m.kind === "OWED" || m.kind === "DEFENSE")) continue;
+                    const x = xOf(m.time);
+                    const y = yOf(m.price);
+                    const ink = inkOf(m);
+                    ctx.setLineDash([]);
+                    ctx.lineWidth = 1;
+                    if (m.kind === "WINDOW") {
+                      if (x == null) { count("offCamera"); continue; }
+                      const xl = Math.max(0, x - bsp / 2);
+                      // The rest quieted: the bars before the window sit under a veil.
+                      ctx.fillStyle = "rgba(8,8,6,0.22)";
+                      ctx.fillRect(0, HEADER_FLOOR_Y, xl, pane0Bottom - HEADER_FLOOR_Y);
+                      ctx.fillStyle = "rgba(240,190,70,0.05)";
+                      ctx.fillRect(xl, HEADER_FLOOR_Y, plotRL - xl, pane0Bottom - HEADER_FLOOR_Y);
+                      ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(240,190,70,0.6)";
+                      ctx.beginPath(); ctx.moveTo(Math.round(xl) + 0.5, HEADER_FLOOR_Y); ctx.lineTo(Math.round(xl) + 0.5, pane0Bottom); ctx.stroke();
+                      count("window");
+                      continue;
+                    }
+                    if (y == null) { count("offCamera"); continue; }
+                    if (m.kind === "BAND" || m.kind === "LEVEL") {
+                      const x1 = x == null ? 0 : Math.max(0, x - (m.kind === "BAND" ? halfBar : 0));
+                      const x2r = m.time2 == null ? plotRL : xOf(m.time2);
+                      const x2 = x2r == null ? plotRL : Math.min(plotRL, x2r + (m.kind === "BAND" ? halfBar : 0));
+                      if (x2 <= x1) { count("offCamera"); continue; }
+                      if (m.kind === "LEVEL") {
+                        if (y < HEADER_FLOOR_Y || y > pane0Bottom) { count("offCamera"); continue; }
+                        ctx.setLineDash([5, 4]); ctx.strokeStyle = ink;
+                        ctx.beginPath(); ctx.moveTo(x1, Math.round(y) + 0.5); ctx.lineTo(x2, Math.round(y) + 0.5); ctx.stroke();
+                        count("level");
+                        if (m.word && !lensFar) words.push({ word: m.word, ax: x2, ay: y, above: true, ink, level: true });
+                        continue;
+                      }
+                      const y2 = m.price2 == null ? null : yOf(m.price2);
+                      if (y2 == null) { count("offCamera"); continue; }
+                      const top = Math.min(y, y2), hh = Math.max(3, Math.abs(y2 - y));
+                      if (m.tone === "SIDE") {
+                        // UI-04's buyer (or seller) band: the aggressor's own rows.
+                        ctx.fillStyle = "rgba(96,150,230,0.12)"; ctx.fillRect(x1, top, x2 - x1, hh);
+                        ctx.strokeStyle = "rgba(96,150,230,0.55)";
+                        ctx.beginPath(); ctx.moveTo(x1, Math.round(top) + 0.5); ctx.lineTo(x2, Math.round(top) + 0.5);
+                        ctx.moveTo(x1, Math.round(top + hh) + 0.5); ctx.lineTo(x2, Math.round(top + hh) + 0.5); ctx.stroke();
+                        count("sideBand");
+                      } else {
+                        ctx.setLineDash([3, 3]); ctx.strokeStyle = ink;
+                        ctx.strokeRect(Math.round(x1) + 0.5, Math.round(top) + 0.5, Math.round(x2 - x1), Math.round(hh));
+                        count("zoneBox");
+                      }
+                      continue;
+                    }
+                    if (x == null) { count("offCamera"); continue; }
+                    if (m.kind === "LEG" || m.kind === "ARROW") {
+                      const xb = m.time2 == null ? null : xOf(m.time2);
+                      const yb = m.price2 == null ? null : yOf(m.price2);
+                      if (xb == null || yb == null) { count("offCamera"); continue; }
+                      // The return arrow runs beside the bars, not down their wicks.
+                      const off = m.kind === "ARROW" ? halfBar + 4 : 0;
+                      const ax1 = x + off, ay1 = y, ax2 = xb + off, ay2 = yb;
+                      if (Math.hypot(ax2 - ax1, ay2 - ay1) < 4) continue;
+                      ctx.strokeStyle = m.kind === "LEG" ? "rgba(240,190,70,0.7)" : ink;
+                      ctx.lineWidth = m.kind === "LEG" ? 1.5 : 1.25;
+                      ctx.beginPath(); ctx.moveTo(ax1, ay1); ctx.lineTo(ax2, ay2); ctx.stroke();
+                      if (m.kind === "ARROW") {
+                        const ang = Math.atan2(ay2 - ay1, ax2 - ax1);
+                        ctx.fillStyle = ink;
+                        ctx.beginPath();
+                        ctx.moveTo(ax2, ay2);
+                        ctx.lineTo(ax2 - 7 * Math.cos(ang - 0.45), ay2 - 7 * Math.sin(ang - 0.45));
+                        ctx.lineTo(ax2 - 7 * Math.cos(ang + 0.45), ay2 - 7 * Math.sin(ang + 0.45));
+                        ctx.closePath(); ctx.fill();
+                      }
+                      count(m.kind === "LEG" ? "leg" : "returnArrow");
+                      continue;
+                    }
+                    if (!onPlot(x, y)) { count("offCamera"); continue; }
+                    if (m.kind === "EFFORT") {
+                      // UI-04's dotted effort column, rising (or falling) into the zone.
+                      const len = Math.min(90, (pane0Bottom - HEADER_FLOOR_Y) * 0.2) * Math.max(0, Math.min(1, m.strength ?? 0));
+                      const sgn = m.dir === "DOWN" ? -1 : 1;
+                      ctx.fillStyle = "rgba(226,92,92,0.8)";
+                      for (let d = 2; d <= len; d += 4) { ctx.beginPath(); ctx.arc(x, y + sgn * d, 1.1, 0, Math.PI * 2); ctx.fill(); }
+                      count("effortColumn");
+                      continue;
+                    }
+                    if (m.kind === "BREAK_BAR") {
+                      const y2 = m.price2 == null ? null : yOf(m.price2);
+                      if (y2 == null) { count("offCamera"); continue; }
+                      const top = Math.min(y, y2) - 2, hh = Math.abs(y2 - y) + 4;
+                      ctx.strokeStyle = ink; ctx.lineWidth = 1.25;
+                      ctx.strokeRect(Math.round(x - halfBar - 2) + 0.5, Math.round(top) + 0.5, Math.round(halfBar * 2 + 4), Math.round(hh));
+                      count("breakBar");
+                      continue;
+                    }
+                    if (m.kind === "DEFENSE") {
+                      // A wedge under a support test (pointing up at it), over a resistance test.
+                      const s = m.dir === "DOWN" ? -1 : 1;
+                      ctx.fillStyle = ink;
+                      ctx.beginPath(); ctx.moveTo(x, y + s * 4); ctx.lineTo(x - 4, y + s * 10); ctx.lineTo(x + 4, y + s * 10); ctx.closePath(); ctx.fill();
+                      count("defense");
+                      continue;
+                    }
+                    if (m.kind === "RING") {
+                      ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
+                      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+                      count("ring");
+                      if (m.word && !lensFar) words.push({ word: m.word, ax: x, ay: y, above: true, ink, level: false });
+                      continue;
+                    }
+                    // PAID ✓ / OWED ✗ — on the bar that paid or refused the item,
+                    // beside its wick end (above the high for a mark on the upper
+                    // half of the bar, under the low otherwise), stacked per bar.
+                    const bar = barByTime.get(m.time);
+                    const k = glyphStack.get(m.time) ?? 0;
+                    glyphStack.set(m.time, k + 1);
+                    const upper = !bar || m.price >= (bar.high + bar.low) / 2;
+                    const yw = bar ? yOf(upper ? bar.high : bar.low) : y;
+                    if (yw == null) { count("offCamera"); continue; }
+                    const gy = upper ? yw - 9 - k * 12 : yw + 9 + k * 12;
+                    const paid = m.kind === "PAID";
+                    ctx.lineCap = "round";
+                    for (const [w, col] of [[3.2, "rgba(8,8,6,0.9)"], [1.6, paid ? "rgba(120,200,130,1)" : "rgba(226,92,92,1)"]] as const) {
+                      ctx.lineWidth = w; ctx.strokeStyle = col;
+                      ctx.beginPath();
+                      if (paid) { ctx.moveTo(x - 4, gy); ctx.lineTo(x - 1, gy + 3); ctx.lineTo(x + 4, gy - 4); }
+                      else { ctx.moveTo(x - 3.5, gy - 3.5); ctx.lineTo(x + 3.5, gy + 3.5); ctx.moveTo(x + 3.5, gy - 3.5); ctx.lineTo(x - 3.5, gy + 3.5); }
+                      ctx.stroke();
+                    }
+                    ctx.lineCap = "butt";
+                    count(paid ? "paid" : "owed");
+                  }
+                  ctx.restore();
+                  // THE WORDS — the plate's leader words, then the named silences.
+                  let calloutPainted = false;
+                  const placeLensWord = (word: string, ax: number, ay: number, above: boolean, ink: string, level: boolean, muted: boolean) => {
+                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    const ww = Math.ceil(ctx.measureText(word).width) + 10, wh = 15;
+                    const clampY = (yy: number) => Math.min(Math.max(yy, HEADER_FLOOR_Y + 2), pane0Bottom - wh - 2);
+                    const clampX = (xx: number) => Math.min(Math.max(xx, keepOutMinX()), plotRL - ww);
+                    const R = (xx: number, yy: number) => ({ x: clampX(xx), y: clampY(yy), w: ww, h: wh });
+                    // A silence reads down the plot's right edge, row by row; a
+                    // level's word sits on its rule by the live edge; a ring's
+                    // word is led off to the right (UI-04), then the left,
+                    // stepping out a row at a time.
+                    const slots = muted
+                      ? [0, 1, 2, 3, 4, 5, 6, 7].flatMap(k => [R(plotRL - ww, ay + k * 18), R(plotRL - ww * 2 - 8, ay + k * 18)])
+                      : level
+                        ? [R(ax - ww - 6, ay - wh - 3), R(ax - ww - 6, ay + 3), R(ax - ww * 2 - 12, ay - wh - 3), R(ax - ww * 2 - 12, ay + 3)]
+                        : [-1, 1, -2, 2, -3, 3].flatMap(k => {
+                            const yy = (above ? -k : k) > 0 ? ay + 14 + (Math.abs(k) - 1) * 18 : ay - wh - 14 - (Math.abs(k) - 1) * 18;
+                            return [R(ax + 12, yy), R(ax - ww - 12, yy)];
+                          });
+                    const yTop = Math.min(...slots.map(r => r.y)), yBot = Math.max(...slots.map(r => r.y + r.h));
+                    const spot = placeClearOfKeepOut(slots[0], [...keepOut(), ...rowBodiesAt(yTop, yBot)], {
+                      minX: keepOutMinX(),
+                      blockers: [...floatingChips, ...lensOwnRects],
+                      strict: true,
+                      alternates: slots.slice(1),
+                    });
+                    recordKeepOut(keepOutLedger, spot);
+                    if (spot.mode === "BLOCKED" || spot.rect.x + spot.rect.w > plotRL + 1) { count(muted ? "silenceHeld" : "wordHeld"); return false; }
+                    const r = spot.rect;
+                    if (!level && !muted) {
+                      // The leader, from the ring's edge to the word's near side.
+                      const ex = r.x + r.w / 2 < ax ? r.x + r.w : r.x, ey = r.y + r.h / 2;
+                      const ang = Math.atan2(ey - ay, ex - ax);
+                      ctx.strokeStyle = ink; ctx.lineWidth = 1;
+                      ctx.beginPath(); ctx.moveTo(ax + 7 * Math.cos(ang), ay + 7 * Math.sin(ang)); ctx.lineTo(ex, ey); ctx.stroke();
+                    }
+                    ctx.fillStyle = muted ? "rgba(11,10,8,0.7)" : "rgba(11,10,8,0.88)";
+                    ctx.fillRect(r.x, r.y, r.w, r.h);
+                    ctx.fillStyle = muted ? "rgba(200,192,174,0.75)" : ink;
+                    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                    ctx.fillText(word, r.x + 5, r.y + r.h / 2 + 0.5);
+                    floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+                    count(muted ? "silence" : "word");
+                    return true;
+                  };
+                  for (const w of words) {
+                    const ok = placeLensWord(w.word, w.ax, w.ay, w.above, w.ink, w.level, false);
+                    if (ok && w.word === "NO CONVINCING DISPLACEMENT") calloutPainted = true;
+                  }
+                  if (!lensFar) {
+                    for (const sil of lens.silences ?? []) placeLensWord(sil, plotRL, HEADER_FLOOR_Y + 76, false, CHANGED_INK, false, true);
+                  }
+                  ds.questionCallout = calloutPainted ? "NO_CONVINCING_DISPLACEMENT" : lensCalloutOwed ? (lensFar ? "FAR_MINIMAL" : "HELD") : "NONE";
+                  const formList = [...(lensFar ? ["far"] : []), ...[...formCounts].map(([k2, n]) => (n > 1 ? `${k2}×${n}` : k2))];
+                  ds.questionLensForm = `${lens.kind}:${formList.length ? formList.join(",") : "none"}`;
+                  lensFormPainted = true;
                 }
                 // 390 LAW: on narrow glass the lens must not murder the chart.
                 // One line for the question, one for the debt; the full card,
                 // control and Ask live on wider glass (same owner, same facts).
                 const narrowLens = W < 640; // keep in step with the exhaustion chip's column rule
-                ds.questionLensForm = narrowLens ? "COMPACT" : "FULL";
+                ds.questionLensCard = narrowLens ? "COMPACT" : lensInRailRef.current ? "RAIL" : "FULL";
                 lensFormPainted = true;
                 lensColumnActive = !narrowLens && !lensInRailRef.current;
                 if (narrowLens) {
