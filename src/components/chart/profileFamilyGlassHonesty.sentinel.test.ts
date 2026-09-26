@@ -42,11 +42,17 @@ describe("profile family glass honesty", () => {
     expect(CHART).toMatch(/chart\.panes\(\)\[0\]\?\.getHeight\(\)/);
   });
 
-  it("TPO rows fit their column, letters only where a glyph fits, blocks stay a tint", () => {
+  it("TPO rows fit their column, letters only at NEAR where a glyph fits, blocks are time-coloured squares", () => {
     expect(CHART).not.toMatch(/Math\.max\(3, Math\.min\(8, Math\.floor\(colMax/);
     expect(CHART).toMatch(/const cellW = Math\.min\(8, colMax \/ maxLetters\);/);
     expect(CHART).toMatch(/cellW >= ctx\.measureText\("M"\)\.width/);
-    expect(CHART).toMatch(/ink\(rgb, base \* \(0\.08 \+ 0\.17 \* late\)\)/);
+    // Pin updated 2026-09-26 (Garden 11 recognition test: letter-only TPO
+    // vanished with labels hidden). Blocks were a ≤0.25 tint only because they
+    // sat ON the oldest candles; every cell a candle stands on is now withheld
+    // (tpoCellsYielded), so the blocks are legible squares whose colour is
+    // their period — recess (early) → brass (late) — from the pure owner.
+    expect(CHART).toMatch(/ink\(tpoPeriodInk\(pk\.role\.TAIL, pk\.role\.ANCHOR, late\), base \* \(0\.45 \+ 0\.45 \* late\)\)/);
+    expect(CHART).toContain("ctx.fillRect(x, y + (h - side) / 2, side, side);");
   });
 
   it("owners, not the paint, compute ghosts and memory tests", () => {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ORGANISM_KINDS,
+  organismGlyph,
+  tpoPeriodInk,
+  type OrganismKind,
   LEFT_CHROME_RIGHT,
   LEVEL_PAIR_GAP,
   placeLevelPair,
@@ -184,5 +188,41 @@ describe("the P-110 body is a solid mass, not a wash", () => {
     expect(LIVING_BODY_CANON.tailBase).toBeGreaterThanOrEqual(0.45);
     expect(LIVING_BODY_CANON.tailBase).toBeLessThan(LIVING_BODY_CANON.valueBase);
     expect(LIVING_BODY_CANON.valueTip).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("the organism glyphs (P-110 organism plate)", () => {
+  it("all eleven kinds have a glyph of pure geometry inside the unit box — no text primitive exists", () => {
+    expect(ORGANISM_KINDS.length).toBe(11);
+    const signatures = new Set<string>();
+    for (const k of ORGANISM_KINDS) {
+      const g = organismGlyph(k);
+      expect(g.length, k).toBeGreaterThanOrEqual(2);
+      for (const p of g) {
+        expect(["poly", "circle", "arc"], k).toContain(p.k);
+        const pts = p.k === "poly" ? p.pts : [[p.cx - p.r, p.cy - p.r], [p.cx + p.r, p.cy + p.r]];
+        for (const [x, y] of pts) {
+          expect(Math.abs(x), k).toBeLessThanOrEqual(1.0001);
+          expect(Math.abs(y), k).toBeLessThanOrEqual(1.0001);
+        }
+      }
+      signatures.add(JSON.stringify(g));
+    }
+    // Eleven different shapes: no two species share a glyph.
+    expect(signatures.size).toBe(11);
+  });
+
+  it("the three the recognition test could not tell apart are unlike one another", () => {
+    const kinds = (k: OrganismKind) => organismGlyph(k).map(p => p.k).sort().join(",");
+    expect(kinds("TPO")).not.toBe(kinds("COMPOSITE"));
+    expect(kinds("COMPOSITE")).not.toBe(kinds("VRP"));
+    expect(organismGlyph("TPO").every(p => p.k === "poly" && p.fill === true)).toBe(true);
+  });
+
+  it("TPO's period ink runs from the recessed voice (early) to brass (late)", () => {
+    expect(tpoPeriodInk([194, 184, 146], [201, 165, 92], 0)).toBe("194,184,146");
+    expect(tpoPeriodInk([194, 184, 146], [201, 165, 92], 1)).toBe("201,165,92");
+    expect(tpoPeriodInk([0, 0, 0], [100, 100, 100], 0.5)).toBe("50,50,50");
+    expect(tpoPeriodInk([0, 0, 0], [100, 100, 100], 7)).toBe("100,100,100");
   });
 });

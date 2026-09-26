@@ -205,7 +205,7 @@ describe("3 · the P-110 body: solid, in the family's ink, with rules across the
 
   it("Composite and Visible Range speak the family's ink (bone / gold), not a steel of their own", () => {
     expect(COMPOSITE).not.toMatch(/rgba\((184,190,196|160,166,172),/);
-    expect(COMPOSITE).toContain('pk.rgba("VALUE", +(0.34 + 0.34 * age).toFixed(2))');
+    expect(COMPOSITE).toContain('pk.rgba("VALUE", +((0.34 + 0.34 * age) * band).toFixed(2))');
   });
 });
 
@@ -330,5 +330,54 @@ describe("8 · live defects, serving 2026-09-26 03:59–04:00 CDT", () => {
     expect(FUSED).toContain('line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, [], pk.rgba("POC", 0.95));');
     expect(FUSED).not.toContain("levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);");
     expect(CHART).toContain("fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],");
+  });
+});
+
+describe("9 · every species wears its organism glyph (Garden 11 recognition test, `&proof=nolabels`)", () => {
+  const painter = slice("function paintOrganismGlyph(kind: OrganismKind,", "function drawWMVP(", 1200);
+
+  it("the painter draws only the pure owner's geometry — no text — placed clear of candles and chips, and records it", () => {
+    expect(painter).toContain("for (const p of organismGlyph(kind)) {");
+    expect(painter).not.toMatch(/fillText|strokeText/);
+    expect(painter).toMatch(/placeClearOfKeepOut\(pref, profileCandlesAt\(/);
+    expect(painter).toContain("minX: LEFT_CHROME_RIGHT, blockers, strict: true, alternates: alts,");
+    expect(painter).toContain("if (spot.onCandles) return false;");
+    expect(painter).toContain("profileGlyphs.push(tag);");
+    expect(CHART).toContain('if (profileGlyphs.length > 0) ds.profileSpeciesGlyphs = profileGlyphs.join(",");');
+    expect(CHART).toMatch(/else delete ds\.profileSpeciesGlyphs;/);
+  });
+
+  it("each species paints its own glyph, in its own block", () => {
+    const expectGlyph = (block: string, name: string, kind: string) =>
+      expect(block, `${name} paints no ${kind} glyph`).toMatch(new RegExp(`paintOrganismGlyph\\("${kind}"`));
+    expectGlyph(LIVING, "Living", "LIVING");
+    expectGlyph(LIVING, "DNA (in Living's block)", "DNA");
+    expectGlyph(COMPOSITE, "Composite", "COMPOSITE");
+    expectGlyph(VRP, "Visible Range", "VRP");
+    expectGlyph(FUSED, "the fused object", "FUSION");
+    expectGlyph(TPO, "TPO", "TPO");
+    expectGlyph(STRUCTURE, "Structure", "STRUCTURE");
+    expectGlyph(FUSION, "Profile Fusion", "FUSION");
+    expectGlyph(MEMORY, "Memory", "MEMORY");
+    expect(VP).toContain('paintOrganismGlyph(span === "SESSION" ? "SESSION" : "FIXED", vpRight - vpW / 2,');
+    expect(VP).toContain('if (wall) paintOrganismGlyph("SESSION", x0, yT - 12, pk.rgba("ANCHOR", 0.95), forceChips, "SESSION_TICK");');
+    expect(FUSED).toContain('paintOrganismGlyph("FUSION", mx, my, `rgba(${FU},0.95)`, floatingChips, "FUSION_LINK");');
+  });
+
+  it("TPO paints NO fillText at MID/FAR: letters are gated on NEAR; otherwise time-coloured blocks", () => {
+    expect(TPO).toContain('const asText = semanticDensity.depth === "NEAR" && rowH >= 7 && cellW >= ctx.measureText("M").width;');
+    const texts = [...TPO.matchAll(/ctx\.fillText\(/g)];
+    expect(texts.length, "TPO's only fillText is the NEAR letter").toBe(1);
+    between(TPO, "if (asText) {", "ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);", "} else {");
+    expect(TPO).toContain("ctx.fillStyle = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));");
+  });
+
+  it("Composite is a gapless body with session tint bands; VRP is framed by four lane corners; Structure is a cube box", () => {
+    expect(COMPOSITE).toContain("const hRow = Math.max(1, rowH);");
+    expect(COMPOSITE).toContain("const band = k % 2 === 1 ? 0.72 : 1;");
+    expect(VRP).toContain("ctx.moveTo(xr - c, +yL); ctx.lineTo(xr, +yL); ctx.lineTo(xr, +yL - c);");
+    expect(VRP).toContain("ds.visibleRangeGeometry = `RAILS+LANE_CORNERS:");
+    expect(STRUCTURE).toContain("ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, x1 - x0, Math.round(bot - top));");
+    expect(STRUCTURE).toContain("+CUBE_BOX");
   });
 });

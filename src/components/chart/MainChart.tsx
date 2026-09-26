@@ -271,6 +271,11 @@ import {
   placeLevelPair,
   LEFT_CHROME_RIGHT,
   nearestMemoryLevels,
+  organismGlyph,
+  tpoPeriodInk,
+  GLYPH_BOX,
+  GLYPH_HALF,
+  type OrganismKind,
   structureProfileForm,
   structureSilenceWords,
 } from "@/lib/marketData/viewModels/profileCanonGlass";
@@ -6007,6 +6012,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // before the VP section's own lines are reached.
       let profileCut: { path: Path2D; rects: ReturnType<typeof candleCutOutRects> } | null = null;
       const profileCutBy = new Set<string>();
+      // The organism glyphs painted this frame (receipt profileSpeciesGlyphs).
+      const profileGlyphs: string[] = [];
       let vpChipsPlaced = 0;
       let vpWordsWithheld = 0;
       let vpPairsMoved = 0;
@@ -8133,6 +8140,51 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         return profileCandleCut().rects.filter(r => r.y < yBot && r.y + r.h > yTop);
       }
       /*
+        P-110 ORGANISM PLATE · EACH SPECIES WEARS ITS GLYPH (2026-09-26, the
+        Garden 11 recognition test, `&proof=nolabels`: with every word hidden
+        TPO vanished and Composite / VRP were indistinguishable). The glyph is
+        the plate's — pulse, cube, link, brain, helix, clock, target, layers,
+        grid, blocks — drawn as GEOMETRY ONLY from the pure owner
+        (profileCanonGlass.organismGlyph: no text primitive exists), at the head
+        of the species' lane, in the family ink. Placed like every profile word:
+        clear of every candle body and wick and every chip, never in the header
+        band or the left chrome; with nowhere clear it is withheld, never
+        printed on a candle. The frame's receipt lists what painted.
+      */
+      function paintOrganismGlyph(kind: OrganismKind, cx: number, cy: number, ink: string, blockers: { x: number; y: number; w: number; h: number }[], tag: string = kind): boolean {
+        if (!ctx) return false;
+        const B = GLYPH_BOX;
+        const at = (x: number, y: number) => ({ x: x - B / 2, y: Math.max(HEADER_FLOOR_Y, y - B / 2), w: B, h: B });
+        const pref = at(cx, cy);
+        const alts = [at(cx, cy - B - 2), at(cx, cy + B + 2), at(cx - B - 4, cy), at(cx + B + 4, cy), at(cx, cy - 2 * B - 4)];
+        const spot = placeClearOfKeepOut(pref, profileCandlesAt(pref.y - 2 * B - 6, pref.y + 2 * B + 4), {
+          minX: LEFT_CHROME_RIGHT, blockers, strict: true, alternates: alts,
+        });
+        if (spot.onCandles) return false;
+        blockers.push({ ...spot.rect });
+        const ox = spot.rect.x + B / 2, oy = spot.rect.y + B / 2, s = GLYPH_HALF;
+        ctx.save();
+        ctx.strokeStyle = ink; ctx.fillStyle = ink;
+        ctx.lineWidth = 1.25; ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.setLineDash([]);
+        for (const p of organismGlyph(kind)) {
+          ctx.beginPath();
+          if (p.k === "poly") {
+            p.pts.forEach(([x, y], i) => (i ? ctx.lineTo(ox + x * s, oy + y * s) : ctx.moveTo(ox + x * s, oy + y * s)));
+            if (p.close) ctx.closePath();
+            if (p.fill) ctx.fill(); else ctx.stroke();
+          } else if (p.k === "circle") {
+            ctx.arc(ox + p.cx * s, oy + p.cy * s, p.r * s, 0, Math.PI * 2);
+            if (p.fill) ctx.fill(); else ctx.stroke();
+          } else {
+            ctx.arc(ox + p.cx * s, oy + p.cy * s, p.r * s, p.a0, p.a1);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+        profileGlyphs.push(tag);
+        return true;
+      }
+      /*
         RETURNS ITS OUTCOME, instead of returning `undefined` into a void.
 
         Five of the guards below are DECLINES: the profile was requested and no
@@ -8614,6 +8666,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (vahPrice !== pocPrice) vpLevel(vahPrice, vpVahRgba, "VAH");
           if (valPrice !== pocPrice) vpLevel(valPrice, vpValRgba, "VAL");
         }
+        // ⑥ SESSION (a clock) / ⑧ FIXED (stacked layers) — the organism glyph
+        // at the head of the column, above its highest row, in the family ink.
+        // Geometry, not words: it paints wherever the column paints (QUIET too).
+        {
+          const yHead = yOf(hiKey);
+          paintOrganismGlyph(span === "SESSION" ? "SESSION" : "FIXED", vpRight - vpW / 2, (yHead ?? HEADER_FLOOR_Y + 20) - 12, pk.rgba("ANCHOR", 0.95), forceChips);
+        }
 
         // SESSION PROFILE · THE SESSION IS THE FRAME (GP12 Defect 2: "must clip
         // to an actual session definition"). Without a word, the column is
@@ -8654,6 +8713,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.stroke();
             }
             ctx.restore();
+            // …and a CLOCK TICK at the session's start x (organism ⑥): the
+            // session profile names WHEN it began without a word.
+            if (wall) paintOrganismGlyph("SESSION", x0, yT - 12, pk.rgba("ANCHOR", 0.95), forceChips, "SESSION_TICK");
             if (canvasRef.current) canvasRef.current.dataset.vpSpan = wall ? `OPEN:${Math.round(x0)}` : "OPENED_BEFORE_VIEW";
           }
         }
@@ -13584,6 +13646,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
             if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
             ds.livingProfileLabels = `CHIPS:${livingChips}`;
+            // ① LIVING (a pulse) — the organism glyph at the head of the body.
+            if (silhouette.length > 0) {
+              const headY = Math.min(...silhouette.map(q => q.y));
+              paintOrganismGlyph("LIVING", rightEdge - GLYPH_BOX, headY - 14, pk.chosenOr("POC", 0.95, "rgba(233,196,106,0.95)"), floatingChips);
+            }
 
             /*
               FIDELITY ON THE GLASS. A candle-estimated profile is a lawful
@@ -13654,6 +13721,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
                 ctx.setLineDash([]);
                 ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
+                // ⑤ DNA (a helix) — the organism glyph at the head of the spine.
+                paintOrganismGlyph("DNA", sx, Math.min(+yHi, +yLo) - 14, pk.rgba("VALUE", 0.9), floatingChips);
                 let yMass: number | null = null;
                 if (dna.measured) {
                   const yVal = dna.val != null ? srs.priceToCoordinate(dna.val) : null;
@@ -13795,7 +13864,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // base, each newer session's volume on top, firmer with recency,
                 // a hairline seam between strata. N sessions → one profile,
                 // visible in the shape without the word.
-                const hRow = Math.max(1, rowH - 1);
+                // 2026-09-26 (Garden 11 recognition test: Composite and VRP were
+                // two identical bone hairline histograms): Composite is ONE
+                // GAPLESS aggregate body — rows touch, no 1px gap — and its n
+                // sessions read as n subtle TINT BANDS inside it (alternate
+                // sessions a step dimmer), not as n profiles. VRP stays hollow
+                // and gapped: the two differ in form with every label hidden.
+                const hRow = Math.max(1, rowH);
                 const total = r.volume > 0 ? r.volume : 1;
                 const nS = r.bySession.length;
                 let xs = right;
@@ -13803,11 +13878,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   if (!(v > 0)) return;
                   const segW = w * (v / total);
                   const age = nS > 1 ? k / (nS - 1) : 1;
+                  const band = k % 2 === 1 ? 0.72 : 1;
                   ctx.fillStyle = r.isPoc
-                    ? pk.rgba("POC", +(0.62 + 0.3 * age).toFixed(2))
+                    ? pk.rgba("POC", +((0.62 + 0.3 * age) * band).toFixed(2))
                     : r.insideValueArea
-                      ? pk.rgba("VALUE", +(0.34 + 0.34 * age).toFixed(2))
-                      : pk.rgbaAs("TAIL", "VALUE", +(0.16 + 0.2 * age).toFixed(2));
+                      ? pk.rgba("VALUE", +((0.34 + 0.34 * age) * band).toFixed(2))
+                      : pk.rgbaAs("TAIL", "VALUE", +((0.16 + 0.2 * age) * band).toFixed(2));
                   ctx.fillRect(xs - segW, y, segW, hRow);
                   if (segW >= 3 && xs < right) {
                     ctx.fillStyle = "rgba(11,10,8,0.55)";
@@ -13831,6 +13907,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
               lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
               lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
+              // ⑨ COMPOSITE (a grid) — the organism glyph at the head of the lane
+              // (geometry, not words: it paints wherever the lane paints).
+              if (Number.isFinite(top)) paintOrganismGlyph("COMPOSITE", right - width / 2, top - 12, pk.rgba("VALUE", 0.95), floatingChips);
               if (Number.isFinite(top) && att.speaks("compositeProfile")) {
                 // The species' caption rides just above its own lane — no longer
                 // a fixed row at y=50 inside the header band, where it sat under
@@ -13885,15 +13964,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.save(); clipProfileToCandles("VISIBLE_RANGE");
                 // The brackets are the camera's hardware, drawn in ivory.
                 ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.8); ctx.lineWidth = 1.5;
+                // 2026-09-26 (Garden 11 recognition test): the lane itself is
+                // framed by FOUR camera corners — top-left, top-right,
+                // bottom-left, bottom-right of the profile at the range's high
+                // and low — so with every word hidden it reads "what is on
+                // screen" (organism ⑦, target rails), unlike Composite's body.
+                const xl = right - width - 3, xr = right + 3;
                 ctx.beginPath();
-                ctx.moveTo(x1v - c, +yH); ctx.lineTo(x1v, +yH); ctx.lineTo(x1v, +yH + c);
-                ctx.moveTo(x1v - c, +yL); ctx.lineTo(x1v, +yL); ctx.lineTo(x1v, +yL - c);
+                ctx.moveTo(xl, +yH + c); ctx.lineTo(xl, +yH); ctx.lineTo(xl + c, +yH);
+                ctx.moveTo(xr - c, +yH); ctx.lineTo(xr, +yH); ctx.lineTo(xr, +yH + c);
+                ctx.moveTo(xl, +yL - c); ctx.lineTo(xl, +yL); ctx.lineTo(xl + c, +yL);
+                ctx.moveTo(xr - c, +yL); ctx.lineTo(xr, +yL); ctx.lineTo(xr, +yL - c);
                 ctx.stroke();
                 ctx.setLineDash([1, 5]); ctx.strokeStyle = pk.rgbaAs("ANCHOR", "VALUE", 0.22); ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(x0v, Math.round(+yH) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yH) + 0.5);
-                ctx.moveTo(x0v, Math.round(+yL) + 0.5); ctx.lineTo(x1v - c - 2, Math.round(+yL) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+                ctx.beginPath(); ctx.moveTo(x0v, Math.round(+yH) + 0.5); ctx.lineTo(x1v - 2, Math.round(+yH) + 0.5);
+                ctx.moveTo(x0v, Math.round(+yL) + 0.5); ctx.lineTo(x1v - 2, Math.round(+yL) + 0.5); ctx.stroke(); ctx.setLineDash([]);
                 ctx.restore(); // releases the rails' candle cut-out
-                ds.visibleRangeGeometry = `RAILS:${Math.round(x0v)}-${Math.round(x1v)}`;
+                ds.visibleRangeGeometry = `RAILS+LANE_CORNERS:${Math.round(x0v)}-${Math.round(xr)}`;
               }
             }
             const ys: number[] = [];
@@ -13939,6 +14026,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
             lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.85));
             lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.85));
+            // ⑦ VRP (a target) — the organism glyph at the head of the lane
+            // (geometry, not words: it paints wherever the lane paints).
+            if (Number.isFinite(top)) paintOrganismGlyph("VRP", right - width / 2, top - 14, pk.rgbaAs("ANCHOR", "VALUE", 0.95), floatingChips);
             if (Number.isFinite(top) && att.speaks("visibleRangeProfile")) {
               // Just above its own lane — no longer a fixed row at y=66 inside
               // the header band, where it collided with the semantic badge
@@ -14047,6 +14137,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               ctx.restore(); // releases the fused body's candle cut-out
               ctx.globalAlpha = fuseA;
+              // ③ the fused object's own head glyph, above its highest row.
+              if (fusedTips.length > 0) paintOrganismGlyph("FUSION", spanR - spanW / 2, fusedTips[0].y - 14, `rgba(${FU},0.95)`, floatingChips, "FUSED");
               // PARENT A + PARENT B → DERIVED. Each parent's OWN POC (hollow
               // ring, at its own lane) sends a tributary that converges on the
               // fused POC (filled diamond). The shape says "made from these
@@ -14071,6 +14163,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.stroke();
                     ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
                     ctx.fillStyle = "rgba(11,10,8,0.95)"; ctx.fill(); ctx.stroke();
+                    // ③ THE LINK (organism plate) on the tributary, halfway from
+                    // the parent to the fused child: "made from this parent".
+                    const mx = 0.125 * px + 0.375 * (px - (px - cx) * 0.5) + 0.375 * (cx + 10) + 0.125 * cx;
+                    const my = 0.125 * py + 0.375 * py + 0.375 * cy + 0.125 * cy;
+                    paintOrganismGlyph("FUSION", mx, my, `rgba(${FU},0.95)`, floatingChips, "FUSION_LINK");
                   });
                   ctx.beginPath();
                   ctx.moveTo(cx, cy - 6); ctx.lineTo(cx + 6, cy); ctx.lineTo(cx, cy + 6); ctx.lineTo(cx - 6, cy); ctx.closePath();
@@ -14169,6 +14266,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const onCandle = (x: number, y: number, w: number, h: number) =>
               tpoCandles.some(c => c.x < x + w && c.x + c.w > x && c.y < y + h && c.y + c.h > y);
             let tpoCellsYielded = 0;
+            let tpoTop = Infinity;
 
             // Row height from on-screen spacing between successive grid rows,
             // same rule as the volume histogram so the two read at one scale.
@@ -14201,8 +14299,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // into the TPO labels on a phone.
             const cellW = Math.min(8, colMax / maxLetters);
             ctx.font = `700 ${Math.min(10, rowH)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-            // Letters only where a glyph fits its own cell; otherwise blocks.
-            const asText = rowH >= 7 && cellW >= ctx.measureText("M").width;
+            // Letters only at NEAR, where a glyph fits its own cell. At MID and
+            // FAR TPO is TIME-COLOURED BLOCKS (2026-09-26, Garden 11 recognition
+            // test: with labels hidden the letter-only TPO vanished): one square
+            // per TPO cell, its period read as colour — early in the family's
+            // recessed voice, late in brass (tpoPeriodInk) — so the auction's
+            // migration through time survives every word being hidden. The
+            // blocks yield to the candles cell by cell (below), so they no
+            // longer need to stay a faint tint to leave the candles readable.
+            const asText = semanticDensity.depth === "NEAR" && rowH >= 7 && cellW >= ctx.measureText("M").width;
             // Brightness runs early → late across THIS window's brackets (the
             // newest one is full weight even when there are fewer than 26).
             const lastL = Math.max(1, ...tpo.rows.map(r => r.letters.length ? r.letters.charCodeAt(r.letters.length - 1) - 65 : 0));
@@ -14215,11 +14320,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (!v) { v = `rgba(${rgb},${a.toFixed(2)})`; inkCache.set(key, v); }
               return v;
             };
+            // A square cell: as wide as the column allows, never taller than its row.
+            const side = Math.max(1, Math.min(cellW - (cellW >= 3 ? 1 : 0), Math.max(1, rowH - 1)));
             for (const r of tpo.rows) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
               const y = Math.round(+yr) - Math.floor(rowH / 2);
               const h = Math.max(1, rowH - 1);
+              tpoTop = Math.min(tpoTop, y);
               const rgb = r.isPoc ? pk.rgb("POC") : r.insideValueArea ? pk.rgb("VALUE") : pk.rgb("TAIL");
               const base = r.isPoc ? 1 : r.insideValueArea ? 0.9 : 0.55;
               for (let k = 0; k < r.letters.length; k++) {
@@ -14231,10 +14339,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillStyle = ink(rgb, base * (0.35 + 0.65 * late));
                   ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);
                 } else {
-                  // Blocks sit over the oldest candles at the left edge, so
-                  // they stay a tint (≤ 0.25), the way the old row fills did.
-                  ctx.fillStyle = ink(rgb, base * (0.08 + 0.17 * late));
-                  ctx.fillRect(x, y, Math.max(0.5, cellW - (cellW >= 3 ? 1 : 0)), h);
+                  ctx.fillStyle = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));
+                  ctx.fillRect(x, y + (h - side) / 2, side, side);
                 }
               }
               drawnRows++;
@@ -14276,6 +14382,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // candles; it is never cut into pieces by one), at TPO's loudness.
             ctx.save(); ctx.globalAlpha = att.alpha("tpo");
             for (const c of tpoChips) levelChip(c.y, c.text, c.ink, { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
+            // ⑩ BLOCKS — the organism glyph at the head of the column.
+            if (Number.isFinite(tpoTop)) paintOrganismGlyph("TPO", leftEdge + 8, tpoTop - 12, pk.rgba("ANCHOR", 0.95), floatingChips);
             ctx.restore();
             ds.tpoCellsYielded = String(tpoCellsYielded);
             ds.tpoProfileRows = String(drawnRows);
@@ -14408,6 +14516,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const ya = srs.priceToCoordinate(sp.anchor.price);
               ctx.fillStyle = pk.rgba("WASH", 0.035);
               ctx.fillRect(x0, top, Math.max(0, (W - 76) - x0), bot - top);
+              // ② THE CUBE-CLIP BOX TO ITS SWING (organism plate, 2026-09-26):
+              // the leg's price span from the swing bar to now, drawn as a cube
+              // — front face plus a 5px receding top and side — so the leg reads
+              // as Structure's box with every word hidden. Behind the candles.
+              {
+                const x1 = Math.max(x0 + 6, (W - 76)), d = 5;
+                ctx.strokeStyle = pk.rgba("ANCHOR", 0.5); ctx.lineWidth = 1;
+                ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, x1 - x0, Math.round(bot - top));
+                ctx.beginPath();
+                ctx.moveTo(x0 + 0.5, top + 0.5); ctx.lineTo(x0 + d + 0.5, top - d + 0.5); ctx.lineTo(x1 + d + 0.5, top - d + 0.5);
+                ctx.lineTo(x1 + d + 0.5, bot - d + 0.5); ctx.lineTo(x1 + 0.5, bot + 0.5);
+                ctx.moveTo(x1 + 0.5, top + 0.5); ctx.lineTo(x1 + d + 0.5, top - d + 0.5);
+                ctx.stroke();
+              }
               ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
               ctx.lineWidth = 1;
               if (drawnRows > 0) { ctx.beginPath(); ctx.moveTo(histX - 0.5, top); ctx.lineTo(histX - 0.5, bot); ctx.stroke(); }
@@ -14430,7 +14552,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.beginPath(); ctx.moveTo(x0 - 6, yA + 0.5); ctx.lineTo(histX + 6, yT + 0.5); ctx.lineTo(histX - 0.5, yT + 0.5); ctx.stroke();
                   tethered = true;
                 }
-                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}${tethered ? "+TETHER" : ""}+TERRITORY${form === "HISTOGRAM" ? "" : "+RULE"}`;
+                ds.structureProfileGeometry = `SWING_${sp.anchor.kind}${tethered ? "+TETHER" : ""}+CUBE_BOX${form === "HISTOGRAM" ? "" : "+RULE"}`;
               }
             }
 
@@ -14452,6 +14574,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
             ctx.restore(); // releases the Structure's candle cut-out
+            // ② STRUCTURE (a cube) — the organism glyph at the swing, above the leg.
+            if (legDrawn) paintOrganismGlyph("STRUCTURE", x0 + 10, top - 16, pk.rgba("ANCHOR", 0.95), floatingChips);
 
             // Name the anchor where it is, so the profile says what it is.
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
@@ -14646,6 +14770,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const hit = rectHits({ x: t.x, y: t.y - 6, w: tw, h: 12 }, profileCandlesAt(t.y - 6, t.y + 6)) > 0;
               ctx.fillText(t.text, hit ? t.x - 14 - tw : t.x, t.y);
             }
+            // ③ FUSION (a link) — the organism glyph at the head of the knots.
+            if (knotTags.length > 0) paintOrganismGlyph("FUSION", knotX, Math.min(...knotTags.map(t => t.y)) - 16, pk.rgba("ANCHOR", 0.95), floatingChips);
             ctx.restore();
             ds.profileFusionZones = String(painted);
             ds.profileFusionForm = painted > 0 ? "KNOT" : "NONE";
@@ -14797,6 +14923,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               memNames.push({ l, y, x0, fade });
             }
             ctx.restore(); // releases Memory's candle cut-out
+            // ④ MEMORY (a brain) — the organism glyph at the head of the nearest
+            // remembered level, where its line meets the stack.
+            if (memNames.length > 0) paintOrganismGlyph("MEMORY", endX - 10, Math.min(...memNames.map(m => m.y)) - 14, "rgba(176,172,164,0.95)", floatingChips);
             for (const { l, y, x0, fade } of memNames) {
               const isPoc = l.kind === "POC";
               const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";
@@ -15038,6 +15167,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         else delete ds.profileCandleCut;
         if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y`;
         else delete ds.profileLevelChips;
+        // The organism glyphs painted this frame, in paint order — e.g.
+        // "SESSION,SESSION_TICK,LIVING,COMPOSITE". A species whose glyph found
+        // no spot clear of the candles is absent (withheld, never on a candle).
+        if (profileGlyphs.length > 0) ds.profileSpeciesGlyphs = profileGlyphs.join(",");
+        else delete ds.profileSpeciesGlyphs;
 
         /* ══ F11 · MARKET OBJECT ZONES — the Passport mockup, on price ═══════
            Swing-origin ZONES from the structure owner, biography from the

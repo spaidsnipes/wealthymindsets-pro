@@ -360,3 +360,83 @@ export function nearestMemoryLevels<T extends { readonly price: number; readonly
   const kept = clean.filter((_, i) => keep.has(i));
   return { kept, withheld: levels.length - kept.length };
 }
+
+/* ── THE ORGANISM GLYPHS (P-110 organism plate, 11 types) ────────────────────
+ * Garden 11 recognition test (`&proof=nolabels`, serving 2026-09-26 03:58):
+ * with every word hidden, TPO vanished (it was letters) and Composite / VRP
+ * were two identical bone hairline histograms. The organism plate gives each
+ * species its own glyph — "ONE GENERIC PROFILE ≠ FAMILY CLOSED". Each glyph
+ * is GEOMETRY ONLY (polylines, circles, arcs in a unit box [-1, 1], y down);
+ * there is no text primitive, so a glyph survives every label being hidden.
+ */
+export type OrganismKind =
+  | "LIVING" | "STRUCTURE" | "FUSION" | "MEMORY" | "DNA" | "SESSION"
+  | "VRP" | "FIXED" | "COMPOSITE" | "TPO" | "BIDASK";
+
+export const ORGANISM_KINDS: readonly OrganismKind[] = [
+  "LIVING", "STRUCTURE", "FUSION", "MEMORY", "DNA", "SESSION", "VRP", "FIXED", "COMPOSITE", "TPO", "BIDASK",
+];
+
+export type GlyphPrimitive =
+  | { readonly k: "poly"; readonly pts: readonly (readonly [number, number])[]; readonly close?: boolean; readonly fill?: boolean }
+  | { readonly k: "circle"; readonly cx: number; readonly cy: number; readonly r: number; readonly fill?: boolean }
+  | { readonly k: "arc"; readonly cx: number; readonly cy: number; readonly r: number; readonly a0: number; readonly a1: number };
+
+/** The glyph's drawn half-size (px, centre to edge) and its square placement box. */
+export const GLYPH_HALF = 6;
+export const GLYPH_BOX = 16;
+
+const sq = (x: number, y: number, s: number, fill = false): GlyphPrimitive =>
+  ({ k: "poly", pts: [[x, y], [x + s, y], [x + s, y + s], [x, y + s]], close: true, fill });
+const seg = (x1: number, y1: number, x2: number, y2: number): GlyphPrimitive => ({ k: "poly", pts: [[x1, y1], [x2, y2]] });
+
+export function organismGlyph(kind: OrganismKind): readonly GlyphPrimitive[] {
+  switch (kind) {
+    case "LIVING": // ① a pulse
+      return [{ k: "poly", pts: [[-1, 0.1], [-0.45, 0.1], [-0.25, -0.8], [0, 0.8], [0.2, -0.35], [0.35, 0.1], [1, 0.1]] }, { k: "circle", cx: 0, cy: 0.8, r: 0.12, fill: true }];
+    case "STRUCTURE": // ② a cube
+      return [sq(-0.85, -0.3, 1.1), sq(-0.3, -0.85, 1.1), seg(-0.85, -0.3, -0.3, -0.85), seg(0.25, -0.3, 0.8, -0.85), seg(0.25, 0.8, 0.8, 0.25)];
+    case "FUSION": // ③ a link — two rings through each other
+      return [{ k: "circle", cx: -0.38, cy: 0.18, r: 0.5 }, { k: "circle", cx: 0.38, cy: -0.18, r: 0.5 }];
+    case "MEMORY": // ④ a brain — two lobes and the fissure
+      return [
+        { k: "arc", cx: -0.28, cy: 0, r: 0.62, a0: Math.PI / 2, a1: (3 * Math.PI) / 2 },
+        { k: "arc", cx: 0.28, cy: 0, r: 0.62, a0: -Math.PI / 2, a1: Math.PI / 2 },
+        seg(0, -0.62, 0, 0.62),
+        { k: "arc", cx: -0.3, cy: 0, r: 0.25, a0: -Math.PI / 2, a1: Math.PI / 2 },
+      ];
+    case "DNA": { // ⑤ a helix — two strands and their rungs
+      const a: [number, number][] = [];
+      const b: [number, number][] = [];
+      for (let i = 0; i <= 12; i++) {
+        const y = -1 + i / 6;
+        a.push([0.6 * Math.sin(y * Math.PI), y]);
+        b.push([-0.6 * Math.sin(y * Math.PI), y]);
+      }
+      return [{ k: "poly", pts: a }, { k: "poly", pts: b }, seg(-0.45, -0.55, 0.45, -0.55), seg(-0.45, 0.45, 0.45, 0.45)];
+    }
+    case "SESSION": // ⑥ a clock
+      return [{ k: "circle", cx: 0, cy: 0, r: 0.9 }, { k: "poly", pts: [[0, -0.6], [0, 0], [0.45, 0.25]] }];
+    case "VRP": // ⑦ a target
+      return [{ k: "circle", cx: 0, cy: 0, r: 0.9 }, { k: "circle", cx: 0, cy: 0, r: 0.45 }, { k: "circle", cx: 0, cy: 0, r: 0.12, fill: true }, seg(0.45, -0.45, 1, -1)];
+    case "FIXED": // ⑧ stacked layers
+      return [-0.45, 0.05, 0.55].map(y => ({ k: "poly" as const, pts: [[-0.95, y], [0, y - 0.4], [0.95, y], [0, y + 0.4]] as [number, number][], close: true }));
+    case "COMPOSITE": // ⑨ a grid
+      return [sq(-0.9, -0.9, 1.8), seg(-0.3, -0.9, -0.3, 0.9), seg(0.3, -0.9, 0.3, 0.9), seg(-0.9, -0.3, 0.9, -0.3), seg(-0.9, 0.3, 0.9, 0.3)];
+    case "TPO": // ⑩ blocks
+      return [sq(-0.9, 0.1, 0.8, true), sq(0.1, 0.1, 0.8, true), sq(-0.4, -0.9, 0.8, true)];
+    case "BIDASK": // ⑪ a split square
+      return [sq(-0.9, -0.9, 1.8), { k: "poly", pts: [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9]], close: true, fill: true }];
+  }
+}
+
+/**
+ * TPO's time colour: a cell's period, early → late, as a blend from the
+ * family's recessed voice (TAIL) to its brass (ANCHOR) — the auction's
+ * migration through time readable with every letter hidden. Returns r,g,b.
+ */
+export function tpoPeriodInk(tail: readonly [number, number, number], anchor: readonly [number, number, number], late01: number): string {
+  const t = Math.max(0, Math.min(1, Number.isFinite(late01) ? late01 : 0));
+  const c = (i: number) => Math.round(tail[i] + (anchor[i] - tail[i]) * t);
+  return `${c(0)},${c(1)},${c(2)}`;
+}
