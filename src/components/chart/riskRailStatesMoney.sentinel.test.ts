@@ -67,3 +67,19 @@ describe("risk rail states money (Garden 16 §17)", () => {
     expect(deps![0]).toMatch(/\bsymbol\b/);
   });
 });
+
+describe("the rail's receipts leave with every frame (Sheriff review, 2026-09-26)", () => {
+  it("are withdrawn at the top of draw(), before its first early return", () => {
+    expect(SRC).toMatch(/const RISK_RAIL_RECEIPTS = \["riskOnPrice", "riskOnPriceTicks", "riskOnPriceSilence", "riskEconomics"\] as const;/);
+    const draw = SRC.indexOf("const draw = () => {");
+    const withdraw = SRC.indexOf("for (const k of RISK_RAIL_RECEIPTS) delete canvas.dataset[k];", draw);
+    const firstReturn = SRC.indexOf("if (!W || !H) return;", draw);
+    expect(draw).toBeGreaterThan(-1);
+    expect(withdraw).toBeGreaterThan(draw);
+    expect(firstReturn).toBeGreaterThan(withdraw);
+  });
+
+  it("the STOP header names its unit so it cannot be read as dollars", () => {
+    expect(SRC).toMatch(/· risk \$\{rv\.riskPerUnit\.toFixed\(pxDp\)\} pts \(/);
+  });
+});

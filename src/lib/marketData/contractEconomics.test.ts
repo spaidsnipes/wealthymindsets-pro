@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { CONTRACT_MULTIPLIERS } from "@/lib/paperTrade";
 import {
   CONTRACT_TICK_SIZES,
+  formatMoney,
   formatTicks,
   formatUsd,
   instrumentEconomics,
@@ -173,6 +174,40 @@ describe("words", () => {
     expect(formatTicks(20)).toBe("20");
     expect(formatTicks(20.36)).toBe("≈20.4");
     const r = selectRiskEconomics("ES1!", { entry: 6512.3, stop: 6507.2, target: null });
-    expect(r.status === "PRICED" && r.words).toBe("≈20.4 ticks × $12.50 = $255.00 per 1 contract");
+    // Off the grid a rounded tick count would not multiply out (Sheriff,
+    // 2026-09-26), so the line states points and still adds up.
+    expect(r.status === "PRICED" && r.words).toBe("off tick grid · 5.1 pts × $50.00 = $255.00 per 1 contract");
+  });
+});
+
+describe("the line always adds up (Sheriff review, 2026-09-26)", () => {
+  it("a sub-dollar stock's money keeps its digits instead of reading $0.00", () => {
+    const r = selectRiskEconomics("ABCD", { entry: 0.4125, stop: 0.4088, target: 0.4199 });
+    expect(r.status === "PRICED" && r.words).toBe("37 ticks × $0.0001 = $0.0037 per 1 share");
+    expect(r.status === "PRICED" && r.rewardWords).toBe("reward $0.0074 per 1 share");
+    expect(r.receipt).toBe("PRICED:ABCD:tick=0.0001:pv=1:ticks=37:risk=0.0037:reward=0.0074:share");
+  });
+
+  it("money formatting: cents at and above a cent, digits below", () => {
+    expect(formatMoney(250)).toBe("$250.00");
+    expect(formatMoney(0.01)).toBe("$0.01");
+    expect(formatMoney(0.0037)).toBe("$0.0037");
+    expect(formatMoney(0.000037)).toBe("$0.000037");
+    expect(formatMoney(0)).toBe("$0.00");
+    expect(formatMoney(-0.0037)).toBe("-$0.0037");
+  });
+
+  it("one tick is one tick", () => {
+    const r = selectRiskEconomics("ES1!", { entry: 6512.25, stop: 6512, target: null });
+    expect(r.status === "PRICED" && r.words).toBe("1 tick × $12.50 = $12.50 per 1 contract");
+  });
+
+  it("a plan without finite prices is named, never printed as $NaN", () => {
+    for (const plan of [{ entry: NaN, stop: 1, target: null }, { entry: 10, stop: Infinity, target: null }, { entry: 10, stop: 9, target: NaN }]) {
+      const r = selectRiskEconomics("TSLA", plan);
+      expect(r.status).toBe("REFUSED");
+      expect(r.words).toBe("$ risk withheld — the plan has no finite prices");
+      expect(r.receipt).toBe("REFUSED:NO_PLAN_PRICES:TSLA");
+    }
   });
 });

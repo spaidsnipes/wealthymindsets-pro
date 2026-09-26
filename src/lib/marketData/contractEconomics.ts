@@ -180,6 +180,23 @@ export function formatUsd(n: number): string {
   return `${sign}$${int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${frac}`;
 }
 
+/**
+ * Money a trader can read at any size. Two decimals at and above a cent; below
+ * a cent, enough digits to stay true (Sheriff, 2026-09-26: a sub-dollar stock's
+ * rail read "37 ticks × $0.0001 = $0.00", a line that contradicts itself).
+ */
+export function formatMoney(n: number): string {
+  if (n === 0 || Math.abs(n) >= 0.01) return formatUsd(n);
+  return `${n < 0 ? "-" : ""}$${moneyDigits(Math.abs(n))}`;
+}
+
+/** The receipt's number: the same precision rule, no symbol, no grouping. */
+export function moneyDigits(n: number): string {
+  if (n === 0 || Math.abs(n) >= 0.01) return n.toFixed(2);
+  const decimals = Math.min(8, Math.max(4, 1 - Math.floor(Math.log10(Math.abs(n)))));
+  return n.toFixed(decimals);
+}
+
 /** A whole tick count prints whole; an off-grid stop says it is approximate. */
 export function formatTicks(t: number): string {
   const r = Math.round(t);
@@ -196,6 +213,17 @@ export function selectRiskEconomics(
   plan: { readonly entry: number; readonly stop: number; readonly target: number | null },
 ): RiskEconomics {
   const economics = instrumentEconomics(symbol, plan.entry);
+  // A plan with a non-finite price is not money; it is named, never printed as $NaN.
+  const finite = [plan.entry, plan.stop].every(Number.isFinite) && (plan.target == null || Number.isFinite(plan.target));
+  if (!finite) {
+    return {
+      status: "REFUSED",
+      economics,
+      words: "$ risk withheld — the plan has no finite prices",
+      rewardWords: null,
+      receipt: `REFUSED:NO_PLAN_PRICES:${economics.root}`,
+    };
+  }
   if (economics.status === "REFUSED") {
     return {
       status: "REFUSED",
@@ -211,18 +239,24 @@ export function selectRiskEconomics(
   const rewardPerUnit = rewardPoints == null ? null : rewardPoints * economics.pointValue;
   const stopTicks = economics.tickSize == null ? null : riskPoints / economics.tickSize;
   const per = `per 1 ${economics.unit}`;
-  const words = stopTicks != null && economics.tickValue != null
-    ? `${formatTicks(stopTicks)} ticks × ${formatTickValue(economics.tickValue)} = ${formatUsd(riskPerUnit)} ${per}`
-    : `${formatUsd(riskPerUnit)} ${per}`;
-  const rewardWords = rewardPerUnit == null ? null : `reward ${formatUsd(rewardPerUnit)} ${per}`;
+  const ticksWord = stopTicks == null ? null : formatTicks(stopTicks);
+  // ON THE GRID the sum is ticks × tick value. OFF THE GRID (a plan saved before
+  // anchors snapped) a rounded tick count would not multiply out, so the
+  // line states the distance in points instead and still adds up.
+  const words = ticksWord == null || economics.tickValue == null
+    ? `${formatMoney(riskPerUnit)} ${per}`
+    : ticksWord.startsWith("≈")
+    ? `off tick grid · ${Number(riskPoints.toPrecision(7))} pts × ${formatMoney(economics.pointValue)} = ${formatMoney(riskPerUnit)} ${per}`
+    : `${ticksWord} ${ticksWord === "1" ? "tick" : "ticks"} × ${formatTickValue(economics.tickValue)} = ${formatMoney(riskPerUnit)} ${per}`;
+  const rewardWords = rewardPerUnit == null ? null : `reward ${formatMoney(rewardPerUnit)} ${per}`;
   const receipt = [
     "PRICED",
     economics.root,
     `tick=${economics.tickSize ?? "NA"}`,
     `pv=${economics.pointValue}`,
     `ticks=${stopTicks == null ? "NA" : formatTicks(stopTicks)}`,
-    `risk=${riskPerUnit.toFixed(2)}`,
-    `reward=${rewardPerUnit == null ? "NA" : rewardPerUnit.toFixed(2)}`,
+    `risk=${moneyDigits(riskPerUnit)}`,
+    `reward=${rewardPerUnit == null ? "NA" : moneyDigits(rewardPerUnit)}`,
     economics.unit,
   ].join(":");
   return { status: "PRICED", economics, riskPoints, stopTicks, riskPerUnit, rewardPerUnit, words, rewardWords, receipt };

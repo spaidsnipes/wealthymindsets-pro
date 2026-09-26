@@ -426,8 +426,15 @@ describe("compileScene — locked admission invariants", () => {
  * correct if the cascade is ever reordered), but the LAW is pinned here instead
  * — exhaustively, over the whole reachable signal space, so it survives any
  * future reordering that removes either enforcement point.
+ *
+ * BUDGET SIZED TO THE WALK (2026-09-26). Each case below enumerates the whole
+ * reachable space, deliberately. Measured on a loaded 4-CPU box (load average
+ * ~12): "§9 LAW … DEGRADED withholds" 3452 ms and TOTALITY 3119 ms run alone;
+ * inside the full suite they crossed vitest's 5 s default twice and failed with
+ * every assertion passing. The budget is the enumeration's, not the default's;
+ * the invariants and the space are unchanged.
  */
-describe("compileScene — exhaustive invariants over the reachable signal space", () => {
+describe("compileScene — exhaustive invariants over the reachable signal space", { timeout: 30_000 }, () => {
   const positions = ["FLAT", "LONG", "SHORT", "POSITION UNCONFIRMED"] as const;
   const confidences = ["CONFIRMED", "STALE", "TIME UNVERIFIED", "UNOBSERVED", "DISPUTED"] as const;
   const rightsOfWay = [null, "ACTION", "WAIT", "CAUTION", "NO TRADE", "UNKNOWN"] as const;

@@ -341,6 +341,9 @@ import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiq
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
+
+/** The H-1001 rail's canvas receipts, withdrawn at the top of every frame. */
+const RISK_RAIL_RECEIPTS = ["riskOnPrice", "riskOnPriceTicks", "riskOnPriceSilence", "riskEconomics"] as const;
 import type { RiskReceipt } from "@/lib/traderMemory/riskReceipt";
 import { selectScaffoldingRead, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import {
@@ -5973,6 +5976,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // stack the container grows taller than the visible viewport and scrolls;
       // the overlay must match the chart's full height so priceToCoordinate
       // (chart-top origin) stays pixel-aligned with the candles.
+      // GARDEN 16 · THE RISK RAIL'S RECEIPTS DESCRIBE THIS FRAME'S RAIL. They go
+      // before ANY early return below (no size, no context, SHOW RAW, no
+      // series, no bars), so a frame that paints no rail can never keep the
+      // previous instrument's money on the canvas (Sheriff, 2026-09-26: the
+      // in-block deletes only ran on frames that reached the rail).
+      for (const k of RISK_RAIL_RECEIPTS) delete canvas.dataset[k];
       const W = cont.offsetWidth;
       const H = cont.offsetHeight;
       if (!W || !H) return;
@@ -17267,7 +17276,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // contract with no published point value says so; never 1x.
               const econR = selectRiskEconomics(symbol, { entry: rv.entry, stop: rv.stop, target: rv.target });
               ds.riskEconomics = econR.receipt;
-              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)} (${rv.riskPct?.toFixed(2)}%)`, RISK, true, econR.words);
+              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)} pts (${rv.riskPct?.toFixed(2)}%)`, RISK, true, econR.words);
               // The refusals ride under the entry, in words: the chart holds no
               // size, no account and no fill, so none of them is estimated.
               callout(+yE, `ENTRY ${rv.entry.toFixed(pxDp)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
