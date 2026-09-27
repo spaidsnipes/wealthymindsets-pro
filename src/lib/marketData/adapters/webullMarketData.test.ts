@@ -164,7 +164,7 @@ describe("Webull Data API market-data certification", () => {
     expect(String(url)).toContain("symbol=TSLA");
     expect(init.headers["x-app-key"]).toBe("app-key");
     expect(init.headers).toMatchObject({
-      "x-signature": "F/G+wdFmhq7+uJ1bo8v/de8cpww=",
+      "x-signature": "fuxasNofyjgiMXbv1cnj0GgcLg0=",
       "x-signature-algorithm": "HMAC-SHA1", "x-signature-version": "1.0",
       "x-signature-nonce": "fixed-nonce", "x-timestamp": "2026-08-31T11:57:05Z", "x-version": "v3",
     });
@@ -185,7 +185,7 @@ describe("Webull Data API market-data certification", () => {
     });
     const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(init.headers["x-access-token"]).toBe("active-2fa-token");
-    expect(init.headers["x-signature"]).toBe("F/G+wdFmhq7+uJ1bo8v/de8cpww=");
+    expect(init.headers["x-signature"]).toBe("fuxasNofyjgiMXbv1cnj0GgcLg0=");
   });
 
   it("maps HTTP 401 to auth uncertainty without leaking response bodies or secrets", async () => {

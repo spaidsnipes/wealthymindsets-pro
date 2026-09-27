@@ -18,6 +18,8 @@ const DEFAULT_HOST = "api.webull.com";
  */
 const STOCK_TICKS_PATH = WEBULL_SDK_CONTRACT.STOCK_TICKS.path;
 const STOCK_TICKS_API_VERSION = WEBULL_SDK_CONTRACT.STOCK_TICKS.apiVersion;
+/** The sessions the Nasdaq Basic OpenAPI package covers. Overnight (OVN) is its own package. */
+export const WEBULL_ENTITLED_TICK_SESSIONS = "PRE,RTH,ATH";
 
 export interface WebullDataConfig {
   readonly dataUrl?: string;
@@ -253,7 +255,11 @@ export async function fetchWebullTickSnapshot(
 
   const host = cleanHost(config.apiHost);
   const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
-  const query = { category: "US_STOCK", count: "5", symbol, trading_sessions: "PRE,RTH,ATH,OVN" };
+  // PRE/RTH/ATH only. OVN is Webull's separate "Overnight Consolidated Level 2"
+  // package; asking for it made Webull refuse the WHOLE request
+  // MARKET_DATA_NOT_SUBSCRIBED on 2026-09-27 while the ladder's session-less
+  // TICKS rung answered OK with Nasdaq Basic attached (measured on serving).
+  const query = { category: "US_STOCK", count: "5", symbol, trading_sessions: WEBULL_ENTITLED_TICK_SESSIONS };
   const signedHeaders = buildWebullSignedHeaders({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce, apiVersion: STOCK_TICKS_API_VERSION, profile: signingProfile });
   const url = new URL(`https://${host}${STOCK_TICKS_PATH}`);
   Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
