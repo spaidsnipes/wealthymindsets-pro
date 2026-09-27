@@ -14,13 +14,23 @@ describe("Liquidity Weather from the chart's own bars", () => {
   it("cost rising across the window reads THICKENING through the one judge, and says it is bar-derived", () => {
     const vm = selectLiquidityWeatherFromBars(bars(48, i => (i < 24 ? 100 : 400)));
     expect(vm.stage).toBe("THICKENING");
-    expect(vm.detail).toMatch(/^From this chart's last 48 bars \(volume per bar-range travel; DERIVED, not tape\)\./);
+    expect(vm.detail).toMatch(/^From this chart's last 48 traded bars \(volume per bar-range travel; DERIVED, not tape\)\./);
     expect(vm.provenance).toBe("UNDISCLOSED");
   });
   it("cost falling reads THINNING; segments carry real bar times (ms)", () => {
     const vm = selectLiquidityWeatherFromBars(bars(48, i => (i < 24 ? 400 : 100)));
     expect(vm.stage).toBe("THINNING");
     expect(vm.segments[0].fromTime).toBe(1_790_000_000 * 1000);
+  });
+});
+
+describe("weather is measured where trading happened", () => {
+  it("an untraded tail (after hours / weekend) does not blank the reading", () => {
+    const session = bars(48, i => (i < 24 ? 100 : 400));
+    const tail = Array.from({ length: 60 }, (_, i) => ({ time: 1_790_100_000 + i * 900, high: 100.2, low: 99.8, volume: 0 }));
+    const vm = selectLiquidityWeatherFromBars([...session, ...tail]);
+    expect(vm.stage).toBe("THICKENING");
+    expect(vm.segments[vm.segments.length - 1].toTime).toBe(session[47].time * 1000);
   });
 });
 

@@ -478,13 +478,17 @@ export function selectLiquidityWeatherFromBars(
   segmentCount: number = LIQUIDITY_SEGMENTS,
 ): LiquidityWeatherVM {
   const provenance: AggressorProvenance = "UNDISCLOSED";
-  const all = (bars ?? []).filter(b => Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low && Number.isFinite(b.volume) && b.volume >= 0);
+  // Cost is measured where TRADING happened: an untraded bar (volume 0 — an
+  // extended-hours or weekend quote bar) is no evidence of what it costs to
+  // move this market, so the window is the newest TRADED bars (TSLA after
+  // hours read UNMEASURED because its newest 48 bars were all untraded).
+  const all = (bars ?? []).filter(b => Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low && Number.isFinite(b.volume) && b.volume > 0);
   const win = all.slice(-WEATHER_BAR_WINDOW);
-  if (win.length < WEATHER_MIN_BARS) {
-    return empty(`${win.length} bars on this chart — at least ${WEATHER_MIN_BARS} are needed before a cost trend means anything.`, provenance);
-  }
-  if (!win.some(b => b.volume > 0)) {
+  if (win.length === 0) {
     return empty("These bars carry no traded volume — there is no cost to measure.", provenance);
+  }
+  if (win.length < WEATHER_MIN_BARS) {
+    return empty(`${win.length} traded bars on this chart — at least ${WEATHER_MIN_BARS} are needed before a cost trend means anything.`, provenance);
   }
   const unit = median(win.map(b => b.high - b.low).filter(r => r > 0));
   if (unit == null || !(unit > 0)) {
@@ -514,7 +518,7 @@ export function selectLiquidityWeatherFromBars(
       toTime: slice[slice.length - 1].time * 1000,
     });
   }
-  return judgeWeather(segments, unit, provenance, `From this chart's last ${win.length} bars (volume per bar-range travel; DERIVED, not tape). `);
+  return judgeWeather(segments, unit, provenance, `From this chart's last ${win.length} traded bars (volume per bar-range travel; DERIVED, not tape). `);
 }
 
 /**
