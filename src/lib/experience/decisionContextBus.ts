@@ -154,7 +154,7 @@ export class DecisionContextBus {
    */
   setMode(mode: ExperienceMode, question?: string): DecisionContext {
     const stage = stageForMode(mode);
-    const stageSymbol = stageSymbolForWrite(stage, this.showing, this.context.stageSymbol);
+    const stageSymbol = stageSymbolForWrite(stage, this.showing, this.context.stageSymbol, this.context.stage);
     if (
       mode === this.context.mode &&
       stage === this.context.stage &&
@@ -180,7 +180,7 @@ export class DecisionContextBus {
    * `symbol` attaches the stage to the market it was declared on.
    */
   setStage(stage: LifecycleStage, symbol?: string): DecisionContext {
-    const stageSymbol = symbol ?? stageSymbolForWrite(stage, this.showing, this.context.stageSymbol);
+    const stageSymbol = symbol ?? stageSymbolForWrite(stage, this.showing, this.context.stageSymbol, this.context.stage);
     if (stage === this.context.stage && stageSymbol === this.context.stageSymbol) {
       this.pending = null;
       return this.context;
@@ -248,7 +248,7 @@ export class DecisionContextBus {
     }
     if (this.pending.count >= this.confirmationsRequired) {
       const stage = stageForMode(mode);
-      this.commit({ mode, stage, stageSymbol: stageSymbolForWrite(stage, this.showing, this.context.stageSymbol), source: "market" });
+      this.commit({ mode, stage, stageSymbol: stageSymbolForWrite(stage, this.showing, this.context.stageSymbol, this.context.stage), source: "market" });
       return { status: "COMMITTED", context: this.context, remaining: 0 };
     }
     return {

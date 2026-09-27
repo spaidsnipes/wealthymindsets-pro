@@ -226,13 +226,21 @@ export function stageAttachedTo(
  *   · a trade-bearing stage is said on the market IN VIEW (`showing`), or on
  *     none — never on the last market that happened to attach;
  *   · any other stage is said on the market in view, else stays where it was.
+ *   · RE-SAYING THE STAGE ALREADY DECLARED changes nothing (round-5 LOW): MANAGE
+ *     declared on /charts TSLA, then MANAGE pressed again on /journal, kept the
+ *     trade on TSLA — it used to unbind it (stageSymbol null), wiping a trade the
+ *     trader had said on TSLA with a press that repeated it.
  */
 export function stageSymbolForWrite(
   stage: LifecycleStage | null,
   showing: string | null,
   current: string | null,
+  currentStage: LifecycleStage | null = null,
 ): string | null {
-  if (isTradeBearingStage(stage)) return showing;
+  if (isTradeBearingStage(stage)) {
+    if (showing === null && stage === currentStage) return current;
+    return showing;
+  }
   return showing ?? current;
 }
 

@@ -110,3 +110,28 @@ describe("/charts TSLA → /journal → MANAGE on the mode row → /charts TSLA"
     expect(bus.getContext()).toMatchObject({ stage: "MANAGE", stageSymbol: "ES1!" });
   });
 });
+
+describe("re-saying the declared stage off-market keeps the trade on its market (round-5 LOW)", () => {
+  it("MANAGE on /charts TSLA → /journal → MANAGE again → /charts TSLA still reads POSITION", () => {
+    for (const stage of TRADE_BEARING_STAGES) {
+      const bus = new DecisionContextBus();
+      bus.attachSymbol("TSLA");
+      bus.setStage(stage); // declared on /charts TSLA (the market in view)
+      expect(bus.getContext().stageSymbol, stage).toBe("TSLA");
+      const before = lifecyclePhaseFor(bus.getContext(), "TSLA");
+      bus.detachSymbol("TSLA"); // /charts unmounts — the trader is on /journal
+      bus.setStage(stage); // the same word, pressed on a room with no market
+      expect(bus.getContext().stageSymbol, stage).toBe("TSLA");
+      expect(lifecyclePhaseFor(bus.getContext(), "TSLA"), stage).toBe(before);
+      if (stage !== "POST_EXIT") {
+        bus.setMode(stage); // and via the Workspace mode row (POST_EXIT has no row word of its own)
+        expect(bus.getContext().stageSymbol, stage).toBe("TSLA");
+      }
+    }
+  });
+  it("a DIFFERENT trade-bearing stage said off-market still binds to no market", () => {
+    expect(stageSymbolForWrite("POST_EXIT", null, "TSLA", "MANAGE")).toBeNull();
+    expect(stageSymbolForWrite("MANAGE", null, "TSLA", "MANAGE")).toBe("TSLA");
+    expect(stageSymbolForWrite("MANAGE", null, "TSLA", "OBSERVE")).toBeNull();
+  });
+});

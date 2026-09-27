@@ -761,14 +761,14 @@ function BookPlate({ deck, risk }: { deck: ChartCommandDeck; risk: RiskOnPriceVM
       key: "orders",
       label: "Orders",
       state: "UNOBSERVED",
-      detail: "No order book is read in this room.",
+      detail: "This drawer reads no order book. The Alpaca paper account panel reads paper orders when opened.",
       tone: "quiet",
     },
     {
       key: "position",
       label: "Position",
       state: "UNOBSERVED",
-      detail: "No broker position is read in this room — flat is never assumed.",
+      detail: "This drawer reads no position — flat is never assumed. The Alpaca paper account panel reads paper positions when opened.",
       tone: "quiet",
     },
     {

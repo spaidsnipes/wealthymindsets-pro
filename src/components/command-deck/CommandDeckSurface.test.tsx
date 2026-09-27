@@ -537,6 +537,16 @@ describe("THE BOOK — §32's attachments, in honest states (PAPER only)", () =>
     expect(t).not.toMatch(/\bFLAT\b|LIVE ACCOUNT/);
   });
 
+  it("orders and position scope their blindness to the drawer — /charts' Alpaca paper panel does read paper orders", () => {
+    // The room mounts AlpacaTradingPanel (paper orders + positions), so "not
+    // read in this room" was false. The rows speak for the drawer and name
+    // the panel that does read them.
+    const t = text(renderDeck({}));
+    expect(t).not.toMatch(/read in this room/i);
+    expect(t).toContain("This drawer reads no order book. The Alpaca paper account panel reads paper orders when opened.");
+    expect(t).toContain("This drawer reads no position — flat is never assumed. The Alpaca paper account panel reads paper positions when opened.");
+  });
+
   it("the thesis is the room's one story's sentence", () => {
     expect(text(renderDeck({}))).toContain(compileAt("PREPARATION").oneStory.primary);
   });
