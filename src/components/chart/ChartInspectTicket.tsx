@@ -55,6 +55,7 @@ import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
+import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
@@ -734,6 +735,7 @@ export function ChartInspectTicket({
   memoryGhostFrozenAsOf = null,
   envelope = null,
   mtfAncestry = null,
+  pressureWall = null,
   priceDp = null,
   fusion = null,
   profileDna = null,
@@ -779,6 +781,8 @@ export function ChartInspectTicket({
   envelope?: ExpectedEnvelopeVM | null;
   /** T-210 · the ancestry the glass painted: 4H band · 1H node · D shelf, or each one's silence. */
   mtfAncestry?: MtfAncestryVM | null;
+  /** Garden 15 §5 — the selected pressure wall (by strike) and the world it stands in. */
+  pressureWall?: { strike: number; vm: DerivativesPressureVM } | null;
   /** The market's display decimals, from displayPrecisionFor (the one display owner). */
   priceDp?: number | null;
   /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
@@ -1192,6 +1196,55 @@ export function ChartInspectTicket({
       )}
 
       {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
+
+      {/* GARDEN 15 §5 · THE SELECTED PRESSURE WALL — what / where / evidence / class / clocks / life / lineage. */}
+      {pressureWall && (() => {
+        const dp = pressureWall.vm;
+        if (!dp.drawn) {
+          return (
+            <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall="SILENT" style={{ color: "#C8C0AE" }}>
+              <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL · NO LONGER COMPILED</div>
+              <div>The derivatives reading went silent ({dp.receipt.replace("PRESSURE:SILENT:", "")}) — the wall is not guessed at.</div>
+            </div>
+          );
+        }
+        const w = dp.walls.find(x => x.strike === pressureWall.strike);
+        if (!w) {
+          return (
+            <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall="GONE" style={{ color: "#C8C0AE" }}>
+              <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL {mtfPx(pressureWall.strike)} · NO LONGER A WALL</div>
+              <div>The strike no longer holds 3.5% of gross exposure in the current positioning — the object is let go, not redrawn.</div>
+            </div>
+          );
+        }
+        const lifeWords: Record<string, string> = {
+          BORN: "untested — price has not reached it on this chart",
+          TESTED: "tested once and held",
+          DEFENDED: "tested and held more than once",
+          WEAKENING: "tested repeatedly — each test costs it material",
+          BREAKING: "price is closing beyond it",
+          BROKEN: "accepted through — what remains is a scar",
+        };
+        const contra = dp.climate === "AMPLIFYING"
+          ? "The global climate is AMPLIFYING while this strike is locally defensive — local geography and global climate disagree (Garden 15 §4)."
+          : w.life === "WEAKENING" || w.life === "BREAKING" || w.life === "BROKEN"
+            ? "The model expects damping here; the observed response is failing to confirm it. Actual response outranks the model."
+            : "None observed: the response so far agrees with the expected defence.";
+        return (
+          <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall={`${w.strike}:${w.life}`} style={{ color: "#C8C0AE" }}>
+            <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL {mtfPx(w.strike)} · {w.life}</div>
+            <div>What · a damping concentration: dealer hedging expected to lean AGAINST moves through {mtfPx(w.strike)} (not a direction call)</div>
+            <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>
+            <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toFixed(1)}M per 1% move</div>
+            <div>Class · exposure INFERRED ({dp.assumption}) · tests OBSERVED on this chart&apos;s bars</div>
+            <div>Fidelity · {dp.fidelity} (Cboe) · clocks: chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · OI prior session</div>
+            <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}</div>
+            <div>Contradiction · {contra}</div>
+            <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>
+            <div>Lineage · Cboe delayed OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div>
+          </div>
+        );
+      })()}
 
       {/* T-210 · the plate's MTF INSPECT TICKET: ancestry + nodes + shelf, each ACTIVE or its named silence. */}
       {mtfAncestry && (

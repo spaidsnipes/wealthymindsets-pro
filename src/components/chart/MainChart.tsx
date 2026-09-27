@@ -1336,6 +1336,10 @@ interface Props {
   /** Garden 15 §2 — Derivatives Pressure on this chart, and the room's ONE compilation of it. */
   derivativesPressureOnChart?: boolean;
   derivativesPressure?: DerivativesPressureVM | null;
+  /** A click on a pressure wall selects it (by strike) through the one selection owner. */
+  onSelectPressureWall?: (strike: number) => void;
+  /** The selected wall's strike on this chart, for its selected treatment. */
+  selectedPressureWallStrike?: number | null;
   /** The room's ONE lifecycle compilation; the canvas draws it and never recomputes it. */
   liquidityLifecycle?: LiquidityLifecycleVM | null;
   /** H-1001 — the receipt torn from this camera's decision, frozen. */
@@ -1719,6 +1723,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   mtfAncestryOnChart = false,
   derivativesPressureOnChart = false,
   derivativesPressure = null,
+  onSelectPressureWall,
+  selectedPressureWallStrike = null,
   liquidityLifecycle = null,
   riskReceipt = null,
   onRiskOnPrice,
@@ -1994,6 +2000,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
   const derivativesPressureRef = useRef<DerivativesPressureVM | null>(null);
   derivativesPressureRef.current = derivativesPressure;
+  // The wall rects painted this frame (what a click hits), and the selected strike.
+  const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
+  const selectedPressureWallStrikeRef = useRef<number | null>(null);
+  selectedPressureWallStrikeRef.current = selectedPressureWallStrike;
   const mtfMemoRef = useRef<{ key: string; memo: Map<string, string | null> }>({ key: "", memo: new Map() });
   // H-101 · the MarketObject pins' diamonds, in canvas pixels, for placers that
   // must not land a plate on a pin (the WAIT plate sat on one: "◆AIT").
@@ -13596,6 +13606,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
              ENVELOPE ±IV30 expected move at the live edge (DERIVED).
            Candles are cut out of every fill: price stays sovereign. */
         delete ds.derivativesPressurePainted;
+        pressureWallHitRef.current = [];
         {
           const dp = derivativesPressureRef.current;
           if (layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure") && srs && dp) {
@@ -13745,6 +13756,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.fillStyle = `rgba(255,236,190,${0.16 * baseA})`;
                     ctx.fillRect(bx0, yb, bw, 1);
                   }
+                }
+                pressureWallHitRef.current.push({ strike: w.strike, x: x0, y: top - 4, w: len, h: wallH + 8 });
+                if (selectedPressureWallStrikeRef.current === w.strike) {
+                  // Selected: a gold rule around the whole body (the one selection's treatment).
+                  ctx.strokeStyle = "rgba(240,200,90,1)";
+                  ctx.lineWidth = 2;
+                  ctx.strokeRect(x0 - 3, top - 7, len + 4, wallH + 11);
+                  ctx.lineWidth = 1;
+                  painted.push(`SELECTED@${w.strike}`);
                 }
                 // Depth: a lit cap on top, a cast shadow below, a mortar edge —
                 // the wall has a body, not an outline.
@@ -19819,6 +19839,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       return;
     }
     /*
+      GARDEN 15 §5 · A CLICK ON A PRESSURE WALL SELECTS IT. The rects are the
+      wall bodies the paint loop drew this frame; the strike goes up to the one
+      selection owner and Inspect reads the room's current compilation.
+    */
+    const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+    if (wallHit) {
+      onSelectPressureWall?.(wallHit.strike);
+      return;
+    }
+    /*
       R-19 · A CLICK ON A ZONE'S BAND SELECTS THE ZONE — the same act as its
       pin, so the ONE selection reducer opens the same Passport. Where bands
       overlap, the smallest (most specific) one wins.
@@ -19842,7 +19872,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectMemoryGhost?.(ghostHit.vm);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, symbol, timeframe, selectBigTradeAt]);
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

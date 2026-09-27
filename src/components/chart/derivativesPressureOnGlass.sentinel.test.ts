@@ -51,3 +51,21 @@ describe("the pressure world on the glass", () => {
     expect(block).toContain("Cboe delayed · OI prior session · INFERRED");
   });
 });
+
+describe("a wall is an object: click → one selection → Inspect explains", () => {
+  const SEL = readFileSync("src/lib/marketData/viewModels/chartSelection.ts", "utf8");
+  const IT = readFileSync("src/components/chart/ChartInspectTicket.tsx", "utf8");
+  it("the glass publishes the wall bodies it drew and hit-tests them", () => {
+    expect(block).toContain("pressureWallHitRef.current.push({ strike: w.strike");
+    expect(MC).toContain("onSelectPressureWall?.(wallHit.strike);");
+  });
+  it("the selection is the ONE reducer's PRESSURE_WALL kind; the room scopes it to its chart", () => {
+    expect(SEL).toContain('readonly kind: "PRESSURE_WALL";');
+    expect(CD).toContain('selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike }');
+    expect(CD).toContain('actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL"] })');
+  });
+  it("Inspect answers what / where / evidence / class / fidelity / life / contradiction / lineage", () => {
+    for (const w of ["What ·", "Where ·", "Evidence ·", "Class ·", "Fidelity ·", "Life ·", "Contradiction ·", "Lineage ·"]) expect(IT).toContain(w);
+    expect(IT).toContain("NO LONGER A WALL");
+  });
+});

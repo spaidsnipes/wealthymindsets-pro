@@ -64,12 +64,26 @@ export interface SelectedMemoryGhost {
   readonly asOf: number;
 }
 
+/**
+ * GARDEN 15 §5 · A DERIVATIVES PRESSURE WALL, by its strike on this chart.
+ * Inspect reads the room's CURRENT compilation for that strike (the wall is a
+ * living object: its tests, cracks and life move with the market) — never a
+ * copy frozen at the click.
+ */
+export interface SelectedPressureWall {
+  readonly kind: "PRESSURE_WALL";
+  readonly symbol: string;
+  readonly timeframe: string;
+  readonly strike: number;
+}
+
 export type ChartSelection =
   | { readonly kind: "OBJECT"; readonly objectId: string }
   | { readonly kind: "PRINT"; readonly print: SelectedBigTrade }
   | { readonly kind: "SLICE"; readonly symbol: string; readonly timeframe: string; readonly price: number }
   | SelectedAnatomy
-  | SelectedMemoryGhost;
+  | SelectedMemoryGhost
+  | SelectedPressureWall;
 
 export type ChartSelectionKind = ChartSelection["kind"];
 
@@ -159,7 +173,7 @@ export function selectChartSelection(
       if (current?.kind === "OBJECT" && compiled(current.objectId)) return state;
       if (current?.kind === "PRINT"
         && current.print.symbol === action.symbol && current.print.timeframe === action.timeframe) return state;
-      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST")
+      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST" || current?.kind === "PRESSURE_WALL")
         && current.symbol === action.symbol && current.timeframe === action.timeframe) return state;
       const restored: ChartSelection | null = compiled(action.savedObjectId)
         ? { kind: "OBJECT", objectId: action.savedObjectId }
@@ -207,6 +221,11 @@ export function selectedAnatomyOf(state: ChartSelectionState): SelectedAnatomy |
 /** The selected (frozen) memory ghost, or null when the selection is not one. */
 export function selectedMemoryGhostOf(state: ChartSelectionState): SelectedMemoryGhost | null {
   return state.selection?.kind === "MEMORY_GHOST" ? state.selection : null;
+}
+
+/** The selected pressure wall, or null when the selection is not one. */
+export function selectedPressureWallOf(state: ChartSelectionState): SelectedPressureWall | null {
+  return state.selection?.kind === "PRESSURE_WALL" ? state.selection : null;
 }
 
 /**
