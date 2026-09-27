@@ -38,6 +38,13 @@ import { LIQUIDITY_LIFECYCLE_VERSION, MAX_POOLS } from "./viewModels/selectLiqui
 export const WALL_MULTIPLE = 3;
 export const GROWTH = 0.3;
 export const PERSIST_MS = 60_000;
+/**
+ * A standing wall has LEFT only when its bucket holds less than this share of
+ * the wall's peak size. Dipping under the birth threshold is not leaving: the
+ * size is still resting (serving BTCUSD, 2026-09-27: four false PULLED in 30 s
+ * when leaving was "below the wall threshold").
+ */
+export const LEFT_SHARE = 0.25;
 /** A wall must be missing this long before its leaving is judged (book updates flicker). */
 export const ABSENCE_MS = 2_000;
 export const CONSUME_SHARE = 0.5;
@@ -55,6 +62,7 @@ interface Track {
   readonly bornSize: number;
   readonly bornMs: number;
   size: number;
+  peak: number;
   lastSeenMs: number;
   missingSinceMs: number | null;
   touched: boolean;
@@ -113,12 +121,13 @@ export function createBookLifecycleTracker(opts: { readonly step: number; readon
         if (!t || t.ended) {
           if (t?.ended) tracks.delete(key);
           tracks.set(key, {
-            key, side, bucket: b, bornSize: size, bornMs: atMs, size, lastSeenMs: atMs, missingSinceMs: null,
+            key, side, bucket: b, bornSize: size, bornMs: atMs, size, peak: size, lastSeenMs: atMs, missingSinceMs: null,
             touched: false, touchSize: 0, lastTouchMs: -Infinity, events: [{ stage: "APPEARED", atMs }], ended: null,
           });
           continue;
         }
         t.size = size;
+        t.peak = Math.max(t.peak, size);
         t.lastSeenMs = atMs;
         t.missingSinceMs = null;
         if (size >= t.bornSize * (1 + GROWTH)) add(t, "GREW", atMs);
@@ -130,12 +139,18 @@ export function createBookLifecycleTracker(opts: { readonly step: number; readon
     const hi = buckets.size ? Math.max(...buckets.keys()) : NaN;
     for (const t of tracks.values()) {
       if (t.side !== side || t.ended || seen.has(t.key)) continue;
+      const resting = buckets.get(t.bucket) ?? 0;
+      if (resting >= t.peak * LEFT_SHARE) {
+        // Below the birth threshold but still resting: the wall stands, smaller.
+        t.size = resting; t.lastSeenMs = atMs; t.missingSinceMs = null;
+        continue;
+      }
       if (t.missingSinceMs == null) { t.missingSinceMs = atMs; continue; }
       if (atMs - t.missingSinceMs < ABSENCE_MS) continue;
       const traded = trades
         .filter(x => x.bucket === t.bucket && x.atMs >= t.lastSeenMs - TRADE_MEMORY_MS && x.atMs <= atMs)
         .reduce((s, x) => s + x.qty, 0);
-      if (traded >= t.size * CONSUME_SHARE) {
+      if (traded >= (t.peak - resting) * CONSUME_SHARE) {
         add(t, "CONSUMED", t.missingSinceMs); t.ended = "CONSUMED";
       } else if (Number.isFinite(lo) && t.bucket >= lo && t.bucket <= hi) {
         // Still inside the observed book on its side, and the size is gone without trading.

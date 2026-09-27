@@ -50,6 +50,15 @@ describe("observed-book liquidity lifecycle", () => {
     expect(stages(t)).toEqual(["APPEARED>PULLED"]);
   });
 
+  it("a wall that shrinks below the birth threshold but still rests is NOT pulled", () => {
+    const t = createBookLifecycleTracker({ step: 1, venue: "Kraken" });
+    t.applyBook(0, bids({ price: 95, size: 8 }), asks);
+    t.applyBook(1_000, bids({ price: 95, size: 2.5 }), asks); // < 3× median, ≥ 25% of peak 8
+    t.applyBook(1_000 + ABSENCE_MS * 3, bids({ price: 95, size: 2.5 }), asks);
+    expect(stages(t)).toEqual(["APPEARED"]);
+    expect(t.read(0).pools[0].volume).toBe(2.5);
+  });
+
   it("a flicker shorter than the absence window is not a leaving", () => {
     const t = createBookLifecycleTracker({ step: 1, venue: "Kraken" });
     t.applyBook(0, bids({ price: 95, size: 6 }), asks);
