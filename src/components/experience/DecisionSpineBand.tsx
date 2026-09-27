@@ -1399,6 +1399,26 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             max-width: 180px !important;
           }
         }
+        /* Garden 16 §55 — DESKTOP widths 901–1023 (a narrowed desktop window,
+           landscape) keep the chart dominant: the band is the same one-row,
+           horizontally scrolling strip the phone uses, instead of wrapping
+           into ~490px of rows under a ~150px chart (measured at 901×900).
+           Portrait tablets (768–1023, portrait) are untouched — not this phase. */
+        @media (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+          .wm-decision-spine {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+          }
+          .wm-decision-spine > div {
+            flex: 0 0 220px !important;
+            min-width: 220px !important;
+            max-width: 220px !important;
+            max-height: 200px;
+            overflow-y: auto;
+          }
+        }
         .wm-decision-spine details > summary::-webkit-details-marker { display: none; }
         .wm-spine-fold-chevron {
           transition: transform 120ms ease;
