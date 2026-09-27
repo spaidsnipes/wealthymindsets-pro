@@ -98,6 +98,7 @@ import {
 import type { EquipmentShortfall } from "@/lib/workspace/equipmentChannel";
 import { announceOpenDoorEdge } from "@/lib/os/openDoorEdge";
 import { SavedLayoutsDoor } from "./SavedLayoutsDoor";
+import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import { CAMERA_PROMISE } from "@/lib/marketData/viewModels/selectChartArrangement";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
@@ -940,6 +941,96 @@ function CommandDeckPlate({
 }
 
 /**
+ * THE W — WM SMART MONEY, ON THE MASTHEAD (Garden 16 §13/§14, 2026-09-27).
+ *
+ * §13 names W its own category — "Which WM intelligence senses are active" —
+ * between CAMERA (Workspace) and TOOL. It lived as the first tile INSIDE the
+ * Tools hand, so a guest read it as one more tool and had to open Tools to
+ * find it (serving /charts, 2026-09-27). §14: "Use the actual W/logo
+ * identity … A guest should immediately understand: CAMERA CHANGES HOW I VIEW
+ * THE SAME MARKET. W ACTIVATES WM INTELLIGENCE."
+ *
+ * ONE OWNER, A SECOND DOOR. It opens the very equipment the Tools tile opens
+ * (the registry entry whose label is W_DOOR_LABEL), through the same
+ * requestEquipment channel, and its held state is the room's announced stage
+ * — never a second panel, never a second compilation.
+ */
+function WDoorPlate({
+  activeHref,
+  entry,
+  onPress,
+}: {
+  readonly activeHref: string;
+  readonly entry: RoomEquipment;
+  readonly onPress: () => void;
+}): React.ReactElement {
+  const [held, setHeld] = React.useState<boolean>(() => heldEquipmentIds().has(entry.id));
+  const heldRef = React.useRef(held);
+  React.useEffect(() => {
+    const first = heldEquipmentIds().has(entry.id);
+    heldRef.current = first;
+    setHeld(first);
+    return subscribeEquipmentStage(({ equipmentId, stage }) => {
+      const next =
+        equipmentId === null
+          ? false
+          : equipmentId === entry.id
+            ? stage !== "closed"
+            : stage !== "closed" && isJourneyEquipment(activeHref, equipmentId)
+              ? false
+              : heldRef.current;
+      if (next === heldRef.current) return;
+      heldRef.current = next;
+      setHeld(next);
+    });
+  }, [activeHref, entry.id]);
+  return (
+    <button
+      type="button"
+      data-testid="os-w-door"
+      data-equipment-open={held ? "true" : undefined}
+      className="wm-os-equipment-plate wm-os-w-door"
+      aria-label={W_DOOR_LABEL}
+      aria-pressed={held}
+      title={entry.hint}
+      onClick={() => {
+        onPress();
+        requestEquipment(entry.id, held ? "put-down" : "pick-up");
+      }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: 7,
+        minHeight: 34,
+        padding: "7px 13px",
+        borderRadius: 3,
+        border: `1px solid ${held ? GOLD : "rgba(196,165,116,0.42)"}`,
+        background: held
+          ? "rgba(196,165,116,0.14)"
+          : "linear-gradient(180deg, rgba(196,165,116,0.07), rgba(196,165,116,0.02))",
+        cursor: "pointer",
+        ...EYEBROW,
+        color: held ? GOLD : PEARL,
+        fontSize: 10,
+        letterSpacing: 1.8,
+      }}
+    >
+      <span
+        aria-hidden
+        className="wm-os-equipment-plate-mark"
+        style={{ flex: "0 0 auto", display: "block", width: 12, height: 12, color: GOLD }}
+      >
+        {equipmentGlyph(entry.id)}
+      </span>
+      <span className="wm-os-equipment-plate-word" style={{ whiteSpace: "nowrap" }}>
+        {W_DOOR_LABEL}
+      </span>
+    </button>
+  );
+}
+
+/**
  * One standing condition, in one of its two layouts.
  *
  * `unresolved` and `alert` wear DIFFERENT ink because they are different
@@ -1442,6 +1533,9 @@ export function WMOperatingSystem({
   // not drawn at all rather than guessing which (2026-09-26).
   const deckEntries = roomEquipmentOfKind(activeHref, "deck");
   const commandDeckEntry = deckEntries.length === 1 ? deckEntries[0] : null;
+  // The room's W door (§13/§14): the one registry entry wearing W_DOOR_LABEL.
+  const wDoorEntries = roomEquipment(activeHref).filter((e) => e.label === W_DOOR_LABEL);
+  const wDoorEntry = wDoorEntries.length === 1 ? wDoorEntries[0] : null;
   // Which piece of equipment the trader has picked up. `null` — nothing — is
   // the only legal FIRST value on a market scene, and unlike `railOpen` it is
   // not seeded from a room's opinion: there is no opinion that justifies
@@ -1806,8 +1900,11 @@ export function WMOperatingSystem({
             {(["workspace", "tools"] as const).filter(() => !doorsOnly).map((kind) => {
               const open = scenePanel === kind;
               return (
+                <React.Fragment key={kind}>
+                {kind === "tools" && wDoorEntry !== null ? (
+                  <WDoorPlate activeHref={activeHref} entry={wDoorEntry} onPress={() => setScenePanel(null)} />
+                ) : null}
                 <button
-                  key={kind}
                   type="button"
                   // Escape returns focus HERE, not to the top of the document.
                   // A keyboard trader who dismissed the panel and lost their
@@ -1901,6 +1998,7 @@ export function WMOperatingSystem({
                     {kind === "workspace" ? "Workspace" : "Tools"}
                   </span>
                 </button>
+                </React.Fragment>
               );
             })}
             {/* THE COMMAND DECK CONTROL (Garden 16 §11, 2026-09-26) — after
@@ -2605,6 +2703,8 @@ export function WMOperatingSystem({
              is closed, so the phone masthead is left exactly as it was. */
           .wm-os-command-deck,
           .wm-os-command-deck-rule { display: none !important; }
+          /* The masthead W (Garden 16 section 13) is held to the same Phase 1 law. */
+          .wm-os-w-door { display: none !important; }
           ${
             phoneDoorOnly
               ? /* ── THE RAIL IS THE PHONE'S NAVIGATION HERE ──────────────
@@ -2748,6 +2848,10 @@ export function WMOperatingSystem({
              width its name needs and never splits it. */
           .wm-os-command-deck { width: auto !important; }
           .wm-os-command-deck .wm-os-equipment-plate-word { white-space: nowrap; }
+          /* The W sizes to its name, like the deck: it is not one of the
+             matched Workspace/Tools pair, it is the intelligence door. */
+          .wm-os-w-door { width: auto !important; }
+          .wm-os-w-door .wm-os-equipment-plate-word { white-space: nowrap; }
         }
         /* THE COMPACT MASTHEAD BAND — see OS_MASTHEAD_COMPACT_MAX_PX. Later in
            the sheet than the desktop block, so at equal weight it wins. */
@@ -2828,8 +2932,10 @@ export function WMOperatingSystem({
           }
           .wm-os-equipment-plate-mark { width: 18px !important; height: 18px !important; }
           .wm-os-equipment-plate-word { font-size: 13px !important; }
-          .wm-os-command-deck { width: auto !important; padding: 0 12px !important; }
+          .wm-os-command-deck,
+          .wm-os-w-door { width: auto !important; padding: 0 12px !important; }
           /* The mark alone; the words stay in the accessibility tree. */
+          .wm-os-w-door .wm-os-equipment-plate-word,
           .wm-os-command-deck .wm-os-equipment-plate-word {
             position: absolute !important;
             width: 1px !important;
