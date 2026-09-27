@@ -47,4 +47,21 @@ describe("effort readers read the volume gate", () => {
     expect(mc).toMatch(/position: "absolute", bottom: 6, left: 6,[\s\S]{0,200}<svg width="18"/);
     expect(read("src/app/globals.css")).toContain('.wm-chart-volume-footer[data-volume-state="SILENT"]');
   });
+
+  it("the footer's rules apply on desktop — not inside a phone-only media block", () => {
+    const css = read("src/app/globals.css");
+    const at = css.indexOf(".wm-chart-volume-footer {");
+    expect(at).toBeGreaterThan(0);
+    let depth = 0;
+    for (let i = 0; i < at; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}") depth--;
+    }
+    // Inside @layer (depth 1) is fine; inside a @media within it is not.
+    const before = css.slice(0, at);
+    const lastMedia = before.lastIndexOf("@media");
+    const closedSince = lastMedia < 0 ? true : (() => { let d = 0; for (let i = before.indexOf("{", lastMedia); i < at; i++) { if (css[i] === "{") d++; else if (css[i] === "}") d--; if (d === 0) return true; } return false; })();
+    expect(closedSince, "footer rule is nested in a @media block").toBe(true);
+    expect(depth).toBeLessThanOrEqual(1);
+  });
 });
