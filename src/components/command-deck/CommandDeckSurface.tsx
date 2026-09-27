@@ -87,6 +87,8 @@
  */
 
 import * as React from "react";
+import { brokerRowFromRead, positionRowFromRead, ORDERS_ROW_WEBULL } from "./brokerBookRows";
+import { useWebullBook } from "./useWebullBook";
 
 import StoryRibbon from "@/components/chart/StoryRibbon";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
@@ -745,8 +747,11 @@ export const BROKER_ROW: BookRow = {
   tone: "quiet",
 };
 
-function BookPlate({ deck, risk }: { deck: ChartCommandDeck; risk: RiskOnPriceVM | null }): React.ReactElement {
+function BookPlate({ deck, risk, symbol }: { deck: ChartCommandDeck; risk: RiskOnPriceVM | null; symbol: string }): React.ReactElement {
   const management = deck.chain?.nodes.find((n) => n.key === "management") ?? null;
+  const book = useWebullBook();
+  const brokerRow = brokerRowFromRead(book.status) ?? BROKER_ROW;
+  const positionRow = positionRowFromRead(book.positions, symbol);
   const rows: readonly BookRow[] = [
     {
       key: "thesis",
@@ -756,15 +761,15 @@ function BookPlate({ deck, risk }: { deck: ChartCommandDeck; risk: RiskOnPriceVM
       tone: "set",
     },
     riskRow(risk),
-    BROKER_ROW,
-    {
+    brokerRow,
+    book.status ? ORDERS_ROW_WEBULL : {
       key: "orders",
       label: "Orders",
       state: "UNOBSERVED",
       detail: "This drawer reads no order book. The Alpaca paper account panel reads paper orders when opened.",
       tone: "quiet",
     },
-    {
+    positionRow ?? {
       key: "position",
       label: "Position",
       state: "UNOBSERVED",
@@ -1162,7 +1167,7 @@ export function CommandDeckSurface({
     >
       <HeadlinePlate deck={deck} decisionId={decisionId} decisionIdAbsence={decisionIdAbsence} />
       <LifecycleRail deck={deck} stage={stage} onPhase={onPhase} />
-      <BookPlate deck={deck} risk={risk} />
+      <BookPlate deck={deck} risk={risk} symbol={symbol} />
       {order.map(render)}
     </div>
   );

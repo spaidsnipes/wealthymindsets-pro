@@ -63,6 +63,17 @@ describe("SENTINEL — the drawer reads the room; it compiles no market and open
       expect(src).not.toMatch(/useSWR|EventSource\(|new WebSocket\(/);
     });
 
+    // Five-hour order (2026-09-27): the deck BINDS the broker — through ONE
+    // reader module that opens no market wire, never a fetch in the surface.
+    it(`${rel} reads the broker only through useWebullBook`, () => {
+      if (!/CommandDeckSurface/.test(rel)) return;
+      expect(src).toContain('import { useWebullBook } from "./useWebullBook";');
+      const hook = fs.readFileSync(`${process.cwd()}/src/components/command-deck/useWebullBook.ts`, "utf8");
+      expect(hook).not.toMatch(/\buseWebSocket\(|EventSource\(|new WebSocket\(|\/api\/(market-data|yahoo|finnhub)/);
+      expect(hook).toContain('read("/api/broker/webull/status")');
+      expect(hook).toContain('read("/api/broker/webull/positions")');
+    });
+
     it(`${rel} mounts no second chart, no second price, no superseded chrome`, () => {
       for (const banned of [
         "DeckMarketChart",
