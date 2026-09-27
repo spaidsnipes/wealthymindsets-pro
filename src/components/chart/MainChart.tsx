@@ -13946,13 +13946,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   painted.push(`WALL@${w.strike}:${w.life}:OFF_CAMERA`);
                   continue;
                 }
-                const courses = Math.max(3, Math.min(5, Math.round(spacingPx / 7)));
-                const courseH = 8;
+                /* LIVING PRESSURE WALL — MASONRY (Garden 16 reconstruction order
+                   §11/§27: "BRICKS. MATERIAL. DAMAGE. BREAK. SCAR." — "the wall
+                   must physically exist", not a thin zone + label). Material,
+                   geometry and damage are each bound to one fact:
+                     length      materiality (share of gross exposure)
+                     courses     the price room the strike's band holds
+                     cracks      OBSERVED tests (one per session test, ≤ 6),
+                                 branching, chipping the bricks they cross
+                     holes       WEAKENING — bricks knocked out (deterministic)
+                     breach      BREAKING — a gap through every course, rubble
+                                 fallen below it
+                     scar        BROKEN — the ghost of the courses, a rubble line
+                   Solidity is held below full everywhere (INFERRED exposure),
+                   and candles pass in FRONT (the block's candle cut-out). */
+                const courses = Math.max(4, Math.min(6, Math.round(spacingPx / 8)));
+                const courseH = 12;
                 const wallH = courses * courseH;
-                const len = Math.min(plotRightD * 0.62, 140 + w.share * 2600);
+                const len = Math.min(plotRightD * 0.62, 170 + w.share * 2800);
                 const x1 = plotRightD - 2, x0 = x1 - len;
                 const top = yc - wallH / 2;
-                const brickW = 18;
+                const brickW = 26;
+                const depth = 7;
                 const broken = w.life === "BROKEN";
                 const breaking = w.life === "BREAKING";
                 const weak = w.life === "WEAKENING";
@@ -13962,72 +13977,134 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   h = (h ^ (h >>> 13)) * 1274126177;
                   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
                 };
-                const gapMid = x0 + len * 0.55, gapHalf = breaking ? 26 : 0;
+                const gapMid = x0 + len * 0.55, gapHalf = breaking ? 30 : 0;
+                // Where the cracks run (their x), so the bricks they cross chip.
+                const crackCount = broken ? 0 : Math.min(6, w.tests);
+                const crackXs = Array.from({ length: crackCount }, (_, i) => x0 + len * (0.14 + 0.7 * hash(99, i)));
+                if (!broken) {
+                  // The body's back face and cast shadow — the wall stands IN the field.
+                  const sh = ctx.createLinearGradient(0, top + wallH, 0, top + wallH + 14);
+                  sh.addColorStop(0, `rgba(0,0,0,${0.55 * baseA})`);
+                  sh.addColorStop(1, "rgba(0,0,0,0)");
+                  ctx.fillStyle = sh;
+                  ctx.fillRect(x0 + depth, top + wallH, len - depth, 14);
+                  // Top face (the coping), receding up-left.
+                  const cap = ctx.createLinearGradient(0, top - depth, 0, top);
+                  cap.addColorStop(0, `rgba(246,226,176,${0.62 * baseA})`);
+                  cap.addColorStop(1, `rgba(180,146,90,${0.62 * baseA})`);
+                  ctx.fillStyle = cap;
+                  ctx.beginPath();
+                  ctx.moveTo(x0, top); ctx.lineTo(x0 + depth, top - depth); ctx.lineTo(x1, top - depth); ctx.lineTo(x1, top); ctx.closePath();
+                  ctx.fill();
+                  // End face at the wall's open end, in shade.
+                  ctx.fillStyle = `rgba(70,52,28,${0.7 * baseA})`;
+                  ctx.beginPath();
+                  ctx.moveTo(x0, top); ctx.lineTo(x0 + depth, top - depth); ctx.lineTo(x0 + depth, top + wallH - depth); ctx.lineTo(x0, top + wallH); ctx.closePath();
+                  ctx.fill();
+                  // Mortar bed behind the bricks.
+                  ctx.fillStyle = `rgba(28,22,14,${0.72 * baseA})`;
+                  ctx.fillRect(x0, top, len, wallH);
+                }
+                let holes = 0, chipped = 0;
                 for (let c = 0; c < courses; c++) {
                   const yb = top + c * courseH;
                   const off = c % 2 === 0 ? 0 : brickW / 2;
                   for (let bx = x1 - off, n = 0; bx > x0; bx -= brickW, n++) {
-                    const bx0 = Math.max(x0, bx - brickW + 1.5);
+                    const bx0 = Math.max(x0, bx - brickW + 2);
                     const bw = bx - bx0;
-                    if (bw < 3) continue;
+                    if (bw < 4) continue;
                     const r = hash(c, n);
                     if (breaking && Math.abs(bx0 + bw / 2 - gapMid) < gapHalf) continue;
-                    if (weak && r < 0.16) continue;
+                    if (weak && r < 0.2) {
+                      // A knocked-out brick: a dark socket, not just absence.
+                      ctx.fillStyle = `rgba(6,5,4,${0.8 * baseA})`;
+                      ctx.fillRect(bx0 + 1, yb + 1, bw - 2, courseH - 3);
+                      holes++;
+                      continue;
+                    }
                     if (broken) {
-                      ctx.strokeStyle = `rgba(190,168,120,${0.22 * baseA})`;
+                      ctx.strokeStyle = `rgba(190,168,120,${0.24 * baseA})`;
                       ctx.setLineDash([2, 3]);
-                      ctx.strokeRect(bx0 + 0.5, yb + 0.5, bw - 1, courseH - 1.5);
+                      ctx.strokeRect(bx0 + 0.5, yb + 0.5, bw - 1, courseH - 2);
                       ctx.setLineDash([]);
                       continue;
                     }
-                    const tone = 0.78 + 0.22 * r;
-                    // INFERRED solidity: never fully opaque.
-                    ctx.fillStyle = `rgba(${Math.round(178 * tone)},${Math.round(148 * tone)},${Math.round(96 * tone)},${0.62 * baseA})`;
-                    ctx.fillRect(bx0, yb, bw, courseH - 1.5);
-                    ctx.fillStyle = `rgba(255,236,190,${0.16 * baseA})`;
+                    // Fired clay: each brick its own tone, lit from the upper left.
+                    const tone = 0.72 + 0.28 * r;
+                    const face = ctx.createLinearGradient(bx0, yb, bx0 + bw * 0.4, yb + courseH);
+                    face.addColorStop(0, `rgba(${Math.round(214 * tone)},${Math.round(176 * tone)},${Math.round(112 * tone)},${0.78 * baseA})`);
+                    face.addColorStop(1, `rgba(${Math.round(146 * tone)},${Math.round(110 * tone)},${Math.round(62 * tone)},${0.78 * baseA})`);
+                    ctx.fillStyle = face;
+                    ctx.fillRect(bx0, yb, bw, courseH - 2);
+                    // Arris light on the top edge, shade on the bottom edge.
+                    ctx.fillStyle = `rgba(255,238,196,${0.28 * baseA})`;
                     ctx.fillRect(bx0, yb, bw, 1);
+                    ctx.fillStyle = `rgba(20,14,8,${0.45 * baseA})`;
+                    ctx.fillRect(bx0, yb + courseH - 3, bw, 1);
+                    // Surface pits (deterministic) — clay, not a flat swatch.
+                    ctx.fillStyle = `rgba(40,28,14,${0.35 * baseA})`;
+                    for (let k = 0; k < 3; k++) ctx.fillRect(bx0 + 2 + hash(c * 7 + k, n) * (bw - 5), yb + 2 + hash(n * 5 + k, c) * (courseH - 6), 1.4, 1.2);
+                    // A crack through this brick chips its corner.
+                    if (crackXs.some(cx => cx >= bx0 && cx <= bx0 + bw)) {
+                      ctx.fillStyle = `rgba(10,8,5,${0.7 * baseA})`;
+                      ctx.beginPath();
+                      const right = r > 0.5;
+                      const ex = right ? bx0 + bw : bx0;
+                      ctx.moveTo(ex, yb); ctx.lineTo(ex + (right ? -6 : 6), yb); ctx.lineTo(ex, yb + 5); ctx.closePath();
+                      ctx.fill();
+                      chipped++;
+                    }
                   }
                 }
-                pressureWallHitRef.current.push({ strike: w.strike, x: x0, y: top - 4, w: len, h: wallH + 8 });
+                pressureWallHitRef.current.push({ strike: w.strike, x: x0, y: top - depth - 2, w: len, h: wallH + depth + 6 });
                 if (selectedPressureWallStrikeRef.current === w.strike) {
                   // Selected: a gold rule around the whole body (the one selection's treatment).
                   ctx.strokeStyle = "rgba(240,200,90,1)";
                   ctx.lineWidth = 2;
-                  ctx.strokeRect(x0 - 3, top - 7, len + 4, wallH + 11);
+                  ctx.strokeRect(x0 - 3, top - depth - 3, len + 4, wallH + depth + 6);
                   ctx.lineWidth = 1;
                   painted.push(`SELECTED@${w.strike}`);
                 }
-                // Depth: a lit cap on top, a cast shadow below, a mortar edge —
-                // the wall has a body, not an outline.
-                if (!broken) {
-                  ctx.fillStyle = `rgba(232,206,150,${0.5 * baseA})`;
-                  ctx.beginPath();
-                  ctx.moveTo(x0, top); ctx.lineTo(x0 + 6, top - 4); ctx.lineTo(x1, top - 4); ctx.lineTo(x1, top); ctx.closePath();
-                  ctx.fill();
-                  ctx.strokeStyle = `rgba(40,30,16,${0.8 * baseA})`;
-                  ctx.strokeRect(x0 + 0.5, top + 0.5, len - 1, wallH - 1);
-                  const sh = ctx.createLinearGradient(0, top + wallH, 0, top + wallH + 9);
-                  sh.addColorStop(0, `rgba(0,0,0,${0.45 * baseA})`);
-                  sh.addColorStop(1, "rgba(0,0,0,0)");
-                  ctx.fillStyle = sh;
-                  ctx.fillRect(x0 + 4, top + wallH, len - 4, 9);
+                if (breaking) {
+                  // The breach: rubble fallen below the gap, jagged edges.
+                  ctx.fillStyle = `rgba(170,134,80,${0.7 * baseA})`;
+                  for (let k = 0; k < 9; k++) {
+                    const rx = gapMid + (hash(300 + k, 1) - 0.5) * gapHalf * 1.8;
+                    const ry = top + wallH + 2 + hash(300 + k, 2) * 10;
+                    const rs = 2 + hash(300 + k, 3) * 4;
+                    ctx.fillRect(rx, ry, rs, rs * 0.7);
+                  }
                 }
-                // Cracks: one per OBSERVED test, on the face price comes from.
-                const cracks = broken ? 0 : Math.min(6, w.tests);
-                ctx.strokeStyle = `rgba(20,14,8,${0.9 * baseA})`;
-                ctx.lineWidth = 1.2;
-                for (let i = 0; i < cracks; i++) {
-                  const cx = x0 + len * (0.18 + 0.64 * hash(99, i));
-                  const fromTop = w.side === "ABOVE" ? false : true;
-                  let yy = fromTop ? top : top + wallH;
-                  ctx.beginPath(); ctx.moveTo(cx, yy);
-                  for (let sgm = 1; sgm <= 3; sgm++) {
-                    yy += (fromTop ? 1 : -1) * (wallH / 3.2);
-                    ctx.lineTo(cx + (hash(i, sgm) - 0.5) * 8, yy);
+                if (broken) {
+                  // The scar: a rubble line along the foot of the ghost.
+                  ctx.fillStyle = `rgba(150,124,82,${0.4 * baseA})`;
+                  for (let k = 0; k < Math.floor(len / 9); k++) {
+                    const rx = x0 + k * 9 + hash(500 + k, 1) * 5;
+                    ctx.fillRect(rx, top + wallH - 2 + hash(500 + k, 2) * 4, 2 + hash(500 + k, 3) * 3, 2);
+                  }
+                }
+                // Cracks: one per OBSERVED test, from the face price came from,
+                // branching as they run.
+                ctx.strokeStyle = `rgba(12,9,5,${0.95 * baseA})`;
+                crackXs.forEach((cx0, i) => {
+                  const fromTop = w.side !== "ABOVE";
+                  let xx = cx0, yy = fromTop ? top : top + wallH;
+                  ctx.lineWidth = 1.6;
+                  ctx.beginPath(); ctx.moveTo(xx, yy);
+                  for (let sgm = 1; sgm <= 4; sgm++) {
+                    yy += (fromTop ? 1 : -1) * (wallH / 4.4);
+                    xx += (hash(i, sgm) - 0.5) * 9;
+                    ctx.lineTo(xx, yy);
+                    if (sgm === 2) {
+                      ctx.moveTo(xx, yy);
+                      ctx.lineTo(xx + (hash(i, 40) > 0.5 ? 7 : -7), yy + (fromTop ? 5 : -5));
+                      ctx.moveTo(xx, yy);
+                    }
                   }
                   ctx.stroke();
-                }
+                });
                 ctx.lineWidth = 1;
+                if (holes || chipped) painted.push(`MASONRY@${w.strike}:holes=${holes}:chips=${chipped}`);
                 if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }

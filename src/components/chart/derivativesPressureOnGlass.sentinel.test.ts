@@ -39,10 +39,15 @@ describe("the pressure world on the glass", () => {
   });
   it("WALLS: brick courses in running bond with depth; cracks = observed tests; lifecycle changes material", () => {
     expect(block).toMatch(/const off = c % 2 === 0 \? 0 : brickW \/ 2;/);
-    expect(block).toContain("const cracks = broken ? 0 : Math.min(6, w.tests);");
-    expect(block).toMatch(/if \(weak && r < 0\.16\) continue;/);
+    // Garden 16 reconstruction (2026-09-27): masonry — cracks still = observed
+    // tests (≤ 6), weakening knocks bricks out as dark sockets, breaking breaches
+    // every course with rubble below, broken leaves the ghost + a rubble scar.
+    expect(block).toContain("const crackCount = broken ? 0 : Math.min(6, w.tests);");
+    expect(block).toMatch(/if \(weak && r < 0\.2\) \{/);
     expect(block).toMatch(/if \(broken\) \{/);
-    expect(block).toContain("a lit cap on top, a cast shadow below");
+    expect(block).toContain("Top face (the coping)");
+    expect(block).toContain("The breach: rubble fallen below the gap");
+    expect(block).toContain("The scar: a rubble line");
   });
   it("price stays sovereign; words are placed and permitted; off-camera walls are said", () => {
     expect(block).toContain('ctx.clip(cutD, "evenodd");');
