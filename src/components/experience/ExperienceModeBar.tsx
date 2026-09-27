@@ -10,7 +10,7 @@ import {
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import {
-  DECK_PHASE_LABEL,
+  STAGE_WORD,
   phaseForStage,
   routeForMode,
   type LifecycleStage,
@@ -76,7 +76,9 @@ export const EXPERIENCE_MODE_LIFECYCLE_TESTID = "experience-mode-lifecycle";
 export function lifecycleReadback(stage: LifecycleStage | null): string {
   if (stage === null) return "Not in a trade lifecycle — LEARN is a changed job. Pick a stage to re-enter it.";
   const phase = phaseForStage(stage);
-  return `Command Deck phase · ${DECK_PHASE_LABEL[phase]} — the decision chain now reads ${phase.replace("_", "-").toLowerCase()}.`;
+  // The STAGE's word, not the phase's: PREP and OBSERVE share a chain phase
+  // but light different stops on the deck's rail (2026-09-27, deck canon).
+  return `Command Deck phase · ${STAGE_WORD[stage]} — the decision chain now reads ${phase.replace("_", "-").toLowerCase()}.`;
 }
 
 /** The id the collapsed chip points `aria-controls` at. */

@@ -358,17 +358,22 @@ const ROOMS = [
        *
        * `reads` pins `deck={chartCommandDeck}` — the ONE `useChartCommandDeck`
        * call the room makes — so the drawer cannot be handed a second
-       * compilation. `deps` carries `chartCanvasVM.chain` (the header verdict
-       * is the chain's permission node, read the way the chain's own door
-       * reads it) and `tradePhase` (the room state the drawer's control
-       * writes); dropping either would freeze the drawer on a stale phase or
-       * a stale verdict while the rail moved on.
+       * compilation. `deps` carries `tradePhase` and `lifecycleStage` (the
+       * one owner's stage the rail lights and the drawer's control writes),
+       * the room's decision identity and its absence sentence (the plate's
+       * DECISION_ID), and `riskPlan` (the book's risk row); dropping any one
+       * would freeze that part of the plate while the rail moved on.
+       * RE-PINNED 2026-09-27 (deck canon): the header carries no verdict
+       * (`verdict: null` — the headline plate, fed by `chartCommandDeck`, is
+       * the drawer's one verdict statement), so `chartCanvasVM.chain` left
+       * the list — the drawer no longer prints the Steward's permission node
+       * as its header verdict; STEWARD says it with its rules.
        */
       {
         id: "command-deck",
         memo: "chartCommandDeckEquipment",
         reads: /deck=\{chartCommandDeck\}/,
-        deps: "[chartCommandDeck, chartCanvasVM.chain, tradePhase, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]",
+        deps: "[chartCommandDeck, tradePhase, lifecycleStage, setTradePhase, currentSceneDecision?.decisionId, sceneDecisionAbsence, riskPlan, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]",
         depth: "CommandDeckSurface",
       },
     ],

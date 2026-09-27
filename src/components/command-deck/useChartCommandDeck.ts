@@ -101,6 +101,12 @@ export interface ChartCommandDeck {
   readonly history: readonly CanonicalMarketState[];
   readonly chain: DecisionChainVM | null;
   readonly permission: PermissionVM;
+  /**
+   * The room's one story, handed back unchanged — the plate's headline (the
+   * right-of-way word and its reason) is the SAME object the right rail
+   * prints, never a second reading (2026-09-27, deck canon).
+   */
+  readonly oneStory: OneStoryVM;
   readonly mirror: MirrorVM;
   /** What WM is watching, minus what the trader dismissed this session. */
   readonly interventions: readonly ATHOSIntervention[];
@@ -269,6 +275,7 @@ export function useChartCommandDeck(input: ChartCommandDeckInput): ChartCommandD
       history,
       chain,
       permission,
+      oneStory,
       mirror,
       interventions,
       dismissIntervention,
@@ -286,6 +293,7 @@ export function useChartCommandDeck(input: ChartCommandDeckInput): ChartCommandD
       history,
       chain,
       permission,
+      oneStory,
       mirror,
       interventions,
       dismissIntervention,

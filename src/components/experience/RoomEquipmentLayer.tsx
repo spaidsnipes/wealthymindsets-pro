@@ -89,7 +89,12 @@ export interface EquipmentContent {
   /** Must equal the journey's `equipmentId`. The layer refuses a mismatch. */
   readonly equipmentId: string;
   readonly title: string;
-  readonly verdict: string;
+  /**
+   * The header's state word. `null` = this equipment's BODY carries its one
+   * verdict statement (the Command Deck's headline plate), so the header says
+   * none rather than repeating it — one verdict word per drawer.
+   */
+  readonly verdict: string | null;
   readonly headline: string;
   /** The small facts the preview shows instead of the full canvas. */
   readonly counts: ReadonlyArray<{ readonly testId: string; readonly label: string }>;
@@ -399,12 +404,14 @@ export function RoomEquipmentLayer({
         {/* The verdict word as the trader reads it: an enum's underscore is
             the machinery's spelling ("NOT_EVALUATED" was measured on the
             glass 2026-09-26). The word is unchanged; only its spelling is. */}
-        <span
-          data-testid="equipment-verdict"
-          style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap" }}
-        >
-          {content.verdict.replace(/_/g, " ")}
-        </span>
+        {content.verdict !== null ? (
+          <span
+            data-testid="equipment-verdict"
+            style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap" }}
+          >
+            {content.verdict.replace(/_/g, " ")}
+          </span>
+        ) : null}
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {stage === "full" ? (
             // RETURN is the promise the whole grammar rests on, so it is the

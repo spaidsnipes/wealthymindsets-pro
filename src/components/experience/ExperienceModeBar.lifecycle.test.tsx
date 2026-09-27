@@ -29,13 +29,17 @@ describe("pressing a mode visibly moves the ONE lifecycle the deck shows", () =>
   it("each lifecycle press changes the read-back to the deck phase it compiles", () => {
     const bus = new DecisionContextBus();
     const at = () => renderToStaticMarkup(<ExperienceModeBar bus={bus} lifecycle />);
-    expect(readback(at())).toContain("Command Deck phase · Prep");
+    // The deck's words are §32's rail stops (2026-09-27, deck canon): the
+    // read-back names the stop the deck's rail lights for that stage.
+    expect(readback(at())).toContain("Command Deck phase · Observing");
     for (const [mode, deck] of [
       ["WAIT", "Approach"],
+      // EXECUTE is the chain's DECISION — never "In Trade" (verifier LOW, round 4).
       ["EXECUTE", "Decide"],
       ["MANAGE", "In Trade"],
       ["REVIEW", "Review"],
-      ["PREP", "Prep"],
+      ["PREP", "Preparing"],
+      ["OBSERVE", "Observing"],
     ] as const) {
       bus.setMode(mode);
       const html = at();

@@ -238,7 +238,7 @@ import { useChartCommandDeck } from "@/components/command-deck/useChartCommandDe
 import type { TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 // THE ONE DECISION-LIFECYCLE OWNER (Garden 16 §15/§32, 2026-09-27).
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
-import { lifecyclePhaseFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
+import { lifecyclePhaseFor, lifecycleStageFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -1495,6 +1495,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // returns the one stage to its start for the new market, so the mode row
   // agrees.
   const tradePhase: TradePhase = lifecyclePhaseFor(lifecycleContext, symbol);
+  // The stage the deck's rail lights — the SAME owner, the same symbol rule
+  // (2026-09-27, deck canon). PREP and OBSERVE share a chain phase but light
+  // different stops, so the rail reads the stage, not the phase.
+  const lifecycleStage = lifecycleStageFor(lifecycleContext, symbol);
   // Attach, and return the detach: the market is "in view" only while shown.
   React.useEffect(() => attachLifecycleSymbol(symbol), [attachLifecycleSymbol, symbol]);
   const setTradePhase = React.useCallback(
@@ -3831,19 +3835,22 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
   /*
     The descriptor ASSEMBLES; it compiles nothing (the adoption Sentinel scans
-    this body for compose / select calls). The verdict is the chain's own
-    permission node, read exactly as `chartDecisionChainEquipment` reads it, so
-    the deck's header and the chain's header cannot disagree. The headline is
+    this body for compose / select calls). The header carries NO verdict: the
+    drawer's headline plate is its one verdict statement. The headline is
     the job's emphasis rationale; the counts are reads of the phase, the job
     and the trader's unreviewed closes. No score, no percentage.
   */
   const chartCommandDeckEquipment = React.useMemo(() => {
-    const permissionNode = chartCanvasVM.chain?.nodes.find((n) => n.key === "permission") ?? null;
     return {
       equipmentId: "command-deck",
       // The rail's own words — see the registry note on why "Your".
       title: "Your command deck",
-      verdict: chartCanvasVM.chain ? (permissionNode?.verdict ?? "UNKNOWN") : "UNRESOLVED",
+      // ONE verdict word in the drawer (deck canon, round 4). The headline
+      // plate is the deck's one statement of the right of way; the header
+      // repeating it made three WAITs on screen with the right rail's plaque.
+      // So the header carries none. The Steward's own verdict is said at the
+      // top of the STEWARD section.
+      verdict: null,
       headline: chartCommandDeck.emphasis.rationale,
       counts: [
         { testId: "equipment-count-deck-phase", label: `phase: ${tradePhase.toLowerCase().replace("_", "-")}` },
@@ -3858,6 +3865,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           deck={chartCommandDeck}
           phase={tradePhase}
           onPhase={setTradePhase}
+          stage={lifecycleStage}
+          decisionId={currentSceneDecision?.decisionId ?? null}
+          decisionIdAbsence={sceneDecisionAbsence}
+          risk={riskPlan}
           symbol={symbol}
           ownerId={canvasUser?.id ?? null}
           nowMs={chartEdgeNowMs}
@@ -3870,7 +3881,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     /* NO drill, NO Link, NO onEnter: this room offers no FULL stage (the
        camera stays), and a drawer that navigated would be the route
        advertisement the 09-19 cut removed. */
-  }, [chartCommandDeck, chartCanvasVM.chain, tradePhase, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]);
+  }, [chartCommandDeck, tradePhase, lifecycleStage, setTradePhase, currentSceneDecision?.decisionId, sceneDecisionAbsence, riskPlan, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]);
 
   /*
     The chooser. The room hands the layer ONE descriptor — the one the rail

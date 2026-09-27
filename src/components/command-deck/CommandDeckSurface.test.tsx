@@ -31,10 +31,16 @@ import { DecisionSpineBand, type DecisionSpineBandProps } from "@/components/exp
 import {
   CommandDeckSurface,
   COMMAND_DECK_PHASES,
+  LifecycleRail,
   commandDeckSectionOrder,
   leadLivesElsewhere,
+  riskRow,
+  BROKER_ROW,
+  COMMAND_DECK_GLOW_BUDGET,
 } from "./CommandDeckSurface";
-import { useChartCommandDeck } from "./useChartCommandDeck";
+import { useChartCommandDeck, type ChartCommandDeck } from "./useChartCommandDeck";
+import { LIFECYCLE_RAIL, stageForPhase, type LifecycleStage } from "@/lib/experience/decisionLifecycle";
+import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 
 const NOW = 1_760_000_000_000;
 
@@ -77,8 +83,16 @@ const REPORT = selectPerCapabilityFidelity({
   sessionOpen: null,
 });
 
+interface RoomOpts {
+  phase: TradePhase;
+  state: CanonicalMarketState | null;
+  stage?: LifecycleStage | null;
+  decisionId?: string | null;
+  risk?: RiskOnPriceVM | null;
+}
+
 /** A harness shaped exactly like the room: one hook call, one surface. */
-function Room({ phase, state }: { phase: TradePhase; state: CanonicalMarketState | null }): React.ReactElement {
+function Room({ phase, state, stage, decisionId = null, risk = null }: RoomOpts): React.ReactElement {
   const vm = compileAt(phase, state);
   const deck = useChartCommandDeck({
     ownerId: "fixture-owner",
@@ -98,6 +112,10 @@ function Room({ phase, state }: { phase: TradePhase; state: CanonicalMarketState
       deck={deck}
       phase={phase}
       onPhase={() => {}}
+      stage={stage === undefined ? stageForPhase(phase) : stage}
+      decisionId={decisionId}
+      decisionIdAbsence="No decision born yet — permission has not crossed."
+      risk={risk}
       symbol="TSLA"
       ownerId="fixture-owner"
       nowMs={NOW}
@@ -108,10 +126,25 @@ function Room({ phase, state }: { phase: TradePhase; state: CanonicalMarketState
   );
 }
 
-function renderDeck(opts: { phase?: TradePhase; job?: ExperienceMode; state?: CanonicalMarketState | null } = {}): string {
+function renderDeck(
+  opts: {
+    phase?: TradePhase;
+    job?: ExperienceMode;
+    state?: CanonicalMarketState | null;
+    stage?: LifecycleStage | null;
+    decisionId?: string | null;
+    risk?: RiskOnPriceVM | null;
+  } = {},
+): string {
   decisionContextBus.setMode(opts.job ?? "OBSERVE");
   return renderToStaticMarkup(
-    <Room phase={opts.phase ?? "PREPARATION"} state={opts.state === undefined ? stateFixture() : opts.state} />,
+    <Room
+      phase={opts.phase ?? "PREPARATION"}
+      state={opts.state === undefined ? stateFixture() : opts.state}
+      stage={opts.stage}
+      decisionId={opts.decisionId}
+      risk={opts.risk}
+    />,
   );
 }
 
@@ -155,7 +188,7 @@ describe("the drawer's sections — the plates' card set, ranked by the job", ()
 });
 
 describe("PROCESS — the phase control is wired to the room's one chain", () => {
-  it("six phases, in the deck's own words, exactly the room's phase pressed", () => {
+  it("six presses, in the rail's words, exactly the room's phase pressed", () => {
     const html = renderDeck({ phase: "POSITION" });
     const buttons = [...html.matchAll(/<button[^>]*data-phase="([A-Z_]+)"[^>]*aria-pressed="(true|false)"/g)];
     expect(buttons.map((b) => b[1])).toEqual(COMMAND_DECK_PHASES.map((p) => p.id));
@@ -178,10 +211,10 @@ describe("PROCESS — the phase control is wired to the room's one chain", () =>
     const owner = (html: string) =>
       html.match(/data-testid="command-deck-lifecycle-owner"[^>]*>([^<]*)</)?.[1] ?? null;
     for (const job of ["OBSERVE", "MANAGE", "REVIEW"] as const) {
-      expect(owner(renderDeck({ job })), job).toBe("One lifecycle: the Workspace mode row and this phase move together.");
+      expect(owner(renderDeck({ job })), job).toBe("One lifecycle: the Workspace mode row and this rail move together.");
     }
     const learn = owner(renderDeck({ job: "LEARN" }));
-    expect(learn).toBe("Your job is LEARN — not a trade-lifecycle stage. Pressing a phase re-enters the lifecycle.");
+    expect(learn).toBe("Your job is LEARN — not a trade-lifecycle stage. Pressing a stop re-enters the lifecycle.");
   });
 
   it("no chain compiled → it says so, and invents no headline", () => {
@@ -208,6 +241,20 @@ describe("STEWARD / PREP · LEARN — the gates the deck already had travel with
     expect(vm.permission.engagedRules.length).toBeGreaterThan(0);
     for (const r of vm.permission.engagedRules) expect(t).toContain(r.rule.label);
     expect(t).toContain(`${vm.permission.engagedRules.length} of ${vm.permission.ruleCount} steward rules engaged`);
+  });
+
+  it("the Steward's own verdict word is said at the TOP of STEWARD — the permission's, not the right of way", () => {
+    const vm = compileAt("PREPARATION");
+    const html = renderDeck({ phase: "PREPARATION" });
+    const steward = html.slice(html.indexOf('data-testid="command-deck-section-steward"'));
+    const verdictAt = steward.indexOf('data-testid="command-deck-steward-verdict"');
+    expect(verdictAt).toBeGreaterThan(-1);
+    expect(verdictAt).toBeLessThan(steward.indexOf('data-testid="command-deck-steward-rules"'));
+    expect(steward).toContain(`data-verdict="${vm.permission.verdict}"`);
+    expect(steward).toMatch(
+      new RegExp(`data-testid="command-deck-steward-verdict"[^>]*>${vm.permission.verdict.replace(/_/g, " ")}<`),
+    );
+    expect(html.match(/data-testid="command-deck-steward-verdict"/g)?.length).toBe(1);
   });
 
   it("the behaviour mirror opens only at Post-Exit and Review", () => {
@@ -301,9 +348,12 @@ describe("the deck's phase order is the owner's, as rendered", () => {
   it("the /charts drawer renders its buttons, ids and words, in DECK_PHASE_ORDER", () => {
     const html = renderDeck({ phase: "PREPARATION" });
     const group = html.slice(html.indexOf('data-testid="command-deck-phase"'));
-    const buttons = [...group.matchAll(/<button[^>]*data-phase="([A-Z_]+)"[^>]*>([^<]*)<\/button>/g)].slice(0, 6);
-    expect(buttons.map((b) => b[1])).toEqual([...DECK_PHASE_ORDER]);
-    expect(buttons.map((b) => b[2])).toEqual(DECK_PHASE_ORDER.map((id) => DECK_PHASE_LABEL[id]));
+    // The canon rail (2026-09-27) renders each press point as a button with a
+    // node and a word; read EVERY press point in DOM order, not the first six.
+    const presses = [...group.matchAll(/<button[^>]*data-phase="([A-Z_]+)"[^>]*aria-label="([^"]*)"/g)];
+    expect(presses.map((b) => b[1])).toEqual([...DECK_PHASE_ORDER]);
+    // Each press names the chain phase it writes, in the owner's words.
+    presses.forEach((b) => expect(b[2]).toContain(`the chain reads ${b[1].replace("_", "-").toLowerCase()}`));
   });
 
   it("/command-deck builds its one phase list from DECK_PHASE_ORDER and renders that list", () => {
@@ -313,5 +363,209 @@ describe("the deck's phase order is the owner's, as rendered", () => {
     expect(control, "the page's phase control no longer renders the owner-ordered list").toMatch(/^[^]*?\{PHASES\.map\(\(p\) =>/);
     expect(control).toMatch(/^[^]*?\{PHASES\.map\(\(p\) => \([^]*?\{p\.label\}/);
     expect(page.match(/\{PHASES\.map\(/g)?.length, "one phase control, one list").toBe(1);
+  });
+});
+
+/* ── THE PLATE (deck canon, 2026-09-27) ─────────────────────────────────────
+   Side by side with IMG_1554 (PROCESS INTEGRITY node rail), V01 (the right
+   rail's WAIT · DECISION_ID · RISK grammar) and FL_03 (the drawer's gold
+   hairline cards): the verdict is the largest type, the lifecycle is ONE rail
+   with the current stop lit, the book states what the room can prove. */
+
+/** The plate's regions in DOM order. */
+const regionOrder = (html: string) =>
+  [...html.matchAll(/data-testid="(command-deck-plate|command-deck-lifecycle|command-deck-book|command-deck-section-[a-z_]+)"/g)].map(
+    (m) => m[1],
+  );
+
+describe("THE PLATE'S HIERARCHY — verdict, then the rail, then the book, then the organs", () => {
+  it("renders in that order, every time", () => {
+    for (const job of ["OBSERVE", "WAIT", "REVIEW"] as const) {
+      const order = regionOrder(renderDeck({ job }));
+      expect(order.slice(0, 4), job).toEqual([
+        "command-deck-plate",
+        "command-deck-lifecycle",
+        "command-deck-book",
+        "command-deck-section-process",
+      ]);
+    }
+  });
+
+  it("the headline is the room's one story's right of way and its reason — the rail's own words", () => {
+    const vm = compileAt("PREPARATION");
+    const html = renderDeck({ phase: "PREPARATION" });
+    expect(html).toContain(`data-verdict="${vm.oneStory.decision.value}"`);
+    expect(html).toMatch(new RegExp(`data-testid="command-deck-verdict"[^>]*>${vm.oneStory.decision.value}<`));
+    expect(text(html)).toContain(vm.oneStory.decision.detail);
+  });
+
+  it("the verdict is the largest type in the drawer", () => {
+    const html = renderDeck({});
+    const sizes = [...html.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].map((m) => Number(m[1]));
+    const verdict = Number(html.match(/data-testid="command-deck-verdict"[^>]*style="[^"]*font-size:(\d+)px/)?.[1]);
+    expect(verdict).toBeGreaterThan(0);
+    expect(Math.max(...sizes)).toBe(verdict);
+  });
+
+  it("DECISION_ID is the room's identity when there is one, and the room's absence sentence when not", () => {
+    const born = renderDeck({ decisionId: "TSLA-20260927-093012" });
+    expect(born).toContain('data-decision-id="TSLA-20260927-093012"');
+    expect(born).not.toContain('data-testid="command-deck-decision-id-absent"');
+    const unborn = renderDeck({ decisionId: null });
+    expect(unborn).not.toContain('data-testid="command-deck-decision-id"');
+    expect(text(unborn)).toContain("No decision born yet — permission has not crossed.");
+  });
+});
+
+describe("THE LIFECYCLE RAIL — §32's five stops, ONE rail, the current stop lit", () => {
+  const litStop = (html: string) => html.match(/data-lit-stop="([A-Z_ ]+)"/)?.[1];
+  const stops = (html: string) => [...html.matchAll(/data-rail-stop="([A-Z_]+)" data-tense="([a-z]+)"/g)].map((m) => [m[1], m[2]]);
+  const pressedPhases = (html: string) =>
+    [...html.matchAll(/<button[^>]*data-phase="([A-Z_]+)"[^>]*aria-pressed="true"/g)].map((m) => m[1]);
+
+  it("five stops in §32's order, inside one group", () => {
+    const html = renderDeck({});
+    expect(stops(html).map(([id]) => id)).toEqual(["OBSERVING", "PREPARING", "IN_TRADE", "MANAGING", "POST_EXIT_REVIEW"]);
+    expect(html.match(/data-testid="command-deck-phase"/g)?.length).toBe(1);
+    for (const label of ["Observing", "Approach", "Decide", "In Trade", "Managing", "Post-Exit", "Review"]) {
+      expect(text(html)).toContain(label);
+    }
+  });
+
+  it("each stage lights its stop (MANAGE: In Trade + Managing), stops before read past, after ahead", () => {
+    const cases: readonly [LifecycleStage, readonly string[], readonly string[]][] = [
+      ["OBSERVE", ["OBSERVING"], ["PREPARATION"]],
+      ["PREP", ["PREPARING"], []],
+      ["WAIT", ["PREPARING"], ["APPROACH"]],
+      // Deciding is not a trade (verifier LOW, round 4): EXECUTE lights PREPARING.
+      ["EXECUTE", ["PREPARING"], ["DECISION"]],
+      ["MANAGE", ["IN_TRADE", "MANAGING"], ["POSITION"]],
+      ["POST_EXIT", ["POST_EXIT_REVIEW"], ["POST_EXIT"]],
+      ["REVIEW", ["POST_EXIT_REVIEW"], ["REVIEW"]],
+    ];
+    for (const [stage, lit, presses] of cases) {
+      const html = renderDeck({ stage });
+      expect(litStop(html), stage).toBe(lit.join(" "));
+      expect(pressedPhases(html), stage).toEqual(presses);
+      const tenses = stops(html);
+      const first = tenses.findIndex(([id]) => id === lit[0]);
+      tenses.forEach(([id, t], j) =>
+        expect(t, `${stage} stop ${j}`).toBe(lit.includes(id) ? "lit" : j < first ? "past" : "ahead"),
+      );
+    }
+  });
+
+  it("a stage still deciding never says it is in a trade — the lit words for EXECUTE carry no trade word", () => {
+    const html = renderDeck({ stage: "EXECUTE", phase: "DECISION" });
+    expect(html.match(/data-testid="command-deck-stage-word"[^>]*>([^<]*)</)?.[1]).toBe("Decide");
+    expect(html).toMatch(/data-rail-stop="IN_TRADE" data-tense="ahead"/);
+    expect(html).toMatch(/data-rail-stop="MANAGING" data-tense="ahead"/);
+    const managing = renderDeck({ stage: "MANAGE", phase: "POSITION" });
+    expect(managing.match(/data-testid="command-deck-stage-word"[^>]*>([^<]*)</)?.[1]).toBe("In Trade");
+    // MANAGING is a plaque lit with In Trade — not a second button for the same stage.
+    expect(managing).toMatch(/data-rail-plaque="Managing"/);
+    expect(managing).not.toMatch(/<button[^>]*aria-label="Managing/);
+  });
+
+  it("a LEARN job lights no stop and presses nothing — it is not a lifecycle stage", () => {
+    const html = renderDeck({ stage: null, job: "LEARN" });
+    expect(litStop(html)).toBe("NONE");
+    expect(pressedPhases(html)).toEqual([]);
+    expect(text(html)).toContain("Not in a lifecycle");
+  });
+
+  it("EVERY press calls onPhase with its own phase — the rail writes only through the room's setter", () => {
+    // LifecycleRail holds no hooks, so it is called as a function and its
+    // returned element tree is walked: the onClick on each button is the real
+    // handler the browser would fire (no DOM environment in this repo).
+    const calls: TradePhase[] = [];
+    const fakeDeck = { job: "OBSERVE", chain: null } as unknown as ChartCommandDeck;
+    const tree = LifecycleRail({ deck: fakeDeck, stage: "OBSERVE", onPhase: (p) => calls.push(p) });
+    const buttons: React.ReactElement<{ onClick: () => void; "data-phase": TradePhase }>[] = [];
+    const walk = (node: React.ReactNode): void => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!React.isValidElement(node)) return;
+      const el = node as React.ReactElement<{ children?: React.ReactNode; "data-phase"?: TradePhase; onClick?: () => void }>;
+      if (el.type === "button" && el.props["data-phase"]) buttons.push(el as never);
+      walk(el.props.children);
+    };
+    walk(tree);
+    expect(buttons.map((b) => b.props["data-phase"])).toEqual(LIFECYCLE_RAIL.flatMap((s) => s.presses));
+    for (const b of buttons) b.props.onClick();
+    expect(calls).toEqual(COMMAND_DECK_PHASES.map((p) => p.id));
+  });
+});
+
+describe("THE BOOK — §32's attachments, in honest states (PAPER only)", () => {
+  const row = (html: string, key: string) => html.match(new RegExp(`data-testid="command-deck-row-${key}" data-state="([^"]+)"`))?.[1];
+
+  it("thesis, risk, broker, orders, position, management and receipt are all present", () => {
+    const html = renderDeck({});
+    for (const key of ["thesis", "risk", "broker", "orders", "position", "management", "receipt"]) {
+      expect(row(html, key), key).toBeTruthy();
+    }
+  });
+
+  it("what this room cannot read is said as NOT READ / unobserved — never flat, never a fake account", () => {
+    const html = renderDeck({});
+    // The drawer reads no broker connection (verifier HIGH, round 4): it says
+    // so, and never claims "not connected" or "paper only" for the account.
+    expect(row(html, "broker")).toBe("NOT READ");
+    expect(BROKER_ROW.detail).toBe(
+      "This drawer does not read the broker connection. The Connect brokers panel reads it when opened.",
+    );
+    expect(row(html, "orders")).toBe("UNOBSERVED");
+    expect(row(html, "position")).toBe("UNOBSERVED");
+    expect(row(html, "receipt")).toBe("NONE SEALED");
+    expect(row(html, "risk")).toBe("UNKNOWN");
+    const t = text(html);
+    expect(t).toMatch(/\bPaper\b/i);
+    expect(t).not.toMatch(/NOT CONNECTED|paper only|No account is connected/i);
+    expect(t, "money").not.toMatch(/\$\s?\d/);
+    expect(t).not.toMatch(/\bFLAT\b|LIVE ACCOUNT/);
+  });
+
+  it("the thesis is the room's one story's sentence", () => {
+    expect(text(renderDeck({}))).toContain(compileAt("PREPARATION").oneStory.primary);
+  });
+
+  it("risk reads the chart's plan: R:R and state, never a price", () => {
+    const base: RiskOnPriceVM = {
+      version: 1, drawn: true, reason: "BRACKETED", plans: 1, side: "LONG",
+      entry: 250, stop: 245, target: 262.5, riskPerUnit: 5, riskPct: 2, rewardPerUnit: 12.5, rr: 2.5,
+      live: null, entryAt: null, stopAt: null, targetAt: null, state: "WAITING_FOR_ENTRY", refusals: [],
+    };
+    const planned = riskRow(base);
+    expect(planned.state).toBe("PLANNED");
+    expect(planned.detail).toContain("2.50 R:R");
+    expect(planned.detail).toContain("waiting for entry");
+    expect(planned.detail).not.toMatch(/250|245|262/);
+    // The row reads a DRAWING — no ledger, no broker — so it claims no
+    // execution state at all (verifier HIGH, round 4).
+    expect(planned.detail).toMatch(/A drawing on the chart — this row reads no orders or fills\./);
+    expect(planned.detail).not.toMatch(/executed|filled\b|paper/i);
+    expect(riskRow({ ...base, drawn: false, reason: "NO_POSITION_DRAWN" }).state).toBe("NO PLAN");
+    expect(riskRow({ ...base, drawn: false, reason: "NO_STOP_ON_DRAWING" }).state).toBe("NO STOP");
+    expect(riskRow({ ...base, drawn: false, reason: "STOP_ON_WRONG_SIDE" }).state).toBe("REFUSED");
+    expect(riskRow(null).state).toBe("UNKNOWN");
+    const html = renderDeck({ risk: base });
+    expect(row(html, "risk")).toBe("PLANNED");
+    expect(text(html)).not.toContain("250");
+  });
+});
+
+describe("§42 RESTRAINED GLOW — every gold glow in the drawer is within the stated budget (verifier LOW, round 4)", () => {
+  it("the budget is 12%, and no text-shadow / box-shadow gold alpha in the rendered drawer exceeds it", () => {
+    expect(COMMAND_DECK_GLOW_BUDGET).toBe(0.12);
+    for (const stage of ["OBSERVE", "EXECUTE", "MANAGE", "REVIEW"] as const) {
+      const html = renderDeck({ stage });
+      const shadows = [...html.matchAll(/(?:text-shadow|box-shadow):([^;"]+)/g)].map((m) => m[1]);
+      expect(shadows.length, stage).toBeGreaterThan(3);
+      for (const sh of shadows) {
+        for (const a of sh.matchAll(/rgba\(196,\s*165,\s*116,\s*([\d.]+)\)/g)) {
+          expect(Number(a[1]), `${stage}: ${sh}`).toBeLessThanOrEqual(COMMAND_DECK_GLOW_BUDGET);
+        }
+      }
+    }
   });
 });

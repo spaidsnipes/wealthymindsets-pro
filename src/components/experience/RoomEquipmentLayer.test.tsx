@@ -379,3 +379,26 @@ describe("M2 · equipment is an overlay on the room, never a replacement for it"
     }
   });
 });
+
+describe("RoomEquipmentLayer — a header with no verdict word (deck canon, round 4)", () => {
+  it("draws the room's verdict when handed one, and NO verdict element when handed null", () => {
+    const withWord = renderMarketDock("drawer");
+    expect(withWord).toMatch(/data-testid="equipment-verdict"[^>]*>/);
+    const silent = renderToStaticMarkup(
+      <RoomEquipmentLayer
+        journey={journey("drawer")}
+        content={{ ...content, verdict: null }}
+        subject={{ symbol: "NQ1!", timeframe: "15m" }}
+        placement="market-dock"
+        onExpand={noop}
+        onReturn={noop}
+        onClose={noop}
+      />,
+    );
+    expect(silent).not.toContain('data-testid="equipment-verdict"');
+    // The rest of the header survives: title, subject, close.
+    expect(silent).toContain("Market reality");
+    expect(silent).toContain('data-testid="equipment-subject"');
+    expect(silent).toContain('data-testid="equipment-close"');
+  });
+});

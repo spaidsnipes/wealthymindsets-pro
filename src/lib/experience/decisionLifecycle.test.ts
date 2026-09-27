@@ -12,7 +12,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   ACADEMY_HREF,
+  DECK_PHASE_LABEL,
+  LIFECYCLE_RAIL,
   LIFECYCLE_STAGES,
+  STAGE_WORD,
+  lifecycleStageFor,
+  railStopForStage,
+  railStopsForStage,
+  DECK_PHASE_ORDER,
   LIFECYCLE_START,
   lifecyclePhaseFor,
   modeForStage,
@@ -195,6 +202,73 @@ describe("§33 — the lifecycle mints no Decision_ID", () => {
         .replace(/(^|[^:])\/\/.*$/gm, "$1");
       expect(src.length).toBeGreaterThan(1500);
       expect(src, rel).not.toMatch(/decisionId|Decision_ID|randomUUID|mintDecision|nanoid|uuid/i);
+    }
+  });
+});
+
+describe("§32's RAIL — five stops, one rail, recorded not rewritten (deck canon, 2026-09-27)", () => {
+  it("the stops are the Founder's five, in the Founder's order", () => {
+    expect(LIFECYCLE_RAIL.map((s) => s.label)).toEqual([
+      "Observing",
+      "Preparing",
+      "In Trade",
+      "Managing",
+      "Post-Exit / Review",
+    ]);
+  });
+  it("every stage lights one CONTIGUOUS span of stops, in lifecycle order", () => {
+    for (const st of LIFECYCLE_STAGES) {
+      const idx = railStopsForStage(st).map((s) => LIFECYCLE_RAIL.indexOf(s));
+      expect(idx.length, st).toBeGreaterThanOrEqual(1);
+      expect(idx, st).toEqual(idx.map((_, k) => idx[0] + k));
+    }
+    // Only MANAGE lights two — §32's two words for the chain's ONE POSITION phase.
+    expect(LIFECYCLE_STAGES.filter((st) => railStopsForStage(st).length > 1)).toEqual(["MANAGE"]);
+    const lit = LIFECYCLE_STAGES.map((st) => LIFECYCLE_RAIL.indexOf(railStopForStage(st)));
+    expect([...lit].sort((a, b) => a - b)).toEqual(lit);
+  });
+  it("every chain phase is pressed exactly once, and each press lands INSIDE its own stop", () => {
+    const presses = LIFECYCLE_RAIL.flatMap((s) => s.presses);
+    expect([...presses].sort()).toEqual([...PHASES].sort());
+    expect(presses).toEqual([...DECK_PHASE_ORDER]);
+    for (const stop of LIFECYCLE_RAIL) {
+      for (const p of stop.presses) expect(railStopForStage(stageForPhase(p)).id, p).toBe(stop.id);
+    }
+  });
+  it("IN TRADE is the POSITION phase, never the DECISION — a stage still deciding claims no trade (verifier LOW, round 4)", () => {
+    // Deciding is before the trade: EXECUTE (chain DECISION) sits in PREPARING.
+    expect(railStopForStage("EXECUTE").id).toBe("PREPARING");
+    expect(phaseForStage("EXECUTE")).toBe("DECISION");
+    // IN TRADE and MANAGING are both the chain's POSITION phase ("in a trade, managing").
+    expect(railStopsForStage("MANAGE").map((s) => s.id)).toEqual(["IN_TRADE", "MANAGING"]);
+    expect(phaseForStage("MANAGE")).toBe("POSITION");
+    expect(LIFECYCLE_RAIL.find((s) => s.id === "IN_TRADE")?.presses).toEqual(["POSITION"]);
+    expect(LIFECYCLE_RAIL.find((s) => s.id === "MANAGING")?.presses).toEqual([]);
+    expect(railStopForStage("PREP").id).toBe("PREPARING");
+    expect(railStopForStage("WAIT").id).toBe("PREPARING");
+    // ONE vocabulary: no stage but the POSITION stage is called "In Trade" —
+    // the deck rail, the mode-row read-back and /command-deck all read STAGE_WORD.
+    for (const st of LIFECYCLE_STAGES) {
+      if (st !== "MANAGE") expect(STAGE_WORD[st], st).not.toMatch(/trade|manag/i);
+    }
+    expect(STAGE_WORD.MANAGE).toBe("In Trade");
+    expect(DECK_PHASE_LABEL.DECISION).toBe("Decide");
+    expect(DECK_PHASE_LABEL.POSITION).toBe("In Trade");
+  });
+  it("a press's word is the word of the stage it writes — one vocabulary, no second table", () => {
+    for (const p of PHASES) expect(DECK_PHASE_LABEL[p], p).toBe(STAGE_WORD[stageForPhase(p)]);
+    for (const stop of LIFECYCLE_RAIL) {
+      if (stop.presses.length === 1) expect(DECK_PHASE_LABEL[stop.presses[0]]).toBe(stop.label);
+    }
+  });
+  it("the rail's stage belongs to one market; LEARN lights no stop", () => {
+    expect(lifecycleStageFor({ stage: "MANAGE", stageSymbol: "TSLA" }, "TSLA")).toBe("MANAGE");
+    expect(lifecycleStageFor({ stage: "MANAGE", stageSymbol: "TSLA" }, "ES1!")).toBe(LIFECYCLE_START);
+    expect(lifecycleStageFor({ stage: "PREP", stageSymbol: null }, "GC1!")).toBe("PREP");
+    expect(lifecycleStageFor({ stage: null, stageSymbol: "GC1!" }, "GC1!")).toBeNull();
+    // The render rule is the owner's: a trade said on NO market lights the start.
+    for (const stage of TRADE_BEARING_STAGES) {
+      expect(lifecycleStageFor({ stage, stageSymbol: null }, "GC1!"), stage).toBe(LIFECYCLE_START);
     }
   });
 });

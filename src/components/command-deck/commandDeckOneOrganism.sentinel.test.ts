@@ -133,6 +133,43 @@ describe("SENTINEL — the phase is ROOM state, and the room's ONE compile hears
   });
 });
 
+describe("SENTINEL — the plate reads the room's ONE lifecycle, ONE verdict and ONE identity (deck canon, 2026-09-27)", () => {
+  const room = read(ROOM);
+  const memo = room.slice(
+    room.indexOf("const chartCommandDeckEquipment = React.useMemo("),
+    room.indexOf("const chartEquipmentContent"),
+  );
+
+  it("the memo is found and not vacuous", () => {
+    expect(memo.length).toBeGreaterThan(600);
+  });
+
+  it("the rail's stage is the lifecycle owner's, for this symbol — never drawer-local", () => {
+    expect(room).toMatch(/const lifecycleStage = lifecycleStageFor\(lifecycleContext, symbol\);/);
+    expect(memo).toMatch(/stage=\{lifecycleStage\}/);
+    expect(read(SURFACE)).not.toMatch(/useState<LifecycleStage/);
+  });
+
+  it("the header carries NO verdict — the headline plate is the deck's one verdict statement (verifier MEDIUM, round 4)", () => {
+    // Three WAITs were on screen: header + headline plate + the right rail's
+    // plaque. The header now hands `null`, and the layer draws no word for it.
+    expect(memo).toMatch(/verdict: null,/);
+    expect(memo).not.toMatch(/verdict: chartCommandDeck/);
+    expect(memo).not.toMatch(/key === "permission"/);
+    const surface = read(SURFACE);
+    // Exactly one right-of-way render in the drawer: the headline plate's.
+    expect(surface.match(/oneStory\.decision\b/g)?.length).toBe(1);
+  });
+
+  it("DECISION_ID and risk are the room's own bindings — the plate mints and computes neither", () => {
+    expect(memo).toMatch(/decisionId=\{currentSceneDecision\?\.decisionId \?\? null\}/);
+    expect(memo).toMatch(/decisionIdAbsence=\{sceneDecisionAbsence\}/);
+    expect(memo).toMatch(/risk=\{riskPlan\}/);
+    const surface = read(SURFACE);
+    expect(surface).not.toMatch(/randomUUID|mintDecision|nanoid|selectRiskOnPrice\(/);
+  });
+});
+
 describe("SENTINEL — the masthead control is a button that asks the room, never a route", () => {
   const frame = read(FRAME);
   const start = frame.indexOf("function CommandDeckPlate");
