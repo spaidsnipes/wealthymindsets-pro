@@ -125,12 +125,25 @@ describe("F08B — the weather is a lens over the region it measured", () => {
     for (const [x, y] of corners(region)) expect(lensDistance(L, x, y)).toBeLessThanOrEqual(1);
   });
 
-  it("a tall region at the edge GROWS the lens rather than dropping a corner outside it", () => {
+  it("a tall region at the edge GROWS the lens rather than dropping a corner outside it — while the whole loupe still fits", () => {
     // Capped to the plot, then slid left of the axis: two corners would sit
     // outside the ring unless it grows (mutation M11).
     const region = { x0: 1390, y0: 200, x1: 1398, y1: 700 };
     const L = fitWeatherLens(region, plot)!;
-    for (const [x, y] of corners(region)) expect(lensDistance(L, x, y)).toBeLessThanOrEqual(1);
+    if (!L.partial) for (const [x, y] of corners(region)) expect(lensDistance(L, x, y)).toBeLessThanOrEqual(1);
+    expect(L.ry).toBeLessThanOrEqual((plot.y1 - plot.y0) / 2 + 0.001);
+  });
+
+  it("Garden 16 (plate F08B): the whole loupe stays on the glass; a window bigger than the pane is magnified at its NEWEST end and says PARTIAL", () => {
+    const region = { x0: 100, y0: 150, x1: 1300, y1: 760 };
+    const L = fitWeatherLens(region, plot)!;
+    expect(L.partial).toBe(true);
+    expect(L.cx - L.rx).toBeGreaterThanOrEqual(plot.x0 - 0.001);
+    expect(L.cx + L.rx).toBeLessThanOrEqual(plot.x1 + 0.001);
+    expect(L.cy - L.ry).toBeGreaterThanOrEqual(plot.y0 - 0.001);
+    expect(L.cy + L.ry).toBeLessThanOrEqual(plot.y1 + 0.001);
+    expect(L.cx).toBeGreaterThan((region.x0 + region.x1) / 2); // toward the newest end
+    expect(L.rx).toBe(L.ry); // a circle
   });
 
   it("a region scrolled off the camera draws no lens", () => {

@@ -169,7 +169,11 @@ export function splitAtBites(xa: number, xb: number, bites: readonly number[], g
 // ── F08B · THE WEATHER LENS ─────────────────────────────────────────────────
 
 export interface ScreenBox { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }
-export interface WeatherLens { readonly cx: number; readonly cy: number; readonly rx: number; readonly ry: number }
+export interface WeatherLens {
+  readonly cx: number; readonly cy: number; readonly rx: number; readonly ry: number;
+  /** True when the measured window is larger than the pane can hold: the lens magnifies its newest end. */
+  readonly partial?: boolean;
+}
 
 /** A lens smaller than this cannot carry its ring words; it is a magnifier, not a dot. */
 export const LENS_MIN_RX = 84;
@@ -227,10 +231,18 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
     lensDistance(probe, bx0, by1), lensDistance(probe, bx1, by1),
   );
   // Grow (never shrink) until every visible corner of the region is inside.
-  // Grow (never shrink) until every visible corner of the region is inside —
-  // uniformly, so a circle stays a circle.
+  // Grow (never shrink) toward enclosing every visible corner — uniformly, so a
+  // circle stays a circle — but THE WHOLE LOUPE STAYS ON THE GLASS (plate: the
+  // full bezel and its engraved title are always visible). A window larger
+  // than the pane can hold is magnified at its NEWEST end (where the weather is
+  // now) and the lens says PARTIAL.
   const grow = k > 1 ? k * 1.02 : 1;
-  return { cx, cy, rx: rx * grow, ry: ry * grow };
+  const gmax = rCap / Math.max(rx, ry);
+  if (grow <= gmax) return { cx, cy, rx: rx * grow, ry: ry * grow };
+  const R = { rx: rCap, ry: rCap };
+  const cxN = clamp(bx1 - R.rx * 0.85, plot.x0 + R.rx, plot.x1 - R.rx);
+  const cyN = clamp((by0 + by1) / 2, plot.y0 + R.ry, plot.y1 - R.ry);
+  return { cx: cxN, cy: cyN, ...R, partial: true };
 }
 
 /**

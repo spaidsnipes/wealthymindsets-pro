@@ -19,7 +19,7 @@
  */
 
 /** The storm body's ceiling inside the lens (F08B; candles are cut out of it, so it cannot bury them). */
-export const STORM_BODY_MAX_ALPHA = 0.58;
+export const STORM_BODY_MAX_ALPHA = 0.66;
 /** The brass bezel's band width (px) around the lens (F08B plate). */
 export const LENS_BEZEL_W = 13;
 /** Texture resolution (square). Upscaled with smoothing into the lens — the softness is part of the smoke. */
@@ -116,9 +116,10 @@ export function renderStormPixels(
       const rim = 1 - Math.pow(r2, 3) * 0.55;
       const glow = d * d * d;
       const [r, g, b] = tone.rgb;
-      out[i] = Math.min(255, r * (0.55 + 0.45 * d) + 70 * glow);
-      out[i + 1] = Math.min(255, g * (0.55 + 0.45 * d) + 60 * glow);
-      out[i + 2] = Math.min(255, b * (0.55 + 0.45 * d) + 50 * glow);
+      // Luminous cores (plate): the measured colour lit from within, never a new hue.
+      out[i] = Math.min(255, r * (0.7 + 0.55 * d) + 60 * glow);
+      out[i + 1] = Math.min(255, g * (0.7 + 0.55 * d) + 55 * glow);
+      out[i + 2] = Math.min(255, b * (0.7 + 0.55 * d) + 45 * glow);
       out[i + 3] = Math.round(255 * Math.min(1, tone.weight * (0.18 + 0.82 * d) * rim));
       painted++;
     }

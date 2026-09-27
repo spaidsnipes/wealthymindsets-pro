@@ -17506,7 +17506,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               weatherLens = fitWeatherLens(
                 region,
                 // Room above for the ring's title and below for HELD / MOVED.
-                { x0: 0, y0: HEADER_FLOOR_Y + 16, x1: weatherPlotRight, y1: pane0Bottom - 16 },
+                // …and room for the whole brass bezel (F08B: the loupe is always whole on the glass).
+                { x0: LENS_BEZEL_W + 2, y0: HEADER_FLOOR_Y + 16 + LENS_BEZEL_W, x1: weatherPlotRight - LENS_BEZEL_W - 2, y1: pane0Bottom - 16 - LENS_BEZEL_W },
               );
               weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
             }
@@ -18103,7 +18104,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // layers step around the lens, HELD / MOVED included.
             floatingChips.push({ x: L.cx - L.rx - LENS_BEZEL_W - 2, y: L.cy - L.ry - LENS_BEZEL_W - 2, w: L.rx * 2 + 2 * LENS_BEZEL_W + 4, h: L.ry * 2 + 2 * LENS_BEZEL_W + 16 });
 
-            ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}`;
+            ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}${L.partial ? "|PARTIAL" : ""}`;
             ds.liquidityWeatherRing = titleYields ? "YIELDED" : "LIQUIDITY WEATHER";
             ds.liquidityWeatherStage = glass.stage;
             if (shelves > 0) ds.liquidityWeatherShelves = String(shelves);
