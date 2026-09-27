@@ -142,6 +142,8 @@ function finalize(
   tickSize: number,
   valueAreaPct: number,
   quality: ProfileQuality,
+  /** The lowest price the input actually reached (a trade, or a bar's low). */
+  lowestTraded: number = -Infinity,
 ): ProfileSnapshot {
   const rows: ProfileRow[] = [...buckets.entries()]
     .map(([price, v]) => ({ price, up: v.up, down: v.down, total: v.up + v.down }))
@@ -160,11 +162,17 @@ function finalize(
 
   const { pocIdx, vahIdx, valIdx } = pocAndValueArea(rows, valueAreaPct);
 
+  // A ROW'S PRICE IS ITS BUCKET'S LOWER EDGE, and the lowest bucket's edge
+  // can sit below anything that traded (Garden 16 §50, found on the glass
+  // 2026-09-27: TSLA 1M, split-adjusted 2012 lows near $1.5 in a multi-dollar
+  // bucket, printed "VAL 0.00"). A printed level is never lower than the
+  // lowest price the input reached. The rows themselves are unchanged.
+  const floorAtTraded = (p: number) => (Number.isFinite(lowestTraded) ? Math.max(p, lowestTraded) : p);
   return {
     rows, tickSize,
-    poc: rows[pocIdx].price,
-    vah: rows[vahIdx].price,
-    val: rows[valIdx].price,
+    poc: floorAtTraded(rows[pocIdx].price),
+    vah: floorAtTraded(rows[vahIdx].price),
+    val: floorAtTraded(rows[valIdx].price),
     totalVolume, delta, valueAreaPct, quality,
     populatedRows: rows.length,
   };
@@ -202,7 +210,7 @@ export function computeProfileFromTrades(
     else { cur.up += t.size / 2; cur.down += t.size / 2; }
     buckets.set(key, cur);
   }
-  return finalize(buckets, tick, valueAreaPct, "trade-based");
+  return finalize(buckets, tick, valueAreaPct, "trade-based", lo);
 }
 
 /**
@@ -247,5 +255,5 @@ export function computeProfileFromBars(
       buckets.set(key, cur);
     }
   }
-  return finalize(buckets, tick, valueAreaPct, "candle-estimated");
+  return finalize(buckets, tick, valueAreaPct, "candle-estimated", lo);
 }

@@ -483,3 +483,20 @@ describe("regression record — Math.ceil on the bar's high", () => {
     expect(snap.rows.filter((r) => r.price > 100.05)).toEqual([]);
   });
 });
+
+describe("a printed level is never below the lowest traded price (§50, TSLA 1M glass)", () => {
+  it("VAL on a coarse grid is the lowest traded low, not the bucket's 0.00 edge", async () => {
+    const { computeProfileFromBars } = await import("./vpEngine");
+    // Lows near $1.5 in a 4-dollar grid: the bottom bucket's edge is 0.00.
+    const bars = [
+      { time: 1, open: 1.6, high: 2.0, low: 1.5, close: 1.9, volume: 5_000_000 },
+      { time: 2, open: 1.9, high: 3.5, low: 1.8, close: 3.4, volume: 4_000_000 },
+      { time: 3, open: 3.4, high: 20, low: 3.2, close: 19, volume: 100_000 },
+    ] as never;
+    const p = computeProfileFromBars(bars, { tickSize: 4 });
+    expect(p.rows[0].price).toBe(0);           // the grid itself is unchanged
+    expect(p.val).toBe(1.5);                    // …but no printed level sits at 0.00
+    expect(p.poc).toBeGreaterThanOrEqual(1.5);
+    expect(p.vah).toBeGreaterThanOrEqual(p.val);
+  });
+});
