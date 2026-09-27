@@ -403,6 +403,47 @@ export function subscribeArrangementCapture(
   return () => document.removeEventListener(ARRANGEMENT_CAPTURE_EVENT, listener);
 }
 
+/**
+ * THE TRADER'S OWN ARRANGEMENT — what a camera replaced (Garden 16 §46, 2026-09-27).
+ *
+ * MEASURED on serving 3c65fee7 (TSLA 5m): Workspace › Regime camera over a
+ * CUSTOM stack (Derivatives Pressure, Liquidity Weather, Absorption effort…)
+ * put that stack down and the rail offered no way back — the trader's own
+ * arrangement was simply gone. A camera is a command, not a trap.
+ *
+ * ROOM IS THE ONLY WRITER, exactly like the capture above: at the one desk
+ * door, when a named camera is pressed while no desk is in force, the room
+ * publishes the capture it is about to replace. The door offers it back
+ * through `requestSavedLayout`, so the return walks the same compiler and the
+ * same locks as every saved layout. `null` = nothing to return to.
+ */
+export const OWN_ARRANGEMENT_EVENT = "wm:own-arrangement";
+
+let ownArrangement: ArrangementCapture | null = null;
+
+/** Door side, on MOUNT. */
+export function announcedOwnArrangement(): ArrangementCapture | null {
+  return ownArrangement;
+}
+
+/** Room side: "this is the trader's arrangement a camera just replaced." */
+export function announceOwnArrangement(capture: ArrangementCapture | null): void {
+  ownArrangement = capture;
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(new CustomEvent<ArrangementCapture | null>(OWN_ARRANGEMENT_EVENT, { detail: capture }));
+}
+
+/** Door side. Returns the unsubscribe. */
+export function subscribeOwnArrangement(handler: (capture: ArrangementCapture | null) => void): () => void {
+  if (typeof document === "undefined") return () => {};
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<ArrangementCapture | null>).detail;
+    handler(detail && typeof detail === "object" && !Array.isArray(detail) ? detail : null);
+  };
+  document.addEventListener(OWN_ARRANGEMENT_EVENT, listener);
+  return () => document.removeEventListener(OWN_ARRANGEMENT_EVENT, listener);
+}
+
 export const SAVED_LAYOUT_REQUEST_EVENT = "wm:saved-layout";
 
 export interface SavedLayoutRequest {

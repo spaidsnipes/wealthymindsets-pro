@@ -65,7 +65,9 @@ describe("1 · APPLY — one desk door, five kinds of desk", () => {
 
   it("arrangementDeskRef leaves through ONE applyRespectingLocks over the compiler's two switch sets", () => {
     expect(DASHBOARD).toMatch(
-      /arrangementDeskRef\.current = \(desk: ArrangementId \| SavedLayoutRequest\) =>\s*applyRespectingLocks\(\s*typeof desk === "string"\s*\?\s*arrangementSwitches\(desk, arrangementMenu\)\s*:\s*savedArrangementSwitches\(desk\.switches, arrangementMenu\),?\s*\);/,
+      // Garden 16 §46: the door may first publish the arrangement a camera replaces
+      // (ownArrangementReturn.sentinel) — it still leaves through ONE applyRespectingLocks.
+      /arrangementDeskRef\.current = \(desk: ArrangementId \| SavedLayoutRequest\) => \{[^]*?\n    applyRespectingLocks\(\s*typeof desk === "string"\s*\?\s*arrangementSwitches\(desk, arrangementMenu\)\s*:\s*savedArrangementSwitches\(desk\.switches, arrangementMenu\),?\s*\);/,
     );
   });
 

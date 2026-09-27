@@ -211,6 +211,7 @@ import {
   announceEquipmentArrangement,
   announceEquipmentShortfalls,
   announceArrangementCapture,
+  announceOwnArrangement,
   subscribeSavedLayoutRequests,
   type SavedLayoutRequest,
 } from "@/lib/workspace/equipmentChannel";
@@ -3399,12 +3400,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // `applyRespectingLocks` — a saved layout cannot set a switch a desk could
   // not, and a locked lane holds against it exactly as it holds against a desk.
   const arrangementDeskRef = useRef<(desk: ArrangementId | SavedLayoutRequest) => void>(() => {});
-  arrangementDeskRef.current = (desk: ArrangementId | SavedLayoutRequest) =>
+  arrangementDeskRef.current = (desk: ArrangementId | SavedLayoutRequest) => {
+    // A camera never eats the trader's own arrangement (Garden 16 §46): pressed
+    // while no desk is in force, the capture it replaces is handed to the
+    // Workspace door as "Your arrangement" (equipmentChannel OWN_ARRANGEMENT).
+    if (typeof desk === "string" && arrangementVM.activeId === null) {
+      const own = captureArrangement(arrangementMenu);
+      if (Object.values(own).some(Boolean)) announceOwnArrangement(own);
+    }
     applyRespectingLocks(
       typeof desk === "string"
         ? arrangementSwitches(desk, arrangementMenu)
         : savedArrangementSwitches(desk.switches, arrangementMenu),
     );
+  };
   useEffect(() => subscribeSavedLayoutRequests((req) => arrangementDeskRef.current(req)), []);
 
   /*
@@ -3591,6 +3600,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     announceEquipmentArrangement(null);
     announceEquipmentShortfalls([]);
     announceArrangementCapture(null);
+    announceOwnArrangement(null);
   }, []);
 
   /*

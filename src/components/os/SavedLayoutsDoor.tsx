@@ -37,8 +37,10 @@ import * as React from "react";
 
 import {
   announcedArrangementCapture,
+  announcedOwnArrangement,
   requestSavedLayout,
   subscribeArrangementCapture,
+  subscribeOwnArrangement,
   type ArrangementCapture,
 } from "@/lib/workspace/equipmentChannel";
 import {
@@ -92,6 +94,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
   const store = storage === undefined ? pageStorage() : storage;
   const [layouts, setLayouts] = React.useState<readonly SavedLayout[]>(() => loadSavedLayouts(store));
   const [capture, setCapture] = React.useState<ArrangementCapture | null>(() => announcedArrangementCapture());
+  const [own, setOwn] = React.useState<ArrangementCapture | null>(() => announcedOwnArrangement());
   const [naming, setNaming] = React.useState(false);
   const [draft, setDraft] = React.useState("");
   const [renamingId, setRenamingId] = React.useState<string | null>(null);
@@ -110,6 +113,10 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
   React.useEffect(() => {
     setCapture(announcedArrangementCapture());
     return subscribeArrangementCapture(setCapture);
+  }, []);
+  React.useEffect(() => {
+    setOwn(announcedOwnArrangement());
+    return subscribeOwnArrangement(setOwn);
   }, []);
 
   // Another tab saved or deleted a layout: show the list that is actually stored.
@@ -246,6 +253,36 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
       >
         Saved layouts
       </div>
+
+      {/* THE WAY BACK (Garden 16 §46): a camera replaced the trader's own
+          arrangement; offered until the chart is arranged that way again. */}
+      {own && capture && !savedArrangementInForce(own, capture) ? (
+        <button
+          type="button"
+          data-testid="own-arrangement-return"
+          aria-label="Return to your arrangement"
+          onClick={() => requestSavedLayout({ layoutId: "own-arrangement", switches: own })}
+          style={{
+            display: "block",
+            width: "100%",
+            minHeight: 30,
+            padding: "5px 8px",
+            textAlign: "left",
+            border: `1px solid ${ink.gold}`,
+            borderRadius: 3,
+            background: "rgba(196,165,116,0.06)",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          <span style={{ display: "block", fontSize: 12, fontWeight: 500, letterSpacing: 0.3, color: ink.gold }}>
+            <span aria-hidden>↩ </span>Your arrangement
+          </span>
+          <span style={{ display: "block", fontSize: 10.5, lineHeight: 1.45, color: ink.hint }}>
+            {layoutOnCount({ switches: own as SavedLayout["switches"] })} readings — as it was before the camera
+          </span>
+        </button>
+      ) : null}
 
       {layouts.length === 0 ? (
         <p data-testid="saved-layouts-empty" style={{ margin: 0, padding: "0 4px", fontSize: 10.5, lineHeight: 1.45, color: ink.hint }}>
