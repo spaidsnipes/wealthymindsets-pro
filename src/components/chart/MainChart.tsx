@@ -9774,9 +9774,31 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (shelfDepth !== "FAR") {
                 const shelfFillA = shelfSelected ? 0.14 : 0.10;
                 if (rowRects.length > 0) {
-                  const rowFillA = rowSideInk == null ? shelfFillA + 0.02 : rowSideInferred ? shelfFillA + 0.04 : shelfFillA + 0.10;
-                  ctx.fillStyle = `rgba(${rowInk},${rowFillA.toFixed(2)})`;
+                  /* F06A · SLABS WITH BODY (Garden 16 emergency order §22/§29).
+                     The plate's shelf is stacked slabs of material held BEHIND
+                     the candles — force met structure there. A veil ≤ 0.16 was
+                     the price of painting ON the candles; cutting every candle
+                     body out of the slabs first (as the pressure walls do) lets
+                     the rows carry real body while price stays sovereign. Side
+                     ink still only where the owner names a side. */
+                  const rowFillA = rowSideInk == null ? 0.26 : rowSideInferred ? 0.30 : 0.38;
+                  const vrS = ts.getVisibleLogicalRange();
+                  const cutS = new Path2D();
+                  cutS.rect(0, 0, W, H);
+                  for (const cr of candleCutOutRects(barsRef.current ?? [], {
+                    visible: vrS ? { from: +vrS.from, to: +vrS.to } : null,
+                    barSpacing: bsp,
+                    timeToX: t => { const xk = ts.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                    priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
+                  }, x0 - 2, x1 + 2)) cutS.rect(cr.x, cr.y, cr.w, cr.h);
+                  ctx.save();
+                  ctx.clip(cutS, "evenodd");
+                  ctx.fillStyle = `rgba(${rowInk},${(shelfSelected ? rowFillA + 0.06 : rowFillA).toFixed(2)})`;
                   for (const r of rowRects) ctx.fillRect(r.x, r.y, r.w, r.h);
+                  // Each slab's lit top edge: a body, not a tint.
+                  ctx.fillStyle = `rgba(255,244,220,${shelfSelected ? 0.28 : 0.18})`;
+                  for (const r of rowRects) ctx.fillRect(r.x, r.y, r.w, 1);
+                  ctx.restore();
                 } else {
                   ctx.fillStyle = desktopShelfInstrument
                     ? `rgba(210,214,219,${shelfFillA})`
