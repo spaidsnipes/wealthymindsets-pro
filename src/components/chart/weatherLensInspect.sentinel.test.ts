@@ -30,3 +30,10 @@ describe("the weather lens is selectable and inspectable", () => {
     expect(IT).toContain("no weather is guessed at");
   });
 });
+
+describe("depth: structure stands in front of environment (Garden 16 §22)", () => {
+  it("the storm and its ring are cut around every pressure wall body, on the chip clip (never cancelling a candle's cut)", () => {
+    expect(MC).toContain("for (const wr of pressureWallHitRef.current) chipCut.rect(wr.x, wr.y, wr.w, wr.h);");
+    expect(MC.indexOf("for (const wr of pressureWallHitRef.current) chipCut.rect(")).toBeLessThan(MC.indexOf("weatherLensChipCut = chipCut;"));
+  });
+});
