@@ -19,6 +19,7 @@
  */
 "use client";
 
+import { noteArrival, noteFlush } from "@/lib/chart/marketClockProbe";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
@@ -1255,6 +1256,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (tickBuf.current.length === 0) return;
 
     const ticks = tickBuf.current.splice(0, tickBuf.current.length);
+    // One newest snapshot per frame; every older print's frame is thrown away (marketClockProbe).
+    noteFlush(performance.now(), ticks.length);
     const last  = ticks[ticks.length - 1];
     const price = last.price;
     const now   = Date.now();
@@ -1338,6 +1341,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     priceRef.current = tick.price;
     tickBuf.current.push(tick);
+    noteArrival(performance.now());
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
     // Only an OBSERVED print dates the feed. A synthetic seed tick (isReal

@@ -514,6 +514,7 @@ import type {
   LegacyOhlcvTuple,
 } from "@/lib/marketData/canonicalBar";
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
+import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { renderStormPixels, stormSeed, LENS_BEZEL_W, STORM_BODY_MAX_ALPHA, STORM_DRIFT_PER_SEC, STORM_TEXTURE_SIZE } from "@/lib/chart/weatherStorm";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { WaitStandingVM } from "@/lib/marketData/viewModels/selectWaitStanding";
@@ -4124,6 +4125,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
     try {
       candleRef.current.update(bar as any);
+      noteSeries(performance.now());
       // No histogram point for a placeholder volume (volumeTruth.ts): EURUSD's
       // live 1 was drawn as a full-height bar over a week of 0s (2026-09-26).
       if (volumeTruthFor(symbol, [...prevBars, bar]).real) volRef.current.update({
@@ -4207,6 +4209,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // ONLY — real aggressor tape, never synthetic footprint. No bubble without
     // a qualifying large trade at that price level on that bar.
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A new symbol or timeframe is a new market clock measurement (marketClockProbe).
+  useEffect(() => { resetMarketClock(); }, [symbol, timeframe]);
 
   /* ── BAR REPLAY CAMERA (M9 repair 2) ────────────────────────────────
    * The room freezes its canonical bars at the press and hands this chart the
@@ -19316,6 +19320,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const startedAt = performance.now();
         draw();
         paintLedger = recordPaint(paintLedger, performance.now() - startedAt);
+        // MARKET CLOCK → PAINT (marketClockProbe): the newest candle update reached this paint.
+        notePaint(performance.now());
+        if (canvasRef.current) canvasRef.current.dataset.marketClock = marketClockReceipt();
         // draw() has just republished the receipt, so nothing is being withheld.
         if (canvasRef.current) delete canvasRef.current.dataset.vpSuspended;
         // Published on paint only — at most ~30 writes/sec, and a frame that
