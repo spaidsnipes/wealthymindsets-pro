@@ -115,8 +115,19 @@ describe("the chart's P&L strip counts the same rows", () => {
     expect(report.headline.text).toBe("+$0.00");
   });
 
+  it("a YM1! row saved at $1/pt reaches the strip as UNKNOWN, never as '$1/pt' or 'understate' (§65 Y1 repair)", () => {
+    const raw = JSON.stringify([
+      { id: "y", date: "2026-09-03", symbol: "YM1!", side: "long", entry: 40000, exit: 40010, size: 1, pnl: 10, result: "win" },
+    ]);
+    const lf = compilePnlStats(raw).legacyFutures;
+    expect(lf).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 0 });
+    expect(lf.chip).toBe("1 futures money UNKNOWN");
+    expect(lf.note).toContain("WM has no point value for YM, so its true money is UNKNOWN");
+    expect(lf.note).not.toMatch(/understate|\$1\/pt|see its futures money/);
+  });
+
   it("is silent for an unreadable journal and for a journal with no futures", () => {
-    const none = { count: 0, otherCount: 0, note: null, chip: null };
+    const none = { count: 0, unknownCount: 0, unknownRoots: [], otherCount: 0, note: null, chip: null };
     expect(compilePnlStats("{nope").legacyFutures).toEqual(none);
     expect(compilePnlStats(null).legacyFutures).toEqual(none);
   });

@@ -590,7 +590,7 @@ describe("describeLegacyFuturesMoney — review YELLOW: totals say what they hol
   });
 
   it("is silent on a book with no such entry, and singular for one", () => {
-    const none = { count: 0, otherCount: 0, note: null, chip: null };
+    const none = { count: 0, unknownCount: 0, unknownRoots: [], otherCount: 0, note: null, chip: null };
     expect(describeLegacyFuturesMoney([{ ...es, pnl: 500 }, { ...es, symbol: "AAPL", pnl: 3 }])).toEqual(none);
     expect(describeLegacyFuturesMoney([])).toEqual(none);
     expect(describeLegacyFuturesMoney([{ ...es, pnl: 10 }]).note).toMatch(/^1 futures entry was not priced at its point value/);
@@ -631,10 +631,54 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row s
     expect(describeLegacyFuturesMoney([optAt1x])).toMatchObject({ count: 0, otherCount: 1, chip: "1 money mismatch" });
   });
 
-  it("an unpriced root NOT at 1x is neutral; an unpriced root AT 1x is a $1/pt save", () => {
+  it("an unpriced root NOT at 1x is neutral; an unpriced root AT 1x is UNKNOWN, never a $1/pt 'understate'", () => {
     const ym = { ...es, symbol: "YM1!", entry: 40000, exit: 40010 };
-    expect(describeLegacyFuturesMoney([{ ...ym, pnl: 77 }])).toMatchObject({ count: 0, otherCount: 1 });
-    expect(describeLegacyFuturesMoney([{ ...ym, pnl: 10 }])).toMatchObject({ count: 1, otherCount: 0 });
+    expect(journalMoneyFor(ym).status).toBe("UNPRICED"); // WM has no YM point value
+    expect(describeLegacyFuturesMoney([{ ...ym, pnl: 77 }])).toMatchObject({ count: 0, unknownCount: 0, otherCount: 1 });
+    expect(describeLegacyFuturesMoney([{ ...ym, pnl: 10 }])).toMatchObject({ count: 0, unknownCount: 1, otherCount: 0 });
+  });
+});
+
+describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED root saved at 1x is UNKNOWN", () => {
+  const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const };
+  // YM1!: futures notation, no point value on file. Stored the pre-§17 way: 10 points x $1.
+  const ym = { symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, pnl: 10 };
+  const optOnEs = { symbol: "ES1!", contractType: "option" as const, entry: 10, exit: 12, size: 1, side: "long" as const, pnl: 200 };
+
+  it("a YM1! row saved at $1/pt is counted UNKNOWN, with its own sentence naming YM — no 'understate', no '$1/pt' chip", () => {
+    expect(selectRecordedMoney(ym).savedAtOneX).toBe(true);
+    const d = describeLegacyFuturesMoney([ym]);
+    expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 0 });
+    expect(d.chip).toBe("1 futures money UNKNOWN");
+    expect(d.chip).not.toMatch(/\$1\/pt/);
+    expect(d.note).toBe(
+      "1 futures entry was saved at $1 per point; WM has no point value for YM, so its true money is UNKNOWN. "
+      + "It is counted here as recorded.",
+    );
+    expect(d.note).not.toMatch(/understate/);
+    expect(d.note).not.toMatch(/see its futures money/);
+    expect(d.note).not.toMatch(/not priced at its point value/);
+  });
+
+  it("plural, roots de-duplicated in first-seen order", () => {
+    const d = describeLegacyFuturesMoney([ym, { ...ym, symbol: "ZB1!", entry: 110, exit: 111, pnl: 1 }, { ...ym, pnl: 10 }]);
+    expect(journalMoneyFor({ symbol: "ZB1!" }).status).toBe("UNPRICED");
+    expect(d).toMatchObject({ count: 0, unknownCount: 3, unknownRoots: ["YM", "ZB"] });
+    expect(d.note).toBe(
+      "3 futures entries were saved at $1 per point; WM has no point value for YM, ZB, so their true money is UNKNOWN. "
+      + "They are counted here as recorded.",
+    );
+  });
+
+  it("a book with a PRICED ES $1/pt save, an UNPRICED YM $1/pt save and an option on ES gets three sentences in order", () => {
+    const d = describeLegacyFuturesMoney([{ ...es, pnl: 10 }, ym, optOnEs]);
+    expect(d).toMatchObject({ count: 1, unknownCount: 1, otherCount: 1 });
+    expect(d.chip).toBe("1 futures at $1/pt · 1 futures money UNKNOWN · 1 money mismatch");
+    expect(d.note).toMatch(
+      /^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other futures entry was saved at \$1 per point; WM has no point value for YM, so its true money is UNKNOWN\. It is counted here as recorded\. 1 other entry carries/,
+    );
+    // The understate sentence speaks for exactly one entry — the priced ES row.
+    expect(d.note!.match(/understate/g)).toHaveLength(1);
   });
 
   it("a mixed book gets both sentences, $1/pt first, and a two-part chip", () => {

@@ -190,6 +190,21 @@ describe("placeChartToolsMenu — the style ChartToolbar paints for the Chart to
     expect(box.bottom).toBeLessThanOrEqual(trigger.top);
   });
 
+  it("the MEASURED height decides the side: a 300px menu fits below a mid-screen trigger, a 400px one does not", () => {
+    // Trigger y 500–536 in 900px: room below 900−8−540 = 352, room above 500−4−8 = 488.
+    // The roomier side is ABOVE, so only the measured height can put it below.
+    const mid = { left: 1386, top: 500, right: 1592, bottom: 536 };
+    const fits = placeChartToolsMenu({ viewport, trigger: mid, menuHeight: 300 });
+    expect(fits.side).toBe("below");
+    expect(fits.style).toEqual({ position: "fixed", top: 540, bottom: undefined, maxHeight: 352, overflowY: "auto", right: 8 });
+    // Unmeasured, the same trigger opens on the roomier (upper) side.
+    expect(placeChartToolsMenu({ viewport, trigger: mid, menuHeight: null }).side).toBe("above");
+    // Too tall for the room below → above, capped to that room.
+    const tall = placeChartToolsMenu({ viewport, trigger: mid, menuHeight: 400 });
+    expect(tall.side).toBe("above");
+    expect(tall.style).toMatchObject({ top: undefined, bottom: 404, maxHeight: 488 });
+  });
+
   it("before it has measured itself it still takes the roomier (upper) side", () => {
     expect(placeChartToolsMenu({ viewport, trigger, menuHeight: null }).side).toBe("above");
   });

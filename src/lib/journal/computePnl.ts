@@ -259,21 +259,31 @@ export function selectContractChip(e: RecordedMoneyInput): ContractChip | null {
  * does not drop the rows either (that would be a second silent change to the
  * same totals). It counts them as recorded and SAYS so, here, once.
  *
- * TWO GROUPS, TWO SENTENCES (Garden 16 §65, 2026-09-26). Only a FUTURES row
+ * THREE GROUPS, THREE SENTENCES (Garden 16 §65, 2026-09-26/27). Only a
+ * FUTURES row on a PRICED root (`journalMoneyFor` → PRICED, basis futures)
  * whose stored P&L is exactly the $1-per-point figure (`savedAtOneX`) is
- * counted in `count` and told "$1 per point … understate". Every other
- * flagged row — an option on futures (stored at the equity 100x), a futures
- * figure that is neither 1x nor the point value, an unpriced root not at 1x —
- * is counted in `otherCount` and gets a neutral sentence: WM does not know
- * those dollars understate anything, so it does not say they do.
+ * counted in `count` and told "$1 per point … understate": WM knows its point
+ * value, so it knows the stored dollars are smaller. A futures row on an
+ * UNPRICED root (no point value on file — YM, say) saved at $1 per point is
+ * counted in `unknownCount`: WM knows how it was saved but NOT what it is
+ * worth, so its sentence says the true money is UNKNOWN and names the roots —
+ * never "understate", never "open it to see its futures money" (there is none
+ * to see). Every other flagged row — an option on futures (stored at the
+ * equity 100x), a futures figure that is neither 1x nor the point value, an
+ * unpriced root not at 1x — is counted in `otherCount` and gets a neutral
+ * sentence.
  *
  * Never counted: M0 records (`selectRecordedMoney` owns that rule), shares,
  * equity options. Re-pricing a saved entry is not built yet; the note says
  * that too rather than pointing at a control that does not exist.
  */
 export interface LegacyFuturesMoney {
-  /** Futures trade records stored at exactly $1 per point. */
+  /** Futures trade records on a PRICED root stored at exactly $1 per point. */
   readonly count: number;
+  /** Futures trade records on an UNPRICED root stored at $1 per point — true money UNKNOWN. */
+  readonly unknownCount: number;
+  /** The unpriced roots behind `unknownCount`, in first-seen order. */
+  readonly unknownRoots: readonly string[];
   /** Other records whose stored P&L is not their contract's money. */
   readonly otherCount: number;
   readonly note: string | null;
@@ -283,18 +293,24 @@ export interface LegacyFuturesMoney {
 
 export const FUTURES_POINT_VALUE_SINCE = "2026-09-26";
 
-export const NO_LEGACY_FUTURES_MONEY: LegacyFuturesMoney = { count: 0, otherCount: 0, note: null, chip: null };
+export const NO_LEGACY_FUTURES_MONEY: LegacyFuturesMoney = { count: 0, unknownCount: 0, unknownRoots: [], otherCount: 0, note: null, chip: null };
 
 export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[]): LegacyFuturesMoney {
   let count = 0;
+  let unknownCount = 0;
+  const unknownRoots: string[] = [];
   let otherCount = 0;
   for (const r of records) {
     const recorded = selectRecordedMoney(r);
     if (recorded.mismatch === null) continue;
-    if (recorded.savedAtOneX && journalContractBasis(r) === "futures") count += 1;
-    else otherCount += 1;
+    const money = journalMoneyFor(r);
+    if (recorded.savedAtOneX && money.status === "PRICED" && money.basis === "futures") count += 1;
+    else if (recorded.savedAtOneX && money.status === "UNPRICED" && money.refusal === "NO_POINT_VALUE") {
+      unknownCount += 1;
+      if (!unknownRoots.includes(money.root)) unknownRoots.push(money.root);
+    } else otherCount += 1;
   }
-  if (count === 0 && otherCount === 0) return NO_LEGACY_FUTURES_MONEY;
+  if (count === 0 && unknownCount === 0 && otherCount === 0) return NO_LEGACY_FUTURES_MONEY;
   const sentences: string[] = [];
   const chips: string[] = [];
   if (count > 0) {
@@ -307,16 +323,26 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
     );
     chips.push(`${count} futures at $1/pt`);
   }
+  if (unknownCount > 0) {
+    const one = unknownCount === 1;
+    const roots = unknownRoots.join(", ");
+    sentences.push(
+      `${unknownCount} ${count > 0 ? "other " : ""}futures ${one ? "entry was" : "entries were"} saved at $1 per point; `
+      + `WM has no point value for ${roots}, so ${one ? "its" : "their"} true money is UNKNOWN. `
+      + `${one ? "It is" : "They are"} counted here as recorded.`,
+    );
+    chips.push(`${unknownCount} futures money UNKNOWN`);
+  }
   if (otherCount > 0) {
     const one = otherCount === 1;
     sentences.push(
-      `${otherCount} ${count > 0 ? "other " : ""}${one ? "entry carries a recorded P&L that is" : "entries carry a recorded P&L that is"} not ${one ? "its" : "their"} contract's money `
+      `${otherCount} ${count + unknownCount > 0 ? "other " : ""}${one ? "entry carries a recorded P&L that is" : "entries carry a recorded P&L that is"} not ${one ? "its" : "their"} contract's money `
       + `(an option on futures, a futures root WM cannot price, or a figure that is neither $1 per point nor the point value). `
       + `${one ? "It is" : "They are"} counted here as recorded. Open ${one ? "it" : "one"} to see why.`,
     );
     chips.push(`${otherCount} money mismatch`);
   }
-  return { count, otherCount, note: sentences.join(" "), chip: chips.join(" · ") };
+  return { count, unknownCount, unknownRoots, otherCount, note: sentences.join(" "), chip: chips.join(" · ") };
 }
 
 /**
