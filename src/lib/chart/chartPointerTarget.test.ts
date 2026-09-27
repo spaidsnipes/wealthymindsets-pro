@@ -55,3 +55,12 @@ describe("volume never prints on the price axis (§50)", () => {
     expect(block).not.toContain("lastValueVisible: true");
   });
 });
+
+describe("the header's truth groups never split inside themselves from 1280 up (§50, 1440 glass)", () => {
+  it("price+change and OHLC keep their words together at xl; recency is the group that folds", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(src).toContain('<div className="flex items-baseline gap-2 xl:shrink-0 xl:whitespace-nowrap" data-legend-group="price">');
+    expect(src).toContain('className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim xl:shrink-0 xl:whitespace-nowrap" data-legend-group="ohlc">');
+    expect(src).toContain('<div className="ml-auto flex min-w-0 items-center gap-3" style={{ flexShrink: 2 }}>');
+  });
+});

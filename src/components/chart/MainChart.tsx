@@ -19341,8 +19341,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           );
         })()}
 
-        {/* Price + change + source provenance (WM-CHART-P0-05) */}
-        <div className="flex items-baseline gap-2">
+        {/* Price + change + source provenance (WM-CHART-P0-05)
+            WHOLE, NEVER SPLIT, FROM 1280 UP (Garden 16 §50, found on the glass
+            2026-09-27 at 1440 — the Founder's reconstruction width): once the
+            band stopped at the axis, "372.11 LAST 15m BAR CLOSE" and "+0.46
+            (+0.12%) vs prior 15m bar" broke INSIDE themselves ("…BAR / CLOSE",
+            "…15m / bar"). From xl the price and change groups (and the OHLC
+            group below) keep their words together and the recency sentence —
+            the lowest-priority group, line-clamped with its full sentence in
+            its title and spoken label — is the one that folds. Below 1280 the
+            groups cannot all fit whole, and wrapping stays the lawful answer. */}
+        <div className="flex items-baseline gap-2 xl:shrink-0 xl:whitespace-nowrap" data-legend-group="price">
           {(() => {
             /* The headline price has THREE possible answers and used to render
                only one. Measured 2026-09-07 on /charts?symbol=NQ1!: this span
@@ -19525,7 +19534,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               role="group"
               aria-label={stripScope.spoken}
               data-ohlc-strip-scope={stripScope.subheading}
-              className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim">
+              className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim xl:shrink-0 xl:whitespace-nowrap" data-legend-group="ohlc">
               {rangeFact.measured ? (
                 <>
                   <span title={stripScope.open.title}>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
