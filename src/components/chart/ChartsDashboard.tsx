@@ -154,7 +154,7 @@ import type {
 } from "@/lib/marketData/canonicalBar";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { selectObjectLineage, selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
-import { sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { memoryLevelKindOf, selectMemoryMarketObjects } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { selectLivingBiography } from "@/lib/marketData/viewModels/selectLivingBiography";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
@@ -1453,12 +1453,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // are static until the distribution changes, and the only thing that moves
   // is where price sits against them. That position is the reading, and it
   // needs the room's live price, not the last print inside the sample.
+  const livingSessionBars = React.useMemo(
+    () => selectSessionWindowBars(chartBars, sessionWindowFor(symbol, timeframe, !!extHours)),
+    [chartBars, symbol, timeframe, extHours],
+  );
   const livingProfileVM = React.useMemo(
     () =>
-      selectLivingProfile(buildLivingProfileSnapshot(recentTicks, chartBars), {
+      // Garden 16 §21/§22 — the Living Profile is THIS auction, not the whole
+      // loaded history. Its bar path read every loaded bar, so on TSLA 1D the
+      // body's POC (182.50) and VAL (155.00) sat below a camera whose every
+      // candle traded 300–500 (serving, beside P110, 2026-09-27). The bars
+      // now go through the ONE session-window owner the canvas uses.
+      selectLivingProfile(buildLivingProfileSnapshot(recentTicks, livingSessionBars), {
         livePrice: ticker.price,
       }),
-    [recentTicks, chartBars, ticker.price],
+    [recentTicks, livingSessionBars, ticker.price],
   );
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a

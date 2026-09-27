@@ -80,7 +80,11 @@ describe("Living Profile view wiring", () => {
   it("THE SOURCE DECISION IS DELEGATED — the room does not pick tape-vs-bars", () => {
     const src = stripComments(read("src/components/chart/ChartsDashboard.tsx"));
     expect(src).toMatch(/livingProfileVM\s*=\s*React\.useMemo/);
-    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*recentTicks,\s*chartBars\s*\)/);
+    // Pin moved 2026-09-27 (Garden 16 §21/§22, serving TSLA 1D beside P110):
+    // the bars are the SESSION's bars, from the one session-window owner —
+    // the room still hands both sources and still does not choose between them.
+    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*recentTicks,\s*livingSessionBars\s*\)/);
+    expect(src).toMatch(/livingSessionBars\s*=\s*React\.useMemo\(\s*\(\)\s*=>\s*selectSessionWindowBars\(chartBars,\s*sessionWindowFor\(/);
     // And it must not reach around that owner into the engine.
     expect(src).not.toMatch(/computeProfileFrom(Trades|Bars)\s*\(/);
   });
