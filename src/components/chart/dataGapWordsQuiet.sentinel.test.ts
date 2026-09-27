@@ -9,10 +9,9 @@ import { describe, expect, it } from "vitest";
 const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
 
 describe("data-gap words", () => {
-  it("at MID a short hole speaks only if it is one of the two newest on camera; NEAR names every hole", () => {
-    expect(MC).toContain('if (semanticDensity.depth !== "NEAR") {');
-    expect(MC).toContain(".sort((a, b) => b.fromTime - a.fromTime).slice(0, 2);");
-    expect(MC).toContain('if (semanticDensity.depth !== "NEAR" && g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }');
+  it("a short hole speaks only if it is one of the two newest on camera (no private depth rule)", () => {
+    expect(MC).toContain(".sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) shortWordAllowed.add(g.fromTime);");
+    expect(MC).toContain("if (g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }");
   });
   it("words never stack on each other, and the withheld count is published", () => {
     expect(MC).toContain("if (gapWordRects.some(r => rect.x < r.x + r.w");

@@ -8299,15 +8299,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         let painted = 0, worded = 0, wordsWithheld = 0;
         // LABEL SOUP (Founder's Chrome, TSLA 15m, 2026-09-27): every overnight
         // one-interval hole printed "NO BAR · 1 interval" — dozens stacked down
-        // the left. At MID a short hole (< 3 intervals) keeps its dashed bridge
-        // but only the two NEWEST on camera carry words; NEAR still names
-        // every hole; ≥ 3 intervals are named at every depth (rule above).
+        // the left. A short hole (< 3 intervals) keeps its dashed bridge but
+        // only the two NEWEST on camera carry words; ≥ 3 intervals are named
+        // wherever the permission table lets gaps speak (rule above).
+        // (Depth is the permission table's alone — no private depth rule here;
+        // a NEAR camera holds so few bars the two-newest limit rarely binds.)
         const shortWordAllowed = new Set<number>();
-        if (semanticDensity.depth !== "NEAR") {
-          const onCam = dg.gaps.filter(g => g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
-            .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2);
-          for (const g of onCam) shortWordAllowed.add(g.fromTime);
-        }
+        for (const g of dg.gaps.filter(g => g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
+          .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) shortWordAllowed.add(g.fromTime);
         const gapWordRects: { x: number; y: number; w: number; h: number }[] = [];
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
@@ -8326,7 +8325,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // 2026-09-26 · the depth rule is the permission table's (dataGaps is
           // QUIET at FAR: the bridge, no words).
           if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;
-          if (semanticDensity.depth !== "NEAR" && g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
+          if (g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
           const my = Math.min(+y0, +y1) - 10;
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
