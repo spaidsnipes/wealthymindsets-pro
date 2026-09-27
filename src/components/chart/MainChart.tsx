@@ -7431,7 +7431,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // size-weighted time and price), until no two discs touch. A lone
         // print is its own cluster and stays its own bubble. Members are
         // kept for Inspect — nothing is dropped, nothing is invented.
-        const bigClusters = clusterBigTrades<BigClusterInput>(bubblesRef.current.map(b => ({
+        // AHEAD OF THE DRAWN BARS (Garden 16 §46, serving 3345619c, BTC-USD 1m):
+        // the chart ran two bars behind the live clock, so a 0.15+ BTC print
+        // anchored two bar-widths past the last candle — inside the axis
+        // column, under the plot clip — and was counted as drawn while no pixel
+        // of it could show. Only prints on the plot are clustered and drawn; a
+        // print ahead of the bars stays alive (its key held) and paints the
+        // moment its bar lands. The receipt names how many are waiting.
+        const bigOnPlot = bubblesRef.current.filter(b => b.x >= 0 && b.x <= plotRight);
+        const bigAhead = bubblesRef.current.length - bigOnPlot.length;
+        if (bigAhead > 0) canvas.dataset.bigTradeAheadOfBars = String(bigAhead);
+        else delete canvas.dataset.bigTradeAheadOfBars;
+        const bigClusters = clusterBigTrades<BigClusterInput>(bigOnPlot.map(b => ({
           key: b.spawnKey, x: b.x, y: b.y, r: b.baseR, size: Math.abs(b.value),
           timeSec: b.anchorTime, barTime: b.anchorBarTime, price: b.anchorPrice, bid: b.bid, ask: b.ask, b,
         })), { maxR: BIG_TRADE_MAX_R });
@@ -7468,7 +7479,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // tickets overlapped each other, the candles and the bubbles).
         canvas.dataset.bigTradeBubbleCount = String(bubblesRef.current.length);
         canvas.dataset.bigTradeBubbleIdentity = "INDIVIDUAL_EXECUTION";
-        canvas.dataset.bigTradeBubbleStatus = bubblesRef.current.length ? "DRAWN" : "WAITING_FOR_PRINTS";
+        canvas.dataset.bigTradeBubbleStatus = bigOnPlot.length ? "DRAWN" : bigAhead > 0 ? "AHEAD_OF_BARS" : "WAITING_FOR_PRINTS";
         {
           const top = bubblesRef.current.reduce<Bubble | null>((m, b) => (!m || b.bid + b.ask > m.bid + m.ask ? b : m), null);
           if (top) canvas.dataset.bigTradeBubbleTop = `${Math.round(top.x)},${Math.round(top.y)}`;
@@ -7721,7 +7732,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
           "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
-          "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
+          "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeAheadOfBars", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
       }
 
       // O-06 · THE FOOTPRINT RECEIPT, after every mode has painted (Big

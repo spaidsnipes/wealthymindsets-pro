@@ -38,7 +38,9 @@ const drawLoop = () => slice("for (const b of [...bigDiscs].sort(", "canvas.data
 describe("the paint clusters the frame's prints through the one owner", () => {
   it("every print after the cull goes to clusterBigTrades at its TARGET radius and claimed size, capped by the size owner", () => {
     const cull = CODE.indexOf("bubblesRef.current = survivors.length > cap");
-    const cluster = CODE.indexOf("const bigClusters = clusterBigTrades<BigClusterInput>(bubblesRef.current.map(b => ({");
+    // Garden 16 §46: only prints ON THE PLOT reach the cluster owner (a print
+    // ahead of the drawn bars waits, named by bigTradeAheadOfBars).
+    const cluster = CODE.indexOf("const bigClusters = clusterBigTrades<BigClusterInput>(bigOnPlot.map(b => ({");
     expect(cull).toBeGreaterThan(-1);
     expect(cluster).toBeGreaterThan(cull);
     const p = painted();
@@ -127,5 +129,17 @@ describe("hover and click hit-test the discs that were drawn", () => {
   it("hover reads the same discs", () => {
     expect(CODE).toContain("const bubbles = [...bigTradeFrameRef.current.discs, ...deltaBubblesRef.current];");
     expect(CODE).not.toContain("const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];");
+  });
+});
+
+describe("a print ahead of the drawn bars is held, not counted as drawn (Garden 16 §46)", () => {
+  it("only prints on the plot are clustered; the rest are named and kept alive", () => {
+    expect(CODE).toContain("const bigOnPlot = bubblesRef.current.filter(b => b.x >= 0 && b.x <= plotRight);");
+    expect(CODE).toContain("if (bigAhead > 0) canvas.dataset.bigTradeAheadOfBars = String(bigAhead);");
+    expect(CODE.indexOf("const bigOnPlot =")).toBeLessThan(CODE.indexOf("const bigClusters = clusterBigTrades<"));
+  });
+
+  it("the status word tells DRAWN, AHEAD_OF_BARS and WAITING_FOR_PRINTS apart", () => {
+    expect(CODE).toContain('canvas.dataset.bigTradeBubbleStatus = bigOnPlot.length ? "DRAWN" : bigAhead > 0 ? "AHEAD_OF_BARS" : "WAITING_FOR_PRINTS";');
   });
 });
