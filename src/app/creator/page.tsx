@@ -130,7 +130,7 @@ const FAQ = [
   { q:"How do I get paid?", a:"Payments are not active yet. Final payout methods, timing, and thresholds must be published before enrollment opens." },
   { q:"When do commissions start?", a:"Referral tracking and commissions are not active yet. This page previews a proposed program." },
   { q:"Can I promote on social media?", a:"Yes! You're encouraged to share on YouTube, TikTok, Twitter/X, Instagram, Discord, and any platform you use." },
-  { q:"Is there a waitlist for ELITE?", a:"ELITE spots are limited to maintain quality. Join the waitlist below and we'll notify you when a slot opens." },
+  { q:"Is there a waitlist for ELITE?", a:"There is no waitlist service yet. The button below saves your interest in this browser only — nothing is sent, so no one can notify you." },
   { q:"Do I need to be a PRO subscriber?", a:"No — Creator Basic is free. PRO and ELITE tiers include a WM subscription so you get the product you're promoting." },
 ];
 
@@ -446,7 +446,7 @@ export default function CreatorPage() {
           <Crown size={28} className="text-wm-gold mx-auto mb-3"/>
           <h2 className="text-xl font-black text-wm-text mb-2">Ready to Build Your Empire?</h2>
           <p className="text-xs text-wm-text-muted mb-5 max-w-md mx-auto">
-            Join the creator waitlist. Verified participation and payout statistics will appear only after real program activity exists.
+            Save your interest in this browser — nothing is sent yet. Verified participation and payout statistics will appear only after real program activity exists.
           </p>
           <div className="flex items-center justify-center gap-3">
             <button onClick={() => openWaitlist("basic")}
@@ -478,7 +478,7 @@ export default function CreatorPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="text-sm font-black text-wm-text capitalize">Join {waitlistTier} Waitlist</div>
+                  <div className="text-sm font-black text-wm-text capitalize">Save {waitlistTier} interest</div>
                   <div className="text-[10px] text-wm-text-dim mt-0.5">Saved locally only — this does not submit to WM</div>
                 </div>
                 <button onClick={() => setWaitlistOpen(false)} className="text-wm-text-dim hover:text-wm-text">
