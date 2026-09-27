@@ -1,5 +1,7 @@
 "use client";
 
+import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
+
 import {
   currentProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
   proofSelectReceipt, type ProofSelectKind,
@@ -4723,7 +4725,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // compiler's BAR CLOSE label — the same answer MainChart's row
               // gives, from the same owner.
               cameraWalksHistory ? null : ticker.price,
-              deriveLastBarClose(chartBars, timeframe, Date.now()),
+              deriveLastBarClose(chartBars, servedTimeframeFor(timeframe, symbol), Date.now()),
               // UNASKED IS NOT UNAVAILABLE. Without this argument the header of
               // the primary trading surface opened every cold load by telling
               // the trader their instrument had "No price" — seconds before
@@ -4761,7 +4763,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // the number, and its `kind` (not its presence) picks the colour.
             const headerChangeFact = chartHeaderChangeFact(
               hasReal && !cameraWalksHistory ? { chg: ticker.change, pct: ticker.changePct } : null,
-              deriveBarOverBarChange(chartBars, timeframe, Date.now()),
+              deriveBarOverBarChange(chartBars, servedTimeframeFor(timeframe, symbol), Date.now()),
               // Explicit, because `minDecimals` sits between and defaults: the
               // header renders 2dp today, and passing it by name here keeps the
               // trailing settled flag from silently landing in the wrong slot.

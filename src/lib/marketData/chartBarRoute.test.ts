@@ -224,3 +224,16 @@ describe("ladderOnNowSentence — the chart's timeframe in words when no rung ca
     expect(timeframePendingFounderDecision("20m")).toBe(false);
   });
 });
+
+import { servedTimeframeFor } from "./chartBarRoute";
+
+describe("the header names the bars actually served (Garden 16 §26)", () => {
+  it("TSLA 6M and 1Y are served as monthly candles, so the header speaks of 1M bars", () => {
+    expect(servedTimeframeFor("6M", "TSLA")).toBe("1M");
+    expect(servedTimeframeFor("1Y", "TSLA")).toBe("1M");
+  });
+  it("an exact route keeps its own timeframe", () => {
+    expect(servedTimeframeFor("1D", "TSLA")).toBe("1D");
+    expect(servedTimeframeFor("15m", "TSLA")).toBe("15m");
+  });
+});

@@ -297,3 +297,22 @@ export function ladderOnNowSentence(timeframe: string, symbol: string, rungs: re
   const pending = timeframePendingFounderDecision(timeframe) ? " · pending the Founder's decision" : "";
   return `On now: ${timeframe} — ${served}${pending}`;
 }
+
+
+/**
+ * THE TIMEFRAME THE BARS ON THE GLASS ACTUALLY ARE (Garden 16 §26, found on
+ * serving 2026-09-27). TSLA "6M" and "1Y" are served as Alpaca's MONTHLY
+ * candles while their meaning is pending the Founder's decision, and the
+ * header read "LAST 6M BAR CLOSE … vs prior 6M bar" over monthly bars. When
+ * the route is not exact and its bucket is itself a registry timeframe, that
+ * id is returned; otherwise the requested id stands. PURE.
+ */
+export function servedTimeframeFor(timeframe: string, symbol: string): string {
+  const r = chartBarRouteFor(timeframe, symbol);
+  if (!r || r.exact) return timeframe;
+  const { n, unit } = r.bucket;
+  const id = n === 1
+    ? ({ month: "1M", week: "1W", day: "1D", hour: "1h", minute: "1m" } as const)[unit]
+    : unit === "minute" ? `${n}m` : unit === "hour" ? `${n}h` : null;
+  return id && isTFId(id) ? id : timeframe;
+}

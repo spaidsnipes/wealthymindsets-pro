@@ -1,5 +1,7 @@
 "use client";
 
+import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
+
 /**
  * MainChart — TradingView Lightweight Charts v4.2
  *
@@ -18067,7 +18069,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // this cell speaks the replayed bar's close under the compiler's own
     // BAR CLOSE label instead of printing today's price over last week's bars.
     replayCameraOn ? null : ticker.price,
-    deriveLastBarClose(candles, timeframe, Date.now()),
+    deriveLastBarClose(candles, servedTimeframeFor(timeframe, symbol), Date.now()),
     candleSource !== "",
     dp,
     // SILENCE IS NOT CERTIFICATION — and TWO CALL SITES OF ONE COMPILER MAY
@@ -18094,7 +18096,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const headerChangeFact = chartHeaderChangeFact(
     // Today's session change is a live-quote fact too; replay reads bar-over-bar.
     hasProviderChange && !replayCameraOn ? { chg: change, pct: ticker.changePct as number } : null,
-    deriveBarOverBarChange(candles, timeframe, Date.now()),
+    deriveBarOverBarChange(candles, servedTimeframeFor(timeframe, symbol), Date.now()),
     dp,
     // Same fact, same source, as the fidelity chip below: `candleSource` is ""
     // only until the bars fetch settles. Until then this row must not print
