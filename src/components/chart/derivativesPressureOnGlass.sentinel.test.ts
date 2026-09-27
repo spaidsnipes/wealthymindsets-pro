@@ -22,7 +22,10 @@ describe("the pressure world on the glass", () => {
     expect(block.length).toBeGreaterThan(0);
     expect(block).toContain('layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure")');
     expect(block).not.toMatch(/selectDerivativesPressure\(/);
-    expect(CD).toMatch(/selectDerivativesPressure\(derivativesReceipt\.receipt, chartBars\.slice\(-400\), Date\.now\(\)\)/);
+    // Tests are observed only inside the positioning's relevance window — the
+    // same window on every timeframe (TSLA 1D once counted a year of bars).
+    expect(CD).toContain("const since = Date.now() / 1000 - WALL_TEST_WINDOW_DAYS * 86_400;");
+    expect(CD).toMatch(/selectDerivativesPressure\(derivativesReceipt\.receipt, chartBars\.filter\(b => Number\(b\.time\) >= since\), Date\.now\(\)\)/);
     expect(CD).toContain("/api/market-data/cboe/options?symbol=");
   });
   it("FIELD: every price level tinted by its pressure, with climate texture (strata / wind)", () => {

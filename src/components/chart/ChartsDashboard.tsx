@@ -316,7 +316,7 @@ import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestr
 import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
-import { selectDerivativesPressure, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import selectMarketStructureGlass from "@/lib/marketData/viewModels/selectMarketStructureGlass";
@@ -2391,7 +2391,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!derivativesReceipt.receipt) {
       return { drawn: false, version: 1, underlying: symbol, reason: "NO_CHAIN", contracts: 0, receipt: `PRESSURE:SILENT:${derivativesReceipt.edge ?? "NO_CHAIN"}` };
     }
-    return selectDerivativesPressure(derivativesReceipt.receipt, chartBars.slice(-400), Date.now());
+    // A wall's tests can only count while its positioning could have existed:
+    // open interest is THIS cycle's (≤ 60 DTE, OI prior session), so the
+    // observed lifecycle reads the last WALL_TEST_WINDOW_DAYS of bars — the same
+    // window on every timeframe. (Found on TSLA 1D in the Founder's Chrome: a
+    // year of daily bars counted 22 "tests" of a wall built this month.)
+    const since = Date.now() / 1000 - WALL_TEST_WINDOW_DAYS * 86_400;
+    return selectDerivativesPressure(derivativesReceipt.receipt, chartBars.filter(b => Number(b.time) >= since), Date.now());
   }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);

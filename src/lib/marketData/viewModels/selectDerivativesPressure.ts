@@ -45,6 +45,8 @@ export const MAX_WALLS = 4;
 export const MAX_POCKETS = 3;
 /** Fewer contracts with OI than this is not a positioning picture. */
 export const MIN_ROWS = 40;
+/** Observed wall tests count only inside this window (days): positioning is this cycle's, not last year's. */
+export const WALL_TEST_WINDOW_DAYS = 7;
 
 export type Climate = "DAMPING" | "AMPLIFYING" | "MIXED" | "INSUFFICIENT_EVIDENCE";
 export type WallLife = "BORN" | "TESTED" | "DEFENDED" | "WEAKENING" | "BREAKING" | "BROKEN";
