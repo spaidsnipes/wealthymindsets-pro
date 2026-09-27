@@ -253,6 +253,7 @@ import { selectDeltaDivergenceGlass } from "@/lib/marketData/viewModels/selectDe
 import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
 import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
+import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { HEAVY_RATIO } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
@@ -17417,6 +17418,45 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctxHeat.filter = `blur(${Math.min(3, band / 6).toFixed(1)}px)`;
             ctxHeat.fillRect(cx0, top, cw, band);
             ctxHeat.filter = "none";
+            /* F08B SMOKE (Garden 16 emergency order §28, beside the plate): the
+               plate's weather is a smoky medium, not a row of bands. Each
+               measured segment breathes its OWN cost into its own neighbourhood
+               — soft puffs centred on its time span and price band, at
+               deterministic offsets (a function of the segment, never random
+               per frame), in the same tone and alpha. Spending no new fact: the
+               puffs only spread this cell's measured colour; the composite
+               still meets the glass ONCE at the regulator below. */
+            {
+              const midY = top + band / 2;
+              const ry = Math.max(band * 1.1, 34);
+              const rx = Math.max(cw * 0.9, 30);
+              const seed = (cell.index + 1) * 2654435761;
+              const jit = (k: number) => (((seed ^ (k * 40503)) >>> 0) % 1000) / 1000 - 0.5;
+              ctxHeat.filter = `blur(${Math.round(Math.min(18, Math.max(8, ry / 3)))}px)`;
+              // Colour carries the reading (blue response → gold persistence);
+              // brightness is the regulator's alone. So a cheap (blue) segment
+              // is as visible as a dear (gold) one — the plate's two halves.
+              const prevAlpha = ctxHeat.globalAlpha;
+              ctxHeat.globalAlpha = HEAT_SMOKE_LAYER_WEIGHT;
+              for (let k = 0; k < 5; k++) {
+                const px = cx0 + cw / 2 + jit(k) * cw * 0.6;
+                const py = midY + jit(k + 7) * ry * 0.8;
+                const g = ctxHeat.createRadialGradient(px, py, 0, px, py, Math.max(rx, ry));
+                g.addColorStop(0, tone);
+                g.addColorStop(1, "rgba(0,0,0,0)");
+                ctxHeat.fillStyle = g;
+                ctxHeat.save();
+                ctxHeat.translate(px, py);
+                ctxHeat.scale(1, ry / Math.max(rx, ry));
+                ctxHeat.translate(-px, -py);
+                ctxHeat.beginPath();
+                ctxHeat.arc(px, py, Math.max(rx, ry), 0, Math.PI * 2);
+                ctxHeat.fill();
+                ctxHeat.restore();
+              }
+              ctxHeat.globalAlpha = prevAlpha;
+              ctxHeat.filter = "none";
+            }
 
             // One to three contour lines: a quiet, deterministic expression
             // of intensity. More expensive travel earns denser texture. The

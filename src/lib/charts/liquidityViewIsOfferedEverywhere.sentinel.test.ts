@@ -58,7 +58,9 @@ describe("Liquidity view wiring", () => {
 
   it("ONE COMPILATION — the view is fed the room's liquidityWeather, and the room does not compile a second one", () => {
     const src = stripComments(read("src/components/chart/ChartsDashboard.tsx"));
-    expect(src).toMatch(/<LiquidityWeatherView\s+vm=\{chartOrderFlowReadings\.liquidityWeather\}/);
+    // 2026-09-27: fed the room's ONE weather reading (tape, or the same judge
+    // over the chart's bars while the tape is short) — the same object as the glass.
+    expect(src).toMatch(/<LiquidityWeatherView\s+vm=\{chartLiquidityWeather\}/);
     // The room must not reach around useOrderFlowReadings into the selector.
     expect(src).not.toMatch(/selectLiquidityWeather\s*\(/);
   });

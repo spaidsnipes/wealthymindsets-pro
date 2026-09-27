@@ -315,6 +315,7 @@ import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -1351,6 +1352,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     try { return id ? getTimeframe(id).candleIntervalSec : null; } catch { return null; }
   }, [timeframe]);
   const chartOrderFlowReadings = useOrderFlowReadings(recentTicks, tapeSource, valueCandleBarSec);
+  // Garden 16 emergency order §28 — THE WEATHER THE TRADER CAN SEE. The tape
+  // reading needs a window spanning the lens's six bars (on 15m, ~90 minutes of
+  // an open tab); until it does, the SAME judge reads the chart's own
+  // volume-gated bars (selectLiquidityWeatherFromBars, DERIVED). One reading
+  // reaches the lens and the order-flow view — never two.
+  const chartLiquidityWeather = React.useMemo(() => {
+    const tape = chartOrderFlowReadings.liquidityWeather;
+    const segs = tape.segments.filter(sg => sg.fromTime != null && sg.toTime != null);
+    const spanMs = segs.length ? Math.max(...segs.map(sg => sg.toTime!)) - Math.min(...segs.map(sg => sg.fromTime!)) : 0;
+    const barMs = (valueCandleBarSec ?? 60) * 1000;
+    if (tape.stage !== "UNMEASURED" && spanMs >= 6 * barMs) return tape;
+    const bars = volumeBars.map(b => ({ time: Number(b.time), high: b.high, low: b.low, volume: b.volume }));
+    const fromBars = selectLiquidityWeatherFromBars(bars);
+    return fromBars.stage === "UNMEASURED" ? tape : fromBars;
+  }, [chartOrderFlowReadings.liquidityWeather, valueCandleBarSec, volumeBars]);
   // The hook clears ticker state after a symbol transition. Retain the symbol
   // that actually owns the current render's ticker until that clear lands, so
   // the next Options request can never inherit the prior underlying's spot.
@@ -2675,10 +2691,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       deltaDivergenceOn,
       deltaDivergence: chartOrderFlowReadings.deltaDivergence,
       liquidityWeatherOn,
-      liquidityWeather: chartOrderFlowReadings.liquidityWeather,
+      liquidityWeather: chartLiquidityWeather,
     }),
     [
       chartOrderFlowReadings,
+      chartLiquidityWeather,
       valueCandleOn,
       imbalanceStackOn,
       deltaDivergenceOn,
@@ -5821,7 +5838,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 question only the price pane can locate. */}
             {activeTab === "Liquidity" && (
               <div role="tabpanel" id="wm-chart-category-panel-liquidity" aria-label={`Liquidity weather for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
-                <LiquidityWeatherView vm={chartOrderFlowReadings.liquidityWeather} symbol={symbol} timeframe={timeframe} />
+                <LiquidityWeatherView vm={chartLiquidityWeather} symbol={symbol} timeframe={timeframe} />
               </div>
             )}
 
@@ -6021,7 +6038,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         a level. It is handed over anyway so the one honest
                         price in it stops living exclusively in a drawer.
                       */
-                      liquidityWeather={chartOrderFlowReadings.liquidityWeather}
+                      liquidityWeather={chartLiquidityWeather}
                       effortMark={effortMarkVerdict}
                       deltaLevelsGlass={deltaLevelsGlass}
                       deltaLevelsOnChart={deltaLevelsOn}

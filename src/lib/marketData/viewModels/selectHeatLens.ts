@@ -76,6 +76,14 @@ export const HEAT_LENS_VERSION = "wm.heat-lens.v1" as const;
  * Raising this number is a change to the blueprint, not to the code.
  */
 export const HEAT_MAX_OPACITY = 0.3;
+/**
+ * F08B smoke's weight INSIDE the offscreen heat layer (2026-09-27). The smoke
+ * puffs carry a cell's colour at a steady weight so a cheap (blue, RESPONSE)
+ * segment is as perceptible as a dear (gold, PERSIST) one; the layer still
+ * meets the glass ONCE at HEAT_MAX_OPACITY. Owned here, beside the regulator,
+ * so the paint site never writes its own alpha.
+ */
+export const HEAT_SMOKE_LAYER_WEIGHT = 0.9;
 
 /**
  * Below this share of the hottest cell, a cell is cool enough that drawing it

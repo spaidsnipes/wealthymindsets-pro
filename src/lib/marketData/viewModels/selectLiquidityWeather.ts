@@ -300,6 +300,21 @@ export function selectLiquidityWeather(
     });
   }
 
+  return judgeWeather(segments, spread, provenance);
+}
+
+/**
+ * THE ONE JUDGE. Given measured segments (from prints, or from the chart's own
+ * bars — see selectLiquidityWeatherFromBars), name the weather. Every stage
+ * rule below is shared, so a bar-derived reading cannot grade differently from
+ * a tape reading of the same cost.
+ */
+function judgeWeather(
+  segments: readonly LiquiditySegment[],
+  spread: number,
+  provenance: AggressorProvenance,
+  sourceNote = "",
+): LiquidityWeatherVM {
   const costs = segments.map((s) => s.cost).filter((c): c is number => c != null);
   const med = median(costs);
   if (med == null || !(med > 0)) {
@@ -428,8 +443,78 @@ export function selectLiquidityWeather(
     dispersion,
     provenance,
     requiresDisclosure: false,
-    detail,
+    detail: sourceNote + detail,
   };
+}
+
+/** Fewer bars than this cannot carry a cost trend (twelve segments of at least two bars). */
+export const WEATHER_MIN_BARS = 24;
+/** The newest bars a bar-derived window reads. */
+export const WEATHER_BAR_WINDOW = 48;
+
+export interface WeatherBar {
+  readonly time: number;
+  readonly high: number;
+  readonly low: number;
+  readonly volume: number;
+}
+
+/**
+ * LIQUIDITY WEATHER FROM THE CHART'S OWN BARS (Garden 16 emergency order §28,
+ * 2026-09-27). Found on serving: the lens was fed ONLY by tape collected since
+ * page load, and needs six bars of it — on a 15m chart, ~90 minutes of an open
+ * tab before any weather could appear. The trader never saw it.
+ *
+ * The same cost — size required to travel one unit of distance — is observed
+ * on every bar: its traded volume and its high–low travel. Segments are
+ * equal-count groups of the newest bars; the travel unit is the window's
+ * median bar range (the bars' own scale, as the tape version uses its own
+ * spread). No print, side or book is invented: `prints` counts BARS here and
+ * the detail says so. Volume must be a real count — callers pass
+ * volume-gated bars (volumeTruth.ts); a window with no volume is UNMEASURED.
+ */
+export function selectLiquidityWeatherFromBars(
+  bars: readonly WeatherBar[] | null | undefined,
+  segmentCount: number = LIQUIDITY_SEGMENTS,
+): LiquidityWeatherVM {
+  const provenance: AggressorProvenance = "UNDISCLOSED";
+  const all = (bars ?? []).filter(b => Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low && Number.isFinite(b.volume) && b.volume >= 0);
+  const win = all.slice(-WEATHER_BAR_WINDOW);
+  if (win.length < WEATHER_MIN_BARS) {
+    return empty(`${win.length} bars on this chart — at least ${WEATHER_MIN_BARS} are needed before a cost trend means anything.`, provenance);
+  }
+  if (!win.some(b => b.volume > 0)) {
+    return empty("These bars carry no traded volume — there is no cost to measure.", provenance);
+  }
+  const unit = median(win.map(b => b.high - b.low).filter(r => r > 0));
+  if (unit == null || !(unit > 0)) {
+    return empty("No bar in this window travelled — there is no distance to divide size by.", provenance);
+  }
+  const n = Math.max(2, Math.min(segmentCount, Math.floor(win.length / 2)));
+  const per = win.length / n;
+  const segments: LiquiditySegment[] = [];
+  for (let i = 0; i < n; i++) {
+    const slice = win.slice(Math.floor(i * per), i === n - 1 ? win.length : Math.floor((i + 1) * per));
+    if (!slice.length) continue;
+    let volume = 0, high = -Infinity, low = Infinity;
+    for (const b of slice) { volume += b.volume; if (b.high > high) high = b.high; if (b.low < low) low = b.low; }
+    const range = high - low;
+    const rangeInSpread = range > 0 ? roundSig(range / unit) : null;
+    segments.push({
+      index: i,
+      volume: roundSig(volume, 6),
+      prints: slice.length,
+      high: roundSig(high, 8),
+      low: roundSig(low, 8),
+      range: roundSig(range, 6),
+      rangeInSpread,
+      cost: rangeInSpread != null && rangeInSpread > 0 ? roundSig(volume / rangeInSpread) : null,
+      stalled: range <= 0,
+      fromTime: slice[0].time * 1000,
+      toTime: slice[slice.length - 1].time * 1000,
+    });
+  }
+  return judgeWeather(segments, unit, provenance, `From this chart's last ${win.length} bars (volume per bar-range travel; DERIVED, not tape). `);
 }
 
 /**

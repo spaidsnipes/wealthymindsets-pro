@@ -66,7 +66,10 @@ const weatherCode = glassBlock + geoBlock + lensBlock;
 
 describe("the reading reaches the chart", () => {
   it("the room hands the SAME reading it gives the drawer to the glass", () => {
-    expect(ROOM).toMatch(/liquidityWeather=\{chartOrderFlowReadings\.liquidityWeather\}/);
+    // 2026-09-27: the ONE reading is chartLiquidityWeather — the tape's, or
+    // (while the tape window is shorter than the lens) the same judge over the
+    // chart's own bars. Drawer and glass still receive the same object.
+    expect(ROOM).toMatch(/liquidityWeather=\{chartLiquidityWeather\}/);
   });
 
   it("the chart accepts it as a prop and does NOT recompute the tape", () => {
