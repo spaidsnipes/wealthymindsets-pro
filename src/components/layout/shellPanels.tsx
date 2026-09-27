@@ -416,22 +416,12 @@ export function SettingsPanel({
   onClose: () => void;
   fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-  const [tab,       setTab]       = useState<"display"|"trading"|"alerts"|"account">("display");
+  const [tab,       setTab]       = useState<"display"|"trading"|"account">("display");
   const [darkMode,  setDarkMode]  = useState(true);
   const [soundOn,   setSoundOn]   = useState(true);
   const [showPnl,   setShowPnl]   = useState(true);
   const [defaultTF, setDefaultTF] = useState("5m");
   const [defSym,    setDefSym]    = useState("NQ1!");
-  const [priceAlert,  setPriceAlert]   = useState(true);
-  const [newsAlert,   setNewsAlert]   = useState(true);
-  const [wrAlert,     setWrAlert]     = useState(true);
-  const [autoSave,    setAutoSave]    = useState(true);
-  const [paperWarn,   setPaperWarn]   = useState(true);
-  const [confirmOrders,setConfirmOrders] = useState(true);
-  const [overtrading, setOvertrading] = useState(true);
-  const [fomoDetect,  setFomoDetect]  = useState(true);
-  const [inAppNotifs, setInAppNotifs] = useState(true);
-  const [twoFactor,   setTwoFactor]   = useState(false);
   const [chartTheme,  setChartTheme]  = useState("green-red");
   const [fontSize,    setFontSize]    = useState("medium");
 
@@ -448,16 +438,6 @@ export function SettingsPanel({
       if (s.defSym) setDefSym(s.defSym);
       if (s.chartTheme) setChartTheme(s.chartTheme);
       if (s.fontSize) setFontSize(s.fontSize);
-      if (typeof s.priceAlert === "boolean") setPriceAlert(s.priceAlert);
-      if (typeof s.newsAlert === "boolean") setNewsAlert(s.newsAlert);
-      if (typeof s.wrAlert === "boolean") setWrAlert(s.wrAlert);
-      if (typeof s.autoSave === "boolean") setAutoSave(s.autoSave);
-      if (typeof s.paperWarn === "boolean") setPaperWarn(s.paperWarn);
-      if (typeof s.confirmOrders === "boolean") setConfirmOrders(s.confirmOrders);
-      if (typeof s.overtrading === "boolean") setOvertrading(s.overtrading);
-      if (typeof s.fomoDetect === "boolean") setFomoDetect(s.fomoDetect);
-      if (typeof s.inAppNotifs === "boolean") setInAppNotifs(s.inAppNotifs);
-      if (typeof s.twoFactor === "boolean") setTwoFactor(s.twoFactor);
     } catch {}
   }, []);
 
@@ -503,7 +483,6 @@ export function SettingsPanel({
   const TABS = [
     { id:"display" as const, label:"Display", icon:Monitor },
     { id:"trading" as const, label:"Trading", icon:BarChart2 },
-    { id:"alerts"  as const, label:"Alerts",  icon:Bell },
     { id:"account" as const, label:"Account", icon:Shield },
   ];
 
@@ -542,9 +521,10 @@ export function SettingsPanel({
             type="button"
             onClick={() => {
               localStorage.setItem("wm_settings", JSON.stringify({
+                // Merged over what is stored so withdrawn keys a reader may
+                // still hold are not silently rewritten.
+                ...(() => { try { return JSON.parse(localStorage.getItem("wm_settings") ?? "{}"); } catch { return {}; } })(),
                 darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize,
-                priceAlert, newsAlert, wrAlert, autoSave, paperWarn,
-                confirmOrders, overtrading, fomoDetect, inAppNotifs, twoFactor,
               }));
               window.dispatchEvent(new CustomEvent("wm-settings-changed"));
               onClose();
@@ -656,53 +636,16 @@ export function SettingsPanel({
                   {["1m","2m","5m","15m","30m","1h","D","W","M"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Row>
-              <Row label="Auto-save Journal" sub="Prompt to log trades when session ends">
-                <Toggle label="Auto-save Journal" on={autoSave} set={setAutoSave} />
-              </Row>
-              <Row label="Paper Trade Warnings" sub="Alert before placing paper trade orders">
-                <Toggle label="Paper Trade Warnings" on={paperWarn} set={setPaperWarn} />
-              </Row>
-              <Row label="Confirm Order Submissions" sub="Require confirmation before submitting">
-                <Toggle label="Confirm Order Submissions" on={confirmOrders} set={setConfirmOrders} />
-              </Row>
+              {/* Garden 16 §46 (2026-09-27): "Auto-save Journal", "Paper Trade
+                  Warnings" and "Confirm Order Submissions" saved switches no
+                  code read — withdrawn until a reader exists. */}
             </div>
           )}
 
-          {tab === "alerts" && (
-            <div role="tabpanel" id="wm-settings-panel-alerts" aria-labelledby="wm-settings-tab-alerts">
-              <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-1">Market Alerts</div>
-              <Row label="Price Level Alerts" sub="Notify when price reaches your set levels">
-                <Toggle label="Price Level Alerts" on={priceAlert} set={setPriceAlert} />
-              </Row>
-              <Row label="News & Events" sub="Breaking news that may impact your positions">
-                <Toggle label="News & Events" on={newsAlert} set={setNewsAlert} />
-              </Row>
-              {/* Win-rate threshold, trade-count limit and pattern matching are
-                  deterministic rules over the trader's own journal — no model
-                  runs. "AI Coaching" promised an engine that does not exist. */}
-              <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-4">Discipline Alerts</div>
-              <Row label="Win Rate Warning" sub="Alert when strategy win rate drops below 40%">
-                <Toggle label="Win Rate Warning" on={wrAlert} set={setWrAlert} />
-              </Row>
-              <Row label="Overtrading Alert" sub="Warn when daily trade count exceeds your limit">
-                <Toggle label="Overtrading Alert" on={overtrading} set={setOvertrading} />
-              </Row>
-              <Row label="FOMO Entry Detection" sub="Flag trades that match past losing patterns">
-                <Toggle label="FOMO Entry Detection" on={fomoDetect} set={setFomoDetect} />
-              </Row>
-              <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-4">Delivery</div>
-              <Row label="In-App Notifications" sub="Show alerts in the notification panel">
-                <Toggle label="In-App Notifications" on={inAppNotifs} set={setInAppNotifs} />
-              </Row>
-              <Row label="Sound Chime" sub="Play sound when alert fires">
-                <Toggle label="Sound Chime" on={soundOn} set={setSoundOn} />
-              </Row>
-            </div>
-          )}
 
           {tab === "account" && (
             <div role="tabpanel" id="wm-settings-panel-account" aria-labelledby="wm-settings-tab-account">
-              <Row label="Subscription" sub="WealthyMindsets PRO — Active">
+              <Row label="Subscription" sub="WealthyMindsets PRO">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-wm-gold/20 text-wm-gold border border-wm-gold/40">PRO</span>
               </Row>
               <Row label="Market Data" sub="Status varies by source, symbol, and freshness">
@@ -711,9 +654,8 @@ export function SettingsPanel({
                     kept internal for the diagnostics inspector. */}
                 <span className="text-xs text-wm-blue font-semibold">See contextual data health</span>
               </Row>
-              <Row label="Two-Factor Auth" sub="Protect your account with 2FA">
-                <Toggle label="Two-Factor Auth" on={twoFactor} set={setTwoFactor} />
-              </Row>
+              {/* Garden 16 §46: the "Two-Factor Auth" switch changed nothing —
+                  a security control that does not secure is withdrawn. */}
               <Row label="Export All Data" sub="Download journal, trades, settings as JSON">
                 <button
                   onClick={() => {

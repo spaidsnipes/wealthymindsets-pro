@@ -52,7 +52,9 @@ describe("navigation label truth", () => {
     // that both shells could mount it. The claim is read where it is made.
     const panels = read("src/components/layout/shellPanels.tsx");
     expect(panels).not.toContain("AI Coaching Alerts");
-    expect(panels).toContain("Discipline Alerts");
+    // Garden 16 §46 (2026-09-27): the "Discipline Alerts" group itself was
+    // withdrawn — its switches had no reader (settingsSwitchesHaveReaders).
+    expect(panels).not.toMatch(/AI Coach/i);
     expect(layout).not.toContain("AI Coaching Alerts");
   });
 
