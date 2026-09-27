@@ -6174,6 +6174,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       let vpChipsPlaced = 0;
       let vpWordsWithheld = 0;
       let vpPairsMoved = 0;
+      let vpChipsWithheld = 0;
 
       let bsp = 12;
       try { bsp = chart.timeScale().options().barSpacing ?? 12; } catch {}
@@ -8776,6 +8777,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             keepOut: profileCandlesAt(bandTop, bandBot), blockers: forceChips,
           });
           const cr = pair.chip;
+          // G16 §20 · NO BARE PRICE ON A CANDLE. With no clear row (YIELDED on
+          // the candles) the name is already withheld; a gold price with no
+          // name — and no EST — printed on a body is a naked claim. The chip is
+          // withheld too (counted, vpLevelChipsWithheld) as Profile Memory
+          // withholds its S-n chips; the level keeps its rule.
+          if (pair.onCandles) {
+            vpChipsWithheld++;
+            vpWordsWithheld++;
+            ctx.restore();
+            return;
+          }
           forceChips.push({ ...cr });
           vpChipsPlaced++;
           if (pair.mode !== "ROW") vpPairsMoved++;
@@ -8795,10 +8807,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
           }
           ctx.font = LEVEL_CHIP_FONT;
-          ctx.fillStyle = pair.onCandles ? `rgba(11,10,8,${keepOutBackingAlpha(pair, 0.9)})` : ink(0.92);
+          ctx.fillStyle = ink(0.92);
           ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
-          if (pair.onCandles) { ctx.strokeStyle = ink(0.9); ctx.lineWidth = 1; ctx.strokeRect(cr.x + 0.5, cr.y + 0.5, cr.w - 1, cr.h - 1); }
-          ctx.fillStyle = pair.onCandles ? ink(1) : "rgba(11,10,8,0.95)";
+          ctx.fillStyle = "rgba(11,10,8,0.95)";
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);
           ctx.restore();
@@ -8881,7 +8892,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const dsVp = canvasRef.current?.dataset;
         if ((fixedVPActive || sessionVPActive) && !att.paints("volumeProfile")) {
           if (dsVp) {
-            for (const k of ["vpDeclined", "vpRows", "vpNote", "vpAxisClearance", "vpLevelChips", "vpWordsWithheld", "vpSpan", "vpSessionWindow"] as const) delete dsVp[k];
+            for (const k of ["vpDeclined", "vpRows", "vpNote", "vpAxisClearance", "vpLevelChips", "vpLevelChipsWithheld", "vpWordsWithheld", "vpSpan", "vpSessionWindow"] as const) delete dsVp[k];
             dsVp.vpRequested = String((fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0));
             dsVp.vpDrawn = "0";
             dsVp.vpSilent = att.offWord(true);
@@ -8976,6 +8987,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.vpRequested; delete ds.vpDrawn; delete ds.vpDeclined;
           delete ds.vpRows; delete ds.vpNote; delete ds.vpAxisClearance;
           delete ds.vpLevelChips; delete ds.vpWordsWithheld; delete ds.vpLevelPairsMoved;
+          delete ds.vpLevelChipsWithheld;
         } else {
           ds.vpRequested = String(receipt.requested);
           ds.vpDrawn = String(receipt.drawn);
@@ -8986,6 +8998,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.vpLevelChips = String(vpChipsPlaced);
           ds.vpWordsWithheld = String(vpWordsWithheld);
           ds.vpLevelPairsMoved = String(vpPairsMoved);
+          ds.vpLevelChipsWithheld = String(vpChipsWithheld);
           /*
             THE EDGE THE PROFILE WAS ACTUALLY MEASURED AGAINST.
 
@@ -15647,7 +15660,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // A level in the price legend's band keeps its line; its words
               // would print over the legend, and its line is their leader.
               if (y < PRICE_LEGEND_OVERLAY_H + 7) continue;
-              labelYs.push(y);
               // G16 §20: remembered value is bar-built (Value Migration →
               // candle-estimated), so the chip's level name says EST.
               const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
@@ -15672,6 +15684,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // No clear row on its own line: the chip is withheld (the level
               // keeps its line; its words stay in Inspect), never printed on a candle.
               if (spotM.onCandles) { memChipsWithheld++; continue; }
+              // Only a chip actually placed reserves its row: a withheld chip
+              // must not keep a neighbouring level's words off the glass.
+              labelYs.push(y);
               floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
               ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);

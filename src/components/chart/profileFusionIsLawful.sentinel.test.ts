@@ -52,3 +52,43 @@ describe("G16 §20 · bar-built level chips wear EST on the glass, never on a ca
     expect(CHART).toMatch(/recordKeepOut\(keepOutLedger, spotM\);[\s\S]{0,300}if \(spotM\.onCandles\) \{ memChipsWithheld\+\+; continue; \}/);
   });
 });
+
+describe("G16 §20 · no bare VP price on a candle; withheld chips hold no row", () => {
+  const VP_LEVEL = CHART.slice(CHART.indexOf("const nameTxt = profileLevelTag(tag, snap.quality);"), CHART.indexOf("vpLevel(pocPrice, vpPocRgba, \"POC\");"));
+  const MEMORY = CHART.slice(CHART.indexOf("const labelYs: number[] = [];"), CHART.indexOf("delete ds.profileMemoryChipsWithheld;") + 40);
+
+  it("a Session / Fixed level pair with no clear row withholds its gold chip (the rule already drew) and counts it", () => {
+    expect(VP_LEVEL).toMatch(/const cr = pair\.chip;[\s\S]{0,600}?if \(pair\.onCandles\) \{\s*vpChipsWithheld\+\+;\s*vpWordsWithheld\+\+;\s*ctx\.restore\(\);\s*return;\s*\}/);
+    // The withhold comes before any chip is reserved, counted or painted.
+    const withheld = VP_LEVEL.indexOf("if (pair.onCandles) {");
+    expect(withheld).toBeGreaterThan(-1);
+    expect(VP_LEVEL.indexOf("forceChips.push({ ...cr });")).toBeGreaterThan(withheld);
+    expect(VP_LEVEL.indexOf("vpChipsPlaced++;")).toBeGreaterThan(withheld);
+    expect(VP_LEVEL.indexOf("ctx.fillRect(cr.x, cr.y, cr.w, cr.h);")).toBeGreaterThan(withheld);
+    // No faded on-candle chip survives below the withhold.
+    expect(VP_LEVEL).not.toMatch(/keepOutBackingAlpha\(pair,/);
+    expect(VP_LEVEL.slice(withheld + "if (pair.onCandles) {".length)).not.toContain("pair.onCandles");
+    // Both name paints (halo + fill) carry the EST-bearing tag.
+    expect(VP_LEVEL).toContain("ctx.strokeText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);");
+    expect(VP_LEVEL).toContain("ctx.fillText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);");
+    // The count is a receipt, written and cleared with its siblings.
+    expect(CHART).toContain("ds.vpLevelChipsWithheld = String(vpChipsWithheld);");
+    expect(CHART).toMatch(/delete ds\.vpLevelChips; delete ds\.vpWordsWithheld; delete ds\.vpLevelPairsMoved;\s*delete ds\.vpLevelChipsWithheld;/);
+    expect(CHART).toContain('"vpLevelChips", "vpLevelChipsWithheld", "vpWordsWithheld"');
+  });
+
+  it("Profile Memory reserves a label row only for a chip it actually placed", () => {
+    const pushes = MEMORY.split("labelYs.push(y);").length - 1;
+    expect(pushes).toBe(1);
+    const withheld = MEMORY.indexOf("if (spotM.onCandles) { memChipsWithheld++; continue; }");
+    expect(withheld).toBeGreaterThan(-1);
+    const push = MEMORY.indexOf("labelYs.push(y);");
+    expect(push).toBeGreaterThan(withheld);
+    expect(push).toBeLessThan(MEMORY.indexOf("ctx.fillText(text, spotM.rect.x + 4, y);"));
+  });
+
+  it("Profile Memory's chip-withheld receipt is written on the drawn path and cleared on the off path", () => {
+    expect(MEMORY).toContain("ds.profileMemoryChipsWithheld = String(memChipsWithheld);");
+    expect(MEMORY).toMatch(/\} else \{[\s\S]*?delete ds\.profileMemoryChipsWithheld;/);
+  });
+});
