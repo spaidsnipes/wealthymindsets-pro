@@ -14133,7 +14133,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             } else if (dpSpeaks) {
               const words = dp.reason === "NO_CHAIN"
                 ? `DERIVATIVES PRESSURE · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "")})`
-                : `DERIVATIVES PRESSURE · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
+                : dp.reason === "AFTER_REPLAY_CLOCK"
+                  ? "DERIVATIVES PRESSURE · withheld in replay — this positioning was published after the replay clock"
+                  : `DERIVATIVES PRESSURE · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
               ctx.save();
               ctx.globalAlpha = att.textAlpha("derivativesPressure");
               ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";

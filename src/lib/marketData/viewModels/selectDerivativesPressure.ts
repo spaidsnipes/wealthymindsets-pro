@@ -121,7 +121,7 @@ export type DerivativesPressureVM =
       readonly drawn: false;
       readonly version: number;
       readonly underlying: string;
-      readonly reason: "NO_CHAIN" | "NO_SPOT" | "TOO_FEW_CONTRACTS" | "NO_EXPOSURE";
+      readonly reason: "NO_CHAIN" | "NO_SPOT" | "TOO_FEW_CONTRACTS" | "NO_EXPOSURE" | "AFTER_REPLAY_CLOCK";
       readonly contracts: number;
       readonly receipt: string;
     };

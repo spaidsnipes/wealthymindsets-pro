@@ -87,3 +87,19 @@ describe("the environment is inspectable: click the zero-gamma front", () => {
     for (const w of ["DERIVATIVES ENVIRONMENT", "What · the price where expected dealer hedging flips", "Climate at price", "Class · INFERRED", "Lineage · Cboe delayed OI + IV"]) expect(IT).toContain(w);
   });
 });
+
+describe("no lookahead in replay (Garden 16 §46, serving c216f713)", () => {
+  it("while replay drives the camera, a snapshot later than the replay clock is withheld before the owner runs", () => {
+    const vm = CD.slice(CD.indexOf("const derivativesPressureVM = React.useMemo"), CD.indexOf("// T-210 — the ancestry the glass painted"));
+    const guard = vm.indexOf("if (cameraWalksHistory && chartBars.length) {");
+    expect(guard).toBeGreaterThan(-1);
+    expect(vm).toContain("if (!Number.isFinite(asOfMs) || asOfMs / 1000 > clockSec) {");
+    expect(vm).toContain('reason: "AFTER_REPLAY_CLOCK"');
+    expect(guard).toBeLessThan(vm.indexOf("return selectDerivativesPressure("));
+    expect(vm).toContain("[derivativesPressureOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory]");
+  });
+
+  it("the glass says why it is silent", () => {
+    expect(block).toContain('"DERIVATIVES PRESSURE · withheld in replay — this positioning was published after the replay clock"');
+  });
+});

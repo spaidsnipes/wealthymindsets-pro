@@ -2400,9 +2400,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // observed lifecycle reads the last WALL_TEST_WINDOW_DAYS of bars — the same
     // window on every timeframe. (Found on TSLA 1D in the Founder's Chrome: a
     // year of daily bars counted 22 "tests" of a wall built this month.)
+    // NO LOOKAHEAD IN REPLAY (Garden 16 §46, found on serving c216f713: bar
+    // replay at Sep 25 08:20 painted walls and "TESTED" from the Sep 27 Cboe
+    // snapshot). Positioning published after the replay clock did not exist at
+    // that bar — withheld, and the glass says why.
+    if (cameraWalksHistory && chartBars.length) {
+      const clockSec = Number(chartBars[chartBars.length - 1].time);
+      const asOfMs = Date.parse(derivativesReceipt.receipt.chainAsOf ?? derivativesReceipt.receipt.underlyingAsOf ?? "");
+      if (!Number.isFinite(asOfMs) || asOfMs / 1000 > clockSec) {
+        return { drawn: false, version: 1, underlying: symbol, reason: "AFTER_REPLAY_CLOCK", contracts: derivativesReceipt.receipt.rows.length, receipt: "PRESSURE:SILENT:AFTER_REPLAY_CLOCK" };
+      }
+    }
     const since = Date.now() / 1000 - WALL_TEST_WINDOW_DAYS * 86_400;
     return selectDerivativesPressure(derivativesReceipt.receipt, chartBars.filter(b => Number(b.time) >= since), Date.now());
-  }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars]);
+  }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
   const onMtfAncestry = useCallback((vm: MtfAncestryVM | null) => {
