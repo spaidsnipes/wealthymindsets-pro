@@ -1944,6 +1944,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   /** F08B storm texture cache (weatherStorm.ts) — rebuilt only when its key changes; STILL holds the frozen phase. */
   const stormCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   const stormPhaseRef = useRef<{ phase: number; at: number }>({ phase: 0, at: 0 });
+  /** The pressure field's ember-streak sprite (drawn once). */
+  const emberSpriteRef = useRef<HTMLCanvasElement | null>(null);
   const scaffoldingStructureRef = useRef<MarketStructureVM | null>(null);
   useEffect(() => {
     scaffoldingDepthRef.current = scaffoldingDepthOnChart;
@@ -13921,25 +13923,72 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillStyle = net >= 0 ? `rgba(84,140,204,${alpha})` : `rgba(222,108,44,${alpha})`;
                 ctx.fillRect(0, top, plotRightD, h);
               }
-              // Texture: still strata in damping, wind streaks in amplifying.
-              ctx.lineWidth = 1;
-              for (let i = 0; i < geo.length - 1; i += 2) {
-                const g = geo[i];
-                const y = yOfD(g.price);
-                if (y == null || y < HEADER_FLOOR_Y || y > paneBotD) continue;
-                const k = Math.min(1, Math.abs(g.net) / maxAbs);
-                if (k < 0.08) continue;
-                if (g.net >= 0) {
-                  ctx.strokeStyle = `rgba(160,198,236,${0.07 + 0.16 * k})`;
-                  ctx.beginPath(); ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(plotRightD, Math.round(y) + 0.5); ctx.stroke();
-                } else {
-                  ctx.strokeStyle = `rgba(250,160,90,${0.12 + 0.3 * k})`;
+              /* CLIMATE AS MATERIAL (Garden 16 reconstruction §26: "climate,
+                 fields, corridors … pressure geography"). Each band's texture
+                 is bound to the same net exposure k that tints it:
+                   DAMPING    steel fortification — a lit plate seam on top, a
+                              shadow seam below, brushed grain (denser with k)
+                   AMPLIFYING ember current — tapered streaks flowing AWAY
+                              from the zero-gamma front (longer, denser with k);
+                              they drift in LIVE and hold in STILL. */
+              const emberDrift = motionOnRef.current ? (performance.now() / 1000) * 18 : 0;
+              for (let i = 0; i < geo.length - 1; i++) {
+                const ga = geo[i], gb = geo[i + 1];
+                const ya = yOfD(ga.price), yb = yOfD(gb.price);
+                if (ya == null || yb == null) continue;
+                const top = Math.min(ya, yb), h = Math.abs(yb - ya);
+                if (top > paneBotD || top + h < HEADER_FLOOR_Y || h < 2) continue;
+                const net = (ga.net + gb.net) / 2;
+                const k = Math.min(1, Math.abs(net) / maxAbs);
+                if (k < 0.06) continue;
+                if (net >= 0) {
+                  // Plate seams: lit edge on top, shadow below — the band reads as a steel course.
+                  ctx.fillStyle = `rgba(190,214,240,${(0.05 + 0.16 * k) * baseA})`;
+                  ctx.fillRect(0, top, plotRightD, 1);
+                  ctx.fillStyle = `rgba(6,10,18,${(0.08 + 0.2 * k) * baseA})`;
+                  ctx.fillRect(0, top + h - 1, plotRightD, 1);
+                  // Brushed grain.
+                  ctx.strokeStyle = `rgba(170,200,232,${(0.025 + 0.06 * k) * baseA})`;
+                  ctx.lineWidth = 0.6;
                   ctx.beginPath();
-                  const step = 46 - 18 * k;
-                  for (let x = (i * 13) % step; x < plotRightD; x += step) { ctx.moveTo(x, y); ctx.lineTo(x + 14 + 10 * k, y - 3); }
+                  const pitch = Math.max(2, 4 - 2 * k);
+                  for (let yy = top + 2; yy < top + h - 1; yy += pitch) { ctx.moveTo(0, Math.round(yy) + 0.5); ctx.lineTo(plotRightD, Math.round(yy) + 0.5); }
                   ctx.stroke();
+                } else {
+                  // Ember streaks, away from the front (down below it, up above it).
+                  const away = dp.zeroGamma != null && ga.price > dp.zeroGamma ? -1 : 1;
+                  const rows = Math.max(1, Math.round(h / 7));
+                  const len = 16 + 26 * k;
+                  const step = 58 - 26 * k;
+                  // One pre-rendered tapered streak, stamped (a gradient per streak cost ~2k/frame).
+                  let spr = emberSpriteRef.current;
+                  if (!spr) {
+                    spr = document.createElement("canvas");
+                    spr.width = 64; spr.height = 6;
+                    const sc = spr.getContext("2d");
+                    if (sc) {
+                      const g = sc.createLinearGradient(0, 0, 64, 0);
+                      g.addColorStop(0, "rgba(255,178,100,0)");
+                      g.addColorStop(1, "rgba(255,178,100,1)");
+                      sc.strokeStyle = g; sc.lineWidth = 1.6;
+                      sc.beginPath(); sc.moveTo(0, 4); sc.lineTo(64, 2); sc.stroke();
+                    }
+                    emberSpriteRef.current = spr;
+                  }
+                  const prevA = ctx.globalAlpha;
+                  ctx.globalAlpha = prevA * Math.min(1, (0.12 + 0.32 * k) * baseA);
+                  for (let r = 0; r < rows; r++) {
+                    const yRow = top + (h * (r + 0.5)) / rows;
+                    const phase = ((i * 37 + r * 19) % step) + (emberDrift % step);
+                    for (let x = phase - step; x < plotRightD; x += step) {
+                      if (away < 0) ctx.drawImage(spr, x, yRow - 4, len, 5);
+                      else { ctx.save(); ctx.translate(x, yRow + 1); ctx.scale(1, -1); ctx.drawImage(spr, 0, -3, len, 5); ctx.restore(); }
+                    }
+                  }
+                  ctx.globalAlpha = prevA;
                 }
               }
+              ctx.lineWidth = 1;
               painted.push(`FIELD:${geo.length}`);
 
               // ── POCKETS (acceleration corridors) ────────────────────────

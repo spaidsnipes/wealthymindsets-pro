@@ -117,3 +117,12 @@ describe("the camera holds the walls it is showing (Garden 16 reconstruction §1
     expect(MC).toContain("const margin = (hi - lo) * (wallHeld ? 0.14 : 0.06);");
   });
 });
+
+describe("climate is material, bound to the same exposure (Garden 16 reconstruction §26)", () => {
+  it("damping bands are steel courses (seams + grain); amplifying bands carry ember streaks away from the front that hold in STILL", () => {
+    expect(block).toContain("CLIMATE AS MATERIAL");
+    expect(block).toContain("const emberDrift = motionOnRef.current ? (performance.now() / 1000) * 18 : 0;");
+    expect(block).toContain("const away = dp.zeroGamma != null && ga.price > dp.zeroGamma ? -1 : 1;");
+    expect(block).toContain("One pre-rendered tapered streak, stamped");
+  });
+});
