@@ -21,7 +21,7 @@ import {
 import { selectFirstBrokenJoint, type JointVerdict } from "@/lib/broker/selectFirstBrokenJoint";
 import { providerReportToStageEvidence } from "@/lib/broker/providerReportToStageEvidence";
 import type { ProviderReport } from "@/app/api/broker/status/route";
-import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
+import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullCapabilityCertificate, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -1005,6 +1005,28 @@ function ManagedConnectionStatus({
                     <span className="font-bold">{line.label}</span> · {line.text}
                   </p>
                 ))}
+                {/*
+                  GARDEN 16 §34 — THE CERTIFICATE. One row per capability, each
+                  proved separately from the keeper's record. ownerNamed is TRUE
+                  here by construction: this record reached the panel through
+                  the owner gate, which refuses everyone when no owner is named.
+                  liveOrdersEnabled is FALSE by construction: no route turns
+                  Webull live orders on (liveExecutionStaysClosed sentinel).
+                */}
+                {broker.id === "webull" && receipt.sessionKeeper && (
+                  <table className="mt-2 w-full text-[9px] leading-snug" data-webull-certificate>
+                    <caption className="text-left text-[9px] font-black uppercase tracking-wider text-wm-text-muted">Capability certificate · each proved separately</caption>
+                    <tbody>
+                      {webullCapabilityCertificate(receipt.sessionKeeper, Date.now(), { ownerNamed: true, liveOrdersEnabled: false }).map(row => (
+                        <tr key={row.capability} data-webull-capability={row.capability} data-webull-capability-status={row.status}>
+                          <th scope="row" className="pr-2 text-left align-top font-bold" style={{ color: "#C8C0AE", whiteSpace: "nowrap" }}>{row.capability}</th>
+                          <td className="pr-2 align-top font-black" style={{ whiteSpace: "nowrap", color: row.status === "PROVED" ? "#C8C0AE" : row.status === "PARTIAL" ? "#f4c86b" : "#9aa1b8" }}>{row.status}</td>
+                          <td className="align-top" style={{ color: "#9aa1b8" }}>{row.evidence}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
             {receipt.state === "BLOCKED_AUTH" && (

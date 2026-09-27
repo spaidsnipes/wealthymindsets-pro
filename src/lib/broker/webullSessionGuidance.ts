@@ -124,3 +124,124 @@ export function webullSessionGuidance(keeper: WebullKeeperView | null | undefine
   }
   return lines;
 }
+
+/*
+ * ── GARDEN 16 §34 · THE CERTIFICATE ────────────────────────────────────────
+ * "Never summarize the whole system as CONNECTED. Prove separately … Use:
+ * PROVED. PARTIAL. UNSUPPORTED. NOT ENTITLED. NOT CONFIGURED. NOT AUTHORIZED."
+ *
+ * Every row is derived from what the keeper RECORDED from Webull, or from a
+ * fixed fact of this deployment stated as such. A capability nobody has
+ * exercised against Webull is NOT PROVED — it is never promoted to green
+ * because code for it exists.
+ */
+
+export type CertificateStatus =
+  | "PROVED" | "PARTIAL" | "UNSUPPORTED" | "NOT ENTITLED" | "NOT CONFIGURED" | "NOT AUTHORIZED" | "NOT PROVED";
+
+export interface CertificateRow {
+  readonly capability: string;
+  readonly status: CertificateStatus;
+  readonly evidence: string;
+}
+
+/** A keeper record older than this is not "fresh" evidence of anything. */
+export const CERTIFICATE_FRESH_MS = 20 * 60_000;
+
+export function webullCapabilityCertificate(
+  keeper: WebullKeeperView | null | undefined,
+  nowMs: number,
+  opts: { readonly ownerNamed: boolean; readonly liveOrdersEnabled: boolean },
+): CertificateRow[] {
+  const age = keeper ? nowMs - keeper.atMs : Infinity;
+  const fresh = age >= 0 && age <= CERTIFICATE_FRESH_MS;
+  const stale = keeper ? ` (record ${Math.max(0, Math.round(age / 60_000))} min old)` : "";
+  const brokerOk = keeper?.broker?.state === "CONNECTED";
+  const caps = keeper?.capabilities;
+  const stocksDenied = !!caps && /DENIED_ENTITLEMENT/.test(caps.stocks);
+  const stocksOk = !!caps && /\bOK\b/.test(caps.stocks) && !/DENIED/.test(caps.stocks);
+  const cryptoOk = !!caps && /:OK\b/.test(caps.crypto);
+  const rec = keeper?.reconciliation;
+  const noRecord = (capability: string): CertificateRow => ({ capability, status: "NOT PROVED", evidence: "No keeper record." });
+  const nonDisplay = "Webull's OpenAPI market data is its own Non-Display subscription; this App Key's stock data was refused by package.";
+
+  if (!keeper) {
+    return ["AUTH", "OWNER", "ACCOUNT", "MARKET DATA"].map(noRecord);
+  }
+  return [
+    {
+      capability: "AUTH",
+      status: brokerOk && fresh ? "PROVED" : brokerOk ? "PARTIAL" : "NOT PROVED",
+      evidence: brokerOk
+        ? `Signed requests accepted by Webull${keeper.authMode === "TOKENLESS" ? " with the App Key alone (2FA off)" : ""}${fresh ? "" : stale}.`
+        : `The keeper's account read came back ${keeper.broker?.state ?? "unrecorded"}.`,
+    },
+    {
+      capability: "OWNER",
+      status: opts.ownerNamed ? "PROVED" : "NOT CONFIGURED",
+      evidence: opts.ownerNamed
+        ? "One named WM user owns this brokerage link; every other user is refused."
+        : "No owner named: every brokerage read is refused for everyone (fail closed).",
+    },
+    {
+      capability: "ACCOUNT",
+      status: brokerOk && fresh ? "PROVED" : brokerOk ? "PARTIAL" : "NOT PROVED",
+      evidence: brokerOk ? `${keeper.broker!.accountCount} account${keeper.broker!.accountCount === 1 ? "" : "s"} listed by Webull${fresh ? "" : stale}.` : "Accounts not listed.",
+    },
+    {
+      capability: "MARKET DATA",
+      status: stocksOk ? "PROVED" : cryptoOk ? "PARTIAL" : caps ? "NOT ENTITLED" : "NOT PROVED",
+      evidence: stocksOk ? "Stock snapshots answered." : cryptoOk ? "Crypto snapshots answered; stock data refused by package." : caps ? nonDisplay : "Not probed.",
+    },
+    {
+      capability: "ENTITLEMENT",
+      status: stocksOk ? "PROVED" : stocksDenied ? "NOT ENTITLED" : "NOT PROVED",
+      evidence: stocksDenied ? `${nonDisplay} Adding it is the owner's decision.` : stocksOk ? "Stock entitlement answered." : "Not probed.",
+    },
+    {
+      capability: "FRESHNESS",
+      status: fresh ? "PROVED" : "PARTIAL",
+      evidence: fresh ? "The keeper read Webull within the last 20 minutes (every 15)." : `Keeper evidence is stale${stale}.`,
+    },
+    { capability: "STREAMING", status: stocksOk ? "NOT PROVED" : "NOT ENTITLED", evidence: stocksOk ? "The quote stream has not been exercised by the keeper." : "Stock streaming rides the same Non-Display package." },
+    { capability: "STOCKS", status: stocksOk ? "PROVED" : stocksDenied ? "NOT ENTITLED" : "NOT PROVED", evidence: stocksDenied ? "MARKET_DATA_NOT_SUBSCRIBED on snapshot and ticks, both signatures." : stocksOk ? "Snapshots answered." : "Not probed." },
+    { capability: "OPTIONS", status: "NOT ENTITLED", evidence: "Options data needs Webull's OPRA OpenAPI package; none is attached." },
+    { capability: "FUTURES", status: "NOT ENTITLED", evidence: "Futures data needs Webull's CME OpenAPI package; none is attached." },
+    { capability: "ORDER FLOW", status: "NOT ENTITLED", evidence: "Webull's order-flow data is its own OpenAPI package; none is attached." },
+    { capability: "DEPTH", status: "NOT ENTITLED", evidence: "Depth (TotalView) is its own OpenAPI package; none is attached." },
+    {
+      capability: "TRADING",
+      status: opts.liveOrdersEnabled ? "PARTIAL" : "NOT AUTHORIZED",
+      evidence: opts.liveOrdersEnabled
+        ? "Live orders are switched on for this deployment; no WM order has been proven end to end."
+        : "Live orders are off: placing a real order needs the owner's explicit live-test order.",
+    },
+    {
+      capability: "ORDER EVENTS",
+      status: rec && rec.state === "OK" ? "PROVED" : rec && rec.state === "PARTIAL" ? "PARTIAL" : "NOT PROVED",
+      evidence: rec
+        ? `Open orders read across ${rec.accounts} account${rec.accounts === 1 ? "" : "s"}${rec.state === "PARTIAL" ? "; one or more accounts did not answer" : ""}.`
+        : "Open orders not read.",
+    },
+    { capability: "CANCEL/MODIFY", status: opts.liveOrdersEnabled ? "NOT PROVED" : "NOT AUTHORIZED", evidence: "No WM order exists to cancel or modify." },
+    { capability: "POSITION STATE", status: "NOT PROVED", evidence: "The positions read exists but the keeper does not exercise it." },
+    { capability: "ACCOUNT STATE", status: brokerOk ? "PARTIAL" : "NOT PROVED", evidence: brokerOk ? "Accounts are listed; balances are not read by the keeper." : "Accounts not listed." },
+    {
+      capability: "RECONNECT",
+      status: brokerOk && fresh ? "PROVED" : "NOT PROVED",
+      evidence: brokerOk && fresh ? "A fresh signed connection every 15 minutes, with nobody on the site." : "No fresh keeper connection.",
+    },
+    {
+      capability: "TOKEN/SESSION RECOVERY",
+      status: keeper.authMode === "TOKENLESS" ? "PROVED" : keeper.outcome === "STILL_FRESH" || keeper.outcome === "REFRESHED" ? "PARTIAL" : "NOT PROVED",
+      evidence: keeper.authMode === "TOKENLESS"
+        ? "Nothing to recover: Webull says this App Key needs no session."
+        : "A session is in use; recovery needs an SMS code when it lapses.",
+    },
+    {
+      capability: "FAILURE",
+      status: "PROVED",
+      evidence: rec?.state === "PARTIAL" ? "A refused account read is named, not hidden, and reconciliation says PARTIAL." : "Refusals are recorded with their Webull reason.",
+    },
+  ];
+}

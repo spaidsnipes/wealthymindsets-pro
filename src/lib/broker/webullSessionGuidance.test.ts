@@ -71,3 +71,39 @@ describe("the Founder reads the keeper's record, not improvised advice", () => {
     }
   });
 });
+
+import { webullCapabilityCertificate } from "./webullSessionGuidance";
+
+describe("Garden 16 §34 — each Webull capability is proved separately", () => {
+  const keeper: WebullKeeperView = {
+    outcome: "TOKEN_NOT_REQUIRED", note: "n", atMs: 1_000_000, authMode: "TOKENLESS",
+    broker: { state: "CONNECTED", accountCount: 3, atMs: 1_000_000 },
+    capabilities: {
+      verdict: "APP_KEY_ENTITLEMENT_ISOLATED",
+      stocks: "SNAPSHOT/legacy-sha1:DENIED_ENTITLEMENT(MARKET_DATA_NOT_SUBSCRIBED)",
+      crypto: "CRYPTO_SNAPSHOT/legacy-sha1:OK",
+      atMs: 1_000_000,
+    },
+    reconciliation: { state: "PARTIAL", accounts: 3, openOrders: 0, external: 0, unresolved: 0, ledger: "NONE_PERSISTED", atMs: 1_000_000 },
+  };
+  const status = (rows: ReturnType<typeof webullCapabilityCertificate>) => Object.fromEntries(rows.map(r => [r.capability, r.status]));
+
+  it("the measured production record: no blanket green", () => {
+    const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 60_000, { ownerNamed: false, liveOrdersEnabled: false }));
+    expect(s).toMatchObject({
+      AUTH: "PROVED", OWNER: "NOT CONFIGURED", ACCOUNT: "PROVED", "MARKET DATA": "PARTIAL", ENTITLEMENT: "NOT ENTITLED",
+      STOCKS: "NOT ENTITLED", OPTIONS: "NOT ENTITLED", FUTURES: "NOT ENTITLED", DEPTH: "NOT ENTITLED",
+      TRADING: "NOT AUTHORIZED", "ORDER EVENTS": "PARTIAL", "POSITION STATE": "NOT PROVED", "TOKEN/SESSION RECOVERY": "PROVED",
+    });
+    expect(Object.keys(s)).toHaveLength(20);
+  });
+
+  it("a stale record demotes what it proved", () => {
+    const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 3_600_000, { ownerNamed: true, liveOrdersEnabled: false }));
+    expect(s).toMatchObject({ AUTH: "PARTIAL", ACCOUNT: "PARTIAL", FRESHNESS: "PARTIAL", RECONNECT: "NOT PROVED", OWNER: "PROVED" });
+  });
+
+  it("no record proves nothing", () => {
+    expect(webullCapabilityCertificate(null, 0, { ownerNamed: true, liveOrdersEnabled: false }).every(r => r.status === "NOT PROVED")).toBe(true);
+  });
+});
