@@ -3000,13 +3000,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
-                  else if (id === "DELTA_VP") {
+                  else if (id === "DELTA_VP" || id === "ANCHORED_RANGE") {
                     // Re-picking the armed tool disarms it, so the row behaves
                     // like the toggles beside it rather than being a one-way door.
-                    setDrawingTool(t => (t === "delta-vp" ? "cursor" : "delta-vp"));
-                  }
-                  else if (id === "ANCHORED_RANGE") {
-                    setDrawingTool(t => (t === "anchored-vp" ? "cursor" : "anchored-vp"));
+                    const tool = id === "DELTA_VP" ? "delta-vp" : "anchored-vp";
+                    const arming = drawingTool !== tool;
+                    setDrawingTool(arming ? tool : "cursor");
+                    // A DRAW gesture's next act is ON THE CHART (Garden 16 §17/§18,
+                    // found on the glass 2026-09-27): the Chart tools sheet stayed
+                    // open with its full-screen backdrop (fixed inset-0, z 200)
+                    // over the candles, so the trader's first press only closed
+                    // the sheet and the release dropped a lone anchor — a 1-bar
+                    // "drag across at least 5" refusal that never committed.
+                    // Arming puts the sheet down; the trader drags on the market.
+                    if (arming) setChartEquipmentOpen(false);
                   }
                 };
 
