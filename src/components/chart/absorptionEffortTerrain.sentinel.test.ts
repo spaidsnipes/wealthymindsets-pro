@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
 const at = MC.indexOf("UI-06 · THE EFFORT TERRAIN");
-const block = at > 0 ? MC.slice(at, at + 6500) : "";
+const block = at > 0 ? MC.slice(at, at + 9500) : "";
 
 describe("effort terrain", () => {
   it("reads the anatomy owner's own fields — nothing re-measured", () => {
@@ -25,6 +25,8 @@ describe("effort terrain", () => {
     expect(block).toContain("const layers = [9, 5, 3, 1];");
     expect(block).toContain('ctx.clip(cutT, "evenodd");');
     expect(block).toContain('anatomy.basis !== "UNMEASURED"');
+    // Depth is the ONE permission table's: absorption is SILENT at FAR.
+    expect(block).toContain("if (!absorbPaints) {");
     expect(block).toContain("ds.absorptionTerrain = `BARS:");
   });
   it("words ask speaks(); the receipt is withdrawn with the layer", () => {

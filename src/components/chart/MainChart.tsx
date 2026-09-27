@@ -10239,7 +10239,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                Basis stays the owner's (EFFORT · VOLUME / DELTA). */
             {
               const terr = pts.filter(p => p.x >= 0 && p.x <= W);
-              if (anatomy.basis !== "UNMEASURED" && terr.length >= 8) {
+              // The ONE permission table decides depth (absorption is SILENT at
+              // FAR): serving TSLA 1h FAR painted the terrain while the layer's
+              // own receipt read SILENT:FAR.
+              if (!absorbPaints) {
+                ds.absorptionTerrain = att.offWord(true);
+              } else if (anatomy.basis !== "UNMEASURED" && terr.length >= 8) {
                 let paneBotT = H;
                 try { const ps = (chart as any).paneSize?.(0); if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotT = ps.height; } catch { /* canvas height */ }
                 /* PLATE UI_06 (read beside the glass, Garden 16 reconstruction
