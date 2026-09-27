@@ -10233,7 +10233,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                    while price failed to travel through it. The centreline is
                    the close path itself (the displacement IS price); thickness
                    is the owner's effortNorm at 9/5/3/1-bar smoothing. */
-                const envH = Math.min(96, Math.max(44, paneBotT * 0.13));
+                const envH = Math.min(150, Math.max(60, paneBotT * 0.2));
                 void paneBotT;
                 const smooth = (k: number) => terr.map((_, i) => {
                   let sum = 0, n = 0;
@@ -10262,13 +10262,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const halves: number[][] = [];
                 layers.forEach((k, li) => {
                   const e = smooth(k);
-                  const half = e.map(v => Math.max(1.5, v * envH * spread[li]));
+                  // √ keeps order (more effort, thicker) while moderate effort stays visible.
+                  const half = e.map(v => Math.max(2, Math.sqrt(Math.max(0, v)) * envH * spread[li]));
                   halves.push(half);
                   ctx.beginPath();
                   for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, mid[i] - half[i]) : ctx.moveTo(terr[i].x, mid[i] - half[i]));
                   for (let i = terr.length - 1; i >= 0; i--) ctx.lineTo(terr[i].x, mid[i] + half[i]);
                   ctx.closePath();
-                  ctx.fillStyle = `rgba(${196 + li * 10},${192 + li * 10},${182 + li * 10},${(0.07 + li * 0.035).toFixed(3)})`;
+                  ctx.fillStyle = `rgba(${170 + li * 18},${166 + li * 18},${158 + li * 18},${(0.1 + li * 0.045).toFixed(3)})`;
                   ctx.fill();
                   ctx.strokeStyle = `rgba(230,226,216,${(0.18 + li * 0.1).toFixed(2)})`;
                   ctx.lineWidth = li === layers.length - 1 ? 1.1 : 0.7;
