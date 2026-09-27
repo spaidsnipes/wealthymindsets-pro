@@ -417,7 +417,7 @@ describe("selectRecordedMoney — a stored futures P&L that is not futures money
     expect(r.mismatch).toMatch(/^the recorded P&L \$10\.00 cannot be checked as YM money — /);
     expect(r.mismatch).not.toContain("not YM money");
     const opt = selectRecordedMoney({ ...es, contractType: "option", entry: 10, exit: 12, pnl: 200 });
-    expect(opt.mismatch).toMatch(/^the recorded P&L \$200\.00 cannot be checked as ES money — an option on ES futures/);
+    expect(opt.mismatch).toMatch(/^the recorded P&L \$200\.00 cannot be checked as ES option money — an option on ES futures/);
   });
 
   it("stock and option entries are never second-guessed (fees / imported figures)", () => {
@@ -617,7 +617,7 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row s
     const d = describeLegacyFuturesMoney([optOnEs, { ...es, pnl: 123 }]);
     expect(d.count).toBe(0); // ...but never as a $1-per-point save
     expect(d.otherCount).toBe(2);
-    expect(d.chip).toBe("2 money mismatch");
+    expect(d.chip).toBe("1 unpriced money UNKNOWN · 1 money mismatch");
     expect(d.chip).not.toMatch(/\$1\/pt/);
     expect(d.note).not.toMatch(/\$1 per point\. /);
     expect(d.note).not.toMatch(/understate/);
@@ -631,7 +631,7 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row s
   it("an option on ES whose stored figure happens to equal 1x is still not a futures $1/pt save", () => {
     const optAt1x = { ...optOnEs, pnl: 2 };
     expect(selectRecordedMoney(optAt1x).savedAtOneX).toBe(true);
-    expect(describeLegacyFuturesMoney([optAt1x])).toMatchObject({ count: 0, otherCount: 1, chip: "1 money mismatch" });
+    expect(describeLegacyFuturesMoney([optAt1x])).toMatchObject({ count: 0, otherCount: 1, chip: "1 unpriced money UNKNOWN" });
   });
 
   it("an unpriced root NOT at 1x is neutral; an unpriced root AT 1x is UNKNOWN, never a $1/pt 'understate'", () => {
@@ -676,7 +676,7 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED r
   it("a book with a PRICED ES $1/pt save, an UNPRICED YM $1/pt save and an option on ES gets three sentences in order", () => {
     const d = describeLegacyFuturesMoney([{ ...es, pnl: 10 }, ym, optOnEs]);
     expect(d).toMatchObject({ count: 1, unknownCount: 1, otherCount: 1 });
-    expect(d.chip).toBe("1 futures at $1/pt · 1 futures money UNKNOWN · 1 money mismatch");
+    expect(d.chip).toBe("1 futures at $1/pt · 1 futures money UNKNOWN · 1 unpriced money UNKNOWN");
     expect(d.note).toMatch(
       /^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other futures entry was saved at \$1 per point; WM has no point value for YM, so its true money is UNKNOWN\. It is counted here as recorded\. 1 other entry carries/,
     );
@@ -688,14 +688,14 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED r
     const d = describeLegacyFuturesMoney([{ ...es, pnl: 10 }, optOnEs]);
     expect(d.count).toBe(1);
     expect(d.otherCount).toBe(1);
-    expect(d.chip).toBe("1 futures at $1/pt · 1 money mismatch");
+    expect(d.chip).toBe("1 futures at $1/pt · 1 unpriced money UNKNOWN");
     expect(d.note).toMatch(/^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other entry carries a recorded P&L WM cannot confirm as its contract's money/);
   });
 
   it("only UNKNOWN + other-mismatch rows (no priced $1/pt row): the other sentence still says 'other' (verifier LOW, G16 r3)", () => {
     const d = describeLegacyFuturesMoney([ym, optOnEs]);
     expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 1 });
-    expect(d.chip).toBe("1 futures money UNKNOWN · 1 money mismatch");
+    expect(d.chip).toBe("1 futures money UNKNOWN · 1 unpriced money UNKNOWN");
     expect(d.note).toContain("1 other entry carries");
     // The UNKNOWN sentence has no priced group before it, so it is not "other".
     expect(d.note).toMatch(/^1 futures entry was saved at \$1 per point; WM has no point value for YM/);
@@ -741,6 +741,35 @@ describe("describeLegacyFuturesMoney — §1/§20: the other sentence names only
     expect(selectContractChip(ym77)!.text).toBe("FUT YM · UNPRICED");
     expect(selectContractChip({ ...ym77, pnl: 10 })!.text).toBe("FUT YM · SAVED AT 1x");
     expect(selectContractChip({ ...es, pnl: 123 })!.text).toBe("FUT ES · MONEY MISMATCH");
+  });
+
+  it("de-duplicates an unpriced root in the other sentence: two YM rows name YM once (verifier LOW, G16 r4)", () => {
+    const d = describeLegacyFuturesMoney([ym77, { ...ym77, pnl: 55 }]);
+    expect(d.otherCount).toBe(2);
+    expect(d.note).toContain("(a futures root WM has no point value for (YM))");
+    expect(d.note).not.toContain("YM, YM");
+  });
+
+  it("the summary chip agrees with the row chip: MISMATCH only for a PRICED root, UNKNOWN for rows WM cannot price (verifier MEDIUM, G16 r4)", () => {
+    // Only unpriceable rows: an option on ES, a YM and a ZB not saved at 1x.
+    const zb = { ...ym77, symbol: "ZB1!", entry: 110, exit: 111, pnl: 5 };
+    const unpriced = describeLegacyFuturesMoney([optOnEs, ym77, zb]);
+    expect(unpriced.otherCount).toBe(3);
+    expect(unpriced.chip).toBe("3 unpriced money UNKNOWN");
+    expect(unpriced.chip).not.toMatch(/mismatch/i);
+    for (const r of [ym77, zb]) expect(selectContractChip(r)!.text).not.toMatch(/MISMATCH/);
+    // A PRICED ES row at $123 is the only kind the chip calls a mismatch, as its row chip does.
+    const mixed = describeLegacyFuturesMoney([optOnEs, ym77, { ...es, pnl: 123 }]);
+    expect(mixed.chip).toBe("2 unpriced money UNKNOWN · 1 money mismatch");
+    expect(selectContractChip({ ...es, pnl: 123 })!.text).toBe("FUT ES · MONEY MISMATCH");
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 123 }]).chip).toBe("1 money mismatch");
+  });
+
+  it("an option on ES is checked as ES OPTION money, never as ES money (verifier LOW, G16 r4)", () => {
+    const m = selectRecordedMoney(optOnEs).mismatch!;
+    expect(m).toContain("cannot be checked as ES option money");
+    expect(m).not.toContain("as ES money");
+    expect(selectRecordedMoney(ym77).mismatch).toContain("cannot be checked as YM money");
   });
 });
 

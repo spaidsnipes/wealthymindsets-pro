@@ -176,7 +176,9 @@ export function selectRecordedMoney(e: RecordedMoneyInput): RecordedMoney {
       label: money.label,
       // §1/§20: WM has no price for this contract, so it cannot say the stored
       // figure is WRONG — only that it cannot be checked (verifier, G16 r3).
-      mismatch: `the recorded P&L ${formatUsd(e.pnl)} cannot be checked as ${money.root} money — ${money.reason}`,
+      // The words name the contract the row IS: an option on ES is checked as
+      // ES option money, never as ES (futures) money (verifier LOW, G16 r4).
+      mismatch: `the recorded P&L ${formatUsd(e.pnl)} cannot be checked as ${money.root}${money.refusal === "OPTION_ON_FUTURES" ? " option" : ""} money — ${money.reason}`,
       savedAtOneX,
     };
   }
@@ -291,7 +293,11 @@ export interface LegacyFuturesMoney {
   readonly unknownCount: number;
   /** The unpriced roots behind `unknownCount`, in first-seen order. */
   readonly unknownRoots: readonly string[];
-  /** Other records whose stored P&L is not their contract's money. */
+  /**
+   * Other flagged records: a PRICED futures figure that is neither 1x nor the
+   * point value (a known mismatch), plus rows WM cannot price (an option on
+   * futures; an unpriced root not at 1x) whose money is UNKNOWN.
+   */
   readonly otherCount: number;
   readonly note: string | null;
   /** Short words for the chart's P&L strip; null exactly when `note` is. */
@@ -312,6 +318,11 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
   let otherOptionOnFutures = false;
   const otherUnpricedRoots: string[] = [];
   let otherPricedFigure = false;
+  // The chip splits the other group the way the row chip does (§1/§20):
+  // MISMATCH only where WM knows the money (a PRICED root); a row WM cannot
+  // price is UNKNOWN, never a mismatch (verifier MEDIUM, G16 r4).
+  let otherMismatchCount = 0;
+  let otherUnpricedCount = 0;
   for (const r of records) {
     const recorded = selectRecordedMoney(r);
     if (recorded.mismatch === null) continue;
@@ -322,9 +333,14 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
       if (!unknownRoots.includes(money.root)) unknownRoots.push(money.root);
     } else {
       otherCount += 1;
-      if (money.status === "PRICED") otherPricedFigure = true;
-      else if (money.refusal === "OPTION_ON_FUTURES") otherOptionOnFutures = true;
-      else if (!otherUnpricedRoots.includes(money.root)) otherUnpricedRoots.push(money.root);
+      if (money.status === "PRICED") {
+        otherPricedFigure = true;
+        otherMismatchCount += 1;
+      } else {
+        otherUnpricedCount += 1;
+        if (money.refusal === "OPTION_ON_FUTURES") otherOptionOnFutures = true;
+        else if (!otherUnpricedRoots.includes(money.root)) otherUnpricedRoots.push(money.root);
+      }
     }
   }
   if (count === 0 && unknownCount === 0 && otherCount === 0) return NO_LEGACY_FUTURES_MONEY;
@@ -361,7 +377,8 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
       + `(${kinds.join("; ")}). `
       + `${one ? "It is" : "They are"} counted here as recorded. Open ${one ? "it" : "one"} to see why.`,
     );
-    chips.push(`${otherCount} money mismatch`);
+    if (otherUnpricedCount > 0) chips.push(`${otherUnpricedCount} unpriced money UNKNOWN`);
+    if (otherMismatchCount > 0) chips.push(`${otherMismatchCount} money mismatch`);
   }
   return { count, unknownCount, unknownRoots, otherCount, note: sentences.join(" "), chip: chips.join(" · ") };
 }
