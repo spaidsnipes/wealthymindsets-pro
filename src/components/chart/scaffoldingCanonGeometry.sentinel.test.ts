@@ -156,7 +156,9 @@ describe("ADVANCED / PRO — the plate's resistance rule and plaque hierarchy", 
     expect(pushAt).toBeGreaterThan(-1);
     expect(h101).toBeGreaterThan(pushAt);
     const tag = SRC.slice(h101, SRC.indexOf("canvas.dataset.debtTag = tagState;", h101));
-    expect(tag).toMatch(/placeClearOfKeepOut\(below, keepOut\(\), \{\s*minX: keepOutMinX\(\),\s*blockers: floatingChips,\s*strict: true,/);
+    // The tag still steps around every chip registered before it (the plaque
+    // included) — now also around the MarketObject pins (2026-09-27).
+    expect(tag).toMatch(/placeClearOfKeepOut\(below, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\([\s\S]{0,400}?blockers: \[\.\.\.floatingChips, \.\.\.marketObjectPinRectsRef\.current\],\s*strict: true,/);
   });
 });
 

@@ -1986,6 +1986,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { onMtfAncestryRef.current = onMtfAncestry; }, [onMtfAncestry]);
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
   const mtfMemoRef = useRef<{ key: string; memo: Map<string, string | null> }>({ key: "", memo: new Map() });
+  // H-101 · the MarketObject pins' diamonds, in canvas pixels, for placers that
+  // must not land a plate on a pin (the WAIT plate sat on one: "◆AIT").
+  const marketObjectPinRectsRef = useRef<{ x: number; y: number; w: number; h: number }[]>([]);
   const onProfileFusionRef = useRef<typeof onProfileFusion>(undefined);
   useEffect(() => { onProfileFusionRef.current = onProfileFusion; }, [onProfileFusion]);
   const onVisibleRangeRefusalRef = useRef<typeof onVisibleRangeRefusal>(undefined);
@@ -13582,6 +13585,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             timeToX: t => { const xk = tsM.timeToCoordinate(t as never); return xk == null ? null : +xk; },
             priceToY: p => yOf(p),
           }, 0, plotRightM)) cutM.rect(r.x, r.y, r.w, r.h);
+          // Every chip already on the glass (the WAIT plaque, names, tags) is cut
+          // out of the fills — context never paints over a verdict. One clip
+          // per chip, so two overlapping chips never re-fill (as H-801).
+          const clipChips = () => {
+            for (const r of floatingChips) {
+              ctx.beginPath();
+              ctx.rect(0, 0, W, H);
+              ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+              ctx.clip("evenodd");
+            }
+          };
           const TAG_W = 26, TAG_H = 18;
           const painted: string[] = [];
           const silences: string[] = [];
@@ -13648,6 +13662,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (x1 > x0) {
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
+                clipChips();
                 ctx.fillStyle = "rgba(76,175,96,0.16)";
                 ctx.fillRect(x0, top, x1 - x0, h);
                 ctx.restore();
@@ -13672,6 +13687,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (x1 > x0) {
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
+                clipChips();
                 ctx.fillStyle = "rgba(150,156,168,0.12)";
                 ctx.fillRect(x0, top, x1 - x0, h);
                 ctx.beginPath();
@@ -18064,11 +18080,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // alternate, then the keep-out owner slides it left on its row.
               const below = { x: leftT, y: clampY(yLo + 26), w: wT, h: hT };
               const above = { x: leftT, y: clampY(yHi - 26 - hT), w: wT, h: hT };
-              const spotT = placeClearOfKeepOut(below, keepOut(), {
+              // STAY ON THE EVENT: before sliding sideways along a crowded row
+              // (the plate once landed ~250px from its bar on a long leader),
+              // try the same column further below and above the bar.
+              const fartherT = [1, 2, 3].flatMap(k => [
+                { x: leftT, y: clampY(yLo + 26 + k * (hT + 8)), w: wT, h: hT },
+                { x: leftT, y: clampY(yHi - 26 - hT - k * (hT + 8)), w: wT, h: hT },
+              ]);
+              // Every candle body on the plate's two candidate rows is kept out
+              // too, not only the newest: slid left off a pin it must not land
+              // on older bodies (price first).
+              const rowsT = [below, above, ...fartherT];
+              const spotT = placeClearOfKeepOut(below, [...keepOut(), ...rowBodiesAt(Math.min(...rowsT.map(r => r.y)), Math.max(...rowsT.map(r => r.y)) + hT)], {
                 minX: keepOutMinX(),
-                blockers: floatingChips,
+                // The pins are the objects' own handles, fixed to price/time:
+                // the plate steps around them, never the other way round.
+                blockers: [...floatingChips, ...marketObjectPinRectsRef.current],
                 strict: true,
-                alternates: [above],
+                alternates: [above, ...fartherT],
               });
               recordKeepOut(keepOutLedger, spotT);
               floatingChips.push({ x: spotT.rect.x, y: spotT.rect.y, w: spotT.rect.w, h: spotT.rect.h });
@@ -19712,6 +19741,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       return [{ ...target, point: { ...point, x } }];
     });
   }, [logicalToPixel, marketObjectTargets, rangeVer]);
+  useEffect(() => {
+    // The visible diamond is ≤ 13px; 18px keeps a plate's edge off its corners.
+    marketObjectPinRectsRef.current = projectedMarketObjects.map(t => ({ x: t.point.x - 9, y: t.point.y - 9, w: 18, h: 18 }));
+  }, [projectedMarketObjects]);
   const selectedMarketObjectTarget = projectedMarketObjects.find(
     target => target.object.objectId === selectedMarketObjectId,
   ) ?? null;

@@ -91,8 +91,10 @@ describe("(b) the chart places and draws — it decides nothing", () => {
 
   it("places through the keep-out owner and joins the chip ledger", () => {
     const block = tagBlock();
-    expect(block).toMatch(/placeClearOfKeepOut\(below, keepOut\(\), \{/);
-    expect(block).toContain("blockers: floatingChips");
+    // 2026-09-27: every candle body on its candidate rows and every MarketObject
+    // pin are kept out too (the plate read "◆AIT" on a pin) — same owner.
+    expect(block).toMatch(/placeClearOfKeepOut\(below, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(/);
+    expect(block).toContain("blockers: [...floatingChips, ...marketObjectPinRectsRef.current]");
     expect(block).toContain("strict: true");
     expect(block).toContain("recordKeepOut(keepOutLedger, spotT);");
     expect(block).toContain("floatingChips.push({ x: spotT.rect.x, y: spotT.rect.y, w: spotT.rect.w, h: spotT.rect.h });");

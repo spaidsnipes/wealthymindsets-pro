@@ -51,7 +51,7 @@ const between = (src: string, a: string, b: string) => {
 
 // Blocks are cut from the RAW source by their header comments, then stripped.
 const blocks = (raw: string) => ({
-  envelope: strip(between(raw, "H-801 · EXPECTED ENVELOPE — the analogue fan", "H-401 · CONTRADICTION NOT AVERAGED")),
+  envelope: strip(between(raw, "H-801 · EXPECTED ENVELOPE — the analogue fan", "T-210 / F10 · MTF IS NOT FOUR CHARTS")),
   contradiction: strip(between(raw, "H-401 · CONTRADICTION NOT AVERAGED", "PROFILE STACK PLAN — one owner")),
   structure: strip(between(raw, "H-704 · MARKET STRUCTURE — swing highs and lows on price", "F13 · SEMANTIC ZOOM TAG")),
   risk: strip(between(raw, "H-1001 · RISK ON PRICE — hardware brackets", "THE RECEIPT — torn from the same DECISION_ID")),
