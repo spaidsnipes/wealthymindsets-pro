@@ -44,3 +44,14 @@ describe("the pane's small controls say what they are and whether they are on (�
     expect(src).toContain("aria-label={`Order-flow overlay opacity ${Math.round(flowOpacity * 100)} percent`}");
   });
 });
+
+describe("volume never prints on the price axis (§50)", () => {
+  it("the volume overlay has no last-value tag — its number lives in the footer as Vol", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    const i = src.indexOf('priceScaleId:     "vol",');
+    expect(i).toBeGreaterThan(-1);
+    const block = src.slice(i, src.indexOf("});", i));
+    expect(block).toContain("lastValueVisible: false,");
+    expect(block).not.toContain("lastValueVisible: true");
+  });
+});

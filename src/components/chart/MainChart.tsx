@@ -3581,7 +3581,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // The bars ARE the magnitude. A second full-width rule restating the
         // last one is furniture competing with the thing it describes.
         priceLineVisible: false,
-        lastValueVisible: true,
+        // NO AXIS TAG EITHER (Garden 16 §50, found on the glass 2026-09-26):
+        // the volume overlay shares the price axis column, so its last-value
+        // tag ("4.61M") printed ON the price labels (over 371.10 at NEAR, over
+        // 358.00 at MID). The newest volume already reads bottom-left as
+        // "Vol 4.61M", where F24 puts it; the tag was a second copy in a
+        // column that belongs to price.
+        lastValueVisible: false,
       });
       chart.priceScale("vol").applyOptions({
         scaleMargins: { top: 0.78, bottom: 0 },
