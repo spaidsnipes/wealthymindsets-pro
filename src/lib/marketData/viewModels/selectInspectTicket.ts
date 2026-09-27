@@ -476,8 +476,7 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
           value: `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatCount(Math.abs(delta))}`,
           basis:
             `Ask-side minus bid-side volume on this bar's row of the one flow ` +
-            `ladder — the row its footprint cells and delta bubbles read. ` +
-            `${signed.length} signed prints held inside this bar stand behind it.`,
+            `ladder — the row its footprint cells and delta bubbles read.`,
         }
       : null,
     perTradeAbsenceNow,
@@ -494,15 +493,15 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
       ? {
           value: `${(heavier / lighter).toFixed(1)}:1 ${buyVol >= sellVol ? "buy" : "sell"}`,
           basis:
-            "The heavier side's volume over the lighter side's, across the same " +
-            "signed prints. The side is named because a bare ratio does not say " +
-            "who it favours.",
+            "The heavier side's volume over the lighter side's, on this bar's row " +
+            "of the one flow ladder — the same row the delta above reads. The side " +
+            "is named because a bare ratio does not say who it favours.",
         }
       : null,
     canRead
-      ? "Every signed print inside this bar crossed on the same side, so there " +
-        "is no lighter side to divide by. That one-sidedness is itself the " +
-        "reading, and it is in the delta above."
+      ? "This bar's row of the one flow ladder holds volume on one side only, " +
+        "so there is no lighter side to divide by. That one-sidedness is itself " +
+        "the reading, and it is in the delta above."
       : perTradeAbsenceNow,
   );
 

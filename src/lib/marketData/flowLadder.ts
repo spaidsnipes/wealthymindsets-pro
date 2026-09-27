@@ -68,3 +68,47 @@ export function readLadderBar(row: FlowLadderBar | null | undefined): FlowLadder
   if (!(buy + sell > 0)) return null;
   return { buy, sell, delta: buy - sell, levels };
 }
+
+/** The fastest the ladder is handed to the room: at most ~4× a second. */
+export const FLOW_LADDER_PUBLISH_MS = 250;
+
+export interface FlowLadderPublisher {
+  /** Call at the end of every fold that changed the ladder. */
+  changed(): void;
+  /** Drop a pending trailing publish (ladder rebuilt, chart unmounted). */
+  cancel(): void;
+}
+
+/**
+ * The publish rule for the ladder reader. A throttle alone left the Inspect
+ * Ticket one batch behind the prints it held: a fold landing inside the 250 ms
+ * window changed the ladder but told no one, and nothing arrived to publish it
+ * until the NEXT batch. Here every change is published — at once when the last
+ * publish is at least `minMs` old, otherwise by ONE trailing publish at the
+ * throttle edge. The ladder can lag its prints by at most `minMs`, never by a
+ * batch, and at rest it always ends caught up.
+ */
+export function createFlowLadderPublisher(
+  publish: () => void,
+  minMs: number = FLOW_LADDER_PUBLISH_MS,
+): FlowLadderPublisher {
+  let lastAt = -Infinity;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const fire = () => {
+    timer = null;
+    lastAt = Date.now();
+    publish();
+  };
+  return {
+    changed() {
+      if (timer != null) return; // a trailing publish is due; it reads the live ladder
+      const wait = minMs - (Date.now() - lastAt);
+      if (wait <= 0) fire();
+      else timer = setTimeout(fire, wait);
+    },
+    cancel() {
+      if (timer != null) clearTimeout(timer);
+      timer = null;
+    },
+  };
+}

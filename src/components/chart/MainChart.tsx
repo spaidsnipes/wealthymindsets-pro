@@ -241,7 +241,7 @@ import {
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
 import { selectTapeFootprint, type TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
-import type { FlowLadderReader } from "@/lib/marketData/flowLadder";
+import { createFlowLadderPublisher, type FlowLadderPublisher, type FlowLadderReader } from "@/lib/marketData/flowLadder";
 import { stackAnchor, stackSlab } from "@/lib/chart/stackedImbalanceAnchor";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandleGlass, selectValueCandleGlassPlan } from "@/lib/marketData/viewModels/selectValueCandleGlass";
@@ -2002,6 +2002,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onTapeFootprintRef.current = onTapeFootprint;
   const onFlowLadderRef = useRef(onFlowLadder);
   onFlowLadderRef.current = onFlowLadder;
+  // §15 — THE ladder is handed to the room after EVERY fold that changed it
+  // (≤4×/s, with a trailing publish), so the Inspect Ticket never rests one
+  // batch behind the prints it holds. Rule and test: flowLadder.ts.
+  const flowLadderPublisherRef = useRef<FlowLadderPublisher | null>(null);
+  flowLadderPublisherRef.current ??= createFlowLadderPublisher(() =>
+    onFlowLadderRef.current?.((barTimeSec: number) => tickAccRef.current.get(barTimeSec) ?? null),
+  );
+  useEffect(() => () => flowLadderPublisherRef.current?.cancel(), []);
   const footprintPublishRef = useRef<{ at: number; key: string }>({ at: 0, key: "" });
   const rawRef = useRef(false);
   rawRef.current = rawOnChart;
@@ -2816,6 +2824,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // The rail's footprint belonged to the old buckets: withdraw it now.
     footprintPublishRef.current = { at: 0, key: "NONE" };
     onTapeFootprintRef.current?.(null);
+    flowLadderPublisherRef.current?.cancel();
     onFlowLadderRef.current?.(null);
     bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
@@ -2842,6 +2851,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
     const dp      = base > 100 ? 2 : 4;
 
+    let ladderChanged = false;
     recentTicks.forEach(tick => {
       if (!tick.trade) return;
       if (!Number.isFinite(tick.price) || tick.price <= 0) return;
@@ -2873,6 +2883,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
         ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
       });
+      ladderChanged = true;
       // WM Session Tape Stats — cumulative counters routed through the
       // per-symbol store so switching symbols preserves each symbol's window.
       recordSessionTrade(
@@ -2887,6 +2898,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
       bigTradePrintAccRef.current.delete(oldest);
+      ladderChanged = true;
       // What is held now begins no earlier than the oldest retained bar.
       const nextOldest = Math.min(...tickAccRef.current.keys());
       if (Number.isFinite(nextOldest)) {
@@ -2903,9 +2915,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // subscriber (chip, future multi-symbol panels) re-renders.
       pushCvdSample(canonicalSym, tapeSource ?? "unavailable");
       setSessionTapeTick(t => t + 1);
-      // §15 — hand the room THE ladder's rows (fresh identity = re-read).
-      onFlowLadderRef.current?.((barTimeSec: number) => tickAccRef.current.get(barTimeSec) ?? null);
     }
+    // §15 — hand the room THE ladder's rows (fresh identity = re-read) after
+    // every fold that changed it; the publisher throttles and trails.
+    if (ladderChanged) flowLadderPublisherRef.current?.changed();
     // F06A rail footprint — at most every 2 s, and only when it changed.
     if (now - footprintPublishRef.current.at > 2000) {
       footprintPublishRef.current.at = now;

@@ -112,6 +112,13 @@ describe("§15 — delta and imbalance are READ OFF the one flow ladder, never r
     expect(rowOf(vm, "DELTA").value).toBe("+40");
     expect(rowOf(vm, "IMBALANCE").value).toBe("1.7:1 buy");
     expect(rowOf(vm, "DELTA").basis).toMatch(/one flow ladder/);
+    // The basis names the ladder row, not a count of held prints: the prints
+    // decide reach, and a count beside the ladder's number would claim they
+    // are the same batch when the ladder may not have folded the latest one.
+    expect(rowOf(vm, "DELTA").basis).not.toMatch(/\d+ signed prints/);
+    // Imbalance names the same row — not "the same signed prints".
+    expect(rowOf(vm, "IMBALANCE").basis).toMatch(/this bar's row of the one flow ladder/);
+    expect(rowOf(vm, "IMBALANCE").basis).not.toMatch(/signed prints/);
   });
 
   it("no ladder row → no delta, and the ticket says the ladder is the missing fact", () => {
@@ -406,7 +413,8 @@ describe("every sentence this compiler can emit is well formed", () => {
     const imb = rowOf(vm, "IMBALANCE");
     expect(imb.state).toBe("UNREAD");
     expect(imb.value).not.toBe("Infinity:1 buy");
-    expect(imb.absence).toMatch(/same side/i);
+    expect(imb.absence).toMatch(/this bar's row of the one flow ladder holds volume on one side only/i);
+    expect(imb.absence).not.toMatch(/signed print/i);
   });
 });
 

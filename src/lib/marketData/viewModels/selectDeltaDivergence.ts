@@ -52,7 +52,17 @@
  * follow it to. Markets diverge for a long time. No field here should ever be
  * renamed to imply a prediction.
  *
- * PURE — composes one existing owner and stores nothing. No clock, no I/O.
+ * ── WHAT IT FOLDS ITSELF, AND WHY THAT IS NOT A SECOND COPY (§15) ─────────
+ *
+ * The window totals (askVol / bidVol, provenance) are read from
+ * `selectAggressorFlow`. The PATH is not a total: `sidedPrints` signs each
+ * print by its side and `segment` runs that signed size into a cumulative
+ * delta at the end of every equal-count slice, in tape order. No other owner
+ * holds that sequence — the aggressor-flow owner keeps one window sum, and the
+ * chart's flow ladder is keyed by bar time, not print count — so this module
+ * owns it, and `oneFlowLadder.sentinel.test.ts` lists it with that reason.
+ *
+ * PURE — stores nothing. No clock, no I/O.
  */
 
 import {

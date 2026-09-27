@@ -26,6 +26,9 @@
  *   session delta / buy / sell counters lib/marketData/sessionSymbolStore
  *                                        `recordSessionTrade` (only writer)
  *   window aggressor sum (ask/bid/cvd)  lib/marketData/selectAggressorFlow
+ *   ORDERED cvd path (equal-count       viewModels/selectDeltaDivergence
+ *     segments, tape order)              `segment` — a sequence, not a sum;
+ *                                        reads selectAggressorFlow's totals
  *   absorption / delta divergence /
  *   stacked imbalance / delta levels    lib/marketData/useOrderFlowReadings
  *                                        (only caller of each selector)
@@ -37,13 +40,17 @@
  *
  * Spellings are not computations: a sentinel that only pinned
  * `ask: existing.ask + (tick.side …)` let the Inspect Ticket fold the same
- * bar's prints into its own buy/sell sums under different names. The scan
- * below looks for the COMPUTATION — a trade's side steering size into an
- * accumulator (`side === "buy" … +=`, `+ (x.side === "buy" ? …`,
- * `+= x.side === …`), and any re-sum of already-folded sides
- * (`ask/bid/buy/sell/askVol/bidVol/buyVol/sellVol +=`) — across every
- * non-test file, and fails unless the file is on the named allow-list below
- * with its owner and the reason it may exist. Stale entries fail too.
+ * bar's prints into its own buy/sell sums under different names — and its
+ * successor still matched three spellings, so a `reduce`, an `aggressor ===
+ * "BUY"`, an `isBuyer` flag or a destructured loop walked past it (and
+ * selectDeltaDivergence's own signed-CVD fold was never listed). The scan
+ * below detects the COMPUTATION: any side test and any accumulation within
+ * one small window, or a side-signed value bound to a name that is then
+ * accumulated (`foldSites`). Its non-vacuity test feeds it rewritten folds in
+ * every shape it claims to catch. Any re-sum of already-folded sides
+ * (`ask/bid/buy/sell/askVol/bidVol/buyVol/sellVol +=`) is listed separately.
+ * A file that folds fails unless it is on the named allow-list below with its
+ * owner and the reason it may exist. Stale entries fail too.
  *
  * Source scans, comment-stripped: prose names the things it forbids.
  */
@@ -89,16 +96,68 @@ function countAcross(re: RegExp): number {
   return n;
 }
 
-/** A trade's side steering size into an accumulator. */
-const TAPE_FOLD_RES: readonly RegExp[] = [
-  /\bside\s*===?\s*["'](?:buy|sell)["'][^;\n]{0,120}?[-+]=/,
-  /[-+]\s*\(\s*[\w.\][]*\bside\s*===?\s*["'](?:buy|sell)["']\s*\?/,
-  /[-+]=\s*\(?\s*[\w.\][]*\bside\s*===?\s*["'](?:buy|sell)["']\s*\?/,
+/**
+ * THE COMPUTATION DETECTOR. A side-fold is two things near each other: a SIDE
+ * TEST and an ACCUMULATION. The spelling of either is free — `side`, `aggressor`,
+ * `aggressorSide`, `isBuy`, `isBuyer`, `"buy" === side`, upper-case `"BUY"` —
+ * and so is the shape: `+=`, `-=`, `x = x + …`, a `reduce` accumulator, a
+ * ternary, an if/else, a destructured loop. A file folds when any side test and
+ * any accumulation sit within FOLD_WINDOW characters of each other (one
+ * statement, or an if/else pair), or when a side-SIGNED value is bound to a
+ * name (`signed = side === "buy" ? size : -size`) and that name is accumulated
+ * anywhere in the file — the fold split across two functions.
+ */
+const SIDE_WORD = String.raw`(?:buy|sell|BUY|SELL|Buy|Sell)`;
+const SIDE_TEST = String.raw`(?:\b(?:side|aggressor\w*)\s*[!=]==?\s*["']${SIDE_WORD}["']` +
+  String.raw`|["']${SIDE_WORD}["']\s*[!=]==?\s*[\w.?\][]*\b(?:side|aggressor\w*)\b` +
+  String.raw`|\bis(?:Buy|Sell)(?:er)?\b)`;
+const SIDE_TEST_RE = new RegExp(SIDE_TEST, "g");
+/** Accumulations. `+= 1` is a counter step, not a size fold. */
+const ACCUM_RES: readonly RegExp[] = [
+  /(?<![-+])[-+]=(?!=)(?!\s*1\b)/g,
+  /\b([\w.]+)\s*=\s*\1\s*[-+](?![-+=])/g,
+  /\.reduce\s*\(\s*\(?\s*(\w+)[\s\S]{0,240}?\b\1\s*[-+](?![-+=])/g,
+  new RegExp(String.raw`[\w.\]]+\s*[-+]\s*\(\s*[\w.\][]*` + SIDE_TEST, "g"),
 ];
+/** A name bound to a side-SIGNED value: `? x : -x` or `? -x : x`. */
+const SIGNED_CARRIER_RE = new RegExp(
+  String.raw`\b(\w+)\s*[:=]\s*\(?\s*[\w.\][]*` + SIDE_TEST +
+    String.raw`\s*\)?\s*\?\s*(?:([\w.]+)\s*:\s*-\s*\2\b|-\s*([\w.]+)\s*:\s*\3\b)`,
+  "g",
+);
+const FOLD_WINDOW = 160;
+
+function spans(src: string, res: readonly RegExp[]): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const re of res) {
+    const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+    for (const m of src.matchAll(g)) out.push([m.index, m.index + m[0].length]);
+  }
+  return out;
+}
+
+/** Every place in `src` where a side steers size into an accumulator. */
+function foldSites(src: string): string[] {
+  const out: string[] = [];
+  const accums = spans(src, ACCUM_RES);
+  for (const [ss, se] of spans(src, [SIDE_TEST_RE])) {
+    const near = accums.find(([as, ae]) => (as >= se ? as - se : ss >= ae ? ss - ae : 0) <= FOLD_WINDOW);
+    if (near) out.push(src.slice(Math.min(ss, near[0]), Math.max(se, near[1])));
+  }
+  for (const m of src.matchAll(SIGNED_CARRIER_RE)) {
+    const name = m[1];
+    const acc = new RegExp(
+      String.raw`(?:[-+]=\s*[\w.]*\b${name}\b|[\w)\]]\s*[-+]\s*[\w.]*\b${name}\b)(?!\s*[:=(])`,
+    ).exec(src);
+    if (acc) out.push(`${m[0]} … ${acc[0]}`);
+  }
+  return out;
+}
+
+const isTapeFold = (src: string): boolean => foldSites(src).length > 0;
+
 /** Re-summing sides that were already folded somewhere (rows, bars, counters). */
 const SIDE_SUM_RE = /\b(?:ask|bid|buy|sell|askVol|bidVol|buyVol|sellVol)\s*\+=/;
-
-const isTapeFold = (src: string): boolean => TAPE_FOLD_RES.some((re) => re.test(src));
 
 /**
  * EVERY file that folds a trade's side into an accumulator, with the fact it
@@ -112,7 +171,12 @@ const TAPE_FOLDS: Readonly<Record<string, { owner: string; why: string }>> = {
   },
   "src/lib/marketData/selectAggressorFlow.ts": {
     owner: "window aggressor sum (askVol/bidVol/cvd) over the held tape",
-    why: "the one window-wide owner; StockInfoPanel, cockpit strip, absorption, divergence read it",
+    why: "the one window-wide owner; StockInfoPanel, cockpit strip and absorption read it, and divergence reads its totals (not its path)",
+  },
+  "src/lib/marketData/viewModels/selectDeltaDivergence.ts": {
+    owner: "the ORDERED cumulative-delta path over equal-count segments (Delta Divergence, via useOrderFlowReadings)",
+    why: "a SEQUENCE, not a sum: cvd at the end of each equal-count slice of the tape in tape order; " +
+      "selectAggressorFlow keeps one window total and the ladder is keyed by bar time, so neither holds this path",
   },
   "src/lib/marketData/sessionSymbolStore.ts": {
     owner: "session buy/sell/delta counters (`recordSessionTrade`)",
@@ -170,16 +234,49 @@ const SIDE_SUMS: Readonly<Record<string, string>> = {
 };
 
 describe("THE FOLD SCAN — every side-fold in production code is named, or the build is red", () => {
-  it("NOT VACUOUS: the detectors catch the folds they exist for", () => {
-    // The ladder's own fold, and the exact fold the Inspect Ticket used to carry.
-    expect(isTapeFold(`bid: existing.bid + (tick.side === "sell" ? tick.size : 0),`)).toBe(true);
-    expect(isTapeFold(`for (const p of signed) {\n    if (p.side === "buy") buyVol += p.size as number;`)).toBe(true);
-    expect(isTapeFold(`return s + (t.side === "sell" ? t.size : -t.size);`)).toBe(true);
-    expect(isTapeFold(`net += t.side === "buy" ? t.size : -t.size;`)).toBe(true);
+  it("NOT VACUOUS: the detector catches the fold in every shape, under any spelling", () => {
+    const FOLDS: Record<string, string> = {
+      // The ladder's own fold, and the exact fold the Inspect Ticket used to carry.
+      ladder: `bid: existing.bid + (tick.side === "sell" ? tick.size : 0),`,
+      ticket: `for (const p of signed) {\n    if (p.side === "buy") buyVol += p.size as number;`,
+      returnPlus: `return s + (t.side === "sell" ? t.size : -t.size);`,
+      compoundTernary: `net += t.side === "buy" ? t.size : -t.size;`,
+      // Rewrites the previous spelling-matcher let through:
+      reduce: `const d = prints.reduce((acc, t) => acc + (t.side === "buy" ? t.size : -t.size), 0);`,
+      reduceStatement: `const d = xs.reduce((acc, t) => {\n  const q = t.side === "buy" ? t.size : 0;\n  return acc + q;\n}, 0);`,
+      reduceUpper: `const d = xs.reduce((m, x) => { return m - (x.aggressor === "SELL" ? x.qty : -x.qty); }, 0);`,
+      ternaryAssign: `const isBuy = t.side === "buy";\nnet = net + (isBuy ? t.size : -t.size);`,
+      isBuyerFlag: `if (trade.isBuyer) up = up + trade.qty;`,
+      ifElse: `if (print.aggressorSide === "BUY") {\n  lifted += print.size;\n} else {\n  hit += print.size;\n}`,
+      yodaElse: `if ("sell" === t.side) { down -= -t.size; } else { up += t.size; }`,
+      destructured: `for (const { side, size } of prints) {\n  if (side === "buy") b = b + size;\n  else s = s + size;\n}`,
+      // The fold split in two: a signed value bound in one function, summed in another.
+      signedCarrier:
+        `function sided(t) { return { signed: t.side === "buy" ? t.size : -t.size }; }\n` +
+        `${"/* far away */\n".repeat(40)}function path(ps) { let cvd = 0; for (const p of ps) cvd += p.signed; return cvd; }`,
+    };
+    for (const [shape, src] of Object.entries(FOLDS)) expect(isTapeFold(src), shape).toBe(true);
     expect(SIDE_SUM_RE.test(`buyVol += p.size;`)).toBe(true);
-    // …and not a filter or a colour choice.
-    expect(isTapeFold(`const signed = xs.filter(p => p.side === "buy" || p.side === "sell");`)).toBe(false);
-    expect(isTapeFold(`const c = side === "buy" ? green : red;`)).toBe(false);
+    // …and not a filter, a colour choice, a counter, or a signed value never summed.
+    const NOT_FOLDS: Record<string, string> = {
+      filter: `const signed = xs.filter(p => p.side === "buy" || p.side === "sell");`,
+      colour: `const c = side === "buy" ? green : red;`,
+      counter: `if (t.side === "buy") buys += 1;`,
+      signedNeverSummed: `const value = side === "buy" ? dominant : -dominant;\nreturn { value };`,
+    };
+    for (const [shape, src] of Object.entries(NOT_FOLDS)) expect(isTapeFold(src), shape).toBe(false);
+  });
+
+  it("NOT VACUOUS: the scan catches the real folds it lists, in their real files", () => {
+    // Each allow-listed owner is caught by the COMPUTATION, not by a spelling —
+    // including the split signed-CVD fold in selectDeltaDivergence.
+    for (const rel of [
+      CHART_REL,
+      "src/lib/marketData/viewModels/selectDeltaDivergence.ts",
+      "src/lib/marketData/viewModels/selectDeltaLevels.ts",
+    ]) {
+      expect(foldSites(SOURCES.get(rel) ?? "").length, rel).toBeGreaterThan(0);
+    }
   });
 
   it("every file that folds a trade's side into an accumulator is on the allow-list, with its owner", () => {
@@ -210,6 +307,19 @@ describe("THE FOLD SCAN — every side-fold in production code is named, or the 
     expect(SOURCES.get(ticket)).toMatch(/readLadderBar\(input\.ladderBar\)/);
     expect(CHART).toMatch(/onFlowLadderRef\.current\?\.\(\(barTimeSec: number\) => tickAccRef\.current\.get\(barTimeSec\)/);
     expect(code("src/components/chart/ChartsDashboard.tsx")).toMatch(/ladderBar:\s*inspectBar && flowLadderReader \? flowLadderReader\(inspectBar\.time\)/);
+  });
+
+  it("the ladder is published after EVERY fold that changed it — the ticket never rests a batch behind", () => {
+    // The fold effect marks a change on the ladder write and on eviction…
+    const fold = CHART.slice(CHART.indexOf("let ladderChanged = false;"));
+    expect(fold.slice(0, 4000)).toMatch(/ask:\s*existing\.ask[\s\S]{0,120}ladderChanged = true;/);
+    expect(fold.slice(0, 4000)).toMatch(/tickAccRef\.current\.delete\(oldest\);[\s\S]{0,120}ladderChanged = true;/);
+    // …and publishes through the throttle-and-trail rule, OUTSIDE the 250 ms
+    // chip throttle (inside it, a fold in the window told no one).
+    expect(fold.slice(0, 4000)).toMatch(/if \(ladderChanged\) flowLadderPublisherRef\.current\?\.changed\(\);/);
+    const throttle = fold.slice(fold.indexOf("sessionTapeFlushRef.current > 250"));
+    expect(throttle.slice(0, throttle.indexOf("\n    }\n"))).not.toMatch(/onFlowLadderRef|flowLadderPublisher/);
+    expect(CHART).toMatch(/createFlowLadderPublisher\(/);
   });
 });
 
