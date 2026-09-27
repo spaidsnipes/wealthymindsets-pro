@@ -74,7 +74,8 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/morning-prep",
       "/command-deck",
       "/charts",
-      "/heatmaps",
+      // /heatmaps LEFT 2026-09-27: the live Heatmaps Room is retired by
+      // current authority; its map is the Scanner Deck's /scanner/map.
       "/nectar",
       "/paper",
       "/journal",
@@ -98,7 +99,8 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
   });
 
   it("does not include ungraduated tool routes that must not dictate Founder scene styling", () => {
-    expect(FOUNDER_ROOM_ROUTES).toContain("/heatmaps");
+    // /heatmaps is no longer a room of any frame — it is an edge alias.
+    expect(FOUNDER_ROOM_ROUTES).not.toContain("/heatmaps");
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/readiness");
 
     // /scanner USED TO BE ASSERTED OUT HERE as "a legitimate tool the audit
@@ -201,7 +203,9 @@ describe("isFounderRoomRoute", () => {
     expect(isFounderRoomRoute("/scanner")).toBe(true);
     expect(isFounderRoomRoute("/radio")).toBe(true);
     expect(isFounderRoomRoute("/news")).toBe(true);
-    expect(isFounderRoomRoute("/heatmaps")).toBe(true);
+    expect(isFounderRoomRoute("/heatmaps")).toBe(false);
+    // The Opportunity Map inherits the Scanner Deck's frame by prefix.
+    expect(isFounderRoomRoute("/scanner/map")).toBe(true);
     expect(isFounderRoomRoute("/copy-trading")).toBe(true);
     expect(isFounderRoomRoute("/shop")).toBe(false);
     expect(isFounderRoomRoute("/profile")).toBe(false);

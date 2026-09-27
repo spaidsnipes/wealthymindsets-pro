@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const page = fs.readFileSync(
-  path.join(process.cwd(), "src/app/heatmaps/page.tsx"),
+  path.join(process.cwd(), "src/app/scanner/map/page.tsx"),
   "utf8",
 );
 
@@ -11,7 +11,7 @@ describe("Heat Map Markov Deck handoff accessibility", () => {
   it("keeps one native, named and encoded MARKET action (the one camera, not the deck)", () => {
     expect(page).toContain('className="wm-markov-deck-action"');
     expect(page).toContain('aria-label={`Open ${ms.sym} on the market`}');
-    expect(page).toContain('router.push(`/charts?symbol=${encodeURIComponent(ms.sym)}`)');
+    expect(page).toContain('router.push(heatCellCameraHref(ms.sym))');
     // A heat cell selects an instrument; the ONE market camera shows it.
     expect(page).not.toContain("/command-deck?symbol=");
     expect(page).toContain("e.stopPropagation()");

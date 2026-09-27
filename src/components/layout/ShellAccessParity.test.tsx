@@ -229,7 +229,10 @@ describe("one OS · every room wears ONE house (doors, not a rail)", () => {
   });
 
   it("NO DESTINATION IS QUIETLY DOORLESS", () => {
-    expect(WM_DESTINATIONS.length).toBeGreaterThanOrEqual(21); // vacuity guard
+    // Vacuity guard. 20, not 21: /heatmaps left the registry 2026-09-27 — the
+    // live Heatmaps Room is retired by current authority and its map is a view
+    // of the Scanner Deck (@/lib/routing/opportunityMap), not a destination.
+    expect(WM_DESTINATIONS.length).toBeGreaterThanOrEqual(20);
     const behindADoor = new Set<string>([
       INSTRUMENT_VIEW_ROUTE, // the Market doorway
       ...marketHomeRooms().map((d) => d.href),

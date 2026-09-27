@@ -4,7 +4,7 @@ import path from "node:path";
 import { readObservedChange, summarizeObservedChange } from "./heatmapAggregateTruth";
 
 const page = fs.readFileSync(
-  path.join(process.cwd(), "src/app/heatmaps/page.tsx"),
+  path.join(process.cwd(), "src/app/scanner/map/page.tsx"),
   "utf8",
 );
 
@@ -56,7 +56,7 @@ describe("Heat Map aggregate truth", () => {
     // Canonical chart route is still the ONLY navigation owner. The symbol is
     // now carried in the query so the resulting chart is shareable and survives
     // reload (Founding Contract §13 Scanner → Deck → Chart continuity).
-    expect(page).toMatch(/router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(sym\)\}`\)/);
+    expect(page).toMatch(/router\.push\(heatCellCameraHref\(sym\)\)/);
   });
 
   it("fails closed in the Industry Tooltip and Markov scenario surface", () => {

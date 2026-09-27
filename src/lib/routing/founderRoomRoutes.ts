@@ -23,8 +23,8 @@
  *
  * The list is DELIBERATELY narrow. `/charts` has now graduated because its
  * own instrument controls remain intact without the legacy application's
- * ticker/header/primary rail. `/heatmaps` has also graduated: the treemap is
- * its market field, while its duplicate page wordmark has been retired.
+ * ticker/header/primary rail. (`/heatmaps` once graduated here too; it is now
+ * retired as a room and its map is the Scanner Deck view `/scanner/map`.)
  * Scanner and readiness remain advanced inspect surfaces until their internal
  * layouts receive the same proof.
  *

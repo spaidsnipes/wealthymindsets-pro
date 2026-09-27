@@ -6,7 +6,7 @@
  *
  *   ChartToolbar.tsx    ["1m","2m","5m","15m","30m","1h","D","W","M"]
  *   backtesting/page    ["1m","2m","5m","15m","30m","1h","D","W","M"]
- *   heatmaps/page       ["1D","1W","1M","3M","6M","1Y","5Y"]
+ *   scanner/map/page    ["1D","1W","1M","3M","6M","1Y","5Y"]
  *
  * Two different naming schemes ("D" vs "1D") meant any timeframe string passed
  * between the chart and the heatmap was silently wrong. This module replaces all

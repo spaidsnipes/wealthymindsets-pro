@@ -9,7 +9,6 @@ import {
   Globe,
   GraduationCap,
   Handshake,
-  Map,
   Newspaper,
   Radio,
   ScanLine,
@@ -169,7 +168,10 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   { href: "/morning-prep", label: "Morning Prep", icon: Sun, group: "ROOM", tier: 1, frame: "os" },
   { href: "/command-deck", label: "Command Deck", icon: Crosshair, group: "ROOM", tier: 1, frame: "os", authority: "legacy" },
   { href: INSTRUMENT_VIEW_ROUTE, label: "Charts", icon: BarChart2, group: "ROOM", tier: 1, frame: "os" },
-  { href: "/heatmaps", label: "Heatmaps", icon: Map, group: "ROOM", tier: 1, frame: "os" },
+  // /heatmaps is NOT here. The live Heatmaps Room is retired by current
+  // authority ("not a live Heatmaps Room"; "ROOMS BUTTON ≠ HEATMAPS ROOM"). Its
+  // cross-market map is the Scanner Deck's Opportunity Map at /scanner/map,
+  // which inherits /scanner's frame, and /heatmaps is an edge alias to it.
   { href: "/nectar", label: "Passport", icon: Shield, group: "ROOM", tier: 1, frame: "os" },
   // TIER 1, not 2. Tier 2 is what a rail may withhold while capital is live —
   // and /paper is the room the open book LIVES in. Withholding it at exactly
@@ -389,14 +391,23 @@ export function destinationsInGroup(group: WmDestinationGroup): readonly WmDesti
  * until that bolt-on; the same block moves News into the House/Community
  * door ("Inside House: … News …") and declares itself to OUTRANK the older
  * "News/Research is a Room" taxonomy wording. The order below is the
- * bolt-on's order. /heatmaps is the Research Heat / Market Maps room —
- * R-902: "use Market Maps / Heatmaps as the broad-market room identity."
+ * bolt-on's order.
+ *
+ * THREE TENANTS, NOT FOUR — AND THAT IS HONEST, NOT A SHRINK. The fourth slot
+ * used to be /heatmaps labelled "Heatmaps": a LIVE cross-market board wearing
+ * the Research Heat Archive's seat. Authority says those are different things:
+ * "Live heat that reads THIS print = chart intelligence. Saved/historical
+ * research heat = Research Heat Archive", and the registry sends multi-symbol
+ * opportunity heat to the scanning job, "not a live Heatmaps Room". So the
+ * live board moved into the Scanner Deck (Opportunity Map, /scanner/map). The
+ * Research Heat Archive — SAVED/HISTORICAL heat — has no organ in this repo
+ * yet; its door returns when that organ exists, and no live surface may be
+ * relabelled to fill the seat.
  */
 export const MARKET_HOME_ROOM_HREFS: readonly string[] = [
   "/journal",
   "/backtesting",
   "/scanner",
-  "/heatmaps",
 ];
 
 export function marketHomeRooms(): readonly WmDestination[] {

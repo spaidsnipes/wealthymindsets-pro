@@ -45,6 +45,9 @@
 export const LEGACY_ROUTE_ALIASES: Readonly<Record<string, string>> = {
   "/vailbuild": "/partnerships",
   "/veddbuild": "/partnerships",
+  // The retired live Heatmaps Room. Its map lives in the Scanner Deck now
+  // (`@/lib/routing/opportunityMap`); old links land there, never on a room.
+  "/heatmaps": "/scanner/map",
 };
 
 /**

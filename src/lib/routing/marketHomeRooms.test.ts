@@ -26,13 +26,20 @@ describe("the HOME Rooms doorway changes the human job without restoring the mal
    * and the block declares itself to OUTRANK the older "News/Research is a
    * Room" taxonomy wording.
    */
-  it("contains ONLY the bolt-on's four changed trade jobs, in its order", () => {
+  it("contains ONLY the bolt-on's changed trade jobs that exist, in its order", () => {
+    // Research Heat Archive (SAVED/HISTORICAL heat) has no organ yet. The live
+    // /heatmaps board that sat in its seat is retired — see the next test.
     expect(MARKET_HOME_ROOM_HREFS).toEqual([
       "/journal",
       "/backtesting",
       "/scanner",
-      "/heatmaps",
     ]);
+  });
+
+  it("ROOMS BUTTON ≠ HEATMAPS ROOM: no live heat board sits in the Rooms door", () => {
+    expect(MARKET_HOME_ROOM_HREFS).not.toContain("/heatmaps");
+    expect(marketHomeRooms().some((room) => /heat/i.test(room.label) || /heat/i.test(room.href))).toBe(false);
+    expect(WM_DESTINATIONS.some((d) => d.href === "/heatmaps")).toBe(false);
   });
 
   it("News belongs behind the House door now, not the Rooms door", () => {

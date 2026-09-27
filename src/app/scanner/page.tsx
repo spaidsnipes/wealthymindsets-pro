@@ -38,6 +38,7 @@ import {
 } from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { ScannerDeckViewSwitch } from "@/components/scanner/ScannerDeckViewSwitch";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
 import { selectScannerFeedObservation } from "@/lib/os/selectScannerFeedObservation";
 
@@ -800,6 +801,10 @@ export default function ScannerPage() {
       <div className="wm-scanner-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ minHeight:44 }}>
         <Zap size={15} className="text-wm-gold shrink-0"/>
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400, color: "#ede6d3" }}>Scanner</h1>
+        {/* Signals · Opportunity Map — the deck's two views. The cross-market
+            heat map lives HERE, in the scanning job, and not as a Heatmaps
+            room (see @/lib/routing/opportunityMap). */}
+        <ScannerDeckViewSwitch />
         <div className="wm-scanner-stats flex items-center gap-3 ml-2">
           <div className="flex items-center gap-1.5 text-[10px]">
             <span className="w-2 h-2 rounded-full bg-wm-gold"/>

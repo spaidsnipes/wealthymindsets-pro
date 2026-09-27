@@ -4,7 +4,7 @@ import path from "node:path";
 
 const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 const route = read("src/app/api/heatmap/route.ts");
-const page = read("src/app/heatmaps/page.tsx");
+const page = read("src/app/scanner/map/page.tsx");
 const health = read("src/components/ui/DataHealth.tsx");
 
 describe("Heat Map fidelity truth", () => {
@@ -54,7 +54,7 @@ describe("Heat Map fidelity truth", () => {
     // Canonical chart route is still the ONLY navigation owner. The symbol is
     // now carried in the query so the resulting chart is shareable and survives
     // reload (Founding Contract §13 Scanner → Deck → Chart continuity).
-    expect(page).toMatch(/router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(sym\)\}`\)/);
+    expect(page).toMatch(/router\.push\(heatCellCameraHref\(sym\)\)/);
   });
 
   it("deduplicates provider refreshes and prevents overlapping client polls", () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const page = readFileSync(resolve(process.cwd(), "src/app/heatmaps/page.tsx"), "utf8");
+const page = readFileSync(resolve(process.cwd(), "src/app/scanner/map/page.tsx"), "utf8");
 
 describe("heatmap toolbar transformation", () => {
   it("uses a truthful labelled button group for the three views", () => {
