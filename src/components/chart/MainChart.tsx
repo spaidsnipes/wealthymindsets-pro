@@ -2224,6 +2224,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const below = near.filter(k => k < lo).sort((a, b) => b - a)[0];
           if (above != null) { hi = above; wallHeld = true; }
           if (below != null) { lo = below; wallHeld = true; }
+          // A wall INSIDE the range but at its very edge sits under the header
+          // (serving TSLA 1h: 385 at the top of the candles' range read
+          // OFF_CAMERA) — it earns the same headroom.
+          const edge = (hi - lo) * 0.1;
+          if (near.some(k => (k <= hi && k >= hi - edge) || (k >= lo && k <= lo + edge))) wallHeld = true;
         }
       }
       const margin = (hi - lo) * (wallHeld ? 0.14 : 0.06);
