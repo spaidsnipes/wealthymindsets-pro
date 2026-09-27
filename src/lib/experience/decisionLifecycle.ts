@@ -213,6 +213,25 @@ export function stageAttachedTo(
   return ctx.stage ?? LIFECYCLE_START;
 }
 
+/**
+ * WHICH MARKET A STAGE WRITTEN WITHOUT ONE IS SAID ON (verifier LOW, round 4).
+ * The Workspace mode row lives in the shell, not in a room, so it names no
+ * symbol. Pressed in a room that shows no market (/journal) after /charts TSLA
+ * had attached, MANAGE used to inherit TSLA as its market — and /charts TSLA
+ * then read POSITION although the trader never said so on TSLA.
+ *   · a trade-bearing stage is said on the market IN VIEW (`showing`), or on
+ *     none — never on the last market that happened to attach;
+ *   · any other stage is said on the market in view, else stays where it was.
+ */
+export function stageSymbolForWrite(
+  stage: LifecycleStage | null,
+  showing: string | null,
+  current: string | null,
+): string | null {
+  if (isTradeBearingStage(stage)) return showing;
+  return showing ?? current;
+}
+
 /** The deck's six phases, in §32's order — every phase control renders THIS order. */
 export const DECK_PHASE_ORDER: readonly TradePhase[] = [
   "PREPARATION",
@@ -231,4 +250,18 @@ export const DECK_PHASE_LABEL: Readonly<Record<TradePhase, string>> = {
   POSITION: "In Trade",
   POST_EXIT: "Post-Exit",
   REVIEW: "Review",
+};
+
+/**
+ * The chain headline's word for each phase ("Managing — …"). It lived as a
+ * second phase-word table inside selectDecisionChain; the round-4 one-owner
+ * scan (case-insensitive) found its "Post-exit". Phase words have one owner.
+ */
+export const DECK_PHASE_HEADLINE: Readonly<Record<TradePhase, string>> = {
+  PREPARATION: "Preparing",
+  APPROACH: "Approaching",
+  DECISION: "Deciding",
+  POSITION: "Managing",
+  POST_EXIT: "Post-exit",
+  REVIEW: "Reviewing",
 };

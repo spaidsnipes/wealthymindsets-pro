@@ -27,8 +27,13 @@ export interface UseDecisionContext {
   readonly proposeMode: (mode: ExperienceMode) => void;
   /** The Command Deck's write of the ONE lifecycle stage (decisionLifecycle). */
   readonly setStage: (stage: LifecycleStage, symbol?: string) => void;
-  /** A room names its market; a different market resets the lifecycle. */
-  readonly attachSymbol: (symbol: string) => void;
+  /**
+   * A room names the market it SHOWS; a different market resets the lifecycle.
+   * Returns the detach, so a room's effect is `useEffect(() => attachSymbol(symbol), …)`
+   * and the market stops being "in view" when the room unmounts or moves on —
+   * a trade-bearing mode pressed off-market then binds to no market.
+   */
+  readonly attachSymbol: (symbol: string) => () => void;
 }
 
 export function useDecisionContext(
@@ -50,7 +55,13 @@ export function useDecisionContext(
     (stage: LifecycleStage, symbol?: string) => { bus.setStage(stage, symbol); },
     [bus],
   );
-  const attachSymbol = useCallback((symbol: string) => { bus.attachSymbol(symbol); }, [bus]);
+  const attachSymbol = useCallback(
+    (symbol: string) => {
+      bus.attachSymbol(symbol);
+      return () => { bus.detachSymbol(symbol); };
+    },
+    [bus],
+  );
 
   return { context, setMode, setQuestion, proposeMode, setStage, attachSymbol };
 }

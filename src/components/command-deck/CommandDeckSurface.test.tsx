@@ -15,6 +15,8 @@
  * that disagreed with the room.
  */
 import { afterEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -24,6 +26,7 @@ import type { TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { decisionContextBus, type ExperienceMode } from "@/lib/experience/decisionContextBus";
 import { selectDeckEmphasis } from "@/lib/experience/selectDeckEmphasis";
+import { DECK_PHASE_LABEL, DECK_PHASE_ORDER } from "@/lib/experience/decisionLifecycle";
 import { DecisionSpineBand, type DecisionSpineBandProps } from "@/components/experience/DecisionSpineBand";
 import {
   CommandDeckSurface,
@@ -280,5 +283,35 @@ describe("THE RAIL READS THE SAME CHAIN — the drawer's phase reaches the right
     expect(after.missing).toBe(before.missing - 1);
     expect(prep).toContain(`of ${before.missing} unpaid evidence nodes`);
     expect(inTrade).toContain(`of ${after.missing} unpaid evidence nodes`);
+  });
+});
+
+/**
+ * DECK_PHASE_ORDER IS THE ORDER EVERY PHASE CONTROL RENDERS (verifier LOW,
+ * round 4): the owner documented it and nothing pinned it. The drawer's
+ * rendered buttons are read back in DOM order; /command-deck's control (a page
+ * with no SSR harness) is pinned at its source — built from the owner's order
+ * and rendered from that one list, with no second list beside it.
+ */
+describe("the deck's phase order is the owner's, as rendered", () => {
+  it("§32's order is the owner's order", () => {
+    expect([...DECK_PHASE_ORDER]).toEqual(["PREPARATION", "APPROACH", "DECISION", "POSITION", "POST_EXIT", "REVIEW"]);
+  });
+
+  it("the /charts drawer renders its buttons, ids and words, in DECK_PHASE_ORDER", () => {
+    const html = renderDeck({ phase: "PREPARATION" });
+    const group = html.slice(html.indexOf('data-testid="command-deck-phase"'));
+    const buttons = [...group.matchAll(/<button[^>]*data-phase="([A-Z_]+)"[^>]*>([^<]*)<\/button>/g)].slice(0, 6);
+    expect(buttons.map((b) => b[1])).toEqual([...DECK_PHASE_ORDER]);
+    expect(buttons.map((b) => b[2])).toEqual(DECK_PHASE_ORDER.map((id) => DECK_PHASE_LABEL[id]));
+  });
+
+  it("/command-deck builds its one phase list from DECK_PHASE_ORDER and renders that list", () => {
+    const page = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
+    expect(page).toMatch(/const PHASES: readonly \{ id: CommandPhase; label: string \}\[\] = DECK_PHASE_ORDER\.map\(\(id\) => \(\{\s*id,\s*label: DECK_PHASE_LABEL\[id\],?\s*\}\)\);/);
+    const control = page.slice(page.indexOf('aria-label="Trade phase"'));
+    expect(control, "the page's phase control no longer renders the owner-ordered list").toMatch(/^[^]*?\{PHASES\.map\(\(p\) =>/);
+    expect(control).toMatch(/^[^]*?\{PHASES\.map\(\(p\) => \([^]*?\{p\.label\}/);
+    expect(page.match(/\{PHASES\.map\(/g)?.length, "one phase control, one list").toBe(1);
   });
 });

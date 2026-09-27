@@ -25,6 +25,7 @@
 import {
   modeForStage,
   stageAttachedTo,
+  stageSymbolForWrite,
   stageForMode,
   type LifecycleStage,
 } from "./decisionLifecycle";
@@ -99,6 +100,12 @@ export class DecisionContextBus {
   private readonly confirmationsRequired: number;
   private readonly now: () => number;
   private pending: { mode: ExperienceMode; count: number } | null = null;
+  /**
+   * The market a mounted room is SHOWING right now — set by `attachSymbol`,
+   * cleared by `detachSymbol` when that room unmounts or changes market. Not
+   * context: it is where a write with no symbol is said (stageSymbolForWrite).
+   */
+  private showing: string | null = null;
 
   constructor(opts: DecisionContextBusOptions = {}) {
     this.confirmationsRequired = Math.max(1, opts.confirmationsRequired ?? DEFAULT_CONFIRMATIONS);
@@ -147,9 +154,11 @@ export class DecisionContextBus {
    */
   setMode(mode: ExperienceMode, question?: string): DecisionContext {
     const stage = stageForMode(mode);
+    const stageSymbol = stageSymbolForWrite(stage, this.showing, this.context.stageSymbol);
     if (
       mode === this.context.mode &&
       stage === this.context.stage &&
+      stageSymbol === this.context.stageSymbol &&
       (question === undefined || question.trim() === this.context.question)
     ) {
       this.pending = null;
@@ -158,6 +167,7 @@ export class DecisionContextBus {
     this.commit({
       mode,
       stage,
+      stageSymbol,
       source: "user",
       ...(question !== undefined && question.trim() ? { question: question.trim() } : {}),
     });
@@ -170,7 +180,7 @@ export class DecisionContextBus {
    * `symbol` attaches the stage to the market it was declared on.
    */
   setStage(stage: LifecycleStage, symbol?: string): DecisionContext {
-    const stageSymbol = symbol ?? this.context.stageSymbol;
+    const stageSymbol = symbol ?? stageSymbolForWrite(stage, this.showing, this.context.stageSymbol);
     if (stage === this.context.stage && stageSymbol === this.context.stageSymbol) {
       this.pending = null;
       return this.context;
@@ -187,6 +197,7 @@ export class DecisionContextBus {
    * The rule is decisionLifecycle's `stageAttachedTo`, the same one render reads.
    */
   attachSymbol(symbol: string): DecisionContext {
+    this.showing = symbol;
     const current = this.context.stageSymbol;
     if (current === symbol) return this.context;
     const kept = stageAttachedTo(this.context, symbol);
@@ -197,6 +208,16 @@ export class DecisionContextBus {
       return this.context;
     }
     this.commit({ mode: modeForStage(kept), stage: kept, stageSymbol: symbol, source: "default" });
+    return this.context;
+  }
+
+  /**
+   * The room showing `symbol` is gone (unmounted, or moved to another market).
+   * The stage keeps its market — nothing is reset — but a later write with no
+   * symbol is no longer said on it.
+   */
+  detachSymbol(symbol: string): DecisionContext {
+    if (this.showing === symbol) this.showing = null;
     return this.context;
   }
 
@@ -226,7 +247,8 @@ export class DecisionContextBus {
       this.pending.count += 1;
     }
     if (this.pending.count >= this.confirmationsRequired) {
-      this.commit({ mode, stage: stageForMode(mode), source: "market" });
+      const stage = stageForMode(mode);
+      this.commit({ mode, stage, stageSymbol: stageSymbolForWrite(stage, this.showing, this.context.stageSymbol), source: "market" });
       return { status: "COMMITTED", context: this.context, remaining: 0 };
     }
     return {

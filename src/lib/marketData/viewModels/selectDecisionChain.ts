@@ -26,6 +26,7 @@ import type {
   CanonicalMarketState,
   MarketStateResolution,
 } from "../canonicalMarketState";
+import { DECK_PHASE_HEADLINE } from "@/lib/experience/decisionLifecycle";
 import { selectRegime, type RegimeVM } from "./selectRegime";
 import { selectDLAR, type DLARVM } from "./selectDLAR";
 import { selectCLC, type CLCVM } from "./selectCLC";
@@ -455,13 +456,7 @@ function composeHeadline(
   return `${phaseLabel(phase)} — chain resolved (${summary.ok}/${summary.total}).`;
 }
 
+/** The chain headline's word for a phase — the lifecycle owner's (Garden 16 §15). */
 function phaseLabel(phase: TradePhase): string {
-  switch (phase) {
-    case "PREPARATION": return "Preparing";
-    case "APPROACH": return "Approaching";
-    case "DECISION": return "Deciding";
-    case "POSITION": return "Managing";
-    case "POST_EXIT": return "Post-exit";
-    case "REVIEW": return "Reviewing";
-  }
+  return DECK_PHASE_HEADLINE[phase];
 }

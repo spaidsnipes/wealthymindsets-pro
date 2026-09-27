@@ -1495,9 +1495,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // returns the one stage to its start for the new market, so the mode row
   // agrees.
   const tradePhase: TradePhase = lifecyclePhaseFor(lifecycleContext, symbol);
-  React.useEffect(() => {
-    attachLifecycleSymbol(symbol);
-  }, [attachLifecycleSymbol, symbol]);
+  // Attach, and return the detach: the market is "in view" only while shown.
+  React.useEffect(() => attachLifecycleSymbol(symbol), [attachLifecycleSymbol, symbol]);
   const setTradePhase = React.useCallback(
     (phase: TradePhase) => setLifecycleStage(stageForPhase(phase), symbol),
     [setLifecycleStage, symbol],

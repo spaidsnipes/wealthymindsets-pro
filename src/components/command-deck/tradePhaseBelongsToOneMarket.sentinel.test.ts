@@ -30,15 +30,17 @@ const DECK_PAGE = read("src/app/command-deck/page.tsx");
  * THE WHOLE ATTACH EFFECT, deps included (verifier MEDIUM, round 3): a
  * substring pin on `attachLifecycleSymbol(symbol);` survived dropping `symbol`
  * from the deps — the effect then attaches once and a market change never
- * reaches the owner, so the mode row keeps TSLA's "MANAGE" on ES1!.
+ * reaches the owner, so the mode row keeps TSLA's "MANAGE" on ES1!. Round 4: the
+ * arrow is expression-bodied so the effect RETURNS the detach (useDecisionContext)
+ * — a block body `{ attachLifecycleSymbol(symbol); }` would drop it.
  */
 const ATTACH_EFFECT =
-  /React\.useEffect\(\(\) => \{\s*attachLifecycleSymbol\(symbol\);\s*\}, \[attachLifecycleSymbol, symbol\]\);/;
+  /React\.useEffect\(\(\) => attachLifecycleSymbol\(symbol\), \[attachLifecycleSymbol, symbol\]\);/;
 
 describe("the room's trade phase is scoped to the symbol", () => {
   it("reads the phase FOR ITS SYMBOL before the one compile reads it, and attaches the symbol to the owner", () => {
     const read = SRC.indexOf("const tradePhase: TradePhase = lifecyclePhaseFor(lifecycleContext, symbol);");
-    const attach = SRC.indexOf("attachLifecycleSymbol(symbol);");
+    const attach = SRC.indexOf("attachLifecycleSymbol(symbol)");
     const compile = SRC.indexOf("const chartCanvasVM = useMarketCanvasVM({");
     expect(read, "the phase is no longer read for this room's symbol").toBeGreaterThan(-1);
     expect(attach, "the room no longer tells the lifecycle owner which market it shows").toBeGreaterThan(-1);

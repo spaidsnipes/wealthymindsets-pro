@@ -325,9 +325,8 @@ function CommandDeckInner() {
   // this symbol, and a market change returns it to the lifecycle start in the
   // same render (lifecyclePhaseFor) and in the owner (attachSymbol).
   const phase: CommandPhase = lifecyclePhaseFor(experienceContext, symbol);
-  React.useEffect(() => {
-    attachLifecycleSymbol(symbol);
-  }, [attachLifecycleSymbol, symbol]);
+  // Attach, and return the detach: the market is "in view" only while shown.
+  React.useEffect(() => attachLifecycleSymbol(symbol), [attachLifecycleSymbol, symbol]);
   const setPhase = React.useCallback(
     (p: CommandPhase) => setLifecycleStage(stageForPhase(p), symbol),
     [setLifecycleStage, symbol],
