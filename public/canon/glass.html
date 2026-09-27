@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>CANON | GLASS — live 1440</title>
+<!--
+  CANON | CODE | SERVING GLASS (Garden 16 §7/§56) — the construction loop in
+  one browser page: the Founder's plate on the left, the SERVING /charts on the
+  right at a true 1440×900 desktop viewport, scaled to fit. Same origin, so the
+  chart is the trader's own signed-in session (a file:// or cross-site frame
+  gets no session and shows sign-in). Nothing here reads or stores market data.
+
+  ?plate=<Drive file id>  the canon plate (Drive thumbnail — the owner's Drive
+                          session is what can see it; no plate is published)
+  &name=<sheet name>      label
+  &glass=<path>           a /charts path, e.g. /charts?symbol=BTCUSD&tf=15m
+-->
+<style>
+  :root { color-scheme:dark; --gold:#C9A961; --bd:#3a2f16 }
+  * { box-sizing:border-box }
+  body { margin:0; background:#05070b; color:#E8E6E1; font:12px/1.4 ui-sans-serif,system-ui,sans-serif;
+         display:flex; gap:10px; padding:8px; height:100vh; overflow:hidden }
+  .col { display:flex; flex-direction:column; gap:6px; min-width:0 }
+  .lab { padding:4px 8px; background:#1a1408; border:1px solid var(--bd); border-radius:4px;
+         font:700 11px/1.3 ui-sans-serif; letter-spacing:.06em; color:var(--gold);
+         white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  #plate { width:40vw; flex:none }
+  #plate img { width:100%; border:1px solid var(--bd); display:block }
+  #glass { flex:1 }
+  #wrap { position:relative; flex:1; overflow:hidden; border:1px solid var(--bd) }
+  iframe { position:absolute; left:0; top:0; width:1440px; height:900px; border:0; transform-origin:0 0 }
+</style>
+<div class="col" id="plate"><div class="lab" id="plab">CANON</div><img id="pimg" alt="canon plate"></div>
+<div class="col" id="glass"><div class="lab" id="glab">GLASS</div><div id="wrap"><iframe id="f" title="serving /charts at 1440"></iframe></div></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const id = (q.get("plate") || "").replace(/[^A-Za-z0-9_-]/g, "");
+  if (id) document.getElementById("pimg").src = "https://drive.google.com/thumbnail?id=" + id + "&sz=w1600";
+  document.getElementById("plab").textContent = "CANON · " + (q.get("name") || id || "no plate");
+  // Only a same-origin /charts path — this page frames nothing else.
+  let g = q.get("glass") || "/charts";
+  if (!g.startsWith("/charts")) g = "/charts";
+  document.getElementById("f").src = g;
+  fetch("/api/build-identity").then(r => r.json()).then(b => {
+    document.getElementById("glab").textContent = "GLASS · serving " + (b.shortSha || "?") + " · " + g + " · 1440×900";
+  }).catch(() => { document.getElementById("glab").textContent = "GLASS · " + g + " · 1440×900"; });
+  const fit = () => {
+    const w = document.getElementById("wrap");
+    document.getElementById("f").style.transform = "scale(" + Math.min(w.clientWidth / 1440, w.clientHeight / 900) + ")";
+  };
+  addEventListener("resize", fit); fit();
+</script>
