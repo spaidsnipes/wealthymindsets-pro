@@ -337,6 +337,7 @@ import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } f
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { livingMarketReceipt, motionAllowed, prefersReducedMotion, readLivingMarket, writeLivingMarket, type LivingMarket } from "@/lib/chart/livingMarket";
 import {
   arrowOutline,
   contradictionGlyph,
@@ -1999,6 +2000,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { onMtfAncestryRef.current = onMtfAncestry; }, [onMtfAncestry]);
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
   // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
+  // Garden 16 §7 · LIVING MARKET — LIVE / STILL, one presentation state. STILL
+  // settles every self-driven motion on the SAME objects; reduced motion too.
+  const [livingMarket, setLivingMarket] = useState<LivingMarket>(() => readLivingMarket());
+  const motionOnRef = useRef(true);
+  const livingReceiptRef = useRef<string>("LIVE");
+  useEffect(() => {
+    writeLivingMarket(livingMarket);
+    const reduced = prefersReducedMotion();
+    motionOnRef.current = motionAllowed(livingMarket, reduced);
+    livingReceiptRef.current = livingMarketReceipt(livingMarket, reduced);
+  }, [livingMarket]);
   const derivativesPressureRef = useRef<DerivativesPressureVM | null>(null);
   derivativesPressureRef.current = derivativesPressure;
   // The wall rects painted this frame (what a click hits), and the selected strike.
@@ -6839,13 +6851,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
           const hy = srs.priceToCoordinate(b.anchorPrice);
           if (hx == null || hy == null) continue;
-          const bob = Math.sin(b.phase + nowDelta / 1600) * 3;
+          const liveMotion = motionOnRef.current;
+          const bob = liveMotion ? Math.sin(b.phase + nowDelta / 1600) * 3 : 0;
           const sibN = b.siblingN ?? 1;
           const lvlIx = b.levelIdx ?? 0;
           const spread = sibN > 1 ? Math.min(34, Math.max(18, b.baseR)) : 0;
           const offX = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
-          const homeX = hx + offX + Math.cos(b.phase + nowDelta / 2400) * 2;
+          const homeX = hx + offX + (liveMotion ? Math.cos(b.phase + nowDelta / 2400) * 2 : 0);
           const homeY = hy + bob - 3;
+          if (!liveMotion) {
+            // STILL: the same bubble, settled at home and full size.
+            b.x = homeX; b.y = homeY; b.vx = 0; b.vy = 0; b.r = b.baseR;
+            continue;
+          }
           b.vx += (homeX - b.x) * 0.012; b.vy += (homeY - b.y) * 0.012;
           b.vx *= 0.93; b.vy *= 0.93;
           b.x += b.vx; b.y += b.vy;
@@ -6876,7 +6894,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const core = buy ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
           const isHover = hoverIdD === b.id;
           const t = nowDelta / 520 + b.phase;
-          const wob = 1 + Math.sin(t) * 0.05;
+          const wob = motionOnRef.current ? 1 + Math.sin(t) * 0.05 : 1;
           const Rx = Math.max(0.1, b.r * wob);
           const Ry = Math.max(0.1, b.r / wob);
           const selB = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
@@ -7314,7 +7332,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           b.x = anchor.x;
           b.y = anchor.y;
           b.vx = 0; b.vy = 0;
-          if (b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12; // ease up on spawn
+          if (!motionOnRef.current) b.r = b.baseR; // STILL: arrives settled
+          else if (b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12; // ease up on spawn
         }
 
         // Cull only bubbles whose anchor bar scrolled off-screen (freeing the
@@ -7493,7 +7512,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const isHover = hoverId === b.id;
           // Only the membrane breathes; the centre stays on the evidence.
           const t = nowMs / 520 + b.phase;
-          const wob = 1 + Math.sin(t) * BIG_TRADE_BREATH;
+          const wob = motionOnRef.current ? 1 + Math.sin(t) * BIG_TRADE_BREATH : 1;
           const Rx = Math.max(0.1, b.r * wob);
           const Ry = Math.max(0.1, b.r / wob);
 
@@ -13628,6 +13647,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
              POCKETS acceleration corridors with chevrons away from the front.
              ENVELOPE ±IV30 expected move at the live edge (DERIVED).
            Candles are cut out of every fill: price stays sovereign. */
+        // Garden 16 §7 · the presentation state this frame was painted under.
+        ds.livingMarket = livingReceiptRef.current;
         delete ds.derivativesPressurePainted;
         pressureWallHitRef.current = [];
         {
@@ -21660,6 +21681,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               color: flowOpacity < 0.99 ? "#F0B429" : "#8896BE",
             }}>
             ◐ {Math.round(flowOpacity * 100)}%
+          </button>
+          {/* Garden 16 §7 · LIVING MARKET — LIVE / STILL. One press settles the
+              SAME inventions (no removal, no generic fallback); again resumes. */}
+          <button
+            type="button"
+            data-testid="living-market-toggle"
+            aria-pressed={livingMarket === "STILL"}
+            aria-label={`Living market: ${livingMarket}. Press to ${livingMarket === "LIVE" ? "hold every invention still" : "let it live"}.`}
+            onClick={() => setLivingMarket(m => (m === "LIVE" ? "STILL" : "LIVE"))}
+            title={livingMarket === "LIVE" ? "LIVE — inventions move with their own evidence. Press for STILL: the same objects, settled for study." : "STILL — the same inventions, settled. Press for LIVE."}
+            style={{
+              height: 22, padding: "0 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
+              background: livingMarket === "STILL" ? "rgba(201,165,92,0.22)" : "rgba(20,24,36,0.85)",
+              border: `1px solid ${livingMarket === "STILL" ? "rgba(201,165,92,0.7)" : "#263050"}`,
+              color: livingMarket === "STILL" ? "#E8C878" : "#8896BE",
+            }}>
+            {livingMarket === "LIVE" ? "● LIVE" : "❚❚ STILL"}
           </button>
         </div>
 

@@ -73,7 +73,8 @@ describe("the paint clusters the frame's prints through the one owner", () => {
   });
 
   it("the membrane breathes by the owner's constant, which the touch rule already counts", () => {
-    expect(drawLoop()).toContain("const wob = 1 + Math.sin(t) * BIG_TRADE_BREATH;");
+    // Still the owner's constant — and (Garden 16 §7) only while LIVING MARKET is LIVE; STILL holds the orb at rest.
+    expect(drawLoop()).toContain("const wob = motionOnRef.current ? 1 + Math.sin(t) * BIG_TRADE_BREATH : 1;");
     expect(drawLoop()).not.toMatch(/Math\.sin\(t\) \* 0\.\d/);
   });
 
