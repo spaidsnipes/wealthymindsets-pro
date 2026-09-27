@@ -6,6 +6,7 @@ import fuseProfiles, {
   type FusionSourceProfile, type FusionRefusal,
 } from "./fuseProfiles";
 import selectCompositeProfile from "./selectCompositeProfile";
+import { computeProfileFromTrades, pocAndValueArea } from "@/lib/vpEngine";
 import { selectVisibleRangeProfile } from "./selectVisibleRangeProfile";
 
 const prof = (
@@ -38,7 +39,28 @@ describe("H-601 #3 · Profile Fusion — the object", () => {
     const r = fuseProfiles(A, B);
     if (!r.ok) throw new Error(r.reason);
     expect(r.fused.val).toBe(10.5);
-    expect(r.fused.vah).toBe(11.5);
+    // VAH is the top value-area row's LOW edge — vpEngine's convention.
+    expect(r.fused.vah).toBe(11);
+  });
+
+  it("ONE owner defines POC / VA: the fused levels equal vpEngine's pocAndValueArea on the fused rows", () => {
+    const r = fuseProfiles(A, B);
+    if (!r.ok) throw new Error(r.reason);
+    const own = pocAndValueArea(r.fused.rows.map(x => ({ total: x.volume })), 0.7);
+    expect([r.fused.poc, r.fused.val, r.fused.vah]).toEqual([own.pocIdx, own.valIdx, own.vahIdx].map(i => r.fused.rows[i].price));
+    // …and equal to a vpEngine snapshot of the same distribution on the same grid.
+    const snap = computeProfileFromTrades(r.fused.rows.map(x => ({ price: x.price, size: x.volume, side: "unknown" as const })), { tickSize: r.fused.step });
+    expect([snap.poc, snap.val, snap.vah]).toEqual([r.fused.poc, r.fused.val, r.fused.vah]);
+  });
+
+  it("POC tie-break: two equal heaviest rows → the LOWER price", () => {
+    const a = prof("vrp", [[10, 500], [10.5, 100]], 10);
+    const b = prof("cmp", [[10.5, 100], [11, 300], [11.5, 500]], 11.5);
+    const r = fuseProfiles(a, b);
+    if (!r.ok) throw new Error(r.reason);
+    // 10 → 500, 10.5 → 200, 11 → 300, 11.5 → 500: a tie at 10 and 11.5.
+    expect(r.fused.rows.filter(x => x.volume === 500).map(x => x.price)).toEqual([10, 11.5]);
+    expect(r.fused.poc).toBe(10);
   });
 
   it("keeps provenance: DERIVED, sources[] with windows, method, policy, older asOf, weaker fidelity and evidence", () => {
@@ -167,10 +189,13 @@ describe("§23 · property: the fused distribution is the sum of its parents, an
       const maxV = Math.max(...f.rows.map(x => x.volume));
       const pocRow = f.rows.find(x => x.price === f.poc)!;
       expect(pocRow.volume).toBe(maxV);
-      const inVA = f.rows.filter(x => x.price >= f.val && x.price < f.vah).reduce((s, x) => s + x.volume, 0);
+      const inVA = f.rows.filter(x => x.price >= f.val && x.price <= f.vah).reduce((s, x) => s + x.volume, 0);
       expect(inVA).toBeGreaterThanOrEqual(0.7 * f.totalVolume - 1e-6);
       expect(f.val).toBeLessThanOrEqual(f.poc);
-      expect(f.vah).toBeGreaterThan(f.poc);
+      expect(f.vah).toBeGreaterThanOrEqual(f.poc);
+      // VAH / VAL are rows of the fused distribution (bucket low edges).
+      expect(f.rows.some(x => x.price === f.vah)).toBe(true);
+      expect(f.rows.some(x => x.price === f.val)).toBe(true);
     });
   }
 
@@ -208,9 +233,13 @@ describe("§23 · Composite remains a different invention", () => {
     // Composite (sessions 0–1) + today's visible range: price ranges 100–102.8 vs 150–151.8 — honest NO_OVERLAP.
     const far = fuseProfiles(src("composite", cmp.rows, cmp.poc!, { from: 0, to: 100_540 }), src("visible-range", today.rows, today.poc!, { from: 200_000, to: 200_540 }));
     expect(far).toEqual({ ok: false, reason: "NO_OVERLAP" });
-    // The owners are separate modules: Composite never calls Fusion; Fusion never touches bars or vpEngine.
+    // The owners are separate modules: Composite never calls Fusion; Fusion never
+    // touches bars or a vpEngine profile BUILDER — from vpEngine it takes only the
+    // one POC / value-area routine, applied to its own fused rows.
     const here = (f: string) => readFileSync(join(__dirname, f), "utf8");
     expect(here("selectCompositeProfile.ts")).not.toMatch(/fuseProfiles/);
-    expect(here("fuseProfiles.ts")).not.toMatch(/from "@\/lib\/vpEngine"|computeProfileFromBars|LegacyOhlcvTuple/);
+    const fusionSrc = here("fuseProfiles.ts");
+    expect(fusionSrc).not.toMatch(/computeProfileFromBars|computeProfileFromTrades|LegacyOhlcvTuple/);
+    expect(fusionSrc.match(/import[^;]*from "@\/lib\/vpEngine";/g)).toEqual(['import { pocAndValueArea } from "@/lib/vpEngine";']);
   });
 });

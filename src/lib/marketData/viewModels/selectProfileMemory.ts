@@ -60,10 +60,17 @@ export interface ProfileMemoryVM {
   readonly reason: ProfileMemoryReason;
   readonly levels: readonly MemoryLevel[];
   readonly sessionsRemembered: number;
+  /**
+   * How the remembered value was known — the migration's own quality (every
+   * session profile there is bar-built, so "candle-estimated"). The glass
+   * words it on each S-n chip through profileLevelTag ("S-2 POC EST …").
+   */
+  readonly quality: ValueMigrationVM["quality"];
 }
 
 const none = (reason: Exclude<ProfileMemoryReason, "DRAWN">): ProfileMemoryVM => ({
   version: PROFILE_MEMORY_VERSION, drawn: false, reason, levels: [], sessionsRemembered: 0,
+  quality: "candle-estimated",
 });
 
 export function selectProfileMemory(
@@ -113,6 +120,7 @@ export function selectProfileMemory(
     reason: "DRAWN",
     levels,
     sessionsRemembered: sessions.length,
+    quality: migration.quality,
   };
 }
 

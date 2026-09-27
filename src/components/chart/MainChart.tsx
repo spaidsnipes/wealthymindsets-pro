@@ -343,7 +343,7 @@ import {
 } from "@/lib/chart/lensGlassGeometry";
 import { fuseProfiles, fusedCaption, fusionRefusalCaption, type FusedProfileObject, type FusionSourceProfile } from "@/lib/marketData/viewModels/fuseProfiles";
 import { fusionSourceFor, pickLawfulFusionPair, type FusionSourceInputs } from "@/lib/marketData/viewModels/profileFusionSources";
-import { profileEstWord } from "@/lib/marketData/viewModels/profileEvidenceWord";
+import { profileEstWord, profileLevelTag } from "@/lib/marketData/viewModels/profileEvidenceWord";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
@@ -8717,7 +8717,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.setLineDash([]);
             ctx.font = "bold 9px monospace";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            const edgeTxt = `${tag} ${above ? "↑" : "↓"} ${p.toFixed(vpDp)}`;
+            const edgeTxt = `${profileLevelTag(tag, snap.quality)} ${above ? "↑" : "↓"} ${p.toFixed(vpDp)}`;
             ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
             ctx.strokeText(edgeTxt, colLeft, edgeY + (above ? 8 : -8));
             ctx.fillStyle = ink(0.95);
@@ -8746,8 +8746,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // first row where BOTH clear every candle body and wick and every
           // chip; else they slide left together along the rule; else the chip
           // yields and the name is withheld. Rows never enter the header band.
+          // G16 §20: the column is bar-built (computeProfileFromBars → candle-
+          // estimated), so its level NAME says so ("POC EST") — short, and
+          // placed by the same pair placer clear of every candle.
+          const nameTxt = profileLevelTag(tag, snap.quality);
           ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-          const nameW = Math.ceil(ctx.measureText(tag).width) + 6;
+          const nameW = Math.ceil(ctx.measureText(nameTxt).width) + 6;
           ctx.font = LEVEL_CHIP_FONT;
           const chipTxt = vpPrice(p);
           const cw = Math.ceil(ctx.measureText(chipTxt).width) + LEVEL_CHIP_PAD;
@@ -8773,9 +8777,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-            ctx.strokeText(tag, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
+            ctx.strokeText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
             ctx.fillStyle = ink(0.95);
-            ctx.fillText(tag, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
+            ctx.fillText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
           }
           ctx.font = LEVEL_CHIP_FONT;
           ctx.fillStyle = pair.onCandles ? `rgba(11,10,8,${keepOutBackingAlpha(pair, 0.9)})` : ink(0.92);
@@ -15519,6 +15523,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "middle";
             const labelYs: number[] = [];
+            let memChipsWithheld = 0;
             /*
               H-201 / F03A · MEMORY IS A GHOST, NOT A SPRAY (P-110 canon pass,
               2026-09-25). Serving TSLA 15m: fifteen dim "S-5 VAH … · NAKED" /
@@ -15630,7 +15635,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // would print over the legend, and its line is their leader.
               if (y < PRICE_LEGEND_OVERLAY_H + 7) continue;
               labelYs.push(y);
-              const text = `S-${l.sessionsAgo} ${l.kind} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
+              // G16 §20: remembered value is bar-built (Value Migration →
+              // candle-estimated), so the chip's level name says EST.
+              const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const lx = endX - w - 4;
               // The label ends where its line ends — at the live edge. It
@@ -15649,6 +15656,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 { minX: Math.max(x0, keepOutMinX()), blockers: floatingChips, strict: true },
               );
               recordKeepOut(keepOutLedger, spotM);
+              // No clear row on its own line: the chip is withheld (the level
+              // keeps its line; its words stay in Inspect), never printed on a candle.
+              if (spotM.onCandles) { memChipsWithheld++; continue; }
               floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
               ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);
@@ -15658,6 +15668,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
             ctx.restore();
             ds.profileMemoryWithheld = String(memWithheld);
+            ds.profileMemoryChipsWithheld = String(memChipsWithheld);
             ds.profileMemoryLevels = String(drawn);
             ds.profileMemoryNaked = String(naked);
             ds.profileMemorySessions = String(mem.sessionsRemembered);
@@ -15667,6 +15678,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.profileMemorySessions;
             delete ds.profileMemoryShown;
             delete ds.profileMemoryWithheld;
+            delete ds.profileMemoryChipsWithheld;
           }
         }
 

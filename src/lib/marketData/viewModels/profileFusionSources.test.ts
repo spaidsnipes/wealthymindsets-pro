@@ -23,6 +23,11 @@ describe("§23 · each stack species states its instrument, unit, evidence and w
     expect([tape.volumeUnit, tape.evidence, tape.window]).toEqual(["PRINT_SIZE", "TRADE_BASED", null]);
   });
 
+  it("Living with `estimated` undefined is the candle path: BAR_VOLUME / CANDLE_ESTIMATED over every loaded bar", () => {
+    const u = fusionSourceFor("LIVING", inputs({ living: { drawn: true, bars: rows(100), poc: 100.5 } }))!;
+    expect([u.volumeUnit, u.evidence, u.window]).toEqual(["BAR_VOLUME", "CANDLE_ESTIMATED", { from: 0, to: 1000 }]);
+  });
+
   it("Composite covers its completed sessions; Visible Range covers the camera", () => {
     expect(fusionSourceFor("COMPOSITE", inputs())!.window).toEqual({ from: 0, to: 600 });
     expect(fusionSourceFor("VISIBLE_RANGE", inputs())!.window).toEqual({ from: 700, to: 1000 });

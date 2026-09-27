@@ -102,6 +102,40 @@ export function chooseTickSize(range: number, targetRows = 320): number {
   return cands.reduce((best, v) => (Math.abs(v - raw) < Math.abs(best - raw) ? v : best), cands[0]);
 }
 
+/**
+ * THE ONE OWNER OF POC + VALUE AREA over a price-ascending row list (populated
+ * rows only). Every profile that states a POC / VAH / VAL — the engine's own
+ * snapshots and Profile Fusion's derived rows — computes them here, so one
+ * convention defines them: indices into `rows`, VAH/VAL are bucket LOW edges.
+ *
+ * POC = highest-volume row. Deterministic tie-break: LOWER price wins
+ * (rows is ascending, so the first max encountered is the lowest-price max).
+ *
+ * Value area (directive §11): expand outward from POC, each step adding the
+ * side (above vs below) with MORE volume, until cumulative ≥ pct·total.
+ * Tie-break when above==below: prefer the ABOVE side (documented, deterministic).
+ */
+export function pocAndValueArea(
+  rows: readonly { readonly total: number }[],
+  valueAreaPct = 0.7,
+): { pocIdx: number; vahIdx: number; valIdx: number } {
+  if (rows.length === 0) return { pocIdx: -1, vahIdx: -1, valIdx: -1 };
+  const totalVolume = rows.reduce((s, r) => s + r.total, 0);
+  let pocIdx = 0;
+  for (let i = 1; i < rows.length; i++) if (rows[i].total > rows[pocIdx].total) pocIdx = i;
+  const target = valueAreaPct * totalVolume;
+  let lo = pocIdx, hi = pocIdx;
+  let acc = rows[pocIdx].total;
+  while (acc < target && (lo > 0 || hi < rows.length - 1)) {
+    const above = hi < rows.length - 1 ? rows[hi + 1].total : -1;
+    const below = lo > 0 ? rows[lo - 1].total : -1;
+    if (above < 0 && below < 0) break;
+    if (above >= below) { hi += 1; acc += rows[hi].total; }
+    else { lo -= 1; acc += rows[lo].total; }
+  }
+  return { pocIdx, vahIdx: hi, valIdx: lo };
+}
+
 /** Build a snapshot from an already-accumulated bucket map. Shared core. */
 function finalize(
   buckets: Map<number, { up: number; down: number }>,
@@ -124,30 +158,13 @@ function finalize(
   const totalVolume = rows.reduce((s, r) => s + r.total, 0);
   const delta = rows.reduce((s, r) => s + (r.up - r.down), 0);
 
-  // POC = highest-volume row. Deterministic tie-break: LOWER price wins
-  // (rows is ascending, so the first max encountered is the lowest-price max).
-  let pocIdx = 0;
-  for (let i = 1; i < rows.length; i++) if (rows[i].total > rows[pocIdx].total) pocIdx = i;
-
-  // ── Value area (directive §11): expand outward from POC, each step adding the
-  // side (above vs below) with MORE volume, until cumulative ≥ pct·total.
-  // Tie-break when above==below: prefer the ABOVE side (documented, deterministic).
-  const target = valueAreaPct * totalVolume;
-  let lo = pocIdx, hi = pocIdx;
-  let acc = rows[pocIdx].total;
-  while (acc < target && (lo > 0 || hi < rows.length - 1)) {
-    const above = hi < rows.length - 1 ? rows[hi + 1].total : -1;
-    const below = lo > 0 ? rows[lo - 1].total : -1;
-    if (above < 0 && below < 0) break;
-    if (above >= below) { hi += 1; acc += rows[hi].total; }
-    else { lo -= 1; acc += rows[lo].total; }
-  }
+  const { pocIdx, vahIdx, valIdx } = pocAndValueArea(rows, valueAreaPct);
 
   return {
     rows, tickSize,
     poc: rows[pocIdx].price,
-    vah: rows[hi].price,
-    val: rows[lo].price,
+    vah: rows[vahIdx].price,
+    val: rows[valIdx].price,
     totalVolume, delta, valueAreaPct, quality,
     populatedRows: rows.length,
   };

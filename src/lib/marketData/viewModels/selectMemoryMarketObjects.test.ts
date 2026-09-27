@@ -9,7 +9,7 @@ const ids: CanonicalBarIdentity[] = [60, 120, 180, 240, 300].map(t => ({
   fidelity: "INDICATIVE", source: "yahoo", provenance: "REST_BACKFILL", truthEpoch: 0,
 }));
 const memory = (over: Partial<ProfileMemoryVM> = {}): ProfileMemoryVM => ({
-  version: 1, drawn: true, reason: "DRAWN", sessionsRemembered: 1,
+  version: 1, drawn: true, reason: "DRAWN", sessionsRemembered: 1, quality: "candle-estimated",
   levels: [
     { kind: "POC", price: 100, sessionsAgo: 1, formedAt: 120, tests: 2, naked: false, firstTestAt: 180, recentTestTimes: [180, 300] },
     { kind: "VAH", price: 104, sessionsAgo: 1, formedAt: 120, tests: 0, naked: true, firstTestAt: null, recentTestTimes: [] },

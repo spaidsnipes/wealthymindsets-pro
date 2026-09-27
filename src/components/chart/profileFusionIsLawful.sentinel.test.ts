@@ -39,3 +39,16 @@ describe("G16 §23 · Profile Fusion on the glass", () => {
     expect(CHART).toContain("MOVES WITH THE VIEW${profileEstWord(vrpVM.quality)}`");
   });
 });
+
+describe("G16 §20 · bar-built level chips wear EST on the glass, never on a candle", () => {
+  it("Session / Fixed WM VP level names route through profileLevelTag(…, snap.quality) and the pair placer", () => {
+    expect(CHART).toContain("const nameTxt = profileLevelTag(tag, snap.quality);");
+    expect(CHART).toContain("ctx.fillText(nameTxt, pair.name.x + 3");
+    expect(CHART).toContain("const edgeTxt = `${profileLevelTag(tag, snap.quality)} ");
+  });
+
+  it("Profile Memory's S-n chips say EST and are withheld, not printed, when no clear row exists", () => {
+    expect(CHART).toContain("const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ");
+    expect(CHART).toMatch(/recordKeepOut\(keepOutLedger, spotM\);[\s\S]{0,300}if \(spotM\.onCandles\) \{ memChipsWithheld\+\+; continue; \}/);
+  });
+});

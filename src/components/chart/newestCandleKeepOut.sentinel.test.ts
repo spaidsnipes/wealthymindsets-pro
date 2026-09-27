@@ -81,7 +81,7 @@ describe("the profile family's level chips yield to the candles", () => {
 });
 
 describe("Profile Memory labels yield to the newest bodies", () => {
-  const memory = slice("const text = `S-${l.sessionsAgo} ${l.kind}", "ds.profileMemoryLevels = String(drawn);");
+  const memory = slice("const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)}", "ds.profileMemoryLevels = String(drawn);");
 
   it("asks the keep-out, sliding only along the level's own line and never left of its birth", () => {
     // Pin updated 2026-09-25 (serving NQ1! 5m, every species on): strict —

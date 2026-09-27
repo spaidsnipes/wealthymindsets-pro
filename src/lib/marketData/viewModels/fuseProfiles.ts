@@ -30,7 +30,9 @@
  *   ROW SUM        source VOLUME is combined by row. Shares are never summed.
  *   RECOMPUTED     the fused POC is the heaviest fused row (ties → the lower
  *                  price); the value area is re-expanded from it to 70 % of
- *                  fused volume. Source POCs are NEVER averaged.
+ *                  fused volume — both by vpEngine's pocAndValueArea, the ONE
+ *                  owner, so VAH / VAL are bucket LOW edges exactly as on every
+ *                  other profile. Source POCs are NEVER averaged.
  *   PROVENANCE     sources[] (id, species, own POC, volume, window, evidence),
  *                  method, version, asOf (the OLDER source — the fusion is only
  *                  as fresh as its stalest part), fidelity and evidence (the
@@ -54,6 +56,7 @@ export const FUSION_OVERLAP_POLICY = "DISJOINT_WINDOWS_ONLY";
 export const VALUE_AREA_SHARE = 0.7;
 
 import { MARKET_FIDELITIES, type MarketFidelity } from "../marketFidelityAlgebra";
+import { pocAndValueArea } from "@/lib/vpEngine";
 
 /** The one fidelity vocabulary; null = the source's bars carry none. */
 export type Fidelity = MarketFidelity | null;
@@ -218,16 +221,10 @@ export function fuseProfiles(a: FusionSourceProfile | null, b: FusionSourceProfi
     .sort((x, y) => x[0] - y[0])
     .map(([g, bySource]) => ({ price: priceOf(g), bySource: bySource as readonly number[], volume: bySource[0] + bySource[1] }));
   const total = rows.reduce((s, r) => s + r.volume, 0);
-  let pocIdx = 0;
-  rows.forEach((r, i) => { if (r.volume > rows[pocIdx].volume) pocIdx = i; });
-
-  // Value area: expand from the POC toward the heavier neighbour until 70 %.
-  let loI = pocIdx, hiI = pocIdx, acc = rows[pocIdx].volume;
-  while (acc < total * VALUE_AREA_SHARE && (loI > 0 || hiI < rows.length - 1)) {
-    const down = loI > 0 ? rows[loI - 1].volume : -1;
-    const up = hiI < rows.length - 1 ? rows[hiI + 1].volume : -1;
-    if (up >= down) { hiI++; acc += rows[hiI].volume; } else { loI--; acc += rows[loI].volume; }
-  }
+  // POC and value area: vpEngine's ONE routine over the fused rows — the same
+  // tie-breaks and the same convention (VAH / VAL are bucket LOW edges) as
+  // every other profile on the glass.
+  const { pocIdx, vahIdx: hiI, valIdx: loI } = pocAndValueArea(rows.map(r => ({ total: r.volume })), VALUE_AREA_SHARE);
 
   const asOfs = srcs.map(s => s.asOf).filter((t): t is number => t != null);
   const fidelity = srcs.map(s => s.fidelity).reduce((w, f) => (FIDELITY_ORDER.indexOf(f) > FIDELITY_ORDER.indexOf(w) ? f : w));
@@ -243,7 +240,7 @@ export function fuseProfiles(a: FusionSourceProfile | null, b: FusionSourceProfi
       step,
       rows,
       poc: rows[pocIdx].price,
-      vah: round8(rows[hiI].price + step),
+      vah: rows[hiI].price,
       val: rows[loI].price,
       totalVolume: total,
       sharedRows: rows.filter(r => r.bySource[0] > 0 && r.bySource[1] > 0).length,
