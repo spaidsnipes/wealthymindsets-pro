@@ -17692,6 +17692,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             timeToX: t => { const xk = tsW.timeToCoordinate(t as never); return xk == null ? null : +xk; },
             priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
           }, weatherLens.cx - weatherLens.rx - 8, weatherLens.cx + weatherLens.rx + 8)) cut.rect(r.x, r.y, r.w, r.h);
+
           // THE LENS YIELDS TO THE CHIPS ALREADY PLACED (serving, 14:48 CDT:
           // the value-band chip and the SWING labels sat under the ring). Every
           // chip the lens reaches is cut out of the tint, the field and the
@@ -17707,6 +17708,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             chipCut.rect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
             chipsYielded++;
           }
+          // DEPTH (Garden 16 §22): the weather is environment, a pressure wall is
+          // structure — the wall stands IN FRONT of the storm and its ring (serving
+          // SPY 1h: the loupe veiled the 775 wall). Its own clip path, like a chip,
+          // so a wall over a candle never cancels the candle's cut under even-odd.
+          for (const wr of pressureWallHitRef.current) chipCut.rect(wr.x, wr.y, wr.w, wr.h);
           weatherLensChipCut = chipCut;
           ds.liquidityWeatherChipsYielded = String(chipsYielded);
           // THE LENS'S GLASS — a faint slate tint darkening toward the rim,
