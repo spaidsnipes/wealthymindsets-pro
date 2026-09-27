@@ -20,7 +20,23 @@ type ShellModalDrawerProps = {
   titleIcon?: React.ReactNode;
   headerActions?: React.ReactNode;
   footer?: React.ReactNode;
+  /**
+   * "veil" (default): the house modal — the page behind is dimmed and blurred.
+   * "clear": the page behind stays READABLE (a light dim, no blur). For a
+   * drawer whose controls change what is behind it — Chart tools, where every
+   * profile, camera and lens switch paints on the market — so the trader
+   * watches the change land instead of closing the drawer to find out
+   * (Garden 16 §9/§18/§44, found on the glass 2026-09-27). Still modal: a
+   * press outside the panel closes it, and focus stays trapped inside.
+   */
+  backdrop?: "veil" | "clear";
   children: React.ReactNode;
+};
+
+/** The backdrop each mode paints. One owner, so the two cannot drift. */
+export const SHELL_DRAWER_BACKDROP: Readonly<Record<"veil" | "clear", React.CSSProperties>> = {
+  veil: { background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" },
+  clear: { background: "rgba(0,0,0,0.12)" },
 };
 
 export function ShellModalDrawer(props: ShellModalDrawerProps) {
@@ -46,6 +62,7 @@ function ShellModalDrawerContent({
   titleIcon,
   headerActions,
   footer,
+  backdrop = "veil",
   children,
 }: ShellModalDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -63,7 +80,8 @@ function ShellModalDrawerContent({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[200] flex items-start justify-end"
-      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" }}
+      style={SHELL_DRAWER_BACKDROP[backdrop]}
+      data-backdrop={backdrop}
       onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}
     >
       <motion.div

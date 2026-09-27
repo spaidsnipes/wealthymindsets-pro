@@ -1007,6 +1007,9 @@ export function ChartToolbar({
         description="Symbol, asset class, trading hours, indicators, profiles, how the book is arranged, appearance, Smart Money, and the chart's own menu. The chart stays loaded underneath."
         closeLabel="Close chart tools"
         width={420}
+        // The market stays readable behind the sheet: every switch in here
+        // paints on it, and the trader should watch the change land.
+        backdrop="clear"
         onClose={onEquipmentClose}
         fallbackTriggerRef={equipmentFallbackRef}
       >
