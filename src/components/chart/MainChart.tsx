@@ -13264,6 +13264,42 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ds.memoryGhostCaption = spotG.mode;
               }
             }
+            // CLIPPED IS SAID, NOT SILENT (Garden 16 §27, found beside canon
+            // H-201 in the Founder's Chrome, BTC 1h: TOP 10/20). The camera stays
+            // on NOW, so a ghost column the pane cannot hold is cut at the edge
+            // — and the edge says so, inside the ghost's own span.
+            if (bracket && (clipTop || clipBot) && att.speaks("memoryGhost")) {
+              ctx.save();
+              ctx.globalAlpha = att.textAlpha("memoryGhost");
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "center";
+              const cx = Math.min(plotRight - 70, Math.max(70, (bracket.x0 + bracket.x1) / 2));
+              // Placed like the caption: through the keep-out owner, strictly —
+              // HELD (not printed) where it would sit on a candle or a chip.
+              const edge = (word: string, y: number) => {
+                const w = ctx.measureText(word).width + 10;
+                const spotE = placeClearOfKeepOut(
+                  { x: cx - w / 2, y: y - 7, w, h: 14 },
+                  [...keepOut(), ...rowBodiesAt(y - 7, y + 7)],
+                  { minX: keepOutMinX(), blockers: floatingChips, strict: true },
+                );
+                if (spotE.mode === "BLOCKED") return;
+                recordKeepOut(keepOutLedger, spotE);
+                const r = spotE.rect;
+                floatingChips.push({ ...r });
+                ctx.fillStyle = "rgba(11,10,8,0.85)";
+                ctx.fillRect(r.x, r.y, w, 14);
+                ctx.setLineDash([3, 2]);
+                ctx.strokeStyle = GHOST_INK;
+                ctx.strokeRect(r.x + 0.5, r.y + 0.5, w - 1, 13);
+                ctx.setLineDash([]);
+                ctx.fillStyle = GHOST_INK;
+                ctx.fillText(word, r.x + w / 2, r.y + 7.5);
+              };
+              if (clipTop) edge(`▲ ghost continues above · ${clipTop} of ${colYs.length}`, HEADER_FLOOR_Y + 10);
+              if (clipBot) edge(`▼ ghost continues below · ${clipBot} of ${colYs.length}`, pane0Bottom - 10);
+              ctx.restore();
+            }
             memoryGhostHitRef.current = ghostHits.length ? { rects: ghostHits, vm: ghost } : null;
             // Where the ghost is on this glass, for a browser proof to find
             // and click it: the bracket box, and the centre of its middle column.

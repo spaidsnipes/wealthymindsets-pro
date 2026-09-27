@@ -182,9 +182,11 @@ describe("H-201 memory ghost — the plate's form on the glass", () => {
     expect(words).toMatch(/\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(/);
     expect(words).toMatch(/if \(spotG\.mode === "BLOCKED" \|\| spotG\.rect\.x \+ capW > plotRight - 2\) \{\s*ds\.memoryGhostCaption = "HELD";/);
     expect(words).toMatch(/recordKeepOut\(keepOutLedger, spotG\);\s*floatingChips\.push\(\{ \.\.\.spotG\.rect \}\);/);
-    // The one fillText of a drawn ghost is the placed caption.
+    // The words of a drawn ghost are the placed caption and (2026-09-27) the
+    // placed clip marker — both through the keep-out owner, nothing else.
     const texts = words.slice(0, words.indexOf("memoryGhostHitRef.current = ")).match(/fillText\([^)]*\)/g) ?? [];
-    expect(texts).toEqual(["fillText(t, r.x + 5, r.y + capH / 2 + 0.5)"]);
+    expect(texts).toEqual(["fillText(t, r.x + 5, r.y + capH / 2 + 0.5)", "fillText(word, r.x + w / 2, r.y + 7.5)"]);
+    expect(words).toMatch(/const spotE = placeClearOfKeepOut\(/);
   });
 
   it("a click on the painted ghost opens its frozen analogue through the one selection", () => {
