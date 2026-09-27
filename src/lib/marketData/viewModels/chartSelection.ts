@@ -88,6 +88,17 @@ export interface SelectedPressureFront {
   readonly timeframe: string;
 }
 
+/**
+ * F08B · THE WEATHER LENS, selected by clicking inside its ring (Garden 16
+ * reconstruction §39, 2026-09-27). Inspect reads the room's ONE weather
+ * reading (chartLiquidityWeather) — stage, what it measures, window, class.
+ */
+export interface SelectedWeather {
+  readonly kind: "WEATHER";
+  readonly symbol: string;
+  readonly timeframe: string;
+}
+
 export type ChartSelection =
   | { readonly kind: "OBJECT"; readonly objectId: string }
   | { readonly kind: "PRINT"; readonly print: SelectedBigTrade }
@@ -95,7 +106,8 @@ export type ChartSelection =
   | SelectedAnatomy
   | SelectedMemoryGhost
   | SelectedPressureWall
-  | SelectedPressureFront;
+  | SelectedPressureFront
+  | SelectedWeather;
 
 export type ChartSelectionKind = ChartSelection["kind"];
 
@@ -185,7 +197,7 @@ export function selectChartSelection(
       if (current?.kind === "OBJECT" && compiled(current.objectId)) return state;
       if (current?.kind === "PRINT"
         && current.print.symbol === action.symbol && current.print.timeframe === action.timeframe) return state;
-      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST" || current?.kind === "PRESSURE_WALL" || current?.kind === "PRESSURE_FRONT")
+      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST" || current?.kind === "PRESSURE_WALL" || current?.kind === "PRESSURE_FRONT" || current?.kind === "WEATHER")
         && current.symbol === action.symbol && current.timeframe === action.timeframe) return state;
       const restored: ChartSelection | null = compiled(action.savedObjectId)
         ? { kind: "OBJECT", objectId: action.savedObjectId }
@@ -236,6 +248,10 @@ export function selectedMemoryGhostOf(state: ChartSelectionState): SelectedMemor
 }
 
 /** The selected zero-gamma front, or null when the selection is not one. */
+export function selectedWeatherOf(state: ChartSelectionState): SelectedWeather | null {
+  return state.selection?.kind === "WEATHER" ? state.selection : null;
+}
+
 export function selectedPressureFrontOf(state: ChartSelectionState): SelectedPressureFront | null {
   return state.selection?.kind === "PRESSURE_FRONT" ? state.selection : null;
 }

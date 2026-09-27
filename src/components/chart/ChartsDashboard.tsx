@@ -334,6 +334,7 @@ import {
   selectedMemoryGhostOf,
   selectedPressureWallOf,
   selectedPressureFrontOf,
+  selectedWeatherOf,
   selectedObjectIdOf,
   selectedPrintOf,
   selectedSliceOf,
@@ -1801,6 +1802,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const selectedMemoryGhost = selectedMemoryGhostOf(chartSelection);
   const selectedPressureWall = selectedPressureWallOf(chartSelection);
   const selectedPressureFront = selectedPressureFrontOf(chartSelection);
+  const selectedWeather = selectedWeatherOf(chartSelection);
   const inspectOpen = chartSelection.inspectOpen;
   // CONTINUITY (Garden 12 · Defect 7): the selected object survives a refresh
   // in this browser session — keyed by symbol:timeframe, restored only when
@@ -1845,6 +1847,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // H-201 · the ghost is paint on slab, not a destination: switched off, the
   // analogue it opened is let go with it.
   // Garden 15 §5 · a wall is paint on the pressure layer: switched off, its selection goes with it.
+  // F08B · the lens is paint on the weather layer: switched off, its selection goes with it.
+  useEffect(() => {
+    if (!liquidityWeatherOn) actOnChartSelection({ type: "clear", kinds: ["WEATHER"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
+  }, [liquidityWeatherOn]);
   useEffect(() => {
     if (!derivativesPressureOn) actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL", "PRESSURE_FRONT"] });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
@@ -1994,6 +2001,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Garden 15 §5 — the selected wall, only on the chart it was clicked on.
   const activeSelectedWall = selectedPressureWall?.symbol === symbol && selectedPressureWall.timeframe === timeframe ? selectedPressureWall : null;
   const activeSelectedFront = selectedPressureFront?.symbol === symbol && selectedPressureFront.timeframe === timeframe ? selectedPressureFront : null;
+  const activeSelectedWeather = selectedWeather?.symbol === symbol && selectedWeather.timeframe === timeframe ? selectedWeather : null;
 
   /* The span comes from the bars the chart DREW, not from a second
    * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
@@ -6146,6 +6154,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       selectedPressureWallStrike={activeSelectedWall?.strike ?? null}
                       onSelectPressureFront={() => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_FRONT", symbol, timeframe } })}
                       pressureFrontSelected={activeSelectedFront != null}
+                      onSelectWeather={() => actOnChartSelection({ type: "select", selection: { kind: "WEATHER", symbol, timeframe } })}
+                      weatherSelected={activeSelectedWeather != null}
                       liquidityLifecycle={chartLiquidityLifecycle}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
@@ -6213,6 +6223,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         mtfAncestry={mtfAncestryOn ? mtfAncestryVM : null}
                         pressureWall={activeSelectedWall && derivativesPressureVM ? { strike: activeSelectedWall.strike, vm: derivativesPressureVM } : null}
                         pressureFront={activeSelectedFront && derivativesPressureVM ? derivativesPressureVM : null}
+                        weatherLens={activeSelectedWeather ? chartLiquidityWeather : null}
                         priceDp={chartDisplayDp}
                         fusion={fusion.fused}
                         profileDna={profileDnaOn ? profileDnaVM : null}

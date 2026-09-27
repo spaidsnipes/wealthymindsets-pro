@@ -1353,6 +1353,9 @@ interface Props {
   onSelectPressureWall?: (strike: number) => void;
   /** A click on the zero-gamma front selects the derivatives environment. */
   onSelectPressureFront?: () => void;
+  /** F08B · a click inside the weather lens selects it (Inspect explains the reading). */
+  onSelectWeather?: () => void;
+  weatherSelected?: boolean;
   /** The front is the selection on this chart (its selected treatment). */
   pressureFrontSelected?: boolean;
   /** The selected wall's strike on this chart, for its selected treatment. */
@@ -1746,6 +1749,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onSelectPressureWall,
   onSelectPressureFront,
   pressureFrontSelected = false,
+  onSelectWeather,
+  weatherSelected = false,
   selectedPressureWallStrike = null,
   liquidityLifecycle = null,
   riskReceipt = null,
@@ -2049,6 +2054,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const pressureFrontHitRef = useRef<{ y: number; x1: number } | null>(null);
   const pressureFrontSelectedRef = useRef(false);
   pressureFrontSelectedRef.current = pressureFrontSelected;
+  /** The weather lens disc painted this frame (hit target for selection). */
+  const weatherLensHitRef = useRef<{ cx: number; cy: number; rx: number; ry: number } | null>(null);
+  const weatherSelectedRef = useRef(false);
+  weatherSelectedRef.current = weatherSelected;
   selectedPressureWallStrikeRef.current = selectedPressureWallStrike;
   const mtfMemoRef = useRef<{ key: string; memo: Map<string, string | null> }>({ key: "", memo: new Map() });
   // H-101 · the MarketObject pins' diamonds, in canvas pixels, for placers that
@@ -17958,6 +17967,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         {
           const L = weatherLens;
           ds.liquidityWeatherLensState = weatherLensWhy;
+          weatherLensHitRef.current = null;
           if (on && glass.drawn && L) {
             ctx.save();
             ctx.globalAlpha = att.alpha("weather");
@@ -18033,6 +18043,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.strokeStyle = "rgba(250,230,176,0.55)";
             band(BZ + 1.6);
             ctx.stroke();
+            if (weatherSelectedRef.current) {
+              // Selected: the one selection's gold rule around the loupe.
+              ctx.save();
+              ctx.lineWidth = 2.5;
+              ctx.strokeStyle = "rgba(240,200,90,1)";
+              ctx.shadowColor = "rgba(240,200,90,0.9)";
+              ctx.shadowBlur = 14;
+              band(BZ + 4);
+              ctx.stroke();
+              ctx.restore();
+            }
             // Ticks on the band (every sixth long), rivets at the eight winds.
             ctx.strokeStyle = "rgba(201,165,92,0.55)";
             for (let k = 0; k < 96; k++) {
@@ -18206,6 +18227,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             floatingChips.push({ x: L.cx - L.rx - LENS_BEZEL_W - 2, y: L.cy - L.ry - LENS_BEZEL_W - 2, w: L.rx * 2 + 2 * LENS_BEZEL_W + 4, h: L.ry * 2 + 2 * LENS_BEZEL_W + 16 });
 
             ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}${L.partial ? "|PARTIAL" : ""}`;
+            weatherLensHitRef.current = { cx: L.cx, cy: L.cy, rx: L.rx, ry: L.ry };
+            ds.weatherLensHitAt = `${Math.round(L.cx)},${Math.round(L.cy + L.ry * 0.5)}`;
             ds.liquidityWeatherRing = titleYields ? "YIELDED" : "LIQUIDITY WEATHER";
             ds.liquidityWeatherStage = glass.stage;
             if (shelves > 0) ds.liquidityWeatherShelves = String(shelves);
@@ -20385,6 +20408,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectMarketObject?.(zoneHit.objectId);
       return;
     }
+    // F08B · inside the weather lens (after every more specific object).
+    const lensHit = weatherLensHitRef.current;
+    if (lensHit && ((x - lensHit.cx) / lensHit.rx) ** 2 + ((y - lensHit.cy) / lensHit.ry) ** 2 <= 1) {
+      onSelectWeather?.();
+      return;
+    }
     /*
       H-201 · "CLICK GHOST OPENS PASSPORT OF THAT HISTORICAL OBJECT WITH
       FROZEN ASOF". The rects are the ghost columns (and its caption) the
@@ -20397,7 +20426,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectMemoryGhost?.(ghostHit.vm);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, symbol, timeframe, selectBigTradeAt]);
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, onSelectWeather, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

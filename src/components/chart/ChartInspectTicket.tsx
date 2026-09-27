@@ -56,6 +56,7 @@ import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradi
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
@@ -737,6 +738,7 @@ export function ChartInspectTicket({
   mtfAncestry = null,
   pressureWall = null,
   pressureFront = null,
+  weatherLens = null,
   priceDp = null,
   fusion = null,
   profileDna = null,
@@ -786,6 +788,8 @@ export function ChartInspectTicket({
   pressureWall?: { strike: number; vm: DerivativesPressureVM } | null;
   /** Garden 15 §4 — the selected zero-gamma front: the derivatives environment itself. */
   pressureFront?: DerivativesPressureVM | null;
+  /** F08B · the room's ONE weather reading, when the lens is selected. */
+  weatherLens?: LiquidityWeatherVM | null;
   /** The market's display decimals, from displayPrecisionFor (the one display owner). */
   priceDp?: number | null;
   /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
@@ -1199,6 +1203,36 @@ export function ChartInspectTicket({
       )}
 
       {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
+
+      {/* F08B · THE WEATHER LENS — the reading behind the storm, explained (Garden 16 §39). */}
+      {weatherLens && (() => {
+        const wv = weatherLens;
+        const timed = wv.segments.filter(sg => sg.fromTime != null && sg.toTime != null);
+        const from = timed.length ? Math.min(...timed.map(sg => sg.fromTime!)) : null;
+        const to = timed.length ? Math.max(...timed.map(sg => sg.toTime!)) : null;
+        const hi = wv.segments.length ? Math.max(...wv.segments.map(sg => sg.high)) : null;
+        const lo = wv.segments.length ? Math.min(...wv.segments.map(sg => sg.low)) : null;
+        const derived = wv.detail.includes("DERIVED");
+        // The axis's own clock (inspectReadsTheAxisClock): seconds in, the chart's zone out.
+        const hm = (ms: number | null) => (ms == null ? "—" : clock.minute(Math.floor(ms / 1000)));
+        return (
+          <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-weather={wv.stage} style={{ color: "#C8C0AE" }}>
+            <div className="font-bold tracking-wide text-wm-gold">LIQUIDITY WEATHER · {wv.stage}</div>
+            {wv.stage === "UNMEASURED" ? (
+              <div>{wv.detail} — no weather is guessed at.</div>
+            ) : (
+              <>
+                <div>What · what it costs to move this market: size traded per unit of travel, segment by segment. Gold in the storm = size went in and price HELD; steel blue = price MOVED on little. A cost, never a price level or a direction.</div>
+                <div>Where · {lo != null && hi != null ? `${mtfPx(lo)} – ${mtfPx(hi)}` : "—"} · {hm(from)} → {hm(to)}{to != null ? ` ${clock.zone(Math.floor(to / 1000))}` : ""}</div>
+                <div>Evidence · {wv.segments.length} segment{wv.segments.length === 1 ? "" : "s"} · {wv.segments.reduce((t, sg) => t + sg.prints, 0)} {derived ? "bars" : "prints"}{wv.latestVsMedian != null ? ` · newest ${wv.latestVsMedian.toFixed(2)}× the window median` : ""}{wv.trendRatio != null ? ` · late/early ${wv.trendRatio.toFixed(2)}×` : ""}</div>
+                <div>Class · {derived ? "DERIVED from traded bars (volume per bar-range travel), not tape" : "MEASURED from per-trade tape"}</div>
+                <div>Fidelity · {wv.provenance}{wv.dispersion != null ? ` · dispersion ${(wv.dispersion * 100).toFixed(0)}%` : ""}</div>
+                <div>Lineage · {derived ? "chart bars (volume-gated)" : "tape prints"} → selectLiquidityWeather{derived ? "FromBars" : ""} (judgeWeather) → heat lens → this storm</div>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* GARDEN 15 §4 · THE ZERO-GAMMA FRONT — the environment, explained. */}
       {pressureFront && (
