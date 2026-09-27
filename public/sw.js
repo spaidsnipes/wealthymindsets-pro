@@ -12,7 +12,6 @@ const PRECACHE_URLS = [
   "/",
   "/charts",
   "/scanner",
-  "/heatmaps",
   "/news",
   "/education",
   "/lounge",

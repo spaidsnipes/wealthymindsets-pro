@@ -110,7 +110,6 @@ function buildMenu() {
       submenu: [
         { label: "Charts",    click: () => mainWindow?.loadURL(`${BASE_URL}/charts`) },
         { label: "Scanner",   click: () => mainWindow?.loadURL(`${BASE_URL}/scanner`) },
-        { label: "Heat Maps", click: () => mainWindow?.loadURL(`${BASE_URL}/heatmaps`) },
         { label: "News",      click: () => mainWindow?.loadURL(`${BASE_URL}/news`) },
         { label: "Education", click: () => mainWindow?.loadURL(`${BASE_URL}/education`) },
         { label: "The Lounge",click: () => mainWindow?.loadURL(`${BASE_URL}/lounge`) },
