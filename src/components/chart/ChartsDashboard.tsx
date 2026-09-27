@@ -313,6 +313,9 @@ import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
+import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { selectDerivativesPressure, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import selectMarketStructureGlass from "@/lib/marketData/viewModels/selectMarketStructureGlass";
@@ -896,6 +899,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [liquidityLifecycleOn, setLiquidityLifecycleOn] = useState<boolean>(() => lsGet("wm_ofLiquidityLifecycle", false) as boolean);
   // T-210 / F10 — higher-TF ancestry on the one chart. OFF by default.
   const [mtfAncestryOn, setMtfAncestryOn] = useState<boolean>(() => lsGet("wm_ofMtfAncestry", false) as boolean);
+  // Garden 15 §2 / Garden 16 §20 — Derivatives Pressure on the one chart. OFF by default.
+  const [derivativesPressureOn, setDerivativesPressureOn] = useState<boolean>(() => lsGet("wm_ofDerivativesPressure", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -1149,6 +1154,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofRiskOnPrice",      riskOnPriceOn);
   usePersistOnChange("wm_ofLiquidityLifecycle", liquidityLifecycleOn);
   usePersistOnChange("wm_ofMtfAncestry",      mtfAncestryOn);
+  usePersistOnChange("wm_ofDerivativesPressure", derivativesPressureOn);
 
   // ── Bar replay ──────────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2330,6 +2336,38 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, []);
   // The one display owner's decimals for this chart (Inspect prints MTF prices with it).
   const chartDisplayDp = React.useMemo(() => displayPrecisionFor(symbol, chartBars), [symbol, chartBars]);
+  // Garden 15 §2 — DERIVATIVES PRESSURE. Cboe DELAYED positioning (Founder
+  // decision 2026-09-27), fetched only while the layer is on, for listed
+  // underlyings; the ONE owner compiles it with this chart's own bars (wall
+  // tests are observed price response) and the canvas only paints.
+  const [derivativesReceipt, setDerivativesReceipt] = useState<{ symbol: string; receipt: CboeOptionsReceipt | null; edge: string | null } | null>(null);
+  useEffect(() => {
+    const cboe = derivativesPressureOn ? cboeSymbolFor(symbol) : null;
+    if (!cboe || classifySymbol(symbol) === "CRYPTO" || classifySymbol(symbol) === "FOREX" || classifySymbol(symbol) === "FUTURES") {
+      setDerivativesReceipt(derivativesPressureOn ? { symbol, receipt: null, edge: "UNSUPPORTED" } : null);
+      return;
+    }
+    let alive = true;
+    const load = () => {
+      fetch(`/api/market-data/cboe/options?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" })
+        .then(async r => {
+          const j = await r.json().catch(() => null);
+          if (!alive) return;
+          setDerivativesReceipt(r.ok && j && Array.isArray(j.rows) ? { symbol, receipt: j as CboeOptionsReceipt, edge: null } : { symbol, receipt: null, edge: (j && typeof j.edge === "string" ? j.edge : `HTTP ${r.status}`) });
+        })
+        .catch(() => { if (alive) setDerivativesReceipt({ symbol, receipt: null, edge: "TRANSPORT" }); });
+    };
+    load();
+    const t = window.setInterval(load, 120_000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, [derivativesPressureOn, symbol]);
+  const derivativesPressureVM = React.useMemo<DerivativesPressureVM | null>(() => {
+    if (!derivativesPressureOn || !derivativesReceipt || derivativesReceipt.symbol !== symbol) return null;
+    if (!derivativesReceipt.receipt) {
+      return { drawn: false, version: 1, underlying: symbol, reason: "NO_CHAIN", contracts: 0, receipt: `PRESSURE:SILENT:${derivativesReceipt.edge ?? "NO_CHAIN"}` };
+    }
+    return selectDerivativesPressure(derivativesReceipt.receipt, chartBars.slice(-400), Date.now());
+  }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
   const onMtfAncestry = useCallback((vm: MtfAncestryVM | null) => {
@@ -3071,6 +3109,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   LIQUIDITY_LIFECYCLE: liquidityLifecycleOn,
                   MARKET_STRUCTURE: marketStructureOn,
                   MTF_ANCESTRY: mtfAncestryOn,
+                  DERIVATIVES_PRESSURE: derivativesPressureOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3101,6 +3140,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "RISK_ON_PRICE") setRiskOnPriceOn(v => !v);
                   else if (id === "LIQUIDITY_LIFECYCLE") setLiquidityLifecycleOn(v => !v);
                   else if (id === "MTF_ANCESTRY") setMtfAncestryOn(v => !v);
+                  else if (id === "DERIVATIVES_PRESSURE") setDerivativesPressureOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -3256,6 +3296,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.RISK_ON_PRICE !== undefined) setRiskOnPriceOn(s.RISK_ON_PRICE);
       if (s.LIQUIDITY_LIFECYCLE !== undefined) setLiquidityLifecycleOn(s.LIQUIDITY_LIFECYCLE);
       if (s.MTF_ANCESTRY !== undefined) setMtfAncestryOn(s.MTF_ANCESTRY);
+      if (s.DERIVATIVES_PRESSURE !== undefined) setDerivativesPressureOn(s.DERIVATIVES_PRESSURE);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -3308,6 +3349,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       LIQUIDITY_LIFECYCLE: liquidityLifecycleOn,
       MARKET_STRUCTURE: marketStructureOn,
       MTF_ANCESTRY: mtfAncestryOn,
+      DERIVATIVES_PRESSURE: derivativesPressureOn,
     },
   });
 
@@ -6024,6 +6066,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       riskOnPriceOnChart={riskOnPriceOn}
                       liquidityLifecycleOnChart={liquidityLifecycleOn}
                       mtfAncestryOnChart={mtfAncestryOn}
+                      derivativesPressureOnChart={derivativesPressureOn}
+                      derivativesPressure={derivativesPressureVM}
                       liquidityLifecycle={chartLiquidityLifecycle}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}

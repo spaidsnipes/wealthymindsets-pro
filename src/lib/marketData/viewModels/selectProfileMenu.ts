@@ -71,7 +71,8 @@ export type ProfileId =
   | "RISK_ON_PRICE"
   | "LIQUIDITY_LIFECYCLE"
   | "MARKET_STRUCTURE"
-  | "MTF_ANCESTRY";
+  | "MTF_ANCESTRY"
+  | "DERIVATIVES_PRESSURE";
 
 /**
  * READY — it can draw now.
@@ -180,6 +181,8 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   // T-210 / F10 (W · Structure / Memory-Context): higher-TF ancestry is a
   // reading of the SAME camera — never a room, never a second chart.
   MTF_ANCESTRY: "READING",
+  // Garden 15 §2 / Garden 16 §20: a Market Sense read on the SAME camera.
+  DERIVATIVES_PRESSURE: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -706,6 +709,21 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectMtfAncestry.ts",
     levels: ["4H ancestry band", "1H node", "Daily shelf (PDH / PDL)"],
+  },
+  {
+    id: "DERIVATIVES_PRESSURE",
+    label: "Derivatives Pressure",
+    /*
+      Garden 15 §2–§7 / Garden 16 §20: the options-positioning world on the
+      one chart — damping fortification and amplifying currents as a price
+      field, the zero-gamma transition front, defensive walls built of bricks
+      whose cracks are observed tests, and the IV expected move. Cboe delayed
+      open interest (prior session); dealer side is an assumption → INFERRED.
+    */
+    what: "where dealer hedging is expected to damp or amplify moves — pressure field, zero-gamma front, brick walls with observed tests, and the IV expected move (Cboe delayed, INFERRED)",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
+    levels: ["Pressure climate", "Zero-gamma front", "Pressure walls", "Acceleration pockets", "Expected move"],
   },
 ];
 

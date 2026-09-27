@@ -335,6 +335,7 @@ import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewMode
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
+import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import {
   arrowOutline,
   contradictionGlyph,
@@ -1332,6 +1333,9 @@ interface Props {
   liquidityLifecycleOnChart?: boolean;
   /** T-210 / F10 — higher-TF ancestry (4H band · 1H node · D shelf) on this one chart. */
   mtfAncestryOnChart?: boolean;
+  /** Garden 15 §2 — Derivatives Pressure on this chart, and the room's ONE compilation of it. */
+  derivativesPressureOnChart?: boolean;
+  derivativesPressure?: DerivativesPressureVM | null;
   /** The room's ONE lifecycle compilation; the canvas draws it and never recomputes it. */
   liquidityLifecycle?: LiquidityLifecycleVM | null;
   /** H-1001 — the receipt torn from this camera's decision, frozen. */
@@ -1713,6 +1717,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   riskOnPriceOnChart = true,
   liquidityLifecycleOnChart = false,
   mtfAncestryOnChart = false,
+  derivativesPressureOnChart = false,
+  derivativesPressure = null,
   liquidityLifecycle = null,
   riskReceipt = null,
   onRiskOnPrice,
@@ -1985,6 +1991,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onMtfAncestryRef = useRef<typeof onMtfAncestry>(undefined);
   useEffect(() => { onMtfAncestryRef.current = onMtfAncestry; }, [onMtfAncestry]);
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
+  // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
+  const derivativesPressureRef = useRef<DerivativesPressureVM | null>(null);
+  derivativesPressureRef.current = derivativesPressure;
   const mtfMemoRef = useRef<{ key: string; memo: Map<string, string | null> }>({ key: "", memo: new Map() });
   // H-101 · the MarketObject pins' diamonds, in canvas pixels, for placers that
   // must not land a plate on a pin (the WAIT plate sat on one: "◆AIT").
@@ -2056,7 +2065,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   permissionRef.current = permissionOnChart;
   const debtTagRef = useRef<typeof debtTagOnChart>(null);
   debtTagRef.current = debtTagOnChart;
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -2084,8 +2093,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       riskOnPrice: riskOnPriceOnChart,
       liquidityLifecycle: liquidityLifecycleOnChart,
       mtfAncestry: mtfAncestryOnChart,
+      derivativesPressure: derivativesPressureOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart, derivativesPressureOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -13566,6 +13576,347 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } else {
           ds.expectedEnvelope = att.offWord(layerOnRef.current.expectedEnvelope === true);
           onExpectedEnvelopeRef.current?.(null);
+        }
+
+        /* ══ GARDEN 15 §2–§7 · DERIVATIVES PRESSURE — the pressure world ══════════
+           Static Founder form first (Garden 16 emergency order §7): the market's
+           derivatives ENVIRONMENT painted under price from the room's ONE
+           compilation (selectDerivativesPressure), never recomputed here.
+             FIELD   each price level tinted by the net dealer-gamma exposure if
+                     price stood there: DAMPING = cool steel fortification with
+                     still strata; AMPLIFYING = ember current with wind streaks.
+             FRONT   the zero-gamma transition, drawn as a weather front —
+                     triangles into the amplifying side, semicircles into the
+                     damping side.
+             WALLS   brick courses at the strike (Garden 15 §5 grammar): length =
+                     materiality (share of gross), cracks = OBSERVED tests,
+                     missing bricks = weakening, gap = breaking, faint outline =
+                     scar. Solidity is held below full: the exposure is INFERRED.
+             POCKETS acceleration corridors with chevrons away from the front.
+             ENVELOPE ±IV30 expected move at the live edge (DERIVED).
+           Candles are cut out of every fill: price stays sovereign. */
+        delete ds.derivativesPressurePainted;
+        {
+          const dp = derivativesPressureRef.current;
+          if (layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure") && srs && dp) {
+            ds.derivativesPressure = dp.receipt;
+            const dpSpeaks = att.speaks("derivativesPressure");
+            const tsD = chart.timeScale();
+            let axisWD = 60;
+            try { axisWD = chart.priceScale("right").width(); } catch { /* keep default */ }
+            const plotRightD = Math.max(8, W - axisWD);
+            let paneBotD = H;
+            try {
+              const ps = (chart as any).paneSize?.(0);
+              if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotD = ps.height;
+            } catch { /* keep the canvas height */ }
+            const yOfD = (p: number): number | null => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; };
+            const dpDp = displayPrecisionFor(symbol, barsRef.current ?? []);
+            const fmtD = (p: number) => p.toFixed(Math.min(dpDp, 2));
+            const painted: string[] = [];
+            if (dp.drawn) {
+              const barsD = barsRef.current ?? [];
+              const vrD = tsD.getVisibleLogicalRange();
+              const cutD = new Path2D();
+              cutD.rect(0, 0, W, H);
+              for (const r of candleCutOutRects(barsD, {
+                visible: vrD ? { from: +vrD.from, to: +vrD.to } : null,
+                barSpacing: bsp,
+                timeToX: t => { const xk = tsD.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                priceToY: p => yOfD(p),
+              }, 0, plotRightD)) cutD.rect(r.x, r.y, r.w, r.h);
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(0, HEADER_FLOOR_Y, plotRightD, Math.max(0, paneBotD - HEADER_FLOOR_Y));
+              ctx.clip();
+              ctx.clip(cutD, "evenodd");
+              const baseA = att.alpha("derivativesPressure");
+
+              // ── FIELD ────────────────────────────────────────────────────
+              const geo = dp.geography;
+              const maxAbs = Math.max(1, ...geo.map(g => Math.abs(g.net)));
+              for (let i = 0; i < geo.length - 1; i++) {
+                const a = geo[i], b = geo[i + 1];
+                const ya = yOfD(a.price), yb = yOfD(b.price);
+                if (ya == null || yb == null) continue;
+                const top = Math.min(ya, yb), h = Math.abs(yb - ya) + 0.6;
+                if (top > paneBotD || top + h < HEADER_FLOOR_Y) continue;
+                const net = (a.net + b.net) / 2;
+                const k = Math.min(1, Math.abs(net) / maxAbs);
+                const alpha = (0.06 + 0.24 * Math.sqrt(k)) * baseA;
+                ctx.fillStyle = net >= 0 ? `rgba(84,140,204,${alpha})` : `rgba(222,108,44,${alpha})`;
+                ctx.fillRect(0, top, plotRightD, h);
+              }
+              // Texture: still strata in damping, wind streaks in amplifying.
+              ctx.lineWidth = 1;
+              for (let i = 0; i < geo.length - 1; i += 2) {
+                const g = geo[i];
+                const y = yOfD(g.price);
+                if (y == null || y < HEADER_FLOOR_Y || y > paneBotD) continue;
+                const k = Math.min(1, Math.abs(g.net) / maxAbs);
+                if (k < 0.08) continue;
+                if (g.net >= 0) {
+                  ctx.strokeStyle = `rgba(160,198,236,${0.07 + 0.16 * k})`;
+                  ctx.beginPath(); ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(plotRightD, Math.round(y) + 0.5); ctx.stroke();
+                } else {
+                  ctx.strokeStyle = `rgba(250,160,90,${0.12 + 0.3 * k})`;
+                  ctx.beginPath();
+                  const step = 46 - 18 * k;
+                  for (let x = (i * 13) % step; x < plotRightD; x += step) { ctx.moveTo(x, y); ctx.lineTo(x + 14 + 10 * k, y - 3); }
+                  ctx.stroke();
+                }
+              }
+              painted.push(`FIELD:${geo.length}`);
+
+              // ── POCKETS (acceleration corridors) ────────────────────────
+              for (const pk of dp.pockets) {
+                const y = yOfD(pk.strike);
+                if (y == null || y < HEADER_FLOOR_Y || y > paneBotD) continue;
+                const hh = 6 + 10 * Math.min(1, pk.share / 0.1);
+                ctx.fillStyle = `rgba(226,118,56,${0.12 * baseA})`;
+                ctx.fillRect(0, y - hh, plotRightD, hh * 2);
+                const up = dp.zeroGamma != null ? pk.strike > dp.zeroGamma : pk.strike > dp.spot;
+                ctx.strokeStyle = `rgba(246,160,96,${0.55 * baseA})`;
+                ctx.lineWidth = 1.4;
+                ctx.beginPath();
+                for (let x = 30; x < plotRightD - 20; x += 90) {
+                  const d = up ? -1 : 1;
+                  ctx.moveTo(x - 6, y - d * 2); ctx.lineTo(x, y + d * 4); ctx.lineTo(x + 6, y - d * 2);
+                }
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                painted.push(`POCKET@${pk.strike}`);
+              }
+
+              // ── WALLS (bricks) ──────────────────────────────────────────
+              const wallWords: { word: string; x: number; y: number }[] = [];
+              const offCamera: string[] = [];
+              const strikesSorted = [...new Set(dp.walls.map(w => w.strike))];
+              const spacingPx = (() => {
+                const y1 = yOfD(dp.spot), y2 = yOfD(dp.spot * 1.0125);
+                return y1 != null && y2 != null ? Math.abs(y1 - y2) : 12;
+              })();
+              for (const w of dp.walls) {
+                const yc = yOfD(w.strike);
+                if (yc == null) continue;
+                if (yc < HEADER_FLOOR_Y + 6 || yc > paneBotD - 6) {
+                  offCamera.push(`${yc < HEADER_FLOOR_Y + 6 ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${w.life}`);
+                  painted.push(`WALL@${w.strike}:${w.life}:OFF_CAMERA`);
+                  continue;
+                }
+                const courses = Math.max(3, Math.min(5, Math.round(spacingPx / 7)));
+                const courseH = 8;
+                const wallH = courses * courseH;
+                const len = Math.min(plotRightD * 0.62, 140 + w.share * 2600);
+                const x1 = plotRightD - 2, x0 = x1 - len;
+                const top = yc - wallH / 2;
+                const brickW = 18;
+                const broken = w.life === "BROKEN";
+                const breaking = w.life === "BREAKING";
+                const weak = w.life === "WEAKENING";
+                // Deterministic per-brick variation (material, never random per frame).
+                const hash = (a: number, b: number) => {
+                  let h = (Math.round(w.strike * 100) * 73856093) ^ (a * 19349663) ^ (b * 83492791);
+                  h = (h ^ (h >>> 13)) * 1274126177;
+                  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+                };
+                const gapMid = x0 + len * 0.55, gapHalf = breaking ? 26 : 0;
+                for (let c = 0; c < courses; c++) {
+                  const yb = top + c * courseH;
+                  const off = c % 2 === 0 ? 0 : brickW / 2;
+                  for (let bx = x1 - off, n = 0; bx > x0; bx -= brickW, n++) {
+                    const bx0 = Math.max(x0, bx - brickW + 1.5);
+                    const bw = bx - bx0;
+                    if (bw < 3) continue;
+                    const r = hash(c, n);
+                    if (breaking && Math.abs(bx0 + bw / 2 - gapMid) < gapHalf) continue;
+                    if (weak && r < 0.16) continue;
+                    if (broken) {
+                      ctx.strokeStyle = `rgba(190,168,120,${0.22 * baseA})`;
+                      ctx.setLineDash([2, 3]);
+                      ctx.strokeRect(bx0 + 0.5, yb + 0.5, bw - 1, courseH - 1.5);
+                      ctx.setLineDash([]);
+                      continue;
+                    }
+                    const tone = 0.78 + 0.22 * r;
+                    // INFERRED solidity: never fully opaque.
+                    ctx.fillStyle = `rgba(${Math.round(178 * tone)},${Math.round(148 * tone)},${Math.round(96 * tone)},${0.62 * baseA})`;
+                    ctx.fillRect(bx0, yb, bw, courseH - 1.5);
+                    ctx.fillStyle = `rgba(255,236,190,${0.16 * baseA})`;
+                    ctx.fillRect(bx0, yb, bw, 1);
+                  }
+                }
+                // Depth: a lit cap on top, a cast shadow below, a mortar edge —
+                // the wall has a body, not an outline.
+                if (!broken) {
+                  ctx.fillStyle = `rgba(232,206,150,${0.5 * baseA})`;
+                  ctx.beginPath();
+                  ctx.moveTo(x0, top); ctx.lineTo(x0 + 6, top - 4); ctx.lineTo(x1, top - 4); ctx.lineTo(x1, top); ctx.closePath();
+                  ctx.fill();
+                  ctx.strokeStyle = `rgba(40,30,16,${0.8 * baseA})`;
+                  ctx.strokeRect(x0 + 0.5, top + 0.5, len - 1, wallH - 1);
+                  const sh = ctx.createLinearGradient(0, top + wallH, 0, top + wallH + 9);
+                  sh.addColorStop(0, `rgba(0,0,0,${0.45 * baseA})`);
+                  sh.addColorStop(1, "rgba(0,0,0,0)");
+                  ctx.fillStyle = sh;
+                  ctx.fillRect(x0 + 4, top + wallH, len - 4, 9);
+                }
+                // Cracks: one per OBSERVED test, on the face price comes from.
+                const cracks = broken ? 0 : Math.min(6, w.tests);
+                ctx.strokeStyle = `rgba(20,14,8,${0.9 * baseA})`;
+                ctx.lineWidth = 1.2;
+                for (let i = 0; i < cracks; i++) {
+                  const cx = x0 + len * (0.18 + 0.64 * hash(99, i));
+                  const fromTop = w.side === "ABOVE" ? false : true;
+                  let yy = fromTop ? top : top + wallH;
+                  ctx.beginPath(); ctx.moveTo(cx, yy);
+                  for (let sgm = 1; sgm <= 3; sgm++) {
+                    yy += (fromTop ? 1 : -1) * (wallH / 3.2);
+                    ctx.lineTo(cx + (hash(i, sgm) - 0.5) * 8, yy);
+                  }
+                  ctx.stroke();
+                }
+                ctx.lineWidth = 1;
+                if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
+                painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
+              }
+              void strikesSorted;
+              // Wall names and off-camera walls: placed through the keep-out
+              // owner after the field is painted (labels confirm; they never sit
+              // on a candle).
+              ctx.restore();
+              ctx.save();
+              if (dpSpeaks) {
+                ctx.globalAlpha = att.textAlpha("derivativesPressure");
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
+                  const ww = ctx.measureText(word).width + 10;
+                  const spotW = placeClearOfKeepOut({ ...pref, w: ww, h: 14 }, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts.map(a => ({ ...a, w: ww, h: 14 })) });
+                  if (spotW.mode === "BLOCKED") return;
+                  recordKeepOut(keepOutLedger, spotW);
+                  floatingChips.push({ ...spotW.rect });
+                  const r = spotW.rect;
+                  ctx.fillStyle = "rgba(11,10,8,0.86)";
+                  ctx.fillRect(r.x, r.y, ww, 14);
+                  ctx.fillStyle = "rgba(236,214,160,0.95)";
+                  ctx.textAlign = "left";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText(word, r.x + 5, r.y + 7.5);
+                };
+                for (const ww of wallWords) {
+                  const wW = ctx.measureText(ww.word).width + 10;
+                  const inPane = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotD - 16, y));
+                  chip(ww.word, { x: ww.x - wW - 6, y: inPane(ww.y - 7) }, [{ x: ww.x - wW - 6, y: inPane(ww.y + 12) }, { x: ww.x - wW - 6, y: inPane(ww.y - 26) }]);
+                }
+                offCamera.forEach((word, i) => {
+                  const wW = ctx.measureText(word).width + 10;
+                  const up = word.startsWith("▲");
+                  const y = up ? HEADER_FLOOR_Y + 26 + i * 18 : paneBotD - 22 - i * 18;
+                  chip(word, { x: plotRightD - wW - 8, y }, [{ x: plotRightD - wW - 8, y: y + (up ? 18 : -18) }]);
+                });
+              }
+              ctx.restore();
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(0, HEADER_FLOOR_Y, plotRightD, Math.max(0, paneBotD - HEADER_FLOOR_Y));
+              ctx.clip();
+
+              // ── ZERO-GAMMA FRONT ────────────────────────────────────────
+              if (dp.zeroGamma != null) {
+                const y = yOfD(dp.zeroGamma);
+                if (y != null && y >= HEADER_FLOOR_Y && y <= paneBotD) {
+                  const above = dp.geography.find(g => g.price > dp.zeroGamma! * 1.004);
+                  const ampAbove = above ? above.net < 0 : false;
+                  ctx.save();
+                  ctx.shadowColor = "rgba(236,214,160,0.8)";
+                  ctx.shadowBlur = 8;
+                  ctx.strokeStyle = `rgba(236,214,160,${0.9 * baseA})`;
+                  ctx.lineWidth = 1.6;
+                  ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(plotRightD, y); ctx.stroke();
+                  ctx.restore();
+                  for (let x = 24, i = 0; x < plotRightD - 12; x += 34, i++) {
+                    const triangle = i % 2 === 0;
+                    // Triangles point into the amplifying side; semicircles into the damping side.
+                    const dirTri = ampAbove ? -1 : 1;
+                    ctx.fillStyle = triangle ? `rgba(232,130,70,${0.85 * baseA})` : `rgba(120,168,214,${0.85 * baseA})`;
+                    ctx.beginPath();
+                    if (triangle) { ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + dirTri * 8); ctx.closePath(); }
+                    else { ctx.arc(x, y, 5, dirTri > 0 ? Math.PI : 0, dirTri > 0 ? 2 * Math.PI : Math.PI); ctx.closePath(); }
+                    ctx.fill();
+                  }
+                  if (dpSpeaks) {
+                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillStyle = `rgba(236,214,160,${0.95 * baseA})`;
+                    ctx.fillText(`ZERO-GAMMA FRONT ${fmtD(dp.zeroGamma)} · ${ampAbove ? "amplifying above" : "amplifying below"}`, 8, y - 6);
+                  }
+                  painted.push(`FRONT@${dp.zeroGamma.toFixed(2)}`);
+                } else painted.push("FRONT:OFF_CAMERA");
+              }
+
+              // ── EXPECTED MOVE at the live edge ─────────────────────────
+              if (dp.envelope) {
+                const last = barsD[barsD.length - 1];
+                const xl = last ? tsD.timeToCoordinate(last.time as never) : null;
+                const yU = yOfD(dp.spot + dp.envelope.session), yL = yOfD(dp.spot - dp.envelope.session);
+                if (xl != null && yU != null && yL != null) {
+                  const xs = +xl + bsp;
+                  ctx.strokeStyle = `rgba(212,175,55,${0.8 * baseA})`;
+                  ctx.setLineDash([4, 3]);
+                  ctx.beginPath();
+                  ctx.moveTo(xs, yU); ctx.quadraticCurveTo((xs + plotRightD) / 2, yU - 2, plotRightD, yU);
+                  ctx.moveTo(xs, yL); ctx.quadraticCurveTo((xs + plotRightD) / 2, yL + 2, plotRightD, yL);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                  ctx.beginPath(); ctx.moveTo(xs, yU); ctx.lineTo(xs, yL); ctx.stroke();
+                  painted.push(`EM:${dp.envelope.session.toFixed(2)}`);
+                }
+              }
+              ctx.restore();
+
+              // ── CLIMATE (global) — one line, the environment's name ────
+              if (dpSpeaks) {
+                const word = `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · Cboe delayed · OI prior session · INFERRED`;
+                ctx.save();
+                ctx.globalAlpha = att.textAlpha("derivativesPressure");
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                const ww = ctx.measureText(word).width + 14;
+                const spot = placeClearOfKeepOut({ x: 10, y: HEADER_FLOOR_Y + 4, w: ww, h: 16 }, [...keepOut(), ...rowBodiesAt(HEADER_FLOOR_Y + 4, HEADER_FLOOR_Y + 20)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ x: 10, y: HEADER_FLOOR_Y + 24, w: ww, h: 16 }] });
+                if (spot.mode !== "BLOCKED") {
+                  recordKeepOut(keepOutLedger, spot);
+                  floatingChips.push({ ...spot.rect });
+                  const r = spot.rect;
+                  const tint = dp.climate === "DAMPING" ? "rgba(92,138,188,0.9)" : dp.climate === "AMPLIFYING" ? "rgba(214,112,56,0.9)" : "rgba(200,180,130,0.9)";
+                  ctx.fillStyle = "rgba(11,10,8,0.88)";
+                  ctx.fillRect(r.x, r.y, ww, 16);
+                  ctx.fillStyle = tint;
+                  ctx.fillRect(r.x, r.y, 3, 16);
+                  ctx.fillStyle = "rgba(236,222,190,0.95)";
+                  ctx.textAlign = "left";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText(word, r.x + 8, r.y + 8.5);
+                }
+                ctx.restore();
+              }
+            } else if (dpSpeaks) {
+              const words = dp.reason === "NO_CHAIN"
+                ? `DERIVATIVES PRESSURE · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "")})`
+                : `DERIVATIVES PRESSURE · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
+              ctx.save();
+              ctx.globalAlpha = att.textAlpha("derivativesPressure");
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = "rgba(200,192,174,0.85)";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(words, 12, H - 114);
+              floatingChips.push({ x: 12, y: H - 121, w: ctx.measureText(words).width, h: 14 });
+              ctx.restore();
+            }
+            ds.derivativesPressurePainted = painted.join("|") || "NONE";
+          } else {
+            ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
+          }
         }
 
         /* ══ T-210 / F10 · MTF IS NOT FOUR CHARTS — ancestry on the one chart ══

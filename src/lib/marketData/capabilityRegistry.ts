@@ -11,6 +11,7 @@ export type MarketProviderPath =
   | "alpaca-external-relay"
   | "alpaca-rest"
   | "alpaca-options-snapshot"
+  | "cboe-delayed-options"
   | "moomoo-opend-bridge"
   | "longbridge-openapi-bridge"
   | "webull-openapi-ticks"
@@ -241,6 +242,29 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fallbackSemantics: "EXPLICIT",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/app/api/market-data/alpaca/options/route.ts + marketData/alpacaOptionChain.ts; consumed by OptionsChain.tsx, OptionExpressionIntent.tsx and ChartsDashboard.tsx",
+  }),
+  capability({
+    // Derivatives Pressure's positioning input (Founder decision 2026-09-27:
+    // "Cboe delayed"). The Alpaca snapshot chain carries no open interest
+    // (measured: 0 of 1,000 TSLA rows); Cboe's delayed quotes carry OI, IV and
+    // greeks per contract. Delayed — never presented as live. OI is the prior
+    // session's figure (a daily clock), greeks are Cboe model output. Rights
+    // for redistribution are UNKNOWN and fail closed: display only, no raw
+    // persistence, attribution printed on every object.
+    providerPath: "cboe-delayed-options",
+    assetClass: "options",
+    eventType: "quote",
+    availability: "PARTIAL",
+    collectionScope: "REQUEST_SCOPED",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    aggressorMethod: "NONE",
+    sessionCoverage: "Request-scoped Cboe delayed option quotes (≈15-min delay); open_interest is the prior session's; iv/greeks are Cboe model values, not observations",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    attributionRequired: true,
+    evidence: "src/app/api/market-data/cboe/options/route.ts + marketData/cboeDelayedOptions.ts; consumed by ChartsDashboard.tsx (Derivatives Pressure)",
   }),
   capability({
     providerPath: "moomoo-opend-bridge",

@@ -36,8 +36,10 @@ describe("semantic permission — one table, every painting layer", () => {
   it("FAR is the plate's left panel: DIM CANDLES · REGIME ENVELOPE · MAJOR STRUCTURE ONLY", () => {
     // Words and full form: the envelope, the regime light and its one title,
     // the expected envelope, and the house hardware the trader placed.
+    // + derivativesPressure (2026-09-27): Garden 16 §32 puts "major pressure
+    // geography" at FAR — CURRENT canon; the field, front and walls speak there.
     expect(at("FAR", "SPEAK")).toEqual(
-      ["candleTimer", "expectedEnvelope", "farEnvelope", "questionLens", "regimeField", "regimeLighting", "riskOnPrice", "zoomPlate"].sort(),
+      ["candleTimer", "derivativesPressure", "expectedEnvelope", "farEnvelope", "questionLens", "regimeField", "regimeLighting", "riskOnPrice", "zoomPlate"].sort(),
     );
     // Reduced forms: dimmed candles, major swings with the owner's letters,
     // Living's skeleton, and the fidelity bridges (an outage keeps its words).

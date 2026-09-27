@@ -99,6 +99,9 @@ export const SEMANTIC_PERMISSION = {
   // the D shelf only (a major level; band + node are withheld as a FORM read);
   // QUIET keeps geometry + the horizon tags (4H / 1H / D), no captions.
   mtfAncestry: [Q, S, Q],
+  // Garden 16 §32: FAR carries major pressure geography (field, front, walls);
+  // MID keeps it; NEAR hands the glass to candles/tape — QUIET: field + front, no words.
+  derivativesPressure: [S, S, Q],
 
   // ── Zones + profile + market objects: MID speaks ─────────────────────────
   marketZones: [X, S, Q],        // unselected zones are wordless outlines already
