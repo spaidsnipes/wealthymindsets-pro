@@ -2223,6 +2223,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     window.addEventListener("wm-bigtrades-control", onCtl as any);
     return () => window.removeEventListener("wm-bigtrades-control", onCtl as any);
   }, []);
+  /** Settings › Sound Effects saved off (wm_settings.soundOn === false). */
+  const soundMasterOff = () => {
+    try { return JSON.parse(localStorage.getItem("wm_settings") || "{}").soundOn === false; } catch { return false; }
+  };
   // Lazy Web-Audio context for the water-bubble "absorb" sound
   const audioCtxRef    = useRef<AudioContext | null>(null);
   const lastBloopRef   = useRef(0);
@@ -2230,6 +2234,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     try {
       // User toggle — Big Trades / bubble sounds (default ON)
       if (typeof window !== "undefined" && localStorage.getItem("wm_bubble_sound") === "off") return;
+      // THE MASTER SWITCH (Garden 16 §40, found 2026-09-27): Settings ›
+      // "Sound Effects" saved wm_settings.soundOn and NOTHING read it — a
+      // setting with no consumer. It is now the product's sound master: saved
+      // OFF silences every chart sound. Only an explicit false does; the
+      // default (never saved) keeps today's behaviour.
+      if (typeof window !== "undefined" && soundMasterOff()) return;
       const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
       if (!Ctx) return;
       if (!audioCtxRef.current) audioCtxRef.current = new Ctx();

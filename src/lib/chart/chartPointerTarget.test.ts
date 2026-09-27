@@ -64,3 +64,15 @@ describe("the header's truth groups never split inside themselves from 1280 up (
     expect(src).toContain('<div className="ml-auto flex min-w-0 items-center gap-3" style={{ flexShrink: 2 }}>');
   });
 });
+
+describe("Settings › Sound Effects has a consumer (§40)", () => {
+  it("the chart's sound checks the saved master switch before playing", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(src).toContain('return JSON.parse(localStorage.getItem("wm_settings") || "{}").soundOn === false;');
+    const play = src.indexOf("const playBloop = useCallback(");
+    const gate = src.indexOf("soundMasterOff()) return;", play);
+    const osc = src.indexOf("createOscillator()", play);
+    expect(gate).toBeGreaterThan(play);
+    expect(osc).toBeGreaterThan(gate);
+  });
+});
